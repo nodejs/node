@@ -94,7 +94,7 @@ until the root of the volume is reached.
 }
 ```
 
-```bash
+```sh
 # In same folder as above package.json
 node my-app.js # Runs as ES module
 ```
@@ -184,7 +184,7 @@ Strings passed in as an argument to `--eval` (or `-e`), or piped to `node` via
 `STDIN`, will be treated as ES modules when the `--input-type=module` flag is
 set.
 
-```bash
+```sh
 node --input-type=module --eval "import { sep } from 'path'; console.log(sep);"
 
 echo "import { sep } from 'path'; console.log(sep);" | node --input-type=module
@@ -506,7 +506,7 @@ conditions behave analogously to nested JavaScript `if` statements.
 When running Node.js, custom user conditions can be added with the
 `--conditions` or `-u` flag:
 
-```bash
+```sh
 node --conditions=development main.js
 ```
 
@@ -1130,7 +1130,7 @@ import packageConfig from './package.json';
 The `--experimental-json-modules` flag is needed for the module
 to work.
 
-```bash
+```sh
 node index.mjs # fails
 node --experimental-json-modules index.mjs # works
 ```
@@ -1153,7 +1153,7 @@ console.log(M);
 
 executed under:
 
-```bash
+```sh
 node --experimental-wasm-modules index.mjs
 ```
 
@@ -1179,7 +1179,7 @@ import { five } from './a.mjs';
 console.log(five); // Logs `5`
 ```
 
-```bash
+```sh
 node b.mjs # works
 ```
 
@@ -1506,7 +1506,7 @@ console.log(VERSION);
 
 With this loader, running:
 
-```bash
+```sh
 node --experimental-loader ./https-loader.mjs ./main.mjs
 ```
 

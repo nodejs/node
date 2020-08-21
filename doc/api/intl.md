@@ -115,13 +115,13 @@ through either:
 
 * The [`NODE_ICU_DATA`][] environment variable:
 
-  ```bash
+  ```sh
   env NODE_ICU_DATA=/some/directory node
   ```
 
 * The [`--icu-data-dir`][] CLI parameter:
 
-  ```bash
+  ```sh
   node --icu-data-dir=/some/directory
   ```
 

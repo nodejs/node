@@ -134,7 +134,7 @@ For Mac developers, [Xcode][] offers all the required compiler tools.
 However, it is not necessary to install the entire Xcode IDE. The following
 command installs the necessary toolchain:
 
-```bash
+```sh
 xcode-select --install
 ```
 
@@ -142,7 +142,7 @@ For Windows developers, [Visual Studio][] offers all the required compiler
 tools. However, it is not necessary to install the entire Visual Studio
 IDE. The following command installs the necessary toolchain:
 
-```bash
+```sh
 npm install --global --production windows-build-tools
 ```
 

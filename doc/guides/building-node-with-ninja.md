@@ -28,7 +28,7 @@ compile much faster than even `make -j4` (or
 number of processes to run for [Ninja][] using the environment variable `JOBS`.
 This will be the equivalent to the `-j` parameter in the regular `make`:
 
-```bash
+```sh
 JOBS=12 make
 ```
 
@@ -36,7 +36,7 @@ JOBS=12 make
 
 To create a debug build rather than a release build:
 
-```bash
+```sh
 ./configure --ninja --debug && make
 ```
 

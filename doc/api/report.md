@@ -390,7 +390,7 @@ is provided below for reference.
 
 ## Usage
 
-```bash
+```sh
 node --report-uncaught-exception --report-on-signal \
 --report-on-fatalerror app.js
 ```
@@ -567,7 +567,7 @@ process.report.signal = 'SIGQUIT';
 Configuration on module initialization is also available via
 environment variables:
 
-```bash
+```sh
 NODE_OPTIONS="--report-uncaught-exception \
   --report-on-fatalerror --report-on-signal \
   --report-signal=SIGUSR2  --report-filename=./report.json \

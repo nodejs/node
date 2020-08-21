@@ -689,7 +689,7 @@ In `entry.js` script:
 console.log(require.main);
 ```
 
-```bash
+```sh
 node entry.js
 ```
 

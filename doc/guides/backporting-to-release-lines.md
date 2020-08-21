@@ -35,7 +35,7 @@ replace that with the staging branch for the targeted release line.
 2. Make sure that the local staging branch is up to date with the remote.
 3. Create a new branch off of the staging branch, as shown below.
 
-    ```bash
+    ```sh
     # Assuming your fork of Node.js is checked out in $NODE_DIR,
     # the origin remote points to your fork, and the upstream remote points
     # to git://github.com/nodejs/node

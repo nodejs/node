@@ -645,7 +645,7 @@ That means a commit has landed since your last rebase against `upstream/master`.
 To fix this, pull with rebase from upstream, run the tests again, and (if the
 tests pass) push again:
 
-```bash
+```sh
 git pull upstream master --rebase
 make -j4 test
 git push upstream master

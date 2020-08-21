@@ -30,7 +30,7 @@ the nodejs/node repository.
 
     Update the tag in the commands below, and run:
 
-    ```bash
+    ```sh
     cd tools/
     ./mk-ca-bundle.pl -v 2>_before
     curl -O https://hg.mozilla.org/projects/nss/raw-file/NSS_3_41_RTM/lib/ckfw/builtins/certdata.txt
@@ -57,7 +57,7 @@ the nodejs/node repository.
 
     Run the command below:
 
-    ```bash
+    ```sh
     ./mk-ca-bundle.pl -v 2>_after
     ```
 

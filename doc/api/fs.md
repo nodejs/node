@@ -3732,7 +3732,7 @@ fs.symlink('./mew', './example/mewtwo', callback);
 The above example creates a symbolic link `mewtwo` in the `example` which points
 to `mew` in the same directory:
 
-```bash
+```console
 $ tree example/
 example/
 ├── mew

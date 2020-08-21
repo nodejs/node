@@ -1223,14 +1223,14 @@ script file.
 In case an option value happens to contain a space (for example a path listed
 in `--require`), it must be escaped using double quotes. For example:
 
-```bash
+```sh
 NODE_OPTIONS='--require "./my path/file.js"'
 ```
 
 A singleton flag passed as a command line option will override the same flag
 passed into `NODE_OPTIONS`:
 
-```bash
+```sh
 # The inspector will be available on port 5555
 NODE_OPTIONS='--inspect=localhost:4444' node --inspect=localhost:5555
 ```
@@ -1239,7 +1239,7 @@ A flag that can be passed multiple times will be treated as if its
 `NODE_OPTIONS` instances were passed first, and then its command line
 instances afterwards:
 
-```bash
+```sh
 NODE_OPTIONS='--require "./a.js"' node --require "./b.js"
 # is equivalent to:
 node --require "./a.js" --require "./b.js"

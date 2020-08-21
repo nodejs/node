@@ -14,7 +14,7 @@ not the test suite).
 
 Just the usual. For Node:
 
-```Bash
+```sh
 npm install webidl2
 ```
 
@@ -604,21 +604,21 @@ should be enough once you're set up.
 Current test coverage, as documented in `coverage.html`, is 95%. You can run your own
 coverage analysis with:
 
-```Bash
+```sh
 jscoverage lib lib-cov
 ```
 
 That will create the lib-cov directory with instrumented code; the test suite knows
 to use that if needed. You can then run the tests with:
 
-```Bash
+```sh
 JSCOV=1 mocha --reporter html-cov > coverage.html
 ```
 
 Note that I've been getting weirdly overescaped results from the html-cov reporter,
 so you might wish to try this instead:
 
-```Bash
+```sh
 JSCOV=1 mocha  --reporter html-cov | sed "s/&lt;/</g" | sed "s/&gt;/>/g" | sed "s/&quot;/\"/g" > coverage.html
 ```
 ### Browser tests
