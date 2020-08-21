@@ -3613,8 +3613,6 @@ void QuicSession::OnQlogWrite(
 BaseObjectPtr<QLogStream> QLogStream::Create(Environment* env) {
   HandleScope scope(env->isolate());
 
-  // TODO(@jasnell): There is identical code in heap_utils for the
-  // HeapSnapshotStream. We can consolidate the two.
   if (env->qlogoutputstream_constructor_template().IsEmpty()) {
     // Create FunctionTemplate for QLogStream
     Local<FunctionTemplate> os = FunctionTemplate::New(env->isolate());
