@@ -78,6 +78,10 @@ it still gets the benefits of the ABI stability provided by the C API.
 When using `node-addon-api` instead of the C APIs, start with the API [docs][]
 for `node-addon-api`.
 
+The [N-API Resource](https://nodejs.github.io/node-addon-examples/) offers an
+excellent orientation and tips for developers just getting started with N-API
+and node-addon-api.
+
 ## Implications of ABI stability
 
 Although N-API provides an ABI stability guarantee, other parts of Node.js do
