@@ -111,6 +111,8 @@ const customTypesMap = {
 
   'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',
 
+  'Channel': 'diagnostics_channel.html#diagnostics_channel_class_channel',
+
   'Domain': 'domain.html#domain_class_domain',
 
   'errors.Error': 'errors.html#errors_class_error',
