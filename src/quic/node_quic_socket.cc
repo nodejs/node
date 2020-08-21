@@ -542,19 +542,17 @@ void QuicSocket::OnReceive(
       // a stateless reset. The stateless reset contains a token derived
       // from the received destination connection ID.
       //
-      // TODO(@jasnell): Stateless resets are generated programmatically
-      // using HKDF with the sender provided dcid and a locally provided
-      // secret as input. It is entirely possible that a malicious
-      // peer could send multiple stateless reset eliciting packets
-      // with the specific intent of using the returned stateless
-      // reset to guess the stateless reset token secret used by
-      // the server. Once guessed, the malicious peer could use
+      // Stateless resets are generated programmatically using HKDF with
+      // the sender provided dcid and a locally provided secret as input.
+      // It is entirely possible that a malicious peer could send multiple
+      // stateless reset eliciting packets with the specific intent of using
+      // the returned stateless reset to guess the stateless reset token
+      // secret used by the server. Once guessed, the malicious peer could use
       // that secret as a DOS vector against other peers. We currently
       // implement some mitigations for this by limiting the number
       // of stateless resets that can be sent to a specific remote
-      // address but there are other possible mitigations, such as
-      // including the remote address as input in the generation of
-      // the stateless token.
+      // address and we generate a random nonce used in creation of the
+      // token.
       if (is_short_header &&
           SendStatelessReset(dcid, local_addr, remote_addr, nread)) {
         Debug(this, "Sent stateless reset");
@@ -620,7 +618,7 @@ void QuicSocket::SendVersionNegotiation(
   SendPacket(local_addr, remote_address, std::move(packet));
 }
 
-// Possible generates and sends a stateless reset packet.
+// Possibly generates and sends a stateless reset packet.
 // This is terminal for the connection. It is possible
 // that a malicious packet triggered this so we need to
 // be careful not to commit too many resources.
