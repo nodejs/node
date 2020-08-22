@@ -2498,7 +2498,8 @@ added: v0.1.3
 
 * {string}
 
-The `process.version` property returns the Node.js version string.
+The `process.version` property returns the Node.js version string in the form of
+`v<major>.<minor>.<patch>`.
 
 ```js
 console.log(`Version: ${process.version}`);
