@@ -239,7 +239,7 @@ Node.js, and a sufficiently committed person could restructure Node.js to
 provide built-in modules inside of `vm.Context`s.
 
 Often, the `Context` is passed around for [exception handling][].
-Typical ways of accessing the current `Environment` in the Node.js code are:
+Typical ways of accessing the current `Context` in the Node.js code are:
 
 * Given an [`Isolate`][], using `isolate->GetCurrentContext()`.
 * Given an [`Environment`][], using `env->context()` to get the `Environment`’s
