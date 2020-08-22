@@ -7,8 +7,8 @@
 * {Object}
 
 Provides general utility methods when interacting with instances of
-`Module`, the `module` variable often seen in file modules. Accessed
-via `require('module')`.
+`Module`, the [`module`][] variable often seen in [CommonJS][] modules. Accessed
+via `import 'module'` or `require('module')`.
 
 ### `module.builtinModules`
 <!-- YAML
@@ -27,6 +27,14 @@ if a module is maintained by a third party or not.
 by the [module wrapper][]. To access it, require the `Module` module:
 
 ```js
+// module.mjs
+// In an ECMAScript module
+import { builtinModules as builtin } from 'module';
+```
+
+```js
+// module.cjs
+// In a CommonJS module
 const builtin = require('module').builtinModules;
 ```
 
@@ -74,8 +82,8 @@ added: v12.12.0
 -->
 
 The `module.syncBuiltinESMExports()` method updates all the live bindings for
-builtin ES Modules to match the properties of the CommonJS exports. It does
-not add or remove exported names from the ES Modules.
+builtin [ES Modules][] to match the properties of the [CommonJS][] exports. It
+does not add or remove exported names from the [ES Modules][].
 
 ```js
 const fs = require('fs');
@@ -116,6 +124,14 @@ To enable source map parsing, Node.js must be run with the flag
 [`NODE_V8_COVERAGE=dir`][].
 
 ```js
+// module.mjs
+// In an ECMAScript module
+import { findSourceMap, SourceMap } from 'module';
+```
+
+```js
+// module.cjs
+// In a CommonJS module
 const { findSourceMap, SourceMap } = require('module');
 ```
 
@@ -192,3 +208,6 @@ consists of the following keys:
 [`createRequire()`]: #module_module_createrequire_filename
 [module wrapper]: modules_cjs.html#modules_cjs_the_module_wrapper
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
+[`module`]: modules.html#modules_the_module_object
+[CommonJS]: modules.html
+[ES Modules]: esm.html
