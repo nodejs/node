@@ -4,11 +4,14 @@ const assert = require('assert');
 
 const dns = require('dns');
 const resolver = new dns.Resolver();
+const promiseResolver = new dns.promises.Resolver();
 
 // Verifies that setLocalAddress succeeds with IPv4 and IPv6 addresses
 {
   resolver.setLocalAddress('127.0.0.1');
   resolver.setLocalAddress('::1');
+  promiseResolver.setLocalAddress('127.0.0.1');
+  promiseResolver.setLocalAddress('::1');
 }
 
 // Verify that setLocalAddress throws if called with an invalid address
@@ -21,5 +24,8 @@ const resolver = new dns.Resolver();
   }, Error);
   assert.throws(() => {
     resolver.setLocalAddress();
+  }, Error);
+  assert.throws(() => {
+    promiseResolver.setLocalAddress();
   }, Error);
 }
