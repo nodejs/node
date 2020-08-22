@@ -89,7 +89,7 @@ In most native Node.js objects, the first internal field is used to store a
 pointer to a [`BaseObject`][] subclass, which then contains all relevant
 information associated with the JavaScript object.
 
-The most typical way of working internal fields are:
+Typical ways of working with internal fields are:
 
 * `obj->InternalFieldCount()` to look up the number of internal fields for an
   object (`0` for regular JavaScript objects).
