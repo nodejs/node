@@ -11,7 +11,7 @@ const resolver = new dns.Resolver();
   resolver.setLocalAddress('::1');
 }
 
-// Verifiy that setLocalAddress throws if called with an invalid address
+// Verify that setLocalAddress throws if called with an invalid address
 {
   assert.throws(() => {
     resolver.setLocalAddress('bad');
