@@ -2240,15 +2240,9 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
   unsigned char addr[sizeof(struct in6_addr)];
 
   if (uv_inet_pton(AF_INET, *ip, &addr) == 0) {
-    unsigned int ip4 = (addr[0] << 24) +
-      (addr[1] << 16) +
-      (addr[2] << 8) +
-      addr[3];
-    ares_set_local_ip4(channel->cares_channel(), ip4);
+    ares_set_local_ip4(channel->cares_channel(), cares_get_32bit(addr));
   } else if (uv_inet_pton(AF_INET6, *ip, &addr) == 0) {
-    ares_set_local_ip6(
-      channel->cares_channel(),
-      reinterpret_cast<const unsigned char*>(&addr));
+    ares_set_local_ip6(channel->cares_channel(), addr);
   } else {
     return env->ThrowError("Invalid IP address.");
   }
