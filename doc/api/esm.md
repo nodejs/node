@@ -95,7 +95,7 @@ until the root of the volume is reached.
 ```
 
 ```bash
-# In same folder as above package.json
+# In same folder as preceding package.json
 node my-app.js # Runs as ES module
 ```
 
@@ -542,7 +542,7 @@ import { something } from 'a-package'; // Imports "something" from ./main.mjs.
 
 Self-referencing is available only if `package.json` has `exports`, and will
 allow importing only what that `exports` (in the `package.json`) allows.
-So the code below, given the package above, will generate a runtime error:
+So the code below, given the previous package, will generate a runtime error:
 
 ```js
 // ./another-module.mjs
@@ -689,7 +689,7 @@ CommonJS entry point for `require`.
 }
 ```
 
-The above example uses explicit extensions `.mjs` and `.cjs`.
+The preceding example uses explicit extensions `.mjs` and `.cjs`.
 If your files use the `.js` extension, `"type": "module"` will cause such files
 to be treated as ES modules, just as `"type": "commonjs"` would cause them
 to be treated as CommonJS.
@@ -1309,7 +1309,7 @@ export async function getFormat(url, context, defaultGetFormat) {
   if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for determining format.
     // Always return an object of the form {format: <string>}, where the
-    // format is one of the strings in the table above.
+    // format is one of the strings in the preceding table.
     return {
       format: 'module',
     };
