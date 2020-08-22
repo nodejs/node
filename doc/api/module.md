@@ -29,7 +29,7 @@ by the [module wrapper][]. To access it, require the `Module` module:
 ```js
 // module.mjs
 // In an ECMAScript module
-import { builtinModules } from 'module';
+import { builtinModules as builtin } from 'module';
 ```
 
 ```js
