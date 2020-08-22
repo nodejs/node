@@ -14,13 +14,13 @@ server.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server.address().port}`);
   const req = session.request();
 
-  req.on('response', (headers, flags) => {
+  req.on('response', common.mustCall((headers, flags) => {
     assert.strictEqual('Date' in headers, false);
     assert.strictEqual('date' in headers, false);
-  });
+  }));
 
-  req.on('end', () => {
+  req.on('end', common.mustCall(() => {
     session.close();
     server.close();
-  });
+  }));
 }));
