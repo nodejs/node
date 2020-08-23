@@ -49,7 +49,7 @@ for (const link of toc.match(/<a.*?>/g)) {
 
 // Replace various mentions of index with all.
 let all = toc.replace(/index\.html/g, 'all.html')
-  .replace('<a href="all.html" name="toc">', '<a href="index.html" name="toc">')
+  .replace('<a href="all.html">', '<a href="index.html">')
   .replace('index.json', 'all.json')
   .replace('api-section-index', 'api-section-all')
   .replace('data-id="index"', 'data-id="all"')
