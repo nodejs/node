@@ -10,6 +10,153 @@ A folder containing a `package.json` file, and all subfolders below that folder
 until the next folder containing another `package.json` file, are a _package
 scope_.
 
+## Determining module system
+
+Node.js will treat the following as [ES modules][] when passed to `node` as the
+initial input, or when referenced by `import` statements within ES module code:
+
+* Files ending in `.mjs`.
+
+* Files ending in `.js` when the nearest parent `package.json` file contains a
+  top-level field `"type"` with a value of `"module"`.
+
+* Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
+  with the flag `--input-type=module`.
+
+Node.js will treat as [CommonJS][] all other forms of input, such as `.js` files
+where the nearest parent `package.json` file contains no top-level `"type"`
+field, or string input without the flag `--input-type`. This behavior is to
+preserve backward compatibility. However, now that Node.js supports both
+CommonJS and ES modules, it is best to be explicit whenever possible. Node.js
+will treat the following as CommonJS when passed to `node` as the initial input,
+or when referenced by `import` statements within ES module code:
+
+* Files ending in `.cjs`.
+
+* Files ending in `.js` when the nearest parent `package.json` file contains a
+  top-level field `"type"` with a value of `"commonjs"`.
+
+* Strings passed in as an argument to `--eval` or `--print`, or piped to `node`
+  via `STDIN`, with the flag `--input-type=commonjs`.
+
+### `package.json` `"type"` field
+
+Files ending with `.js` will be loaded as [ES modules][] when the nearest parent
+`package.json` file contains a top-level field `"type"` with a value of
+`"module"`.
+
+The nearest parent `package.json` is defined as the first `package.json` found
+when searching in the current folder, that folder’s parent, and so on up
+until the root of the volume is reached.
+
+<!-- eslint-skip -->
+```js
+// package.json
+{
+  "type": "module"
+}
+```
+
+```bash
+# In same folder as preceding package.json
+node my-app.js # Runs as ES module
+```
+
+If the nearest parent `package.json` lacks a `"type"` field, or contains
+`"type": "commonjs"`, `.js` files are treated as [CommonJS][]. If the volume
+root is reached and no `package.json` is found, Node.js defers to the default, a
+`package.json` with no `"type"` field.
+
+`import` statements of `.js` files are treated as ES modules if the nearest
+parent `package.json` contains `"type": "module"`.
+
+```js
+// my-app.js, part of the same example as above
+import './startup.js'; // Loaded as ES module because of package.json
+```
+
+Package authors should include the `"type"` field, even in packages where all
+sources are [CommonJS][]. Being explicit about the `type` of the package will
+future-proof the package in case the default type of Node.js ever changes, and
+it will also make things easier for build tools and loaders to determine how the
+files in the package should be interpreted.
+
+Regardless of the value of the `"type"` field, `.mjs` files are always treated
+as ES modules and `.cjs` files are always treated as [CommonJS][].
+
+### Package scope and file extensions
+
+A folder containing a `package.json` file, and all subfolders below that folder
+until the next folder containing another `package.json`, are a
+_package scope_. The `"type"` field defines how to treat `.js` files
+within the package scope. Every package in a
+project’s `node_modules` folder contains its own `package.json` file, so each
+project’s dependencies have their own package scopes. If a `package.json` file
+does not have a `"type"` field, the default `"type"` is `"commonjs"`.
+
+The package scope applies not only to initial entry points (`node my-app.js`)
+but also to files referenced by `import` statements and `import()` expressions.
+
+```js
+// my-app.js, in an ES module package scope because there is a package.json
+// file in the same folder with "type": "module".
+
+import './startup/init.js';
+// Loaded as ES module since ./startup contains no package.json file,
+// and therefore inherits the ES module package scope from one level up.
+
+import 'commonjs-package';
+// Loaded as CommonJS since ./node_modules/commonjs-package/package.json
+// lacks a "type" field or contains "type": "commonjs".
+
+import './node_modules/commonjs-package/index.js';
+// Loaded as CommonJS since ./node_modules/commonjs-package/package.json
+// lacks a "type" field or contains "type": "commonjs".
+```
+
+Files ending with `.mjs` are always loaded as [ES modules][] regardless of
+package scope.
+
+Files ending with `.cjs` are always loaded as [CommonJS][] regardless of package
+scope.
+
+```js
+import './legacy-file.cjs';
+// Loaded as CommonJS since .cjs is always loaded as CommonJS.
+
+import 'commonjs-package/src/index.mjs';
+// Loaded as ES module since .mjs is always loaded as ES module.
+```
+
+The `.mjs` and `.cjs` extensions may be used to mix types within the same
+package scope:
+
+* Within a `"type": "module"` package scope, Node.js can be instructed to
+  interpret a particular file as [CommonJS][] by naming it with a `.cjs`
+  extension (since both `.js` and `.mjs` files are treated as ES modules within
+  a `"module"` package scope).
+
+* Within a `"type": "commonjs"` package scope, Node.js can be instructed to
+  interpret a particular file as an ES module by naming it with an `.mjs`
+  extension (since both `.js` and `.cjs` files are treated as CommonJS within a
+  `"commonjs"` package scope).
+
+### `--input-type` flag
+
+Strings passed in as an argument to `--eval` (or `-e`), or piped to `node` via
+`STDIN`, will be treated as [ES modules][] when the `--input-type=module` flag
+is set.
+
+```bash
+node --input-type=module --eval "import { sep } from 'path'; console.log(sep);"
+
+echo "import { sep } from 'path'; console.log(sep);" | node --input-type=module
+```
+
+For completeness there is also `--input-type=commonjs`, for explicitly running
+string input as CommonJS. This is the default behavior if `--input-type` is
+unspecified.
+
 ## Package entry points
 
 In a package’s `package.json` file, two fields can define entry points for a
@@ -679,3 +826,5 @@ conditional exports for consumers could be to add an export, e.g.
 [`esm`]: https://github.com/standard-things/esm#readme
 [the full specifier path]: modules_esm.html#modules_esm_mandatory_file_extensions
 [the dual CommonJS/ES module packages section]: #packages_dual_commonjs_es_module_packages
+[ES modules]: esm.html
+[CommonJS]: modules.html
