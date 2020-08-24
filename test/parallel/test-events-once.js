@@ -1,9 +1,14 @@
 'use strict';
-// Flags: --expose-internals
+// Flags: --expose-internals --no-warnings --experimental-abortcontroller
 
 const common = require('../common');
 const { once, EventEmitter } = require('events');
-const { strictEqual, deepStrictEqual, fail } = require('assert');
+const {
+  strictEqual,
+  deepStrictEqual,
+  fail,
+  rejects,
+} = require('assert');
 const { EventTarget, Event } = require('internal/event_target');
 
 async function onceAnEvent() {
@@ -114,6 +119,81 @@ async function prioritizesEventEmitter() {
   process.nextTick(() => ee.emit('foo'));
   await once(ee, 'foo');
 }
+
+async function abortSignalBefore() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+  ee.on('error', common.mustNotCall());
+  ac.abort();
+
+  await Promise.all([1, {}, 'hi', null, false].map((signal) => {
+    return rejects(once(ee, 'foo', { signal }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
+
+  return rejects(once(ee, 'foo', { signal: ac.signal }), {
+    name: 'AbortError'
+  });
+}
+
+async function abortSignalAfter() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+  ee.on('error', common.mustNotCall());
+  const r = rejects(once(ee, 'foo', { signal: ac.signal }), {
+    name: 'AbortError'
+  });
+  process.nextTick(() => ac.abort());
+  return r;
+}
+
+async function abortSignalAfterEvent() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+  process.nextTick(() => {
+    ee.emit('foo');
+    ac.abort();
+  });
+  await once(ee, 'foo', { signal: ac.signal });
+}
+
+async function eventTargetAbortSignalBefore() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+  ac.abort();
+
+  await Promise.all([1, {}, 'hi', null, false].map((signal) => {
+    return rejects(once(et, 'foo', { signal }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
+
+  return rejects(once(et, 'foo', { signal: ac.signal }), {
+    name: 'AbortError'
+  });
+}
+
+async function eventTargetAbortSignalAfter() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+  const r = rejects(once(et, 'foo', { signal: ac.signal }), {
+    name: 'AbortError'
+  });
+  process.nextTick(() => ac.abort());
+  return r;
+}
+
+async function eventTargetAbortSignalAfterEvent() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+  process.nextTick(() => {
+    et.dispatchEvent(new Event('foo'));
+    ac.abort();
+  });
+  await once(et, 'foo', { signal: ac.signal });
+}
+
 Promise.all([
   onceAnEvent(),
   onceAnEventWithTwoArgs(),
@@ -123,4 +203,10 @@ Promise.all([
   onceWithEventTarget(),
   onceWithEventTargetError(),
   prioritizesEventEmitter(),
+  abortSignalBefore(),
+  abortSignalAfter(),
+  abortSignalAfterEvent(),
+  eventTargetAbortSignalBefore(),
+  eventTargetAbortSignalAfter(),
+  eventTargetAbortSignalAfterEvent(),
 ]).then(common.mustCall());
