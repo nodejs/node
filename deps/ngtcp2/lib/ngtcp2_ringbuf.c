@@ -31,20 +31,24 @@
 
 #include "ngtcp2_macro.h"
 
-#if defined(_MSC_VER) && defined(_M_ARM64)
-unsigned int __popcnt(unsigned int x) {
+#if defined(_WIN32)
+#  if defined(_M_ARM64)
+unsigned int __ngtcp2_popcnt(unsigned int x) {
   unsigned int c = 0;
   for (; x; ++c) {
     x &= x - 1;
   }
   return c;
 }
+#  else
+#    define __ngtcp2_popcnt __popcnt
+#  endif
 #endif
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
 #ifdef WIN32
-  assert(1 == __popcnt((unsigned int)nmemb));
+  assert(1 == __ngtcp2_popcnt((unsigned int)nmemb));
 #else
   assert(1 == __builtin_popcount((unsigned int)nmemb));
 #endif
