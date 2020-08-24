@@ -825,7 +825,7 @@ class MyClass extends EventEmitter {
 }
 ```
 
-## `events.once(emitter, name)`
+## `events.once(emitter, name[, options])`
 <!-- YAML
 added:
  - v11.13.0
@@ -834,6 +834,9 @@ added:
 
 * `emitter` {EventEmitter}
 * `name` {string}
+* `options` {Object}
+  * `signal` {AbortSignal} An {AbortSignal} that may be used to cancel waiting
+    for the event.
 * Returns: {Promise}
 
 Creates a `Promise` that is fulfilled when the `EventEmitter` emits the given
@@ -890,6 +893,31 @@ once(ee, 'error')
 ee.emit('error', new Error('boom'));
 
 // Prints: ok boom
+```
+
+An {AbortSignal} may be used to cancel waiting for the event early:
+
+```js
+const { EventEmitter, once } = require('events');
+
+const ee = new EventEmitter();
+const ac = new AbortController();
+
+async function foo(emitter, event, signal) {
+  try {
+    await once(emitter, event, { signal });
+    console.log('event emitted!');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('Waiting for the event was canceled!');
+    } else {
+      console.error('There was an error', error.message);
+    }
+  }
+}
+
+foo(ee, 'foo', ac.signal);
+ac.abort(); // Abort waiting for the event
 ```
 
 ### Awaiting multiple events emitted on `process.nextTick()`
