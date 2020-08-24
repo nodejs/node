@@ -289,7 +289,7 @@ It can be constructed in a variety of ways.
 added: v5.10.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/#####
+    pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
                  for invalid input arguments.
   - version: v10.0.0
@@ -358,7 +358,7 @@ A `TypeError` will be thrown if `size` is not a number.
 added: v5.10.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/#####
+    pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
                  for invalid input arguments.
   - version: v7.0.0
@@ -411,7 +411,7 @@ additional performance that [`Buffer.allocUnsafe()`][] provides.
 added: v5.12.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/#####
+    pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
                  for invalid input arguments.
 -->
