@@ -1626,6 +1626,8 @@ added: REPLACEME
   * `maxStreamDataUni` {number}
   * `maxStreamsBidi` {number}
   * `maxStreamsUni` {number}
+  * `signal` {AbortSignal} Optionally allows the `connect()` to be canceled
+    using an `AbortController`.
   * `h3` {Object} HTTP/3 Specific Configuration Options
     * `qpackMaxTableCapacity` {number}
     * `qpackBlockedStreams` {number}
@@ -1830,6 +1832,8 @@ added: REPLACEME
     [OpenSSL Options][].
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
+  * `signal` {AbortSignal} Optionally allows the `listen()` to be canceled
+    using an `AbortController`.
 * Returns: {Promise}
 
 Listen for new peer-initiated sessions. Returns a `Promise` that is resolved
