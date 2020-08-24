@@ -36,7 +36,7 @@ properties:
 The N-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. A C++ API can be easier to use.
 To support using C++, the project maintains a
-C++ wrapper module called [node-addon-api][].
+C++ wrapper module called [`node-addon-api`][].
 This wrapper provides an inlineable C++ API. Binaries built
 with `node-addon-api` will depend on the symbols for the N-API C-based
 functions exported by Node.js. `node-addon-api` is a more
@@ -80,7 +80,7 @@ for `node-addon-api`.
 
 The [N-API Resource](https://nodejs.github.io/node-addon-examples/) offers an
 excellent orientation and tips for developers just getting started with N-API
-and node-addon-api.
+and `node-addon-api`.
 
 ## Implications of ABI stability
 
@@ -5812,6 +5812,7 @@ This API may only be called from the main thread.
 [`napi_throw`]: #n_api_napi_throw
 [`napi_unwrap`]: #n_api_napi_unwrap
 [`napi_wrap`]: #n_api_napi_wrap
+[`node-addon-api`]: https://github.com/nodejs/node-addon-api
 [`node_api.h`]: https://github.com/nodejs/node/blob/master/src/node_api.h
 [`process.release`]: process.html#process_process_release
 [`uv_ref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
@@ -5821,7 +5822,6 @@ This API may only be called from the main thread.
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
 [global scope]: globals.html
 [module scope]: modules.html#modules_the_module_scope
-[node-addon-api]: https://github.com/nodejs/node-addon-api
 [node-gyp]: https://github.com/nodejs/node-gyp
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
 [prebuild]: https://github.com/prebuild/prebuild
