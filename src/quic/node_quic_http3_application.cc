@@ -122,18 +122,13 @@ Http3Application::Http3Application(
 int64_t Http3Application::CreateAndBindPushStream(int64_t push_id) {
   CHECK(session()->is_server());
   int64_t stream_id;
-  if (!session()->OpenUnidirectionalStream(&stream_id))
-    return 0;
-  return nghttp3_conn_bind_push_stream(
-      connection(),
-      push_id,
-      stream_id) == 0 ? stream_id : 0;
+  return session()->OpenUnidirectionalStream(&stream_id) &&
+      nghttp3_conn_bind_push_stream(connection(), push_id, stream_id) == 0
+          ? stream_id : 0;
 }
 
-bool Http3Application::SubmitPushPromise(
+Http3Application::PushInfo Http3Application::SubmitPushPromise(
     int64_t id,
-    int64_t* push_id,
-    int64_t* stream_id,
     const Http3Headers& headers) {
   // Successfully creating the push promise and opening the
   // fulfillment stream will queue nghttp3 up to send data.
@@ -141,28 +136,41 @@ bool Http3Application::SubmitPushPromise(
   // SubmitPush exits, SendPendingData will be called if
   // we are not within the context of an ngtcp2 callback.
   QuicSession::SendSessionScope send_scope(session());
+  PushInfo info{};
 
   Debug(
-    session(),
-    "Submitting %d push promise headers",
-    headers.length());
+      session(),
+      "Submitting %d push promise headers",
+      headers.length());
   if (nghttp3_conn_submit_push_promise(
           connection(),
-          push_id,
+          &info.push_id,
           id,
           headers.data(),
-          headers.length()) != 0) {
-    return false;
+          headers.length()) == 0) {
+    // Once we've successfully submitted the push promise and have
+    // a push id assigned, we create the push fulfillment stream.
+    info.stream_id = CreateAndBindPushStream(info.push_id);
+    Debug(
+        session(),
+        "Push stream created and bound. Push ID: %" PRId64
+        ". Stream ID: %" PRId64,
+        info.push_id,
+        info.stream_id);
   }
-  // Once we've successfully submitting the push promise and have
-  // a push id assigned, we create the push fulfillment stream.
-  *stream_id = CreateAndBindPushStream(*push_id);
-  return *stream_id != 0;  // push stream can never use stream id 0
+  return info;
 }
 
+// Information headers are 1xx status blocks that are transmitted
+// before the initial response headers. They should only ever be
+// transmitted by the server, however, other than checking that
+// this QuicSession is a server, we do not perform any additional
+// verification.
 bool Http3Application::SubmitInformation(
     int64_t id,
     const Http3Headers& headers) {
+  if (!session()->is_server())
+    return false;
   QuicSession::SendSessionScope send_scope(session());
   Debug(
       session(),
@@ -176,6 +184,8 @@ bool Http3Application::SubmitInformation(
       headers.length()) == 0;
 }
 
+// Trailers are headers that are transmitted after the HTTP message
+// payload and may be sent by either server or client.
 bool Http3Application::SubmitTrailers(
     int64_t id,
     const Http3Headers& headers) {
@@ -232,24 +242,20 @@ bool Http3Application::SubmitHeaders(
 // The headers block passed to the submit push contains the assumed
 // *request* headers. The response headers are provided using the
 // SubmitHeaders() function on the created QuicStream.
+//
+// A push can only be submitted on the server-side.
 BaseObjectPtr<QuicStream> Http3Application::SubmitPush(
     int64_t id,
     Local<Array> headers) {
-  // If the QuicSession is not a server session, return false
-  // immediately. Push streams cannot be sent by an HTTP/3 client.
-  if (!session()->is_server())
-    return {};
 
-  Http3Headers nva(env(), headers);
-  int64_t push_id;
-  int64_t stream_id;
+  Http3Application::PushInfo info{};
 
-  // There are several reasons why push may fail. We currently handle
-  // them all the same. Later we might want to differentiate when the
-  // return value is NGHTTP3_ERR_PUSH_ID_BLOCKED.
-  return SubmitPushPromise(id, &push_id, &stream_id, nva) ?
-      QuicStream::New(session(), stream_id, push_id) :
-      BaseObjectPtr<QuicStream>();
+  if (session()->is_server())
+    info = SubmitPushPromise(id, Http3Headers(env(), headers));
+
+  return info.stream_id != 0
+      ? QuicStream::New(session(), info.stream_id, info.push_id)
+      : BaseObjectPtr<QuicStream>();
 }
 
 // Submit informational headers (response headers that use a 1xx
@@ -259,10 +265,7 @@ BaseObjectPtr<QuicStream> Http3Application::SubmitPush(
 bool Http3Application::SubmitInformation(
     int64_t stream_id,
     Local<Array> headers) {
-  if (!session()->is_server())
-    return false;
-  Http3Headers nva(session()->env(), headers);
-  return SubmitInformation(stream_id, nva);
+  return SubmitInformation(stream_id, Http3Headers(session()->env(), headers));
 }
 
 // For client sessions, submits request headers. For server sessions,
@@ -271,16 +274,17 @@ bool Http3Application::SubmitHeaders(
     int64_t stream_id,
     Local<Array> headers,
     uint32_t flags) {
-  Http3Headers nva(session()->env(), headers);
-  return SubmitHeaders(stream_id, nva, flags);
+  return SubmitHeaders(
+      stream_id,
+      Http3Headers(session()->env(), headers),
+      flags);
 }
 
 // Submits trailing headers for the HTTP/3 request or response.
 bool Http3Application::SubmitTrailers(
     int64_t stream_id,
     Local<Array> headers) {
-  Http3Headers nva(session()->env(), headers);
-  return SubmitTrailers(stream_id, nva);
+  return SubmitTrailers(stream_id, Http3Headers(session()->env(), headers));
 }
 
 void Http3Application::CheckAllocatedSize(size_t previous_size) const {
@@ -387,13 +391,12 @@ bool Http3Application::Initialize() {
         params.initial_max_streams_bidi);
   }
 
-  if (!CreateAndBindControlStream() ||
-      !CreateAndBindQPackStreams()) {
-    return false;
+  if (CreateAndBindControlStream() && CreateAndBindQPackStreams()) {
+    set_init_done();
+    return true;
   }
 
-  set_init_done();
-  return true;
+  return false;
 }
 
 // All HTTP/3 control, header, and stream data arrives as QUIC stream data.

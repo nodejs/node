@@ -152,10 +152,14 @@ class Http3Application final :
   bool BlockStream(int64_t stream_id) override;
   bool StreamCommit(StreamData* stream_data, size_t datalen) override;
   bool ShouldSetFin(const StreamData& data) override;
-  bool SubmitPushPromise(
+
+  struct PushInfo {
+    int64_t push_id;
+    int64_t stream_id;
+  };
+
+  PushInfo SubmitPushPromise(
       int64_t id,
-      int64_t* push_id,
-      int64_t* stream_id,
       const Http3Headers& headers);
   bool SubmitInformation(int64_t id, const Http3Headers& headers);
   bool SubmitTrailers(int64_t id, const Http3Headers& headers);
