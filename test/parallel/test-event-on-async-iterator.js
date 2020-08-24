@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -248,6 +248,117 @@ async function nodeEventTarget() {
   clearInterval(interval);
 }
 
+async function abortableOnBefore() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+  ac.abort();
+  [1, {}, null, false, 'hi'].forEach((signal) => {
+    assert.throws(() => on(ee, 'foo', { signal }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  });
+  assert.throws(() => on(ee, 'foo', { signal: ac.signal }), {
+    name: 'AbortError'
+  });
+}
+
+async function eventTargetAbortableOnBefore() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+  ac.abort();
+  [1, {}, null, false, 'hi'].forEach((signal) => {
+    assert.throws(() => on(et, 'foo', { signal }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  });
+  assert.throws(() => on(et, 'foo', { signal: ac.signal }), {
+    name: 'AbortError'
+  });
+}
+
+async function abortableOnAfter() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+
+  const i = setInterval(() => ee.emit('foo', 'foo'), 10);
+
+  async function foo() {
+    for await (const f of on(ee, 'foo', { signal: ac.signal })) {
+      assert.strictEqual(f, 'foo');
+    }
+  }
+
+  foo().catch(common.mustCall((error) => {
+    assert.strictEqual(error.name, 'AbortError');
+  })).finally(() => {
+    clearInterval(i);
+  });
+
+  process.nextTick(() => ac.abort());
+}
+
+async function eventTargetAbortableOnAfter() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+
+  const i = setInterval(() => et.dispatchEvent(new Event('foo')), 10);
+
+  async function foo() {
+    for await (const f of on(et, 'foo', { signal: ac.signal })) {
+      assert(f);
+    }
+  }
+
+  foo().catch(common.mustCall((error) => {
+    assert.strictEqual(error.name, 'AbortError');
+  })).finally(() => {
+    clearInterval(i);
+  });
+
+  process.nextTick(() => ac.abort());
+}
+
+async function eventTargetAbortableOnAfter2() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+
+  const i = setInterval(() => et.dispatchEvent(new Event('foo')), 10);
+
+  async function foo() {
+    for await (const f of on(et, 'foo', { signal: ac.signal })) {
+      assert(f);
+      // Cancel after a single event has been triggered.
+      ac.abort();
+    }
+  }
+
+  foo().catch(common.mustCall((error) => {
+    assert.strictEqual(error.name, 'AbortError');
+  })).finally(() => {
+    clearInterval(i);
+  });
+}
+
+async function abortableOnAfterDone() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+
+  const i = setInterval(() => ee.emit('foo', 'foo'), 1);
+  let count = 0;
+
+  async function foo() {
+    for await (const f of on(ee, 'foo', { signal: ac.signal })) {
+      assert.strictEqual(f[0], 'foo');
+      if (++count === 5)
+        break;
+    }
+    ac.abort();  // No error will occur
+  }
+
+  foo().finally(() => {
+    clearInterval(i);
+  });
+}
 
 async function run() {
   const funcs = [
@@ -260,7 +371,13 @@ async function run() {
     iterableThrow,
     eventTarget,
     errorListenerCount,
-    nodeEventTarget
+    nodeEventTarget,
+    abortableOnBefore,
+    abortableOnAfter,
+    eventTargetAbortableOnBefore,
+    eventTargetAbortableOnAfter,
+    eventTargetAbortableOnAfter2,
+    abortableOnAfterDone
   ];
 
   for (const fn of funcs) {
