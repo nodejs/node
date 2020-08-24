@@ -2722,6 +2722,9 @@ closed.
 
 <a id="ERR_CPU_USAGE"></a>
 ### `ERR_CPU_USAGE`
+<!-- YAML
+removed: REPLACEME
+-->
 
 The native call from `process.cpuUsage` could not be processed.
 
