@@ -93,6 +93,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
 
 #if !HAVE_OPENSSL
       "crypto",
+      "crypto/promises",
       "https",
       "http2",
       "tls",

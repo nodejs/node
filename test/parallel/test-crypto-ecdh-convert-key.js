@@ -37,7 +37,7 @@ assert.throws(
   () => ECDH.convertKey(cafebabePubPtComp, 'badcurve'),
   {
     name: 'TypeError',
-    message: 'Invalid ECDH curve name'
+    message: 'Invalid EC curve name'
   });
 
 if (getCurves().includes('secp256k1')) {

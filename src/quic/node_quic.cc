@@ -1,7 +1,7 @@
 #include "debug_utils-inl.h"
 #include "node.h"
 #include "env-inl.h"
-#include "node_crypto.h"  // SecureContext
+#include "crypto/crypto_context.h"
 #include "crypto/crypto_common.h"
 #include "node_errors.h"
 #include "node_process.h"

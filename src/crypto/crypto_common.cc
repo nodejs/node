@@ -8,6 +8,7 @@
 #include "node_internals.h"
 #include "node_url.h"
 #include "string_bytes.h"
+#include "memory_tracker-inl.h"
 #include "v8.h"
 
 #include <openssl/ec.h>
@@ -39,7 +40,6 @@ using v8::Undefined;
 using v8::Value;
 
 namespace crypto {
-
 static constexpr int X509_NAME_FLAGS =
     ASN1_STRFLGS_ESC_CTRL |
     ASN1_STRFLGS_UTF8_CONVERT |

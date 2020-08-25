@@ -2690,7 +2690,7 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 [`crypto.randomBytes()`]: crypto.md#crypto_crypto_randombytes_size_callback
 [`crypto.scrypt()`]: crypto.md#crypto_crypto_scrypt_password_salt_keylen_options_callback
 [`decipher.final()`]: crypto.md#crypto_decipher_final_outputencoding
-[`decipher.setAuthTag()`]: crypto.md#crypto_decipher_setauthtag_buffer
+[`decipher.setAuthTag()`]: crypto.md#crypto_decipher_setauthtag_buffer_encoding
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.md#events_emitter_listenercount_eventname

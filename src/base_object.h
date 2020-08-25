@@ -101,7 +101,7 @@ class BaseObject : public MemoryRetainer {
   // This is a bit of a hack. See the override in async_wrap.cc for details.
   virtual bool IsDoneInitializing() const;
 
-  // Can be used to avoid this object keepling itself alive as a GC root
+  // Can be used to avoid this object keeping itself alive as a GC root
   // indefinitely, for example when this object is owned and deleted by another
   // BaseObject once that is torn down. This can only be called when there is
   // a BaseObjectPtr to this object.

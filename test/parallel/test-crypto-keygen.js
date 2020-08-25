@@ -869,7 +869,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   for (const modulusLength of [undefined, null, 'a', true, {}, [], 512.1, -1]) {
     assert.throws(() => generateKeyPair('rsa', {
       modulusLength
-    }), {
+    }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
       message: "The property 'options.modulusLength' is invalid. " +
@@ -882,7 +882,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.throws(() => generateKeyPair('rsa', {
       modulusLength: 4096,
       publicExponent
-    }), {
+    }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
       message: "The property 'options.publicExponent' is invalid. " +
@@ -897,7 +897,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   for (const modulusLength of [undefined, null, 'a', true, {}, [], 4096.1]) {
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength
-    }), {
+    }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
       message: "The property 'options.modulusLength' is invalid. " +
@@ -910,7 +910,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength: 2048,
       divisorLength
-    }), {
+    }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
       message: "The property 'options.divisorLength' is invalid. " +
@@ -930,7 +930,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     });
   }, {
     name: 'TypeError',
-    message: 'Invalid ECDH curve name'
+    message: 'Invalid EC curve name'
   });
 
   // Test error type when curve is not a string
@@ -1166,6 +1166,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     });
   }
 }
+
 {
   // Test RSA-PSS.
   assert.throws(
@@ -1192,7 +1193,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
           saltLength: 16,
           hash: 'sha256',
           mgf1Hash
-        });
+        }, common.mustNotCall());
       },
       {
         name: 'TypeError',
