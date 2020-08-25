@@ -29,7 +29,6 @@
 
 namespace node {
 namespace crypto {
-
 inline ClientHelloParser::ClientHelloParser()
     : state_(kEnded),
       onhello_cb_(nullptr),

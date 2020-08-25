@@ -60,7 +60,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
   Environment* env = Environment::GetCurrent(isolate);
 
-  if (env == nullptr) return;
+  if (env == nullptr || !env->can_call_into_js()) return;
 
   Local<Function> callback = env->promise_reject_callback();
   // The promise is rejected before JS land calls SetPromiseRejectCallback

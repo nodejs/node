@@ -792,21 +792,133 @@ The given crypto keys are incompatible with the attempted operation.
 
 The selected public or private key encoding is incompatible with other options.
 
+<a id="ERR_CRYPTO_INITIALIZATION_FAILED"></a>
+### `ERR_CRYPTO_INITIALIZATION_FAILED`
+<!-- YAML
+added: REPLACEME
+-->
+
+Initialization of the crypto subsystem failed.
+
+<a id="ERR_CRYPTO_INVALID_AUTH_TAG"></a>
+### `ERR_CRYPTO_INVALID_AUTH_TAG`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid authentication tag was provided.
+
+<a id="ERR_CRYPTO_INVALID_COUNTER"></a>
+### `ERR_CRYPTO_INVALID_COUNTER`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid counter was provided for a counter-mode cipher.
+
+<a id="ERR_CRYPTO_INVALID_CURVE"></a>
+### `ERR_CRYPTO_INVALID_CURVE`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid elliptic-curve was provided.
+
 <a id="ERR_CRYPTO_INVALID_DIGEST"></a>
 ### `ERR_CRYPTO_INVALID_DIGEST`
 
 An invalid [crypto digest algorithm][] was specified.
+
+<a id="ERR_CRYPTO_INVALID_IV"></a>
+### `ERR_CRYPTO_INVALID_IV`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid initialization vector was provided.
+
+<a id="ERR_CRYPTO_INVALID_JWK"></a>
+### `ERR_CRYPTO_INVALID_JWK`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid JSON Web Key was provided.
 
 <a id="ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE"></a>
 ### `ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE`
 
 The given crypto key object's type is invalid for the attempted operation.
 
+<a id="ERR_CRYPTO_INVALID_KEYLEN"></a>
+### `ERR_CRYPTO_INVALID_KEYLEN`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid key length was provided.
+
+<a id="ERR_CRYPTO_INVALID_KEYPAIR"></a>
+### `ERR_CRYPTO_INVALID_KEYPAIR`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid key pair was provided.
+
+<a id="ERR_CRYPTO_INVALID_KEYTYPE"></a>
+### `ERR_CRYPTO_INVALID_KEYTYPE`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid key type was provided.
+
+<a id="ERR_CRYPTO_INVALID_MESSAGELEN"></a>
+### `ERR_CRYPTO_INVALID_MESSAGELEN`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid message length was provided.
+
+<a id="ERR_CRYPTO_INVALID_SCRYPT_PARAMS"></a>
+### `ERR_CRYPTO_INVALID_SCRYPT_PARAMS`
+<!-- YAML
+added: REPLACEME
+-->
+
+Invalid scrypt algorithm parameters were provided.
+
 <a id="ERR_CRYPTO_INVALID_STATE"></a>
 ### `ERR_CRYPTO_INVALID_STATE`
 
 A crypto method was used on an object that was in an invalid state. For
 instance, calling [`cipher.getAuthTag()`][] before calling `cipher.final()`.
+
+<a id="ERR_CRYPTO_INVALID_TAG_LENGTH"></a>
+### `ERR_CRYPTO_INVALID_TAG_LENGTH`
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid authentication tag length was provided.
+
+<a id="ERR_CRYPTO_JOB_INIT_FAILED"></a>
+### `ERR_CRYPTO_JOB_INIT_FAILED`
+<!-- YAML
+added: REPLACEME
+-->
+
+Initialization of an asynchronous crypto operation failed.
+
+<a id="ERR_CRYPTO_OPERATION_FAILED"></a>
+### `ERR_CRYPTO_OPERATION_FAILED`
+<!-- YAML
+added: REPLACEME
+-->
+
+A crypto operation failed for an otherwise unspecified reason.
 
 <a id="ERR_CRYPTO_PBKDF2_ERROR"></a>
 ### `ERR_CRYPTO_PBKDF2_ERROR`
@@ -852,6 +964,14 @@ An unknown Diffie-Hellman group name was given. See
 ### `ERR_DIR_CLOSED`
 
 The [`fs.Dir`][] was previously closed.
+
+<a id"ERR_CRYPTO_UNSUPPORTED_OPERATION"></a>
+### `ERR_CRYPTO_UNSUPPORTED_OPERATION`
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt to invoke an unsupported crypto operation was made.
 
 <a id="ERR_DIR_CONCURRENT_OPERATION"></a>
 ### `ERR_DIR_CONCURRENT_OPERATION`

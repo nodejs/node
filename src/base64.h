@@ -5,13 +5,40 @@
 
 #include "util.h"
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 
 namespace node {
 //// Base 64 ////
-static inline constexpr size_t base64_encoded_size(size_t size) {
-  return ((size + 2) / 3 * 4);
+
+enum class Base64Mode {
+  NORMAL,
+  URL
+};
+
+static constexpr char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                       "abcdefghijklmnopqrstuvwxyz"
+                                       "0123456789+/";
+
+static constexpr char base64_table_url[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                           "abcdefghijklmnopqrstuvwxyz"
+                                           "0123456789-_";
+
+static inline const char* base64_select_table(Base64Mode mode) {
+  switch (mode) {
+    case Base64Mode::NORMAL: return base64_table;
+    case Base64Mode::URL: return base64_table_url;
+    default: UNREACHABLE();
+  }
+}
+
+static inline constexpr size_t base64_encoded_size(
+    size_t size,
+    Base64Mode mode = Base64Mode::NORMAL) {
+  return mode == Base64Mode::NORMAL
+      ? ((size + 2) / 3 * 4)
+      : std::ceil(static_cast<double>(size * 4) / 3);
 }
 
 // Doesn't check for padding at the end.  Can be 1-2 bytes over.
@@ -32,7 +59,8 @@ size_t base64_decode(char* const dst, const size_t dstlen,
 inline size_t base64_encode(const char* src,
                             size_t slen,
                             char* dst,
-                            size_t dlen);
+                            size_t dlen,
+                            Base64Mode mode = Base64Mode::NORMAL);
 }  // namespace node
 
 

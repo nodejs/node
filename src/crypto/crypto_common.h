@@ -13,7 +13,6 @@
 
 namespace node {
 namespace crypto {
-
 // OPENSSL_free is a macro, so we need a wrapper function.
 struct OpenSSLBufferDeleter {
   void operator()(char* pointer) const { OPENSSL_free(pointer); }

@@ -24,7 +24,6 @@
 
 namespace node {
 namespace crypto {
-
 void ClientHelloParser::Parse(const uint8_t* data, size_t avail) {
   switch (state_) {
     case kWaiting:

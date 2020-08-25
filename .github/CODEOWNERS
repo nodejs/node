@@ -59,7 +59,7 @@
 /lib/crypto.js @nodejs/crypto
 /lib/tls.js @nodejs/crypto @nodejs/net
 /src/node_crypto* @nodejs/crypto
-/src/node_crypto_common* @nodejs/crypto @nodejs/quic
+/src/crypto/* @nodejs/crypto @nodejs/quic
 
 # http
 

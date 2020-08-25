@@ -25,10 +25,10 @@
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"  // Buffer
-#include "node_crypto.h"  // SecureContext
+#include "crypto/crypto_context.h"
+#include "crypto/crypto_util.h"
 #include "crypto/crypto_bio.h"  // NodeBIO
-// ClientHelloParser
-#include "crypto/crypto_clienthello-inl.h"
+#include "crypto/crypto_clienthello-inl.h"  // ClientHelloParser
 #include "node_errors.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"

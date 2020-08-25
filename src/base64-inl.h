@@ -119,12 +119,13 @@ size_t base64_decode(char* const dst, const size_t dstlen,
 inline size_t base64_encode(const char* src,
                             size_t slen,
                             char* dst,
-                            size_t dlen) {
+                            size_t dlen,
+                            Base64Mode mode) {
   // We know how much we'll write, just make sure that there's space.
-  CHECK(dlen >= base64_encoded_size(slen) &&
+  CHECK(dlen >= base64_encoded_size(slen, mode) &&
         "not enough space provided for base64 encode");
 
-  dlen = base64_encoded_size(slen);
+  dlen = base64_encoded_size(slen, mode);
 
   unsigned a;
   unsigned b;
@@ -133,9 +134,7 @@ inline size_t base64_encode(const char* src,
   unsigned k;
   unsigned n;
 
-  static const char table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                              "abcdefghijklmnopqrstuvwxyz"
-                              "0123456789+/";
+  const char* table = base64_select_table(mode);
 
   i = 0;
   k = 0;
@@ -160,8 +159,10 @@ inline size_t base64_encode(const char* src,
       a = src[i + 0] & 0xff;
       dst[k + 0] = table[a >> 2];
       dst[k + 1] = table[(a & 3) << 4];
-      dst[k + 2] = '=';
-      dst[k + 3] = '=';
+      if (mode == Base64Mode::NORMAL) {
+        dst[k + 2] = '=';
+        dst[k + 3] = '=';
+      }
       break;
     case 2:
       a = src[i + 0] & 0xff;
@@ -169,7 +170,8 @@ inline size_t base64_encode(const char* src,
       dst[k + 0] = table[a >> 2];
       dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
       dst[k + 2] = table[(b & 0x0f) << 2];
-      dst[k + 3] = '=';
+      if (mode == Base64Mode::NORMAL)
+        dst[k + 3] = '=';
       break;
   }
 

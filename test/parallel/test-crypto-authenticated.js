@@ -18,7 +18,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+// Flags: --no-warnings
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
@@ -43,8 +43,8 @@ const errMessages = {
   auth: / auth/,
   state: / state/,
   FIPS: /not supported in FIPS mode/,
-  length: /Invalid IV length/,
-  authTagLength: /Invalid authentication tag length/
+  length: /Invalid initialization vector/,
+  authTagLength: /Invalid authentication tag/
 };
 
 const ciphers = crypto.getCiphers();
@@ -244,8 +244,8 @@ for (const test of TEST_CASES) {
                                               'qkuZpJWCewa6Szih');
       decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
     }, {
-      name: 'Error',
-      message: `Invalid authentication tag length: ${length}`
+      name: 'TypeError',
+      message: /Invalid authentication tag length/
     });
 
     assert.throws(() => {
@@ -256,8 +256,8 @@ for (const test of TEST_CASES) {
                               authTagLength: length
                             });
     }, {
-      name: 'Error',
-      message: `Invalid authentication tag length: ${length}`
+      name: 'TypeError',
+      message: /Invalid authentication tag length/
     });
 
     assert.throws(() => {
@@ -268,8 +268,8 @@ for (const test of TEST_CASES) {
                                 authTagLength: length
                               });
     }, {
-      name: 'Error',
-      message: `Invalid authentication tag length: ${length}`
+      name: 'TypeError',
+      message: /Invalid authentication tag length/
     });
   }
 }
@@ -303,8 +303,8 @@ for (const test of TEST_CASES) {
     // This tag would normally be allowed.
     decipher.setAuthTag(Buffer.from('1'.repeat(12)));
   }, {
-    name: 'Error',
-    message: 'Invalid authentication tag length: 12'
+    name: 'TypeError',
+    message: /Invalid authentication tag length/
   });
 
   // The Decipher object should be left intact.
@@ -475,12 +475,12 @@ for (const test of TEST_CASES) {
       cipher().setAAD(Buffer.alloc(0), {
         plaintextLength: maxMessageSize + 1
       });
-    }, /^Error: Message exceeds maximum size$/);
+    }, /Invalid message length$/);
 
     const msg = Buffer.alloc(maxMessageSize + 1);
     assert.throws(() => {
       cipher().update(msg);
-    }, /^Error: Message exceeds maximum size$/);
+    }, /Invalid message length/);
 
     const c = cipher();
     c.setAAD(Buffer.alloc(0), {
@@ -501,7 +501,7 @@ for (const test of TEST_CASES) {
                                            authTagLength: 10
                                          });
     cipher.setAAD(Buffer.from('0123456789', 'hex'));
-  }, /^Error: plaintextLength required for CCM mode with AAD$/);
+  }, /options\.plaintextLength required for CCM mode with AAD/);
 
   if (!common.hasFipsCrypto) {
     assert.throws(() => {
@@ -512,7 +512,7 @@ for (const test of TEST_CASES) {
                                                authTagLength: 10
                                              });
       cipher.setAAD(Buffer.from('0123456789', 'hex'));
-    }, /^Error: plaintextLength required for CCM mode with AAD$/);
+    }, /options\.plaintextLength required for CCM mode with AAD/);
   }
 }
 
