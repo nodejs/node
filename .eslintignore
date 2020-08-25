@@ -3,6 +3,7 @@ lib/internal/v8_prof_polyfill.js
 lib/punycode.js
 test/addons/??_*
 test/fixtures
+test/message/cjs_top_await_error.js
 test/message/esm_display_syntax_error.mjs
 tools/icu
 tools/lint-md.js
