@@ -79,6 +79,7 @@ not add or remove exported names from the ES Modules.
 
 ```js
 const fs = require('fs');
+const assert = require('assert');
 const { syncBuiltinESMExports } = require('module');
 
 fs.readFile = null;
@@ -93,7 +94,7 @@ syncBuiltinESMExports();
 
 import('fs').then((esmFS) => {
   assert.strictEqual(esmFS.readFile, null);
-  assert.strictEqual('readFileSync' in fs, true);
+  assert.strictEqual('readFileSync' in esmFS, true);
   assert.strictEqual(esmFS.newAPI, undefined);
 });
 ```
