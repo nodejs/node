@@ -867,3 +867,62 @@ void uv_library_shutdown(void) {
   uv__threadpool_cleanup();
   uv__store_relaxed(&was_shutdown, 1);
 }
+
+
+void uv__metrics_update_idle_time(uv_loop_t* loop) {
+  uv__loop_metrics_t* loop_metrics;
+  uint64_t entry_time;
+  uint64_t exit_time;
+
+  if (!(uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME))
+    return;
+
+  loop_metrics = uv__get_loop_metrics(loop);
+
+  /* The thread running uv__metrics_update_idle_time() is always the same
+   * thread that sets provider_entry_time. So it's unnecessary to lock before
+   * retrieving this value.
+   */
+  if (loop_metrics->provider_entry_time == 0)
+    return;
+
+  exit_time = uv_hrtime();
+
+  uv_mutex_lock(&loop_metrics->lock);
+  entry_time = loop_metrics->provider_entry_time;
+  loop_metrics->provider_entry_time = 0;
+  loop_metrics->provider_idle_time += exit_time - entry_time;
+  uv_mutex_unlock(&loop_metrics->lock);
+}
+
+
+void uv__metrics_set_provider_entry_time(uv_loop_t* loop) {
+  uv__loop_metrics_t* loop_metrics;
+  uint64_t now;
+
+  if (!(uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME))
+    return;
+
+  now = uv_hrtime();
+  loop_metrics = uv__get_loop_metrics(loop);
+  uv_mutex_lock(&loop_metrics->lock);
+  loop_metrics->provider_entry_time = now;
+  uv_mutex_unlock(&loop_metrics->lock);
+}
+
+
+uint64_t uv_metrics_idle_time(uv_loop_t* loop) {
+  uv__loop_metrics_t* loop_metrics;
+  uint64_t entry_time;
+  uint64_t idle_time;
+
+  loop_metrics = uv__get_loop_metrics(loop);
+  uv_mutex_lock(&loop_metrics->lock);
+  idle_time = loop_metrics->provider_idle_time;
+  entry_time = loop_metrics->provider_entry_time;
+  uv_mutex_unlock(&loop_metrics->lock);
+
+  if (entry_time > 0)
+    idle_time += uv_hrtime() - entry_time;
+  return idle_time;
+}

@@ -20,7 +20,7 @@ Data types
 
     The base libuv handle type.
 
-.. c:type:: uv_handle_type
+.. c:enum:: uv_handle_type
 
     The kind of the libuv handle.
 
@@ -104,7 +104,7 @@ Public members
 API
 ---
 
-.. c:function:: UV_HANDLE_TYPE_MAP(iter_macro)
+.. c:macro:: UV_HANDLE_TYPE_MAP(iter_macro)
 
     Macro that expands to a series of invocations of `iter_macro` for
     each of the handle types. `iter_macro` is invoked with two

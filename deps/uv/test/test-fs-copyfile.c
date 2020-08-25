@@ -125,6 +125,11 @@ TEST_IMPL(fs_copyfile) {
   r = uv_fs_copyfile(NULL, &req, src, src, 0, NULL);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&req);
+  /* Verify that the src file did not get truncated. */
+  r = uv_fs_stat(NULL, &req, src, NULL);
+  ASSERT_EQ(r, 0);
+  ASSERT_EQ(req.statbuf.st_size, 12);
+  uv_fs_req_cleanup(&req);
   unlink(src);
 
   /* Copies file synchronously. Creates new file. */

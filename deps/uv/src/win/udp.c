@@ -189,6 +189,11 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle) {
 }
 
 
+int uv_udp_using_recvmmsg(const uv_udp_t* handle) {
+  return 0;
+}
+
+
 static int uv_udp_maybe_bind(uv_udp_t* handle,
                              const struct sockaddr* addr,
                              unsigned int addrlen,

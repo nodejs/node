@@ -100,6 +100,10 @@ int uv_set_process_title(const char* title) {
   struct uv__process_title* pt;
   size_t len;
 
+  /* If uv_setup_args wasn't called or failed, we can't continue. */
+  if (args_mem == NULL)
+    return UV_ENOBUFS;
+
   pt = &process_title;
   len = strlen(title);
 
@@ -125,6 +129,10 @@ int uv_set_process_title(const char* title) {
 int uv_get_process_title(char* buffer, size_t size) {
   if (buffer == NULL || size == 0)
     return UV_EINVAL;
+
+  /* If uv_setup_args wasn't called or failed, we can't continue. */
+  if (args_mem == NULL)
+    return UV_ENOBUFS;
 
   uv_once(&process_title_mutex_once, init_process_title_mutex_once);
   uv_mutex_lock(&process_title_mutex);

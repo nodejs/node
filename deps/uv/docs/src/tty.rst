@@ -16,7 +16,7 @@ Data types
 
     TTY handle type.
 
-.. c:type:: uv_tty_mode_t
+.. c:enum:: uv_tty_mode_t
 
     .. versionadded:: 1.2.0
 
@@ -33,7 +33,8 @@ Data types
           UV_TTY_MODE_IO
       } uv_tty_mode_t;
 
-.. c:type:: uv_tty_vtermstate_t
+.. c:enum:: uv_tty_vtermstate_t
+
     Console virtual terminal mode type:
 
     ::
