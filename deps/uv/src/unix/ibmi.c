@@ -58,6 +58,9 @@
 #include <as400_protos.h>
 #include <as400_types.h>
 
+char* original_exepath = NULL;
+uv_mutex_t process_title_mutex;
+uv_once_t process_title_mutex_once = UV_ONCE_INIT;
 
 typedef struct {
   int bytes_available;
@@ -171,6 +174,9 @@ static void iconv_a2e(const char* src, unsigned char dst[], size_t length) {
     dst[i] = a2e[' '];
 }
 
+void init_process_title_mutex_once(void) {
+  uv_mutex_init(&process_title_mutex);
+}
 
 static int get_ibmi_system_status(SSTS0200* rcvr) {
   /* rcvrlen is input parameter 2 to QWCRSSTS */
@@ -458,4 +464,38 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses, int count) {
   }
 
   uv__free(addresses);
+}
+
+char** uv_setup_args(int argc, char** argv) {
+  char exepath[UV__PATH_MAX];
+  char* s;
+  size_t size;
+
+  if (argc > 0) {
+    /* Use argv[0] to determine value for uv_exepath(). */
+    size = sizeof(exepath);
+    if (uv__search_path(argv[0], exepath, &size) == 0) {
+      uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+      uv_mutex_lock(&process_title_mutex);
+      original_exepath = uv__strdup(exepath);
+      uv_mutex_unlock(&process_title_mutex);
+    }
+  }
+
+  return argv;
+}
+
+int uv_set_process_title(const char* title) {
+  return 0;
+}
+
+int uv_get_process_title(char* buffer, size_t size) {
+  if (buffer == NULL || size == 0)
+    return UV_EINVAL;
+
+  buffer[0] = '\0';
+  return 0;
+}
+
+void uv__process_title_cleanup(void) {
 }

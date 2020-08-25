@@ -167,6 +167,11 @@ TEST_IMPL(thread_create) {
  * that each "finished" callback is run in its originating thread.
  */
 TEST_IMPL(threadpool_multiple_event_loops) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+  
   struct test_thread threads[8];
   size_t i;
   int r;

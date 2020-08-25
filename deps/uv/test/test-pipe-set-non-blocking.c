@@ -24,29 +24,35 @@ TEST_IMPL(pipe_set_non_blocking) {
 
 #else  /* !_WIN32 */
 
-#include <errno.h>
-#include <string.h>
-#include <sys/socket.h>
+#include <string.h> /* memset */
+#include <unistd.h> /* close */
 #include <sys/types.h>
-#include <sys/un.h>
-#include <unistd.h>
+#include <sys/socket.h>
 
 struct thread_ctx {
   uv_barrier_t barrier;
-  int fd;
+  uv_file fd;
 };
 
 static void thread_main(void* arg) {
   struct thread_ctx* ctx;
+  uv_fs_t req;
+  uv_buf_t bufs[1];
   char buf[4096];
   ssize_t n;
+  int uv_errno;
+
+  bufs[0] = uv_buf_init(buf, sizeof(buf));
 
   ctx = arg;
   uv_barrier_wait(&ctx->barrier);
 
-  do
-    n = read(ctx->fd, buf, sizeof(buf));
-  while (n > 0 || (n == -1 && errno == EINTR));
+  uv_sleep(100); /* make sure we are forcing the writer to block a bit */
+  do {
+    uv_errno = uv_fs_read(NULL, &req, ctx->fd, bufs, 1, -1, NULL);
+    n = req.result;
+    uv_fs_req_cleanup(&req);
+  } while (n > 0 || (n == -1 && uv_errno == UV_EINTR));
 
   ASSERT(n == 0);
 }
@@ -58,15 +64,16 @@ TEST_IMPL(pipe_set_non_blocking) {
   size_t nwritten;
   char data[4096];
   uv_buf_t buf;
-  int fd[2];
+  uv_file fd[2];
   int n;
 
   ASSERT(0 == uv_pipe_init(uv_default_loop(), &pipe_handle, 0));
   ASSERT(0 == socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
-  ASSERT(0 == uv_pipe_open(&pipe_handle, fd[0]));
+  ASSERT(0 == uv_pipe_open(&pipe_handle, fd[1]));
   ASSERT(0 == uv_stream_set_blocking((uv_stream_t*) &pipe_handle, 1));
+  fd[1] = -1; /* fd[1] is owned by pipe_handle now. */
 
-  ctx.fd = fd[1];
+  ctx.fd = fd[0];
   ASSERT(0 == uv_barrier_init(&ctx.barrier, 2));
   ASSERT(0 == uv_thread_create(&thread, thread_main, &ctx));
   uv_barrier_wait(&ctx.barrier);
@@ -89,7 +96,8 @@ TEST_IMPL(pipe_set_non_blocking) {
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   ASSERT(0 == uv_thread_join(&thread));
-  ASSERT(0 == close(fd[1]));  /* fd[0] is closed by uv_close(). */
+  ASSERT(0 == close(fd[0]));  /* fd[1] is closed by uv_close(). */
+  fd[0] = -1;
   uv_barrier_destroy(&ctx.barrier);
 
   MAKE_VALGRIND_HAPPY();

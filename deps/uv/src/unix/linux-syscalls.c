@@ -94,6 +94,24 @@
 # endif
 #endif /* __NR_pwritev */
 
+#ifndef __NR_copy_file_range
+# if defined(__x86_64__)
+#  define __NR_copy_file_range 326
+# elif defined(__i386__)
+#  define __NR_copy_file_range 377
+# elif defined(__s390__)
+#  define __NR_copy_file_range 375
+# elif defined(__arm__)
+#  define __NR_copy_file_range (UV_SYSCALL_BASE + 391)
+# elif defined(__aarch64__)
+#  define __NR_copy_file_range 285
+# elif defined(__powerpc__)
+#  define __NR_copy_file_range 379
+# elif defined(__arc__)
+#  define __NR_copy_file_range 285
+# endif
+#endif /* __NR_copy_file_range */
+
 #ifndef __NR_statx
 # if defined(__x86_64__)
 #  define __NR_statx 332
@@ -174,6 +192,28 @@ ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset)
 int uv__dup3(int oldfd, int newfd, int flags) {
 #if defined(__NR_dup3)
   return syscall(__NR_dup3, oldfd, newfd, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+ssize_t
+uv__fs_copy_file_range(int fd_in,
+                       ssize_t* off_in,
+                       int fd_out,
+                       ssize_t* off_out,
+                       size_t len,
+                       unsigned int flags)
+{
+#ifdef __NR_copy_file_range
+  return syscall(__NR_copy_file_range,
+                 fd_in,
+                 off_in,
+                 fd_out,
+                 off_out,
+                 len,
+                 flags);
 #else
   return errno = ENOSYS, -1;
 #endif
