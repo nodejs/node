@@ -34,7 +34,6 @@ namespace node {
 class Environment;
 
 namespace crypto {
-
 // This class represents buffers for OpenSSL I/O, implemented as a singly-linked
 // list of chunks. It can be used either for writing data from Node to OpenSSL,
 // or for reading data back, but not both.

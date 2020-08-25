@@ -215,6 +215,7 @@ constexpr size_t kFsStatsBufferLength =
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
   V(dh_string, "DH")                                                           \
+  V(divisor_length_string, "divisorLength")                                    \
   V(dns_a_string, "A")                                                         \
   V(dns_aaaa_string, "AAAA")                                                   \
   V(dns_cname_string, "CNAME")                                                 \
@@ -277,6 +278,23 @@ constexpr size_t kFsStatsBufferLength =
   V(isclosing_string, "isClosing")                                             \
   V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \
+  V(jwk_d_string, "d")                                                         \
+  V(jwk_dp_string, "dp")                                                       \
+  V(jwk_dq_string, "dq")                                                       \
+  V(jwk_dsa_string, "DSA")                                                     \
+  V(jwk_e_string, "e")                                                         \
+  V(jwk_ec_string, "EC")                                                       \
+  V(jwk_g_string, "g")                                                         \
+  V(jwk_k_string, "k")                                                         \
+  V(jwk_p_string, "p")                                                         \
+  V(jwk_q_string, "q")                                                         \
+  V(jwk_qi_string, "qi")                                                       \
+  V(jwk_kty_string, "kty")                                                     \
+  V(jwk_n_string, "n")                                                         \
+  V(jwk_oct_string, "oct")                                                     \
+  V(jwk_rsa_string, "RSA")                                                     \
+  V(jwk_x_string, "x")                                                         \
+  V(jwk_y_string, "y")                                                         \
   V(kill_signal_string, "killSignal")                                          \
   V(kind_string, "kind")                                                       \
   V(length_string, "length")                                                   \
@@ -290,7 +308,9 @@ constexpr size_t kFsStatsBufferLength =
   V(minttl_string, "minttl")                                                   \
   V(module_string, "module")                                                   \
   V(modulus_string, "modulus")                                                 \
+  V(modulus_length_string, "modulusLength")                                    \
   V(name_string, "name")                                                       \
+  V(named_curve_string, "namedCurve")                                          \
   V(netmask_string, "netmask")                                                 \
   V(next_string, "next")                                                       \
   V(nistcurve_string, "nistCurve")                                             \
@@ -339,6 +359,7 @@ constexpr size_t kFsStatsBufferLength =
   V(promise_string, "promise")                                                 \
   V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
+  V(public_exponent_string, "publicExponent")                                  \
   V(query_string, "query")                                                     \
   V(http3_alpn_string, "h3-29")                                                \
   V(rate_string, "rate")                                                       \

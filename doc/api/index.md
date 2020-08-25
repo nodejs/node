@@ -62,6 +62,7 @@
 * [V8](v8.md)
 * [VM](vm.md)
 * [WASI](wasi.md)
+* [Web Crypto API](webcrypto.md)
 * [Worker threads](worker_threads.md)
 * [Zlib](zlib.md)
 

@@ -28,6 +28,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const cryptop = require('crypto').webcrypto;
 const { kMaxLength } = require('buffer');
 const { inspect } = require('util');
 
@@ -102,6 +103,30 @@ common.expectWarning('DeprecationWarning',
 }
 
 {
+  [
+    new Uint16Array(10),
+    new Uint32Array(10),
+  ].forEach((buf) => {
+    const before = Buffer.from(buf.buffer).toString('hex');
+    cryptop.getRandomValues(buf);
+    const after = Buffer.from(buf.buffer).toString('hex');
+    assert.notStrictEqual(before, after);
+  });
+}
+
+{
+  [
+    new ArrayBuffer(10),
+    new SharedArrayBuffer(10)
+  ].forEach((buf) => {
+    const before = Buffer.from(buf).toString('hex');
+    crypto.randomFillSync(buf);
+    const after = Buffer.from(buf).toString('hex');
+    assert.notStrictEqual(before, after);
+  });
+}
+
+{
   const buf = Buffer.alloc(10);
   const before = buf.toString('hex');
   crypto.randomFill(buf, common.mustCall((err, buf) => {
@@ -133,6 +158,20 @@ common.expectWarning('DeprecationWarning',
     crypto.randomFill(buf, common.mustCall((err, buf) => {
       assert.ifError(err);
       const after = Buffer.from(buf.buffer).toString('hex');
+      assert.notStrictEqual(before, after);
+    }));
+  });
+}
+
+{
+  [
+    new ArrayBuffer(10),
+    new SharedArrayBuffer(10)
+  ].forEach((buf) => {
+    const before = Buffer.from(buf).toString('hex');
+    crypto.randomFill(buf, common.mustCall((err, buf) => {
+      assert.ifError(err);
+      const after = Buffer.from(buf).toString('hex');
       assert.notStrictEqual(before, after);
     }));
   });
@@ -303,7 +342,6 @@ assert.throws(
     }
   );
 });
-
 
 ['pseudoRandomBytes', 'prng', 'rng'].forEach((f) => {
   const desc = Object.getOwnPropertyDescriptor(crypto, f);

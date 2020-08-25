@@ -144,14 +144,11 @@ assert.throws(
              'Received null'
   });
 [1, {}, [], true, undefined, null].forEach((input) => {
-  const msgPart2 = 'an instance of Buffer, TypedArray, or DataView.' +
-                   common.invalidArgTypeHelper(input);
   assert.throws(
     () => crypto.pbkdf2(input, 'salt', 8, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "password" argument must be of type string or ${msgPart2}`
     }
   );
 
@@ -160,7 +157,6 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "salt" argument must be of type string or ${msgPart2}`
     }
   );
 
@@ -169,7 +165,6 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "password" argument must be of type string or ${msgPart2}`
     }
   );
 
@@ -178,7 +173,6 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "salt" argument must be of type string or ${msgPart2}`
     }
   );
 });
@@ -215,6 +209,12 @@ crypto.pbkdf2(new Float32Array(10), 'salt', 8, 8, 'sha256', common.mustCall());
 crypto.pbkdf2('pass', new Float32Array(10), 8, 8, 'sha256', common.mustCall());
 crypto.pbkdf2(new Float64Array(10), 'salt', 8, 8, 'sha256', common.mustCall());
 crypto.pbkdf2('pass', new Float64Array(10), 8, 8, 'sha256', common.mustCall());
+crypto.pbkdf2(new ArrayBuffer(10), 'salt', 8, 8, 'sha256', common.mustCall());
+crypto.pbkdf2('pass', new ArrayBuffer(10), 8, 8, 'sha256', common.mustCall());
+crypto.pbkdf2(new SharedArrayBuffer(10), 'salt', 8, 8, 'sha256',
+              common.mustCall());
+crypto.pbkdf2('pass', new SharedArrayBuffer(10), 8, 8, 'sha256',
+              common.mustCall());
 
 crypto.pbkdf2Sync(new Uint8Array(10), 'salt', 8, 8, 'sha256');
 crypto.pbkdf2Sync('pass', new Uint8Array(10), 8, 8, 'sha256');
@@ -226,6 +226,10 @@ crypto.pbkdf2Sync(new Float32Array(10), 'salt', 8, 8, 'sha256');
 crypto.pbkdf2Sync('pass', new Float32Array(10), 8, 8, 'sha256');
 crypto.pbkdf2Sync(new Float64Array(10), 'salt', 8, 8, 'sha256');
 crypto.pbkdf2Sync('pass', new Float64Array(10), 8, 8, 'sha256');
+crypto.pbkdf2Sync(new ArrayBuffer(10), 'salt', 8, 8, 'sha256');
+crypto.pbkdf2Sync('pass', new ArrayBuffer(10), 8, 8, 'sha256');
+crypto.pbkdf2Sync(new SharedArrayBuffer(10), 'salt', 8, 8, 'sha256');
+crypto.pbkdf2Sync('pass', new SharedArrayBuffer(10), 8, 8, 'sha256');
 
 assert.throws(
   () => crypto.pbkdf2('pass', 'salt', 8, 8, 'md55', common.mustNotCall()),
@@ -244,3 +248,11 @@ assert.throws(
     message: 'Invalid digest: md55'
   }
 );
+
+const kNotPBKDF2Supported = ['shake128', 'shake256'];
+crypto.getHashes()
+  .filter((hash) => !kNotPBKDF2Supported.includes(hash))
+  .forEach((hash) => {
+    crypto.pbkdf2Sync(new Uint8Array(10), 'salt', 8, 8, hash);
+    crypto.pbkdf2(new Uint8Array(10), 'salt', 8, 8, hash, common.mustCall());
+  });

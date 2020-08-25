@@ -391,26 +391,12 @@ assert.throws(
   });
 
   [1, {}, [], Infinity].forEach((input) => {
-    let prop = '"key" argument';
-    let value = input;
-    if (typeof input === 'object') {
-      prop = '"key.key" property';
-      value = undefined;
-    }
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The ${prop} must be of type string or ` +
-               'an instance of Buffer, TypedArray, DataView, or KeyObject.' +
-               common.invalidArgTypeHelper(value)
     };
-
     assert.throws(() => sign.sign(input), errObj);
     assert.throws(() => verify.verify(input), errObj);
-
-    errObj.message = 'The "signature" argument must be of type string or an ' +
-                     'instance of Buffer, TypedArray, or DataView.' +
-                     common.invalidArgTypeHelper(input);
     assert.throws(() => verify.verify('test', input), errObj);
   });
 }
@@ -418,10 +404,10 @@ assert.throws(
 {
   assert.throws(
     () => crypto.createSign('sha8'),
-    /Unknown message digest/);
+    /Invalid digest/);
   assert.throws(
     () => crypto.sign('sha8', Buffer.alloc(1), keyPem),
-    /Unknown message digest/);
+    /Invalid digest/);
 }
 
 [
@@ -487,23 +473,10 @@ assert.throws(
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "data" argument must be an instance of Buffer, ' +
-             'TypedArray, or DataView.' +
-             common.invalidArgTypeHelper(input)
   };
 
   assert.throws(() => crypto.sign(null, input, 'asdf'), errObj);
   assert.throws(() => crypto.verify(null, input, 'asdf', sig), errObj);
-
-  let prop = '"key" argument';
-  let value = input;
-  if (typeof input === 'object') {
-    prop = '"key.key" property';
-    value = undefined;
-  }
-  errObj.message = `The ${prop} must be of type string or ` +
-              'an instance of Buffer, TypedArray, DataView, or KeyObject.' +
-              common.invalidArgTypeHelper(value);
 
   assert.throws(() => crypto.sign(null, data, input), errObj);
   assert.throws(() => crypto.verify(null, data, input, sig), errObj);

@@ -109,9 +109,6 @@ for (const g of [Buffer.from([]),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "sizeOrKey" argument must be one of type number or string' +
-               ' or an instance of Buffer, TypedArray, or DataView.' +
-               common.invalidArgTypeHelper(input)
     }
   );
 });
@@ -387,14 +384,14 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   assert.throws(() => {
     // Error because the public key does not match the private key anymore.
     ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
-  }, /^Error: Invalid key pair$/);
+  }, /Invalid key pair/);
 
   // Set to a valid key to show that later attempts to set an invalid key are
   // rejected.
   ecdh5.setPrivateKey(cafebabeKey, 'hex');
 
   // Some invalid private keys for the secp256k1 curve.
-  const errMessage = /^Error: Private key is not valid for specified curve\.$/;
+  const errMessage = /Private key is not valid for specified curve/;
   ['0000000000000000000000000000000000000000000000000000000000000000',
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
