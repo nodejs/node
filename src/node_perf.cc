@@ -440,6 +440,13 @@ void Notify(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+// Return idle time of the event loop
+void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uint64_t idle_time = uv_metrics_idle_time(env->event_loop());
+  args.GetReturnValue().Set(1.0 * idle_time / 1e6);
+}
+
 
 // Event Loop Timing Histogram
 namespace {
@@ -629,6 +636,7 @@ void Initialize(Local<Object> target,
                  "removeGarbageCollectionTracking",
                  RemoveGarbageCollectionTracking);
   env->SetMethod(target, "notify", Notify);
+  env->SetMethod(target, "loopIdleTime", LoopIdleTime);
 
   Local<Object> constants = Object::New(isolate);
 
