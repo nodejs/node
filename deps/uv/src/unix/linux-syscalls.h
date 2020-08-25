@@ -64,6 +64,13 @@ struct uv__statx {
 ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, int64_t offset);
 ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset);
 int uv__dup3(int oldfd, int newfd, int flags);
+ssize_t
+uv__fs_copy_file_range(int fd_in,
+                       ssize_t* off_in,
+                       int fd_out,
+                       ssize_t* off_out,
+                       size_t len,
+                       unsigned int flags);
 int uv__statx(int dirfd,
               const char* path,
               int flags,
