@@ -320,7 +320,7 @@ release.
 
 ## 2015-09-08, Version 4.0.0 (Stable), @rvagg
 
-<a href="doc/changelogs/CHANGELOG_V4.md#4.0.0>Moved to doc/changelogs/CHANGELOG_V6.md#6.0.0</a>.
+<a href="doc/changelogs/CHANGELOG_V4.md#4.0.0">Moved to doc/changelogs/CHANGELOG_V6.md#6.0.0</a>.
 
 ## 2015-09-02, Version 3.3.0, @rvagg
 
