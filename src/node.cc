@@ -1079,6 +1079,7 @@ int Start(int argc, char** argv) {
         env_info = NodeMainInstance::GetEnvSerializeInfo();
       }
     }
+    uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
     NodeMainInstance main_instance(&params,
                                    uv_default_loop(),

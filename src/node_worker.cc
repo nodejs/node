@@ -135,6 +135,7 @@ class WorkerThreadData {
       return;
     }
     loop_init_failed_ = false;
+    uv_loop_configure(&loop_, UV_METRICS_IDLE_TIME);
 
     std::shared_ptr<ArrayBufferAllocator> allocator =
         ArrayBufferAllocator::Create();

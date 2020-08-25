@@ -32,6 +32,7 @@ directory, see [the guide on benchmarks](../doc/guides/writing-and-running-bench
 | module          | Benchmarks for the `module` subsystem.                                                                           |
 | net             | Benchmarks for the `net` subsystem.                                                                              |
 | path            | Benchmarks for the `path` subsystem.                                                                             |
+| perf_hooks      | Benchmarks for the `perf_hooks` subsystem.                                                                       |
 | process         | Benchmarks for the `process` subsystem.                                                                          |
 | querystring     | Benchmarks for the `querystring` subsystem.                                                                      |
 | streams         | Benchmarks for the `streams` subsystem.                                                                          |
