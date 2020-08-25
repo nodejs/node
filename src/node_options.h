@@ -245,10 +245,8 @@ class PerProcessOptions : public Options {
 #endif
   bool use_openssl_ca = false;
   bool use_bundled_ca = false;
-#if NODE_FIPS_MODE
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
-#endif
 #endif
 
   // Per-process because reports can be triggered outside a known V8 context.

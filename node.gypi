@@ -319,9 +319,6 @@
     [ 'node_use_openssl=="true"', {
       'defines': [ 'HAVE_OPENSSL=1' ],
       'conditions': [
-        ['openssl_fips != "" or openssl_is_fips=="true"', {
-          'defines': [ 'NODE_FIPS_MODE' ],
-        }],
         [ 'node_shared_openssl=="false"', {
           'dependencies': [
             './deps/openssl/openssl.gyp:openssl',
