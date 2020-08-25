@@ -97,3 +97,9 @@
 /src/js_native_api* @nodejs/n-api
 /doc/guides/adding-new-napi-api.md @nodejs/n-api
 /doc/api/n-api.md @nodejs/n-api
+
+# gyp
+
+/**/*.gyp @nodejs/gyp
+/**/*.gypi @nodejs/gyp
+/tools/gyp/**/* @nodejs/gyp
