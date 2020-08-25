@@ -37,7 +37,7 @@ them.
 % mv openssl-1.1.0h openssl
 % git add --all openssl
 % git commit openssl
-````
+```
 
 The commit message can be written as (with the openssl version set
 to the relevant value):
@@ -58,10 +58,10 @@ This updates all sources in deps/openssl/openssl by:
 Use `make` to regenerate all platform dependent files in
 `deps/openssl/config/archs/`:
 ```console
-# On non-linux machines
+# On non-Linux machines
 % make gen-openssl
 
-# On Linux machine
+# On Linux machines
 % make -C deps/openssl/config
 ```
 
