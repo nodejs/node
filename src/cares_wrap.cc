@@ -22,6 +22,7 @@
 #define CARES_STATICLIB
 #include "ares.h"
 #include "async_wrap-inl.h"
+#include "base64-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
@@ -77,13 +78,6 @@ Mutex ares_library_mutex;
 
 inline uint16_t cares_get_16bit(const unsigned char* p) {
   return static_cast<uint32_t>(p[0] << 8U) | (static_cast<uint32_t>(p[1]));
-}
-
-inline uint32_t cares_get_32bit(const unsigned char* p) {
-  return static_cast<uint32_t>(p[0] << 24U) |
-         static_cast<uint32_t>(p[1] << 16U) |
-         static_cast<uint32_t>(p[2] << 8U) |
-         static_cast<uint32_t>(p[3]);
 }
 
 const int ns_t_cname_or_a = -1;
@@ -1129,11 +1123,11 @@ int ParseSoaReply(Environment* env,
         return ARES_EBADRESP;
       }
 
-      const unsigned int serial = cares_get_32bit(ptr + 0 * 4);
-      const unsigned int refresh = cares_get_32bit(ptr + 1 * 4);
-      const unsigned int retry = cares_get_32bit(ptr + 2 * 4);
-      const unsigned int expire = cares_get_32bit(ptr + 3 * 4);
-      const unsigned int minttl = cares_get_32bit(ptr + 4 * 4);
+      const unsigned int serial = ReadUint32BE(ptr + 0 * 4);
+      const unsigned int refresh = ReadUint32BE(ptr + 1 * 4);
+      const unsigned int retry = ReadUint32BE(ptr + 2 * 4);
+      const unsigned int expire = ReadUint32BE(ptr + 3 * 4);
+      const unsigned int minttl = ReadUint32BE(ptr + 4 * 4);
 
       Local<Object> soa_record = Object::New(env->isolate());
       soa_record->Set(context,
