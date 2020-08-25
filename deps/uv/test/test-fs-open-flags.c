@@ -58,7 +58,7 @@ static char empty_file[FILE_NAME_SIZE];
 static char dummy_file[FILE_NAME_SIZE];
 static char empty_dir[] = "empty_dir";
 
-static void setup() {
+static void setup(void) {
   int r;
 
   /* empty_dir */
@@ -73,7 +73,7 @@ static void setup() {
   uv_fs_req_cleanup(&mkdir_req);
 }
 
-static void refresh() {
+static void refresh(void) {
   int r;
 
   /* absent_file */
@@ -119,7 +119,7 @@ static void refresh() {
   uv_fs_req_cleanup(&close_req);
 }
 
-static void cleanup() {
+static void cleanup(void) {
   unlink(absent_file);
   unlink(empty_file);
   unlink(dummy_file);

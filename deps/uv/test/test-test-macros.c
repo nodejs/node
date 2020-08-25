@@ -1,4 +1,4 @@
-/* Copyright libuv project contributors. All rights reserved.
+/* Copyright libuv contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,20 +19,24 @@
  * IN THE SOFTWARE.
  */
 
-#include "strscpy.h"
-#include <limits.h>  /* SSIZE_MAX */
+#include "task.h"
 
-ssize_t uv__strscpy(char* d, const char* s, size_t n) {
-  size_t i;
+int test_macros_evil(void) {
+  static int x;
+  return x++;
+}
 
-  for (i = 0; i < n; i++)
-    if ('\0' == (d[i] = s[i]))
-      return i > SSIZE_MAX ? UV_E2BIG : (ssize_t) i;
 
-  if (i == 0)
-    return 0;
+TEST_IMPL(test_macros) {
+  char* a = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  char* b = "ABCDEFGHIJKLMNOPQRSTUVWXYz";
+  char* c = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  int i;
 
-  d[--i] = '\0';
-
-  return UV_E2BIG;
+  i = test_macros_evil();
+  ASSERT_STR_NE(a, b);
+  ASSERT_STR_EQ(a, c);
+  ASSERT_EQ(i + 1, test_macros_evil());
+  ASSERT_EQ(i + 2, test_macros_evil());
+  return 0;
 }

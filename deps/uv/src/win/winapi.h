@@ -4726,6 +4726,18 @@ typedef HWINEVENTHOOK (WINAPI *sSetWinEventHook)
                        DWORD        idThread,
                        UINT         dwflags);
 
+/* From mstcpip.h */
+typedef struct _TCP_INITIAL_RTO_PARAMETERS {
+  USHORT Rtt;
+  UCHAR  MaxSynRetransmissions;
+} TCP_INITIAL_RTO_PARAMETERS, *PTCP_INITIAL_RTO_PARAMETERS;
+
+#ifndef TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS
+# define TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS ((UCHAR) -2)
+#endif
+#ifndef SIO_TCP_INITIAL_RTO
+# define  SIO_TCP_INITIAL_RTO _WSAIOW(IOC_VENDOR,17)
+#endif
 
 /* Ntdll function pointers */
 extern sRtlGetVersion pRtlGetVersion;
