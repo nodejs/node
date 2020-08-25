@@ -42,9 +42,7 @@ static void Initialize(Local<Object> target,
   READONLY_FALSE_PROPERTY(target, "hasOpenSSL");
 #endif  // HAVE_OPENSSL
 
-#ifdef NODE_FIPS_MODE
   READONLY_TRUE_PROPERTY(target, "fipsMode");
-#endif
 
 #ifdef NODE_HAVE_I18N_SUPPORT
 
