@@ -89,3 +89,108 @@ TEST_IMPL(tcp_connect_timeout) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+/* Make sure connect fails instantly if the target is nonexisting
+ * local port.
+ */
+
+static void connect_local_cb(uv_connect_t* req, int status) {
+  ASSERT_PTR_EQ(req, &connect_req);
+  ASSERT_NE(status, UV_ECANCELED);
+  connect_cb_called++;
+}
+
+static int is_supported_system() {
+  int semver[3];
+  int min_semver[3] = {10, 0, 16299};
+  int cnt;
+  uv_utsname_t uname;
+  ASSERT_EQ(uv_os_uname(&uname), 0);
+  if (strcmp(uname.sysname, "Windows_NT") == 0) {    
+    cnt = sscanf(uname.release, "%d.%d.%d", &semver[0], &semver[1], &semver[2]);
+    if (cnt != 3) {
+      return 0;
+    }
+    // relase >= 10.0.16299
+    for (cnt = 0; cnt < 3; ++cnt) {
+      if (semver[cnt] > min_semver[cnt])
+        return 1;
+      if (semver[cnt] < min_semver[cnt])
+        return 0;
+    }
+    return 1;
+  }
+  return 1;
+}
+
+TEST_IMPL(tcp_local_connect_timeout) {
+  struct sockaddr_in addr;
+  int r;
+
+  if (!is_supported_system()) {
+    RETURN_SKIP("Unsupported system");
+  }
+  ASSERT_EQ(0, uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+
+  r = uv_timer_init(uv_default_loop(), &timer);
+  ASSERT_EQ(r, 0);
+
+  /* Give it 1s to timeout. */
+  r = uv_timer_start(&timer, timer_cb, 1000, 0);
+  ASSERT_EQ(r, 0);
+
+  r = uv_tcp_init(uv_default_loop(), &conn);
+  ASSERT_EQ(r, 0);
+
+  r = uv_tcp_connect(&connect_req,
+                     &conn,
+                     (const struct sockaddr*) &addr,
+                     connect_local_cb);
+  if (r == UV_ENETUNREACH)
+    RETURN_SKIP("Network unreachable.");
+  ASSERT_EQ(r, 0);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(tcp6_local_connect_timeout) {
+  struct sockaddr_in6 addr;
+  int r;
+
+  if (!is_supported_system()) {
+    RETURN_SKIP("Unsupported system");
+  }
+  if (!can_ipv6()) {
+    RETURN_SKIP("IPv6 not supported");
+  }
+
+  ASSERT_EQ(0, uv_ip6_addr("::1", 9999, &addr));
+
+  r = uv_timer_init(uv_default_loop(), &timer);
+  ASSERT_EQ(r, 0);
+
+  /* Give it 1s to timeout. */
+  r = uv_timer_start(&timer, timer_cb, 1000, 0);
+  ASSERT_EQ(r, 0);
+
+  r = uv_tcp_init(uv_default_loop(), &conn);
+  ASSERT_EQ(r, 0);
+
+  r = uv_tcp_connect(&connect_req,
+                     &conn,
+                     (const struct sockaddr*) &addr,
+                     connect_local_cb);
+  if (r == UV_ENETUNREACH)
+    RETURN_SKIP("Network unreachable.");
+  ASSERT_EQ(r, 0);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT_EQ(r, 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

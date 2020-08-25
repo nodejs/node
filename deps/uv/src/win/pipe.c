@@ -244,9 +244,8 @@ int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
   return 0;
 
  error:
-  if (pipeHandle != INVALID_HANDLE_VALUE) {
+  if (pipeHandle != INVALID_HANDLE_VALUE)
     CloseHandle(pipeHandle);
-  }
 
   return err;
 }
@@ -554,7 +553,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Convert name to UTF16. */
   nameSize = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0) * sizeof(WCHAR);
-  handle->name = (WCHAR*)uv__malloc(nameSize);
+  handle->name = uv__malloc(nameSize);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
@@ -621,9 +620,8 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
   while (WaitNamedPipeW(handle->name, 30000)) {
     /* The pipe is now available, try to connect. */
     pipeHandle = open_named_pipe(handle->name, &duplex_flags);
-    if (pipeHandle != INVALID_HANDLE_VALUE) {
+    if (pipeHandle != INVALID_HANDLE_VALUE)
       break;
-    }
 
     SwitchToThread();
   }
@@ -655,7 +653,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
 
   /* Convert name to UTF16. */
   nameSize = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0) * sizeof(WCHAR);
-  handle->name = (WCHAR*)uv__malloc(nameSize);
+  handle->name = uv__malloc(nameSize);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
@@ -2147,7 +2145,7 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   if (pipe->ipc) {
     assert(!(pipe->flags & UV_HANDLE_NON_OVERLAPPED_PIPE));
     pipe->pipe.conn.ipc_remote_pid = uv_os_getppid();
-    assert(pipe->pipe.conn.ipc_remote_pid != (DWORD) -1);
+    assert(pipe->pipe.conn.ipc_remote_pid != (DWORD)(uv_pid_t) -1);
   }
   return 0;
 }

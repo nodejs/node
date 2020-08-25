@@ -111,22 +111,42 @@ typedef enum {
   }                                                       \
  } while (0)
 
-#define ASSERT_BASE(expr, a, operator, b, type, conv)        \
+#define ASSERT_BASE(a, operator, b, type, conv)              \
  do {                                                        \
-  if (!(expr)) {                                             \
+  type eval_a = (type) (a);                                  \
+  type eval_b = (type) (b);                                  \
+  if (!(eval_a operator eval_b)) {                           \
     fprintf(stderr,                                          \
             "Assertion failed in %s on line %d: `%s %s %s` " \
-            "(%"conv" %s %"conv")\n",                      \
+            "(%"conv" %s %"conv")\n",                        \
             __FILE__,                                        \
             __LINE__,                                        \
             #a,                                              \
             #operator,                                       \
             #b,                                              \
-            (type)a,                                         \
+            eval_a,                                          \
             #operator,                                       \
-            (type)b);                                        \
+            eval_b);                                         \
     abort();                                                 \
   }                                                          \
+ } while (0)
+
+#define ASSERT_BASE_STR(expr, a, operator, b, type, conv)      \
+ do {                                                          \
+  if (!(expr)) {                                               \
+    fprintf(stderr,                                            \
+            "Assertion failed in %s on line %d: `%s %s %s` "   \
+            "(%"conv" %s %"conv")\n",                          \
+            __FILE__,                                          \
+            __LINE__,                                          \
+            #a,                                                \
+            #operator,                                         \
+            #b,                                                \
+            (type)a,                                           \
+            #operator,                                         \
+            (type)b);                                          \
+    abort();                                                   \
+  }                                                            \
  } while (0)
 
 #define ASSERT_BASE_LEN(expr, a, operator, b, conv, len)     \
@@ -177,7 +197,7 @@ typedef enum {
  } while (0)
 
 #define ASSERT_INT_BASE(a, operator, b, type, conv)          \
- ASSERT_BASE(a operator b, a, operator, b, type, conv)
+ ASSERT_BASE(a, operator, b, type, conv)
 
 #define ASSERT_EQ(a, b) ASSERT_INT_BASE(a, ==, b, int64_t, PRId64)
 #define ASSERT_GE(a, b) ASSERT_INT_BASE(a, >=, b, int64_t, PRId64)
@@ -194,10 +214,10 @@ typedef enum {
 #define ASSERT_UINT64_NE(a, b) ASSERT_INT_BASE(a, !=, b, uint64_t, PRIu64)
 
 #define ASSERT_STR_EQ(a, b) \
-  ASSERT_BASE(strcmp(a, b) == 0, a, ==, b, char*, "s")
+  ASSERT_BASE_STR(strcmp(a, b) == 0, a, == , b, char*, "s")
 
 #define ASSERT_STR_NE(a, b) \
-  ASSERT_BASE(strcmp(a, b) != 0, a, !=, b, char*, "s")
+  ASSERT_BASE_STR(strcmp(a, b) != 0, a, !=, b, char*, "s")
 
 #define ASSERT_MEM_EQ(a, b, size) \
   ASSERT_BASE_LEN(memcmp(a, b, size) == 0, a, ==, b, s, size)
@@ -212,16 +232,16 @@ typedef enum {
   ASSERT_BASE_HEX(memcmp(a, b, size) != 0, a, !=, b, size)
 
 #define ASSERT_NULL(a) \
-  ASSERT_BASE(a == NULL, a, ==, NULL, void*, "p")
+  ASSERT_BASE(a, ==, NULL, void*, "p")
 
 #define ASSERT_NOT_NULL(a) \
-  ASSERT_BASE(a != NULL, a, !=, NULL, void*, "p")
+  ASSERT_BASE(a, !=, NULL, void*, "p")
 
 #define ASSERT_PTR_EQ(a, b) \
-  ASSERT_BASE((void*)a == (void*)b, a, ==, b, void*, "p")
+  ASSERT_BASE(a, ==, b, void*, "p")
 
 #define ASSERT_PTR_NE(a, b) \
-  ASSERT_BASE((void*)a != (void*)b, a, !=, b, void*, "p")
+  ASSERT_BASE(a, !=, b, void*, "p")
 
 /* This macro cleans up the main loop. This is used to avoid valgrind
  * warnings about memory being "leaked" by the main event loop.
