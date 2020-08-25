@@ -3611,12 +3611,10 @@ void CipherBase::Init(const char* cipher_type,
   HandleScope scope(env()->isolate());
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-#ifdef NODE_FIPS_MODE
   if (FIPS_mode()) {
     return env()->ThrowError(
         "crypto.createCipher() is not supported in FIPS mode.");
   }
-#endif  // NODE_FIPS_MODE
 
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr)
@@ -3802,13 +3800,11 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
       return false;
     }
 
-#ifdef NODE_FIPS_MODE
     // TODO(tniessen) Support CCM decryption in FIPS mode
     if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher && FIPS_mode()) {
       env()->ThrowError("CCM decryption not supported in FIPS mode");
       return false;
     }
-#endif
 
     // Tell OpenSSL about the desired length.
     if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_SET_TAG, auth_tag_len,
@@ -4683,7 +4679,6 @@ static AllocatedBuffer Node_SignFinal(Environment* env,
 }
 
 static inline bool ValidateDSAParameters(EVP_PKEY* key) {
-#ifdef NODE_FIPS_MODE
   /* Validate DSA2 parameters from FIPS 186-4 */
   if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
     DSA* dsa = EVP_PKEY_get0_DSA(key);
@@ -4699,7 +4694,6 @@ static inline bool ValidateDSAParameters(EVP_PKEY* key) {
            (L == 2048 && N == 256) ||
            (L == 3072 && N == 256);
   }
-#endif  // NODE_FIPS_MODE
 
   return true;
 }
@@ -6859,7 +6853,6 @@ void InitCryptoOnce() {
   settings = nullptr;
 #endif
 
-#ifdef NODE_FIPS_MODE
   /* Override FIPS settings in cnf file, if needed. */
   unsigned long err = 0;  // NOLINT(runtime/int)
   if (per_process::cli_options->enable_fips_crypto ||
@@ -6874,8 +6867,6 @@ void InitCryptoOnce() {
             ERR_error_string(err, nullptr));
     UNREACHABLE();
   }
-#endif  // NODE_FIPS_MODE
-
 
   // Turn off compression. Saves memory and protects against CRIME attacks.
   // No-op with OPENSSL_NO_COMP builds of OpenSSL.
@@ -6920,7 +6911,6 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
-#ifdef NODE_FIPS_MODE
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(FIPS_mode() ? 1 : 0);
 }
@@ -6938,8 +6928,6 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, err);
   }
 }
-#endif /* NODE_FIPS_MODE */
-
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -6976,10 +6964,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
 
-#ifdef NODE_FIPS_MODE
   env->SetMethodNoSideEffect(target, "getFipsCrypto", GetFipsCrypto);
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
-#endif
 
   env->SetMethod(target, "pbkdf2", PBKDF2);
   env->SetMethod(target, "generateKeyPairRSA", GenerateKeyPairRSA);
