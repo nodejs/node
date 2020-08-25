@@ -45,18 +45,17 @@ const conditionalOpts = [
   {
     include: common.hasCrypto,
     filter: (opt) => {
-      return ['--openssl-config', '--tls-cipher-list', '--use-bundled-ca',
-              '--use-openssl-ca' ].includes(opt);
+      return [
+        '--openssl-config',
+        '--tls-cipher-list',
+        '--use-bundled-ca',
+        '--use-openssl-ca',
+        '--secure-heap',
+        '--secure-heap-min',
+        '--enable-fips',
+        '--force-fips',
+      ].includes(opt);
     }
-  }, {
-    // We are using openssl_is_fips from the configuration because it could be
-    // the case that OpenSSL is FIPS compatible but fips has not been enabled
-    // (starting node with --enable-fips). If we use common.hasFipsCrypto
-    // that would only tells us if fips has been enabled, but in this case we
-    // want to check options which will be available regardless of whether fips
-    // is enabled at runtime or not.
-    include: process.config.variables.openssl_is_fips,
-    filter: (opt) => opt.includes('-fips')
   }, {
     include: common.hasIntl,
     filter: (opt) => opt === '--icu-data-dir'
