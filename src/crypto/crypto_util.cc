@@ -133,7 +133,6 @@ void InitCryptoOnce() {
   }
 #endif
 
-#ifdef NODE_FIPS_MODE
   /* Override FIPS settings in cnf file, if needed. */
   unsigned long err = 0;  // NOLINT(runtime/int)
   if (per_process::cli_options->enable_fips_crypto ||
@@ -148,7 +147,6 @@ void InitCryptoOnce() {
             ERR_error_string(err, nullptr));
     UNREACHABLE();
   }
-#endif  // NODE_FIPS_MODE
 
   // Turn off compression. Saves memory and protects against CRIME attacks.
   // No-op with OPENSSL_NO_COMP builds of OpenSSL.
@@ -162,7 +160,6 @@ void InitCryptoOnce() {
   NodeBIO::GetMethod();
 }
 
-#ifdef NODE_FIPS_MODE
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(FIPS_mode() ? 1 : 0);
 }
@@ -180,7 +177,16 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, err);
   }
 }
-#endif /* NODE_FIPS_MODE */
+
+void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
+#ifdef OPENSSL_FIPS
+  const auto enabled = FIPS_selftest() ? 1 : 0;
+#else  // OPENSSL_FIPS
+  const auto enabled = 0;
+#endif  // OPENSSL_FIPS
+
+  args.GetReturnValue().Set(enabled);
+}
 
 void CryptoErrorVector::Capture() {
   clear();
@@ -652,10 +658,9 @@ void Initialize(Environment* env, Local<Object> target) {
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
 
-#ifdef NODE_FIPS_MODE
   env->SetMethodNoSideEffect(target, "getFipsCrypto", GetFipsCrypto);
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
-#endif
+  env->SetMethodNoSideEffect(target, "testFipsCrypto", TestFipsCrypto);
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
