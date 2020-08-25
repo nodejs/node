@@ -656,6 +656,7 @@
         'src/base_object.h',
         'src/base_object-inl.h',
         'src/base64.h',
+        'src/base64-inl.h',
         'src/callback_queue.h',
         'src/callback_queue-inl.h',
         'src/connect_wrap.h',
