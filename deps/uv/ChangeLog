@@ -1,3 +1,79 @@
+2020.08.26, Version 1.39.0 (Stable), 25f4b8b8a3c0f934158cd37a37b0525d75ca488e
+
+Changes since version 1.38.1:
+
+* unix: use relaxed loads/stores for clock id (Ben Noordhuis)
+
+* build,win: link to user32.lib and advapi32.lib (George Zhao)
+
+* unix: squelch harmless valgrind warning (ssrlive)
+
+* include: fx c++ style comments warnings (Turbinya)
+
+* build,cmake: Change installation location on MinGW (erw7)
+
+* linux: use copy_file_range for uv_fs_copyfile when possible (Carter Li)
+
+* win,tcp: avoid reinserting a pending request (
+
+* docs: improve the descriptions for get memory info (Juan Sebastian velez
+  Posada)
+
+* test: add udp-mmsg test (Ryan Liptak)
+
+* udp: add uv_udp_using_recvmmsg query (Ryan Liptak)
+
+* doc: add more error constants (TK-one)
+
+* zos: fix potential event loop stall (Trevor Norris)
+
+* include: add internal fields struct to uv_loop_t (Trevor Norris)
+
+* core: add API to measure event loop idle time (Trevor Norris)
+
+* win,fs: use CreateDirectoryW instead of _wmkdir (Mustafa M)
+
+* win,nfc: fix integer comparison signedness (escherstair)
+
+* win,nfc: use
+
+* win,nfc: removed some unused variables (escherstair)
+
+* win,nfc: add missing return statement (escherstair)
+
+* win,nfc: disable clang-format for
+
+* darwin: use IOKit for uv_cpu_info (Evan Lucas)
+
+* test: fix thread race in process_title_threadsafe (Ben Noordhuis)
+
+* win,fs: avoid implicit access to _doserrno (Jameson Nash)
+
+* test: give hrtime test a custom 20s timeout (Jameson Nash)
+
+* build: add more failed test, for qemu version bump (gengjiawen)
+
+* unix: handle src, dest same in uv_fs_copyfile() (cjihrig)
+
+* unix: error when uv_setup_args() is not called (Ryan Liptak)
+
+* aix: protect uv_exepath() from uv_set_process_title() (Richard Lau)
+
+* fs: clobber req->path on uv_fs_mkstemp() error (tjarlama)
+
+* cmake: fix compile error C2001 on Chinese Windows (司徒玟琅)
+
+* test: avoid double evaluation in ASSERT_BASE macro (tjarlama)
+
+* tcp: fail instantly if local port is unbound (Bartosz Sosnowski)
+
+* doc: fix most sphinx warnings (Jameson Nash)
+
+* nfci: address some style nits (Jameson Nash)
+
+* unix: don't use _POSIX_PATH_MAX (Ben Noordhuis)
+
+
 2020.07.04, Version 1.38.1 (Stable), e8b989ea1f7f9d4083511a2caec7791e9abd1871
 
 Changes since version 1.38.0:

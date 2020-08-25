@@ -254,8 +254,6 @@ static int getexe(const int pid, char* buf, size_t len) {
 int uv_exepath(char* buffer, size_t* size) {
   int res;
   char args[PATH_MAX];
-  char abspath[PATH_MAX];
-  size_t abspath_size;
   int pid;
 
   if (buffer == NULL || size == NULL || *size == 0)
@@ -266,69 +264,7 @@ int uv_exepath(char* buffer, size_t* size) {
   if (res < 0)
     return UV_EINVAL;
 
-  /*
-   * Possibilities for args:
-   * i) an absolute path such as: /home/user/myprojects/nodejs/node
-   * ii) a relative path such as: ./node or ../myprojects/nodejs/node
-   * iii) a bare filename such as "node", after exporting PATH variable
-   *     to its location.
-   */
-
-  /* Case i) and ii) absolute or relative paths */
-  if (strchr(args, '/') != NULL) {
-    if (realpath(args, abspath) != abspath)
-      return UV__ERR(errno);
-
-    abspath_size = strlen(abspath);
-
-    *size -= 1;
-    if (*size > abspath_size)
-      *size = abspath_size;
-
-    memcpy(buffer, abspath, *size);
-    buffer[*size] = '\0';
-
-    return 0;
-  } else {
-    /* Case iii). Search PATH environment variable */
-    char trypath[PATH_MAX];
-    char* clonedpath = NULL;
-    char* token = NULL;
-    char* path = getenv("PATH");
-
-    if (path == NULL)
-      return UV_EINVAL;
-
-    clonedpath = uv__strdup(path);
-    if (clonedpath == NULL)
-      return UV_ENOMEM;
-
-    token = strtok(clonedpath, ":");
-    while (token != NULL) {
-      snprintf(trypath, sizeof(trypath) - 1, "%s/%s", token, args);
-      if (realpath(trypath, abspath) == abspath) {
-        /* Check the match is executable */
-        if (access(abspath, X_OK) == 0) {
-          abspath_size = strlen(abspath);
-
-          *size -= 1;
-          if (*size > abspath_size)
-            *size = abspath_size;
-
-          memcpy(buffer, abspath, *size);
-          buffer[*size] = '\0';
-
-          uv__free(clonedpath);
-          return 0;
-        }
-      }
-      token = strtok(NULL, ":");
-    }
-    uv__free(clonedpath);
-
-    /* Out of tokens (path entries), and no match found */
-    return UV_EINVAL;
-  }
+  return uv__search_path(args, buffer, size);
 }
 
 
@@ -818,6 +754,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int fd;
   int op;
   int i;
+  int user_timeout;
+  int reset_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -870,8 +808,22 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   real_timeout = timeout;
   int nevents = 0;
 
+  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+    reset_timeout = 1;
+    user_timeout = timeout;
+    timeout = 0;
+  } else {
+    reset_timeout = 0;
+  }
+
   nfds = 0;
   for (;;) {
+    /* Only need to set the provider_entry_time if timeout != 0. The function
+     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
+     */
+    if (timeout != 0)
+      uv__metrics_set_provider_entry_time(loop);
+
     if (sizeof(int32_t) == sizeof(long) && timeout >= max_safe_timeout)
       timeout = max_safe_timeout;
 
@@ -887,18 +839,32 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (nfds == 0) {
       assert(timeout != -1);
 
-      if (timeout > 0) {
-        timeout = real_timeout - timeout;
-        continue;
+      if (reset_timeout != 0) {
+        timeout = user_timeout;
+        reset_timeout = 0;
       }
 
-      return;
+      if (timeout == -1)
+        continue;
+
+      if (timeout == 0)
+        return;
+
+      /* We may have been inside the system call for longer than |timeout|
+       * milliseconds so we need to update the timestamp to avoid drift.
+       */
+      goto update_timeout;
     }
 
     if (nfds == -1) {
 
       if (errno != EINTR)
         abort();
+
+      if (reset_timeout != 0) {
+        timeout = user_timeout;
+        reset_timeout = 0;
+      }
 
       if (timeout == -1)
         continue;
@@ -954,12 +920,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         pe->events |= w->pevents & (POLLIN | POLLOUT);
 
       if (pe->events != 0) {
+        uv__metrics_update_idle_time(loop);
         w->cb(loop, w, pe->events);
         nevents++;
       }
     }
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
+
+    if (reset_timeout != 0) {
+      timeout = user_timeout;
+      reset_timeout = 0;
+    }
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {

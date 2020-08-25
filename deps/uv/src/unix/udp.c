@@ -270,14 +270,11 @@ static void uv__udp_recvmsg(uv_udp_t* handle) {
     assert(buf.base != NULL);
 
 #if HAVE_MMSG
-    if (handle->flags & UV_HANDLE_UDP_RECVMMSG) {
-      uv_once(&once, uv__udp_mmsg_init);
-      if (uv__recvmmsg_avail) {
-        nread = uv__udp_recvmmsg(handle, &buf);
-        if (nread > 0)
-          count -= nread;
-        continue;
-      }
+    if (uv_udp_using_recvmmsg(handle)) {
+      nread = uv__udp_recvmmsg(handle, &buf);
+      if (nread > 0)
+        count -= nread;
+      continue;
     }
 #endif
 
@@ -972,6 +969,17 @@ int uv__udp_init_ex(uv_loop_t* loop,
   QUEUE_INIT(&handle->write_queue);
   QUEUE_INIT(&handle->write_completed_queue);
 
+  return 0;
+}
+
+
+int uv_udp_using_recvmmsg(const uv_udp_t* handle) {
+#if HAVE_MMSG
+  if (handle->flags & UV_HANDLE_UDP_RECVMMSG) {
+    uv_once(&once, uv__udp_mmsg_init);
+    return uv__recvmmsg_avail;
+  }
+#endif
   return 0;
 }
 

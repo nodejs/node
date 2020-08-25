@@ -88,5 +88,19 @@ TEST_IMPL(get_currentexe) {
   ASSERT(buffer[0] != '\0');
   ASSERT(buffer[1] == '\0');
 
+  /* Verify uv_exepath is not affected by uv_set_process_title(). */
+  r = uv_set_process_title("foobar");
+  ASSERT_EQ(r, 0);
+  size = sizeof(buffer);
+  r = uv_exepath(buffer, &size);
+  ASSERT_EQ(r, 0);
+
+  match = strstr(buffer, path);
+  /* Verify that the path returned from uv_exepath is a subdirectory of
+   * executable_path.
+   */
+  ASSERT_NOT_NULL(match);
+  ASSERT_STR_EQ(match, path);
+  ASSERT_EQ(size, strlen(buffer));
   return 0;
 }

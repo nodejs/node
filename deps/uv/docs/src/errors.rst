@@ -319,11 +319,23 @@ Error constants
 
     too many links
 
+.. c:macro:: UV_ENOTTY
+
+    inappropriate ioctl for device
+
+.. c:macro:: UV_EFTYPE
+
+    inappropriate file type or format
+
+.. c:macro:: UV_EILSEQ
+
+    illegal byte sequence
+
 
 API
 ---
 
-.. c:function:: UV_ERRNO_MAP(iter_macro)
+.. c:macro:: UV_ERRNO_MAP(iter_macro)
 
     Macro that expands to a series of invocations of `iter_macro` for
     each of the error constants above. `iter_macro` is invoked with two

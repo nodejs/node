@@ -71,7 +71,7 @@ static void exit_cb(uv_process_t* process,
   exit_cb_called++;
   ASSERT(exit_status == 1);
   ASSERT(term_signal == 0);
-  uv_close((uv_handle_t*)process, close_cb);
+  uv_close((uv_handle_t*) process, close_cb);
 }
 
 
@@ -104,7 +104,7 @@ static void kill_cb(uv_process_t* process,
 #else
   ASSERT(no_term_signal || term_signal == SIGTERM);
 #endif
-  uv_close((uv_handle_t*)process, close_cb);
+  uv_close((uv_handle_t*) process, close_cb);
 
   /*
    * Sending signum == 0 should check if the
@@ -135,7 +135,7 @@ static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
     output_used += nread;
   } else if (nread < 0) {
     ASSERT(nread == UV_EOF);
-    uv_close((uv_handle_t*)tcp, close_cb);
+    uv_close((uv_handle_t*) tcp, close_cb);
   }
 }
 
@@ -150,7 +150,7 @@ static void on_read_once(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 
 static void write_cb(uv_write_t* req, int status) {
   ASSERT(status == 0);
-  uv_close((uv_handle_t*)req->handle, close_cb);
+  uv_close((uv_handle_t*) req->handle, close_cb);
 }
 
 
@@ -172,8 +172,8 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
 
 
 static void timer_cb(uv_timer_t* handle) {
-  uv_process_kill(&process, /* SIGTERM */ 15);
-  uv_close((uv_handle_t*)handle, close_cb);
+  uv_process_kill(&process, SIGTERM);
+  uv_close((uv_handle_t*) handle, close_cb);
 }
 
 
@@ -291,7 +291,7 @@ TEST_IMPL(spawn_stdout) {
   options.stdio = stdio;
   options.stdio[0].flags = UV_IGNORE;
   options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio[1].data.stream = (uv_stream_t*) &out;
   options.stdio_count = 2;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -595,9 +595,9 @@ TEST_IMPL(spawn_stdin) {
   uv_pipe_init(uv_default_loop(), &in, 0);
   options.stdio = stdio;
   options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[0].data.stream = (uv_stream_t*) &in;
   options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio[1].data.stream = (uv_stream_t*) &out;
   options.stdio_count = 2;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -605,7 +605,7 @@ TEST_IMPL(spawn_stdin) {
 
   buf.base = buffer;
   buf.len = sizeof(buffer);
-  r = uv_write(&write_req, (uv_stream_t*)&in, &buf, 1, write_cb);
+  r = uv_write(&write_req, (uv_stream_t*) &in, &buf, 1, write_cb);
   ASSERT(r == 0);
 
   r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
@@ -636,7 +636,7 @@ TEST_IMPL(spawn_stdio_greater_than_3) {
   options.stdio[1].flags = UV_IGNORE;
   options.stdio[2].flags = UV_IGNORE;
   options.stdio[3].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[3].data.stream = (uv_stream_t*)&pipe;
+  options.stdio[3].data.stream = (uv_stream_t*) &pipe;
   options.stdio_count = 4;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -677,7 +677,7 @@ int spawn_tcp_server_helper(void) {
   /* Make sure that we can listen on a socket that was
    * passed down from the parent process
    */
-  r = uv_listen((uv_stream_t*)&tcp, SOMAXCONN, NULL);
+  r = uv_listen((uv_stream_t*) &tcp, SOMAXCONN, NULL);
   ASSERT(r == 0);
 
   return 1;
@@ -703,10 +703,10 @@ TEST_IMPL(spawn_tcp_server) {
   r = uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 #ifdef _WIN32
-  r = uv_fileno((uv_handle_t*)&tcp_server, &handle);
+  r = uv_fileno((uv_handle_t*) &tcp_server, &handle);
   fd = _open_osfhandle((intptr_t) handle, 0);
 #else
-  r = uv_fileno((uv_handle_t*)&tcp_server, &fd);
+  r = uv_fileno((uv_handle_t*) &tcp_server, &fd);
  #endif
   ASSERT(r == 0);
   ASSERT(fd > 0);
@@ -833,7 +833,7 @@ TEST_IMPL(spawn_detached) {
   r = uv_spawn(uv_default_loop(), &process, &options);
   ASSERT(r == 0);
 
-  uv_unref((uv_handle_t*)&process);
+  uv_unref((uv_handle_t*) &process);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
@@ -845,7 +845,7 @@ TEST_IMPL(spawn_detached) {
   r = uv_kill(process.pid, 0);
   ASSERT(r == 0);
 
-  r = uv_kill(process.pid, 15);
+  r = uv_kill(process.pid, SIGTERM);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();
@@ -874,11 +874,11 @@ TEST_IMPL(spawn_and_kill_with_std) {
 
   options.stdio = stdio;
   options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[0].data.stream = (uv_stream_t*) &in;
   options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio[1].data.stream = (uv_stream_t*) &out;
   options.stdio[2].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[2].data.stream = (uv_stream_t*)&err;
+  options.stdio[2].data.stream = (uv_stream_t*) &err;
   options.stdio_count = 3;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -925,9 +925,9 @@ TEST_IMPL(spawn_and_ping) {
   uv_pipe_init(uv_default_loop(), &in, 0);
   options.stdio = stdio;
   options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[0].data.stream = (uv_stream_t*) &in;
   options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio[1].data.stream = (uv_stream_t*) &out;
   options.stdio_count = 2;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -939,10 +939,10 @@ TEST_IMPL(spawn_and_ping) {
   r = uv_process_kill(&process, 0);
   ASSERT(r == 0);
 
-  r = uv_write(&write_req, (uv_stream_t*)&in, &buf, 1, write_cb);
+  r = uv_write(&write_req, (uv_stream_t*) &in, &buf, 1, write_cb);
   ASSERT(r == 0);
 
-  r = uv_read_start((uv_stream_t*)&out, on_alloc, on_read);
+  r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 0);
@@ -972,9 +972,9 @@ TEST_IMPL(spawn_same_stdout_stderr) {
   uv_pipe_init(uv_default_loop(), &in, 0);
   options.stdio = stdio;
   options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[0].data.stream = (uv_stream_t*) &in;
   options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio[1].data.stream = (uv_stream_t*) &out;
   options.stdio_count = 2;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -986,10 +986,10 @@ TEST_IMPL(spawn_same_stdout_stderr) {
   r = uv_process_kill(&process, 0);
   ASSERT(r == 0);
 
-  r = uv_write(&write_req, (uv_stream_t*)&in, &buf, 1, write_cb);
+  r = uv_write(&write_req, (uv_stream_t*) &in, &buf, 1, write_cb);
   ASSERT(r == 0);
 
-  r = uv_read_start((uv_stream_t*)&out, on_alloc, on_read);
+  r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 0);
@@ -1077,7 +1077,7 @@ TEST_IMPL(kill) {
   ASSERT(r == 0);
 
   /* Kill the process. */
-  r = uv_kill(process.pid, /* SIGTERM */ 15);
+  r = uv_kill(process.pid, SIGTERM);
   ASSERT(r == 0);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
@@ -1105,7 +1105,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   options.stdio = stdio;
   options.stdio[0].flags = UV_IGNORE;
   options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio[1].data.stream = (uv_stream_t*) &out;
   options.stdio_count = 2;
 
   /* Create a pipe that'll cause a collision. */
@@ -1821,32 +1821,32 @@ TEST_IMPL(spawn_inherit_streams) {
   ASSERT(uv_is_writable((uv_stream_t*) &pipe_stdout_parent) == bidir);
 
   child_stdio[0].flags = UV_INHERIT_STREAM;
-  child_stdio[0].data.stream = (uv_stream_t *)&pipe_stdin_child;
+  child_stdio[0].data.stream = (uv_stream_t *) &pipe_stdin_child;
 
   child_stdio[1].flags = UV_INHERIT_STREAM;
-  child_stdio[1].data.stream = (uv_stream_t *)&pipe_stdout_child;
+  child_stdio[1].data.stream = (uv_stream_t *) &pipe_stdout_child;
 
   options.stdio = child_stdio;
   options.stdio_count = 2;
 
   ASSERT(uv_spawn(loop, &child_req, &options) == 0);
 
-  uv_close((uv_handle_t*)&pipe_stdin_child, NULL);
-  uv_close((uv_handle_t*)&pipe_stdout_child, NULL);
+  uv_close((uv_handle_t*) &pipe_stdin_child, NULL);
+  uv_close((uv_handle_t*) &pipe_stdout_child, NULL);
 
-  buf = uv_buf_init((char*)ubuf, sizeof ubuf);
+  buf = uv_buf_init((char*) ubuf, sizeof ubuf);
   for (i = 0; i < sizeof ubuf; ++i)
     ubuf[i] = i & 255u;
   memset(output, 0, sizeof ubuf);
 
   r = uv_write(&write_req,
-               (uv_stream_t*)&pipe_stdin_parent,
+               (uv_stream_t*) &pipe_stdin_parent,
                &buf,
                1,
                write_cb);
   ASSERT(r == 0);
 
-  r = uv_read_start((uv_stream_t*)&pipe_stdout_parent, on_alloc, on_read);
+  r = uv_read_start((uv_stream_t*) &pipe_stdout_parent, on_alloc, on_read);
   ASSERT(r == 0);
 
   r = uv_run(loop, UV_RUN_DEFAULT);

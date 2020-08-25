@@ -70,14 +70,14 @@ static void pinger_on_close(uv_handle_t* handle) {
 }
 
 
-static void pinger_after_write(uv_write_t *req, int status) {
+static void pinger_after_write(uv_write_t* req, int status) {
   ASSERT(status == 0);
   free(req);
 }
 
 
 static void pinger_write_ping(pinger_t* pinger) {
-  uv_write_t *req;
+  uv_write_t* req;
   uv_buf_t bufs[sizeof PING - 1];
   int i, nbufs;
 
@@ -112,7 +112,7 @@ static void pinger_read_cb(uv_stream_t* stream,
   ssize_t i;
   pinger_t* pinger;
 
-  pinger = (pinger_t*)stream->data;
+  pinger = (pinger_t*) stream->data;
 
   if (nread < 0) {
     ASSERT(nread == UV_EOF);
@@ -148,8 +148,8 @@ static void pinger_read_cb(uv_stream_t* stream,
 }
 
 
-static void pinger_on_connect(uv_connect_t *req, int status) {
-  pinger_t *pinger = (pinger_t*)req->handle->data;
+static void pinger_on_connect(uv_connect_t* req, int status) {
+  pinger_t* pinger = (pinger_t*)req->handle->data;
 
   pinger_on_connect_count++;
 
@@ -169,10 +169,10 @@ static void pinger_on_connect(uv_connect_t *req, int status) {
 static void tcp_pinger_v6_new(int vectored_writes) {
   int r;
   struct sockaddr_in6 server_addr;
-  pinger_t *pinger;
+  pinger_t* pinger;
 
 
-  ASSERT(0 ==uv_ip6_addr("::1", TEST_PORT, &server_addr));
+  ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &server_addr));
   pinger = malloc(sizeof(*pinger));
   ASSERT(pinger != NULL);
   pinger->vectored_writes = vectored_writes;
@@ -200,7 +200,7 @@ static void tcp_pinger_v6_new(int vectored_writes) {
 static void tcp_pinger_new(int vectored_writes) {
   int r;
   struct sockaddr_in server_addr;
-  pinger_t *pinger;
+  pinger_t* pinger;
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
   pinger = malloc(sizeof(*pinger));
@@ -229,9 +229,9 @@ static void tcp_pinger_new(int vectored_writes) {
 
 static void pipe_pinger_new(int vectored_writes) {
   int r;
-  pinger_t *pinger;
+  pinger_t* pinger;
 
-  pinger = (pinger_t*)malloc(sizeof(*pinger));
+  pinger = malloc(sizeof(*pinger));
   ASSERT(pinger != NULL);
   pinger->vectored_writes = vectored_writes;
   pinger->state = 0;

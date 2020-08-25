@@ -46,6 +46,11 @@ static void getnameinfo_req(uv_getnameinfo_t* handle,
 
 
 TEST_IMPL(getnameinfo_basic_ip4) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
   int r;
 
   r = uv_ip4_addr(address_ip4, port, &addr4);
@@ -87,6 +92,11 @@ TEST_IMPL(getnameinfo_basic_ip4_sync) {
 
 
 TEST_IMPL(getnameinfo_basic_ip6) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+  
   int r;
 
   r = uv_ip6_addr(address_ip6, port, &addr6);

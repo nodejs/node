@@ -154,6 +154,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   sigset_t set;
   uint64_t base;
   uint64_t diff;
+  uint64_t idle_poll;
   unsigned int nfds;
   unsigned int i;
   int saved_errno;
@@ -162,6 +163,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int count;
   int err;
   int fd;
+  int user_timeout;
+  int reset_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -199,7 +202,21 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
 
+  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+    reset_timeout = 1;
+    user_timeout = timeout;
+    timeout = 0;
+  } else {
+    reset_timeout = 0;
+  }
+
   for (;;) {
+    /* Only need to set the provider_entry_time if timeout != 0. The function
+     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
+     */
+    if (timeout != 0)
+      uv__metrics_set_provider_entry_time(loop);
+
     if (timeout != -1) {
       spec.tv_sec = timeout / 1000;
       spec.tv_nsec = (timeout % 1000) * 1000000;
@@ -242,6 +259,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     SAVE_ERRNO(uv__update_time(loop));
 
     if (events[0].portev_source == 0) {
+      if (reset_timeout != 0) {
+        timeout = user_timeout;
+        reset_timeout = 0;
+      }
+
       if (timeout == 0)
         return;
 
@@ -282,10 +304,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       /* Run signal watchers last.  This also affects child process watchers
        * because those are implemented in terms of signal watchers.
        */
-      if (w == &loop->signal_io_watcher)
+      if (w == &loop->signal_io_watcher) {
         have_signals = 1;
-      else
+      } else {
+        uv__metrics_update_idle_time(loop);
         w->cb(loop, w, pe->portev_events);
+      }
 
       nevents++;
 
@@ -297,8 +321,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
     }
 
-    if (have_signals != 0)
+    if (reset_timeout != 0) {
+      timeout = user_timeout;
+      reset_timeout = 0;
+    }
+
+    if (have_signals != 0) {
+      uv__metrics_update_idle_time(loop);
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+    }
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;

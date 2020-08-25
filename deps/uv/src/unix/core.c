@@ -383,6 +383,14 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
       timeout = uv_backend_timeout(loop);
 
     uv__io_poll(loop, timeout);
+
+    /* Run one final update on the provider_idle_time in case uv__io_poll
+     * returned because the timeout expired, but no events were received. This
+     * call will be ignored if the provider_entry_time was either never set (if
+     * the timeout == 0) or was already updated b/c an event was received.
+     */
+    uv__metrics_update_idle_time(loop);
+
     uv__run_check(loop);
     uv__run_closing_handles(loop);
 
@@ -1527,4 +1535,79 @@ void uv_sleep(unsigned int msec) {
   while (rc == -1 && errno == EINTR);
 
   assert(rc == 0);
+}
+
+int uv__search_path(const char* prog, char* buf, size_t* buflen) {
+  char abspath[UV__PATH_MAX];
+  size_t abspath_size;
+  char trypath[UV__PATH_MAX];
+  char* cloned_path;
+  char* path_env;
+  char* token;
+
+  if (buf == NULL || buflen == NULL || *buflen == 0)
+    return UV_EINVAL;
+
+  /*
+   * Possibilities for prog:
+   * i) an absolute path such as: /home/user/myprojects/nodejs/node
+   * ii) a relative path such as: ./node or ../myprojects/nodejs/node
+   * iii) a bare filename such as "node", after exporting PATH variable
+   *     to its location.
+   */
+
+  /* Case i) and ii) absolute or relative paths */
+  if (strchr(prog, '/') != NULL) {
+    if (realpath(prog, abspath) != abspath)
+      return UV__ERR(errno);
+
+    abspath_size = strlen(abspath);
+
+    *buflen -= 1;
+    if (*buflen > abspath_size)
+      *buflen = abspath_size;
+
+    memcpy(buf, abspath, *buflen);
+    buf[*buflen] = '\0';
+
+    return 0;
+  } 
+
+  /* Case iii). Search PATH environment variable */
+  cloned_path = NULL;
+  token = NULL;
+  path_env = getenv("PATH");
+
+  if (path_env == NULL)
+    return UV_EINVAL;
+
+  cloned_path = uv__strdup(path_env);
+  if (cloned_path == NULL)
+    return UV_ENOMEM;
+
+  token = strtok(cloned_path, ":");
+  while (token != NULL) {
+    snprintf(trypath, sizeof(trypath) - 1, "%s/%s", token, prog);
+    if (realpath(trypath, abspath) == abspath) {
+      /* Check the match is executable */
+      if (access(abspath, X_OK) == 0) {
+        abspath_size = strlen(abspath);
+
+        *buflen -= 1;
+        if (*buflen > abspath_size)
+          *buflen = abspath_size;
+
+        memcpy(buf, abspath, *buflen);
+        buf[*buflen] = '\0';
+
+        uv__free(cloned_path);
+        return 0;
+      }
+    }
+    token = strtok(NULL, ":");
+  }
+  uv__free(cloned_path);
+
+  /* Out of tokens (path entries), and no match found */
+  return UV_EINVAL;
 }
