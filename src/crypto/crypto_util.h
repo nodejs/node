@@ -22,6 +22,11 @@
 #ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
+// The FIPS-related functions are only available
+// when the OpenSSL itself was compiled with FIPS support.
+#ifdef  OPENSSL_FIPS
+#  include <openssl/fips.h>
+#endif  // OPENSSL_FIPS
 
 #include <algorithm>
 #include <memory>
@@ -510,11 +515,11 @@ bool SetEngine(
 void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !OPENSSL_NO_ENGINE
 
-#ifdef NODE_FIPS_MODE
 void GetFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 void SetFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif /* NODE_FIPS_MODE */
+
+void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class CipherPushContext {
  public:

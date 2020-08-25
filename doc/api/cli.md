@@ -186,8 +186,8 @@ code from strings throw an exception instead. This does not affect the Node.js
 added: v6.0.0
 -->
 
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
-`./configure --openssl-fips`.)
+Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
+against FIPS-compatible OpenSSL.)
 
 ### `--enable-source-maps`
 <!-- YAML
@@ -613,8 +613,8 @@ added: v6.9.0
 -->
 
 Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-`./configure --openssl-fips`.
+used to enable FIPS-compliant crypto if Node.js is built
+against FIPS-enabled OpenSSL.
 
 ### `--pending-deprecation`
 <!-- YAML
