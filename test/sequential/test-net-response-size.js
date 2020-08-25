@@ -42,7 +42,7 @@ if (process.argv[2] === 'server') {
     });
   }));
 
-  server.listen(common.PORT, '127.0.0.1', common.mustCall(() {
+  server.listen(common.PORT, '127.0.0.1', common.mustCall(()=> {
     console.log('Server running.');
   }));
 
