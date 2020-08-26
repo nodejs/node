@@ -53,7 +53,10 @@ specifier resolution, and default behavior.
 
 <!-- type=misc -->
 
-Experimental support for ECMAScript modules is enabled by default. See
+Node.js treats JavaScript code as CommonJS modules by default.
+Authors can tell Node.js to treat JavaScript code as ECMAScript modules
+via the `.mjs` file extension, the `package.json` `"type"` field, or the
+`--input-type` flag. See
 [Modules: Packages](packages.html#packages_determining_module_system) for more
 details.
 
