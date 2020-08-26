@@ -75,7 +75,7 @@ static BROTLI_INLINE void RingBufferInitBuffer(
   uint8_t* new_data = BROTLI_ALLOC(
       m, uint8_t, 2 + buflen + kSlackForEightByteHashingEverywhere);
   size_t i;
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(new_data)) return;
   if (rb->data_) {
     memcpy(new_data, rb->data_,
         2 + rb->cur_size_ + kSlackForEightByteHashingEverywhere);
@@ -125,6 +125,9 @@ static BROTLI_INLINE void RingBufferWrite(
        later when we copy the last two bytes to the first two positions. */
     rb->buffer_[rb->size_ - 2] = 0;
     rb->buffer_[rb->size_ - 1] = 0;
+    /* Initialize tail; might be touched by "best_len++" optimization when
+       ring buffer is "full". */
+    rb->buffer_[rb->size_] = 241;
   }
   {
     const size_t masked_pos = rb->pos_ & rb->mask_;

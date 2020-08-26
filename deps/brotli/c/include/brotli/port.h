@@ -218,6 +218,20 @@
   BROTLI_GNUC_VERSION_CHECK(major, minor, patch)
 #endif
 
+#if defined(__has_feature)
+#define BROTLI_HAS_FEATURE(feature) __has_feature(feature)
+#else
+#define BROTLI_HAS_FEATURE(feature) (0)
+#endif
+
+#if defined(ADDRESS_SANITIZER) || BROTLI_HAS_FEATURE(address_sanitizer) || \
+    defined(THREAD_SANITIZER) || BROTLI_HAS_FEATURE(thread_sanitizer) ||   \
+    defined(MEMORY_SANITIZER) || BROTLI_HAS_FEATURE(memory_sanitizer)
+#define BROTLI_SANITIZED 1
+#else
+#define BROTLI_SANITIZED 0
+#endif
+
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define BROTLI_PUBLIC
 #elif BROTLI_GNUC_VERSION_CHECK(3, 3, 0) ||                         \

@@ -24,7 +24,7 @@ static BROTLI_INLINE size_t FN(StoreLookahead)(void) {
   return MAX_TREE_COMP_LENGTH;
 }
 
-static uint32_t FN(HashBytes)(const uint8_t* data) {
+static uint32_t FN(HashBytes)(const uint8_t* BROTLI_RESTRICT data) {
   uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kHashMul32;
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
@@ -38,7 +38,7 @@ typedef struct HashToBinaryTree {
   /* Hash table that maps the 4-byte hashes of the sequence to the last
      position where this hash was found, which is the root of the binary
      tree of sequences that share this hash bucket. */
-  uint32_t buckets_[BUCKET_SIZE];
+  uint32_t* buckets_;  /* uint32_t[BUCKET_SIZE]; */
 
   /* A position used to mark a non-existent sequence, i.e. a tree is empty if
      its root is at invalid_pos_ and a node is a leaf if both its children
@@ -51,34 +51,30 @@ typedef struct HashToBinaryTree {
      corresponding to a hash is a sequence starting at buckets_[hash] and
      the left and right children of a sequence starting at pos are
      forest_[2 * pos] and forest_[2 * pos + 1]. */
-  /* uint32_t forest[2 * num_nodes] */
+  uint32_t* forest_;  /* uint32_t[2 * num_nodes] */
 } HashToBinaryTree;
 
-static BROTLI_INLINE HashToBinaryTree* FN(Self)(HasherHandle handle) {
-  return (HashToBinaryTree*)&(GetHasherCommon(handle)[1]);
-}
-
-static BROTLI_INLINE uint32_t* FN(Forest)(HashToBinaryTree* self) {
-  return (uint32_t*)(&self[1]);
-}
-
 static void FN(Initialize)(
-    HasherHandle handle, const BrotliEncoderParams* params) {
-  HashToBinaryTree* self = FN(Self)(handle);
+    HasherCommon* common, HashToBinaryTree* BROTLI_RESTRICT self,
+    const BrotliEncoderParams* params) {
+  self->buckets_ = (uint32_t*)common->extra;
+  self->forest_ = &self->buckets_[BUCKET_SIZE];
+
   self->window_mask_ = (1u << params->lgwin) - 1u;
   self->invalid_pos_ = (uint32_t)(0 - self->window_mask_);
 }
 
-static void FN(Prepare)(HasherHandle handle, BROTLI_BOOL one_shot,
-    size_t input_size, const uint8_t* data) {
-  HashToBinaryTree* self = FN(Self)(handle);
+static void FN(Prepare)
+    (HashToBinaryTree* BROTLI_RESTRICT self, BROTLI_BOOL one_shot,
+    size_t input_size, const uint8_t* BROTLI_RESTRICT data) {
   uint32_t invalid_pos = self->invalid_pos_;
   uint32_t i;
+  uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
   BROTLI_UNUSED(data);
   BROTLI_UNUSED(one_shot);
   BROTLI_UNUSED(input_size);
   for (i = 0; i < BUCKET_SIZE; i++) {
-    self->buckets_[i] = invalid_pos;
+    buckets[i] = invalid_pos;
   }
 }
 
@@ -89,15 +85,17 @@ static BROTLI_INLINE size_t FN(HashMemAllocInBytes)(
   if (one_shot && input_size < num_nodes) {
     num_nodes = input_size;
   }
-  return sizeof(HashToBinaryTree) + 2 * sizeof(uint32_t) * num_nodes;
+  return sizeof(uint32_t) * BUCKET_SIZE + 2 * sizeof(uint32_t) * num_nodes;
 }
 
-static BROTLI_INLINE size_t FN(LeftChildIndex)(HashToBinaryTree* self,
+static BROTLI_INLINE size_t FN(LeftChildIndex)(
+    HashToBinaryTree* BROTLI_RESTRICT self,
     const size_t pos) {
   return 2 * (pos & self->window_mask_);
 }
 
-static BROTLI_INLINE size_t FN(RightChildIndex)(HashToBinaryTree* self,
+static BROTLI_INLINE size_t FN(RightChildIndex)(
+    HashToBinaryTree* BROTLI_RESTRICT self,
     const size_t pos) {
   return 2 * (pos & self->window_mask_) + 1;
 }
@@ -113,7 +111,7 @@ static BROTLI_INLINE size_t FN(RightChildIndex)(HashToBinaryTree* self,
 
    This function must be called with increasing cur_ix positions. */
 static BROTLI_INLINE BackwardMatch* FN(StoreAndFindMatches)(
-    HashToBinaryTree* self, const uint8_t* const BROTLI_RESTRICT data,
+    HashToBinaryTree* BROTLI_RESTRICT self, const uint8_t* BROTLI_RESTRICT data,
     const size_t cur_ix, const size_t ring_buffer_mask, const size_t max_length,
     const size_t max_backward, size_t* const BROTLI_RESTRICT best_len,
     BackwardMatch* BROTLI_RESTRICT matches) {
@@ -123,8 +121,9 @@ static BROTLI_INLINE BackwardMatch* FN(StoreAndFindMatches)(
   const BROTLI_BOOL should_reroot_tree =
       TO_BROTLI_BOOL(max_length >= MAX_TREE_COMP_LENGTH);
   const uint32_t key = FN(HashBytes)(&data[cur_ix_masked]);
-  uint32_t* forest = FN(Forest)(self);
-  size_t prev_ix = self->buckets_[key];
+  uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
+  uint32_t* BROTLI_RESTRICT forest = self->forest_;
+  size_t prev_ix = buckets[key];
   /* The forest index of the rightmost node of the left subtree of the new
      root, updated as we traverse and re-root the tree of the hash bucket. */
   size_t node_left = FN(LeftChildIndex)(self, cur_ix);
@@ -139,7 +138,7 @@ static BROTLI_INLINE BackwardMatch* FN(StoreAndFindMatches)(
   size_t best_len_right = 0;
   size_t depth_remaining;
   if (should_reroot_tree) {
-    self->buckets_[key] = (uint32_t)cur_ix;
+    buckets[key] = (uint32_t)cur_ix;
   }
   for (depth_remaining = MAX_TREE_SEARCH_DEPTH; ; --depth_remaining) {
     const size_t backward = cur_ix - prev_ix;
@@ -199,11 +198,13 @@ static BROTLI_INLINE BackwardMatch* FN(StoreAndFindMatches)(
    matches in matches[0] to matches[*num_matches - 1]. The matches will be
    sorted by strictly increasing length and (non-strictly) increasing
    distance. */
-static BROTLI_INLINE size_t FN(FindAllMatches)(HasherHandle handle,
-    const BrotliEncoderDictionary* dictionary, const uint8_t* data,
+static BROTLI_INLINE size_t FN(FindAllMatches)(
+    HashToBinaryTree* BROTLI_RESTRICT self,
+    const BrotliEncoderDictionary* dictionary,
+    const uint8_t* BROTLI_RESTRICT data,
     const size_t ring_buffer_mask, const size_t cur_ix,
     const size_t max_length, const size_t max_backward,
-    const size_t gap, const BrotliEncoderParams* params,
+    const size_t dictionary_distance, const BrotliEncoderParams* params,
     BackwardMatch* matches) {
   BackwardMatch* const orig_matches = matches;
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
@@ -236,7 +237,7 @@ static BROTLI_INLINE size_t FN(FindAllMatches)(HasherHandle handle,
     }
   }
   if (best_len < max_length) {
-    matches = FN(StoreAndFindMatches)(FN(Self)(handle), data, cur_ix,
+    matches = FN(StoreAndFindMatches)(self, data, cur_ix,
         ring_buffer_mask, max_length, max_backward, &best_len, matches);
   }
   for (i = 0; i <= BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN; ++i) {
@@ -252,7 +253,7 @@ static BROTLI_INLINE size_t FN(FindAllMatches)(HasherHandle handle,
       for (l = minlen; l <= maxlen; ++l) {
         uint32_t dict_id = dict_matches[l];
         if (dict_id < kInvalidMatch) {
-          size_t distance = max_backward + gap + (dict_id >> 5) + 1;
+          size_t distance = dictionary_distance + (dict_id >> 5) + 1;
           if (distance <= params->dist.max_distance) {
             InitDictionaryBackwardMatch(matches++, distance, l, dict_id & 31);
           }
@@ -266,18 +267,18 @@ static BROTLI_INLINE size_t FN(FindAllMatches)(HasherHandle handle,
 /* Stores the hash of the next 4 bytes and re-roots the binary tree at the
    current sequence, without returning any matches.
    REQUIRES: ix + MAX_TREE_COMP_LENGTH <= end-of-current-block */
-static BROTLI_INLINE void FN(Store)(HasherHandle handle, const uint8_t* data,
+static BROTLI_INLINE void FN(Store)(HashToBinaryTree* BROTLI_RESTRICT self,
+    const uint8_t* BROTLI_RESTRICT data,
     const size_t mask, const size_t ix) {
-  HashToBinaryTree* self = FN(Self)(handle);
   /* Maximum distance is window size - 16, see section 9.1. of the spec. */
   const size_t max_backward = self->window_mask_ - BROTLI_WINDOW_GAP + 1;
   FN(StoreAndFindMatches)(self, data, ix, mask, MAX_TREE_COMP_LENGTH,
       max_backward, NULL, NULL);
 }
 
-static BROTLI_INLINE void FN(StoreRange)(HasherHandle handle,
-    const uint8_t* data, const size_t mask, const size_t ix_start,
-    const size_t ix_end) {
+static BROTLI_INLINE void FN(StoreRange)(HashToBinaryTree* BROTLI_RESTRICT self,
+    const uint8_t* BROTLI_RESTRICT data, const size_t mask,
+    const size_t ix_start, const size_t ix_end) {
   size_t i = ix_start;
   size_t j = ix_start;
   if (ix_start + 63 <= ix_end) {
@@ -285,18 +286,18 @@ static BROTLI_INLINE void FN(StoreRange)(HasherHandle handle,
   }
   if (ix_start + 512 <= i) {
     for (; j < i; j += 8) {
-      FN(Store)(handle, data, mask, j);
+      FN(Store)(self, data, mask, j);
     }
   }
   for (; i < ix_end; ++i) {
-    FN(Store)(handle, data, mask, i);
+    FN(Store)(self, data, mask, i);
   }
 }
 
-static BROTLI_INLINE void FN(StitchToPreviousBlock)(HasherHandle handle,
+static BROTLI_INLINE void FN(StitchToPreviousBlock)(
+    HashToBinaryTree* BROTLI_RESTRICT self,
     size_t num_bytes, size_t position, const uint8_t* ringbuffer,
     size_t ringbuffer_mask) {
-  HashToBinaryTree* self = FN(Self)(handle);
   if (num_bytes >= FN(HashTypeLength)() - 1 &&
       position >= MAX_TREE_COMP_LENGTH) {
     /* Store the last `MAX_TREE_COMP_LENGTH - 1` positions in the hasher.
