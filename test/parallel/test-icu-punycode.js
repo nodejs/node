@@ -11,9 +11,9 @@ const assert = require('assert');
 
 // Test hasConverter method
 assert(icu.hasConverter('utf-8'),
-       'hasConverter should report coverter exists for utf-8');
+       'hasConverter should report converter exists for utf-8');
 assert(!icu.hasConverter('x'),
-       'hasConverter should report coverter does not exist for x');
+       'hasConverter should report converter does not exist for x');
 
 const tests = require('../fixtures/url-idna.js');
 const fixtures = require('../common/fixtures');
