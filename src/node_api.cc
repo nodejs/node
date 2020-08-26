@@ -562,9 +562,13 @@ napi_status napi_add_async_cleanup_hook(
     napi_async_cleanup_hook_handle* remove_handle) {
   CHECK_ENV(env);
   CHECK_ARG(env, hook);
-  CHECK_ARG(env, remove_handle);
 
-  *remove_handle = new napi_async_cleanup_hook_handle__(env, hook, arg);
+  napi_async_cleanup_hook_handle__* handle =
+    new napi_async_cleanup_hook_handle__(env, hook, arg);
+
+  if (remove_handle != nullptr)
+    *remove_handle = handle;
+
   return napi_clear_last_error(env);
 }
 

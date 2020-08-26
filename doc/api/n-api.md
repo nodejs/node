@@ -771,7 +771,9 @@ typedef void (*napi_async_cleanup_hook)(napi_async_cleanup_hook_handle handle,
                                         void* data);
 ```
 
-* `[in] handle`: The handle obtained from [`napi_add_async_cleanup_hook`][].
+* `[in] handle`: The handle that must be passed to
+[`napi_remove_async_cleanup_hook`][] after completion of the asynchronous
+cleanup.
 * `[in] data`: The data that was passed to [`napi_add_async_cleanup_hook`][].
 
 The body of the function should initiate the asynchronous cleanup actions at the
@@ -1626,24 +1628,22 @@ NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
 * `[in] env`: The environment that the API is invoked under.
 * `[in] hook`: The function pointer to call at environment teardown.
 * `[in] arg`: The pointer to pass to `hook` when it gets called.
-* `[out] remove_handle`: The handle that refers to the asynchronous cleanup
-hook. This handle must be passed to [`napi_remove_async_cleanup_hook`][] even if
-`hook` gets called.
+* `[out] remove_handle`: Optional handle that refers to the asynchronous cleanup
+hook.
 
 Registers `hook`, which is a function of type [`napi_async_cleanup_hook`][], as
 a function to be run with the `remove_handle` and `arg` parameters once the
 current Node.js environment exits.
 
-Unlike [`napi_add_env_cleanup_hook`][], the hook
-is allowed to be asynchronous, and must pass `remove_handle` in a call to
-[`napi_remove_env_cleanup_hook`][] once all asynchronous activity is finished.
+Unlike [`napi_add_env_cleanup_hook`][], the hook is allowed to be asynchronous.
 
 Otherwise, behavior generally matches that of [`napi_add_env_cleanup_hook`][].
 
-An opaque value will be stored in `remove_handle` that must later be passed to
-[`napi_remove_async_cleanup_hook`][], regardless of whether the hook has already
-been invoked. Typically, that happens when the resource for which this hook was
-added is being torn down anyway.
+If `remove_handle` is not `NULL`, an opaque value will be stored in it
+that must later be passed to [`napi_remove_async_cleanup_hook`][],
+regardless of whether the hook has already been invoked.
+Typically, that happens when the resource for which this hook was added
+is being torn down anyway.
 
 #### napi_remove_async_cleanup_hook
 <!-- YAML

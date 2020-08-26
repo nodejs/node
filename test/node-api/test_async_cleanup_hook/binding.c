@@ -41,6 +41,7 @@ static void AsyncCleanupHook(napi_async_cleanup_hook_handle handle, void* arg) {
   assert(err == 0);
 
   data->async.data = data;
+  data->handle = handle;
   uv_async_send(&data->async);
 }
 
@@ -49,6 +50,12 @@ static napi_value Init(napi_env env, napi_value exports) {
     struct AsyncData* data = CreateAsyncData();
     data->env = env;
     napi_add_async_cleanup_hook(env, AsyncCleanupHook, data, &data->handle);
+  }
+
+  {
+    struct AsyncData* data = CreateAsyncData();
+    data->env = env;
+    napi_add_async_cleanup_hook(env, AsyncCleanupHook, data, NULL);
   }
 
   {
