@@ -2776,8 +2776,8 @@ Type: Documentation-only
 
 [`socket.bufferSize`][] is just an alias for [`writable.writableLength`][].
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: `new crypto.Certificate()`
+<a id="DEP0146"></a>
+### DEP0146: `new crypto.Certificate()`
 <!-- YAML
 changes:
   - version: REPLACEME
