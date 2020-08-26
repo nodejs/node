@@ -9,6 +9,7 @@
 #include "./backward_references.h"
 
 #include "../common/constants.h"
+#include "../common/context.h"
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
@@ -119,17 +120,17 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #undef CAT
 #undef EXPAND_CAT
 
-void BrotliCreateBackwardReferences(
-    size_t num_bytes, size_t position, const uint8_t* ringbuffer,
-    size_t ringbuffer_mask, const BrotliEncoderParams* params,
-    HasherHandle hasher, int* dist_cache, size_t* last_insert_len,
+void BrotliCreateBackwardReferences(size_t num_bytes,
+    size_t position, const uint8_t* ringbuffer, size_t ringbuffer_mask,
+    ContextLut literal_context_lut, const BrotliEncoderParams* params,
+    Hasher* hasher, int* dist_cache, size_t* last_insert_len,
     Command* commands, size_t* num_commands, size_t* num_literals) {
   switch (params->hasher.type) {
 #define CASE_(N)                                                  \
     case N:                                                       \
-      CreateBackwardReferencesNH ## N(                            \
-          num_bytes, position, ringbuffer,                        \
-          ringbuffer_mask, params, hasher, dist_cache,            \
+      CreateBackwardReferencesNH ## N(num_bytes,                  \
+          position, ringbuffer, ringbuffer_mask,                  \
+          literal_context_lut, params, hasher, dist_cache,        \
           last_insert_len, commands, num_commands, num_literals); \
       return;
     FOR_GENERIC_HASHERS(CASE_)
