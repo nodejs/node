@@ -76,12 +76,12 @@ BROTLI_INTERNAL void BrotliConvertBitDepthsToSymbols(const uint8_t* depth,
                                                      size_t len,
                                                      uint16_t* bits);
 
+BROTLI_INTERNAL extern const size_t kBrotliShellGaps[6];
 /* Input size optimized Shell sort. */
 typedef BROTLI_BOOL (*HuffmanTreeComparator)(
     const HuffmanTree*, const HuffmanTree*);
 static BROTLI_INLINE void SortHuffmanTreeItems(HuffmanTree* items,
     const size_t n, HuffmanTreeComparator comparator) {
-  static const size_t gaps[] = {132, 57, 23, 10, 4, 1};
   if (n < 13) {
     /* Insertion sort. */
     size_t i;
@@ -101,7 +101,7 @@ static BROTLI_INLINE void SortHuffmanTreeItems(HuffmanTree* items,
     /* Shell sort. */
     int g = n < 57 ? 2 : 0;
     for (; g < 6; ++g) {
-      size_t gap = gaps[g];
+      size_t gap = kBrotliShellGaps[g];
       size_t i;
       for (i = gap; i < n; ++i) {
         size_t j = i;

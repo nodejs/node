@@ -132,7 +132,7 @@ void BrotliSplitBlock(MemoryManager* m,
   {
     size_t literals_count = CountLiterals(cmds, num_commands);
     uint8_t* literals = BROTLI_ALLOC(m, uint8_t, literals_count);
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(literals)) return;
     /* Create a continuous array of literals. */
     CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, literals);
     /* Create the block split on the array of literals.
@@ -150,7 +150,7 @@ void BrotliSplitBlock(MemoryManager* m,
     /* Compute prefix codes for commands. */
     uint16_t* insert_and_copy_codes = BROTLI_ALLOC(m, uint16_t, num_commands);
     size_t i;
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(insert_and_copy_codes)) return;
     for (i = 0; i < num_commands; ++i) {
       insert_and_copy_codes[i] = cmds[i].cmd_prefix_;
     }
@@ -170,7 +170,7 @@ void BrotliSplitBlock(MemoryManager* m,
     uint16_t* distance_prefixes = BROTLI_ALLOC(m, uint16_t, num_commands);
     size_t j = 0;
     size_t i;
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(distance_prefixes)) return;
     for (i = 0; i < num_commands; ++i) {
       const Command* cmd = &cmds[i];
       if (CommandCopyLen(cmd) && cmd->cmd_prefix_ >= 128) {
