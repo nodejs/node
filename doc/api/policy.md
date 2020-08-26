@@ -15,8 +15,8 @@ safe practices for the policy files such as ensuring that policy
 files cannot be overwritten by the Node.js application by using
 file permissions.
 
-A best practice would be to ensure that the policy manifest is read only for
-the running Node.js application, and that the file cannot be changed
+A best practice would be to ensure that the policy manifest is read-only for
+the running Node.js application and that the file cannot be changed
 by the running Node.js application in any way. A typical setup would be to
 create the policy file as a different user id than the one running Node.js
 and granting read permissions to the user id running Node.js.
@@ -99,8 +99,8 @@ An example policy file that would allow loading a file `checked.js`:
 Each resource listed in the policy manifest can be of one the following
 formats to determine its location:
 
-1. A [relative url string][] to a resource from the manifest such as `./resource.js`, `../resource.js`, or `/resource.js`.
-2. A complete url string to a resource such as `file:///resource.js`.
+1. A [relative-URL string][] to a resource from the manifest such as `./resource.js`, `../resource.js`, or `/resource.js`.
+2. A complete URL string to a resource such as `file:///resource.js`.
 
 When loading resources the entire URL must match including search parameters
 and hash fragment. `./a.js?b` will not be used when attempting to load
@@ -151,12 +151,12 @@ be used to find the module.
 If the value of the redirection is a string, it will be resolved relative to
 the manifest and then immediately be used without searching.
 
-Any specifier string that is attempted to resolved and not listed in the
+Any specifier string that is attempted to resolve and not listed in the
 dependencies will result in an error according to the policy.
 
 Redirection will not prevent access to APIs through means such as direct access
 to `require.cache` and/or through `module.constructor` which allow access to
-loading modules. Policy redirection only affect specifiers to `require()` and
+loading modules. Policy redirection only affects specifiers to `require()` and
 `import`. Other means such as to prevent undesired access to APIs through
 variables are necessary to lock down that path of loading modules.
 
@@ -165,15 +165,15 @@ module to load any specifier without redirection. This can be useful for local
 development and may have some valid usage in production, but should be used
 only with care after auditing a module to ensure its behavior is valid.
 
-Similar to `"exports"` in `package.json` dependencies can also be specified to
+Similar to `"exports"` in `package.json`, dependencies can also be specified to
 be objects containing conditions which branch how dependencies are loaded. In
-the above example `"http"` will be allowed when the `"import"` condition is
+the preceding example, `"http"` will be allowed when the `"import"` condition is
 part of loading it.
 
-A value of `null` for the resolved value will cause the resolution to fail.
-This can be used to ensure some kinds dynamic access are explicitly prevented.
+A value of `null` for the resolved value will cause the resolution to fail. This
+can be used to ensure some kinds of dynamic access are explicitly prevented.
 
-Unknown values for the resolved module location will cause failure, but are
+Unknown values for the resolved module location will cause failure but are
 not guaranteed to be forwards compatible.
 
 #### Example: Patched dependency
@@ -200,10 +200,10 @@ module.exports = function fn(...args) {
 
 Use the `"scopes"` field of a manifest to set configuration for many resources
 at once. The `"scopes"` field works by matching resources by their segments.
-If a scope or resource includes `"cascade": true` unknown specifiers will
+If a scope or resource includes `"cascade": true`, unknown specifiers will
 be searched for in their containing scope. The containing scope for cascading
 is found by recursively reducing the resource URL by removing segments for
-[special schemes][], keeping trailing `"/"` suffixes and removing the query and
+[special schemes][], keeping trailing `"/"` suffixes, and removing the query and
 hash fragment. This leads to the eventual reduction of the URL to its origin.
 If the URL is non-special the scope will be located by the URL's origin. If no
 scope is found for the origin or in the case of opaque origins, a protocol
@@ -216,7 +216,7 @@ origin of `blob:https://nodejs.org`; URLs starting with
 thus `https:` for its protocol scope. For opaque origin `blob:` URLs they will
 have `blob:` for their protocol scope since they do not adopt origins.
 
-#### Integrity Using Scopes
+#### Integrity using scopes
 
 Setting an integrity to `true` on a scope will set the integrity for any
 resource not found in the manifest to `true`.
@@ -241,7 +241,7 @@ The following example allows loading any file:
 }
 ```
 
-#### Dependency Redirection Using Scopes
+#### Dependency redirection using scopes
 
 The following example, would allow access to `fs` for all resources within
 `./app/`:
@@ -284,5 +284,5 @@ The following example, would allow access to `fs` for all `data:` resources:
 }
 ```
 
-[relative url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
+[relative-URL string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [special schemes]: https://url.spec.whatwg.org/#special-scheme
