@@ -2888,12 +2888,12 @@ or types.
 ```js
 const crypto = require('crypto');
 // Using the factory defaults.
-crypto.scrypt('secret', 'salt', 64, (err, derivedKey) => {
+crypto.scrypt('password', 'salt', 64, (err, derivedKey) => {
   if (err) throw err;
   console.log(derivedKey.toString('hex'));  // '3745e48...08d59ae'
 });
 // Using a custom N parameter. Must be a power of two.
-crypto.scrypt('secret', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
+crypto.scrypt('password', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
   if (err) throw err;
   console.log(derivedKey.toString('hex'));  // '3745e48...aa39b34'
 });
@@ -2945,10 +2945,10 @@ or types.
 ```js
 const crypto = require('crypto');
 // Using the factory defaults.
-const key1 = crypto.scryptSync('secret', 'salt', 64);
+const key1 = crypto.scryptSync('password', 'salt', 64);
 console.log(key1.toString('hex'));  // '3745e48...08d59ae'
 // Using a custom N parameter. Must be a power of two.
-const key2 = crypto.scryptSync('secret', 'salt', 64, { N: 1024 });
+const key2 = crypto.scryptSync('password', 'salt', 64, { N: 1024 });
 console.log(key2.toString('hex'));  // '3745e48...aa39b34'
 ```
 
