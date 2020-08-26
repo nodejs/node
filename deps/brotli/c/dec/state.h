@@ -21,6 +21,95 @@
 extern "C" {
 #endif
 
+/* Graphviz diagram that describes state transitions:
+
+digraph States {
+  graph [compound=true]
+  concentrate=true
+  node [shape="box"]
+
+  UNINITED -> {LARGE_WINDOW_BITS -> INITIALIZE}
+  subgraph cluster_metablock_workflow {
+    style="rounded"
+    label=< <B>METABLOCK CYCLE</B> >
+    METABLOCK_BEGIN -> METABLOCK_HEADER
+    METABLOCK_HEADER:sw -> METADATA
+    METABLOCK_HEADER:s -> UNCOMPRESSED
+    METABLOCK_HEADER:se -> METABLOCK_DONE:ne
+    METADATA:s -> METABLOCK_DONE:w
+    UNCOMPRESSED:s -> METABLOCK_DONE:n
+    METABLOCK_DONE:e -> METABLOCK_BEGIN:e [constraint="false"]
+  }
+  INITIALIZE -> METABLOCK_BEGIN
+  METABLOCK_DONE -> DONE
+
+  subgraph cluster_compressed_metablock {
+    style="rounded"
+    label=< <B>COMPRESSED METABLOCK</B> >
+
+    subgraph cluster_command {
+      style="rounded"
+      label=< <B>HOT LOOP</B> >
+
+      _METABLOCK_DONE_PORT_ [shape=point style=invis]
+
+      {
+        // Set different shape for nodes returning from "compressed metablock".
+        node [shape=invhouse]; CMD_INNER CMD_POST_DECODE_LITERALS;
+        CMD_POST_WRAP_COPY; CMD_INNER_WRITE; CMD_POST_WRITE_1;
+      }
+
+      CMD_BEGIN -> CMD_INNER -> CMD_POST_DECODE_LITERALS -> CMD_POST_WRAP_COPY
+
+      // IO ("write") nodes are not in the hot loop!
+      CMD_INNER_WRITE [style=dashed]
+      CMD_INNER -> CMD_INNER_WRITE
+      CMD_POST_WRITE_1 [style=dashed]
+      CMD_POST_DECODE_LITERALS -> CMD_POST_WRITE_1
+      CMD_POST_WRITE_2 [style=dashed]
+      CMD_POST_WRAP_COPY -> CMD_POST_WRITE_2
+
+      CMD_POST_WRITE_1 -> CMD_BEGIN:s [constraint="false"]
+      CMD_INNER_WRITE -> {CMD_INNER CMD_POST_DECODE_LITERALS}
+          [constraint="false"]
+      CMD_BEGIN:ne -> CMD_POST_DECODE_LITERALS [constraint="false"]
+      CMD_POST_WRAP_COPY -> CMD_BEGIN [constraint="false"]
+      CMD_POST_DECODE_LITERALS -> CMD_BEGIN:ne [constraint="false"]
+      CMD_POST_WRITE_2 -> CMD_POST_WRAP_COPY [constraint="false"]
+      {rank=same; CMD_BEGIN; CMD_INNER; CMD_POST_DECODE_LITERALS;
+          CMD_POST_WRAP_COPY}
+      {rank=same; CMD_INNER_WRITE; CMD_POST_WRITE_1; CMD_POST_WRITE_2}
+
+      {CMD_INNER CMD_POST_DECODE_LITERALS CMD_POST_WRAP_COPY} ->
+          _METABLOCK_DONE_PORT_ [style=invis]
+      {CMD_INNER_WRITE CMD_POST_WRITE_1} -> _METABLOCK_DONE_PORT_
+          [constraint="false" style=invis]
+    }
+
+    BEFORE_COMPRESSED_METABLOCK_HEADER:s -> HUFFMAN_CODE_0:n
+    HUFFMAN_CODE_0 -> HUFFMAN_CODE_1 -> HUFFMAN_CODE_2 -> HUFFMAN_CODE_3
+    HUFFMAN_CODE_0 -> METABLOCK_HEADER_2 -> CONTEXT_MODES -> CONTEXT_MAP_1
+    CONTEXT_MAP_1 -> CONTEXT_MAP_2 -> TREE_GROUP
+    TREE_GROUP -> BEFORE_COMPRESSED_METABLOCK_BODY:e
+    BEFORE_COMPRESSED_METABLOCK_BODY:s -> CMD_BEGIN:n
+
+    HUFFMAN_CODE_3:e -> HUFFMAN_CODE_0:ne [constraint="false"]
+    {rank=same; HUFFMAN_CODE_0; HUFFMAN_CODE_1; HUFFMAN_CODE_2; HUFFMAN_CODE_3}
+    {rank=same; METABLOCK_HEADER_2; CONTEXT_MODES; CONTEXT_MAP_1; CONTEXT_MAP_2;
+        TREE_GROUP}
+  }
+  METABLOCK_HEADER:e -> BEFORE_COMPRESSED_METABLOCK_HEADER:n
+
+  _METABLOCK_DONE_PORT_ -> METABLOCK_DONE:se
+      [constraint="false" ltail=cluster_command]
+
+  UNINITED [shape=Mdiamond];
+  DONE [shape=Msquare];
+}
+
+
+ */
+
 typedef enum {
   BROTLI_STATE_UNINITED,
   BROTLI_STATE_LARGE_WINDOW_BITS,
@@ -39,6 +128,7 @@ typedef enum {
   BROTLI_STATE_METABLOCK_DONE,
   BROTLI_STATE_COMMAND_POST_WRITE_1,
   BROTLI_STATE_COMMAND_POST_WRITE_2,
+  BROTLI_STATE_BEFORE_COMPRESSED_METABLOCK_HEADER,
   BROTLI_STATE_HUFFMAN_CODE_0,
   BROTLI_STATE_HUFFMAN_CODE_1,
   BROTLI_STATE_HUFFMAN_CODE_2,
@@ -46,6 +136,7 @@ typedef enum {
   BROTLI_STATE_CONTEXT_MAP_1,
   BROTLI_STATE_CONTEXT_MAP_2,
   BROTLI_STATE_TREE_GROUP,
+  BROTLI_STATE_BEFORE_COMPRESSED_METABLOCK_BODY,
   BROTLI_STATE_DONE
 } BrotliRunningState;
 
@@ -98,6 +189,50 @@ typedef enum {
   BROTLI_STATE_READ_BLOCK_LENGTH_SUFFIX
 } BrotliRunningReadBlockLengthState;
 
+typedef struct BrotliMetablockHeaderArena {
+  BrotliRunningTreeGroupState substate_tree_group;
+  BrotliRunningContextMapState substate_context_map;
+  BrotliRunningHuffmanState substate_huffman;
+
+  uint32_t sub_loop_counter;
+
+  uint32_t repeat_code_len;
+  uint32_t prev_code_len;
+
+  /* For ReadHuffmanCode. */
+  uint32_t symbol;
+  uint32_t repeat;
+  uint32_t space;
+
+  /* Huffman table for "histograms". */
+  HuffmanCode table[32];
+  /* List of heads of symbol chains. */
+  uint16_t* symbol_lists;
+  /* Storage from symbol_lists. */
+  uint16_t symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1 +
+                               BROTLI_NUM_COMMAND_SYMBOLS];
+  /* Tails of symbol chains. */
+  int next_symbol[32];
+  uint8_t code_length_code_lengths[BROTLI_CODE_LENGTH_CODES];
+  /* Population counts for the code lengths. */
+  uint16_t code_length_histo[16];
+
+  /* For HuffmanTreeGroupDecode. */
+  int htree_index;
+  HuffmanCode* next;
+
+  /* For DecodeContextMap. */
+  uint32_t context_index;
+  uint32_t max_run_length_prefix;
+  uint32_t code;
+  HuffmanCode context_map_table[BROTLI_HUFFMAN_MAX_SIZE_272];
+} BrotliMetablockHeaderArena;
+
+typedef struct BrotliMetablockBodyArena {
+  uint8_t dist_extra_bits[544];
+  uint32_t dist_offset[544];
+} BrotliMetablockBodyArena;
+
 struct BrotliDecoderStateStruct {
   BrotliRunningState state;
 
@@ -110,7 +245,8 @@ struct BrotliDecoderStateStruct {
   brotli_free_func free_func;
   void* memory_manager_opaque;
 
-  /* Temporary storage for remaining input. */
+  /* Temporary storage for remaining input. Brotli stream format is designed in
+     a way, that 64 bits are enough to make progress in decoding. */
   union {
     uint64_t u64;
     uint8_t u8[8];
@@ -125,7 +261,6 @@ struct BrotliDecoderStateStruct {
   int dist_rb_idx;
   int dist_rb[4];
   int error_code;
-  uint32_t sub_loop_counter;
   uint8_t* ringbuffer;
   uint8_t* ringbuffer_end;
   HuffmanCode* htree_command;
@@ -153,13 +288,10 @@ struct BrotliDecoderStateStruct {
   uint32_t block_type_rb[6];
   uint32_t distance_postfix_bits;
   uint32_t num_direct_distance_codes;
-  int distance_postfix_mask;
   uint32_t num_dist_htrees;
   uint8_t* dist_context_map;
   HuffmanCode* literal_htree;
   uint8_t dist_htree_index;
-  uint32_t repeat_code_len;
-  uint32_t prev_code_len;
 
   int copy_length;
   int distance_code;
@@ -167,33 +299,6 @@ struct BrotliDecoderStateStruct {
   /* For partial write operations. */
   size_t rb_roundtrips;  /* how many times we went around the ring-buffer */
   size_t partial_pos_out;  /* how much output to the user in total */
-
-  /* For ReadHuffmanCode. */
-  uint32_t symbol;
-  uint32_t repeat;
-  uint32_t space;
-
-  HuffmanCode table[32];
-  /* List of heads of symbol chains. */
-  uint16_t* symbol_lists;
-  /* Storage from symbol_lists. */
-  uint16_t symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1 +
-                               BROTLI_NUM_COMMAND_SYMBOLS];
-  /* Tails of symbol chains. */
-  int next_symbol[32];
-  uint8_t code_length_code_lengths[BROTLI_CODE_LENGTH_CODES];
-  /* Population counts for the code lengths. */
-  uint16_t code_length_histo[16];
-
-  /* For HuffmanTreeGroupDecode. */
-  int htree_index;
-  HuffmanCode* next;
-
-  /* For DecodeContextMap. */
-  uint32_t context_index;
-  uint32_t max_run_length_prefix;
-  uint32_t code;
-  HuffmanCode context_map_table[BROTLI_HUFFMAN_MAX_SIZE_272];
 
   /* For InverseMoveToFrontTransform. */
   uint32_t mtf_upper_bound;
@@ -203,10 +308,7 @@ struct BrotliDecoderStateStruct {
 
   /* States inside function calls. */
   BrotliRunningMetablockHeaderState substate_metablock_header;
-  BrotliRunningTreeGroupState substate_tree_group;
-  BrotliRunningContextMapState substate_context_map;
   BrotliRunningUncompressedState substate_uncompressed;
-  BrotliRunningHuffmanState substate_huffman;
   BrotliRunningDecodeUint8State substate_decode_uint8;
   BrotliRunningReadBlockLengthState substate_read_block_length;
 
@@ -229,6 +331,11 @@ struct BrotliDecoderStateStruct {
   const BrotliTransforms* transforms;
 
   uint32_t trivial_literal_contexts[8];  /* 256 bits */
+
+  union {
+    BrotliMetablockHeaderArena header;
+    BrotliMetablockBodyArena body;
+  } arena;
 };
 
 typedef struct BrotliDecoderStateStruct BrotliDecoderStateInternal;
@@ -241,8 +348,8 @@ BROTLI_INTERNAL void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s);
 BROTLI_INTERNAL void BrotliDecoderStateCleanupAfterMetablock(
     BrotliDecoderState* s);
 BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
-    BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size,
-    uint32_t max_symbol, uint32_t ntrees);
+    BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size_max,
+    uint32_t alphabet_size_limit, uint32_t ntrees);
 
 #define BROTLI_DECODER_ALLOC(S, L) S->alloc_func(S->memory_manager_opaque, L)
 

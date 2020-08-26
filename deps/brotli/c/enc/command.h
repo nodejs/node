@@ -20,14 +20,14 @@
 extern "C" {
 #endif
 
-static uint32_t kInsBase[] =   { 0, 1, 2, 3, 4, 5, 6, 8, 10, 14, 18, 26, 34, 50,
-    66, 98, 130, 194, 322, 578, 1090, 2114, 6210, 22594 };
-static uint32_t kInsExtra[] =  { 0, 0, 0, 0, 0, 0, 1, 1,  2,  2,  3,  3,  4,  4,
-    5,   5,   6,   7,   8,   9,   10,   12,   14,    24 };
-static uint32_t kCopyBase[] =  { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 22, 30,
-    38, 54,  70, 102, 134, 198, 326,   582, 1094,  2118 };
-static uint32_t kCopyExtra[] = { 0, 0, 0, 0, 0, 0, 0, 0,  1,  1,  2,  2,  3,  3,
-     4,  4,   5,   5,   6,   7,   8,     9,   10,    24 };
+BROTLI_INTERNAL extern const uint32_t
+    kBrotliInsBase[BROTLI_NUM_INS_COPY_CODES];
+BROTLI_INTERNAL extern const uint32_t
+    kBrotliInsExtra[BROTLI_NUM_INS_COPY_CODES];
+BROTLI_INTERNAL extern const uint32_t
+    kBrotliCopyBase[BROTLI_NUM_INS_COPY_CODES];
+BROTLI_INTERNAL extern const uint32_t
+    kBrotliCopyExtra[BROTLI_NUM_INS_COPY_CODES];
 
 static BROTLI_INLINE uint16_t GetInsertLengthCode(size_t insertlen) {
   if (insertlen < 6) {
@@ -89,19 +89,19 @@ static BROTLI_INLINE void GetLengthCode(size_t insertlen, size_t copylen,
 }
 
 static BROTLI_INLINE uint32_t GetInsertBase(uint16_t inscode) {
-  return kInsBase[inscode];
+  return kBrotliInsBase[inscode];
 }
 
 static BROTLI_INLINE uint32_t GetInsertExtra(uint16_t inscode) {
-  return kInsExtra[inscode];
+  return kBrotliInsExtra[inscode];
 }
 
 static BROTLI_INLINE uint32_t GetCopyBase(uint16_t copycode) {
-  return kCopyBase[copycode];
+  return kBrotliCopyBase[copycode];
 }
 
 static BROTLI_INLINE uint32_t GetCopyExtra(uint16_t copycode) {
-  return kCopyExtra[copycode];
+  return kBrotliCopyExtra[copycode];
 }
 
 typedef struct Command {

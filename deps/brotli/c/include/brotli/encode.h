@@ -201,7 +201,23 @@ typedef enum BrotliEncoderParameter {
    *
    * Range is from 0 to (15 << NPOSTFIX) in steps of (1 << NPOSTFIX).
    */
-  BROTLI_PARAM_NDIRECT = 8
+  BROTLI_PARAM_NDIRECT = 8,
+  /**
+   * Number of bytes of input stream already processed by a different instance.
+   *
+   * @note It is important to configure all the encoder instances with same
+   *       parameters (except this one) in order to allow all the encoded parts
+   *       obey the same restrictions implied by header.
+   *
+   * If offset is not 0, then stream header is omitted.
+   * In any case output start is byte aligned, so for proper streams stitching
+   * "predecessor" stream must be flushed.
+   *
+   * Range is not artificially limited, but all the values greater or equal to
+   * maximal window size have the same effect. Values greater than 2**30 are not
+   * allowed.
+   */
+  BROTLI_PARAM_STREAM_OFFSET = 9
 } BrotliEncoderParameter;
 
 /**
@@ -273,6 +289,11 @@ BROTLI_ENC_API size_t BrotliEncoderMaxCompressedSize(size_t input_size);
  *
  * @note If ::BrotliEncoderMaxCompressedSize(@p input_size) returns non-zero
  *       value, then output is guaranteed to be no longer than that.
+ *
+ * @note If @p lgwin is greater than ::BROTLI_MAX_WINDOW_BITS then resulting
+ *       stream might be incompatible with RFC 7932; to decode such streams,
+ *       decoder should be configured with
+ *       ::BROTLI_DECODER_PARAM_LARGE_WINDOW = @c 1
  *
  * @param quality quality parameter value, e.g. ::BROTLI_DEFAULT_QUALITY
  * @param lgwin lgwin parameter value, e.g. ::BROTLI_DEFAULT_WINDOW

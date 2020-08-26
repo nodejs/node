@@ -28,34 +28,30 @@ extern "C" {
 void BrotliInitDistanceParams(BrotliEncoderParams* params,
     uint32_t npostfix, uint32_t ndirect) {
   BrotliDistanceParams* dist_params = &params->dist;
-  uint32_t alphabet_size, max_distance;
+  uint32_t alphabet_size_max;
+  uint32_t alphabet_size_limit;
+  uint32_t max_distance;
 
   dist_params->distance_postfix_bits = npostfix;
   dist_params->num_direct_distance_codes = ndirect;
 
-  alphabet_size = BROTLI_DISTANCE_ALPHABET_SIZE(
+  alphabet_size_max = BROTLI_DISTANCE_ALPHABET_SIZE(
       npostfix, ndirect, BROTLI_MAX_DISTANCE_BITS);
+  alphabet_size_limit = alphabet_size_max;
   max_distance = ndirect + (1U << (BROTLI_MAX_DISTANCE_BITS + npostfix + 2)) -
       (1U << (npostfix + 2));
 
   if (params->large_window) {
-    static const uint32_t bound[BROTLI_MAX_NPOSTFIX + 1] = {0, 4, 12, 28};
-    uint32_t postfix = 1U << npostfix;
-    alphabet_size = BROTLI_DISTANCE_ALPHABET_SIZE(
+    BrotliDistanceCodeLimit limit = BrotliCalculateDistanceCodeLimit(
+        BROTLI_MAX_ALLOWED_DISTANCE, npostfix, ndirect);
+    alphabet_size_max = BROTLI_DISTANCE_ALPHABET_SIZE(
         npostfix, ndirect, BROTLI_LARGE_MAX_DISTANCE_BITS);
-    /* The maximum distance is set so that no distance symbol used can encode
-       a distance larger than BROTLI_MAX_ALLOWED_DISTANCE with all
-       its extra bits set. */
-    if (ndirect < bound[npostfix]) {
-      max_distance = BROTLI_MAX_ALLOWED_DISTANCE - (bound[npostfix] - ndirect);
-    } else if (ndirect >= bound[npostfix] + postfix) {
-      max_distance = (3U << 29) - 4 + (ndirect - bound[npostfix]);
-    } else {
-      max_distance = BROTLI_MAX_ALLOWED_DISTANCE;
-    }
+    alphabet_size_limit = limit.max_alphabet_size;
+    max_distance = limit.max_distance;
   }
 
-  dist_params->alphabet_size = alphabet_size;
+  dist_params->alphabet_size_max = alphabet_size_max;
+  dist_params->alphabet_size_limit = alphabet_size_limit;
   dist_params->max_distance = max_distance;
 }
 
@@ -200,7 +196,7 @@ void BrotliBuildMetaBlock(MemoryManager* m,
     literal_context_multiplier = 1 << BROTLI_LITERAL_CONTEXT_BITS;
     literal_context_modes =
         BROTLI_ALLOC(m, ContextType, mb->literal_split.num_types);
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(literal_context_modes)) return;
     for (i = 0; i < mb->literal_split.num_types; ++i) {
       literal_context_modes[i] = literal_context_mode;
     }
@@ -210,21 +206,21 @@ void BrotliBuildMetaBlock(MemoryManager* m,
       mb->literal_split.num_types * literal_context_multiplier;
   literal_histograms =
       BROTLI_ALLOC(m, HistogramLiteral, literal_histograms_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(literal_histograms)) return;
   ClearHistogramsLiteral(literal_histograms, literal_histograms_size);
 
   distance_histograms_size =
       mb->distance_split.num_types << BROTLI_DISTANCE_CONTEXT_BITS;
   distance_histograms =
       BROTLI_ALLOC(m, HistogramDistance, distance_histograms_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(distance_histograms)) return;
   ClearHistogramsDistance(distance_histograms, distance_histograms_size);
 
   BROTLI_DCHECK(mb->command_histograms == 0);
   mb->command_histograms_size = mb->command_split.num_types;
   mb->command_histograms =
       BROTLI_ALLOC(m, HistogramCommand, mb->command_histograms_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(mb->command_histograms)) return;
   ClearHistogramsCommand(mb->command_histograms, mb->command_histograms_size);
 
   BrotliBuildHistogramsWithContext(cmds, num_commands,
@@ -238,13 +234,13 @@ void BrotliBuildMetaBlock(MemoryManager* m,
       mb->literal_split.num_types << BROTLI_LITERAL_CONTEXT_BITS;
   mb->literal_context_map =
       BROTLI_ALLOC(m, uint32_t, mb->literal_context_map_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(mb->literal_context_map)) return;
 
   BROTLI_DCHECK(mb->literal_histograms == 0);
   mb->literal_histograms_size = mb->literal_context_map_size;
   mb->literal_histograms =
       BROTLI_ALLOC(m, HistogramLiteral, mb->literal_histograms_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(mb->literal_histograms)) return;
 
   BrotliClusterHistogramsLiteral(m, literal_histograms, literal_histograms_size,
       kMaxNumberOfHistograms, mb->literal_histograms,
@@ -269,13 +265,13 @@ void BrotliBuildMetaBlock(MemoryManager* m,
       mb->distance_split.num_types << BROTLI_DISTANCE_CONTEXT_BITS;
   mb->distance_context_map =
       BROTLI_ALLOC(m, uint32_t, mb->distance_context_map_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(mb->distance_context_map)) return;
 
   BROTLI_DCHECK(mb->distance_histograms == 0);
   mb->distance_histograms_size = mb->distance_context_map_size;
   mb->distance_histograms =
       BROTLI_ALLOC(m, HistogramDistance, mb->distance_histograms_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(mb->distance_histograms)) return;
 
   BrotliClusterHistogramsDistance(m, distance_histograms,
                                   mb->distance_context_map_size,
@@ -373,7 +369,7 @@ static void InitContextBlockSplitter(
   *histograms_size = max_num_types * num_contexts;
   *histograms = BROTLI_ALLOC(m, HistogramLiteral, *histograms_size);
   self->histograms_ = *histograms;
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(*histograms)) return;
   /* Clear only current histogram. */
   ClearHistogramsLiteral(&self->histograms_[0], num_contexts);
   self->last_histogram_ix_[0] = self->last_histogram_ix_[1] = 0;
@@ -423,7 +419,7 @@ static void ContextBlockSplitterFinishBlock(
     double combined_entropy[2 * BROTLI_MAX_STATIC_CONTEXTS];
     double diff[2] = { 0.0 };
     size_t i;
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(combined_histo)) return;
     for (i = 0; i < num_contexts; ++i) {
       size_t curr_histo_ix = self->curr_histogram_ix_ + i;
       size_t j;
@@ -527,7 +523,7 @@ static void MapStaticContexts(MemoryManager* m,
       mb->literal_split.num_types << BROTLI_LITERAL_CONTEXT_BITS;
   mb->literal_context_map =
       BROTLI_ALLOC(m, uint32_t, mb->literal_context_map_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(mb->literal_context_map)) return;
 
   for (i = 0; i < mb->literal_split.num_types; ++i) {
     uint32_t offset = (uint32_t)(i * num_contexts);

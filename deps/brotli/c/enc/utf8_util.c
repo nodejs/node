@@ -77,7 +77,7 @@ BROTLI_BOOL BrotliIsMostlyUTF8(
     i += bytes_read;
     if (symbol < 0x110000) size_utf8 += bytes_read;
   }
-  return TO_BROTLI_BOOL(size_utf8 > min_fraction * (double)length);
+  return TO_BROTLI_BOOL((double)size_utf8 > min_fraction * (double)length);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
