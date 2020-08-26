@@ -466,7 +466,7 @@ conditions behave analogously to nested JavaScript `if` statements.
 ### Resolving user conditions
 
 When running Node.js, custom user conditions can be added with the
-`--conditions` or `-u` flag:
+`--conditions` flag:
 
 ```bash
 node --conditions=development main.js
