@@ -86,6 +86,8 @@
 
 /doc/api/modules.md @nodejs/modules
 /doc/api/esm.md @nodejs/modules
+/doc/api/module.md @nodejs/modules
+/doc/api/packages.md @nodejs/modules
 /lib/module.js @nodejs/modules
 /lib/internal/modules/* @nodejs/modules
 /lib/internal/bootstrap/loaders.js @nodejs/modules
