@@ -3163,9 +3163,9 @@ Url {
   href: '/status?name=ryan' }
 ```
 
-To extract the parameters from the query string, the
-`require('querystring').parse` function can be used, or
-`true` can be passed as the second argument to `require('url').parse`.
+To obtain the parameters from the query string, use the
+`require('querystring').parse()` function or pass
+`true` as the second argument to `require('url').parse()`.
 
 ```console
 $ node
