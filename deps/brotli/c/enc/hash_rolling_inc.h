@@ -51,13 +51,9 @@ typedef struct HashRolling {
   uint32_t factor_remove;
 } HashRolling;
 
-static BROTLI_INLINE HashRolling* FN(Self)(HasherHandle handle) {
-  return (HashRolling*)&(GetHasherCommon(handle)[1]);
-}
-
 static void FN(Initialize)(
-    HasherHandle handle, const BrotliEncoderParams* params) {
-  HashRolling* self = FN(Self)(handle);
+    HasherCommon* common, HashRolling* BROTLI_RESTRICT self,
+    const BrotliEncoderParams* params) {
   size_t i;
   self->state = 0;
   self->next_ix = 0;
@@ -71,7 +67,7 @@ static void FN(Initialize)(
     self->factor_remove *= self->factor;
   }
 
-  self->table = (uint32_t*)((HasherHandle)self + sizeof(HashRolling));
+  self->table = (uint32_t*)common->extra;
   for (i = 0; i < NUMBUCKETS; i++) {
     self->table[i] = FN(kInvalidPos);
   }
@@ -79,9 +75,8 @@ static void FN(Initialize)(
   BROTLI_UNUSED(params);
 }
 
-static void FN(Prepare)(HasherHandle handle, BROTLI_BOOL one_shot,
-    size_t input_size, const uint8_t* data) {
-  HashRolling* self = FN(Self)(handle);
+static void FN(Prepare)(HashRolling* BROTLI_RESTRICT self, BROTLI_BOOL one_shot,
+    size_t input_size, const uint8_t* BROTLI_RESTRICT data) {
   size_t i;
   /* Too small size, cannot use this hasher. */
   if (input_size < CHUNKLEN) return;
@@ -96,36 +91,36 @@ static void FN(Prepare)(HasherHandle handle, BROTLI_BOOL one_shot,
 static BROTLI_INLINE size_t FN(HashMemAllocInBytes)(
     const BrotliEncoderParams* params, BROTLI_BOOL one_shot,
     size_t input_size) {
-  return sizeof(HashRolling) + NUMBUCKETS * sizeof(uint32_t);
+  return NUMBUCKETS * sizeof(uint32_t);
   BROTLI_UNUSED(params);
   BROTLI_UNUSED(one_shot);
   BROTLI_UNUSED(input_size);
 }
 
-static BROTLI_INLINE void FN(Store)(HasherHandle BROTLI_RESTRICT handle,
+static BROTLI_INLINE void FN(Store)(HashRolling* BROTLI_RESTRICT self,
     const uint8_t* BROTLI_RESTRICT data, const size_t mask, const size_t ix) {
-  BROTLI_UNUSED(handle);
+  BROTLI_UNUSED(self);
   BROTLI_UNUSED(data);
   BROTLI_UNUSED(mask);
   BROTLI_UNUSED(ix);
 }
 
-static BROTLI_INLINE void FN(StoreRange)(HasherHandle handle,
-    const uint8_t* data, const size_t mask, const size_t ix_start,
-    const size_t ix_end) {
-  BROTLI_UNUSED(handle);
+static BROTLI_INLINE void FN(StoreRange)(HashRolling* BROTLI_RESTRICT self,
+    const uint8_t* BROTLI_RESTRICT data, const size_t mask,
+    const size_t ix_start, const size_t ix_end) {
+  BROTLI_UNUSED(self);
   BROTLI_UNUSED(data);
   BROTLI_UNUSED(mask);
   BROTLI_UNUSED(ix_start);
   BROTLI_UNUSED(ix_end);
 }
 
-static BROTLI_INLINE void FN(StitchToPreviousBlock)(HasherHandle handle,
+static BROTLI_INLINE void FN(StitchToPreviousBlock)(
+    HashRolling* BROTLI_RESTRICT self,
     size_t num_bytes, size_t position, const uint8_t* ringbuffer,
     size_t ring_buffer_mask) {
   /* In this case we must re-initialize the hasher from scratch from the
      current position. */
-  HashRolling* self = FN(Self)(handle);
   size_t position_masked;
   size_t available = num_bytes;
   if ((position & (JUMP - 1)) != 0) {
@@ -139,28 +134,29 @@ static BROTLI_INLINE void FN(StitchToPreviousBlock)(HasherHandle handle,
     available = ring_buffer_mask - position_masked;
   }
 
-  FN(Prepare)(handle, BROTLI_FALSE, available,
+  FN(Prepare)(self, BROTLI_FALSE, available,
       ringbuffer + (position & ring_buffer_mask));
   self->next_ix = position;
   BROTLI_UNUSED(num_bytes);
 }
 
 static BROTLI_INLINE void FN(PrepareDistanceCache)(
-    HasherHandle handle, int* BROTLI_RESTRICT distance_cache) {
-  BROTLI_UNUSED(handle);
+    HashRolling* BROTLI_RESTRICT self,
+    int* BROTLI_RESTRICT distance_cache) {
+  BROTLI_UNUSED(self);
   BROTLI_UNUSED(distance_cache);
 }
 
-static BROTLI_INLINE void FN(FindLongestMatch)(HasherHandle handle,
+static BROTLI_INLINE void FN(FindLongestMatch)(
+    HashRolling* BROTLI_RESTRICT self,
     const BrotliEncoderDictionary* dictionary,
     const uint8_t* BROTLI_RESTRICT data, const size_t ring_buffer_mask,
     const int* BROTLI_RESTRICT distance_cache, const size_t cur_ix,
     const size_t max_length, const size_t max_backward,
-    const size_t gap, const size_t max_distance,
+    const size_t dictionary_distance, const size_t max_distance,
     HasherSearchResult* BROTLI_RESTRICT out) {
-  HashRolling* self = FN(Self)(handle);
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
-  size_t pos = self->next_ix;
+  size_t pos;
 
   if ((cur_ix & (JUMP - 1)) != 0) return;
 
@@ -209,7 +205,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(HasherHandle handle,
      backup-hasher, the main hasher already searches in it. */
   BROTLI_UNUSED(dictionary);
   BROTLI_UNUSED(distance_cache);
-  BROTLI_UNUSED(gap);
+  BROTLI_UNUSED(dictionary_distance);
   BROTLI_UNUSED(max_distance);
 }
 

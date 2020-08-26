@@ -29,7 +29,10 @@
       ],
       'sources': [
         # Common
+        'c/common/constants.c',
+        'c/common/context.c',
         'c/common/dictionary.c',
+        'c/common/platform.c',
         'c/common/transform.c',
 
         # Decoder
@@ -45,12 +48,14 @@
         'c/enc/block_splitter.c',
         'c/enc/brotli_bit_stream.c',
         'c/enc/cluster.c',
+        'c/enc/command.c',
         'c/enc/compress_fragment.c',
         'c/enc/compress_fragment_two_pass.c',
         'c/enc/dictionary_hash.c',
         'c/enc/encode.c',
         'c/enc/encoder_dict.c',
         'c/enc/entropy_encode.c',
+        'c/enc/fast_log.c',
         'c/enc/histogram.c',
         'c/enc/literal_cost.c',
         'c/enc/memory.c',
