@@ -1024,8 +1024,9 @@ pathToFileURL('/some/path%.c');    // Correct:   file:///some/path%25.c (POSIX)
 ```
 
 ## Legacy URL API
-
-> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+<!-- YAML
+deprecated: v11.0.0
+-->
 
 ### Legacy `urlObject`
 <!-- YAML
@@ -1034,6 +1035,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
 -->
+
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
 
 The legacy `urlObject` (`require('url').Url`) is created and returned by the
 `url.parse()` function.
@@ -1150,6 +1153,8 @@ changes:
                  times.
 -->
 
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+
 * `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
   it to `url.parse()`.
@@ -1244,6 +1249,8 @@ changes:
                  when no query string is present.
 -->
 
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+
 * `urlString` {string} The URL string to parse.
 * `parseQueryString` {boolean} If `true`, the `query` property will always
   be set to an object returned by the [`querystring`][] module's `parse()`
@@ -1287,6 +1294,8 @@ changes:
     description: The `auth` fields is cleared now the `to` parameter
                  contains a hostname.
 -->
+
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
 
 * `from` {string} The Base URL being resolved against.
 * `to` {string} The HREF URL being resolved.
