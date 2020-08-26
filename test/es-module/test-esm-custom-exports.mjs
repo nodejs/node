@@ -1,4 +1,4 @@
-// Flags: --conditions=custom-condition -u another
+// Flags: --conditions=custom-condition --conditions another
 import { mustCall } from '../common/index.mjs';
 import { strictEqual } from 'assert';
 import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
