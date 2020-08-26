@@ -76,7 +76,7 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
-### `-u`, `--conditions=condition`
+### `--conditions=condition`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1247,7 +1247,7 @@ node --require "./a.js" --require "./b.js"
 
 Node.js options that are allowed are:
 <!-- node-options-node start -->
-* `--conditions`, `-u`
+* `--conditions`
 * `--diagnostic-dir`
 * `--disable-proto`
 * `--enable-fips`
