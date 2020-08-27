@@ -89,7 +89,7 @@ as ES modules and `.cjs` files are always treated as [CommonJS][].
 A folder containing a `package.json` file, and all subfolders below that folder
 until the next folder containing another `package.json`, are a
 _package scope_. Package scopes do not carry through `node_modules` folders. The
-`"type"` the module format of `.js` files within the package scope. If a
+`"type"` field defines how to treat `.js` files within the package scope. If a
 `package.json` file does not have a `"type"` field, the default is `"commonjs"`.
 
 The package scope applies not only to initial entry points (`node my-app.js`)
