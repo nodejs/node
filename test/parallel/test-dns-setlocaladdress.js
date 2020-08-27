@@ -10,12 +10,18 @@ const promiseResolver = new dns.promises.Resolver();
 {
   resolver.setLocalAddress('127.0.0.1');
   resolver.setLocalAddress('::1');
-  promiseResolver.setLocalAddress('127.0.0.1');
-  promiseResolver.setLocalAddress('::1');
+  resolver.setLocalAddress('127.0.0.1', '::1');
+  promiseResolver.setLocalAddress('127.0.0.1', '::1');
 }
 
 // Verify that setLocalAddress throws if called with an invalid address
 {
+  assert.throws(() => {
+    resolver.setLocalAddress('127.0.0.1', '127.0.0.1');
+  }, Error);
+  assert.throws(() => {
+    resolver.setLocalAddress('::1', '::1');
+  }, Error);
   assert.throws(() => {
     resolver.setLocalAddress('bad');
   }, Error);

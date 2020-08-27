@@ -2232,19 +2232,58 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
 
+  CHECK(args.Length() == 2);
   CHECK(args[0]->IsString());
 
   Isolate* isolate = args.GetIsolate();
-  node::Utf8Value ip(isolate, args[0]);
+  node::Utf8Value ip0(isolate, args[0]);
 
-  unsigned char addr[sizeof(struct in6_addr)];
+  unsigned char addr0[sizeof(struct in6_addr)];
+  unsigned char addr1[sizeof(struct in6_addr)];
+  int type0 = 0;
 
-  if (uv_inet_pton(AF_INET, *ip, &addr) == 0) {
-    ares_set_local_ip4(channel->cares_channel(), cares_get_32bit(addr));
-  } else if (uv_inet_pton(AF_INET6, *ip, &addr) == 0) {
-    ares_set_local_ip6(channel->cares_channel(), addr);
+  // This function accepts 2 arguments.  The first may be either an IPv4
+  // address or an IPv6 address.  If present, the second argument must be the
+  // other type of address.  Otherwise, the unspecified type of IP is set
+  // to 0 (any).
+
+  if (uv_inet_pton(AF_INET, *ip0, &addr0) == 0) {
+    ares_set_local_ip4(channel->cares_channel(), cares_get_32bit(addr0));
+    type0 = 4;
+  } else if (uv_inet_pton(AF_INET6, *ip0, &addr0) == 0) {
+    ares_set_local_ip6(channel->cares_channel(), addr0);
+    type0 = 6;
   } else {
     return env->ThrowError("Invalid IP address.");
+  }
+
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsString());
+    node::Utf8Value ip1(isolate, args[1]);
+
+    if (uv_inet_pton(AF_INET, *ip1, &addr1) == 0) {
+      if (type0 == 4) {
+        return env->ThrowError("Invalid argument.  Cannot specify two IPv4 addresses.");
+      } else {
+        ares_set_local_ip4(channel->cares_channel(), cares_get_32bit(addr1));
+      }
+    } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
+      if (type0 == 6) {
+        return env->ThrowError("Invalid argument.  Cannot specify two IPv6 addresses.");
+      } else {
+        ares_set_local_ip6(channel->cares_channel(), addr1);
+      }
+    } else {
+      return env->ThrowError("Invalid IP address.");
+    }
+  } else {
+    // No second arg specifed
+    if (type0 == 4) {
+      memset(&addr1, 0, sizeof(addr1));
+      ares_set_local_ip6(channel->cares_channel(), addr1);
+    } else {
+      ares_set_local_ip4(channel->cares_channel(), 0);
+    }
   }
 }
 
