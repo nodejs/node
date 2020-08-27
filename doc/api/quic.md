@@ -94,7 +94,7 @@ At any given time, a `QuicSession` exists is one of four possible states:
 * `Ready` - Entered as soon as the TLS 1.3 handshake completes. Once the
   `QuicSession` enters the `Ready` state, it may be used to exchange
   application data using `QuicStream` instances.
-* `Closed` - Entere as soon as the `QuicSession` connection has been
+* `Closed` - Entered as soon as the `QuicSession` connection has been
   terminated.
 
 New instances of `QuicClientSession` are created using the `connect()`
