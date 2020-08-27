@@ -356,7 +356,7 @@ assert.throws(
 {
   const randomInts = [];
   for (let i = 0; i < 100; i++) {
-    crypto.randomInt(3, common.mustCall((err, n) => {
+    crypto.randomInt(0, 3, common.mustCall((err, n) => {
       assert.ifError(err);
       assert.ok(n >= 0);
       assert.ok(n <= 3);
@@ -376,7 +376,7 @@ assert.throws(
   // Synchronous API
   const randomInts = [];
   for (let i = 0; i < 100; i++) {
-    const n = crypto.randomInt(3);
+    const n = crypto.randomInt(0, 3);
     assert.ok(n >= 0);
     assert.ok(n <= 3);
     randomInts.push(n);
@@ -419,13 +419,13 @@ assert.throws(
       message: 'The "max" argument must be safe integer.' +
                `${common.invalidArgTypeHelper(i)}`,
     });
+  });
 
-    assert.throws(() => crypto.randomInt(i, common.mustNotCall()), {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-      message: 'The "max" argument must be safe integer.' +
-               `${common.invalidArgTypeHelper(i)}`,
-    });
+  assert.throws(() => crypto.randomInt(3, common.mustNotCall()), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "max" argument must be safe integer.' +
+             `${common.invalidArgTypeHelper(common.mustNotCall())}`,
   });
 
   const minInt = Number.MIN_SAFE_INTEGER;
@@ -454,7 +454,6 @@ assert.throws(
     }
   );
 
-
   assert.throws(() => crypto.randomInt(0, 0, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
@@ -467,17 +466,11 @@ assert.throws(
     message: 'The value of "max" is out of range. It must be > 0. Received -1'
   });
 
-  assert.throws(() => crypto.randomInt(0, common.mustNotCall()), {
-    code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError',
-    message: 'The value of "max" is out of range. It must be > 0. Received 0'
-  });
-
-  assert.throws(() => crypto.randomInt(2 ** 48, common.mustNotCall()), {
+  assert.throws(() => crypto.randomInt(0, 2 ** 48, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "max - min" is out of range. ' +
-             `It must be <= ${(2 ** 48) - 1}. ` +
+             `It must be < ${(2 ** 48) - 1}. ` +
              'Received 281_474_976_710_657'
   });
 

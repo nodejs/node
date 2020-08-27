@@ -2800,12 +2800,12 @@ threadpool request. To minimize threadpool task length variation, partition
 large `randomFill` requests when doing so as part of fulfilling a client
 request.
 
-### `crypto.randomInt([min, ]max[, callback])`
+### `crypto.randomInt(min, max[, callback])`
 <!-- YAML
 added: REPLACEME
 -->
 
-* `min` {integer} Start of random range (inclusive). **Default**: `0`.
+* `min` {integer} Start of random range (inclusive).
 * `max` {integer} End of random range (inclusive).
 * `callback` {Function} `function(err, n) {}`.
 
@@ -2821,7 +2821,7 @@ synchronously.
 
 ```js
 // Asynchronous
-crypto.randomInt(3, (err, n) => {
+crypto.randomInt(0, 3, (err, n) => {
   if (err) throw err;
   console.log(`Random number chosen from (0, 1, 2, 3): ${n}`);
 });
@@ -2829,7 +2829,7 @@ crypto.randomInt(3, (err, n) => {
 
 ```js
 // Synchronous
-const n = crypto.randomInt(3);
+const n = crypto.randomInt(0, 3);
 console.log(`Random number chosen from (0, 1, 2, 3): ${n}`);
 ```
 
