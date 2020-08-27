@@ -2232,7 +2232,7 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
 
-  CHECK(args.Length() == 2);
+  CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsString());
 
   Isolate* isolate = args.GetIsolate();
@@ -2263,13 +2263,15 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
 
     if (uv_inet_pton(AF_INET, *ip1, &addr1) == 0) {
       if (type0 == 4) {
-        return env->ThrowError("Invalid argument.  Cannot specify two IPv4 addresses.");
+        return env->ThrowError(
+          "Invalid argument.  Cannot specify two IPv4 addresses.");
       } else {
         ares_set_local_ip4(channel->cares_channel(), cares_get_32bit(addr1));
       }
     } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
       if (type0 == 6) {
-        return env->ThrowError("Invalid argument.  Cannot specify two IPv6 addresses.");
+        return env->ThrowError(
+          "Invalid argument.  Cannot specify two IPv6 addresses.");
       } else {
         ares_set_local_ip6(channel->cares_channel(), addr1);
       }
