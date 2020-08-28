@@ -1381,7 +1381,7 @@ added:
  - v10.20.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/34960
     description: This function is also available as `buf.readBigUint64BE()`.
 -->
 
@@ -1406,7 +1406,7 @@ added:
  - v10.20.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/34960
     description: This function is also available as `buf.readBigUint64LE()`.
 -->
 
@@ -2314,7 +2314,7 @@ added:
  - v10.20.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/34960
     description: This function is also available as `buf.writeBigUint64BE()`.
 -->
 
@@ -2341,7 +2341,7 @@ added:
  - v10.20.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/34960
     description: This function is also available as `buf.writeBigUint64LE()`.
 -->
 
