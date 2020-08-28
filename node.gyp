@@ -73,6 +73,8 @@
       'lib/net.js',
       'lib/os.js',
       'lib/path.js',
+      'lib/path/posix.js',
+      'lib/path/win32.js',
       'lib/perf_hooks.js',
       'lib/process.js',
       'lib/punycode.js',
