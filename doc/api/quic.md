@@ -212,7 +212,7 @@ session.on('stream', (stream) => {
 
 #### QuicStream headers
 
-Some QUIC application protocols (like HTTP/3) make use of headers.
+Some QUIC application protocols (like HTTP/3) use headers.
 
 There are four kinds of headers that the Node.js QUIC implementation
 is capable of handling dependent entirely on known application protocol
