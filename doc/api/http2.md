@@ -3142,12 +3142,11 @@ Then `request.url` will be:
 '/status?name=ryan'
 ```
 
-To parse the url into its parts, `require('url').parse(request.url)`
-can be used:
+To parse the url into its parts, [`url.parse(request.url)`][`url.parse()`].
 
 ```console
 $ node
-> require('url').parse('/status?name=ryan')
+> url.parse('/status?name=ryan')
 Url {
   protocol: null,
   slashes: null,
@@ -3164,12 +3163,12 @@ Url {
 ```
 
 To obtain the parameters from the query string, use the
-`require('querystring').parse()` function or pass
-`true` as the second argument to `require('url').parse()`.
+[`querystring.parse()`][] function or pass
+`true` as the second argument to [`url.parse()`][].
 
 ```console
 $ node
-> require('url').parse('/status?name=ryan', true)
+> url.parse('/status?name=ryan', true)
 Url {
   protocol: null,
   slashes: null,
@@ -3767,6 +3766,7 @@ you need to implement any fall-back behaviour yourself.
 [`net.Socket.prototype.unref()`]: net.html#net_socket_unref
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.connect()`]: net.html#net_net_connect
+[`querystring.parse()`]: querystring.html#querystring_querystring_parse_str_sep_eq_options
 [`request.authority`]: #http2_request_authority
 [`request.socket`]: #http2_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
@@ -3782,6 +3782,7 @@ you need to implement any fall-back behaviour yourself.
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
+[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`writable.writableFinished`]: stream.html#stream_writable_writablefinished
 [error code]: #error_codes
 [Sensitive headers]: #http2-sensitive-headers
