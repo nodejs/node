@@ -114,6 +114,9 @@ addTest('\x1b\x1b\x1b', [
   { name: 'escape', sequence: '\x1b\x1b\x1b', meta: true },
 ]);
 
+// Escape sequence
+addTest('\x1b]', [{ name: undefined, sequence: '\x1B]', meta: true }]);
+
 // Control keys
 addTest('\x01\x0b\x10', [
   { name: 'a', sequence: '\x01', ctrl: true },
