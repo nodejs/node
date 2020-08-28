@@ -1375,6 +1375,10 @@ values.
 ### `buf.readBigUInt64BE([offset])`
 <!-- YAML
 added: v12.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34960
+    description: This function is also available as `buf.readBigUint64BE()`.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1396,6 +1400,10 @@ console.log(buf.readBigUInt64BE(0));
 added:
  - v12.0.0
  - v10.20.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34960
+    description: This function is also available as `buf.readBigUint64LE()`.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -2298,6 +2306,10 @@ console.log(buf);
 added:
  - v12.0.0
  - v10.20.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34960
+    description: This function is also available as `buf.writeBigUint64BE()`.
 -->
 
 * `value` {bigint} Number to be written to `buf`.
@@ -2319,6 +2331,10 @@ console.log(buf);
 ### `buf.writeBigUInt64LE(value[, offset])`
 <!-- YAML
 added: v12.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34960
+    description: This function is also available as `buf.writeBigUint64LE()`.
 -->
 
 * `value` {bigint} Number to be written to `buf`.
