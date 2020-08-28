@@ -1,6 +1,6 @@
 #ifndef SRC_NODE_ERRORS_H_
 #define SRC_NODE_ERRORS_H_
-
+ 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "env.h"
