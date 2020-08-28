@@ -222,7 +222,8 @@ const assert = require('assert');
 }
 
 for (const fn of [
-  'UInt8', 'UInt16LE', 'UInt16BE', 'UInt32LE', 'UInt32BE', 'UIntLE', 'UIntBE'
+  'UInt8', 'UInt16LE', 'UInt16BE', 'UInt32LE', 'UInt32BE', 'UIntLE', 'UIntBE',
+  'BigUInt64LE', 'BigUInt64BE',
 ]) {
   const p = Buffer.prototype;
   const lowerFn = fn.replace(/UInt/, 'Uint');
