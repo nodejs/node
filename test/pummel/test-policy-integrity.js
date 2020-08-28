@@ -380,9 +380,7 @@ for (const permutation of permutations({
   );
 }
 debug(`spawning ${tests.size} policy integrity permutations`);
-debug(
-  'use NODE_DEBUG=test:policy-integrity:NUMBER to log a specific permutation'
-);
+
 for (const config of tests) {
   const parsed = JSON.parse(config);
   tests.delete(config);
