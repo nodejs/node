@@ -3092,46 +3092,25 @@ Then `request.url` will be:
 '/status?name=ryan'
 ```
 
-To parse the url into its parts, [`url.parse(request.url)`][`url.parse()`].
+To parse the url into its parts, `new URL()` can be used:
 
 ```console
 $ node
-> url.parse('/status?name=ryan')
-Url {
-  protocol: null,
-  slashes: null,
-  auth: null,
-  host: null,
-  port: null,
-  hostname: null,
-  hash: null,
-  search: '?name=ryan',
-  query: 'name=ryan',
+> new URL('/status?name=ryan', 'http://example.com')
+URL {
+  href: 'http://example.com/status?name=ryan',
+  origin: 'http://example.com',
+  protocol: 'http:',
+  username: '',
+  password: '',
+  host: 'example.com',
+  hostname: 'example.com',
+  port: '',
   pathname: '/status',
-  path: '/status?name=ryan',
-  href: '/status?name=ryan' }
-```
-
-To obtain the parameters from the query string, use the
-[`querystring.parse()`][] function or pass
-`true` as the second argument to [`url.parse()`][].
-
-```console
-$ node
-> url.parse('/status?name=ryan', true)
-Url {
-  protocol: null,
-  slashes: null,
-  auth: null,
-  host: null,
-  port: null,
-  hostname: null,
-  hash: null,
   search: '?name=ryan',
-  query: { name: 'ryan' },
-  pathname: '/status',
-  path: '/status?name=ryan',
-  href: '/status?name=ryan' }
+  searchParams: URLSearchParams { 'name' => 'ryan' },
+  hash: ''
+}
 ```
 
 ### Class: `http2.Http2ServerResponse`
@@ -3704,7 +3683,6 @@ following additional properties:
 [`net.Socket.prototype.unref()`]: net.html#net_socket_unref
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.connect()`]: net.html#net_net_connect
-[`querystring.parse()`]: querystring.html#querystring_querystring_parse_str_sep_eq_options
 [`request.socket`]: #http2_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
@@ -3719,6 +3697,5 @@ following additional properties:
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [error code]: #error_codes
 [`writable.writableFinished`]: stream.html#stream_writable_writablefinished
