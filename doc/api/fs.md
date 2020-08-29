@@ -455,6 +455,24 @@ Entries added or removed while iterating over the directory may or may not be
 included in the iteration results.
 
 ## Class: `fs.Dirent`
+
+```js
+const fs = require('fs');
+
+async function print(path) {
+  const dir = await fs.promises.opendir(path);
+  for await (const dirent of dir) {
+    // Checking if the particular dirent is Directory or not.
+    const value = dirent.isDirectory();
+
+    // Display the result
+    console.log(dirent);
+    console.log(value);
+  }
+}
+print('./').catch(console.error);
+```
+
 <!-- YAML
 added: v10.10.0
 -->
@@ -486,6 +504,11 @@ added: v10.10.0
 Returns `true` if the `fs.Dirent` object describes a character device.
 
 ### `dirent.isDirectory()`
+
+```js
+const value = dirent.isDirectory();
+```  
+
 <!-- YAML
 added: v10.10.0
 -->
