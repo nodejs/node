@@ -370,6 +370,16 @@ The read-only path of this directory as was provided to [`fs.opendir()`][],
 [`fs.opendirSync()`][], or [`fsPromises.opendir()`][].
 
 ### `dir.read()`
+
+```js
+dir.read( (err, dirent) => {
+  // Throwing error
+  if(err) throw err
+  // Display each dirent one by one
+  console.log(dirent.name);
+});
+```
+
 <!-- YAML
 added: v12.12.0
 -->
