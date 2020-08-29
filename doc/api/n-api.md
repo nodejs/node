@@ -147,7 +147,7 @@ tools. However, it is not necessary to install the entire Visual Studio
 IDE. The following command installs the necessary toolchain:
 
 ```bash
-npm install --global --production windows-build-tools
+npm install --global windows-build-tools
 ```
 
 The sections below describe the additional tools available for developing
