@@ -55,7 +55,7 @@ for pr in "$@"; do
   # Delete the commit queue label
   gitHubCurl "$(labelsUrl "$pr")"/"$COMMIT_QUEUE_LABEL" DELETE
 
-  git node land --yes "$pr" >output 2>&1 || echo "Failed to land #${pr}"
+  git node land --autorebase --yes "$pr" >output 2>&1 || echo "Failed to land #${pr}"
   # cat here otherwise we'll be supressing the output of git node land
   cat output
 
