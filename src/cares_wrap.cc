@@ -29,6 +29,7 @@
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 #include "uv.h"
+#include "node_errors.h"
 
 #include <cerrno>
 #include <cstring>
@@ -2254,7 +2255,8 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
     ares_set_local_ip6(channel->cares_channel(), addr0);
     type0 = 6;
   } else {
-    return env->ThrowError("Invalid IP address.");
+    THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP address.");
+    return;
   }
 
   if (!args[1]->IsUndefined()) {
@@ -2263,20 +2265,21 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
 
     if (uv_inet_pton(AF_INET, *ip1, &addr1) == 0) {
       if (type0 == 4) {
-        return env->ThrowError(
-          "Invalid argument.  Cannot specify two IPv4 addresses.");
+        THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv4 addresses.");
+        return;
       } else {
         ares_set_local_ip4(channel->cares_channel(), cares_get_32bit(addr1));
       }
     } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
       if (type0 == 6) {
-        return env->ThrowError(
-          "Invalid argument.  Cannot specify two IPv6 addresses.");
+        THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv6 addresses.");
+        return;
       } else {
         ares_set_local_ip6(channel->cares_channel(), addr1);
       }
     } else {
-      return env->ThrowError("Invalid IP address.");
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP address.");
+      return;
     }
   } else {
     // No second arg specifed
