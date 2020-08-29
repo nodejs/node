@@ -30,7 +30,13 @@ console.log('hello world');
 console.log('hello %s', 'world');
 // Prints: hello world, to stdout
 console.error(new Error('Whoops, something bad happened'));
-// Prints: [Error: Whoops, something bad happened], to stderr
+// Prints: custom message and stack trace to stderr
+//   Error: Whoops, something bad happened
+//     at Server.<anonymous> (D:\node-training\console_error_ex.js:13:15)
+//     at Object.onceWrapper (events.js:420:28)
+//     at Server.emit (events.js:314:20)
+//     at emitListeningNT (net.js:1350:10)
+//     at processTicksAndRejections (internal/process/task_queues.js:79:21)
 
 const name = 'Will Robinson';
 console.warn(`Danger ${name}! Danger!`);
