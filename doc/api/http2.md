@@ -3127,7 +3127,7 @@ added: v8.4.0
 
 * {string}
 
-Request URL string. This contains only the URL that is present in the actual
+Request target resource string. This contains the string from the actual
 HTTP request. If the request is:
 
 ```http
@@ -3135,15 +3135,10 @@ GET /status?name=ryan HTTP/1.1
 Accept: text/plain
 ```
 
-Then `request.url` will be:
+Then `request.url` will be `'/status?name=ryan'`.
 
-<!-- eslint-disable semi -->
-```js
-'/status?name=ryan'
-```
-
-To parse the url into its parts, `require('url').parse(request.url)`
-can be used:
+To parse the target resource string into its parts,
+`require('url').parse(request.url)` can be used:
 
 ```console
 $ node
