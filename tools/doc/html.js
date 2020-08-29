@@ -74,7 +74,7 @@ function toHTML({ input, content, filename, nodeVersion, versions }) {
                      .replace(/__VERSION__/g, nodeVersion)
                      .replace('__TOC__', content.toc)
                      .replace('__GTOC__', gtocHTML.replace(
-                       `class="nav-${id}`, `class="nav-${id} active`))
+                       `class="nav-${id}"`, `class="nav-${id} active"`))
                      .replace('__EDIT_ON_GITHUB__', editOnGitHub(filename))
                      .replace('__CONTENT__', content.toString());
 
