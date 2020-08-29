@@ -43,7 +43,10 @@ The Commit Queue feature is still in early stages, and as such it might not
 work for more complex Pull Requests. These are the currently known limitations
 of the commit queue:
 
-1. The Pull Request must have only one commit
+1. All commits in a Pull Request must either be following commit message
+   guidelines or be a valid [`fixup!`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupltcommitgt)
+   commits that will be correctly handled by [`--autosquash`](https://git-scm.com/docs/git-rebase#Documentation/git-rebase.txt---autosquash)
+   option
 2. A CI must've ran and succeeded since the last change on the PR
 3. A Collaborator must have approved the PR since the last change
 4. Only Jenkins CI is checked (Actions, V8 CI and CITGM are ignored)
