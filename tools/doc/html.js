@@ -124,7 +124,6 @@ function preprocessText({ nodeVersion }) {
 
 // Syscalls which appear in the docs, but which only exist in BSD / macOS.
 const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
-const LINUX_DIE_ONLY_SYSCALLS = new Set(['uname']);
 const HAXX_ONLY_SYSCALLS = new Set(['curl']);
 const MAN_PAGE = /(^|\s)([a-z.]+)\((\d)([a-z]?)\)/gm;
 
@@ -141,10 +140,6 @@ function linkManPages(text) {
       if (BSD_ONLY_SYSCALLS.has(name)) {
         return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi` +
           `?query=${name}&sektion=${number}">${displayAs}</a>`;
-      }
-      if (LINUX_DIE_ONLY_SYSCALLS.has(name)) {
-        return `${beginning}<a href="https://linux.die.net/man/` +
-                `${number}/${name}">${displayAs}</a>`;
       }
       if (HAXX_ONLY_SYSCALLS.has(name)) {
         return `${beginning}<a href="https://${name}.haxx.se/docs/manpage.html">${displayAs}</a>`;

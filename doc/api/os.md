@@ -291,7 +291,7 @@ added: v0.3.3
 Returns the operating system as a string.
 
 On POSIX systems, the operating system release is determined by calling
-[uname(3)][]. On Windows, `GetVersionExW()` is used. See
+[`uname(3)`][]. On Windows, `GetVersionExW()` is used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
 ## `os.setPriority([pid, ]priority)`
@@ -348,11 +348,11 @@ added: v0.3.3
 
 * Returns: {string}
 
-Returns the operating system name as returned by [uname(3)][]. For example, it
+Returns the operating system name as returned by [`uname(3)`][]. For example, it
 returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
 
 See <https://en.wikipedia.org/wiki/Uname#Examples> for additional information
-about the output of running [uname(3)][] on various operating systems.
+about the output of running [`uname(3)`][] on various operating systems.
 
 ## `os.uptime()`
 <!-- YAML
@@ -403,8 +403,8 @@ added:
 Returns a string identifying the kernel version.
 
 On POSIX systems, the operating system release is determined by calling
-[uname(3)][]. On Windows, `RtlGetVersion()` is used, and if it is not available,
-`GetVersionExW()` will be used. See
+[`uname(3)`][]. On Windows, `RtlGetVersion()` is used, and if it is not
+available, `GetVersionExW()` will be used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
 ## OS constants
@@ -1272,6 +1272,6 @@ The following process scheduling constants are exported by
 [`SystemError`]: errors.html#errors_class_systemerror
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
+[`uname(3)`]: https://linux.die.net/man/3/uname
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [EUID]: https://en.wikipedia.org/wiki/User_identifier#Effective_user_ID
-[uname(3)]: https://linux.die.net/man/3/uname
