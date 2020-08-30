@@ -176,7 +176,7 @@ In particular:
 There are two ways to create new [`TypedArray`][] instances from a `Buffer`:
 
 * Passing a `Buffer` to a [`TypedArray`][] constructor will copy the `Buffer`s
-  contents, interpreted an array array of integers, and not as a byte sequence
+  contents, interpreted as an array of integers, and not as a byte sequence
   of the target type.
 
 ```js
