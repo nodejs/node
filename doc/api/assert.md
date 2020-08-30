@@ -31,8 +31,8 @@ changes:
 -->
 
 In strict assertion mode, non-strict methods behave like their corresponding
-strict methods. For example, [`assert.deepEqual()`][] will behave like
-[`assert.deepStrictEqual()`][].
+strict methods. For example, [`assert.deepEqual()`](https://nodejs.org/api/assert.html#assert_assert_deepequal_actual_expected_message) will behave like
+[`assert.deepStrictEqual()`](https://nodejs.org/api/assert.html#assert_assert_deepstrictequal_actual_expected_message).
 
 In strict assertion mode, error messages for objects display a diff. In legacy
 assertion mode, error messages for objects display the objects, often truncated.
@@ -70,7 +70,7 @@ assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 To deactivate the colors, use the `NO_COLOR` or `NODE_DISABLE_COLORS`
 environment variables. This will also deactivate the colors in the REPL. For
 more on color support in terminal environments, read the tty
-[getColorDepth()](tty.html#tty_writestream_getcolordepth_env) documentation.
+[getColorDepth()](https://nodejs.org/api/tty.html#tty_writestream_getcolordepth_env) documentation.
 
 ## Legacy assertion mode
 
