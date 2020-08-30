@@ -114,7 +114,7 @@ The following legacy character encodings are also supported:
 
 * `'ascii'`: For 7-bit [ASCII][] data only. When encoding a string into a
   `Buffer`, this is equivalent to using `'latin1'`. When decoding a `Buffer`
-  into a string, using encoding this will additionally unset the highest bit of
+  into a string, using this encoding will additionally unset the highest bit of
   each byte before decoding as `'latin1'`.
   Generally, there should be no reason to use this encoding, as `'utf8'`
   (or, if the data is known to always be ASCII-only, `'latin1'`) will be a
