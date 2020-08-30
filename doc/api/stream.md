@@ -1748,15 +1748,18 @@ Converts a `Readable` into an async iterator which
 returns batches with max length of `options.max`.
 
 ```js
-const fs = require('fs/promises')
+const { Readable } = require('stream');
+const fs = require('fs/promises');
 
-const file = fs.open(dst)
-try {
-  for (const chunks of Readable.batched(fs.createReadStream(src))) {
-    await fs.writev(chunks)
+async function copy(src, dst) {
+  const file = await fs.open(dst);
+  try {
+    for await (const chunks of Readable.batched(fs.createReadStream(src))) {
+      await fs.writev(chunks);
+    }
+  } finally {
+    await file.close();
   }
-} finally {
-  await file.close()
 }
 ```
 
