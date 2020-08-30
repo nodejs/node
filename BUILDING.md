@@ -417,41 +417,51 @@ To build the documentation:
 
 This will build Node.js first (if necessary) and then use it to build the docs:
 
-```console
-$ make doc
+```bash
+make doc
 ```
 
 If you have an existing Node.js build, you can build just the docs with:
 
-```console
-$ NODE=/path/to/node make doc-only
+```bash
+NODE=/path/to/node make doc-only
 ```
 
-To read the documentation:
+To read the man page:
 
-```console
-$ man doc/node.1
+```bash
+man doc/node.1
 ```
 
-If you prefer to read the documentation in a browser,
-run the following after `make doc` is finished:
+If you prefer to read the full documentation in a browser, run the following.
 
-```console
-$ make docopen
+```bash
+make docserve
 ```
 
-This will open a browser with the documentation.
+This will spin up a static file server and provide a URL to where you may browse
+the documentation locally.
+
+If you're comfortable viewing the documentation using the program your operating
+system has associated with the default web browser, run the following.
+
+```bash
+make docopen
+```
+
+This will open a file URL to a one-page version of all the browsable HTML
+documents using the default browser.
 
 To test if Node.js was built correctly:
 
-```console
-$ ./node -e "console.log('Hello from Node.js ' + process.version)"
+```bash
+./node -e "console.log('Hello from Node.js ' + process.version)"
 ```
 
 To install this version of Node.js into a system directory:
 
-```console
-$ [sudo] make install
+```bash
+[sudo] make install
 ```
 
 #### Building a debug build
