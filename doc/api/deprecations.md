@@ -2858,7 +2858,7 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
 [`response.end()`]: http.html#http_response_end_data_encoding_callback
-[`response.finished`]: #http_response_finished
+[`response.finished`]: http.html#http_response_finished
 [`response.writableFinished`]: #http_response_writablefinished
 [`response.writableEnded`]: http.html#http_response_writableended
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
