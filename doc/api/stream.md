@@ -1739,6 +1739,27 @@ run().catch(console.error);
 after the `callback` has been invoked. In the case of reuse of streams after
 failure, this can cause event listener leaks and swallowed errors.
 
+### `stream.Readable.batched(stream, [options])`
+
+* `stream`
+* `options`
+
+Converts a `Readable` into an async iterator which
+returns batches with max length of `options.max`.
+
+```js
+const fs = require('fs/promises')
+
+const file = fs.open(dst)
+try {
+  for (const chunks of Readable.batched(fs.createReadStream(src))) {
+    await fs.writev(chunks)
+  }
+} finally {
+  await file.close()
+}
+```
+
 ### `stream.Readable.from(iterable, [options])`
 <!-- YAML
 added:
