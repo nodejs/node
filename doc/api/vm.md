@@ -229,7 +229,7 @@ changes:
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
   * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
-    scheduled through `Promise`s any `async function`s) will be run immediately
+    scheduled through `Promise`s and `async function`s) will be run immediately
     after the script has run. They are included in the `timeout` and
     `breakOnSigint` scopes in that case.
 * Returns: {any} the result of the very last statement executed in the script.
@@ -882,7 +882,7 @@ changes:
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
   * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
-    scheduled through `Promise`s any `async function`s) will be run immediately
+    scheduled through `Promise`s and `async function`s) will be run immediately
     after a script has run through [`script.runInContext()`][].
     They are included in the `timeout` and `breakOnSigint` scopes in that case.
 * Returns: {Object} contextified object.
@@ -1086,7 +1086,7 @@ changes:
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
   * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
-    scheduled through `Promise`s any `async function`s) will be run immediately
+    scheduled through `Promise`s and `async function`s) will be run immediately
     after the script has run. They are included in the `timeout` and
     `breakOnSigint` scopes in that case.
 * Returns: {any} the result of the very last statement executed in the script.
