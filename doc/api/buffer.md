@@ -107,7 +107,7 @@ string into a `Buffer` as decoding.
   tabs, and new lines contained within the base64-encoded string are ignored.
 
 * `'hex'`: Encode each byte as two hexadecimal characters. Data truncation
-  may occur when decoding string that do exclusively contain valid hexadecimal
+  may occur when decoding strings that do exclusively contain valid hexadecimal
   characters. See below for an example.
 
 The following legacy character encodings are also supported:
