@@ -107,14 +107,14 @@ string into a `Buffer` as decoding.
   tabs, and new lines contained within the base64-encoded string are ignored.
 
 * `'hex'`: Encode each byte as two hexadecimal characters. Data truncation
-  may occur when decoding string that do exclusively contain valid hexadecimal
+  may occur when decoding strings that do exclusively contain valid hexadecimal
   characters. See below for an example.
 
 The following legacy character encodings are also supported:
 
 * `'ascii'`: For 7-bit [ASCII][] data only. When encoding a string into a
   `Buffer`, this is equivalent to using `'latin1'`. When decoding a `Buffer`
-  into a string, using encoding this will additionally unset the highest bit of
+  into a string, using this encoding will additionally unset the highest bit of
   each byte before decoding as `'latin1'`.
   Generally, there should be no reason to use this encoding, as `'utf8'`
   (or, if the data is known to always be ASCII-only, `'latin1'`) will be a
@@ -176,7 +176,7 @@ In particular:
 There are two ways to create new [`TypedArray`][] instances from a `Buffer`:
 
 * Passing a `Buffer` to a [`TypedArray`][] constructor will copy the `Buffer`s
-  contents, interpreted an array array of integers, and not as a byte sequence
+  contents, interpreted as an array of integers, and not as a byte sequence
   of the target type.
 
 ```js
