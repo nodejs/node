@@ -95,7 +95,7 @@ function firstHeader() {
   return (tree, file) => {
     const heading = find(tree, { type: 'heading' });
 
-    if (heading?.children.length) {
+    if (heading && heading.children.length) {
       file.section = heading.children.map(({ value }) => value).join('');
     } else {
       file.section = 'Index';
