@@ -1131,7 +1131,7 @@ In either case, the handler function will be invoked with the `event` argument
 passed to the `eventTarget.dispatchEvent()` function.
 
 Async functions may be used as event listeners. If an async handler function
-rejects, the rejection will be captured and be will handled as described in
+rejects, the rejection will be captured and will be handled as described in
 [`EventTarget` error handling][].
 
 An error thrown by one handler function will not prevent the other handlers
