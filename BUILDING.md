@@ -439,8 +439,8 @@ If you prefer to read the full documentation in a browser, run the following.
 make docserve
 ```
 
-This will build the docs, spin up a static file server, and provide a URL to
-where you may browse the documentation locally.
+This will spin up a static file server, and provide a URL to where you may
+browse the documentation locally.
 
 If you're comfortable viewing the documentation using the program your operating
 system has associated with the default web browser, run the following.
@@ -449,8 +449,8 @@ system has associated with the default web browser, run the following.
 make docopen
 ```
 
-This will build the docs, spin up a static file server, and open a URL to a
-one-page version of all the browsable HTML documents using the default browser.
+This will open a file URL to a one-page version of all the browsable HTML
+documents using the default browser.
 
 To test if Node.js was built correctly:
 
