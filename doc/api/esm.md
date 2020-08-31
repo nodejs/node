@@ -1038,7 +1038,7 @@ _conditions_)
 >       1. Otherwise, throw an _Invalid Package Target_ error.
 >    1. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
 >       _"node_modules"_ segments after the first segment, throw an
->       _Invalid Module Specifier_ error.
+>       _Invalid Package Target_ error.
 >    1. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
 >    1. Assert: _resolvedTarget_ is contained in _packageURL_.
