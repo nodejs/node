@@ -433,23 +433,24 @@ To read the man page:
 man doc/node.1
 ```
 
-If you prefer to read the full documentation in a browser, run the following
-after `make doc` is finished:
+If you prefer to read the full documentation in a browser, run the following.
 
 ```bash
 make docserve
 ```
 
-This will provide a URL to where you may browse the documentation locally.
+This will build the docs, spin up a static file server, and provide a URL to
+where you may browse the documentation locally.
 
-If you prefer to read the documentation as a one-page version of all the
-browsable HTML documents, run the following after `make doc` is finished:
+If you're comfortable viewing the documentation using the program your operating
+system has associated with the default web browser, run the following.
 
 ```bash
 make docopen
 ```
 
-This will open a browser with the documentation.
+This will build the docs, spin up a static file server, and open a URL to a
+one-page version of all the browsable HTML documents using the default browser.
 
 To test if Node.js was built correctly:
 
