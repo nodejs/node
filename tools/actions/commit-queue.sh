@@ -11,6 +11,10 @@ API_URL=https://api.github.com
 COMMIT_QUEUE_LABEL='commit-queue'
 COMMIT_QUEUE_FAILED_LABEL='commit-queue-failed'
 
+function prUrl() {
+  echo "$API_URL/repos/${OWNER}/${REPOSITORY}/pulls/${1}"
+}
+
 function issueUrl() {
   echo "$API_URL/repos/${OWNER}/${REPOSITORY}/issues/${1}"
 }
@@ -76,10 +80,18 @@ for pr in "$@"; do
     git node land --abort --yes
   else
     rm output
+    head=$(gitHubCurl "$(prUrl "$pr")" GET | jq '{ ref: .head.ref, remote: .head.repo.ssh_url, can_modify: .maintainer_can_modify }')
+    if [ "$(echo "$head" | jq -r .can_modify)" == "true" ]; then
+      git push --force "$(echo "$head" | jq -r .remote)" master:"$(echo "$head" | jq -r .ref)"
+      # Give GitHub time to sync before pushing to master
+      sleep 5s
+    fi
     git push origin master
 
     gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$(git rev-parse HEAD)"'"}'
 
-    gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
+    if [ "$(echo "$head" | jq -r .can_modify)" != "true" ]; then
+      gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
+    fi
   fi
 done
