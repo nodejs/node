@@ -101,3 +101,17 @@ tmpdir.refresh();
   const content = fs.readFileSync(file, { encoding: 'utf8' });
   assert.strictEqual(content, 'hello world!');
 }
+
+// Test writeFileSync with an object with an own toString function
+{
+  const file = path.join(tmpdir.path, 'testWriteFileSyncStringify.txt');
+  const data = {
+    toString() {
+      return 'hello world!';
+    }
+  };
+
+  fs.writeFileSync(file, data, { encoding: 'utf8', flag: 'a' });
+  const content = fs.readFileSync(file, { encoding: 'utf8' });
+  assert.strictEqual(content, String(data));
+}
