@@ -32,6 +32,7 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
       minVersion: smin,
       maxVersion: smax,
       secureProtocol: sprot,
+      ciphers: 'ALL@SECLEVEL=0'
     },
   }, common.mustCall((err, pair, cleanup) => {
     function u(_) { return _ === undefined ? 'U' : _; }
