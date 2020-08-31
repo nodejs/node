@@ -2800,43 +2800,40 @@ threadpool request. To minimize threadpool task length variation, partition
 large `randomFill` requests when doing so as part of fulfilling a client
 request.
 
-### `crypto.randomInt(min, max[, callback])`
+### `crypto.randomInt(max[, callback])`
 <!-- YAML
 added: REPLACEME
 -->
 
-* `min` {integer} Start of random range (inclusive).
-* `max` {integer} End of random range (inclusive).
+* `max` {integer} End of random range `[0, max)` (`max` is exclusive).
+  `max` must be less than `2^48`.
 * `callback` {Function} `function(err, n) {}`.
 
-Return a random integer `n` such that `min <= n <= max`.  This
+Return a random integer `n` such that `0 <= n < max`.  This
 implementation avoids [modulo
 bias](https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#Modulo_bias).
 
-The cardinality of the range (`max - min + 1`) must be at most `2^48 -
-1`. `min` and `max` must be safe integers.
-
-If the `callback` function is not provided, the random integer is generated
-synchronously.
+If the `callback` function is not provided, the random integer is
+generated synchronously.
 
 ```js
 // Asynchronous
-crypto.randomInt(0, 3, (err, n) => {
+crypto.randomInt(3, (err, n) => {
   if (err) throw err;
-  console.log(`Random number chosen from (0, 1, 2, 3): ${n}`);
+  console.log(`Random number chosen from (0, 1, 2): ${n}`);
 });
 ```
 
 ```js
 // Synchronous
-const n = crypto.randomInt(0, 3);
-console.log(`Random number chosen from (0, 1, 2, 3): ${n}`);
+const n = crypto.randomInt(3);
+console.log(`Random number chosen from (0, 1, 2): ${n}`);
 ```
 
 ```js
-crypto.randomInt(1, 6, (err, n) => {
+crypto.randomInt(6, (err, n) => {
   if (err) throw err;
-  console.log(`The dice rolled: ${n}`);
+  console.log(`The dice rolled: ${n + 1}`);
 });
 ```
 
