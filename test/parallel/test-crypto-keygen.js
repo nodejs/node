@@ -192,7 +192,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
   // Now do the same with an encrypted private key.
   generateKeyPair('rsa', {
-    publicExponent: 0x1001,
+    publicExponent: 0x10001,
     modulusLength: 512,
     publicKeyEncoding,
     privateKeyEncoding: {
@@ -210,11 +210,17 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
-    assert.throws(() => testSignVerify(publicKey, privateKey), {
+    const expectedError = common.hasOpenSSL3 ? {
+      name: 'Error',
+      code: 'ERR_OSSL_OSSL_STORE_UI_PROCESS_INTERRUPTED_OR_CANCELLED',
+      message: 'error:1600006D:STORE routines::ui process interrupted or ' +
+        'cancelled'
+    } : {
       name: 'TypeError',
       code: 'ERR_MISSING_PASSPHRASE',
       message: 'Passphrase required for encrypted key'
-    });
+    };
+    assert.throws(() => testSignVerify(publicKey, privateKey), expectedError);
 
     const key = { key: privateKey, passphrase: 'secret' };
     testEncryptDecrypt(publicKey, key);
