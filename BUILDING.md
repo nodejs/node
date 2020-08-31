@@ -439,8 +439,8 @@ If you prefer to read the full documentation in a browser, run the following.
 make docserve
 ```
 
-This will spin up a static file server, and provide a URL to where you may
-browse the documentation locally.
+This will spin up a static file server and provide a URL to where you may browse
+the documentation locally.
 
 If you're comfortable viewing the documentation using the program your operating
 system has associated with the default web browser, run the following.
