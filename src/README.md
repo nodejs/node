@@ -38,6 +38,30 @@ the [event loop][] and other operation system abstractions to Node.js.
 
 There is a [reference documentation for the libuv API][].
 
+## File structure
+
+The Node.js C++ files follow this structure:
+
+The `.h` header files contain declarations, and sometimes definitions that don’t
+require including other headers (e.g. getters, setters, etc.). They should only
+include other `.h` header files and nothing else.
+
+The `-inl.h` header files contain definitions of inline functions from the
+corresponding `.h` header file (e.g. functions marked `inline` in the
+declaration or `template` functions).  They always include the corresponding
+`.h` header file, and can include other `.h` and `-inl.h` header files as
+needed.  It is not mandatory to split out the definitions from the `.h` file
+into an `-inl.h` file, but it becomes necessary when there are multiple
+definitions and contents of other `-inl.h` files start being used. Therefore, it
+is recommended to split a `-inl.h` file when inline functions become longer than
+a few lines to keep the corresponding `.h` file readable and clean. All visible
+definitions from the `-inl.h` file should be declared in the corresponding `.h`
+header file.
+
+The `.cc` files contain definitions of non-inline functions from the
+corresponding `.h` header file. They always include the corresponding `.h`
+header file, and can include other `.h` and `-inl.h` header files as needed.
+
 ## Helpful concepts
 
 A number of concepts are involved in putting together Node.js on top of V8 and
