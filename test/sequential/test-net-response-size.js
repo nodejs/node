@@ -32,7 +32,7 @@ const cp = require('child_process');
 if (process.argv[2] === 'server') {
   // Server
 
-  const server = net.createServer(common.mustCall(function(conn) {
+  const server = net.createServer(function(conn) {
     conn.on('data', function(data) {
       console.log(`server received ${data.length} bytes`);
     });
@@ -40,11 +40,11 @@ if (process.argv[2] === 'server') {
     conn.on('close', function() {
       server.close();
     });
-  }));
+  });
 
-  server.listen(common.PORT, '127.0.0.1', common.mustCall(function() {
+  server.listen(common.PORT, '127.0.0.1', function() {
     console.log('Server running.');
-  }));
+  });
 
 } else {
   // Client
