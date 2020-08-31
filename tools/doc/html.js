@@ -93,12 +93,14 @@ function toHTML({ input, content, filename, nodeVersion, versions }) {
 // Set the section name based on the first header.  Default to 'Index'.
 function firstHeader() {
   return (tree, file) => {
-    file.section = 'Index';
-
     const heading = find(tree, { type: 'heading' });
-    if (heading) {
-      const text = find(heading, { type: 'text' });
-      if (text) file.section = text.value;
+
+    if (heading && heading.children.length) {
+      const recursiveTextContent = (node) =>
+        node.value || node.children.map(recursiveTextContent).join('');
+      file.section = recursiveTextContent(heading);
+    } else {
+      file.section = 'Index';
     }
   };
 }
