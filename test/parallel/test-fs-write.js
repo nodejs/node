@@ -32,6 +32,7 @@ tmpdir.refresh();
 const fn = path.join(tmpdir.path, 'write.txt');
 const fn2 = path.join(tmpdir.path, 'write2.txt');
 const fn3 = path.join(tmpdir.path, 'write3.txt');
+const fn4 = path.join(tmpdir.path, 'write4.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
 
@@ -132,6 +133,21 @@ fs.open(fn3, 'w', 0o644, common.mustCall((err, fd) => {
   });
 
   fs.write(fd, expected, done);
+}));
+
+fs.open(fn4, 'w', 0o644, common.mustCall((err, fd) => {
+  assert.ifError(err);
+
+  const done = common.mustCall((err, written) => {
+    assert.ifError(err);
+    assert.strictEqual(written, Buffer.byteLength(expected));
+    fs.closeSync(fd);
+  });
+
+  const data = {
+    toString() { return expected; }
+  };
+  fs.write(fd, data, done);
 }));
 
 [false, 'test', {}, [], null, undefined].forEach((i) => {
