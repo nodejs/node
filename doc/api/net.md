@@ -57,7 +57,7 @@ net.createServer().listen(
 
 ## Class: `net.BlockList`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 The `BlockList` object can be used with some network APIs to specify rules for
@@ -66,7 +66,7 @@ IP subnets.
 
 ### `blockList.addAddress(address[, type])`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `address` {string} An IPv4 or IPv6 address.
@@ -76,7 +76,7 @@ Adds a rule to block the given IP address.
 
 ### `blockList.addRange(start, end[, type])`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `start` {string} The starting IPv4 or IPv6 address in the range.
@@ -88,7 +88,7 @@ Adds a rule to block a range of IP addresses from `start` (inclusive) to
 
 ### `blockList.addSubnet(net, prefix[, type])`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `net` {string} The network IPv4 or IPv6 address.
@@ -101,7 +101,7 @@ Adds a rule to block a range of IP addresses specified as a subnet mask.
 
 ### `blockList.check(address[, type])`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `address` {string} The IP address to check
@@ -128,7 +128,7 @@ console.log(blockList.check('::ffff:123.123.123.123', 'ipv6')); // Prints: true
 
 ### `blockList.rules`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string[]}
@@ -1207,7 +1207,7 @@ then returns the `net.Socket` that starts the connection.
 
 ## `net.createQuicSocket([options])`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 Creates and returns a new `QuicSocket`. Please refer to the [QUIC documentation][]

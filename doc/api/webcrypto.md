@@ -1,6 +1,6 @@
 # Web Crypto API
 
-<!-- introduced_in=REPLACEME -->
+<!-- introduced_in=v15.0.0 -->
 
 > Stability: 1 - Experimental
 
@@ -310,7 +310,7 @@ implementation and the APIs supported for each:
 
 ## Class: `Crypto`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 Calling `require('crypto').webcrypto` returns an instance of the `Crypto` class.
@@ -318,7 +318,7 @@ Calling `require('crypto').webcrypto` returns an instance of the `Crypto` class.
 
 ### `crypto.subtle`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {SubtleCrypto}
@@ -327,7 +327,7 @@ Provides access to the `SubtleCrypto` API.
 
 ### `crypto.getRandomValues(typedArray)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
@@ -340,12 +340,12 @@ An error will be thrown if the given `typedArray` is larger than 65,536 bytes.
 
 ## Class: `CryptoKey`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ### `cryptoKey.algorithm`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -359,7 +359,7 @@ Read-only.
 
 ### `cryptoKey.extractable`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {boolean}
@@ -371,7 +371,7 @@ Read-only.
 
 ### `cryptoKey.type`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} One of `'secret'`, `'private'`, or `'public'`.
@@ -381,7 +381,7 @@ asymmetric (`'private'` or `'public'`) key.
 
 ### `cryptoKey.usages`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string[]}
@@ -425,7 +425,7 @@ Valid key usages depend on the key algorithm (identified by
 
 ## Class: `CryptoKeyPair`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 The `CryptoKeyPair` is a simple dictionary object with `publicKey` and
@@ -433,26 +433,26 @@ The `CryptoKeyPair` is a simple dictionary object with `publicKey` and
 
 ### `cryptoKeyPair.privateKey`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {CryptoKey} A {CryptoKey} whose `type` will be `'private'`.
 
 ### `cryptoKeyPair.publicKey`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {CryptoKey} A {CryptoKey} whose `type` will be `'public'`.
 
 ## Class: `SubtleCrypto`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ### `subtle.decrypt(algorithm, key, data)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
@@ -474,7 +474,7 @@ The algorithms currently supported include:
 
 ### `subtle.deriveBits(algorithm, baseKey, length)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -502,7 +502,7 @@ The algorithms currently supported include:
 
 ### `subtle.deriveKey(algorithm, baseKey, derivedKeyAlgorithm, extractable, keyUsages)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -535,7 +535,7 @@ The algorithms currently supported include:
 
 ### `subtle.digest(algorithm, data)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `algorithm`: {string|Object}
@@ -558,7 +558,7 @@ whose value is one of the above.
 
 ### `subtle.encrypt(algorithm, key, data)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
@@ -579,7 +579,7 @@ The algorithms currently supported include:
 
 ### `subtle.exportKey(format, key)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, or
@@ -625,7 +625,7 @@ extension that allows converting a {CryptoKey} into a Node.js {KeyObject}.
 
 ### `subtle.generateKey(algorithm, extractable, keyUsages)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -662,7 +662,7 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 
 ### `subtle.importKey(format, keyData, algorithm, extractable, keyUsages)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, or
@@ -709,7 +709,7 @@ The algorithms currently supported include:
 
 ### `subtle.sign(algorithm, key, data)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -736,7 +736,7 @@ The algorithms currently supported include:
 
 ### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgo, unwrappedKeyAlgo, extractable, keyUsages)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
@@ -786,7 +786,7 @@ The unwrapped key algorithms supported include:
 
 ### `subtle.verify(algorithm, key, signature, data)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -814,7 +814,7 @@ The algorithms currently supported include:
 
 ### `subtle.wrapKey(format, key, wrappingKey, wrapAlgo)`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
@@ -849,12 +849,12 @@ are simple JavaScript dictionary objects.
 
 ### Class: `AesCbcParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `aesCbcParams.iv`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -864,19 +864,19 @@ and should be unpredictable and cryptographically random.
 
 #### `aesCbcParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'AES-CBC'`.
 
 ### Class: `AesCtrParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `aesCtrParams.counter`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -888,7 +888,7 @@ counter and the remaining bits as the nonce.
 
 #### `aesCtrParams.length`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number} The number of bits in the `aesCtrParams.counter` that are
@@ -896,19 +896,19 @@ added: REPLACEME
 
 #### `aesCtrParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'AES-CTR'`.
 
 ### Class: `AesGcmParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `aesGcmParams.additionalData`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -919,7 +919,7 @@ encrypted but is included in the authentication of the data. The use of
 
 #### `aesGcmParams.iv`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -930,14 +930,14 @@ this contain at least 12 random bytes.
 
 #### `aesGcmParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'AES-GCM'`.
 
 #### `aesGcmParams.tagLength`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number} The size in bits of the generated authentication tag.
@@ -946,12 +946,12 @@ added: REPLACEME
 
 ### Class: `AesImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### 'aesImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'AES-CTR'`, `'AES-CBC'`, `'AES-GCM'`, or
@@ -959,12 +959,12 @@ added: REPLACEME
 
 ### Class: `AesKeyGenParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `aesKeyGenParams.length`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number}
@@ -974,7 +974,7 @@ or `256`.
 
 #### `aesKeyGenParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
@@ -982,31 +982,31 @@ added: REPLACEME
 
 ### Class: `AesKwParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `aesKwParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'AES-KW'`.
 
 ### Class: `EcdhKeyDeriveParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `ecdhKeyDeriveParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'ECDH'`.
 
 #### `ecdhKeyDeriveParams.public`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {CryptoKey}
@@ -1018,12 +1018,12 @@ key.
 
 ### Class: `EcdsaParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `ecdsaParams.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1040,57 +1040,57 @@ whose value is one of the above listed values.
 
 #### `ecdsaParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'ECDSA'`.
 
 ### Class: `EcKeyGenParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `ecKeyGenParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'ECDSA'` or `'ECDH'`.
 
 #### `ecKeyGenParams.namedCurve`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'P-256'`, `'P-384'` or `'P-521'`.
 
 ### Class: `EcKeyImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `ecKeyImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'ECDSA'` or `'ECDH'`.
 
 #### `ecKeyImportParams.namedCurve`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'P-256'`, `'P-384'` or `'P-521'`.
 
 ### Class: `HkdfParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `hkdfParams.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1107,7 +1107,7 @@ whose value is one of the above listed values.
 
 #### `hkdfParams.info`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1117,14 +1117,14 @@ This can be zero-length but must be provided.
 
 #### `hkdfParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'HKDF'`.
 
 #### `hkdfParams.salt`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1136,12 +1136,12 @@ digest, the salt should be 256-bits of random data).
 
 ### Class: `HmacImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### 'hmacImportParams.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1158,7 +1158,7 @@ whose value is one of the above listed values.
 
 #### `hmacImportParams.length`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number}
@@ -1168,19 +1168,19 @@ be omitted for most cases.
 
 #### `hmacImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'HMAC'`.
 
 ### Class: `HmacKeyGenParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `hmacKeyGenParams.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1197,7 +1197,7 @@ whose value is one of the above listed values.
 
 #### `hmacKeyGenParams.length`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number}
@@ -1208,43 +1208,43 @@ This is optional and should be omitted for most cases.
 
 #### `hmacKeyGenParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'HMAC'`.
 
 ### Class: `HmacParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `hmacParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'HMAC`.
 
 ### Class: `Pbkdf2ImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `pbkdf2ImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'PBKDF2'`
 
 ### Class: `Pbkdf2Params`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `pbkdb2Params.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1261,7 +1261,7 @@ whose value is one of the above listed values.
 
 #### `pbkdf2Params.iterations`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number}
@@ -1270,14 +1270,14 @@ The number of iterations the PBKDF2 algorithm should make when deriving bits.
 
 #### `pbkdf2Params.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'PBKDF2'`.
 
 #### `pbkdf2Params.salt`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1286,12 +1286,12 @@ Should be at least 16 random or pseudo-random bytes.
 
 ### Class: `RsaHashedImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `rsaHashedImportParams.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1308,7 +1308,7 @@ whose value is one of the above listed values.
 
 #### `rsaHashedImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'RSASSA-PKCS1-v1_5'`, `'RSA-PSS'`, or
@@ -1316,12 +1316,12 @@ added: REPLACEME
 
 ### Class: `RsaHashedKeyGenParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `rsaHashedKeyGenParams.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1338,7 +1338,7 @@ whose value is one of the above listed values.
 
 #### `rsaHashedKeyGenParams.modulusLength`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number}
@@ -1348,7 +1348,7 @@ at least `2048`.
 
 #### `rsaHashedKeyGenParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'RSASSA-PKCS1-v1_5'`, `'RSA-PSS'`, or
@@ -1356,7 +1356,7 @@ added: REPLACEME
 
 #### `rsaHashedKeyGenParams.publicExponent`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {Uint8Array}
@@ -1369,12 +1369,12 @@ there is reason to use a different value, use `new Uint8Array([1, 0, 1])`
 
 ### Class: `RsaOaepParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### rsaOaepParams.label
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1386,26 +1386,26 @@ The `rsaOaepParams.label` parameter is optional.
 
 #### rsaOaepParams.name
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} must be `'RSA-OAEP'`.
 
 ### Class: `RsaPssParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `rsaPssParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'RSA-PSS'`.
 
 #### `rsaPssParams.saltLength`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number}
@@ -1414,12 +1414,12 @@ The length (in bytes) of the random salt to use.
 
 ### Class: `RsaSignParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 #### `rsaSignParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'RSASSA-PKCS1-v1_5'`
@@ -1438,7 +1438,7 @@ of code to other environments.
 
 ### `NODE-DH` Algorithm
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 The `NODE-DH` algorithm is the common implementation of Diffie-Hellman
@@ -1446,64 +1446,64 @@ key agreement.
 
 #### Class: `NodeDhImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ##### `nodeDhImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'NODE-DH'`.
 
 #### Class: NodeDhKeyGenParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ##### `nodeDhKeyGenParams.generator`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number} A custom generator.
 
 ##### `nodeDhKeyGenParams.group`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} The Diffie-Hellman group name.
 
 ##### `nodeDhKeyGenParams.prime`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {Buffer} The prime parameter.
 
 ##### `nodeDhKeyGenParams.primeLength`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number} The length in bits of the prime.
 
 #### Class: NodeDhDeriveBitsParams
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ##### `nodeDhDeriveBitsParams.public`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {CryptoKey} The other parties public key.
 
 ### `NODE-DSA` Algorithm
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 The `NODE-DSA` algorithm is the common implementation of the DSA digital
@@ -1511,12 +1511,12 @@ signature algorithm.
 
 #### Class: `NodeDsaImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ##### `nodeDsaImportParams.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1533,19 +1533,19 @@ whose value is one of the above listed values.
 
 ##### `nodeDsaImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'NODE-DSA'`.
 
 #### Class: `NodeDsaKeyGenParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ##### `nodeDsaKeyGenParams.divisorLength`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number}
@@ -1554,7 +1554,7 @@ The optional length in bits of the DSA divisor.
 
 ##### `nodeDsaKeyGenParams.hash`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|Object}
@@ -1571,7 +1571,7 @@ whose value is one of the above listed values.
 
 ##### `nodeDsaKeyGenParams.modulusLength`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number}
@@ -1581,26 +1581,26 @@ at least `2048`.
 
 ##### `nodeDsaKeyGenParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'NODE-DSA'`.
 
 #### Class: `NodeDsaSignParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ##### `nodeDsaSignParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'NODE-DSA'`
 
 ### `NODE-SCRYPT` Algorithm
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 The `NODE-SCRYPT` algorithm is the common implementation of the scrypt key
@@ -1608,31 +1608,31 @@ derivation algorithm.
 
 #### Class: `NodeScryptImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ##### `nodeScryptImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} Must be `'NODE-SCRYPT'`.
 
 #### Class: `NodeScryptParams`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 ##### `nodeScryptParams.encoding`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string} The string encoding when `salt` is a string.
 
 ##### `nodeScryptParams.maxmem`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number} Memory upper bound. It is an error when (approximately)
@@ -1640,7 +1640,7 @@ added: REPLACEME
 
 ##### `nodeScryptParams.N`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number} The CPU/memory cost parameter. Must e a power of two
@@ -1648,21 +1648,21 @@ added: REPLACEME
 
 ##### `nodeScryptParams.p`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number} Parallelization parameter. **Default** `1`.
 
 ##### `nodeScryptParams.r`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {number} Block size parameter. **Default**: `8`.
 
 ##### `nodeScryptParams.salt`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 * Type: {string|ArrayBuffer|Buffer|TypedArray|DataView}
