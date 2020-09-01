@@ -5,19 +5,19 @@
 *tl;dr: You can land Pull Requests by adding the `commit-queue` label to it.*
 
 Commit Queue is an experimental feature for the project which simplifies the
-landing process by automating it via GitHub Actions. With it, Collaborators are
-able to land Pull Requests by adding the `commit-queue` label to a PR. All
+landing process by automating it via GitHub Actions. With it, Collaborators can
+land Pull Requests by adding the `commit-queue` label to a PR. All
 checks will run via node-core-utils, and if the Pull Request is ready to land,
 the Action will rebase it and push to master.
 
-This document gives an overview on how the Commit Queue works, as well as
+This document gives an overview of how the Commit Queue works, as well as
 implementation details, reasoning for design choices, and current limitations.
 
 ## Overview
 
 From a high-level, the Commit Queue works as follow:
 
-1. Collaborators will add `commit-queue` label to Pull Reuqests ready to land
+1. Collaborators will add `commit-queue` label to Pull Requests ready to land
 2. Every five minutes the queue will do the following for each Pull Request
    with the label:
    1. Check if the PR also has a `request-ci` label (if it has, skip this PR
@@ -45,7 +45,7 @@ of the commit queue:
 
 1. All commits in a Pull Request must either be following commit message
    guidelines or be a valid [`fixup!`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupltcommitgt)
-   commits that will be correctly handled by [`--autosquash`](https://git-scm.com/docs/git-rebase#Documentation/git-rebase.txt---autosquash)
+   commit that will be correctly handled by the [`--autosquash`](https://git-scm.com/docs/git-rebase#Documentation/git-rebase.txt---autosquash)
    option
 2. A CI must've ran and succeeded since the last change on the PR
 3. A Collaborator must have approved the PR since the last change
@@ -58,7 +58,7 @@ events every five minutes. Five minutes is the smallest number accepted by
 the scheduler. The scheduler is not guaranteed to run every five minutes, it
 might take longer between runs.
 
-Using the scheduler is preferrable over using pull_request_target for two
+Using the scheduler is preferable over using pull_request_target for two
 reasons:
 
 1. if two Commit Queue Actions execution overlap, there's a high-risk that
@@ -87,7 +87,7 @@ that into a list of PR ids we can pass as arguments to
 1. The repository owner
 2. The repository name
 3. The Action GITHUB_TOKEN
-4. Every positional argument starting at this one will be a Pull Reuqest ID of
+4. Every positional argument starting at this one will be a Pull Request ID of
     a Pull Request with commit-queue set.
 
 The script will iterate over the pull requests. `ncu-ci` is used to check if
@@ -97,7 +97,7 @@ is pending. No other CI validation is done here since `git node land` will fail
 if the last CI failed.
 
 The script removes the `commit-queue` label. It then runs `git node land`,
-forwarding stdout and stderr to a file. If any errors happens,
+forwarding stdout and stderr to a file. If any errors happen,
 `git node land --abort` is run, and then a `commit-queue-failed` label is added
 to the PR, as well as a comment with the output of `git node land`.
 
@@ -115,4 +115,4 @@ Queue to work because the Action lands PRs just like collaborators do today. If
 once we start using the Commit Queue we notice that the number of required
 reverts increases drastically, we can pause the queue until a Revert Queue is
 implemented, but until then we can enable the Commit Queue and then work on a
-Revert Queue as a follow up.
+Revert Queue as a follow-up.
