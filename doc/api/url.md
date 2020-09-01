@@ -246,7 +246,7 @@ will be thrown.
 #### `url.origin`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/33325
     description: The scheme "gopher" is no longer special and `url.origin` now
                  returns `'null'` for it.
@@ -316,7 +316,7 @@ to percent-encode may vary somewhat from what the [`url.parse()`][] and
 #### `url.port`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/33325
     description: The scheme "gopher" is no longer special.
 -->
@@ -423,7 +423,7 @@ Invalid URL protocol values assigned to the `protocol` property are ignored.
 ##### Special schemes
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/33325
     description: The scheme "gopher" is no longer special.
 -->

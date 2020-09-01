@@ -203,9 +203,9 @@ Currently, overriding `Error.prepareStackTrace` is ignored when the
 
 ### `--experimental-abortcontroller`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/33527
     description: --experimental-abortcontroller is no longer required.
 -->
@@ -548,7 +548,7 @@ Silence all process warnings (including deprecations).
 
 ### `--node-memory-debug`
 <!-- YAML
-added: REPLACEME
+added: v15.0.0
 -->
 
 Enable extra debug checks for memory leaks in Node.js internals. This is

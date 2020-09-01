@@ -32,6 +32,7 @@
 </table>
 
 * Other Versions
+  * [15.x](CHANGELOG_V15.md)
   * [14.x](CHANGELOG_V14.md)
   * [13.x](CHANGELOG_V13.md)
   * [12.x](CHANGELOG_V12.md)
