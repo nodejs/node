@@ -13,7 +13,6 @@ const
     util = require("util"),
     configSchema = require("../../conf/config-schema"),
     BuiltInEnvironments = require("../../conf/environments"),
-    // BuiltInRules = require("../rules"),
     ConfigOps = require("./config-ops"),
     { emitDeprecationWarning } = require("./deprecation-warnings");
 
@@ -38,7 +37,7 @@ const validated = new WeakSet();
 //-----------------------------------------------------------------------------
 
 module.exports = class ConfigValidator {
-    constructor({builtInRules = new Map()} = {}) {
+    constructor({ builtInRules = new Map() } = {}) {
         this.builtInRules = builtInRules;
     }
 
@@ -266,10 +265,10 @@ module.exports = class ConfigValidator {
      * @returns {void}
      */
     validateConfigSchema(config, source = null) {
-        const validateSchema = this.validateSchema || ajv.compile(configSchema);
+        validateSchema = this.validateSchema || ajv.compile(configSchema);
 
         if (!validateSchema(config)) {
-            throw new Error(`ESLint configuration in ${source} is invalid:\n${formatErrors(validateSchema.errors)}`);
+            throw new Error(`ESLint configuration in ${source} is invalid:\n${this.formatErrors(validateSchema.errors)}`);
         }
 
         if (Object.hasOwnProperty.call(config, "ecmaFeatures")) {
@@ -322,4 +321,4 @@ module.exports = class ConfigValidator {
         }
     }
 
-}
+};

@@ -31,11 +31,10 @@ const naming = require("./shared/naming");
 module.exports = {
 
     Legacy: {
-        // config-array
         ConfigArray,
         createConfigArrayFactoryContext,
         CascadingConfigArrayFactory,
-        ConfigArray,
+        ConfigArrayFactory,
         ConfigDependency,
         ExtractedConfig,
         IgnorePattern,

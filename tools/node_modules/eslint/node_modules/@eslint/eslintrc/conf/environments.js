@@ -90,7 +90,7 @@ module.exports = new Map(Object.entries({
             ecmaVersion: 12
         }
     },
-    
+
     // Platforms
     browser: {
         globals: globals.browser
