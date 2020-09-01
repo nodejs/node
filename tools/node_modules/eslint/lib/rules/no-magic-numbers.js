@@ -61,6 +61,10 @@ module.exports = {
                 ignoreArrayIndexes: {
                     type: "boolean",
                     default: false
+                },
+                ignoreDefaultValues: {
+                    type: "boolean",
+                    default: false
                 }
             },
             additionalProperties: false
@@ -77,7 +81,8 @@ module.exports = {
             detectObjects = !!config.detectObjects,
             enforceConst = !!config.enforceConst,
             ignore = (config.ignore || []).map(normalizeIgnoreValue),
-            ignoreArrayIndexes = !!config.ignoreArrayIndexes;
+            ignoreArrayIndexes = !!config.ignoreArrayIndexes,
+            ignoreDefaultValues = !!config.ignoreDefaultValues;
 
         const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
 
@@ -88,6 +93,17 @@ module.exports = {
          */
         function isIgnoredValue(value) {
             return ignore.indexOf(value) !== -1;
+        }
+
+        /**
+         * Returns whether the number is a default value assignment.
+         * @param {ASTNode} fullNumberNode `Literal` or `UnaryExpression` full number node
+         * @returns {boolean} true if the number is a default value
+         */
+        function isDefaultValue(fullNumberNode) {
+            const parent = fullNumberNode.parent;
+
+            return parent.type === "AssignmentPattern" && parent.right === fullNumberNode;
         }
 
         /**
@@ -172,17 +188,18 @@ module.exports = {
                     raw = node.raw;
                 }
 
+                const parent = fullNumberNode.parent;
+
                 // Always allow radix arguments and JSX props
                 if (
                     isIgnoredValue(value) ||
+                    (ignoreDefaultValues && isDefaultValue(fullNumberNode)) ||
                     isParseIntRadix(fullNumberNode) ||
                     isJSXNumber(fullNumberNode) ||
                     (ignoreArrayIndexes && isArrayIndex(fullNumberNode, value))
                 ) {
                     return;
                 }
-
-                const parent = fullNumberNode.parent;
 
                 if (parent.type === "VariableDeclarator") {
                     if (enforceConst && parent.parent.kind !== "const") {

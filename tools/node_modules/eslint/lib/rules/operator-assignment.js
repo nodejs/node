@@ -151,7 +151,7 @@ module.exports = {
          * @returns {void}
          */
         function prohibit(node) {
-            if (node.operator !== "=") {
+            if (node.operator !== "=" && !astUtils.isLogicalAssignmentOperator(node.operator)) {
                 context.report({
                     node,
                     messageId: "unexpected",

@@ -37,8 +37,10 @@ const LINEBREAKS = new Set(["\r\n", "\r", "\n", "\u2028", "\u2029"]);
 // A set of node types that can contain a list of statements
 const STATEMENT_LIST_PARENTS = new Set(["Program", "BlockStatement", "SwitchCase"]);
 
-const DECIMAL_INTEGER_PATTERN = /^(0|[1-9]\d*)$/u;
+const DECIMAL_INTEGER_PATTERN = /^(0|[1-9](?:_?\d)*)$/u;
 const OCTAL_ESCAPE_PATTERN = /^(?:[^\\]|\\[^0-7]|\\0(?![0-9]))*\\(?:[1-7]|0[0-9])/u;
+
+const LOGICAL_ASSIGNMENT_OPERATORS = new Set(["&&=", "||=", "??="]);
 
 /**
  * Checks reference if is non initializer and writable.
@@ -722,6 +724,15 @@ function isMixedLogicalAndCoalesceExpressions(left, right) {
     );
 }
 
+/**
+ * Checks if the given operator is a logical assignment operator.
+ * @param {string} operator The operator to check.
+ * @returns {boolean} `true` if the operator is a logical assignment operator.
+ */
+function isLogicalAssignmentOperator(operator) {
+    return LOGICAL_ASSIGNMENT_OPERATORS.has(operator);
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -1228,16 +1239,25 @@ module.exports = {
      * @returns {boolean} `true` if this node is a decimal integer.
      * @example
      *
-     * 5       // true
-     * 5.      // false
-     * 5.0     // false
-     * 05      // false
-     * 0x5     // false
-     * 0b101   // false
-     * 0o5     // false
-     * 5e0     // false
-     * '5'     // false
-     * 5n      // false
+     * 0         // true
+     * 5         // true
+     * 50        // true
+     * 5_000     // true
+     * 1_234_56  // true
+     * 5.        // false
+     * .5        // false
+     * 5.0       // false
+     * 5.00_00   // false
+     * 05        // false
+     * 0x5       // false
+     * 0b101     // false
+     * 0b11_01   // false
+     * 0o5       // false
+     * 5e0       // false
+     * 5e1_000   // false
+     * 5n        // false
+     * 1_000n    // false
+     * '5'       // false
      */
     isDecimalInteger(node) {
         return node.type === "Literal" && typeof node.value === "number" &&
@@ -1567,7 +1587,20 @@ module.exports = {
                 return true; // possibly an error object.
 
             case "AssignmentExpression":
-                return module.exports.couldBeError(node.right);
+                if (["=", "&&="].includes(node.operator)) {
+                    return module.exports.couldBeError(node.right);
+                }
+
+                if (["||=", "??="].includes(node.operator)) {
+                    return module.exports.couldBeError(node.left) || module.exports.couldBeError(node.right);
+                }
+
+                /**
+                 * All other assignment operators are mathematical assignment operators (arithmetic or bitwise).
+                 * An assignment expression with a mathematical operator can either evaluate to a primitive value,
+                 * or throw, depending on the operands. Thus, it cannot evaluate to an `Error` object.
+                 */
+                return false;
 
             case "SequenceExpression": {
                 const exprs = node.expressions;
@@ -1754,5 +1787,6 @@ module.exports = {
     isSpecificId,
     isSpecificMemberAccess,
     equalLiteralValue,
-    isSameReference
+    isSameReference,
+    isLogicalAssignmentOperator
 };

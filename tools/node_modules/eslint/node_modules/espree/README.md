@@ -130,8 +130,8 @@ const options = {
     // create a top-level tokens array containing all tokens
     tokens: false,
 
-    // Set to 3, 5 (default), 6, 7, 8, 9, or 10 to specify the version of ECMAScript syntax you want to use.
-    // You can also set to 2015 (same as 6), 2016 (same as 7), 2017 (same as 8), 2018 (same as 9), 2019 (same as 10), or 2020 (same as 11) to use the year-based naming.
+    // Set to 3, 5 (default), 6, 7, 8, 9, 10, 11, or 12 to specify the version of ECMAScript syntax you want to use.
+    // You can also set to 2015 (same as 6), 2016 (same as 7), 2017 (same as 8), 2018 (same as 9), 2019 (same as 10), 2020 (same as 11), or 2021 (same as 12) to use the year-based naming.
     ecmaVersion: 5,
 
     // specify which type of script you're parsing ("script" or "module")
@@ -217,38 +217,16 @@ Acorn is a great JavaScript parser that produces an AST that is compatible with 
 
 We are building on top of Acorn, however, so that we can contribute back and help make Acorn even better.
 
-### What ECMAScript 6 features do you support?
+### What ECMAScript features do you support?
 
-All of them.
+Espree supports all ECMAScript 2020 features and partially supports ECMAScript 2021 features.
 
-### What ECMAScript 7/2016 features do you support?
+Because ECMAScript 2021 is still under development, we are implementing features as they are finalized. Currently, Espree supports:
 
-There is only one ECMAScript 2016 syntax change: the exponentiation operator. Espree supports this.
+* [Logical Assignment Operators](https://github.com/tc39/proposal-logical-assignment)
+* [Numeric Separators](https://github.com/tc39/proposal-numeric-separator)
 
-### What ECMAScript 2017 features do you support?
-
-There are two ECMAScript 2017 syntax changes: `async` functions, and trailing commas in function declarations and calls. Espree supports both of them.
-
-### What ECMAScript 2018 features do you support?
-
-There are seven ECMAScript 2018 syntax changes:
-
-* Invalid escape sequences in tagged template literals
-* Rest/spread properties
-* Async iteration
-* RegExp `s` flag
-* RegExp named capture groups
-* RegExp lookbehind assertions
-* RegExp Unicode property escapes
-
-Espree supports all of them.
-
-### What ECMAScript 2019 features do you support?
-
-Because ECMAScript 2019 is still under development, we are implementing features as they are finalized. Currently, Espree supports:
-
-* Optional `catch` binding
-* JSON superset (`\u2028` and `\u2029` in string literals)
+See [finished-proposals.md](https://github.com/tc39/proposals/blob/master/finished-proposals.md) to know what features are finalized.
 
 ### How do you determine which experimental features to support?
 

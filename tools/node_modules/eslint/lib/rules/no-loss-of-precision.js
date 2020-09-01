@@ -36,6 +36,14 @@ module.exports = {
             return typeof node.value === "number";
         }
 
+        /**
+         * Gets the source code of the given number literal. Removes `_` numeric separators from the result.
+         * @param {Node} node the number `Literal` node
+         * @returns {string} raw source code of the literal, without numeric separators
+         */
+        function getRaw(node) {
+            return node.raw.replace(/_/gu, "");
+        }
 
         /**
          * Checks whether the number is  base ten
@@ -55,7 +63,7 @@ module.exports = {
          * @returns {boolean} true if they do not match
          */
         function notBaseTenLosesPrecision(node) {
-            const rawString = node.raw.toUpperCase();
+            const rawString = getRaw(node).toUpperCase();
             let base = 0;
 
             if (rawString.startsWith("0B")) {
@@ -161,7 +169,7 @@ module.exports = {
          * @returns {boolean} true if they do not match
          */
         function baseTenLosesPrecision(node) {
-            const normalizedRawNumber = convertNumberToScientificNotation(node.raw);
+            const normalizedRawNumber = convertNumberToScientificNotation(getRaw(node));
             const requestedPrecision = normalizedRawNumber.split("e")[0].replace(".", "").length;
 
             if (requestedPrecision > 100) {

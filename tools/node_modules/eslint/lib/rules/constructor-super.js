@@ -60,7 +60,23 @@ function isPossibleConstructor(node) {
             return node.name !== "undefined";
 
         case "AssignmentExpression":
-            return isPossibleConstructor(node.right);
+            if (["=", "&&="].includes(node.operator)) {
+                return isPossibleConstructor(node.right);
+            }
+
+            if (["||=", "??="].includes(node.operator)) {
+                return (
+                    isPossibleConstructor(node.left) ||
+                    isPossibleConstructor(node.right)
+                );
+            }
+
+            /**
+             * All other assignment operators are mathematical assignment operators (arithmetic or bitwise).
+             * An assignment expression with a mathematical operator can either evaluate to a primitive value,
+             * or throw, depending on the operands. Thus, it cannot evaluate to a constructor function.
+             */
+            return false;
 
         case "LogicalExpression":
             return (
