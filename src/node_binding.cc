@@ -470,7 +470,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
     if (mp != nullptr) {
       if (mp->nm_context_register_func == nullptr) {
-        if (env->options()->force_context_aware) {
+        if (env->force_context_aware()) {
           dlib->Close();
           THROW_ERR_NON_CONTEXT_AWARE_DISABLED(env);
           return false;
