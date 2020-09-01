@@ -8,6 +8,8 @@
 const { escapeRegExp } = require("lodash");
 const astUtils = require("./utils/ast-utils");
 
+const CHAR_LIMIT = 40;
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -42,12 +44,11 @@ module.exports = {
         ],
 
         messages: {
-            unexpectedComment: "Unexpected '{{matchedTerm}}' comment."
+            unexpectedComment: "Unexpected '{{matchedTerm}}' comment: '{{comment}}'."
         }
     },
 
     create(context) {
-
         const sourceCode = context.getSourceCode(),
             configuration = context.options[0] || {},
             warningTerms = configuration.terms || ["todo", "fixme", "xxx"],
@@ -107,7 +108,15 @@ module.exports = {
              * \bTERM\b|\bTERM\b, this checks the entire comment
              * for the term.
              */
-            return new RegExp(prefix + escaped + suffix + eitherOrWordBoundary + term + wordBoundary, "iu");
+            return new RegExp(
+                prefix +
+                    escaped +
+                    suffix +
+                    eitherOrWordBoundary +
+                    term +
+                    wordBoundary,
+                "iu"
+            );
         }
 
         const warningRegExps = warningTerms.map(convertToRegExp);
@@ -135,18 +144,40 @@ module.exports = {
          * @returns {void} undefined.
          */
         function checkComment(node) {
-            if (astUtils.isDirectiveComment(node) && selfConfigRegEx.test(node.value)) {
+            const comment = node.value;
+
+            if (
+                astUtils.isDirectiveComment(node) &&
+                selfConfigRegEx.test(comment)
+            ) {
                 return;
             }
 
-            const matches = commentContainsWarningTerm(node.value);
+            const matches = commentContainsWarningTerm(comment);
 
             matches.forEach(matchedTerm => {
+                let commentToDisplay = "";
+                let truncated = false;
+
+                for (const c of comment.trim().split(/\s+/u)) {
+                    const tmp = commentToDisplay ? `${commentToDisplay} ${c}` : c;
+
+                    if (tmp.length <= CHAR_LIMIT) {
+                        commentToDisplay = tmp;
+                    } else {
+                        truncated = true;
+                        break;
+                    }
+                }
+
                 context.report({
                     node,
                     messageId: "unexpectedComment",
                     data: {
-                        matchedTerm
+                        matchedTerm,
+                        comment: `${commentToDisplay}${
+                            truncated ? "..." : ""
+                        }`
                     }
                 });
             });
@@ -156,7 +187,9 @@ module.exports = {
             Program() {
                 const comments = sourceCode.getAllComments();
 
-                comments.filter(token => token.type !== "Shebang").forEach(checkComment);
+                comments
+                    .filter(token => token.type !== "Shebang")
+                    .forEach(checkComment);
             }
         };
     }

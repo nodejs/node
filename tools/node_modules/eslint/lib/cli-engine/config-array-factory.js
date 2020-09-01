@@ -1,3 +1,15 @@
+/*
+ * STOP!!! DO NOT MODIFY.
+ *
+ * This file is part of the ongoing work to move the eslintrc-style config
+ * system into the @eslint/eslintrc package. This file needs to remain
+ * unchanged in order for this work to proceed.
+ *
+ * If you think you need to change this file, please contact @nzakas first.
+ *
+ * Thanks in advance for your cooperation.
+ */
+
 /**
  * @fileoverview The factory of `ConfigArray` objects.
  *
@@ -44,7 +56,7 @@ const path = require("path");
 const importFresh = require("import-fresh");
 const stripComments = require("strip-json-comments");
 const { validateConfigSchema } = require("../shared/config-validator");
-const naming = require("../shared/naming");
+const naming = require("@eslint/eslintrc/lib/shared/naming");
 const ModuleResolver = require("../shared/relative-module-resolver");
 const {
     ConfigArray,
