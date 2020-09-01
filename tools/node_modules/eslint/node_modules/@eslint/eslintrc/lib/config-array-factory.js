@@ -628,6 +628,7 @@ class ConfigArrayFactory {
      */
     _normalizeConfigData(configData, ctx) {
         const validator = new ConfigValidator();
+
         validator.validateConfigSchema(configData, ctx.name || ctx.filePath);
         return this._normalizeObjectConfigData(configData, ctx);
     }
