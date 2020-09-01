@@ -317,7 +317,7 @@ class CodePathState {
     //--------------------------------------------------------------------------
 
     /**
-     * Creates a context for ConditionalExpression, LogicalExpression,
+     * Creates a context for ConditionalExpression, LogicalExpression, AssignmentExpression (logical assignments only),
      * IfStatement, WhileStatement, DoWhileStatement, or ForStatement.
      *
      * LogicalExpressions have cases that it goes different paths between the
@@ -339,7 +339,7 @@ class CodePathState {
      *     a -> b -> foo();
      *     a -> b -> bar();
      * @param {string} kind A kind string.
-     *   If the new context is LogicalExpression's, this is `"&&"` or `"||"`.
+     *   If the new context is LogicalExpression's or AssignmentExpression's, this is `"&&"` or `"||"` or `"??"`.
      *   If it's IfStatement's or ConditionalExpression's, this is `"test"`.
      *   Otherwise, this is `"loop"`.
      * @param {boolean} isForkingAsResult A flag that shows that goes different

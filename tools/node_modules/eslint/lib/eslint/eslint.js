@@ -15,7 +15,13 @@ const fs = require("fs");
 const { promisify } = require("util");
 const { CLIEngine, getCLIEngineInternalSlots } = require("../cli-engine/cli-engine");
 const BuiltinRules = require("../rules");
-const { getRuleSeverity } = require("../shared/config-ops");
+const {
+    Legacy: {
+        ConfigOps: {
+            getRuleSeverity
+        }
+    }
+} = require("@eslint/eslintrc");
 const { version } = require("../../package.json");
 
 //------------------------------------------------------------------------------

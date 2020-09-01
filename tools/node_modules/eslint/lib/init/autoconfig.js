@@ -11,7 +11,7 @@
 
 const lodash = require("lodash"),
     recConfig = require("../../conf/eslint-recommended"),
-    ConfigOps = require("../shared/config-ops"),
+    ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops"),
     { Linter } = require("../linter"),
     configRule = require("./config-rule");
 

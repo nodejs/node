@@ -44,6 +44,11 @@ const newGlobals2020 = {
     globalThis: false
 };
 
+const newGlobals2021 = {
+    FinalizationRegistry: false,
+    WeakRef: false
+};
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -79,7 +84,13 @@ module.exports = new Map(Object.entries({
             ecmaVersion: 11
         }
     },
-
+    es2021: {
+        globals: { ...newGlobals2015, ...newGlobals2017, ...newGlobals2020, ...newGlobals2021 },
+        parserOptions: {
+            ecmaVersion: 12
+        }
+    },
+    
     // Platforms
     browser: {
         globals: globals.browser
