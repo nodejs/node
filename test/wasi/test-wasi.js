@@ -84,6 +84,11 @@ if (process.argv[2] === 'wasi-child') {
   runWASI({ test: 'notdir' });
   runWASI({ test: 'poll' });
   runWASI({ test: 'preopen_populates' });
+
+  if (!common.isWindows && process.platform !== 'android') {
+    runWASI({ test: 'readdir' });
+  }
+
   runWASI({ test: 'read_file', stdout: `hello from input.txt${EOL}` });
   runWASI({
     test: 'read_file_twice',
