@@ -513,6 +513,14 @@ inline bool Environment::abort_on_uncaught_exception() const {
   return options_->abort_on_uncaught_exception;
 }
 
+inline void Environment::set_force_context_aware(bool value) {
+  options_->force_context_aware = value;
+}
+
+inline bool Environment::force_context_aware() const {
+  return options_->force_context_aware;
+}
+
 inline void Environment::set_abort_on_uncaught_exception(bool value) {
   options_->abort_on_uncaught_exception = value;
 }

@@ -1068,6 +1068,9 @@ class Environment : public MemoryRetainer {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
+  inline void set_force_context_aware(bool value);
+  inline bool force_context_aware() const;
+
   // This stores whether the --abort-on-uncaught-exception flag was passed
   // to Node.
   inline bool abort_on_uncaught_exception() const;
