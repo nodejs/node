@@ -16,11 +16,11 @@ const
     evk = require("eslint-visitor-keys"),
     espree = require("espree"),
     lodash = require("lodash"),
-    BuiltInEnvironments = require("../../conf/environments"),
+    BuiltInEnvironments = require("@eslint/eslintrc/conf/environments"),
     pkg = require("../../package.json"),
     astUtils = require("../shared/ast-utils"),
-    ConfigOps = require("../shared/config-ops"),
-    validator = require("../shared/config-validator"),
+    ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops"),
+    ConfigValidator = require("@eslint/eslintrc/lib/shared/config-validator"),
     Traverser = require("../shared/traverser"),
     { SourceCode } = require("../source-code"),
     CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer"),
@@ -293,6 +293,9 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
     const exportedVariables = {};
     const problems = [];
     const disableDirectives = [];
+    const validator = new ConfigValidator({
+        builtInRules: Rules
+    });
 
     ast.comments.filter(token => token.type !== "Shebang").forEach(comment => {
         const trimmedCommentText = stripDirectiveComment(comment.value);
