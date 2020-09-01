@@ -471,6 +471,7 @@ class CascadingConfigArrayFactory {
             const validator = new ConfigValidator({
                 builtInRules: configArrayFactory.builtInRules
             });
+
             validator.validateConfigArray(finalConfigArray);
 
             // Cache it.
