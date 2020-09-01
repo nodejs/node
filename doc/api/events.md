@@ -1076,7 +1076,7 @@ process.nextTick(() => ac.abort());
 <!-- YAML
 added: v14.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35496
     description:
       The `EventTarget` and `Event` classes are now available as globals.
@@ -1198,7 +1198,7 @@ The `EventTarget` does not implement any special default handling for
 <!-- YAML
 added: v14.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35496
     description: The `Event` class is now available through the global object.
 -->
@@ -1354,7 +1354,7 @@ The event type identifier.
 <!-- YAML
 added: v14.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35496
     description:
       The `EventTarget` class is now available through the global object.

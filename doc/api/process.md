@@ -1915,7 +1915,7 @@ Additional documentation is available in the [report documentation][].
 added: v11.12.0
 changes:
   - version:
-     - REPLACEME
+     - v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35654
     description: This API is no longer experimental.
 -->

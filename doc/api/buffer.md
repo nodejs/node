@@ -288,7 +288,7 @@ It can be constructed in a variety of ways.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
                  for invalid input arguments.
@@ -357,7 +357,7 @@ A `TypeError` will be thrown if `size` is not a number.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
                  for invalid input arguments.
@@ -410,7 +410,7 @@ additional performance that [`Buffer.allocUnsafe()`][] provides.
 <!-- YAML
 added: v5.12.0
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
                  for invalid input arguments.

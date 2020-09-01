@@ -13,7 +13,7 @@ invariants.
 <!-- YAML
 added: v9.9.0
 changes:
-  - version: REPLACEME
+  - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34001
     description: Exposed as `require('assert/strict')`.
   - version:
