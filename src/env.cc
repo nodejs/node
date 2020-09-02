@@ -1141,6 +1141,8 @@ uv_key_t Environment::thread_local_env = {};
 void Environment::Exit(int exit_code) {
   if (options()->trace_exit) {
     HandleScope handle_scope(isolate());
+    Isolate::DisallowJavascriptExecutionScope disallow_js(
+        isolate(), Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
 
     if (is_main_thread()) {
       fprintf(stderr, "(node:%d) ", uv_os_getpid());
