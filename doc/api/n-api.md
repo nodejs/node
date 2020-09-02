@@ -625,7 +625,7 @@ typedef struct {
 
 #### napi_async_cleanup_hook_handle
 <!-- YAML
-added: REPLACEME
+added: v14.10.0
 -->
 
 An opaque value returned by [`napi_add_async_cleanup_hook`][]. It must be passed
@@ -762,7 +762,7 @@ handle and/or callback scope inside the function body is not necessary.
 
 #### napi_async_cleanup_hook
 <!-- YAML
-added: REPLACEME
+added: v14.10.0
 -->
 
 Function pointer used with [`napi_add_async_cleanup_hook`][]. It will be called
@@ -1614,7 +1614,7 @@ with `napi_add_env_cleanup_hook`, otherwise the process will abort.
 <!-- YAML
 added: v14.8.0
 changes:
-  - version: REPLACEME
+  - version: v14.10.0
     pr-url: https://github.com/nodejs/node/pull/34819
     description: Changed signature of the `hook` callback.
 -->
@@ -1653,7 +1653,7 @@ is being torn down anyway.
 <!-- YAML
 added: v14.8.0
 changes:
-  - version: REPLACEME
+  - version: v14.10.0
     pr-url: https://github.com/nodejs/node/pull/34819
     description: Removed `env` parameter.
 -->

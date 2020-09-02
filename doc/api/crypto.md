@@ -2795,7 +2795,7 @@ request.
 
 ### `crypto.randomInt([min, ]max[, callback])`
 <!-- YAML
-added: REPLACEME
+added: v14.10.0
 -->
 
 * `min` {integer} Start of random range (inclusive). **Default**: `0`.
