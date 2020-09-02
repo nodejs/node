@@ -714,6 +714,7 @@ ThreadId AllocateEnvironmentThreadId() {
 void DefaultProcessExitHandler(Environment* env, int exit_code) {
   Stop(env);
   DisposePlatform();
+  uv_library_shutdown();
   exit(exit_code);
 }
 
