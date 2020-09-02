@@ -705,6 +705,7 @@ void DefaultProcessExitHandler(Environment* env, int exit_code) {
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   DisposePlatform();
+  uv_library_shutdown();
   exit(exit_code);
 }
 
