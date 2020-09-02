@@ -96,7 +96,9 @@ function firstHeader() {
     const heading = find(tree, { type: 'heading' });
 
     if (heading && heading.children.length) {
-      file.section = heading.children.map(({ value }) => value).join('');
+      const recursiveTextContent = (node) =>
+        node.value || node.children.map(recursiveTextContent).join('');
+      file.section = recursiveTextContent(heading);
     } else {
       file.section = 'Index';
     }
