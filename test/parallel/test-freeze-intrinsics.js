@@ -27,4 +27,6 @@ assert.throws(
   const o = {};
   o.toString = () => 'Custom toString';
   assert.strictEqual(o + 'asdf', 'Custom toStringasdf');
+  assert.strictEqual(Object.getOwnPropertyDescriptor(o, 'toString').enumerable,
+                     true);
 }
