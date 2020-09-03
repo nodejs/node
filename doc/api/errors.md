@@ -2516,18 +2516,6 @@ cannot be serialized.
 This can only happen when native addons create `SharedArrayBuffer`s in
 "externalized" mode, or put existing `SharedArrayBuffer` into externalized mode.
 
-<a id="ERR_UNKNOWN_BUILTIN_MODULE"></a>
-### `ERR_UNKNOWN_BUILTIN_MODULE`
-<!-- YAML
-added: v8.0.0
-removed: v9.0.0
--->
-
-The `'ERR_UNKNOWN_BUILTIN_MODULE'` error code is used to identify a specific
-kind of internal Node.js error that should not typically be triggered by user
-code. Instances of this error point to an internal bug within the Node.js
-binary itself.
-
 <a id="ERR_UNKNOWN_STDIN_TYPE"></a>
 ### `ERR_UNKNOWN_STDIN_TYPE`
 <!-- YAML
