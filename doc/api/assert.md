@@ -1588,8 +1588,8 @@ argument.
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_fn_error_message
 [`process.on('exit')`]: process.html#process_event_exit
-[`tracker.calls()`]: #assert_class_assert_CallTracker#tracker_calls
-[`tracker.verify()`]: #assert_class_assert_CallTracker#tracker_verify
+[`tracker.calls()`]: #assert_tracker_calls_fn_exact
+[`tracker.verify()`]: #assert_tracker_verify
 [strict assertion mode]: #assert_strict_assertion_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
