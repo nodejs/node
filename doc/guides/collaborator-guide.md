@@ -134,8 +134,10 @@ actionable steps alongside the objection is recommended.
 If the objection is not clear to others, another collaborator can ask an
 objecting collaborator to explain their objection or to provide actionable
 steps to resolve the objection. **If the objector is unresponsive for seven
-days after a collaborator asks for clarification, another collaborator can
-dismiss the objection**.
+days after a collaborator asks for clarification or proposes a
+solution or compromise for the objection, another collaborator can dismiss
+the objection**. Be mindful of holidays and vacations before dismissing an
+objection.
 
 **Pull requests with outstanding objections must remain open until all
 objections are satisfied**. If reaching consensus is not possible, a
