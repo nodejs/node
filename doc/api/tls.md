@@ -1065,7 +1065,8 @@ For EC keys, the following properties may be defined:
 
 Example certificate:
 
-```text
+<!-- eslint-skip -->
+```js
 { subject:
    { OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
      CN: '*.nodejs.org' },
