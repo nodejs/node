@@ -1010,8 +1010,7 @@ added:
 * `emitter` {EventEmitter}
 * `eventName` {string|symbol} The name of the event being listened for
 * `options` {Object}
-  * `signal` {AbortSignal} An {AbortSignal} that can be used to cancel awaiting
-    events.
+  * `signal` {AbortSignal} Can be used to cancel awaiting events.
 * Returns: {AsyncIterator} that iterates `eventName` events emitted by the `emitter`
 
 ```js
@@ -1041,7 +1040,7 @@ if the `EventEmitter` emits `'error'`. It removes all listeners when
 exiting the loop. The `value` returned by each iteration is an array
 composed of the emitted event arguments.
 
-An {AbortSignal} may be used to cancel waiting on events:
+An {AbortSignal} can be used to cancel waiting on events:
 
 ```js
 const { on, EventEmitter } = require('events');
