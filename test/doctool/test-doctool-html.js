@@ -9,7 +9,7 @@ try {
 }
 
 const assert = require('assert');
-const { readFile } = require('fs/promises');
+const { readFileSync } = require('fs');
 const fixtures = require('../common/fixtures');
 const { replaceLinks } = require('../../tools/doc/markdown.js');
 const html = require('../../tools/doc/html.js');
@@ -139,11 +139,11 @@ const versions = [
   { num: '0.12.x' },
   { num: '0.10.x' }];
 
-testData.forEach(async ({ file, html }) => {
+testData.forEach(({ file, html }) => {
   // Normalize expected data by stripping whitespace.
   const expected = html.replace(spaces, '');
 
-  const input = await readFile(file, 'utf8');
+  const input = readFileSync(file, 'utf8');
 
   const output = toHTML({ input,
                           filename: 'foo',
