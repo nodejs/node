@@ -738,7 +738,7 @@ out/doc/api/assets:
 	if [ -d doc/api/assets ]; then cp -r doc/api/assets out/doc/api; fi;
 
 # If it's not a source tarball, we need to copy assets from doc/api_assets
-out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
+out/doc/api/assets/%: doc/api_assets/% | out/doc/api/assets
 	@cp $< $@ ; $(RM) out/doc/api/assets/README.md
 
 
@@ -751,7 +751,7 @@ gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
 		--versions-file=$(VERSIONS_DATA)
 gen-apilink = tools/doc/apilinks.js $(LINK_DATA) $(wildcard lib/*.js)
 
-$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.js
+$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.js | out/doc
 	$(call available-node, $(gen-apilink))
 
 # Regenerate previous versions data if the current version changes
@@ -760,14 +760,14 @@ $(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.js
 
 out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.js \
 	tools/doc/markdown.js tools/doc/html.js tools/doc/json.js \
-	tools/doc/apilinks.js $(VERSIONS_DATA) | $(LINK_DATA)
+	tools/doc/apilinks.js $(VERSIONS_DATA) | $(LINK_DATA) out/doc/api
 	$(call available-node, $(gen-api))
 
 out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js \
-	tools/doc/apilinks.js
+	tools/doc/apilinks.js | out/doc/api
 	$(call available-node, tools/doc/allhtml.js)
 
-out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js
+out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js | out/doc/api
 	$(call available-node, tools/doc/alljson.js)
 
 .PHONY: docopen
