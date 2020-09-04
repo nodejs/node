@@ -1592,7 +1592,7 @@ $ node --max-old-space-size=1536 index.js
 [`tls.DEFAULT_MAX_VERSION`]: tls.html#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.html#tls_tls_default_min_version
 [`unhandledRejection`]: process.html#process_event_unhandledrejection
-[`worker_threads.threadId`]: worker_threads.html##worker_threads_worker_threadid
+[`worker_threads.threadId`]: worker_threads.html#worker_threads_worker_threadid
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
