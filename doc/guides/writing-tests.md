@@ -109,6 +109,21 @@ case, `_`, lower case).
 
 ### **Lines 11-22**
 
+```js
+const server = http.createServer(common.mustCall((req, res) => {
+  res.end('ok');
+}));
+server.listen(0, () => {
+  http.get({
+    port: server.address().port,
+    headers: { 'Test': 'Düsseldorf' }
+  }, common.mustCall((res) => {
+    assert.strictEqual(res.statusCode, 200);
+    server.close();
+  }));
+});
+```
+
 This is the body of the test. This test is simple, it just tests that an
 HTTP server accepts `non-ASCII` characters in the headers of an incoming
 request. Interesting things to notice:
