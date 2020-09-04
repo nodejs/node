@@ -775,7 +775,7 @@ docopen: $(apidocs_html)
 	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
 
 .PHONY: docserve
-docserve: $(apidocs_html)
+docserve: $(apidocs_html) $(apiassets)
 	@$(PYTHON) -m http.server 8000 --bind 127.0.0.1 --directory out/doc/api
 
 .PHONY: docclean
