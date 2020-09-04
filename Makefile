@@ -771,8 +771,8 @@ out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js | out/doc/api
 	$(call available-node, tools/doc/alljson.js)
 
 .PHONY: docopen
-docopen: $(apidocs_html)
-	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
+docopen: out/doc/api/all.html
+	@$(PYTHON) -mwebbrowser file://$(abspath $<)
 
 .PHONY: docserve
 docserve: $(apidocs_html) $(apiassets)
