@@ -2814,7 +2814,7 @@ Return a random integer `n` such that `min <= n < max`.  This
 implementation avoids [modulo bias][].
 
 The range (`max - min`) must be less than 2<sup>48</sup>. `min` and `max` must
-be safe integers.
+be [safe integers][].
 
 If the `callback` function is not provided, the random integer is
 generated synchronously.
@@ -3622,7 +3622,8 @@ See the [list of SSL OP Flags][] for details.
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [encoding]: buffer.html#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
-[scrypt]: https://en.wikipedia.org/wiki/Scrypt
-[stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
-[stream]: stream.html
 [list of SSL OP Flags]: wiki.openssl.org/index.php/List_of_SSL_OP_Flags#Table_of_Options
+[safe integers]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
+[scrypt]: https://en.wikipedia.org/wiki/Scrypt
+[stream]: stream.html
+[stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
