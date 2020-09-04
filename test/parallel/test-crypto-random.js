@@ -456,12 +456,12 @@ assert.throws(
     }
   );
 
-  crypto.randomInt(0, common.mustCall());
-  crypto.randomInt(0, 0, common.mustCall());
-  assert.throws(() => crypto.randomInt(-1, common.mustNotCall()), {
+  crypto.randomInt(1, common.mustCall());
+  crypto.randomInt(0, 1, common.mustCall());
+  assert.throws(() => crypto.randomInt(0, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "max" is out of range. It must be >= 0. Received -1'
+    message: 'The value of "max" is out of range. It must be > 0. Received 0'
   });
 
   const MAX_RANGE = 0xFFFF_FFFF_FFFF;
