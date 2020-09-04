@@ -1650,6 +1650,11 @@ operations. The specific constants currently defined are described in
 ## `fs.copyFile(src, dest[, mode], callback)`
 <!-- YAML
 added: v8.5.0
+changes:
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/27044
+    description: Changed 'flags' argument to 'mode' and imposed
+                 stricter type validation.
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
@@ -1696,6 +1701,11 @@ fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
 ## `fs.copyFileSync(src, dest[, mode])`
 <!-- YAML
 added: v8.5.0
+changes:
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/27044
+    description: Changed 'flags' argument to 'mode' and imposed
+                 stricter type validation.
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
@@ -5015,6 +5025,11 @@ upon success.
 ### `fsPromises.copyFile(src, dest[, mode])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/27044
+    description: Changed 'flags' argument to 'mode' and imposed
+                 stricter type validation.
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
