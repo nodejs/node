@@ -19,10 +19,12 @@ requesting that a backport pull request be made.
 ## What can be backported?
 
 The "Current" release line is much more lenient than the LTS release lines in
-what can be landed. Our LTS release lines (see the [Release Plan][])
+what can be landed. Our Active LTS release lines (see the [Release Plan][])
 require that commits mature in the Current release for at least 2 weeks before
 they can be landed in an LTS staging branch. Only after "maturation" will those
-commits be cherry-picked or backported.
+commits be cherry-picked or backported. Our Maintenance release lines require
+critical bug fix commits, backports that introduce new feature will be rejected
+even if `backport-requested-vN.x` label is set on the original PR.
 
 ## How to submit a backport pull request
 
