@@ -457,6 +457,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kToNumeric:
     case Bytecode::kToString:
     // Misc.
+    case Bytecode::kIncBlockCounter:  // Coverage counters.
     case Bytecode::kForInEnumerate:
     case Bytecode::kForInPrepare:
     case Bytecode::kForInContinue:
