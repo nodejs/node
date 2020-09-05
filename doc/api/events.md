@@ -24,7 +24,7 @@ can be used.
 
 When the `EventEmitter` object emits an event, all of the functions attached
 to that specific event are called _synchronously_. Any values returned by the
-called listeners are _ignored_ and will be discarded.
+called listeners are _ignored_ and discarded.
 
 The following example shows a simple `EventEmitter` instance with a single
 listener. The `eventEmitter.on()` method is used to register listeners, while
@@ -97,7 +97,7 @@ myEmitter.emit('event', 'a', 'b');
 ## Handling events only once
 
 When a listener is registered using the `eventEmitter.on()` method, that
-listener will be invoked _every time_ the named event is emitted.
+listener is invoked _every time_ the named event is emitted.
 
 ```js
 const myEmitter = new MyEmitter();
@@ -259,12 +259,12 @@ added: v0.1.26
 The `EventEmitter` instance will emit its own `'newListener'` event *before*
 a listener is added to its internal array of listeners.
 
-Listeners registered for the `'newListener'` event will be passed the event
+Listeners registered for the `'newListener'` event are passed the event
 name and a reference to the listener being added.
 
 The fact that the event is triggered before adding the listener has a subtle
 but important side effect: any *additional* listeners registered to the same
-`name` *within* the `'newListener'` callback will be inserted *before* the
+`name` *within* the `'newListener'` callback are inserted *before* the
 listener that is in the process of being added.
 
 ```js
@@ -334,7 +334,7 @@ event. This limit can be changed for individual `EventEmitter` instances
 using the [`emitter.setMaxListeners(n)`][] method. To change the default
 for *all* `EventEmitter` instances, the `EventEmitter.defaultMaxListeners`
 property can be used. If this value is not a positive number, a `TypeError`
-will be thrown.
+is thrown.
 
 Take caution when setting the `EventEmitter.defaultMaxListeners` because the
 change affects *all* `EventEmitter` instances, including those created before
@@ -445,7 +445,7 @@ added: v6.0.0
 * Returns: {Array}
 
 Returns an array listing the events for which the emitter has registered
-listeners. The values in the array will be strings or `Symbol`s.
+listeners. The values in the array are strings or `Symbol`s.
 
 ```js
 const EventEmitter = require('events');
@@ -672,11 +672,11 @@ listener array. If any single listener has been added multiple times to the
 listener array for the specified `eventName`, then `removeListener()` must be
 called multiple times to remove each instance.
 
-Once an event has been emitted, all listeners attached to it at the
-time of emitting will be called in order. This implies that any
+Once an event is emitted, all listeners attached to it at the
+time of emitting are called in order. This implies that any
 `removeListener()` or `removeAllListeners()` calls *after* emitting and
 *before* the last listener finishes execution will not remove them from
-`emit()` in progress. Subsequent events will behave as expected.
+`emit()` in progress. Subsequent events behave as expected.
 
 ```js
 const myEmitter = new MyEmitter();
@@ -1099,7 +1099,7 @@ There are two key differences between the Node.js `EventTarget` and the
    event.
 2. In the Node.js `EventTarget`, if an event listener is an async function
    or returns a `Promise`, and the returned `Promise` rejects, the rejection
-   will be automatically captured and handled the same way as a listener that
+   is automatically captured and handled the same way as a listener that
    throws synchronously (see [`EventTarget` error handling][] for details).
 
 ### `NodeEventTarget` vs. `EventEmitter`
@@ -1110,7 +1110,7 @@ certain situations. A `NodeEventTarget` is *not* an instance of `EventEmitter`
 and cannot be used in place of an `EventEmitter` in most cases.
 
 1. Unlike `EventEmitter`, any given `listener` can be registered at most once
-   per event `type`. Attempts to register a `listener` multiple times will be
+   per event `type`. Attempts to register a `listener` multiple times are
    ignored.
 2. The `NodeEventTarget` does not emulate the full `EventEmitter` API.
    Specifically the `prependListener()`, `prependOnceListener()`,
@@ -1127,17 +1127,17 @@ and cannot be used in place of an `EventEmitter` in most cases.
 Event listeners registered for an event `type` may either be JavaScript
 functions or objects with a `handleEvent` property whose value is a function.
 
-In either case, the handler function will be invoked with the `event` argument
+In either case, the handler function is invoked with the `event` argument
 passed to the `eventTarget.dispatchEvent()` function.
 
 Async functions may be used as event listeners. If an async handler function
-rejects, the rejection will be captured and will be handled as described in
+rejects, the rejection is captured and handled as described in
 [`EventTarget` error handling][].
 
-An error thrown by one handler function will not prevent the other handlers
+An error thrown by one handler function does not prevent the other handlers
 from being invoked.
 
-The return value of a handler function will be ignored.
+The return value of a handler function is ignored.
 
 Handlers are always invoked in the order they were added.
 
@@ -1177,7 +1177,7 @@ target.addEventListener('foo', handler4, { once: true });
 ### `EventTarget` error handling
 
 When a registered event listener throws (or returns a Promise that rejects),
-by default the error will be forwarded to the `process.on('error')` event
+by default the error is forwarded to the `process.on('error')` event
 on `process.nextTick()`. Throwing within an event listener will *not* stop
 the other registered handlers from being invoked.
 
@@ -1250,7 +1250,7 @@ added: v14.5.0
 
 * Type: {boolean}
 
-Will be `true` if `cancelable` is `true` and `event.preventDefault()` has been
+Is `true` if `cancelable` is `true` and `event.preventDefault()` has been
 called.
 
 #### `event.eventPhase`
@@ -1349,7 +1349,7 @@ added: v14.5.0
 * `type` {string}
 * `listener` {Function|EventListener}
 * `options` {Object}
-  * `once` {boolean} When `true`, the listener will be automatically removed
+  * `once` {boolean} When `true`, the listener is automatically removed
     when it is first invoked. **Default:** `false`.
   * `passive` {boolean} When `true`, serves as a hint that the listener will
     not call the `Event` object's `preventDefault()` method.
@@ -1357,10 +1357,10 @@ added: v14.5.0
   * `capture` {boolean} Not directly used by Node.js. Added for API
     completeness. **Default:** `false`.
 
-Adds a new handler for the `type` event. Any given `listener` will be added
+Adds a new handler for the `type` event. Any given `listener` is added
 only once per `type` and per `capture` option value.
 
-If the `once` option is `true`, the `listener` will be removed after the
+If the `once` option is `true`, the `listener` is removed after the
 next time a `type` event is dispatched.
 
 The `capture` option is not used by Node.js in any functional way other than
@@ -1394,7 +1394,7 @@ Dispatches the `event` to the list of handlers for `event.type`. The `event`
 may be an `Event` object or any object with a `type` property whose value is
 a `string`.
 
-The registered event listeners will be synchronously invoked in the order they
+The registered event listeners is synchronously invoked in the order they
 were registered.
 
 #### `eventTarget.removeEventListener(type, listener)`
