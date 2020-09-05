@@ -333,7 +333,7 @@ By default, a maximum of `10` listeners can be registered for any single
 event. This limit can be changed for individual `EventEmitter` instances
 using the [`emitter.setMaxListeners(n)`][] method. To change the default
 for *all* `EventEmitter` instances, the `EventEmitter.defaultMaxListeners`
-property can be used. If this value is not a positive number, a `TypeError`
+property can be used. If this value is not a positive number, a `RangeError`
 is thrown.
 
 Take caution when setting the `EventEmitter.defaultMaxListeners` because the
