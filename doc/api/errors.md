@@ -2383,11 +2383,19 @@ A given index was out of the accepted range (e.g. negative offsets).
 
 <a id="ERR_INVALID_OPT_VALUE"></a>
 ### `ERR_INVALID_OPT_VALUE`
+<!-- YAML
+added: v8.0.0
+removed: REPLACEME
+-->
 
 An invalid or unexpected value was passed in an options object.
 
 <a id="ERR_INVALID_OPT_VALUE_ENCODING"></a>
 ### `ERR_INVALID_OPT_VALUE_ENCODING`
+<!-- YAML
+added: v9.0.0
+removed: REPLACEME
+-->
 
 An invalid or unknown file encoding was passed.
 
