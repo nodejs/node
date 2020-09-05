@@ -401,8 +401,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::preserve_symlinks_main,
             kAllowedInEnvironment);
   AddOption("--prof",
-+            "Generate V8 profiler output.",
-+            &EnvironmentOptions::syntax_prof_only);
+            "Generate V8 profiler output.",
+            V8Option{});
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
