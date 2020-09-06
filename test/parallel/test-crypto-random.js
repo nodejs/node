@@ -34,9 +34,6 @@ const { inspect } = require('util');
 const kMaxUint32 = Math.pow(2, 32) - 1;
 const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
 
-// Bump, we register a lot of exit listeners
-process.setMaxListeners(256);
-
 common.expectWarning('DeprecationWarning',
                      'crypto.pseudoRandomBytes is deprecated.', 'DEP0115');
 
