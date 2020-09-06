@@ -1,5 +1,6 @@
 # Domain
 <!-- YAML
+deprecated: v1.4.2
 changes:
   - version: v8.8.0
     description: Any `Promise`s created in VM contexts no longer have a

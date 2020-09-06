@@ -1,9 +1,6 @@
 # Punycode
 <!-- YAML
-changes:
-  - version: v7.0.0
-    pr-url: https://github.com/nodejs/node/pull/7941
-    description: Accessing this module will now emit a deprecation warning.
+deprecated: v7.0.0
 -->
 
 <!--introduced_in=v0.10.0-->
