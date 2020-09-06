@@ -645,7 +645,7 @@ decrypted. It may be emitted multiple times per `QuicSession` instance.
 
 The callback will be invoked with a single argument:
 
-* `line` <Buffer> Line of ASCII text, in NSS SSLKEYLOGFILE format.
+* `line` {Buffer} Line of ASCII text, in NSS SSLKEYLOGFILE format.
 
 A typical use case is to append received lines to a common text file, which is
 later used by software (such as Wireshark) to decrypt the traffic:
