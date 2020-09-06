@@ -5,7 +5,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
-const { isValidCONNECTPath } = require('internal/http');
+const { isValidConnectPath } = require('internal/http');
 
 const server = http.createServer();
 
@@ -37,6 +37,6 @@ server.on('listening', common.mustCall(() => {
   }));
 }));
 
-['example.com', 'example.com:0', 'example.com:65536'].forEach((path) => {
-  assert.strictEqual(isValidCONNECTPath(path), false);
+['example.com', 'example.com:8080/example'].forEach((path) => {
+  assert.strictEqual(isValidConnectPath(path), false);
 });
