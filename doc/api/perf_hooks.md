@@ -101,7 +101,7 @@ setImmediate(() => {
 });
 ```
 
-While the CPU is mostly idle while running this script the value of
+Although the CPU is mostly idle while running this script, the value of
 `utilization` is 1. This is because the call to [`child_process.spawnSync()`][]
 blocks the event loop from proceeding.
 
