@@ -193,8 +193,7 @@ const values = [
       },
     };
     iAmThis.cbFn = callbackify(iAmThis.fn);
-    iAmThis.cbFn(value, common.mustCall(function(err, ret) {
-      assert.ifError(err);
+    iAmThis.cbFn(value, common.mustSucceed(function(ret) {
       assert.strictEqual(ret, value);
       assert.strictEqual(this, iAmThis);
     }));
@@ -206,8 +205,7 @@ const values = [
       },
     };
     iAmThat.cbFn = callbackify(iAmThat.fn);
-    iAmThat.cbFn(value, common.mustCall(function(err, ret) {
-      assert.ifError(err);
+    iAmThat.cbFn(value, common.mustSucceed(function(ret) {
       assert.strictEqual(ret, value);
       assert.strictEqual(this, iAmThat);
     }));

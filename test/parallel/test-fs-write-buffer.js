@@ -68,11 +68,9 @@ tmpdir.refresh();
 // fs.write with a buffer, without the offset and length parameters:
 {
   const filename = path.join(tmpdir.path, 'write3.txt');
-  fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
-    assert.ifError(err);
+  fs.open(filename, 'w', 0o644, common.mustSucceed(function(fd) {
 
-    const cb = common.mustCall(function(err, written) {
-      assert.ifError(err);
+    const cb = common.mustSucceed(function(written) {
 
       assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
@@ -88,11 +86,9 @@ tmpdir.refresh();
 // fs.write with the offset passed as undefined followed by the callback:
 {
   const filename = path.join(tmpdir.path, 'write4.txt');
-  fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
-    assert.ifError(err);
+  fs.open(filename, 'w', 0o644, common.mustSucceed(function(fd) {
 
-    const cb = common.mustCall(function(err, written) {
-      assert.ifError(err);
+    const cb = common.mustSucceed(function(written) {
 
       assert.strictEqual(written, expected.length);
       fs.closeSync(fd);

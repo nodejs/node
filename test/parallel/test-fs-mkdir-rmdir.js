@@ -25,8 +25,7 @@ fs.rmdirSync(d);
 assert(!fs.existsSync(d));
 
 // Similarly test the Async version
-fs.mkdir(d, 0o666, common.mustCall(function(err) {
-  assert.ifError(err);
+fs.mkdir(d, 0o666, common.mustSucceed(function() {
 
   fs.mkdir(d, 0o666, common.mustCall(function(err) {
     assert.strictEqual(this, undefined);

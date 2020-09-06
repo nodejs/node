@@ -47,8 +47,7 @@ const exec = require('child_process').exec;
 const f = JSON.stringify(__filename);
 const node = JSON.stringify(process.execPath);
 const cmd = `cat ${filename} | ${node} ${f} child`;
-exec(cmd, common.mustCall(function(err, stdout, stderr) {
-  assert.ifError(err);
+exec(cmd, common.mustSucceed(function(stdout, stderr) {
   assert.strictEqual(
     stdout,
     dataExpected,
