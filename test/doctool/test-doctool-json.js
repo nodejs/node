@@ -229,10 +229,8 @@ const testData = [
 ];
 
 testData.forEach((item) => {
-  fs.readFile(item.file, 'utf8', common.mustCall((err, input) => {
-    assert.ifError(err);
-    toJSON(input, 'foo', common.mustCall((err, output) => {
-      assert.ifError(err);
+  fs.readFile(item.file, 'utf8', common.mustSucceed((input) => {
+    toJSON(input, 'foo', common.mustSucceed((output) => {
       assert.deepStrictEqual(output.json, item.json);
     }));
   }));

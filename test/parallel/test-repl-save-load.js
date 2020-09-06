@@ -61,8 +61,7 @@ assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
                    testFile.join('\n'));
 
 // Make sure that the REPL data is "correct".
-testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.ifError(error);
+testMe.complete('inner.o', common.mustSucceed((data) => {
   assert.deepStrictEqual(data, works);
 }));
 
@@ -73,8 +72,7 @@ putIn.run(['.clear']);
 putIn.run([`.load ${saveFileName}`]);
 
 // Make sure that the REPL data is "correct".
-testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.ifError(error);
+testMe.complete('inner.o', common.mustSucceed((data) => {
   assert.deepStrictEqual(data, works);
 }));
 

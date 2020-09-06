@@ -25,8 +25,7 @@ function checkFactory(streamName) {
   execFile(
     process.execPath,
     ['-e', 'console.log("a".repeat(1024 * 1024 - 1))'],
-    common.mustCall((err, stdout, stderr) => {
-      assert.ifError(err);
+    common.mustSucceed((stdout, stderr) => {
       assert.strictEqual(stdout.trim(), 'a'.repeat(1024 * 1024 - 1));
       assert.strictEqual(stderr, '');
     })
@@ -40,8 +39,7 @@ function checkFactory(streamName) {
     process.execPath,
     ['-e', 'console.log("hello world");'],
     options,
-    common.mustCall((err, stdout, stderr) => {
-      assert.ifError(err);
+    common.mustSucceed((stdout, stderr) => {
       assert.strictEqual(stdout.trim(), 'hello world');
       assert.strictEqual(stderr, '');
     })

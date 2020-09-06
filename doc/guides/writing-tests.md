@@ -209,6 +209,11 @@ const server = http.createServer(common.mustCall((req, res) => {
 
 ```
 
+**Note:** Many functions invoke their callback with an `err` value as the first
+argument. It is not a good idea to simply pass `common.mustCall()` to those
+because `common.mustCall()` will ignore the error. Use `common.mustSucceed()`
+instead.
+
 #### Countdown Module
 
 The common [Countdown module](https://github.com/nodejs/node/tree/master/test/common#countdown-module)

@@ -76,8 +76,7 @@ try {
 
 // Copies asynchronously.
 tmpdir.refresh(); // Don't use unlinkSync() since the last test may fail.
-fs.copyFile(src, dest, common.mustCall((err) => {
-  assert.ifError(err);
+fs.copyFile(src, dest, common.mustSucceed(() => {
   verify(src, dest);
 
   // Copy asynchronously with flags.

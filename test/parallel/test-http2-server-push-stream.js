@@ -14,8 +14,7 @@ server.on('stream', common.mustCall((stream, headers) => {
       ':scheme': 'http',
       ':path': '/foobar',
       ':authority': `localhost:${port}`,
-    }, common.mustCall((err, push, headers) => {
-      assert.ifError(err);
+    }, common.mustSucceed((push, headers) => {
       push.respond({
         'content-type': 'text/html',
         ':status': 200,

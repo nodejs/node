@@ -31,8 +31,7 @@ const assert = require('assert');
 const fs = require('fs');
 
 if (process.argv[2] === 'child') {
-  fs.readFile('/dev/stdin', common.mustCall(function(er, data) {
-    assert.ifError(er);
+  fs.readFile('/dev/stdin', common.mustSucceed((data) => {
     process.stdout.write(data);
   }));
   return;
@@ -47,8 +46,7 @@ const exec = require('child_process').exec;
 const f = JSON.stringify(__filename);
 const node = JSON.stringify(process.execPath);
 const cmd = `cat ${filename} | ${node} ${f} child`;
-exec(cmd, common.mustCall(function(err, stdout, stderr) {
-  assert.ifError(err);
+exec(cmd, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(
     stdout,
     dataExpected,

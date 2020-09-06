@@ -42,8 +42,7 @@ internalCp.spawnSync = common.mustCall(function(options) {
 }
 
 {
-  const callback = common.mustCall((err, stdout, stderr) => {
-    assert.ifError(err);
+  const callback = common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout.trim(), '42');
     assert.strictEqual(stderr.trim(), '');
   });

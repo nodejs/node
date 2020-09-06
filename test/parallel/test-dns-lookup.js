@@ -116,8 +116,7 @@ dns.lookup(false, {
   hints: 0,
   family: 0,
   all: true
-}, common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+}, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, []);
   assert.strictEqual(addressType, undefined);
 }));
@@ -126,8 +125,7 @@ dns.lookup('127.0.0.1', {
   hints: 0,
   family: 4,
   all: true
-}, common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+}, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, [{
     address: '127.0.0.1',
     family: 4
@@ -139,8 +137,7 @@ dns.lookup('127.0.0.1', {
   hints: 0,
   family: 4,
   all: false
-}, common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+}, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, '127.0.0.1');
   assert.strictEqual(addressType, 4);
 }));

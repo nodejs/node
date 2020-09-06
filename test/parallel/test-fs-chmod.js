@@ -80,9 +80,7 @@ const file2 = path.join(tmpdir.path, 'a1.js');
 // Create file1.
 fs.closeSync(fs.openSync(file1, 'w'));
 
-fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
-  assert.ifError(err);
-
+fs.chmod(file1, mode_async.toString(8), common.mustSucceed(() => {
   if (common.isWindows) {
     assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
   } else {
@@ -97,12 +95,8 @@ fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
   }
 }));
 
-fs.open(file2, 'w', common.mustCall((err, fd) => {
-  assert.ifError(err);
-
-  fs.fchmod(fd, mode_async.toString(8), common.mustCall((err) => {
-    assert.ifError(err);
-
+fs.open(file2, 'w', common.mustSucceed((fd) => {
+  fs.fchmod(fd, mode_async.toString(8), common.mustSucceed(() => {
     if (common.isWindows) {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
     } else {
@@ -136,9 +130,7 @@ if (fs.lchmod) {
 
   fs.symlinkSync(file2, link);
 
-  fs.lchmod(link, mode_async, common.mustCall((err) => {
-    assert.ifError(err);
-
+  fs.lchmod(link, mode_async, common.mustSucceed(() => {
     assert.strictEqual(fs.lstatSync(link).mode & 0o777, mode_async);
 
     fs.lchmodSync(link, mode_sync);

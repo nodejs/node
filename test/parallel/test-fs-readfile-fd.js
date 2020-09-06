@@ -75,18 +75,15 @@ function tempFdSync(callback) {
 
   {
     // Tests the fs.readFile().
-    fs.open(filename, 'r', common.mustCall((err, fd) => {
-      assert.ifError(err);
+    fs.open(filename, 'r', common.mustSucceed((fd) => {
       const buf = Buffer.alloc(5);
 
       // Read only five bytes, so that the position moves to five.
-      fs.read(fd, buf, 0, 5, null, common.mustCall((err, bytes) => {
-        assert.ifError(err);
+      fs.read(fd, buf, 0, 5, null, common.mustSucceed((bytes) => {
         assert.strictEqual(bytes, 5);
         assert.deepStrictEqual(buf.toString(), 'Hello');
 
-        fs.readFile(fd, common.mustCall((err, data) => {
-          assert.ifError(err);
+        fs.readFile(fd, common.mustSucceed((data) => {
           // readFile() should read from position five, instead of zero.
           assert.deepStrictEqual(data.toString(), ' World');
 

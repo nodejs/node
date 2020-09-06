@@ -43,20 +43,17 @@ const dnsPromises = dns.promises;
 })();
 
 // Try resolution without hostname.
-dns.lookup(null, common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+dns.lookup(null, common.mustSucceed((result, addressType) => {
   assert.strictEqual(result, null);
   assert.strictEqual(addressType, 4);
 }));
 
-dns.lookup('127.0.0.1', common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+dns.lookup('127.0.0.1', common.mustSucceed((result, addressType) => {
   assert.strictEqual(result, '127.0.0.1');
   assert.strictEqual(addressType, 4);
 }));
 
-dns.lookup('::1', common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+dns.lookup('::1', common.mustSucceed((result, addressType) => {
   assert.strictEqual(result, '::1');
   assert.strictEqual(addressType, 6);
 }));
@@ -86,8 +83,7 @@ dns.lookup('::1', common.mustCall((error, result, addressType) => {
 // so we disable this test on Windows.
 // IBMi reports `ENOTFOUND` when get hostname by address 127.0.0.1
 if (!common.isWindows && !common.isIBMi) {
-  dns.reverse('127.0.0.1', common.mustCall(function(error, domains) {
-    assert.ifError(error);
+  dns.reverse('127.0.0.1', common.mustSucceed((domains) => {
     assert.ok(Array.isArray(domains));
   }));
 

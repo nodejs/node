@@ -49,8 +49,7 @@ tmpdir.refresh();
   fs.truncate(
     filename,
     5,
-    common.mustCall(function(err) {
-      assert.ifError(err);
+    common.mustSucceed(() => {
       assert.strictEqual(fs.readFileSync(filename).toString(), '01234');
     })
   );

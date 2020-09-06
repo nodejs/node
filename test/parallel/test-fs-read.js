@@ -35,8 +35,7 @@ function test(bufferAsync, bufferSync, expected) {
           0,
           expected.length,
           0,
-          common.mustCall((err, bytesRead) => {
-            assert.ifError(err);
+          common.mustSucceed((bytesRead) => {
             assert.strictEqual(bytesRead, expected.length);
             assert.deepStrictEqual(bufferAsync, expected);
           }));
@@ -62,8 +61,7 @@ test(new Uint8Array(expected.length),
   const nRead = fs.readSync(fd, Buffer.alloc(1), 0, 1, pos);
   assert.strictEqual(nRead, 0);
 
-  fs.read(fd, Buffer.alloc(1), 0, 1, pos, common.mustCall((err, nRead) => {
-    assert.ifError(err);
+  fs.read(fd, Buffer.alloc(1), 0, 1, pos, common.mustSucceed((nRead) => {
     assert.strictEqual(nRead, 0);
   }));
 }

@@ -334,6 +334,14 @@ function mustCall(fn, exact) {
   return _mustCallInner(fn, exact, 'exact');
 }
 
+function mustSucceed(fn, exact) {
+  return mustCall(function(err, ...args) {
+    assert.ifError(err);
+    if (typeof fn === 'function')
+      return fn.apply(this, args);
+  }, exact);
+}
+
 function mustCallAtLeast(fn, minimum) {
   return _mustCallInner(fn, minimum, 'minimum');
 }
@@ -723,6 +731,7 @@ const common = {
   mustCall,
   mustCallAtLeast,
   mustNotCall,
+  mustSucceed,
   nodeProcessAborted,
   PIPE,
   platformTimeout,

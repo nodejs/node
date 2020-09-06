@@ -5,8 +5,7 @@ const dgram = require('dgram');
 
 const buf = Buffer.from('test');
 
-const onMessage = common.mustCall((err, bytes) => {
-  assert.ifError(err);
+const onMessage = common.mustSucceed((bytes) => {
   assert.strictEqual(bytes, buf.length);
 }, 6);
 

@@ -52,8 +52,7 @@ TEST(async function test_resolve6(done) {
 
   const req = dns.resolve6(
     addresses.INET6_HOST,
-    common.mustCall((err, ips) => {
-      assert.ifError(err);
+    common.mustSucceed((ips) => {
       validateResult(ips);
       done();
     }));
@@ -74,8 +73,7 @@ TEST(async function test_reverse_ipv6(done) {
 
   const req = dns.reverse(
     addresses.INET6_IP,
-    common.mustCall((err, domains) => {
-      assert.ifError(err);
+    common.mustSucceed((domains) => {
       validateResult(domains);
       done();
     }));
@@ -94,8 +92,7 @@ TEST(async function test_lookup_ipv6_explicit(done) {
   const req = dns.lookup(
     addresses.INET6_HOST,
     6,
-    common.mustCall((err, ip, family) => {
-      assert.ifError(err);
+    common.mustSucceed((ip, family) => {
       validateResult({ address: ip, family });
       done();
     }));
@@ -126,8 +123,7 @@ TEST(async function test_lookup_ipv6_explicit_object(done) {
 
   const req = dns.lookup(addresses.INET6_HOST, {
     family: 6
-  }, common.mustCall((err, ip, family) => {
-    assert.ifError(err);
+  }, common.mustSucceed((ip, family) => {
     validateResult({ address: ip, family });
     done();
   }));
@@ -173,8 +169,7 @@ TEST(async function test_lookup_ip_ipv6(done) {
 
   const req = dns.lookup(
     '::1',
-    common.mustCall((err, ip, family) => {
-      assert.ifError(err);
+    common.mustSucceed((ip, family) => {
       validateResult({ address: ip, family });
       done();
     }));
@@ -202,8 +197,7 @@ TEST(async function test_lookup_all_ipv6(done) {
   const req = dns.lookup(
     addresses.INET6_HOST,
     { all: true, family: 6 },
-    common.mustCall((err, ips) => {
-      assert.ifError(err);
+    common.mustSucceed((ips) => {
       validateResult(ips);
       done();
     })

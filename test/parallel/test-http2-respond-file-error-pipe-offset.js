@@ -56,4 +56,4 @@ server.listen(0, () => {
   req.end();
 });
 
-fs.writeFile(pipeName, 'Hello, world!\n', common.mustCall());
+fs.writeFile(pipeName, 'Hello, world!\n', common.mustSucceed());

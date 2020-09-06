@@ -38,11 +38,8 @@ const s = '南越国是前203年至前111年存在于岭南地区的一个国家
           '历经五代君主。南越国是岭南地区的第一个有记载的政权国家，采用封建制和郡县制并存的制度，' +
           '它的建立保证了秦末乱世岭南地区社会秩序的稳定，有效的改善了岭南地区落后的政治、##济现状。\n';
 
-fs.writeFile(filename, s, common.mustCall(function(e) {
-  assert.ifError(e);
-
-  fs.readFile(filename, common.mustCall(function(e, buffer) {
-    assert.ifError(e);
+fs.writeFile(filename, s, common.mustSucceed(() => {
+  fs.readFile(filename, common.mustSucceed((buffer) => {
     assert.strictEqual(Buffer.byteLength(s), buffer.length);
   }));
 }));
@@ -51,12 +48,8 @@ fs.writeFile(filename, s, common.mustCall(function(e) {
 const filename2 = join(tmpdir.path, 'test2.txt');
 const buf = Buffer.from(s, 'utf8');
 
-fs.writeFile(filename2, buf, common.mustCall(function(e) {
-  assert.ifError(e);
-
-  fs.readFile(filename2, common.mustCall(function(e, buffer) {
-    assert.ifError(e);
-
+fs.writeFile(filename2, buf, common.mustSucceed(() => {
+  fs.readFile(filename2, common.mustSucceed((buffer) => {
     assert.strictEqual(buf.length, buffer.length);
   }));
 }));
@@ -64,18 +57,10 @@ fs.writeFile(filename2, buf, common.mustCall(function(e) {
 // Test that writeFile accepts file descriptors.
 const filename4 = join(tmpdir.path, 'test4.txt');
 
-fs.open(filename4, 'w+', common.mustCall(function(e, fd) {
-  assert.ifError(e);
-
-  fs.writeFile(fd, s, common.mustCall(function(e) {
-    assert.ifError(e);
-
-    fs.close(fd, common.mustCall(function(e) {
-      assert.ifError(e);
-
-      fs.readFile(filename4, common.mustCall(function(e, buffer) {
-        assert.ifError(e);
-
+fs.open(filename4, 'w+', common.mustSucceed((fd) => {
+  fs.writeFile(fd, s, common.mustSucceed(() => {
+    fs.close(fd, common.mustSucceed(() => {
+      fs.readFile(filename4, common.mustSucceed((buffer) => {
         assert.strictEqual(Buffer.byteLength(s), buffer.length);
       }));
     }));

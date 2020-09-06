@@ -19,9 +19,7 @@ const { promisify } = require('util');
     read() {}
   });
 
-  finished(rs, common.mustCall((err) => {
-    assert(!err, 'no error');
-  }));
+  finished(rs, common.mustSucceed());
 
   rs.push(null);
   rs.resume();
@@ -34,9 +32,7 @@ const { promisify } = require('util');
     }
   });
 
-  finished(ws, common.mustCall((err) => {
-    assert(!err, 'no error');
-  }));
+  finished(ws, common.mustSucceed());
 
   ws.end();
 }
@@ -59,8 +55,7 @@ const { promisify } = require('util');
     finish = true;
   });
 
-  finished(tr, common.mustCall((err) => {
-    assert(!err, 'no error');
+  finished(tr, common.mustSucceed(() => {
     assert(finish);
     assert(ended);
   }));
@@ -107,9 +102,7 @@ const { promisify } = require('util');
 {
   const rs = new Readable();
 
-  finished(rs, common.mustCall((err) => {
-    assert(!err, 'no error');
-  }));
+  finished(rs, common.mustSucceed());
 
   rs.push(null);
   rs.emit('close'); // Should not trigger an error
