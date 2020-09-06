@@ -42,8 +42,7 @@ const dnsPromises = dns.promises;
   assert.strictEqual(res.family, 6);
 })().then(common.mustCall());
 
-// Try resolution without callback
-
+// Try resolution without hostname.
 dns.lookup(null, common.mustCall((error, result, addressType) => {
   assert.ifError(error);
   assert.strictEqual(result, null);
