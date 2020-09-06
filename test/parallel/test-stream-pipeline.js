@@ -44,8 +44,7 @@ const net = require('net');
   }
   read.push(null);
 
-  pipeline(read, write, common.mustCall((err) => {
-    assert.ok(!err, 'no error');
+  pipeline(read, write, common.mustSucceed(() => {
     assert.ok(finished);
     assert.deepStrictEqual(processed, expected);
   }));
@@ -376,8 +375,7 @@ const net = require('net');
     rs,
     oldStream,
     ws,
-    common.mustCall((err) => {
-      assert(!err, 'no error');
+    common.mustSucceed(() => {
       assert(finished, 'last stream finished');
     })
   );
@@ -528,8 +526,7 @@ const net = require('net');
   pipeline(function*() {
     yield 'hello';
     yield 'world';
-  }(), w, common.mustCall((err) => {
-    assert.ok(!err);
+  }(), w, common.mustSucceed(() => {
     assert.strictEqual(res, 'helloworld');
   }));
 }
@@ -546,8 +543,7 @@ const net = require('net');
     await Promise.resolve();
     yield 'hello';
     yield 'world';
-  }(), w, common.mustCall((err) => {
-    assert.ok(!err);
+  }(), w, common.mustSucceed(() => {
     assert.strictEqual(res, 'helloworld');
   }));
 }
@@ -563,8 +559,7 @@ const net = require('net');
   pipeline(function*() {
     yield 'hello';
     yield 'world';
-  }, w, common.mustCall((err) => {
-    assert.ok(!err);
+  }, w, common.mustSucceed(() => {
     assert.strictEqual(res, 'helloworld');
   }));
 }
@@ -581,8 +576,7 @@ const net = require('net');
     await Promise.resolve();
     yield 'hello';
     yield 'world';
-  }, w, common.mustCall((err) => {
-    assert.ok(!err);
+  }, w, common.mustSucceed(() => {
     assert.strictEqual(res, 'helloworld');
   }));
 }
@@ -601,8 +595,7 @@ const net = require('net');
     for await (const chunk of source) {
       res += chunk;
     }
-  }, common.mustCall((err) => {
-    assert.ok(!err);
+  }, common.mustSucceed(() => {
     assert.strictEqual(res, 'HELLOWORLD');
   }));
 }
@@ -622,8 +615,7 @@ const net = require('net');
       ret += chunk;
     }
     return ret;
-  }, common.mustCall((err, val) => {
-    assert.ok(!err);
+  }, common.mustSucceed((val) => {
     assert.strictEqual(val, 'HELLOWORLD');
   }));
 }
@@ -895,8 +887,7 @@ const net = require('net');
     for await (const chunk of source) {
       res += chunk;
     }
-  }, common.mustCall((err) => {
-    assert.ok(!err);
+  }, common.mustSucceed(() => {
     assert.strictEqual(res, 'HELLOWORLD');
   }));
 }
@@ -954,8 +945,7 @@ const net = require('net');
     pipeline(
       body,
       req,
-      common.mustCall((err) => {
-        assert(!err);
+      common.mustSucceed(() => {
         assert(!req.res);
         assert(!req.aborted);
         req.abort();
@@ -969,8 +959,7 @@ const net = require('net');
 {
   const src = new PassThrough();
   const dst = new PassThrough();
-  pipeline(src, dst, common.mustCall((err) => {
-    assert(!err);
+  pipeline(src, dst, common.mustSucceed(() => {
     assert.strictEqual(dst.destroyed, false);
   }));
   src.end();
@@ -980,8 +969,7 @@ const net = require('net');
   const src = new PassThrough();
   const dst = new PassThrough();
   dst.readable = false;
-  pipeline(src, dst, common.mustCall((err) => {
-    assert(!err);
+  pipeline(src, dst, common.mustSucceed(() => {
     assert.strictEqual(dst.destroyed, false);
   }));
   src.end();
@@ -1224,8 +1212,7 @@ const net = require('net');
       callback();
     }
   });
-  pipeline([r, w], common.mustCall((err) => {
-    assert.ok(!err);
+  pipeline([r, w], common.mustSucceed(() => {
     assert.strictEqual(res, 'helloworld');
   }));
 }
