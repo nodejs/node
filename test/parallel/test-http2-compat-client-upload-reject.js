@@ -14,9 +14,7 @@ const loc = fixtures.path('person-large.jpg');
 
 assert(fs.existsSync(loc));
 
-fs.readFile(loc, common.mustCall((err, data) => {
-  assert.ifError(err);
-
+fs.readFile(loc, common.mustSucceed((data) => {
   const server = http2.createServer(common.mustCall((req, res) => {
     setImmediate(() => {
       res.writeHead(400);

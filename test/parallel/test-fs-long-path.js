@@ -26,7 +26,6 @@ if (!common.isWindows)
 
 const fs = require('fs');
 const path = require('path');
-const assert = require('assert');
 
 const tmpdir = require('../common/tmpdir');
 
@@ -42,10 +41,6 @@ console.log({
   fullPathLength: fullPath.length
 });
 
-fs.writeFile(fullPath, 'ok', common.mustCall(function(err) {
-  assert.ifError(err);
-
-  fs.stat(fullPath, common.mustCall(function(err, stats) {
-    assert.ifError(err);
-  }));
+fs.writeFile(fullPath, 'ok', common.mustSucceed(() => {
+  fs.stat(fullPath, common.mustSucceed());
 }));

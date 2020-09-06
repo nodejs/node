@@ -442,8 +442,7 @@ assert.throws(() => {
 
       validateResults(await dnsPromises[method]('example.org', options));
 
-      dns[method]('example.org', options, common.mustCall((err, res) => {
-        assert.ifError(err);
+      dns[method]('example.org', options, common.mustSucceed((res) => {
         validateResults(res);
         cases.shift();
         nextCase();

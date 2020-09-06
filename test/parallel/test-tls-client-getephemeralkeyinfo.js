@@ -35,9 +35,7 @@ function test(size, type, name, cipher) {
     conn.end();
   }));
 
-  server.on('close', common.mustCall((err) => {
-    assert.ifError(err);
-  }));
+  server.on('close', common.mustSucceed());
 
   server.listen(0, '127.0.0.1', common.mustCall(() => {
     const client = tls.connect({

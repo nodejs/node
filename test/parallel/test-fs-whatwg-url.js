@@ -22,8 +22,7 @@ const url = pathToFileURL(p);
 assert(url instanceof URL);
 
 // Check that we can pass in a URL object successfully
-fs.readFile(url, common.mustCall((err, data) => {
-  assert.ifError(err);
+fs.readFile(url, common.mustSucceed((data) => {
   assert(Buffer.isBuffer(data));
 }));
 

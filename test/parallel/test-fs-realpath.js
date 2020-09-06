@@ -564,8 +564,7 @@ function runNextTest(err) {
     return console.log(`${numtests} subtests completed OK for fs.realpath`);
   }
   testsRun++;
-  test(fs.realpath, fs.realpathSync, common.mustCall((err) => {
-    assert.ifError(err);
+  test(fs.realpath, fs.realpathSync, common.mustSucceed(() => {
     testsRun++;
     test(fs.realpath.native,
          fs.realpathSync.native,

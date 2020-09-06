@@ -29,8 +29,7 @@ function test(mode, asString) {
     const file = path.join(tmpdir.path, `chmod-async-${suffix}.txt`);
     fs.writeFileSync(file, 'test', 'utf-8');
 
-    fs.chmod(file, input, common.mustCall((err) => {
-      assert.ifError(err);
+    fs.chmod(file, input, common.mustSucceed(() => {
       assert.strictEqual(fs.statSync(file).mode & 0o777, mode);
     }));
   }
@@ -46,11 +45,8 @@ function test(mode, asString) {
   {
     const file = path.join(tmpdir.path, `fchmod-async-${suffix}.txt`);
     fs.writeFileSync(file, 'test', 'utf-8');
-    fs.open(file, 'w', common.mustCall((err, fd) => {
-      assert.ifError(err);
-
-      fs.fchmod(fd, input, common.mustCall((err) => {
-        assert.ifError(err);
+    fs.open(file, 'w', common.mustSucceed((fd) => {
+      fs.fchmod(fd, input, common.mustSucceed(() => {
         assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode);
         fs.close(fd, assert.ifError);
       }));
@@ -74,8 +70,7 @@ function test(mode, asString) {
     fs.writeFileSync(file, 'test', 'utf-8');
     fs.symlinkSync(file, link);
 
-    fs.lchmod(link, input, common.mustCall((err) => {
-      assert.ifError(err);
+    fs.lchmod(link, input, common.mustSucceed(() => {
       assert.strictEqual(fs.lstatSync(link).mode & 0o777, mode);
     }));
   }

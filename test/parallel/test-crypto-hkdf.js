@@ -123,8 +123,7 @@ const {
     assert(syncResult instanceof ArrayBuffer);
     let is_async = false;
     hkdf(hash, secret, salt, info, length,
-         common.mustCall((err, asyncResult) => {
-           assert.ifError(err);
+         common.mustSucceed((asyncResult) => {
            assert(is_async);
            assert(asyncResult instanceof ArrayBuffer);
            assert.deepStrictEqual(syncResult, asyncResult);
@@ -141,8 +140,7 @@ const {
 
     const syncResult = hkdfSync(hash, buf_secret, buf_salt, buf_info, length);
     hkdf(hash, buf_secret, buf_salt, buf_info, length,
-         common.mustCall((err, asyncResult) => {
-           assert.ifError(err);
+         common.mustSucceed((asyncResult) => {
            assert.deepStrictEqual(syncResult, asyncResult);
          }));
   }
@@ -154,8 +152,7 @@ const {
 
     const syncResult = hkdfSync(hash, key_secret, buf_salt, buf_info, length);
     hkdf(hash, key_secret, buf_salt, buf_info, length,
-         common.mustCall((err, asyncResult) => {
-           assert.ifError(err);
+         common.mustSucceed((asyncResult) => {
            assert.deepStrictEqual(syncResult, asyncResult);
          }));
   }
@@ -167,8 +164,7 @@ const {
 
     const syncResult = hkdfSync(hash, ta_secret, ta_salt, ta_info, length);
     hkdf(hash, ta_secret, ta_salt, ta_info, length,
-         common.mustCall((err, asyncResult) => {
-           assert.ifError(err);
+         common.mustSucceed((asyncResult) => {
            assert.deepStrictEqual(syncResult, asyncResult);
          }));
   }
@@ -185,8 +181,7 @@ const {
       ta_info.buffer,
       length);
     hkdf(hash, ta_secret, ta_salt, ta_info, length,
-         common.mustCall((err, asyncResult) => {
-           assert.ifError(err);
+         common.mustSucceed((asyncResult) => {
            assert.deepStrictEqual(syncResult, asyncResult);
          }));
   }
@@ -203,8 +198,7 @@ const {
       sa_info,
       length);
     hkdf(hash, ta_secret, sa_salt, sa_info, length,
-         common.mustCall((err, asyncResult) => {
-           assert.ifError(err);
+         common.mustSucceed((asyncResult) => {
            assert.deepStrictEqual(syncResult, asyncResult);
          }));
   }

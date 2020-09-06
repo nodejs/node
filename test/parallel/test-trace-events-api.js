@@ -149,8 +149,7 @@ function testApiInChildProcess(execArgs, cb) {
     const file = path.join(tmpdir.path, 'node_trace.1.log');
 
     assert(fs.existsSync(file));
-    fs.readFile(file, common.mustCall((err, data) => {
-      assert.ifError(err);
+    fs.readFile(file, common.mustSucceed((data) => {
       const traces = JSON.parse(data.toString()).traceEvents
         .filter((trace) => trace.cat !== '__metadata');
       assert.strictEqual(traces.length,
