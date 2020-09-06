@@ -458,11 +458,14 @@ assert.throws(
 
   crypto.randomInt(1, common.mustCall());
   crypto.randomInt(0, 1, common.mustCall());
-  assert.throws(() => crypto.randomInt(0, common.mustNotCall()), {
-    code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError',
-    message: 'The value of "max" is out of range. It must be > 0. Received 0'
-  });
+  for (const arg of [[0], [1, 1], [3, 2], [-5, -5], [11, -10]]) {
+    assert.throws(() => crypto.randomInt(...arg, common.mustNotCall()), {
+      code: 'ERR_OUT_OF_RANGE',
+      name: 'RangeError',
+      message: 'The value of "max" is out of range. It must be > ' +
+               `${arg[arg.length - 2] || 0}. Received ${arg[arg.length - 1]}`
+    });
+  }
 
   const MAX_RANGE = 0xFFFF_FFFF_FFFF;
   crypto.randomInt(MAX_RANGE, common.mustCall());
