@@ -16,10 +16,7 @@ assert(!icu.hasConverter('x'),
        'hasConverter should report converter does not exist for x');
 
 const tests = require('../fixtures/url-idna.js');
-const fixtures = require('../common/fixtures');
-const wptToASCIITests = require(
-  fixtures.path('wpt', 'url', 'resources', 'toascii.json')
-);
+const fixtures = require('../fixtures/icu-punycode-toascii.json');
 
 {
   for (const [i, { ascii, unicode }] of tests.entries()) {
@@ -33,7 +30,7 @@ const wptToASCIITests = require(
 }
 
 {
-  for (const [i, test] of wptToASCIITests.entries()) {
+  for (const [i, test] of fixtures.entries()) {
     if (typeof test === 'string')
       continue; // skip comments
     const { comment, input, output } = test;
