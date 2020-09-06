@@ -9,13 +9,13 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-fs.access(Buffer.from(tmpdir.path), common.mustCall(assert.ifError));
+fs.access(Buffer.from(tmpdir.path), common.mustSucceed());
 
 const buf = Buffer.from(path.join(tmpdir.path, 'a.txt'));
 fs.open(buf, 'w+', common.mustCall((err, fd) => {
   assert.ifError(err);
   assert(fd);
-  fs.close(fd, common.mustCall(assert.ifError));
+  fs.close(fd, common.mustSucceed());
 }));
 
 assert.throws(

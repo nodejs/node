@@ -81,9 +81,7 @@ fs.opendir(testDir, common.mustCall(function(err, dir) {
       assert(!syncInner);
       assert.ifError(err);
 
-      dir.close(common.mustCall(function(err) {
-        assert.ifError(err);
-      }));
+      dir.close(common.mustSucceed());
     }));
     syncInner = false;
   }));

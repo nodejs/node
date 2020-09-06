@@ -70,7 +70,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
 fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   const stats = fs.fstatSync(fd);
   assert.ok(stats.mtime instanceof Date);
-  fs.close(fd, common.mustCall(assert.ifError));
+  fs.close(fd, common.mustSucceed());
 }));
 
 fs.stat(__filename, common.mustCall(function(err, s) {

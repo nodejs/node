@@ -9,9 +9,7 @@ if (process.argv[2] === 'child') {
   pipeline(
     process.stdin,
     process.stdout,
-    common.mustCall((err) => {
-      assert.ifError(err);
-    })
+    common.mustSucceed()
   );
 } else {
   const cp = require('child_process');

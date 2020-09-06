@@ -73,7 +73,7 @@ fs.closeSync(fd);
 // Async tests
 testTruncate(common.mustCall(function(er) {
   assert.ifError(er);
-  testFtruncate(common.mustCall(assert.ifError));
+  testFtruncate(common.mustSucceed());
 }));
 
 function testTruncate(cb) {

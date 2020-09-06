@@ -32,9 +32,7 @@ if (process.argv[2] !== 'child') {
       });
     }));
 
-    child.send('socket', socket, { keepOpen: true }, common.mustCall((err) => {
-      assert.ifError(err);
-    }));
+    child.send('socket', socket, { keepOpen: true }, common.mustSucceed());
   });
 
   server.listen(0, () => {

@@ -1075,9 +1075,7 @@ const net = require('net');
     for await (const chunk of source) {
       yield { chunk };
     }
-  }, common.mustCall((err) => {
-    assert.ifError(err);
-  }));
+  }, common.mustSucceed());
 }
 
 {
