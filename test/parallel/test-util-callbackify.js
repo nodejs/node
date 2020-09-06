@@ -32,8 +32,7 @@ const values = [
     }
 
     const cbAsyncFn = callbackify(asyncFn);
-    cbAsyncFn(common.mustCall((err, ret) => {
-      assert.ifError(err);
+    cbAsyncFn(common.mustSucceed((ret) => {
       assert.strictEqual(ret, value);
     }));
 
@@ -43,8 +42,7 @@ const values = [
     }
 
     const cbPromiseFn = callbackify(promiseFn);
-    cbPromiseFn(common.mustCall((err, ret) => {
-      assert.ifError(err);
+    cbPromiseFn(common.mustSucceed((ret) => {
       assert.strictEqual(ret, value);
     }));
 
@@ -58,8 +56,7 @@ const values = [
     }
 
     const cbThenableFn = callbackify(thenableFn);
-    cbThenableFn(common.mustCall((err, ret) => {
-      assert.ifError(err);
+    cbThenableFn(common.mustSucceed((ret) => {
       assert.strictEqual(ret, value);
     }));
   }
@@ -162,8 +159,7 @@ const values = [
       Object.getPrototypeOf(asyncFn)
     );
     assert.strictEqual(Object.getPrototypeOf(cbAsyncFn), Function.prototype);
-    cbAsyncFn(value, common.mustCall((err, ret) => {
-      assert.ifError(err);
+    cbAsyncFn(value, common.mustSucceed((ret) => {
       assert.strictEqual(ret, value);
     }));
 
@@ -181,8 +177,7 @@ const values = [
 
     const cbPromiseFn = callbackify(promiseFn);
     assert.strictEqual(promiseFn.length, obj);
-    cbPromiseFn(value, common.mustCall((err, ret) => {
-      assert.ifError(err);
+    cbPromiseFn(value, common.mustSucceed((ret) => {
       assert.strictEqual(ret, value);
     }));
   }
@@ -242,8 +237,7 @@ const values = [
   execFile(
     process.execPath,
     [fixture],
-    common.mustCall((err, stdout, stderr) => {
-      assert.ifError(err);
+    common.mustSucceed((stdout, stderr) => {
       assert.strictEqual(
         stdout.trim(),
         `ifError got unwanted exception: ${fixture}`);

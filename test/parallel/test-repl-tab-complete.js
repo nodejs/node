@@ -44,8 +44,7 @@ process.chdir(fixtures.fixturesDir);
 const repl = require('repl');
 
 function getNoResultsFunction() {
-  return common.mustCall((err, data) => {
-    assert.ifError(err);
+  return common.mustSucceed((data) => {
     assert.deepStrictEqual(data[0], []);
   });
 }
@@ -343,8 +342,7 @@ testMe.complete("require\t( 'n", common.mustCall(function(error, data) {
 
   {
     const path = '../fixtures/repl-folder-extensions/f';
-    testMe.complete(`require('${path}`, common.mustCall((err, data) => {
-      assert.ifError(err);
+    testMe.complete(`require('${path}`, common.mustSucceed((data) => {
       assert.strictEqual(data.length, 2);
       assert.strictEqual(data[1], path);
       assert.ok(data[0].includes('../fixtures/repl-folder-extensions/foo.js'));

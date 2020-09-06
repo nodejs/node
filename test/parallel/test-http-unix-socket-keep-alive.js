@@ -10,8 +10,7 @@ tmpdir.refresh();
 
 server.listen(common.PIPE, common.mustCall(() =>
   asyncLoop(makeKeepAliveRequest, 10, common.mustCall(() =>
-    server.getConnections(common.mustCall((err, conns) => {
-      assert.ifError(err);
+    server.getConnections(common.mustSucceed((conns) => {
       assert.strictEqual(conns, 1);
       server.close();
     }))

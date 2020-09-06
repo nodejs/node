@@ -43,8 +43,7 @@ connect({
   connect({
     client: clientOptions,
     server: serverOptions,
-  }, common.mustCall((err, pair, cleanup) => {
-    assert.ifError(err);
+  }, common.mustSucceed((pair, cleanup) => {
     cleanup();
   }));
 }));

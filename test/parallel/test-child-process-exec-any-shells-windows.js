@@ -43,8 +43,7 @@ test('CMD');
 test('powershell');
 testCopy('powershell.exe',
          `${system32}\\WindowsPowerShell\\v1.0\\powershell.exe`);
-fs.writeFile(`${tmpPath}\\test file`, 'Test', common.mustCall((err) => {
-  assert.ifError(err);
+fs.writeFile(`${tmpPath}\\test file`, 'Test', common.mustSucceed(() => {
   cp.exec(`Get-ChildItem "${tmpPath}" | Select-Object -Property Name`,
           { shell: 'PowerShell' },
           common.mustCall((error, stdout, stderror) => {

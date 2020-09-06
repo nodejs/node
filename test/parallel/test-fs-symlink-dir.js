@@ -31,8 +31,7 @@ function testSync(target, path) {
 }
 
 function testAsync(target, path) {
-  fs.symlink(target, path, common.mustCall((err) => {
-    assert.ifError(err);
+  fs.symlink(target, path, common.mustSucceed(() => {
     fs.readdirSync(path);
   }));
 }
@@ -53,8 +52,7 @@ for (const linkTarget of linkTargets) {
   }
 
   function testAsync(target, path) {
-    fs.symlink(target, path, common.mustCall((err) => {
-      assert.ifError(err);
+    fs.symlink(target, path, common.mustSucceed(() => {
       assert(!fs.existsSync(path));
     }));
   }

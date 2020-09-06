@@ -16,8 +16,7 @@ let fileData;
 
 assert(fs.existsSync(loc));
 
-fs.readFile(loc, common.mustCall((err, data) => {
-  assert.ifError(err);
+fs.readFile(loc, common.mustSucceed((data) => {
   fileData = data;
 
   const server = http2.createServer();

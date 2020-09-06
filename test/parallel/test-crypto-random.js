@@ -129,8 +129,7 @@ common.expectWarning('DeprecationWarning',
 {
   const buf = Buffer.alloc(10);
   const before = buf.toString('hex');
-  crypto.randomFill(buf, common.mustCall((err, buf) => {
-    assert.ifError(err);
+  crypto.randomFill(buf, common.mustSucceed((buf) => {
     const after = buf.toString('hex');
     assert.notStrictEqual(before, after);
   }));
@@ -139,8 +138,7 @@ common.expectWarning('DeprecationWarning',
 {
   const buf = new Uint8Array(new Array(10).fill(0));
   const before = Buffer.from(buf).toString('hex');
-  crypto.randomFill(buf, common.mustCall((err, buf) => {
-    assert.ifError(err);
+  crypto.randomFill(buf, common.mustSucceed((buf) => {
     const after = Buffer.from(buf).toString('hex');
     assert.notStrictEqual(before, after);
   }));
@@ -155,8 +153,7 @@ common.expectWarning('DeprecationWarning',
     new DataView(new ArrayBuffer(10))
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
-    crypto.randomFill(buf, common.mustCall((err, buf) => {
-      assert.ifError(err);
+    crypto.randomFill(buf, common.mustSucceed((buf) => {
       const after = Buffer.from(buf.buffer).toString('hex');
       assert.notStrictEqual(before, after);
     }));
@@ -207,8 +204,7 @@ common.expectWarning('DeprecationWarning',
 {
   const buf = Buffer.alloc(10);
   const before = buf.toString('hex');
-  crypto.randomFill(buf, 5, 5, common.mustCall((err, buf) => {
-    assert.ifError(err);
+  crypto.randomFill(buf, 5, 5, common.mustSucceed((buf) => {
     const after = buf.toString('hex');
     assert.notStrictEqual(before, after);
     assert.deepStrictEqual(before.slice(0, 5), after.slice(0, 5));
@@ -218,8 +214,7 @@ common.expectWarning('DeprecationWarning',
 {
   const buf = new Uint8Array(new Array(10).fill(0));
   const before = Buffer.from(buf).toString('hex');
-  crypto.randomFill(buf, 5, 5, common.mustCall((err, buf) => {
-    assert.ifError(err);
+  crypto.randomFill(buf, 5, 5, common.mustSucceed((buf) => {
     const after = Buffer.from(buf).toString('hex');
     assert.notStrictEqual(before, after);
     assert.deepStrictEqual(before.slice(0, 5), after.slice(0, 5));
@@ -356,8 +351,7 @@ assert.throws(
   // Asynchronous API
   const randomInts = [];
   for (let i = 0; i < 100; i++) {
-    crypto.randomInt(3, common.mustCall((err, n) => {
-      assert.ifError(err);
+    crypto.randomInt(3, common.mustSucceed((n) => {
       assert.ok(n >= 0);
       assert.ok(n < 3);
       randomInts.push(n);
@@ -391,8 +385,7 @@ assert.throws(
   // Positive range
   const randomInts = [];
   for (let i = 0; i < 100; i++) {
-    crypto.randomInt(1, 3, common.mustCall((err, n) => {
-      assert.ifError(err);
+    crypto.randomInt(1, 3, common.mustSucceed((n) => {
       assert.ok(n >= 1);
       assert.ok(n < 3);
       randomInts.push(n);
@@ -409,8 +402,7 @@ assert.throws(
   // Negative range
   const randomInts = [];
   for (let i = 0; i < 100; i++) {
-    crypto.randomInt(-10, -8, common.mustCall((err, n) => {
-      assert.ifError(err);
+    crypto.randomInt(-10, -8, common.mustSucceed((n) => {
       assert.ok(n >= -10);
       assert.ok(n < -8);
       randomInts.push(n);
