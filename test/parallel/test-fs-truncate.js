@@ -71,9 +71,8 @@ fs.truncateSync(fd);
 fs.closeSync(fd);
 
 // Async tests
-testTruncate(common.mustCall(function(er) {
-  assert.ifError(er);
-  testFtruncate(common.mustCall(assert.ifError));
+testTruncate(common.mustSucceed(() => {
+  testFtruncate(common.mustSucceed());
 }));
 
 function testTruncate(cb) {
@@ -155,8 +154,7 @@ function testFtruncate(cb) {
 {
   const file3 = path.resolve(tmp, 'truncate-file-3.txt');
   fs.writeFileSync(file3, 'Hi');
-  fs.truncate(file3, 4, common.mustCall(function(err) {
-    assert.ifError(err);
+  fs.truncate(file3, 4, common.mustSucceed(() => {
     assert(fs.readFileSync(file3).equals(Buffer.from('Hi\u0000\u0000')));
   }));
 }
@@ -166,8 +164,7 @@ function testFtruncate(cb) {
   fs.writeFileSync(file4, 'Hi');
   const fd = fs.openSync(file4, 'r+');
   process.on('beforeExit', () => fs.closeSync(fd));
-  fs.ftruncate(fd, 4, common.mustCall(function(err) {
-    assert.ifError(err);
+  fs.ftruncate(fd, 4, common.mustSucceed(() => {
     assert(fs.readFileSync(file4).equals(Buffer.from('Hi\u0000\u0000')));
   }));
 }
@@ -221,8 +218,7 @@ function testFtruncate(cb) {
     );
   });
 
-  fs.ftruncate(fd, undefined, common.mustCall(function(err) {
-    assert.ifError(err);
+  fs.ftruncate(fd, undefined, common.mustSucceed(() => {
     assert(fs.readFileSync(file5).equals(Buffer.from('')));
   }));
 }
@@ -232,8 +228,7 @@ function testFtruncate(cb) {
   fs.writeFileSync(file6, 'Hi');
   const fd = fs.openSync(file6, 'r+');
   process.on('beforeExit', () => fs.closeSync(fd));
-  fs.ftruncate(fd, -1, common.mustCall(function(err) {
-    assert.ifError(err);
+  fs.ftruncate(fd, -1, common.mustSucceed(() => {
     assert(fs.readFileSync(file6).equals(Buffer.from('')));
   }));
 }
@@ -241,8 +236,7 @@ function testFtruncate(cb) {
 {
   const file7 = path.resolve(tmp, 'truncate-file-7.txt');
   fs.writeFileSync(file7, 'Hi');
-  fs.truncate(file7, undefined, common.mustCall(function(err) {
-    assert.ifError(err);
+  fs.truncate(file7, undefined, common.mustSucceed(() => {
     assert(fs.readFileSync(file7).equals(Buffer.from('')));
   }));
 }

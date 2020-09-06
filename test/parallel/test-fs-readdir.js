@@ -21,8 +21,7 @@ files.forEach(function(currentFile) {
 assert.deepStrictEqual(files, fs.readdirSync(readdirDir).sort());
 
 // Check the readdir async version
-fs.readdir(readdirDir, common.mustCall(function(err, f) {
-  assert.ifError(err);
+fs.readdir(readdirDir, common.mustSucceed((f) => {
   assert.deepStrictEqual(files, f.sort());
 }));
 

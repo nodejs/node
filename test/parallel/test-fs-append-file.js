@@ -45,11 +45,8 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 {
   const filename = join(tmpdir.path, 'append.txt');
 
-  fs.appendFile(filename, s, common.mustCall(function(e) {
-    assert.ifError(e);
-
-    fs.readFile(filename, common.mustCall(function(e, buffer) {
-      assert.ifError(e);
+  fs.appendFile(filename, s, common.mustSucceed(() => {
+    fs.readFile(filename, common.mustSucceed((buffer) => {
       assert.strictEqual(Buffer.byteLength(s), buffer.length);
     }));
   }));
@@ -72,11 +69,8 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   const filename = join(tmpdir.path, 'append-non-empty.txt');
   fs.writeFileSync(filename, currentFileData);
 
-  fs.appendFile(filename, s, common.mustCall(function(e) {
-    assert.ifError(e);
-
-    fs.readFile(filename, common.mustCall(function(e, buffer) {
-      assert.ifError(e);
+  fs.appendFile(filename, s, common.mustSucceed(() => {
+    fs.readFile(filename, common.mustSucceed((buffer) => {
       assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
                          buffer.length);
     }));
@@ -104,11 +98,8 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
   const buf = Buffer.from(s, 'utf8');
 
-  fs.appendFile(filename, buf, common.mustCall((e) => {
-    assert.ifError(e);
-
-    fs.readFile(filename, common.mustCall((e, buffer) => {
-      assert.ifError(e);
+  fs.appendFile(filename, buf, common.mustSucceed(() => {
+    fs.readFile(filename, common.mustSucceed((buffer) => {
       assert.strictEqual(buf.length + currentFileData.length, buffer.length);
     }));
   }));
@@ -166,17 +157,10 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   const filename = join(tmpdir.path, 'append-descriptors.txt');
   fs.writeFileSync(filename, currentFileData);
 
-  fs.open(filename, 'a+', common.mustCall((e, fd) => {
-    assert.ifError(e);
-
-    fs.appendFile(fd, s, common.mustCall((e) => {
-      assert.ifError(e);
-
-      fs.close(fd, common.mustCall((e) => {
-        assert.ifError(e);
-
-        fs.readFile(filename, common.mustCall((e, buffer) => {
-          assert.ifError(e);
+  fs.open(filename, 'a+', common.mustSucceed((fd) => {
+    fs.appendFile(fd, s, common.mustSucceed(() => {
+      fs.close(fd, common.mustSucceed(() => {
+        fs.readFile(filename, common.mustSucceed((buffer) => {
           assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
                              buffer.length);
         }));

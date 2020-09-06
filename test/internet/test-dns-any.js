@@ -127,8 +127,7 @@ TEST(async function test_sip2sip_for_naptr(done) {
   const req = dns.resolve(
     'sip2sip.info',
     'ANY',
-    common.mustCall(function(err, ret) {
-      assert.ifError(err);
+    common.mustSucceed((ret) => {
       validateResult(ret);
       done();
     }));
@@ -147,8 +146,7 @@ TEST(async function test_google_for_cname_and_srv(done) {
   const req = dns.resolve(
     '_jabber._tcp.google.com',
     'ANY',
-    common.mustCall(function(err, ret) {
-      assert.ifError(err);
+    common.mustSucceed((ret) => {
       validateResult(ret);
       done();
     }));
@@ -167,8 +165,7 @@ TEST(async function test_ptr(done) {
   const req = dns.resolve(
     '8.8.8.8.in-addr.arpa',
     'ANY',
-    common.mustCall(function(err, ret) {
-      assert.ifError(err);
+    common.mustSucceed((ret) => {
       validateResult(ret);
       done();
     }));

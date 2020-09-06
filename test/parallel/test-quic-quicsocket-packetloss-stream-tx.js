@@ -49,9 +49,7 @@ const countdown = new Countdown(1, () => {
     debug('QuicServerSession Created');
     session.on('stream', common.mustCall((stream) => {
       debug('Bidirectional, Client-initiated stream %d received', stream.id);
-      pipeline(stream, stream, common.mustCall((err) => {
-        assert(!err);
-      }));
+      pipeline(stream, stream, common.mustSucceed());
     }));
   }));
 

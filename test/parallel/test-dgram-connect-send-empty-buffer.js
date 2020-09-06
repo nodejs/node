@@ -10,7 +10,7 @@ client.bind(0, common.mustCall(function() {
   const port = this.address().port;
   client.connect(port, common.mustCall(() => {
     const buf = Buffer.alloc(0);
-    client.send(buf, 0, 0, common.mustCall());
+    client.send(buf, 0, 0, common.mustSucceed());
   }));
 
   client.on('message', common.mustCall((buffer) => {

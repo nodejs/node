@@ -69,9 +69,7 @@ function makeRequest() {
 
   const s = fs.ReadStream(filename);
   s.pipe(req);
-  s.on('close', common.mustCall((err) => {
-    assert.ifError(err);
-  }));
+  s.on('close', common.mustSucceed());
 
   req.on('response', (res) => {
     res.resume();

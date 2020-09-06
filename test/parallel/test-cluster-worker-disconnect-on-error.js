@@ -10,8 +10,7 @@ const server = http.createServer();
 if (cluster.isMaster) {
   let worker;
 
-  server.listen(0, common.mustCall((error) => {
-    assert.ifError(error);
+  server.listen(0, common.mustSucceed(() => {
     assert(worker);
 
     worker.send({ port: server.address().port });

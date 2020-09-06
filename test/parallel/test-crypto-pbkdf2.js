@@ -48,9 +48,8 @@ const expected =
 const key = crypto.pbkdf2Sync('password', 'salt', 32, 32, 'sha256');
 assert.strictEqual(key.toString('hex'), expected);
 
-crypto.pbkdf2('password', 'salt', 32, 32, 'sha256', common.mustCall(ondone));
-function ondone(err, key) {
-  assert.ifError(err);
+crypto.pbkdf2('password', 'salt', 32, 32, 'sha256', common.mustSucceed(ondone));
+function ondone(key) {
   assert.strictEqual(key.toString('hex'), expected);
 }
 
@@ -115,7 +114,7 @@ for (const iterations of [-1, 0]) {
 
 // Should not get FATAL ERROR with empty password and salt
 // https://github.com/nodejs/node/issues/8571
-crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustCall(assert.ifError));
+crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustSucceed());
 
 assert.throws(
   () => crypto.pbkdf2('password', 'salt', 8, 8, common.mustNotCall()),
@@ -199,22 +198,22 @@ assert.throws(
 });
 
 // Any TypedArray should work for password and salt
-crypto.pbkdf2(new Uint8Array(10), 'salt', 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2('pass', new Uint8Array(10), 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2(new Uint16Array(10), 'salt', 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2('pass', new Uint16Array(10), 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2(new Uint32Array(10), 'salt', 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2('pass', new Uint32Array(10), 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2(new Float32Array(10), 'salt', 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2('pass', new Float32Array(10), 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2(new Float64Array(10), 'salt', 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2('pass', new Float64Array(10), 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2(new ArrayBuffer(10), 'salt', 8, 8, 'sha256', common.mustCall());
-crypto.pbkdf2('pass', new ArrayBuffer(10), 8, 8, 'sha256', common.mustCall());
+crypto.pbkdf2(new Uint8Array(10), 'salt', 8, 8, 'sha256', common.mustSucceed());
+crypto.pbkdf2('pass', new Uint8Array(10), 8, 8, 'sha256', common.mustSucceed());
+crypto.pbkdf2(new Uint16Array(10), 'salt', 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2('pass', new Uint16Array(10), 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2(new Uint32Array(10), 'salt', 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2('pass', new Uint32Array(10), 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2(new Float32Array(10), 'salt', 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2('pass', new Float32Array(10), 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2(new Float64Array(10), 'salt', 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2('pass', new Float64Array(10), 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2(new ArrayBuffer(10), 'salt', 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2('pass', new ArrayBuffer(10), 8, 8, 'sha1', common.mustSucceed());
 crypto.pbkdf2(new SharedArrayBuffer(10), 'salt', 8, 8, 'sha256',
-              common.mustCall());
+              common.mustSucceed());
 crypto.pbkdf2('pass', new SharedArrayBuffer(10), 8, 8, 'sha256',
-              common.mustCall());
+              common.mustSucceed());
 
 crypto.pbkdf2Sync(new Uint8Array(10), 'salt', 8, 8, 'sha256');
 crypto.pbkdf2Sync('pass', new Uint8Array(10), 8, 8, 'sha256');

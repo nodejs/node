@@ -28,7 +28,7 @@ const countdown = new Countdown(2, () => {
   server.on('session', common.mustCall(async (session) => {
     if (qlog) session.qlog.pipe(createWriteStream('server.qlog'));
     const uni = await session.openStream({ halfOpen: true });
-    uni.write('hi', common.mustCall((err) => assert(!err)));
+    uni.write('hi', common.mustSucceed());
     uni.on('error', common.mustNotCall());
     uni.on('data', common.mustNotCall());
     uni.on('close', common.mustCall());
@@ -67,8 +67,8 @@ const countdown = new Countdown(2, () => {
   }));
 
   const stream = await req.openStream();
-  stream.write('hello', common.mustCall((err) => assert(!err)));
-  stream.write('there', common.mustCall((err) => assert(!err)));
+  stream.write('hello', common.mustSucceed());
+  stream.write('there', common.mustSucceed());
   stream.resume();
   stream.on('error', common.mustNotCall());
   stream.on('end', common.mustCall());

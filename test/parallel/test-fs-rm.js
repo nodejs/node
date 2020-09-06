@@ -72,8 +72,7 @@ function removeAsync(dir) {
       assert.strictEqual(err.syscall, 'rm');
 
       // Recursive removal should succeed.
-      fs.rm(dir, { recursive: true }, common.mustCall((err) => {
-        assert.ifError(err);
+      fs.rm(dir, { recursive: true }, common.mustSucceed(() => {
 
         // Attempted removal should fail now because the directory is gone.
         fs.rm(dir, common.mustCall((err) => {

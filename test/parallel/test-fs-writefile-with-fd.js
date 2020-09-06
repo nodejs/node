@@ -38,19 +38,14 @@ tmpdir.refresh();
   const file = join(tmpdir.path, 'test1.txt');
 
   /* Open the file descriptor. */
-  fs.open(file, 'w', common.mustCall((err, fd) => {
-    assert.ifError(err);
-
+  fs.open(file, 'w', common.mustSucceed((fd) => {
     /* Write only five characters, so that the position moves to five. */
-    fs.write(fd, 'Hello', common.mustCall((err, bytes) => {
-      assert.ifError(err);
+    fs.write(fd, 'Hello', common.mustSucceed((bytes) => {
       assert.strictEqual(bytes, 5);
       assert.deepStrictEqual(fs.readFileSync(file).toString(), 'Hello');
 
       /* Write some more with writeFile(). */
-      fs.writeFile(fd, 'World', common.mustCall((err) => {
-        assert.ifError(err);
-
+      fs.writeFile(fd, 'World', common.mustSucceed(() => {
         /* New content should be written at position five, instead of zero. */
         assert.deepStrictEqual(fs.readFileSync(file).toString(), 'HelloWorld');
 

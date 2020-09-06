@@ -19,8 +19,7 @@ const size = 16 * 1024;
 const writes = 1000;
 let done = 0;
 
-const ondone = common.mustCall((err) => {
-  assert.ifError(err);
+const ondone = common.mustSucceed(() => {
   if (++done < writes) {
     if (done % 25 === 0) global.gc();
     setImmediate(write);

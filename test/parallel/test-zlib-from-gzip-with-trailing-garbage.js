@@ -14,8 +14,7 @@ let data = Buffer.concat([
 
 assert.strictEqual(zlib.gunzipSync(data).toString(), 'abcdef');
 
-zlib.gunzip(data, common.mustCall((err, result) => {
-  assert.ifError(err);
+zlib.gunzip(data, common.mustSucceed((result) => {
   assert.strictEqual(
     result.toString(),
     'abcdef',
