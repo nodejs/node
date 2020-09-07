@@ -12,7 +12,7 @@ const server = http2.createServer();
 let session;
 
 const countdown = new Countdown(2, () => {
-  server.close(common.mustCall());
+  server.close(common.mustSucceed());
   session.destroy();
 });
 

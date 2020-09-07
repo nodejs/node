@@ -460,8 +460,8 @@ assert.throws(
   const maxInt = Number.MAX_SAFE_INTEGER;
   const minInt = Number.MIN_SAFE_INTEGER;
 
-  crypto.randomInt(minInt, minInt + 5, common.mustCall());
-  crypto.randomInt(maxInt - 5, maxInt, common.mustCall());
+  crypto.randomInt(minInt, minInt + 5, common.mustSucceed());
+  crypto.randomInt(maxInt - 5, maxInt, common.mustSucceed());
 
   assert.throws(
     () => crypto.randomInt(minInt - 1, minInt + 5, common.mustNotCall()),
@@ -483,8 +483,8 @@ assert.throws(
     }
   );
 
-  crypto.randomInt(1, common.mustCall());
-  crypto.randomInt(0, 1, common.mustCall());
+  crypto.randomInt(1, common.mustSucceed());
+  crypto.randomInt(0, 1, common.mustSucceed());
   for (const arg of [[0], [1, 1], [3, 2], [-5, -5], [11, -10]]) {
     assert.throws(() => crypto.randomInt(...arg, common.mustNotCall()), {
       code: 'ERR_OUT_OF_RANGE',
@@ -496,8 +496,8 @@ assert.throws(
   }
 
   const MAX_RANGE = 0xFFFF_FFFF_FFFF;
-  crypto.randomInt(MAX_RANGE, common.mustCall());
-  crypto.randomInt(1, MAX_RANGE + 1, common.mustCall());
+  crypto.randomInt(MAX_RANGE, common.mustSucceed());
+  crypto.randomInt(1, MAX_RANGE + 1, common.mustSucceed());
   assert.throws(
     () => crypto.randomInt(1, MAX_RANGE + 2, common.mustNotCall()),
     {

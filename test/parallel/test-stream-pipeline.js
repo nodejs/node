@@ -254,7 +254,7 @@ const net = require('net');
 
 {
   const server = http.createServer((req, res) => {
-    pipeline(req, res, common.mustCall());
+    pipeline(req, res, common.mustSucceed());
   });
 
   server.listen(0, () => {
@@ -1109,7 +1109,7 @@ const net = require('net');
 {
   const server = net.createServer(common.mustCall((socket) => {
     // echo server
-    pipeline(socket, socket, common.mustCall());
+    pipeline(socket, socket, common.mustSucceed());
     // 13 force destroys the socket before it has a chance to emit finish
     socket.on('finish', common.mustCall(() => {
       server.close();
@@ -1145,7 +1145,7 @@ const net = require('net');
     })
   });
 
-  pipeline(d, sink, common.mustCall());
+  pipeline(d, sink, common.mustSucceed());
 
   d.write('test');
   d.end();
@@ -1154,7 +1154,7 @@ const net = require('net');
 {
   const server = net.createServer(common.mustCall((socket) => {
     // echo server
-    pipeline(socket, socket, common.mustCall());
+    pipeline(socket, socket, common.mustSucceed());
     socket.on('finish', common.mustCall(() => {
       server.close();
     }));
@@ -1192,7 +1192,7 @@ const net = require('net');
     })
   });
 
-  pipeline(d, sink, common.mustCall());
+  pipeline(d, sink, common.mustSucceed());
 
   d.write('test');
   d.end();
