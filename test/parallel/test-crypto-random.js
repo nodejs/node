@@ -394,13 +394,13 @@ assert.throws(
     const invalidMinError = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "min" argument must be safe integer.' +
+      message: 'The "min" argument must be a safe integer.' +
                `${common.invalidArgTypeHelper(i)}`,
     };
     const invalidMaxError = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "max" argument must be safe integer.' +
+      message: 'The "max" argument must be a safe integer.' +
                `${common.invalidArgTypeHelper(i)}`,
     };
 
@@ -441,7 +441,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "min" argument must be safe integer.' +
+      message: 'The "min" argument must be a safe integer.' +
       `${common.invalidArgTypeHelper(minInt - 1)}`,
     }
   );
@@ -451,7 +451,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "max" argument must be safe integer.' +
+      message: 'The "max" argument must be a safe integer.' +
       `${common.invalidArgTypeHelper(maxInt + 1)}`,
     }
   );
