@@ -203,7 +203,7 @@ const spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
 
-testMe.complete(' ', common.mustSucceed(function(data) {
+testMe.complete(' ', common.mustSucceed((data) => {
   assert.strictEqual(data[1], '');
   assert.ok(data[0].includes('globalThis'));
   clearTimeout(spaceTimeout);

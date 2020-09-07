@@ -41,8 +41,6 @@ console.log({
   fullPathLength: fullPath.length
 });
 
-fs.writeFile(fullPath, 'ok', common.mustSucceed(function() {
-
-  fs.stat(fullPath, common.mustSucceed(function(stats) {
-  }));
+fs.writeFile(fullPath, 'ok', common.mustSucceed(() => {
+  fs.stat(fullPath, common.mustSucceed());
 }));

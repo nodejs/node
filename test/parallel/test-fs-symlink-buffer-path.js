@@ -43,15 +43,15 @@ let fileTime;
 // Refs: https://github.com/nodejs/node/issues/34514
 fs.symlinkSync(Buffer.from(linkData), linkPath);
 
-fs.lstat(linkPath, common.mustSucceed(function(stats) {
+fs.lstat(linkPath, common.mustSucceed((stats) => {
   linkTime = stats.mtime.getTime();
 }));
 
-fs.stat(linkPath, common.mustSucceed(function(stats) {
+fs.stat(linkPath, common.mustSucceed((stats) => {
   fileTime = stats.mtime.getTime();
 }));
 
-fs.readlink(linkPath, common.mustSucceed(function(destination) {
+fs.readlink(linkPath, common.mustSucceed((destination) => {
   assert.strictEqual(destination, linkData);
 }));
 

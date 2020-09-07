@@ -83,7 +83,7 @@ dns.lookup('::1', common.mustSucceed((result, addressType) => {
 // so we disable this test on Windows.
 // IBMi reports `ENOTFOUND` when get hostname by address 127.0.0.1
 if (!common.isWindows && !common.isIBMi) {
-  dns.reverse('127.0.0.1', common.mustSucceed(function(domains) {
+  dns.reverse('127.0.0.1', common.mustSucceed((domains) => {
     assert.ok(Array.isArray(domains));
   }));
 

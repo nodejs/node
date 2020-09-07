@@ -25,7 +25,6 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_${i}.txt`);
   const bufferArr = [buffer, buffer];
 
   const done = common.mustSucceed((written, buffers) => {
-
     assert.deepStrictEqual(bufferArr, buffers);
     const expectedLength = bufferArr.length * buffer.byteLength;
     assert.deepStrictEqual(written, expectedLength);
@@ -46,7 +45,6 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_${i}.txt`);
   const bufferArr = [buffer, buffer];
 
   const done = common.mustSucceed((written, buffers) => {
-
     assert.deepStrictEqual(bufferArr, buffers);
 
     const expectedLength = bufferArr.length * buffer.byteLength;

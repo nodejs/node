@@ -46,7 +46,6 @@ function test(mode, asString) {
     const file = path.join(tmpdir.path, `fchmod-async-${suffix}.txt`);
     fs.writeFileSync(file, 'test', 'utf-8');
     fs.open(file, 'w', common.mustSucceed((fd) => {
-
       fs.fchmod(fd, input, common.mustSucceed(() => {
         assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode);
         fs.close(fd, assert.ifError);

@@ -69,7 +69,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   fs.close(fd, common.mustSucceed());
 }));
 
-fs.stat(__filename, common.mustSucceed(function(s) {
+fs.stat(__filename, common.mustSucceed((s) => {
   assert.strictEqual(s.isDirectory(), false);
   assert.strictEqual(s.isFile(), true);
   assert.strictEqual(s.isSocket(), false);

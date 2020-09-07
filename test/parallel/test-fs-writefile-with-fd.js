@@ -39,7 +39,6 @@ tmpdir.refresh();
 
   /* Open the file descriptor. */
   fs.open(file, 'w', common.mustSucceed((fd) => {
-
     /* Write only five characters, so that the position moves to five. */
     fs.write(fd, 'Hello', common.mustSucceed((bytes) => {
       assert.strictEqual(bytes, 5);
@@ -47,7 +46,6 @@ tmpdir.refresh();
 
       /* Write some more with writeFile(). */
       fs.writeFile(fd, 'World', common.mustSucceed(() => {
-
         /* New content should be written at position five, instead of zero. */
         assert.deepStrictEqual(fs.readFileSync(file).toString(), 'HelloWorld');
 

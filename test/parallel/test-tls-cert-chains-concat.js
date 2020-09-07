@@ -20,7 +20,6 @@ connect({
     key: keys.agent6.key,
   },
 }, common.mustSucceed((pair, cleanup) => {
-
   const peer = pair.client.conn.getPeerCertificate();
   debug('peer:\n', peer);
   assert.strictEqual(peer.subject.emailAddress, 'adam.lippai@tresorit.com');

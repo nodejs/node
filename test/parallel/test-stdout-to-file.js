@@ -23,7 +23,7 @@ function test(size, useBuffer, cb) {
 
   console.log(`${size} chars to ${tmpFile}...`);
 
-  childProcess.exec(cmd, common.mustSucceed(function() {
+  childProcess.exec(cmd, common.mustSucceed(() => {
     console.log('done!');
 
     const stat = fs.statSync(tmpFile);

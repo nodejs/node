@@ -15,7 +15,6 @@ const loc = fixtures.path('person-large.jpg');
 assert(fs.existsSync(loc));
 
 fs.readFile(loc, common.mustSucceed((data) => {
-
   const server = http2.createServer();
 
   server.on('stream', common.mustCall((stream) => {

@@ -38,7 +38,7 @@ const linkData = fixtures.fixturesDir;
 tmpdir.refresh();
 
 // Test fs.symlink()
-fs.symlink(linkData, linkPath1, 'junction', common.mustSucceed(function() {
+fs.symlink(linkData, linkPath1, 'junction', common.mustSucceed(() => {
   verifyLink(linkPath1);
 }));
 

@@ -35,8 +35,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 const replHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 
-const checkResults = common.mustSucceed(function(r) {
-
+const checkResults = common.mustSucceed((r) => {
   const stat = fs.statSync(replHistoryPath);
   const fileMode = stat.mode & 0o777;
   assert.strictEqual(

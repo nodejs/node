@@ -8,7 +8,7 @@ const client = dgram.createSocket('udp4');
 
 const buf = Buffer.allocUnsafe(256);
 
-const onMessage = common.mustSucceed(function(bytes) {
+const onMessage = common.mustSucceed((bytes) => {
   assert.strictEqual(bytes, buf.length);
   client.close();
 });

@@ -81,7 +81,6 @@ common.allowGlobals(externalizeString, isOneByteString, x);
 /* eslint-enable no-undef */
 
 fs.open(fn, 'w', 0o644, common.mustSucceed((fd) => {
-
   const done = common.mustSucceed((written) => {
     assert.strictEqual(written, Buffer.byteLength(expected));
     fs.closeSync(fd);
@@ -100,7 +99,6 @@ fs.open(fn, 'w', 0o644, common.mustSucceed((fd) => {
 
 const args = constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC;
 fs.open(fn2, args, 0o644, common.mustSucceed((fd) => {
-
   const done = common.mustSucceed((written) => {
     assert.strictEqual(written, Buffer.byteLength(expected));
     fs.closeSync(fd);
@@ -118,7 +116,6 @@ fs.open(fn2, args, 0o644, common.mustSucceed((fd) => {
 }));
 
 fs.open(fn3, 'w', 0o644, common.mustSucceed((fd) => {
-
   const done = common.mustSucceed((written) => {
     assert.strictEqual(written, Buffer.byteLength(expected));
     fs.closeSync(fd);

@@ -34,6 +34,6 @@ if (common.isWindows) {
   dir = '/dev';
 }
 
-exec(pwdcommand, { cwd: dir }, common.mustSucceed(function(stdout, stderr) {
+exec(pwdcommand, { cwd: dir }, common.mustSucceed((stdout, stderr) => {
   assert(stdout.startsWith(dir));
 }));
