@@ -12,9 +12,6 @@
   "idlharness.any.js": {
     "fail": "getter/setter names are wrong, etc."
   },
-  "url-setters-stripping.any.js": {
-    "fail": "TODO: port https://github.com/whatwg/url/pull/486"
-  },
   "urlsearchparams-constructor.any.js": {
     "fail": "TODO: fix https://github.com/nodejs/node/issues/33892"
   },
