@@ -151,7 +151,7 @@ if (!common.isMainThread) {
 if (common.hasIntl) {
   expectedModules.add('Internal Binding icu');
 } else {
-  expectedModules.add('NativeModule punycode');
+  expectedModules.add('NativeModule url');
 }
 
 if (process.features.inspector) {

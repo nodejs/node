@@ -51,6 +51,7 @@ option:
 | `String.prototype.toLocale*Case()`      | partial (not locale-aware)        | full                         | full                   | full       |
 | [`Number.prototype.toLocaleString()`][] | partial (not locale-aware)        | partial/full (depends on OS) | partial (English-only) | full       |
 | `Date.prototype.toLocale*String()`      | partial (not locale-aware)        | partial/full (depends on OS) | partial (English-only) | full       |
+| [Legacy URL Parser][]                   | partial (no IDN support)          | full                         | full                   | full       |
 | [WHATWG URL Parser][]                   | partial (no IDN support)          | full                         | full                   | full       |
 | [`require('buffer').transcode()`][]     | none (function does not exist)    | full                         | full                   | full       |
 | [REPL][]                                | partial (inaccurate line editing) | full                         | full                   | full       |
@@ -193,6 +194,7 @@ to be helpful:
 [ECMA-262]: https://tc39.github.io/ecma262/
 [ECMA-402]: https://tc39.github.io/ecma402/
 [ICU]: http://site.icu-project.org/
+[Legacy URL parser]: url.md#url_legacy_url_api
 [REPL]: repl.md#repl_repl
 [Test262]: https://github.com/tc39/test262/tree/HEAD/test/intl402
 [WHATWG URL parser]: url.md#url_the_whatwg_url_api
