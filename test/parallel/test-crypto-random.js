@@ -462,8 +462,9 @@ assert.throws(
     assert.throws(() => crypto.randomInt(...arg, common.mustNotCall()), {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "max" is out of range. It must be > ' +
-               `${arg[arg.length - 2] || 0}. Received ${arg[arg.length - 1]}`
+      message: 'The value of "max" is out of range. It must be greater than ' +
+      `the value of "min" (${arg[arg.length - 2] || 0}). ` +
+      `Received ${arg[arg.length - 1]}`
     });
   }
 
