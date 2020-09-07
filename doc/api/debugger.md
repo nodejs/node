@@ -189,7 +189,7 @@ Debugger listening on ws://127.0.0.1:9229/dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
 For help, see: https://nodejs.org/en/docs/inspector
 ```
 
-In Chrome, open [chrome://inspect][],  find "index" under "Remote Target", 
+In Chrome, open [chrome://inspect][],  find "index" under "Remote Target",
 and click "inspect".
 
 (In the example above, the UUID dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
