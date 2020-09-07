@@ -1,14 +1,17 @@
-punycode.js:42
-	throw new RangeError(errors[type]);
-	^
+internal/validators.js:*
+    throw new ERR_INVALID_ARG_TYPE(name, 'string', value);
+    ^
 
-RangeError: Invalid input
-    at error (punycode.js:42:8)
-    at Object.decode (punycode.js:*:*)
+TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received type number (0)
+    at new NodeError (internal/errors.js:*:*)
+    at validateString (internal/validators.js:*:*)
+    at Object.dirname (path.js:1128:5)
     at Object.<anonymous> (*test*message*core_line_numbers.js:*:*)
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     at Object.Module._extensions..js (internal/modules/cjs/loader.js:*:*)
     at Module.load (internal/modules/cjs/loader.js:*:*)
     at Function.Module._load (internal/modules/cjs/loader.js:*:*)
     at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*)
-    at internal/main/run_main_module.js:*:*
+    at internal/main/run_main_module.js:*:* {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
