@@ -7,7 +7,6 @@
 #include "aliased_buffer.h"
 #include "node_messaging.h"
 #include "stream_base.h"
-#include "cjs-module-lexer.h"
 #include <iostream>
 
 namespace node {

@@ -63,7 +63,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -970,77 +969,13 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Local<Value> return_value[] = {
     String::NewFromUtf8(isolate,
                         &chars[start],
-                        NewStringType::kNormal,
+                        v8::NewStringType::kNormal,
                         size).ToLocalChecked(),
     Boolean::New(isolate, p < pe ? true : false)
   };
   args.GetReturnValue().Set(
     Array::New(isolate, return_value, arraysize(return_value)));
 }
-
-Isolate* _isolate = nullptr;
-std::vector<Local<Value>>* _exports = nullptr;
-std::vector<Local<Value>>* _reexports = nullptr;
-
-void addExport(const uint16_t* start, const uint16_t* end) {
-  MaybeLocal<String> specifier = String::NewFromTwoByte(_isolate, start,
-                                                        NewStringType::kNormal,
-                                                        end - start);
-  CHECK(!specifier.IsEmpty());
-  _exports->push_back(specifier.ToLocalChecked());
-}
-
-void addReexport(const uint16_t* start, const uint16_t* end) {
-  MaybeLocal<String> specifier = String::NewFromTwoByte(_isolate, start,
-                                                        NewStringType::kNormal,
-                                                        end - start);
-  CHECK(!specifier.IsEmpty());
-  _reexports->push_back(specifier.ToLocalChecked());
-}
-
-// Applies lexical analysis to detect named exports for transpiled modules only.
-static void InternalModuleParseCJS(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  CHECK(args[0]->IsString());
-  Local<String> sourceString = args[0].As<String>();
-
-  unsigned int len = sourceString->Length();
-
-  uint16_t* source =
-    reinterpret_cast<uint16_t*>(malloc((len + 1) * sizeof(uint16_t)));
-
-  std::vector<Local<Value>> exports;
-  std::vector<Local<Value>> reexports;
-
-  _isolate = isolate;
-  _exports = &exports;
-  _reexports = &reexports;
-
-  // Write the UTF-16 String into a temporary buffer.
-  sourceString->Write(isolate, source);
-
-  bool ok = parseCJS(source, len, &addExport, &addReexport);
-
-  free(source);
-
-  _isolate = nullptr;
-  _exports = nullptr;
-  _reexports = nullptr;
-
-  if (!ok) {
-    Local<Value> return_value[] = { Array::New(isolate), Array::New(isolate) };
-    args.GetReturnValue().Set(Array::New(isolate, return_value, 2));
-  } else {
-    Local<Value> return_value[] = {
-      Array::New(isolate, exports.data(), exports.size()),
-      Array::New(isolate, reexports.data(), reexports.size())
-    };
-    args.GetReturnValue().Set(Array::New(isolate, return_value, 2));
-  }
-}
-
 
 // Used to speed up module loading.  Returns 0 if the path refers to
 // a file, 1 when it's a directory or < 0 on error (usually -ENOENT.)
@@ -2476,7 +2411,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "mkdir", MKDir);
   env->SetMethod(target, "readdir", ReadDir);
   env->SetMethod(target, "internalModuleReadJSON", InternalModuleReadJSON);
-  env->SetMethod(target, "internalModuleParseCJS", InternalModuleParseCJS);
   env->SetMethod(target, "internalModuleStat", InternalModuleStat);
   env->SetMethod(target, "stat", Stat);
   env->SetMethod(target, "lstat", LStat);
