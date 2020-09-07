@@ -4,6 +4,11 @@
 
 type SourceTextModuleInfo extends FixedArray;
 
+bitfield struct SourceTextModuleFlags extends uint31 {
+  async: bool: 1 bit;
+  async_evaluating: bool: 1 bit;
+}
+
 @generateCppClass
 extern class SourceTextModule extends Module {
   // The code representing this module, or an abstraction thereof.
@@ -39,7 +44,7 @@ extern class SourceTextModule extends Module {
   // The number of currently evaluating async dependencies of this module.
   pending_async_dependencies: Smi;
 
-  flags: Smi;
+  flags: SmiTagged<SourceTextModuleFlags>;
 }
 
 @generateCppClass

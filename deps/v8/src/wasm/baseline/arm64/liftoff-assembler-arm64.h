@@ -104,6 +104,76 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
   return MemOperand(addr.X(), offset_imm);
 }
 
+enum class ShiftDirection : bool { kLeft, kRight };
+
+enum class ShiftSign : bool { kSigned, kUnsigned };
+
+template <ShiftDirection dir, ShiftSign sign = ShiftSign::kSigned>
+inline void EmitSimdShift(LiftoffAssembler* assm, VRegister dst, VRegister lhs,
+                          Register rhs, VectorFormat format) {
+  DCHECK_IMPLIES(dir == ShiftDirection::kLeft, sign == ShiftSign::kSigned);
+  DCHECK(dst.IsSameFormat(lhs));
+  DCHECK_EQ(dst.LaneCount(), LaneCountFromFormat(format));
+
+  UseScratchRegisterScope temps(assm);
+  VRegister tmp = temps.AcquireV(format);
+  Register shift = dst.Is2D() ? temps.AcquireX() : temps.AcquireW();
+  int mask = LaneSizeInBitsFromFormat(format) - 1;
+  assm->And(shift, rhs, mask);
+  assm->Dup(tmp, shift);
+
+  if (dir == ShiftDirection::kRight) {
+    assm->Neg(tmp, tmp);
+  }
+
+  if (sign == ShiftSign::kSigned) {
+    assm->Sshl(dst, lhs, tmp);
+  } else {
+    assm->Ushl(dst, lhs, tmp);
+  }
+}
+
+template <VectorFormat format, ShiftSign sign>
+inline void EmitSimdShiftRightImmediate(LiftoffAssembler* assm, VRegister dst,
+                                        VRegister lhs, int32_t rhs) {
+  // Sshr and Ushr does not allow shifts to be 0, so check for that here.
+  int mask = LaneSizeInBitsFromFormat(format) - 1;
+  int32_t shift = rhs & mask;
+  if (!shift) {
+    if (dst != lhs) {
+      assm->Mov(dst, lhs);
+    }
+    return;
+  }
+
+  if (sign == ShiftSign::kSigned) {
+    assm->Sshr(dst, lhs, rhs & mask);
+  } else {
+    assm->Ushr(dst, lhs, rhs & mask);
+  }
+}
+
+inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister src) {
+  // AnyTrue does not depend on the number of lanes, so we can use V4S for all.
+  UseScratchRegisterScope scope(assm);
+  VRegister temp = scope.AcquireV(kFormatS);
+  assm->Umaxv(temp, src.fp().V4S());
+  assm->Umov(dst.gp().W(), temp, 0);
+  assm->Cmp(dst.gp().W(), 0);
+  assm->Cset(dst.gp().W(), ne);
+}
+
+inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister src, VectorFormat format) {
+  UseScratchRegisterScope scope(assm);
+  VRegister temp = scope.AcquireV(ScalarFormatFromFormat(format));
+  assm->Uminv(temp, VRegister::Create(src.fp().code(), format));
+  assm->Umov(dst.gp().W(), temp, 0);
+  assm->Cmp(dst.gp().W(), 0);
+  assm->Cset(dst.gp().W(), ne);
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -299,8 +369,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kS128Load:
       Ldr(dst.fp().Q(), src_op);
       break;
-    default:
-      UNREACHABLE();
   }
 }
 
@@ -337,65 +405,280 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kS128Store:
       Str(src.fp().Q(), dst_op);
       break;
+  }
+}
+
+namespace liftoff {
+#define __ lasm->
+
+inline Register CalculateActualAddress(LiftoffAssembler* lasm,
+                                       Register addr_reg, Register offset_reg,
+                                       int32_t offset_imm,
+                                       Register result_reg) {
+  DCHECK_NE(offset_reg, no_reg);
+  DCHECK_NE(addr_reg, no_reg);
+  __ Add(result_reg, addr_reg, Operand(offset_reg));
+  if (offset_imm != 0) {
+    __ Add(result_reg, result_reg, Operand(offset_imm));
+  }
+  return result_reg;
+}
+
+enum class Binop { kAdd, kSub, kAnd, kOr, kXor, kExchange };
+
+inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
+                        Register offset_reg, uint32_t offset_imm,
+                        LiftoffRegister value, LiftoffRegister result,
+                        StoreType type, Binop op) {
+  LiftoffRegList pinned =
+      LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result);
+  Register store_result = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+
+  // Make sure that {result} is unique.
+  Register result_reg = result.gp();
+  if (result_reg == value.gp() || result_reg == dst_addr ||
+      result_reg == offset_reg) {
+    result_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
+  }
+
+  UseScratchRegisterScope temps(lasm);
+  Register actual_addr = liftoff::CalculateActualAddress(
+      lasm, dst_addr, offset_reg, offset_imm, temps.AcquireX());
+
+  // Allocate an additional {temp} register to hold the result that should be
+  // stored to memory. Note that {temp} and {store_result} are not allowed to be
+  // the same register.
+  Register temp = temps.AcquireX();
+
+  Label retry;
+  __ Bind(&retry);
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      __ ldaxrb(result_reg.W(), actual_addr);
+      break;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      __ ldaxrh(result_reg.W(), actual_addr);
+      break;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      __ ldaxr(result_reg.W(), actual_addr);
+      break;
+    case StoreType::kI64Store:
+      __ ldaxr(result_reg.X(), actual_addr);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  switch (op) {
+    case Binop::kAdd:
+      __ add(temp, result_reg, value.gp());
+      break;
+    case Binop::kSub:
+      __ sub(temp, result_reg, value.gp());
+      break;
+    case Binop::kAnd:
+      __ and_(temp, result_reg, value.gp());
+      break;
+    case Binop::kOr:
+      __ orr(temp, result_reg, value.gp());
+      break;
+    case Binop::kXor:
+      __ eor(temp, result_reg, value.gp());
+      break;
+    case Binop::kExchange:
+      __ mov(temp, value.gp());
+      break;
+  }
+
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      __ stlxrb(store_result.W(), temp.W(), actual_addr);
+      break;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      __ stlxrh(store_result.W(), temp.W(), actual_addr);
+      break;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      __ stlxr(store_result.W(), temp.W(), actual_addr);
+      break;
+    case StoreType::kI64Store:
+      __ stlxr(store_result.W(), temp.X(), actual_addr);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ Cbnz(store_result.W(), &retry);
+
+  if (result_reg != result.gp()) {
+    __ mov(result.gp(), result_reg);
+  }
+}
+
+#undef __
+}  // namespace liftoff
+
+void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
+                                  Register offset_reg, uint32_t offset_imm,
+                                  LoadType type, LiftoffRegList pinned) {
+  UseScratchRegisterScope temps(this);
+  Register src_reg = liftoff::CalculateActualAddress(
+      this, src_addr, offset_reg, offset_imm, temps.AcquireX());
+  switch (type.value()) {
+    case LoadType::kI32Load8U:
+    case LoadType::kI64Load8U:
+      Ldarb(dst.gp().W(), src_reg);
+      return;
+    case LoadType::kI32Load16U:
+    case LoadType::kI64Load16U:
+      Ldarh(dst.gp().W(), src_reg);
+      return;
+    case LoadType::kI32Load:
+    case LoadType::kI64Load32U:
+      Ldar(dst.gp().W(), src_reg);
+      return;
+    case LoadType::kI64Load:
+      Ldar(dst.gp().X(), src_reg);
+      return;
     default:
       UNREACHABLE();
   }
 }
 
-void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
-                                  Register offset_reg, uint32_t offset_imm,
-                                  LoadType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicLoad");
-}
-
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uint32_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicStore");
+  UseScratchRegisterScope temps(this);
+  Register dst_reg = liftoff::CalculateActualAddress(
+      this, dst_addr, offset_reg, offset_imm, temps.AcquireX());
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      Stlrb(src.gp().W(), dst_reg);
+      return;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      Stlrh(src.gp().W(), dst_reg);
+      return;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      Stlr(src.gp().W(), dst_reg);
+      return;
+    case StoreType::kI64Store:
+      Stlr(src.gp().X(), dst_reg);
+      return;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAdd");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kAdd);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicSub");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kSub);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAnd");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kAnd);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uint32_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicOr");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kOr);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicXor");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kXor);
 }
 
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uint32_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicExchange");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kExchange);
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uint32_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  bailout(kAtomics, "AtomicCompareExchange");
+  LiftoffRegList pinned =
+      LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, new_value);
+
+  Register result_reg = result.gp();
+  if (pinned.has(result)) {
+    result_reg = GetUnusedRegister(kGpReg, pinned).gp();
+  }
+
+  UseScratchRegisterScope temps(this);
+  Register store_result = temps.AcquireW();
+
+  Register actual_addr = liftoff::CalculateActualAddress(
+      this, dst_addr, offset_reg, offset_imm, temps.AcquireX());
+
+  Label retry;
+  Label done;
+  Bind(&retry);
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      ldaxrb(result_reg.W(), actual_addr);
+      Cmp(result.gp().W(), Operand(expected.gp().W(), UXTB));
+      B(ne, &done);
+      stlxrb(store_result.W(), new_value.gp().W(), actual_addr);
+      break;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      ldaxrh(result_reg.W(), actual_addr);
+      Cmp(result.gp().W(), Operand(expected.gp().W(), UXTH));
+      B(ne, &done);
+      stlxrh(store_result.W(), new_value.gp().W(), actual_addr);
+      break;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      ldaxr(result_reg.W(), actual_addr);
+      Cmp(result.gp().W(), Operand(expected.gp().W(), UXTW));
+      B(ne, &done);
+      stlxr(store_result.W(), new_value.gp().W(), actual_addr);
+      break;
+    case StoreType::kI64Store:
+      ldaxr(result_reg.X(), actual_addr);
+      Cmp(result.gp().X(), Operand(expected.gp().X(), UXTX));
+      B(ne, &done);
+      stlxr(store_result.W(), new_value.gp().X(), actual_addr);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Cbnz(store_result.W(), &retry);
+  Bind(&done);
+
+  if (result_reg != result.gp()) {
+    mov(result.gp(), result_reg);
+  }
 }
 
 void LiftoffAssembler::AtomicFence() { Dmb(InnerShareable, BarrierAll); }
@@ -439,7 +722,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
     Fmov(dst.D(), src.D());
   } else {
     DCHECK_EQ(kWasmS128, type);
-    Fmov(dst.Q(), src.Q());
+    Mov(dst.Q(), src.Q());
   }
 }
 
@@ -921,6 +1204,30 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       B(trap, ne);
       return true;
     }
+    case kExprI32SConvertSatF32:
+      Fcvtzs(dst.gp().W(), src.fp().S());
+      return true;
+    case kExprI32UConvertSatF32:
+      Fcvtzu(dst.gp().W(), src.fp().S());
+      return true;
+    case kExprI32SConvertSatF64:
+      Fcvtzs(dst.gp().W(), src.fp().D());
+      return true;
+    case kExprI32UConvertSatF64:
+      Fcvtzu(dst.gp().W(), src.fp().D());
+      return true;
+    case kExprI64SConvertSatF32:
+      Fcvtzs(dst.gp().X(), src.fp().S());
+      return true;
+    case kExprI64UConvertSatF32:
+      Fcvtzu(dst.gp().X(), src.fp().S());
+      return true;
+    case kExprI64SConvertSatF64:
+      Fcvtzs(dst.gp().X(), src.fp().D());
+      return true;
+    case kExprI64UConvertSatF64:
+      Fcvtzu(dst.gp().X(), src.fp().D());
+      return true;
     case kExprI32ReinterpretF32:
       Fmov(dst.gp().W(), src.fp().S());
       return true;
@@ -1102,6 +1409,70 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   }
 }
 
+void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
+                                     Register offset_reg, uint32_t offset_imm,
+                                     LoadType type,
+                                     LoadTransformationKind transform,
+                                     uint32_t* protected_load_pc) {
+  UseScratchRegisterScope temps(this);
+  MemOperand src_op =
+      liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
+  *protected_load_pc = pc_offset();
+  MachineType memtype = type.mem_type();
+
+  if (transform == LoadTransformationKind::kExtend) {
+    if (memtype == MachineType::Int8()) {
+      Ldr(dst.fp().D(), src_op);
+      Sxtl(dst.fp().V8H(), dst.fp().V8B());
+    } else if (memtype == MachineType::Uint8()) {
+      Ldr(dst.fp().D(), src_op);
+      Uxtl(dst.fp().V8H(), dst.fp().V8B());
+    } else if (memtype == MachineType::Int16()) {
+      Ldr(dst.fp().D(), src_op);
+      Sxtl(dst.fp().V4S(), dst.fp().V4H());
+    } else if (memtype == MachineType::Uint16()) {
+      Ldr(dst.fp().D(), src_op);
+      Uxtl(dst.fp().V4S(), dst.fp().V4H());
+    } else if (memtype == MachineType::Int32()) {
+      Ldr(dst.fp().D(), src_op);
+      Sxtl(dst.fp().V2D(), dst.fp().V2S());
+    } else if (memtype == MachineType::Uint32()) {
+      Ldr(dst.fp().D(), src_op);
+      Uxtl(dst.fp().V2D(), dst.fp().V2S());
+    }
+  } else {
+    // ld1r only allows no offset or post-index, so emit an add.
+    DCHECK_EQ(LoadTransformationKind::kSplat, transform);
+    if (src_op.IsRegisterOffset()) {
+      // We have 2 tmp gps, so it's okay to acquire 1 more here, and actually
+      // doesn't matter if we acquire the same one.
+      Register tmp = temps.AcquireX();
+      Add(tmp, src_op.base(), src_op.regoffset().X());
+      src_op = MemOperand(tmp.X(), 0);
+    } else if (src_op.IsImmediateOffset() && src_op.offset() != 0) {
+      Register tmp = temps.AcquireX();
+      Add(tmp, src_op.base(), src_op.offset());
+      src_op = MemOperand(tmp.X(), 0);
+    }
+
+    if (memtype == MachineType::Int8()) {
+      ld1r(dst.fp().V16B(), src_op);
+    } else if (memtype == MachineType::Int16()) {
+      ld1r(dst.fp().V8H(), src_op);
+    } else if (memtype == MachineType::Int32()) {
+      ld1r(dst.fp().V4S(), src_op);
+    } else if (memtype == MachineType::Int64()) {
+      ld1r(dst.fp().V2D(), src_op);
+    }
+  }
+}
+
+void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs) {
+  Tbl(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
+}
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Dup(dst.fp().V2D(), src.fp().D(), 0);
@@ -1262,12 +1633,42 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2_shl");
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs.gp(), kFormat2D);
 }
 
 void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i64x2_shli");
+  Shl(dst.fp().V2D(), lhs.fp().V2D(), rhs & 63);
+}
+
+void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs.gp(), kFormat2D);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat2D, liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs);
+}
+
+void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs.gp(), kFormat2D);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat2D,
+                                       liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1327,14 +1728,69 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
   Neg(dst.fp().V4S(), src.fp().V4S());
 }
 
+void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
+}
+
+void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAllTrue(this, dst, src, kFormat4S);
+}
+
+void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireQ();
+  VRegister mask = temps.AcquireQ();
+
+  Sshr(tmp.V4S(), src.fp().V4S(), 31);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  Movi(mask.V2D(), 0x0000'0008'0000'0004, 0x0000'0002'0000'0001);
+  And(tmp.V16B(), mask.V16B(), tmp.V16B());
+  Addv(tmp.S(), tmp.V4S());
+  Mov(dst.gp().W(), tmp.V4S(), 0);
+}
+
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_shl");
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs.gp(), kFormat4S);
 }
 
 void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i32x4_shli");
+  Shl(dst.fp().V4S(), lhs.fp().V4S(), rhs & 31);
+}
+
+void LiftoffAssembler::emit_i32x4_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs.gp(), kFormat4S);
+}
+
+void LiftoffAssembler::emit_i32x4_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat4S, liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs.gp(), kFormat4S);
+}
+
+void LiftoffAssembler::emit_i32x4_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat4S,
+                                       liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs);
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1408,14 +1864,69 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
   Neg(dst.fp().V8H(), src.fp().V8H());
 }
 
+void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
+}
+
+void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAllTrue(this, dst, src, kFormat8H);
+}
+
+void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireQ();
+  VRegister mask = temps.AcquireQ();
+
+  Sshr(tmp.V8H(), src.fp().V8H(), 15);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  Movi(mask.V2D(), 0x0080'0040'0020'0010, 0x0008'0004'0002'0001);
+  And(tmp.V16B(), mask.V16B(), tmp.V16B());
+  Addv(tmp.H(), tmp.V8H());
+  Mov(dst.gp().W(), tmp.V8H(), 0);
+}
+
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_shl");
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
+      this, dst.fp().V8H(), lhs.fp().V8H(), rhs.gp(), kFormat8H);
 }
 
 void LiftoffAssembler::emit_i16x8_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i16x8_shli");
+  Shl(dst.fp().V8H(), lhs.fp().V8H(), rhs & 15);
+}
+
+void LiftoffAssembler::emit_i16x8_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V8H(), lhs.fp().V8H(), rhs.gp(), kFormat8H);
+}
+
+void LiftoffAssembler::emit_i16x8_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat8H, liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V8H(), lhs.fp().V8H(), rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V8H(), lhs.fp().V8H(), rhs.gp(), kFormat8H);
+}
+
+void LiftoffAssembler::emit_i16x8_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat8H,
+                                       liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V8H(), lhs.fp().V8H(), rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1481,6 +1992,45 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
   Umax(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
+void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs,
+                                          const uint8_t shuffle[16]) {
+  VRegister src1 = lhs.fp();
+  VRegister src2 = rhs.fp();
+  VRegister temp = dst.fp();
+  if (dst == lhs || dst == rhs) {
+    // dst overlaps with lhs or rhs, so we need a temporary.
+    temp = GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(lhs, rhs)).fp();
+  }
+
+  UseScratchRegisterScope scope(this);
+
+  if (src1 != src2 && !AreConsecutive(src1, src2)) {
+    // Tbl needs consecutive registers, which our scratch registers are.
+    src1 = scope.AcquireV(kFormat16B);
+    src2 = scope.AcquireV(kFormat16B);
+    DCHECK(AreConsecutive(src1, src2));
+    Mov(src1.Q(), lhs.fp().Q());
+    Mov(src2.Q(), rhs.fp().Q());
+  }
+
+  uint8_t mask = lhs == rhs ? 0x0F : 0x1F;
+  int64_t imms[2] = {0, 0};
+  for (int i = 7; i >= 0; i--) {
+    imms[0] = (imms[0] << 8) | (shuffle[i] & mask);
+    imms[1] = (imms[1] << 8) | (shuffle[i + 8] & mask);
+  }
+
+  Movi(temp.V16B(), imms[1], imms[0]);
+
+  if (src1 == src2) {
+    Tbl(dst.fp().V16B(), src1.V16B(), temp.V16B());
+  } else {
+    Tbl(dst.fp().V16B(), src1.V16B(), src2.V16B(), temp.V16B());
+  }
+}
+
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Dup(dst.fp().V16B(), src.gp().W());
@@ -1513,14 +2063,71 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
   Neg(dst.fp().V16B(), src.fp().V16B());
 }
 
+void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
+}
+
+void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAllTrue(this, dst, src, kFormat16B);
+}
+
+void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireQ();
+  VRegister mask = temps.AcquireQ();
+
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  Sshr(tmp.V16B(), src.fp().V16B(), 7);
+  Movi(mask.V2D(), 0x8040'2010'0804'0201);
+  And(tmp.V16B(), mask.V16B(), tmp.V16B());
+  Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
+  Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
+  Addv(tmp.H(), tmp.V8H());
+  Mov(dst.gp().W(), tmp.V8H(), 0);
+}
+
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_shl");
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs.gp(), kFormat16B);
 }
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i8x16_shli");
+  Shl(dst.fp().V16B(), lhs.fp().V16B(), rhs & 7);
+}
+
+void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs.gp(), kFormat16B);
+}
+
+void LiftoffAssembler::emit_i8x16_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat16B, liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs.gp(), kFormat16B);
+}
+
+void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat16B,
+                                       liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1748,6 +2355,26 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
     Mov(dst.fp().V16B(), mask.fp().V16B());
   }
   Bsl(dst.fp().V16B(), src1.fp().V16B(), src2.fp().V16B());
+}
+
+void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  Fcvtzs(dst.fp().V4S(), src.fp().V4S());
+}
+
+void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  Fcvtzu(dst.fp().V4S(), src.fp().V4S());
+}
+
+void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  Scvtf(dst.fp().V4S(), src.fp().V4S());
+}
+
+void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  Ucvtf(dst.fp().V4S(), src.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,

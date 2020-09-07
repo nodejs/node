@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/torque/implementation-visitor.h"
+
 #include <algorithm>
+#include <iomanip>
 #include <string>
 
 #include "src/base/optional.h"
@@ -10,7 +13,6 @@
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
-#include "src/torque/implementation-visitor.h"
 #include "src/torque/parameter-difference.h"
 #include "src/torque/server-data.h"
 #include "src/torque/type-inference.h"
@@ -729,8 +731,17 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
   VisitResult true_result;
   {
     StackScope true_block_scope(this);
+    VisitResult right_result = Visit(expr->right);
+    if (TryGetSourceForBitfieldExpression(expr->left) != nullptr &&
+        TryGetSourceForBitfieldExpression(expr->right) != nullptr &&
+        TryGetSourceForBitfieldExpression(expr->left)->value ==
+            TryGetSourceForBitfieldExpression(expr->right)->value) {
+      Lint(
+          "Please use & rather than && when checking multiple bitfield "
+          "values, to avoid complexity in generated code.");
+    }
     true_result = true_block_scope.Yield(
-        GenerateImplicitConvert(TypeOracle::GetBoolType(), Visit(expr->right)));
+        GenerateImplicitConvert(TypeOracle::GetBoolType(), right_result));
   }
   assembler().Goto(done_block);
 
@@ -775,16 +786,22 @@ VisitResult ImplementationVisitor::Visit(AssignmentExpression* expr) {
 }
 
 VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
-  int32_t i = static_cast<int32_t>(expr->number);
   const Type* result_type = TypeOracle::GetConstFloat64Type();
-  if (i == expr->number) {
-    if ((i >> 30) == (i >> 31)) {
-      result_type = TypeOracle::GetConstInt31Type();
-    } else {
-      result_type = TypeOracle::GetConstInt32Type();
+  if (expr->number >= std::numeric_limits<int32_t>::min() &&
+      expr->number <= std::numeric_limits<int32_t>::max()) {
+    int32_t i = static_cast<int32_t>(expr->number);
+    if (i == expr->number) {
+      if ((i >> 30) == (i >> 31)) {
+        result_type = TypeOracle::GetConstInt31Type();
+      } else {
+        result_type = TypeOracle::GetConstInt32Type();
+      }
     }
   }
-  return VisitResult{result_type, ToString(expr->number)};
+  std::stringstream str;
+  str << std::setprecision(std::numeric_limits<double>::digits10 + 1)
+      << expr->number;
+  return VisitResult{result_type, str.str()};
 }
 
 VisitResult ImplementationVisitor::Visit(AssumeTypeImpossibleExpression* expr) {
@@ -823,6 +840,17 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
 VisitResult ImplementationVisitor::Visit(LocationExpression* expr) {
   StackScope scope(this);
   return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
+}
+
+VisitResult ImplementationVisitor::Visit(FieldAccessExpression* expr) {
+  StackScope scope(this);
+  LocationReference location = GetLocationReference(expr);
+  if (location.IsBitFieldAccess()) {
+    if (auto* identifier = IdentifierExpression::DynamicCast(expr->object)) {
+      bitfield_expressions_[expr] = identifier->name;
+    }
+  }
+  return scope.Yield(GenerateFetchFromLocation(location));
 }
 
 const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
@@ -2005,25 +2033,29 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
         ProjectStructField(reference.temporary(), fieldname),
         reference.temporary_description());
   }
-  if (reference.ReferencedType()->IsBitFieldStructType()) {
-    const BitFieldStructType* bitfield_struct =
-        BitFieldStructType::cast(reference.ReferencedType());
-    const BitField& field = bitfield_struct->LookupField(fieldname);
-    return LocationReference::BitFieldAccess(reference, field);
-  }
-  if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
-          reference.ReferencedType(), TypeOracle::GetSmiTaggedGeneric())) {
-    const BitFieldStructType* bitfield_struct =
-        BitFieldStructType::DynamicCast(*type_wrapped_in_smi);
-    if (bitfield_struct == nullptr) {
-      ReportError(
-          "When a value of type SmiTagged<T> is used in a field access "
-          "expression, T is expected to be a bitfield struct type. Instead, T "
-          "is ",
-          **type_wrapped_in_smi);
+  if (base::Optional<const Type*> referenced_type =
+          reference.ReferencedType()) {
+    if ((*referenced_type)->IsBitFieldStructType()) {
+      const BitFieldStructType* bitfield_struct =
+          BitFieldStructType::cast(*referenced_type);
+      const BitField& field = bitfield_struct->LookupField(fieldname);
+      return LocationReference::BitFieldAccess(reference, field);
     }
-    const BitField& field = bitfield_struct->LookupField(fieldname);
-    return LocationReference::BitFieldAccess(reference, field);
+    if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
+            (*referenced_type), TypeOracle::GetSmiTaggedGeneric())) {
+      const BitFieldStructType* bitfield_struct =
+          BitFieldStructType::DynamicCast(*type_wrapped_in_smi);
+      if (bitfield_struct == nullptr) {
+        ReportError(
+            "When a value of type SmiTagged<T> is used in a field access "
+            "expression, T is expected to be a bitfield struct type. Instead, "
+            "T "
+            "is ",
+            **type_wrapped_in_smi);
+      }
+      const BitField& field = bitfield_struct->LookupField(fieldname);
+      return LocationReference::BitFieldAccess(reference, field);
+    }
   }
   if (reference.IsHeapReference()) {
     VisitResult ref = reference.heap_reference();
@@ -2188,7 +2220,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
   } else if (reference.IsVariableAccess()) {
     return GenerateCopy(reference.variable());
   } else if (reference.IsHeapReference()) {
-    const Type* referenced_type = reference.ReferencedType();
+    const Type* referenced_type = *reference.ReferencedType();
     if (referenced_type == TypeOracle::GetFloat64OrHoleType()) {
       return GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
                                         "LoadFloat64OrHole"),
@@ -2205,9 +2237,9 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
       return VisitResult(referenced_type, result_range);
     } else {
       GenerateCopy(reference.heap_reference());
-      assembler().Emit(LoadReferenceInstruction{reference.ReferencedType()});
-      DCHECK_EQ(1, LoweredSlotCount(reference.ReferencedType()));
-      return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+      assembler().Emit(LoadReferenceInstruction{referenced_type});
+      DCHECK_EQ(1, LoweredSlotCount(referenced_type));
+      return VisitResult(referenced_type, assembler().TopRange(1));
     }
   } else if (reference.IsBitFieldAccess()) {
     // First fetch the bitfield struct, then get the bits out of it.
@@ -2215,7 +2247,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
         GenerateFetchFromLocation(reference.bit_field_struct_location());
     assembler().Emit(LoadBitFieldInstruction{bit_field_struct.type(),
                                              reference.bit_field()});
-    return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+    return VisitResult(*reference.ReferencedType(), assembler().TopRange(1));
   } else {
     if (reference.IsHeapSlice()) {
       ReportError(
@@ -2248,7 +2280,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
   } else if (reference.IsHeapSlice()) {
     ReportError("assigning a value directly to an indexed field isn't allowed");
   } else if (reference.IsHeapReference()) {
-    const Type* referenced_type = reference.ReferencedType();
+    const Type* referenced_type = *reference.ReferencedType();
     if (reference.IsConst()) {
       Error("cannot assign to const value of type ", *referenced_type).Throw();
     }
@@ -2290,7 +2322,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
     VisitResult bit_field_struct =
         GenerateFetchFromLocation(reference.bit_field_struct_location());
     VisitResult converted_value =
-        GenerateImplicitConvert(reference.ReferencedType(), assignment_value);
+        GenerateImplicitConvert(*reference.ReferencedType(), assignment_value);
     VisitResult updated_bit_field_struct =
         GenerateSetBitField(bit_field_struct.type(), reference.bit_field(),
                             bit_field_struct, converted_value);
@@ -2370,6 +2402,29 @@ void ImplementationVisitor::AddCallParameter(
     }
   }
 }
+
+namespace {
+std::pair<std::string, std::string> GetClassInstanceTypeRange(
+    const ClassType* class_type) {
+  std::pair<std::string, std::string> result;
+  if (class_type->InstanceTypeRange()) {
+    auto instance_type_range = *class_type->InstanceTypeRange();
+    std::string instance_type_string_first =
+        "static_cast<InstanceType>(" +
+        std::to_string(instance_type_range.first) + ")";
+    std::string instance_type_string_second =
+        "static_cast<InstanceType>(" +
+        std::to_string(instance_type_range.second) + ")";
+    result =
+        std::make_pair(instance_type_string_first, instance_type_string_second);
+  } else {
+    ReportError(
+        "%Min/MaxInstanceType must take a class type that is either a string "
+        "or has a generated instance type range");
+  }
+  return result;
+}
+}  // namespace
 
 VisitResult ImplementationVisitor::GenerateCall(
     Callable* callable, base::Optional<LocationReference> this_reference,
@@ -2601,6 +2656,48 @@ VisitResult ImplementationVisitor::GenerateCall(
         Error("size of ", *type, " is not known.");
       }
       return VisitResult(return_type, size_string);
+    } else if (intrinsic->ExternalName() == "%ClassHasMapConstant") {
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%ClassHasMapConstant must take a class type parameter");
+      }
+      // If the class isn't actually used as the parameter to a TNode,
+      // then we can't rely on the class existing in C++ or being of the same
+      // type (e.g. it could be a template), so don't use the template CSA
+      // machinery for accessing the class' map.
+      if (class_type->name() != class_type->GetGeneratedTNodeTypeName()) {
+        return VisitResult(return_type, std::string("false"));
+      } else {
+        return VisitResult(
+            return_type,
+            std::string("CodeStubAssembler(state_).ClassHasMapConstant<") +
+                class_type->name() + ">()");
+      }
+    } else if (intrinsic->ExternalName() == "%MinInstanceType") {
+      if (specialization_types.size() != 1) {
+        ReportError("%MinInstanceType must take a single type parameter");
+      }
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%MinInstanceType must take a class type parameter");
+      }
+      std::pair<std::string, std::string> instance_types =
+          GetClassInstanceTypeRange(class_type);
+      return VisitResult(return_type, instance_types.first);
+    } else if (intrinsic->ExternalName() == "%MaxInstanceType") {
+      if (specialization_types.size() != 1) {
+        ReportError("%MaxInstanceType must take a single type parameter");
+      }
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%MaxInstanceType must take a class type parameter");
+      }
+      std::pair<std::string, std::string> instance_types =
+          GetClassInstanceTypeRange(class_type);
+      return VisitResult(return_type, instance_types.second);
     } else if (intrinsic->ExternalName() == "%RawConstexprCast") {
       if (intrinsic->signature().parameter_types.types.size() != 1 ||
           constexpr_arguments.size() != 1) {
@@ -2674,6 +2771,16 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
       LanguageServerData::AddDefinition(expr->callee->name->pos,
                                         callable->IdentifierPosition());
     }
+    if (expr->callee->name->value == "!" && arguments.parameters.size() == 1) {
+      PropagateBitfieldMark(expr->arguments[0], expr);
+    }
+    if (expr->callee->name->value == "==" && arguments.parameters.size() == 2) {
+      if (arguments.parameters[0].type()->IsConstexpr()) {
+        PropagateBitfieldMark(expr->arguments[1], expr);
+      } else if (arguments.parameters[1].type()->IsConstexpr()) {
+        PropagateBitfieldMark(expr->arguments[0], expr);
+      }
+    }
     return scope.Yield(
         GenerateCall(name, arguments, specialization_types, is_tailcall));
   }
@@ -2691,7 +2798,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
     target = LocationReference::Temporary(result, "this parameter");
   }
   const AggregateType* target_type =
-      AggregateType::DynamicCast(target.ReferencedType());
+      AggregateType::DynamicCast(*target.ReferencedType());
   if (!target_type) {
     ReportError("target of method call not a struct or class type");
   }
@@ -3333,6 +3440,9 @@ void ImplementationVisitor::GenerateBitFields(
                  << " = 1 << " << field.offset << ", \\\n";
         }
         header << "  }; \\\n";
+        header << "  using Flags = base::Flags<Flag>; \\\n";
+        header << "  static constexpr int kFlagCount = "
+               << type->fields().size() << "; \\\n";
       }
 
       header << "\n";
@@ -4035,7 +4145,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
           structs_used_in_classes.insert(*field_as_struct);
         }
       }
-      if (type->ShouldExport()) {
+      if (type->ShouldExport() && !type->IsAbstract()) {
         factory_header << type->HandlifiedCppTypeName() << " New"
                        << type->name() << "(";
         factory_impl << type->HandlifiedCppTypeName() << " Factory::New"
@@ -4616,7 +4726,6 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     cc_contents << "#include \"src/objects/fixed-array-inl.h\"\n";
     cc_contents << "#include \"src/objects/free-space.h\"\n";
     cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
-    cc_contents << "#include \"src/objects/js-aggregate-error.h\"\n";
     cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";
     cc_contents << "#include \"src/objects/property-descriptor-object.h\"\n";
     cc_contents << "#include \"src/objects/synthetic-module.h\"\n";

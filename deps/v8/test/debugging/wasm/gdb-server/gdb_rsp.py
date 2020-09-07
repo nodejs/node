@@ -22,7 +22,7 @@ REG_DEFS = {
 
 
 def EnsurePortIsAvailable(addr=SOCKET_ADDR):
-  # As a sanity check, check that the TCP port is available by binding to it
+  # As a validity check, check that the TCP port is available by binding to it
   # ourselves (and then unbinding).  Otherwise, we could end up talking to an
   # old instance of the GDB stub that is still hanging around, or to some
   # unrelated service that uses the same port number. Of course, there is still

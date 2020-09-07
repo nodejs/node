@@ -28,6 +28,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/template-objects.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -1507,16 +1508,15 @@ Node* JSCreateLowering::AllocateAliasedArguments(
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), arguments, control);
-  a.AllocateArray(mapped_count + 2,
-                  MapRef(broker(), factory()->sloppy_arguments_elements_map()));
-  a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(0),
-          context);
-  a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(1),
-          arguments);
+  a.AllocateSloppyArgumentElements(
+      mapped_count,
+      MapRef(broker(), factory()->sloppy_arguments_elements_map()));
+  a.Store(AccessBuilder::ForSloppyArgumentsElementsContext(), context);
+  a.Store(AccessBuilder::ForSloppyArgumentsElementsArguments(), arguments);
   for (int i = 0; i < mapped_count; ++i) {
     int idx = shared.context_header_size() + parameter_count - 1 - i;
-    a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i + 2),
-            jsgraph()->Constant(idx));
+    a.Store(AccessBuilder::ForSloppyArgumentsElementsMappedEntry(),
+            jsgraph()->Constant(i), jsgraph()->Constant(idx));
   }
   return a.Finish();
 }
@@ -1553,12 +1553,11 @@ Node* JSCreateLowering::AllocateAliasedArguments(
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(mapped_count + 2,
-                  MapRef(broker(), factory()->sloppy_arguments_elements_map()));
-  a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(0),
-          context);
-  a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(1),
-          arguments);
+  a.AllocateSloppyArgumentElements(
+      mapped_count,
+      MapRef(broker(), factory()->sloppy_arguments_elements_map()));
+  a.Store(AccessBuilder::ForSloppyArgumentsElementsContext(), context);
+  a.Store(AccessBuilder::ForSloppyArgumentsElementsArguments(), arguments);
   for (int i = 0; i < mapped_count; ++i) {
     int idx = shared.context_header_size() + parameter_count - 1 - i;
     Node* value = graph()->NewNode(
@@ -1566,8 +1565,8 @@ Node* JSCreateLowering::AllocateAliasedArguments(
         graph()->NewNode(simplified()->NumberLessThan(), jsgraph()->Constant(i),
                          arguments_length),
         jsgraph()->Constant(idx), jsgraph()->TheHoleConstant());
-    a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i + 2),
-            value);
+    a.Store(AccessBuilder::ForSloppyArgumentsElementsMappedEntry(),
+            jsgraph()->Constant(i), value);
   }
   return a.Finish();
 }

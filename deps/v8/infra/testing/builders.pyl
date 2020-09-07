@@ -83,7 +83,7 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
-  'v8_linux_gc_stress_dbg': {
+  'v8_linux_gc_stress_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
@@ -92,7 +92,7 @@
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 5},
     ],
   },
-  'v8_linux_gcc_rel': {
+  'v8_linux_gcc_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
@@ -214,7 +214,7 @@
   },
   ##############################################################################
   # Linux32 with arm simulators
-  'v8_linux_arm_dbg': {
+  'v8_linux_arm_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
@@ -321,7 +321,7 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
     ],
   },
-  'v8_linux64_msan_rel': {
+  'v8_linux64_msan_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
@@ -391,27 +391,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
     ],
   },
-  # TODO(machenbach): Experimental builder with incomplete configs. Should be
-  # similar to v8_linux64_rel_ng_triggered after testing.
-  'v8_linux64_rel_xg': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-16.04',
-    },
-    'tests': [
-      {'name': 'v8initializers'},
-      {'name': 'v8testing', 'shards': 2},
-    ],
-  },
-  'v8_linux64_sanitizer_coverage_rel': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 3},
-    ],
-  },
-  'v8_linux64_tsan_rel': {
+  'v8_linux64_tsan_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
@@ -450,7 +430,7 @@
   },
   ##############################################################################
   # Linux64 with arm64 simulators
-  'v8_linux_arm64_dbg': {
+  'v8_linux_arm64_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
@@ -463,7 +443,7 @@
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 5},
     ],
   },
-  'v8_linux_arm64_gc_stress_dbg': {
+  'v8_linux_arm64_gc_stress_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
@@ -521,7 +501,7 @@
   },
   ##############################################################################
   # Win32
-  'v8_win_dbg': {
+  'v8_win_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Windows-7-SP1',
@@ -552,7 +532,7 @@
       {'name': 'v8testing', 'shards': 5},
     ],
   },
-  'v8_win64_dbg': {
+  'v8_win64_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Windows-10-15063',
@@ -589,7 +569,7 @@
   },
   ##############################################################################
   # Mac64
-  'v8_mac64_asan_rel': {
+  'v8_mac64_asan_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Mac-10.13',
@@ -610,7 +590,7 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
-  'v8_mac64_gc_stress_dbg': {
+  'v8_mac64_gc_stress_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Mac-10.13',

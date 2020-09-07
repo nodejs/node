@@ -40,7 +40,6 @@ extern class AccessCheckInfo extends Struct {
   data: Object;
 }
 
-type PropertyAttributes extends int32 constexpr 'PropertyAttributes';
 type SideEffectType extends int32 constexpr 'SideEffectType';
 
 bitfield struct AccessorInfoFlags extends uint31 {

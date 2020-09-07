@@ -315,6 +315,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
     // return address into the interpreter entry trampoline, then we are likely
     // in a bytecode handler with elided frame. In that case, set the PC
     // properly and make sure we do not drop the frame.
+    bool is_no_frame_bytecode_handler = false;
     if (IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
       Address* tos_location = nullptr;
       if (top_link_register_) {
@@ -326,6 +327,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
 
       if (IsInterpreterFramePc(isolate, *tos_location, &state)) {
         state.pc_address = tos_location;
+        is_no_frame_bytecode_handler = true;
         advance_frame = false;
       }
     }
@@ -338,12 +340,12 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
                   StandardFrameConstants::kContextOffset);
     Address frame_marker = fp + StandardFrameConstants::kFunctionOffset;
     if (IsValidStackAddress(frame_marker)) {
-      type = StackFrame::ComputeType(this, &state);
-      top_frame_type_ = type;
-      // We only keep the top frame if we believe it to be interpreted frame.
-      if (type != StackFrame::INTERPRETED) {
-        advance_frame = true;
+      if (is_no_frame_bytecode_handler) {
+        type = StackFrame::INTERPRETED;
+      } else {
+        type = StackFrame::ComputeType(this, &state);
       }
+      top_frame_type_ = type;
       MSAN_MEMORY_IS_INITIALIZED(
           fp + CommonFrameConstants::kContextOrFrameTypeOffset,
           kSystemPointerSize);

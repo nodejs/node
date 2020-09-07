@@ -312,6 +312,7 @@ Handle<FeedbackCell> FeedbackCellOf(const Operator* op);
 
 enum class CheckTaggedInputMode : uint8_t {
   kNumber,
+  kNumberOrBoolean,
   kNumberOrOddball,
 };
 
@@ -507,6 +508,7 @@ enum class NumberOperationHint : uint8_t {
   kSignedSmallInputs,  // Inputs were Smi, output was Number.
   kSigned32,           // Inputs were Signed32, output was Number.
   kNumber,             // Inputs were Number, output was Number.
+  kNumberOrBoolean,    // Inputs were Number or Boolean, output was Number.
   kNumberOrOddball,    // Inputs were Number or Oddball, output was Number.
 };
 

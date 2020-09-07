@@ -107,5 +107,13 @@ void LocalHeap::MakeLinearAllocationAreaIterable() {
   old_space_allocator_.MakeLinearAllocationAreaIterable();
 }
 
+void LocalHeap::MarkLinearAllocationAreaBlack() {
+  old_space_allocator_.MarkLinearAllocationAreaBlack();
+}
+
+void LocalHeap::UnmarkLinearAllocationArea() {
+  old_space_allocator_.UnmarkLinearAllocationArea();
+}
+
 }  // namespace internal
 }  // namespace v8

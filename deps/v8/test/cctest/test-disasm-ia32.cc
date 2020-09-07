@@ -938,6 +938,12 @@ TEST(DisasmIa320) {
     }
   }
 
+  // xadd.
+  {
+    __ xadd(Operand(eax, 8), eax);
+    __ xadd_w(Operand(ebx, 8), eax);
+    __ xadd_b(Operand(ebx, 8), eax);
+  }
   // xchg.
   {
     __ xchg_b(eax, Operand(eax, 8));

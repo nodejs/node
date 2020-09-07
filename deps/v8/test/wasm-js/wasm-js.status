@@ -5,6 +5,23 @@
 [
 
 [ALWAYS, {
+  # TODO(v8:10556): Remove sub-typing in the reference-types implementation
+  'constructor/instantiate': [FAIL],
+  'instance/constructor-caching': [FAIL],
+  'instance/constructor': [FAIL],
+  'proposals/js-types/constructor/instantiate': [FAIL],
+  'proposals/js-types/global/constructor': [FAIL],
+  'proposals/js-types/global/value-get-set': [FAIL],
+  'proposals/js-types/instance/constructor': [FAIL],
+
+  'prototypes': [FAIL],
+
+  # Outdated proposals, will work after rebasing.
+  'proposals/reference-types/global/value-get-set': [FAIL],
+  'proposals/reference-types/global/constructor': [FAIL],
+  'proposals/bulk-memory-operations/global/value-get-set': [FAIL],
+  'proposals/bulk-memory-operations/global/constructor': [FAIL],
+
   # These are slow, and not useful to run for the proposals:
   'proposals/reference-types/limits': [SKIP],
   'proposals/bulk-memory-operations/limits': [SKIP],
@@ -38,6 +55,13 @@
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+##############################################################################
+# Failing on s390x as this fix is not included in branch 8.5:
+# https://github.com/WebAssembly/spec/pull/1214
+['arch == s390x', {
+  'constructor/multi-value': [SKIP],
 }],
 
 ]

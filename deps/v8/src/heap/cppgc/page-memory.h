@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE MemoryRegion final {
   size_t size() const { return size_; }
   Address end() const { return base_ + size_; }
 
-  bool Contains(Address addr) const {
+  bool Contains(ConstAddress addr) const {
     return (reinterpret_cast<uintptr_t>(addr) -
             reinterpret_cast<uintptr_t>(base_)) < size_;
   }
@@ -70,7 +70,7 @@ class V8_EXPORT_PRIVATE PageMemoryRegion {
   // Lookup writeable base for an |address| that's contained in
   // PageMemoryRegion. Filters out addresses that are contained in non-writeable
   // regions (e.g. guard pages).
-  inline Address Lookup(Address address) const;
+  inline Address Lookup(ConstAddress address) const;
 
   // Disallow copy/move.
   PageMemoryRegion(const PageMemoryRegion&) = delete;
@@ -111,7 +111,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryRegion final : public PageMemoryRegion {
   // protection.
   void Free(Address);
 
-  inline Address Lookup(Address) const;
+  inline Address Lookup(ConstAddress) const;
 
   void UnprotectForTesting() final;
 
@@ -122,7 +122,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryRegion final : public PageMemoryRegion {
     page_memories_in_use_[index] = value;
   }
 
-  size_t GetIndex(Address address) const {
+  size_t GetIndex(ConstAddress address) const {
     return static_cast<size_t>(address - reserved_region().base()) >>
            kPageSizeLog2;
   }
@@ -143,7 +143,7 @@ class V8_EXPORT_PRIVATE LargePageMemoryRegion final : public PageMemoryRegion {
                      reserved_region().size() - 2 * kGuardPageSize));
   }
 
-  inline Address Lookup(Address) const;
+  inline Address Lookup(ConstAddress) const;
 
   void UnprotectForTesting() final;
 };
@@ -161,10 +161,10 @@ class V8_EXPORT_PRIVATE PageMemoryRegionTree final {
   void Add(PageMemoryRegion*);
   void Remove(PageMemoryRegion*);
 
-  inline PageMemoryRegion* Lookup(Address) const;
+  inline PageMemoryRegion* Lookup(ConstAddress) const;
 
  private:
-  std::map<Address, PageMemoryRegion*> set_;
+  std::map<ConstAddress, PageMemoryRegion*> set_;
 };
 
 // A pool of PageMemory objects represented by the writeable base addresses.
@@ -216,7 +216,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
 
   // Returns the writeable base if |address| is contained in a valid page
   // memory.
-  inline Address Lookup(Address) const;
+  inline Address Lookup(ConstAddress) const;
 
   // Disallow copy/move.
   PageBackend(const PageBackend&) = delete;

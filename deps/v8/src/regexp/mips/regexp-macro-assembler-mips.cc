@@ -226,7 +226,7 @@ void RegExpMacroAssemblerMIPS::CheckGreedyLoop(Label* on_equal) {
 }
 
 void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_no_match) {
+    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
   __ lw(a0, register_location(start_reg));  // Index of start of capture.
   __ lw(a1, register_location(start_reg + 1));  // Index of end of capture.
@@ -340,7 +340,10 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     {
       AllowExternalCallThatCantCauseGC scope(masm_);
       ExternalReference function =
-          ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
+          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
+                        isolate())
+                  : ExternalReference::re_case_insensitive_compare_non_unicode(
+                        isolate());
       __ CallCFunction(function, argument_count);
     }
 

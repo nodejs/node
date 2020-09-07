@@ -27,6 +27,7 @@ enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
 class NativeContext;
+class IsCompiledScope;
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
@@ -973,6 +974,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   static const int kNameDescriptorIndex = 1;
   // Home object descriptor index when function has a [[HomeObject]] slot.
   static const int kMaybeHomeObjectDescriptorIndex = 2;
+  // Fast binding requires length and name accessors.
+  static const int kMinDescriptorsForFastBind = 2;
 
   // [context]: The context for this function.
   inline Context context();
@@ -1062,7 +1065,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
   inline FeedbackVector feedback_vector() const;
   inline bool has_feedback_vector() const;
   V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
-      Handle<JSFunction> function);
+      Handle<JSFunction> function, IsCompiledScope* compiled_scope);
 
   // Functions related to clousre feedback cell array that holds feedback cells
   // used to create closures from this function. We allocate closure feedback
@@ -1076,7 +1079,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // initialized to the closure feedback cell array that holds the feedback
   // cells for create closure calls from this function. In the regular mode,
   // this allocates feedback vector.
-  static void InitializeFeedbackCell(Handle<JSFunction> function);
+  static void InitializeFeedbackCell(Handle<JSFunction> function,
+                                     IsCompiledScope* compiled_scope);
 
   // Unconditionally clear the type feedback vector.
   void ClearTypeFeedbackInfo();
@@ -1132,6 +1136,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
   DECL_CAST(JSFunction)
 
   // Calculate the instance size and in-object properties count.
+  // {CalculateExpectedNofProperties} can trigger compilation.
   static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
       Isolate* isolate, Handle<JSFunction> function);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,

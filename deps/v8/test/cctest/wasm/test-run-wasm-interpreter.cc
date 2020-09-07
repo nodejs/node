@@ -9,11 +9,11 @@
 #include <memory>
 
 #include "src/codegen/assembler-inl.h"
-#include "src/wasm/wasm-interpreter.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-interpreter.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
@@ -273,49 +273,6 @@ std::unique_ptr<int[]> Find(byte* code, size_t code_size, int n, ...) {
   return offsets;
 }
 
-TEST(Breakpoint_I32Add) {
-  static const int kLocalsDeclSize = 1;
-  static const int kNumBreakpoints = 3;
-  byte code[] = {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
-  std::unique_ptr<int[]> offsets =
-      Find(code, sizeof(code), kNumBreakpoints, kExprLocalGet, kExprLocalGet,
-           kExprI32Add);
-
-  WasmRunner<int32_t, uint32_t, uint32_t> r(ExecutionTier::kInterpreter);
-
-  r.Build(code, code + arraysize(code));
-
-  WasmInterpreter* interpreter = r.interpreter();
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
-  for (int i = 0; i < kNumBreakpoints; i++) {
-    interpreter->SetBreakpoint(r.function(), kLocalsDeclSize + offsets[i],
-                               true);
-  }
-
-  FOR_UINT32_INPUTS(a) {
-    for (uint32_t b = 11; b < 3000000000u; b += 1000000000u) {
-      thread->Reset();
-      WasmValue args[] = {WasmValue(a), WasmValue(b)};
-      thread->InitFrame(r.function(), args);
-
-      for (int i = 0; i < kNumBreakpoints; i++) {
-        thread->Run();  // run to next breakpoint
-        // Check the thread stopped at the right pc.
-        CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
-        CHECK_EQ(static_cast<size_t>(kLocalsDeclSize + offsets[i]),
-                 thread->GetBreakpointPc());
-      }
-
-      thread->Run();  // run to completion
-
-      // Check the thread finished with the right value.
-      CHECK_EQ(WasmInterpreter::FINISHED, thread->state());
-      uint32_t expected = (a) + (b);
-      CHECK_EQ(expected, thread->GetReturnValue().to<uint32_t>());
-    }
-  }
-}
-
 TEST(Step_I32Mul) {
   static const int kTraceLength = 4;
   byte code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
@@ -325,71 +282,27 @@ TEST(Step_I32Mul) {
   r.Build(code, code + arraysize(code));
 
   WasmInterpreter* interpreter = r.interpreter();
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
 
   FOR_UINT32_INPUTS(a) {
     for (uint32_t b = 33; b < 3000000000u; b += 1000000000u) {
-      thread->Reset();
+      interpreter->Reset();
       WasmValue args[] = {WasmValue(a), WasmValue(b)};
-      thread->InitFrame(r.function(), args);
+      interpreter->InitFrame(r.function(), args);
 
       // Run instructions one by one.
       for (int i = 0; i < kTraceLength - 1; i++) {
-        thread->Step();
-        // Check the thread stopped.
-        CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
+        interpreter->Step();
+        // Check the interpreter stopped.
+        CHECK_EQ(WasmInterpreter::PAUSED, interpreter->state());
       }
 
       // Run last instruction.
-      thread->Step();
+      interpreter->Step();
 
-      // Check the thread finished with the right value.
-      CHECK_EQ(WasmInterpreter::FINISHED, thread->state());
+      // Check the interpreter finished with the right value.
+      CHECK_EQ(WasmInterpreter::FINISHED, interpreter->state());
       uint32_t expected = (a) * (b);
-      CHECK_EQ(expected, thread->GetReturnValue().to<uint32_t>());
-    }
-  }
-}
-
-TEST(Breakpoint_I32And_disable) {
-  static const int kLocalsDeclSize = 1;
-  static const int kNumBreakpoints = 1;
-  byte code[] = {WASM_I32_AND(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
-  std::unique_ptr<int[]> offsets =
-      Find(code, sizeof(code), kNumBreakpoints, kExprI32And);
-
-  WasmRunner<int32_t, uint32_t, uint32_t> r(ExecutionTier::kInterpreter);
-
-  r.Build(code, code + arraysize(code));
-
-  WasmInterpreter* interpreter = r.interpreter();
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
-
-  FOR_UINT32_INPUTS(a) {
-    for (uint32_t b = 11; b < 3000000000u; b += 1000000000u) {
-      // Run with and without breakpoints.
-      for (int do_break = 0; do_break < 2; do_break++) {
-        interpreter->SetBreakpoint(r.function(), kLocalsDeclSize + offsets[0],
-                                   do_break);
-        thread->Reset();
-        WasmValue args[] = {WasmValue(a), WasmValue(b)};
-        thread->InitFrame(r.function(), args);
-
-        if (do_break) {
-          thread->Run();  // run to next breakpoint
-          // Check the thread stopped at the right pc.
-          CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
-          CHECK_EQ(static_cast<size_t>(kLocalsDeclSize + offsets[0]),
-                   thread->GetBreakpointPc());
-        }
-
-        thread->Run();  // run to completion
-
-        // Check the thread finished with the right value.
-        CHECK_EQ(WasmInterpreter::FINISHED, thread->state());
-        uint32_t expected = (a) & (b);
-        CHECK_EQ(expected, thread->GetReturnValue().to<uint32_t>());
-      }
+      CHECK_EQ(expected, interpreter->GetReturnValue().to<uint32_t>());
     }
   }
 }
@@ -434,19 +347,20 @@ TEST(MemoryGrowInvalidSize) {
 TEST(ReferenceTypeLocals) {
   {
     WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
-    BUILD(r, WASM_REF_IS_NULL(WASM_REF_NULL));
+    BUILD(r, WASM_REF_IS_NULL(WASM_REF_NULL(kLocalExternRef)));
     CHECK_EQ(1, r.Call());
   }
   {
     WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
-    r.AllocateLocal(kWasmAnyRef);
+    r.AllocateLocal(kWasmExternRef);
     BUILD(r, WASM_REF_IS_NULL(WASM_GET_LOCAL(0)));
     CHECK_EQ(1, r.Call());
   }
   {
     WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
-    r.AllocateLocal(kWasmAnyRef);
-    BUILD(r, WASM_REF_IS_NULL(WASM_TEE_LOCAL(0, WASM_REF_NULL)));
+    r.AllocateLocal(kWasmExternRef);
+    BUILD(r,
+          WASM_REF_IS_NULL(WASM_TEE_LOCAL(0, WASM_REF_NULL(kLocalExternRef))));
     CHECK_EQ(1, r.Call());
   }
 }
@@ -556,39 +470,6 @@ TEST(TestPossibleNondeterminism) {
     r.Call(std::numeric_limits<double>::quiet_NaN());
     CHECK(r.possible_nondeterminism());
   }
-}
-
-TEST(WasmInterpreterActivations) {
-  WasmRunner<void> r(ExecutionTier::kInterpreter);
-  Isolate* isolate = r.main_isolate();
-  BUILD(r, WASM_UNREACHABLE);
-
-  WasmInterpreter* interpreter = r.interpreter();
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
-  CHECK_EQ(0, thread->NumActivations());
-  uint32_t act0 = thread->StartActivation();
-  CHECK_EQ(0, act0);
-  thread->InitFrame(r.function(), nullptr);
-  uint32_t act1 = thread->StartActivation();
-  CHECK_EQ(1, act1);
-  thread->InitFrame(r.function(), nullptr);
-  CHECK_EQ(2, thread->NumActivations());
-  CHECK_EQ(2, thread->GetFrameCount());
-  CHECK_EQ(WasmInterpreter::TRAPPED, thread->Run());
-  thread->RaiseException(isolate, handle(Smi::zero(), isolate));
-  CHECK_EQ(1, thread->GetFrameCount());
-  CHECK_EQ(2, thread->NumActivations());
-  thread->FinishActivation(act1);
-  isolate->clear_pending_exception();
-  CHECK_EQ(1, thread->GetFrameCount());
-  CHECK_EQ(1, thread->NumActivations());
-  CHECK_EQ(WasmInterpreter::TRAPPED, thread->Run());
-  thread->RaiseException(isolate, handle(Smi::zero(), isolate));
-  CHECK_EQ(0, thread->GetFrameCount());
-  CHECK_EQ(1, thread->NumActivations());
-  thread->FinishActivation(act0);
-  isolate->clear_pending_exception();
-  CHECK_EQ(0, thread->NumActivations());
 }
 
 TEST(InterpreterLoadWithoutMemory) {

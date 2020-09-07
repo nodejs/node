@@ -136,7 +136,7 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
-['variant == turboprop', {
+['variant == turboprop or variant == nci', {
   # Deopts differently than TurboFan.
   'debug/debug-optimize': [SKIP],
 }],  # variant == turboprop
@@ -146,10 +146,7 @@
 ['arch in (s390, s390x, ppc, ppc64)', {
   'regress/regress-crbug-1032042': [SKIP],
   'regress/regress-crbug-840288': [SKIP],
-  'debug/wasm/asm-debug': [SKIP],
-  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
-  'debug/wasm/debug-step-into-wasm': [SKIP],
-  'debug/wasm/frame-inspection': [SKIP],
+  'debug/wasm/*': [SKIP],
 }],
 
 ################################################################################

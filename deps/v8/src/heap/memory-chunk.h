@@ -5,14 +5,17 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_H_
 #define V8_HEAP_MEMORY_CHUNK_H_
 
-#include <set>
-#include <vector>
+#include <atomic>
 
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/list.h"
+#include "src/heap/marking.h"
+#include "src/heap/slot-set.h"
 
 namespace v8 {
 namespace internal {
@@ -34,36 +37,18 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   static size_t AllocatableMemoryInMemoryChunk(AllocationSpace space);
 };
 
+enum RememberedSetType {
+  OLD_TO_NEW,
+  OLD_TO_OLD,
+  NUMBER_OF_REMEMBERED_SET_TYPES
+};
+
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accommodate
 // any heap object.
 class MemoryChunk : public BasicMemoryChunk {
  public:
-  // Use with std data structures.
-  struct Hasher {
-    size_t operator()(MemoryChunk* const chunk) const {
-      return reinterpret_cast<size_t>(chunk) >> kPageSizeBits;
-    }
-  };
-
-  using Flags = uintptr_t;
-
-  static const Flags kPointersToHereAreInterestingMask =
-      POINTERS_TO_HERE_ARE_INTERESTING;
-
-  static const Flags kPointersFromHereAreInterestingMask =
-      POINTERS_FROM_HERE_ARE_INTERESTING;
-
-  static const Flags kEvacuationCandidateMask = EVACUATION_CANDIDATE;
-
-  static const Flags kIsInYoungGenerationMask = FROM_PAGE | TO_PAGE;
-
-  static const Flags kIsLargePageMask = LARGE_PAGE;
-
-  static const Flags kSkipEvacuationSlotsRecordingMask =
-      kEvacuationCandidateMask | kIsInYoungGenerationMask;
-
   // |kDone|: The page state when sweeping is complete or sweeping must not be
   //   performed on that page. Sweeper threads that are done with their work
   //   will set this value and not touch the page anymore.
@@ -76,17 +61,15 @@ class MemoryChunk : public BasicMemoryChunk {
   };
 
   static const size_t kHeaderSize =
-      BasicMemoryChunk::kHeaderSize  // Parent size.
-      + 3 * kSystemPointerSize       // VirtualMemory reservation_
-      + kSystemPointerSize           // Address owner_
-      + kSizetSize                   // size_t progress_bar_
-      + kIntptrSize                  // intptr_t live_byte_count_
-      + kSystemPointerSize           // SlotSet* sweeping_slot_set_
+      BasicMemoryChunk::kHeaderSize                          // Parent size.
+      + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
+      + kSizetSize              // size_t progress_bar_
+      + kIntptrSize             // intptr_t live_byte_count_
+      + kSystemPointerSize      // SlotSet* sweeping_slot_set_
       + kSystemPointerSize *
             NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
       + kSystemPointerSize *
             NUMBER_OF_REMEMBERED_SET_TYPES  // InvalidatedSlots* array
-      + kSystemPointerSize  // std::atomic<intptr_t> high_water_mark_
       + kSystemPointerSize  // base::Mutex* mutex_
       + kSystemPointerSize  // std::atomic<ConcurrentSweepingState>
                             // concurrent_sweeping_
@@ -94,8 +77,6 @@ class MemoryChunk : public BasicMemoryChunk {
       + kSystemPointerSize  // unitptr_t write_unprotect_counter_
       + kSizetSize * ExternalBackingStoreType::kNumTypes
       // std::atomic<size_t> external_backing_store_bytes_
-      + kSizetSize              // size_t allocated_bytes_
-      + kSizetSize              // size_t wasted_memory_
       + kSystemPointerSize * 2  // heap::ListNode
       + kSystemPointerSize      // FreeListCategory** categories__
       + kSystemPointerSize      // LocalArrayBufferTracker* local_tracker_
@@ -103,6 +84,8 @@ class MemoryChunk : public BasicMemoryChunk {
       + kSystemPointerSize   // Bitmap* young_generation_bitmap_
       + kSystemPointerSize   // CodeObjectRegistry* code_object_registry_
       + kSystemPointerSize;  // PossiblyEmptyBuckets possibly_empty_buckets_
+
+  static const intptr_t kOldToNewSlotSetOffset = BasicMemoryChunk::kHeaderSize;
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -112,31 +95,29 @@ class MemoryChunk : public BasicMemoryChunk {
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunk*>(BaseAddress(a));
+    return cast(BasicMemoryChunk::FromAddress(a));
   }
+
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromHeapObject(HeapObject o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunk*>(BaseAddress(o.ptr()));
+    return cast(BasicMemoryChunk::FromHeapObject(o));
   }
+
+  static MemoryChunk* cast(BasicMemoryChunk* chunk) {
+    SLOW_DCHECK(!chunk->InReadOnlySpace());
+    return static_cast<MemoryChunk*>(chunk);
+  }
+
+  static const MemoryChunk* cast(const BasicMemoryChunk* chunk) {
+    SLOW_DCHECK(!chunk->InReadOnlySpace());
+    return static_cast<const MemoryChunk*>(chunk);
+  }
+
+  size_t buckets() const { return SlotSet::BucketsForSize(size()); }
 
   void SetOldGenerationPageFlags(bool is_marking);
   void SetYoungGenerationPageFlags(bool is_marking);
-
-  static inline void UpdateHighWaterMark(Address mark) {
-    if (mark == kNullAddress) return;
-    // Need to subtract one from the mark because when a chunk is full the
-    // top points to the next address after the chunk, which effectively belongs
-    // to another chunk. See the comment to Page::FromAllocationAreaAddress.
-    MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
-    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
-    intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
-    while ((new_mark > old_mark) &&
-           !chunk->high_water_mark_.compare_exchange_weak(
-               old_mark, new_mark, std::memory_order_acq_rel)) {
-    }
-  }
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, MemoryChunk* from, MemoryChunk* to,
@@ -157,18 +138,6 @@ class MemoryChunk : public BasicMemoryChunk {
   bool SweepingDone() {
     return concurrent_sweeping_ == ConcurrentSweepingState::kDone;
   }
-
-  inline Heap* heap() const {
-    DCHECK_NOT_NULL(heap_);
-    return heap_;
-  }
-
-#ifdef THREAD_SANITIZER
-  // Perform a dummy acquire load to tell TSAN that there is no data race in
-  // mark-bit initialization. See MemoryChunk::Initialize for the corresponding
-  // release store.
-  void SynchronizedHeapLoad();
-#endif
 
   template <RememberedSetType type>
   bool ContainsSlots() {
@@ -237,8 +206,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // Approximate amount of physical memory committed for this chunk.
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory();
 
-  Address HighWaterMark() { return address() + high_water_mark_; }
-
   size_t ProgressBar() {
     DCHECK(IsFlagSet<AccessMode::ATOMIC>(HAS_PROGRESS_BAR));
     return progress_bar_.load(std::memory_order_acquire);
@@ -266,64 +233,8 @@ class MemoryChunk : public BasicMemoryChunk {
     return external_backing_store_bytes_[type];
   }
 
-  // Some callers rely on the fact that this can operate on both
-  // tagged and aligned object addresses.
-  inline uint32_t AddressToMarkbitIndex(Address addr) const {
-    return static_cast<uint32_t>(addr - this->address()) >> kTaggedSizeLog2;
-  }
-
-  inline Address MarkbitIndexToAddress(uint32_t index) const {
-    return this->address() + (index << kTaggedSizeLog2);
-  }
-
-  bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
-
-  void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
-
-  bool CanAllocate() {
-    return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
-  }
-
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool IsEvacuationCandidate() {
-    DCHECK(!(IsFlagSet<access_mode>(NEVER_EVACUATE) &&
-             IsFlagSet<access_mode>(EVACUATION_CANDIDATE)));
-    return IsFlagSet<access_mode>(EVACUATION_CANDIDATE);
-  }
-
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool ShouldSkipEvacuationSlotRecording() {
-    uintptr_t flags = GetFlags<access_mode>();
-    return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
-           ((flags & COMPACTION_WAS_ABORTED) == 0);
-  }
-
-  Executability executable() {
-    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
-  }
-
-  bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
-  bool IsToPage() const { return IsFlagSet(TO_PAGE); }
-  bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
-  bool InYoungGeneration() const {
-    return (GetFlags() & kIsInYoungGenerationMask) != 0;
-  }
-  bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
-  bool InNewLargeObjectSpace() const {
-    return InYoungGeneration() && IsLargePage();
-  }
-  bool InOldSpace() const;
-  V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
-
-  // Gets the chunk's owner or null if the space has been detached.
-  Space* owner() const { return owner_; }
-
-  void set_owner(Space* space) { owner_ = space; }
-
-  bool IsWritable() const {
-    // If this is a read-only space chunk but heap_ is non-null, it has not yet
-    // been sealed and can be written to.
-    return !InReadOnlySpace() || heap_ != nullptr;
+  Space* owner() const {
+    return reinterpret_cast<Space*>(BasicMemoryChunk::owner());
   }
 
   // Gets the chunk's allocation space, potentially dealing with a null owner_
@@ -347,6 +258,7 @@ class MemoryChunk : public BasicMemoryChunk {
   }
 
   heap::ListNode<MemoryChunk>& list_node() { return list_node_; }
+  const heap::ListNode<MemoryChunk>& list_node() const { return list_node_; }
 
   CodeObjectRegistry* GetCodeObjectRegistry() { return code_object_registry_; }
 
@@ -359,10 +271,8 @@ class MemoryChunk : public BasicMemoryChunk {
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
  protected:
-  static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                 Address area_start, Address area_end,
-                                 Executability executable, Space* owner,
-                                 VirtualMemory reservation);
+  static MemoryChunk* Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
+                                 Executability executable);
 
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
@@ -373,30 +283,22 @@ class MemoryChunk : public BasicMemoryChunk {
   void DecrementWriteUnprotectCounterAndMaybeSetPermissions(
       PageAllocator::Permission permission);
 
-  VirtualMemory* reserved_memory() { return &reservation_; }
-
-  template <AccessMode mode>
-  ConcurrentBitmap<mode>* marking_bitmap() const {
-    return reinterpret_cast<ConcurrentBitmap<mode>*>(marking_bitmap_);
-  }
-
   template <AccessMode mode>
   ConcurrentBitmap<mode>* young_generation_bitmap() const {
     return reinterpret_cast<ConcurrentBitmap<mode>*>(young_generation_bitmap_);
   }
 
-  // If the chunk needs to remember its memory reservation, it is stored here.
-  VirtualMemory reservation_;
-
-  // The space owning this memory chunk.
-  std::atomic<Space*> owner_;
+  // A single slot set for small pages (of size kPageSize) or an array of slot
+  // set for large pages. In the latter case the number of entries in the array
+  // is ceil(size() / kPageSize).
+  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
   // Used by the incremental marker to keep track of the scanning progress in
   // large objects that have a progress bar and are scanned in increments.
   std::atomic<size_t> progress_bar_;
 
   // Count of bytes marked black on page.
-  intptr_t live_byte_count_;
+  std::atomic<intptr_t> live_byte_count_;
 
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
@@ -404,10 +306,6 @@ class MemoryChunk : public BasicMemoryChunk {
   SlotSet* sweeping_slot_set_;
   TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
   InvalidatedSlots* invalidated_slots_[NUMBER_OF_REMEMBERED_SET_TYPES];
-
-  // Assuming the initial allocation on a page is sequential,
-  // count highest number of bytes ever allocated on the page.
-  std::atomic<intptr_t> high_water_mark_;
 
   base::Mutex* mutex_;
 
@@ -429,15 +327,8 @@ class MemoryChunk : public BasicMemoryChunk {
   // counter.
   uintptr_t write_unprotect_counter_;
 
-  // Byte allocated on the page, which includes all objects on the page
-  // and the linear allocation area.
-  size_t allocated_bytes_;
-
   // Tracks off-heap memory used by this memory chunk.
   std::atomic<size_t> external_backing_store_bytes_[kNumTypes];
-
-  // Freed memory that was not added to the free list.
-  size_t wasted_memory_;
 
   heap::ListNode<MemoryChunk> list_node_;
 
@@ -453,8 +344,6 @@ class MemoryChunk : public BasicMemoryChunk {
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
  private:
-  void InitializeReservedMemory() { reservation_.Reset(); }
-
   friend class ConcurrentMarkingState;
   friend class MajorMarkingState;
   friend class MajorAtomicMarkingState;

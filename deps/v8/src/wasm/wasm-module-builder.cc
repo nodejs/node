@@ -414,8 +414,11 @@ void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 namespace {
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
-  if (type.has_immediate()) {
-    buffer->write_u32v(type.ref_index());
+  if (type.has_depth()) {
+    buffer->write_u32v(type.depth());
+  }
+  if (type.encoding_needs_heap_type()) {
+    buffer->write_u32v(type.heap_type_code());
   }
 }
 
@@ -450,8 +453,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           StructType* struct_type = type.struct_type;
           buffer->write_u8(kWasmStructTypeCode);
           buffer->write_size(struct_type->field_count());
-          for (auto field : struct_type->fields()) {
-            WriteValueType(buffer, field);
+          for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+            WriteValueType(buffer, struct_type->field(i));
+            buffer->write_u8(struct_type->mutability(i) ? 1 : 0);
           }
           break;
         }
@@ -459,6 +463,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           ArrayType* array_type = type.array_type;
           buffer->write_u8(kWasmArrayTypeCode);
           WriteValueType(buffer, array_type->element_type());
+          buffer->write_u8(array_type->mutability() ? 1 : 0);
           break;
         }
       }
@@ -564,6 +569,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           break;
         case WasmInitExpr::kRefNullConst:
           buffer->write_u8(kExprRefNull);
+          WriteValueType(buffer, global.type);
           break;
         case WasmInitExpr::kRefFuncConst:
           UNIMPLEMENTED();
@@ -590,12 +596,15 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
               buffer->write_f64(0.);
               break;
             case ValueType::kOptRef:
-            case ValueType::kFuncRef:
-            case ValueType::kExnRef:
-            case ValueType::kEqRef:
               buffer->write_u8(kExprRefNull);
               break;
-            default:
+            case ValueType::kI8:
+            case ValueType::kI16:
+            case ValueType::kStmt:
+            case ValueType::kS128:
+            case ValueType::kBottom:
+            case ValueType::kRef:
+            case ValueType::kRtt:
               UNREACHABLE();
           }
         }

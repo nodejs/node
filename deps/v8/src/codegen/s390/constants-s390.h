@@ -567,11 +567,12 @@ using SixByteInstr = uint64_t;
   V(va, VA, 0xE7F3)       /* type = VRR_C VECTOR ADD  */                       \
   V(vscbi, VSCBI,                                                              \
     0xE7F5) /* type = VRR_C VECTOR SUBTRACT COMPUTE BORROW INDICATION  */      \
-  V(vs, VS, 0xE7F7)     /* type = VRR_C VECTOR SUBTRACT  */                    \
-  V(vmnl, VMNL, 0xE7FC) /* type = VRR_C VECTOR MINIMUM LOGICAL  */             \
-  V(vmxl, VMXL, 0xE7FD) /* type = VRR_C VECTOR MAXIMUM LOGICAL  */             \
-  V(vmn, VMN, 0xE7FE)   /* type = VRR_C VECTOR MINIMUM  */                     \
-  V(vmx, VMX, 0xE7FF)   /* type = VRR_C VECTOR MAXIMUM  */
+  V(vs, VS, 0xE7F7)         /* type = VRR_C VECTOR SUBTRACT  */                \
+  V(vmnl, VMNL, 0xE7FC)     /* type = VRR_C VECTOR MINIMUM LOGICAL  */         \
+  V(vmxl, VMXL, 0xE7FD)     /* type = VRR_C VECTOR MAXIMUM LOGICAL  */         \
+  V(vmn, VMN, 0xE7FE)       /* type = VRR_C VECTOR MINIMUM  */                 \
+  V(vmx, VMX, 0xE7FF)       /* type = VRR_C VECTOR MAXIMUM  */                 \
+  V(vbperm, VBPERM, 0xE785) /* type = VRR_C VECTOR BIT PERMUTE  */
 
 #define S390_VRI_A_OPCODE_LIST(V)                                              \
   V(vleib, VLEIB, 0xE740) /* type = VRI_A VECTOR LOAD ELEMENT IMMEDIATE (8) */ \

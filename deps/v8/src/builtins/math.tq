@@ -4,9 +4,6 @@
 
 namespace math {
 
-extern transitioning builtin
-NonNumberToNumber(implicit context: Context)(HeapObject): Number;
-
 transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
     never
     labels SmiResult(Smi), Float64Result(float64) {
@@ -20,7 +17,7 @@ transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
         goto Float64Result(Convert<float64>(h));
       }
       case (a: JSAnyNotNumber): {
-        x1 = NonNumberToNumber(a);
+        x1 = conversion::NonNumberToNumber(a);
       }
     }
   }
@@ -29,6 +26,7 @@ transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
 
 // ES6 #sec-math.abs
 extern macro IsIntPtrAbsWithOverflowSupported(): constexpr bool;
+extern macro TrySmiAdd(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiSub(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiAbs(Smi): Smi labels Overflow;
 extern macro Float64Abs(float64): float64;

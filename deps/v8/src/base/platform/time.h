@@ -14,6 +14,7 @@
 #include "src/base/base-export.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/base/safe_conversions.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
 #endif
@@ -88,6 +89,11 @@ class V8_BASE_EXPORT TimeDelta final {
   }
   static constexpr TimeDelta FromNanoseconds(int64_t nanoseconds) {
     return TimeDelta(nanoseconds / TimeConstants::kNanosecondsPerMicrosecond);
+  }
+
+  static TimeDelta FromMillisecondsD(double milliseconds) {
+    return FromDouble(milliseconds *
+                      TimeConstants::kMicrosecondsPerMillisecond);
   }
 
   // Returns the maximum time delta, which should be greater than any reasonable
@@ -201,6 +207,9 @@ class V8_BASE_EXPORT TimeDelta final {
   }
 
  private:
+  // TODO(v8:10620): constexpr requires constexpr saturated_cast.
+  static inline TimeDelta FromDouble(double value);
+
   template<class TimeClass> friend class time_internal::TimeBase;
   // Constructs a delta given the duration in microseconds. This is private
   // to avoid confusion by callers with an integer constructor. Use
@@ -210,6 +219,11 @@ class V8_BASE_EXPORT TimeDelta final {
   // Delta in microseconds.
   int64_t delta_;
 };
+
+// static
+TimeDelta TimeDelta::FromDouble(double value) {
+  return TimeDelta(saturated_cast<int64_t>(value));
+}
 
 // static
 constexpr TimeDelta TimeDelta::Max() {

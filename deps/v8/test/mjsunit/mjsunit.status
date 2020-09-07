@@ -324,7 +324,6 @@
   'regress/regress-crbug-1047368': [SKIP],
   'regress/wasm/*': [SKIP],
   'regress/regress-8947': [SKIP],
-  'regress/regress-9165': [SKIP],
   'regress/regress-9209': [SKIP],
   'regress/regress-1034394': [SKIP],
   'regress/regress-v8-9106': [SKIP],
@@ -961,6 +960,10 @@
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
   'wasm/futex': [SKIP],
+  'regress/wasm/regress-1067621': [SKIP],
+
+  # BUG(v8:9975).
+  'es6/typedarray-copywithin': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
@@ -1116,6 +1119,7 @@
 ['system != linux', {
   # Multi-mapped mock allocator is only available on Linux.
   'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-crbug-1104608': [SKIP],
 }],
 
 ##############################################################################
@@ -1190,8 +1194,9 @@
   # Deserialization fails due to read-only snapshot checksum verification.
   # https://crbug.com/v8/10491
   '*': [SKIP],
-}],
+}],  # variant == stress_snapshot and arch != x64
 
+##############################################################################
 ['variant == stress_snapshot and arch == x64', {
   # Crashes the serializer due to recursion.
   'deep-recursion': [SKIP],
@@ -1251,6 +1256,138 @@
   'regress/regress-813440': [SKIP],
   # Investigate (segfault).
   'regress/regress-crbug-397662': [SKIP],
-}],  # variant == stress_snapshot
+}],  # variant == stress_snapshot and arch == x64
+
+##############################################################################
+['variant == slow_path', {
+  # This tests creates a pretty big array and calls Array.prototype.slice on
+  # it. In the slow path, this results in one runtime call per element, which
+  # takes several minutes overall.
+  'regress/wasm/regress-9017': [SKIP],
+}],  # variant == slow_path
+
+################################################################################
+['variant == nci', {
+  # Deopts differently than TurboFan.
+  'compiler/is-being-interpreted*': [SKIP],
+  'compiler/number-comparison-truncations': [SKIP],
+  'compiler/redundancy-elimination': [SKIP],
+  'compiler/regress-9945-*': [SKIP],
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
+  # assertUnoptimized: assumes full turbofan pipeline.
+  'allocation-site-info': [SKIP],
+  'array-bounds-check-removal': [SKIP],
+  'array-constructor-feedback': [SKIP],
+  'array-literal-feedback': [SKIP],
+  'array-literal-transitions': [SKIP],
+  'array-push5': [SKIP],
+  'array-store-and-grow': [SKIP],
+  'check-bounds-array-index': [SKIP],
+  'check-bounds-string-from-char-code-at': [SKIP],
+  'compiler/abstract-equal-oddball': [SKIP],
+  'compiler/abstract-equal-receiver': [SKIP],
+  'compiler/abstract-equal-symbol': [SKIP],
+  'compiler/abstract-equal-undetectable': [SKIP],
+  'compiler/array-multiple-receiver-maps': [SKIP],
+  'compiler/bigint-add-no-deopt-loop': [SKIP],
+  'compiler/bound-functions-serialize': [SKIP],
+  'compiler/concurrent-invalidate-transition-map': [SKIP],
+  'compiler/concurrent-proto-change': [SKIP],
+  'compiler/constant-fold-cow-array': [SKIP],
+  'compiler/dataview-deopt': [SKIP],
+  'compiler/dataview-detached': [SKIP],
+  'compiler/dataview-get': [SKIP],
+  'compiler/dataview-set': [SKIP],
+  'compiler/deopt-inlined-from-call': [SKIP],
+  'compiler/field-representation-tracking': [SKIP],
+  'compiler/manual-concurrent-recompile': [SKIP],
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/number-divide': [SKIP],
+  'compiler/opt-higher-order-functions': [SKIP],
+  'compiler/promise-resolve-stable-maps': [SKIP],
+  'compiler/regress-905555-2': [SKIP],
+  'compiler/regress-905555': [SKIP],
+  'compiler/regress-9945-1': [SKIP],
+  'compiler/regress-9945-2': [SKIP],
+  'compiler/stress-deopt-count-2': [SKIP],
+  'compiler/strict-equal-receiver': [SKIP],
+  'compiler/string-from-code-point': [SKIP],
+  'concurrent-initial-prototype-change': [SKIP],
+  'const-field-tracking-2': [SKIP],
+  'const-field-tracking': [SKIP],
+  'deopt-recursive-eager-once': [SKIP],
+  'deopt-recursive-lazy-once': [SKIP],
+  'deopt-recursive-soft-once': [SKIP],
+  'deopt-unlinked': [SKIP],
+  'deopt-with-fp-regs': [SKIP],
+  'ensure-growing-store-learns': [SKIP],
+  'es6/array-iterator-turbo': [SKIP],
+  'es6/iterator-eager-deopt': [SKIP],
+  'es6/iterator-lazy-deopt': [SKIP],
+  'field-type-tracking': [SKIP],
+  'frozen-array-reduce': [SKIP],
+  'getters-on-elements': [SKIP],
+  'harmony/regexp-overriden-exec': [SKIP],
+  'keyed-load-hole-to-undefined': [SKIP],
+  'keyed-load-with-symbol-key': [SKIP],
+  'mjsunit_numfuzz': [SKIP],
+  'mjsunit': [SKIP],
+  'never-optimize': [SKIP],
+  'non-extensible-array-reduce': [SKIP],
+  'noopt': [SKIP],
+  'object-seal': [SKIP],
+  'optimized-array-every': [SKIP],
+  'optimized-array-findindex': [SKIP],
+  'optimized-array-find': [SKIP],
+  'optimized-array-some': [SKIP],
+  'optimized-filter': [SKIP],
+  'optimized-map': [SKIP],
+  'parallel-optimize-disabled': [SKIP],
+  'regress/regress-1016450': [SKIP],
+  'regress/regress-1034449': [SKIP],
+  'regress/regress-1073440': [SKIP],
+  'regress/regress-347914': [SKIP],
+  'regress/regress-3709': [SKIP],
+  'regress/regress-385565': [SKIP],
+  'regress/regress-410912': [SKIP],
+  'regress/regress-618608': [SKIP],
+  'regress/regress-9002': [SKIP],
+  'regress/regress-9441': [SKIP],
+  'regress/regress-961709-classes-opt': [SKIP],
+  'regress/regress-bind-deoptimize': [SKIP],
+  'regress/regress-crbug-500497': [SKIP],
+  'regress/regress-crbug-594183': [SKIP],
+  'regress/regress-embedded-cons-string': [SKIP],
+  'regress/regress-unlink-closures-on-deopt': [SKIP],
+  'regress/wasm/regress-02256b': [SKIP],
+  'regress/wasm/regress-02256': [SKIP],
+  'sealed-array-reduce': [SKIP],
+  'setters-on-elements': [SKIP],
+  'smi-mul-const': [SKIP],
+  'smi-mul': [SKIP],
+  'unary-minus-deopt': [SKIP],
+  # TurbofanStaticAssert: assumes full turbofan pipeline.
+  'compiler/catch-block-load': [SKIP],
+  'compiler/concurrent-inlining-1': [SKIP],
+  'compiler/concurrent-inlining-2': [SKIP],
+  'compiler/constant-fold-add-static': [SKIP],
+  'compiler/construct-bound-function': [SKIP],
+  'compiler/construct-object': [SKIP],
+  'compiler/construct-receiver': [SKIP],
+  'compiler/diamond-followedby-branch': [SKIP],
+  'compiler/inlined-call-polymorphic': [SKIP],
+  'compiler/js-create-arguments': [SKIP],
+  'compiler/js-create': [SKIP],
+  'compiler/load-elimination-const-field': [SKIP],
+  'compiler/serializer-accessors': [SKIP],
+  'compiler/serializer-apply': [SKIP],
+  'compiler/serializer-call': [SKIP],
+  'compiler/serializer-dead-after-jump': [SKIP],
+  'compiler/serializer-dead-after-return': [SKIP],
+  'compiler/serializer-feedback-propagation-1': [SKIP],
+  'compiler/serializer-feedback-propagation-2': [SKIP],
+  'compiler/serializer-transition-propagation': [SKIP],
+}],  # variant == nci
 
 ]

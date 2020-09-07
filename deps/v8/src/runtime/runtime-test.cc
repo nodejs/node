@@ -323,7 +323,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     function->set_code(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 
-  JSFunction::EnsureFeedbackVector(function);
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
   function->MarkForOptimization(concurrency_mode);
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -353,7 +353,7 @@ bool EnsureFeedbackVector(Handle<JSFunction> function) {
 
   // Ensure function has a feedback vector to hold type feedback for
   // optimization.
-  JSFunction::EnsureFeedbackVector(function);
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
   return true;
 }
 
@@ -369,8 +369,9 @@ RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
 
 RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1 || args.length() == 2);
-  if (!args[0].IsJSFunction()) return CrashUnlessFuzzing(isolate);
+  if ((args.length() != 1 && args.length() != 2) || !args[0].IsJSFunction()) {
+    return CrashUnlessFuzzing(isolate);
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   bool allow_heuristic_optimization = false;
@@ -457,7 +458,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     function->ShortPrint(scope.file());
     PrintF(scope.file(), " for non-concurrent optimization]\n");
   }
-  JSFunction::EnsureFeedbackVector(function);
+  IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
   function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
 
   // Make the profiler arm all back edges in unoptimized code.
@@ -752,38 +754,21 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
     bool weak = maybe_object.IsWeak();
 
 #ifdef OBJECT_PRINT
-    if (object.IsString() && !isolate->context().is_null()) {
-      DCHECK(!weak);
-      // If we have a string, assume it's a code "marker"
-      // and print some interesting cpu debugging info.
-      object.Print(os);
-      JavaScriptFrameIterator it(isolate);
-      JavaScriptFrame* frame = it.frame();
-      os << "fp = " << reinterpret_cast<void*>(frame->fp())
-         << ", sp = " << reinterpret_cast<void*>(frame->sp())
-         << ", caller_sp = " << reinterpret_cast<void*>(frame->caller_sp())
-         << ": ";
-    } else {
-      os << "DebugPrint: ";
-      if (weak) {
-        os << "[weak] ";
-      }
-      object.Print(os);
-    }
+    os << "DebugPrint: ";
+    if (weak) os << "[weak] ";
+    object.Print(os);
     if (object.IsHeapObject()) {
       HeapObject::cast(object).map().Print(os);
     }
 #else
-    if (weak) {
-      os << "[weak] ";
-    }
+    if (weak) os << "[weak] ";
     // ShortPrint is available in release mode. Print is not.
     os << Brief(object);
 #endif
   }
   os << std::endl;
 
-  return args[0];  // return TOS
+  return args[0];
 }
 
 RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {
@@ -931,13 +916,12 @@ int StackSize(Isolate* isolate) {
   return n;
 }
 
-void PrintIndentation(Isolate* isolate) {
-  const int nmax = 80;
-  int n = StackSize(isolate);
-  if (n <= nmax) {
-    PrintF("%4d:%*s", n, n, "");
+void PrintIndentation(int stack_size) {
+  const int max_display = 80;
+  if (stack_size <= max_display) {
+    PrintF("%4d:%*s", stack_size, stack_size, "");
   } else {
-    PrintF("%4d:%*s", n, nmax, "...");
+    PrintF("%4d:%*s", stack_size, max_display, "...");
   }
 }
 
@@ -946,22 +930,124 @@ void PrintIndentation(Isolate* isolate) {
 RUNTIME_FUNCTION(Runtime_TraceEnter) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  PrintIndentation(isolate);
+  PrintIndentation(StackSize(isolate));
   JavaScriptFrame::PrintTop(isolate, stdout, true, false);
   PrintF(" {\n");
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_TraceExit) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  PrintIndentation(isolate);
+  PrintIndentation(StackSize(isolate));
   PrintF("} -> ");
   obj.ShortPrint();
   PrintF("\n");
   return obj;  // return TOS
+}
+
+namespace {
+
+int WasmStackSize(Isolate* isolate) {
+  // TODO(wasm): Fix this for mixed JS/Wasm stacks with both --trace and
+  // --trace-wasm.
+  int n = 0;
+  for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+    if (it.is_wasm()) n++;
+  }
+  return n;
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  PrintIndentation(WasmStackSize(isolate));
+
+  // Find the caller wasm frame.
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+  StackTraceFrameIterator it(isolate);
+  DCHECK(!it.done());
+  DCHECK(it.is_wasm());
+  WasmFrame* frame = WasmFrame::cast(it.frame());
+
+  // Find the function name.
+  int func_index = frame->function_index();
+  const wasm::WasmModule* module = frame->wasm_instance().module();
+  wasm::ModuleWireBytes wire_bytes =
+      wasm::ModuleWireBytes(frame->native_module()->wire_bytes());
+  wasm::WireBytesRef name_ref =
+      module->lazily_generated_names.LookupFunctionName(
+          wire_bytes, func_index, VectorOf(module->export_table));
+  wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
+
+  wasm::WasmCode* code = frame->wasm_code();
+  PrintF(code->is_liftoff() ? "~" : "*");
+
+  if (name.empty()) {
+    PrintF("wasm-function[%d] {\n", func_index);
+  } else {
+    PrintF("wasm-function[%d] \"%.*s\" {\n", func_index, name.length(),
+           name.begin());
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Smi, value_addr_smi, 0);
+
+  PrintIndentation(WasmStackSize(isolate));
+  PrintF("}");
+
+  // Find the caller wasm frame.
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+  StackTraceFrameIterator it(isolate);
+  DCHECK(!it.done());
+  DCHECK(it.is_wasm());
+  WasmFrame* frame = WasmFrame::cast(it.frame());
+  int func_index = frame->function_index();
+  const wasm::FunctionSig* sig =
+      frame->wasm_instance().module()->functions[func_index].sig;
+
+  size_t num_returns = sig->return_count();
+  if (num_returns == 1) {
+    wasm::ValueType return_type = sig->GetReturn(0);
+    switch (return_type.kind()) {
+      case wasm::ValueType::kI32: {
+        int32_t value = ReadUnalignedValue<int32_t>(value_addr_smi.ptr());
+        PrintF(" -> %d\n", value);
+        break;
+      }
+      case wasm::ValueType::kI64: {
+        int64_t value = ReadUnalignedValue<int64_t>(value_addr_smi.ptr());
+        PrintF(" -> %" PRId64 "\n", value);
+        break;
+      }
+      case wasm::ValueType::kF32: {
+        float_t value = ReadUnalignedValue<float_t>(value_addr_smi.ptr());
+        PrintF(" -> %f\n", value);
+        break;
+      }
+      case wasm::ValueType::kF64: {
+        double_t value = ReadUnalignedValue<double_t>(value_addr_smi.ptr());
+        PrintF(" -> %f\n", value);
+        break;
+      }
+      default:
+        PrintF(" -> Unsupported type\n");
+        break;
+    }
+  } else {
+    // TODO(wasm) Handle multiple return values.
+    PrintF("\n");
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_HaveSameMap) {
@@ -1384,7 +1470,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierDownModule) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   auto* native_module = instance->module_object().native_module();
   native_module->SetTieringState(wasm::kTieredDown);
-  native_module->TriggerRecompilation();
+  native_module->RecompileForTiering();
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1395,7 +1481,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpModule) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   auto* native_module = instance->module_object().native_module();
   native_module->SetTieringState(wasm::kTieredUp);
-  native_module->TriggerRecompilation();
+  native_module->RecompileForTiering();
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }

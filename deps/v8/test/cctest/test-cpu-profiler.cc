@@ -2735,8 +2735,6 @@ TEST(TracingCpuProfiler) {
     TraceConfig* trace_config = new TraceConfig();
     trace_config->AddIncludedCategory(
         TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
-    trace_config->AddIncludedCategory(
-        TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires"));
 
     std::string test_code = R"(
         function foo() {

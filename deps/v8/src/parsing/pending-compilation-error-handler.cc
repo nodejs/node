@@ -5,6 +5,7 @@
 #include "src/parsing/pending-compilation-error-handler.h"
 
 #include "src/ast/ast-value-factory.h"
+#include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
@@ -139,10 +140,13 @@ void PendingCompilationErrorHandler::PrepareErrors(
   ast_value_factory->Internalize(isolate);
   error_details_.Prepare(isolate);
 }
-template void PendingCompilationErrorHandler::PrepareErrors(
-    Isolate* isolate, AstValueFactory* ast_value_factory);
-template void PendingCompilationErrorHandler::PrepareErrors(
-    OffThreadIsolate* isolate, AstValueFactory* ast_value_factory);
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void PendingCompilationErrorHandler::
+    PrepareErrors(Isolate* isolate, AstValueFactory* ast_value_factory);
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void PendingCompilationErrorHandler::
+    PrepareErrors(OffThreadIsolate* isolate,
+                  AstValueFactory* ast_value_factory);
 
 void PendingCompilationErrorHandler::ReportErrors(Isolate* isolate,
                                                   Handle<Script> script) const {

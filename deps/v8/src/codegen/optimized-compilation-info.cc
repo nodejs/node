@@ -19,7 +19,7 @@ namespace internal {
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<JSFunction> closure)
+    Handle<JSFunction> closure, bool native_context_independent)
     : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
@@ -32,9 +32,10 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   // is active, to be able to get more precise source positions at the price of
   // more memory consumption.
   if (isolate->NeedsDetailedOptimizedCodeLineInfo()) {
-    MarkAsSourcePositionsEnabled();
+    set_source_positions();
   }
 
+  if (native_context_independent) set_native_context_independent();
   SetTracingFlags(shared->PassesFilter(FLAG_trace_turbo_filter));
 }
 
@@ -53,59 +54,82 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(Code::Kind code_kind,
   ConfigureFlags();
 }
 
+#ifdef DEBUG
+bool OptimizedCompilationInfo::FlagSetIsValid(Flag flag) const {
+  switch (flag) {
+    case kPoisonRegisterArguments:
+      return untrusted_code_mitigations();
+    default:
+      return true;
+  }
+  UNREACHABLE();
+}
+
+bool OptimizedCompilationInfo::FlagGetIsValid(Flag flag) const {
+  switch (flag) {
+    case kPoisonRegisterArguments:
+      if (!GetFlag(kPoisonRegisterArguments)) return true;
+      return untrusted_code_mitigations() && called_with_code_start_register();
+    default:
+      return true;
+  }
+  UNREACHABLE();
+}
+#endif  // DEBUG
+
 void OptimizedCompilationInfo::ConfigureFlags() {
-  if (FLAG_untrusted_code_mitigations) SetFlag(kUntrustedCodeMitigations);
+  if (FLAG_untrusted_code_mitigations) set_untrusted_code_mitigations();
 
   switch (code_kind_) {
     case Code::OPTIMIZED_FUNCTION:
-      SetFlag(kCalledWithCodeStartRegister);
-      SetFlag(kSwitchJumpTableEnabled);
+      set_called_with_code_start_register();
+      set_switch_jump_table();
       if (FLAG_function_context_specialization) {
-        MarkAsFunctionContextSpecializing();
+        set_function_context_specializing();
       }
       if (FLAG_turbo_splitting) {
-        MarkAsSplittingEnabled();
+        set_splitting();
       }
       if (FLAG_untrusted_code_mitigations) {
-        MarkAsPoisoningRegisterArguments();
+        set_poison_register_arguments();
       }
       if (FLAG_analyze_environment_liveness) {
         // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
-        MarkAsAnalyzeEnvironmentLiveness();
+        set_analyze_environment_liveness();
       }
       break;
     case Code::BYTECODE_HANDLER:
-      SetFlag(kCalledWithCodeStartRegister);
+      set_called_with_code_start_register();
       if (FLAG_turbo_splitting) {
-        MarkAsSplittingEnabled();
+        set_splitting();
       }
       break;
     case Code::BUILTIN:
     case Code::STUB:
       if (FLAG_turbo_splitting) {
-        MarkAsSplittingEnabled();
+        set_splitting();
       }
 #if ENABLE_GDB_JIT_INTERFACE && DEBUG
-      MarkAsSourcePositionsEnabled();
+      set_source_positions();
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
       break;
     case Code::WASM_FUNCTION:
     case Code::WASM_TO_CAPI_FUNCTION:
-      SetFlag(kSwitchJumpTableEnabled);
+      set_switch_jump_table();
       break;
     default:
       break;
   }
 
   if (FLAG_turbo_control_flow_aware_allocation) {
-    MarkAsTurboControlFlowAwareAllocation();
+    set_turbo_control_flow_aware_allocation();
   } else {
-    MarkAsTurboPreprocessRanges();
+    set_turbo_preprocess_ranges();
   }
 }
 
 OptimizedCompilationInfo::~OptimizedCompilationInfo() {
-  if (GetFlag(kDisableFutureOptimization) && has_shared_info()) {
+  if (disable_future_optimization() && has_shared_info()) {
     shared_info()->DisableOptimization(bailout_reason());
   }
 }
@@ -134,12 +158,12 @@ void OptimizedCompilationInfo::AbortOptimization(BailoutReason reason) {
   if (bailout_reason_ == BailoutReason::kNoReason) {
     bailout_reason_ = reason;
   }
-  SetFlag(kDisableFutureOptimization);
+  set_disable_future_optimization();
 }
 
 void OptimizedCompilationInfo::RetryOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
-  if (GetFlag(kDisableFutureOptimization)) return;
+  if (disable_future_optimization()) return;
   bailout_reason_ = reason;
 }
 
@@ -225,11 +249,11 @@ int OptimizedCompilationInfo::AddInlinedFunction(
 
 void OptimizedCompilationInfo::SetTracingFlags(bool passes_filter) {
   if (!passes_filter) return;
-  if (FLAG_trace_turbo) SetFlag(kTraceTurboJson);
-  if (FLAG_trace_turbo_graph) SetFlag(kTraceTurboGraph);
-  if (FLAG_trace_turbo_scheduled) SetFlag(kTraceTurboScheduled);
-  if (FLAG_trace_turbo_alloc) SetFlag(kTraceTurboAllocation);
-  if (FLAG_trace_heap_broker) SetFlag(kTraceHeapBroker);
+  if (FLAG_trace_turbo) set_trace_turbo_json();
+  if (FLAG_trace_turbo_graph) set_trace_turbo_graph();
+  if (FLAG_trace_turbo_scheduled) set_trace_turbo_scheduled();
+  if (FLAG_trace_turbo_alloc) set_trace_turbo_allocation();
+  if (FLAG_trace_heap_broker) set_trace_heap_broker();
 }
 
 OptimizedCompilationInfo::InlinedFunctionHolder::InlinedFunctionHolder(

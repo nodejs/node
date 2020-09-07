@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_MAYBE_OBJECT_H_
 #define V8_OBJECTS_MAYBE_OBJECT_H_
 
+#include "src/execution/local-isolate-wrapper.h"
 #include "src/objects/tagged-impl.h"
 
 namespace v8 {
@@ -51,6 +52,9 @@ class HeapObjectReference : public MaybeObject {
 
   V8_INLINE static HeapObjectReference ClearedValue(
       const OffThreadIsolate* isolate);
+
+  V8_INLINE static HeapObjectReference ClearedValue(
+      LocalIsolateWrapper isolate);
 
   template <typename THeapObjectSlot>
   V8_INLINE static void Update(THeapObjectSlot slot, HeapObject value);

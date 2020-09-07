@@ -150,9 +150,9 @@ class PipelineData {
         instruction_zone_(instruction_zone_scope_.zone()),
         codegen_zone_scope_(zone_stats_, kCodegenZoneName),
         codegen_zone_(codegen_zone_scope_.zone()),
-        broker_(new JSHeapBroker(isolate_, info_->zone(),
-                                 info_->trace_heap_broker_enabled(),
-                                 is_concurrent_inlining)),
+        broker_(new JSHeapBroker(
+            isolate_, info_->zone(), info_->trace_heap_broker(),
+            is_concurrent_inlining, info->native_context_independent())),
         register_allocation_zone_scope_(zone_stats_,
                                         kRegisterAllocationZoneName),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
@@ -160,9 +160,9 @@ class PipelineData {
     PhaseScope scope(pipeline_statistics, "V8.TFInitPipelineData");
     graph_ = new (graph_zone_) Graph(graph_zone_);
     source_positions_ = new (graph_zone_) SourcePositionTable(graph_);
-    node_origins_ = info->trace_turbo_json_enabled()
-                        ? new (graph_zone_) NodeOriginTable(graph_)
-                        : nullptr;
+    node_origins_ = info->trace_turbo_json() ? new (graph_zone_)
+                                                   NodeOriginTable(graph_)
+                                             : nullptr;
     simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
     machine_ = new (graph_zone_) MachineOperatorBuilder(
         graph_zone_, MachineType::PointerRepresentation(),
@@ -349,11 +349,6 @@ class PipelineData {
     return register_allocation_data_;
   }
 
-  BasicBlockProfiler::Data* profiler_data() const { return profiler_data_; }
-  void set_profiler_data(BasicBlockProfiler::Data* profiler_data) {
-    profiler_data_ = profiler_data;
-  }
-
   std::string const& source_position_output() const {
     return source_position_output_;
   }
@@ -370,7 +365,7 @@ class PipelineData {
   }
 
   void ChooseSpecializationContext() {
-    if (info()->is_function_context_specializing()) {
+    if (info()->function_context_specializing()) {
       DCHECK(info()->has_context());
       specialization_context_ =
           Just(OuterContext(handle(info()->context(), isolate()), 0));
@@ -599,9 +594,6 @@ class PipelineData {
   Zone* register_allocation_zone_;
   RegisterAllocationData* register_allocation_data_ = nullptr;
 
-  // Basic block profiling support.
-  BasicBlockProfiler::Data* profiler_data_ = nullptr;
-
   // Source position output for --trace-turbo.
   std::string source_position_output_;
 
@@ -680,9 +672,9 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
     Handle<Script> script(Script::cast(shared->script()), isolate);
 
     if (!script->source().IsUndefined(isolate)) {
-      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+      CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
       Object source_name = script->name();
-      OFStream os(tracing_scope.file());
+      auto& os = tracing_scope.stream();
       os << "--- FUNCTION SOURCE (";
       if (source_name.IsString()) {
         os << String::cast(source_name).ToCString().get() << ":";
@@ -711,8 +703,8 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
 void PrintInlinedFunctionInfo(
     OptimizedCompilationInfo* info, Isolate* isolate, int source_id,
     int inlining_id, const OptimizedCompilationInfo::InlinedFunctionHolder& h) {
-  CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-  OFStream os(tracing_scope.file());
+  CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
+  auto& os = tracing_scope.stream();
   os << "INLINE (" << h.shared_info->DebugName().ToCString().get() << ") id{"
      << info->optimization_id() << "," << source_id << "} AS " << inlining_id
      << " AT ";
@@ -753,8 +745,8 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
        info->shared_info()->PassesFilter(FLAG_print_opt_code_filter));
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-    OFStream os(tracing_scope.file());
+    CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
+    auto& os = tracing_scope.stream();
 
     // Print the source code if available.
     bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION;
@@ -795,7 +787,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 
 void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
                             Schedule* schedule, const char* phase_name) {
-  if (info->trace_turbo_json_enabled()) {
+  if (info->trace_turbo_json()) {
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
     json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"schedule\""
@@ -808,11 +800,12 @@ void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
     }
     json_of << "\"},\n";
   }
-  if (info->trace_turbo_graph_enabled() || FLAG_trace_turbo_scheduler) {
+  if (info->trace_turbo_graph() || FLAG_trace_turbo_scheduler) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "-- Schedule --------------------------------------\n" << *schedule;
+    CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+    tracing_scope.stream()
+        << "-- Schedule --------------------------------------\n"
+        << *schedule;
   }
 
   if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
@@ -865,13 +858,13 @@ class NodeOriginsWrapper final : public Reducer {
 
 void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
                 Reducer* reducer) {
-  if (data->info()->is_source_positions_enabled()) {
+  if (data->info()->source_positions()) {
     void* const buffer = data->graph_zone()->New(sizeof(SourcePositionWrapper));
     SourcePositionWrapper* const wrapper =
         new (buffer) SourcePositionWrapper(reducer, data->source_positions());
     reducer = wrapper;
   }
-  if (data->info()->trace_turbo_json_enabled()) {
+  if (data->info()->trace_turbo_json()) {
     void* const buffer = data->graph_zone()->New(sizeof(NodeOriginsWrapper));
     NodeOriginsWrapper* const wrapper =
         new (buffer) NodeOriginsWrapper(reducer, data->node_origins());
@@ -919,7 +912,7 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
     pipeline_statistics->BeginPhaseKind("V8.TFInitializing");
   }
 
-  if (info->trace_turbo_json_enabled()) {
+  if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     json_of << "{\"function\" : ";
     JsonPrintFunctionSource(json_of, -1, info->GetDebugName(), script, isolate,
@@ -937,15 +930,15 @@ PipelineStatistics* CreatePipelineStatistics(
   PipelineStatistics* pipeline_statistics = nullptr;
 
   bool tracing_enabled;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-                                     &tracing_enabled);
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(
+      TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"), &tracing_enabled);
   if (tracing_enabled || FLAG_turbo_stats_wasm) {
     pipeline_statistics = new PipelineStatistics(
         info, wasm_engine->GetOrCreateTurboStatistics(), zone_stats);
     pipeline_statistics->BeginPhaseKind("V8.WasmInitializing");
   }
 
-  if (info->trace_turbo_json_enabled()) {
+  if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     std::unique_ptr<char[]> function_name = info->GetDebugName();
     json_of << "{\"function\":\"" << function_name.get() << "\", \"source\":\"";
@@ -1015,7 +1008,8 @@ PipelineCompilationJob::PipelineCompilationJob(
       zone_(function->GetIsolate()->allocator(),
             kPipelineCompilationJobZoneName),
       zone_stats_(function->GetIsolate()->allocator()),
-      compilation_info_(&zone_, function->GetIsolate(), shared_info, function),
+      compilation_info_(&zone_, function->GetIsolate(), shared_info, function,
+                        FLAG_turbo_nci),
       pipeline_statistics_(CreatePipelineStatistics(
           handle(Script::cast(shared_info->script()), isolate),
           compilation_info(), function->GetIsolate(), &zone_stats_)),
@@ -1027,7 +1021,7 @@ PipelineCompilationJob::PipelineCompilationJob(
   compilation_info_.SetOptimizingForOsr(osr_offset, osr_frame);
 }
 
-PipelineCompilationJob::~PipelineCompilationJob() {}
+PipelineCompilationJob::~PipelineCompilationJob() = default;
 
 namespace {
 // Ensure that the RuntimeStats table is set on the PipelineData for
@@ -1058,14 +1052,15 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }
 
-  if (!FLAG_always_opt) {
-    compilation_info()->MarkAsBailoutOnUninitialized();
+  if (!FLAG_always_opt && !compilation_info()->native_context_independent()) {
+    compilation_info()->set_bailout_on_uninitialized();
   }
   if (FLAG_turbo_loop_peeling) {
-    compilation_info()->MarkAsLoopPeelingEnabled();
+    compilation_info()->set_loop_peeling();
   }
-  if (FLAG_turbo_inlining) {
-    compilation_info()->MarkAsInliningEnabled();
+  if (FLAG_turbo_inlining &&
+      !compilation_info()->native_context_independent()) {
+    compilation_info()->set_inlining();
   }
 
   // This is the bottleneck for computing and setting poisoning level in the
@@ -1080,7 +1075,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   compilation_info()->SetPoisoningMitigationLevel(load_poisoning);
 
   if (FLAG_turbo_allocation_folding) {
-    compilation_info()->MarkAsAllocationFoldingEnabled();
+    compilation_info()->set_allocation_folding();
   }
 
   // Determine whether to specialize the code for the function's context.
@@ -1091,11 +1086,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (compilation_info()->closure()->raw_feedback_cell().map() ==
           ReadOnlyRoots(isolate).one_closure_cell_map() &&
       !compilation_info()->is_osr()) {
-    compilation_info()->MarkAsFunctionContextSpecializing();
+    compilation_info()->set_function_context_specializing();
     data_.ChooseSpecializationContext();
   }
 
-  if (compilation_info()->is_source_positions_enabled()) {
+  if (compilation_info()->source_positions()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(
         isolate, compilation_info()->shared_info());
   }
@@ -1269,20 +1264,20 @@ CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
         &info_, wasm_engine_->GetOrCreateTurboStatistics(), &zone_stats_));
     pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
   }
-  if (info_.trace_turbo_json_enabled() || info_.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data_.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << info_.GetDebugName().get()
-       << " using TurboFan" << std::endl;
+  if (info_.trace_turbo_json() || info_.trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data_.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << info_.GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
-  if (info_.trace_turbo_graph_enabled()) {  // Simple textual RPO.
+  if (info_.trace_turbo_graph()) {  // Simple textual RPO.
     StdoutStream{} << "-- wasm stub " << Code::Kind2String(info_.code_kind())
                    << " graph -- " << std::endl
                    << AsRPO(*data_.graph());
   }
 
-  if (info_.trace_turbo_json_enabled()) {
+  if (info_.trace_turbo_json()) {
     TurboJsonFile json_of(&info_, std::ios_base::trunc);
     json_of << "{\"function\":\"" << info_.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
@@ -1306,9 +1301,9 @@ CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
     info_.SetCode(code);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {
-      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      code->Disassemble(compilation_info()->GetDebugName().get(), os, isolate);
+      CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
+      code->Disassemble(compilation_info()->GetDebugName().get(),
+                        tracing_scope.stream(), isolate);
     }
 #endif
     return SUCCEEDED;
@@ -1341,11 +1336,14 @@ struct GraphBuilderPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     BytecodeGraphBuilderFlags flags;
-    if (data->info()->is_analyze_environment_liveness()) {
+    if (data->info()->analyze_environment_liveness()) {
       flags |= BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness;
     }
-    if (data->info()->is_bailout_on_uninitialized()) {
+    if (data->info()->bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
+    }
+    if (data->info()->native_context_independent()) {
+      flags |= BytecodeGraphBuilderFlag::kNativeContextIndependent;
     }
 
     JSFunctionRef closure(data->broker(), data->info()->closure());
@@ -1372,7 +1370,7 @@ struct InliningPhase {
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
     JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
-    if (data->info()->is_bailout_on_uninitialized()) {
+    if (data->info()->bailout_on_uninitialized()) {
       call_reducer_flags |= JSCallReducer::kBailoutOnUninitialized;
     }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(), data->broker(),
@@ -1381,12 +1379,12 @@ struct InliningPhase {
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(),
         data->specialization_context(),
-        data->info()->is_function_context_specializing()
+        data->info()->function_context_specializing()
             ? data->info()->closure()
             : MaybeHandle<JSFunction>());
     JSNativeContextSpecialization::Flags flags =
         JSNativeContextSpecialization::kNoFlags;
-    if (data->info()->is_bailout_on_uninitialized()) {
+    if (data->info()->bailout_on_uninitialized()) {
       flags |= JSNativeContextSpecialization::kBailoutOnUninitialized;
     }
     // Passing the OptimizedCompilationInfo's shared zone here as
@@ -1404,11 +1402,13 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &native_context_specialization);
-    AddReducer(data, &graph_reducer, &context_specialization);
+    if (!data->info()->native_context_independent()) {
+      AddReducer(data, &graph_reducer, &native_context_specialization);
+      AddReducer(data, &graph_reducer, &context_specialization);
+    }
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &call_reducer);
-    if (data->info()->is_inlining_enabled()) {
+    if (data->info()->inlining()) {
       AddReducer(data, &graph_reducer, &inlining);
     }
     graph_reducer.ReduceGraph();
@@ -1497,17 +1497,17 @@ struct SerializationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SerializerForBackgroundCompilationFlags flags;
-    if (data->info()->is_bailout_on_uninitialized()) {
+    if (data->info()->bailout_on_uninitialized()) {
       flags |= SerializerForBackgroundCompilationFlag::kBailoutOnUninitialized;
     }
-    if (data->info()->is_source_positions_enabled()) {
+    if (data->info()->source_positions()) {
       flags |= SerializerForBackgroundCompilationFlag::kCollectSourcePositions;
     }
-    if (data->info()->is_analyze_environment_liveness()) {
+    if (data->info()->analyze_environment_liveness()) {
       flags |=
           SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness;
     }
-    if (data->info()->is_inlining_enabled()) {
+    if (data->info()->inlining()) {
       flags |= SerializerForBackgroundCompilationFlag::kEnableTurboInlining;
     }
     RunSerializerForBackgroundCompilation(
@@ -1545,7 +1545,9 @@ struct TypedLoweringPhase {
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &create_lowering);
+    if (!data->info()->native_context_independent()) {
+      AddReducer(data, &graph_reducer, &create_lowering);
+    }
     AddReducer(data, &graph_reducer, &constant_folding_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &typed_optimization);
@@ -1805,7 +1807,7 @@ struct MemoryOptimizationPhase {
     // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(
         data->jsgraph(), temp_zone, data->info()->GetPoisoningMitigationLevel(),
-        data->info()->is_allocation_folding_enabled()
+        data->info()->allocation_folding()
             ? MemoryLowering::AllocationFolding::kDoAllocationFolding
             : MemoryLowering::AllocationFolding::kDontAllocationFolding,
         data->debug_name(), &data->info()->tick_counter());
@@ -1997,8 +1999,8 @@ struct ComputeSchedulePhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     Schedule* schedule = Scheduler::ComputeSchedule(
         temp_zone, data->graph(),
-        data->info()->is_splitting_enabled() ? Scheduler::kSplitNodes
-                                             : Scheduler::kNoFlags,
+        data->info()->splitting() ? Scheduler::kSplitNodes
+                                  : Scheduler::kNoFlags,
         &data->info()->tick_counter());
     data->set_schedule(schedule);
   }
@@ -2043,13 +2045,13 @@ struct InstructionSelectionPhase {
     InstructionSelector selector(
         temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
         data->schedule(), data->source_positions(), data->frame(),
-        data->info()->switch_jump_table_enabled()
+        data->info()->switch_jump_table()
             ? InstructionSelector::kEnableSwitchJumpTable
             : InstructionSelector::kDisableSwitchJumpTable,
         &data->info()->tick_counter(),
         data->address_of_max_unoptimized_frame_height(),
         data->address_of_max_pushed_argument_count(),
-        data->info()->is_source_positions_enabled()
+        data->info()->source_positions()
             ? InstructionSelector::kAllSourcePositions
             : InstructionSelector::kCallSourcePositions,
         InstructionSelector::SupportedFeatures(),
@@ -2060,13 +2062,13 @@ struct InstructionSelectionPhase {
             ? InstructionSelector::kEnableRootsRelativeAddressing
             : InstructionSelector::kDisableRootsRelativeAddressing,
         data->info()->GetPoisoningMitigationLevel(),
-        data->info()->trace_turbo_json_enabled()
+        data->info()->trace_turbo_json()
             ? InstructionSelector::kEnableTraceTurboJson
             : InstructionSelector::kDisableTraceTurboJson);
     if (!selector.SelectInstructions()) {
       data->set_compilation_failed();
     }
-    if (data->info()->trace_turbo_json_enabled()) {
+    if (data->info()->trace_turbo_json()) {
       TurboJsonFile json_of(data->info(), std::ios_base::app);
       json_of << "{\"name\":\"" << phase_name()
               << "\",\"type\":\"instructions\""
@@ -2283,7 +2285,7 @@ struct PrintGraphPhase {
     OptimizedCompilationInfo* info = data->info();
     Graph* graph = data->graph();
 
-    if (info->trace_turbo_json_enabled()) {  // Print JSON.
+    if (info->trace_turbo_json()) {  // Print JSON.
       AllowHandleDereference allow_deref;
 
       TurboJsonFile json_of(info, std::ios_base::app);
@@ -2292,7 +2294,7 @@ struct PrintGraphPhase {
               << "},\n";
     }
 
-    if (info->trace_turbo_scheduled_enabled()) {
+    if (info->trace_turbo_scheduled()) {
       AccountingAllocator allocator;
       Schedule* schedule = data->schedule();
       if (schedule == nullptr) {
@@ -2302,16 +2304,16 @@ struct PrintGraphPhase {
       }
 
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      os << "-- Graph after " << phase << " -- " << std::endl;
-      os << AsScheduledGraph(schedule);
-    } else if (info->trace_turbo_graph_enabled()) {  // Simple textual RPO.
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "-- Graph after " << phase << " -- " << std::endl
+          << AsScheduledGraph(schedule);
+    } else if (info->trace_turbo_graph()) {  // Simple textual RPO.
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      os << "-- Graph after " << phase << " -- " << std::endl;
-      os << AsRPO(*graph);
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "-- Graph after " << phase << " -- " << std::endl
+          << AsRPO(*graph);
     }
   }
 };
@@ -2345,8 +2347,7 @@ struct VerifyGraphPhase {
 #undef DECL_PIPELINE_PHASE_CONSTANTS_HELPER
 
 void PipelineImpl::RunPrintAndVerify(const char* phase, bool untyped) {
-  if (info()->trace_turbo_json_enabled() ||
-      info()->trace_turbo_graph_enabled()) {
+  if (info()->trace_turbo_json() || info()->trace_turbo_graph()) {
     Run<PrintGraphPhase>(phase);
   }
   if (FLAG_turbo_verify) {
@@ -2359,21 +2360,20 @@ void PipelineImpl::Serialize() {
 
   data->BeginPhaseKind("V8.TFBrokerInitAndSerialization");
 
-  if (info()->trace_turbo_json_enabled() ||
-      info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << info()->GetDebugName().get()
-       << " using TurboFan" << std::endl;
+  if (info()->trace_turbo_json() || info()->trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
-  if (info()->trace_turbo_json_enabled()) {
+  if (info()->trace_turbo_json()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
   }
 
   data->source_positions()->AddDecorator();
-  if (data->info()->trace_turbo_json_enabled()) {
+  if (data->info()->trace_turbo_json()) {
     data->node_origins()->AddDecorator();
   }
 
@@ -2442,7 +2442,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<TypedLoweringPhase>();
   RunPrintAndVerify(TypedLoweringPhase::phase_name());
 
-  if (data->info()->is_loop_peeling_enabled()) {
+  if (data->info()->loop_peeling()) {
     Run<LoopPeelingPhase>();
     RunPrintAndVerify(LoopPeelingPhase::phase_name(), true);
   } else {
@@ -2531,7 +2531,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
-  if (data->info()->trace_turbo_json_enabled()) {
+  if (data->info()->trace_turbo_json()) {
     data->node_origins()->RemoveDecorator();
   }
 
@@ -2598,7 +2598,7 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   RunPrintAndVerify(ScheduledMachineLoweringPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
-  if (data->info()->trace_turbo_json_enabled()) {
+  if (data->info()->trace_turbo_json()) {
     data->node_origins()->RemoveDecorator();
   }
 
@@ -2621,8 +2621,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable node_origins(graph);
   JumpOptimizationInfo jump_opt;
-  bool should_optimize_jumps =
-      isolate->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
+  bool should_optimize_jumps = isolate->serializer_enabled() &&
+                               FLAG_turbo_rewrite_far_jumps &&
+                               !FLAG_turbo_profiling;
   PipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
                     jsgraph, nullptr, source_positions, &node_origins,
                     should_optimize_jumps ? &jump_opt : nullptr, options);
@@ -2639,12 +2640,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 
   PipelineImpl pipeline(&data);
 
-  if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling " << debug_name << " using TurboFan" << std::endl;
-    if (info.trace_turbo_json_enabled()) {
+  if (info.trace_turbo_json() || info.trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling " << debug_name << " using TurboFan" << std::endl;
+    if (info.trace_turbo_json()) {
       TurboJsonFile json_of(&info, std::ios_base::trunc);
       json_of << "{\"function\" : ";
       JsonPrintFunctionSource(json_of, -1, info.GetDebugName(),
@@ -2741,21 +2742,21 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
   PipelineImpl pipeline(&data);
 
-  if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << info.GetDebugName().get()
-       << " using TurboFan" << std::endl;
+  if (info.trace_turbo_json() || info.trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << info.GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
 
-  if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
+  if (info.trace_turbo_graph()) {  // Simple textual RPO.
     StdoutStream{} << "-- wasm stub " << Code::Kind2String(kind) << " graph -- "
                    << std::endl
                    << AsRPO(*graph);
   }
 
-  if (info.trace_turbo_json_enabled()) {
+  if (info.trace_turbo_json()) {
     TurboJsonFile json_of(&info, std::ios_base::trunc);
     json_of << "{\"function\":\"" << info.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
@@ -2783,7 +2784,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
   DCHECK(result.succeeded());
 
-  if (info.trace_turbo_json_enabled()) {
+  if (info.trace_turbo_json()) {
     TurboJsonFile json_of(&info, std::ios_base::app);
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\""
             << BlockStartsAsJSON{&code_generator->block_starts()}
@@ -2802,12 +2803,12 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     json_of << "\n}";
   }
 
-  if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Finished compiling method " << info.GetDebugName().get()
-       << " using TurboFan" << std::endl;
+  if (info.trace_turbo_json() || info.trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Finished compiling method " << info.GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
 
   return result;
@@ -2862,7 +2863,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
   PipelineImpl pipeline(&data);
 
-  if (info->trace_turbo_json_enabled()) {
+  if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     json_of << "{\"function\":\"" << info->GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
@@ -2915,13 +2916,12 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   PipelineImpl pipeline(&data);
 
-  if (data.info()->trace_turbo_json_enabled() ||
-      data.info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << data.info()->GetDebugName().get()
-       << " using TurboFan" << std::endl;
+  if (data.info()->trace_turbo_json() || data.info()->trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << data.info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
 
   pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
@@ -2929,7 +2929,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   data.BeginPhaseKind("V8.WasmOptimization");
   const bool is_asm_js = is_asmjs_module(module);
   if (FLAG_turbo_splitting && !is_asm_js) {
-    data.info()->MarkAsSplittingEnabled();
+    data.info()->set_splitting();
   }
   if (FLAG_wasm_opt || is_asm_js) {
     PipelineRunScope scope(&data, "V8.WasmFullOptimization",
@@ -2987,7 +2987,7 @@ void Pipeline::GenerateCodeForWasmFunction(
       code_generator->GetProtectedInstructionsData();
   result->result_tier = wasm::ExecutionTier::kTurbofan;
 
-  if (data.info()->trace_turbo_json_enabled()) {
+  if (data.info()->trace_turbo_json()) {
     TurboJsonFile json_of(data.info(), std::ios_base::app);
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\""
             << BlockStartsAsJSON{&code_generator->block_starts()}
@@ -3006,13 +3006,12 @@ void Pipeline::GenerateCodeForWasmFunction(
     json_of << "\n}";
   }
 
-  if (data.info()->trace_turbo_json_enabled() ||
-      data.info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Finished compiling method " << data.info()->GetDebugName().get()
-       << " using TurboFan" << std::endl;
+  if (data.info()->trace_turbo_json() || data.info()->trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Finished compiling method " << data.info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
 
   DCHECK(result->succeeded());
@@ -3054,7 +3053,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   DCHECK_NOT_NULL(data->schedule());
 
   if (FLAG_turbo_profiling) {
-    data->set_profiler_data(BasicBlockInstrumentor::Instrument(
+    data->info()->set_profiler_data(BasicBlockInstrumentor::Instrument(
         info(), data->graph(), data->schedule(), data->isolate()));
   }
 
@@ -3074,15 +3073,16 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   if (verify_stub_graph) {
     if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      os << "--------------------------------------------------\n"
-         << "--- Verifying " << data->debug_name() << " generated by TurboFan\n"
-         << "--------------------------------------------------\n"
-         << *data->schedule()
-         << "--------------------------------------------------\n"
-         << "--- End of " << data->debug_name() << " generated by TurboFan\n"
-         << "--------------------------------------------------\n";
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "--------------------------------------------------\n"
+          << "--- Verifying " << data->debug_name()
+          << " generated by TurboFan\n"
+          << "--------------------------------------------------\n"
+          << *data->schedule()
+          << "--------------------------------------------------\n"
+          << "--- End of " << data->debug_name() << " generated by TurboFan\n"
+          << "--------------------------------------------------\n";
     }
     Zone temp_zone(data->allocator(), kMachineGraphVerifierZoneName);
     MachineGraphVerifier::Run(
@@ -3102,14 +3102,14 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     return false;
   }
 
-  if (info()->trace_turbo_json_enabled() && !data->MayHaveUnverifiableGraph()) {
+  if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
     AllowHandleDereference allow_deref;
     TurboCfgFile tcf(isolate());
     tcf << AsC1V("CodeGen", data->schedule(), data->source_positions(),
                  data->sequence());
   }
 
-  if (info()->trace_turbo_json_enabled()) {
+  if (info()->trace_turbo_json()) {
     std::ostringstream source_position_output;
     // Output source position information before the graph is deleted.
     if (data_->source_positions() != nullptr) {
@@ -3244,7 +3244,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage,
   data->InitializeCodeGenerator(linkage, std::move(buffer));
 
   Run<AssembleCodePhase>();
-  if (data->info()->trace_turbo_json_enabled()) {
+  if (data->info()->trace_turbo_json()) {
     TurboJsonFile json_of(data->info(), std::ios_base::app);
     json_of << "{\"name\":\"code generation\""
             << ", \"type\":\"instructions\""
@@ -3271,18 +3271,10 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
     return maybe_code;
   }
 
-  if (data->profiler_data()) {
-#ifdef ENABLE_DISASSEMBLER
-    std::ostringstream os;
-    code->Disassemble(nullptr, os, isolate());
-    data->profiler_data()->SetCode(&os);
-#endif  // ENABLE_DISASSEMBLER
-  }
-
   info()->SetCode(code);
   PrintCode(isolate(), code, info());
 
-  if (info()->trace_turbo_json_enabled()) {
+  if (info()->trace_turbo_json()) {
     TurboJsonFile json_of(info(), std::ios_base::app);
 
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\""
@@ -3302,13 +3294,12 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
     JsonPrintAllSourceWithPositions(json_of, data->info(), isolate());
     json_of << "\n}";
   }
-  if (info()->trace_turbo_json_enabled() ||
-      info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Finished compiling method " << info()->GetDebugName().get()
-       << " using TurboFan" << std::endl;
+  if (info()->trace_turbo_json() || info()->trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Finished compiling method " << info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
   data->EndPhaseKind();
   return code;
@@ -3342,19 +3333,22 @@ namespace {
 
 void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
                    const char* phase_name) {
-  if (info->trace_turbo_json_enabled()) {
+  if (info->trace_turbo_json()) {
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
-    json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\",";
-    json_of << InstructionSequenceAsJSON{data->sequence()};
-    json_of << "},\n";
+    json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\""
+            << ",\"blocks\":" << InstructionSequenceAsJSON{data->sequence()}
+            << ",\"register_allocation\":{"
+            << RegisterAllocationDataAsJSON{*(data->register_allocation_data()),
+                                            *(data->sequence())}
+            << "}},\n";
   }
-  if (info->trace_turbo_graph_enabled()) {
+  if (info->trace_turbo_graph()) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "----- Instruction sequence " << phase_name << " -----\n"
-       << *data->sequence();
+    CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+    tracing_scope.stream() << "----- Instruction sequence " << phase_name
+                           << " -----\n"
+                           << *data->sequence();
   }
 }
 
@@ -3381,13 +3375,13 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 #endif
 
   RegisterAllocationFlags flags;
-  if (data->info()->is_turbo_control_flow_aware_allocation()) {
+  if (data->info()->turbo_control_flow_aware_allocation()) {
     flags |= RegisterAllocationFlag::kTurboControlFlowAwareAllocation;
   }
-  if (data->info()->is_turbo_preprocess_ranges()) {
+  if (data->info()->turbo_preprocess_ranges()) {
     flags |= RegisterAllocationFlag::kTurboPreprocessRanges;
   }
-  if (data->info()->trace_turbo_allocation_enabled()) {
+  if (data->info()->trace_turbo_allocation()) {
     flags |= RegisterAllocationFlag::kTraceAllocation;
   }
   data->InitializeRegisterAllocationData(config, call_descriptor, flags);
@@ -3405,16 +3399,15 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
               ->RangesDefinedInDeferredStayInDeferred());
   }
 
-  if (info()->trace_turbo_json_enabled() && !data->MayHaveUnverifiableGraph()) {
+  if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VRegisterAllocationData("PreAllocation",
                                        data->register_allocation_data());
   }
 
-  if (info()->is_turbo_preprocess_ranges()) {
+  if (info()->turbo_preprocess_ranges()) {
     Run<SplinterLiveRangesPhase>();
-    if (info()->trace_turbo_json_enabled() &&
-        !data->MayHaveUnverifiableGraph()) {
+    if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
       TurboCfgFile tcf(isolate());
       tcf << AsC1VRegisterAllocationData("PostSplinter",
                                          data->register_allocation_data());
@@ -3427,7 +3420,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
     Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
   }
 
-  if (info()->is_turbo_preprocess_ranges()) {
+  if (info()->turbo_preprocess_ranges()) {
     Run<MergeSplintersPhase>();
   }
 
@@ -3459,7 +3452,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
     verifier->VerifyGapMoves();
   }
 
-  if (info()->trace_turbo_json_enabled() && !data->MayHaveUnverifiableGraph()) {
+  if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VRegisterAllocationData("CodeGen",
                                        data->register_allocation_data());

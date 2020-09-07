@@ -228,8 +228,6 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   class AbstractState final : public ZoneObject {
    public:
-    AbstractState() {}
-
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
 

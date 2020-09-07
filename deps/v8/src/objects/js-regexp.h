@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_REGEXP_H_
 
 #include "src/objects/js-array.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -36,40 +37,18 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // ATOM: A simple string to match against using an indexOf operation.
   // IRREGEXP: Compiled with Irregexp.
   enum Type { NOT_COMPILED, ATOM, IRREGEXP };
-  struct FlagShiftBit {
-    static constexpr int kGlobal = 0;
-    static constexpr int kIgnoreCase = 1;
-    static constexpr int kMultiline = 2;
-    static constexpr int kSticky = 3;
-    static constexpr int kUnicode = 4;
-    static constexpr int kDotAll = 5;
-    static constexpr int kInvalid = 6;
-  };
-  enum Flag : uint8_t {
-    kNone = 0,
-    kGlobal = 1 << FlagShiftBit::kGlobal,
-    kIgnoreCase = 1 << FlagShiftBit::kIgnoreCase,
-    kMultiline = 1 << FlagShiftBit::kMultiline,
-    kSticky = 1 << FlagShiftBit::kSticky,
-    kUnicode = 1 << FlagShiftBit::kUnicode,
-    kDotAll = 1 << FlagShiftBit::kDotAll,
-    // Update FlagCount when adding new flags.
-    kInvalid = 1 << FlagShiftBit::kInvalid,  // Not included in FlagCount.
-  };
-  using Flags = base::Flags<Flag>;
+  DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
-  static constexpr int kFlagCount = 6;
-
-  static constexpr Flag FlagFromChar(char c) {
+  static constexpr base::Optional<Flag> FlagFromChar(char c) {
     STATIC_ASSERT(kFlagCount == 6);
     // clang-format off
-    return c == 'g' ? kGlobal
-         : c == 'i' ? kIgnoreCase
-         : c == 'm' ? kMultiline
-         : c == 'y' ? kSticky
-         : c == 'u' ? kUnicode
-         : c == 's' ? kDotAll
-         : kInvalid;
+    return c == 'g' ? base::Optional<Flag>(kGlobal)
+         : c == 'i' ? base::Optional<Flag>(kIgnoreCase)
+         : c == 'm' ? base::Optional<Flag>(kMultiline)
+         : c == 'y' ? base::Optional<Flag>(kSticky)
+         : c == 'u' ? base::Optional<Flag>(kUnicode)
+         : c == 's' ? base::Optional<Flag>(kDotAll)
+         : base::Optional<Flag>();
     // clang-format on
   }
 

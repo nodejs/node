@@ -17,6 +17,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/source-text-module.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -530,6 +531,26 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
 }
 
 // static
+FieldAccess AccessBuilder::ForSloppyArgumentsElementsContext() {
+  FieldAccess access = {
+      kTaggedBase,         SloppyArgumentsElements::kContextOffset,
+      MaybeHandle<Name>(), MaybeHandle<Map>(),
+      Type::Any(),         MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForSloppyArgumentsElementsArguments() {
+  FieldAccess access = {
+      kTaggedBase,         SloppyArgumentsElements::kArgumentsOffset,
+      MaybeHandle<Name>(), MaybeHandle<Map>(),
+      Type::Any(),         MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForPropertyArrayLengthAndHash() {
   FieldAccess access = {
       kTaggedBase,         PropertyArray::kLengthAndHashOffset,
@@ -867,6 +888,14 @@ ElementAccess AccessBuilder::ForFixedArrayElement() {
 }
 
 // static
+ElementAccess AccessBuilder::ForSloppyArgumentsElementsMappedEntry() {
+  ElementAccess access = {
+      kTaggedBase, SloppyArgumentsElements::kMappedEntriesOffset, Type::Any(),
+      MachineType::AnyTagged(), kFullWriteBarrier};
+  return access;
+}
+
+// statics
 ElementAccess AccessBuilder::ForFixedArrayElement(
     ElementsKind kind, LoadSensitivity load_sensitivity) {
   ElementAccess access = {kTaggedBase,       FixedArray::kHeaderSize,
@@ -1136,6 +1165,15 @@ FieldAccess AccessBuilder::ForDictionaryObjectHashIndex() {
       Type::SignedSmall(),
       MachineType::TaggedSigned(),
       kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForFeedbackCellValue() {
+  FieldAccess access = {kTaggedBase,      FeedbackCell::kValueOffset,
+                        Handle<Name>(),   MaybeHandle<Map>(),
+                        Type::Any(),      MachineType::TaggedPointer(),
+                        kFullWriteBarrier};
   return access;
 }
 

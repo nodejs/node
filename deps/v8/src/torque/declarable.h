@@ -36,6 +36,17 @@ struct QualifiedName {
   explicit QualifiedName(std::string name)
       : QualifiedName({}, std::move(name)) {}
 
+  bool HasNamespaceQualification() const {
+    return !namespace_qualification.empty();
+  }
+
+  QualifiedName DropFirstNamespaceQualification() const {
+    return QualifiedName{
+        std::vector<std::string>(namespace_qualification.begin() + 1,
+                                 namespace_qualification.end()),
+        name};
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const QualifiedName& name);
 };
 
@@ -163,7 +174,7 @@ class Scope : public Declarable {
   explicit Scope(Declarable::Kind kind) : Declarable(kind) {}
 
   std::vector<Declarable*> LookupShallow(const QualifiedName& name) {
-    if (name.namespace_qualification.empty()) return declarations_[name.name];
+    if (!name.HasNamespaceQualification()) return declarations_[name.name];
     Scope* child = nullptr;
     for (Declarable* declarable :
          declarations_[name.namespace_qualification.front()]) {
@@ -176,22 +187,10 @@ class Scope : public Declarable {
       }
     }
     if (child == nullptr) return {};
-    return child->LookupShallow(
-        QualifiedName({name.namespace_qualification.begin() + 1,
-                       name.namespace_qualification.end()},
-                      name.name));
+    return child->LookupShallow(name.DropFirstNamespaceQualification());
   }
 
-  std::vector<Declarable*> Lookup(const QualifiedName& name) {
-    std::vector<Declarable*> result;
-    if (ParentScope()) {
-      result = ParentScope()->Lookup(name);
-    }
-    for (Declarable* declarable : LookupShallow(name)) {
-      result.push_back(declarable);
-    }
-    return result;
-  }
+  std::vector<Declarable*> Lookup(const QualifiedName& name);
   template <class T>
   T* AddDeclarable(const std::string& name, T* declarable) {
     declarations_[name].push_back(declarable);

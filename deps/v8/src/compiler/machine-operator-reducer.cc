@@ -311,35 +311,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kWord32Equal: {
-      Int32BinopMatcher m(node);
-      if (m.IsFoldable()) {  // K == K => K
-        return ReplaceBool(m.left().Value() == m.right().Value());
-      }
-      if (m.left().IsInt32Sub() && m.right().Is(0)) {  // x - y == 0 => x == y
-        Int32BinopMatcher msub(m.left().node());
-        node->ReplaceInput(0, msub.left().node());
-        node->ReplaceInput(1, msub.right().node());
-        return Changed(node);
-      }
-      // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
-      if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
-      if (m.right().HasValue()) {
-        base::Optional<std::pair<Node*, uint32_t>> replacements;
-        if (m.left().IsTruncateInt64ToInt32()) {
-          replacements = ReduceWord32EqualForConstantRhs<Word64Adapter>(
-              NodeProperties::GetValueInput(m.left().node(), 0),
-              static_cast<uint32_t>(m.right().Value()));
-        } else {
-          replacements = ReduceWord32EqualForConstantRhs<Word32Adapter>(
-              m.left().node(), static_cast<uint32_t>(m.right().Value()));
-        }
-        if (replacements) {
-          node->ReplaceInput(0, replacements->first);
-          node->ReplaceInput(1, Uint32Constant(replacements->second));
-          return Changed(node);
-        }
-      }
-      break;
+      return ReduceWord32Equal(node);
     }
     case IrOpcode::kWord64Equal: {
       Int64BinopMatcher m(node);
@@ -1623,9 +1595,117 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
   return NoChange();
 }
 
+namespace {
+
+// Represents an operation of the form `(source & mask) == masked_value`.
+struct BitfieldCheck {
+  Node* source;
+  uint32_t mask;
+  uint32_t masked_value;
+  bool truncate_from_64_bit;
+
+  static base::Optional<BitfieldCheck> Detect(Node* node) {
+    // There are two patterns to check for here:
+    // 1. Single-bit checks: `(val >> shift) & 1`, where:
+    //    - the shift may be omitted, and/or
+    //    - the result may be truncated from 64 to 32
+    // 2. Equality checks: `(val & mask) == expected`, where:
+    //    - val may be truncated from 64 to 32 before masking (see
+    //      ReduceWord32EqualForConstantRhs)
+    if (node->opcode() == IrOpcode::kWord32Equal) {
+      Uint32BinopMatcher eq(node);
+      if (eq.left().IsWord32And()) {
+        Uint32BinopMatcher mand(eq.left().node());
+        if (mand.right().HasValue()) {
+          BitfieldCheck result{mand.left().node(), mand.right().Value(),
+                               eq.right().Value(), false};
+          if (mand.left().IsTruncateInt64ToInt32()) {
+            result.truncate_from_64_bit = true;
+            result.source =
+                NodeProperties::GetValueInput(mand.left().node(), 0);
+          }
+          return result;
+        }
+      }
+    } else {
+      if (node->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+        return TryDetectShiftAndMaskOneBit<Word64Adapter>(
+            NodeProperties::GetValueInput(node, 0));
+      } else {
+        return TryDetectShiftAndMaskOneBit<Word32Adapter>(node);
+      }
+    }
+    return {};
+  }
+
+  base::Optional<BitfieldCheck> TryCombine(const BitfieldCheck& other) {
+    if (source != other.source ||
+        truncate_from_64_bit != other.truncate_from_64_bit)
+      return {};
+    uint32_t overlapping_bits = mask & other.mask;
+    // It would be kind of strange to have any overlapping bits, but they can be
+    // allowed as long as they don't require opposite values in the same
+    // positions.
+    if ((masked_value & overlapping_bits) !=
+        (other.masked_value & overlapping_bits))
+      return {};
+    return BitfieldCheck{source, mask | other.mask,
+                         masked_value | other.masked_value,
+                         truncate_from_64_bit};
+  }
+
+ private:
+  template <typename WordNAdapter>
+  static base::Optional<BitfieldCheck> TryDetectShiftAndMaskOneBit(Node* node) {
+    // Look for the pattern `(val >> shift) & 1`. The shift may be omitted.
+    if (WordNAdapter::IsWordNAnd(NodeMatcher(node))) {
+      typename WordNAdapter::IntNBinopMatcher mand(node);
+      if (mand.right().HasValue() && mand.right().Value() == 1) {
+        if (WordNAdapter::IsWordNShr(mand.left()) ||
+            WordNAdapter::IsWordNSar(mand.left())) {
+          typename WordNAdapter::UintNBinopMatcher shift(mand.left().node());
+          if (shift.right().HasValue() && shift.right().Value() < 32u) {
+            uint32_t mask = 1 << shift.right().Value();
+            return BitfieldCheck{shift.left().node(), mask, mask,
+                                 WordNAdapter::WORD_SIZE == 64};
+          }
+        }
+        return BitfieldCheck{mand.left().node(), 1, 1,
+                             WordNAdapter::WORD_SIZE == 64};
+      }
+    }
+    return {};
+  }
+};
+
+}  // namespace
+
 Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
   DCHECK_EQ(IrOpcode::kWord32And, node->opcode());
-  return ReduceWordNAnd<Word32Adapter>(node);
+  Reduction reduction = ReduceWordNAnd<Word32Adapter>(node);
+  if (reduction.Changed()) {
+    return reduction;
+  }
+
+  // Attempt to detect multiple bitfield checks from the same bitfield struct
+  // and fold them into a single check.
+  Int32BinopMatcher m(node);
+  if (auto right_bitfield = BitfieldCheck::Detect(m.right().node())) {
+    if (auto left_bitfield = BitfieldCheck::Detect(m.left().node())) {
+      if (auto combined_bitfield = left_bitfield->TryCombine(*right_bitfield)) {
+        Node* source = combined_bitfield->source;
+        if (combined_bitfield->truncate_from_64_bit) {
+          source = TruncateInt64ToInt32(source);
+        }
+        node->ReplaceInput(0, Word32And(source, combined_bitfield->mask));
+        node->ReplaceInput(1, Int32Constant(combined_bitfield->masked_value));
+        NodeProperties::ChangeOp(node, machine()->Word32Equal());
+        return Changed(node).FollowedBy(ReduceWord32Equal(node));
+      }
+    }
+  }
+
+  return NoChange();
 }
 
 Reduction MachineOperatorReducer::ReduceWord64And(Node* node) {
@@ -1754,6 +1834,39 @@ Reduction MachineOperatorReducer::ReduceWord32Xor(Node* node) {
 Reduction MachineOperatorReducer::ReduceWord64Xor(Node* node) {
   DCHECK_EQ(IrOpcode::kWord64Xor, node->opcode());
   return ReduceWordNXor<Word64Adapter>(node);
+}
+
+Reduction MachineOperatorReducer::ReduceWord32Equal(Node* node) {
+  Int32BinopMatcher m(node);
+  if (m.IsFoldable()) {  // K == K => K
+    return ReplaceBool(m.left().Value() == m.right().Value());
+  }
+  if (m.left().IsInt32Sub() && m.right().Is(0)) {  // x - y == 0 => x == y
+    Int32BinopMatcher msub(m.left().node());
+    node->ReplaceInput(0, msub.left().node());
+    node->ReplaceInput(1, msub.right().node());
+    return Changed(node);
+  }
+  // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
+  if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
+  if (m.right().HasValue()) {
+    base::Optional<std::pair<Node*, uint32_t>> replacements;
+    if (m.left().IsTruncateInt64ToInt32()) {
+      replacements = ReduceWord32EqualForConstantRhs<Word64Adapter>(
+          NodeProperties::GetValueInput(m.left().node(), 0),
+          static_cast<uint32_t>(m.right().Value()));
+    } else {
+      replacements = ReduceWord32EqualForConstantRhs<Word32Adapter>(
+          m.left().node(), static_cast<uint32_t>(m.right().Value()));
+    }
+    if (replacements) {
+      node->ReplaceInput(0, replacements->first);
+      node->ReplaceInput(1, Uint32Constant(replacements->second));
+      return Changed(node);
+    }
+  }
+
+  return NoChange();
 }
 
 Reduction MachineOperatorReducer::ReduceFloat64InsertLowWord32(Node* node) {

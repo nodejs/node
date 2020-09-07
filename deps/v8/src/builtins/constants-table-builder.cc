@@ -57,29 +57,46 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   }
 }
 
-void BuiltinsConstantsTableBuilder::PatchSelfReference(
-    Handle<Object> self_reference, Handle<Code> code_object) {
-#ifdef DEBUG
+namespace {
+void CheckPreconditionsForPatching(Isolate* isolate,
+                                   Handle<Object> replacement_object) {
   // Roots must not be inserted into the constants table as they are already
-  // accessibly from the root list.
+  // accessible from the root list.
   RootIndex root_list_index;
-  DCHECK(!isolate_->roots_table().IsRootHandle(code_object, &root_list_index));
+  DCHECK(!isolate->roots_table().IsRootHandle(replacement_object,
+                                              &root_list_index));
+  USE(root_list_index);
 
   // Not yet finalized.
-  DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
-            isolate_->heap()->builtins_constants_table());
+  DCHECK_EQ(ReadOnlyRoots(isolate).empty_fixed_array(),
+            isolate->heap()->builtins_constants_table());
 
-  DCHECK(isolate_->IsGeneratingEmbeddedBuiltins());
+  DCHECK(isolate->IsGeneratingEmbeddedBuiltins());
+}
+}  // namespace
 
+void BuiltinsConstantsTableBuilder::PatchSelfReference(
+    Handle<Object> self_reference, Handle<Code> code_object) {
+  CheckPreconditionsForPatching(isolate_, code_object);
   DCHECK(self_reference->IsOddball());
   DCHECK(Oddball::cast(*self_reference).kind() ==
          Oddball::kSelfReferenceMarker);
-#endif
 
   uint32_t key;
   if (map_.Delete(self_reference, &key)) {
     DCHECK(code_object->IsCode());
     map_.Set(code_object, key);
+  }
+}
+
+void BuiltinsConstantsTableBuilder::PatchBasicBlockCountersReference(
+    Handle<ByteArray> counters) {
+  CheckPreconditionsForPatching(isolate_, counters);
+
+  uint32_t key;
+  if (map_.Delete(ReadOnlyRoots(isolate_).basic_block_counters_marker(),
+                  &key)) {
+    map_.Set(counters, key);
   }
 }
 
@@ -117,6 +134,8 @@ void BuiltinsConstantsTableBuilder::Finalize() {
     DCHECK(table->get(i).IsHeapObject());
     DCHECK_NE(ReadOnlyRoots(isolate_).undefined_value(), table->get(i));
     DCHECK_NE(ReadOnlyRoots(isolate_).self_reference_marker(), table->get(i));
+    DCHECK_NE(ReadOnlyRoots(isolate_).basic_block_counters_marker(),
+              table->get(i));
   }
 #endif
 

@@ -159,6 +159,13 @@ class V8_EXPORT_PRIVATE RegExpParser {
 
   static bool ParseRegExp(Isolate* isolate, Zone* zone, FlatStringReader* input,
                           JSRegExp::Flags flags, RegExpCompileData* result);
+  static bool VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
+                                 FlatStringReader* input, JSRegExp::Flags flags,
+                                 RegExpCompileData* result,
+                                 const DisallowHeapAllocation& no_gc);
+
+ private:
+  bool Parse(RegExpCompileData* result, const DisallowHeapAllocation&);
 
   RegExpTree* ParsePattern();
   RegExpTree* ParseDisjunction();

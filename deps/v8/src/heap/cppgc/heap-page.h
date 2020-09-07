@@ -17,19 +17,24 @@ namespace internal {
 class BaseSpace;
 class NormalPageSpace;
 class LargePageSpace;
-class Heap;
+class HeapBase;
 class PageBackend;
 
 class V8_EXPORT_PRIVATE BasePage {
  public:
-  static BasePage* FromPayload(void*);
-  static const BasePage* FromPayload(const void*);
+  static inline BasePage* FromPayload(void*);
+  static inline const BasePage* FromPayload(const void*);
+
+  static BasePage* FromInnerAddress(const HeapBase*, void*);
+  static const BasePage* FromInnerAddress(const HeapBase*, const void*);
+
+  static void Destroy(BasePage*);
 
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
-  Heap* heap() { return heap_; }
-  const Heap* heap() const { return heap_; }
+  HeapBase* heap() { return heap_; }
+  const HeapBase* heap() const { return heap_; }
 
   BaseSpace* space() { return space_; }
   const BaseSpace* space() const { return space_; }
@@ -37,16 +42,29 @@ class V8_EXPORT_PRIVATE BasePage {
 
   bool is_large() const { return type_ == PageType::kLarge; }
 
+  Address PayloadStart();
+  ConstAddress PayloadStart() const;
+  Address PayloadEnd();
+  ConstAddress PayloadEnd() const;
+
   // |address| must refer to real object.
-  HeapObjectHeader* ObjectHeaderFromInnerAddress(void* address);
-  const HeapObjectHeader* ObjectHeaderFromInnerAddress(const void* address);
+  HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
+  const HeapObjectHeader& ObjectHeaderFromInnerAddress(
+      const void* address) const;
+
+  // |address| is guaranteed to point into the page but not payload. Returns
+  // nullptr when pointing into free list entries and the valid header
+  // otherwise.
+  HeapObjectHeader* TryObjectHeaderFromInnerAddress(void* address) const;
+  const HeapObjectHeader* TryObjectHeaderFromInnerAddress(
+      const void* address) const;
 
  protected:
   enum class PageType { kNormal, kLarge };
-  BasePage(Heap*, BaseSpace*, PageType);
+  BasePage(HeapBase*, BaseSpace*, PageType);
 
  private:
-  Heap* heap_;
+  HeapBase* heap_;
   BaseSpace* space_;
   PageType type_;
 };
@@ -98,8 +116,8 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   using iterator = IteratorImpl<HeapObjectHeader>;
   using const_iterator = IteratorImpl<const HeapObjectHeader>;
 
-  // Allocates a new page.
-  static NormalPage* Create(NormalPageSpace*);
+  // Allocates a new page in the detached state.
+  static NormalPage* Create(PageBackend*, NormalPageSpace*);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(NormalPage*);
@@ -130,13 +148,17 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
 
   static size_t PayloadSize();
 
+  bool PayloadContains(ConstAddress address) const {
+    return (PayloadStart() <= address) && (address < PayloadEnd());
+  }
+
   ObjectStartBitmap& object_start_bitmap() { return object_start_bitmap_; }
   const ObjectStartBitmap& object_start_bitmap() const {
     return object_start_bitmap_;
   }
 
  private:
-  NormalPage(Heap* heap, BaseSpace* space);
+  NormalPage(HeapBase* heap, BaseSpace* space);
   ~NormalPage();
 
   ObjectStartBitmap object_start_bitmap_;
@@ -144,8 +166,8 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {
  public:
-  // Allocates a new page.
-  static LargePage* Create(LargePageSpace*, size_t);
+  // Allocates a new page in the detached state.
+  static LargePage* Create(PageBackend*, LargePageSpace*, size_t);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(LargePage*);
@@ -168,8 +190,12 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
 
   size_t PayloadSize() const { return payload_size_; }
 
+  bool PayloadContains(ConstAddress address) const {
+    return (PayloadStart() <= address) && (address < PayloadEnd());
+  }
+
  private:
-  LargePage(Heap* heap, BaseSpace* space, size_t);
+  LargePage(HeapBase* heap, BaseSpace* space, size_t);
   ~LargePage();
 
   size_t payload_size_;

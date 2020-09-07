@@ -113,6 +113,11 @@ bool HeapObjectHeader::TryMarkAtomic() {
 }
 
 template <HeapObjectHeader::AccessMode mode>
+bool HeapObjectHeader::IsYoung() const {
+  return !IsMarked<mode>();
+}
+
+template <HeapObjectHeader::AccessMode mode>
 bool HeapObjectHeader::IsFree() const {
   return GetGCInfoIndex() == kFreeListGCInfoIndex;
 }

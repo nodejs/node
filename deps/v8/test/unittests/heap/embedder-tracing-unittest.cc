@@ -31,13 +31,16 @@ LocalEmbedderHeapTracer::WrapperInfo CreateWrapperInfo() {
 
 class MockEmbedderHeapTracer : public EmbedderHeapTracer {
  public:
-  MOCK_METHOD1(TracePrologue, void(EmbedderHeapTracer::TraceFlags));
-  MOCK_METHOD1(TraceEpilogue, void(EmbedderHeapTracer::TraceSummary*));
-  MOCK_METHOD1(EnterFinalPause, void(EmbedderStackState));
-  MOCK_METHOD0(IsTracingDone, bool());
-  MOCK_METHOD1(RegisterV8References,
-               void(const std::vector<std::pair<void*, void*> >&));
-  MOCK_METHOD1(AdvanceTracing, bool(double deadline_in_ms));
+  MOCK_METHOD(void, TracePrologue, (EmbedderHeapTracer::TraceFlags),
+              (override));
+  MOCK_METHOD(void, TraceEpilogue, (EmbedderHeapTracer::TraceSummary*),
+              (override));
+  MOCK_METHOD(void, EnterFinalPause, (EmbedderHeapTracer::EmbedderStackState),
+              (override));
+  MOCK_METHOD(bool, IsTracingDone, (), (override));
+  MOCK_METHOD(void, RegisterV8References,
+              ((const std::vector<std::pair<void*, void*> >&)), (override));
+  MOCK_METHOD(bool, AdvanceTracing, (double deadline_in_ms), (override));
 };
 
 TEST(LocalEmbedderHeapTracer, InUse) {

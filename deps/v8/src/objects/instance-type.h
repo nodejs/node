@@ -243,6 +243,11 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 }  // namespace InstanceTypeChecker
 
+// This list must contain only maps that are shared by all objects of their
+// instance type.
+#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _) \
+  TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
+
 }  // namespace internal
 }  // namespace v8
 

@@ -26,6 +26,7 @@ namespace internal {
 // Forward declarations.
 class AliasedArgumentsEntry;
 class ObjectBoilerplateDescription;
+class BasicBlockProfilerData;
 class BreakPoint;
 class BreakPointInfo;
 class CallableTask;
@@ -118,6 +119,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Marks self references within code generation.
   Handle<Oddball> NewSelfReferenceMarker();
+
+  // Marks references to a function's basic-block usage counters array during
+  // code generation.
+  Handle<Oddball> NewBasicBlockCountersMarker();
 
   // Allocates a property array initialized with undefined values.
   Handle<PropertyArray> NewPropertyArray(int length);
@@ -342,7 +347,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                           Handle<ScopeInfo> scope_info,
                                           Handle<JSReceiver> extension,
                                           Handle<Context> wrapped,
-                                          Handle<StringSet> whitelist);
+                                          Handle<StringSet> blocklist);
 
   // Create a block context.
   Handle<Context> NewBlockContext(Handle<Context> previous,
@@ -861,6 +866,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
+    CodeBuilder& set_profiler_data(BasicBlockProfilerData* profiler_data) {
+      profiler_data_ = profiler_data;
+      return *this;
+    }
+
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
 
@@ -875,6 +885,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     Handle<ByteArray> source_position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
         DeoptimizationData::Empty(isolate_);
+    BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_executable_ = true;
     bool read_only_data_container_ = false;
     bool is_movable_ = true;

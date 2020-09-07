@@ -30,8 +30,10 @@ struct MemoryTracingInfo {
 
 // Callback for tracing a memory operation for debugging.
 // Triggered by --wasm-trace-memory.
-void TraceMemoryOperation(ExecutionTier, const MemoryTracingInfo* info,
-                          int func_index, int position, uint8_t* mem_start);
+V8_EXPORT_PRIVATE void TraceMemoryOperation(ExecutionTier,
+                                            const MemoryTracingInfo* info,
+                                            int func_index, int position,
+                                            uint8_t* mem_start);
 
 }  // namespace wasm
 }  // namespace internal

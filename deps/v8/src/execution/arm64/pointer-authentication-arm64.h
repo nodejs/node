@@ -10,11 +10,6 @@
 #include "src/common/globals.h"
 #include "src/execution/arm64/simulator-arm64.h"
 
-// TODO(v8:10026): Replace hints with instruction aliases, when supported.
-#define AUTIA1716 "hint #12"
-#define PACIA1716 "hint #8"
-#define XPACLRI "hint #7"
-
 namespace v8 {
 namespace internal {
 
@@ -31,13 +26,13 @@ V8_INLINE Address PointerAuthentication::AuthenticatePC(
   uint64_t sp = reinterpret_cast<uint64_t>(pc_address) + offset_from_sp;
   uint64_t pc = reinterpret_cast<uint64_t>(*pc_address);
 #ifdef USE_SIMULATOR
-  pc = Simulator::AuthPAC(pc, sp, Simulator::kPACKeyIA,
+  pc = Simulator::AuthPAC(pc, sp, Simulator::kPACKeyIB,
                           Simulator::kInstructionPointer);
 #else
   asm volatile(
       "  mov x17, %[pc]\n"
       "  mov x16, %[stack_ptr]\n"
-      "  " AUTIA1716 "\n"
+      "  autib1716\n"
       "  ldr xzr, [x17]\n"
       "  mov %[pc], x17\n"
       : [pc] "+r"(pc)
@@ -55,7 +50,7 @@ V8_INLINE Address PointerAuthentication::StripPAC(Address pc) {
   asm volatile(
       "  mov x16, lr\n"
       "  mov lr, %[pc]\n"
-      "  " XPACLRI "\n"
+      "  xpaclri\n"
       "  mov %[pc], lr\n"
       "  mov lr, x16\n"
       : [pc] "+r"(pc)
@@ -68,13 +63,13 @@ V8_INLINE Address PointerAuthentication::StripPAC(Address pc) {
 // Sign {pc} using {sp}.
 V8_INLINE Address PointerAuthentication::SignPCWithSP(Address pc, Address sp) {
 #ifdef USE_SIMULATOR
-  return Simulator::AddPAC(pc, sp, Simulator::kPACKeyIA,
+  return Simulator::AddPAC(pc, sp, Simulator::kPACKeyIB,
                            Simulator::kInstructionPointer);
 #else
   asm volatile(
       "  mov x17, %[pc]\n"
       "  mov x16, %[sp]\n"
-      "  " PACIA1716 "\n"
+      "  pacib1716\n"
       "  mov %[pc], x17\n"
       : [pc] "+r"(pc)
       : [sp] "r"(sp)
@@ -92,13 +87,13 @@ V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
   uint64_t sp = reinterpret_cast<uint64_t>(pc_address) + offset_from_sp;
   uint64_t old_pc = reinterpret_cast<uint64_t>(*pc_address);
 #ifdef USE_SIMULATOR
-  uint64_t auth_old_pc = Simulator::AuthPAC(old_pc, sp, Simulator::kPACKeyIA,
+  uint64_t auth_old_pc = Simulator::AuthPAC(old_pc, sp, Simulator::kPACKeyIB,
                                             Simulator::kInstructionPointer);
   uint64_t raw_old_pc =
       Simulator::StripPAC(old_pc, Simulator::kInstructionPointer);
   // Verify that the old address is authenticated.
   CHECK_EQ(auth_old_pc, raw_old_pc);
-  new_pc = Simulator::AddPAC(new_pc, sp, Simulator::kPACKeyIA,
+  new_pc = Simulator::AddPAC(new_pc, sp, Simulator::kPACKeyIB,
                              Simulator::kInstructionPointer);
 #else
   // Only store newly signed address after we have verified that the old
@@ -106,10 +101,10 @@ V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
   asm volatile(
       "  mov x17, %[new_pc]\n"
       "  mov x16, %[sp]\n"
-      "  " PACIA1716 "\n"
+      "  pacib1716\n"
       "  mov %[new_pc], x17\n"
       "  mov x17, %[old_pc]\n"
-      "  " AUTIA1716 "\n"
+      "  autib1716\n"
       "  ldr xzr, [x17]\n"
       : [new_pc] "+&r"(new_pc)
       : [sp] "r"(sp), [old_pc] "r"(old_pc)
@@ -127,13 +122,13 @@ V8_INLINE void PointerAuthentication::ReplaceContext(Address* pc_address,
   uint64_t new_pc;
 #ifdef USE_SIMULATOR
   uint64_t auth_pc =
-      Simulator::AuthPAC(old_signed_pc, old_context, Simulator::kPACKeyIA,
+      Simulator::AuthPAC(old_signed_pc, old_context, Simulator::kPACKeyIB,
                          Simulator::kInstructionPointer);
   uint64_t raw_pc =
       Simulator::StripPAC(auth_pc, Simulator::kInstructionPointer);
   // Verify that the old address is authenticated.
   CHECK_EQ(raw_pc, auth_pc);
-  new_pc = Simulator::AddPAC(raw_pc, new_context, Simulator::kPACKeyIA,
+  new_pc = Simulator::AddPAC(raw_pc, new_context, Simulator::kPACKeyIB,
                              Simulator::kInstructionPointer);
 #else
   // Only store newly signed address after we have verified that the old
@@ -141,13 +136,13 @@ V8_INLINE void PointerAuthentication::ReplaceContext(Address* pc_address,
   asm volatile(
       "  mov x17, %[old_pc]\n"
       "  mov x16, %[old_ctx]\n"
-      "  " AUTIA1716 "\n"
+      "  autib1716\n"
       "  mov x16, %[new_ctx]\n"
-      "  " PACIA1716 "\n"
+      "  pacib1716\n"
       "  mov %[new_pc], x17\n"
       "  mov x17, %[old_pc]\n"
       "  mov x16, %[old_ctx]\n"
-      "  " AUTIA1716 "\n"
+      "  autib1716\n"
       "  ldr xzr, [x17]\n"
       : [new_pc] "=&r"(new_pc)
       : [old_pc] "r"(old_signed_pc), [old_ctx] "r"(old_context),

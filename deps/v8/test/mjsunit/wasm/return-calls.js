@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-return-call --stack-size=64
+// Flags: --expose-wasm --experimental-wasm-return-call --experimental-wasm-mv --stack-size=64
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 

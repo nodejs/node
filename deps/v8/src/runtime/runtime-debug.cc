@@ -241,7 +241,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 
     Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
     Handle<String> generator_status =
-        factory->NewStringFromAsciiChecked("[[GeneratorStatus]]");
+        factory->NewStringFromAsciiChecked("[[GeneratorState]]");
     result->set(0, *generator_status);
     Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
     result->set(1, *status_str);
@@ -261,7 +261,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     const char* status = JSPromise::Status(promise->status());
     Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
     Handle<String> promise_status =
-        factory->NewStringFromAsciiChecked("[[PromiseStatus]]");
+        factory->NewStringFromAsciiChecked("[[PromiseState]]");
     result->set(0, *promise_status);
     Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
     result->set(1, *status_str);
@@ -271,7 +271,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                                  : promise->result(),
                              isolate);
     Handle<String> promise_value =
-        factory->NewStringFromAsciiChecked("[[PromiseValue]]");
+        factory->NewStringFromAsciiChecked("[[PromiseResult]]");
     result->set(2, *promise_value);
     result->set(3, *value_obj);
     return factory->NewJSArrayWithElements(result);
@@ -495,7 +495,8 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   if (line < 0) return -1;
 
   if (script->type() == Script::TYPE_WASM) {
-    return GetWasmFunctionOffset(script->wasm_native_module()->module(), line);
+    // Wasm positions are relative to the start of the module.
+    return 0;
   }
 
   Script::InitLineEnds(script->GetIsolate(), script);

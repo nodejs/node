@@ -352,9 +352,20 @@ class String : public TorqueGeneratedString<String, Name> {
   // For use during stack traces.  Performs rudimentary sanity check.
   bool LooksValid();
 
-  // Dispatched behavior.
-  void StringShortPrint(StringStream* accumulator, bool show_details = true);
+  // Printing utility functions.
+  // - PrintUC16 prints the raw string contents to the given stream.
+  //   Non-printable characters are formatted as hex, but otherwise the string
+  //   is printed as-is.
+  // - StringShortPrint and StringPrint have extra formatting: they add a
+  //   prefix and suffix depending on the string kind, may add other information
+  //   such as the string heap object address, may truncate long strings, etc.
+  const char* PrefixForDebugPrint() const;
+  const char* SuffixForDebugPrint() const;
+  void StringShortPrint(StringStream* accumulator);
   void PrintUC16(std::ostream& os, int start = 0, int end = -1);  // NOLINT
+  void PrintUC16(StringStream* accumulator, int start, int end);
+
+  // Dispatched behavior.
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   char* ToAsciiArray();
 #endif

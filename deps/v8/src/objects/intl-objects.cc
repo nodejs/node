@@ -89,9 +89,7 @@ inline constexpr uint16_t ToLatin1Lower(uint16_t ch) {
 
 // Does not work for U+00DF (sharp-s), U+00B5 (micron), U+00FF.
 inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
-#if V8_HAS_CXX14_CONSTEXPR
-  DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
-#endif
+  CONSTEXPR_DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
   return ch &
          ~((IsAsciiLower(ch) || (((ch & 0xE0) == 0xE0) && ch != 0xF7)) << 5);
 }
@@ -1471,7 +1469,7 @@ class Iterator : public icu::Locale::Iterator {
   Iterator(std::vector<std::string>::const_iterator begin,
            std::vector<std::string>::const_iterator end)
       : iter_(begin), end_(end) {}
-  virtual ~Iterator() {}
+  ~Iterator() override = default;
 
   UBool hasNext() const override { return iter_ != end_; }
 
@@ -1893,8 +1891,8 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
 Handle<Managed<icu::UnicodeString>> Intl::SetTextToBreakIterator(
     Isolate* isolate, Handle<String> text, icu::BreakIterator* break_iterator) {
   text = String::Flatten(isolate, text);
-  icu::UnicodeString* u_text =
-      (icu::UnicodeString*)(Intl::ToICUUnicodeString(isolate, text).clone());
+  icu::UnicodeString* u_text = static_cast<icu::UnicodeString*>(
+      Intl::ToICUUnicodeString(isolate, text).clone());
 
   Handle<Managed<icu::UnicodeString>> new_u_text =
       Managed<icu::UnicodeString>::FromRawPtr(isolate, 0, u_text);

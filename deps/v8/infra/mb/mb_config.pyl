@@ -211,13 +211,12 @@
       'v8_linux_dbg_ng': 'debug_x86_trybot',
       'v8_linux_noi18n_compile_dbg': 'debug_x86_no_i18n',
       'v8_linux_noi18n_rel_ng': 'release_x86_no_i18n_trybot',
-      'v8_linux_gc_stress_dbg': 'debug_x86_trybot',
+      'v8_linux_gc_stress_dbg_ng': 'debug_x86_trybot',
       'v8_linux_gcc_compile_rel': 'release_x86_gcc_minimal_symbols',
-      'v8_linux_gcc_rel': 'release_x86_gcc_minimal_symbols',
+      'v8_linux_gcc_rel_ng': 'release_x86_gcc_minimal_symbols',
       'v8_linux_shared_compile_rel': 'release_x86_shared_verify_heap',
       'v8_linux64_arm64_pointer_compression_rel_ng':
           'release_simulate_arm64_pointer_compression',
-      'v8_linux64_compile_rel_xg': 'release_x64_test_features_trybot',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
@@ -231,39 +230,37 @@
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
       'v8_linux64_cfi_rel_ng': 'release_x64_cfi',
-      'v8_linux64_msan_rel': 'release_simulate_arm64_msan_minimal_symbols',
-      'v8_linux64_sanitizer_coverage_rel':
-          'release_x64_asan_minimal_symbols_coverage',
-      'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
+      'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
+      'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_isolates_rel_ng':
           'release_x64_tsan_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_minimal_symbols',
       'v8_odroid_arm_rel_ng': 'release_arm',
       'v8_linux_torque_compare': 'torque_compare',
       # TODO(machenbach): Remove after switching to x64 on infra side.
-      'v8_win_dbg': 'debug_x86_trybot',
+      'v8_win_dbg_ng': 'debug_x86_trybot',
       'v8_win_compile_dbg': 'debug_x86_trybot',
       'v8_win_rel_ng': 'release_x86_trybot',
       'v8_win64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_win64_msvc_compile_rel': 'release_x64_msvc',
-      'v8_win64_dbg': 'debug_x64_minimal_symbols',
+      'v8_win64_dbg_ng': 'debug_x64_minimal_symbols',
       'v8_win64_msvc_rel_ng': 'release_x64_msvc',
       'v8_win64_rel_ng': 'release_x64_trybot',
-      'v8_mac64_gc_stress_dbg': 'debug_x64_trybot',
+      'v8_mac64_gc_stress_dbg_ng': 'debug_x64_trybot',
       'v8_mac64_rel_ng': 'release_x64_trybot',
       'v8_mac64_dbg': 'debug_x64',
       'v8_mac64_dbg_ng': 'debug_x64',
       'v8_mac64_compile_full_dbg_ng': 'full_debug_x64',
-      'v8_mac64_asan_rel': 'release_x64_asan_no_lsan',
+      'v8_mac64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
       'v8_linux_arm_lite_rel_ng': 'release_simulate_arm_lite_trybot',
-      'v8_linux_arm_dbg': 'debug_simulate_arm',
+      'v8_linux_arm_dbg_ng': 'debug_simulate_arm',
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
       'v8_linux_arm_armv8a_dbg': 'debug_simulate_arm',
       'v8_linux_arm64_rel_ng': 'release_simulate_arm64_trybot',
       'v8_linux_arm64_cfi_rel_ng' : 'release_simulate_arm64_cfi',
-      'v8_linux_arm64_dbg': 'debug_simulate_arm64',
-      'v8_linux_arm64_gc_stress_dbg': 'debug_simulate_arm64',
+      'v8_linux_arm64_dbg_ng': 'debug_simulate_arm64',
+      'v8_linux_arm64_gc_stress_dbg_ng': 'debug_simulate_arm64',
       'v8_linux_mipsel_compile_rel': 'release_simulate_mipsel',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
     },
@@ -431,8 +428,6 @@
       'release_bot', 'x64', 'asan', 'lsan'],
     'release_x64_asan_minimal_symbols': [
       'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols'],
-    'release_x64_asan_minimal_symbols_coverage': [
-      'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan', 'minimal_symbols'],
     'release_x64_asan_no_lsan': [
       'release_bot', 'x64', 'asan'],
     'release_x64_asan_no_lsan_verify_heap': [
@@ -591,10 +586,6 @@
     'asan': {
       'mixins': ['clang', 'v8_enable_test_features'],
       'gn_args': 'is_asan=true',
-    },
-
-    'bb': {
-      'gn_args': 'sanitizer_coverage_flags="bb,trace-pc-guard"',
     },
 
     'cfi': {

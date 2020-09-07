@@ -35,7 +35,7 @@ import os
 import platform
 import re
 import subprocess
-import urllib2
+import urllib
 
 
 ### Exit codes and their meaning.

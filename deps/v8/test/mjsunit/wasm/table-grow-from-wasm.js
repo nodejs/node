@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-anyref
+// Flags: --expose-wasm --experimental-wasm-reftypes
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -14,18 +14,18 @@ function dummy_func(val) {
   return builder.instantiate().exports.dummy;
 }
 
-let kSig_i_ri = makeSig([kWasmAnyRef, kWasmI32], [kWasmI32]);
-let kSig_r_i = makeSig([kWasmI32], [kWasmAnyRef]);
+let kSig_i_ri = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
+let kSig_r_i = makeSig([kWasmI32], [kWasmExternRef]);
 let kSig_i_ai = makeSig([kWasmAnyFunc, kWasmI32], [kWasmI32]);
 
-function testGrowInternalAnyRefTable(table_index) {
+function testGrowInternalExternRefTable(table_index) {
   print(arguments.callee.name, table_index);
 
   const builder = new WasmModuleBuilder();
   const initial_size = 5;
   // Add 10 tables, we only test one.
   for (let i = 0; i < 10; ++i) {
-    builder.addTable(kWasmAnyRef, initial_size).index;
+    builder.addTable(kWasmExternRef, initial_size).index;
   }
   builder.addFunction('grow', kSig_i_ri)
     .addBody([kExprLocalGet, 0,
@@ -62,9 +62,9 @@ function testGrowInternalAnyRefTable(table_index) {
   growAndCheck(null, 2);
 }
 
-testGrowInternalAnyRefTable(0);
-testGrowInternalAnyRefTable(7);
-testGrowInternalAnyRefTable(9);
+testGrowInternalExternRefTable(0);
+testGrowInternalExternRefTable(7);
+testGrowInternalExternRefTable(9);
 
 function testGrowInternalAnyFuncTable(table_index) {
   print(arguments.callee.name, table_index);
@@ -116,7 +116,7 @@ testGrowInternalAnyFuncTable(9);
 
   let size = 3;
   const builder = new WasmModuleBuilder();
-  const table_index = builder.addImportedTable("imp", "table", size, undefined, kWasmAnyRef);
+  const table_index = builder.addImportedTable("imp", "table", size, undefined, kWasmExternRef);
   builder.addFunction('grow', kSig_i_ri)
     .addBody([kExprLocalGet, 0,
       kExprLocalGet, 1,
@@ -127,7 +127,7 @@ testGrowInternalAnyFuncTable(9);
     .addBody([kNumericPrefix, kExprTableSize, table_index])
     .exportFunc();
 
-  const table = new WebAssembly.Table({element: "anyref", initial: size});
+  const table = new WebAssembly.Table({element: "externref", initial: size});
 
   const instance = builder.instantiate({imp: {table: table}});
   assertEquals(null, table.get(size - 2));
@@ -157,10 +157,10 @@ testGrowInternalAnyFuncTable(9);
 
   const builder = new WasmModuleBuilder();
   const import_ref = builder.addImportedTable(
-    "imp", "table_ref", initial, maximum, kWasmAnyRef);
+    "imp", "table_ref", initial, maximum, kWasmExternRef);
   const import_func = builder.addImportedTable(
     "imp", "table_func", initial, maximum, kWasmAnyFunc);
-  const internal_ref = builder.addTable(kWasmAnyRef, initial, maximum).index;
+  const internal_ref = builder.addTable(kWasmExternRef, initial, maximum).index;
   const internal_func = builder.addTable(kWasmAnyFunc, initial, maximum).index;
 
   builder.addFunction('grow_imported_ref', kSig_i_ri)
@@ -204,7 +204,7 @@ testGrowInternalAnyFuncTable(9);
     .exportFunc();
 
   const table_ref = new WebAssembly.Table(
-    { element: "anyref", initial: initial, maximum: maximum });
+    { element: "externref", initial: initial, maximum: maximum });
   const table_func = new WebAssembly.Table(
     {element: "anyfunc", initial: initial, maximum: maximum});
 

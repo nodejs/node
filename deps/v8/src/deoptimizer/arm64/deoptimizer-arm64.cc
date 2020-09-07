@@ -295,7 +295,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
                                   FrameDescription::continuation_offset()));
   __ Ldr(lr, MemOperand(last_output_frame, FrameDescription::pc_offset()));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  __ Autiasp();
+  __ Autibsp();
 #endif
   __ Br(continuation);
 }

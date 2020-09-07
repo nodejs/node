@@ -357,8 +357,8 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
   const Runtime::Function* function =
       Runtime::FunctionForName(name->raw_data(), name->length());
 
-  // Be more premissive when fuzzing. Intrinsics are not supported.
-  if (FLAG_allow_natives_for_fuzzing) {
+  // Be more permissive when fuzzing. Intrinsics are not supported.
+  if (FLAG_fuzzing) {
     return NewV8RuntimeFunctionForFuzzing(function, args, pos);
   }
 
@@ -392,13 +392,13 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Expression* Parser::NewV8RuntimeFunctionForFuzzing(
     const Runtime::Function* function, const ScopedPtrList<Expression>& args,
     int pos) {
-  CHECK(FLAG_allow_natives_for_fuzzing);
+  CHECK(FLAG_fuzzing);
 
-  // Intrinsics are not supported for fuzzing. Only allow whitelisted runtime
+  // Intrinsics are not supported for fuzzing. Only allow allowlisted runtime
   // functions. Also prevent later errors due to too few arguments and just
   // ignore this call.
   if (function == nullptr ||
-      !Runtime::IsWhitelistedForFuzzing(function->function_id) ||
+      !Runtime::IsAllowListedForFuzzing(function->function_id) ||
       function->nargs > args.length()) {
     return factory()->NewUndefinedLiteral(kNoSourcePosition);
   }

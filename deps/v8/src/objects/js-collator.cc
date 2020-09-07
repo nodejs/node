@@ -508,7 +508,7 @@ class CollatorAvailableLocales {
     set_ = Intl::BuildLocaleSet(locales, U_ICUDATA_COLL, nullptr);
 #undef U_ICUDATA_COLL
   }
-  virtual ~CollatorAvailableLocales() {}
+  virtual ~CollatorAvailableLocales() = default;
   const std::set<std::string>& Get() const { return set_; }
 
  private:

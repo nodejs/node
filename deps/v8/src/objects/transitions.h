@@ -228,7 +228,7 @@ class TransitionArray : public WeakFixedArray {
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
   inline int number_of_entries() const;
 #ifdef DEBUG
-  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates(int valid_entries = -1);
+  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 #endif
 
   void Sort();
@@ -337,8 +337,6 @@ class TransitionArray : public WeakFixedArray {
                                    PropertyAttributes attributes2);
 
   inline void Set(int transition_number, Name key, MaybeObject target);
-
-  void Zap(Isolate* isolate);
 
   OBJECT_CONSTRUCTORS(TransitionArray, WeakFixedArray);
 };

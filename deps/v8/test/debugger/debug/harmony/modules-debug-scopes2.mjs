@@ -77,16 +77,6 @@ function CheckScopeChain(scopes, exec_state) {
 }
 
 
-function CheckScopeDoesNotHave(properties, number, exec_state) {
-  var scope = exec_state.frame().scope(number);
-  for (var p of properties) {
-    var property_mirror = scope.scopeObject().property(p);
-    assertTrue(property_mirror.isUndefined(),
-               'property ' + p + ' found in scope');
-  }
-}
-
-
 // Check that the scope contains at least minimum_content. For functions just
 // check that there is a function.
 function CheckScopeContent(minimum_content, number, exec_state) {
@@ -138,9 +128,6 @@ listener_delegate = function(exec_state) {
   CheckScopeContent(
       {exported_var: undefined, imported_var: undefined},
       0, exec_state);
-  CheckScopeDoesNotHave(
-      ["doesntexist", "exported_let", "imported_let"],
-      0, exec_state);
 };
 debugger;
 EndTest();
@@ -160,7 +147,6 @@ listener_delegate = function(exec_state) {
   CheckScopeContent(
       {exported_let: 3, exported_var: 4,
        imported_let: 3, imported_var: 4}, 0, exec_state);
-  CheckScopeDoesNotHave([], 0, exec_state);
 };
 debugger;
 EndTest();
@@ -178,7 +164,6 @@ listener_delegate = function(exec_state) {
   CheckScopeContent(
       {exported_let: 13, exported_var: 14,
        imported_let: 13, imported_var: 14}, 0, exec_state);
-  CheckScopeDoesNotHave([], 0, exec_state);
 };
 debugger;
 EndTest();

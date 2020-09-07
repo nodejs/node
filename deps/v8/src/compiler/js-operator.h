@@ -8,6 +8,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/type-hints.h"
 #include "src/runtime/runtime.h"
@@ -26,6 +28,77 @@ namespace compiler {
 // Forward declarations.
 class Operator;
 struct JSOperatorGlobalCache;
+
+// Macro lists.
+#define JS_UNOP_WITH_FEEDBACK(V) \
+  JS_BITWISE_UNOP_LIST(V)        \
+  JS_ARITH_UNOP_LIST(V)
+
+#define JS_BINOP_WITH_FEEDBACK(V) \
+  JS_ARITH_BINOP_LIST(V)          \
+  JS_BITWISE_BINOP_LIST(V)        \
+  JS_COMPARE_BINOP_LIST(V)
+
+// Predicates.
+class JSOperator final : public AllStatic {
+ public:
+  static constexpr bool IsUnaryWithFeedback(Operator::Opcode opcode) {
+#define CASE(Name, ...)   \
+  case IrOpcode::k##Name: \
+    return true;
+    switch (opcode) {
+      JS_UNOP_WITH_FEEDBACK(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+    return false;
+  }
+
+  static constexpr bool IsBinaryWithFeedback(Operator::Opcode opcode) {
+#define CASE(Name, ...)   \
+  case IrOpcode::k##Name: \
+    return true;
+    switch (opcode) {
+      JS_BINOP_WITH_FEEDBACK(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+    return false;
+  }
+};
+
+// Node wrappers.
+
+class JSUnaryOpNode final : public NodeWrapper {
+ public:
+  explicit constexpr JSUnaryOpNode(Node* node) : NodeWrapper(node) {
+    CONSTEXPR_DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
+  }
+
+  static constexpr int ValueIndex() { return 0; }
+  static constexpr int FeedbackVectorIndex() { return 1; }
+};
+
+#define V(JSName, ...) using JSName##Node = JSUnaryOpNode;
+JS_UNOP_WITH_FEEDBACK(V)
+#undef V
+
+class JSBinaryOpNode final : public NodeWrapper {
+ public:
+  explicit constexpr JSBinaryOpNode(Node* node) : NodeWrapper(node) {
+    CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
+  }
+
+  static constexpr int LeftIndex() { return 0; }
+  static constexpr int RightIndex() { return 1; }
+  static constexpr int FeedbackVectorIndex() { return 2; }
+};
+
+#define V(JSName, ...) using JSName##Node = JSBinaryOpNode;
+JS_BINOP_WITH_FEEDBACK(V)
+#undef V
 
 // Defines the frequency a given Call/Construct site was executed. For some
 // call sites the frequency is not known.
@@ -59,8 +132,6 @@ class CallFrequency final {
 };
 
 std::ostream& operator<<(std::ostream&, CallFrequency const&);
-
-CallFrequency CallFrequencyOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSConstructForwardVarargs operators.
@@ -97,15 +168,32 @@ std::ostream& operator<<(std::ostream&,
 ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
-// Defines the arity and the feedback for a JavaScript constructor call. This is
-// used as a parameter by JSConstruct and JSConstructWithSpread operators.
+// Part of ConstructParameters::arity.
+static constexpr int kTargetAndNewTarget = 2;
+
+// Defines the arity (parameters plus the target and new target) and the
+// feedback for a JavaScript constructor call. This is used as a parameter by
+// JSConstruct, JSConstructWithArrayLike, and JSConstructWithSpread operators.
 class ConstructParameters final {
  public:
   ConstructParameters(uint32_t arity, CallFrequency const& frequency,
                       FeedbackSource const& feedback)
-      : arity_(arity), frequency_(frequency), feedback_(feedback) {}
+      : arity_(arity), frequency_(frequency), feedback_(feedback) {
+    DCHECK_GE(arity, kTargetAndNewTarget);
+    DCHECK(is_int32(arity));
+  }
 
+  // TODO(jgruber): Consider removing `arity()` and just storing the arity
+  // without extra args in ConstructParameters. Every spot that creates
+  // ConstructParameters artifically adds the extra args. Every spot that uses
+  // ConstructParameters artificially subtracts the extra args.
+  // We keep them for now for consistency with other spots
+  // that expect `arity()` to include extra args.
   uint32_t arity() const { return arity_; }
+  int arity_without_implicit_args() const {
+    return static_cast<int>(arity_ - kTargetAndNewTarget);
+  }
+
   CallFrequency const& frequency() const { return frequency_; }
   FeedbackSource const& feedback() const { return feedback_; }
 
@@ -158,8 +246,12 @@ std::ostream& operator<<(std::ostream&, CallForwardVarargsParameters const&);
 CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
-// Defines the arity and the call flags for a JavaScript function call. This is
-// used as a parameter by JSCall and JSCallWithSpread operators.
+// Part of CallParameters::arity.
+static constexpr int kTargetAndReceiver = 2;
+
+// Defines the arity (parameters plus the target and receiver) and the call
+// flags for a JavaScript function call. This is used as a parameter by JSCall,
+// JSCallWithArrayLike and JSCallWithSpread operators.
 class CallParameters final {
  public:
   CallParameters(size_t arity, CallFrequency const& frequency,
@@ -178,9 +270,17 @@ class CallParameters final {
                    feedback.IsValid());
     DCHECK_IMPLIES(!feedback.IsValid(),
                    feedback_relation == CallFeedbackRelation::kUnrelated);
+    DCHECK_GE(arity, kTargetAndReceiver);
+    DCHECK(is_int32(arity));
   }
 
+  // TODO(jgruber): Consider removing `arity()` and just storing the arity
+  // without extra args in CallParameters.
   size_t arity() const { return ArityField::decode(bit_field_); }
+  int arity_without_implicit_args() const {
+    return static_cast<int>(arity() - kTargetAndReceiver);
+  }
+
   CallFrequency const& frequency() const { return frequency_; }
   ConvertReceiverMode convert_mode() const {
     return ConvertReceiverModeField::decode(bit_field_);
@@ -733,10 +833,6 @@ std::ostream& operator<<(std::ostream&, ForInMode);
 
 ForInMode ForInModeOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
-BinaryOperationHint BinaryOperationHintOf(const Operator* op);
-
-CompareOperationHint CompareOperationHintOf(const Operator* op);
-
 int RegisterCountOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
@@ -752,30 +848,30 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
  public:
   explicit JSOperatorBuilder(Zone* zone);
 
-  const Operator* Equal(CompareOperationHint hint);
-  const Operator* StrictEqual(CompareOperationHint hint);
-  const Operator* LessThan(CompareOperationHint hint);
-  const Operator* GreaterThan(CompareOperationHint hint);
-  const Operator* LessThanOrEqual(CompareOperationHint hint);
-  const Operator* GreaterThanOrEqual(CompareOperationHint hint);
+  const Operator* Equal(FeedbackSource const& feedback);
+  const Operator* StrictEqual(FeedbackSource const& feedback);
+  const Operator* LessThan(FeedbackSource const& feedback);
+  const Operator* GreaterThan(FeedbackSource const& feedback);
+  const Operator* LessThanOrEqual(FeedbackSource const& feedback);
+  const Operator* GreaterThanOrEqual(FeedbackSource const& feedback);
 
-  const Operator* BitwiseOr();
-  const Operator* BitwiseXor();
-  const Operator* BitwiseAnd();
-  const Operator* ShiftLeft();
-  const Operator* ShiftRight();
-  const Operator* ShiftRightLogical();
-  const Operator* Add(BinaryOperationHint hint);
-  const Operator* Subtract();
-  const Operator* Multiply();
-  const Operator* Divide();
-  const Operator* Modulus();
-  const Operator* Exponentiate();
+  const Operator* BitwiseOr(FeedbackSource const& feedback);
+  const Operator* BitwiseXor(FeedbackSource const& feedback);
+  const Operator* BitwiseAnd(FeedbackSource const& feedback);
+  const Operator* ShiftLeft(FeedbackSource const& feedback);
+  const Operator* ShiftRight(FeedbackSource const& feedback);
+  const Operator* ShiftRightLogical(FeedbackSource const& feedback);
+  const Operator* Add(FeedbackSource const& feedback);
+  const Operator* Subtract(FeedbackSource const& feedback);
+  const Operator* Multiply(FeedbackSource const& feedback);
+  const Operator* Divide(FeedbackSource const& feedback);
+  const Operator* Modulus(FeedbackSource const& feedback);
+  const Operator* Exponentiate(FeedbackSource const& feedback);
 
-  const Operator* BitwiseNot();
-  const Operator* Decrement();
-  const Operator* Increment();
-  const Operator* Negate();
+  const Operator* BitwiseNot(FeedbackSource const& feedback);
+  const Operator* Decrement(FeedbackSource const& feedback);
+  const Operator* Increment(FeedbackSource const& feedback);
+  const Operator* Negate(FeedbackSource const& feedback);
 
   const Operator* ToLength();
   const Operator* ToName();
@@ -849,7 +945,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Construct(uint32_t arity,
                             CallFrequency const& frequency = CallFrequency(),
                             FeedbackSource const& feedback = FeedbackSource());
-  const Operator* ConstructWithArrayLike(CallFrequency const& frequency);
+  const Operator* ConstructWithArrayLike(CallFrequency const& frequency,
+                                         FeedbackSource const& feedback);
   const Operator* ConstructWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource());

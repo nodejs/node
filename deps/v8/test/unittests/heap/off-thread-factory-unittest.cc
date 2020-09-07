@@ -371,5 +371,37 @@ TEST_F(OffThreadFactoryTest, ImplicitNameFunction) {
       implicit_name_sfi->Name().IsOneByteEqualTo(CStrVector("implicit_name")));
 }
 
+TEST_F(OffThreadFactoryTest, GCDuringPublish) {
+  FunctionLiteral* program = ParseProgram("let implicit_name = function() {}");
+  FunctionLiteral* implicit_name = program->body()
+                                       ->at(0)
+                                       ->AsBlock()
+                                       ->statements()
+                                       ->at(0)
+                                       ->AsExpressionStatement()
+                                       ->expression()
+                                       ->AsAssignment()
+                                       ->value()
+                                       ->AsFunctionLiteral();
+
+  OffThreadTransferHandle<SharedFunctionInfo> shared;
+  {
+    OffThreadHandleScope handle_scope(off_thread_isolate());
+
+    shared = off_thread_isolate()->TransferHandle(
+        off_thread_factory()->NewSharedFunctionInfoForLiteral(implicit_name,
+                                                              script(), true));
+
+    off_thread_isolate()->FinishOffThread();
+  }
+
+  off_thread_isolate()->Publish(isolate());
+  Handle<SharedFunctionInfo> implicit_name_sfi = shared.ToHandle();
+
+  EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
+  EXPECT_TRUE(
+      implicit_name_sfi->Name().IsOneByteEqualTo(CStrVector("implicit_name")));
+}
+
 }  // namespace internal
 }  // namespace v8

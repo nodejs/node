@@ -14,6 +14,7 @@
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/binary-op-assembler.h"
 #include "src/ic/ic.h"
+#include "src/ic/unary-op-assembler.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
@@ -1083,37 +1084,16 @@ IGNITION_HANDLER(BitwiseAndSmi, InterpreterBitwiseBinaryOpAssembler) {
 //
 // Perform bitwise-not on the accumulator.
 IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
-  TNode<Object> operand = GetAccumulator();
+  TNode<Object> value = GetAccumulator();
+  TNode<Context> context = GetContext();
   TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
-  TNode<Context> context = GetContext();
 
-  TVARIABLE(Word32T, var_word32);
-  TVARIABLE(Smi, var_feedback);
-  TVARIABLE(BigInt, var_bigint);
-  Label if_number(this), if_bigint(this);
-  TaggedToWord32OrBigIntWithFeedback(context, operand, &if_number, &var_word32,
-                                     &if_bigint, &var_bigint, &var_feedback);
+  UnaryOpAssembler unary_op_asm(state());
+  TNode<Object> result = unary_op_asm.Generate_BitwiseNotWithFeedback(
+      context, value, slot_index, maybe_feedback_vector);
 
-  // Number case.
-  BIND(&if_number);
-  TNode<Number> result =
-      ChangeInt32ToTagged(Signed(Word32BitwiseNot(var_word32.value())));
-  TNode<Smi> result_type = SelectSmiConstant(
-      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-      BinaryOperationFeedback::kNumber);
-  UpdateFeedback(SmiOr(result_type, var_feedback.value()),
-                 maybe_feedback_vector, slot_index);
   SetAccumulator(result);
-  Dispatch();
-
-  // BigInt case.
-  BIND(&if_bigint);
-  UpdateFeedback(SmiConstant(BinaryOperationFeedback::kBigInt),
-                 maybe_feedback_vector, slot_index);
-  SetAccumulator(CallRuntime(Runtime::kBigIntUnaryOp, context,
-                             var_bigint.value(),
-                             SmiConstant(Operation::kBitwiseNot)));
   Dispatch();
 }
 
@@ -1144,162 +1124,22 @@ IGNITION_HANDLER(ShiftRightLogicalSmi, InterpreterBitwiseBinaryOpAssembler) {
   BitwiseBinaryOpWithSmi(Operation::kShiftRightLogical);
 }
 
-class UnaryNumericOpAssembler : public InterpreterAssembler {
- public:
-  UnaryNumericOpAssembler(CodeAssemblerState* state, Bytecode bytecode,
-                          OperandScale operand_scale)
-      : InterpreterAssembler(state, bytecode, operand_scale) {}
-
-  virtual ~UnaryNumericOpAssembler() = default;
-
-  // Must return a tagged value.
-  virtual TNode<Number> SmiOp(TNode<Smi> smi_value,
-                              TVariable<Smi>* var_feedback, Label* do_float_op,
-                              TVariable<Float64T>* var_float) = 0;
-  // Must return a Float64 value.
-  virtual TNode<Float64T> FloatOp(TNode<Float64T> float_value) = 0;
-  // Must return a tagged value.
-  virtual TNode<HeapObject> BigIntOp(TNode<HeapObject> bigint_value) = 0;
-
-  void UnaryOpWithFeedback() {
-    TVARIABLE(Object, var_value, GetAccumulator());
-    TVARIABLE(Object, var_result);
-    TVARIABLE(Float64T, var_float_value);
-    TVARIABLE(Smi, var_feedback, SmiConstant(BinaryOperationFeedback::kNone));
-    Label start(this, {&var_value, &var_feedback}), end(this);
-    Label do_float_op(this, &var_float_value);
-    Goto(&start);
-    // We might have to try again after ToNumeric conversion.
-    BIND(&start);
-    {
-      Label if_smi(this), if_heapnumber(this), if_oddball(this);
-      Label if_bigint(this, Label::kDeferred);
-      Label if_other(this, Label::kDeferred);
-      TNode<Object> value = var_value.value();
-      GotoIf(TaggedIsSmi(value), &if_smi);
-
-      TNode<HeapObject> value_heap_object = CAST(value);
-      TNode<Map> map = LoadMap(value_heap_object);
-      GotoIf(IsHeapNumberMap(map), &if_heapnumber);
-      TNode<Uint16T> instance_type = LoadMapInstanceType(map);
-      GotoIf(IsBigIntInstanceType(instance_type), &if_bigint);
-      Branch(InstanceTypeEqual(instance_type, ODDBALL_TYPE), &if_oddball,
-             &if_other);
-
-      BIND(&if_smi);
-      {
-        var_result =
-            SmiOp(CAST(value), &var_feedback, &do_float_op, &var_float_value);
-        Goto(&end);
-      }
-
-      BIND(&if_heapnumber);
-      {
-        var_float_value = LoadHeapNumberValue(value_heap_object);
-        Goto(&do_float_op);
-      }
-
-      BIND(&if_bigint);
-      {
-        var_result = BigIntOp(value_heap_object);
-        CombineFeedback(&var_feedback, BinaryOperationFeedback::kBigInt);
-        Goto(&end);
-      }
-
-      BIND(&if_oddball);
-      {
-        // We do not require an Or with earlier feedback here because once we
-        // convert the value to a number, we cannot reach this path. We can
-        // only reach this path on the first pass when the feedback is kNone.
-        CSA_ASSERT(this, SmiEqual(var_feedback.value(),
-                                  SmiConstant(BinaryOperationFeedback::kNone)));
-        OverwriteFeedback(&var_feedback,
-                          BinaryOperationFeedback::kNumberOrOddball);
-        var_value =
-            LoadObjectField(value_heap_object, Oddball::kToNumberOffset);
-        Goto(&start);
-      }
-
-      BIND(&if_other);
-      {
-        // We do not require an Or with earlier feedback here because once we
-        // convert the value to a number, we cannot reach this path. We can
-        // only reach this path on the first pass when the feedback is kNone.
-        CSA_ASSERT(this, SmiEqual(var_feedback.value(),
-                                  SmiConstant(BinaryOperationFeedback::kNone)));
-        OverwriteFeedback(&var_feedback, BinaryOperationFeedback::kAny);
-        var_value = CallBuiltin(Builtins::kNonNumberToNumeric, GetContext(),
-                                value_heap_object);
-        Goto(&start);
-      }
-    }
-
-    BIND(&do_float_op);
-    {
-      CombineFeedback(&var_feedback, BinaryOperationFeedback::kNumber);
-      var_result =
-          AllocateHeapNumberWithValue(FloatOp(var_float_value.value()));
-      Goto(&end);
-    }
-
-    BIND(&end);
-    TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
-    TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
-    UpdateFeedback(var_feedback.value(), maybe_feedback_vector, slot_index);
-    SetAccumulator(var_result.value());
-    Dispatch();
-  }
-};
-
-class NegateAssemblerImpl : public UnaryNumericOpAssembler {
- public:
-  explicit NegateAssemblerImpl(CodeAssemblerState* state, Bytecode bytecode,
-                               OperandScale operand_scale)
-      : UnaryNumericOpAssembler(state, bytecode, operand_scale) {}
-
-  TNode<Number> SmiOp(TNode<Smi> smi_value, TVariable<Smi>* var_feedback,
-                      Label* do_float_op,
-                      TVariable<Float64T>* var_float) override {
-    TVARIABLE(Number, var_result);
-    Label if_zero(this), if_min_smi(this), end(this);
-    // Return -0 if operand is 0.
-    GotoIf(SmiEqual(smi_value, SmiConstant(0)), &if_zero);
-
-    // Special-case the minimum Smi to avoid overflow.
-    GotoIf(SmiEqual(smi_value, SmiConstant(Smi::kMinValue)), &if_min_smi);
-
-    // Else simply subtract operand from 0.
-    CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
-    var_result = SmiSub(SmiConstant(0), smi_value);
-    Goto(&end);
-
-    BIND(&if_zero);
-    CombineFeedback(var_feedback, BinaryOperationFeedback::kNumber);
-    var_result = MinusZeroConstant();
-    Goto(&end);
-
-    BIND(&if_min_smi);
-    *var_float = SmiToFloat64(smi_value);
-    Goto(do_float_op);
-
-    BIND(&end);
-    return var_result.value();
-  }
-
-  TNode<Float64T> FloatOp(TNode<Float64T> float_value) override {
-    return Float64Neg(float_value);
-  }
-
-  TNode<HeapObject> BigIntOp(TNode<HeapObject> bigint_value) override {
-    return CAST(CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
-                            SmiConstant(Operation::kNegate)));
-  }
-};
-
 // Negate <feedback_slot>
 //
 // Perform arithmetic negation on the accumulator.
-IGNITION_HANDLER(Negate, NegateAssemblerImpl) { UnaryOpWithFeedback(); }
+IGNITION_HANDLER(Negate, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<Context> context = GetContext();
+  TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+
+  UnaryOpAssembler unary_op_asm(state());
+  TNode<Object> result = unary_op_asm.Generate_NegateWithFeedback(
+      context, value, slot_index, maybe_feedback_vector);
+
+  SetAccumulator(result);
+  Dispatch();
+}
 
 // ToName <dst>
 //
@@ -1345,72 +1185,39 @@ IGNITION_HANDLER(ToString, InterpreterAssembler) {
   Dispatch();
 }
 
-class IncDecAssembler : public UnaryNumericOpAssembler {
- public:
-  explicit IncDecAssembler(CodeAssemblerState* state, Bytecode bytecode,
-                           OperandScale operand_scale)
-      : UnaryNumericOpAssembler(state, bytecode, operand_scale) {}
-
-  Operation op() {
-    DCHECK(op_ == Operation::kIncrement || op_ == Operation::kDecrement);
-    return op_;
-  }
-
-  TNode<Number> SmiOp(TNode<Smi> value, TVariable<Smi>* var_feedback,
-                      Label* do_float_op,
-                      TVariable<Float64T>* var_float) override {
-    TNode<Smi> one = SmiConstant(1);
-    Label if_overflow(this), if_notoverflow(this);
-    TNode<Smi> result = op() == Operation::kIncrement
-                            ? TrySmiAdd(value, one, &if_overflow)
-                            : TrySmiSub(value, one, &if_overflow);
-    Goto(&if_notoverflow);
-
-    BIND(&if_overflow);
-    {
-      *var_float = SmiToFloat64(value);
-      Goto(do_float_op);
-    }
-
-    BIND(&if_notoverflow);
-    CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
-    return result;
-  }
-
-  TNode<Float64T> FloatOp(TNode<Float64T> float_value) override {
-    return op() == Operation::kIncrement
-               ? Float64Add(float_value, Float64Constant(1.0))
-               : Float64Sub(float_value, Float64Constant(1.0));
-  }
-
-  TNode<HeapObject> BigIntOp(TNode<HeapObject> bigint_value) override {
-    return CAST(CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
-                            SmiConstant(op())));
-  }
-
-  void IncWithFeedback() {
-    op_ = Operation::kIncrement;
-    UnaryOpWithFeedback();
-  }
-
-  void DecWithFeedback() {
-    op_ = Operation::kDecrement;
-    UnaryOpWithFeedback();
-  }
-
- private:
-  Operation op_ = Operation::kEqual;  // Dummy initialization.
-};
-
 // Inc
 //
 // Increments value in the accumulator by one.
-IGNITION_HANDLER(Inc, IncDecAssembler) { IncWithFeedback(); }
+IGNITION_HANDLER(Inc, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<Context> context = GetContext();
+  TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+
+  UnaryOpAssembler unary_op_asm(state());
+  TNode<Object> result = unary_op_asm.Generate_IncrementWithFeedback(
+      context, value, slot_index, maybe_feedback_vector);
+
+  SetAccumulator(result);
+  Dispatch();
+}
 
 // Dec
 //
 // Decrements value in the accumulator by one.
-IGNITION_HANDLER(Dec, IncDecAssembler) { DecWithFeedback(); }
+IGNITION_HANDLER(Dec, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<Context> context = GetContext();
+  TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+
+  UnaryOpAssembler unary_op_asm(state());
+  TNode<Object> result = unary_op_asm.Generate_DecrementWithFeedback(
+      context, value, slot_index, maybe_feedback_vector);
+
+  SetAccumulator(result);
+  Dispatch();
+}
 
 // ToBooleanLogicalNot
 //
@@ -2602,10 +2409,9 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtins::kCloneObjectIC, context, source, smi_flags,
-                           slot, maybe_feedback_vector);
-  SetAccumulator(var_result.value());
+  TNode<Object> result = CallBuiltin(Builtins::kCloneObjectIC, context, source,
+                                     smi_flags, slot, maybe_feedback_vector);
+  SetAccumulator(result);
   Dispatch();
 }
 
@@ -2615,41 +2421,18 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
 // accumulator, creating and caching the site object on-demand as per the
 // specification.
 IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Context> context = GetContext();
+  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
+      closure, JSFunction::kSharedFunctionInfoOffset);
+  TNode<Object> description = LoadConstantPoolEntryAtOperandIndex(0);
   TNode<UintPtrT> slot = BytecodeOperandIdx(1);
-
-  Label call_runtime(this, Label::kDeferred);
-  GotoIf(IsUndefined(maybe_feedback_vector), &call_runtime);
-
-  TNode<Object> cached_value =
-      CAST(LoadFeedbackVectorSlot(CAST(maybe_feedback_vector), slot));
-
-  GotoIf(TaggedEqual(cached_value, SmiConstant(0)), &call_runtime);
-
-  SetAccumulator(cached_value);
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Object> result =
+      CallBuiltin(Builtins::kGetTemplateObject, context, shared_info,
+                  description, slot, maybe_feedback_vector);
+  SetAccumulator(result);
   Dispatch();
-
-  BIND(&call_runtime);
-  {
-    TNode<Object> description = LoadConstantPoolEntryAtOperandIndex(0);
-    TNode<Smi> slot_smi = SmiTag(Signed(slot));
-    TNode<JSFunction> closure =
-        CAST(LoadRegister(Register::function_closure()));
-    TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
-        closure, JSFunction::kSharedFunctionInfoOffset);
-    TNode<Context> context = GetContext();
-    TNode<Object> result = CallRuntime(Runtime::kGetTemplateObject, context,
-                                       description, shared_info, slot_smi);
-
-    Label end(this);
-    GotoIf(IsUndefined(maybe_feedback_vector), &end);
-    StoreFeedbackVectorSlot(CAST(maybe_feedback_vector), slot, result);
-    Goto(&end);
-
-    Bind(&end);
-    SetAccumulator(result);
-    Dispatch();
-  }
 }
 
 // CreateClosure <index> <slot> <flags>

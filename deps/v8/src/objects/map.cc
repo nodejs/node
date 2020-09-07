@@ -25,6 +25,8 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 #include "torque-generated/field-offsets-tq.h"
 
 namespace v8 {
@@ -89,7 +91,7 @@ Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
   case TYPE:                        \
     map = roots.name##_map();       \
     break;
-    TORQUE_INTERNAL_INSTANCE_TYPE_LIST(MAKE_CASE)
+    TORQUE_DEFINED_INSTANCE_TYPE_LIST(MAKE_CASE)
 #undef MAKE_CASE
     default:
       UNREACHABLE();
@@ -268,7 +270,6 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
-    case JS_AGGREGATE_ERROR_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -1437,8 +1438,9 @@ bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
     }
 
     if (IsSlowArgumentsElementsKind(elements_kind)) {
-      FixedArray parameter_map = FixedArray::cast(current.elements(isolate));
-      Object arguments = parameter_map.get(isolate, 1);
+      SloppyArgumentsElements elements =
+          SloppyArgumentsElements::cast(current.elements(isolate));
+      Object arguments = elements.arguments();
       if (NumberDictionary::cast(arguments).requires_slow_elements()) {
         return true;
       }

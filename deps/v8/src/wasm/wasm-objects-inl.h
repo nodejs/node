@@ -30,7 +30,6 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
 OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, Struct)
-OBJECT_CONSTRUCTORS_IMPL(WasmDebugInfo, Struct)
 OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
@@ -40,9 +39,6 @@ OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, Struct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
 
-NEVER_READ_ONLY_SPACE_IMPL(WasmDebugInfo)
-
-CAST_ACCESSOR(WasmDebugInfo)
 CAST_ACCESSOR(WasmExceptionObject)
 CAST_ACCESSOR(WasmExportedFunctionData)
 CAST_ACCESSOR(WasmGlobalObject)
@@ -126,20 +122,22 @@ ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
           kUntaggedBufferOffset)
 ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
-SMI_ACCESSORS(WasmGlobalObject, flags, kFlagsOffset)
+// TODO(7748): This will not suffice to hold the 32-bit encoding of a ValueType.
+// We need to devise and encoding that does, and also encodes is_mutable.
+SMI_ACCESSORS(WasmGlobalObject, raw_type, kRawTypeOffset)
+SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
+
 wasm::ValueType WasmGlobalObject::type() const {
-  return wasm::ValueType(TypeBits::decode(flags()));
+  return wasm::ValueType::FromRawBitField(raw_type());
 }
 void WasmGlobalObject::set_type(wasm::ValueType value) {
-  set_flags(TypeBits::update(flags(), value.kind()));
+  set_raw_type(static_cast<int>(value.raw_bit_field()));
 }
-BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, is_mutable,
-                    WasmGlobalObject::IsMutableBit)
 
 int WasmGlobalObject::type_size() const { return type().element_size_bytes(); }
 
 Address WasmGlobalObject::address() const {
-  DCHECK_NE(type(), wasm::kWasmAnyRef);
+  DCHECK_NE(type(), wasm::kWasmExternRef);
   DCHECK_LE(offset() + type_size(), untagged_buffer().byte_length());
   return Address(untagged_buffer().backing_store()) + offset();
 }
@@ -161,8 +159,8 @@ double WasmGlobalObject::GetF64() {
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
-  // We use this getter for anyref, funcref, and exnref.
-  DCHECK(type().IsReferenceType());
+  // We use this getter for externref, funcref, and exnref.
+  DCHECK(type().is_reference_type());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
 
@@ -182,19 +180,11 @@ void WasmGlobalObject::SetF64(double value) {
   base::WriteLittleEndianValue<double>(address(), value);
 }
 
-void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
-  // We use this getter anyref and exnref.
-  DCHECK(type() == wasm::kWasmAnyRef || type() == wasm::kWasmExnRef);
+void WasmGlobalObject::SetExternRef(Handle<Object> value) {
+  // We use this getter externref and exnref.
+  DCHECK(type().is_reference_to(wasm::kHeapExtern) ||
+         type().is_reference_to(wasm::kHeapExn));
   tagged_buffer().set(offset(), *value);
-}
-
-bool WasmGlobalObject::SetNullRef(Handle<Object> value) {
-  DCHECK_EQ(type(), wasm::kWasmNullRef);
-  if (!value->IsNull()) {
-    return false;
-  }
-  tagged_buffer().set(offset(), *value);
-  return true;
 }
 
 bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
@@ -253,8 +243,6 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, tagged_globals_buffer, FixedArray,
                    kTaggedGlobalsBufferOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers,
                    FixedArray, kImportedMutableGlobalsBuffersOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
-                   kDebugInfoOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tables, FixedArray, kTablesOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_tables, FixedArray,
                    kIndirectFunctionTablesOffset)
@@ -391,23 +379,15 @@ OPTIONAL_ACCESSORS(WasmIndirectFunctionTable, managed_native_allocations,
                    Foreign, kManagedNativeAllocationsOffset)
 ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 
-// WasmDebugInfo
-ACCESSORS(WasmDebugInfo, wasm_instance, WasmInstanceObject, kInstanceOffset)
-ACCESSORS(WasmDebugInfo, interpreter_handle, Object, kInterpreterHandleOffset)
-ACCESSORS(WasmDebugInfo, interpreter_reference_stack, Cell,
-          kInterpreterReferenceStackOffset)
-OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entries, FixedArray,
-                   kCWasmEntriesOffset)
-OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
-                   kCWasmEntryMapOffset)
-
 #undef OPTIONAL_ACCESSORS
 #undef READ_PRIMITIVE_FIELD
 #undef WRITE_PRIMITIVE_FIELD
 #undef PRIMITIVE_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
-  return wasm::ValueType(static_cast<wasm::ValueType::Kind>(raw_type()));
+  // TODO(7748): Support non-nullable tables?
+  return wasm::ValueType::Ref(static_cast<wasm::HeapType>(raw_type()),
+                              wasm::kNullable);
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }

@@ -25,7 +25,7 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
       function((FLAG_allow_natives_syntax = true, NewFunction(source))),
       flags_(flags) {
   Compile(function);
-  const uint32_t supported_flags = OptimizedCompilationInfo::kInliningEnabled;
+  const uint32_t supported_flags = OptimizedCompilationInfo::kInlining;
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 
@@ -145,12 +145,15 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   return Optimize(function, &zone, isolate, flags_);
 }
 
+static constexpr bool kNativeContextDependent = false;
+
 // Compile the given machine graph instead of the source of the function
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
-  OptimizedCompilationInfo info(&zone, isolate, shared, function);
+  OptimizedCompilationInfo info(&zone, isolate, shared, function,
+                                kNativeContextDependent);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
   Handle<Code> code =

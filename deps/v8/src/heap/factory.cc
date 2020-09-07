@@ -15,8 +15,10 @@
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
@@ -118,6 +120,22 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     data_container->set_kind_specific_flags(kind_specific_flags_);
   }
 
+  // Basic block profiling data for builtins is stored in the JS heap rather
+  // than in separately-allocated C++ objects. Allocate that data now if
+  // appropriate.
+  Handle<OnHeapBasicBlockProfilerData> on_heap_profiler_data;
+  if (profiler_data_ && isolate_->IsGeneratingEmbeddedBuiltins()) {
+    on_heap_profiler_data = profiler_data_->CopyToJSHeap(isolate_);
+
+    // Add the on-heap data to a global list, which keeps it alive and allows
+    // iteration.
+    Handle<ArrayList> list(isolate_->heap()->basic_block_profiling_data(),
+                           isolate_);
+    Handle<ArrayList> new_list =
+        ArrayList::Add(isolate_, list, on_heap_profiler_data);
+    isolate_->heap()->SetBasicBlockProfilingData(new_list);
+  }
+
   Handle<Code> code;
   {
     int object_size = ComputeCodeObjectSize(code_desc_);
@@ -189,6 +207,14 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       *(self_reference.location()) = code->ptr();
     }
 
+    // Likewise, any references to the basic block counters marker need to be
+    // updated to point to the newly-allocated counters array.
+    if (!on_heap_profiler_data.is_null()) {
+      isolate_->builtins_constants_table_builder()
+          ->PatchBasicBlockCountersReference(
+              handle(on_heap_profiler_data->counts(), isolate_));
+    }
+
     // Migrate generated code.
     // The generated code can contain embedded objects (typically from handles)
     // in a pointer-to-tagged-value format (i.e. with indirection like a handle)
@@ -209,6 +235,21 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // cache flush instructions to trigger access error on non-writable memory.
     // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
     code->FlushICache();
+  }
+
+  if (profiler_data_ && FLAG_turbo_profiling_verbose) {
+#ifdef ENABLE_DISASSEMBLER
+    std::ostringstream os;
+    code->Disassemble(nullptr, os, isolate_);
+    if (!on_heap_profiler_data.is_null()) {
+      Handle<String> disassembly =
+          isolate_->factory()->NewStringFromAsciiChecked(os.str().c_str(),
+                                                         AllocationType::kOld);
+      on_heap_profiler_data->set_code(*disassembly);
+    } else {
+      profiler_data_->SetCode(os);
+    }
+#endif  // ENABLE_DISASSEMBLER
   }
 
   return code;
@@ -325,6 +366,13 @@ Handle<Oddball> Factory::NewSelfReferenceMarker() {
                     Oddball::kSelfReferenceMarker);
 }
 
+Handle<Oddball> Factory::NewBasicBlockCountersMarker() {
+  return NewOddball(basic_block_counters_marker_map(),
+                    "basic_block_counters_marker",
+                    handle(Smi::FromInt(-1), isolate()), "undefined",
+                    Oddball::kBasicBlockCountersMarker);
+}
+
 Handle<PropertyArray> Factory::NewPropertyArray(int length) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_property_array();
@@ -347,7 +395,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
   HeapObject result;
   if (!allocation.To(&result)) return MaybeHandle<FixedArray>();
   if (size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
+    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(result);
     chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
   }
   result.set_map_after_allocation(*fixed_array_map(), SKIP_WRITE_BARRIER);
@@ -1136,8 +1184,8 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                                  Handle<ScopeInfo> scope_info,
                                                  Handle<JSReceiver> extension,
                                                  Handle<Context> wrapped,
-                                                 Handle<StringSet> blacklist) {
-  STATIC_ASSERT(Context::BLACK_LIST_INDEX ==
+                                                 Handle<StringSet> blocklist) {
+  STATIC_ASSERT(Context::BLOCK_LIST_INDEX ==
                 Context::MIN_CONTEXT_EXTENDED_SLOTS + 1);
   DCHECK(scope_info->IsDebugEvaluateScope());
   Handle<HeapObject> ext = extension.is_null()
@@ -1152,7 +1200,7 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
   c->set_previous(*previous);
   c->set_extension(*ext);
   if (!wrapped.is_null()) c->set(Context::WRAPPED_CONTEXT_INDEX, *wrapped);
-  if (!blacklist.is_null()) c->set(Context::BLACK_LIST_INDEX, *blacklist);
+  if (!blocklist.is_null()) c->set(Context::BLOCK_LIST_INDEX, *blocklist);
   return c;
 }
 
@@ -3078,9 +3126,7 @@ Handle<StackTraceFrame> Factory::NewStackTraceFrame(
   frame->set_frame_index(index);
   frame->set_frame_info(*undefined_value());
 
-  int id = isolate()->last_stack_frame_info_id() + 1;
-  isolate()->set_last_stack_frame_info_id(id);
-  frame->set_id(id);
+  frame->set_id(isolate()->GetNextStackFrameInfoId());
   return frame;
 }
 
@@ -3104,7 +3150,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   // TODO(szuend): Adjust this, once it is decided what name to use in both
   //               "simple" and "detailed" stack traces. This code is for
   //               backwards compatibility to fullfill test expectations.
-  auto function_name = frame->GetFunctionName();
+  Handle<PrimitiveHeapObject> function_name = frame->GetFunctionName();
   bool is_user_java_script = false;
   if (!is_wasm) {
     Handle<Object> function = frame->GetFunction();
@@ -3115,11 +3161,11 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     }
   }
 
-  Handle<Object> method_name = undefined_value();
-  Handle<Object> type_name = undefined_value();
-  Handle<Object> eval_origin = frame->GetEvalOrigin();
-  Handle<Object> wasm_module_name = frame->GetWasmModuleName();
-  Handle<Object> wasm_instance = frame->GetWasmInstance();
+  Handle<PrimitiveHeapObject> method_name = undefined_value();
+  Handle<PrimitiveHeapObject> type_name = undefined_value();
+  Handle<PrimitiveHeapObject> eval_origin = frame->GetEvalOrigin();
+  Handle<PrimitiveHeapObject> wasm_module_name = frame->GetWasmModuleName();
+  Handle<HeapObject> wasm_instance = frame->GetWasmInstance();
 
   // MethodName and TypeName are expensive to look up, so they are only
   // included when they are strictly needed by the stack trace
@@ -3163,7 +3209,8 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   info->set_is_toplevel(is_toplevel);
   info->set_is_async(frame->IsAsync());
   info->set_is_promise_all(frame->IsPromiseAll());
-  info->set_promise_all_index(frame->GetPromiseIndex());
+  info->set_is_promise_any(frame->IsPromiseAny());
+  info->set_promise_combinator_index(frame->GetPromiseIndex());
 
   return info;
 }

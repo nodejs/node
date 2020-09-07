@@ -247,8 +247,10 @@ class MarkCompactCollectorBase {
 class MinorMarkingState final
     : public MarkingStateBase<MinorMarkingState, AccessMode::ATOMIC> {
  public:
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
-    return chunk->young_generation_bitmap<AccessMode::ATOMIC>();
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
+      const BasicMemoryChunk* chunk) const {
+    return MemoryChunk::cast(chunk)
+        ->young_generation_bitmap<AccessMode::ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
@@ -269,8 +271,9 @@ class MinorNonAtomicMarkingState final
                               AccessMode::NON_ATOMIC> {
  public:
   ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const MemoryChunk* chunk) const {
-    return chunk->young_generation_bitmap<AccessMode::NON_ATOMIC>();
+      const BasicMemoryChunk* chunk) const {
+    return MemoryChunk::cast(chunk)
+        ->young_generation_bitmap<AccessMode::NON_ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
@@ -293,25 +296,26 @@ class MinorNonAtomicMarkingState final
 class MajorMarkingState final
     : public MarkingStateBase<MajorMarkingState, AccessMode::ATOMIC> {
  public:
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
+      const BasicMemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
-              MemoryChunk::kMarkBitmapOffset);
+              BasicMemoryChunk::kMarkBitmapOffset);
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 
   // Concurrent marking uses local live bytes so we may do these accesses
   // non-atomically.
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_ += by;
+    chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
   }
 
   intptr_t live_bytes(MemoryChunk* chunk) const {
-    return chunk->live_byte_count_;
+    return chunk->live_byte_count_.load(std::memory_order_relaxed);
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->live_byte_count_ = value;
+    chunk->live_byte_count_.store(value, std::memory_order_relaxed);
   }
 };
 
@@ -320,16 +324,16 @@ class MajorMarkingState final
 class MajorAtomicMarkingState final
     : public MarkingStateBase<MajorAtomicMarkingState, AccessMode::ATOMIC> {
  public:
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
+      const BasicMemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
-              MemoryChunk::kMarkBitmapOffset);
+              BasicMemoryChunk::kMarkBitmapOffset);
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    std::atomic_fetch_add(
-        reinterpret_cast<std::atomic<intptr_t>*>(&chunk->live_byte_count_), by);
+    chunk->live_byte_count_.fetch_add(by);
   }
 };
 
@@ -338,23 +342,23 @@ class MajorNonAtomicMarkingState final
                               AccessMode::NON_ATOMIC> {
  public:
   ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const MemoryChunk* chunk) const {
+      const BasicMemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
-              MemoryChunk::kMarkBitmapOffset);
+              BasicMemoryChunk::kMarkBitmapOffset);
     return chunk->marking_bitmap<AccessMode::NON_ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_ += by;
+    chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
   }
 
   intptr_t live_bytes(MemoryChunk* chunk) const {
-    return chunk->live_byte_count_;
+    return chunk->live_byte_count_.load(std::memory_order_relaxed);
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->live_byte_count_ = value;
+    chunk->live_byte_count_.store(value, std::memory_order_relaxed);
   }
 };
 
@@ -515,9 +519,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                    HeapObjectSlot slot, HeapObject target);
   void RecordLiveSlotsOnPage(Page* page);
 
-  void UpdateSlots(SlotsBuffer* buffer);
-  void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
-
   bool is_compacting() const { return compacting_; }
 
   // Ensures that sweeping is finished.
@@ -567,7 +568,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void VerifyMarking();
 #ifdef VERIFY_HEAP
-  void VerifyValidStoreAndSlotsBufferEntries();
   void VerifyMarkbitsAreClean();
   void VerifyMarkbitsAreDirty(ReadOnlySpace* space);
   void VerifyMarkbitsAreClean(PagedSpace* space);
@@ -856,6 +856,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
   V8_INLINE void MarkRootObject(HeapObject obj);
   void DrainMarkingWorklist() override;
+  void TraceFragmentation();
   void ClearNonLiveReferences() override;
 
   void EvacuatePrologue() override;

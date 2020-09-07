@@ -33,7 +33,12 @@
   /* Official proposal: https://github.com/WebAssembly/gc */                   \
   /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
   /* V8 side owner: jkummerow */                                               \
-  V(gc, "garbage collection", false)
+  V(gc, "garbage collection", false)                                           \
+                                                                               \
+  /* Typed function references proposal. */                                    \
+  /* Official proposal: https://github.com/WebAssembly/function-references */  \
+  /* V8 side owner: ahaas */                                                   \
+  V(typed_funcref, "typed function references", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -44,23 +49,17 @@
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Reference Types, a.k.a. anyref proposal. */                               \
-  /* https://github.com/WebAssembly/reference-types */                         \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8. */                                                        \
-  V(anyref, "anyref opcodes", false)                                           \
-                                                                               \
-  /* JS BitInt to wasm i64 integration. */                                     \
-  /* https://github.com/WebAssembly/JS-BigInt-integration */                   \
-  /* V8 side owner: ahaas, ssauleau@igalia.com */                              \
-  /* Staged in v7.9. */                                                        \
-  V(bigint, "JS BigInt support", false)                                        \
-                                                                               \
   /* Multi-value proposal. */                                                  \
   /* https://github.com/WebAssembly/multi-value */                             \
   /* V8 side owner: thibaudm */                                                \
   /* Staged in v8.0. */                                                        \
   V(mv, "multi-value support", false)                                          \
+                                                                               \
+  /* Reference Types, a.k.a. reftypes proposal. */                             \
+  /* https://github.com/WebAssembly/reference-types */                         \
+  /* V8 side owner: ahaas */                                                   \
+  /* Staged in v7.8. */                                                        \
+  V(reftypes, "reference type opcodes", false)                                 \
                                                                                \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \
@@ -80,6 +79,14 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
+  /* JS BigInt to wasm i64 integration. */                                     \
+  /* https://github.com/WebAssembly/JS-BigInt-integration */                   \
+  /* V8 side owner: ahaas, ssauleau@igalia.com */                              \
+  /* Shipped in v8.5. */                                                       \
+  /* ITS: https://groups.google.com/a/chromium.org/g/blink-dev/c/           */ \
+  /*              g4QKRUQV1-0/m/jdWjD1uZAAAJ                                */ \
+  V(bigint, "JS BigInt support", true)                                         \
+                                                                               \
   /* Bulk memory operations. */                                                \
   /* https://github.com/webassembly/bulk-memory-operations */                  \
   /* V8 side owner: binji */                                                   \

@@ -24,7 +24,6 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/js-aggregate-error-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
@@ -98,19 +97,28 @@ void Object::Print(std::ostream& os) const {  // NOLINT
   }
 }
 
-void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
-  os << reinterpret_cast<void*>(ptr()) << ": [";
+namespace {
+
+void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
+                                     const char* id) {  // NOLINT
+  os << reinterpret_cast<void*>(object.ptr()) << ": [";
   if (id != nullptr) {
     os << id;
   } else {
-    os << map().instance_type();
+    os << object.map().instance_type();
   }
   os << "]";
-  if (ReadOnlyHeap::Contains(*this)) {
+  if (ReadOnlyHeap::Contains(object)) {
     os << " in ReadOnlySpace";
-  } else if (GetHeapFromWritableObject(*this)->InOldSpace(*this)) {
+  } else if (GetHeapFromWritableObject(object)->InOldSpace(object)) {
     os << " in OldSpace";
   }
+}
+
+}  // namespace
+
+void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
+  PrintHeapObjectHeaderWithoutMap(*this, os, id);
   if (!IsMap()) os << "\n - map: " << Brief(map());
 }
 
@@ -436,11 +444,9 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   os << "\n    0: context: " << Brief(elements.context())
      << "\n    1: arguments_store: " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
-  for (uint32_t i = 0; i < elements.parameter_map_length(); i++) {
-    uint32_t raw_index = i + SloppyArgumentsElements::kParameterMapStart;
-    Object mapped_entry = elements.get_mapped_entry(i);
-    os << "\n    " << raw_index << ": param(" << i
-       << "): " << Brief(mapped_entry);
+  for (int i = 0; i < elements.length(); i++) {
+    Object mapped_entry = elements.mapped_entries(i);
+    os << "\n    " << i << ": param(" << i << "): " << Brief(mapped_entry);
     if (mapped_entry.IsTheHole()) {
       os << " in the arguments_store[" << i << "]";
     } else {
@@ -640,12 +646,6 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
     }
   }
   os << "\n - register file: " << Brief(parameters_and_registers());
-  JSObjectPrintBody(os, *this);
-}
-
-void JSAggregateError::JSAggregateErrorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSAggregateError");
-  os << "\n - errors: " << Brief(errors());
   JSObjectPrintBody(os, *this);
 }
 
@@ -1005,7 +1005,13 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
 }
 
 void Oddball::OddballPrint(std::ostream& os) {  // NOLINT
-  to_string().Print(os);
+  PrintHeapObjectHeaderWithoutMap(*this, os, "Oddball");
+  os << ": ";
+  String s = to_string();
+  os << s.PrefixForDebugPrint();
+  s.PrintUC16(os);
+  os << s.SuffixForDebugPrint();
+  os << std::endl;
 }
 
 void JSAsyncFunctionObject::JSAsyncFunctionObjectPrint(
@@ -1055,34 +1061,11 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
 }
 
 void String::StringPrint(std::ostream& os) {  // NOLINT
-  if (!IsOneByteRepresentation()) {
-    os << "u";
-  }
-  if (StringShape(*this).IsInternalized()) {
-    os << "#";
-  } else if (StringShape(*this).IsCons()) {
-    os << "c\"";
-  } else if (StringShape(*this).IsThin()) {
-    os << ">\"";
-  } else {
-    os << "\"";
-  }
-
-  const char truncated_epilogue[] = "...<truncated>";
-  int len = length();
-  if (!FLAG_use_verbose_printer) {
-    if (len > 100) {
-      len = 100 - sizeof(truncated_epilogue);
-    }
-  }
-  for (int i = 0; i < len; i++) {
-    os << AsUC16(Get(i));
-  }
-  if (len != length()) {
-    os << truncated_epilogue;
-  }
-
-  if (!StringShape(*this).IsInternalized()) os << "\"";
+  PrintHeapObjectHeaderWithoutMap(*this, os, "String");
+  os << ": ";
+  os << PrefixForDebugPrint();
+  PrintUC16(os, 0, length());
+  os << SuffixForDebugPrint();
 }
 
 void Name::NamePrint(std::ostream& os) {  // NOLINT
@@ -1484,9 +1467,7 @@ void Code::CodePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Code");
   os << "\n";
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_use_verbose_printer) {
-    Disassemble(nullptr, os, GetIsolate());
-  }
+  Disassemble(nullptr, os, GetIsolate());
 #endif
 }
 
@@ -1692,14 +1673,12 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
       case wasm::ValueType::kF64:
         os << base::ReadUnalignedValue<double>(field_address);
         break;
+      case wasm::ValueType::kI8:
+      case wasm::ValueType::kI16:
       case wasm::ValueType::kS128:
-      case wasm::ValueType::kAnyRef:
-      case wasm::ValueType::kFuncRef:
-      case wasm::ValueType::kNullRef:
-      case wasm::ValueType::kExnRef:
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kEqRef:
+      case wasm::ValueType::kRtt:
       case wasm::ValueType::kBottom:
       case wasm::ValueType::kStmt:
         UNIMPLEMENTED();  // TODO(7748): Implement.
@@ -1733,25 +1712,17 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
       PrintTypedArrayElements(os, reinterpret_cast<double*>(data_ptr), len,
                               true);
       break;
+    case wasm::ValueType::kI8:
+    case wasm::ValueType::kI16:
     case wasm::ValueType::kS128:
-    case wasm::ValueType::kAnyRef:
-    case wasm::ValueType::kFuncRef:
-    case wasm::ValueType::kNullRef:
-    case wasm::ValueType::kExnRef:
     case wasm::ValueType::kRef:
     case wasm::ValueType::kOptRef:
-    case wasm::ValueType::kEqRef:
+    case wasm::ValueType::kRtt:
     case wasm::ValueType::kBottom:
     case wasm::ValueType::kStmt:
       UNIMPLEMENTED();  // TODO(7748): Implement.
       break;
   }
-  os << "\n";
-}
-
-void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmDebugInfo");
-  os << "\n - wasm_instance: " << Brief(wasm_instance());
   os << "\n";
 }
 
@@ -1778,9 +1749,6 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   if (has_imported_mutable_globals_buffers()) {
     os << "\n - imported_mutable_globals_buffers: "
        << Brief(imported_mutable_globals_buffers());
-  }
-  if (has_debug_info()) {
-    os << "\n - debug_info: " << Brief(debug_info());
   }
   for (int i = 0; i < tables().length(); i++) {
     os << "\n - table " << i << ": " << Brief(tables().get(i));
@@ -1850,7 +1818,8 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - untagged_buffer: " << Brief(untagged_buffer());
   os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   os << "\n - offset: " << offset();
-  os << "\n - flags: " << flags();
+  os << "\n - raw_type: " << raw_type();
+  os << "\n - is_mutable: " << is_mutable();
   os << "\n - type: " << type().kind();
   os << "\n - is_mutable: " << is_mutable();
   os << "\n";
@@ -1929,8 +1898,8 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
     std::ostream& os) {  // NOLINT
   PrintHeader(os, "FunctionTemplateInfo");
   os << "\n - class name: " << Brief(class_name());
-  os << "\n - tag: " << Brief(tag());
-  os << "\n - serial_number: " << Brief(serial_number());
+  os << "\n - tag: " << tag();
+  os << "\n - serial_number: " << serial_number();
   os << "\n - property_list: " << Brief(property_list());
   os << "\n - call_code: " << Brief(call_code());
   os << "\n - property_accessors: " << Brief(property_accessors());
@@ -1940,21 +1909,6 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
   os << "\n - instantiated: " << (instantiated() ? "true" : "false");
   os << "\n - rare_data: " << Brief(rare_data());
-  os << "\n";
-}
-
-void FunctionTemplateRareData::FunctionTemplateRareDataPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "FunctionTemplateRareData");
-  os << "\n - prototype_template: " << Brief(prototype_template());
-  os << "\n - prototype_provider_template: "
-     << Brief(prototype_provider_template());
-  os << "\n - parent_template: " << Brief(parent_template());
-  os << "\n - named_property_handler: " << Brief(named_property_handler());
-  os << "\n - indexed_property_handler: " << Brief(indexed_property_handler());
-  os << "\n - instance_template: " << Brief(instance_template());
-  os << "\n - instance_call_handler: " << Brief(instance_call_handler());
-  os << "\n - access_check_info: " << Brief(access_check_info());
   os << "\n";
 }
 
@@ -1984,8 +1938,8 @@ void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
 
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "ObjectTemplateInfo");
-  os << "\n - tag: " << Brief(tag());
-  os << "\n - serial_number: " << Brief(serial_number());
+  os << "\n - tag: " << tag();
+  os << "\n - serial_number: " << serial_number();
   os << "\n - property_list: " << Brief(property_list());
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - constructor: " << Brief(constructor());
@@ -2205,8 +2159,8 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   if (HasOuterScopeInfo()) {
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
   }
-  if (HasLocalsBlackList()) {
-    os << "\n - locals blacklist: " << Brief(LocalsBlackList());
+  if (HasLocalsBlockList()) {
+    os << "\n - locals blocklist: " << Brief(LocalsBlockList());
   }
   if (HasFunctionName()) {
     os << "\n - function name: " << Brief(FunctionName());

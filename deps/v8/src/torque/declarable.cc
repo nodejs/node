@@ -77,9 +77,26 @@ SpecializationRequester::SpecializationRequester(SourcePosition position,
   this->scope = scope;
 }
 
+std::vector<Declarable*> Scope::Lookup(const QualifiedName& name) {
+  if (name.namespace_qualification.size() >= 1 &&
+      name.namespace_qualification[0] == "") {
+    return GlobalContext::GetDefaultNamespace()->Lookup(
+        name.DropFirstNamespaceQualification());
+  }
+  std::vector<Declarable*> result;
+  if (ParentScope()) {
+    result = ParentScope()->Lookup(name);
+  }
+  for (Declarable* declarable : LookupShallow(name)) {
+    result.push_back(declarable);
+  }
+  return result;
+}
+
 base::Optional<std::string> TypeConstraint::IsViolated(const Type* type) const {
   if (upper_bound && !type->IsSubtypeOf(*upper_bound)) {
-    return {ToString("expected ", *type, " to be a subtype of ", *upper_bound)};
+    return {
+        ToString("expected ", *type, " to be a subtype of ", **upper_bound)};
   }
   return base::nullopt;
 }

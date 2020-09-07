@@ -29,6 +29,13 @@ namespace torque_internal {
   type MutableReference<T : type> extends ConstReference<T>;
 
   type UninitializedHeapObject extends HeapObject;
+  macro DownCastForTorqueClass<T : type extends HeapObject>(o: HeapObject):
+      T labels _CastError {
+    return %RawDownCast<T>(o);
+  }
+  macro IsWithContext<T : type extends HeapObject>(o: HeapObject): bool {
+    return false;
+  }
 }
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
@@ -87,6 +94,8 @@ struct float64_or_hole {
 }
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
+extern operator '!' macro Word32BinaryNot(bool): bool;
+extern operator '==' macro Word32Equal(int32, int32): bool;
 
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
@@ -113,12 +122,21 @@ FromConstexpr<intptr, constexpr int31>(i: constexpr int31): intptr {
 FromConstexpr<intptr, constexpr intptr>(i: constexpr intptr): intptr {
   return %FromConstexpr<intptr>(i);
 }
+extern macro BoolConstant(constexpr bool): bool;
+FromConstexpr<bool, constexpr bool>(b: constexpr bool): bool {
+  return BoolConstant(b);
+}
+FromConstexpr<int32, constexpr int31>(i: constexpr int31): int32 {
+  return %FromConstexpr<int32>(i);
+}
 
 macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A
     labels CastError {
   return Cast<A>(TaggedToHeapObject(o) otherwise CastError)
       otherwise CastError;
 }
+macro Cast<A : type extends HeapObject>(o: HeapObject): A
+    labels CastError;
 Cast<Smi>(o: Object): Smi
     labels CastError {
   return TaggedToSmi(o) otherwise CastError;
@@ -799,6 +817,36 @@ TEST(Torque, CatchFirstHandler) {
   )",
       HasSubstr(
           "catch handler always has to be first, before any label handler"));
+}
+
+TEST(Torque, BitFieldLogicalAnd) {
+  std::string prelude = R"(
+    bitfield struct S extends uint32 {
+      a: bool: 1 bit;
+      b: bool: 1 bit;
+      c: int32: 5 bit;
+    }
+    macro Test(s: S): bool { return
+  )";
+  std::string postlude = ";}";
+  std::string message = "use & rather than &&";
+  ExpectFailingCompilation(prelude + "s.a && s.b" + postlude,
+                           HasSubstr(message));
+  ExpectFailingCompilation(prelude + "s.a && !s.b" + postlude,
+                           HasSubstr(message));
+  ExpectFailingCompilation(prelude + "!s.b && s.c == 34" + postlude,
+                           HasSubstr(message));
+}
+
+TEST(Torque, FieldAccessOnNonClassType) {
+  ExpectFailingCompilation(
+      R"(
+    @export
+    macro Test(x: Number): Map {
+      return x.map;
+    }
+  )",
+      HasSubstr("map"));
 }
 
 }  // namespace torque

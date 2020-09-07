@@ -428,10 +428,20 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
 
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);
-  if (!backing_store && maximum_pages > initial_pages) {
-    // If reserving {maximum_pages} failed, try with maximum = initial.
+  if (maximum_pages == initial_pages) {
+    // If initial pages, and maximum are equal, nothing more to do return early.
+    return backing_store;
+  }
+
+  // Retry with smaller maximum pages at each retry.
+  const int kAllocationTries = 3;
+  auto delta = (maximum_pages - initial_pages) / (kAllocationTries + 1);
+  size_t sizes[] = {maximum_pages - delta, maximum_pages - 2 * delta,
+                    maximum_pages - 3 * delta, initial_pages};
+
+  for (size_t i = 0; i < arraysize(sizes) && !backing_store; i++) {
     backing_store =
-        TryAllocateWasmMemory(isolate, initial_pages, initial_pages, shared);
+        TryAllocateWasmMemory(isolate, initial_pages, sizes[i], shared);
   }
   return backing_store;
 }
@@ -646,7 +656,7 @@ SharedWasmMemoryData* BackingStore::get_shared_wasm_memory_data() {
 namespace {
 // Implementation details of GlobalBackingStoreRegistry.
 struct GlobalBackingStoreRegistryImpl {
-  GlobalBackingStoreRegistryImpl() {}
+  GlobalBackingStoreRegistryImpl() = default;
   base::Mutex mutex_;
   std::unordered_map<const void*, std::weak_ptr<BackingStore>> map_;
 };

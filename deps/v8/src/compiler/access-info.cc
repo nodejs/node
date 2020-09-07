@@ -36,7 +36,7 @@ bool CanInlinePropertyAccess(Handle<Map> map) {
   if (map->instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
   return map->IsJSObjectMap() && !map->is_dictionary_map() &&
          !map->has_named_interceptor() &&
-         // TODO(verwaest): Whitelist contexts to which we have access.
+         // TODO(verwaest): Allowlist contexts to which we have access.
          !map->is_access_check_needed();
 }
 
@@ -505,8 +505,10 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   MaybeHandle<JSObject> holder;
   while (true) {
     // Lookup the named property on the {map}.
-    Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-    InternalIndex const number = descriptors->Search(*name, *map);
+    Handle<DescriptorArray> descriptors(
+        map->synchronized_instance_descriptors(), isolate());
+    InternalIndex const number =
+        descriptors->Search(*name, *map, broker()->is_concurrent_inlining());
     if (number.is_found()) {
       PropertyDetails const details = descriptors->GetDetails(number);
       if (access_mode == AccessMode::kStore ||

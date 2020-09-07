@@ -148,9 +148,14 @@ class ActualScript : public V8DebuggerScript {
   }
   bool isSourceLoadedLazily() const override { return false; }
   int length() const override {
+    auto script = this->script();
+    if (script->IsWasm()) {
+      return static_cast<int>(
+          v8::debug::WasmScript::Cast(*script)->Bytecode().size());
+    }
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::String> v8Source;
-    return script()->Source().ToLocal(&v8Source) ? v8Source->Length() : 0;
+    return script->Source().ToLocal(&v8Source) ? v8Source->Length() : 0;
   }
 
   const String16& sourceMappingURL() const override {
@@ -290,6 +295,12 @@ class ActualScript : public V8DebuggerScript {
       } else {
         m_endColumn = source_length + m_startColumn;
       }
+    } else if (script->IsWasm()) {
+      DCHECK_EQ(0, m_startLine);
+      DCHECK_EQ(0, m_startColumn);
+      m_endLine = 0;
+      m_endColumn = static_cast<int>(
+          v8::debug::WasmScript::Cast(*script)->Bytecode().size());
     } else {
       m_endLine = m_startLine;
       m_endColumn = m_startColumn;

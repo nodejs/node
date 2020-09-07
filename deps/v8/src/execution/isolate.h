@@ -464,6 +464,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
  public:
   using HandleScopeType = HandleScope;
+  void* operator new(size_t) = delete;
+  void operator delete(void*) = delete;
 
   // A thread has a PerIsolateThreadData instance for each isolate that it has
   // entered. That instance is allocated when the isolate is initially entered
@@ -731,6 +733,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetCaptureStackTraceForUncaughtExceptions(
       bool capture, int frame_limit, StackTrace::StackTraceOptions options);
+  bool get_capture_stack_trace_for_uncaught_exceptions() const;
 
   void SetAbortOnUncaughtExceptionCallback(
       v8::Isolate::AbortOnUncaughtExceptionCallback callback);
@@ -1290,6 +1293,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static std::string GetTurboCfgFileName(Isolate* isolate);
 
   int GetNextScriptId();
+
+  int GetNextStackFrameInfoId();
 
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() {
@@ -1860,8 +1865,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
   void* operator new(size_t, void* ptr) { return ptr; }
-  void* operator new(size_t) = delete;
-  void operator delete(void*) = delete;
 
   friend class heap::HeapTester;
   friend class TestSerializer;

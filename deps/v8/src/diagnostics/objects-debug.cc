@@ -29,7 +29,6 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/js-aggregate-error-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
 #include "src/objects/objects-inl.h"
@@ -323,6 +322,11 @@ void VerifyJSObjectElements(Isolate* isolate, JSObject object) {
     if (object.elements().length() > 0) {
       CHECK(object.elements().IsFixedDoubleArray());
     }
+    return;
+  }
+
+  if (object.HasSloppyArgumentsElements()) {
+    CHECK(object.elements().IsSloppyArgumentsElements());
     return;
   }
 
@@ -626,39 +630,15 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
   CHECK_LE(LengthFor(number_of_transitions()), length());
 }
 
-void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSArgumentsObjectVerify(*this, isolate);
-  if (IsSloppyArgumentsElementsKind(GetElementsKind())) {
-    SloppyArgumentsElements::cast(elements())
-        .SloppyArgumentsElementsVerify(isolate, *this);
-  }
-  if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
-      isolate->IsInAnyContext(map(),
-                              Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
-      isolate->IsInAnyContext(map(),
-                              Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
-    VerifyObjectField(isolate, JSSloppyArgumentsObject::kLengthOffset);
-    VerifyObjectField(isolate, JSSloppyArgumentsObject::kCalleeOffset);
-  } else if (isolate->IsInAnyContext(map(),
-                                     Context::STRICT_ARGUMENTS_MAP_INDEX)) {
-    VerifyObjectField(isolate, JSStrictArgumentsObject::kLengthOffset);
-  }
-}
-
-void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
-                                                            JSObject holder) {
-  FixedArrayVerify(isolate);
-  // Abort verification if only partially initialized (can't use arguments()
-  // getter because it does FixedArray::cast()).
-  if (get(kArgumentsIndex).IsUndefined(isolate)) return;
-
+namespace {
+void SloppyArgumentsElementsVerify(Isolate* isolate,
+                                   SloppyArgumentsElements elements,
+                                   JSObject holder) {
+  elements.SloppyArgumentsElementsVerify(isolate);
   ElementsKind kind = holder.GetElementsKind();
   bool is_fast = kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
-  CHECK(IsFixedArray());
-  CHECK_GE(length(), 2);
-  CHECK_EQ(map(), ReadOnlyRoots(isolate).sloppy_arguments_elements_map());
-  Context context_object = context();
-  FixedArray arg_elements = FixedArray::cast(arguments());
+  Context context_object = elements.context();
+  FixedArray arg_elements = elements.arguments();
   if (arg_elements.length() == 0) {
     CHECK(arg_elements == ReadOnlyRoots(isolate).empty_fixed_array());
     return;
@@ -674,7 +654,7 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
   for (int i = 0; i < nofMappedParameters; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
-    Object mapped = get_mapped_entry(i);
+    Object mapped = elements.mapped_entries(i);
     if (mapped.IsTheHole(isolate)) {
       // Slow sloppy arguments can be holey.
       if (!is_fast) continue;
@@ -697,6 +677,26 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
   CHECK_LE(nofMappedParameters, arg_elements.length());
   CHECK_LE(maxMappedIndex, context_object.length());
   CHECK_LE(maxMappedIndex, arg_elements.length());
+}
+}  // namespace
+
+void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSArgumentsObjectVerify(*this, isolate);
+  if (IsSloppyArgumentsElementsKind(GetElementsKind())) {
+    SloppyArgumentsElementsVerify(
+        isolate, SloppyArgumentsElements::cast(elements()), *this);
+  }
+  if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
+      isolate->IsInAnyContext(map(),
+                              Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
+      isolate->IsInAnyContext(map(),
+                              Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
+    VerifyObjectField(isolate, JSSloppyArgumentsObject::kLengthOffset);
+    VerifyObjectField(isolate, JSSloppyArgumentsObject::kCalleeOffset);
+  } else if (isolate->IsInAnyContext(map(),
+                                     Context::STRICT_ARGUMENTS_MAP_INDEX)) {
+    VerifyObjectField(isolate, JSStrictArgumentsObject::kLengthOffset);
+  }
 }
 
 void JSAsyncFunctionObject::JSAsyncFunctionObjectVerify(Isolate* isolate) {
@@ -926,6 +926,8 @@ void Oddball::OddballVerify(Isolate* isolate) {
   } else if (map() == roots.self_reference_marker_map()) {
     // Multiple instances of this oddball may exist at once.
     CHECK_EQ(kind(), Oddball::kSelfReferenceMarker);
+  } else if (map() == roots.basic_block_counters_marker_map()) {
+    CHECK(*this == roots.basic_block_counters_marker());
   } else {
     UNREACHABLE();
   }
@@ -1424,8 +1426,6 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
 
 USE_TORQUE_VERIFIER(AsmWasmData)
 
-USE_TORQUE_VERIFIER(WasmDebugInfo)
-
 void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsWasmInstanceObject());
@@ -1531,8 +1531,6 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
     }
   }
 }
-
-USE_TORQUE_VERIFIER(StackFrameInfo)
 
 void PreparseData::PreparseDataVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PreparseDataVerify(*this, isolate);
@@ -1659,8 +1657,7 @@ void JSObject::SpillInformation::Print() {
   PrintF("\n");
 }
 
-bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
-  if (valid_entries == -1) valid_entries = number_of_descriptors();
+bool DescriptorArray::IsSortedNoDuplicates() {
   Name current_key;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
@@ -1680,8 +1677,7 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   return true;
 }
 
-bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
-  DCHECK_EQ(valid_entries, -1);
+bool TransitionArray::IsSortedNoDuplicates() {
   Name prev_key;
   PropertyKind prev_kind = kData;
   PropertyAttributes prev_attributes = NONE;

@@ -429,8 +429,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // always hold true.
   CHECK(shared_info->is_compiled());
 
-  if (!broker()->is_concurrent_inlining() &&
-      info_->is_source_positions_enabled()) {
+  if (!broker()->is_concurrent_inlining() && info_->source_positions()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(),
                                                        shared_info->object());
   }
@@ -462,10 +461,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     Graph::SubgraphScope scope(graph());
     BytecodeGraphBuilderFlags flags(
         BytecodeGraphBuilderFlag::kSkipFirstStackCheck);
-    if (info_->is_analyze_environment_liveness()) {
+    if (info_->analyze_environment_liveness()) {
       flags |= BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness;
     }
-    if (info_->is_bailout_on_uninitialized()) {
+    if (info_->bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
     {

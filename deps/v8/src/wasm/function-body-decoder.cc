@@ -13,7 +13,7 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-opcodes-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,14 +21,24 @@ namespace wasm {
 
 bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
                       const byte* start, const byte* end) {
-  Decoder decoder(start, end);
-  if (WasmDecoder<Decoder::kValidate>::DecodeLocals(enabled, &decoder, nullptr,
-                                                    &decls->type_list)) {
+  WasmFeatures no_features = WasmFeatures::None();
+  WasmDecoder<Decoder::kValidate> decoder(nullptr, enabled, &no_features,
+                                          nullptr, start, end, 0);
+  // The decoded functions need to be inserted into &decls->type_list,
+  // so we pass a pointer to it to local_types_ which will be updated
+  // in DecodeLocals.
+  decoder.local_types_ = &decls->type_list;
+  uint32_t length;
+  if (decoder.DecodeLocals(
+          decoder.pc(), &length,
+          static_cast<uint32_t>(decoder.local_types_->size()))) {
     DCHECK(decoder.ok());
-    decls->encoded_size = decoder.pc_offset();
+    decls->encoded_size = length;
     return true;
+  } else {
+    decls->encoded_size = 0;
+    return false;
   }
-  return false;
 }
 
 BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
@@ -54,7 +64,9 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
 }
 
 unsigned OpcodeLength(const byte* pc, const byte* end) {
-  Decoder decoder(pc, end);
+  WasmFeatures no_features = WasmFeatures::None();
+  WasmDecoder<Decoder::kNoValidate> decoder(nullptr, no_features, &no_features,
+                                            nullptr, pc, end, 0);
   return WasmDecoder<Decoder::kNoValidate>::OpcodeLength(&decoder, pc);
 }
 
@@ -164,8 +176,10 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
     unsigned offset = 1;
     WasmOpcode opcode = i.current();
-    if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-      os << PrefixName(opcode) << ", ";
+    WasmOpcode prefix = kExprUnreachable;
+    bool has_prefix = WasmOpcodes::IsPrefixOpcode(opcode);
+    if (has_prefix) {
+      prefix = i.current();
       opcode = i.prefixed_opcode();
       offset = 2;
     }
@@ -180,6 +194,10 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     const char* padding =
         "                                                                ";
     os.write(padding, num_whitespaces);
+
+    if (has_prefix) {
+      os << PrefixName(prefix) << ", ";
+    }
 
     os << RawOpcodeName(opcode) << ",";
 
@@ -283,7 +301,9 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end) {
-  Decoder decoder(start, end);
+  WasmFeatures no_features = WasmFeatures::None();
+  WasmDecoder<Decoder::kValidate> decoder(nullptr, no_features, &no_features,
+                                          nullptr, start, end, 0);
   return WasmDecoder<Decoder::kValidate>::AnalyzeLoopAssignment(
       &decoder, start, static_cast<uint32_t>(num_locals), zone);
 }

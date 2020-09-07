@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <array>
 #include <memory>
 
@@ -27,7 +28,6 @@
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-external-refs.h"
-#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -36,12 +36,12 @@
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-and-builders.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
+#include "test/common/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {
@@ -204,7 +204,7 @@ class TestingModuleBuilder {
     return &test_module_->functions[index];
   }
 
-  WasmInterpreter* interpreter() const { return interpreter_; }
+  WasmInterpreter* interpreter() const { return interpreter_.get(); }
   bool interpret() const { return interpreter_ != nullptr; }
   LowerSimd lower_simd() const { return lower_simd_; }
   Isolate* isolate() const { return isolate_; }
@@ -222,7 +222,7 @@ class TestingModuleBuilder {
 
   void TierDown() {
     native_module_->SetTieringState(kTieredDown);
-    native_module_->TriggerRecompilation();
+    native_module_->RecompileForTiering();
     execution_tier_ = ExecutionTier::kLiftoff;
   }
 
@@ -243,7 +243,7 @@ class TestingModuleBuilder {
   byte* mem_start_ = nullptr;
   uint32_t mem_size_ = 0;
   alignas(16) byte globals_data_[kMaxGlobalsSize];
-  WasmInterpreter* interpreter_ = nullptr;
+  std::unique_ptr<WasmInterpreter> interpreter_;
   ExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
@@ -510,17 +510,16 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   ReturnType CallInterpreter(ParamTypes... p) {
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-    thread->Reset();
+    interpreter()->Reset();
     std::array<WasmValue, sizeof...(p)> args{{WasmValue(p)...}};
-    thread->InitFrame(function(), args.data());
-    thread->Run();
-    CHECK_GT(thread->NumInterpretedCalls(), 0);
-    if (thread->state() == WasmInterpreter::FINISHED) {
-      WasmValue val = thread->GetReturnValue();
-      possible_nondeterminism_ |= thread->PossibleNondeterminism();
+    interpreter()->InitFrame(function(), args.data());
+    interpreter()->Run();
+    CHECK_GT(interpreter()->NumInterpretedCalls(), 0);
+    if (interpreter()->state() == WasmInterpreter::FINISHED) {
+      WasmValue val = interpreter()->GetReturnValue();
+      possible_nondeterminism_ |= interpreter()->PossibleNondeterminism();
       return val.to<ReturnType>();
-    } else if (thread->state() == WasmInterpreter::TRAPPED) {
+    } else if (interpreter()->state() == WasmInterpreter::TRAPPED) {
       // TODO(titzer): return the correct trap code
       int64_t result = 0xDEADBEEFDEADBEEF;
       return static_cast<ReturnType>(result);
@@ -559,7 +558,7 @@ class WasmRunner : public WasmRunnerBase {
     }
 
     if (builder_.interpret()) {
-      CHECK_GT(builder_.interpreter()->GetThread(0)->NumInterpretedCalls(), 0);
+      CHECK_GT(builder_.interpreter()->NumInterpretedCalls(), 0);
     }
   }
 

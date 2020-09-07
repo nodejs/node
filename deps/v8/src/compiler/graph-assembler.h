@@ -133,16 +133,6 @@ class GraphAssembler;
 // Wrapper classes for special node/edge types (effect, control, frame states)
 // that otherwise don't fit into the type system.
 
-class NodeWrapper {
- public:
-  explicit constexpr NodeWrapper(Node* node) : node_(node) {}
-  operator Node*() const { return node_; }
-  Node* operator->() const { return node_; }
-
- private:
-  Node* node_;
-};
-
 class Effect : public NodeWrapper {
  public:
   explicit constexpr Effect(Node* node) : NodeWrapper(node) {
@@ -312,6 +302,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* TypeGuard(Type type, Node* value);
   Node* Checkpoint(FrameState frame_state);
+
+  TNode<RawPtrT> StackSlot(int size, int alignment);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Store(StoreRepresentation rep, Node* object, int offset, Node* value);

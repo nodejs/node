@@ -33,6 +33,7 @@
   V(InvalidatedSlotsFastToSlow)                             \
   V(InvalidatedSlotsSomeInvalidatedRanges)                  \
   V(TestNewSpaceRefsInCopiedCode)                           \
+  V(GCDuringOffThreadMergeWithTransferHandle)               \
   V(GCFlags)                                                \
   V(MarkCompactCollector)                                   \
   V(MarkCompactEpochCounter)                                \
@@ -47,6 +48,7 @@
   V(TestMemoryReducerSampleJsCalls)                         \
   V(TestSizeOfObjects)                                      \
   V(Regress5831)                                            \
+  V(Regress10560)                                           \
   V(Regress538257)                                          \
   V(Regress587004)                                          \
   V(Regress589413)                                          \

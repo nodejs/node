@@ -2385,7 +2385,8 @@ base::Optional<ObjectRef> ContextRef::get(int index,
 }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
-                           bool tracing_enabled, bool is_concurrent_inlining)
+                           bool tracing_enabled, bool is_concurrent_inlining,
+                           bool is_native_context_independent)
     : isolate_(isolate),
       zone_(broker_zone),
       refs_(new (zone())
@@ -2394,6 +2395,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
       is_concurrent_inlining_(is_concurrent_inlining),
+      is_native_context_independent_(is_native_context_independent),
       feedback_(zone()),
       bytecode_analyses_(zone()),
       property_access_infos_(zone()),
@@ -2407,9 +2409,11 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
   TRACE(this, "Constructing heap broker");
 }
 
-std::ostream& JSHeapBroker::Trace() const {
-  return trace_out_ << "[" << this << "] "
-                    << std::string(trace_indentation_ * 2, ' ');
+std::string JSHeapBroker::Trace() const {
+  std::ostringstream oss;
+  oss << "[" << this << "] ";
+  for (unsigned i = 0; i < trace_indentation_ * 2; ++i) oss.put(' ');
+  return oss.str();
 }
 
 void JSHeapBroker::StopSerializing() {
@@ -4486,7 +4490,6 @@ GlobalAccessFeedback::GlobalAccessFeedback(PropertyCellRef cell,
 
 GlobalAccessFeedback::GlobalAccessFeedback(FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kGlobalAccess, slot_kind),
-      cell_or_context_(base::nullopt),
       index_and_immutable_(0 /* doesn't matter */) {
   DCHECK(IsGlobalICKind(slot_kind));
 }

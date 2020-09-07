@@ -36,6 +36,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/factory.h"
@@ -46,6 +47,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/remembered-set-inl.h"
+#include "src/heap/safepoint.h"
 #include "src/ic/ic.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements.h"
@@ -1177,6 +1179,78 @@ TEST(TestBytecodeFlushing) {
     CHECK(!function->is_compiled());
     // Call foo to get it recompiled.
     CompileRun("foo()");
+    CHECK(function->shared().is_compiled());
+    CHECK(function->is_compiled());
+  }
+}
+
+HEAP_TEST(Regress10560) {
+  i::FLAG_flush_bytecode = true;
+  i::FLAG_allow_natives_syntax = true;
+  // Disable flags that allocate a feedback vector eagerly.
+  i::FLAG_opt = false;
+  i::FLAG_always_opt = false;
+  i::FLAG_lazy_feedback_allocation = true;
+
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+
+  {
+    v8::HandleScope scope(isolate);
+    const char* source =
+        "function foo() {"
+        "  var x = 42;"
+        "  var y = 42;"
+        "  var z = x + y;"
+        "};"
+        "foo()";
+    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+    CompileRun(source);
+
+    // Check function is compiled.
+    Handle<Object> func_value =
+        Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
+            .ToHandleChecked();
+    CHECK(func_value->IsJSFunction());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    CHECK(function->shared().is_compiled());
+    CHECK(!function->has_feedback_vector());
+
+    // Pre-age bytecode so it will be flushed on next run.
+    CHECK(function->shared().HasBytecodeArray());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      function->shared().GetBytecodeArray().MakeOlder();
+      if (function->shared().GetBytecodeArray().IsOld()) break;
+    }
+
+    CHECK(function->shared().GetBytecodeArray().IsOld());
+
+    heap::SimulateFullSpace(heap->old_space());
+
+    // Just check bytecode isn't flushed still
+    CHECK(function->shared().GetBytecodeArray().IsOld());
+    CHECK(function->shared().is_compiled());
+
+    heap->set_force_oom(true);
+    heap->AddNearHeapLimitCallback(
+        [](void* data, size_t current_heap_limit,
+           size_t initial_heap_limit) -> size_t {
+          Heap* heap = static_cast<Heap*>(data);
+          heap->set_force_oom(false);
+          return 0;
+        },
+        heap);
+
+    // Allocate feedback vector.
+    IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
+    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+
+    CHECK(function->has_feedback_vector());
     CHECK(function->shared().is_compiled());
     CHECK(function->is_compiled());
   }
@@ -4864,7 +4938,7 @@ TEST(Regress357137) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope hscope(isolate);
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
-  global->Set(v8::String::NewFromUtf8Literal(isolate, "interrupt"),
+  global->Set(isolate, "interrupt",
               v8::FunctionTemplate::New(isolate, RequestInterrupt));
   v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   CHECK(!context.IsEmpty());
@@ -5253,8 +5327,7 @@ TEST(MessageObjectLeak) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
-  global->Set(v8::String::NewFromUtf8Literal(isolate, "check"),
-              v8::FunctionTemplate::New(isolate, CheckLeak));
+  global->Set(isolate, "check", v8::FunctionTemplate::New(isolate, CheckLeak));
   v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   v8::Context::Scope cscope(context);
 
@@ -5474,8 +5547,10 @@ HEAP_TEST(Regress589413) {
       // Add the array in root set.
       handle(array, isolate);
     }
-    // Expand and fill one complete page with fixed arrays.
     heap->set_force_oom(false);
+    size_t initial_pages = pages.size();
+    // Expand and fill two pages with fixed array to ensure enough space both
+    // the young objects and the evacuation candidate pages.
     while (
         AllocateFixedArrayForTest(heap, N, AllocationType::kOld).To(&array)) {
       arrays.push_back(array);
@@ -5483,7 +5558,9 @@ HEAP_TEST(Regress589413) {
       // Add the array in root set.
       handle(array, isolate);
       // Do not expand anymore.
-      heap->set_force_oom(true);
+      if (pages.size() - initial_pages == 2) {
+        heap->set_force_oom(true);
+      }
     }
     // Expand and mark the new page as evacuation candidate.
     heap->set_force_oom(false);
@@ -5611,6 +5688,7 @@ TEST(Regress598319) {
                   i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
+      SafepointScope scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -5694,6 +5772,7 @@ TEST(Regress615489) {
     marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
+      SafepointScope scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -5756,6 +5835,7 @@ TEST(Regress631969) {
     marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
+      SafepointScope scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -6335,6 +6415,7 @@ HEAP_TEST(Regress670675) {
   }
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
+    SafepointScope scope(heap);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
   size_t array_length = 128 * KB;
@@ -6993,6 +7074,7 @@ TEST(Regress978156) {
   // 5. Start incremental marking.
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (marking->IsStopped()) {
+    SafepointScope scope(heap);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
@@ -7000,6 +7082,44 @@ TEST(Regress978156) {
   // an out-of-bounds access of the marking bitmap in a bad case.
   marking_state->WhiteToGrey(filler);
   marking_state->GreyToBlack(filler);
+}
+
+HEAP_TEST(GCDuringOffThreadMergeWithTransferHandle) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  HandleScope handle_scope(isolate);
+
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  OffThreadIsolate off_thread_isolate(isolate, &zone);
+
+  OffThreadTransferHandle<FixedArray> transfer_handle;
+
+  {
+    OffThreadHandleScope handle_scope(&off_thread_isolate);
+    Handle<FixedArray> obj =
+        off_thread_isolate.factory()->NewFixedArray(10, AllocationType::kOld);
+
+    transfer_handle = off_thread_isolate.TransferHandle(obj);
+
+    off_thread_isolate.FinishOffThread();
+  }
+
+  heap->set_force_oom(true);
+
+  heap->AddNearHeapLimitCallback(
+      [](void* data, size_t current_heap_limit,
+         size_t initial_heap_limit) -> size_t {
+        Heap* heap = static_cast<Heap*>(data);
+        heap->set_force_oom(false);
+        return 0;
+      },
+      heap);
+
+  off_thread_isolate.Publish(isolate);
+  CHECK(transfer_handle.ToHandle()->IsFixedArray());
+  CHECK_EQ(transfer_handle.ToHandle()->length(), 10);
 }
 
 }  // namespace heap

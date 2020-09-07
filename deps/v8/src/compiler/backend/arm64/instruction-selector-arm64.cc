@@ -163,13 +163,9 @@ void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
                      g.UseImmediate(node->InputAt(1)));
     }
   } else {
-    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
-    // We only need a unique register for the first input (src), since in
-    // the codegen we use tmp to store the shifts, and then later use it with
-    // src. The second input can be the same as the second temp (shift).
     selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseUniqueRegister(node->InputAt(0)),
-                   g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(1)));
   }
 }
 
@@ -608,18 +604,23 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
 void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   InstructionCode opcode = kArchNop;
+  bool require_add = false;
   switch (params.transformation) {
     case LoadTransformation::kS8x16LoadSplat:
       opcode = kArm64S8x16LoadSplat;
+      require_add = true;
       break;
     case LoadTransformation::kS16x8LoadSplat:
       opcode = kArm64S16x8LoadSplat;
+      require_add = true;
       break;
     case LoadTransformation::kS32x4LoadSplat:
       opcode = kArm64S32x4LoadSplat;
+      require_add = true;
       break;
     case LoadTransformation::kS64x2LoadSplat:
       opcode = kArm64S64x2LoadSplat;
+      require_add = true;
       break;
     case LoadTransformation::kI16x8Load8x8S:
       opcode = kArm64I16x8Load8x8S;
@@ -655,13 +656,17 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   inputs[1] = g.UseRegister(index);
   outputs[0] = g.DefineAsRegister(node);
 
-  // ld1r uses post-index, so construct address first.
-  // TODO(v8:9886) If index can be immediate, use vldr without this add.
-  InstructionOperand addr = g.TempRegister();
-  Emit(kArm64Add, 1, &addr, 2, inputs);
-  inputs[0] = addr;
-  inputs[1] = g.TempImmediate(0);
-  opcode |= AddressingModeField::encode(kMode_MRI);
+  if (require_add) {
+    // ld1r uses post-index, so construct address first.
+    // TODO(v8:9886) If index can be immediate, use vldr without this add.
+    InstructionOperand addr = g.TempRegister();
+    Emit(kArm64Add, 1, &addr, 2, inputs);
+    inputs[0] = addr;
+    inputs[1] = g.TempImmediate(0);
+    opcode |= AddressingModeField::encode(kMode_MRI);
+  } else {
+    opcode |= AddressingModeField::encode(kMode_MRR);
+  }
   Emit(opcode, 1, outputs, 2, inputs);
 }
 
@@ -1360,7 +1365,15 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(Float64RoundTiesEven, kArm64Float64RoundTiesEven)         \
   V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32)   \
   V(Float64ExtractHighWord32, kArm64Float64ExtractHighWord32) \
-  V(Float64SilenceNaN, kArm64Float64SilenceNaN)
+  V(Float64SilenceNaN, kArm64Float64SilenceNaN)               \
+  V(F32x4Ceil, kArm64F32x4RoundUp)                            \
+  V(F32x4Floor, kArm64F32x4RoundDown)                         \
+  V(F32x4Trunc, kArm64F32x4RoundTruncate)                     \
+  V(F32x4NearestInt, kArm64F32x4RoundTiesEven)                \
+  V(F64x2Ceil, kArm64F64x2RoundUp)                            \
+  V(F64x2Floor, kArm64F64x2RoundDown)                         \
+  V(F64x2Trunc, kArm64F64x2RoundTruncate)                     \
+  V(F64x2NearestInt, kArm64F64x2RoundTiesEven)
 
 #define RRR_OP_LIST(V)            \
   V(Int32Div, kArm64Idiv32)       \
@@ -3184,14 +3197,14 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Neg, kArm64I8x16Neg)                             \
   V(I8x16Abs, kArm64I8x16Abs)                             \
   V(S128Not, kArm64S128Not)                               \
-  V(S1x2AnyTrue, kArm64S1x2AnyTrue)                       \
-  V(S1x2AllTrue, kArm64S1x2AllTrue)                       \
-  V(S1x4AnyTrue, kArm64S1x4AnyTrue)                       \
-  V(S1x4AllTrue, kArm64S1x4AllTrue)                       \
-  V(S1x8AnyTrue, kArm64S1x8AnyTrue)                       \
-  V(S1x8AllTrue, kArm64S1x8AllTrue)                       \
-  V(S1x16AnyTrue, kArm64S1x16AnyTrue)                     \
-  V(S1x16AllTrue, kArm64S1x16AllTrue)
+  V(V64x2AnyTrue, kArm64V64x2AnyTrue)                     \
+  V(V64x2AllTrue, kArm64V64x2AllTrue)                     \
+  V(V32x4AnyTrue, kArm64V32x4AnyTrue)                     \
+  V(V32x4AllTrue, kArm64V32x4AllTrue)                     \
+  V(V16x8AnyTrue, kArm64V16x8AnyTrue)                     \
+  V(V16x8AllTrue, kArm64V16x8AllTrue)                     \
+  V(V8x16AnyTrue, kArm64V8x16AnyTrue)                     \
+  V(V8x16AllTrue, kArm64V8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl, 64)             \
@@ -3249,6 +3262,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4MaxU, kArm64I32x4MaxU)                         \
   V(I32x4GtU, kArm64I32x4GtU)                           \
   V(I32x4GeU, kArm64I32x4GeU)                           \
+  V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)               \
   V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)       \
   V(I16x8AddSaturateS, kArm64I16x8AddSaturateS)         \
   V(I16x8AddHoriz, kArm64I16x8AddHoriz)                 \
@@ -3611,6 +3625,34 @@ void InstructionSelector::VisitSignExtendWord16ToInt64(Node* node) {
 
 void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
   VisitRR(this, kArm64Sxtw, node);
+}
+
+namespace {
+void VisitPminOrPmax(InstructionSelector* selector, ArchOpcode opcode,
+                     Node* node) {
+  Arm64OperandGenerator g(selector);
+  // Need all unique registers because we first compare the two inputs, then we
+  // need the inputs to remain unchanged for the bitselect later.
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseUniqueRegister(node->InputAt(0)),
+                 g.UseUniqueRegister(node->InputAt(1)));
+}
+}  // namespace
+
+void InstructionSelector::VisitF32x4Pmin(Node* node) {
+  VisitPminOrPmax(this, kArm64F32x4Pmin, node);
+}
+
+void InstructionSelector::VisitF32x4Pmax(Node* node) {
+  VisitPminOrPmax(this, kArm64F32x4Pmax, node);
+}
+
+void InstructionSelector::VisitF64x2Pmin(Node* node) {
+  VisitPminOrPmax(this, kArm64F64x2Pmin, node);
+}
+
+void InstructionSelector::VisitF64x2Pmax(Node* node) {
+  VisitPminOrPmax(this, kArm64F64x2Pmax, node);
 }
 
 // static

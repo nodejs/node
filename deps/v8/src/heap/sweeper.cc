@@ -6,10 +6,12 @@
 
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker-inl.h"
+#include "src/heap/code-object-registry.h"
+#include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/heap/remembered-set-inl.h"
+#include "src/heap/remembered-set.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -245,6 +247,13 @@ void Sweeper::EnsureCompleted() {
   sweeping_in_progress_ = false;
 }
 
+void Sweeper::SupportConcurrentSweeping() {
+  ForAllSweepingSpaces([this](AllocationSpace space) {
+    const int kMaxPagesToSweepPerSpace = 1;
+    ParallelSweepSpace(space, 0, kMaxPagesToSweepPerSpace);
+  });
+}
+
 bool Sweeper::AreSweeperTasksRunning() { return num_sweeping_tasks_ != 0; }
 
 V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
@@ -257,14 +266,15 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   if (free_space_mode == ZAP_FREE_SPACE) {
     ZapCode(free_start, size);
   }
+  ClearFreedMemoryMode clear_memory_mode =
+      (free_list_mode == REBUILD_FREE_LIST)
+          ? ClearFreedMemoryMode::kDontClearFreedMemory
+          : ClearFreedMemoryMode::kClearFreedMemory;
+  page->heap()->CreateFillerObjectAtBackground(
+      free_start, static_cast<int>(size), clear_memory_mode);
   if (free_list_mode == REBUILD_FREE_LIST) {
-    freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
-        free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
-
-  } else {
-    Heap::CreateFillerObjectAt(ReadOnlyRoots(page->heap()), free_start,
-                               static_cast<int>(size),
-                               ClearFreedMemoryMode::kClearFreedMemory);
+    freed_bytes =
+        reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(free_start, size);
   }
   if (should_reduce_memory_) page->DiscardUnusedMemory(free_start, size);
 

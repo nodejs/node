@@ -76,9 +76,8 @@ class Interval {
   int to_;
 };
 
-
-// Represents code units in the range from from_ to to_, both ends are
-// inclusive.
+// Represents code points (with values up to 0x10FFFF) in the range from from_
+// to to_, both ends are inclusive.
 class CharacterRange {
  public:
   CharacterRange() : from_(0), to_(0) {}

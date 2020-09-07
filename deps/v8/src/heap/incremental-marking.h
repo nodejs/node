@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_H_
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
+#include "src/base/platform/mutex.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-job.h"
 #include "src/heap/mark-compact.h"
@@ -168,6 +169,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
                                  StepOrigin step_origin);
 
   void FinalizeSweeping();
+  bool ContinueConcurrentSweeping();
+  void SupportConcurrentSweeping();
 
   StepResult Step(double max_step_size_in_ms, CompletionAction action,
                   StepOrigin step_origin);
@@ -205,6 +208,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // the concurrent marker.
   void MarkBlackAndVisitObjectDueToLayoutChange(HeapObject obj);
 
+  void MarkBlackBackground(HeapObject obj, int object_size);
+
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   void ProcessBlackAllocatedObject(HeapObject obj);
@@ -234,6 +239,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void EnsureBlackAllocated(Address allocated, size_t size);
 
   bool IsBelowActivationThresholds() const;
+
+  void IncrementLiveBytesBackground(MemoryChunk* chunk, intptr_t by) {
+    base::MutexGuard guard(&background_live_bytes_mutex_);
+    background_live_bytes_[chunk] += by;
+  }
 
  private:
   class Observer : public AllocationObserver {
@@ -336,6 +346,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   MarkingState marking_state_;
   AtomicMarkingState atomic_marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
+
+  base::Mutex background_live_bytes_mutex_;
+  std::unordered_map<MemoryChunk*, intptr_t> background_live_bytes_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

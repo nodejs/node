@@ -79,12 +79,20 @@ class V8_EXPORT_PRIVATE Zone final {
     return segment_bytes_allocated_ > kExcessLimit;
   }
 
+  size_t segment_bytes_allocated() const { return segment_bytes_allocated_; }
+
   const char* name() const { return name_; }
 
+  // Returns precise value of used zone memory, allowed to be called only
+  // from thread owning the zone.
   size_t allocation_size() const {
     size_t extra = segment_head_ ? position_ - segment_head_->start() : 0;
     return allocation_size_ + extra;
   }
+
+  // Returns used zone memory not including the head segment, can be called
+  // from threads not owning the zone.
+  size_t allocation_size_for_tracing() const { return allocation_size_; }
 
   AccountingAllocator* allocator() const { return allocator_; }
 
@@ -117,10 +125,6 @@ class V8_EXPORT_PRIVATE Zone final {
   // memory in the Zone. Should only be called if there isn't enough
   // room in the Zone already.
   Address NewExpand(size_t size);
-
-  // Creates a new segment, sets it size, and pushes it to the front
-  // of the segment chain. Returns the new segment.
-  inline Segment* NewSegment(size_t requested_size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable

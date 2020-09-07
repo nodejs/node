@@ -942,6 +942,158 @@ TEST(MemoryWithOOBEmptyDataSegment) {
   Cleanup();
 }
 
+TEST(GcStructIdsPass) {
+  {
+    EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(reftypes);
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "GcStructIdsPass");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,   // --
+        kTypeSectionCode,     // --
+        U32V_1(23),           // Section size
+        U32V_1(3),            // type count
+        kWasmStructTypeCode,  // index 0 = struct(i32, type(0), type(1))
+        U32V_1(3),            // field count
+        kLocalI32,            // field 0
+        U32V_1(1),            // mutability
+        kLocalOptRef,         // field 1
+        U32V_1(0),            // --
+        U32V_1(1),            // mutability
+        kLocalOptRef,         // field 2
+        U32V_1(1),            // --
+        U32V_1(1),            // mutability
+        kWasmStructTypeCode,  // index 1 = struct(type(0), type(2))
+        U32V_1(2),            // field count
+        kLocalOptRef,         // field 0
+        U32V_1(0),            // --
+        U32V_1(1),            // mutability
+        kLocalOptRef,         // field 1
+        U32V_1(2),            // --
+        U32V_1(1),            // mutability
+        kWasmArrayTypeCode,   // index 2 = array(type(0))
+        kLocalOptRef,         // element type
+        U32V_1(0),            // --
+        U32V_1(1)             // mutability
+    };
+
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+    // This module is valid.
+    if (thrower.error()) {
+      FATAL("%s", thrower.error_msg());
+    }
+  }
+  Cleanup();
+}
+
+TEST(GcTypeIdsUndefinedIndex) {
+  {
+    EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(reftypes);
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "GcTypeIdsUndefinedIndex");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,   // --
+        kTypeSectionCode,     // --
+        U32V_1(6),            // Section size
+        U32V_1(1),            // type count
+        kWasmStructTypeCode,  // index 0 = struct(type(1))
+        U32V_1(1),            // field count
+        kLocalOptRef,         // field 0
+        U32V_1(1),            // --
+        U32V_1(1)             // mutability
+    };
+
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+    // There should be an error reflecting an undeclared index.
+    CHECK(thrower.error());
+    CHECK_NE(std::string(thrower.error_msg())
+                 .find("reference to undeclared struct/array"),
+             std::string::npos);
+  }
+  Cleanup();
+}
+
+TEST(GcTypeIdsIllegalIndex) {
+  {
+    EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(reftypes);
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "GcTypeIdsIllegalIndex");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,     // --
+        kTypeSectionCode,       // --
+        U32V_1(11),             // Section size
+        U32V_1(2),              // type count
+        kWasmStructTypeCode,    // index 0 = struct(type(1))
+        U32V_1(1),              // field count
+        kLocalOptRef,           // field 0
+        U32V_1(1),              // --
+        U32V_1(1),              // mutability
+        kWasmFunctionTypeCode,  // index 1 = int32 -> int32
+        U32V_1(1),              // param count
+        kLocalI32,              // param 0
+        U32V_1(1),              // returns count
+        kLocalI32               // return 0
+    };
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+    // There should be an error reflecting an invalid index.
+    CHECK(thrower.error());
+    CHECK_NE(std::string(thrower.error_msg())
+                 .find("cannot build reference to function type index"),
+             std::string::npos);
+  }
+  Cleanup();
+}
+
+TEST(GcTypeIdsFunSigIllegalIndex) {
+  {
+    EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(reftypes);
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "GcTypeIdsFumSigIllegalIndex");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,     // --
+        kTypeSectionCode,       // --
+        U32V_1(7),              // Section size
+        U32V_1(1),              // type count
+        kWasmFunctionTypeCode,  // index 0 = int32 -> int32
+        U32V_1(1),              // param count
+        kLocalI32,              // param 0
+        U32V_1(1),              // returns count
+        kLocalOptRef,           // return 0
+        U32V_1(0)               // --
+    };
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+    // There should be an error reflecting an invalid index.
+    CHECK(thrower.error());
+    CHECK_NE(std::string(thrower.error_msg())
+                 .find("cannot build reference to function type index"),
+             std::string::npos);
+  }
+  Cleanup();
+}
+
 #undef EMIT_CODE_WITH_END
 
 }  // namespace test_run_wasm_module

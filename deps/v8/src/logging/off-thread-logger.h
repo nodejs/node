@@ -19,6 +19,7 @@ class OffThreadLogger {
   void ScriptEvent(Logger::ScriptEventType type, int script_id) {
     UNREACHABLE();
   }
+  void ScriptDetails(Script script) { UNREACHABLE(); }
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray source_position_table) {
     UNREACHABLE();

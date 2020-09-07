@@ -49,8 +49,10 @@ class PendingCompilationErrorHandler {
 
   // Handle errors detected during parsing.
   template <typename LocalIsolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   void PrepareErrors(LocalIsolate* isolate, AstValueFactory* ast_value_factory);
-  void ReportErrors(Isolate* isolate, Handle<Script> script) const;
+  V8_EXPORT_PRIVATE void ReportErrors(Isolate* isolate,
+                                      Handle<Script> script) const;
 
   // Handle warnings detected during compilation.
   template <typename LocalIsolate>
@@ -138,6 +140,15 @@ class PendingCompilationErrorHandler {
 
   DISALLOW_COPY_AND_ASSIGN(PendingCompilationErrorHandler);
 };
+
+extern template void PendingCompilationErrorHandler::PrepareErrors(
+    Isolate* isolate, AstValueFactory* ast_value_factory);
+extern template void PendingCompilationErrorHandler::PrepareErrors(
+    OffThreadIsolate* isolate, AstValueFactory* ast_value_factory);
+extern template void PendingCompilationErrorHandler::PrepareWarnings(
+    Isolate* isolate);
+extern template void PendingCompilationErrorHandler::PrepareWarnings(
+    OffThreadIsolate* isolate);
 
 }  // namespace internal
 }  // namespace v8

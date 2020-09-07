@@ -8,7 +8,6 @@
 #include <type_traits>
 
 #include "cppgc/internal/api-constants.h"
-#include "cppgc/macros.h"
 #include "cppgc/platform.h"
 #include "cppgc/trace-trait.h"
 #include "cppgc/type-traits.h"
@@ -161,7 +160,7 @@ class GarbageCollectedMixin : public internal::GarbageCollectedBase {
   }                                                                          \
                                                                              \
  private:                                                                    \
-  friend class internal::__thisIsHereToForceASemicolonAfterThisMacro
+  static_assert(true, "Force semicolon.")
 
 /**
  * Merge two or more Mixins into one.
@@ -185,7 +184,7 @@ class GarbageCollectedMixin : public internal::GarbageCollectedBase {
   }                                                     \
                                                         \
  private:                                               \
-  friend class internal::__thisIsHereToForceASemicolonAfterThisMacro
+  static_assert(true, "Force semicolon.")
 
 }  // namespace cppgc
 

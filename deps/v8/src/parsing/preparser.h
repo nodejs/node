@@ -575,6 +575,10 @@ class PreParserFactory {
   }
 
   PreParserExpression NewOptionalChain(const PreParserExpression& expr) {
+    // Needed to track `delete a?.#b` early errors
+    if (expr.IsPrivateReference()) {
+      return PreParserExpression::PrivateReference();
+    }
     return PreParserExpression::Default();
   }
 

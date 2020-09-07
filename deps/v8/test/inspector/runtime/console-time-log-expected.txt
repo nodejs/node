@@ -2,7 +2,7 @@ Test for console.timeLog
 [
     [0] : {
         type : string
-        value : 42: 1ms
+        value : 42: 1 ms
     }
     [1] : {
         type : string
@@ -12,7 +12,7 @@ Test for console.timeLog
 [
     [0] : {
         type : string
-        value : 42: 2ms
+        value : 42: 2 ms
     }
     [1] : {
         type : string
@@ -26,7 +26,7 @@ Test for console.timeLog
 [
     [0] : {
         type : string
-        value : 42: 3ms
+        value : 42: 3 ms
     }
 ]
 [

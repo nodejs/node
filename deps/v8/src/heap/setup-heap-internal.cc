@@ -393,6 +393,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, stale_register);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, self_reference_marker);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, basic_block_counters_marker);
     ALLOCATE_VARSIZE_MAP(BIGINT_TYPE, bigint);
 
     for (unsigned i = 0; i < arraysize(string_type_table); i++) {
@@ -420,15 +421,13 @@ bool Heap::CreateInitialMaps() {
 
 #define TORQUE_ALLOCATE_MAP(NAME, Name, name) \
   ALLOCATE_MAP(NAME, Name::kSize, name)
-    TORQUE_INTERNAL_FIXED_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_MAP);
+    TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_MAP);
 #undef TORQUE_ALLOCATE_MAP
 
 #define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name) \
   ALLOCATE_VARSIZE_MAP(NAME, name)
-    TORQUE_INTERNAL_VARSIZE_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_VARSIZE_MAP);
+    TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_VARSIZE_MAP);
 #undef TORQUE_ALLOCATE_VARSIZE_MAP
-
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, sloppy_arguments_elements)
 
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
 
@@ -717,8 +716,9 @@ void Heap::CreateInitialObjects() {
                            handle(Smi::FromInt(-7), isolate()), "undefined",
                            Oddball::kStaleRegister));
 
-  // Initialize the self-reference marker.
+  // Initialize marker objects used during compilation.
   set_self_reference_marker(*factory->NewSelfReferenceMarker());
+  set_basic_block_counters_marker(*factory->NewBasicBlockCountersMarker());
 
   set_interpreter_entry_trampoline_for_profiling(roots.undefined_value());
 
@@ -769,6 +769,8 @@ void Heap::CreateInitialObjects() {
   set_number_string_cache(*factory->NewFixedArray(
       kInitialNumberStringCacheSize * 2, AllocationType::kOld));
 
+  set_basic_block_profiling_data(ArrayList::cast(roots.empty_fixed_array()));
+
   // Allocate cache for string split and regexp-multiple.
   set_string_split_cache(*factory->NewFixedArray(
       RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
@@ -779,14 +781,6 @@ void Heap::CreateInitialObjects() {
   Handle<FeedbackCell> many_closures_cell =
       factory->NewManyClosuresCell(factory->undefined_value());
   set_many_closures_cell(*many_closures_cell);
-
-  {
-    Handle<FixedArray> empty_sloppy_arguments_elements =
-        factory->NewFixedArray(2, AllocationType::kReadOnly);
-    empty_sloppy_arguments_elements->set_map_after_allocation(
-        roots.sloppy_arguments_elements_map(), SKIP_WRITE_BARRIER);
-    set_empty_sloppy_arguments_elements(*empty_sloppy_arguments_elements);
-  }
 
   set_detached_contexts(roots.empty_weak_array_list());
   set_retaining_path_targets(roots.empty_weak_array_list());

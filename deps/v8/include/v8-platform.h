@@ -80,6 +80,14 @@ class TaskRunner {
    * implementation takes ownership of |task|. The |task| cannot be nested
    * within other task executions.
    *
+   * Tasks which shouldn't be interleaved with JS execution must be posted with
+   * |PostNonNestableTask| or |PostNonNestableDelayedTask|. This is because the
+   * embedder may process tasks in a callback which is called during JS
+   * execution.
+   *
+   * In particular, tasks which execute JS must be non-nestable, since JS
+   * execution is not allowed to nest.
+   *
    * Requires that |TaskRunner::NonNestableTasksEnabled()| is true.
    */
   virtual void PostNonNestableTask(std::unique_ptr<Task> task) {}
@@ -97,6 +105,14 @@ class TaskRunner {
    * after the given number of seconds |delay_in_seconds|. The TaskRunner
    * implementation takes ownership of |task|. The |task| cannot be nested
    * within other task executions.
+   *
+   * Tasks which shouldn't be interleaved with JS execution must be posted with
+   * |PostNonNestableTask| or |PostNonNestableDelayedTask|. This is because the
+   * embedder may process tasks in a callback which is called during JS
+   * execution.
+   *
+   * In particular, tasks which execute JS must be non-nestable, since JS
+   * execution is not allowed to nest.
    *
    * Requires that |TaskRunner::NonNestableDelayedTasksEnabled()| is true.
    */
@@ -519,9 +535,8 @@ class Platform {
    * libplatform looks like:
    *  std::unique_ptr<JobHandle> PostJob(
    *      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-   *    return std::make_unique<DefaultJobHandle>(
-   *        std::make_shared<DefaultJobState>(
-   *            this, std::move(job_task), kNumThreads));
+   *    return v8::platform::NewDefaultJobHandle(
+   *        this, priority, std::move(job_task), NumberOfWorkerThreads());
    * }
    */
   virtual std::unique_ptr<JobHandle> PostJob(

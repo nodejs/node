@@ -9,11 +9,13 @@ from testrunner.objects import testcase
 
 proposal_flags = [{
                     'name': 'reference-types',
-                    'flags': ['--experimental-wasm-anyref']
+                    'flags': ['--experimental-wasm-reftypes',
+                              '--wasm-staging']
                   },
                   {
                     'name': 'bulk-memory-operations',
-                    'flags': ['--experimental-wasm-bulk-memory']
+                    'flags': ['--experimental-wasm-bulk-memory',
+                              '--wasm-staging']
                   },
                   {
                     'name': 'js-types',
@@ -49,7 +51,7 @@ class TestCase(testcase.D8TestCase):
     for proposal in proposal_flags:
       if os.sep.join(['proposals', proposal['name']]) in self.path:
         return proposal['flags']
-    # TODO(thibaudm): Remove the flag once multi-value is shipped in V8.
+    # TODO(thibaudm): Remove flag when multi-value is shipped.
     return ['--experimental-wasm-mv']
 
 

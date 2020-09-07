@@ -57,11 +57,14 @@ declare_args() {
   # Implement tracing using Perfetto (https://perfetto.dev).
   v8_use_perfetto = false
 
-  # Override global symbol level setting for v8
+  # Override global symbol level setting for v8.
   v8_symbol_level = symbol_level
 
   # Enable WebAssembly debugging via GDB-remote protocol.
   v8_enable_wasm_gdb_remote_debugging = false
+
+  # Add fuzzilli fuzzer support.
+  v8_fuzzilli = false
 }
 
 if (v8_use_external_startup_data == "") {

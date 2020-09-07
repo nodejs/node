@@ -14,6 +14,8 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/struct-inl.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -763,13 +765,14 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements(isolate_)) {
-      FixedArray parameter_map = FixedArray::cast(receiver->elements(isolate_));
-      uint32_t length = parameter_map.length() - 2;
+      SloppyArgumentsElements parameter_map =
+          SloppyArgumentsElements::cast(receiver->elements(isolate_));
+      uint32_t length = parameter_map.length();
       if (number_.is_found() && number_.as_uint32() < length) {
-        parameter_map.set(number_.as_int() + 2,
-                          ReadOnlyRoots(isolate_).the_hole_value());
+        parameter_map.set_mapped_entries(
+            number_.as_int(), ReadOnlyRoots(isolate_).the_hole_value());
       }
-      FixedArray::cast(receiver->elements(isolate_)).set(1, *dictionary);
+      parameter_map.set_arguments(*dictionary);
     } else {
       receiver->set_elements(*dictionary);
     }

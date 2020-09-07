@@ -77,6 +77,10 @@ inline Address StackFrame::callee_pc() const {
 
 inline Address StackFrame::pc() const { return ReadPC(pc_address()); }
 
+inline Address StackFrame::unauthenticated_pc() const {
+  return PointerAuthentication::StripPAC(*pc_address());
+}
+
 inline Address StackFrame::ReadPC(Address* pc_address) {
   return PointerAuthentication::AuthenticatePC(pc_address, kSystemPointerSize);
 }

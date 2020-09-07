@@ -78,7 +78,6 @@ class MemoryLowering final : public Reducer {
       WriteBarrierAssertFailedCallback callback = [](Node*, Node*, const char*,
                                                      Zone*) { UNREACHABLE(); },
       const char* function_debug_name = nullptr);
-  ~MemoryLowering() = default;
 
   const char* reducer_name() const override { return "MemoryReducer"; }
 

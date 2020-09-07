@@ -448,17 +448,17 @@ void TestCharacterStream(const char* reference, i::Utf16CharacterStream* stream,
     CHECK_EQU(reference[i], stream->Advance());
   }
   CHECK_EQU(i, stream->pos());
-  CHECK_LT(stream->Advance(), 0);
+  CHECK(i::Scanner::IsInvalid(stream->Advance()));
 
   // Seek back, then seek beyond end of stream.
   stream->Seek(start);
   if (start < length) {
     CHECK_EQU(stream->Advance(), reference[start]);
   } else {
-    CHECK_LT(stream->Advance(), 0);
+    CHECK(i::Scanner::IsInvalid(stream->Advance()));
   }
   stream->Seek(length + 5);
-  CHECK_LT(stream->Advance(), 0);
+  CHECK(i::Scanner::IsInvalid(stream->Advance()));
 }
 
 void TestCloneCharacterStream(const char* reference,

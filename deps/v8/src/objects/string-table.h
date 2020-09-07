@@ -113,7 +113,7 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
  public:
   V8_EXPORT_PRIVATE static Handle<StringSet> New(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<StringSet> Add(Isolate* isolate,
-                                                 Handle<StringSet> blacklist,
+                                                 Handle<StringSet> stringset,
                                                  Handle<String> name);
   V8_EXPORT_PRIVATE bool Has(Isolate* isolate, Handle<String> name);
 

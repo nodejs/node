@@ -71,8 +71,9 @@ struct WasmModule;
   V(WasmStackOverflow)                   \
   V(WasmThrow)                           \
   V(WasmRethrow)                         \
+  V(WasmTraceEnter)                      \
+  V(WasmTraceExit)                       \
   V(WasmTraceMemory)                     \
-  V(AllocateHeapNumber)                  \
   V(ArgumentsAdaptorTrampoline)          \
   V(BigIntToI32Pair)                     \
   V(BigIntToI64)                         \
@@ -566,7 +567,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   UseTrapHandler use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
-  Vector<const uint8_t> wire_bytes() const { return wire_bytes_->as_vector(); }
+  Vector<const uint8_t> wire_bytes() const {
+    return std::atomic_load(&wire_bytes_)->as_vector();
+  }
   const WasmModule* module() const { return module_.get(); }
   std::shared_ptr<const WasmModule> shared_module() const { return module_; }
   size_t committed_code_space() const {
@@ -574,6 +577,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
   WasmEngine* engine() const { return engine_; }
 
+  bool HasWireBytes() const {
+    auto wire_bytes = std::atomic_load(&wire_bytes_);
+    return wire_bytes && !wire_bytes->empty();
+  }
   void SetWireBytes(OwnedVector<const uint8_t> wire_bytes);
 
   WasmCode* Lookup(Address) const;
@@ -600,18 +607,23 @@ class V8_EXPORT_PRIVATE NativeModule final {
       Vector<WasmCompilationResult>);
 
   // Set a new tiering state, but don't trigger any recompilation yet; use
-  // {TriggerRecompilation} for that. The two steps are split because In some
+  // {RecompileForTiering} for that. The two steps are split because In some
   // scenarios we need to drop locks before triggering recompilation.
   void SetTieringState(TieringState);
 
   // Check whether this modules is tiered down for debugging.
   bool IsTieredDown();
 
-  // Trigger a full recompilation of this module, in the tier set previously via
-  // {SetTieringState}. When tiering down, the calling thread contributes to
-  // compilation and only returns once recompilation is done. Tiering up happens
-  // concurrently, so this method might return before it is complete.
-  void TriggerRecompilation();
+  // Fully recompile this module in the tier set previously via
+  // {SetTieringState}. The calling thread contributes to compilation and only
+  // returns once recompilation is done.
+  void RecompileForTiering();
+
+  // Find all functions that need to be recompiled for a new tier. Note that
+  // compilation jobs might run concurrently, so this method only considers the
+  // compilation state of this native module at the time of the call.
+  // Returns a vector of function indexes to recompile.
+  std::vector<int> FindFunctionsToRecompile(TieringState);
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
@@ -622,6 +634,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Retrieve the number of separately reserved code spaces for this module.
   size_t GetNumberOfCodeSpacesForTesting() const;
+
+  // Check whether there is DebugInfo for this NativeModule.
+  bool HasDebugInfo() const;
 
   // Get or create the debug info for this NativeModule.
   DebugInfo* GetDebugInfo();

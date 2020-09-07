@@ -44,6 +44,16 @@ V8_PLATFORM_EXPORT std::unique_ptr<v8::Platform> NewDefaultPlatform(
     std::unique_ptr<v8::TracingController> tracing_controller = {});
 
 /**
+ * Returns a new instance of the default v8::JobHandle implementation.
+ *
+ * The job will be executed by spawning up to |num_worker_threads| many worker
+ * threads on the provided |platform| with the given |priority|.
+ */
+V8_PLATFORM_EXPORT std::unique_ptr<v8::JobHandle> NewDefaultJobHandle(
+    v8::Platform* platform, v8::TaskPriority priority,
+    std::unique_ptr<v8::JobTask> job_task, size_t num_worker_threads);
+
+/**
  * Pumps the message loop for the given isolate.
  *
  * The caller has to make sure that this is called from the right thread.

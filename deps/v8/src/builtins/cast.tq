@@ -2,56 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern macro IsAllocationSite(HeapObject): bool;
 extern macro IsBigInt(HeapObject): bool;
 extern macro IsConstructor(HeapObject): bool;
 extern macro IsContext(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro IsExtensibleMap(Map): bool;
-extern macro IsFeedbackCell(HeapObject): bool;
-extern macro IsFeedbackVector(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
 extern macro IsHeapNumber(HeapObject): bool;
-extern macro IsJSAggregateError(HeapObject): bool;
-extern macro IsJSArray(HeapObject): bool;
 extern macro IsJSArrayMap(Map): bool;
-extern macro IsJSBoundFunction(HeapObject): bool;
-extern macro IsJSFinalizationRegistry(HeapObject): bool;
-extern macro IsJSFunction(HeapObject): bool;
-extern macro IsJSObject(HeapObject): bool;
-extern macro IsJSPrimitiveWrapper(HeapObject): bool;
-extern macro IsJSPromise(HeapObject): bool;
 extern macro IsJSProxy(HeapObject): bool;
-extern macro IsJSReceiver(HeapObject): bool;
-extern macro IsJSRegExp(HeapObject): bool;
-extern macro IsJSRegExpStringIterator(HeapObject): bool;
-extern macro IsJSTypedArray(HeapObject): bool;
-extern macro IsMap(HeapObject): bool;
 extern macro IsName(HeapObject): bool;
 extern macro IsNativeContext(HeapObject): bool;
-extern macro IsNumberDictionary(HeapObject): bool;
 extern macro IsNumberNormalized(Number): bool;
 extern macro IsNumber(Object): bool;
-extern macro IsOddball(HeapObject): bool;
 extern macro IsPrivateSymbol(HeapObject): bool;
-extern macro IsPromiseCapability(HeapObject): bool;
-extern macro IsPromiseFulfillReactionJobTask(HeapObject): bool;
-extern macro IsPromiseReaction(HeapObject): bool;
-extern macro IsPromiseReactionJobTask(HeapObject): bool;
-extern macro IsPromiseRejectReactionJobTask(HeapObject): bool;
 extern macro IsSafeInteger(Object): bool;
-extern macro IsSharedFunctionInfo(HeapObject): bool;
-extern macro IsSymbol(HeapObject): bool;
-extern macro IsTuple2(HeapObject): bool;
 
-extern macro HeapObjectToJSDataView(HeapObject): JSDataView
-    labels CastError;
-extern macro HeapObjectToJSProxy(HeapObject): JSProxy
-    labels CastError;
-extern macro HeapObjectToJSStringIterator(HeapObject): JSStringIterator
-    labels CastError;
-extern macro HeapObjectToJSArrayBuffer(HeapObject): JSArrayBuffer
-    labels CastError;
+@export
+macro IsAllocationSite(o: HeapObject): bool {
+  Cast<AllocationSite>(o) otherwise return false;
+  return true;
+}
+
 extern macro TaggedToHeapObject(Object): HeapObject
     labels CastError;
 extern macro TaggedToSmi(Object): Smi
@@ -60,27 +32,12 @@ extern macro TaggedToPositiveSmi(Object): PositiveSmi
     labels CastError;
 extern macro TaggedToDirectString(Object): DirectString
     labels CastError;
-extern macro HeapObjectToJSAggregateError(HeapObject): JSAggregateError
-    labels CastError;
-extern macro HeapObjectToJSArray(HeapObject): JSArray
-    labels CastError;
 extern macro HeapObjectToCallable(HeapObject): Callable
-    labels CastError;
-extern macro HeapObjectToFixedArray(HeapObject): FixedArray
-    labels CastError;
-extern macro HeapObjectToFixedDoubleArray(HeapObject): FixedDoubleArray
-    labels CastError;
-extern macro HeapObjectToString(HeapObject): String
     labels CastError;
 extern macro HeapObjectToConstructor(HeapObject): Constructor
     labels CastError;
 extern macro HeapObjectToJSFunctionWithPrototypeSlot(HeapObject):
     JSFunctionWithPrototypeSlot
-    labels CastError;
-extern macro HeapObjectToHeapNumber(HeapObject): HeapNumber
-    labels CastError;
-extern macro HeapObjectToSloppyArgumentsElements(HeapObject):
-    SloppyArgumentsElements
     labels CastError;
 extern macro TaggedToNumber(Object): Number
     labels CastError;
@@ -90,7 +47,17 @@ macro Cast<A : type extends WeakHeapObject>(o: A|Object): A labels CastError {
   return %RawDownCast<A>(o);
 }
 
-macro Cast<A: type>(o: MaybeObject): A labels CastError;
+macro Cast<A : type extends Object>(implicit context: Context)(o: MaybeObject):
+    A labels CastError {
+  typeswitch (o) {
+    case (WeakHeapObject): {
+      goto CastError;
+    }
+    case (o: Object): {
+      return Cast<A>(o) otherwise CastError;
+    }
+  }
+}
 
 Cast<Undefined>(o: MaybeObject): Undefined labels CastError {
   if (TaggedNotEqual(o, Undefined)) goto CastError;
@@ -283,22 +250,6 @@ Cast<Undefined>(o: HeapObject): Undefined
   return Cast<Undefined>(o) otherwise CastError;
 }
 
-Cast<AllocationSite>(o: HeapObject): AllocationSite
-    labels CastError {
-  if (IsAllocationSite(o)) return %RawDownCast<AllocationSite>(o);
-  goto CastError;
-}
-
-Cast<FixedArray>(o: HeapObject): FixedArray
-    labels CastError {
-  return HeapObjectToFixedArray(o) otherwise CastError;
-}
-
-Cast<FixedDoubleArray>(o: HeapObject): FixedDoubleArray
-    labels CastError {
-  return HeapObjectToFixedDoubleArray(o) otherwise CastError;
-}
-
 Cast<EmptyFixedArray>(o: Object): EmptyFixedArray
     labels CastError {
   if (o != kEmptyFixedArray) goto CastError;
@@ -325,46 +276,6 @@ Cast<(FixedDoubleArray | EmptyFixedArray)>(o: HeapObject): FixedDoubleArray|
   }
 }
 
-Cast<SloppyArgumentsElements>(o: HeapObject): SloppyArgumentsElements
-    labels CastError {
-  return HeapObjectToSloppyArgumentsElements(o) otherwise CastError;
-}
-
-Cast<JSDataView>(o: HeapObject): JSDataView
-    labels CastError {
-  return HeapObjectToJSDataView(o) otherwise CastError;
-}
-
-Cast<JSProxy>(o: HeapObject): JSProxy
-    labels CastError {
-  return HeapObjectToJSProxy(o) otherwise CastError;
-}
-
-Cast<JSStringIterator>(o: HeapObject): JSStringIterator
-    labels CastError {
-  return HeapObjectToJSStringIterator(o) otherwise CastError;
-}
-
-Cast<JSRegExpStringIterator>(o: HeapObject): JSRegExpStringIterator
-    labels CastError {
-  if (IsJSRegExpStringIterator(o)) {
-    return %RawDownCast<JSRegExpStringIterator>(o);
-  }
-  goto CastError;
-}
-
-Cast<JSTypedArray>(o: HeapObject): JSTypedArray
-    labels CastError {
-  if (IsJSTypedArray(o)) return %RawDownCast<JSTypedArray>(o);
-  goto CastError;
-}
-
-Cast<JSTypedArray>(implicit context: Context)(o: Object): JSTypedArray
-    labels CastError {
-  const heapObject = Cast<HeapObject>(o) otherwise CastError;
-  return Cast<JSTypedArray>(heapObject) otherwise CastError;
-}
-
 Cast<Callable>(o: HeapObject): Callable
     labels CastError {
   return HeapObjectToCallable(o) otherwise CastError;
@@ -374,62 +285,6 @@ Cast<Undefined|Callable>(o: HeapObject): Undefined|Callable
     labels CastError {
   if (o == Undefined) return Undefined;
   return HeapObjectToCallable(o) otherwise CastError;
-}
-
-Cast<JSAggregateError>(o: HeapObject): JSAggregateError
-    labels CastError {
-  return HeapObjectToJSAggregateError(o) otherwise CastError;
-}
-
-Cast<JSArray>(o: HeapObject): JSArray
-    labels CastError {
-  return HeapObjectToJSArray(o) otherwise CastError;
-}
-
-Cast<JSArrayBuffer>(o: HeapObject): JSArrayBuffer
-    labels CastError {
-  return HeapObjectToJSArrayBuffer(o) otherwise CastError;
-}
-
-Cast<Context>(o: HeapObject): Context
-    labels CastError {
-  if (IsContext(o)) return %RawDownCast<Context>(o);
-  goto CastError;
-}
-
-Cast<NativeContext>(o: HeapObject): NativeContext
-    labels CastError {
-  if (IsNativeContext(o)) return %RawDownCast<NativeContext>(o);
-  goto CastError;
-}
-
-Cast<JSObject>(o: HeapObject): JSObject
-    labels CastError {
-  if (IsJSObject(o)) return %RawDownCast<JSObject>(o);
-  goto CastError;
-}
-
-Cast<NumberDictionary>(o: HeapObject): NumberDictionary
-    labels CastError {
-  if (IsNumberDictionary(o)) return %RawDownCast<NumberDictionary>(o);
-  goto CastError;
-}
-
-Cast<String>(o: HeapObject): String
-    labels CastError {
-  return HeapObjectToString(o) otherwise CastError;
-}
-
-Cast<Oddball>(o: HeapObject): Oddball
-    labels CastError {
-  if (IsOddball(o)) return %RawDownCast<Oddball>(o);
-  goto CastError;
-}
-
-Cast<Symbol>(o: HeapObject): Symbol
-    labels CastError {
-  if (IsSymbol(o)) return %RawDownCast<Symbol>(o);
-  goto CastError;
 }
 
 macro Cast<T : type extends Symbol>(o: Symbol): T labels CastError;
@@ -468,50 +323,14 @@ Cast<JSFunctionWithPrototypeSlot>(o: HeapObject): JSFunctionWithPrototypeSlot
   return HeapObjectToJSFunctionWithPrototypeSlot(o) otherwise CastError;
 }
 
-Cast<HeapNumber>(o: HeapObject): HeapNumber
-    labels CastError {
-  if (IsHeapNumber(o)) return %RawDownCast<HeapNumber>(o);
-  goto CastError;
-}
-
 Cast<BigInt>(o: HeapObject): BigInt labels CastError {
   if (IsBigInt(o)) return %RawDownCast<BigInt>(o);
-  goto CastError;
-}
-
-Cast<JSRegExp>(o: HeapObject): JSRegExp
-    labels CastError {
-  if (IsJSRegExp(o)) return %RawDownCast<JSRegExp>(o);
   goto CastError;
 }
 
 Cast<JSRegExpResult>(implicit context: Context)(o: HeapObject): JSRegExpResult
     labels CastError {
   if (regexp::IsRegExpResult(o)) return %RawDownCast<JSRegExpResult>(o);
-  goto CastError;
-}
-
-Cast<Map>(implicit context: Context)(o: HeapObject): Map
-    labels CastError {
-  if (IsMap(o)) return %RawDownCast<Map>(o);
-  goto CastError;
-}
-
-Cast<FeedbackCell>(implicit context: Context)(o: HeapObject): FeedbackCell
-    labels CastError {
-  if (IsFeedbackCell(o)) return %RawDownCast<FeedbackCell>(o);
-  goto CastError;
-}
-
-Cast<FeedbackVector>(implicit context: Context)(o: HeapObject): FeedbackVector
-    labels CastError {
-  if (IsFeedbackVector(o)) return %RawDownCast<FeedbackVector>(o);
-  goto CastError;
-}
-
-Cast<JSPrimitiveWrapper>(o: HeapObject): JSPrimitiveWrapper
-    labels CastError {
-  if (IsJSPrimitiveWrapper(o)) return %RawDownCast<JSPrimitiveWrapper>(o);
   goto CastError;
 }
 
@@ -623,32 +442,6 @@ Cast<FastJSArrayForReadWithNoCustomIteration>(implicit context: Context)(
   return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
-Cast<JSReceiver>(o: HeapObject): JSReceiver
-    labels CastError {
-  if (IsJSReceiver(o)) return %RawDownCast<JSReceiver>(o);
-  goto CastError;
-}
-
-Cast<JSFunction>(implicit context: Context)(o: HeapObject): JSFunction
-    labels CastError {
-  if (IsJSFunction(o)) return %RawDownCast<JSFunction>(o);
-  goto CastError;
-}
-
-extern macro IsDebugInfo(HeapObject): bool;
-Cast<DebugInfo>(implicit context: Context)(o: HeapObject): DebugInfo
-    labels CastError {
-  if (IsDebugInfo(o)) return %RawDownCast<DebugInfo>(o);
-  goto CastError;
-}
-
-extern macro IsCoverageInfo(HeapObject): bool;
-Cast<CoverageInfo>(implicit context: Context)(o: HeapObject): CoverageInfo
-    labels CastError {
-  if (IsCoverageInfo(o)) return %RawDownCast<CoverageInfo>(o);
-  goto CastError;
-}
-
 Cast<JSReceiver|Null>(o: HeapObject): JSReceiver|Null
     labels CastError {
   typeswitch (o) {
@@ -662,35 +455,6 @@ Cast<JSReceiver|Null>(o: HeapObject): JSReceiver|Null
       goto CastError;
     }
   }
-}
-
-Cast<PromiseReactionJobTask>(o: HeapObject):
-    PromiseReactionJobTask labels CastError {
-  if (IsPromiseReactionJobTask(o)) {
-    return %RawDownCast<PromiseReactionJobTask>(o);
-  }
-  goto CastError;
-}
-
-Cast<PromiseFulfillReactionJobTask>(o: HeapObject):
-    PromiseFulfillReactionJobTask labels CastError {
-  if (IsPromiseFulfillReactionJobTask(o)) {
-    return %RawDownCast<PromiseFulfillReactionJobTask>(o);
-  }
-  goto CastError;
-}
-
-Cast<PromiseRejectReactionJobTask>(o: HeapObject):
-    PromiseRejectReactionJobTask labels CastError {
-  if (IsPromiseRejectReactionJobTask(o)) {
-    return %RawDownCast<PromiseRejectReactionJobTask>(o);
-  }
-  goto CastError;
-}
-
-Cast<PromiseReaction>(o: HeapObject): PromiseReaction labels CastError {
-  if (IsPromiseReaction(o)) return %RawDownCast<PromiseReaction>(o);
-  goto CastError;
 }
 
 Cast<Smi|PromiseReaction>(o: Object): Smi|PromiseReaction labels CastError {
@@ -737,32 +501,35 @@ Cast<Zero|PromiseReaction>(implicit context: Context)(o: Object): Zero|
   }
 }
 
-Cast<JSBoundFunction>(o: HeapObject): JSBoundFunction labels CastError {
-  if (IsJSBoundFunction(o)) return %RawDownCast<JSBoundFunction>(o);
-  goto CastError;
-}
-
-Cast<PromiseCapability>(o: HeapObject): PromiseCapability labels CastError {
-  if (IsPromiseCapability(o)) return %RawDownCast<PromiseCapability>(o);
-  goto CastError;
-}
-
-Cast<SharedFunctionInfo>(o: HeapObject): SharedFunctionInfo labels CastError {
-  if (IsSharedFunctionInfo(o)) return %RawDownCast<SharedFunctionInfo>(o);
-  goto CastError;
-}
-
-Cast<JSPromise>(o: HeapObject): JSPromise labels CastError {
-  if (IsJSPromise(o)) return %RawDownCast<JSPromise>(o);
-  goto CastError;
-}
-
-Cast<JSFinalizationRegistry>(o: HeapObject):
-    JSFinalizationRegistry labels CastError {
-  if (IsJSFinalizationRegistry(o)) {
-    return %RawDownCast<JSFinalizationRegistry>(o);
+Cast<JSFunction|JSBoundFunction>(implicit context: Context)(o: Object):
+    JSFunction|JSBoundFunction labels CastError {
+  typeswitch (o) {
+    case (o: JSFunction): {
+      return o;
+    }
+    case (o: JSBoundFunction): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
   }
-  goto CastError;
+}
+
+macro Is<A : type extends Object, B : type extends Object>(
+    implicit context: Context)(o: B): bool {
+  Cast<A>(o) otherwise return false;
+  return true;
+}
+
+macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
+    A {
+  assert(Is<A>(o));
+  return %RawDownCast<A>(o);
+}
+
+macro UnsafeConstCast<T: type>(r: const &T):&T {
+  return %RawDownCast<&T>(r);
 }
 
 UnsafeCast<RegExpMatchInfo>(implicit context: Context)(o: Object):

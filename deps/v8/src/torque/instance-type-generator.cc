@@ -436,11 +436,11 @@ void ImplementationVisitor::GenerateInstanceTypes(
     header << only_declared_range_instance_types.str();
     header << "\n";
 
-    std::stringstream torque_internal_class_list;
-    std::stringstream torque_internal_varsize_instance_type_list;
-    std::stringstream torque_internal_fixed_instance_type_list;
-    std::stringstream torque_internal_map_csa_list;
-    std::stringstream torque_internal_map_root_list;
+    std::stringstream torque_defined_class_list;
+    std::stringstream torque_defined_varsize_instance_type_list;
+    std::stringstream torque_defined_fixed_instance_type_list;
+    std::stringstream torque_defined_map_csa_list;
+    std::stringstream torque_defined_map_root_list;
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
       std::string upper_case_name = type->name();
@@ -449,41 +449,40 @@ void ImplementationVisitor::GenerateInstanceTypes(
           CapifyStringWithUnderscores(type->name()) + "_TYPE";
 
       if (type->IsExtern()) continue;
-      torque_internal_class_list << "  V(" << upper_case_name << ") \\\n";
+      torque_defined_class_list << "  V(" << upper_case_name << ") \\\n";
 
       if (type->IsAbstract()) continue;
-      torque_internal_map_csa_list << "  V(" << upper_case_name << "Map, "
-                                   << lower_case_name << "_map, "
+      torque_defined_map_csa_list << "  V(_, " << upper_case_name << "Map, "
+                                  << lower_case_name << "_map, "
+                                  << upper_case_name << ") \\\n";
+      torque_defined_map_root_list << "  V(Map, " << lower_case_name << "_map, "
                                    << upper_case_name << "Map) \\\n";
-      torque_internal_map_root_list << "  V(Map, " << lower_case_name
-                                    << "_map, " << upper_case_name
-                                    << "Map) \\\n";
-      std::stringstream& list =
-          type->HasStaticSize() ? torque_internal_fixed_instance_type_list
-                                : torque_internal_varsize_instance_type_list;
+      std::stringstream& list = type->HasStaticSize()
+                                    ? torque_defined_fixed_instance_type_list
+                                    : torque_defined_varsize_instance_type_list;
       list << "  V(" << instance_type_name << ", " << upper_case_name << ", "
            << lower_case_name << ") \\\n";
     }
 
-    header << "// Non-extern Torque classes.\n";
-    header << "#define TORQUE_INTERNAL_CLASS_LIST(V) \\\n";
-    header << torque_internal_class_list.str();
+    header << "// Fully Torque-defined classes (both internal and exported).\n";
+    header << "#define TORQUE_DEFINED_CLASS_LIST(V) \\\n";
+    header << torque_defined_class_list.str();
     header << "\n";
-    header << "#define TORQUE_INTERNAL_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
-    header << torque_internal_varsize_instance_type_list.str();
+    header << "#define TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
+    header << torque_defined_varsize_instance_type_list.str();
     header << "\n";
-    header << "#define TORQUE_INTERNAL_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
-    header << torque_internal_fixed_instance_type_list.str();
+    header << "#define TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
+    header << torque_defined_fixed_instance_type_list.str();
     header << "\n";
-    header << "#define TORQUE_INTERNAL_INSTANCE_TYPE_LIST(V) \\\n";
-    header << "  TORQUE_INTERNAL_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
-    header << "  TORQUE_INTERNAL_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
+    header << "#define TORQUE_DEFINED_INSTANCE_TYPE_LIST(V) \\\n";
+    header << "  TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
+    header << "  TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
     header << "\n";
-    header << "#define TORQUE_INTERNAL_MAP_CSA_LIST(V) \\\n";
-    header << torque_internal_map_csa_list.str();
+    header << "#define TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _) \\\n";
+    header << torque_defined_map_csa_list.str();
     header << "\n";
-    header << "#define TORQUE_INTERNAL_MAP_ROOT_LIST(V) \\\n";
-    header << torque_internal_map_root_list.str();
+    header << "#define TORQUE_DEFINED_MAP_ROOT_LIST(V) \\\n";
+    header << torque_defined_map_root_list.str();
     header << "\n";
   }
   std::string output_header_path = output_directory + "/" + file_name;

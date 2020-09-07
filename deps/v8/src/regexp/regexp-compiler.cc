@@ -174,6 +174,24 @@ using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
 //   trace is not recorded in the node and so it cannot currently be reused in
 //   the event that code generation is requested for an identical trace.
 
+namespace {
+
+constexpr uc32 MaxCodeUnit(const bool one_byte) {
+  STATIC_ASSERT(String::kMaxOneByteCharCodeU <=
+                std::numeric_limits<uint16_t>::max());
+  STATIC_ASSERT(String::kMaxUtf16CodeUnitU <=
+                std::numeric_limits<uint16_t>::max());
+  return one_byte ? String::kMaxOneByteCharCodeU : String::kMaxUtf16CodeUnitU;
+}
+
+constexpr uint32_t CharMask(const bool one_byte) {
+  STATIC_ASSERT(base::bits::IsPowerOfTwo(String::kMaxOneByteCharCodeU + 1));
+  STATIC_ASSERT(base::bits::IsPowerOfTwo(String::kMaxUtf16CodeUnitU + 1));
+  return MaxCodeUnit(one_byte);
+}
+
+}  // namespace
+
 void RegExpTree::AppendToText(RegExpText* text, Zone* zone) { UNREACHABLE(); }
 
 void RegExpAtom::AppendToText(RegExpText* text, Zone* zone) {
@@ -386,9 +404,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
   int pushes = 0;
 
   for (int reg = 0; reg <= max_register; reg++) {
-    if (!affected_registers.Get(reg)) {
-      continue;
-    }
+    if (!affected_registers.Get(reg)) continue;
 
     // The chronologically first deferred action in the trace
     // is used to infer the action needed to restore a register
@@ -710,6 +726,20 @@ void ChoiceNode::GenerateGuard(RegExpMacroAssembler* macro_assembler,
   }
 }
 
+namespace {
+
+#ifdef DEBUG
+bool ContainsOnlyUtf16CodeUnits(unibrow::uchar* chars, int length) {
+  STATIC_ASSERT(sizeof(unibrow::uchar) == 4);
+  for (int i = 0; i < length; i++) {
+    if (chars[i] > String::kMaxUtf16CodeUnit) return false;
+  }
+  return true;
+}
+#endif  // DEBUG
+
+}  // namespace
+
 // Returns the number of characters in the equivalence class, omitting those
 // that cannot occur in the source string because it is Latin1.
 static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
@@ -719,6 +749,7 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
 #ifdef V8_INTL_SUPPORT
   if (RegExpCaseFolding::IgnoreSet().contains(character)) {
     letters[0] = character;
+    DCHECK(ContainsOnlyUtf16CodeUnits(letters, 1));
     return 1;
   }
   bool in_special_add_set =
@@ -744,9 +775,10 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
       if (in_special_add_set && RegExpCaseFolding::Canonicalize(cu) != canon) {
         continue;
       }
-      letters[items++] = (unibrow::uchar)(cu);
+      letters[items++] = static_cast<unibrow::uchar>(cu);
     }
   }
+  DCHECK(ContainsOnlyUtf16CodeUnits(letters, items));
   return items;
 #else
   int length =
@@ -768,6 +800,7 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
     length = new_length;
   }
 
+  DCHECK(ContainsOnlyUtf16CodeUnits(letters, length));
   return length;
 #endif  // V8_INTL_SUPPORT
 }
@@ -820,12 +853,7 @@ static inline bool EmitAtomNonLetter(Isolate* isolate, RegExpCompiler* compiler,
 static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
                                       bool one_byte, uc16 c1, uc16 c2,
                                       Label* on_failure) {
-  uc16 char_mask;
-  if (one_byte) {
-    char_mask = String::kMaxOneByteCharCode;
-  } else {
-    char_mask = String::kMaxUtf16CodeUnit;
-  }
+  const uint32_t char_mask = CharMask(one_byte);
   uc16 exor = c1 ^ c2;
   // Check whether exor has only one bit set.
   if (((exor - 1) & exor) == 0) {
@@ -1126,7 +1154,7 @@ static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
     return;
   }
 
-  if ((min_char >> kBits) != (first >> kBits)) {
+  if ((min_char >> kBits) != static_cast<uc32>(first >> kBits)) {
     masm->CheckCharacterLT(first, odd_label);
     GenerateBranches(masm, ranges, start_index + 1, end_index, first, max_char,
                      fall_through, odd_label, even_label);
@@ -1185,21 +1213,13 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   ZoneList<CharacterRange>* ranges = cc->ranges(zone);
   CharacterRange::Canonicalize(ranges);
 
-  int max_char;
-  if (one_byte) {
-    max_char = String::kMaxOneByteCharCode;
-  } else {
-    max_char = String::kMaxUtf16CodeUnit;
-  }
-
+  const uc32 max_char = MaxCodeUnit(one_byte);
   int range_count = ranges->length();
 
   int last_valid_range = range_count - 1;
   while (last_valid_range >= 0) {
     CharacterRange& range = ranges->at(last_valid_range);
-    if (range.from() <= max_char) {
-      break;
-    }
+    if (range.from() <= max_char) break;
     last_valid_range--;
   }
 
@@ -1240,6 +1260,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   // entry at zero which goes to the failure label, but if there
   // was already one there we fall through for success on that entry.
   // Subsequent entries have alternating meaning (success/failure).
+  // TODO(jgruber,v8:10568): Change `range_boundaries` to a ZoneList<uc32>.
   ZoneList<int>* range_boundaries =
       new (zone) ZoneList<int>(last_valid_range, zone);
 
@@ -1256,7 +1277,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     range_boundaries->Add(range.to() + 1, zone);
   }
   int end_index = range_boundaries->length() - 1;
-  if (range_boundaries->at(end_index) > max_char) {
+  if (static_cast<uc32>(range_boundaries->at(end_index)) > max_char) {
     end_index--;
   }
 
@@ -1370,12 +1391,7 @@ static inline uint32_t SmearBitsRight(uint32_t v) {
 
 bool QuickCheckDetails::Rationalize(bool asc) {
   bool found_useful_op = false;
-  uint32_t char_mask;
-  if (asc) {
-    char_mask = String::kMaxOneByteCharCode;
-  } else {
-    char_mask = String::kMaxUtf16CodeUnit;
-  }
+  const uint32_t char_mask = CharMask(asc);
   mask_ = 0;
   value_ = 0;
   int char_shift = 0;
@@ -1495,12 +1511,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
   if (details->characters() == 1) {
     // If number of characters preloaded is 1 then we used a byte or 16 bit
     // load so the value is already masked down.
-    uint32_t char_mask;
-    if (compiler->one_byte()) {
-      char_mask = String::kMaxOneByteCharCode;
-    } else {
-      char_mask = String::kMaxUtf16CodeUnit;
-    }
+    const uint32_t char_mask = CharMask(compiler->one_byte());
     if ((mask & char_mask) == char_mask) need_mask = false;
     mask &= char_mask;
   } else {
@@ -1551,12 +1562,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   Isolate* isolate = compiler->macro_assembler()->isolate();
   DCHECK(characters_filled_in < details->characters());
   int characters = details->characters();
-  int char_mask;
-  if (compiler->one_byte()) {
-    char_mask = String::kMaxOneByteCharCode;
-  } else {
-    char_mask = String::kMaxUtf16CodeUnit;
-  }
+  const uint32_t char_mask = CharMask(compiler->one_byte());
   for (int k = 0; k < elements()->length(); k++) {
     TextElement elm = elements()->at(k);
     if (elm.text_type() == TextElement::ATOM) {
@@ -1645,26 +1651,22 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           }
         }
         CharacterRange range = ranges->at(first_range);
-        uc16 from = range.from();
-        uc16 to = range.to();
-        if (to > char_mask) {
-          to = char_mask;
-        }
-        uint32_t differing_bits = (from ^ to);
+        const uc32 first_from = range.from();
+        const uc32 first_to = (range.to() > char_mask) ? char_mask : range.to();
+        const uint32_t differing_bits = (first_from ^ first_to);
         // A mask and compare is only perfect if the differing bits form a
         // number like 00011111 with one single block of trailing 1s.
         if ((differing_bits & (differing_bits + 1)) == 0 &&
-            from + differing_bits == to) {
+            first_from + differing_bits == first_to) {
           pos->determines_perfectly = true;
         }
         uint32_t common_bits = ~SmearBitsRight(differing_bits);
-        uint32_t bits = (from & common_bits);
+        uint32_t bits = (first_from & common_bits);
         for (int i = first_range + 1; i < ranges->length(); i++) {
           CharacterRange range = ranges->at(i);
-          uc16 from = range.from();
-          uc16 to = range.to();
+          const uc32 from = range.from();
           if (from > char_mask) continue;
-          if (to > char_mask) to = char_mask;
+          const uc32 to = (range.to() > char_mask) ? char_mask : range.to();
           // Here we are combining more ranges into the mask and compare
           // value.  With each new range the mask becomes more sparse and
           // so the chances of a false positive rise.  A character class
@@ -1684,9 +1686,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
       }
       characters_filled_in++;
       DCHECK(characters_filled_in <= details->characters());
-      if (characters_filled_in == details->characters()) {
-        return;
-      }
+      if (characters_filled_in == details->characters()) return;
     }
   }
   DCHECK(characters_filled_in != details->characters());
@@ -1748,7 +1748,7 @@ void QuickCheckDetails::Merge(QuickCheckDetails* other, int from_index) {
     pos->mask &= other_pos->mask;
     pos->value &= pos->mask;
     other_pos->value &= pos->mask;
-    uc16 differing_bits = (pos->value ^ other_pos->value);
+    uint32_t differing_bits = (pos->value ^ other_pos->value);
     pos->mask &= ~differing_bits;
     pos->value &= pos->mask;
   }
@@ -1858,16 +1858,20 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
         if (range_count != 0 && ranges->at(0).from() == 0 &&
             ranges->at(0).to() >= String::kMaxOneByteCharCode) {
           // This will be handled in a later filter.
-          if (IgnoreCase(cc->flags()) && RangesContainLatin1Equivalents(ranges))
+          if (IgnoreCase(cc->flags()) &&
+              RangesContainLatin1Equivalents(ranges)) {
             continue;
+          }
           return set_replacement(nullptr);
         }
       } else {
         if (range_count == 0 ||
             ranges->at(0).from() > String::kMaxOneByteCharCode) {
           // This will be handled in a later filter.
-          if (IgnoreCase(cc->flags()) && RangesContainLatin1Equivalents(ranges))
+          if (IgnoreCase(cc->flags()) &&
+              RangesContainLatin1Equivalents(ranges)) {
             continue;
+          }
           return set_replacement(nullptr);
         }
       }
@@ -2504,12 +2508,7 @@ RegExpNode* TextNode::GetSuccessorOfOmnivorousTextNode(
     return ranges->length() == 0 ? on_success() : nullptr;
   }
   if (ranges->length() != 1) return nullptr;
-  uint32_t max_char;
-  if (compiler->one_byte()) {
-    max_char = String::kMaxOneByteCharCode;
-  } else {
-    max_char = String::kMaxUtf16CodeUnit;
-  }
+  const uc32 max_char = MaxCodeUnit(compiler->one_byte());
   return ranges->at(0).IsEverything(max_char) ? on_success() : nullptr;
 }
 
@@ -2719,12 +2718,9 @@ void BoyerMoorePositionInfo::SetAll() {
 
 BoyerMooreLookahead::BoyerMooreLookahead(int length, RegExpCompiler* compiler,
                                          Zone* zone)
-    : length_(length), compiler_(compiler) {
-  if (compiler->one_byte()) {
-    max_char_ = String::kMaxOneByteCharCode;
-  } else {
-    max_char_ = String::kMaxUtf16CodeUnit;
-  }
+    : length_(length),
+      compiler_(compiler),
+      max_char_(MaxCodeUnit(compiler->one_byte())) {
   bitmaps_ = new (zone) ZoneList<BoyerMoorePositionInfo*>(length, zone);
   for (int i = 0; i < length; i++) {
     bitmaps_->Add(new (zone) BoyerMoorePositionInfo(), zone);
@@ -3421,8 +3417,9 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   DCHECK_EQ(start_reg_ + 1, end_reg_);
   if (IgnoreCase(flags_)) {
+    bool unicode = IsUnicode(flags_);
     assembler->CheckNotBackReferenceIgnoreCase(start_reg_, read_backward(),
-                                               trace->backtrack());
+                                               unicode, trace->backtrack());
   } else {
     assembler->CheckNotBackReference(start_reg_, read_backward(),
                                      trace->backtrack());
@@ -3787,7 +3784,7 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
       } else {
         for (int k = 0; k < ranges->length(); k++) {
           CharacterRange& range = ranges->at(k);
-          if (range.from() > max_char) continue;
+          if (static_cast<int>(range.from()) > max_char) continue;
           int to = Min(max_char, static_cast<int>(range.to()));
           bm->SetInterval(offset, Interval(range.from(), to));
         }

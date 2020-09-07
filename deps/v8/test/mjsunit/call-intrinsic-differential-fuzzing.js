@@ -4,5 +4,5 @@
 
 // Flags: --allow-natives-for-differential-fuzzing
 
-// Test blacklisted intrinsics in the context of differential fuzzing.
+// Test blocklisted intrinsics in the context of differential fuzzing.
 assertEquals(undefined, %IsBeingInterpreted());

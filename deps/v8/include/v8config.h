@@ -433,6 +433,16 @@
 #define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
 
+// Helper macro to define no_sanitize attributes only with clang.
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define V8_CLANG_NO_SANITIZE(what) __attribute__((no_sanitize(what)))
+#endif
+#endif
+#if !defined(V8_CLANG_NO_SANITIZE)
+#define V8_CLANG_NO_SANITIZE(what)
+#endif
+
 #if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
 #error Inconsistent build configuration: To build the V8 shared library \
 set BUILDING_V8_SHARED, to include its headers for linking against the \

@@ -4,6 +4,8 @@
 
 #include <stdlib.h>
 
+#include "src/heap/safepoint.h"
+
 #ifdef __linux__
 #include <errno.h>
 #include <fcntl.h>
@@ -104,7 +106,10 @@ TEST(IncrementalMarkingUsingTasks) {
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  marking->Start(i::GarbageCollectionReason::kTesting);
+  {
+    SafepointScope scope(CcTest::heap());
+    marking->Start(i::GarbageCollectionReason::kTesting);
+  }
   CHECK(platform.PendingTask());
   while (platform.PendingTask()) {
     platform.PerformTask();

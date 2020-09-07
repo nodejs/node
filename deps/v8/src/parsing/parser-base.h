@@ -786,7 +786,7 @@ class ParserBase {
   // should automatically use scope() as parent, and be fine with
   // NewScope(ScopeType) above.
   Scope* NewScopeWithParent(Scope* parent, ScopeType scope_type) const {
-    // Must always use the specific constructors for the blacklisted scope
+    // Must always use the specific constructors for the blocklisted scope
     // types.
     DCHECK_NE(FUNCTION_SCOPE, scope_type);
     DCHECK_NE(SCRIPT_SCOPE, scope_type);
@@ -2755,8 +2755,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
   Token::Value op = peek();
 
   if (!Token::IsArrowOrAssignmentOp(op)) return expression;
-  if ((op == Token::ASSIGN_NULLISH || op == Token::ASSIGN_OR ||
-       op == Token::ASSIGN_AND) &&
+  if (Token::IsLogicalAssignmentOp(op) &&
       !flags().allow_harmony_logical_assignment()) {
     return expression;
   }
@@ -2830,13 +2829,8 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
 
   ExpressionT right = ParseAssignmentExpression();
 
-  if (op == Token::ASSIGN) {
-    // We try to estimate the set of properties set by constructors. We define a
-    // new property whenever there is an assignment to a property of 'this'. We
-    // should probably only add properties if we haven't seen them before.
-    // Otherwise we'll probably overestimate the number of properties.
-    if (impl()->IsThisProperty(expression)) function_state_->AddProperty();
-
+  // Anonymous function name inference applies to =, ||=, &&=, and ??=.
+  if (op == Token::ASSIGN || Token::IsLogicalAssignmentOp(op)) {
     impl()->CheckAssigningFunctionLiteralToProperty(expression, right);
 
     // Check if the right hand side is a call to avoid inferring a
@@ -2850,10 +2844,20 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
 
     impl()->SetFunctionNameFromIdentifierRef(right, expression);
   } else {
+    fni_.RemoveLastFunction();
+  }
+
+  if (op == Token::ASSIGN) {
+    // We try to estimate the set of properties set by constructors. We define a
+    // new property whenever there is an assignment to a property of 'this'. We
+    // should probably only add properties if we haven't seen them before.
+    // Otherwise we'll probably overestimate the number of properties.
+    if (impl()->IsThisProperty(expression)) function_state_->AddProperty();
+  } else {
+    // Only initializers (i.e. no compound assignments) are allowed in patterns.
     expression_scope()->RecordPatternError(
         Scanner::Location(lhs_beg_pos, end_position()),
         MessageTemplate::kInvalidDestructuringTarget);
-    fni_.RemoveLastFunction();
   }
 
   return factory()->NewAssignment(op, expression, right, op_position);

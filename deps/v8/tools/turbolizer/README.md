@@ -74,7 +74,6 @@ well as '--cpu' to specify which CPU to sample.
 Turbolizer build process
 ------------------------
 
-Turbolizer is currently migrating to TypeScript. The typescript sources reside in
-tools/turbolizer/src, and the typescript compiler will put the JavaScript output
-into tools/turbolizer/build/. The index.html file is set up to load the JavaScript
-from that directory.
+The typescript sources reside in tools/turbolizer/src, and the typescript
+compiler will put the JavaScript output into tools/turbolizer/build/. The
+index.html file is set up to load the JavaScript from that directory.

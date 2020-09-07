@@ -1027,11 +1027,7 @@ Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
     inputs.Add(new_target);
   }
   inputs.Add(arity);
-#ifdef V8_REVERSE_JSARGS
-  for (auto arg : base::Reversed(args)) inputs.Add(arg);
-#else
   for (auto arg : args) inputs.Add(arg);
-#endif
   if (descriptor.HasContextParameter()) {
     inputs.Add(context);
   }
@@ -1393,6 +1389,7 @@ void CodeAssemblerLabel::MergeVariables() {
     }
     // If the following asserts, then you've jumped to a label without a bound
     // variable along that path that expects to merge its value into a phi.
+    // This can also occur if a label is bound that is never jumped to.
     DCHECK(variable_phis_.find(var) == variable_phis_.end() ||
            count == merge_count_);
     USE(count);

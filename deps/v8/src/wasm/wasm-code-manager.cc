@@ -83,7 +83,7 @@ base::AddressRegion DisjointAllocationPool::Merge(
 
   auto below = above;
   --below;
-  // Sanity check:
+  // Consistency check:
   DCHECK(above == regions_.end() || below->end() < above->begin());
 
   // Adjacent to {below}: merge and done.
@@ -327,6 +327,12 @@ void WasmCode::Print(const char* name) const {
   StdoutStream os;
   os << "--- WebAssembly code ---\n";
   Disassemble(name, os);
+  if (native_module_->HasDebugInfo()) {
+    if (auto* debug_side_table =
+            native_module_->GetDebugInfo()->GetDebugSideTableIfExists(this)) {
+      debug_side_table->Print(os);
+    }
+  }
   os << "--- End code ---\n";
 }
 
@@ -849,13 +855,13 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
       code->is_off_heap_trampoline() ? 0 : code->relocation_size();
   OwnedVector<byte> reloc_info;
   if (relocation_size > 0) {
-    reloc_info = OwnedVector<byte>::New(relocation_size);
-    memcpy(reloc_info.start(), code->relocation_start(), relocation_size);
+    reloc_info = OwnedVector<byte>::Of(
+        Vector<byte>{code->relocation_start(), relocation_size});
   }
   Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
                                      code->GetIsolate());
   OwnedVector<byte> source_pos =
-      OwnedVector<byte>::New(source_pos_table->length());
+      OwnedVector<byte>::NewForOverwrite(source_pos_table->length());
   if (source_pos_table->length() > 0) {
     source_pos_table->copy_out(0, source_pos.start(),
                                source_pos_table->length());
@@ -923,7 +929,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                    WasmCode::kFunction,     // kind
                    ExecutionTier::kNone,    // tier
                    kNoDebugging}};          // for_debugging
-  new_code->MaybePrint(nullptr);
+  new_code->MaybePrint();
   new_code->Validate();
 
   return PublishCode(std::move(new_code));
@@ -1347,7 +1353,9 @@ class NativeModuleWireBytesStorage final : public WireBytesStorage {
       : wire_bytes_(std::move(wire_bytes)) {}
 
   Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
-    return wire_bytes_->as_vector().SubVector(ref.offset(), ref.end_offset());
+    return std::atomic_load(&wire_bytes_)
+        ->as_vector()
+        .SubVector(ref.offset(), ref.end_offset());
   }
 
  private:
@@ -1358,7 +1366,7 @@ class NativeModuleWireBytesStorage final : public WireBytesStorage {
 void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
   auto shared_wire_bytes =
       std::make_shared<OwnedVector<const uint8_t>>(std::move(wire_bytes));
-  wire_bytes_ = shared_wire_bytes;
+  std::atomic_store(&wire_bytes_, shared_wire_bytes);
   if (!shared_wire_bytes->empty()) {
     compilation_state_->SetWireBytesStorage(
         std::make_shared<NativeModuleWireBytesStorage>(
@@ -1851,7 +1859,7 @@ bool NativeModule::IsTieredDown() {
   return tiering_state_ == kTieredDown;
 }
 
-void NativeModule::TriggerRecompilation() {
+void NativeModule::RecompileForTiering() {
   // Read the tiering state under the lock, then trigger recompilation after
   // releasing the lock. If the tiering state was changed when the triggered
   // compilation units finish, code installation will handle that correctly.
@@ -1863,22 +1871,49 @@ void NativeModule::TriggerRecompilation() {
   RecompileNativeModule(this, current_state);
 }
 
+std::vector<int> NativeModule::FindFunctionsToRecompile(
+    TieringState new_tiering_state) {
+  base::MutexGuard guard(&allocation_mutex_);
+  std::vector<int> function_indexes;
+  int imported = module()->num_imported_functions;
+  int declared = module()->num_declared_functions;
+  for (int slot_index = 0; slot_index < declared; ++slot_index) {
+    int function_index = imported + slot_index;
+    WasmCode* code = code_table_[slot_index];
+    bool code_is_good = new_tiering_state == kTieredDown
+                            ? code && code->for_debugging()
+                            : code && code->tier() == ExecutionTier::kTurbofan;
+    if (!code_is_good) function_indexes.push_back(function_index);
+  }
+  return function_indexes;
+}
+
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
   // Free the code space.
   code_allocator_.FreeCode(codes);
 
-  base::MutexGuard guard(&allocation_mutex_);
-  // Remove debug side tables for all removed code objects.
-  if (debug_info_) debug_info_->RemoveDebugSideTables(codes);
-  // Free the {WasmCode} objects. This will also unregister trap handler data.
-  for (WasmCode* code : codes) {
-    DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
-    owned_code_.erase(code->instruction_start());
+  DebugInfo* debug_info = nullptr;
+  {
+    base::MutexGuard guard(&allocation_mutex_);
+    debug_info = debug_info_.get();
+    // Free the {WasmCode} objects. This will also unregister trap handler data.
+    for (WasmCode* code : codes) {
+      DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
+      owned_code_.erase(code->instruction_start());
+    }
   }
+  // Remove debug side tables for all removed code objects, after releasing our
+  // lock. This is to avoid lock order inversion.
+  if (debug_info) debug_info->RemoveDebugSideTables(codes);
 }
 
 size_t NativeModule::GetNumberOfCodeSpacesForTesting() const {
   return code_allocator_.GetNumCodeSpaces();
+}
+
+bool NativeModule::HasDebugInfo() const {
+  base::MutexGuard guard(&allocation_mutex_);
+  return debug_info_ != nullptr;
 }
 
 DebugInfo* NativeModule::GetDebugInfo() {

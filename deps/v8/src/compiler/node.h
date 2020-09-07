@@ -303,6 +303,16 @@ Node** Node::OutOfLineInputs::inputs() {
 
 std::ostream& operator<<(std::ostream& os, const Node& n);
 
+// Base class for node wrappers.
+class NodeWrapper {
+ public:
+  explicit constexpr NodeWrapper(Node* node) : node_(node) {}
+  operator Node*() const { return node_; }
+  Node* operator->() const { return node_; }
+
+ private:
+  Node* node_;
+};
 
 // Typedefs to shorten commonly used Node containers.
 using NodeDeque = ZoneDeque<Node*>;

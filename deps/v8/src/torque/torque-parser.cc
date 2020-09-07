@@ -855,7 +855,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
       {ANNOTATION_GENERATE_PRINT, ANNOTATION_NO_VERIFIER, ANNOTATION_ABSTRACT,
        ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT,
        ANNOTATION_GENERATE_CPP_CLASS, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
-       ANNOTATION_EXPORT_CPP_CLASS,
+       ANNOTATION_EXPORT_CPP_CLASS, ANNOTATION_DO_NOT_GENERATE_CAST,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT},
       {ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE,
@@ -873,6 +873,9 @@ base::Optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains(ANNOTATION_GENERATE_CPP_CLASS)) {
     flags |= ClassFlag::kGenerateCppClassDefinitions;
+  }
+  if (annotations.Contains(ANNOTATION_DO_NOT_GENERATE_CAST)) {
+    flags |= ClassFlag::kDoNotGenerateCast;
   }
   if (annotations.Contains(ANNOTATION_GENERATE_BODY_DESCRIPTOR)) {
     flags |= ClassFlag::kGenerateBodyDescriptor;
@@ -896,6 +899,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
     flags |= ClassFlag::kIsShape;
     flags |= ClassFlag::kTransient;
     flags |= ClassFlag::kHasSameInstanceTypeAsParent;
+    flags |= ClassFlag::kDoNotGenerateCast;
   } else {
     DCHECK_EQ(kind, "class");
   }
@@ -934,9 +938,60 @@ base::Optional<ParseResult> MakeClassDeclaration(
         return true;
       });
 
-  Declaration* result = MakeNode<ClassDeclaration>(
+  std::vector<Declaration*> result;
+
+  result.push_back(MakeNode<ClassDeclaration>(
       name, flags, std::move(extends), std::move(generates), std::move(methods),
-      fields, MakeInstanceTypeConstraints(annotations));
+      fields, MakeInstanceTypeConstraints(annotations)));
+
+  if ((flags & ClassFlag::kDoNotGenerateCast) == 0 &&
+      (flags & ClassFlag::kIsShape) == 0) {
+    ParameterList parameters;
+    parameters.names.push_back(MakeNode<Identifier>("obj"));
+    parameters.types.push_back(
+        MakeNode<BasicTypeExpression>(std::vector<std::string>{}, "HeapObject",
+                                      std::vector<TypeExpression*>{}));
+    LabelAndTypesVector labels;
+    labels.push_back(LabelAndTypes{MakeNode<Identifier>("CastError"),
+                                   std::vector<TypeExpression*>{}});
+
+    TypeExpression* class_type =
+        MakeNode<BasicTypeExpression>(std::vector<std::string>{}, name->value,
+                                      std::vector<TypeExpression*>{});
+
+    std::vector<std::string> namespace_qualification{
+        TORQUE_INTERNAL_NAMESPACE_STRING};
+
+    IdentifierExpression* internal_downcast_target =
+        MakeNode<IdentifierExpression>(
+            namespace_qualification,
+            MakeNode<Identifier>("DownCastForTorqueClass"),
+            std::vector<TypeExpression*>{class_type});
+    IdentifierExpression* internal_downcast_otherwise =
+        MakeNode<IdentifierExpression>(std::vector<std::string>{},
+                                       MakeNode<Identifier>("CastError"));
+
+    Expression* argument = MakeNode<IdentifierExpression>(
+        std::vector<std::string>{}, MakeNode<Identifier>("obj"));
+
+    auto value = MakeCall(internal_downcast_target, base::nullopt,
+                          std::vector<Expression*>{argument},
+                          std::vector<Statement*>{MakeNode<ExpressionStatement>(
+                              internal_downcast_otherwise)});
+
+    auto cast_body = MakeNode<ReturnStatement>(value);
+
+    std::vector<TypeExpression*> generic_parameters;
+    generic_parameters.push_back(
+        MakeNode<BasicTypeExpression>(std::vector<std::string>{}, name->value,
+                                      std::vector<TypeExpression*>{}));
+
+    Declaration* specialization = MakeNode<SpecializationDeclaration>(
+        false, MakeNode<Identifier>("Cast"), generic_parameters,
+        std::move(parameters), class_type, std::move(labels), cast_body);
+    result.push_back(specialization);
+  }
+
   return ParseResult{result};
 }
 
@@ -1602,6 +1657,17 @@ base::Optional<ParseResult> MakeRightShiftIdentifier(
   return ParseResult{MakeNode<Identifier>(str)};
 }
 
+base::Optional<ParseResult> MakeNamespaceQualification(
+    ParseResultIterator* child_results) {
+  bool global_namespace = child_results->NextAs<bool>();
+  auto namespace_qualification =
+      child_results->NextAs<std::vector<std::string>>();
+  if (global_namespace) {
+    namespace_qualification.insert(namespace_qualification.begin(), "");
+  }
+  return ParseResult(std::move(namespace_qualification));
+}
+
 base::Optional<ParseResult> MakeIdentifierExpression(
     ParseResultIterator* child_results) {
   auto namespace_qualification =
@@ -1982,14 +2048,19 @@ struct TorqueGrammar : Grammar {
   // Result: std::vector<Annotation>
   Symbol* annotations = List<Annotation>(&annotation);
 
+  // Result: std::vector<std::string>
+  Symbol namespaceQualification = {
+      Rule({CheckIf(Token("::")),
+            List<std::string>(Sequence({&identifier, Token("::")}))},
+           MakeNamespaceQualification)};
+
   // Result: TypeList
   Symbol* typeList = List<TypeExpression*>(&type, Token(","));
 
   // Result: TypeExpression*
   Symbol simpleType = {
       Rule({Token("("), &type, Token(")")}),
-      Rule({List<std::string>(Sequence({&identifier, Token("::")})),
-            CheckIf(Token("constexpr")), &identifier,
+      Rule({&namespaceQualification, CheckIf(Token("constexpr")), &identifier,
             TryOrDefault<std::vector<TypeExpression*>>(
                 &genericSpecializationTypeList)},
            MakeBasicTypeExpression),
@@ -2123,7 +2194,7 @@ struct TorqueGrammar : Grammar {
 
   // Result: Expression*
   Symbol identifierExpression = {
-      Rule({List<std::string>(Sequence({&identifier, Token("::")})), &name,
+      Rule({&namespaceQualification, &name,
             TryOrDefault<TypeList>(&genericSpecializationTypeList)},
            MakeIdentifierExpression),
   };
@@ -2369,7 +2440,7 @@ struct TorqueGrammar : Grammar {
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
             &optionalClassBody},
-           AsSingletonVector<Declaration*, MakeClassDeclaration>()),
+           MakeClassDeclaration),
       Rule({annotations, Token("struct"), &name,
             TryOrDefault<GenericParameters>(&genericParameters), Token("{"),
             List<Declaration*>(&method),

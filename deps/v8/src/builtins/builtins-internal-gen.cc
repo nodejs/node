@@ -72,7 +72,7 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
 }
 
 TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
-  TNode<IntPtrT> frame = UncheckedCast<IntPtrT>(Parameter(Descriptor::kFrame));
+  TNode<RawPtrT> frame = UncheckedCast<RawPtrT>(Parameter(Descriptor::kFrame));
   TNode<IntPtrT> length = SmiToIntPtr(Parameter(Descriptor::kLength));
   TNode<IntPtrT> mapped_count =
       SmiToIntPtr(Parameter(Descriptor::kMappedCount));
@@ -127,10 +127,8 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
       }
       BIND(&done_loop1);
 
-      // Compute the effective {offset} into the {frame}.
-      TNode<IntPtrT> offset = IntPtrAdd(length, IntPtrConstant(1));
-
       // Copy the parameters from {frame} (starting at {offset}) to {result}.
+      CodeStubArguments args(this, length, frame);
       Label loop2(this, &var_index), done_loop2(this);
       Goto(&loop2);
       BIND(&loop2);
@@ -142,9 +140,7 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
         GotoIf(IntPtrEqual(index, length), &done_loop2);
 
         // Load the parameter at the given {index}.
-        TNode<Object> value = BitcastWordToTagged(
-            Load(MachineType::Pointer(), frame,
-                 TimesSystemPointerSize(IntPtrSub(offset, index))));
+        TNode<Object> value = args.AtIndex(index);
 
         // Store the {value} into the {result}.
         StoreFixedArrayElement(result, index, value, SKIP_WRITE_BARRIER);
@@ -221,9 +217,9 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
   TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
-    TNode<IntPtrT> flags =
-        UncheckedCast<IntPtrT>(Load(MachineType::Pointer(), page,
-                                    IntPtrConstant(MemoryChunk::kFlagsOffset)));
+    TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
+        Load(MachineType::Pointer(), page,
+             IntPtrConstant(BasicMemoryChunk::kFlagsOffset)));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
   }
@@ -242,8 +238,8 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                   TNode<IntPtrT>* mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
-    TNode<IntPtrT> bitmap =
-        Load<IntPtrT>(page, IntPtrConstant(MemoryChunk::kMarkBitmapOffset));
+    TNode<IntPtrT> bitmap = Load<IntPtrT>(
+        page, IntPtrConstant(BasicMemoryChunk::kMarkBitmapOffset));
 
     {
       // Temp variable to calculate cell offset in bitmap.

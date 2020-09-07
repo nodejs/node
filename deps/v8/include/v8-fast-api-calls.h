@@ -120,8 +120,7 @@
  *        v8::ObjectTemplate::New(isolate);
  *      object_template->SetInternalFieldCount(
  *        kV8EmbedderWrapperObjectIndex + 1);
- *      object_template->Set(
-            v8::String::NewFromUtf8Literal(isolate, "method"), method_template);
+ *      object_template->Set(isolate, "method", method_template);
  *
  *      // Instantiate the wrapper JS object.
  *      v8::Local<v8::Object> object =
@@ -377,6 +376,11 @@ class V8_EXPORT CFunction {
   template <typename F>
   static CFunction Make(F* func) {
     return ArgUnwrap<F*>::Make(func);
+  }
+
+  template <typename F>
+  static CFunction Make(F* func, const CFunctionInfo* type_info) {
+    return CFunction(reinterpret_cast<const void*>(func), type_info);
   }
 
  private:

@@ -15,6 +15,14 @@ namespace internal {
 Address OffThreadIsolate::isolate_root() const {
   return isolate_->isolate_root();
 }
+ReadOnlyHeap* OffThreadIsolate::read_only_heap() {
+  return isolate_->read_only_heap();
+}
+
+Object OffThreadIsolate::root(RootIndex index) {
+  DCHECK(RootsTable::IsImmortalImmovable(index));
+  return isolate_->root(index);
+}
 
 }  // namespace internal
 }  // namespace v8

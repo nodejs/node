@@ -1009,7 +1009,7 @@ domain Runtime
         f32
         f64
         v128
-        anyref
+        externref
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
@@ -1370,6 +1370,11 @@ domain Runtime
       # Note that `let` variables can only be re-declared if they originate from
       # `replMode` themselves.
       experimental optional boolean replMode
+      # The Content Security Policy (CSP) for the target might block 'unsafe-eval'
+      # which includes eval(), Function(), setTimeout() and setInterval()
+      # when called with non-callable arguments. This flag bypasses CSP for this
+      # evaluation and allows unsafe-eval. Defaults to true.
+      experimental optional boolean allowUnsafeEvalBlockedByCSP
     returns
       # Evaluation result.
       RemoteObject result

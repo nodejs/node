@@ -239,7 +239,8 @@ const char* AbstractCode::Kind2String(Kind kind) {
 
 bool Code::IsIsolateIndependent(Isolate* isolate) {
   constexpr int all_real_modes_mask =
-      (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
+      (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) -
+      (1 << (RelocInfo::FIRST_REAL_RELOC_MODE - 1)) - 1;
   constexpr int mode_mask = all_real_modes_mask &
                             ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
                             ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &

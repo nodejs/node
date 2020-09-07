@@ -23,7 +23,6 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-debug-evaluate.h"
 #include "src/wasm/wasm-debug.h"
-#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -49,7 +48,7 @@ class TestCode {
         code_(code),
         locals_(static_cast<uint32_t>(locals.size())) {
     for (ValueType::Kind T : locals) {
-      compiler_->AllocateLocal(ValueType(T));
+      compiler_->AllocateLocal(ValueType::Primitive(T));
     }
     compiler_->Build(code.begin(), code.end());
   }

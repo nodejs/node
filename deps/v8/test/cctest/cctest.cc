@@ -150,6 +150,18 @@ void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
                                         i::GarbageCollectionReason::kTesting);
 }
 
+i::Handle<i::String> CcTest::MakeString(const char* str) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  return factory->InternalizeUtf8String(str);
+}
+
+i::Handle<i::String> CcTest::MakeName(const char* str, int suffix) {
+  i::EmbeddedVector<char, 128> buffer;
+  SNPrintF(buffer, "%s%d", str, suffix);
+  return CcTest::MakeString(buffer.begin());
+}
+
 v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
   return InitIsolateOnce()->random_number_generator();
 }
@@ -232,6 +244,8 @@ HandleAndZoneScope::HandleAndZoneScope()
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
+static constexpr bool kNativeContextDependent = false;
+
 i::Handle<i::JSFunction> Optimize(
     i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
     uint32_t flags, std::unique_ptr<i::compiler::JSHeapBroker>* out_broker) {
@@ -243,14 +257,15 @@ i::Handle<i::JSFunction> Optimize(
 
   CHECK_NOT_NULL(zone);
 
-  i::OptimizedCompilationInfo info(zone, isolate, shared, function);
+  i::OptimizedCompilationInfo info(zone, isolate, shared, function,
+                                   kNativeContextDependent);
 
-  if (flags & i::OptimizedCompilationInfo::kInliningEnabled) {
-    info.MarkAsInliningEnabled();
+  if (flags & i::OptimizedCompilationInfo::kInlining) {
+    info.set_inlining();
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());
-  i::JSFunction::EnsureFeedbackVector(function);
+  i::JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
 
   i::Handle<i::Code> code =
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)

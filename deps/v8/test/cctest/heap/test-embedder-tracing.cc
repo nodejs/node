@@ -8,6 +8,7 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/safepoint.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/script.h"
@@ -264,7 +265,11 @@ TEST(FinalizeTracingWhenMarking) {
   CHECK(i_isolate->heap()->incremental_marking()->IsStopped());
 
   i::IncrementalMarking* marking = i_isolate->heap()->incremental_marking();
-  marking->Start(i::GarbageCollectionReason::kTesting);
+  {
+    SafepointScope scope(i_isolate->heap());
+    marking->Start(i::GarbageCollectionReason::kTesting);
+  }
+
   // Sweeping is not runing so we should immediately start marking.
   CHECK(marking->IsMarking());
   tracer.FinalizeTracing();

@@ -73,10 +73,9 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
-class WasmDebugInfo;
 class Zone;
 #define MAKE_FORWARD_DECLARATION(Name) class Name;
-TORQUE_INTERNAL_CLASS_LIST(MAKE_FORWARD_DECLARATION)
+TORQUE_DEFINED_CLASS_LIST(MAKE_FORWARD_DECLARATION)
 #undef MAKE_FORWARD_DECLARATION
 
 template <typename T>

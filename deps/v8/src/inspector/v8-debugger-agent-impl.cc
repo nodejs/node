@@ -1581,8 +1581,6 @@ void V8DebuggerAgentImpl::didParseSource(
     return;
   }
 
-  // TODO(herhut, dgozman): Report correct length for Wasm if needed for
-  // coverage. Or do not send the length at all and change coverage instead.
   if (scriptRef->isSourceLoadedLazily()) {
     m_frontend.scriptParsed(
         scriptId, scriptURL, 0, 0, 0, 0, contextId, scriptRef->hash(),
@@ -1842,7 +1840,6 @@ void V8DebuggerAgentImpl::reset() {
   m_scripts.clear();
   m_cachedScriptIds.clear();
   m_cachedScriptSize = 0;
-  m_breakpointIdToDebuggerBreakpointIds.clear();
 }
 
 void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {

@@ -128,6 +128,17 @@ bool Snapshot::HasContextSnapshot(Isolate* isolate, size_t index) {
   return index < num_contexts;
 }
 
+bool Snapshot::VersionIsValid(const v8::StartupData* data) {
+  char version[SnapshotImpl::kVersionStringLength];
+  memset(version, 0, SnapshotImpl::kVersionStringLength);
+  CHECK_LT(
+      SnapshotImpl::kVersionStringOffset + SnapshotImpl::kVersionStringLength,
+      static_cast<uint32_t>(data->raw_size));
+  Version::GetString(Vector<char>(version, SnapshotImpl::kVersionStringLength));
+  return strncmp(version, data->data + SnapshotImpl::kVersionStringOffset,
+                 SnapshotImpl::kVersionStringLength) == 0;
+}
+
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
   RuntimeCallTimerScope rcs_timer(isolate,
@@ -600,13 +611,12 @@ Vector<const byte> SnapshotImpl::ExtractContextData(const v8::StartupData* data,
 }
 
 void SnapshotImpl::CheckVersion(const v8::StartupData* data) {
-  char version[kVersionStringLength];
-  memset(version, 0, kVersionStringLength);
-  CHECK_LT(kVersionStringOffset + kVersionStringLength,
-           static_cast<uint32_t>(data->raw_size));
-  Version::GetString(Vector<char>(version, kVersionStringLength));
-  if (strncmp(version, data->data + kVersionStringOffset,
-              kVersionStringLength) != 0) {
+  if (!Snapshot::VersionIsValid(data)) {
+    char version[kVersionStringLength];
+    memset(version, 0, kVersionStringLength);
+    CHECK_LT(kVersionStringOffset + kVersionStringLength,
+             static_cast<uint32_t>(data->raw_size));
+    Version::GetString(Vector<char>(version, kVersionStringLength));
     FATAL(
         "Version mismatch between V8 binary and snapshot.\n"
         "#   V8 binary version: %.*s\n"

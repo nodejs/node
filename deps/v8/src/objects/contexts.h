@@ -309,6 +309,7 @@ enum ContextLookupFlags {
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                            \
   V(OBJECT_VALUE_OF_FUNCTION_INDEX, JSFunction, object_value_of_function)      \
   V(PROMISE_ALL_INDEX, JSFunction, promise_all)                                \
+  V(PROMISE_ANY_INDEX, JSFunction, promise_any)                                \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                            \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                      \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)              \
@@ -508,7 +509,7 @@ class Context : public HeapObject {
 
     // These slots hold values in debug evaluate contexts.
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
-    BLACK_LIST_INDEX = MIN_CONTEXT_EXTENDED_SLOTS + 1
+    BLOCK_LIST_INDEX = MIN_CONTEXT_EXTENDED_SLOTS + 1
   };
 
   static const int kExtensionSize =

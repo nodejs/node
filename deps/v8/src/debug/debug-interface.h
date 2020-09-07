@@ -528,6 +528,7 @@ class PostponeInterruptsScope {
 
 class WeakMap : public v8::Object {
  public:
+  WeakMap() = delete;
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::MaybeLocal<v8::Value> Get(
       v8::Local<v8::Context> context, v8::Local<v8::Value> key);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::MaybeLocal<WeakMap> Set(
@@ -536,9 +537,6 @@ class WeakMap : public v8::Object {
 
   V8_EXPORT_PRIVATE static Local<WeakMap> New(v8::Isolate* isolate);
   V8_INLINE static WeakMap* Cast(Value* obj);
-
- private:
-  WeakMap();
 };
 
 /**
@@ -549,6 +547,7 @@ class WeakMap : public v8::Object {
  */
 class V8_EXPORT_PRIVATE AccessorPair : public v8::Value {
  public:
+  AccessorPair() = delete;
   v8::Local<v8::Value> getter();
   v8::Local<v8::Value> setter();
 
@@ -556,7 +555,6 @@ class V8_EXPORT_PRIVATE AccessorPair : public v8::Value {
   V8_INLINE static AccessorPair* Cast(v8::Value* obj);
 
  private:
-  AccessorPair();
   static void CheckCast(v8::Value* obj);
 };
 
@@ -596,17 +594,17 @@ class PropertyIterator {
 // Wrapper around v8::internal::WasmValue.
 class V8_EXPORT_PRIVATE WasmValue : public v8::Value {
  public:
+  WasmValue() = delete;
   static bool IsWasmValue(v8::Local<v8::Value> obj);
   V8_INLINE static WasmValue* Cast(v8::Value* obj);
   int value_type();
   // Get the underlying values as a byte array, this is only valid if value_type
   // is i32, i64, f32, f64, or s128.
   v8::Local<v8::Array> bytes();
-  // Get the underlying anyref, only valid if value_type is anyref.
+  // Get the underlying externref, only valid if value_type is externref.
   v8::Local<v8::Value> ref();
 
  private:
-  WasmValue();
   static void CheckCast(v8::Value* obj);
 };
 

@@ -42,18 +42,6 @@ template <class T>
 using TVariable = TypedCodeAssemblerVariable<T>;
 using PromiseResolvingFunctions = TorqueStructPromiseResolvingFunctions;
 
-Handle<String> MakeString(const char* str) {
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  return factory->InternalizeUtf8String(str);
-}
-
-Handle<String> MakeName(const char* str, int suffix) {
-  EmbeddedVector<char, 128> buffer;
-  SNPrintF(buffer, "%s%d", str, suffix);
-  return MakeString(buffer.begin());
-}
-
 int sum10(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
           int a8, int a9) {
   return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9;
@@ -1090,7 +1078,7 @@ TEST(TransitionLookup) {
       name = factory->NewSymbol();
     } else {
       int random_key = rand_gen.NextInt(Smi::kMaxValue);
-      name = MakeName("p", random_key);
+      name = CcTest::MakeName("p", random_key);
     }
     keys[i] = name;
 
@@ -2143,79 +2131,6 @@ TEST(Arguments) {
   CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(0), m.SmiConstant(12)));
   CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(1), m.SmiConstant(13)));
   CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(2), m.SmiConstant(14)));
-
-  arguments.PopAndReturn(arguments.GetReceiver());
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
-                                  Handle<Smi>(Smi::FromInt(12), isolate),
-                                  Handle<Smi>(Smi::FromInt(13), isolate),
-                                  Handle<Smi>(Smi::FromInt(14), isolate))
-                              .ToHandleChecked();
-  CHECK_EQ(*isolate->factory()->undefined_value(), *result);
-}
-
-TEST(ArgumentsWithSmiConstantIndices) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 4;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
-
-  CodeStubArguments arguments(&m, m.SmiConstant(3));
-
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(0)),
-                               m.SmiConstant(12)));
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(1)),
-                               m.SmiConstant(13)));
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(2)),
-                               m.SmiConstant(14)));
-
-  arguments.PopAndReturn(arguments.GetReceiver());
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
-                                  Handle<Smi>(Smi::FromInt(12), isolate),
-                                  Handle<Smi>(Smi::FromInt(13), isolate),
-                                  Handle<Smi>(Smi::FromInt(14), isolate))
-                              .ToHandleChecked();
-  CHECK_EQ(*isolate->factory()->undefined_value(), *result);
-}
-
-TNode<Smi> NonConstantSmi(CodeStubAssembler* m, int value) {
-  // Generate a SMI with the given value and feed it through a Phi so it can't
-  // be inferred to be constant.
-  Variable var(m, MachineRepresentation::kTagged, m->SmiConstant(value));
-  Label dummy_done(m);
-  // Even though the Goto always executes, it will taint the variable and thus
-  // make it appear non-constant when used later.
-  m->GotoIf(m->Int32Constant(1), &dummy_done);
-  var.Bind(m->SmiConstant(value));
-  m->Goto(&dummy_done);
-  m->BIND(&dummy_done);
-
-  // Ensure that the above hackery actually created a non-constant SMI.
-  Smi smi_constant;
-  CHECK(!m->ToSmiConstant(var.value(), &smi_constant));
-
-  return m->UncheckedCast<Smi>(var.value());
-}
-
-TEST(ArgumentsWithSmiIndices) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 4;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
-
-  CodeStubArguments arguments(&m, m.SmiConstant(3));
-
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 0)),
-                               m.SmiConstant(12)));
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 1)),
-                               m.SmiConstant(13)));
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 2)),
-                               m.SmiConstant(14)));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -3645,8 +3560,8 @@ TEST(TestCallBuiltinInlineTrampoline) {
   options.use_pc_relative_calls_and_jumps = false;
   options.isolate_independent_code = false;
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
-  MaybeHandle<Object> result = ft.Call(MakeString("abcdef"));
-  CHECK(String::Equals(isolate, MakeString("abcdefabcdef"),
+  MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
+  CHECK(String::Equals(isolate, CcTest::MakeString("abcdefabcdef"),
                        Handle<String>::cast(result.ToHandleChecked())));
 }
 
@@ -3671,8 +3586,8 @@ DISABLED_TEST(TestCallBuiltinIndirectLoad) {
   options.use_pc_relative_calls_and_jumps = false;
   options.isolate_independent_code = true;
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
-  MaybeHandle<Object> result = ft.Call(MakeString("abcdef"));
-  CHECK(String::Equals(isolate, MakeString("abcdefabcdef"),
+  MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
+  CHECK(String::Equals(isolate, CcTest::MakeString("abcdefabcdef"),
                        Handle<String>::cast(result.ToHandleChecked())));
 }
 

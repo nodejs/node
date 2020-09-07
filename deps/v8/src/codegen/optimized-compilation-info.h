@@ -11,6 +11,7 @@
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects.h"
@@ -43,35 +44,64 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
  public:
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
+
+#define FLAGS(V)                                                              \
+  V(FunctionContextSpecializing, function_context_specializing, 0)            \
+  V(Inlining, inlining, 1)                                                    \
+  V(DisableFutureOptimization, disable_future_optimization, 2)                \
+  V(Splitting, splitting, 3)                                                  \
+  V(SourcePositions, source_positions, 4)                                     \
+  V(BailoutOnUninitialized, bailout_on_uninitialized, 5)                      \
+  V(LoopPeeling, loop_peeling, 6)                                             \
+  V(UntrustedCodeMitigations, untrusted_code_mitigations, 7)                  \
+  V(SwitchJumpTable, switch_jump_table, 8)                                    \
+  V(CalledWithCodeStartRegister, called_with_code_start_register, 9)          \
+  V(PoisonRegisterArguments, poison_register_arguments, 10)                   \
+  V(AllocationFolding, allocation_folding, 11)                                \
+  V(AnalyzeEnvironmentLiveness, analyze_environment_liveness, 12)             \
+  V(TraceTurboJson, trace_turbo_json, 13)                                     \
+  V(TraceTurboGraph, trace_turbo_graph, 14)                                   \
+  V(TraceTurboScheduled, trace_turbo_scheduled, 15)                           \
+  V(TraceTurboAllocation, trace_turbo_allocation, 16)                         \
+  V(TraceHeapBroker, trace_heap_broker, 17)                                   \
+  V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18)          \
+  V(TurboControlFlowAwareAllocation, turbo_control_flow_aware_allocation, 19) \
+  V(TurboPreprocessRanges, turbo_preprocess_ranges, 20)                       \
+  V(ConcurrentInlining, concurrent_inlining, 21)                              \
+  V(NativeContextIndependent, native_context_independent, 22)
+
   enum Flag {
-    kFunctionContextSpecializing = 1 << 0,
-    kInliningEnabled = 1 << 1,
-    kDisableFutureOptimization = 1 << 2,
-    kSplittingEnabled = 1 << 3,
-    kSourcePositionsEnabled = 1 << 4,
-    kBailoutOnUninitialized = 1 << 5,
-    kLoopPeelingEnabled = 1 << 6,
-    kUntrustedCodeMitigations = 1 << 7,
-    kSwitchJumpTableEnabled = 1 << 8,
-    kCalledWithCodeStartRegister = 1 << 9,
-    kPoisonRegisterArguments = 1 << 10,
-    kAllocationFoldingEnabled = 1 << 11,
-    kAnalyzeEnvironmentLiveness = 1 << 12,
-    kTraceTurboJson = 1 << 13,
-    kTraceTurboGraph = 1 << 14,
-    kTraceTurboScheduled = 1 << 15,
-    kTraceTurboAllocation = 1 << 16,
-    kTraceHeapBroker = 1 << 17,
-    kWasmRuntimeExceptionSupport = 1 << 18,
-    kTurboControlFlowAwareAllocation = 1 << 19,
-    kTurboPreprocessRanges = 1 << 20,
-    kConcurrentInlining = 1 << 21,
+#define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
+    FLAGS(DEF_ENUM)
+#undef DEF_ENUM
   };
+
+#define DEF_GETTER(Camel, Lower, Bit) \
+  bool Lower() const {                \
+    DCHECK(FlagGetIsValid(k##Camel)); \
+    return GetFlag(k##Camel);         \
+  }
+  FLAGS(DEF_GETTER)
+#undef DEF_GETTER
+
+#define DEF_SETTER(Camel, Lower, Bit) \
+  void set_##Lower() {                \
+    DCHECK(FlagSetIsValid(k##Camel)); \
+    SetFlag(k##Camel);                \
+  }
+  FLAGS(DEF_SETTER)
+#undef DEF_SETTER
+
+#ifdef DEBUG
+  bool FlagGetIsValid(Flag flag) const;
+  bool FlagSetIsValid(Flag flag) const;
+#endif  // DEBUG
 
   // Construct a compilation info for optimized compilation.
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
-                           Handle<JSFunction> closure);
+                           Handle<JSFunction> closure,
+                           bool native_context_independent);
   // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
                            Code::Kind code_kind);
@@ -92,113 +122,12 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   BailoutId osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
 
-  // Flags used by optimized compilation.
-
-  void MarkAsConcurrentInlining() { SetFlag(kConcurrentInlining); }
-  bool is_concurrent_inlining() const { return GetFlag(kConcurrentInlining); }
-
-  void MarkAsTurboControlFlowAwareAllocation() {
-    SetFlag(kTurboControlFlowAwareAllocation);
-  }
-  bool is_turbo_control_flow_aware_allocation() const {
-    return GetFlag(kTurboControlFlowAwareAllocation);
-  }
-
-  void MarkAsTurboPreprocessRanges() { SetFlag(kTurboPreprocessRanges); }
-  bool is_turbo_preprocess_ranges() const {
-    return GetFlag(kTurboPreprocessRanges);
-  }
-
-  void MarkAsFunctionContextSpecializing() {
-    SetFlag(kFunctionContextSpecializing);
-  }
-  bool is_function_context_specializing() const {
-    return GetFlag(kFunctionContextSpecializing);
-  }
-
-  void MarkAsSourcePositionsEnabled() { SetFlag(kSourcePositionsEnabled); }
-  bool is_source_positions_enabled() const {
-    return GetFlag(kSourcePositionsEnabled);
-  }
-
-  void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
-  bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
-
   void SetPoisoningMitigationLevel(PoisoningMitigationLevel poisoning_level) {
     poisoning_level_ = poisoning_level;
   }
   PoisoningMitigationLevel GetPoisoningMitigationLevel() const {
     return poisoning_level_;
   }
-
-  void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
-  bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
-
-  void MarkAsBailoutOnUninitialized() { SetFlag(kBailoutOnUninitialized); }
-  bool is_bailout_on_uninitialized() const {
-    return GetFlag(kBailoutOnUninitialized);
-  }
-
-  void MarkAsLoopPeelingEnabled() { SetFlag(kLoopPeelingEnabled); }
-  bool is_loop_peeling_enabled() const { return GetFlag(kLoopPeelingEnabled); }
-
-  bool has_untrusted_code_mitigations() const {
-    return GetFlag(kUntrustedCodeMitigations);
-  }
-
-  bool switch_jump_table_enabled() const {
-    return GetFlag(kSwitchJumpTableEnabled);
-  }
-
-  bool called_with_code_start_register() const {
-    bool enabled = GetFlag(kCalledWithCodeStartRegister);
-    return enabled;
-  }
-
-  void MarkAsPoisoningRegisterArguments() {
-    DCHECK(has_untrusted_code_mitigations());
-    SetFlag(kPoisonRegisterArguments);
-  }
-  bool is_poisoning_register_arguments() const {
-    bool enabled = GetFlag(kPoisonRegisterArguments);
-    DCHECK_IMPLIES(enabled, has_untrusted_code_mitigations());
-    DCHECK_IMPLIES(enabled, called_with_code_start_register());
-    return enabled;
-  }
-
-  void MarkAsAllocationFoldingEnabled() { SetFlag(kAllocationFoldingEnabled); }
-  bool is_allocation_folding_enabled() const {
-    return GetFlag(kAllocationFoldingEnabled);
-  }
-
-  void MarkAsAnalyzeEnvironmentLiveness() {
-    SetFlag(kAnalyzeEnvironmentLiveness);
-  }
-  bool is_analyze_environment_liveness() const {
-    return GetFlag(kAnalyzeEnvironmentLiveness);
-  }
-
-  void SetWasmRuntimeExceptionSupport() {
-    SetFlag(kWasmRuntimeExceptionSupport);
-  }
-
-  bool wasm_runtime_exception_support() {
-    return GetFlag(kWasmRuntimeExceptionSupport);
-  }
-
-  bool trace_turbo_json_enabled() const { return GetFlag(kTraceTurboJson); }
-
-  bool trace_turbo_graph_enabled() const { return GetFlag(kTraceTurboGraph); }
-
-  bool trace_turbo_allocation_enabled() const {
-    return GetFlag(kTraceTurboAllocation);
-  }
-
-  bool trace_turbo_scheduled_enabled() const {
-    return GetFlag(kTraceTurboScheduled);
-  }
-
-  bool trace_heap_broker_enabled() const { return GetFlag(kTraceHeapBroker); }
 
   // Code getters and setters.
 
@@ -238,10 +167,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void RetryOptimization(BailoutReason reason);
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
-
-  bool is_disable_future_optimization() const {
-    return GetFlag(kDisableFutureOptimization);
-  }
 
   int optimization_id() const {
     DCHECK(IsOptimizing());
@@ -290,6 +215,11 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   TickCounter& tick_counter() { return tick_counter_; }
 
+  BasicBlockProfilerData* profiler_data() const { return profiler_data_; }
+  void set_profiler_data(BasicBlockProfilerData* profiler_data) {
+    profiler_data_ = profiler_data;
+  }
+
  private:
   OptimizedCompilationInfo(Code::Kind code_kind, Zone* zone);
   void ConfigureFlags();
@@ -317,6 +247,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // The compiled code.
   Handle<Code> code_;
+
+  // Basic block profiling support.
+  BasicBlockProfilerData* profiler_data_ = nullptr;
 
   // The WebAssembly compilation result, not published in the NativeModule yet.
   std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result_;

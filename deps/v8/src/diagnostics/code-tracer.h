@@ -5,9 +5,11 @@
 #ifndef V8_DIAGNOSTICS_CODE_TRACER_H_
 #define V8_DIAGNOSTICS_CODE_TRACER_H_
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
+#include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
 
@@ -43,6 +45,28 @@ class CodeTracer final : public Malloced {
 
    private:
     CodeTracer* tracer_;
+  };
+
+  class StreamScope : public Scope {
+   public:
+    explicit StreamScope(CodeTracer* tracer) : Scope(tracer) {
+      FILE* file = this->file();
+      if (file == stdout) {
+        stdout_stream_.emplace();
+      } else {
+        file_stream_.emplace(file);
+      }
+    }
+
+    std::ostream& stream() {
+      if (stdout_stream_.has_value()) return stdout_stream_.value();
+      return file_stream_.value();
+    }
+
+   private:
+    // Exactly one of these two will be initialized.
+    base::Optional<StdoutStream> stdout_stream_;
+    base::Optional<OFStream> file_stream_;
   };
 
   void OpenFile() {

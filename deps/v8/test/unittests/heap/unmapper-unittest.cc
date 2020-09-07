@@ -7,6 +7,7 @@
 #include "src/base/region-allocator.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-allocator.h"
 #include "src/heap/spaces-inl.h"
 #include "src/utils/ostreams.h"
 #include "test/unittests/test-utils.h"

@@ -65,7 +65,7 @@ void MarkCompactCollector::RecordSlot(HeapObject object, ObjectSlot slot,
 
 void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
                                       HeapObject target) {
-  MemoryChunk* target_page = MemoryChunk::FromHeapObject(target);
+  BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
   MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
   if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
       !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
@@ -76,7 +76,7 @@ void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
 
 void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
                                       HeapObjectSlot slot, HeapObject target) {
-  MemoryChunk* target_page = MemoryChunk::FromHeapObject(target);
+  BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
   if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>()) {
     RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(source_page,
                                                           slot.address());
@@ -215,7 +215,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // Note that we know that we are at a one word filler when
         // object_start + object_size - kTaggedSize == object_start.
         if (addr != end) {
-          DCHECK_EQ(chunk_, MemoryChunk::FromAddress(end));
+          DCHECK_EQ(chunk_, BasicMemoryChunk::FromAddress(end));
           uint32_t end_mark_bit_index = chunk_->AddressToMarkbitIndex(end);
           unsigned int end_cell_index =
               end_mark_bit_index >> Bitmap::kBitsPerCellLog2;

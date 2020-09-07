@@ -6,6 +6,7 @@
 #define V8_HANDLES_HANDLES_INL_H_
 
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate-wrapper.h"
 #include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles-inl.h"
@@ -66,19 +67,11 @@ V8_INLINE Handle<T> handle(T object, LocalHeap* local_heap) {
   return Handle<T>(object, local_heap);
 }
 
-// Convenience overloads for when we already have a Handle, but want
-// either a Handle or an Handle.
 template <typename T>
-V8_INLINE Handle<T> handle(Handle<T> handle, Isolate* isolate) {
-  return handle;
-}
-template <typename T>
-V8_INLINE Handle<T> handle(Handle<T> handle, OffThreadIsolate* isolate) {
-  return Handle<T>(*handle);
-}
-template <typename T>
-V8_INLINE Handle<T> handle(Handle<T> handle, LocalHeap* local_heap) {
-  return Handle<T>(*handle, local_heap);
+V8_INLINE Handle<T> handle(T object, LocalIsolateWrapper local_isolate) {
+  return local_isolate.is_off_thread()
+             ? handle(object, local_isolate.off_thread())
+             : handle(object, local_isolate.main_thread());
 }
 
 template <typename T>

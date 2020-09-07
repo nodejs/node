@@ -488,7 +488,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     node->ReplaceInput(4, continuation_frame_state);
     node->ReplaceInput(5, effect);
     NodeProperties::ChangeOp(
-        node, javascript()->Call(3, CallFrequency(), FeedbackSource(),
+        node, javascript()->Call(1 + kTargetAndReceiver, CallFrequency(),
+                                 FeedbackSource(),
                                  ConvertReceiverMode::kNotNullOrUndefined));
 
     // Rewire the value uses of {node} to ToBoolean conversion of the result.
@@ -1428,10 +1429,10 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   SpeculationMode mode = feedback.IsInsufficient()
                              ? SpeculationMode::kDisallowSpeculation
                              : feedback.AsCall().speculation_mode();
-  const Operator* call_op =
-      javascript()->Call(2, CallFrequency(), p.callFeedback(),
-                         ConvertReceiverMode::kNotNullOrUndefined, mode,
-                         CallFeedbackRelation::kRelated);
+  const Operator* call_op = javascript()->Call(
+      0 + kTargetAndReceiver, CallFrequency(), p.callFeedback(),
+      ConvertReceiverMode::kNotNullOrUndefined, mode,
+      CallFeedbackRelation::kRelated);
   Node* call_property = graph()->NewNode(call_op, load_property, receiver,
                                          context, frame_state, effect, control);
 
@@ -2048,7 +2049,8 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
   Node* value;
   if (constant.IsJSFunction()) {
     value = *effect = *control = graph()->NewNode(
-        jsgraph()->javascript()->Call(2, CallFrequency(), FeedbackSource(),
+        jsgraph()->javascript()->Call(0 + kTargetAndReceiver, CallFrequency(),
+                                      FeedbackSource(),
                                       ConvertReceiverMode::kNotNullOrUndefined),
         target, receiver, context, frame_state, *effect, *control);
   } else {
@@ -2085,7 +2087,8 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
   // Introduce the call to the setter function.
   if (constant.IsJSFunction()) {
     *effect = *control = graph()->NewNode(
-        jsgraph()->javascript()->Call(3, CallFrequency(), FeedbackSource(),
+        jsgraph()->javascript()->Call(1 + kTargetAndReceiver, CallFrequency(),
+                                      FeedbackSource(),
                                       ConvertReceiverMode::kNotNullOrUndefined),
         target, receiver, value, context, frame_state, *effect, *control);
   } else {

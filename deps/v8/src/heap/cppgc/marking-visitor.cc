@@ -5,8 +5,8 @@
 #include "src/heap/cppgc/marking-visitor.h"
 
 #include "include/cppgc/garbage-collected.h"
-#include "include/cppgc/internal/accessors.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/heap.h"
 
 namespace cppgc {
@@ -17,13 +17,14 @@ bool MarkingVisitor::IsInConstruction(const HeapObjectHeader& header) {
   return header.IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>();
 }
 
-MarkingVisitor::MarkingVisitor(Marker* marking_handler, int task_id)
-    : marker_(marking_handler),
-      marking_worklist_(marking_handler->marking_worklist(), task_id),
-      not_fully_constructed_worklist_(
-          marking_handler->not_fully_constructed_worklist(), task_id),
-      weak_callback_worklist_(marking_handler->weak_callback_worklist(),
-                              task_id) {}
+MarkingVisitor::MarkingVisitor(
+    HeapBase& heap, Marker::MarkingWorklist* marking_worklist,
+    Marker::NotFullyConstructedWorklist* not_fully_constructed_worklist,
+    Marker::WeakCallbackWorklist* weak_callback_worklist, int task_id)
+    : ConservativeTracingVisitor(heap, *heap.page_backend()),
+      marking_worklist_(marking_worklist, task_id),
+      not_fully_constructed_worklist_(not_fully_constructed_worklist, task_id),
+      weak_callback_worklist_(weak_callback_worklist, task_id) {}
 
 void MarkingVisitor::AccountMarkedBytes(const HeapObjectHeader& header) {
   marked_bytes_ +=
@@ -74,9 +75,20 @@ void MarkingVisitor::VisitWeakRoot(const void* object, TraceDescriptor desc,
     // construction, then it should be reachable from the stack.
     return;
   }
-  // Since weak roots arev only traced at the end of marking, we can execute
+  // Since weak roots are only traced at the end of marking, we can execute
   // the callback instead of registering it.
   weak_callback(LivenessBrokerFactory::Create(), weak_root);
+}
+
+void MarkingVisitor::VisitPointer(const void* address) {
+  TraceConservativelyIfNeeded(address);
+}
+
+void MarkingVisitor::VisitConservatively(HeapObjectHeader& header,
+                                         TraceConservativelyCallback callback) {
+  MarkHeaderNoTracing(&header);
+  callback(this, header);
+  AccountMarkedBytes(header);
 }
 
 void MarkingVisitor::MarkHeader(HeapObjectHeader* header,
@@ -94,7 +106,7 @@ void MarkingVisitor::MarkHeader(HeapObjectHeader* header,
 bool MarkingVisitor::MarkHeaderNoTracing(HeapObjectHeader* header) {
   DCHECK(header);
   // A GC should only mark the objects that belong in its heap.
-  DCHECK_EQ(marker_->heap(), BasePage::FromPayload(header)->heap());
+  DCHECK_EQ(&heap_, BasePage::FromPayload(header)->heap());
   // Never mark free space objects. This would e.g. hint to marking a promptly
   // freed backing store.
   DCHECK(!header->IsFree());
@@ -114,30 +126,29 @@ void MarkingVisitor::FlushWorklists() {
 }
 
 void MarkingVisitor::DynamicallyMarkAddress(ConstAddress address) {
-  for (auto* header : marker_->heap()->objects()) {
-    if (address >= header->Payload() &&
-        address < (header->Payload() + header->GetSize())) {
-      header->TryMarkAtomic();
-    }
+  HeapObjectHeader& header =
+      BasePage::FromPayload(address)->ObjectHeaderFromInnerAddress(
+          const_cast<Address>(address));
+  DCHECK(!IsInConstruction(header));
+  if (MarkHeaderNoTracing(&header)) {
+    marking_worklist_.Push(
+        {reinterpret_cast<void*>(header.Payload()),
+         GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
   }
-  // TODO(chromium:1056170): Implement dynamically getting HeapObjectHeader
-  // for handling previously_not_fully_constructed objects. Requires object
-  // start bitmap.
 }
 
-void MarkingVisitor::VisitPointer(const void* address) {
-  for (auto* header : marker_->heap()->objects()) {
-    if (address >= header->Payload() &&
-        address < (header->Payload() + header->GetSize())) {
-      header->TryMarkAtomic();
-    }
-  }
-  // TODO(chromium:1056170): Implement proper conservative scanning for
-  // on-stack objects. Requires page bloom filter.
+void MarkingVisitor::MarkObject(HeapObjectHeader& header) {
+  MarkHeader(
+      &header,
+      {header.Payload(),
+       GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
 }
 
 MutatorThreadMarkingVisitor::MutatorThreadMarkingVisitor(Marker* marker)
-    : MarkingVisitor(marker, Marker::kMutatorThreadId) {}
+    : MarkingVisitor(marker->heap(), marker->marking_worklist(),
+                     marker->not_fully_constructed_worklist(),
+                     marker->weak_callback_worklist(),
+                     Marker::kMutatorThreadId) {}
 
 }  // namespace internal
 }  // namespace cppgc

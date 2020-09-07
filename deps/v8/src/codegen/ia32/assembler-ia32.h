@@ -528,6 +528,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rep_stos();
   void stos();
 
+  void xadd(Operand dst, Register src);
+  void xadd_b(Operand dst, Register src);
+  void xadd_w(Operand dst, Register src);
+
   // Exchange
   void xchg(Register dst, Register src);
   void xchg(Register dst, Operand src);
@@ -1064,6 +1068,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void pinsrd(XMMRegister dst, Operand src, uint8_t offset);
 
+  void roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+
   // AVX instructions
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vfmadd132sd(dst, src1, Operand(src2));
@@ -1408,6 +1415,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vpinsrd(dst, src1, Operand(src2), offset);
   }
   void vpinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t offset);
+
+  void vroundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void vroundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void vcvtdq2ps(XMMRegister dst, XMMRegister src) {
     vcvtdq2ps(dst, Operand(src));

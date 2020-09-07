@@ -18,12 +18,6 @@ const kPromiseBuiltinsPromiseContextLength: constexpr int31
 // case to mark it's done).
 macro CreatePromiseAllResolveElementContext(implicit context: Context)(
     capability: PromiseCapability, nativeContext: NativeContext): Context {
-  // TODO(bmeurer): Manually fold this into a single allocation.
-  const arrayMap = UnsafeCast<Map>(
-      nativeContext[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
-  const valuesArray = AllocateJSArray(
-      ElementsKind::PACKED_ELEMENTS, arrayMap, IntPtrConstant(0),
-      SmiConstant(0));
   const resolveContext = AllocateSyntheticFunctionContext(
       nativeContext,
       PromiseAllResolveElementContextSlots::kPromiseAllResolveElementLength);
@@ -32,7 +26,7 @@ macro CreatePromiseAllResolveElementContext(implicit context: Context)(
   resolveContext[PromiseAllResolveElementContextSlots::
                      kPromiseAllResolveElementCapabilitySlot] = capability;
   resolveContext[PromiseAllResolveElementContextSlots::
-                     kPromiseAllResolveElementValuesArraySlot] = valuesArray;
+                     kPromiseAllResolveElementValuesSlot] = kEmptyFixedArray;
   return resolveContext;
 }
 
@@ -115,11 +109,11 @@ struct PromiseAllSettledRejectElementFunctor {
 
 transitioning macro PerformPromiseAll<F1: type, F2: type>(
     implicit context: Context)(
-    constructor: JSReceiver, capability: PromiseCapability,
-    iter: iterator::IteratorRecord, createResolveElementFunctor: F1,
+    nativeContext: NativeContext, iter: iterator::IteratorRecord,
+    constructor: Constructor, capability: PromiseCapability,
+    promiseResolveFunction: JSAny, createResolveElementFunctor: F1,
     createRejectElementFunctor: F2): JSAny labels
 Reject(Object) {
-  const nativeContext = LoadNativeContext(context);
   const promise = capability.promise;
   const resolve = capability.resolve;
   const reject = capability.reject;
@@ -135,141 +129,119 @@ Reject(Object) {
 
   let index: Smi = 1;
 
-  // We can skip the "resolve" lookup on {constructor} if it's the
-  // Promise constructor and the Promise.resolve protector is intact,
-  // as that guards the lookup path for the "resolve" property on the
-  // Promise constructor.
-  let promiseResolveFunction: JSAny = Undefined;
   try {
-    try {
-      if (!IsPromiseResolveLookupChainIntact(nativeContext, constructor)) {
-        let promiseResolve: JSAny;
+    const fastIteratorResultMap = UnsafeCast<Map>(
+        nativeContext[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
+    while (true) {
+      let nextValue: JSAny;
+      try {
+        // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
+        // If next is an abrupt completion, set iteratorRecord.[[Done]] to
+        // true. ReturnIfAbrupt(next).
+        const next: JSReceiver = iterator::IteratorStep(
+            iter, fastIteratorResultMap) otherwise goto Done;
 
-        // 5. Let _promiseResolve_ be ? Get(_constructor_, `"resolve"`).
-        promiseResolve = GetProperty(constructor, kResolveString);
-
-        // 6. If IsCallable(_promiseResolve_) is *false*, throw a *TypeError*
-        // exception.
-        promiseResolveFunction =
-            Cast<Callable>(promiseResolve) otherwise ThrowTypeError(
-                MessageTemplate::kCalledNonCallable, 'resolve');
+        // Let nextValue be IteratorValue(next).
+        // If nextValue is an abrupt completion, set iteratorRecord.[[Done]]
+        // to true.
+        // ReturnIfAbrupt(nextValue).
+        nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
+      } catch (e) {
+        goto Reject(e);
       }
 
-      const fastIteratorResultMap = UnsafeCast<Map>(
-          nativeContext[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
-      while (true) {
-        let nextValue: JSAny;
-        try {
-          // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
-          // If next is an abrupt completion, set iteratorRecord.[[Done]] to
-          // true. ReturnIfAbrupt(next).
-          const next: JSReceiver = iterator::IteratorStep(
-              iter, fastIteratorResultMap) otherwise goto Done;
-
-          // Let nextValue be IteratorValue(next).
-          // If nextValue is an abrupt completion, set iteratorRecord.[[Done]]
-          // to true.
-          // ReturnIfAbrupt(nextValue).
-          nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
-        } catch (e) {
-          goto Reject(e);
-        }
-
-        // Check if we reached the limit.
-        if (index == kPropertyArrayHashFieldMax) {
-          // If there are too many elements (currently more than 2**21-1),
-          // raise a RangeError here (which is caught below and turned into
-          // a rejection of the resulting promise). We could gracefully handle
-          // this case as well and support more than this number of elements
-          // by going to a separate function and pass the larger indices via a
-          // separate context, but it doesn't seem likely that we need this,
-          // and it's unclear how the rest of the system deals with 2**21 live
-          // Promises anyway.
-          ThrowRangeError(
-              MessageTemplate::kTooManyElementsInPromiseCombinator, 'all');
-        }
-
-        // Set remainingElementsCount.[[Value]] to
-        //     remainingElementsCount.[[Value]] + 1.
-        const remainingElementsCount = UnsafeCast<Smi>(
-            resolveElementContext[PromiseAllResolveElementContextSlots::
-                                      kPromiseAllResolveElementRemainingSlot]);
-        resolveElementContext[PromiseAllResolveElementContextSlots::
-                                  kPromiseAllResolveElementRemainingSlot] =
-            remainingElementsCount + 1;
-
-        // Let resolveElement be CreateBuiltinFunction(steps,
-        //                                             « [[AlreadyCalled]],
-        //                                               [[Index]],
-        //                                               [[Values]],
-        //                                               [[Capability]],
-        //                                               [[RemainingElements]]
-        //                                               »).
-        // Set resolveElement.[[AlreadyCalled]] to a Record { [[Value]]: false
-        // }. Set resolveElement.[[Index]] to index. Set
-        // resolveElement.[[Values]] to values. Set
-        // resolveElement.[[Capability]] to resultCapability. Set
-        // resolveElement.[[RemainingElements]] to remainingElementsCount.
-        const resolveElementFun = createResolveElementFunctor.Call(
-            resolveElementContext, nativeContext, index, capability);
-        const rejectElementFun = createRejectElementFunctor.Call(
-            resolveElementContext, nativeContext, index, capability);
-
-        // We can skip the "resolve" lookup on the {constructor} as well as
-        // the "then" lookup on the result of the "resolve" call, and
-        // immediately chain continuation onto the {next_value} if:
-        //
-        //   (a) The {constructor} is the intrinsic %Promise% function, and
-        //       looking up "resolve" on {constructor} yields the initial
-        //       Promise.resolve() builtin, and
-        //   (b) the promise @@species protector cell is valid, meaning that
-        //       no one messed with the Symbol.species property on any
-        //       intrinsic promise or on the Promise.prototype, and
-        //   (c) the {next_value} is a JSPromise whose [[Prototype]] field
-        //       contains the intrinsic %PromisePrototype%, and
-        //   (d) we're not running with async_hooks or DevTools enabled.
-        //
-        // In that case we also don't need to allocate a chained promise for
-        // the PromiseReaction (aka we can pass undefined to
-        // PerformPromiseThen), since this is only necessary for DevTools and
-        // PromiseHooks.
-        if (promiseResolveFunction != Undefined ||
-            IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
-            IsPromiseSpeciesProtectorCellInvalid() || Is<Smi>(nextValue) ||
-            !IsPromiseThenLookupChainIntact(
-                nativeContext, UnsafeCast<HeapObject>(nextValue).map)) {
-          // Let nextPromise be ? Call(constructor, _promiseResolve_, «
-          // nextValue »).
-          const nextPromise = CallResolve(
-              UnsafeCast<Constructor>(constructor), promiseResolveFunction,
-              nextValue);
-
-          // Perform ? Invoke(nextPromise, "then", « resolveElement,
-          //                  resultCapability.[[Reject]] »).
-          const then = GetProperty(nextPromise, kThenString);
-          const thenResult = Call(
-              nativeContext, then, nextPromise, resolveElementFun,
-              rejectElementFun);
-
-          // For catch prediction, mark that rejections here are
-          // semantically handled by the combined Promise.
-          if (IsDebugActive() && Is<JSPromise>(thenResult)) deferred {
-              SetPropertyStrict(
-                  context, thenResult, kPromiseHandledBySymbol, promise);
-            }
-        } else {
-          PerformPromiseThenImpl(
-              UnsafeCast<JSPromise>(nextValue), resolveElementFun,
-              rejectElementFun, Undefined);
-        }
-
-        // Set index to index + 1.
-        index += 1;
+      // Check if we reached the limit.
+      if (index == kPropertyArrayHashFieldMax) {
+        // If there are too many elements (currently more than 2**21-1),
+        // raise a RangeError here (which is caught below and turned into
+        // a rejection of the resulting promise). We could gracefully handle
+        // this case as well and support more than this number of elements
+        // by going to a separate function and pass the larger indices via a
+        // separate context, but it doesn't seem likely that we need this,
+        // and it's unclear how the rest of the system deals with 2**21 live
+        // Promises anyway.
+        ThrowRangeError(
+            MessageTemplate::kTooManyElementsInPromiseCombinator, 'all');
       }
-    } catch (e) deferred {
-      iterator::IteratorCloseOnException(iter);
-      goto Reject(e);
+
+      // Set remainingElementsCount.[[Value]] to
+      //     remainingElementsCount.[[Value]] + 1.
+      const remainingElementsCount = UnsafeCast<Smi>(
+          resolveElementContext[PromiseAllResolveElementContextSlots::
+                                    kPromiseAllResolveElementRemainingSlot]);
+      resolveElementContext[PromiseAllResolveElementContextSlots::
+                                kPromiseAllResolveElementRemainingSlot] =
+          remainingElementsCount + 1;
+
+      // Let resolveElement be CreateBuiltinFunction(steps,
+      //                                             « [[AlreadyCalled]],
+      //                                               [[Index]],
+      //                                               [[Values]],
+      //                                               [[Capability]],
+      //                                               [[RemainingElements]]
+      //                                               »).
+      // Set resolveElement.[[AlreadyCalled]] to a Record { [[Value]]: false
+      // }. Set resolveElement.[[Index]] to index. Set
+      // resolveElement.[[Values]] to values. Set
+      // resolveElement.[[Capability]] to resultCapability. Set
+      // resolveElement.[[RemainingElements]] to remainingElementsCount.
+      const resolveElementFun = createResolveElementFunctor.Call(
+          resolveElementContext, nativeContext, index, capability);
+      const rejectElementFun = createRejectElementFunctor.Call(
+          resolveElementContext, nativeContext, index, capability);
+
+      // We can skip the "then" lookup on the result of the "resolve" call and
+      // immediately chain the continuation onto the {next_value} if:
+      //
+      //   (a) The {constructor} is the intrinsic %Promise% function, and
+      //       looking up "resolve" on {constructor} yields the initial
+      //       Promise.resolve() builtin, and
+      //   (b) the promise @@species protector cell is valid, meaning that
+      //       no one messed with the Symbol.species property on any
+      //       intrinsic promise or on the Promise.prototype, and
+      //   (c) the {next_value} is a JSPromise whose [[Prototype]] field
+      //       contains the intrinsic %PromisePrototype%, and
+      //   (d) we're not running with async_hooks or DevTools enabled.
+      //
+      // In that case we also don't need to allocate a chained promise for
+      // the PromiseReaction (aka we can pass undefined to
+      // PerformPromiseThen), since this is only necessary for DevTools and
+      // PromiseHooks.
+      if (promiseResolveFunction != Undefined ||
+          IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+          IsPromiseSpeciesProtectorCellInvalid() || Is<Smi>(nextValue) ||
+          !IsPromiseThenLookupChainIntact(
+              nativeContext, UnsafeCast<HeapObject>(nextValue).map)) {
+        // Let nextPromise be ? Call(constructor, _promiseResolve_, «
+        // nextValue »).
+        const nextPromise =
+            CallResolve(constructor, promiseResolveFunction, nextValue);
+
+        // Perform ? Invoke(nextPromise, "then", « resolveElement,
+        //                  resultCapability.[[Reject]] »).
+        const then = GetProperty(nextPromise, kThenString);
+        const thenResult = Call(
+            nativeContext, then, nextPromise, resolveElementFun,
+            rejectElementFun);
+
+        // For catch prediction, mark that rejections here are
+        // semantically handled by the combined Promise.
+        if (IsDebugActive() && Is<JSPromise>(thenResult)) deferred {
+            SetPropertyStrict(
+                context, thenResult, kPromiseHandledBySymbol, promise);
+          }
+      } else {
+        PerformPromiseThenImpl(
+            UnsafeCast<JSPromise>(nextValue), resolveElementFun,
+            rejectElementFun, Undefined);
+      }
+
+      // Set index to index + 1.
+      index += 1;
     }
+  } catch (e) deferred {
+    iterator::IteratorCloseOnException(iter);
+    goto Reject(e);
   } label Done {}
 
   // Set iteratorRecord.[[Done]] to true.
@@ -283,30 +255,36 @@ Reject(Object) {
                             kPromiseAllResolveElementRemainingSlot] =
       remainingElementsCount;
   if (remainingElementsCount > 0) {
-    // Pre-allocate the backing store for the {values_array} to the desired
-    // capacity here. We may already have elements here in case of some
-    // fancy Thenable that calls the resolve callback immediately, so we need
-    // to handle that correctly here.
-    const valuesArray = UnsafeCast<JSArray>(
+    // Pre-allocate the backing store for the {values} to the desired
+    // capacity. We may already have elements in "values" - this happens
+    // when the Thenable calls the resolve callback immediately.
+    let values = UnsafeCast<FixedArray>(
         resolveElementContext[PromiseAllResolveElementContextSlots::
-                                  kPromiseAllResolveElementValuesArraySlot]);
-    const oldElements = UnsafeCast<FixedArray>(valuesArray.elements);
-    const oldCapacity = oldElements.length_intptr;
-    const newCapacity = SmiUntag(index);
+                                  kPromiseAllResolveElementValuesSlot]);
+    // 'index' is a 1-based index and incremented after every Promise. Later we
+    // use 'values' as a 0-based array, so capacity 'index - 1' is enough.
+    const newCapacity = SmiUntag(index) - 1;
+
+    const oldCapacity = values.length_intptr;
     if (oldCapacity < newCapacity) {
-      valuesArray.elements =
-          ExtractFixedArray(oldElements, 0, oldCapacity, newCapacity);
+      values = ExtractFixedArray(values, 0, oldCapacity, newCapacity);
+      resolveElementContext[PromiseAllResolveElementContextSlots::
+                                kPromiseAllResolveElementValuesSlot] = values;
     }
   } else
     deferred {
+      assert(remainingElementsCount == 0);
       // If remainingElementsCount.[[Value]] is 0, then
       //     Let valuesArray be CreateArrayFromList(values).
       //     Perform ? Call(resultCapability.[[Resolve]], undefined,
       //                    « valuesArray »).
-      assert(remainingElementsCount == 0);
-      const valuesArray = UnsafeCast<JSAny>(
+
+      const values = UnsafeCast<FixedArray>(
           resolveElementContext[PromiseAllResolveElementContextSlots::
-                                    kPromiseAllResolveElementValuesArraySlot]);
+                                    kPromiseAllResolveElementValuesSlot]);
+      const arrayMap = UnsafeCast<Map>(
+          nativeContext[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
+      const valuesArray = NewJSArray(arrayMap, values);
       Call(nativeContext, UnsafeCast<JSAny>(resolve), Undefined, valuesArray);
     }
 
@@ -318,6 +296,7 @@ transitioning macro GeneratePromiseAll<F1: type, F2: type>(
     implicit context: Context)(
     receiver: JSAny, iterable: JSAny, createResolveElementFunctor: F1,
     createRejectElementFunctor: F2): JSAny {
+  const nativeContext = LoadNativeContext(context);
   // Let C be the this value.
   // If Type(C) is not Object, throw a TypeError exception.
   const receiver = Cast<JSReceiver>(receiver)
@@ -328,7 +307,16 @@ transitioning macro GeneratePromiseAll<F1: type, F2: type>(
   // not trigger redundant ExceptionEvents
   const capability = NewPromiseCapability(receiver, False);
 
+  // NewPromiseCapability guarantees that receiver is Constructor.
+  assert(Is<Constructor>(receiver));
+  const constructor = UnsafeCast<Constructor>(receiver);
+
   try {
+    // Let promiseResolve be GetPromiseResolve(C).
+    // IfAbruptRejectPromise(promiseResolve, promiseCapability).
+    const promiseResolveFunction =
+        GetPromiseResolve(nativeContext, constructor);
+
     // Let iterator be GetIterator(iterable).
     // IfAbruptRejectPromise(iterator, promiseCapability).
     let i = iterator::GetIterator(iterable);
@@ -339,8 +327,9 @@ transitioning macro GeneratePromiseAll<F1: type, F2: type>(
     //       IteratorClose(iterator, result).
     //    IfAbruptRejectPromise(result, promiseCapability).
     return PerformPromiseAll(
-        receiver, capability, i, createResolveElementFunctor,
-        createRejectElementFunctor) otherwise Reject;
+        nativeContext, i, constructor, capability, promiseResolveFunction,
+        createResolveElementFunctor, createRejectElementFunctor)
+        otherwise Reject;
   } catch (e) deferred {
     goto Reject(e);
   } label Reject(e: Object) deferred {

@@ -27,7 +27,7 @@ BytecodeArrayWriter::BytecodeArrayWriter(
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : bytecodes_(zone),
       unbound_jumps_(0),
-      source_position_table_builder_(source_position_mode),
+      source_position_table_builder_(zone, source_position_mode),
       constant_array_builder_(constant_array_builder),
       last_bytecode_(Bytecode::kIllegal),
       last_bytecode_offset_(0),

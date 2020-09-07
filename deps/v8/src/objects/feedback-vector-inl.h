@@ -233,32 +233,47 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
 }
 
 // Helper function to transform the feedback to CompareOperationHint.
+template <CompareOperationFeedback::Type Feedback>
+bool Is(int type_feedback) {
+  return !(type_feedback & ~Feedback);
+}
+
 CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
-  switch (type_feedback) {
-    case CompareOperationFeedback::kNone:
-      return CompareOperationHint::kNone;
-    case CompareOperationFeedback::kSignedSmall:
-      return CompareOperationHint::kSignedSmall;
-    case CompareOperationFeedback::kNumber:
-      return CompareOperationHint::kNumber;
-    case CompareOperationFeedback::kNumberOrOddball:
-      return CompareOperationHint::kNumberOrOddball;
-    case CompareOperationFeedback::kInternalizedString:
-      return CompareOperationHint::kInternalizedString;
-    case CompareOperationFeedback::kString:
-      return CompareOperationHint::kString;
-    case CompareOperationFeedback::kSymbol:
-      return CompareOperationHint::kSymbol;
-    case CompareOperationFeedback::kBigInt:
-      return CompareOperationHint::kBigInt;
-    case CompareOperationFeedback::kReceiver:
-      return CompareOperationHint::kReceiver;
-    case CompareOperationFeedback::kReceiverOrNullOrUndefined:
-      return CompareOperationHint::kReceiverOrNullOrUndefined;
-    default:
-      return CompareOperationHint::kAny;
+  if (Is<CompareOperationFeedback::kNone>(type_feedback)) {
+    return CompareOperationHint::kNone;
   }
-  UNREACHABLE();
+
+  if (Is<CompareOperationFeedback::kSignedSmall>(type_feedback)) {
+    return CompareOperationHint::kSignedSmall;
+  } else if (Is<CompareOperationFeedback::kNumber>(type_feedback)) {
+    return CompareOperationHint::kNumber;
+  } else if (Is<CompareOperationFeedback::kNumberOrBoolean>(type_feedback)) {
+    return CompareOperationHint::kNumberOrBoolean;
+  }
+
+  if (Is<CompareOperationFeedback::kInternalizedString>(type_feedback)) {
+    return CompareOperationHint::kInternalizedString;
+  } else if (Is<CompareOperationFeedback::kString>(type_feedback)) {
+    return CompareOperationHint::kString;
+  }
+
+  if (Is<CompareOperationFeedback::kReceiver>(type_feedback)) {
+    return CompareOperationHint::kReceiver;
+  } else if (Is<CompareOperationFeedback::kReceiverOrNullOrUndefined>(
+                 type_feedback)) {
+    return CompareOperationHint::kReceiverOrNullOrUndefined;
+  }
+
+  if (Is<CompareOperationFeedback::kBigInt>(type_feedback)) {
+    return CompareOperationHint::kBigInt;
+  }
+
+  if (Is<CompareOperationFeedback::kSymbol>(type_feedback)) {
+    return CompareOperationHint::kSymbol;
+  }
+
+  DCHECK(Is<CompareOperationFeedback::kAny>(type_feedback));
+  return CompareOperationHint::kAny;
 }
 
 // Helper function to transform the feedback to ForInHint.

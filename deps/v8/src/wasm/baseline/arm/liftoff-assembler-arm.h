@@ -122,11 +122,16 @@ template <void (Assembler::*op)(Register, Register, Register, SBit, Condition),
                                            SBit, Condition)>
 inline void I64Binop(LiftoffAssembler* assm, LiftoffRegister dst,
                      LiftoffRegister lhs, LiftoffRegister rhs) {
-  DCHECK_NE(dst.low_gp(), lhs.high_gp());
-  DCHECK_NE(dst.low_gp(), rhs.high_gp());
-  (assm->*op)(dst.low_gp(), lhs.low_gp(), rhs.low_gp(), SetCC, al);
+  Register dst_low = dst.low_gp();
+  if (dst_low == lhs.high_gp() || dst_low == rhs.high_gp()) {
+    dst_low = assm->GetUnusedRegister(
+                      kGpReg, LiftoffRegList::ForRegs(lhs, rhs, dst.high_gp()))
+                  .gp();
+  }
+  (assm->*op)(dst_low, lhs.low_gp(), rhs.low_gp(), SetCC, al);
   (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(rhs.high_gp()),
                          LeaveCC, al);
+  if (dst_low != dst.low_gp()) assm->mov(dst.low_gp(), dst_low);
 }
 
 template <void (Assembler::*op)(Register, Register, const Operand&, SBit,
@@ -327,6 +332,71 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
   }
 }
 
+constexpr int MaskFromNeonDataType(NeonDataType dt) {
+  switch (dt) {
+    case NeonS8:
+    case NeonU8:
+      return 7;
+    case NeonS16:
+    case NeonU16:
+      return 15;
+    case NeonS32:
+    case NeonU32:
+      return 31;
+    case NeonS64:
+    case NeonU64:
+      return 63;
+  }
+}
+
+enum ShiftDirection { kLeft, kRight };
+
+template <ShiftDirection dir = kLeft, NeonDataType dt, NeonSize sz>
+inline void EmitSimdShift(LiftoffAssembler* assm, LiftoffRegister dst,
+                          LiftoffRegister lhs, LiftoffRegister rhs) {
+  constexpr int mask = MaskFromNeonDataType(dt);
+  UseScratchRegisterScope temps(assm);
+  QwNeonRegister tmp = temps.AcquireQ();
+  Register shift = temps.Acquire();
+  assm->and_(shift, rhs.gp(), Operand(mask));
+  assm->vdup(sz, tmp, shift);
+  if (dir == kRight) {
+    assm->vneg(sz, tmp, tmp);
+  }
+  assm->vshl(dt, liftoff::GetSimd128Register(dst),
+             liftoff::GetSimd128Register(lhs), tmp);
+}
+
+template <ShiftDirection dir, NeonDataType dt>
+inline void EmitSimdShiftImmediate(LiftoffAssembler* assm, LiftoffRegister dst,
+                                   LiftoffRegister lhs, int32_t rhs) {
+  // vshr by 0 is not allowed, so check for it, and only move if dst != lhs.
+  int32_t shift = rhs & MaskFromNeonDataType(dt);
+  if (shift) {
+    if (dir == kLeft) {
+      assm->vshl(dt, liftoff::GetSimd128Register(dst),
+                 liftoff::GetSimd128Register(lhs), shift);
+    } else {
+      assm->vshr(dt, liftoff::GetSimd128Register(dst),
+                 liftoff::GetSimd128Register(lhs), shift);
+    }
+  } else if (dst != lhs) {
+    assm->vmov(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(lhs));
+  }
+}
+
+inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister src) {
+  UseScratchRegisterScope temps(assm);
+  DwVfpRegister scratch = temps.AcquireD();
+  assm->vpmax(NeonU32, scratch, src.low_fp(), src.high_fp());
+  assm->vpmax(NeonU32, scratch, scratch, scratch);
+  assm->ExtractLane(dst.gp(), scratch, NeonS32, 0);
+  assm->cmp(dst.gp(), Operand(0));
+  assm->mov(dst.gp(), Operand(1), LeaveCC, ne);
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -432,7 +502,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       vmov(liftoff::GetFloatRegister(reg.fp()), value.to_f32_boxed());
       break;
     case ValueType::kF64: {
-      Register extra_scratch = GetUnusedRegister(kGpReg).gp();
+      Register extra_scratch = GetUnusedRegister(kGpReg, {}).gp();
       vmov(reg.fp(), Double(value.to_f64_boxed().get_bits()), extra_scratch);
       break;
     }
@@ -1166,7 +1236,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
   DCHECK_NE(dst_offset, src_offset);
-  LiftoffRegister reg = GetUnusedRegister(reg_class_for(type));
+  LiftoffRegister reg = GetUnusedRegister(reg_class_for(type), {});
   Fill(reg, src_offset, type);
   Spill(dst_offset, reg, type);
 }
@@ -1211,7 +1281,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   // The scratch register will be required by str if multiple instructions
   // are required to encode the offset, and so we cannot use it in that case.
   if (!ImmediateFitsAddrMode2Instruction(dst.offset())) {
-    src = GetUnusedRegister(kGpReg).gp();
+    src = GetUnusedRegister(kGpReg, {}).gp();
   } else {
     src = temps.Acquire();
   }
@@ -1753,7 +1823,7 @@ void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
   constexpr uint32_t kF32SignBit = uint32_t{1} << 31;
   UseScratchRegisterScope temps(this);
-  Register scratch = GetUnusedRegister(kGpReg).gp();
+  Register scratch = GetUnusedRegister(kGpReg, {}).gp();
   Register scratch2 = temps.Acquire();
   VmovLow(scratch, lhs);
   // Clear sign bit in {scratch}.
@@ -1772,7 +1842,7 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
   // On arm, we cannot hold the whole f64 value in a gp register, so we just
   // operate on the upper half (UH).
   UseScratchRegisterScope temps(this);
-  Register scratch = GetUnusedRegister(kGpReg).gp();
+  Register scratch = GetUnusedRegister(kGpReg, {}).gp();
   Register scratch2 = temps.Acquire();
   VmovHigh(scratch, lhs);
   // Clear sign bit in {scratch}.
@@ -1857,6 +1927,38 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       b(trap, ge);
       return true;
     }
+    case kExprI32SConvertSatF32: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_s32_f32(
+          scratch_f,
+          liftoff::GetFloatRegister(src.fp()));  // f32 -> i32 round to zero.
+      vmov(dst.gp(), scratch_f);
+      return true;
+    }
+    case kExprI32UConvertSatF32: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_u32_f32(
+          scratch_f,
+          liftoff::GetFloatRegister(src.fp()));  // f32 -> u32 round to zero.
+      vmov(dst.gp(), scratch_f);
+      return true;
+    }
+    case kExprI32SConvertSatF64: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_s32_f64(scratch_f, src.fp());  // f64 -> i32 round to zero.
+      vmov(dst.gp(), scratch_f);
+      return true;
+    }
+    case kExprI32UConvertSatF64: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_u32_f64(scratch_f, src.fp());  // f64 -> u32 round to zero.
+      vmov(dst.gp(), scratch_f);
+      return true;
+    }
     case kExprI32ReinterpretF32:
       vmov(dst.gp(), liftoff::GetFloatRegister(src.fp()));
       return true;
@@ -1909,10 +2011,14 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprF64UConvertI64:
     case kExprI64SConvertF32:
     case kExprI64UConvertF32:
+    case kExprI64SConvertSatF32:
+    case kExprI64UConvertSatF32:
     case kExprF32SConvertI64:
     case kExprF32UConvertI64:
     case kExprI64SConvertF64:
     case kExprI64UConvertF64:
+    case kExprI64SConvertSatF64:
+    case kExprI64UConvertSatF64:
       // These cases can be handled by the C fallback function.
       return false;
     default:
@@ -2045,6 +2151,79 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
     // If V flag set, at least one of the arguments was a Nan -> false.
     mov(dst, Operand(0), LeaveCC, vs);
   }
+}
+
+void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
+                                     Register offset_reg, uint32_t offset_imm,
+                                     LoadType type,
+                                     LoadTransformationKind transform,
+                                     uint32_t* protected_load_pc) {
+  UseScratchRegisterScope temps(this);
+  Register actual_src_addr = liftoff::CalculateActualAddress(
+      this, &temps, src_addr, offset_reg, offset_imm);
+  *protected_load_pc = pc_offset();
+  MachineType memtype = type.mem_type();
+
+  if (transform == LoadTransformationKind::kExtend) {
+    if (memtype == MachineType::Int8()) {
+      vld1(Neon8, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonS8, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Uint8()) {
+      vld1(Neon8, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonU8, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Int16()) {
+      vld1(Neon16, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonS16, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Uint16()) {
+      vld1(Neon16, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonU16, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Int32()) {
+      vld1(Neon32, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonS32, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Uint32()) {
+      vld1(Neon32, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonU32, liftoff::GetSimd128Register(dst), dst.low_fp());
+    }
+  } else {
+    DCHECK_EQ(LoadTransformationKind::kSplat, transform);
+    if (memtype == MachineType::Int8()) {
+      vld1r(Neon8, NeonListOperand(liftoff::GetSimd128Register(dst)),
+            NeonMemOperand(actual_src_addr));
+    } else if (memtype == MachineType::Int16()) {
+      vld1r(Neon16, NeonListOperand(liftoff::GetSimd128Register(dst)),
+            NeonMemOperand(actual_src_addr));
+    } else if (memtype == MachineType::Int32()) {
+      vld1r(Neon32, NeonListOperand(liftoff::GetSimd128Register(dst)),
+            NeonMemOperand(actual_src_addr));
+    } else if (memtype == MachineType::Int64()) {
+      vld1(Neon32, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      TurboAssembler::Move(dst.high_fp(), dst.low_fp());
+    }
+  }
+}
+
+void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs) {
+  UseScratchRegisterScope temps(this);
+
+  NeonListOperand table(liftoff::GetSimd128Register(lhs));
+  if (dst == lhs) {
+    // dst will be overwritten, so keep the table somewhere else.
+    QwNeonRegister tbl = temps.AcquireQ();
+    TurboAssembler::Move(tbl, liftoff::GetSimd128Register(lhs));
+    table = NeonListOperand(tbl);
+  }
+
+  vtbl(dst.low_fp(), table, rhs.low_fp());
+  vtbl(dst.high_fp(), table, rhs.high_fp());
 }
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
@@ -2268,12 +2447,37 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2_shl");
+  liftoff::EmitSimdShift<liftoff::kLeft, NeonS64, Neon32>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i64x2_shli");
+  vshl(NeonS64, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), rhs & 63);
+}
+
+void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonS64, Neon32>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonS64>(this, dst, lhs,
+                                                            rhs);
+}
+
+void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonU64, Neon32>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonU64>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2301,15 +2505,18 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   QwNeonRegister tmp1 = left;
   QwNeonRegister tmp2 = right;
 
-  if (cache_state()->is_used(lhs) && cache_state()->is_used(rhs)) {
+  LiftoffRegList used_plus_dst =
+      cache_state()->used_registers | LiftoffRegList::ForRegs(dst);
+
+  if (used_plus_dst.has(lhs) && used_plus_dst.has(rhs)) {
     tmp1 = temps.AcquireQ();
     // We only have 1 scratch Q register, so acquire another ourselves.
     LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
     LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
     tmp2 = liftoff::GetSimd128Register(unused_pair);
-  } else if (cache_state()->is_used(lhs)) {
+  } else if (used_plus_dst.has(lhs)) {
     tmp1 = temps.AcquireQ();
-  } else if (cache_state()->is_used(rhs)) {
+  } else if (used_plus_dst.has(rhs)) {
     tmp2 = temps.AcquireQ();
   }
 
@@ -2358,14 +2565,79 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
        liftoff::GetSimd128Register(src));
 }
 
+void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
+}
+
+void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  DwVfpRegister scratch = temps.AcquireD();
+  vpmin(NeonU32, scratch, src.low_fp(), src.high_fp());
+  vpmin(NeonU32, scratch, scratch, scratch);
+  ExtractLane(dst.gp(), scratch, NeonS32, 0);
+  cmp(dst.gp(), Operand(0));
+  mov(dst.gp(), Operand(1), LeaveCC, ne);
+}
+
+void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = liftoff::GetSimd128Register(src);
+  Simd128Register mask = temps.AcquireQ();
+
+  if (cache_state()->is_used(src)) {
+    // We only have 1 scratch Q register, so try and reuse src.
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
+    LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
+    mask = liftoff::GetSimd128Register(unused_pair);
+  }
+
+  vshr(NeonS32, tmp, liftoff::GetSimd128Register(src), 31);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  vmov(mask.low(), Double((uint64_t)0x0000'0002'0000'0001));
+  vmov(mask.high(), Double((uint64_t)0x0000'0008'0000'0004));
+  vand(tmp, mask, tmp);
+  vpadd(Neon32, tmp.low(), tmp.low(), tmp.high());
+  vpadd(Neon32, tmp.low(), tmp.low(), kDoubleRegZero);
+  VmovLow(dst.gp(), tmp.low());
+}
+
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_shl");
+  liftoff::EmitSimdShift<liftoff::kLeft, NeonS32, Neon32>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i32x4_shli");
+  vshl(NeonS32, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), rhs & 31);
+}
+
+void LiftoffAssembler::emit_i32x4_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonS32, Neon32>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonS32>(this, dst, lhs,
+                                                            rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonU32, Neon32>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonU32>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2425,14 +2697,81 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
        liftoff::GetSimd128Register(src));
 }
 
+void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
+}
+
+void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  DwVfpRegister scratch = temps.AcquireD();
+  vpmin(NeonU16, scratch, src.low_fp(), src.high_fp());
+  vpmin(NeonU16, scratch, scratch, scratch);
+  vpmin(NeonU16, scratch, scratch, scratch);
+  ExtractLane(dst.gp(), scratch, NeonS16, 0);
+  cmp(dst.gp(), Operand(0));
+  mov(dst.gp(), Operand(1), LeaveCC, ne);
+}
+
+void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = liftoff::GetSimd128Register(src);
+  Simd128Register mask = temps.AcquireQ();
+
+  if (cache_state()->is_used(src)) {
+    // We only have 1 scratch Q register, so try and reuse src.
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
+    LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
+    mask = liftoff::GetSimd128Register(unused_pair);
+  }
+
+  vshr(NeonS16, tmp, liftoff::GetSimd128Register(src), 15);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  vmov(mask.low(), Double((uint64_t)0x0008'0004'0002'0001));
+  vmov(mask.high(), Double((uint64_t)0x0080'0040'0020'0010));
+  vand(tmp, mask, tmp);
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.high());
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
+  vmov(NeonU16, dst.gp(), tmp.low(), 0);
+}
+
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_shl");
+  liftoff::EmitSimdShift<liftoff::kLeft, NeonS16, Neon16>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i16x8_shli");
+  vshl(NeonS16, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), rhs & 15);
+}
+
+void LiftoffAssembler::emit_i16x8_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonS16, Neon16>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonS16>(this, dst, lhs,
+                                                            rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonU16, Neon16>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonU16>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2532,6 +2871,60 @@ void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
               imm_lane_idx);
 }
 
+void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs,
+                                          const uint8_t shuffle[16]) {
+  Simd128Register dest = liftoff::GetSimd128Register(dst);
+  Simd128Register src1 = liftoff::GetSimd128Register(lhs);
+  Simd128Register src2 = liftoff::GetSimd128Register(rhs);
+  UseScratchRegisterScope temps(this);
+  Simd128Register scratch = temps.AcquireQ();
+  if ((src1 != src2) && src1.code() + 1 != src2.code()) {
+    // vtbl requires the operands to be consecutive or the same.
+    // If they are the same, we build a smaller list operand (table_size = 2).
+    // If they are not the same, and not consecutive, we move the src1 and src2
+    // to q14 and q15, which will be unused since they are not allocatable in
+    // Liftoff. If the operands are the same, then we build a smaller list
+    // operand below.
+    static_assert(!(kLiftoffAssemblerFpCacheRegs &
+                    (d28.bit() | d29.bit() | d30.bit() | d31.bit())),
+                  "This only works if q14-q15 (d28-d31) are not used.");
+    vmov(q14, src1);
+    src1 = q14;
+    vmov(q15, src2);
+    src2 = q15;
+  }
+
+  int table_size = src1 == src2 ? 2 : 4;
+  uint32_t mask = table_size == 2 ? 0x0F0F0F0F : 0x1F1F1F1F;
+
+  int scratch_s_base = scratch.code() * 4;
+  for (int j = 0; j < 4; j++) {
+    uint32_t imm = 0;
+    for (int i = 3; i >= 0; i--) {
+      imm = (imm << 8) | shuffle[j * 4 + i];
+    }
+    uint32_t four_lanes = imm;
+    // Ensure indices are in [0,15] if table_size is 2, or [0,31] if 4.
+    four_lanes &= mask;
+    vmov(SwVfpRegister::from_code(scratch_s_base + j),
+         Float32::FromBits(four_lanes));
+  }
+
+  DwVfpRegister table_base = src1.low();
+  NeonListOperand table(table_base, table_size);
+
+  if (dest != src1 && dest != src2) {
+    vtbl(dest.low(), table, scratch.low());
+    vtbl(dest.high(), table, scratch.high());
+  } else {
+    vtbl(scratch.low(), table, scratch.low());
+    vtbl(scratch.high(), table, scratch.high());
+    vmov(dest, scratch);
+  }
+}
+
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   vdup(Neon8, liftoff::GetSimd128Register(dst), src.gp());
@@ -2564,14 +2957,82 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
        liftoff::GetSimd128Register(src));
 }
 
+void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
+}
+
+void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  DwVfpRegister scratch = temps.AcquireD();
+  vpmin(NeonU8, scratch, src.low_fp(), src.high_fp());
+  vpmin(NeonU8, scratch, scratch, scratch);
+  vpmin(NeonU8, scratch, scratch, scratch);
+  vpmin(NeonU8, scratch, scratch, scratch);
+  ExtractLane(dst.gp(), scratch, NeonS8, 0);
+  cmp(dst.gp(), Operand(0));
+  mov(dst.gp(), Operand(1), LeaveCC, ne);
+}
+
+void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = liftoff::GetSimd128Register(src);
+  Simd128Register mask = temps.AcquireQ();
+
+  if (cache_state()->is_used(src)) {
+    // We only have 1 scratch Q register, so try and reuse src.
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
+    LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
+    mask = liftoff::GetSimd128Register(unused_pair);
+  }
+
+  vshr(NeonS8, tmp, liftoff::GetSimd128Register(src), 7);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  vmov(mask.low(), Double((uint64_t)0x8040'2010'0804'0201));
+  vmov(mask.high(), Double((uint64_t)0x8040'2010'0804'0201));
+  vand(tmp, mask, tmp);
+  vext(mask, tmp, tmp, 8);
+  vzip(Neon8, mask, tmp);
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.high());
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
+  vmov(NeonU16, dst.gp(), tmp.low(), 0);
+}
+
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_shl");
+  liftoff::EmitSimdShift<liftoff::kLeft, NeonS8, Neon8>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i8x16_shli");
+  vshl(NeonS8, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), rhs & 7);
+}
+
+void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonS8, Neon8>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonS8>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonU8, Neon8>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonU8>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2835,6 +3296,30 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
   }
   vbsl(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src1),
        liftoff::GetSimd128Register(src2));
+}
+
+void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  vcvt_s32_f32(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(src));
+}
+
+void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  vcvt_u32_f32(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(src));
+}
+
+void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  vcvt_f32_s32(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(src));
+}
+
+void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  vcvt_f32_u32(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,

@@ -5,9 +5,8 @@
 #ifndef V8_ROOTS_ROOTS_INL_H_
 #define V8_ROOTS_ROOTS_INL_H_
 
-#include "src/roots/roots.h"
-
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate-wrapper.h"
 #include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/read-only-heap.h"
@@ -23,6 +22,7 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -72,7 +72,14 @@ ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
 ReadOnlyRoots::ReadOnlyRoots(OffThreadIsolate* isolate)
     : ReadOnlyRoots(isolate->factory()->read_only_roots()) {}
 
-ReadOnlyRoots::ReadOnlyRoots(Address* ro_roots) : read_only_roots_(ro_roots) {}
+ReadOnlyRoots::ReadOnlyRoots(LocalHeapWrapper heap)
+    : ReadOnlyRoots(heap.is_off_thread() ? ReadOnlyRoots(heap.off_thread())
+                                         : ReadOnlyRoots(heap.main_thread())) {}
+
+ReadOnlyRoots::ReadOnlyRoots(LocalIsolateWrapper isolate)
+    : ReadOnlyRoots(isolate.is_off_thread()
+                        ? ReadOnlyRoots(isolate.off_thread())
+                        : ReadOnlyRoots(isolate.main_thread())) {}
 
 // We use unchecked_cast below because we trust our read-only roots to
 // have the right type, and to avoid the heavy #includes that would be

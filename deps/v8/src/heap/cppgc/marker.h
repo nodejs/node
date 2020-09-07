@@ -16,9 +16,19 @@
 namespace cppgc {
 namespace internal {
 
-class Heap;
+class HeapBase;
+class HeapObjectHeader;
 class MutatorThreadMarkingVisitor;
 
+// Marking algorithm. Example for a valid call sequence creating the marking
+// phase:
+// 1. StartMarking()
+// 2. AdvanceMarkingWithDeadline() [Optional, depending on environment.]
+// 3. EnterAtomicPause()
+// 4. AdvanceMarkingWithDeadline()
+// 5. LeaveAtomicPause()
+//
+// Alternatively, FinishMarking combines steps 3.-5.
 class V8_EXPORT_PRIVATE Marker {
   static constexpr int kNumConcurrentMarkers = 0;
   static constexpr int kNumMarkers = 1 + kNumConcurrentMarkers;
@@ -41,34 +51,29 @@ class V8_EXPORT_PRIVATE Marker {
       Worklist<NotFullyConstructedItem, 16 /* local entries */, kNumMarkers>;
   using WeakCallbackWorklist =
       Worklist<WeakCallbackItem, 64 /* local entries */, kNumMarkers>;
+  using WriteBarrierWorklist =
+      Worklist<HeapObjectHeader*, 64 /*local entries */, kNumMarkers>;
 
   struct MarkingConfig {
+    enum class CollectionType : uint8_t {
+      kMinor,
+      kMajor,
+    };
     using StackState = cppgc::Heap::StackState;
-    enum class IncrementalMarking : uint8_t { kDisabled };
-    enum class ConcurrentMarking : uint8_t { kDisabled };
+    enum MarkingType : uint8_t {
+      kAtomic,
+      kIncremental,
+      kIncrementalAndConcurrent
+    };
 
-    static MarkingConfig Default() {
-      return {StackState::kMayContainHeapPointers,
-              IncrementalMarking::kDisabled, ConcurrentMarking::kDisabled};
-    }
+    static constexpr MarkingConfig Default() { return {}; }
 
-    explicit MarkingConfig(StackState stack_state)
-        : MarkingConfig(stack_state, IncrementalMarking::kDisabled,
-                        ConcurrentMarking::kDisabled) {}
-
-    MarkingConfig(StackState stack_state,
-                  IncrementalMarking incremental_marking_state,
-                  ConcurrentMarking concurrent_marking_state)
-        : stack_state_(stack_state),
-          incremental_marking_state_(incremental_marking_state),
-          concurrent_marking_state_(concurrent_marking_state) {}
-
-    StackState stack_state_;
-    IncrementalMarking incremental_marking_state_;
-    ConcurrentMarking concurrent_marking_state_;
+    CollectionType collection_type = CollectionType::kMajor;
+    StackState stack_state = StackState::kMayContainHeapPointers;
+    MarkingType marking_type = MarkingType::kAtomic;
   };
 
-  explicit Marker(Heap* heap);
+  explicit Marker(HeapBase& heap);
   virtual ~Marker();
 
   Marker(const Marker&) = delete;
@@ -77,16 +82,35 @@ class V8_EXPORT_PRIVATE Marker {
   // Initialize marking according to the given config. This method will
   // trigger incremental/concurrent marking if needed.
   void StartMarking(MarkingConfig config);
-  // Finalize marking. This method stops incremental/concurrent marking
-  // if exsists and performs atomic pause marking.
-  void FinishMarking();
+
+  // Signals entering the atomic marking pause. The method
+  // - stops incremental/concurrent marking;
+  // - flushes back any in-construction worklists if needed;
+  // - Updates the MarkingConfig if the stack state has changed;
+  void EnterAtomicPause(MarkingConfig config);
+
+  // Makes marking progress.
+  virtual bool AdvanceMarkingWithDeadline(v8::base::TimeDelta);
+
+  // Signals leaving the atomic marking pause. This method expects no more
+  // objects to be marked and merely updates marking states if needed.
+  void LeaveAtomicPause();
+
+  // Combines:
+  // - EnterAtomicPause()
+  // - AdvanceMarkingWithDeadline()
+  // - LeaveAtomicPause()
+  void FinishMarking(MarkingConfig config);
 
   void ProcessWeakness();
 
-  Heap* heap() { return heap_; }
+  HeapBase& heap() { return heap_; }
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
   NotFullyConstructedWorklist* not_fully_constructed_worklist() {
     return &not_fully_constructed_worklist_;
+  }
+  WriteBarrierWorklist* write_barrier_worklist() {
+    return &write_barrier_worklist_;
   }
   WeakCallbackWorklist* weak_callback_worklist() {
     return &weak_callback_worklist_;
@@ -94,17 +118,20 @@ class V8_EXPORT_PRIVATE Marker {
 
   void ClearAllWorklistsForTesting();
 
+  MutatorThreadMarkingVisitor* GetMarkingVisitorForTesting() {
+    return marking_visitor_.get();
+  }
+
  protected:
   virtual std::unique_ptr<MutatorThreadMarkingVisitor>
   CreateMutatorThreadMarkingVisitor();
 
- private:
   void VisitRoots();
 
-  bool AdvanceMarkingWithDeadline(v8::base::TimeDelta);
   void FlushNotFullyConstructedObjects();
+  void MarkNotFullyConstructedObjects();
 
-  Heap* const heap_;
+  HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
 
   std::unique_ptr<MutatorThreadMarkingVisitor> marking_visitor_;
@@ -112,6 +139,7 @@ class V8_EXPORT_PRIVATE Marker {
   MarkingWorklist marking_worklist_;
   NotFullyConstructedWorklist not_fully_constructed_worklist_;
   NotFullyConstructedWorklist previously_not_fully_constructed_worklist_;
+  WriteBarrierWorklist write_barrier_worklist_;
   WeakCallbackWorklist weak_callback_worklist_;
 };
 

@@ -41,6 +41,7 @@
 # TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
 ['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
   'wasm-trace-memory-liftoff': [SKIP],
+  'wasm-trace-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
 
 ['variant == code_serializer', {

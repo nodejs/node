@@ -49,7 +49,7 @@ bool operator==(ConstFieldInfo const& lhs, ConstFieldInfo const& rhs) {
 }
 
 size_t hash_value(ConstFieldInfo const& const_field_info) {
-  return (size_t)const_field_info.owner_map.address();
+  return static_cast<size_t>(const_field_info.owner_map.address());
 }
 
 bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
@@ -304,6 +304,8 @@ std::ostream& operator<<(std::ostream& os, CheckTaggedInputMode mode) {
   switch (mode) {
     case CheckTaggedInputMode::kNumber:
       return os << "Number";
+    case CheckTaggedInputMode::kNumberOrBoolean:
+      return os << "NumberOrBoolean";
     case CheckTaggedInputMode::kNumberOrOddball:
       return os << "NumberOrOddball";
   }
@@ -532,6 +534,8 @@ std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
       return os << "Signed32";
     case NumberOperationHint::kNumber:
       return os << "Number";
+    case NumberOperationHint::kNumberOrBoolean:
+      return os << "NumberOrBoolean";
     case NumberOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
   }
@@ -1045,6 +1049,8 @@ struct SimplifiedOperatorGlobalCache final {
   };
   CheckedTaggedToFloat64Operator<CheckTaggedInputMode::kNumber>
       kCheckedTaggedToFloat64NumberOperator;
+  CheckedTaggedToFloat64Operator<CheckTaggedInputMode::kNumberOrBoolean>
+      kCheckedTaggedToFloat64NumberOrBooleanOperator;
   CheckedTaggedToFloat64Operator<CheckTaggedInputMode::kNumberOrOddball>
       kCheckedTaggedToFloat64NumberOrOddballOperator;
 
@@ -1157,6 +1163,8 @@ struct SimplifiedOperatorGlobalCache final {
       k##Name##NumberOrOddballOperator;
   SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
 #undef SPECULATIVE_NUMBER_BINOP
+  SpeculativeNumberEqualOperator<NumberOperationHint::kNumberOrBoolean>
+      kSpeculativeNumberEqualNumberOrBooleanOperator;
 
   template <NumberOperationHint kHint>
   struct SpeculativeToNumberOperator final
@@ -1402,6 +1410,8 @@ const Operator* SimplifiedOperatorBuilder::CheckedTaggedToFloat64(
     switch (mode) {
       case CheckTaggedInputMode::kNumber:
         return &cache_.kCheckedTaggedToFloat64NumberOperator;
+      case CheckTaggedInputMode::kNumberOrBoolean:
+        return &cache_.kCheckedTaggedToFloat64NumberOrBooleanOperator;
       case CheckTaggedInputMode::kNumberOrOddball:
         return &cache_.kCheckedTaggedToFloat64NumberOrOddballOperator;
     }
@@ -1418,6 +1428,9 @@ const Operator* SimplifiedOperatorBuilder::CheckedTruncateTaggedToWord32(
     switch (mode) {
       case CheckTaggedInputMode::kNumber:
         return &cache_.kCheckedTruncateTaggedToWord32NumberOperator;
+      case CheckTaggedInputMode::kNumberOrBoolean:
+        // Not used currently.
+        UNREACHABLE();
       case CheckTaggedInputMode::kNumberOrOddball:
         return &cache_.kCheckedTruncateTaggedToWord32NumberOrOddballOperator;
     }
@@ -1541,6 +1554,9 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
         return &cache_.kSpeculativeToNumberSigned32Operator;
       case NumberOperationHint::kNumber:
         return &cache_.kSpeculativeToNumberNumberOperator;
+      case NumberOperationHint::kNumberOrBoolean:
+        // Not used currently.
+        UNREACHABLE();
       case NumberOperationHint::kNumberOrOddball:
         return &cache_.kSpeculativeToNumberNumberOrOddballOperator;
     }
@@ -1778,14 +1794,38 @@ const Operator* SimplifiedOperatorBuilder::AllocateRaw(
         return &cache_.k##Name##Signed32Operator;                             \
       case NumberOperationHint::kNumber:                                      \
         return &cache_.k##Name##NumberOperator;                               \
+      case NumberOperationHint::kNumberOrBoolean:                             \
+        /* Not used currenly. */                                              \
+        UNREACHABLE();                                                        \
       case NumberOperationHint::kNumberOrOddball:                             \
         return &cache_.k##Name##NumberOrOddballOperator;                      \
     }                                                                         \
     UNREACHABLE();                                                            \
     return nullptr;                                                           \
   }
-SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
+SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
+SPECULATIVE_NUMBER_BINOP(SpeculativeNumberLessThan)
+SPECULATIVE_NUMBER_BINOP(SpeculativeNumberLessThanOrEqual)
 #undef SPECULATIVE_NUMBER_BINOP
+const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
+    NumberOperationHint hint) {
+  switch (hint) {
+    case NumberOperationHint::kSignedSmall:
+      return &cache_.kSpeculativeNumberEqualSignedSmallOperator;
+    case NumberOperationHint::kSignedSmallInputs:
+      return &cache_.kSpeculativeNumberEqualSignedSmallInputsOperator;
+    case NumberOperationHint::kSigned32:
+      return &cache_.kSpeculativeNumberEqualSigned32Operator;
+    case NumberOperationHint::kNumber:
+      return &cache_.kSpeculativeNumberEqualNumberOperator;
+    case NumberOperationHint::kNumberOrBoolean:
+      return &cache_.kSpeculativeNumberEqualNumberOrBooleanOperator;
+    case NumberOperationHint::kNumberOrOddball:
+      return &cache_.kSpeculativeNumberEqualNumberOrOddballOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 #define ACCESS_OP_LIST(V)                                                \
   V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)                 \

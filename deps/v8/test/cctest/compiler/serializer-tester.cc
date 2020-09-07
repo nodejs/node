@@ -37,12 +37,12 @@ SerializerTester::SerializerTester(const char* source)
   function_string += " })();";
   Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(function_string.c_str()))));
-  uint32_t flags = i::OptimizedCompilationInfo::kInliningEnabled |
+  uint32_t flags = i::OptimizedCompilationInfo::kInlining |
                    i::OptimizedCompilationInfo::kFunctionContextSpecializing |
-                   i::OptimizedCompilationInfo::kLoopPeelingEnabled |
+                   i::OptimizedCompilationInfo::kLoopPeeling |
                    i::OptimizedCompilationInfo::kBailoutOnUninitialized |
-                   i::OptimizedCompilationInfo::kAllocationFoldingEnabled |
-                   i::OptimizedCompilationInfo::kSplittingEnabled |
+                   i::OptimizedCompilationInfo::kAllocationFolding |
+                   i::OptimizedCompilationInfo::kSplitting |
                    i::OptimizedCompilationInfo::kAnalyzeEnvironmentLiveness;
   Optimize(function, main_zone(), main_isolate(), flags, &broker_);
   function_ = JSFunctionRef(broker(), function);

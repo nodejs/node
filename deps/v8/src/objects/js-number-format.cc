@@ -207,7 +207,7 @@ std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
 class UnitFactory {
  public:
   UnitFactory() : map_(CreateUnitMap()) {}
-  virtual ~UnitFactory() {}
+  virtual ~UnitFactory() = default;
 
   // ecma402 #sec-issanctionedsimpleunitidentifier
   icu::MeasureUnit create(const std::string& unitIdentifier) {
@@ -482,16 +482,16 @@ Handle<String> SignDisplayString(Isolate* isolate,
 }  // anonymous namespace
 
 // Return the minimum integer digits by counting the number of '0' after
-// "integer-width/+" in the skeleton.
+// "integer-width/*" in the skeleton.
 // Ex: Return 15 for skeleton as
-// “currency/TWD .00 rounding-mode-half-up integer-width/+000000000000000”
+// “currency/TWD .00 rounding-mode-half-up integer-width/*000000000000000”
 //                                                                 1
 //                                                        123456789012345
-// Return default value as 1 if there are no "integer-width/+".
+// Return default value as 1 if there are no "integer-width/*".
 int32_t JSNumberFormat::MinimumIntegerDigitsFromSkeleton(
     const icu::UnicodeString& skeleton) {
-  // count the number of 0 after "integer-width/+"
-  icu::UnicodeString search("integer-width/+");
+  // count the number of 0 after "integer-width/*"
+  icu::UnicodeString search("integer-width/*");
   int32_t index = skeleton.indexOf(search);
   if (index < 0) return 1;  // return 1 if cannot find it.
   index += search.length();

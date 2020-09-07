@@ -588,6 +588,8 @@ TEST(DisasmX64) {
       __ blendvpd(xmm5, xmm1);
       __ blendvpd(xmm5, Operand(rdx, 4));
 
+      __ roundps(xmm8, xmm3, kRoundUp);
+      __ roundpd(xmm8, xmm3, kRoundToNearest);
       __ roundss(xmm8, xmm3, kRoundDown);
       __ roundsd(xmm8, xmm3, kRoundDown);
 
@@ -648,6 +650,8 @@ TEST(DisasmX64) {
       __ vmovdqu(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovdqu(Operand(rbx, rcx, times_4, 10000), xmm0);
 
+      __ vroundps(xmm9, xmm2, kRoundUp);
+      __ vroundpd(xmm9, xmm2, kRoundToNearest);
       __ vroundss(xmm9, xmm1, xmm2, kRoundDown);
       __ vroundsd(xmm8, xmm3, xmm0, kRoundDown);
       __ vucomisd(xmm9, xmm1);

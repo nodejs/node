@@ -173,13 +173,48 @@ class V8_EXPORT_PRIVATE Operand {
   };
 
   // [base + disp/r]
-  Operand(Register base, int32_t disp);
+  V8_INLINE Operand(Register base, int32_t disp) {
+    if (base == rsp || base == r12) {
+      // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
+      set_sib(times_1, rsp, base);
+    }
+
+    if (disp == 0 && base != rbp && base != r13) {
+      set_modrm(0, base);
+    } else if (is_int8(disp)) {
+      set_modrm(1, base);
+      set_disp8(disp);
+    } else {
+      set_modrm(2, base);
+      set_disp32(disp);
+    }
+  }
 
   // [base + index*scale + disp/r]
-  Operand(Register base, Register index, ScaleFactor scale, int32_t disp);
+  V8_INLINE Operand(Register base, Register index, ScaleFactor scale,
+                    int32_t disp) {
+    DCHECK(index != rsp);
+    set_sib(scale, index, base);
+    if (disp == 0 && base != rbp && base != r13) {
+      // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
+      // possibly set by set_sib.
+      set_modrm(0, rsp);
+    } else if (is_int8(disp)) {
+      set_modrm(1, rsp);
+      set_disp8(disp);
+    } else {
+      set_modrm(2, rsp);
+      set_disp32(disp);
+    }
+  }
 
   // [index*scale + disp/r]
-  Operand(Register index, ScaleFactor scale, int32_t disp);
+  V8_INLINE Operand(Register index, ScaleFactor scale, int32_t disp) {
+    DCHECK(index != rsp);
+    set_modrm(0, rsp);
+    set_sib(scale, index, rbp);
+    set_disp32(disp);
+  }
 
   // Offset from existing memory operand.
   // Offset is added to existing displacement as 32-bit signed values and
@@ -187,25 +222,64 @@ class V8_EXPORT_PRIVATE Operand {
   Operand(Operand base, int32_t offset);
 
   // [rip + disp/r]
-  explicit Operand(Label* label, int addend = 0);
+  V8_INLINE explicit Operand(Label* label, int addend = 0) {
+    data_.addend = addend;
+    DCHECK_NOT_NULL(label);
+    DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
+    set_modrm(0, rbp);
+    set_disp64(reinterpret_cast<intptr_t>(label));
+  }
 
   Operand(const Operand&) V8_NOEXCEPT = default;
+
+  const Data& data() const { return data_; }
 
   // Checks whether either base or index register is the given register.
   // Does not check the "reg" part of the Operand.
   bool AddressUsesRegister(Register reg) const;
 
-  // Queries related to the size of the generated instruction.
-  // Whether the generated instruction will have a REX prefix.
-  bool requires_rex() const { return data_.rex != 0; }
-  // Size of the ModR/M, SIB and displacement parts of the generated
-  // instruction.
-  int operand_size() const { return data_.len; }
-
-  const Data& data() const { return data_; }
-
  private:
-  const Data data_;
+  V8_INLINE void set_modrm(int mod, Register rm_reg) {
+    DCHECK(is_uint2(mod));
+    data_.buf[0] = mod << 6 | rm_reg.low_bits();
+    // Set REX.B to the high bit of rm.code().
+    data_.rex |= rm_reg.high_bit();
+  }
+
+  V8_INLINE void set_sib(ScaleFactor scale, Register index, Register base) {
+    DCHECK_EQ(data_.len, 1);
+    DCHECK(is_uint2(scale));
+    // Use SIB with no index register only for base rsp or r12. Otherwise we
+    // would skip the SIB byte entirely.
+    DCHECK(index != rsp || base == rsp || base == r12);
+    data_.buf[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
+    data_.rex |= index.high_bit() << 1 | base.high_bit();
+    data_.len = 2;
+  }
+
+  V8_INLINE void set_disp8(int disp) {
+    DCHECK(is_int8(disp));
+    DCHECK(data_.len == 1 || data_.len == 2);
+    int8_t* p = reinterpret_cast<int8_t*>(&data_.buf[data_.len]);
+    *p = disp;
+    data_.len += sizeof(int8_t);
+  }
+
+  V8_INLINE void set_disp32(int disp) {
+    DCHECK(data_.len == 1 || data_.len == 2);
+    Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
+    WriteUnalignedValue(p, disp);
+    data_.len += sizeof(int32_t);
+  }
+
+  V8_INLINE void set_disp64(int64_t disp) {
+    DCHECK_EQ(1, data_.len);
+    Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
+    WriteUnalignedValue(p, disp);
+    data_.len += sizeof(disp);
+  }
+
+  Data data_;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
 static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
@@ -1141,6 +1215,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void cmpps(XMMRegister dst, XMMRegister src, int8_t cmp);
   void cmpps(XMMRegister dst, Operand src, int8_t cmp);
@@ -1356,6 +1432,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vroundsd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 RoundingMode mode) {
     vinstr(0x0b, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+  }
+  void vroundps(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+    vinstr(0x08, dst, xmm0, src, k66, k0F3A, kWIG);
+    emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+  }
+  void vroundpd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+    vinstr(0x09, dst, xmm0, src, k66, k0F3A, kWIG);
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
   }
 

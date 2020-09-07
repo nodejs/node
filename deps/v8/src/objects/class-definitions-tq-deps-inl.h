@@ -12,7 +12,6 @@
 #include "src/objects/arguments-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/free-space-inl.h"
-#include "src/objects/js-aggregate-error-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-regexp-inl.h"

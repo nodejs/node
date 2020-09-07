@@ -14,6 +14,7 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/heap/remembered-set-inl.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/sweeper.h"
 #include "src/objects/data-handler-inl.h"
@@ -524,7 +525,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   target.IterateBodyFast(map, size, &visitor);
 
   if (map.IsJSArrayBufferMap()) {
-    DCHECK(!MemoryChunk::FromHeapObject(target)->IsLargePage());
+    DCHECK(!BasicMemoryChunk::FromHeapObject(target)->IsLargePage());
     JSArrayBuffer::cast(target).YoungMarkExtensionPromoted();
   }
 }

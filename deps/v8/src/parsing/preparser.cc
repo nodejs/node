@@ -325,10 +325,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     // Parsing the body may change the language mode in our scope.
     language_mode = function_scope->language_mode();
 
-    if (is_sloppy(language_mode)) {
-      function_scope->HoistSloppyBlockFunctions(nullptr);
-    }
-
     // Validate name and parameter names. We can do this only after parsing the
     // function, since the function can declare itself strict.
     CheckFunctionName(language_mode, function_name, function_name_validity,

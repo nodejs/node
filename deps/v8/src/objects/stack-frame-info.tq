@@ -2,21 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+bitfield struct StackFrameInfoFlags extends uint31 {
+  is_eval: bool: 1 bit;
+  is_constructor: bool: 1 bit;
+  is_wasm: bool: 1 bit;
+  is_asm_js_wasm: bool: 1 bit;
+  is_user_java_script: bool: 1 bit;
+  is_toplevel: bool: 1 bit;
+  is_async: bool: 1 bit;
+  is_promise_all: bool: 1 bit;
+  is_promise_any: bool: 1 bit;
+}
+
+@generateCppClass
 extern class StackFrameInfo extends Struct {
   line_number: Smi;
   column_number: Smi;
-  promise_all_index: Smi;
+  promise_combinator_index: Smi;
   script_id: Smi;
   wasm_function_index: Smi;
-  script_name: String|Null|Undefined;
-  script_name_or_source_url: String|Null|Undefined;
+  script_name: Object;
+  script_name_or_source_url: Object;
   function_name: String|Null|Undefined;
   method_name: String|Null|Undefined;
   type_name: String|Null|Undefined;
   eval_origin: String|Null|Undefined;
   wasm_module_name: String|Null|Undefined;
   wasm_instance: WasmInstanceObject|Null|Undefined;
-  flag: Smi;
+  flag: SmiTagged<StackFrameInfoFlags>;
 }
 
 @generateCppClass

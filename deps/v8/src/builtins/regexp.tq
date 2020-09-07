@@ -186,8 +186,7 @@ extern enum Flag constexpr 'JSRegExp::Flag' {
   kMultiline,
   kSticky,
   kUnicode,
-  kDotAll,
-  kInvalid
+  kDotAll
 }
 
 const kRegExpPrototypeOldFlagGetter: constexpr int31

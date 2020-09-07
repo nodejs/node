@@ -23,6 +23,8 @@
 namespace v8 {
 namespace internal {
 
+class IsCompiledScope;
+
 enum class FeedbackSlotKind {
   // This kind means that the slot points to the middle of other slot
   // which occupies more than one feedback vector element.
@@ -149,11 +151,9 @@ using MaybeObjectHandles = std::vector<MaybeObjectHandle>;
 class FeedbackMetadata;
 
 // ClosureFeedbackCellArray is a FixedArray that contains feedback cells used
-// when creating closures from a function. Along with the feedback
-// cells, the first slot (slot 0) is used to hold a budget to measure the
-// hotness of the function. This is created once the function is compiled and is
-// either held by the feedback vector (if allocated) or by the FeedbackCell of
-// the closure.
+// when creating closures from a function. This is created once the function is
+// compiled and is either held by the feedback vector (if allocated) or by the
+// FeedbackCell of the closure.
 class ClosureFeedbackCellArray : public FixedArray {
  public:
   NEVER_READ_ONLY_SPACE
@@ -262,7 +262,13 @@ class FeedbackVector : public HeapObject {
 
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
-      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array);
+      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+      IsCompiledScope* is_compiled_scope);
+
+  V8_EXPORT_PRIVATE static Handle<FeedbackVector>
+  NewWithOneBinarySlotForTesting(Zone* zone, Isolate* isolate);
+  V8_EXPORT_PRIVATE static Handle<FeedbackVector>
+  NewWithOneCompareSlotForTesting(Zone* zone, Isolate* isolate);
 
 #define DEFINE_SLOT_KIND_PREDICATE(Name) \
   bool Name(FeedbackSlot slot) const { return Name##Kind(GetKind(slot)); }

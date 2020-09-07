@@ -277,6 +277,14 @@ FUNCTION_REFERENCE(wasm_float32_to_int64, wasm::float32_to_int64_wrapper)
 FUNCTION_REFERENCE(wasm_float32_to_uint64, wasm::float32_to_uint64_wrapper)
 FUNCTION_REFERENCE(wasm_float64_to_int64, wasm::float64_to_int64_wrapper)
 FUNCTION_REFERENCE(wasm_float64_to_uint64, wasm::float64_to_uint64_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_int64_sat,
+                   wasm::float32_to_int64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_uint64_sat,
+                   wasm::float32_to_uint64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_int64_sat,
+                   wasm::float64_to_int64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_uint64_sat,
+                   wasm::float64_to_uint64_sat_wrapper)
 FUNCTION_REFERENCE(wasm_int64_div, wasm::int64_div_wrapper)
 FUNCTION_REFERENCE(wasm_int64_mod, wasm::int64_mod_wrapper)
 FUNCTION_REFERENCE(wasm_uint64_div, wasm::uint64_div_wrapper)
@@ -289,6 +297,9 @@ FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
 FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_ceil, wasm::f32x4_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_floor, wasm::f32x4_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_trunc, wasm::f32x4_trunc_wrapper)
 FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
@@ -488,8 +499,12 @@ FUNCTION_REFERENCE_WITH_ISOLATE(re_match_for_call_from_js,
                                 IrregexpInterpreter::MatchForCallFromJs)
 
 FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_uc16,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)
+    re_case_insensitive_compare_unicode,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+
+FUNCTION_REFERENCE_WITH_ISOLATE(
+    re_case_insensitive_compare_non_unicode,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
 ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
   return ExternalReference(

@@ -1274,7 +1274,7 @@ Running test: testGenerator
             overflow : false
             properties : [
                 [0] : {
-                    name : [[GeneratorStatus]]
+                    name : [[GeneratorState]]
                     type : string
                     value : suspended
                 }
@@ -1565,12 +1565,12 @@ Running test: testPromise
             overflow : false
             properties : [
                 [0] : {
-                    name : [[PromiseStatus]]
+                    name : [[PromiseState]]
                     type : string
                     value : fulfilled
                 }
                 [1] : {
-                    name : [[PromiseValue]]
+                    name : [[PromiseResult]]
                     type : string
                     value : aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                 }
@@ -1593,12 +1593,12 @@ Running test: testPromise
             overflow : false
             properties : [
                 [0] : {
-                    name : [[PromiseStatus]]
+                    name : [[PromiseState]]
                     type : string
                     value : rejected
                 }
                 [1] : {
-                    name : [[PromiseValue]]
+                    name : [[PromiseResult]]
                     type : number
                     value : 42
                 }
@@ -1621,12 +1621,12 @@ Running test: testPromise
             overflow : false
             properties : [
                 [0] : {
-                    name : [[PromiseStatus]]
+                    name : [[PromiseState]]
                     type : string
                     value : pending
                 }
                 [1] : {
-                    name : [[PromiseValue]]
+                    name : [[PromiseResult]]
                     type : undefined
                     value : undefined
                 }

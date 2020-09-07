@@ -354,7 +354,7 @@ class CFGBuilder : public ZoneObject {
       case IrOpcode::kSwitch:
         BuildBlocksForSuccessors(node);
         break;
-#define BUILD_BLOCK_JS_CASE(Name) case IrOpcode::k##Name:
+#define BUILD_BLOCK_JS_CASE(Name, ...) case IrOpcode::k##Name:
         JS_OP_LIST(BUILD_BLOCK_JS_CASE)
 // JS opcodes are just like calls => fall through.
 #undef BUILD_BLOCK_JS_CASE
@@ -398,7 +398,7 @@ class CFGBuilder : public ZoneObject {
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectThrow(node);
         break;
-#define CONNECT_BLOCK_JS_CASE(Name) case IrOpcode::k##Name:
+#define CONNECT_BLOCK_JS_CASE(Name, ...) case IrOpcode::k##Name:
         JS_OP_LIST(CONNECT_BLOCK_JS_CASE)
 // JS opcodes are just like calls => fall through.
 #undef CONNECT_BLOCK_JS_CASE

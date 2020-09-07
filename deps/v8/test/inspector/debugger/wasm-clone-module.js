@@ -4,10 +4,10 @@
 
 // Flags: --allow-natives-syntax
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Tests that cloning a module notifies the debugger');
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
 builder.addFunction('f', kSig_v_v).addBody([]).exportAs('f');

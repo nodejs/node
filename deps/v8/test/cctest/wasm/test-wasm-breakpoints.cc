@@ -233,19 +233,19 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     WasmFrame* frame = WasmFrame::cast(frame_it.frame());
     DebugInfo* debug_info = frame->native_module()->GetDebugInfo();
 
-    int num_locals = debug_info->GetNumLocals(isolate_, frame->pc());
+    int num_locals = debug_info->GetNumLocals(frame->pc());
     CHECK_EQ(expected.locals.size(), num_locals);
     for (int i = 0; i < num_locals; ++i) {
       WasmValue local_value = debug_info->GetLocalValue(
-          i, isolate_, frame->pc(), frame->fp(), frame->callee_fp());
+          i, frame->pc(), frame->fp(), frame->callee_fp());
       CHECK_EQ(WasmValWrapper{expected.locals[i]}, WasmValWrapper{local_value});
     }
 
-    int stack_depth = debug_info->GetStackDepth(isolate_, frame->pc());
+    int stack_depth = debug_info->GetStackDepth(frame->pc());
     CHECK_EQ(expected.stack.size(), stack_depth);
     for (int i = 0; i < stack_depth; ++i) {
       WasmValue stack_value = debug_info->GetStackValue(
-          i, isolate_, frame->pc(), frame->fp(), frame->callee_fp());
+          i, frame->pc(), frame->fp(), frame->callee_fp());
       CHECK_EQ(WasmValWrapper{expected.stack[i]}, WasmValWrapper{stack_value});
     }
 
@@ -539,6 +539,39 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(14, GetIntReturnValue(retval));
+}
+
+WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
+  // This test checks that we don't fail if experimental / post-MVP opcodes are
+  // being used. There was a bug where we were trying to update the "detected"
+  // features set, but we were passing a nullptr when compiling with
+  // breakpoints.
+  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WasmRunner<int> runner(execution_tier);
+  Isolate* isolate = runner.main_isolate();
+
+  // [] -> [i32, i32]
+  ValueType sig_types[] = {kWasmI32, kWasmI32};
+  FunctionSig sig{2, 0, sig_types};
+  uint8_t sig_idx = runner.builder().AddSignature(&sig);
+
+  constexpr int kReturn = 13;
+  constexpr int kIgnored = 23;
+  BUILD(runner,
+        WASM_BLOCK_X(sig_idx, WASM_I32V_1(kReturn), WASM_I32V_1(kIgnored)),
+        WASM_DROP);
+
+  Handle<JSFunction> main_fun_wrapper =
+      runner.builder().WrapCode(runner.function_index());
+
+  SetBreakpoint(&runner, runner.function_index(), 3, 3);
+
+  BreakHandler count_breaks(isolate, {{3, BreakHandler::Continue}});
+
+  Handle<Object> global(isolate->context().global_object(), isolate);
+  MaybeHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  CHECK_EQ(kReturn, GetIntReturnValue(retval));
 }
 
 }  // namespace wasm

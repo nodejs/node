@@ -16,11 +16,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void GenerateTypedArrayPrototypeIterationMethod(TNode<Context> context,
-                                                  TNode<Object> receiver,
-                                                  const char* method_name,
-                                                  IterationKind iteration_kind);
-
   void SetupTypedArrayEmbedderFields(TNode<JSTypedArray> holder);
   void AttachBuffer(TNode<JSTypedArray> holder, TNode<JSArrayBuffer> buffer,
                     TNode<Map> map, TNode<Smi> length,

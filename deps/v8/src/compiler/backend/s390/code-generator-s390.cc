@@ -3853,10 +3853,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector boolean unops
-    case kS390_S1x2AnyTrue:
-    case kS390_S1x4AnyTrue:
-    case kS390_S1x8AnyTrue:
-    case kS390_S1x16AnyTrue: {
+    case kS390_V64x2AnyTrue:
+    case kS390_V32x4AnyTrue:
+    case kS390_V16x8AnyTrue:
+    case kS390_V8x16AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
       Register dst = i.OutputRegister();
       Register temp = i.TempRegister(0);
@@ -3879,19 +3879,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ vtm(kScratchDoubleReg, kScratchDoubleReg, Condition(0), Condition(0),     \
          Condition(0));                                                        \
   __ locgr(Condition(8), dst, temp);
-    case kS390_S1x2AllTrue: {
+    case kS390_V64x2AllTrue: {
       SIMD_ALL_TRUE(3)
       break;
     }
-    case kS390_S1x4AllTrue: {
+    case kS390_V32x4AllTrue: {
       SIMD_ALL_TRUE(2)
       break;
     }
-    case kS390_S1x8AllTrue: {
+    case kS390_V16x8AllTrue: {
       SIMD_ALL_TRUE(1)
       break;
     }
-    case kS390_S1x16AllTrue: {
+    case kS390_V8x16AllTrue: {
       SIMD_ALL_TRUE(0)
       break;
     }
@@ -4154,10 +4154,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       for (int i = 0, j = 0; i < 2; i++, j = +2) {
 #ifdef V8_TARGET_BIG_ENDIAN
         __ lgfi(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
-        __ aih(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
+        __ iihf(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
 #else
         __ lgfi(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
-        __ aih(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
+        __ iihf(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
 #endif
       }
       __ vlvgp(kScratchDoubleReg, ip, r0);
@@ -4183,6 +4183,119 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Condition(0), Condition(0), Condition(0));
       __ vperm(dst, src0, kScratchDoubleReg, src1, Condition(0), Condition(0));
 #endif
+      break;
+    }
+    case kS390_I32x4BitMask: {
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ lgfi(kScratchReg, Operand(0x204060));
+      __ iihf(kScratchReg, Operand(0x80808080));  // Zeroing the high bits.
+#else
+      __ lgfi(kScratchReg, Operand(0x80808080));
+      __ iihf(kScratchReg, Operand(0x60402000));
+#endif
+      __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
+      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
+                Condition(0), Condition(0), Condition(0));
+      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 7),
+              Condition(0));
+      break;
+    }
+    case kS390_I16x8BitMask: {
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ lgfi(kScratchReg, Operand(0x40506070));
+      __ iihf(kScratchReg, Operand(0x102030));
+#else
+      __ lgfi(kScratchReg, Operand(0x30201000));
+      __ iihf(kScratchReg, Operand(0x70605040));
+#endif
+      __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
+      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
+                Condition(0), Condition(0), Condition(0));
+      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 7),
+              Condition(0));
+      break;
+    }
+    case kS390_I8x16BitMask: {
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ lgfi(r0, Operand(0x60687078));
+      __ iihf(r0, Operand(0x40485058));
+      __ lgfi(ip, Operand(0x20283038));
+      __ iihf(ip, Operand(0x81018));
+#else
+      __ lgfi(ip, Operand(0x58504840));
+      __ iihf(ip, Operand(0x78706860));
+      __ lgfi(r0, Operand(0x18100800));
+      __ iihf(r0, Operand(0x38302820));
+#endif
+      __ vlvgp(kScratchDoubleReg, ip, r0);
+      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
+                Condition(0), Condition(0), Condition(0));
+      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 3),
+              Condition(1));
+      break;
+    }
+    case kS390_F32x4Pmin: {
+      __ vfmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(3), Condition(0),
+               Condition(2));
+      break;
+    }
+    case kS390_F32x4Pmax: {
+      __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(3), Condition(0),
+               Condition(2));
+      break;
+    }
+    case kS390_F64x2Pmin: {
+      __ vfmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(3), Condition(0),
+               Condition(3));
+      break;
+    }
+    case kS390_F64x2Pmax: {
+      __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(3), Condition(0),
+               Condition(3));
+      break;
+    }
+    case kS390_F64x2Ceil: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(6),
+             Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2Floor: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(7),
+             Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2Trunc: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(5),
+             Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2NearestInt: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(4),
+             Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F32x4Ceil: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(6),
+             Condition(0), Condition(2));
+      break;
+    }
+    case kS390_F32x4Floor: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(7),
+             Condition(0), Condition(2));
+      break;
+    }
+    case kS390_F32x4Trunc: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(5),
+             Condition(0), Condition(2));
+      break;
+    }
+    case kS390_F32x4NearestInt: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(4),
+             Condition(0), Condition(2));
       break;
     }
     case kS390_StoreCompressTagged: {

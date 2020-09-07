@@ -67,7 +67,9 @@ TestingModuleBuilder::TestingModuleBuilder(
   }
 
   if (tier == ExecutionTier::kInterpreter) {
-    interpreter_ = WasmDebugInfo::SetupForTesting(instance_object_);
+    interpreter_ = std::make_unique<WasmInterpreter>(
+        isolate_, test_module_ptr_,
+        ModuleWireBytes{native_module_->wire_bytes()}, instance_object_);
   }
 }
 

@@ -1758,29 +1758,19 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
 }
 
 // Vector instructions
-void Assembler::mfvsrd(const Register ra, const DoubleRegister rs) {
+void Assembler::mfvsrd(const Register ra, const Simd128Register rs) {
   int SX = 1;
   emit(MFVSRD | rs.code() * B21 | ra.code() * B16 | SX);
 }
 
-void Assembler::mfvsrwz(const Register ra, const DoubleRegister rs) {
+void Assembler::mfvsrwz(const Register ra, const Simd128Register rs) {
   int SX = 1;
   emit(MFVSRWZ | rs.code() * B21 | ra.code() * B16 | SX);
 }
 
-void Assembler::mtvsrd(const DoubleRegister rt, const Register ra) {
+void Assembler::mtvsrd(const Simd128Register rt, const Register ra) {
   int TX = 1;
   emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
-}
-
-void Assembler::vor(const DoubleRegister rt, const DoubleRegister ra,
-                    const DoubleRegister rb) {
-  emit(VOR | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
-}
-
-void Assembler::vsro(const DoubleRegister rt, const DoubleRegister ra,
-                     const DoubleRegister rb) {
-  emit(VSRO | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
 }
 
 // Pseudo instructions.

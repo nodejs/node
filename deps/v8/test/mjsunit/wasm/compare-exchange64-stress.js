@@ -9,6 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 const kSequenceLength = 8192;
 const kNumberOfWorkers = 4;
 const kBitMask = kNumberOfWorkers - 1;
+const kMemoryAddress = 0;
 const kSequenceStartAddress = 32;
 
 function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
@@ -140,7 +141,8 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
 function generateSequence(typedarray, start, count) {
     let end = count + start;
     for (let i = start; i < end; i++) {
-        typedarray[i] = Math.floor(Math.random() * 256);
+        // Avoid the value 255, which is used as initial value in memory.
+        typedarray[i] = Math.floor(Math.random() * 255);
     }
 }
 
@@ -191,15 +193,23 @@ function testOpcode(opcode, opcodeSize) {
         shared: true
     });
     let memoryView = new Uint8Array(memory.buffer);
-    generateSequence(memoryView, kSequenceStartAddress, kSequenceLength * (opcodeSize / 8));
+    let numBytes = opcodeSize / 8;
+    generateSequence(
+        memoryView, kSequenceStartAddress, kSequenceLength * numBytes);
+
+    // Initialize the memory to a value which does not appear in the sequence.
+    memoryView.fill(255, kMemoryAddress, numBytes);
 
     let module = new WebAssembly.Module(builder.toBuffer());
-    let workers = spawnWorker(module, memory, 0, kSequenceStartAddress);
+    let workers =
+        spawnWorker(module, memory, kMemoryAddress, kSequenceStartAddress);
 
-    // Fire the workers off
-    for (let i = opcodeSize / 8 - 1; i >= 0; i--) {
-      memoryView[i] = memoryView[kSequenceStartAddress + i];
-    }
+    // Fire off the workers by writing the first element of the sequence to
+    // memory. The byte order does not matter here, since all bytes need to be
+    // updated before the first worker can do an update.
+    memoryView.copyWithin(
+        kMemoryAddress, kSequenceStartAddress,
+        kSequenceStartAddress + numBytes);
 
     waitForWorkers(workers);
 

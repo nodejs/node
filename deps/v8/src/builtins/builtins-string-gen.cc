@@ -1164,10 +1164,11 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     DescriptorIndexNameValue additional_property_to_check,
     const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
   Label out(this);
+  Label get_property_lookup(this);
 
-  // Smis definitely don't have an attached symbol.
-  GotoIf(TaggedIsSmi(object), &out);
-  TNode<HeapObject> heap_object = CAST(object);
+  // Smis have to go through the GetProperty lookup in case Number.prototype or
+  // Object.prototype was modified.
+  GotoIf(TaggedIsSmi(object), &get_property_lookup);
 
   // Take the fast path for RegExps.
   // There's two conditions: {object} needs to be a fast regexp, and
@@ -1175,6 +1176,8 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   // since it may mutate {object}).
   {
     Label stub_call(this), slow_lookup(this);
+
+    TNode<HeapObject> heap_object = CAST(object);
 
     GotoIf(TaggedIsSmi(maybe_string), &slow_lookup);
     GotoIfNot(IsString(CAST(maybe_string)), &slow_lookup);
@@ -1196,9 +1199,9 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     regexp_call();
 
     BIND(&slow_lookup);
+    // Special case null and undefined to skip the property lookup.
+    Branch(IsNullOrUndefined(heap_object), &out, &get_property_lookup);
   }
-
-  GotoIf(IsNullOrUndefined(heap_object), &out);
 
   // Fall back to a slow lookup of {heap_object[symbol]}.
   //
@@ -1208,7 +1211,8 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   // We handle the former by jumping to {out} for null values as well, while
   // the latter is already handled by the Call({maybe_func}) operation.
 
-  const TNode<Object> maybe_func = GetProperty(context, heap_object, symbol);
+  BIND(&get_property_lookup);
+  const TNode<Object> maybe_func = GetProperty(context, object, symbol);
   GotoIf(IsUndefined(maybe_func), &out);
   GotoIf(IsNull(maybe_func), &out);
 

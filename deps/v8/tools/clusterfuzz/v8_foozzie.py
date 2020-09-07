@@ -94,6 +94,10 @@ RETURN_FAIL = 2
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
 
+# Timeout for one d8 run.
+SANITY_CHECK_TIMEOUT_SEC = 1
+TEST_TIMEOUT_SEC = 3
+
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 
 # Output for suppressed failure case.
@@ -142,6 +146,25 @@ ORIGINAL_SOURCE_HASH_LENGTH = 3
 
 # Placeholder string if no original source file could be determined.
 ORIGINAL_SOURCE_DEFAULT = 'none'
+
+# Placeholder string for failures from crash tests. If a failure is found with
+# this signature, the matching sources should be moved to the mapping below.
+ORIGINAL_SOURCE_CRASHTESTS = 'placeholder for CrashTests'
+
+# Mapping from relative original source path (e.g. CrashTests/path/to/file.js)
+# to a string key. Map to the same key for duplicate issues. The key should
+# have more than 3 characters to not collide with other existing hashes.
+# If a symptom from a particular original source file is known to map to a
+# known failure, it can be added to this mapping. This should be done for all
+# failures from CrashTests, as those by default map to the placeholder above.
+KNOWN_FAILURES = {
+  # Foo.caller with asm.js: https://crbug.com/1042556
+  'CrashTests/5712410200899584/04483.js': '.caller',
+  'CrashTests/5703451898085376/02176.js': '.caller',
+  'CrashTests/4846282433495040/04342.js': '.caller',
+  # Flaky issue that almost never repros.
+  'CrashTests/5694376231632896/1033966.js': 'flaky',
+}
 
 
 def infer_arch(d8):
@@ -229,7 +252,7 @@ def parse_args():
   options.first = first_config_arguments.make_options(options)
   options.second = second_config_arguments.make_options(options)
 
-  # Ensure we make a sane comparison.
+  # Ensure we make a valid comparison.
   if (options.first.d8 == options.second.d8 and
       options.first.config == options.second.config):
     parser.error('Need either executable or config difference.')
@@ -292,6 +315,7 @@ def print_difference(
   else:
     first_stdout = first_config_output.stdout.decode('utf-8', 'replace')
     second_stdout = second_config_output.stdout.decode('utf-8', 'replace')
+    difference = difference.decode('utf-8', 'replace')
 
   text = (FAILURE_TEMPLATE % dict(
       configs='%s:%s' % (first_config_label, second_config_label),
@@ -311,6 +335,31 @@ def print_difference(
     print(text)
   else:
     print(text.encode('utf-8', 'replace'))
+
+
+def cluster_failures(source, known_failures=None):
+  """Returns a string key for clustering duplicate failures.
+
+  Args:
+    source: The original source path where the failure happened.
+    known_failures: Mapping from original source path to failure key.
+  """
+  known_failures = known_failures or KNOWN_FAILURES
+  # No source known. Typical for manually uploaded issues. This
+  # requires also manual issue creation.
+  if not source:
+    return ORIGINAL_SOURCE_DEFAULT
+  # Source is known to produce a particular failure.
+  if source in known_failures:
+    return known_failures[source]
+  # Subsume all other sources from CrashTests under one key. Otherwise
+  # failures lead to new crash tests which in turn lead to new failures.
+  if source.startswith('CrashTests'):
+    return ORIGINAL_SOURCE_CRASHTESTS
+
+  # We map all remaining failures to a short hash of the original source.
+  long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
+  return long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
 
 
 def main():
@@ -342,8 +391,20 @@ def main():
   # Sanity checks. Run both configurations with the sanity-checks file only and
   # bail out early if different.
   if not options.skip_sanity_checks:
-    first_config_output = first_cmd.run(SANITY_CHECKS)
-    second_config_output = second_cmd.run(SANITY_CHECKS)
+    first_config_output = first_cmd.run(
+        SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
+
+    # Early bailout if first run was a timeout.
+    if timeout_bailout(first_config_output, 1):
+      return RETURN_PASS
+
+    second_config_output = second_cmd.run(
+        SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
+
+    # Bailout if second run was a timeout.
+    if timeout_bailout(second_config_output, 2):
+      return RETURN_PASS
+
     difference, _ = suppress.diff(first_config_output, second_config_output)
     if difference:
       # Special source key for sanity checks so that clusterfuzz dedupes all
@@ -354,25 +415,21 @@ def main():
           first_config_output, second_config_output, difference)
       return RETURN_FAIL
 
-  first_config_output = first_cmd.run(options.testcase, verbose=True)
+  first_config_output = first_cmd.run(
+      options.testcase, timeout=TEST_TIMEOUT_SEC, verbose=True)
 
   # Early bailout if first run was a timeout.
   if timeout_bailout(first_config_output, 1):
     return RETURN_PASS
 
-  second_config_output = second_cmd.run(options.testcase, verbose=True)
+  second_config_output = second_cmd.run(
+      options.testcase, timeout=TEST_TIMEOUT_SEC, verbose=True)
 
   # Bailout if second run was a timeout.
   if timeout_bailout(second_config_output, 2):
     return RETURN_PASS
 
   difference, source = suppress.diff(first_config_output, second_config_output)
-
-  if source:
-    long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
-    source_key = long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
-  else:
-    source_key = ORIGINAL_SOURCE_DEFAULT
 
   if difference:
     # Only bail out due to suppressed output if there was a difference. If a
@@ -383,6 +440,7 @@ def main():
     if fail_bailout(second_config_output, suppress.ignore_by_output2):
       return RETURN_FAIL
 
+    source_key = cluster_failures(source)
     print_difference(
         options, source_key, first_cmd, second_cmd,
         first_config_output, second_config_output, difference, source)

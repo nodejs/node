@@ -18,14 +18,16 @@ class ObjectDeserializer final : public Deserializer {
  public:
   static MaybeHandle<SharedFunctionInfo> DeserializeSharedFunctionInfo(
       Isolate* isolate, const SerializedCodeData* data, Handle<String> source);
+  static MaybeHandle<SharedFunctionInfo> DeserializeSharedFunctionInfoOffThread(
+      OffThreadIsolate* isolate, const SerializedCodeData* data,
+      Handle<String> source);
 
  private:
   explicit ObjectDeserializer(const SerializedCodeData* data);
 
   // Deserialize an object graph. Fail gracefully.
-  MaybeHandle<HeapObject> Deserialize(Isolate* isolate);
+  MaybeHandle<HeapObject> Deserialize(LocalIsolateWrapper isolate);
 
-  void FlushICache();
   void LinkAllocationSites();
   void CommitPostProcessedObjects();
 };

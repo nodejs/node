@@ -243,7 +243,7 @@
   V(_, NFD_string, "NFD")                                            \
   V(_, NFKC_string, "NFKC")                                          \
   V(_, NFKD_string, "NFKD")                                          \
-  V(_, not_equal, "not-equal")                                       \
+  V(_, not_equal_string, "not-equal")                                \
   V(_, null_string, "null")                                          \
   V(_, null_to_string, "[object Null]")                              \
   V(_, Number_string, "Number")                                      \
@@ -253,7 +253,7 @@
   V(_, object_string, "object")                                      \
   V(_, object_to_string, "[object Object]")                          \
   V(_, of_string, "of")                                              \
-  V(_, ok, "ok")                                                     \
+  V(_, ok_string, "ok")                                              \
   V(_, one_string, "1")                                              \
   V(_, other_string, "other")                                        \
   V(_, ownKeys_string, "ownKeys")                                    \
@@ -305,7 +305,7 @@
   V(_, this_function_string, ".this_function")                       \
   V(_, this_string, "this")                                          \
   V(_, throw_string, "throw")                                        \
-  V(_, timed_out, "timed-out")                                       \
+  V(_, timed_out_string, "timed-out")                                \
   V(_, toJSON_string, "toJSON")                                      \
   V(_, toString_string, "toString")                                  \
   V(_, true_string, "true")                                          \

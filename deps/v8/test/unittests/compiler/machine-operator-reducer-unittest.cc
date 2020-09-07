@@ -765,6 +765,78 @@ TEST_F(MachineOperatorReducerTest, Word32AndWithComparisonAndConstantOne) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Word32AndWithBitFields) {
+  Node* const p = Parameter(0);
+
+  for (int i = 0; i < 2; ++i) {
+    bool truncate_from_64_bit = i == 1;
+
+    auto truncate = [&](Node* const input) {
+      return truncate_from_64_bit
+                 ? graph()->NewNode(machine()->TruncateInt64ToInt32(), input)
+                 : input;
+    };
+
+    // Simulate getting some bitfields from a Torque bitfield struct and
+    // checking them all, like `x.a == 5 & x.b & !x.c & x.d == 2`. This is
+    // looking for the pattern: xxxxxxxxxxxxxxxxxxxx10xxx0x1x101. The inputs are
+    // in an already-reduced state as would be created by
+    // ReduceWord32EqualForConstantRhs, so the only shift operation remaining is
+    // the one for selecting a single true bit.
+    Node* three_bits =
+        graph()->NewNode(machine()->Word32Equal(), Int32Constant(5),
+                         graph()->NewNode(machine()->Word32And(),
+                                          Int32Constant(7), truncate(p)));
+    Node* single_bit_true =
+        truncate_from_64_bit
+            ? truncate(graph()->NewNode(machine()->Word64And(),
+                                        Int64Constant(1),
+                                        graph()->NewNode(machine()->Word64Shr(),
+                                                         p, Int64Constant(4))))
+            : graph()->NewNode(machine()->Word32And(), Int32Constant(1),
+                               graph()->NewNode(machine()->Word32Shr(), p,
+                                                Int32Constant(4)));
+    Node* single_bit_false =
+        graph()->NewNode(machine()->Word32Equal(), Int32Constant(0),
+                         graph()->NewNode(machine()->Word32And(),
+                                          Int32Constant(1 << 6), truncate(p)));
+    Node* two_bits =
+        graph()->NewNode(machine()->Word32Equal(), Int32Constant(2 << 10),
+                         graph()->NewNode(machine()->Word32And(),
+                                          Int32Constant(3 << 10), truncate(p)));
+
+    Reduction r1 = Reduce(
+        graph()->NewNode(machine()->Word32And(), three_bits, single_bit_true));
+    ASSERT_TRUE(r1.Changed());
+    EXPECT_THAT(
+        r1.replacement(),
+        IsWord32Equal(
+            IsWord32And(truncate_from_64_bit ? IsTruncateInt64ToInt32(p) : p,
+                        IsInt32Constant(7 | (1 << 4))),
+            IsInt32Constant(5 | (1 << 4))));
+
+    Reduction r2 = Reduce(
+        graph()->NewNode(machine()->Word32And(), single_bit_false, two_bits));
+    ASSERT_TRUE(r2.Changed());
+    EXPECT_THAT(
+        r2.replacement(),
+        IsWord32Equal(
+            IsWord32And(truncate_from_64_bit ? IsTruncateInt64ToInt32(p) : p,
+                        IsInt32Constant((1 << 6) | (3 << 10))),
+            IsInt32Constant(2 << 10)));
+
+    Reduction const r3 = Reduce(graph()->NewNode(
+        machine()->Word32And(), r1.replacement(), r2.replacement()));
+    ASSERT_TRUE(r3.Changed());
+    EXPECT_THAT(
+        r3.replacement(),
+        IsWord32Equal(
+            IsWord32And(truncate_from_64_bit ? IsTruncateInt64ToInt32(p) : p,
+                        IsInt32Constant(7 | (1 << 4) | (1 << 6) | (3 << 10))),
+            IsInt32Constant(5 | (1 << 4) | (2 << 10))));
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Word32Or
 

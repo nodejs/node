@@ -95,7 +95,10 @@ for repo in ${repos}; do
       log_and_run ./run.py --wasm ../../interpreter/wasm ${rel_filename} --out _build 2> /dev/null
     fi
   done
-  log_and_run cp _build/*.js ${SPEC_TEST_DIR}/tests/proposals/${repo}/
+
+  if ls _build/*.js > /dev/null; then
+    log_and_run cp _build/*.js ${SPEC_TEST_DIR}/tests/proposals/${repo}/
+  fi
 
   echo ">> Process js-api tests"
   log_and_run mkdir ${JS_API_TEST_DIR}/tests/proposals/${repo}

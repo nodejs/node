@@ -5,8 +5,16 @@
 @abstract
 @generateCppClass
 extern class Name extends PrimitiveHeapObject {
-  hash_field: uint32;
+  hash_field: NameHash;
 }
+
+bitfield struct NameHash extends uint32 {
+  hash_not_commputed: bool: 1 bit;
+  is_not_integer_index_mask: bool: 1 bit;
+  array_index_value: uint32: 24 bit;
+  array_index_length: uint32: 6 bit;
+}
+
 // This is the same as Name, but with the information that there are no other
 // kinds of names.
 type AnyName = PrivateSymbol|PublicSymbol|String;
@@ -29,5 +37,12 @@ extern class Symbol extends Name {
 type PublicSymbol extends Symbol;
 type PrivateSymbol extends Symbol;
 
-const kNameEmptyHashField:
-    constexpr uint32 generates 'Name::kEmptyHashField';
+const kNameEmptyHashField: NameHash = NameHash{
+  hash_not_commputed: true,
+  is_not_integer_index_mask: true,
+  array_index_value: 0,
+  array_index_length: 0
+};
+
+const kMaxCachedArrayIndexLength: constexpr uint32
+    generates 'Name::kMaxCachedArrayIndexLength';

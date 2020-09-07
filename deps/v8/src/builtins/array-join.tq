@@ -296,7 +296,7 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;
-          next = ToString(context, obj);
+          next = string::ToString(context, obj);
         }
       }
     }
@@ -418,7 +418,7 @@ macro LoadJoinStack(implicit context: Context)(): FixedArray
   const stack: HeapObject = UnsafeCast<HeapObject>(
       nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
   if (stack == Undefined) goto IfUninitialized;
-  assert(IsFixedArray(stack));
+  assert(Is<FixedArray>(stack));
   return UnsafeCast<FixedArray>(stack);
 }
 

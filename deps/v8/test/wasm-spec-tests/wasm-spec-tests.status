@@ -20,6 +20,9 @@
   'proposals/js-types/globals': [FAIL],
   'proposals/js-types/linking': [FAIL],
 
+  # This test requires the reftypes flag to be disabled.
+  'proposals/bulk-memory-operations/imports': [FAIL],
+
   # TODO(wasm): This test declares a table larger than allowed by the spec.
   'table': [FAIL],
   'proposals/reference-types/table': [FAIL],

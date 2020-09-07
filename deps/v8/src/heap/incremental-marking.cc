@@ -93,6 +93,13 @@ void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
   collector_->VisitObject(obj);
 }
 
+void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
+  MarkBit mark_bit = atomic_marking_state()->MarkBitFrom(obj);
+  Marking::MarkBlack<AccessMode::ATOMIC>(mark_bit);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+  IncrementLiveBytesBackground(chunk, static_cast<intptr_t>(object_size));
+}
+
 void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
   DCHECK(IsMarking());
   DCHECK(MemoryChunk::FromHeapObject(from)->SweepingDone());
@@ -367,6 +374,11 @@ void IncrementalMarking::StartBlackAllocation() {
   heap()->old_space()->MarkLinearAllocationAreaBlack();
   heap()->map_space()->MarkLinearAllocationAreaBlack();
   heap()->code_space()->MarkLinearAllocationAreaBlack();
+  if (FLAG_local_heaps) {
+    heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+      local_heap->MarkLinearAllocationAreaBlack();
+    });
+  }
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation started\n");
@@ -378,6 +390,11 @@ void IncrementalMarking::PauseBlackAllocation() {
   heap()->old_space()->UnmarkLinearAllocationArea();
   heap()->map_space()->UnmarkLinearAllocationArea();
   heap()->code_space()->UnmarkLinearAllocationArea();
+  if (FLAG_local_heaps) {
+    heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+      local_heap->UnmarkLinearAllocationArea();
+    });
+  }
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation paused\n");
@@ -728,10 +745,13 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
       }
     }
   }
+  // |deadline - heap_->MonotonicallyIncreasingTimeInMs()| could be negative,
+  // which means |local_tracer| won't do any actual tracing, so there is no
+  // need to check for |deadline <= heap_->MonotonicallyIncreasingTimeInMs()|.
   bool remote_tracing_done =
       local_tracer->Trace(deadline - heap_->MonotonicallyIncreasingTimeInMs());
   double current = heap_->MonotonicallyIncreasingTimeInMs();
-  local_tracer->SetEmbedderWorklistEmpty(true);
+  local_tracer->SetEmbedderWorklistEmpty(empty_worklist);
   *duration_ms = current - start;
   return (empty_worklist && remote_tracing_done)
              ? StepResult::kNoImmediateWork
@@ -790,6 +810,20 @@ void IncrementalMarking::Stop() {
   SetState(STOPPED);
   is_compacting_ = false;
   FinishBlackAllocation();
+
+  if (FLAG_local_heaps) {
+    // Merge live bytes counters of background threads
+    for (auto pair : background_live_bytes_) {
+      MemoryChunk* memory_chunk = pair.first;
+      intptr_t live_bytes = pair.second;
+
+      if (live_bytes) {
+        marking_state()->IncrementLiveBytes(memory_chunk, live_bytes);
+      }
+    }
+
+    background_live_bytes_.clear();
+  }
 }
 
 
@@ -958,24 +992,32 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
 
 void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
-#ifdef DEBUG
-  // Enforce safepoint here such that background threads cannot allocate between
-  // completing sweeping and VerifyCountersAfterSweeping().
+  if (ContinueConcurrentSweeping()) {
+    if (FLAG_stress_incremental_marking) {
+      // To start concurrent marking a bit earlier, support concurrent sweepers
+      // from main thread by sweeping some pages.
+      SupportConcurrentSweeping();
+    }
+    return;
+  }
+
   SafepointScope scope(heap());
-#endif
-  if (collector_->sweeping_in_progress() &&
-      (!FLAG_concurrent_sweeping ||
-       !collector_->sweeper()->AreSweeperTasksRunning())) {
-    collector_->EnsureSweepingCompleted();
-  }
-  if (!collector_->sweeping_in_progress()) {
+  collector_->EnsureSweepingCompleted();
+  DCHECK(!collector_->sweeping_in_progress());
 #ifdef DEBUG
-    heap_->VerifyCountersAfterSweeping();
-#else
-    SafepointScope scope(heap());
+  heap_->VerifyCountersAfterSweeping();
 #endif
-    StartMarking();
-  }
+  StartMarking();
+}
+
+bool IncrementalMarking::ContinueConcurrentSweeping() {
+  if (!collector_->sweeping_in_progress()) return false;
+  return FLAG_concurrent_sweeping &&
+         collector_->sweeper()->AreSweeperTasksRunning();
+}
+
+void IncrementalMarking::SupportConcurrentSweeping() {
+  collector_->sweeper()->SupportConcurrentSweeping();
 }
 
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {

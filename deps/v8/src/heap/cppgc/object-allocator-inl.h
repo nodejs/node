@@ -10,7 +10,7 @@
 #include "src/base/logging.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/object-start-bitmap-inl.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
@@ -20,6 +20,7 @@ namespace cppgc {
 namespace internal {
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
+  DCHECK(is_allocation_allowed());
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   const RawHeap::RegularSpaceType type =
@@ -30,6 +31,7 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
                                       CustomSpaceIndex space_index) {
+  DCHECK(is_allocation_allowed());
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   return AllocateObjectOnSpace(

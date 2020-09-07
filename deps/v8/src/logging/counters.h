@@ -16,6 +16,7 @@
 #include "src/execution/isolate.h"
 #include "src/init/heap-symbols.h"
 #include "src/logging/counters-definitions.h"
+#include "src/logging/tracing-flags.h"
 #include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
@@ -25,33 +26,6 @@
 
 namespace v8 {
 namespace internal {
-
-// This struct contains a set of flags that can be modified from multiple
-// threads at runtime unlike the normal FLAG_-like flags which are not modified
-// after V8 instance is initialized.
-
-struct TracingFlags {
-  static V8_EXPORT_PRIVATE std::atomic_uint runtime_stats;
-  static V8_EXPORT_PRIVATE std::atomic_uint gc;
-  static V8_EXPORT_PRIVATE std::atomic_uint gc_stats;
-  static V8_EXPORT_PRIVATE std::atomic_uint ic_stats;
-
-  static bool is_runtime_stats_enabled() {
-    return runtime_stats.load(std::memory_order_relaxed) != 0;
-  }
-
-  static bool is_gc_enabled() {
-    return gc.load(std::memory_order_relaxed) != 0;
-  }
-
-  static bool is_gc_stats_enabled() {
-    return gc_stats.load(std::memory_order_relaxed) != 0;
-  }
-
-  static bool is_ic_stats_enabled() {
-    return ic_stats.load(std::memory_order_relaxed) != 0;
-  }
-};
 
 // StatsCounters is an interface for plugging into external
 // counters for monitoring.  Counters can be looked up and

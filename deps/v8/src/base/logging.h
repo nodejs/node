@@ -134,6 +134,12 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 
 #endif
 
+#if V8_HAS_CXX14_CONSTEXPR
+#define CONSTEXPR_DCHECK(cond) DCHECK(cond)
+#else
+#define CONSTEXPR_DCHECK(cond)
+#endif
+
 // Define PrintCheckOperand<T> for each T which defines operator<< for ostream.
 template <typename T>
 typename std::enable_if<

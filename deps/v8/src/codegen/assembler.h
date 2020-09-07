@@ -78,10 +78,16 @@ class JumpOptimizationInfo {
  public:
   bool is_collecting() const { return stage_ == kCollection; }
   bool is_optimizing() const { return stage_ == kOptimization; }
-  void set_optimizing() { stage_ = kOptimization; }
+  void set_optimizing() {
+    DCHECK(is_optimizable());
+    stage_ = kOptimization;
+  }
 
   bool is_optimizable() const { return optimizable_; }
-  void set_optimizable() { optimizable_ = true; }
+  void set_optimizable() {
+    DCHECK(is_collecting());
+    optimizable_ = true;
+  }
 
   // Used to verify the instruction sequence is always the same in two stages.
   size_t hash_code() const { return hash_code_; }

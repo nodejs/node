@@ -235,10 +235,14 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 // static
 Handle<FeedbackVector> FeedbackVector::New(
     Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array) {
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    IsCompiledScope* is_compiled_scope) {
+  DCHECK(is_compiled_scope->is_compiled());
   Factory* factory = isolate->factory();
 
-  const int slot_count = shared->feedback_metadata().slot_count();
+  Handle<FeedbackMetadata> feedback_metadata(shared->feedback_metadata(),
+                                             isolate);
+  const int slot_count = feedback_metadata->slot_count();
 
   Handle<FeedbackVector> vector =
       factory->NewFeedbackVector(shared, closure_feedback_cell_array);
@@ -260,7 +264,7 @@ Handle<FeedbackVector> FeedbackVector::New(
             *uninitialized_sentinel);
   for (int i = 0; i < slot_count;) {
     FeedbackSlot slot(i);
-    FeedbackSlotKind kind = shared->feedback_metadata().GetKind(slot);
+    FeedbackSlotKind kind = feedback_metadata->GetKind(slot);
     int index = FeedbackVector::GetIndex(slot);
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
 
@@ -318,6 +322,43 @@ Handle<FeedbackVector> FeedbackVector::New(
     AddToVectorsForProfilingTools(isolate, result);
   }
   return result;
+}
+
+namespace {
+
+Handle<FeedbackVector> NewFeedbackVectorForTesting(
+    Isolate* isolate, const FeedbackVectorSpec* spec) {
+  Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForBuiltin(
+          isolate->factory()->empty_string(), Builtins::kIllegal);
+  // Set the raw feedback metadata to circumvent checks that we are not
+  // overwriting existing metadata.
+  shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
+  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+      ClosureFeedbackCellArray::New(isolate, shared);
+
+  IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
+                             &is_compiled_scope);
+}
+
+}  // namespace
+
+// static
+Handle<FeedbackVector> FeedbackVector::NewWithOneBinarySlotForTesting(
+    Zone* zone, Isolate* isolate) {
+  FeedbackVectorSpec one_slot(zone);
+  one_slot.AddBinaryOpICSlot();
+  return NewFeedbackVectorForTesting(isolate, &one_slot);
+}
+
+// static
+Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
+    Zone* zone, Isolate* isolate) {
+  FeedbackVectorSpec one_slot(zone);
+  one_slot.AddCompareICSlot();
+  return NewFeedbackVectorForTesting(isolate, &one_slot);
 }
 
 // static

@@ -1707,8 +1707,6 @@ using Instr = uint32_t;
   V(stvewx, STVEWX, 0x7C00018E)                                               \
   /* Store Vector Indexed Last */                                             \
   V(stvxl, STVXL, 0x7C0003CE)                                                 \
-  /* Vector Minimum Signed Doubleword */                                      \
-  V(vminsd, VMINSD, 0x100003C2)                                               \
   /* Floating Merge Even Word */                                              \
   V(fmrgew, FMRGEW, 0xFC00078C)                                               \
   /* Floating Merge Odd Word */                                               \
@@ -1920,7 +1918,15 @@ using Instr = uint32_t;
   /* Floating Reciprocal Square Root Estimate Single */ \
   V(frsqrtes, FRSQRTES, 0xEC000034)
 
-#define PPC_VA_OPCODE_LIST(V)                                    \
+#define PPC_VA_OPCODE_A_FORM_LIST(V)                     \
+  /* Vector Permute */                                   \
+  V(vperm, VPERM, 0x1000002B)                            \
+  /* Vector Multiply-Low-Add Unsigned Halfword Modulo */ \
+  V(vmladduhm, VMLADDUHM, 0x10000022)                    \
+  /* Vector Select */                                    \
+  V(vsel, VSEL, 0x1000002A)
+
+#define PPC_VA_OPCODE_UNUSED_LIST(V)                             \
   /* Vector Add Extended & write Carry Unsigned Quadword */      \
   V(vaddecuq, VADDECUQ, 0x1000003D)                              \
   /* Vector Add Extended Unsigned Quadword Modulo */             \
@@ -1931,8 +1937,6 @@ using Instr = uint32_t;
   V(vmhaddshs, VMHADDSHS, 0x10000020)                            \
   /* Vector Multiply-High-Round-Add Signed Halfword Saturate */  \
   V(vmhraddshs, VMHRADDSHS, 0x10000021)                          \
-  /* Vector Multiply-Low-Add Unsigned Halfword Modulo */         \
-  V(vmladduhm, VMLADDUHM, 0x10000022)                            \
   /* Vector Multiply-Sum Mixed Byte Modulo */                    \
   V(vmsummbm, VMSUMMBM, 0x10000025)                              \
   /* Vector Multiply-Sum Signed Halfword Modulo */               \
@@ -1947,10 +1951,6 @@ using Instr = uint32_t;
   V(vmsumuhs, VMSUMUHS, 0x10000027)                              \
   /* Vector Negative Multiply-Subtract Single-Precision */       \
   V(vnmsubfp, VNMSUBFP, 0x1000002F)                              \
-  /* Vector Permute */                                           \
-  V(vperm, VPERM, 0x1000002B)                                    \
-  /* Vector Select */                                            \
-  V(vsel, VSEL, 0x1000002A)                                      \
   /* Vector Shift Left Double by Octet Immediate */              \
   V(vsldoi, VSLDOI, 0x1000002C)                                  \
   /* Vector Subtract Extended & write Carry Unsigned Quadword */ \
@@ -1959,6 +1959,10 @@ using Instr = uint32_t;
   V(vsubeuqm, VSUBEUQM, 0x1000003E)                              \
   /* Vector Permute and Exclusive-OR */                          \
   V(vpermxor, VPERMXOR, 0x1000002D)
+
+#define PPC_VA_OPCODE_LIST(V)  \
+  PPC_VA_OPCODE_A_FORM_LIST(V) \
+  PPC_VA_OPCODE_UNUSED_LIST(V)
 
 #define PPC_XX1_OPCODE_LIST(V)                            \
   /* Load VSR Scalar Doubleword Indexed */                \
@@ -2200,6 +2204,112 @@ using Instr = uint32_t;
   /* Vector Splat Halfword */        \
   V(vsplth, VSPLTH, 0x1000024C)
 
+#define PPC_VX_OPCODE_B_FORM_LIST(V)                       \
+  /* Vector Logical OR */                                  \
+  V(vor, VOR, 0x10000484)                                  \
+  /* Vector Logical XOR */                                 \
+  V(vxor, VXOR, 0x100004C4)                                \
+  /* Vector Logical NOR */                                 \
+  V(vnor, VNOR, 0x10000504)                                \
+  /* Vector Shift Right by Octet */                        \
+  V(vsro, VSRO, 0x1000044C)                                \
+  /* Vector Shift Left by Octet */                         \
+  V(vslo, VSLO, 0x1000040C)                                \
+  /* Vector Add Unsigned Doubleword Modulo */              \
+  V(vaddudm, VADDUDM, 0x100000C0)                          \
+  /* Vector Add Unsigned Word Modulo */                    \
+  V(vadduwm, VADDUWM, 0x10000080)                          \
+  /* Vector Add Unsigned Halfword Modulo */                \
+  V(vadduhm, VADDUHM, 0x10000040)                          \
+  /* Vector Add Unsigned Byte Modulo */                    \
+  V(vaddubm, VADDUBM, 0x10000000)                          \
+  /* Vector Add Single-Precision */                        \
+  V(vaddfp, VADDFP, 0x1000000A)                            \
+  /* Vector Subtract Single-Precision */                   \
+  V(vsubfp, VSUBFP, 0x1000004A)                            \
+  /* Vector Subtract Unsigned Doubleword Modulo */         \
+  V(vsubudm, VSUBUDM, 0x100004C0)                          \
+  /* Vector Subtract Unsigned Word Modulo */               \
+  V(vsubuwm, VSUBUWM, 0x10000480)                          \
+  /* Vector Subtract Unsigned Halfword Modulo */           \
+  V(vsubuhm, VSUBUHM, 0x10000440)                          \
+  /* Vector Subtract Unsigned Byte Modulo */               \
+  V(vsububm, VSUBUBM, 0x10000400)                          \
+  /* Vector Multiply Unsigned Word Modulo */               \
+  V(vmuluwm, VMULUWM, 0x10000089)                          \
+  /* Vector Pack Unsigned Halfword Unsigned Modulo */      \
+  V(vpkuhum, VPKUHUM, 0x1000000E)                          \
+  /* Vector Multiply Even Unsigned Byte */                 \
+  V(vmuleub, VMULEUB, 0x10000208)                          \
+  /* Vector Multiply Odd Unsigned Byte */                  \
+  V(vmuloub, VMULOUB, 0x10000008)                          \
+  /* Vector Sum across Quarter Signed Halfword Saturate */ \
+  V(vsum4shs, VSUM4SHS, 0x10000648)                        \
+  /* Vector Pack Unsigned Word Unsigned Saturate */        \
+  V(vpkuwus, VPKUWUS, 0x100000CE)                          \
+  /* Vector Sum across Half Signed Word Saturate */        \
+  V(vsum2sws, VSUM2SWS, 0x10000688)                        \
+  /* Vector Pack Unsigned Doubleword Unsigned Modulo */    \
+  V(vpkudum, VPKUDUM, 0x1000044E)                          \
+  /* Vector Maximum Signed Byte */                         \
+  V(vmaxsb, VMAXSB, 0x10000102)                            \
+  /* Vector Maximum Unsigned Byte */                       \
+  V(vmaxub, VMAXUB, 0x10000002)                            \
+  /* Vector Maximum Signed Doubleword */                   \
+  V(vmaxsd, VMAXSD, 0x100001C2)                            \
+  /* Vector Maximum Unsigned Doubleword */                 \
+  V(vmaxud, VMAXUD, 0x100000C2)                            \
+  /* Vector Maximum Signed Halfword */                     \
+  V(vmaxsh, VMAXSH, 0x10000142)                            \
+  /* Vector Maximum Unsigned Halfword */                   \
+  V(vmaxuh, VMAXUH, 0x10000042)                            \
+  /* Vector Maximum Signed Word */                         \
+  V(vmaxsw, VMAXSW, 0x10000182)                            \
+  /* Vector Maximum Unsigned Word */                       \
+  V(vmaxuw, VMAXUW, 0x10000082)                            \
+  /* Vector Minimum Signed Byte */                         \
+  V(vminsb, VMINSB, 0x10000302)                            \
+  /* Vector Minimum Unsigned Byte */                       \
+  V(vminub, VMINUB, 0x10000202)                            \
+  /* Vector Minimum Signed Doubleword */                   \
+  V(vminsd, VMINSD, 0x100003C2)                            \
+  /* Vector Minimum Unsigned Doubleword */                 \
+  V(vminud, VMINUD, 0x100002C2)                            \
+  /* Vector Minimum Signed Halfword */                     \
+  V(vminsh, VMINSH, 0x10000342)                            \
+  /* Vector Minimum Unsigned Halfword */                   \
+  V(vminuh, VMINUH, 0x10000242)                            \
+  /* Vector Minimum Signed Word */                         \
+  V(vminsw, VMINSW, 0x10000382)                            \
+  /* Vector Minimum Unsigned Word */                       \
+  V(vminuw, VMINUW, 0x10000282)                            \
+  /* Vector Shift Left Byte */                             \
+  V(vslb, VSLB, 0x10000104)                                \
+  /* Vector Shift Left Word */                             \
+  V(vslw, VSLW, 0x10000184)                                \
+  /* Vector Shift Left Halfword */                         \
+  V(vslh, VSLH, 0x10000144)                                \
+  /* Vector Shift Left Doubleword */                       \
+  V(vsld, VSLD, 0x100005C4)                                \
+  /* Vector Shift Right Byte */                            \
+  V(vsrb, VSRB, 0x10000204)                                \
+  /* Vector Shift Right Word */                            \
+  V(vsrw, VSRW, 0x10000284)                                \
+  /* Vector Shift Right Halfword */                        \
+  V(vsrh, VSRH, 0x10000244)                                \
+  /* Vector Shift Right Doubleword */                      \
+  V(vsrd, VSRD, 0x100006C4)                                \
+  /* Vector Shift Right Algebraic Byte */                  \
+  V(vsrab, VSRAB, 0x10000304)                              \
+  /* Vector Shift Right Algebraic Word */                  \
+  V(vsraw, VSRAW, 0x10000384)                              \
+  /* Vector Shift Right Algebraic Halfword */              \
+  V(vsrah, VSRAH, 0x10000344)                              \
+  /* Vector Shift Right Algebraic Doubleword */            \
+  V(vsrad, VSRAD, 0x100003C4)                              \
+  /* Vector Logical AND */                                 \
+  V(vand, VAND, 0x10000404)
+
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
   V(bcdadd, BCDADD, 0xF0000400)                                           \
@@ -2213,32 +2323,20 @@ using Instr = uint32_t;
   V(vaddcuq, VADDCUQ, 0x10000140)                                         \
   /* Vector Add and Write Carry-Out Unsigned Word */                      \
   V(vaddcuw, VADDCUW, 0x10000180)                                         \
-  /* Vector Add Single-Precision */                                       \
-  V(vaddfp, VADDFP, 0x1000000A)                                           \
   /* Vector Add Signed Byte Saturate */                                   \
   V(vaddsbs, VADDSBS, 0x10000300)                                         \
   /* Vector Add Signed Halfword Saturate */                               \
   V(vaddshs, VADDSHS, 0x10000340)                                         \
   /* Vector Add Signed Word Saturate */                                   \
   V(vaddsws, VADDSWS, 0x10000380)                                         \
-  /* Vector Add Unsigned Byte Modulo */                                   \
-  V(vaddubm, VADDUBM, 0x10000000)                                         \
   /* Vector Add Unsigned Byte Saturate */                                 \
   V(vaddubs, VADDUBS, 0x10000200)                                         \
-  /* Vector Add Unsigned Doubleword Modulo */                             \
-  V(vaddudm, VADDUDM, 0x100000C0)                                         \
-  /* Vector Add Unsigned Halfword Modulo */                               \
-  V(vadduhm, VADDUHM, 0x10000040)                                         \
   /* Vector Add Unsigned Halfword Saturate */                             \
   V(vadduhs, VADDUHS, 0x10000240)                                         \
   /* Vector Add Unsigned Quadword Modulo */                               \
   V(vadduqm, VADDUQM, 0x10000100)                                         \
-  /* Vector Add Unsigned Word Modulo */                                   \
-  V(vadduwm, VADDUWM, 0x10000080)                                         \
   /* Vector Add Unsigned Word Saturate */                                 \
   V(vadduws, VADDUWS, 0x10000280)                                         \
-  /* Vector Logical AND */                                                \
-  V(vand, VAND, 0x10000404)                                               \
   /* Vector Logical AND with Complement */                                \
   V(vandc, VANDC, 0x10000444)                                             \
   /* Vector Average Signed Byte */                                        \
@@ -2283,38 +2381,8 @@ using Instr = uint32_t;
   V(vlogefp, VLOGEFP, 0x100001CA)                                         \
   /* Vector Maximum Single-Precision */                                   \
   V(vmaxfp, VMAXFP, 0x1000040A)                                           \
-  /* Vector Maximum Signed Byte */                                        \
-  V(vmaxsb, VMAXSB, 0x10000102)                                           \
-  /* Vector Maximum Signed Doubleword */                                  \
-  V(vmaxsd, VMAXSD, 0x100001C2)                                           \
-  /* Vector Maximum Signed Halfword */                                    \
-  V(vmaxsh, VMAXSH, 0x10000142)                                           \
-  /* Vector Maximum Signed Word */                                        \
-  V(vmaxsw, VMAXSW, 0x10000182)                                           \
-  /* Vector Maximum Unsigned Byte */                                      \
-  V(vmaxub, VMAXUB, 0x10000002)                                           \
-  /* Vector Maximum Unsigned Doubleword */                                \
-  V(vmaxud, VMAXUD, 0x100000C2)                                           \
-  /* Vector Maximum Unsigned Halfword */                                  \
-  V(vmaxuh, VMAXUH, 0x10000042)                                           \
-  /* Vector Maximum Unsigned Word */                                      \
-  V(vmaxuw, VMAXUW, 0x10000082)                                           \
   /* Vector Minimum Single-Precision */                                   \
   V(vminfp, VMINFP, 0x1000044A)                                           \
-  /* Vector Minimum Signed Byte */                                        \
-  V(vminsb, VMINSB, 0x10000302)                                           \
-  /* Vector Minimum Signed Halfword */                                    \
-  V(vminsh, VMINSH, 0x10000342)                                           \
-  /* Vector Minimum Signed Word */                                        \
-  V(vminsw, VMINSW, 0x10000382)                                           \
-  /* Vector Minimum Unsigned Byte */                                      \
-  V(vminub, VMINUB, 0x10000202)                                           \
-  /* Vector Minimum Unsigned Doubleword */                                \
-  V(vminud, VMINUD, 0x100002C2)                                           \
-  /* Vector Minimum Unsigned Halfword */                                  \
-  V(vminuh, VMINUH, 0x10000242)                                           \
-  /* Vector Minimum Unsigned Word */                                      \
-  V(vminuw, VMINUW, 0x10000282)                                           \
   /* Vector Merge High Byte */                                            \
   V(vmrghb, VMRGHB, 0x1000000C)                                           \
   /* Vector Merge High Halfword */                                        \
@@ -2333,8 +2401,6 @@ using Instr = uint32_t;
   V(vmulesh, VMULESH, 0x10000348)                                         \
   /* Vector Multiply Even Signed Word */                                  \
   V(vmulesw, VMULESW, 0x10000388)                                         \
-  /* Vector Multiply Even Unsigned Byte */                                \
-  V(vmuleub, VMULEUB, 0x10000208)                                         \
   /* Vector Multiply Even Unsigned Halfword */                            \
   V(vmuleuh, VMULEUH, 0x10000248)                                         \
   /* Vector Multiply Even Unsigned Word */                                \
@@ -2345,20 +2411,12 @@ using Instr = uint32_t;
   V(vmulosh, VMULOSH, 0x10000148)                                         \
   /* Vector Multiply Odd Signed Word */                                   \
   V(vmulosw, VMULOSW, 0x10000188)                                         \
-  /* Vector Multiply Odd Unsigned Byte */                                 \
-  V(vmuloub, VMULOUB, 0x10000008)                                         \
   /* Vector Multiply Odd Unsigned Halfword */                             \
   V(vmulouh, VMULOUH, 0x10000048)                                         \
   /* Vector Multiply Odd Unsigned Word */                                 \
   V(vmulouw, VMULOUW, 0x10000088)                                         \
-  /* Vector Multiply Unsigned Word Modulo */                              \
-  V(vmuluwm, VMULUWM, 0x10000089)                                         \
   /* Vector NAND */                                                       \
   V(vnand, VNAND, 0x10000584)                                             \
-  /* Vector Logical NOR */                                                \
-  V(vnor, VNOR, 0x10000504)                                               \
-  /* Vector Logical OR */                                                 \
-  V(vor, VOR, 0x10000484)                                                 \
   /* Vector OR with Complement */                                         \
   V(vorc, VORC, 0x10000544)                                               \
   /* Vector Pack Pixel */                                                 \
@@ -2375,18 +2433,12 @@ using Instr = uint32_t;
   V(vpkswss, VPKSWSS, 0x100001CE)                                         \
   /* Vector Pack Signed Word Unsigned Saturate */                         \
   V(vpkswus, VPKSWUS, 0x1000014E)                                         \
-  /* Vector Pack Unsigned Doubleword Unsigned Modulo */                   \
-  V(vpkudum, VPKUDUM, 0x1000044E)                                         \
   /* Vector Pack Unsigned Doubleword Unsigned Saturate */                 \
   V(vpkudus, VPKUDUS, 0x100004CE)                                         \
-  /* Vector Pack Unsigned Halfword Unsigned Modulo */                     \
-  V(vpkuhum, VPKUHUM, 0x1000000E)                                         \
   /* Vector Pack Unsigned Halfword Unsigned Saturate */                   \
   V(vpkuhus, VPKUHUS, 0x1000008E)                                         \
   /* Vector Pack Unsigned Word Unsigned Modulo */                         \
   V(vpkuwum, VPKUWUM, 0x1000004E)                                         \
-  /* Vector Pack Unsigned Word Unsigned Saturate */                       \
-  V(vpkuwus, VPKUWUS, 0x100000CE)                                         \
   /* Vector Polynomial Multiply-Sum Byte */                               \
   V(vpmsumb, VPMSUMB, 0x10000408)                                         \
   /* Vector Polynomial Multiply-Sum Doubleword */                         \
@@ -2425,16 +2477,6 @@ using Instr = uint32_t;
   V(vrsqrtefp, VRSQRTEFP, 0x1000014A)                                     \
   /* Vector Shift Left */                                                 \
   V(vsl, VSL, 0x100001C4)                                                 \
-  /* Vector Shift Left Byte */                                            \
-  V(vslb, VSLB, 0x10000104)                                               \
-  /* Vector Shift Left Doubleword */                                      \
-  V(vsld, VSLD, 0x100005C4)                                               \
-  /* Vector Shift Left Halfword */                                        \
-  V(vslh, VSLH, 0x10000144)                                               \
-  /* Vector Shift Left by Octet */                                        \
-  V(vslo, VSLO, 0x1000040C)                                               \
-  /* Vector Shift Left Word */                                            \
-  V(vslw, VSLW, 0x10000184)                                               \
   /* Vector Splat Immediate Signed Byte */                                \
   V(vspltisb, VSPLTISB, 0x1000030C)                                       \
   /* Vector Splat Immediate Signed Halfword */                            \
@@ -2443,58 +2485,26 @@ using Instr = uint32_t;
   V(vspltisw, VSPLTISW, 0x1000038C)                                       \
   /* Vector Shift Right */                                                \
   V(vsr, VSR, 0x100002C4)                                                 \
-  /* Vector Shift Right Algebraic Byte */                                 \
-  V(vsrab, VSRAB, 0x10000304)                                             \
-  /* Vector Shift Right Algebraic Doubleword */                           \
-  V(vsrad, VSRAD, 0x100003C4)                                             \
-  /* Vector Shift Right Algebraic Halfword */                             \
-  V(vsrah, VSRAH, 0x10000344)                                             \
-  /* Vector Shift Right Algebraic Word */                                 \
-  V(vsraw, VSRAW, 0x10000384)                                             \
-  /* Vector Shift Right Byte */                                           \
-  V(vsrb, VSRB, 0x10000204)                                               \
-  /* Vector Shift Right Doubleword */                                     \
-  V(vsrd, VSRD, 0x100006C4)                                               \
-  /* Vector Shift Right Halfword */                                       \
-  V(vsrh, VSRH, 0x10000244)                                               \
-  /* Vector Shift Right by Octet */                                       \
-  V(vsro, VSRO, 0x1000044C)                                               \
-  /* Vector Shift Right Word */                                           \
-  V(vsrw, VSRW, 0x10000284)                                               \
   /* Vector Subtract & write Carry Unsigned Quadword */                   \
   V(vsubcuq, VSUBCUQ, 0x10000540)                                         \
   /* Vector Subtract and Write Carry-Out Unsigned Word */                 \
   V(vsubcuw, VSUBCUW, 0x10000580)                                         \
-  /* Vector Subtract Single-Precision */                                  \
-  V(vsubfp, VSUBFP, 0x1000004A)                                           \
   /* Vector Subtract Signed Byte Saturate */                              \
   V(vsubsbs, VSUBSBS, 0x10000700)                                         \
   /* Vector Subtract Signed Halfword Saturate */                          \
   V(vsubshs, VSUBSHS, 0x10000740)                                         \
   /* Vector Subtract Signed Word Saturate */                              \
   V(vsubsws, VSUBSWS, 0x10000780)                                         \
-  /* Vector Subtract Unsigned Byte Modulo */                              \
-  V(vsububm, VSUBUBM, 0x10000400)                                         \
   /* Vector Subtract Unsigned Byte Saturate */                            \
   V(vsububs, VSUBUBS, 0x10000600)                                         \
-  /* Vector Subtract Unsigned Doubleword Modulo */                        \
-  V(vsubudm, VSUBUDM, 0x100004C0)                                         \
-  /* Vector Subtract Unsigned Halfword Modulo */                          \
-  V(vsubuhm, VSUBUHM, 0x10000440)                                         \
   /* Vector Subtract Unsigned Halfword Saturate */                        \
   V(vsubuhs, VSUBUHS, 0x10000640)                                         \
   /* Vector Subtract Unsigned Quadword Modulo */                          \
   V(vsubuqm, VSUBUQM, 0x10000500)                                         \
-  /* Vector Subtract Unsigned Word Modulo */                              \
-  V(vsubuwm, VSUBUWM, 0x10000480)                                         \
   /* Vector Subtract Unsigned Word Saturate */                            \
   V(vsubuws, VSUBUWS, 0x10000680)                                         \
-  /* Vector Sum across Half Signed Word Saturate */                       \
-  V(vsum2sws, VSUM2SWS, 0x10000688)                                       \
   /* Vector Sum across Quarter Signed Byte Saturate */                    \
   V(vsum4sbs, VSUM4SBS, 0x10000708)                                       \
-  /* Vector Sum across Quarter Signed Halfword Saturate */                \
-  V(vsum4shs, VSUM4SHS, 0x10000648)                                       \
   /* Vector Sum across Quarter Unsigned Byte Saturate */                  \
   V(vsum4bus, VSUM4BUS, 0x10000608)                                       \
   /* Vector Sum across Signed Word Saturate */                            \
@@ -2515,8 +2525,6 @@ using Instr = uint32_t;
   V(vupklsh, VUPKLSH, 0x100002CE)                                         \
   /* Vector Unpack Low Signed Word */                                     \
   V(vupklsw, VUPKLSW, 0x100006CE)                                         \
-  /* Vector Logical XOR */                                                \
-  V(vxor, VXOR, 0x100004C4)                                               \
   /* Vector AES Cipher */                                                 \
   V(vcipher, VCIPHER, 0x10000508)                                         \
   /* Vector AES Cipher Last */                                            \
@@ -2538,6 +2546,7 @@ using Instr = uint32_t;
 
 #define PPC_VX_OPCODE_LIST(V)  \
   PPC_VX_OPCODE_A_FORM_LIST(V) \
+  PPC_VX_OPCODE_B_FORM_LIST(V) \
   PPC_VX_OPCODE_UNUSED_LIST(V)
 
 #define PPC_XS_OPCODE_LIST(V)                      \

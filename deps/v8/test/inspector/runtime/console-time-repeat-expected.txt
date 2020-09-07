@@ -13,10 +13,10 @@ Checks that repeated console.time do not reset
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }
@@ -30,7 +30,7 @@ Checks that repeated console.time do not reset
         args : [
             [0] : {
                 type : string
-                value : a: 2ms
+                value : a: 2 ms
             }
         ]
         executionContextId : <executionContextId>
@@ -38,10 +38,10 @@ Checks that repeated console.time do not reset
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }
@@ -63,10 +63,10 @@ Checks that repeated console.time do not reset
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }

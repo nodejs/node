@@ -339,6 +339,10 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(F64x2Qfms, Operator::kNoProperties, 3, 0, 1)                           \
   V(F64x2Pmin, Operator::kNoProperties, 2, 0, 1)                           \
   V(F64x2Pmax, Operator::kNoProperties, 2, 0, 1)                           \
+  V(F64x2Ceil, Operator::kNoProperties, 1, 0, 1)                           \
+  V(F64x2Floor, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F64x2Trunc, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F64x2NearestInt, Operator::kNoProperties, 1, 0, 1)                     \
   V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
@@ -362,6 +366,10 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(F32x4Qfms, Operator::kNoProperties, 3, 0, 1)                           \
   V(F32x4Pmin, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x4Pmax, Operator::kNoProperties, 2, 0, 1)                           \
+  V(F32x4Ceil, Operator::kNoProperties, 1, 0, 1)                           \
+  V(F32x4Floor, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F32x4Trunc, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F32x4NearestInt, Operator::kNoProperties, 1, 0, 1)                     \
   V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)                   \
   V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                            \
@@ -408,6 +416,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I32x4GeU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I32x4Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(I32x4BitMask, Operator::kNoProperties, 1, 0, 1)                        \
+  V(I32x4DotI16x8S, Operator::kCommutative, 2, 0, 1)                       \
   V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
@@ -476,14 +485,14 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(S128Not, Operator::kNoProperties, 1, 0, 1)                             \
   V(S128Select, Operator::kNoProperties, 3, 0, 1)                          \
   V(S128AndNot, Operator::kNoProperties, 2, 0, 1)                          \
-  V(S1x2AnyTrue, Operator::kNoProperties, 1, 0, 1)                         \
-  V(S1x2AllTrue, Operator::kNoProperties, 1, 0, 1)                         \
-  V(S1x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                         \
-  V(S1x4AllTrue, Operator::kNoProperties, 1, 0, 1)                         \
-  V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                         \
-  V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                         \
-  V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V64x2AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V64x2AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V32x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V32x4AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V16x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V16x8AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V8x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V8x16AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(S8x16Swizzle, Operator::kNoProperties, 2, 0, 1)
 
 // The format is:

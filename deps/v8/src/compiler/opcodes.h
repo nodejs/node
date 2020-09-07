@@ -85,29 +85,30 @@
   V(StaticAssert)
 
 // Opcodes for JavaScript operators.
-#define JS_COMPARE_BINOP_LIST(V) \
-  V(JSEqual)                     \
-  V(JSStrictEqual)               \
-  V(JSLessThan)                  \
-  V(JSGreaterThan)               \
-  V(JSLessThanOrEqual)           \
-  V(JSGreaterThanOrEqual)
+// Arguments are JSName (the name with a 'JS' prefix), and Name.
+#define JS_COMPARE_BINOP_LIST(V)        \
+  V(JSEqual, Equal)                     \
+  V(JSStrictEqual, StrictEqual)         \
+  V(JSLessThan, LessThan)               \
+  V(JSGreaterThan, GreaterThan)         \
+  V(JSLessThanOrEqual, LessThanOrEqual) \
+  V(JSGreaterThanOrEqual, GreaterThanOrEqual)
 
 #define JS_BITWISE_BINOP_LIST(V) \
-  V(JSBitwiseOr)                 \
-  V(JSBitwiseXor)                \
-  V(JSBitwiseAnd)                \
-  V(JSShiftLeft)                 \
-  V(JSShiftRight)                \
-  V(JSShiftRightLogical)
+  V(JSBitwiseOr, BitwiseOr)      \
+  V(JSBitwiseXor, BitwiseXor)    \
+  V(JSBitwiseAnd, BitwiseAnd)    \
+  V(JSShiftLeft, ShiftLeft)      \
+  V(JSShiftRight, ShiftRight)    \
+  V(JSShiftRightLogical, ShiftRightLogical)
 
 #define JS_ARITH_BINOP_LIST(V) \
-  V(JSAdd)                     \
-  V(JSSubtract)                \
-  V(JSMultiply)                \
-  V(JSDivide)                  \
-  V(JSModulus)                 \
-  V(JSExponentiate)
+  V(JSAdd, Add)                \
+  V(JSSubtract, Subtract)      \
+  V(JSMultiply, Multiply)      \
+  V(JSDivide, Divide)          \
+  V(JSModulus, Modulus)        \
+  V(JSExponentiate, Exponentiate)
 
 #define JS_SIMPLE_BINOP_LIST(V) \
   JS_COMPARE_BINOP_LIST(V)      \
@@ -127,12 +128,18 @@
   V(JSToString)                    \
   V(JSParseInt)
 
+#define JS_BITWISE_UNOP_LIST(V) \
+  V(JSBitwiseNot, BitwiseNot)   \
+  V(JSNegate, Negate)
+
+#define JS_ARITH_UNOP_LIST(V) \
+  V(JSDecrement, Decrement)   \
+  V(JSIncrement, Increment)
+
 #define JS_SIMPLE_UNOP_LIST(V) \
-  JS_CONVERSION_UNOP_LIST(V)   \
-  V(JSBitwiseNot)              \
-  V(JSDecrement)               \
-  V(JSIncrement)               \
-  V(JSNegate)
+  JS_ARITH_UNOP_LIST(V)        \
+  JS_BITWISE_UNOP_LIST(V)      \
+  JS_CONVERSION_UNOP_LIST(V)
 
 #define JS_CREATE_OP_LIST(V)     \
   V(JSCloneObject)               \
@@ -765,6 +772,10 @@
   V(F64x2Qfms)                  \
   V(F64x2Pmin)                  \
   V(F64x2Pmax)                  \
+  V(F64x2Ceil)                  \
+  V(F64x2Floor)                 \
+  V(F64x2Trunc)                 \
+  V(F64x2NearestInt)            \
   V(F32x4Splat)                 \
   V(F32x4ExtractLane)           \
   V(F32x4ReplaceLane)           \
@@ -792,6 +803,10 @@
   V(F32x4Qfms)                  \
   V(F32x4Pmin)                  \
   V(F32x4Pmax)                  \
+  V(F32x4Ceil)                  \
+  V(F32x4Floor)                 \
+  V(F32x4Trunc)                 \
+  V(F32x4NearestInt)            \
   V(I64x2Splat)                 \
   V(I64x2SplatI32Pair)          \
   V(I64x2ExtractLane)           \
@@ -847,6 +862,7 @@
   V(I32x4GeU)                   \
   V(I32x4Abs)                   \
   V(I32x4BitMask)               \
+  V(I32x4DotI16x8S)             \
   V(I16x8Splat)                 \
   V(I16x8ExtractLaneU)          \
   V(I16x8ExtractLaneS)          \
@@ -931,14 +947,14 @@
   V(S128AndNot)                 \
   V(S8x16Swizzle)               \
   V(S8x16Shuffle)               \
-  V(S1x2AnyTrue)                \
-  V(S1x2AllTrue)                \
-  V(S1x4AnyTrue)                \
-  V(S1x4AllTrue)                \
-  V(S1x8AnyTrue)                \
-  V(S1x8AllTrue)                \
-  V(S1x16AnyTrue)               \
-  V(S1x16AllTrue)               \
+  V(V64x2AnyTrue)               \
+  V(V64x2AllTrue)               \
+  V(V32x4AnyTrue)               \
+  V(V32x4AllTrue)               \
+  V(V16x8AnyTrue)               \
+  V(V16x8AllTrue)               \
+  V(V8x16AnyTrue)               \
+  V(V8x16AllTrue)               \
   V(LoadTransform)
 
 #define VALUE_OP_LIST(V)  \
@@ -962,12 +978,12 @@ namespace compiler {
 class V8_EXPORT_PRIVATE IrOpcode {
  public:
   enum Value {
-#define DECLARE_OPCODE(x) k##x,
+#define DECLARE_OPCODE(x, ...) k##x,
     ALL_OP_LIST(DECLARE_OPCODE)
 #undef DECLARE_OPCODE
-    kLast = -1
-#define COUNT_OPCODE(x) +1
-            ALL_OP_LIST(COUNT_OPCODE)
+        kLast = -1
+#define COUNT_OPCODE(...) +1
+                ALL_OP_LIST(COUNT_OPCODE)
 #undef COUNT_OPCODE
   };
 
@@ -991,7 +1007,16 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode for constant operator.
   static bool IsConstantOpcode(Value value) {
-    return kInt32Constant <= value && value <= kRelocatableInt64Constant;
+#define CASE(Name) \
+  case k##Name:    \
+    return true;
+    switch (value) {
+      CONSTANT_OP_LIST(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+    UNREACHABLE();
   }
 
   static bool IsPhiOpcode(Value value) {
@@ -1006,8 +1031,9 @@ class V8_EXPORT_PRIVATE IrOpcode {
     return kIfTrue <= value && value <= kIfDefault;
   }
 
-  // Returns true if opcode terminates control flow in a graph (i.e. respective
-  // nodes are expected to have control uses by the graphs {End} node only).
+  // Returns true if opcode terminates control flow in a graph (i.e.
+  // respective nodes are expected to have control uses by the graphs {End}
+  // node only).
   static bool IsGraphTerminator(Value value) {
     return value == kDeoptimize || value == kReturn || value == kTailCall ||
            value == kTerminate || value == kThrow;
@@ -1020,9 +1046,18 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode for comparison operator.
   static bool IsComparisonOpcode(Value value) {
-    return (kJSEqual <= value && value <= kJSGreaterThanOrEqual) ||
-           (kNumberEqual <= value && value <= kStringLessThanOrEqual) ||
-           (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return true;
+    switch (value) {
+      JS_COMPARE_BINOP_LIST(CASE);
+      SIMPLIFIED_COMPARE_BINOP_LIST(CASE);
+      MACHINE_COMPARE_BINOP_LIST(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+    UNREACHABLE();
   }
 
   static bool IsContextChainExtendingOpcode(Value value) {

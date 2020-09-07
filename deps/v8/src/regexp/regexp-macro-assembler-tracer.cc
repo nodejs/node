@@ -352,11 +352,11 @@ void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,
 }
 
 void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_no_match) {
-  PrintF(" CheckNotBackReferenceIgnoreCase(register=%d, %s, label[%08x]);\n",
+    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
+  PrintF(" CheckNotBackReferenceIgnoreCase(register=%d, %s %s, label[%08x]);\n",
          start_reg, read_backward ? "backward" : "forward",
-         LabelToInt(on_no_match));
-  assembler_->CheckNotBackReferenceIgnoreCase(start_reg, read_backward,
+         unicode ? "unicode" : "non-unicode", LabelToInt(on_no_match));
+  assembler_->CheckNotBackReferenceIgnoreCase(start_reg, read_backward, unicode,
                                               on_no_match);
 }
 

@@ -130,6 +130,88 @@ TEST(NativeContextStatsExternalString) {
   CHECK_EQ(10 + 10 * 2, stats.Get(native_context->ptr()));
 }
 
+namespace {
+
+class MockPlatform : public TestPlatform {
+ public:
+  MockPlatform()
+      : old_platform_(i::V8::GetCurrentPlatform()),
+        mock_task_runner_(new MockTaskRunner()) {
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
+  }
+
+  ~MockPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
+
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate*) override {
+    return mock_task_runner_;
+  }
+
+  double Delay() { return mock_task_runner_->Delay(); }
+
+  void PerformTask() { mock_task_runner_->PerformTask(); }
+
+ private:
+  class MockTaskRunner : public v8::TaskRunner {
+   public:
+    void PostTask(std::unique_ptr<v8::Task> task) override {}
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      task_ = std::move(task);
+      delay_ = delay_in_seconds;
+    }
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      UNREACHABLE();
+    }
+
+    bool IdleTasksEnabled() override { return false; }
+
+    double Delay() { return delay_; }
+
+    void PerformTask() {
+      std::unique_ptr<Task> task = std::move(task_);
+      task->Run();
+    }
+
+   private:
+    double delay_ = -1;
+    std::unique_ptr<Task> task_;
+  };
+  v8::Platform* old_platform_;
+  std::shared_ptr<MockTaskRunner> mock_task_runner_;
+};
+
+class MockMeasureMemoryDelegate : public v8::MeasureMemoryDelegate {
+ public:
+  bool ShouldMeasure(v8::Local<v8::Context> context) override { return true; }
+
+  void MeasurementComplete(
+      const std::vector<std::pair<v8::Local<v8::Context>, size_t>>&
+          context_sizes_in_bytes,
+      size_t unattributed_size_in_bytes) override {
+    // Empty.
+  }
+};
+
+}  // namespace
+
+TEST(RandomizedTimeout) {
+  CcTest::InitializeVM();
+  MockPlatform platform;
+  std::vector<double> delays;
+  for (int i = 0; i < 10; i++) {
+    CcTest::isolate()->MeasureMemory(
+        std::make_unique<MockMeasureMemoryDelegate>());
+    delays.push_back(platform.Delay());
+    platform.PerformTask();
+  }
+  std::sort(delays.begin(), delays.end());
+  CHECK_LT(delays[0], delays.back());
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

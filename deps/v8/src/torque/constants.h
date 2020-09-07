@@ -95,6 +95,7 @@ static const char* const ANNOTATION_IFNOT = "@ifnot";
 static const char* const ANNOTATION_GENERATE_BODY_DESCRIPTOR =
     "@generateBodyDescriptor";
 static const char* const ANNOTATION_EXPORT_CPP_CLASS = "@export";
+static const char* const ANNOTATION_DO_NOT_GENERATE_CAST = "@doNotGenerateCast";
 
 inline bool IsConstexprName(const std::string& name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==
@@ -133,6 +134,7 @@ enum class ClassFlag {
   kUndefinedLayout = 1 << 11,
   kGenerateBodyDescriptor = 1 << 12,
   kExport = 1 << 13,
+  kDoNotGenerateCast = 1 << 14
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

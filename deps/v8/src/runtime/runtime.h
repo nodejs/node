@@ -329,6 +329,7 @@ namespace internal {
   F(SetDataProperties, 2, 1)                                    \
   F(SetKeyedProperty, 3, 1)                                     \
   F(SetNamedProperty, 3, 1)                                     \
+  F(SetOwnPropertyIgnoreAttributes, 4, 1)                       \
   F(StoreDataPropertyInLiteral, 3, 1)                           \
   F(ShrinkPropertyDictionary, 1, 1)                             \
   F(ToFastProperties, 1, 1)                                     \
@@ -542,6 +543,8 @@ namespace internal {
   F(WasmTierDownModule, 1, 1)                 \
   F(WasmTierUpFunction, 2, 1)                 \
   F(WasmTierUpModule, 1, 1)                   \
+  F(WasmTraceEnter, 0, 1)                     \
+  F(WasmTraceExit, 1, 1)                      \
   F(WasmTraceMemory, 1, 1)                    \
   I(DeoptimizeNow, 0, 1)
 
@@ -718,9 +721,9 @@ class Runtime : public AllStatic {
   // allocation.
   static bool MayAllocate(FunctionId id);
 
-  // Check if a runtime function with the given {id} is whitelisted for
+  // Check if a runtime function with the given {id} is allowlisted for
   // using it with fuzzers.
-  static bool IsWhitelistedForFuzzing(FunctionId id);
+  static bool IsAllowListedForFuzzing(FunctionId id);
 
   // Get the intrinsic function with the given name.
   static const Function* FunctionForName(const unsigned char* name, int length);

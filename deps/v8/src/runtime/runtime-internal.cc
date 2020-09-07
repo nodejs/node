@@ -332,7 +332,8 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   function->raw_feedback_cell().set_interrupt_budget(FLAG_interrupt_budget);
   if (!function->has_feedback_vector()) {
-    JSFunction::EnsureFeedbackVector(function);
+    IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
+    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.

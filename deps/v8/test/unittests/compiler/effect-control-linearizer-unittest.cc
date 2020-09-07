@@ -339,13 +339,7 @@ TEST_F(EffectControlLinearizerTest, UnreachableThenBranch) {
       jsgraph(), &schedule, zone(), source_positions(), node_origins(),
       MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kMaintain);
 
-  // Initial block with the unreachable should be connected directly to end
-  // without any of the subsiquent blocks.
   ASSERT_THAT(end(), IsEnd(IsThrow()));
-  ASSERT_THAT(end()->op()->ControlInputCount(), 1);
-  ASSERT_THAT(schedule.start()->SuccessorCount(), 1);
-  ASSERT_THAT(schedule.end()->PredecessorCount(), 1);
-  ASSERT_THAT(schedule.end()->PredecessorAt(0), start);
 }
 
 TEST_F(EffectControlLinearizerTest, UnreachableThenDiamond) {
@@ -397,13 +391,7 @@ TEST_F(EffectControlLinearizerTest, UnreachableThenDiamond) {
       jsgraph(), &schedule, zone(), source_positions(), node_origins(),
       MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kMaintain);
 
-  // Initial block with the unreachable should be connected directly to end
-  // without any of the subsiquent blocks.
   ASSERT_THAT(end(), IsEnd(IsThrow()));
-  ASSERT_THAT(end()->op()->ControlInputCount(), 1);
-  ASSERT_THAT(schedule.start()->SuccessorCount(), 1);
-  ASSERT_THAT(schedule.end()->PredecessorCount(), 1);
-  ASSERT_THAT(schedule.end()->PredecessorAt(0), start);
 }
 
 TEST_F(EffectControlLinearizerTest, UnreachableThenLoop) {
@@ -460,13 +448,7 @@ TEST_F(EffectControlLinearizerTest, UnreachableThenLoop) {
       jsgraph(), &schedule, zone(), source_positions(), node_origins(),
       MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kMaintain);
 
-  // Initial block with the unreachable should be connected directly to end
-  // without any of the subsiquent blocks.
   ASSERT_THAT(end(), IsEnd(IsThrow()));
-  ASSERT_THAT(end()->op()->ControlInputCount(), 1);
-  ASSERT_THAT(schedule.start()->SuccessorCount(), 1);
-  ASSERT_THAT(schedule.end()->PredecessorCount(), 1);
-  ASSERT_THAT(schedule.end()->PredecessorAt(0), start);
 }
 
 TEST_F(EffectControlLinearizerTest, UnreachableInChangedBlockThenBranch) {
@@ -519,12 +501,7 @@ TEST_F(EffectControlLinearizerTest, UnreachableInChangedBlockThenBranch) {
       jsgraph(), &schedule, zone(), source_positions(), node_origins(),
       MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kMaintain);
 
-  // Start block now branches due to the lowering of TruncateTaggedToWord32, but
-  // then re-merges and the unreachable should be connected directly to end
-  // without any of the subsiquent blocks.
   ASSERT_THAT(end(), IsEnd(IsThrow()));
-  ASSERT_THAT(end()->op()->ControlInputCount(), 1);
-  ASSERT_THAT(schedule.end()->PredecessorCount(), 1);
 }
 
 }  // namespace compiler

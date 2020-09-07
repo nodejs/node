@@ -318,8 +318,8 @@ void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
     // instructions between the bind and the target identifier instruction.
     InstructionAccurateScope scope(this, 1);
     bind(label);
-    if (id == BranchTargetIdentifier::kPaciasp) {
-      paciasp();
+    if (id == BranchTargetIdentifier::kPacibsp) {
+      pacibsp();
     } else {
       bti(id);
     }
@@ -1136,7 +1136,7 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Paciasp();
+    Pacibsp();
   }
 #endif
 
@@ -1153,7 +1153,7 @@ void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), ((src0 != lr) && (src1 != lr)));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Paciasp();
+    Pacibsp();
   }
 #endif
 
@@ -1188,7 +1188,7 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR) {
-    Autiasp();
+    Autibsp();
   }
 #endif
 }
@@ -1199,7 +1199,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), (src != lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Paciasp();
+    Pacibsp();
   }
 #endif
 
@@ -1228,7 +1228,7 @@ void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   DCHECK_IMPLIES((lr_mode == kDontLoadLR), (dst != lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR) {
-    Autiasp();
+    Autibsp();
   }
 #endif
 }
@@ -1238,7 +1238,7 @@ void TurboAssembler::PushCPURegList(CPURegList registers) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), !registers.IncludesAliasOf(lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR && registers.IncludesAliasOf(lr)) {
-    Paciasp();
+    Pacibsp();
   }
 #endif
 
@@ -1280,7 +1280,7 @@ void TurboAssembler::PopCPURegList(CPURegList registers) {
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR && contains_lr) {
-    Autiasp();
+    Autibsp();
   }
 #endif
 }

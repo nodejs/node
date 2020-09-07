@@ -761,7 +761,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
   const TNode<IntPtrT> number_of_buckets =
       SmiUntag(CAST(UnsafeLoadFixedArrayElement(
           table, CollectionType::NumberOfBucketsIndex())));
-  const TNode<WordT> bucket =
+  const TNode<IntPtrT> bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   const TNode<IntPtrT> first_entry = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
       table, bucket, CollectionType::HashTableStartIndex() * kTaggedSize)));

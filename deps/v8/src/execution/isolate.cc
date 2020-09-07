@@ -32,6 +32,7 @@
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -588,21 +589,28 @@ class FrameArrayBuilder {
                                           offset, flags, parameters);
   }
 
-  void AppendPromiseAllFrame(Handle<Context> context, int offset) {
+  void AppendPromiseCombinatorFrame(Handle<JSFunction> element_function,
+                                    Handle<JSFunction> combinator,
+                                    FrameArray::Flag combinator_flag,
+                                    Handle<Context> context) {
     if (full()) return;
-    int flags = FrameArray::kIsAsync | FrameArray::kIsPromiseAll;
+    int flags = FrameArray::kIsAsync | combinator_flag;
 
     Handle<Context> native_context(context->native_context(), isolate_);
-    Handle<JSFunction> function(native_context->promise_all(), isolate_);
-    if (!IsVisibleInStackTrace(function)) return;
+    if (!IsVisibleInStackTrace(combinator)) return;
 
     Handle<Object> receiver(native_context->promise_function(), isolate_);
-    Handle<AbstractCode> code(AbstractCode::cast(function->code()), isolate_);
+    Handle<AbstractCode> code(AbstractCode::cast(combinator->code()), isolate_);
 
-    // TODO(mmarchini) save Promises list from Promise.all()
+    // TODO(mmarchini) save Promises list from the Promise combinator
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
 
-    elements_ = FrameArray::AppendJSFrame(elements_, receiver, function, code,
+    // We store the offset of the promise into the element function's
+    // hash field for element callbacks.
+    int const offset =
+        Smi::ToInt(Smi::cast(element_function->GetIdentityHash())) - 1;
+
+    elements_ = FrameArray::AppendJSFrame(elements_, receiver, combinator, code,
                                           offset, flags, parameters);
   }
 
@@ -861,17 +869,34 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
                                   isolate);
       Handle<Context> context(function->context(), isolate);
-
-      // We store the offset of the promise into the {function}'s
-      // hash field for promise resolve element callbacks.
-      int const offset = Smi::ToInt(Smi::cast(function->GetIdentityHash())) - 1;
-      builder->AppendPromiseAllFrame(context, offset);
+      Handle<JSFunction> combinator(context->native_context().promise_all(),
+                                    isolate);
+      builder->AppendPromiseCombinatorFrame(function, combinator,
+                                            FrameArray::kIsPromiseAll, context);
 
       // Now peak into the Promise.all() resolve element context to
       // find the promise capability that's being resolved when all
       // the concurrent promises resolve.
       int const index =
           PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
+      Handle<PromiseCapability> capability(
+          PromiseCapability::cast(context->get(index)), isolate);
+      if (!capability->promise().IsJSPromise()) return;
+      promise = handle(JSPromise::cast(capability->promise()), isolate);
+    } else if (IsBuiltinFunction(isolate, reaction->reject_handler(),
+                                 Builtins::kPromiseAnyRejectElementClosure)) {
+      Handle<JSFunction> function(JSFunction::cast(reaction->reject_handler()),
+                                  isolate);
+      Handle<Context> context(function->context(), isolate);
+      Handle<JSFunction> combinator(context->native_context().promise_any(),
+                                    isolate);
+      builder->AppendPromiseCombinatorFrame(function, combinator,
+                                            FrameArray::kIsPromiseAny, context);
+
+      // Now peak into the Promise.any() reject element context to
+      // find the promise capability that's being resolved when any of
+      // the concurrent promises resolve.
+      int const index = PromiseBuiltins::kPromiseAnyRejectElementCapabilitySlot;
       Handle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
       if (!capability->promise().IsJSPromise()) return;
@@ -2491,6 +2516,10 @@ void Isolate::SetCaptureStackTraceForUncaughtExceptions(
   stack_trace_for_uncaught_exceptions_options_ = options;
 }
 
+bool Isolate::get_capture_stack_trace_for_uncaught_exceptions() const {
+  return capture_stack_trace_for_uncaught_exceptions_;
+}
+
 void Isolate::SetAbortOnUncaughtExceptionCallback(
     v8::Isolate::AbortOnUncaughtExceptionCallback callback) {
   abort_on_uncaught_exception_callback_ = callback;
@@ -2632,77 +2661,110 @@ void Isolate::ThreadDataTable::RemoveAllThreads() {
   table_.clear();
 }
 
-class VerboseAccountingAllocator : public AccountingAllocator {
+class TracingAccountingAllocator : public AccountingAllocator {
  public:
-  VerboseAccountingAllocator(Heap* heap, size_t allocation_sample_bytes)
-      : heap_(heap), allocation_sample_bytes_(allocation_sample_bytes) {}
+  explicit TracingAccountingAllocator(Isolate* isolate) : isolate_(isolate) {}
 
-  v8::internal::Segment* AllocateSegment(size_t size) override {
-    v8::internal::Segment* memory = AccountingAllocator::AllocateSegment(size);
-    if (!memory) return nullptr;
-    size_t malloced_current = GetCurrentMemoryUsage();
-
-    if (last_memory_usage_ + allocation_sample_bytes_ < malloced_current) {
-      PrintMemoryJSON(malloced_current);
-      last_memory_usage_ = malloced_current;
-    }
-    return memory;
+ protected:
+  void TraceAllocateSegmentImpl(v8::internal::Segment* segment) override {
+    base::MutexGuard lock(&mutex_);
+    UpdateMemoryTrafficAndReportMemoryUsage(segment->total_size());
   }
 
-  void ReturnSegment(v8::internal::Segment* memory) override {
-    AccountingAllocator::ReturnSegment(memory);
-    size_t malloced_current = GetCurrentMemoryUsage();
-
-    if (malloced_current + allocation_sample_bytes_ < last_memory_usage_) {
-      PrintMemoryJSON(malloced_current);
-      last_memory_usage_ = malloced_current;
-    }
+  void TraceZoneCreationImpl(const Zone* zone) override {
+    base::MutexGuard lock(&mutex_);
+    active_zones_.insert(zone);
+    nesting_depth_++;
   }
 
-  void ZoneCreation(const Zone* zone) override {
-    PrintZoneModificationSample(zone, "zonecreation");
-    nesting_deepth_++;
-  }
-
-  void ZoneDestruction(const Zone* zone) override {
-    nesting_deepth_--;
-    PrintZoneModificationSample(zone, "zonedestruction");
+  void TraceZoneDestructionImpl(const Zone* zone) override {
+    base::MutexGuard lock(&mutex_);
+    UpdateMemoryTrafficAndReportMemoryUsage(zone->segment_bytes_allocated());
+    active_zones_.erase(zone);
+    nesting_depth_--;
   }
 
  private:
-  void PrintZoneModificationSample(const Zone* zone, const char* type) {
-    PrintF(
-        "{"
-        "\"type\": \"%s\", "
-        "\"isolate\": \"%p\", "
-        "\"time\": %f, "
-        "\"ptr\": \"%p\", "
-        "\"name\": \"%s\", "
-        "\"size\": %zu,"
-        "\"nesting\": %zu}\n",
-        type, reinterpret_cast<void*>(heap_->isolate()),
-        heap_->isolate()->time_millis_since_init(),
-        reinterpret_cast<const void*>(zone), zone->name(),
-        zone->allocation_size(), nesting_deepth_.load());
+  void UpdateMemoryTrafficAndReportMemoryUsage(size_t memory_traffic_delta) {
+    memory_traffic_since_last_report_ += memory_traffic_delta;
+    if (memory_traffic_since_last_report_ < FLAG_zone_stats_tolerance) return;
+    memory_traffic_since_last_report_ = 0;
+
+    Dump(buffer_, true);
+
+    {
+      std::string trace_str = buffer_.str();
+
+      if (FLAG_trace_zone_stats) {
+        PrintF(
+            "{"
+            "\"type\": \"v8-zone-trace\", "
+            "\"stats\": %s"
+            "}\n",
+            trace_str.c_str());
+      }
+      if (V8_UNLIKELY(
+              TracingFlags::zone_stats.load(std::memory_order_relaxed) &
+              v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+        TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"),
+                             "V8.Zone_Stats", TRACE_EVENT_SCOPE_THREAD, "stats",
+                             TRACE_STR_COPY(trace_str.c_str()));
+      }
+    }
+
+    // Clear the buffer.
+    buffer_.str(std::string());
   }
 
-  void PrintMemoryJSON(size_t malloced) {
-    // Note: Neither isolate, nor heap is locked, so be careful with accesses
+  void Dump(std::ostringstream& out, bool dump_details) {
+    // Note: Neither isolate nor zones are locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
-    double time = heap_->isolate()->time_millis_since_init();
-    PrintF(
-        "{"
-        "\"type\": \"zone\", "
-        "\"isolate\": \"%p\", "
-        "\"time\": %f, "
-        "\"allocated\": %zu}\n",
-        reinterpret_cast<void*>(heap_->isolate()), time, malloced);
+    double time = isolate_->time_millis_since_init();
+    out << "{"
+        << "\"isolate\": \"" << reinterpret_cast<void*>(isolate_) << "\", "
+        << "\"time\": " << time << ", ";
+    size_t total_segment_bytes_allocated = 0;
+    size_t total_zone_allocation_size = 0;
+
+    if (dump_details) {
+      // Print detailed zone stats if memory usage changes direction.
+      out << "\"zones\": [";
+      bool first = true;
+      for (const Zone* zone : active_zones_) {
+        size_t zone_segment_bytes_allocated = zone->segment_bytes_allocated();
+        size_t zone_allocation_size = zone->allocation_size_for_tracing();
+        if (first) {
+          first = false;
+        } else {
+          out << ", ";
+        }
+        out << "{"
+            << "\"name\": \"" << zone->name() << "\", "
+            << "\"allocated\": " << zone_segment_bytes_allocated << ", "
+            << "\"used\": " << zone_allocation_size << "}";
+        total_segment_bytes_allocated += zone_segment_bytes_allocated;
+        total_zone_allocation_size += zone_allocation_size;
+      }
+      out << "], ";
+    } else {
+      // Just calculate total allocated/used memory values.
+      for (const Zone* zone : active_zones_) {
+        total_segment_bytes_allocated += zone->segment_bytes_allocated();
+        total_zone_allocation_size += zone->allocation_size_for_tracing();
+      }
+    }
+    out << "\"allocated\": " << total_segment_bytes_allocated << ", "
+        << "\"used\": " << total_zone_allocation_size << "}";
   }
 
-  Heap* heap_;
-  std::atomic<size_t> last_memory_usage_{0};
-  std::atomic<size_t> nesting_deepth_{0};
-  size_t allocation_sample_bytes_;
+  Isolate* const isolate_;
+  std::atomic<size_t> nesting_depth_{0};
+
+  base::Mutex mutex_;
+  std::unordered_set<const Zone*> active_zones_;
+  std::ostringstream buffer_;
+  // This value is increased on both allocations and deallocations.
+  size_t memory_traffic_since_last_report_ = 0;
 };
 
 #ifdef DEBUG
@@ -2781,9 +2843,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
     : isolate_data_(this),
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
-      allocator_(FLAG_trace_zone_stats
-                     ? new VerboseAccountingAllocator(&heap_, 256 * KB)
-                     : new AccountingAllocator()),
+      allocator_(new TracingAccountingAllocator(this)),
       builtins_(this),
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
@@ -3235,15 +3295,15 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
                           AddressToString(isolate_address));
 
   const uintptr_t ro_space_firstpage_address =
-      reinterpret_cast<uintptr_t>(heap()->read_only_space()->first_page());
+      heap()->read_only_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
                           AddressToString(ro_space_firstpage_address));
   const uintptr_t map_space_firstpage_address =
-      reinterpret_cast<uintptr_t>(heap()->map_space()->first_page());
+      heap()->map_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
                           AddressToString(map_space_firstpage_address));
   const uintptr_t code_space_firstpage_address =
-      reinterpret_cast<uintptr_t>(heap()->code_space()->first_page());
+      heap()->code_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
                           AddressToString(code_space_firstpage_address));
 }
@@ -3615,6 +3675,11 @@ void Isolate::DumpAndResetStats() {
         counters()->runtime_call_stats());
     counters()->runtime_call_stats()->Print();
     counters()->runtime_call_stats()->Reset();
+  }
+  if (BasicBlockProfiler::Get()->HasData(this)) {
+    StdoutStream out;
+    BasicBlockProfiler::Get()->Print(out, this);
+    BasicBlockProfiler::Get()->ResetCounts(this);
   }
 }
 
@@ -4081,54 +4146,57 @@ void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
 void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                                                   Handle<JSPromise> promise) {
   if (!async_event_delegate_) return;
-  if (type == PromiseHookType::kResolve) return;
-
-  if (type == PromiseHookType::kBefore) {
-    if (!promise->async_task_id()) return;
-    async_event_delegate_->AsyncEventOccurred(debug::kDebugWillHandle,
-                                              promise->async_task_id(), false);
-  } else if (type == PromiseHookType::kAfter) {
-    if (!promise->async_task_id()) return;
-    async_event_delegate_->AsyncEventOccurred(debug::kDebugDidHandle,
-                                              promise->async_task_id(), false);
-  } else {
-    DCHECK(type == PromiseHookType::kInit);
-    debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
-    bool last_frame_was_promise_builtin = false;
-    JavaScriptFrameIterator it(this);
-    while (!it.done()) {
-      std::vector<Handle<SharedFunctionInfo>> infos;
-      it.frame()->GetFunctions(&infos);
-      for (size_t i = 1; i <= infos.size(); ++i) {
-        Handle<SharedFunctionInfo> info = infos[infos.size() - i];
-        if (info->IsUserJavaScript()) {
-          // We should not report PromiseThen and PromiseCatch which is called
-          // indirectly, e.g. Promise.all calls Promise.then internally.
-          if (last_frame_was_promise_builtin) {
-            if (!promise->async_task_id()) {
-              promise->set_async_task_id(++async_task_count_);
+  switch (type) {
+    case PromiseHookType::kResolve:
+      return;
+    case PromiseHookType::kBefore:
+      if (!promise->async_task_id()) return;
+      async_event_delegate_->AsyncEventOccurred(
+          debug::kDebugWillHandle, promise->async_task_id(), false);
+      break;
+    case PromiseHookType::kAfter:
+      if (!promise->async_task_id()) return;
+      async_event_delegate_->AsyncEventOccurred(
+          debug::kDebugDidHandle, promise->async_task_id(), false);
+      break;
+    case PromiseHookType::kInit:
+      debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
+      bool last_frame_was_promise_builtin = false;
+      JavaScriptFrameIterator it(this);
+      while (!it.done()) {
+        std::vector<Handle<SharedFunctionInfo>> infos;
+        it.frame()->GetFunctions(&infos);
+        for (size_t i = 1; i <= infos.size(); ++i) {
+          Handle<SharedFunctionInfo> info = infos[infos.size() - i];
+          if (info->IsUserJavaScript()) {
+            // We should not report PromiseThen and PromiseCatch which is called
+            // indirectly, e.g. Promise.all calls Promise.then internally.
+            if (last_frame_was_promise_builtin) {
+              if (!promise->async_task_id()) {
+                promise->set_async_task_id(++async_task_count_);
+              }
+              async_event_delegate_->AsyncEventOccurred(
+                  type, promise->async_task_id(), debug()->IsBlackboxed(info));
             }
-            async_event_delegate_->AsyncEventOccurred(
-                type, promise->async_task_id(), debug()->IsBlackboxed(info));
+            return;
           }
-          return;
-        }
-        last_frame_was_promise_builtin = false;
-        if (info->HasBuiltinId()) {
-          if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
-            type = debug::kDebugPromiseThen;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
-            type = debug::kDebugPromiseCatch;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeFinally) {
-            type = debug::kDebugPromiseFinally;
-            last_frame_was_promise_builtin = true;
+          last_frame_was_promise_builtin = false;
+          if (info->HasBuiltinId()) {
+            if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
+              type = debug::kDebugPromiseThen;
+              last_frame_was_promise_builtin = true;
+            } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
+              type = debug::kDebugPromiseCatch;
+              last_frame_was_promise_builtin = true;
+            } else if (info->builtin_id() ==
+                       Builtins::kPromisePrototypeFinally) {
+              type = debug::kDebugPromiseFinally;
+              last_frame_was_promise_builtin = true;
+            }
           }
         }
+        it.Advance();
       }
-      it.Advance();
-    }
   }
 }
 
@@ -4179,6 +4247,13 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
 }
 
 int Isolate::GetNextScriptId() { return heap()->NextScriptId(); }
+
+int Isolate::GetNextStackFrameInfoId() {
+  int id = last_stack_frame_info_id();
+  int next_id = id == Smi::kMaxValue ? 0 : (id + 1);
+  set_last_stack_frame_info_id(next_id);
+  return next_id;
+}
 
 // static
 std::string Isolate::GetTurboCfgFileName(Isolate* isolate) {

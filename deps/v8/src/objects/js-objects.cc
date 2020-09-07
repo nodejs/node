@@ -27,7 +27,6 @@
 #include "src/objects/field-type.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
-#include "src/objects/js-aggregate-error.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
@@ -72,6 +71,8 @@
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -2080,8 +2081,6 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
       return JSGeneratorObject::kHeaderSize;
-    case JS_AGGREGATE_ERROR_TYPE:
-      return JSAggregateError::kHeaderSize;
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
       return JSAsyncFunctionObject::kHeaderSize;
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
@@ -4995,9 +4994,10 @@ void JSFunction::EnsureClosureFeedbackCellArray(Handle<JSFunction> function) {
 }
 
 // static
-void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
+void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
+                                      IsCompiledScope* is_compiled_scope) {
   Isolate* const isolate = function->GetIsolate();
-  DCHECK(function->shared().is_compiled());
+  DCHECK(is_compiled_scope->is_compiled());
   DCHECK(function->shared().HasFeedbackMetadata());
   if (function->has_feedback_vector()) return;
   if (function->shared().HasAsmWasmData()) return;
@@ -5008,8 +5008,8 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
   EnsureClosureFeedbackCellArray(function);
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       handle(function->closure_feedback_cell_array(), isolate);
-  Handle<HeapObject> feedback_vector =
-      FeedbackVector::New(isolate, shared, closure_feedback_cell_array);
+  Handle<HeapObject> feedback_vector = FeedbackVector::New(
+      isolate, shared, closure_feedback_cell_array, is_compiled_scope);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
   // for more details.
@@ -5020,7 +5020,8 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
 }
 
 // static
-void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function) {
+void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function,
+                                        IsCompiledScope* is_compiled_scope) {
   Isolate* const isolate = function->GetIsolate();
 
   if (function->has_feedback_vector()) {
@@ -5038,7 +5039,7 @@ void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function) {
   if (FLAG_always_opt) needs_feedback_vector = true;
 
   if (needs_feedback_vector) {
-    EnsureFeedbackVector(function);
+    EnsureFeedbackVector(function, is_compiled_scope);
   } else {
     EnsureClosureFeedbackCellArray(function);
   }
@@ -5160,8 +5161,16 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
 
-  // First create a new map with the size and number of in-object properties
-  // suggested by the function.
+  int expected_nof_properties =
+      CalculateExpectedNofProperties(isolate, function);
+
+  // {CalculateExpectedNofProperties} can have had the side effect of creating
+  // the initial map (e.g. it could have triggered an optimized compilation
+  // whose dependency installation reentered {EnsureHasInitialMap}).
+  if (function->has_initial_map()) return;
+
+  // Create a new map with the size and number of in-object properties suggested
+  // by the function.
   InstanceType instance_type;
   if (IsResumableFunction(function->shared().kind())) {
     instance_type = IsAsyncGeneratorFunction(function->shared().kind())
@@ -5173,8 +5182,6 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
   int instance_size;
   int inobject_properties;
-  int expected_nof_properties =
-      CalculateExpectedNofProperties(isolate, function);
   CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
                               &instance_size, &inobject_properties);
 
@@ -5202,7 +5209,6 @@ namespace {
 
 bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
   switch (instance_type) {
-    case JS_AGGREGATE_ERROR_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
@@ -5577,7 +5583,7 @@ int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
                           &is_compiled_scope)) {
       DCHECK(shared->is_compiled());
       int count = shared->expected_nof_properties();
-      // Check that the estimate is sane.
+      // Check that the estimate is sensible.
       if (expected_nof_properties <= JSObject::kMaxInObjectProperties - count) {
         expected_nof_properties += count;
       } else {

@@ -163,6 +163,14 @@ static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(1)));
 }
 
+static void VisitUniqueRRR(InstructionSelector* selector, ArchOpcode opcode,
+                           Node* node) {
+  Mips64OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseUniqueRegister(node->InputAt(0)),
+                 g.UseUniqueRegister(node->InputAt(1)));
+}
+
 void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   Mips64OperandGenerator g(selector);
   selector->Emit(
@@ -2778,21 +2786,24 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4UConvertI16x8Low, kMips64I32x4UConvertI16x8Low)   \
   V(I32x4UConvertI16x8High, kMips64I32x4UConvertI16x8High) \
   V(I32x4Abs, kMips64I32x4Abs)                             \
+  V(I32x4BitMask, kMips64I32x4BitMask)                     \
   V(I16x8Neg, kMips64I16x8Neg)                             \
   V(I16x8SConvertI8x16Low, kMips64I16x8SConvertI8x16Low)   \
   V(I16x8SConvertI8x16High, kMips64I16x8SConvertI8x16High) \
   V(I16x8UConvertI8x16Low, kMips64I16x8UConvertI8x16Low)   \
   V(I16x8UConvertI8x16High, kMips64I16x8UConvertI8x16High) \
   V(I16x8Abs, kMips64I16x8Abs)                             \
+  V(I16x8BitMask, kMips64I16x8BitMask)                     \
   V(I8x16Neg, kMips64I8x16Neg)                             \
   V(I8x16Abs, kMips64I8x16Abs)                             \
+  V(I8x16BitMask, kMips64I8x16BitMask)                     \
   V(S128Not, kMips64S128Not)                               \
-  V(S1x4AnyTrue, kMips64S1x4AnyTrue)                       \
-  V(S1x4AllTrue, kMips64S1x4AllTrue)                       \
-  V(S1x8AnyTrue, kMips64S1x8AnyTrue)                       \
-  V(S1x8AllTrue, kMips64S1x8AllTrue)                       \
-  V(S1x16AnyTrue, kMips64S1x16AnyTrue)                     \
-  V(S1x16AllTrue, kMips64S1x16AllTrue)
+  V(V32x4AnyTrue, kMips64V32x4AnyTrue)                     \
+  V(V32x4AllTrue, kMips64V32x4AllTrue)                     \
+  V(V16x8AnyTrue, kMips64V16x8AnyTrue)                     \
+  V(V16x8AllTrue, kMips64V16x8AllTrue)                     \
+  V(V8x16AnyTrue, kMips64V8x16AnyTrue)                     \
+  V(V8x16AllTrue, kMips64V8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl)                 \
@@ -3097,6 +3108,22 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
   Mips64OperandGenerator g(this);
   Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
        g.TempImmediate(0));
+}
+
+void InstructionSelector::VisitF32x4Pmin(Node* node) {
+  VisitUniqueRRR(this, kMips64F32x4Pmin, node);
+}
+
+void InstructionSelector::VisitF32x4Pmax(Node* node) {
+  VisitUniqueRRR(this, kMips64F32x4Pmax, node);
+}
+
+void InstructionSelector::VisitF64x2Pmin(Node* node) {
+  VisitUniqueRRR(this, kMips64F64x2Pmin, node);
+}
+
+void InstructionSelector::VisitF64x2Pmax(Node* node) {
+  VisitUniqueRRR(this, kMips64F64x2Pmax, node);
 }
 
 // static

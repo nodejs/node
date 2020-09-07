@@ -186,6 +186,28 @@ macro StoreFloat64OrHole(r:&float64_or_hole, value: float64_or_hole) {
     * unsafe::NewReference<float64>(r.object, r.offset) = value.value;
   }
 }
+
+macro DownCastForTorqueClass<T : type extends HeapObject>(o: HeapObject):
+    T labels CastError {
+  const map = o.map;
+  const minInstanceType = %MinInstanceType<T>();
+  const maxInstanceType = %MaxInstanceType<T>();
+  if constexpr (minInstanceType == maxInstanceType) {
+    if constexpr (%ClassHasMapConstant<T>()) {
+      if (map != %GetClassMapConstant<T>()) goto CastError;
+    } else {
+      if (map.instance_type != minInstanceType) goto CastError;
+    }
+  } else {
+    const diff: int32 = maxInstanceType - minInstanceType;
+    const offset = Convert<int32>(Convert<uint16>(map.instance_type)) -
+        Convert<int32>(Convert<uint16>(
+            FromConstexpr<InstanceType>(minInstanceType)));
+    if (Unsigned(offset) > Unsigned(diff)) goto CastError;
+  }
+  return %RawDownCast<T>(o);
+}
+
 }  // namespace torque_internal
 
 // Indicates that an array-field should not be initialized.
@@ -197,6 +219,12 @@ struct UninitializedIterator {}
 // type assert()
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
+
+intrinsic %MinInstanceType<T: type>(): constexpr InstanceType;
+intrinsic %MaxInstanceType<T: type>(): constexpr InstanceType;
+
+intrinsic %ClassHasMapConstant<T: type>(): constexpr bool;
+intrinsic %GetClassMapConstant<T: type>(): Map;
 
 struct IteratorSequence<T: type, FirstIterator: type, SecondIterator: type> {
   macro Empty(): bool {

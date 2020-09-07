@@ -505,49 +505,5 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
   BIND(&return_undefined);
   Return(UndefinedConstant());
 }
-
-void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
-    TNode<Context> context, TNode<Object> receiver, const char* method_name,
-    IterationKind kind) {
-  Label throw_bad_receiver(this, Label::kDeferred);
-
-  GotoIf(TaggedIsSmi(receiver), &throw_bad_receiver);
-  GotoIfNot(IsJSTypedArray(CAST(receiver)), &throw_bad_receiver);
-
-  // Check if the {receiver}'s JSArrayBuffer was detached.
-  ThrowIfArrayBufferViewBufferIsDetached(context, CAST(receiver), method_name);
-
-  Return(CreateArrayIterator(context, receiver, kind));
-
-  BIND(&throw_bad_receiver);
-  ThrowTypeError(context, MessageTemplate::kNotTypedArray, method_name);
-}
-
-// ES #sec-%typedarray%.prototype.values
-TF_BUILTIN(TypedArrayPrototypeValues, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  GenerateTypedArrayPrototypeIterationMethod(context, receiver,
-                                             "%TypedArray%.prototype.values()",
-                                             IterationKind::kValues);
-}
-
-// ES #sec-%typedarray%.prototype.entries
-TF_BUILTIN(TypedArrayPrototypeEntries, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  GenerateTypedArrayPrototypeIterationMethod(context, receiver,
-                                             "%TypedArray%.prototype.entries()",
-                                             IterationKind::kEntries);
-}
-
-// ES #sec-%typedarray%.prototype.keys
-TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  GenerateTypedArrayPrototypeIterationMethod(
-      context, receiver, "%TypedArray%.prototype.keys()", IterationKind::kKeys);
-}
-
 }  // namespace internal
 }  // namespace v8

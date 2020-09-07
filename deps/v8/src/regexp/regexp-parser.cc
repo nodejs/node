@@ -1301,7 +1301,7 @@ bool LookupSpecialPropertyValueName(const char* name,
   return true;
 }
 
-// Explicitly whitelist supported binary properties. The spec forbids supporting
+// Explicitly allowlist supported binary properties. The spec forbids supporting
 // properties outside of this set to ensure interoperability.
 bool IsSupportedBinaryProperty(UProperty property) {
   switch (property) {
@@ -1550,7 +1550,7 @@ bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
   }
   while (d >= 0) {
     x = x * 16 + d;
-    if (x > max_value) {
+    if (x > static_cast<uc32>(max_value)) {
       return false;
     }
     Advance();
@@ -1789,34 +1789,54 @@ RegExpTree* RegExpParser::ParseCharacterClass(const RegExpBuilder* builder) {
 
 #undef CHECK_FAILED
 
+bool RegExpParser::Parse(RegExpCompileData* result,
+                         const DisallowHeapAllocation&) {
+  DCHECK(result != nullptr);
+  RegExpTree* tree = ParsePattern();
+  if (failed()) {
+    DCHECK(tree == nullptr);
+    DCHECK(error_ != RegExpError::kNone);
+    result->error = error_;
+    result->error_pos = error_pos_;
+  } else {
+    DCHECK(tree != nullptr);
+    DCHECK(error_ == RegExpError::kNone);
+    if (FLAG_trace_regexp_parser) {
+      StdoutStream os;
+      tree->Print(os, zone());
+      os << "\n";
+    }
+    result->tree = tree;
+    int capture_count = captures_started();
+    result->simple = tree->IsAtom() && simple() && capture_count == 0;
+    result->contains_anchor = contains_anchor();
+    result->capture_count = capture_count;
+  }
+  return !failed();
+}
 
 bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
                                FlatStringReader* input, JSRegExp::Flags flags,
                                RegExpCompileData* result) {
-  DCHECK(result != nullptr);
   RegExpParser parser(input, flags, isolate, zone);
-  RegExpTree* tree = parser.ParsePattern();
-  if (parser.failed()) {
-    DCHECK(tree == nullptr);
-    DCHECK(parser.error_ != RegExpError::kNone);
-    result->error = parser.error_;
-    result->error_pos = parser.error_pos_;
-  } else {
-    DCHECK(tree != nullptr);
-    DCHECK(parser.error_ == RegExpError::kNone);
-    if (FLAG_trace_regexp_parser) {
-      StdoutStream os;
-      tree->Print(os, zone);
-      os << "\n";
-    }
-    result->tree = tree;
-    int capture_count = parser.captures_started();
-    result->simple = tree->IsAtom() && parser.simple() && capture_count == 0;
-    result->contains_anchor = parser.contains_anchor();
-    result->capture_name_map = parser.CreateCaptureNameMap();
-    result->capture_count = capture_count;
+  bool success;
+  {
+    DisallowHeapAllocation no_gc;
+    success = parser.Parse(result, no_gc);
   }
-  return !parser.failed();
+  if (success) {
+    result->capture_name_map = parser.CreateCaptureNameMap();
+  }
+  return success;
+}
+
+bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
+                                      FlatStringReader* input,
+                                      JSRegExp::Flags flags,
+                                      RegExpCompileData* result,
+                                      const DisallowHeapAllocation& no_gc) {
+  RegExpParser parser(input, flags, isolate, zone);
+  return parser.Parse(result, no_gc);
 }
 
 RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)

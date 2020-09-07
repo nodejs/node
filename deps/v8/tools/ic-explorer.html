@@ -339,6 +339,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function initGroupKeySelect() {
       let select = document.getElementById("group-key");
+      select.options.length = 0;
       for (let i in properties) {
         let option = document.createElement("option");
         option.text = properties[i];

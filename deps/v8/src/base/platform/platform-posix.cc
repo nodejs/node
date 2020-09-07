@@ -531,7 +531,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
                                                    size_t size, void* initial) {
   if (FILE* file = fopen(name, "w+")) {
-    if (size == 0) return new PosixMemoryMappedFile(file, 0, 0);
+    if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
     size_t result = fwrite(initial, 1, size, file);
     if (result == size && !ferror(file)) {
       void* memory = mmap(OS::GetRandomMmapAddr(), result,

@@ -1536,7 +1536,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
     return virtual_register;
   }
   Constant GetConstant(int virtual_register) const {
-    ConstantMap::const_iterator it = constants_.find(virtual_register);
+    auto it = constants_.find(virtual_register);
     DCHECK(it != constants_.end());
     DCHECK_EQ(virtual_register, it->first);
     return it->second;

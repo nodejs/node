@@ -25,11 +25,10 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
     explicit RunTaskScope(
         std::shared_ptr<DefaultForegroundTaskRunner> task_runner);
     ~RunTaskScope();
-
-   private:
     RunTaskScope(const RunTaskScope&) = delete;
     RunTaskScope& operator=(const RunTaskScope&) = delete;
 
+   private:
     std::shared_ptr<DefaultForegroundTaskRunner> task_runner_;
   };
 

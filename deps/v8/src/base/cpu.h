@@ -110,6 +110,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_vfp() const { return has_vfp_; }
   bool has_vfp3() const { return has_vfp3_; }
   bool has_vfp3_d32() const { return has_vfp3_d32_; }
+  bool has_jscvt() const { return has_jscvt_; }
 
   // mips features
   bool is_fp64_mode() const { return is_fp64_mode_; }
@@ -153,6 +154,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_vfp_;
   bool has_vfp3_;
   bool has_vfp3_d32_;
+  bool has_jscvt_;
   bool is_fp64_mode_;
   bool has_non_stop_time_stamp_counter_;
   bool has_msa_;

@@ -94,6 +94,15 @@ FromConstexpr<PromiseState, constexpr PromiseState>(c: constexpr PromiseState):
     PromiseState {
   return %RawDownCast<PromiseState>(Int32Constant(c));
 }
+FromConstexpr<InstanceType, constexpr InstanceType>(c: constexpr InstanceType):
+    InstanceType {
+  return %RawDownCast<InstanceType>(Uint16Constant(c));
+}
+
+FromConstexpr<IterationKind, constexpr IterationKind>(
+    c: constexpr IterationKind): IterationKind {
+  return %RawDownCast<IterationKind>(Unsigned(%FromConstexpr<int32>(c)));
+}
 
 macro Convert<To: type, From: type>(i: From): To {
   return i;
@@ -103,6 +112,9 @@ macro Convert<To: type, From: type>(i: From): To labels Overflow {
   return i;
 }
 
+Convert<Boolean, bool>(b: bool): Boolean {
+  return b ? True : False;
+}
 extern macro ConvertElementsKindToInt(ElementsKind): int32;
 Convert<int32, ElementsKind>(elementsKind: ElementsKind): int32 {
   return ConvertElementsKindToInt(elementsKind);
@@ -200,6 +212,9 @@ Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi labels IfOverflow {
     deferred {
       goto IfOverflow;
     }
+}
+Convert<PositiveSmi, uint32>(ui: uint32): PositiveSmi labels IfOverflow {
+  return Convert<PositiveSmi>(Convert<uintptr>(ui)) otherwise IfOverflow;
 }
 Convert<int32, Smi>(s: Smi): int32 {
   return SmiToInt32(s);

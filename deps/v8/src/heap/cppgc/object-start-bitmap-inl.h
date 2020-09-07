@@ -19,6 +19,7 @@ ObjectStartBitmap::ObjectStartBitmap(Address offset) : offset_(offset) {
 
 HeapObjectHeader* ObjectStartBitmap::FindHeader(
     ConstAddress address_maybe_pointing_to_the_middle_of_object) const {
+  DCHECK_LE(offset_, address_maybe_pointing_to_the_middle_of_object);
   size_t object_offset =
       address_maybe_pointing_to_the_middle_of_object - offset_;
   size_t object_start_number = object_offset / kAllocationGranularity;

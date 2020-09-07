@@ -7,6 +7,7 @@
 
 #include <array>
 #include <functional>
+#include <iosfwd>
 #include <type_traits>
 #include <utility>
 
@@ -22,6 +23,12 @@ constexpr inline auto make_array_helper(Function f,
   return {{f(Indexes)...}};
 }
 
+template <template <size_t> class Value, std::size_t... Indexes>
+constexpr inline auto make_array_helper(std::index_sequence<Indexes...>)
+    -> std::array<typename Value<0>::value_type, sizeof...(Indexes)> {
+  return {{Value<Indexes>()...}};
+}
+
 }  // namespace detail
 
 // base::make_array: Create an array of fixed length, initialized by a function.
@@ -33,6 +40,13 @@ constexpr inline auto make_array_helper(Function f,
 template <std::size_t Size, class Function>
 constexpr auto make_array(Function f) {
   return detail::make_array_helper(f, std::make_index_sequence<Size>{});
+}
+
+// The same as above, but taking a template instead of a function to generate
+// the values for the array.
+template <std::size_t Size, template <size_t> class Value>
+constexpr auto make_array() {
+  return detail::make_array_helper<Value>(std::make_index_sequence<Size>{});
 }
 
 // Helper to determine how to pass values: Pass scalars and arrays by value,

@@ -124,6 +124,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmF64x2Ne:
     case kArmF64x2Lt:
     case kArmF64x2Le:
+    case kArmF64x2Pmin:
+    case kArmF64x2Pmax:
     case kArmF32x4Splat:
     case kArmF32x4ExtractLane:
     case kArmF32x4ReplaceLane:
@@ -145,6 +147,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmF32x4Ne:
     case kArmF32x4Lt:
     case kArmF32x4Le:
+    case kArmF32x4Pmin:
+    case kArmF32x4Pmax:
     case kArmI64x2SplatI32Pair:
     case kArmI64x2ReplaceLaneI32Pair:
     case kArmI64x2Neg:
@@ -284,12 +288,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmS8x8Reverse:
     case kArmS8x4Reverse:
     case kArmS8x2Reverse:
-    case kArmS1x4AnyTrue:
-    case kArmS1x4AllTrue:
-    case kArmS1x8AnyTrue:
-    case kArmS1x8AllTrue:
-    case kArmS1x16AnyTrue:
-    case kArmS1x16AllTrue:
+    case kArmV32x4AnyTrue:
+    case kArmV32x4AllTrue:
+    case kArmV16x8AnyTrue:
+    case kArmV16x8AllTrue:
+    case kArmV8x16AnyTrue:
+    case kArmV8x16AllTrue:
       return kNoOpcodeFlags;
 
     case kArmVldrF32:

@@ -1630,6 +1630,7 @@ class Call final : public Expression {
     NAMED_SUPER_PROPERTY_CALL,
     KEYED_SUPER_PROPERTY_CALL,
     PRIVATE_CALL,
+    PRIVATE_OPTIONAL_CHAIN_CALL,
     SUPER_CALL,
     OTHER_CALL,
   };

@@ -11,6 +11,7 @@
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/safepoint.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -1129,7 +1130,7 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script script) {
   SetInternalReference(entry, "source", script.source(), Script::kSourceOffset);
   SetInternalReference(entry, "name", script.name(), Script::kNameOffset);
   SetInternalReference(entry, "context_data", script.context_data(),
-                       Script::kContextOffset);
+                       Script::kContextDataOffset);
   TagObject(script.line_ends(), "(script line ends)");
   SetInternalReference(entry, "line_ends", script.line_ends(),
                        Script::kLineEndsOffset);
@@ -2037,6 +2038,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
                                   GarbageCollectionReason::kHeapProfiler);
 
   NullContextForSnapshotScope null_context_scope(Isolate::FromHeap(heap_));
+  SafepointScope scope(heap_);
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;

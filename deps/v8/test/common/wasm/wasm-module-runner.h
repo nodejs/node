@@ -7,7 +7,6 @@
 
 #include "src/execution/isolate.h"
 #include "src/objects/objects.h"
-#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"

@@ -41,14 +41,6 @@ extern class WasmIndirectFunctionTable extends Struct {
   refs: FixedArray;
 }
 
-extern class WasmDebugInfo extends Struct {
-  instance: WasmInstanceObject;
-  interpreter_handle: Foreign|Undefined;
-  interpreter_reference_stack: Cell;
-  c_wasm_entries: FixedArray|Undefined;
-  c_wasm_entry_map: Foreign|Undefined;  // Managed<wasm::SignatureMap>
-}
-
 @generateCppClass
 extern class WasmExceptionTag extends Struct {
   // Note that this index is only useful for debugging purposes and it is not
@@ -78,16 +70,13 @@ extern class WasmMemoryObject extends JSObject {
 }
 
 type WasmValueType extends uint8 constexpr 'wasm::ValueType::Kind';
-bitfield struct WasmGlobalObjectFlags extends uint31 {
-  Type: WasmValueType: 8 bit;  // "type" is a reserved word.
-  is_mutable: bool: 1 bit;
-}
 
 extern class WasmGlobalObject extends JSObject {
   untagged_buffer: JSArrayBuffer|Undefined;
   tagged_buffer: FixedArray|Undefined;
   offset: Smi;
-  flags: SmiTagged<WasmGlobalObjectFlags>;
+  raw_type: Smi;
+  is_mutable: Smi;
 }
 
 extern class WasmExceptionObject extends JSObject {

@@ -215,7 +215,7 @@ Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
         IsReplModeScopeBit::encode(scope->is_repl_mode_scope()) |
-        HasLocalsBlackListBit::encode(false);
+        HasLocalsBlockListBit::encode(false);
     scope_info.SetFlags(flags);
 
     scope_info.SetParameterCount(parameter_count);
@@ -415,7 +415,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(true) |
-      IsReplModeScopeBit::encode(false) | HasLocalsBlackListBit::encode(false);
+      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -495,7 +495,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context) |
-      IsReplModeScopeBit::encode(false) | HasLocalsBlackListBit::encode(false);
+      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -552,34 +552,34 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
 }
 
 // static
-Handle<ScopeInfo> ScopeInfo::RecreateWithBlackList(
-    Isolate* isolate, Handle<ScopeInfo> original, Handle<StringSet> blacklist) {
+Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
+    Isolate* isolate, Handle<ScopeInfo> original, Handle<StringSet> blocklist) {
   DCHECK(!original.is_null());
-  if (original->HasLocalsBlackList()) return original;
+  if (original->HasLocalsBlockList()) return original;
 
   Handle<ScopeInfo> scope_info =
       isolate->factory()->NewScopeInfo(original->length() + 1);
 
   // Copy the static part first and update the flags to include the
-  // blacklist field, so {LocalsBlackListIndex} returns the correct value.
+  // blocklist field, so {LocalsBlockListIndex} returns the correct value.
   scope_info->CopyElements(isolate, 0, *original, 0, kVariablePartIndex,
                            WriteBarrierMode::UPDATE_WRITE_BARRIER);
   scope_info->SetFlags(
-      HasLocalsBlackListBit::update(scope_info->Flags(), true));
+      HasLocalsBlockListBit::update(scope_info->Flags(), true));
 
-  // Copy the dynamic part including the provided blacklist:
-  //   1) copy all the fields up to the blacklist index
-  //   2) add the blacklist
+  // Copy the dynamic part including the provided blocklist:
+  //   1) copy all the fields up to the blocklist index
+  //   2) add the blocklist
   //   3) copy the remaining fields
   scope_info->CopyElements(
       isolate, kVariablePartIndex, *original, kVariablePartIndex,
-      scope_info->LocalsBlackListIndex() - kVariablePartIndex,
+      scope_info->LocalsBlockListIndex() - kVariablePartIndex,
       WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  scope_info->set(scope_info->LocalsBlackListIndex(), *blacklist);
+  scope_info->set(scope_info->LocalsBlockListIndex(), *blocklist);
   scope_info->CopyElements(
-      isolate, scope_info->LocalsBlackListIndex() + 1, *original,
-      scope_info->LocalsBlackListIndex(),
-      scope_info->length() - scope_info->LocalsBlackListIndex() - 1,
+      isolate, scope_info->LocalsBlockListIndex() + 1, *original,
+      scope_info->LocalsBlockListIndex(),
+      scope_info->length() - scope_info->LocalsBlockListIndex() - 1,
       WriteBarrierMode::UPDATE_WRITE_BARRIER);
   return scope_info;
 }
@@ -735,14 +735,14 @@ bool ScopeInfo::IsReplModeScope() const {
   return IsReplModeScopeBit::decode(Flags());
 }
 
-bool ScopeInfo::HasLocalsBlackList() const {
+bool ScopeInfo::HasLocalsBlockList() const {
   if (length() == 0) return false;
-  return HasLocalsBlackListBit::decode(Flags());
+  return HasLocalsBlockListBit::decode(Flags());
 }
 
-StringSet ScopeInfo::LocalsBlackList() const {
-  DCHECK(HasLocalsBlackList());
-  return StringSet::cast(get(LocalsBlackListIndex()));
+StringSet ScopeInfo::LocalsBlockList() const {
+  DCHECK(HasLocalsBlockList());
+  return StringSet::cast(get(LocalsBlockListIndex()));
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
@@ -984,12 +984,12 @@ int ScopeInfo::OuterScopeInfoIndex() const {
   return PositionInfoIndex() + (HasPositionInfo() ? kPositionInfoEntries : 0);
 }
 
-int ScopeInfo::LocalsBlackListIndex() const {
+int ScopeInfo::LocalsBlockListIndex() const {
   return OuterScopeInfoIndex() + (HasOuterScopeInfo() ? 1 : 0);
 }
 
 int ScopeInfo::ModuleInfoIndex() const {
-  return LocalsBlackListIndex() + (HasLocalsBlackList() ? 1 : 0);
+  return LocalsBlockListIndex() + (HasLocalsBlockList() ? 1 : 0);
 }
 
 int ScopeInfo::ModuleVariableCountIndex() const {

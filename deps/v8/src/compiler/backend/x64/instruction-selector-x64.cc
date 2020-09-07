@@ -1461,7 +1461,16 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   V(Float64RoundTruncate, kSSEFloat64Round | MiscField::encode(kRoundToZero)) \
   V(Float32RoundTiesEven,                                                     \
     kSSEFloat32Round | MiscField::encode(kRoundToNearest))                    \
-  V(Float64RoundTiesEven, kSSEFloat64Round | MiscField::encode(kRoundToNearest))
+  V(Float64RoundTiesEven,                                                     \
+    kSSEFloat64Round | MiscField::encode(kRoundToNearest))                    \
+  V(F32x4Ceil, kX64F32x4Round | MiscField::encode(kRoundUp))                  \
+  V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))               \
+  V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))             \
+  V(F32x4NearestInt, kX64F32x4Round | MiscField::encode(kRoundToNearest))     \
+  V(F64x2Ceil, kX64F64x2Round | MiscField::encode(kRoundUp))                  \
+  V(F64x2Floor, kX64F64x2Round | MiscField::encode(kRoundDown))               \
+  V(F64x2Trunc, kX64F64x2Round | MiscField::encode(kRoundToZero))             \
+  V(F64x2NearestInt, kX64F64x2Round | MiscField::encode(kRoundToNearest))
 
 #define RO_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -1898,16 +1907,33 @@ void VisitWord32EqualImpl(InstructionSelector* selector, Node* node,
     X64OperandGenerator g(selector);
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
-    CompressedHeapObjectBinopMatcher m(node);
-    if (m.right().HasValue() &&
-        roots_table.IsRootHandle(m.right().Value(), &root_index)) {
+    Node* left = nullptr;
+    Handle<HeapObject> right;
+    // HeapConstants and CompressedHeapConstants can be treated the same when
+    // using them as an input to a 32-bit comparison. Check whether either is
+    // present.
+    {
+      CompressedHeapObjectBinopMatcher m(node);
+      if (m.right().HasValue()) {
+        left = m.left().node();
+        right = m.right().Value();
+      } else {
+        HeapObjectBinopMatcher m2(node);
+        if (m2.right().HasValue()) {
+          left = m2.left().node();
+          right = m2.right().Value();
+        }
+      }
+    }
+    if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
+      DCHECK_NE(left, nullptr);
       InstructionCode opcode =
           kX64Cmp32 | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
           selector, opcode,
           g.TempImmediate(
               TurboAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
-          g.UseRegister(m.left().node()), cont);
+          g.UseRegister(left), cont);
     }
   }
   VisitWordCompare(selector, node, kX64Cmp32, cont);
@@ -2674,6 +2700,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
   V(I32x4GeU)              \
+  V(I32x4DotI16x8S)        \
   V(I16x8SConvertI32x4)    \
   V(I16x8Add)              \
   V(I16x8AddSaturateS)     \
@@ -2766,16 +2793,16 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16ShrU)
 
 #define SIMD_ANYTRUE_LIST(V) \
-  V(S1x2AnyTrue)             \
-  V(S1x4AnyTrue)             \
-  V(S1x8AnyTrue)             \
-  V(S1x16AnyTrue)
+  V(V64x2AnyTrue)            \
+  V(V32x4AnyTrue)            \
+  V(V16x8AnyTrue)            \
+  V(V8x16AnyTrue)
 
 #define SIMD_ALLTRUE_LIST(V) \
-  V(S1x2AllTrue)             \
-  V(S1x4AllTrue)             \
-  V(S1x8AllTrue)             \
-  V(S1x16AllTrue)
+  V(V64x2AllTrue)            \
+  V(V32x4AllTrue)            \
+  V(V16x8AllTrue)            \
+  V(V8x16AllTrue)
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   X64OperandGenerator g(this);

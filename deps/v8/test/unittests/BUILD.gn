@@ -44,11 +44,14 @@ v8_source_set("cppgc_unittests_sources") {
   testonly = true
 
   sources = [
+    "heap/cppgc/concurrent-sweeper-unittest.cc",
     "heap/cppgc/custom-spaces-unittest.cc",
     "heap/cppgc/finalizer-trait-unittest.cc",
     "heap/cppgc/free-list-unittest.cc",
     "heap/cppgc/garbage-collected-unittest.cc",
     "heap/cppgc/gc-info-unittest.cc",
+    "heap/cppgc/gc-invoker-unittest.cc",
+    "heap/cppgc/heap-growing-unittest.cc",
     "heap/cppgc/heap-object-header-unittest.cc",
     "heap/cppgc/heap-page-unittest.cc",
     "heap/cppgc/heap-unittest.cc",
@@ -56,17 +59,22 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/marker-unittest.cc",
     "heap/cppgc/marking-visitor-unittest.cc",
     "heap/cppgc/member-unittest.cc",
+    "heap/cppgc/minor-gc-unittest.cc",
     "heap/cppgc/object-start-bitmap-unittest.cc",
     "heap/cppgc/page-memory-unittest.cc",
     "heap/cppgc/persistent-unittest.cc",
     "heap/cppgc/prefinalizer-unittest.cc",
     "heap/cppgc/source-location-unittest.cc",
     "heap/cppgc/stack-unittest.cc",
+    "heap/cppgc/stats-collector-unittest.cc",
     "heap/cppgc/sweeper-unittest.cc",
+    "heap/cppgc/test-platform.cc",
+    "heap/cppgc/test-platform.h",
     "heap/cppgc/tests.cc",
     "heap/cppgc/tests.h",
     "heap/cppgc/visitor-unittest.cc",
     "heap/cppgc/worklist-unittest.cc",
+    "heap/cppgc/write-barrier-unittest.cc",
   ]
 
   configs = [
@@ -231,6 +239,7 @@ v8_source_set("unittests_sources") {
     "heap/gc-tracer-unittest.cc",
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
+    "heap/heap-utils.h",
     "heap/item-parallel-job-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-heap-unittest.cc",
@@ -242,6 +251,7 @@ v8_source_set("unittests_sources") {
     "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
+    "heap/unified-heap-unittest.cc",
     "heap/unmapper-unittest.cc",
     "heap/worklist-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",
@@ -305,6 +315,7 @@ v8_source_set("unittests_sources") {
     "wasm/loop-assignment-analysis-unittest.cc",
     "wasm/module-decoder-unittest.cc",
     "wasm/streaming-decoder-unittest.cc",
+    "wasm/subtyping-unittest.cc",
     "wasm/wasm-code-manager-unittest.cc",
     "wasm/wasm-compiler-unittest.cc",
     "wasm/wasm-macro-gen-unittest.cc",
@@ -371,6 +382,7 @@ v8_source_set("unittests_sources") {
   }
 
   configs = [
+    "../..:cppgc_base_config",
     "../..:external_config",
     "../..:internal_config_base",
   ]
@@ -380,6 +392,7 @@ v8_source_set("unittests_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
+    "../..:wasm_test_common",
     "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",
     "//testing/gmock",

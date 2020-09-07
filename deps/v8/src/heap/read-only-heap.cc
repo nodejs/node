@@ -10,6 +10,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/lsan.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-spaces.h"
@@ -137,7 +138,7 @@ ReadOnlyHeap* ReadOnlyHeap::CreateAndAttachToIsolate(
 
 void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   DCHECK(!init_complete_);
-  read_only_space_->ShrinkImmortalImmovablePages();
+  read_only_space_->ShrinkPages();
 #ifdef V8_SHARED_RO_HEAP
   std::shared_ptr<ReadOnlyArtifacts> artifacts(*read_only_artifacts_.Pointer());
   read_only_space()->DetachPagesAndAddToArtifacts(artifacts);
@@ -174,7 +175,7 @@ void ReadOnlyHeap::PopulateReadOnlySpaceStatistics(
   if (artifacts) {
     auto ro_space = artifacts->shared_read_only_space();
     statistics->read_only_space_size_ = ro_space->CommittedMemory();
-    statistics->read_only_space_used_size_ = ro_space->SizeOfObjects();
+    statistics->read_only_space_used_size_ = ro_space->Size();
     statistics->read_only_space_physical_size_ =
         ro_space->CommittedPhysicalMemory();
   }
@@ -183,7 +184,7 @@ void ReadOnlyHeap::PopulateReadOnlySpaceStatistics(
 
 // static
 bool ReadOnlyHeap::Contains(Address address) {
-  return MemoryChunk::FromAddress(address)->InReadOnlySpace();
+  return BasicMemoryChunk::FromAddress(address)->InReadOnlySpace();
 }
 
 // static
@@ -191,7 +192,7 @@ bool ReadOnlyHeap::Contains(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return third_party_heap::Heap::InReadOnlySpace(object.address());
   } else {
-    return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+    return BasicMemoryChunk::FromHeapObject(object)->InReadOnlySpace();
   }
 }
 
@@ -214,30 +215,33 @@ ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(ReadOnlyHeap* ro_heap)
 
 ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(ReadOnlySpace* ro_space)
     : ro_space_(ro_space),
-      current_page_(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ? nullptr
-                                                    : ro_space->first_page()),
+      current_page_(V8_ENABLE_THIRD_PARTY_HEAP_BOOL
+                        ? std::vector<ReadOnlyPage*>::iterator()
+                        : ro_space->pages().begin()),
       current_addr_(V8_ENABLE_THIRD_PARTY_HEAP_BOOL
                         ? Address()
-                        : current_page_->area_start()) {}
+                        : (*current_page_)->area_start()) {}
 
 HeapObject ReadOnlyHeapObjectIterator::Next() {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return HeapObject();  // Unsupported
   }
 
-  if (current_page_ == nullptr) {
+  if (current_page_ == ro_space_->pages().end()) {
     return HeapObject();
   }
 
+  BasicMemoryChunk* current_page = *current_page_;
   for (;;) {
-    DCHECK_LE(current_addr_, current_page_->area_end());
-    if (current_addr_ == current_page_->area_end()) {
+    DCHECK_LE(current_addr_, current_page->area_end());
+    if (current_addr_ == current_page->area_end()) {
       // Progress to the next page.
-      current_page_ = current_page_->next_page();
-      if (current_page_ == nullptr) {
+      ++current_page_;
+      if (current_page_ == ro_space_->pages().end()) {
         return HeapObject();
       }
-      current_addr_ = current_page_->area_start();
+      current_page = *current_page_;
+      current_addr_ = current_page->area_start();
     }
 
     if (current_addr_ == ro_space_->top() &&

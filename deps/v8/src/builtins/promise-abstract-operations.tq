@@ -24,6 +24,16 @@ PromiseRejectEventFromStack(implicit context: Context)(JSPromise, JSAny): JSAny;
 
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
 namespace promise {
+
+extern macro PromiseForwardingHandlerSymbolConstant(): Symbol;
+const kPromiseForwardingHandlerSymbol: Symbol =
+    PromiseForwardingHandlerSymbolConstant();
+extern macro PromiseHandledBySymbolConstant(): Symbol;
+const kPromiseHandledBySymbol: Symbol = PromiseHandledBySymbolConstant();
+extern macro ResolveStringConstant(): String;
+const kResolveString: String = ResolveStringConstant();
+extern macro IsPromiseResolveProtectorCellInvalid(): bool;
+
 extern macro AllocateFunctionWithMapAndContext(
     Map, SharedFunctionInfo, Context): JSFunction;
 
@@ -501,6 +511,41 @@ PromiseGetCapabilitiesExecutor(
   capability.resolve = resolve;
   capability.reject = reject;
   return Undefined;
+}
+
+macro IsPromiseResolveLookupChainIntact(implicit context: Context)(
+    nativeContext: NativeContext, constructor: JSReceiver): bool {
+  if (IsForceSlowPath()) return false;
+  const promiseFun = UnsafeCast<JSFunction>(
+      nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
+  return promiseFun == constructor && !IsPromiseResolveProtectorCellInvalid();
+}
+
+// https://tc39.es/ecma262/#sec-getpromiseresolve
+transitioning macro GetPromiseResolve(implicit context: Context)(
+    nativeContext: NativeContext, constructor: Constructor): JSAny {
+  // 1. Assert: IsConstructor(constructor) is true.
+
+  // We can skip the "resolve" lookup on {constructor} if it's the
+  // Promise constructor and the Promise.resolve protector is intact,
+  // as that guards the lookup path for the "resolve" property on the
+  // Promise constructor. In this case, promiseResolveFunction is undefined,
+  // and when CallResolve is called with it later, it will call Promise.resolve.
+  let promiseResolveFunction: JSAny = Undefined;
+
+  if (!IsPromiseResolveLookupChainIntact(nativeContext, constructor)) {
+    let promiseResolve: JSAny;
+
+    // 2. Let promiseResolve be ? Get(constructor, "resolve").
+    promiseResolve = GetProperty(constructor, kResolveString);
+
+    // 3. If IsCallable(promiseResolve) is false, throw a TypeError exception.
+    promiseResolveFunction =
+        Cast<Callable>(promiseResolve) otherwise ThrowTypeError(
+            MessageTemplate::kCalledNonCallable, 'resolve');
+  }
+  // 4. return promiseResolve.
+  return promiseResolveFunction;
 }
 
 transitioning macro CallResolve(implicit context: Context)(

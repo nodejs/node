@@ -1125,7 +1125,7 @@ double MutableBigInt::ToDouble(Handle<BigIntBase> x) {
   return bit_cast<double>(double_bits);
 }
 
-// This is its own function to keep control flow sane. The meaning of the
+// This is its own function to simplify control flow. The meaning of the
 // parameters is defined by {ToDouble}'s local variable usage.
 MutableBigInt::Rounding MutableBigInt::DecideRounding(Handle<BigIntBase> x,
                                                       int mantissa_bits_unset,

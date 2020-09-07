@@ -9,6 +9,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/execution/frames-inl.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-arguments.h"
@@ -33,15 +34,15 @@ static bool CheckSignature(ValueType return_type,
                            const FunctionSig* sig, ErrorThrower* thrower) {
   if (sig->return_count() != 1 && return_type != kWasmBottom) {
     thrower->CompileError("Invalid return type. Got none, expected %s",
-                          return_type.type_name());
+                          return_type.type_name().c_str());
     return false;
   }
 
   if (sig->return_count() == 1) {
     if (sig->GetReturn(0) != return_type) {
       thrower->CompileError("Invalid return type. Got %s, expected %s",
-                            sig->GetReturn(0).type_name(),
-                            return_type.type_name());
+                            sig->GetReturn(0).type_name().c_str(),
+                            return_type.type_name().c_str());
       return false;
     }
   }
@@ -56,7 +57,8 @@ static bool CheckSignature(ValueType return_type,
     if (sig->GetParam(p) != argument_type) {
       thrower->CompileError(
           "Invalid argument type for argument %zu. Got %s, expected %s", p,
-          sig->GetParam(p).type_name(), argument_type.type_name());
+          sig->GetParam(p).type_name().c_str(),
+          argument_type.type_name().c_str());
       return false;
     }
     ++p;
@@ -202,8 +204,8 @@ class DebugEvaluatorProxy {
     DCHECK(frame_->is_wasm());
     wasm::DebugInfo* debug_info =
         WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
-    return debug_info->GetLocalValue(local, isolate_, frame_->pc(),
-                                     frame_->fp(), frame_->callee_fp());
+    return debug_info->GetLocalValue(local, frame_->pc(), frame_->fp(),
+                                     frame_->callee_fp());
   }
 
   uint32_t GetArgAsUInt32(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -350,10 +352,10 @@ Maybe<std::string> DebugEvaluateImpl(
   Handle<WasmExportedFunction> entry_point =
       Handle<WasmExportedFunction>::cast(entry_point_obj);
 
-  Handle<WasmDebugInfo> debug_info =
-      WasmInstanceObject::GetOrCreateDebugInfo(evaluator_instance);
+  // TODO(wasm): Cache this code.
   Handle<Code> wasm_entry =
-      WasmDebugInfo::GetCWasmEntry(debug_info, entry_point->sig());
+      compiler::CompileCWasmEntry(isolate, entry_point->sig());
+
   CWasmArgumentsPacker packer(4 /* uint32_t return value, no parameters. */);
   Execution::CallWasm(isolate, wasm_entry, entry_point->GetWasmCallTarget(),
                       evaluator_instance, packer.argv());

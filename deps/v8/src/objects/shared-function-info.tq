@@ -77,3 +77,12 @@ extern class UncompiledDataWithoutPreparseData extends UncompiledData {
 extern class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
 }
+
+@export
+class OnHeapBasicBlockProfilerData extends HeapObject {
+  block_rpo_numbers: ByteArray;  // Stored as 4-byte ints
+  counts: ByteArray;             // Stored as 4-byte ints
+  name: String;
+  schedule: String;
+  code: String;
+}

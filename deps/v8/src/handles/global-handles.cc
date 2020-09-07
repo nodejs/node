@@ -575,7 +575,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   void PostGarbageCollectionProcessing(Isolate* isolate) {
     // This method invokes a finalizer. Updating the method name would require
-    // adjusting CFI blacklist as weak_callback_ is invoked on the wrong type.
+    // adjusting CFI blocklist as weak_callback_ is invoked on the wrong type.
     CHECK(IsPendingFinalizer());
     set_state(NEAR_DEATH);
     // Check that we are not passing a finalized external string to

@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "src/base/macros.h"
+#include "src/logging/tracing-flags.h"
 
 namespace v8 {
 namespace internal {
@@ -21,11 +22,11 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   virtual ~AccountingAllocator();
 
   // Allocates a new segment. Returns nullptr on failed allocation.
-  virtual Segment* AllocateSegment(size_t bytes);
+  Segment* AllocateSegment(size_t bytes);
 
   // Return unneeded segments to either insert them into the pool or release
   // them if the pool is already full or memory pressure is high.
-  virtual void ReturnSegment(Segment* memory);
+  void ReturnSegment(Segment* memory);
 
   size_t GetCurrentMemoryUsage() const {
     return current_memory_usage_.load(std::memory_order_relaxed);
@@ -35,8 +36,25 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
     return max_memory_usage_.load(std::memory_order_relaxed);
   }
 
-  virtual void ZoneCreation(const Zone* zone) {}
-  virtual void ZoneDestruction(const Zone* zone) {}
+  void TraceZoneCreation(const Zone* zone) {
+    if (V8_LIKELY(!TracingFlags::is_zone_stats_enabled())) return;
+    TraceZoneCreationImpl(zone);
+  }
+
+  void TraceZoneDestruction(const Zone* zone) {
+    if (V8_LIKELY(!TracingFlags::is_zone_stats_enabled())) return;
+    TraceZoneDestructionImpl(zone);
+  }
+
+  void TraceAllocateSegment(Segment* segment) {
+    if (V8_LIKELY(!TracingFlags::is_zone_stats_enabled())) return;
+    TraceAllocateSegmentImpl(segment);
+  }
+
+ protected:
+  virtual void TraceZoneCreationImpl(const Zone* zone) {}
+  virtual void TraceZoneDestructionImpl(const Zone* zone) {}
+  virtual void TraceAllocateSegmentImpl(Segment* segment) {}
 
  private:
   std::atomic<size_t> current_memory_usage_{0};

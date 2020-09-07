@@ -627,18 +627,26 @@ void BackgroundCompileToken::PublishCode(
     NativeModule* native_module, Vector<std::unique_ptr<WasmCode>> code) {
   WasmCodeRefScope code_ref_scope;
   std::vector<WasmCode*> published_code = native_module->PublishCode(code);
-  native_module->engine()->LogCode(VectorOf(published_code));
+  // Defer logging code in case wire bytes were not fully received yet.
+  if (native_module->HasWireBytes()) {
+    native_module->engine()->LogCode(VectorOf(published_code));
+  }
 
   Impl(native_module->compilation_state())
       ->OnFinishedUnits(VectorOf(published_code));
 }
 
 void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
-  if (detected.has_threads()) {
-    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmThreadOpcodes);
-  }
-  if (detected.has_simd()) {
-    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSimdOpcodes);
+  using Feature = v8::Isolate::UseCounterFeature;
+  constexpr static std::pair<WasmFeature, Feature> kUseCounters[] = {
+      {kFeature_reftypes, Feature::kWasmRefTypes},
+      {kFeature_bulk_memory, Feature::kWasmBulkMemory},
+      {kFeature_mv, Feature::kWasmMultiValue},
+      {kFeature_simd, Feature::kWasmSimdOpcodes},
+      {kFeature_threads, Feature::kWasmThreadOpcodes}};
+
+  for (auto& feature : kUseCounters) {
+    if (detected.contains(feature.first)) isolate->CountUsage(feature.second);
   }
 }
 
@@ -802,6 +810,9 @@ class CompilationUnitBuilder {
     ExecutionTierPair tiers = GetRequestedExecutionTiers(
         native_module_->module(), compilation_state()->compile_mode(),
         native_module_->enabled_features(), func_index);
+    // Compile everything for non-debugging initially. If needed, we will tier
+    // down when the module is fully compiled. Synchronization would be pretty
+    // difficult otherwise.
     baseline_units_.emplace_back(func_index, tiers.baseline_tier, kNoDebugging);
     if (tiers.baseline_tier != tiers.top_tier) {
       tiering_units_.emplace_back(func_index, tiers.top_tier, kNoDebugging);
@@ -1038,15 +1049,13 @@ bool ExecuteJSToWasmWrapperCompilationUnits(
   return true;
 }
 
-bool NeedsDeterministicCompile() { return FLAG_single_threaded; }
-
 // Run by the main thread and background tasks to take part in compilation.
 // Returns whether any units were executed.
 bool ExecuteCompilationUnits(
     const std::shared_ptr<BackgroundCompileToken>& token, Counters* counters,
     int task_id, CompileBaselineOnly baseline_only) {
   TRACE_COMPILE("Compiling (task %d)...\n", task_id);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ExecuteCompilationUnits");
+  TRACE_EVENT0("v8.wasm", "wasm.ExecuteCompilationUnits");
 
   // Execute JS to Wasm wrapper units first, so that they are ready to be
   // finalized by the main thread when the kFinishedBaselineCompilation event is
@@ -1067,7 +1076,6 @@ bool ExecuteCompilationUnits(
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
   double deadline = 0;
-  const bool deterministic = NeedsDeterministicCompile();
   base::Optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
@@ -1108,8 +1116,9 @@ bool ExecuteCompilationUnits(
 
   auto publish_results = [&results_to_publish](
                              BackgroundCompileScope* compile_scope) {
-    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "PublishResults",
-                 "num_results", results_to_publish.size());
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.PublishCompilationResults", "num_results",
+                 results_to_publish.size());
     if (results_to_publish.empty()) return;
     std::vector<std::unique_ptr<WasmCode>> unpublished_code =
         compile_scope->native_module()->AddCompiledCode(
@@ -1161,7 +1170,8 @@ bool ExecuteCompilationUnits(
       }
 
       // Get next unit.
-      if (deterministic || deadline < platform->MonotonicallyIncreasingTime()) {
+      if (FLAG_predictable ||
+          deadline < platform->MonotonicallyIncreasingTime()) {
         unit = {};
       } else {
         unit = compile_scope.compilation_state()->GetNextCompilationUnit(
@@ -1419,9 +1429,15 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out) {
   const WasmModule* wasm_module = module.get();
+  OwnedVector<uint8_t> wire_bytes_copy =
+      OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
+  // Prefer {wire_bytes_copy} to {wire_bytes.module_bytes()} for the temporary
+  // cache key. When we eventually install the module in the cache, the wire
+  // bytes of the temporary key and the new key have the same base pointer and
+  // we can skip the full bytes comparison.
   std::shared_ptr<NativeModule> native_module =
       isolate->wasm_engine()->MaybeGetNativeModule(
-          wasm_module->origin, wire_bytes.module_bytes(), isolate);
+          wasm_module->origin, wire_bytes_copy.as_vector(), isolate);
   if (native_module) {
     // TODO(thibaudm): Look into sharing export wrappers.
     CompileJsToWasmWrappers(isolate, wasm_module, export_wrappers_out);
@@ -1435,8 +1451,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   if (wasm_module->has_shared_memory) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
-  OwnedVector<uint8_t> wire_bytes_copy =
-      OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
   // Create a new {NativeModule} first.
   const bool uses_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
@@ -1481,20 +1495,17 @@ void RecompileNativeModule(NativeModule* native_module,
         }
       });
 
-  // We only wait for tier down. Tier up can happen in the background.
-  if (tiering_state == kTieredDown) {
-    // The main thread contributes to the compilation.
-    constexpr Counters* kNoCounters = nullptr;
-    while (ExecuteCompilationUnits(
-        compilation_state->background_compile_token(), kNoCounters,
-        kMainThreadTaskId, kBaselineOnly)) {
-      // Continue executing compilation units.
-    }
-
-    // Now wait until baseline recompilation finished.
-    recompilation_finished_semaphore->Wait();
-    DCHECK(!compilation_state->failed());
+  // The main thread contributes to the compilation.
+  constexpr Counters* kNoCounters = nullptr;
+  while (ExecuteCompilationUnits(compilation_state->background_compile_token(),
+                                 kNoCounters, kMainThreadTaskId,
+                                 kBaselineOnly)) {
+    // Continue executing compilation units.
   }
+
+  // Now wait until all compilation units finished.
+  recompilation_finished_semaphore->Wait();
+  DCHECK(!compilation_state->failed());
 }
 
 AsyncCompileJob::AsyncCompileJob(
@@ -1510,7 +1521,9 @@ AsyncCompileJob::AsyncCompileJob(
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
       resolver_(std::move(resolver)) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "new AsyncCompileJob");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.AsyncCompileJob");
+  CHECK(FLAG_wasm_async_compilation);
   CHECK(!FLAG_jitless);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
@@ -1536,7 +1549,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
                                    std::shared_ptr<Counters> counters,
                                    AccountingAllocator* allocator);
 
-  ~AsyncStreamingProcessor();
+  ~AsyncStreamingProcessor() override;
 
   bool ProcessModuleHeader(Vector<const uint8_t> bytes,
                            uint32_t offset) override;
@@ -1586,8 +1599,9 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
   DCHECK_NULL(stream_);
-  stream_.reset(new StreamingDecoder(std::make_unique<AsyncStreamingProcessor>(
-      this, isolate_->async_counters(), isolate_->allocator())));
+  stream_ = StreamingDecoder::CreateAsyncStreamingDecoder(
+      std::make_unique<AsyncStreamingProcessor>(
+          this, isolate_->async_counters(), isolate_->allocator()));
   return stream_;
 }
 
@@ -1656,8 +1670,8 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
 void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "AsyncCompileJob::FinishCompile");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.FinishAsyncCompile");
   bool is_after_deserialization = !module_object_.is_null();
   auto compilation_state = Impl(native_module_->compilation_state());
   if (!is_after_deserialization) {
@@ -1689,7 +1703,8 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
   {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "Debug::OnAfterCompile");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.Debug.OnAfterCompile");
     isolate_->debug()->OnAfterCompile(script);
   }
 
@@ -1736,8 +1751,8 @@ void AsyncCompileJob::AsyncCompileFailed() {
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "CompilationResultResolver::OnCompilationSucceeded");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.OnCompilationSucceeded");
   resolver_->OnCompilationSucceeded(result);
 }
 
@@ -1771,8 +1786,11 @@ class AsyncCompileJob::CompilationStateCallback {
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
+          // Don't update {job_->native_module_} to avoid data races with other
+          // compilation threads. Use a copy of the shared pointer instead.
+          std::shared_ptr<NativeModule> native_module = job_->native_module_;
           job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-              true, &job_->native_module_, job_->isolate_);
+              true, &native_module, job_->isolate_);
           job_->DoSync<CompileFailed>();
         }
         break;
@@ -1781,8 +1799,6 @@ class AsyncCompileJob::CompilationStateCallback {
         // {kFinishedTopTierCompilation}, hence don't remember this in
         // {last_event_}.
         return;
-      default:
-        UNREACHABLE();
     }
 #ifdef DEBUG
     last_event_ = event;
@@ -1933,8 +1949,8 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       DisallowHeapAllocation no_allocation;
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-                   "AsyncCompileJob::DecodeModule");
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                   "wasm.DecodeModule");
       auto enabled_features = job->enabled_features_;
       result = DecodeWasmModule(enabled_features, job->wire_bytes_.start(),
                                 job->wire_bytes_.end(), false, kWasmOrigin,
@@ -2404,9 +2420,17 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   } else {
     job_->native_module_->SetWireBytes(
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()});
+    job_->native_module_->LogWasmCodes(job_->isolate_);
   }
   const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   DCHECK_IMPLIES(!has_code_section, needs_finish);
+  // We might need to recompile the module for debugging, if the debugger was
+  // enabled while streaming compilation was running. Since handling this while
+  // compiling via streaming is tricky, we just tier down now, before publishing
+  // the module.
+  if (job_->native_module_->IsTieredDown()) {
+    job_->native_module_->RecompileForTiering();
+  }
   if (needs_finish) {
     const bool failed = job_->native_module_->compilation_state()->failed();
     if (!cache_hit) {
@@ -2434,6 +2458,7 @@ void AsyncStreamingProcessor::OnAbort() {
 
 bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
                                           Vector<const uint8_t> wire_bytes) {
+  TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
   // DeserializeNativeModule and FinishCompile assume that they are executed in
   // a HandleScope, and that a context is set on the isolate.
   HandleScope scope(job_->isolate_);
@@ -2453,7 +2478,6 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 }
 
 int GetMaxBackgroundTasks() {
-  if (NeedsDeterministicCompile()) return 0;
   int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
   return std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
 }
@@ -2569,36 +2593,54 @@ void CompilationStateImpl::InitializeRecompilation(
   // Generate necessary compilation units on the fly.
   CompilationUnitBuilder builder(native_module_);
 
+  // Information about compilation progress is shared between this class and the
+  // NativeModule. Before updating information here, consult the NativeModule to
+  // find all functions that need recompilation.
+  // Since the current tiering state is updated on the NativeModule before
+  // triggering recompilation, it's OK if the information is slightly outdated.
+  // If we compile functions twice, the NativeModule will ignore all redundant
+  // code (or code compiled for the wrong tier).
+  std::vector<int> recompile_function_indexes =
+      native_module_->FindFunctionsToRecompile(new_tiering_state);
+
   {
     base::MutexGuard guard(&callbacks_mutex_);
 
-    // Restart recompilation if another recompilation is already happening.
-    outstanding_recompilation_functions_ = 0;
-    // If compilation hasn't started yet then code would be kept as tiered-down
-    // and don't need to recompile.
+    callbacks_.emplace_back(std::move(recompilation_finished_callback));
+    tiering_state_ = new_tiering_state;
+
+    // If compilation progress is not initialized yet, then compilation didn't
+    // start yet, and new code will be kept tiered-down from the start. For
+    // streaming compilation, there is a special path to tier down later, when
+    // the module is complete. In any case, we don't need to recompile here.
     if (compilation_progress_.size() > 0) {
       const WasmModule* module = native_module_->module();
+      DCHECK_EQ(module->num_declared_functions, compilation_progress_.size());
+      DCHECK_GE(module->num_declared_functions,
+                recompile_function_indexes.size());
+      outstanding_recompilation_functions_ =
+          static_cast<int>(recompile_function_indexes.size());
+      // Restart recompilation if another recompilation is already happening.
+      for (auto& progress : compilation_progress_) {
+        progress = MissingRecompilationField::update(progress, false);
+      }
+      auto new_tier = new_tiering_state == kTieredDown
+                          ? ExecutionTier::kLiftoff
+                          : ExecutionTier::kTurbofan;
       int imported = module->num_imported_functions;
-      int declared = module->num_declared_functions;
-      outstanding_recompilation_functions_ = declared;
-      DCHECK_EQ(declared, compilation_progress_.size());
-      for (int slot_index = 0; slot_index < declared; ++slot_index) {
-        compilation_progress_[slot_index] = MissingRecompilationField::update(
-            compilation_progress_[slot_index], true);
-        builder.AddRecompilationUnit(imported + slot_index,
-                                     new_tiering_state == kTieredDown
-                                         ? ExecutionTier::kLiftoff
-                                         : ExecutionTier::kTurbofan);
+      for (int function_index : recompile_function_indexes) {
+        DCHECK_LE(imported, function_index);
+        int slot_index = function_index - imported;
+        auto& progress = compilation_progress_[slot_index];
+        progress = MissingRecompilationField::update(progress, true);
+        builder.AddRecompilationUnit(function_index, new_tier);
       }
     }
 
-    // Trigger callback if module needs no recompilation. Add to the list of
-    // callbacks (to be called later) otherwise.
+    // Trigger callback if module needs no recompilation.
     if (outstanding_recompilation_functions_ == 0) {
-      recompilation_finished_callback(CompilationEvent::kFinishedRecompilation);
-    } else {
-      callbacks_.emplace_back(std::move(recompilation_finished_callback));
-      tiering_state_ = new_tiering_state;
+      TriggerCallbacks(base::EnumSet<CompilationEvent>(
+          {CompilationEvent::kFinishedRecompilation}));
     }
   }
 
@@ -2661,8 +2703,9 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking
   // because many such wrapper are allocated in sequence below.
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FinalizeJSToWasmWrappers",
-               "num_wrappers", js_to_wasm_wrapper_units_.size());
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.FinalizeJSToWasmWrappers", "num_wrappers",
+               js_to_wasm_wrapper_units_.size());
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     Handle<Code> code = unit->Finalize(isolate);
@@ -2680,8 +2723,8 @@ CompilationStateImpl::GetNextCompilationUnit(
 }
 
 void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "OnFinishedUnits",
-               "num_units", code_vector.size());
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.OnFinishedUnits", "num_units", code_vector.size());
 
   base::MutexGuard guard(&callbacks_mutex_);
 
@@ -2804,13 +2847,13 @@ void CompilationStateImpl::TriggerCallbacks(
 
   for (auto event :
        {std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
-                       "BaselineFinished"),
+                       "wasm.BaselineFinished"),
         std::make_pair(CompilationEvent::kFinishedTopTierCompilation,
-                       "TopTierFinished"),
+                       "wasm.TopTierFinished"),
         std::make_pair(CompilationEvent::kFinishedRecompilation,
-                       "RecompilationFinished")}) {
+                       "wasm.RecompilationFinished")}) {
     if (!triggered_events.contains(event.first)) continue;
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), event.second);
+    TRACE_EVENT0("v8.wasm", event.second);
     for (auto& callback : callbacks_) {
       callback(event.first);
     }
@@ -2885,15 +2928,12 @@ void CompilationStateImpl::RestartBackgroundTasks() {
     }
   }
 
-  if (baseline_compilation_finished() && recompilation_finished()) {
-    for (auto& task : new_tasks) {
-      V8::GetCurrentPlatform()->CallLowPriorityTaskOnWorkerThread(
-          std::move(task));
-    }
-  } else {
-    for (auto& task : new_tasks) {
-      V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
-    }
+  // Spawn all tasts with default priority (avoid
+  // {CallLowPriorityTaskOnWorkerThread}) even for tier up, because low priority
+  // tasks will be severely delayed even if background threads are idle (see
+  // https://crbug.com/1094928).
+  for (auto& task : new_tasks) {
+    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   }
 }
 

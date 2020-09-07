@@ -8,6 +8,7 @@
 #include "src/base/macros.h"
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
+#include "src/execution/local-isolate-wrapper.h"
 #include "src/handles/handles.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/objects-definitions.h"
@@ -107,7 +108,6 @@ class Symbol;
   V(Map, next_call_side_effect_free_call_handler_info_map,                     \
     NextCallSideEffectFreeCallHandlerInfoMap)                                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
-  V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
@@ -155,6 +155,7 @@ class Symbol;
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
   V(Map, stale_register_map, StaleRegisterMap)                                 \
   V(Map, self_reference_marker_map, SelfReferenceMarkerMap)                    \
+  V(Map, basic_block_counters_marker_map, BasicBlockCountersMarkerMap)         \
   /* Canonical empty values */                                                 \
   V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
@@ -165,7 +166,6 @@ class Symbol;
     EmptyArrayBoilerplateDescription)                                          \
   V(ClosureFeedbackCellArray, empty_closure_feedback_cell_array,               \
     EmptyClosureFeedbackCellArray)                                             \
-  V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
   V(FixedArray, empty_ordered_hash_map, EmptyOrderedHashMap)                   \
@@ -184,6 +184,8 @@ class Symbol;
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
   /* Marker for self-references during code-generation */                      \
   V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
+  /* Marker for basic-block usage counters array during code-generation */     \
+  V(Oddball, basic_block_counters_marker, BasicBlockCountersMarker)            \
   /* Canonical off-heap trampoline data */                                     \
   V(ByteArray, off_heap_trampoline_relocation_info,                            \
     OffHeapTrampolineRelocationInfo)                                           \
@@ -302,6 +304,7 @@ class Symbol;
     InterpreterEntryTrampolineForProfiling)                                \
   V(Object, pending_optimize_for_test_bytecode,                            \
     PendingOptimizeForTestBytecode)                                        \
+  V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)        \
   V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)
 
 // Entries in this list are limited to Smis and are not visited during GC.
@@ -353,7 +356,7 @@ class Symbol;
   PUBLIC_SYMBOL_ROOT_LIST(V)       \
   WELL_KNOWN_SYMBOL_ROOT_LIST(V)   \
   STRUCT_MAPS_LIST(V)              \
-  TORQUE_INTERNAL_MAP_ROOT_LIST(V) \
+  TORQUE_DEFINED_MAP_ROOT_LIST(V)  \
   ALLOCATION_SITE_MAPS_LIST(V)     \
   DATA_HANDLER_MAPS_LIST(V)
 
@@ -527,6 +530,8 @@ class ReadOnlyRoots {
   V8_INLINE explicit ReadOnlyRoots(OffThreadHeap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
+  V8_INLINE explicit ReadOnlyRoots(LocalIsolateWrapper wrapper);
+  V8_INLINE explicit ReadOnlyRoots(LocalHeapWrapper wrapper);
 
 #define ROOT_ACCESSOR(Type, name, CamelName)     \
   V8_INLINE class Type name() const;             \
@@ -553,13 +558,15 @@ class ReadOnlyRoots {
 #undef ROOT_TYPE_CHECK
 #endif
 
-  V8_INLINE explicit ReadOnlyRoots(Address* ro_roots);
+  V8_INLINE explicit ReadOnlyRoots(Address* ro_roots)
+      : read_only_roots_(ro_roots) {}
 
   V8_INLINE Address* GetLocation(RootIndex root_index) const;
 
   Address* read_only_roots_;
 
   friend class ReadOnlyHeap;
+  friend class DeserializerAllocator;
 };
 
 }  // namespace internal

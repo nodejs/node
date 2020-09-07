@@ -34,6 +34,7 @@
 #include "src/base/platform/platform.h"
 #include "src/codegen/arm/assembler-arm.h"
 #include "src/codegen/arm/constants-arm.h"
+#include "src/codegen/arm/register-arm.h"
 #include "src/diagnostics/disasm.h"
 #include "src/utils/vector.h"
 
@@ -70,7 +71,9 @@ class Decoder {
   void PrintRegister(int reg);
   void PrintSRegister(int reg);
   void PrintDRegister(int reg);
-  int FormatVFPRegister(Instruction* instr, const char* format);
+  void PrintQRegister(int reg);
+  int FormatVFPRegister(Instruction* instr, const char* format,
+                        VFPRegPrecision precision);
   void PrintMovwMovt(Instruction* instr);
   int FormatVFPinstruction(Instruction* instr, const char* format);
   void PrintCondition(Instruction* instr);
@@ -159,6 +162,11 @@ void Decoder::PrintSRegister(int reg) { Print(VFPRegisters::Name(reg, false)); }
 
 // Print the VFP D register name according to the active name converter.
 void Decoder::PrintDRegister(int reg) { Print(VFPRegisters::Name(reg, true)); }
+
+// Print the VFP Q register name according to the active name converter.
+void Decoder::PrintQRegister(int reg) {
+  Print(RegisterName(QwNeonRegister::from_code(reg)));
+}
 
 // These shift names are defined in a way to match the native disassembler
 // formatting. See for example the command "objdump -d <binary file>".
@@ -312,12 +320,8 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 
 // Handle all VFP register based formatting in this function to reduce the
 // complexity of FormatOption.
-int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
-  DCHECK((format[0] == 'S') || (format[0] == 'D'));
-
-  VFPRegPrecision precision =
-      format[0] == 'D' ? kDoublePrecision : kSinglePrecision;
-
+int Decoder::FormatVFPRegister(Instruction* instr, const char* format,
+                               VFPRegPrecision precision) {
   int retval = 2;
   int reg = -1;
   if (format[1] == 'n') {
@@ -334,9 +338,10 @@ int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
     }
 
     if (format[2] == '+') {
+      DCHECK_NE(kSimd128Precision, precision);  // Simd128 unimplemented.
       int immed8 = instr->Immed8Value();
-      if (format[0] == 'S') reg += immed8 - 1;
-      if (format[0] == 'D') reg += (immed8 / 2 - 1);
+      if (precision == kSinglePrecision) reg += immed8 - 1;
+      if (precision == kDoublePrecision) reg += (immed8 / 2 - 1);
     }
     if (format[2] == '+') retval = 3;
   } else {
@@ -345,8 +350,11 @@ int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
 
   if (precision == kSinglePrecision) {
     PrintSRegister(reg);
-  } else {
+  } else if (precision == kDoublePrecision) {
     PrintDRegister(reg);
+  } else {
+    DCHECK_EQ(kSimd128Precision, precision);
+    PrintQRegister(reg);
   }
 
   return retval;
@@ -644,9 +652,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 1;
     }
     case 'S':
-    case 'D': {
-      return FormatVFPRegister(instr, format);
-    }
+      return FormatVFPRegister(instr, format, kSinglePrecision);
+    case 'D':
+      return FormatVFPRegister(instr, format, kDoublePrecision);
+    case 'Q':
+      return FormatVFPRegister(instr, format, kSimd128Precision);
     case 'w': {  // 'w: W field of load and store instructions
       if (instr->HasW()) {
         Print("!");
@@ -2264,6 +2274,35 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           out_buffer_pos_ +=
               SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
                        type, size, Vd, Vm);
+        } else if (instr->Bits(17, 16) == 0x2 && instr->Bit(10) == 1) {
+          // NEON vrintm, vrintp, vrintz
+          bool dp_op = instr->Bit(6) == 0;
+          int rounding_mode = instr->Bits(9, 7);
+          switch (rounding_mode) {
+            case 3:
+              if (dp_op) {
+                Format(instr, "vrintz.f32 'Dd, 'Dm");
+              } else {
+                Format(instr, "vrintz.f32 'Qd, 'Qm");
+              }
+              break;
+            case 5:
+              if (dp_op) {
+                Format(instr, "vrintm.f32 'Dd, 'Dm");
+              } else {
+                Format(instr, "vrintm.f32 'Qd, 'Qm");
+              }
+              break;
+            case 7:
+              if (dp_op) {
+                Format(instr, "vrintp.f32 'Dd, 'Dm");
+              } else {
+                Format(instr, "vrintp.f32 'Qd, 'Qm");
+              }
+              break;
+            default:
+              UNIMPLEMENTED();
+          }
         } else {
           int Vd, Vm;
           if (instr->Bit(6) == 0) {

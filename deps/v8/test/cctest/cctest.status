@@ -97,6 +97,9 @@
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
+  # BUG(10637).
+  'test-concurrent-allocation/ConcurrentAllocationInOldSpace': [SKIP],
+
   # Test that serialization with unknown external reference fails.
   'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
   'test-serialize/SnapshotCreatorUnknownHandles': [FAIL],
@@ -226,9 +229,6 @@
 
 ##############################################################################
 ['system == windows', {
-  # BUG(v8:4573).
-  'test-api/MultipleIsolatesOnIndividualThreads': [PASS, NO_VARIANTS],
-
   # BUG(v8:4642).
   'test-lockers/LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
 
@@ -394,6 +394,7 @@
   'test-liftoff-*': [SKIP],
   'test-wasm-breakpoints/*' : [SKIP],
   'test-wasm-debug-evaluate/*': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
@@ -636,5 +637,15 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['variant == nci', {
+  # Optimizes and deopts differently than TurboFan.
+  'test-cpu-profiler/Deopt*': [SKIP],
+  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [SKIP],
+  'test-heap/OptimizedPretenuring*': [SKIP],
+  'test-heap-profiler/SamplingHeapProfilerPretenuredInlineAllocations': [SKIP],
+}],  # variant == nci
 
 ]

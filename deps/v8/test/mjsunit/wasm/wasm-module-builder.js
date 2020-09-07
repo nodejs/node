@@ -99,9 +99,8 @@ let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
-let kWasmAnyRef = 0x6f;
+let kWasmExternRef = 0x6f;
 let kWasmAnyFunc = 0x70;
-let kWasmNullRef = 0x6e;
 let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
@@ -150,19 +149,21 @@ let kSig_v_f = makeSig([kWasmF32], []);
 let kSig_f_f = makeSig([kWasmF32], [kWasmF32]);
 let kSig_f_d = makeSig([kWasmF64], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
-let kSig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
+let kSig_r_r = makeSig([kWasmExternRef], [kWasmExternRef]);
 let kSig_a_a = makeSig([kWasmAnyFunc], [kWasmAnyFunc]);
 let kSig_e_e = makeSig([kWasmExnRef], [kWasmExnRef]);
-let kSig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
-let kSig_v_r = makeSig([kWasmAnyRef], []);
+let kSig_i_r = makeSig([kWasmExternRef], [kWasmI32]);
+let kSig_v_r = makeSig([kWasmExternRef], []);
 let kSig_v_a = makeSig([kWasmAnyFunc], []);
 let kSig_v_e = makeSig([kWasmExnRef], []);
-let kSig_v_rr = makeSig([kWasmAnyRef, kWasmAnyRef], []);
+let kSig_v_rr = makeSig([kWasmExternRef, kWasmExternRef], []);
 let kSig_v_aa = makeSig([kWasmAnyFunc, kWasmAnyFunc], []);
-let kSig_r_v = makeSig([], [kWasmAnyRef]);
+let kSig_r_v = makeSig([], [kWasmExternRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
 let kSig_a_i = makeSig([kWasmI32], [kWasmAnyFunc]);
 let kSig_e_v = makeSig([], [kWasmExnRef]);
+let kSig_s_i = makeSig([kWasmI32], [kWasmS128]);
+let kSig_i_s = makeSig([kWasmS128], [kWasmI32]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -474,14 +475,15 @@ let kExprI8x16Splat = 0x0f;
 let kExprI16x8Splat = 0x10;
 let kExprI32x4Splat = 0x11;
 let kExprF32x4Splat = 0x13;
+let kExprI32x4ExtractLane = 0x15;
 let kExprI8x16LtU = 0x26;
 let kExprI8x16LeU = 0x2a;
 let kExprI32x4Eq = 0x37;
-let kExprS1x16AnyTrue = 0x62;
-let kExprS1x16AllTrue = 0x63;
+let kExprV8x16AnyTrue = 0x62;
+let kExprV8x16AllTrue = 0x63;
 let kExprI8x16Add = 0x6e;
-let kExprI16x8ShrS = [0x8c, 01];
-let kExprS1x4AnyTrue = 0xa2;
+let kExprI16x8ShrS = [0x8c, 0x01];
+let kExprV32x4AnyTrue = 0xa2;
 let kExprF32x4Min = 0xe8;
 
 // Compilation hint constants.
@@ -506,8 +508,8 @@ let kTrapUnalignedAccess      = 9;
 let kTrapDataSegmentDropped   = 10;
 let kTrapElemSegmentDropped   = 11;
 let kTrapTableOutOfBounds     = 12;
-let kTrapBrOnExnNullRef       = 13;
-let kTrapRethrowNullRef       = 14;
+let kTrapBrOnExnNull          = 13;
+let kTrapRethrowNull          = 14;
 
 let kTrapMsgs = [
   "unreachable",
@@ -523,8 +525,8 @@ let kTrapMsgs = [
   "data segment has been dropped",
   "element segment has been dropped",
   "table access out of bounds",
-  "br_on_exn on nullref value",
-  "rethrowing nullref value"
+  "br_on_exn on null value",
+  "rethrowing null value"
 ];
 
 function assertTraps(trap, code) {
@@ -817,9 +819,9 @@ class WasmModuleBuilder {
   }
 
   addTable(type, initial_size, max_size = undefined) {
-    if (type != kWasmAnyRef && type != kWasmAnyFunc && type != kWasmNullRef && type != kWasmExnRef) {
+    if (type != kWasmExternRef && type != kWasmAnyFunc && type != kWasmExnRef) {
       throw new Error(
-          'Tables must be of type kWasmAnyRef, kWasmAnyFunc, kWasmNullRef or kWasmExnRef');
+          'Tables must be of type kWasmExternRef, kWasmAnyFunc or kWasmExnRef');
     }
     let table = new WasmTableBuilder(this, type, initial_size, max_size);
     table.index = this.tables.length + this.num_imported_tables;
@@ -1117,27 +1119,28 @@ class WasmModuleBuilder {
               section.emit_u64v(global.init);
               break;
             case kWasmF32:
-              section.emit_u8(kExprF32Const);
-              data_view.setFloat32(0, global.init, true);
-              section.emit_bytes(byte_view.subarray(0, 4));
+              section.emit_bytes(wasmF32Const(global.init));
               break;
             case kWasmF64:
-              section.emit_u8(kExprF64Const);
-              data_view.setFloat64(0, global.init, true);
-              section.emit_bytes(byte_view);
+              section.emit_bytes(wasmF64Const(global.init));
+              break;
+            case kWasmExternRef:
+              section.emit_u8(kExprRefNull);
+              section.emit_u8(kWasmExternRef);
+              assertEquals(global.function_index, undefined);
               break;
             case kWasmAnyFunc:
-            case kWasmAnyRef:
-            case kWasmNullRef:
               if (global.function_index !== undefined) {
                 section.emit_u8(kExprRefFunc);
                 section.emit_u32v(global.function_index);
               } else {
                 section.emit_u8(kExprRefNull);
+                section.emit_u8(kWasmAnyFunc);
               }
               break;
             case kWasmExnRef:
               section.emit_u8(kExprRefNull);
+              section.emit_u8(kWasmExnRef);
               break;
             }
           } else {
@@ -1227,6 +1230,7 @@ class WasmModuleBuilder {
             for (let index of init.array) {
               if (index === null) {
                 section.emit_u8(kExprRefNull);
+                section.emit_u8(kWasmAnyFunc);
                 section.emit_u8(kExprEnd);
               } else {
                 section.emit_u8(kExprRefFunc);
@@ -1308,14 +1312,11 @@ class WasmModuleBuilder {
             if (l.s128_count > 0) {
               local_decls.push({count: l.s128_count, type: kWasmS128});
             }
-            if (l.anyref_count > 0) {
-              local_decls.push({count: l.anyref_count, type: kWasmAnyRef});
+            if (l.externref_count > 0) {
+              local_decls.push({count: l.externref_count, type: kWasmExternRef});
             }
             if (l.anyfunc_count > 0) {
               local_decls.push({count: l.anyfunc_count, type: kWasmAnyFunc});
-            }
-            if (l.nullref_count > 0) {
-              local_decls.push({count: l.nullref_count, type: kWasmNullRef});
             }
             if (l.except_count > 0) {
               local_decls.push({count: l.except_count, type: kWasmExnRef});

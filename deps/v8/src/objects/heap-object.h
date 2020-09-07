@@ -191,7 +191,7 @@ class HeapObject : public Object {
   bool CanBeRehashed() const;
 
   // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap(Isolate* isolate);
+  void RehashBasedOnMap(LocalIsolateWrapper isolate);
 
   // Layout description.
 #define HEAP_OBJECT_FIELDS(V) \

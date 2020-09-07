@@ -4886,7 +4886,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       break;
     }
     case Call::NAMED_OPTIONAL_CHAIN_PROPERTY_CALL:
-    case Call::KEYED_OPTIONAL_CHAIN_PROPERTY_CALL: {
+    case Call::KEYED_OPTIONAL_CHAIN_PROPERTY_CALL:
+    case Call::PRIVATE_OPTIONAL_CHAIN_CALL: {
       OptionalChain* chain = callee_expr->AsOptionalChain();
       Property* property = chain->expression()->AsProperty();
       BuildOptionalChain([&]() {

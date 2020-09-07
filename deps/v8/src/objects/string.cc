@@ -298,69 +298,60 @@ bool String::SupportsExternalization() {
   return !isolate->heap()->IsInGCPostProcessing();
 }
 
-void String::StringShortPrint(StringStream* accumulator, bool show_details) {
-  const char* internalized_marker = this->IsInternalizedString() ? "#" : "";
-
-  int len = length();
-  if (len > kMaxShortPrintLength) {
-    accumulator->Add("<Very long string[%s%u]>", internalized_marker, len);
-    return;
+const char* String::PrefixForDebugPrint() const {
+  StringShape shape(*this);
+  if (IsTwoByteRepresentation()) {
+    StringShape shape(*this);
+    if (shape.IsInternalized()) {
+      return "u#";
+    } else if (shape.IsCons()) {
+      return "uc\"";
+    } else if (shape.IsThin()) {
+      return "u>\"";
+    } else {
+      return "u\"";
+    }
+  } else {
+    StringShape shape(*this);
+    if (shape.IsInternalized()) {
+      return "#";
+    } else if (shape.IsCons()) {
+      return "c\"";
+    } else if (shape.IsThin()) {
+      return ">\"";
+    } else {
+      return "\"";
+    }
   }
+  UNREACHABLE();
+}
 
+const char* String::SuffixForDebugPrint() const {
+  StringShape shape(*this);
+  if (shape.IsInternalized()) return "";
+  return "\"";
+}
+
+void String::StringShortPrint(StringStream* accumulator) {
   if (!LooksValid()) {
     accumulator->Add("<Invalid String>");
     return;
   }
 
-  StringCharacterStream stream(*this);
+  const int len = length();
+  accumulator->Add("<String[%u]: ", len);
+  accumulator->Add(PrefixForDebugPrint());
 
-  bool truncated = false;
   if (len > kMaxShortPrintLength) {
-    len = kMaxShortPrintLength;
-    truncated = true;
+    accumulator->Add("...<truncated>>");
+    accumulator->Add(SuffixForDebugPrint());
+    accumulator->Put('>');
+    return;
   }
-  bool one_byte = true;
-  for (int i = 0; i < len; i++) {
-    uint16_t c = stream.GetNext();
 
-    if (c < 32 || c >= 127) {
-      one_byte = false;
-    }
-  }
-  stream.Reset(*this);
-  if (one_byte) {
-    if (show_details)
-      accumulator->Add("<String[%s%u]: ", internalized_marker, length());
-    for (int i = 0; i < len; i++) {
-      accumulator->Put(static_cast<char>(stream.GetNext()));
-    }
-    if (show_details) accumulator->Put('>');
-  } else {
-    // Backslash indicates that the string contains control
-    // characters and that backslashes are therefore escaped.
-    if (show_details)
-      accumulator->Add("<String[%s%u]\\: ", internalized_marker, length());
-    for (int i = 0; i < len; i++) {
-      uint16_t c = stream.GetNext();
-      if (c == '\n') {
-        accumulator->Add("\\n");
-      } else if (c == '\r') {
-        accumulator->Add("\\r");
-      } else if (c == '\\') {
-        accumulator->Add("\\\\");
-      } else if (c < 32 || c > 126) {
-        accumulator->Add("\\x%02x", c);
-      } else {
-        accumulator->Put(static_cast<char>(c));
-      }
-    }
-    if (truncated) {
-      accumulator->Put('.');
-      accumulator->Put('.');
-      accumulator->Put('.');
-    }
-    if (show_details) accumulator->Put('>');
-  }
+  PrintUC16(accumulator, 0, len);
+  accumulator->Add(SuffixForDebugPrint());
+  accumulator->Put('>');
 }
 
 void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
@@ -368,6 +359,25 @@ void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
   StringCharacterStream stream(*this, start);
   for (int i = start; i < end && stream.HasMore(); i++) {
     os << AsUC16(stream.GetNext());
+  }
+}
+
+void String::PrintUC16(StringStream* accumulator, int start, int end) {
+  if (end < 0) end = length();
+  StringCharacterStream stream(*this, start);
+  for (int i = start; i < end && stream.HasMore(); i++) {
+    uint16_t c = stream.GetNext();
+    if (c == '\n') {
+      accumulator->Add("\\n");
+    } else if (c == '\r') {
+      accumulator->Add("\\r");
+    } else if (c == '\\') {
+      accumulator->Add("\\\\");
+    } else if (!std::isprint(c)) {
+      accumulator->Add("\\x%02x", c);
+    } else {
+      accumulator->Put(static_cast<char>(c));
+    }
   }
 }
 
@@ -410,9 +420,9 @@ int32_t String::ToArrayIndex(Address addr) {
 bool String::LooksValid() {
   // TODO(leszeks): Maybe remove this check entirely, Heap::Contains uses
   // basically the same logic as the way we access the heap in the first place.
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*this);
   // RO_SPACE objects should always be valid.
   if (ReadOnlyHeap::Contains(*this)) return true;
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(*this);
   if (chunk->heap() == nullptr) return false;
   return chunk->heap()->Contains(*this);
 }

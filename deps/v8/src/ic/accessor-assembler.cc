@@ -1334,12 +1334,13 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           if (do_transitioning_store) {
             StoreMap(object, object_map);
           } else {
-            Label if_mutable(this);
-            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+            Label store_value(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &store_value);
             TNode<Float64T> current_value =
                 LoadObjectField<Float64T>(object, field_offset);
-            BranchIfSameNumberValue(current_value, double_value, &done, slow);
-            BIND(&if_mutable);
+            BranchIfSameNumberValue(current_value, double_value, &store_value,
+                                    slow);
+            BIND(&store_value);
           }
           StoreObjectFieldNoWriteBarrier(object, field_offset, double_value);
         } else {
@@ -1351,11 +1352,12 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           } else {
             TNode<HeapNumber> heap_number =
                 CAST(LoadObjectField(object, field_offset));
-            Label if_mutable(this);
-            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+            Label store_value(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &store_value);
             TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
-            BranchIfSameNumberValue(current_value, double_value, &done, slow);
-            BIND(&if_mutable);
+            BranchIfSameNumberValue(current_value, double_value, &store_value,
+                                    slow);
+            BIND(&store_value);
             StoreHeapNumberValue(heap_number, double_value);
           }
         }
@@ -1968,23 +1970,21 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     // Previous property deletion could have left behind unused backing store
     // capacity even for a map that think it doesn't have any unused fields.
     // Perform a bounds check to see if we actually have to grow the array.
-    GotoIf(UintPtrLessThan(index, ParameterToIntPtr(var_length.value(), mode)),
+    GotoIf(UintPtrLessThan(index, ParameterToIntPtr(var_length.value())),
            &done);
 
     TNode<BInt> delta = BIntConstant(JSObject::kFieldsAdded);
-    Node* new_capacity = IntPtrOrSmiAdd(var_length.value(), delta, mode);
+    TNode<BInt> new_capacity = IntPtrOrSmiAdd(var_length.value(), delta);
 
     // Grow properties array.
     DCHECK(kMaxNumberOfDescriptors + JSObject::kFieldsAdded <
            FixedArrayBase::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
     // The size of a new properties backing store is guaranteed to be small
     // enough that the new backing store will be allocated in new space.
-    CSA_ASSERT(this,
-               UintPtrOrSmiLessThan(
-                   new_capacity,
-                   IntPtrOrSmiConstant(
-                       kMaxNumberOfDescriptors + JSObject::kFieldsAdded, mode),
-                   mode));
+    CSA_ASSERT(this, UintPtrOrSmiLessThan(
+                         new_capacity,
+                         IntPtrOrSmiConstant<BInt>(kMaxNumberOfDescriptors +
+                                                   JSObject::kFieldsAdded)));
 
     TNode<PropertyArray> new_properties =
         AllocatePropertyArray(new_capacity, mode);
@@ -2002,7 +2002,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     // TODO(gsathya): Clean up the type conversions by creating smarter
     // helpers that do the correct op based on the mode.
     TNode<Int32T> new_capacity_int32 =
-        TruncateIntPtrToInt32(ParameterToIntPtr(new_capacity, mode));
+        TruncateIntPtrToInt32(ParameterToIntPtr(new_capacity));
     TNode<Int32T> new_length_and_hash_int32 =
         Word32Or(var_encoded_hash.value(), new_capacity_int32);
     StoreObjectField(new_properties, PropertyArray::kLengthAndHashOffset,

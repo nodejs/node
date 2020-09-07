@@ -42,7 +42,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 
 class InfoCellPair {
  public:
-  InfoCellPair() {}
+  InfoCellPair() = default;
   inline InfoCellPair(SharedFunctionInfo shared, FeedbackCell feedback_cell);
 
   FeedbackCell feedback_cell() const {

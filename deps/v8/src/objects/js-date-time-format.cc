@@ -59,6 +59,21 @@ JSDateTimeFormat::HourCycle ToHourCycle(const std::string& hc) {
   return JSDateTimeFormat::HourCycle::kUndefined;
 }
 
+JSDateTimeFormat::HourCycle ToHourCycle(UDateFormatHourCycle hc) {
+  switch (hc) {
+    case UDAT_HOUR_CYCLE_11:
+      return JSDateTimeFormat::HourCycle::kH11;
+    case UDAT_HOUR_CYCLE_12:
+      return JSDateTimeFormat::HourCycle::kH12;
+    case UDAT_HOUR_CYCLE_23:
+      return JSDateTimeFormat::HourCycle::kH23;
+    case UDAT_HOUR_CYCLE_24:
+      return JSDateTimeFormat::HourCycle::kH24;
+    default:
+      return JSDateTimeFormat::HourCycle::kUndefined;
+  }
+}
+
 Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(Isolate* isolate,
                                                 Handle<JSReceiver> options,
                                                 const char* method) {
@@ -161,7 +176,7 @@ static std::vector<PatternItem> BuildPatternItems() {
 class PatternItems {
  public:
   PatternItems() : data(BuildPatternItems()) {}
-  virtual ~PatternItems() {}
+  virtual ~PatternItems() = default;
   const std::vector<PatternItem>& Get() const { return data; }
 
  private:
@@ -225,7 +240,7 @@ const std::vector<PatternData> CreateData(const char* digit2,
 class Pattern {
  public:
   Pattern(const char* d1, const char* d2) : data(CreateData(d1, d2)) {}
-  virtual ~Pattern() {}
+  virtual ~Pattern() = default;
   virtual const std::vector<PatternData>& Get() const { return data; }
 
  private:
@@ -892,21 +907,58 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
     needs_default &= maybe_needs_default.FromJust();
   }
 
-  // 6. If needDefaults is true and defaults is either "date" or "all", then
+  // 6. Let dateStyle be ? Get(options, "dateStyle").
+  Maybe<bool> maybe_datestyle_undefined =
+      IsPropertyUndefined(isolate, options, factory->dateStyle_string());
+  MAYBE_RETURN(maybe_datestyle_undefined, Handle<JSObject>());
+  // 7. Let timeStyle be ? Get(options, "timeStyle").
+  Maybe<bool> maybe_timestyle_undefined =
+      IsPropertyUndefined(isolate, options, factory->timeStyle_string());
+  MAYBE_RETURN(maybe_timestyle_undefined, Handle<JSObject>());
+  // 8. If dateStyle is not undefined or timeStyle is not undefined, let
+  // needDefaults be false.
+  if (!maybe_datestyle_undefined.FromJust() ||
+      !maybe_timestyle_undefined.FromJust()) {
+    needs_default = false;
+  }
+  // 9. If required is "date" and timeStyle is not undefined,
+  if (required == RequiredOption::kDate &&
+      !maybe_timestyle_undefined.FromJust()) {
+    //  a. Throw a TypeError exception.
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalid,
+                     factory->NewStringFromStaticChars("option"),
+                     factory->NewStringFromStaticChars("timeStyle")),
+        JSObject);
+  }
+  // 10. If required is "time" and dateStyle is not undefined,
+  if (required == RequiredOption::kTime &&
+      !maybe_datestyle_undefined.FromJust()) {
+    //  a. Throw a TypeError exception.
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalid,
+                     factory->NewStringFromStaticChars("option"),
+                     factory->NewStringFromStaticChars("dateStyle")),
+        JSObject);
+  }
+
+  // 11. If needDefaults is true and defaults is either "date" or "all", then
   if (needs_default) {
     if (defaults == DefaultsOption::kAll || defaults == DefaultsOption::kDate) {
       // a. For each of the property names "year", "month", "day", do)
       const std::vector<std::string> list({"year", "month", "day"});
       MAYBE_RETURN(CreateDefault(isolate, options, list), Handle<JSObject>());
     }
-    // 7. If needDefaults is true and defaults is either "time" or "all", then
+    // 12. If needDefaults is true and defaults is either "time" or "all", then
     if (defaults == DefaultsOption::kAll || defaults == DefaultsOption::kTime) {
       // a. For each of the property names "hour", "minute", "second", do
       const std::vector<std::string> list({"hour", "minute", "second"});
       MAYBE_RETURN(CreateDefault(isolate, options, list), Handle<JSObject>());
     }
   }
-  // 8. Return options.
+  // 13. Return options.
   return options;
 }
 
@@ -1275,7 +1327,7 @@ icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
 
 std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
     JSDateTimeFormat::DateTimeStyle date_style,
-    JSDateTimeFormat::DateTimeStyle time_style, const icu::Locale& icu_locale,
+    JSDateTimeFormat::DateTimeStyle time_style, icu::Locale& icu_locale,
     JSDateTimeFormat::HourCycle hc, icu::DateTimePatternGenerator* generator) {
   std::unique_ptr<icu::SimpleDateFormat> result;
   if (date_style != JSDateTimeFormat::DateTimeStyle::kUndefined) {
@@ -1290,7 +1342,9 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
                                               icu_locale)));
       // For instance without time, we do not need to worry about the hour cycle
       // impact so we can return directly.
-      return result;
+      if (result.get() != nullptr) {
+        return result;
+      }
     }
   } else {
     if (time_style != JSDateTimeFormat::DateTimeStyle::kUndefined) {
@@ -1305,28 +1359,27 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
   UErrorCode status = U_ZERO_ERROR;
   // Somehow we fail to create the instance.
   if (result.get() == nullptr) {
-    icu::Locale modified_locale(icu_locale);
     // Fallback to the locale without "nu".
     if (!icu_locale.getUnicodeKeywordValue<std::string>("nu", status).empty()) {
       status = U_ZERO_ERROR;
-      modified_locale.setUnicodeKeywordValue("nu", nullptr, status);
-      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+      icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, icu_locale, hc,
                                   generator);
     }
     status = U_ZERO_ERROR;
     // Fallback to the locale without "hc".
     if (!icu_locale.getUnicodeKeywordValue<std::string>("hc", status).empty()) {
       status = U_ZERO_ERROR;
-      modified_locale.setUnicodeKeywordValue("hc", nullptr, status);
-      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+      icu_locale.setUnicodeKeywordValue("hc", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, icu_locale, hc,
                                   generator);
     }
     status = U_ZERO_ERROR;
     // Fallback to the locale without "ca".
     if (!icu_locale.getUnicodeKeywordValue<std::string>("ca", status).empty()) {
       status = U_ZERO_ERROR;
-      modified_locale.setUnicodeKeywordValue("ca", nullptr, status);
-      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+      icu_locale.setUnicodeKeywordValue("ca", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, icu_locale, hc,
                                   generator);
     }
     return nullptr;
@@ -1508,34 +1561,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     CHECK(U_SUCCESS(status));
   }
 
-  // 17. Let timeZone be ? Get(options, "timeZone").
-  std::unique_ptr<char[]> timezone = nullptr;
-  Maybe<bool> maybe_timezone = Intl::GetStringOption(
-      isolate, options, "timeZone", empty_values, service, &timezone);
-  MAYBE_RETURN(maybe_timezone, Handle<JSDateTimeFormat>());
-
-  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(timezone.get());
-  if (tz.get() == nullptr) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidTimeZone,
-                      factory->NewStringFromAsciiChecked(timezone.get())),
-        JSDateTimeFormat);
-  }
-
-  std::unique_ptr<icu::Calendar> calendar(
-      CreateCalendar(isolate, icu_locale, tz.release()));
-
-  // 18.b If the result of IsValidTimeZoneName(timeZone) is false, then
-  // i. Throw a RangeError exception.
-  if (calendar.get() == nullptr) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidTimeZone,
-                      factory->NewStringFromAsciiChecked(timezone.get())),
-        JSDateTimeFormat);
-  }
-
   static base::LazyInstance<DateTimePatternGeneratorCache>::type
       generator_cache = LAZY_INSTANCE_INITIALIZER;
 
@@ -1543,9 +1568,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       generator_cache.Pointer()->CreateGenerator(icu_locale));
 
   // 15.Let hcDefault be dataLocaleData.[[hourCycle]].
-  icu::UnicodeString hour_pattern = generator->getBestPattern("jjmm", status);
+  HourCycle hc_default = ToHourCycle(generator->getDefaultHourCycle(status));
   CHECK(U_SUCCESS(status));
-  HourCycle hc_default = HourCycleFromPattern(hour_pattern);
 
   // 16.Let hc be r.[[hc]].
   HourCycle hc = HourCycle::kUndefined;
@@ -1590,11 +1614,87 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     }
   }
 
+  // 17. Let timeZone be ? Get(options, "timeZone").
+  std::unique_ptr<char[]> timezone = nullptr;
+  Maybe<bool> maybe_timezone = Intl::GetStringOption(
+      isolate, options, "timeZone", empty_values, service, &timezone);
+  MAYBE_RETURN(maybe_timezone, Handle<JSDateTimeFormat>());
+
+  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(timezone.get());
+  if (tz.get() == nullptr) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidTimeZone,
+                      factory->NewStringFromAsciiChecked(timezone.get())),
+        JSDateTimeFormat);
+  }
+
+  std::unique_ptr<icu::Calendar> calendar(
+      CreateCalendar(isolate, icu_locale, tz.release()));
+
+  // 18.b If the result of IsValidTimeZoneName(timeZone) is false, then
+  // i. Throw a RangeError exception.
+  if (calendar.get() == nullptr) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidTimeZone,
+                      factory->NewStringFromAsciiChecked(timezone.get())),
+        JSDateTimeFormat);
+  }
+
   DateTimeStyle date_style = DateTimeStyle::kUndefined;
   DateTimeStyle time_style = DateTimeStyle::kUndefined;
   std::unique_ptr<icu::SimpleDateFormat> icu_date_format;
 
-  // 28. Let dateStyle be ? GetOption(options, "dateStyle", "string", «
+  // 28. For each row of Table 1, except the header row, do
+  bool has_hour_option = false;
+  std::string skeleton;
+  for (const PatternData& item : GetPatternData(hc)) {
+    std::unique_ptr<char[]> input;
+    // i. Let prop be the name given in the Property column of the row.
+    // ii. Let value be ? GetOption(options, prop, "string", « the strings
+    // given in the Values column of the row », undefined).
+    Maybe<bool> maybe_get_option =
+        Intl::GetStringOption(isolate, options, item.property.c_str(),
+                              item.allowed_values, service, &input);
+    MAYBE_RETURN(maybe_get_option, Handle<JSDateTimeFormat>());
+    if (maybe_get_option.FromJust()) {
+      if (item.property == "hour") {
+        has_hour_option = true;
+      }
+      DCHECK_NOT_NULL(input.get());
+      // iii. Set opt.[[<prop>]] to value.
+      skeleton += item.map.find(input.get())->second;
+    }
+  }
+  if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
+    Maybe<int> maybe_fsd = Intl::GetNumberOption(
+        isolate, options, factory->fractionalSecondDigits_string(), 0, 3, 0);
+    MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
+    // Convert fractionalSecondDigits to skeleton.
+    int fsd = maybe_fsd.FromJust();
+    for (int i = 0; i < fsd; i++) {
+      skeleton += "S";
+    }
+  }
+
+  // 29. Let matcher be ? GetOption(options, "formatMatcher", "string", «
+  // "basic", "best fit" », "best fit").
+  enum FormatMatcherOption { kBestFit, kBasic };
+  // We implement only best fit algorithm, but still need to check
+  // if the formatMatcher values are in range.
+  // c. Let matcher be ? GetOption(options, "formatMatcher", "string",
+  //     «  "basic", "best fit" », "best fit").
+  Maybe<FormatMatcherOption> maybe_format_matcher =
+      Intl::GetStringOption<FormatMatcherOption>(
+          isolate, options, "formatMatcher", service, {"best fit", "basic"},
+          {FormatMatcherOption::kBestFit, FormatMatcherOption::kBasic},
+          FormatMatcherOption::kBestFit);
+  MAYBE_RETURN(maybe_format_matcher, MaybeHandle<JSDateTimeFormat>());
+  // TODO(ftang): uncomment the following line and handle format_matcher.
+  // FormatMatcherOption format_matcher = maybe_format_matcher.FromJust();
+
+  // 32. Let dateStyle be ? GetOption(options, "dateStyle", "string", «
   // "full", "long", "medium", "short" », undefined).
   Maybe<DateTimeStyle> maybe_date_style = Intl::GetStringOption<DateTimeStyle>(
       isolate, options, "dateStyle", service,
@@ -1603,11 +1703,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
        DateTimeStyle::kShort},
       DateTimeStyle::kUndefined);
   MAYBE_RETURN(maybe_date_style, MaybeHandle<JSDateTimeFormat>());
-  // 29. If dateStyle is not undefined, set dateTimeFormat.[[DateStyle]] to
-  // dateStyle.
+  // 33. Set dateTimeFormat.[[DateStyle]] to dateStyle.
   date_style = maybe_date_style.FromJust();
 
-  // 30. Let timeStyle be ? GetOption(options, "timeStyle", "string", «
+  // 34. Let timeStyle be ? GetOption(options, "timeStyle", "string", «
   // "full", "long", "medium", "short" »).
   Maybe<DateTimeStyle> maybe_time_style = Intl::GetStringOption<DateTimeStyle>(
       isolate, options, "timeStyle", service,
@@ -1617,87 +1716,67 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       DateTimeStyle::kUndefined);
   MAYBE_RETURN(maybe_time_style, MaybeHandle<JSDateTimeFormat>());
 
-  // 31. If timeStyle is not undefined, set dateTimeFormat.[[TimeStyle]] to
-  // timeStyle.
+  // 35. Set dateTimeFormat.[[TimeStyle]] to timeStyle.
   time_style = maybe_time_style.FromJust();
 
-  // 32. If dateStyle or timeStyle are not undefined, then
+  // 36. If timeStyle is not undefined, then
+  HourCycle dateTimeFormatHourCycle = HourCycle::kUndefined;
+  if (time_style != DateTimeStyle::kUndefined) {
+    // a. Set dateTimeFormat.[[HourCycle]] to hc.
+    dateTimeFormatHourCycle = hc;
+  }
+
+  // 37. If dateStyle or timeStyle are not undefined, then
   if (date_style != DateTimeStyle::kUndefined ||
       time_style != DateTimeStyle::kUndefined) {
-    // Track newer feature dateStyle/timeStyle option.
+    // a. For each row in Table 1, except the header row, do
+    //    i. Let prop be the name given in the Property column of the row.
+    //   ii. Let p be opt.[[<prop>]].
+    //  iii. If p is not undefined, then
+    //      1. Throw a TypeError exception.
+    if (skeleton.length() > 0) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalid,
+                                   factory->NewStringFromStaticChars("option"),
+                                   date_style != DateTimeStyle::kUndefined
+                                       ? factory->dateStyle_string()
+                                       : factory->timeStyle_string()),
+                      JSDateTimeFormat);
+    }
+    // b. Let pattern be DateTimeStylePattern(dateStyle, timeStyle,
+    // dataLocaleData, hc).
     isolate->CountUsage(
         v8::Isolate::UseCounterFeature::kDateTimeFormatDateTimeStyle);
 
-    icu_date_format = DateTimeStylePattern(date_style, time_style, icu_locale,
-                                           hc, generator.get());
-  }
-
-  // 33. Else,
-  if (icu_date_format.get() == nullptr) {
-    bool has_hour_option = false;
-    // b. For each row of Table 5, except the header row, do
-    std::string skeleton;
-    for (const PatternData& item : GetPatternData(hc)) {
-      std::unique_ptr<char[]> input;
-      // i. Let prop be the name given in the Property column of the row.
-      // ii. Let value be ? GetOption(options, prop, "string", « the strings
-      // given in the Values column of the row », undefined).
-      Maybe<bool> maybe_get_option =
-          Intl::GetStringOption(isolate, options, item.property.c_str(),
-                                item.allowed_values, service, &input);
-      MAYBE_RETURN(maybe_get_option, Handle<JSDateTimeFormat>());
-      if (maybe_get_option.FromJust()) {
-        if (item.property == "hour") {
-          has_hour_option = true;
-        }
-        DCHECK_NOT_NULL(input.get());
-        // iii. Set opt.[[<prop>]] to value.
-        skeleton += item.map.find(input.get())->second;
-      }
+    icu_date_format =
+        DateTimeStylePattern(date_style, time_style, icu_locale,
+                             dateTimeFormatHourCycle, generator.get());
+    if (icu_date_format.get() == nullptr) {
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                      JSDateTimeFormat);
     }
-    if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
-      Maybe<int> maybe_fsd = Intl::GetNumberOption(
-          isolate, options, factory->fractionalSecondDigits_string(), 0, 3, 0);
-      MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
-      // Convert fractionalSecondDigits to skeleton.
-      int fsd = maybe_fsd.FromJust();
-      for (int i = 0; i < fsd; i++) {
-        skeleton += "S";
-      }
+  } else {
+    // e. If dateTimeFormat.[[Hour]] is not undefined, then
+    if (has_hour_option) {
+      // v. Set dateTimeFormat.[[HourCycle]] to hc.
+      dateTimeFormatHourCycle = hc;
+    } else {
+      // f. Else,
+      // Set dateTimeFormat.[[HourCycle]] to undefined.
+      dateTimeFormatHourCycle = HourCycle::kUndefined;
     }
-
-    enum FormatMatcherOption { kBestFit, kBasic };
-    // We implement only best fit algorithm, but still need to check
-    // if the formatMatcher values are in range.
-    // c. Let matcher be ? GetOption(options, "formatMatcher", "string",
-    //     «  "basic", "best fit" », "best fit").
-    Maybe<FormatMatcherOption> maybe_format_matcher =
-        Intl::GetStringOption<FormatMatcherOption>(
-            isolate, options, "formatMatcher", service, {"best fit", "basic"},
-            {FormatMatcherOption::kBestFit, FormatMatcherOption::kBasic},
-            FormatMatcherOption::kBestFit);
-    MAYBE_RETURN(maybe_format_matcher, MaybeHandle<JSDateTimeFormat>());
-    // TODO(ftang): uncomment the following line and handle format_matcher.
-    // FormatMatcherOption format_matcher = maybe_format_matcher.FromJust();
-
     icu::UnicodeString skeleton_ustr(skeleton.c_str());
-    icu_date_format = CreateICUDateFormatFromCache(icu_locale, skeleton_ustr,
-                                                   generator.get(), hc);
+    icu_date_format = CreateICUDateFormatFromCache(
+        icu_locale, skeleton_ustr, generator.get(), dateTimeFormatHourCycle);
     if (icu_date_format.get() == nullptr) {
       // Remove extensions and try again.
       icu_locale = icu::Locale(icu_locale.getBaseName());
-      icu_date_format = CreateICUDateFormatFromCache(icu_locale, skeleton_ustr,
-                                                     generator.get(), hc);
+      icu_date_format = CreateICUDateFormatFromCache(
+          icu_locale, skeleton_ustr, generator.get(), dateTimeFormatHourCycle);
       if (icu_date_format.get() == nullptr) {
         THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
                         JSDateTimeFormat);
       }
-    }
-
-    // g. If dateTimeFormat.[[Hour]] is not undefined, then
-    if (!has_hour_option) {
-      // h. Else, i. Set dateTimeFormat.[[HourCycle]] to undefined.
-      hc = HourCycle::kUndefined;
     }
   }
 
@@ -1723,7 +1802,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       maybe_hour_cycle.FromJust() != HourCycle::kUndefined) {
     auto hc_extension_it = r.extensions.find("hc");
     if (hc_extension_it != r.extensions.end()) {
-      if (hc != ToHourCycle(hc_extension_it->second.c_str())) {
+      if (dateTimeFormatHourCycle !=
+          ToHourCycle(hc_extension_it->second.c_str())) {
         // Remove -hc- if it does not agree with what we used.
         UErrorCode status = U_ZERO_ERROR;
         resolved_locale.setUnicodeKeywordValue("hc", nullptr, status);
@@ -1757,12 +1837,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   }
   if (time_style != DateTimeStyle::kUndefined) {
     date_time_format->set_time_style(time_style);
-    date_time_format->set_hour_cycle(hc);
   }
-  if ((date_style == DateTimeStyle::kUndefined) &&
-      (time_style == DateTimeStyle::kUndefined)) {
-    date_time_format->set_hour_cycle(hc);
-  }
+  date_time_format->set_hour_cycle(dateTimeFormatHourCycle);
   date_time_format->set_locale(*locale_str);
   date_time_format->set_icu_locale(*managed_locale);
   date_time_format->set_icu_simple_date_format(*managed_format);

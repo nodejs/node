@@ -30,6 +30,7 @@ class TimeDelta;
 
 namespace internal {
 
+class BackingStore;
 template <typename T>
 class Handle;
 class Isolate;
@@ -52,7 +53,6 @@ class FutexWaitListNode {
   FutexWaitListNode()
       : prev_(nullptr),
         next_(nullptr),
-        backing_store_(nullptr),
         wait_addr_(0),
         waiting_(false),
         interrupted_(false) {}
@@ -68,7 +68,7 @@ class FutexWaitListNode {
   // prev_ and next_ are protected by FutexEmulation::mutex_.
   FutexWaitListNode* prev_;
   FutexWaitListNode* next_;
-  void* backing_store_;
+  std::weak_ptr<BackingStore> backing_store_;
   size_t wait_addr_;
   // waiting_ and interrupted_ are protected by FutexEmulation::mutex_
   // if this node is currently contained in FutexEmulation::wait_list_
@@ -126,20 +126,25 @@ class FutexEmulation : public AllStatic {
 
   // Same as WaitJs above except it returns 0 (ok), 1 (not equal) and 2 (timed
   // out) as expected by Wasm.
-  static Object WaitWasm32(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                           size_t addr, int32_t value, int64_t rel_timeout_ns);
+  V8_EXPORT_PRIVATE static Object WaitWasm32(Isolate* isolate,
+                                             Handle<JSArrayBuffer> array_buffer,
+                                             size_t addr, int32_t value,
+                                             int64_t rel_timeout_ns);
 
   // Same as Wait32 above except it checks for an int64_t value in the
   // array_buffer.
-  static Object WaitWasm64(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                           size_t addr, int64_t value, int64_t rel_timeout_ns);
+  V8_EXPORT_PRIVATE static Object WaitWasm64(Isolate* isolate,
+                                             Handle<JSArrayBuffer> array_buffer,
+                                             size_t addr, int64_t value,
+                                             int64_t rel_timeout_ns);
 
   // Wake |num_waiters_to_wake| threads that are waiting on the given |addr|.
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
   // woken. The rest of the waiters will continue to wait. The return value is
   // the number of woken waiters.
-  static Object Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
-                     uint32_t num_waiters_to_wake);
+  V8_EXPORT_PRIVATE static Object Wake(Handle<JSArrayBuffer> array_buffer,
+                                       size_t addr,
+                                       uint32_t num_waiters_to_wake);
 
   // Return the number of threads waiting on |addr|. Should only be used for
   // testing.

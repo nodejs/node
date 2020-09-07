@@ -115,18 +115,111 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_CompressAny:
     case kPPC_F64x2Splat:
     case kPPC_F64x2ExtractLane:
+    case kPPC_F64x2ReplaceLane:
+    case kPPC_F64x2Add:
+    case kPPC_F64x2Sub:
+    case kPPC_F64x2Mul:
+    case kPPC_F64x2Eq:
+    case kPPC_F64x2Ne:
+    case kPPC_F64x2Le:
+    case kPPC_F64x2Lt:
     case kPPC_F32x4Splat:
     case kPPC_F32x4ExtractLane:
+    case kPPC_F32x4ReplaceLane:
+    case kPPC_F32x4Add:
+    case kPPC_F32x4AddHoriz:
+    case kPPC_F32x4Sub:
+    case kPPC_F32x4Mul:
+    case kPPC_F32x4Eq:
+    case kPPC_F32x4Ne:
+    case kPPC_F32x4Lt:
+    case kPPC_F32x4Le:
     case kPPC_I64x2Splat:
     case kPPC_I64x2ExtractLane:
+    case kPPC_I64x2ReplaceLane:
+    case kPPC_I64x2Add:
+    case kPPC_I64x2Sub:
+    case kPPC_I64x2Mul:
+    case kPPC_I64x2MinS:
+    case kPPC_I64x2MinU:
+    case kPPC_I64x2MaxS:
+    case kPPC_I64x2MaxU:
+    case kPPC_I64x2Eq:
+    case kPPC_I64x2Ne:
+    case kPPC_I64x2GtS:
+    case kPPC_I64x2GtU:
+    case kPPC_I64x2GeU:
+    case kPPC_I64x2GeS:
+    case kPPC_I64x2Shl:
+    case kPPC_I64x2ShrS:
+    case kPPC_I64x2ShrU:
     case kPPC_I32x4Splat:
     case kPPC_I32x4ExtractLane:
+    case kPPC_I32x4ReplaceLane:
+    case kPPC_I32x4Add:
+    case kPPC_I32x4AddHoriz:
+    case kPPC_I32x4Sub:
+    case kPPC_I32x4Mul:
+    case kPPC_I32x4MinS:
+    case kPPC_I32x4MinU:
+    case kPPC_I32x4MaxS:
+    case kPPC_I32x4MaxU:
+    case kPPC_I32x4Eq:
+    case kPPC_I32x4Ne:
+    case kPPC_I32x4GtS:
+    case kPPC_I32x4GeS:
+    case kPPC_I32x4GtU:
+    case kPPC_I32x4GeU:
+    case kPPC_I32x4Shl:
+    case kPPC_I32x4ShrS:
+    case kPPC_I32x4ShrU:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:
+    case kPPC_I16x8ReplaceLane:
+    case kPPC_I16x8Add:
+    case kPPC_I16x8AddHoriz:
+    case kPPC_I16x8Sub:
+    case kPPC_I16x8Mul:
+    case kPPC_I16x8MinS:
+    case kPPC_I16x8MinU:
+    case kPPC_I16x8MaxS:
+    case kPPC_I16x8MaxU:
+    case kPPC_I16x8Eq:
+    case kPPC_I16x8Ne:
+    case kPPC_I16x8GtS:
+    case kPPC_I16x8GeS:
+    case kPPC_I16x8GtU:
+    case kPPC_I16x8GeU:
+    case kPPC_I16x8Shl:
+    case kPPC_I16x8ShrS:
+    case kPPC_I16x8ShrU:
     case kPPC_I8x16Splat:
     case kPPC_I8x16ExtractLaneU:
     case kPPC_I8x16ExtractLaneS:
+    case kPPC_I8x16ReplaceLane:
+    case kPPC_I8x16Add:
+    case kPPC_I8x16Sub:
+    case kPPC_I8x16Mul:
+    case kPPC_I8x16MinS:
+    case kPPC_I8x16MinU:
+    case kPPC_I8x16MaxS:
+    case kPPC_I8x16MaxU:
+    case kPPC_I8x16Eq:
+    case kPPC_I8x16Ne:
+    case kPPC_I8x16GtS:
+    case kPPC_I8x16GeS:
+    case kPPC_I8x16GtU:
+    case kPPC_I8x16GeU:
+    case kPPC_I8x16Shl:
+    case kPPC_I8x16ShrS:
+    case kPPC_I8x16ShrU:
+    case kPPC_S128And:
+    case kPPC_S128Or:
+    case kPPC_S128Xor:
+    case kPPC_S128Zero:
+    case kPPC_S128Not:
+    case kPPC_S128Select:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:

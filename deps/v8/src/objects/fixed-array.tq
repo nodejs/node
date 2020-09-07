@@ -36,11 +36,13 @@ extern class ByteArray extends FixedArrayBase {
 
 @hasSameInstanceTypeAsParent
 @generateCppClass
+@doNotGenerateCast
 extern class ArrayList extends FixedArray {
 }
 
 @hasSameInstanceTypeAsParent
 @generateCppClass
+@doNotGenerateCast
 extern class TemplateList extends FixedArray {
 }
 
@@ -100,6 +102,9 @@ operator '[]=' macro StoreFixedDoubleArrayDirect(
 operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
   a.objects[i] = v;
 }
+
+extern macro AllocateFixedArray(
+    constexpr ElementsKind, intptr, constexpr AllocationFlag): FixedArrayBase;
 
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;

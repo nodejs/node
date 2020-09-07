@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-anyref
+// Flags: --expose-wasm --experimental-wasm-reftypes
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -77,22 +77,4 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(value3, table4.get(offset4)());
   assertEquals(value4, table4.get(offset4 + 1)());
   assertEquals(value3, table4.get(offset4 + 2)());
-})();
-
-(function TestAnyRefTableWithAnyFuncInit() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  const table = builder.addTable(kWasmAnyRef, 5).index;
-  builder.addExportOfKind("table", kExternalTable, table);
-  const f1 = builder.addFunction('f1', kSig_i_v)
-                    .addBody([kExprI32Const, 11])
-                    .exportFunc().index;
-  const f2 = builder.addFunction('f2', kSig_i_v)
-                    .addBody([kExprI32Const, 22])
-                    .exportFunc().index;
-
-  builder.addElementSegment(table, 1, false, [f1, f2]);
-  const instance = builder.instantiate();
-  assertEquals(instance.exports.table.get(1)(), 11);
-  assertEquals(instance.exports.table.get(2)(), 22);
 })();

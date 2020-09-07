@@ -89,12 +89,17 @@ const char* ValueTypeToConstantName(ValueType type) {
       return "kWasmF32";
     case ValueType::kF64:
       return "kWasmF64";
-    case ValueType::kAnyRef:
-      return "kWasmAnyRef";
-    case ValueType::kFuncRef:
-      return "kWasmFuncRef";
-    case ValueType::kExnRef:
-      return "kWasmExnRef";
+    case ValueType::kOptRef:
+      switch (type.heap_type()) {
+        case kHeapExtern:
+          return "kWasmExternRef";
+        case kHeapFunc:
+          return "kWasmFuncRef";
+        case kHeapExn:
+          return "kWasmExnRef";
+        default:
+          UNREACHABLE();
+      }
     default:
       UNREACHABLE();
   }

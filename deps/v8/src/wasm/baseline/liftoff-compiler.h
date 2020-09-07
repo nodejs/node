@@ -38,7 +38,7 @@ enum LiftoffBailoutReason : int8_t {
   kComplexOperation = 4,
   // Unimplemented proposals:
   kSimd = 5,
-  kAnyRef = 6,
+  kRefTypes = 6,
   kExceptionHandling = 7,
   kMultiValue = 8,
   kTailCall = 9,

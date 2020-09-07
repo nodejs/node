@@ -80,6 +80,9 @@ class HeapObjectHeader {
   inline bool TryMarkAtomic();
 
   template <AccessMode = AccessMode::kNonAtomic>
+  bool IsYoung() const;
+
+  template <AccessMode = AccessMode::kNonAtomic>
   bool IsFree() const;
 
   inline bool IsFinalizable() const;

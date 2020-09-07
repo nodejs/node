@@ -26,6 +26,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"
 #include "src/tracing/trace-event.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -911,9 +912,19 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
+#ifdef V8_REVERSE_JSARGS
+  std::vector<TranslatedFrame::iterator> parameters;
+  for (int i = 0; i < parameters_count; ++i, ++value_iterator) {
+    parameters.push_back(value_iterator);
+  }
+  for (auto& parameter : base::Reversed(parameters)) {
+    frame_writer.PushTranslatedValue(parameter, "stack parameter");
+  }
+#else
   for (int i = 0; i < parameters_count; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
   }
+#endif
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
@@ -3461,6 +3472,7 @@ void TranslatedState::InitializeCapturedObjectAt(
     case STRING_TABLE_TYPE:
     case PROPERTY_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
+    case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
       InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map,
                                          no_allocation);
       break;
@@ -3619,6 +3631,19 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       } else {
         slot->set_storage(AllocateStorageFor(slot));
       }
+
+      // Make sure all the remaining children (after the map) are allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
+                                     &value_index, worklist);
+    }
+
+    case SLOPPY_ARGUMENTS_ELEMENTS_TYPE: {
+      // Verify that the arguments size is correct.
+      int args_length = frame->values_[value_index].GetSmiValue();
+      int args_size = SloppyArgumentsElements::SizeFor(args_length);
+      CHECK_EQ(args_size, slot->GetChildrenCount() * kTaggedSize);
+
+      slot->set_storage(AllocateStorageFor(slot));
 
       // Make sure all the remaining children (after the map) are allocated.
       return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,

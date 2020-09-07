@@ -51,8 +51,8 @@ class ConfigTest(unittest.TestCase):
     assert all(map(lambda x: x[3] in KNOWN_BUILDS, EXPERIMENTS))
     # Ensure we compare different configs and same d8, or same config
     # to different d8.
-    is_sane_comparison = lambda x: (x[1] == x[2]) == ('d8' != x[3])
-    assert all(map(is_sane_comparison, EXPERIMENTS))
+    is_valid_comparison = lambda x: (x[1] == x[2]) == ('d8' != x[3])
+    assert all(map(is_valid_comparison, EXPERIMENTS))
     # All flags have a probability.
     first_is_float = lambda x: type(x[0]) == float
     assert all(map(first_is_float, FLAGS))
@@ -101,6 +101,23 @@ class ConfigTest(unittest.TestCase):
 
 
 class UnitTest(unittest.TestCase):
+  def testCluster(self):
+    crash_test_example_path = 'CrashTests/path/to/file.js'
+    self.assertEqual(
+        v8_foozzie.ORIGINAL_SOURCE_DEFAULT,
+        v8_foozzie.cluster_failures(''))
+    self.assertEqual(
+        v8_foozzie.ORIGINAL_SOURCE_CRASHTESTS,
+        v8_foozzie.cluster_failures(crash_test_example_path))
+    self.assertEqual(
+        '_o_O_',
+        v8_foozzie.cluster_failures(
+            crash_test_example_path,
+            known_failures={crash_test_example_path: '_o_O_'}))
+    self.assertEqual(
+        '980',
+        v8_foozzie.cluster_failures('v8/test/mjsunit/apply.js'))
+
   def testDiff(self):
     def diff_fun(one, two, skip=False):
       suppress = v8_suppressions.get_suppression(

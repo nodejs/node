@@ -18,8 +18,10 @@
 #include "src/objects/js-number-format.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/objects-inl.h"
+#include "unicode/decimfmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
+#include "unicode/unum.h"
 
 namespace v8 {
 namespace internal {
@@ -192,6 +194,10 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
                       JSRelativeTimeFormat);
     }
   }
+
+  icu::DecimalFormat* decimal_format =
+      static_cast<icu::DecimalFormat*>(number_format);
+  decimal_format->setMinimumGroupingDigits(-2);
 
   // Change UDISPCTX_CAPITALIZATION_NONE to other values if
   // ECMA402 later include option to change capitalization.

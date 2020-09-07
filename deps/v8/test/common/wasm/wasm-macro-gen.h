@@ -165,7 +165,7 @@
 #define WASM_SELECT_D(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalF64
 #define WASM_SELECT_R(tval, fval, cond) \
-  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalAnyRef
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalExternRef
 #define WASM_SELECT_A(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalFuncRef
 
@@ -429,10 +429,18 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
   struct_obj, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
+#define WASM_STRUCT_GET_S(typeidx, fieldidx, struct_obj)               \
+  struct_obj, WASM_GC_OP(kExprStructGetS), static_cast<byte>(typeidx), \
+      static_cast<byte>(fieldidx)
+#define WASM_STRUCT_GET_U(typeidx, fieldidx, struct_obj)               \
+  struct_obj, WASM_GC_OP(kExprStructGetU), static_cast<byte>(typeidx), \
+      static_cast<byte>(fieldidx)
 #define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value)                \
   struct_obj, value, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
-#define WASM_REF_NULL kExprRefNull
+#define WASM_REF_NULL(type) kExprRefNull, static_cast<byte>(type)
+#define WASM_REF_NULL_GC(type) \
+  kExprRefNull, kLocalOptRef, static_cast<byte>(type)
 #define WASM_REF_FUNC(val) kExprRefFunc, val
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
@@ -442,10 +450,17 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
 #define WASM_ARRAY_GET(typeidx, array, index) \
   array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
+#define WASM_ARRAY_GET_U(typeidx, array, index) \
+  array, index, WASM_GC_OP(kExprArrayGetU), static_cast<byte>(typeidx)
+#define WASM_ARRAY_GET_S(typeidx, array, index) \
+  array, index, WASM_GC_OP(kExprArrayGetS), static_cast<byte>(typeidx)
 #define WASM_ARRAY_SET(typeidx, array, index, value) \
   array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
 #define WASM_ARRAY_LEN(typeidx, array) \
   array, WASM_GC_OP(kExprArrayLen), static_cast<byte>(typeidx)
+
+#define WASM_RTT_CANON(typeidx) \
+  WASM_GC_OP(kExprRttCanon), static_cast<byte>(typeidx)
 
 #define WASM_BR_ON_NULL(depth, ref_object) \
   ref_object, kExprBrOnNull, static_cast<byte>(depth)
@@ -457,6 +472,23 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(table)
 #define WASM_RETURN_CALL_INDIRECT(sig_index, ...) \
   __VA_ARGS__, kExprReturnCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+
+#define WASM_REF_TYPE(typeidx) kLocalOptRef, U32V_1(typeidx)
+
+// shift locals by 1; let (locals[0]: local_type) = value in ...
+#define WASM_LET_1_V(local_type, value, ...)                                  \
+  value, kExprLet, kLocalVoid, U32V_1(1), U32V_1(1), local_type, __VA_ARGS__, \
+      kExprEnd
+#define WASM_LET_1_I(local_type, value, ...)                                 \
+  value, kExprLet, kLocalI32, U32V_1(1), U32V_1(1), local_type, __VA_ARGS__, \
+      kExprEnd
+// shift locals by 2;
+// let (locals[0]: local_type_1) = value_1,
+//     (locals[1]: local_type_2) = value_2
+// in ...
+#define WASM_LET_2_I(local_type_1, value_1, local_type_2, value_2, ...)      \
+  value_1, value_2, kExprLet, kLocalI32, U32V_1(2), U32V_1(1), local_type_1, \
+      U32V_1(1), local_type_2, __VA_ARGS__, kExprEnd
 
 #define WASM_NOT(x) x, kExprI32Eqz
 #define WASM_SEQ(...) __VA_ARGS__
@@ -815,6 +847,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
 #define WASM_SIMD_LOAD_EXTEND(opcode, index) \
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_LOAD_EXTEND_OFFSET(opcode, index, offset) \
+  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
 #define WASM_SIMD_LOAD_EXTEND_ALIGNMENT(opcode, index, alignment) \
   index, WASM_SIMD_OP(opcode), alignment, ZERO_OFFSET
 

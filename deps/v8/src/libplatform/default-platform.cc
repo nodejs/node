@@ -45,6 +45,13 @@ std::unique_ptr<v8::Platform> NewDefaultPlatform(
   return platform;
 }
 
+V8_PLATFORM_EXPORT std::unique_ptr<JobHandle> NewDefaultJobHandle(
+    Platform* platform, TaskPriority priority,
+    std::unique_ptr<JobTask> job_task, size_t num_worker_threads) {
+  return std::make_unique<DefaultJobHandle>(std::make_shared<DefaultJobState>(
+      platform, std::move(job_task), priority, num_worker_threads));
+}
+
 bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
                      MessageLoopBehavior behavior) {
   return static_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate,

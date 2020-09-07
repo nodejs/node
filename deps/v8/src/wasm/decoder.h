@@ -137,7 +137,6 @@ class Decoder {
     if (length == nullptr) {
       length = &unused_length;
     }
-    DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(*pc)));
     uint32_t index;
     if (*pc == WasmOpcode::kSimdPrefix) {
       // SIMD opcodes can be multiple bytes (when LEB128 encoded).

@@ -9,8 +9,9 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/list.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
-#include "src/heap/remembered-set-inl.h"
+#include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/logging/log.h"
@@ -134,7 +135,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
       heap()->incremental_marking()->black_allocation(),
       heap()->incremental_marking()->marking_state()->IsBlack(object));
   page->InitializationMemoryFence();
-  heap()->NotifyOldGenerationExpansion();
+  heap()->NotifyOldGenerationExpansion(identity(), page);
   AllocationStep(object_size, object.address(), object_size);
   return object;
 }
@@ -163,7 +164,7 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() {
 }
 
 LargePage* CodeLargeObjectSpace::FindPage(Address a) {
-  const Address key = MemoryChunk::FromAddress(a)->address();
+  const Address key = BasicMemoryChunk::FromAddress(a)->address();
   auto it = chunk_map_.find(key);
   if (it != chunk_map_.end()) {
     LargePage* page = it->second;
@@ -223,7 +224,8 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   page_count_++;
   memory_chunk_list_.PushBack(page);
   page->set_owner(this);
-  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  page->SetOldGenerationPageFlags(!is_off_thread() &&
+                                  heap()->incremental_marking()->IsMarking());
 }
 
 void LargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
@@ -273,7 +275,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
 }
 
 bool LargeObjectSpace::Contains(HeapObject object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
 
   bool owned = (chunk->owner() == this);
 
@@ -514,7 +516,6 @@ AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
 void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   OldLargeObjectSpace::AddPage(page, object_size);
   InsertChunkMapEntries(page);
-  heap()->isolate()->AddCodeMemoryChunk(page);
 }
 
 void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {

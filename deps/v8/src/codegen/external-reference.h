@@ -77,8 +77,10 @@ class StatsCounter;
   V(address_of_regexp_stack_memory_top_address,                                \
     "RegExpStack::memory_top_address_address()")                               \
   V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
-  V(re_case_insensitive_compare_uc16,                                          \
-    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")                \
+  V(re_case_insensitive_compare_unicode,                                       \
+    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode()")             \
+  V(re_case_insensitive_compare_non_unicode,                                   \
+    "NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode()")          \
   V(re_check_stack_guard_state,                                                \
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
@@ -181,9 +183,13 @@ class StatsCounter;
   V(wasm_f64_trunc, "wasm::f64_trunc_wrapper")                                \
   V(wasm_float32_to_int64, "wasm::float32_to_int64_wrapper")                  \
   V(wasm_float32_to_uint64, "wasm::float32_to_uint64_wrapper")                \
+  V(wasm_float32_to_int64_sat, "wasm::float32_to_int64_sat_wrapper")          \
+  V(wasm_float32_to_uint64_sat, "wasm::float32_to_uint64_sat_wrapper")        \
   V(wasm_float64_pow, "wasm::float64_pow")                                    \
   V(wasm_float64_to_int64, "wasm::float64_to_int64_wrapper")                  \
   V(wasm_float64_to_uint64, "wasm::float64_to_uint64_wrapper")                \
+  V(wasm_float64_to_int64_sat, "wasm::float64_to_int64_sat_wrapper")          \
+  V(wasm_float64_to_uint64_sat, "wasm::float64_to_uint64_sat_wrapper")        \
   V(wasm_int64_div, "wasm::int64_div")                                        \
   V(wasm_int64_mod, "wasm::int64_mod")                                        \
   V(wasm_int64_to_float32, "wasm::int64_to_float32_wrapper")                  \
@@ -200,6 +206,9 @@ class StatsCounter;
   V(wasm_word64_ror, "wasm::word64_ror")                                      \
   V(wasm_word64_ctz, "wasm::word64_ctz")                                      \
   V(wasm_word64_popcnt, "wasm::word64_popcnt")                                \
+  V(wasm_f32x4_ceil, "wasm::f32x4_ceil_wrapper")                              \
+  V(wasm_f32x4_floor, "wasm::f32x4_floor_wrapper")                            \
+  V(wasm_f32x4_trunc, "wasm::f32x4_trunc_wrapper")                            \
   V(wasm_memory_init, "wasm::memory_init")                                    \
   V(wasm_memory_copy, "wasm::memory_copy")                                    \
   V(wasm_memory_fill, "wasm::memory_fill")                                    \

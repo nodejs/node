@@ -23,6 +23,8 @@ namespace internal {
 
 static constexpr int kNumHandles = kHandleBlockSize * 2 + kHandleBlockSize / 2;
 
+namespace {
+
 class PersistentHandlesThread final : public v8::base::Thread {
  public:
   PersistentHandlesThread(Heap* heap, std::vector<Handle<HeapNumber>> handles,
@@ -109,6 +111,8 @@ TEST(CreatePersistentHandles) {
   ph = std::move(thread->ph_);
   ph->NewHandle(number->ptr());
 }
+
+}  // anonymous namespace
 
 }  // namespace internal
 }  // namespace v8

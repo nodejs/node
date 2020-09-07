@@ -187,7 +187,8 @@ class RegExpBytecodePeephole {
   BytecodeSequenceNode& CreateSequence(int bytecode);
   // Checks for optimization candidates at pc and emits optimized bytecode to
   // the internal buffer. Returns the length of replaced bytecodes in bytes.
-  int TryOptimizeSequence(const byte* bytecode, int start_pc);
+  int TryOptimizeSequence(const byte* bytecode, int bytecode_length,
+                          int start_pc);
   // Emits optimized bytecode to the internal buffer. start_pc points to the
   // start of the sequence in bytecode and last_node is the last
   // BytecodeSequenceNode of the matching sequence found.
@@ -626,7 +627,7 @@ bool RegExpBytecodePeephole::OptimizeBytecode(const byte* bytecode,
   bool did_optimize = false;
 
   while (old_pc < length) {
-    int replaced_len = TryOptimizeSequence(bytecode, old_pc);
+    int replaced_len = TryOptimizeSequence(bytecode, length, old_pc);
     if (replaced_len > 0) {
       old_pc += replaced_len;
       did_optimize = true;
@@ -659,6 +660,7 @@ BytecodeSequenceNode& RegExpBytecodePeephole::CreateSequence(int bytecode) {
 }
 
 int RegExpBytecodePeephole::TryOptimizeSequence(const byte* bytecode,
+                                                int bytecode_length,
                                                 int start_pc) {
   BytecodeSequenceNode* seq_node = sequences_;
   BytecodeSequenceNode* valid_seq_end = nullptr;
@@ -667,13 +669,12 @@ int RegExpBytecodePeephole::TryOptimizeSequence(const byte* bytecode,
 
   // Check for the longest valid sequence matching any of the pre-defined
   // sequences in the Trie data structure.
-  while ((seq_node = seq_node->Find(bytecode[current_pc]))) {
-    if (!seq_node->CheckArguments(bytecode, start_pc)) {
-      break;
-    }
-    if (seq_node->IsSequence()) {
-      valid_seq_end = seq_node;
-    }
+  while (current_pc < bytecode_length) {
+    seq_node = seq_node->Find(bytecode[current_pc]);
+    if (seq_node == nullptr) break;
+    if (!seq_node->CheckArguments(bytecode, start_pc)) break;
+
+    if (seq_node->IsSequence()) valid_seq_end = seq_node;
     current_pc += RegExpBytecodeLength(bytecode[current_pc]);
   }
 

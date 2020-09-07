@@ -21,7 +21,7 @@
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
-#define V8_MINIMUM_ICU_VERSION 65
+#define V8_MINIMUM_ICU_VERSION 67
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
@@ -287,7 +287,7 @@ class Intl {
 
       std::vector<std::string> all_locales;
       const char* loc;
-      while ((loc = uenum_next(uenum, NULL, &status)) != nullptr) {
+      while ((loc = uenum_next(uenum, nullptr, &status)) != nullptr) {
         DCHECK(U_SUCCESS(status));
         std::string locstr(loc);
         std::replace(locstr.begin(), locstr.end(), '_', '-');
@@ -299,7 +299,6 @@ class Intl {
 
       set_ = Intl::BuildLocaleSet(all_locales, C::path(), C::key());
     }
-    virtual ~AvailableLocales() {}
     const std::set<std::string>& Get() const { return set_; }
 
    private:

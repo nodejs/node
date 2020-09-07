@@ -36,16 +36,15 @@ assertEquals(
     (new Intl.DateTimeFormat("en", {fractionalSecondDigits: undefined}))
         .resolvedOptions().fractionalSecondDigits);
 
-// When timeStyle or dateStyle is present, the code should not read
-// fractionalSecondDigits from the option.
-assertEquals(
-    undefined,
-    (new Intl.DateTimeFormat(
-        "en", {timeStyle: "short", fractionalSecondDigits: 3}))
-        .resolvedOptions().fractionalSecondDigits);
+// When timeStyle or dateStyle is present, we should throw TypeError
+assertThrows(
+    () => (new Intl.DateTimeFormat(
+        "en", {timeStyle: "short", fractionalSecondDigits: 3})),
+    TypeError,
+    "Invalid option : timeStyle");
 
-assertEquals(
-    undefined,
-    (new Intl.DateTimeFormat(
-        "en", {dateStyle: "short", fractionalSecondDigits: 3}))
-        .resolvedOptions().fractionalSecondDigits);
+assertThrows(
+    () => (new Intl.DateTimeFormat(
+        "en", {dateStyle: "short", fractionalSecondDigits: 3})),
+    TypeError,
+    "Invalid option : dateStyle");

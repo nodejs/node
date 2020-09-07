@@ -8,8 +8,8 @@
 #include "include/v8-internal.h"
 #include "src/common/globals.h"
 #include "src/heap/concurrent-allocator.h"
-
 #include "src/heap/heap.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
@@ -23,15 +23,7 @@ AllocationResult ConcurrentAllocator::Allocate(int object_size,
   // TODO(dinfuehr): Add support for allocation observers
   CHECK(FLAG_concurrent_allocation);
   if (object_size > kMaxLabObjectSize) {
-    auto result = space_->SlowGetLinearAllocationAreaBackground(
-        local_heap_, object_size, object_size, alignment, origin);
-
-    if (result) {
-      HeapObject object = HeapObject::FromAddress(result->first);
-      return AllocationResult(object);
-    } else {
-      return AllocationResult::Retry(OLD_SPACE);
-    }
+    return AllocateOutsideLab(object_size, alignment, origin);
   }
 
   return AllocateInLab(object_size, alignment, origin);
@@ -68,6 +60,12 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
       local_heap_, kLabSize, kMaxLabSize, kWordAligned, origin);
 
   if (!result) return false;
+
+  if (local_heap_->heap()->incremental_marking()->black_allocation()) {
+    Address top = result->first;
+    Address limit = top + result->second;
+    Page::FromAllocationAreaAddress(top)->CreateBlackAreaBackground(top, limit);
+  }
 
   HeapObject object = HeapObject::FromAddress(result->first);
   LocalAllocationBuffer saved_lab = std::move(lab_);

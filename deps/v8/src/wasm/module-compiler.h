@@ -63,7 +63,8 @@ WasmCode* CompileImportWrapper(
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, NativeModule*, int func_index);
+// TODO(clemensb): Stop calling this from the interpreter, and don't export.
+V8_EXPORT_PRIVATE bool CompileLazy(Isolate*, NativeModule*, int func_index);
 
 int GetMaxBackgroundTasks();
 

@@ -301,13 +301,13 @@ TEST_F(SpacesTest, OffThreadLargeObjectSpaceMergeDuringIncrementalMarking) {
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
   constexpr Address address1 = Page::kPageSize;
   HeapObject object1 = HeapObject::unchecked_cast(Object(address1));
-  MemoryChunk* chunk1 = MemoryChunk::FromHeapObject(object1);
+  BasicMemoryChunk* chunk1 = BasicMemoryChunk::FromHeapObject(object1);
   heap_internals::MemoryChunk* slim_chunk1 =
       heap_internals::MemoryChunk::FromHeapObject(object1);
   EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
   constexpr Address address2 = 2 * Page::kPageSize - 1;
   HeapObject object2 = HeapObject::unchecked_cast(Object(address2));
-  MemoryChunk* chunk2 = MemoryChunk::FromHeapObject(object2);
+  BasicMemoryChunk* chunk2 = BasicMemoryChunk::FromHeapObject(object2);
   heap_internals::MemoryChunk* slim_chunk2 =
       heap_internals::MemoryChunk::FromHeapObject(object2);
   EXPECT_EQ(static_cast<void*>(chunk2), static_cast<void*>(slim_chunk2));

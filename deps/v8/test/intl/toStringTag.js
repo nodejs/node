@@ -7,7 +7,7 @@ let descriptor;
 descriptor = Object.getOwnPropertyDescriptor(Intl.DateTimeFormat.prototype,
                                              Symbol.toStringTag);
 
-assertEquals("Object", descriptor.value);
+assertEquals("Intl.DateTimeFormat", descriptor.value);
 assertFalse(descriptor.writable);
 assertFalse(descriptor.enumerable);
 assertTrue(descriptor.configurable);
@@ -15,7 +15,7 @@ assertTrue(descriptor.configurable);
 descriptor = Object.getOwnPropertyDescriptor(Intl.NumberFormat.prototype,
                                              Symbol.toStringTag);
 
-assertEquals("Object", descriptor.value);
+assertEquals("Intl.NumberFormat", descriptor.value);
 assertFalse(descriptor.writable);
 assertFalse(descriptor.enumerable);
 assertTrue(descriptor.configurable);
@@ -23,7 +23,7 @@ assertTrue(descriptor.configurable);
 descriptor = Object.getOwnPropertyDescriptor(Intl.Collator.prototype,
                                              Symbol.toStringTag);
 
-assertEquals("Object", descriptor.value);
+assertEquals("Intl.Collator", descriptor.value);
 assertFalse(descriptor.writable);
 assertFalse(descriptor.enumerable);
 assertTrue(descriptor.configurable);

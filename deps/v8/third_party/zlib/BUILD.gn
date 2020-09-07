@@ -18,6 +18,11 @@ config("zlib_config") {
 
 config("zlib_internal_config") {
   defines = [ "ZLIB_IMPLEMENTATION" ]
+
+  if (!is_debug) {
+    # Build code using -O3, see: crbug.com/1084371.
+    configs = [ "//build/config/compiler:optimize_speed" ]
+  }
 }
 
 use_arm_neon_optimizations = false
@@ -67,12 +72,6 @@ source_set("zlib_adler32_simd") {
       "adler32_simd.c",
       "adler32_simd.h",
     ]
-
-    if (!is_debug) {
-      # Use optimize_speed (-O3) to output the _smallest_ code.
-      configs -= [ "//build/config/compiler:default_optimization" ]
-      configs += [ "//build/config/compiler:optimize_speed" ]
-    }
   }
 
   configs += [ ":zlib_internal_config" ]
@@ -117,11 +116,6 @@ if (use_arm_neon_optimizations) {
         "crc32_simd.c",
         "crc32_simd.h",
       ]
-
-      if (!is_debug) {
-        configs -= [ "//build/config/compiler:default_optimization" ]
-        configs += [ "//build/config/compiler:optimize_speed" ]
-      }
     }
 
     configs += [ ":zlib_internal_config" ]
@@ -160,13 +154,6 @@ source_set("zlib_inflate_chunk_simd") {
       "contrib/optimizations/inffast_chunk.h",
       "contrib/optimizations/inflate.c",
     ]
-
-    if (use_arm_neon_optimizations && !is_debug) {
-      # Here we trade better performance on newer/bigger ARMv8 cores
-      # for less perf on ARMv7, per crbug.com/772870#c40
-      configs -= [ "//build/config/compiler:default_optimization" ]
-      configs += [ "//build/config/compiler:optimize_speed" ]
-    }
   }
 
   configs += [ ":zlib_internal_config" ]
@@ -392,7 +379,6 @@ executable("zlib_bench") {
   include_dirs = [ "." ]
 
   sources = [ "contrib/bench/zlib_bench.cc" ]
-
   if (!is_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_speed" ]
@@ -420,6 +406,12 @@ if (build_with_chromium) {
       ":zlib",
       "//testing/gtest",
       "//testing/gtest:gtest_main",
+    ]
+
+    include_dirs = [
+      "//third_party/googletest/src/googletest/include/gtest",
+      ".",
+      "google",
     ]
   }
 }

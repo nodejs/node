@@ -138,7 +138,8 @@ enum CWasmEntryParameters {
 
 // Compiles a stub with C++ linkage, to be called from Execution::CallWasm,
 // which knows how to feed it its parameters.
-MaybeHandle<Code> CompileCWasmEntry(Isolate*, const wasm::FunctionSig*);
+V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(Isolate*,
+                                                 const wasm::FunctionSig*);
 
 // Values from the instance object are cached between Wasm-level function calls.
 // This struct allows the SSA environment handling this cache to be defined
@@ -250,6 +251,10 @@ class WasmGraphBuilder {
     Node* arr[] = {fst, more...};
     return Return(ArrayVector(arr));
   }
+
+  Node* TraceFunctionEntry(wasm::WasmCodePosition position);
+  Node* TraceFunctionExit(Vector<Node*> vals, wasm::WasmCodePosition position);
+
   Node* Trap(wasm::TrapReason reason, wasm::WasmCodePosition position);
 
   Node* CallDirect(uint32_t index, Vector<Node*> args, Vector<Node*> rets,
@@ -284,9 +289,10 @@ class WasmGraphBuilder {
                 uint32_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
 #if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
-  Node* LoadTransformBigEndian(MachineType memtype,
+  Node* LoadTransformBigEndian(wasm::ValueType type, MachineType memtype,
                                wasm::LoadTransformationKind transform,
-                               Node* value);
+                               Node* index, uint32_t offset, uint32_t alignment,
+                               wasm::WasmCodePosition position);
 #endif
   Node* LoadTransform(wasm::ValueType type, MachineType memtype,
                       wasm::LoadTransformationKind transform, Node* index,
@@ -316,7 +322,7 @@ class WasmGraphBuilder {
   void GetGlobalBaseAndOffset(MachineType mem_type, const wasm::WasmGlobal&,
                               Node** base_node, Node** offset_node);
 
-  void GetBaseAndOffsetForImportedMutableAnyRefGlobal(
+  void GetBaseAndOffsetForImportedMutableExternRefGlobal(
       const wasm::WasmGlobal& global, Node** base, Node** offset);
 
   // Utilities to manipulate sets of instance cache nodes.
@@ -378,7 +384,7 @@ class WasmGraphBuilder {
   Node* StructNew(uint32_t struct_index, const wasm::StructType* type,
                   Vector<Node*> fields);
   Node* StructGet(Node* struct_object, const wasm::StructType* struct_type,
-                  uint32_t field_index, CheckForNull null_check,
+                  uint32_t field_index, CheckForNull null_check, bool is_signed,
                   wasm::WasmCodePosition position);
   Node* StructSet(Node* struct_object, const wasm::StructType* struct_type,
                   uint32_t field_index, Node* value, CheckForNull null_check,
@@ -387,10 +393,11 @@ class WasmGraphBuilder {
                  Node* length, Node* initial_value);
   void BoundsCheck(Node* array, Node* index, wasm::WasmCodePosition position);
   Node* ArrayGet(Node* array_object, const wasm::ArrayType* type, Node* index,
-                 wasm::WasmCodePosition position);
+                 bool is_signed, wasm::WasmCodePosition position);
   Node* ArraySet(Node* array_object, const wasm::ArrayType* type, Node* index,
                  Node* value, wasm::WasmCodePosition position);
   Node* ArrayLen(Node* array_object, wasm::WasmCodePosition position);
+  Node* RttCanon(uint32_t type_index);
 
   bool has_simd() const { return has_simd_; }
 
@@ -546,6 +553,11 @@ class WasmGraphBuilder {
   Node* BuildI32AsmjsRemU(Node* left, Node* right);
   Node* BuildAsmjsLoadMem(MachineType type, Node* index);
   Node* BuildAsmjsStoreMem(MachineType type, Node* index, Node* val);
+
+  // Wasm SIMD.
+  Node* BuildF32x4Ceil(Node* input);
+  Node* BuildF32x4Floor(Node* input);
+  Node* BuildF32x4Trunc(Node* input);
 
   void BuildEncodeException32BitValue(Node* values_array, uint32_t* index,
                                       Node* value);

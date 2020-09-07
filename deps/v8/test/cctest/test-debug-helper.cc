@@ -182,8 +182,8 @@ TEST(GetObjectProperties) {
               : Contains(props->brief, "maybe EmptyFixedArray"));
 
     // Provide a heap first page so the API can be more sure.
-    heap_addresses.read_only_space_first_page = reinterpret_cast<uintptr_t>(
-        i_isolate->heap()->read_only_space()->first_page());
+    heap_addresses.read_only_space_first_page =
+        i_isolate->heap()->read_only_space()->FirstPageAddress();
     props =
         d::GetObjectProperties(properties_or_hash, &ReadMemory, heap_addresses);
     CHECK(props->type_check_result ==

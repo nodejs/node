@@ -102,7 +102,7 @@ class DelayedTasksPlatform : public Platform {
     DCHECK_NOT_NULL(platform_);
   }
 
-  ~DelayedTasksPlatform() {
+  ~DelayedTasksPlatform() override {
     // When the platform shuts down, all task runners must be freed.
     DCHECK_EQ(0, delayed_task_runners_.size());
   }

@@ -949,7 +949,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     if (mode_ == KeyCollectionMode::kIncludePrototypes) {
       return Just(false);
     }
-    // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
+    // ...whereas [[OwnPropertyKeys]] shall return allowlisted properties.
     DCHECK_EQ(KeyCollectionMode::kOwnOnly, mode_);
     Handle<AccessCheckInfo> access_check_info;
     {

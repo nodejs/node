@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/platform/platform.h"
+#include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/heap.h"
 
 namespace cppgc {
@@ -15,14 +16,16 @@ namespace internal {
 
 // static
 void PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
-    cppgc::Heap* heap, PreFinalizer prefinalzier) {
-  internal::Heap::From(heap)->prefinalizer_handler()->RegisterPrefinalizer(
-      prefinalzier);
+    PreFinalizer pre_finalizer) {
+  BasePage::FromPayload(pre_finalizer.object)
+      ->heap()
+      ->prefinalizer_handler()
+      ->RegisterPrefinalizer(pre_finalizer);
 }
 
 bool PreFinalizerRegistrationDispatcher::PreFinalizer::operator==(
     const PreFinalizer& other) {
-  return (object_ == other.object_) && (callback_ == other.callback_);
+  return (object == other.object) && (callback == other.callback);
 }
 
 PreFinalizerHandler::PreFinalizerHandler()
@@ -32,12 +35,12 @@ PreFinalizerHandler::PreFinalizerHandler()
 {
 }
 
-void PreFinalizerHandler::RegisterPrefinalizer(PreFinalizer prefinalizer) {
+void PreFinalizerHandler::RegisterPrefinalizer(PreFinalizer pre_finalizer) {
   DCHECK(CurrentThreadIsCreationThread());
   DCHECK_EQ(ordered_pre_finalizers_.end(),
             std::find(ordered_pre_finalizers_.begin(),
-                      ordered_pre_finalizers_.end(), prefinalizer));
-  ordered_pre_finalizers_.push_back(prefinalizer);
+                      ordered_pre_finalizers_.end(), pre_finalizer));
+  ordered_pre_finalizers_.push_back(pre_finalizer);
 }
 
 void PreFinalizerHandler::InvokePreFinalizers() {
@@ -48,7 +51,7 @@ void PreFinalizerHandler::InvokePreFinalizers() {
       std::remove_if(ordered_pre_finalizers_.rbegin(),
                      ordered_pre_finalizers_.rend(),
                      [liveness_broker](const PreFinalizer& pf) {
-                       return (pf.callback_)(liveness_broker, pf.object_);
+                       return (pf.callback)(liveness_broker, pf.object);
                      })
           .base());
   ordered_pre_finalizers_.shrink_to_fit();
