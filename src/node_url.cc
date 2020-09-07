@@ -779,6 +779,8 @@ bool ToASCII(const std::string& input, std::string* output) {
   MaybeStackBuffer<char> buf;
   if (i18n::ToASCII(&buf, input.c_str(), input.length()) < 0)
     return false;
+  if (buf.length() == 0)
+    return false;
   output->assign(*buf, buf.length());
   return true;
 }
