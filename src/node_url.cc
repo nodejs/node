@@ -2084,8 +2084,6 @@ void URL::Parse(const char* input,
             url->flags |= URL_FLAGS_HAS_FRAGMENT;
             url->fragment = std::move(buffer);
             break;
-          case 0:
-            break;
           default:
             AppendOrEscape(&buffer, ch, FRAGMENT_ENCODE_SET);
         }
