@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.22.1">10.22.1</a><br/>
 <a href="#10.22.0">10.22.0</a><br/>
 <a href="#10.21.0">10.21.0</a><br/>
 <a href="#10.20.1">10.20.1</a><br/>
@@ -67,6 +68,21 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.22.1"></a>
+## 2020-09-15, Version 10.22.1 'Dubnium' (LTS), @BethGriggs
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8252**: fs.realpath.native on may cause buffer overflow (Medium).
+
+### Commits
+
+* [[`57badcf93e`](https://github.com/nodejs/node/commit/57badcf93e)] - **deps**: libuv: cherry-pick 0e6e8620 (Colin Ihrig) [libuv/libuv#2966](https://github.com/libuv/libuv/pull/2966)
 
 <a id="10.22.0"></a>
 ## 2020-07-21, Version 10.22.0 'Dubnium' (LTS), @BethGriggs prepared by @richardlau
