@@ -2656,8 +2656,8 @@ const moduleParents = Object.values(require.cache)
 [`response.connection`]: http.html#http_response_connection
 [`response.end()`]: http.html#http_response_end_data_encoding_callback
 [`response.finished`]: http.html#http_response_finished
-[`response.writableFinished`]: #http_response_writablefinished
-[`response.writableEnded`]: #http_response_writableended
+[`response.writableFinished`]: http.html#http_response_writablefinished
+[`response.writableEnded`]: http.html#http_response_writableended
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
