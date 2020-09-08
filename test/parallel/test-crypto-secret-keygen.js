@@ -76,8 +76,7 @@ assert.throws(() => generateKeySync('aes', { length: 123 }), {
   const keybuf = key.export();
   assert.strictEqual(keybuf.byteLength, 128 / 8);
 
-  generateKey('aes', { length: 128 }, common.mustCall((err, key) => {
-    assert.ifError(err);
+  generateKey('aes', { length: 128 }, common.mustSucceed((key) => {
     assert(key);
     const keybuf = key.export();
     assert.strictEqual(keybuf.byteLength, 128 / 8);
@@ -90,8 +89,7 @@ assert.throws(() => generateKeySync('aes', { length: 123 }), {
   const keybuf = key.export();
   assert.strictEqual(keybuf.byteLength, 256 / 8);
 
-  generateKey('aes', { length: 256 }, common.mustCall((err, key) => {
-    assert.ifError(err);
+  generateKey('aes', { length: 256 }, common.mustSucceed((key) => {
     assert(key);
     const keybuf = key.export();
     assert.strictEqual(keybuf.byteLength, 256 / 8);
@@ -104,8 +102,7 @@ assert.throws(() => generateKeySync('aes', { length: 123 }), {
   const keybuf = key.export();
   assert.strictEqual(keybuf.byteLength, Math.floor(123 / 8));
 
-  generateKey('hmac', { length: 123 }, common.mustCall((err, key) => {
-    assert.ifError(err);
+  generateKey('hmac', { length: 123 }, common.mustSucceed((key) => {
     assert(key);
     const keybuf = key.export();
     assert.strictEqual(keybuf.byteLength, Math.floor(123 / 8));

@@ -166,8 +166,7 @@ common.expectWarning('DeprecationWarning',
     new SharedArrayBuffer(10)
   ].forEach((buf) => {
     const before = Buffer.from(buf).toString('hex');
-    crypto.randomFill(buf, common.mustCall((err, buf) => {
-      assert.ifError(err);
+    crypto.randomFill(buf, common.mustSucceed((buf) => {
       const after = Buffer.from(buf).toString('hex');
       assert.notStrictEqual(before, after);
     }));

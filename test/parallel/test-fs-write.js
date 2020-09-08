@@ -124,11 +124,8 @@ fs.open(fn3, 'w', 0o644, common.mustSucceed((fd) => {
   fs.write(fd, expected, done);
 }));
 
-fs.open(fn4, 'w', 0o644, common.mustCall((err, fd) => {
-  assert.ifError(err);
-
-  const done = common.mustCall((err, written) => {
-    assert.ifError(err);
+fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
+  const done = common.mustSucceed((written) => {
     assert.strictEqual(written, Buffer.byteLength(expected));
     fs.closeSync(fd);
   });
