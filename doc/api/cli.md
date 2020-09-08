@@ -34,6 +34,11 @@ dashes (`-`) or underscores (`_`).
 
 For example, `--pending-deprecation` is equivalent to `--pending_deprecation`.
 
+If an option that takes a single value, for example `--max-http-header-size`,
+is passed more than once, then the last passed value will be used. Options
+from the command line take precedence over options passed through the
+[`NODE_OPTIONS`][] environment variable.
+
 ### `-`
 <!-- YAML
 added: v8.0.0
@@ -1588,6 +1593,7 @@ $ node --max-old-space-size=1536 index.js
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`NODE_OPTIONS`]: #cli_node_options_options
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`tls.DEFAULT_MAX_VERSION`]: tls.html#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.html#tls_tls_default_min_version
