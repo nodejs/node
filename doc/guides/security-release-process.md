@@ -44,6 +44,10 @@ information described.
   (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
   nodejs/nodejs.org)
 
+* [ ] Post in the #nodejs-social channel in the OpenJS Foundation slack
+  asking that the social team tweet/retweet the pre-announcement.
+  If you are on twitter you can just direct message the `@nodejs` handle.
+
 * [ ] Request releaser(s) to start integrating the PRs to be released.
 
 * [ ] Notify [docker-node][] of upcoming security release date: ***LINK***
@@ -65,9 +69,9 @@ information described.
   * (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
     nodejs/nodejs.org)
 
-* [ ] Email `"Rachel Romoff" <rromoff@linuxfoundation.org>` to tweet an
-  announcement, or if you are on twitter you can just direct message the
-  `@nodejs` handle.
+* [ ] Post in the #nodejs-social channel in the OpenJS Foundation slack
+  asking that the social team tweet/retweet the announcement.
+  If you are on twitter you can just direct message the `@nodejs` handle.
 
 * [ ] Comment in [docker-node][] issue that release is ready for integration.
   The docker-node team will build and release docker image updates.
