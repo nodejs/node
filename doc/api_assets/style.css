@@ -65,7 +65,8 @@ a.type {
 }
 
 a:link,
-a:active {
+a:active,
+a:visited {
   color: #43853d;
   text-decoration: none;
   border-radius: 2px;
