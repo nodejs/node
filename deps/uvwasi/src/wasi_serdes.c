@@ -84,6 +84,13 @@ uint8_t uvwasi_serdes_read_uint8_t(const void* ptr,  size_t offset) {
   ALIAS(userdata_t,      uint64_t)                                            \
   ALIAS(whence_t,        uint8_t)                                             \
                                                                               \
+  STRUCT(dirent_t) {                                                          \
+    FIELD( 0, dircookie_t, d_next);                                           \
+    FIELD( 8, inode_t,     d_ino);                                            \
+    FIELD(16, uint32_t,    d_namlen);                                         \
+    FIELD(20, filetype_t,  d_type);                                           \
+  }                                                                           \
+                                                                              \
   STRUCT(fdstat_t) {                                                          \
     FIELD( 0, filetype_t, fs_filetype);                                       \
     FIELD( 2, fdflags_t,  fs_flags);                                          \
