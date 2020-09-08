@@ -13,6 +13,10 @@
 
 #define UVWASI__READDIR_NUM_ENTRIES 1
 
+#if !defined(_WIN32) && !defined(__ANDROID__)
+# define UVWASI_FD_READDIR_SUPPORTED 1
+#endif
+
 #include "uvwasi.h"
 #include "uvwasi_alloc.h"
 #include "uv.h"
@@ -22,6 +26,7 @@
 #include "path_resolver.h"
 #include "poll_oneoff.h"
 #include "wasi_rights.h"
+#include "wasi_serdes.h"
 #include "debug.h"
 
 /* IBMi PASE does not support posix_fadvise() */
@@ -1268,7 +1273,7 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
                                  uvwasi_size_t buf_len,
                                  uvwasi_dircookie_t cookie,
                                  uvwasi_size_t* bufused) {
-  /* TODO(cjihrig): Support Windows where seekdir() and telldir() are used. */
+#if defined(UVWASI_FD_READDIR_SUPPORTED)
   /* TODO(cjihrig): Avoid opening and closing the directory on each call. */
   struct uvwasi_fd_wrap_t* wrap;
   uvwasi_dirent_t dirent;
@@ -1282,6 +1287,7 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
   long tell;
   int i;
   int r;
+#endif /* defined(UVWASI_FD_READDIR_SUPPORTED) */
 
   UVWASI_DEBUG("uvwasi_fd_readdir(uvwasi=%p, fd=%d, buf=%p, buf_len=%d, "
                "cookie=%"PRIu64", bufused=%p)\n",
@@ -1295,6 +1301,7 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
   if (uvwasi == NULL || buf == NULL || bufused == NULL)
     return UVWASI_EINVAL;
 
+#if defined(UVWASI_FD_READDIR_SUPPORTED)
   err = uvwasi_fd_table_get(uvwasi->fds,
                             fd,
                             &wrap,
@@ -1316,12 +1323,9 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
   dir->nentries = UVWASI__READDIR_NUM_ENTRIES;
   uv_fs_req_cleanup(&req);
 
-#ifndef _WIN32
-  /* TODO(cjihrig): Need a Windows equivalent of this logic. */
   /* Seek to the proper location in the directory. */
   if (cookie != UVWASI_DIRCOOKIE_START)
     seekdir(dir->dir, cookie);
-#endif
 
   /* Read the directory entries into the provided buffer. */
   err = UVWASI_ESUCCESS;
@@ -1333,25 +1337,20 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
       goto exit;
     }
 
+    available = 0;
+
     for (i = 0; i < r; i++) {
-      /* TODO(cjihrig): This should probably be serialized to the buffer
-         consistently across platforms. In other words, d_next should always
-         be 8 bytes, d_ino should always be 8 bytes, d_namlen should always be
-         4 bytes, and d_type should always be 1 byte. */
-#ifndef _WIN32
       tell = telldir(dir->dir);
       if (tell < 0) {
         err = uvwasi__translate_uv_error(uv_translate_sys_error(errno));
         uv_fs_req_cleanup(&req);
         goto exit;
       }
-#else
-      tell = 0; /* TODO(cjihrig): Need to support Windows. */
-#endif /* _WIN32 */
 
       name_len = strlen(dirents[i].name);
       dirent.d_next = (uvwasi_dircookie_t) tell;
-      /* TODO(cjihrig): Missing ino libuv (and Windows) support. fstat()? */
+      /* TODO(cjihrig): libuv doesn't provide d_ino, and d_type is not
+                        supported on all platforms. Use stat()? */
       dirent.d_ino = 0;
       dirent.d_namlen = name_len;
 
@@ -1381,21 +1380,24 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
           break;
       }
 
-      /* Write dirent to the buffer. */
+      /* Write dirent to the buffer if it will fit. */
+      if (UVWASI_SERDES_SIZE_dirent_t + *bufused > buf_len)
+        break;
+
+      uvwasi_serdes_write_dirent_t(buf, *bufused, &dirent);
+      *bufused += UVWASI_SERDES_SIZE_dirent_t;
       available = buf_len - *bufused;
-      size_to_cp = sizeof(dirent) > available ? available : sizeof(dirent);
-      memcpy((char*)buf + *bufused, &dirent, size_to_cp);
-      *bufused += size_to_cp;
-      /* Write the entry name to the buffer. */
-      available = buf_len - *bufused;
+
+      /* Write as much of the entry name to the buffer as possible. */
       size_to_cp = name_len > available ? available : name_len;
-      memcpy((char*)buf + *bufused, &dirents[i].name, size_to_cp);
+      memcpy((char*)buf + *bufused, dirents[i].name, size_to_cp);
       *bufused += size_to_cp;
+      available = buf_len - *bufused;
     }
 
     uv_fs_req_cleanup(&req);
 
-    if (*bufused >= buf_len)
+    if (available == 0)
       break;
   }
 
@@ -1408,6 +1410,10 @@ exit:
     return uvwasi__translate_uv_error(r);
 
   return err;
+#else
+  /* TODO(cjihrig): Need a solution for Windows and Android. */
+  return UVWASI_ENOSYS;
+#endif /* defined(UVWASI_FD_READDIR_SUPPORTED) */
 }
 
 
@@ -2353,6 +2359,7 @@ uvwasi_errno_t uvwasi_poll_oneoff(uvwasi_t* uvwasi,
   if (err != UVWASI_ESUCCESS)
     return err;
 
+  timer_userdata = 0;
   has_timeout = 0;
   min_timeout = 0;
 
