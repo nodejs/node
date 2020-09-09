@@ -2631,7 +2631,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `size` {number}
+* `size` {number} The `size` must not be larger than `2**31 - 1`.
 * `callback` {Function}
   * `err` {Error}
   * `buf` {Buffer}
@@ -2691,9 +2691,11 @@ changes:
     description: The `buffer` argument may be any `TypedArray` or `DataView`.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView} Must be supplied.
+* `buffer` {Buffer|TypedArray|DataView} Must be supplied. The
+  size of the provided `buffer` must not be larger than `2**31 - 1`.
 * `offset` {number} **Default:** `0`
-* `size` {number} **Default:** `buffer.length - offset`
+* `size` {number} **Default:** `buffer.length - offset`. The `size`
+  must not be larger than `2**31 - 1`.
 * Returns: {Buffer|TypedArray|DataView} The object passed as `buffer` argument.
 
 Synchronous version of [`crypto.randomFill()`][].
@@ -2737,9 +2739,11 @@ changes:
     description: The `buffer` argument may be any `TypedArray` or `DataView`.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView} Must be supplied.
+* `buffer` {Buffer|TypedArray|DataView} Must be supplied. The size
+  of the provided `buffer` must not be larger than `2**31 - 1`.
 * `offset` {number} **Default:** `0`
-* `size` {number} **Default:** `buffer.length - offset`
+* `size` {number} **Default:** `buffer.length - offset`.  The `size`
+  must not be larger than `2**31 - 1`.
 * `callback` {Function} `function(err, buf) {}`.
 
 This function is similar to [`crypto.randomBytes()`][] but requires the first
