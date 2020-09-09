@@ -56,11 +56,15 @@ onboarding session.
   * Watching the main repo will flood your inbox (several hundred notifications
     on typical weekdays), so be prepared
 
-* `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is the
-  best place to interact with the TSC / other Collaborators
-  * If there are any questions after the session, a good place to ask is there!
-  * Presence is not mandatory, but please drop a note there if force-pushing to
-    `master`
+The project has two venues for real-time discussion:
+* [`#nodejs-dev`](https://openjs-foundation.slack.com/archives/C019Y2T6STH) on
+  the [OpenJS Foundation](https://slack-invite.openjsf.org/)
+* `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is a
+  great place to interact with the TSC and other Collaborators
+  * If there are any questions after the session, a good place to ask is
+    there!
+  * Presence is not mandatory, but please drop a note there if force-pushing
+    to `master`
 
 ## Project goals & values
 
