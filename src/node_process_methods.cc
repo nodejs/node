@@ -87,6 +87,16 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+inline Local<ArrayBuffer> get_fields_array_buffer(
+    const FunctionCallbackInfo<Value>& args,
+    size_t index,
+    size_t array_length) {
+  CHECK(args[index]->IsFloat64Array());
+  Local<Float64Array> arr = args[index].As<Float64Array>();
+  CHECK_EQ(arr->Length(), array_length);
+  return arr->Buffer();
+}
+
 // CPUUsage use libuv's uv_getrusage() this-process resource usage accessor,
 // to access ru_utime (user CPU time used) and ru_stime (system CPU time used),
 // which are uv_timeval_t structs (long tv_sec, long tv_usec).
@@ -104,10 +114,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Get the double array pointer from the Float64Array argument.
-  CHECK(args[0]->IsFloat64Array());
-  Local<Float64Array> array = args[0].As<Float64Array>();
-  CHECK_EQ(array->Length(), 2);
-  Local<ArrayBuffer> ab = array->Buffer();
+  Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 2);
   double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
@@ -203,10 +210,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
       env->isolate_data()->node_allocator();
 
   // Get the double array pointer from the Float64Array argument.
-  CHECK(args[0]->IsFloat64Array());
-  Local<Float64Array> array = args[0].As<Float64Array>();
-  CHECK_EQ(array->Length(), 5);
-  Local<ArrayBuffer> ab = array->Buffer();
+  Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 5);
   double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   fields[0] = rss;
@@ -292,10 +296,7 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
   if (err)
     return env->ThrowUVException(err, "uv_getrusage");
 
-  CHECK(args[0]->IsFloat64Array());
-  Local<Float64Array> array = args[0].As<Float64Array>();
-  CHECK_EQ(array->Length(), 16);
-  Local<ArrayBuffer> ab = array->Buffer();
+  Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 16);
   double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
