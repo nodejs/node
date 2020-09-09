@@ -46,7 +46,16 @@ Node.js. We cannot accept such patches.
 In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
 [project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
-Node.js has two IRC channels:
+
+Node.js has many channels on the
+[OpenJS Foundation Slack](https://slack-invite.openjsf.org/). Interesting
+channels are:
+[#nodejs](https://openjs-foundation.slack.com/archives/CK9Q4MB53) for general
+help, questions and discussions.
+[#nodejs-dev](https://openjs-foundation.slack.com/archives/C019Y2T6STH) for
+development of Node.js core specifically.
+
+Node.js also has two IRC channels:
 [#Node.js](https://webchat.freenode.net/?channels=node.js) for general help and
 questions, and
 [#node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
