@@ -571,7 +571,7 @@ class CipherBase : public BaseObject {
   bool InitAuthenticated(const char* cipher_type, int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
-  UpdateResult Update(const char* data, int len, AllocatedBuffer* out);
+  UpdateResult Update(const char* data, size_t len, AllocatedBuffer* out);
   bool Final(AllocatedBuffer* out);
   bool SetAutoPadding(bool auto_padding);
 
@@ -613,7 +613,7 @@ class Hmac : public BaseObject {
 
  protected:
   void HmacInit(const char* hash_type, const char* key, int key_len);
-  bool HmacUpdate(const char* data, int len);
+  bool HmacUpdate(const char* data, size_t len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HmacInit(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -638,7 +638,7 @@ class Hash final : public BaseObject {
   SET_SELF_SIZE(Hash)
 
   bool HashInit(const EVP_MD* md, v8::Maybe<unsigned int> xof_md_len);
-  bool HashUpdate(const char* data, int len);
+  bool HashUpdate(const char* data, size_t len);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -670,7 +670,7 @@ class SignBase : public BaseObject {
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
 
   Error Init(const char* sign_type);
-  Error Update(const char* data, int len);
+  Error Update(const char* data, size_t len);
 
   // TODO(joyeecheung): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()
@@ -757,7 +757,7 @@ class PublicKeyCipher {
                      const void* oaep_label,
                      size_t oaep_label_size,
                      const unsigned char* data,
-                     int len,
+                     size_t len,
                      AllocatedBuffer* out);
 
   template <Operation operation,

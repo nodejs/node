@@ -3983,9 +3983,9 @@ void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
 }
 
 CipherBase::UpdateResult CipherBase::Update(const char* data,
-                                            int len,
+                                            size_t len,
                                             AllocatedBuffer* out) {
-  if (!ctx_)
+  if (!ctx_ || len > INT_MAX)
     return kErrorState;
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -4039,11 +4039,15 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
                               const FunctionCallbackInfo<Value>& args,
                               const char* data, size_t size) {
     AllocatedBuffer out;
+    Environment* env = Environment::GetCurrent(args);
+
+    if (size > INT_MAX)
+      return THROW_ERR_OUT_OF_RANGE(env, "data is too long");
+
     UpdateResult r = cipher->Update(data, size, &out);
 
     if (r != kSuccess) {
       if (r == kErrorState) {
-        Environment* env = Environment::GetCurrent(args);
         ThrowCryptoError(env, ERR_get_error(),
                          "Trying to add data in unsupported state");
       }
@@ -4205,7 +4209,7 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool Hmac::HmacUpdate(const char* data, int len) {
+bool Hmac::HmacUpdate(const char* data, size_t len) {
   if (!ctx_)
     return false;
   int r = HMAC_Update(ctx_.get(),
@@ -4341,7 +4345,7 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
 }
 
 
-bool Hash::HashUpdate(const char* data, int len) {
+bool Hash::HashUpdate(const char* data, size_t len) {
   if (!mdctx_)
     return false;
   EVP_DigestUpdate(mdctx_.get(), data, len);
@@ -4443,7 +4447,7 @@ SignBase::Error SignBase::Init(const char* sign_type) {
 }
 
 
-SignBase::Error SignBase::Update(const char* data, int len) {
+SignBase::Error SignBase::Update(const char* data, size_t len) {
   if (mdctx_ == nullptr)
     return kSignNotInitialised;
   if (!EVP_DigestUpdate(mdctx_.get(), data, len))
@@ -5050,7 +5054,7 @@ bool PublicKeyCipher::Cipher(Environment* env,
                              const void* oaep_label,
                              size_t oaep_label_len,
                              const unsigned char* data,
-                             int len,
+                             size_t len,
                              AllocatedBuffer* out) {
   EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
   if (!ctx)
@@ -5128,6 +5132,19 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     CHECK(args[offset + 3]->IsArrayBufferView());
     oaep_label.Read(args[offset + 3].As<ArrayBufferView>());
   }
+
+  // For rsa ciphers, the maximum size for buf and oaep_label is 2**31-1.
+  // This is because internally, for rsa ciphers, OpenSSL downcasts the
+  // input lengths to int rather than size_t, leading to segfaults if any
+  // value larger than 2**31-1 is used. Other ciphers may not have the
+  // same limitation, but given that this function is written largely to
+  // assume RSA in every other way, and that's the most likely use, we'll
+  // enforce the limit here.
+  if (oaep_label.length() > INT_MAX)
+    return THROW_ERR_OUT_OF_RANGE(env, "oaepLabel is too long");
+
+  if (buf.length() > INT_MAX)
+    return THROW_ERR_OUT_OF_RANGE(env, "buffer is too long");
 
   AllocatedBuffer out;
 
