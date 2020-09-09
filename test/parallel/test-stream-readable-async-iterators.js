@@ -12,6 +12,17 @@ const assert = require('assert');
 
 async function tests() {
   {
+    const AsyncIteratorPrototype = Object.getPrototypeOf(
+      Object.getPrototypeOf(async function* () {}).prototype);
+    const rs = new Readable({
+      read() {}
+    });
+    assert.strictEqual(
+      Object.getPrototypeOf(Object.getPrototypeOf(rs[Symbol.asyncIterator]())),
+      AsyncIteratorPrototype);
+  }
+
+  {
     // v1 stream
 
     const stream = new Stream();
@@ -42,9 +53,7 @@ async function tests() {
     });
 
     const iter = Readable.prototype[Symbol.asyncIterator].call(stream);
-    await iter.next();
-    await iter.next();
-    await iter.next().catch(common.mustCall((err) => {
+    iter.next().catch(common.mustCall((err) => {
       assert.strictEqual(err.message, 'asd');
     }));
   }
@@ -180,16 +189,9 @@ async function tests() {
     resolved.forEach(common.mustCall(
       (item, i) => assert.strictEqual(item.value, 'hello-' + i), max));
 
-    errors.slice(0, 1).forEach((promise) => {
+    errors.forEach((promise) => {
       promise.catch(common.mustCall((err) => {
         assert.strictEqual(err.message, 'kaboom');
-      }));
-    });
-
-    errors.slice(1).forEach((promise) => {
-      promise.then(common.mustCall(({ done, value }) => {
-        assert.strictEqual(done, true);
-        assert.strictEqual(value, undefined);
       }));
     });
 
@@ -280,6 +282,28 @@ async function tests() {
 
     assert.strictEqual(err.message, 'kaboom');
     assert.strictEqual(received, 1);
+  }
+
+  {
+    // Iterator throw.
+
+    const readable = new Readable({
+      objectMode: true,
+      read() {
+        this.push('hello');
+      }
+    });
+
+    readable.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.message, 'kaboom');
+    }));
+
+    const it = readable[Symbol.asyncIterator]();
+    it.throw(new Error('kaboom')).catch(common.mustCall((err) => {
+      assert.strictEqual(err.message, 'kaboom');
+    }));
+
+    assert.strictEqual(readable.destroyed, true);
   }
 
   {
@@ -553,15 +577,12 @@ async function tests() {
       assert.strictEqual(e, err);
     })(), (async () => {
       let e;
-      let x;
       try {
-        x = await d;
+        await d;
       } catch (_e) {
         e = _e;
       }
-      assert.strictEqual(e, undefined);
-      assert.strictEqual(x.done, true);
-      assert.strictEqual(x.value, undefined);
+      assert.strictEqual(e, err);
     })()]);
   }
 
