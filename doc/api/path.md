@@ -495,7 +495,7 @@ For instance, given the sequence of path segments: `/foo`, `/bar`, `baz`,
 calling `path.resolve('/foo', '/bar', 'baz')` would return `/bar/baz`
 because `'baz'` is not an absolute path but `'/bar' + '/' + 'baz'` is.
 
-If after processing all given `path` segments an absolute path has not yet
+If, after processing all given `path` segments, an absolute path has not yet
 been generated, the current working directory is used.
 
 The resulting path is normalized and trailing slashes are removed unless the
