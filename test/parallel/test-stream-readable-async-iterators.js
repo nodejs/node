@@ -9,6 +9,7 @@ const {
   pipeline
 } = require('stream');
 const assert = require('assert');
+const http = require('http');
 
 async function tests() {
   {
@@ -44,9 +45,11 @@ async function tests() {
     const iter = Readable.prototype[Symbol.asyncIterator].call(stream);
     await iter.next();
     await iter.next();
-    await iter.next().catch(common.mustCall((err) => {
-      assert.strictEqual(err.message, 'asd');
-    }));
+    await iter.next()
+      .then(common.mustNotCall())
+      .catch(common.mustCall((err) => {
+        assert.strictEqual(err.message, 'asd');
+      }));
   }
 
   {
@@ -581,6 +584,61 @@ async function tests() {
       assert.strictEqual(err, _err);
     }));
   }
+
+  {
+    // Don't destroy if no auto destroy.
+    // https://github.com/nodejs/node/issues/35116
+
+    const r = new Readable({
+      autoDestroy: false,
+      read() {
+        this.push('asd');
+        this.push(null);
+      }
+    });
+
+    for await (const chunk of r) {
+      chunk;
+    }
+    assert.strictEqual(r.destroyed, false);
+  }
+
+  {
+    // Destroy if no auto destroy and premature break.
+    // https://github.com/nodejs/node/pull/35122/files#r485678318
+
+    const r = new Readable({
+      autoDestroy: false,
+      read() {
+        this.push('asd');
+      }
+    });
+
+    for await (const chunk of r) {
+      chunk;
+      break;
+    }
+    assert.strictEqual(r.destroyed, true);
+  }
+
+  {
+    // Don't destroy before 'end'.
+
+    const r = new Readable({
+      read() {
+        this.push('asd');
+        this.push(null);
+      }
+    }).on('end', () => {
+      assert.strictEqual(r.destroyed, false);
+    });
+
+    for await (const chunk of r) {
+      chunk;
+    }
+
+    assert.strictEqual(r.destroyed, true);
+  }
 }
 
 {
@@ -640,6 +698,79 @@ async function tests() {
     next
       .then(common.mustCall(({ done }) => assert.strictEqual(done, true)))
       .catch(common.mustNotCall());
+  });
+}
+
+{
+  let _req;
+  const server = http.createServer((request, response) => {
+    response.statusCode = 404;
+    response.write('never ends');
+  });
+
+  server.listen(() => {
+    _req = http.request(`http://localhost:${server.address().port}`)
+      .on('response', common.mustCall(async (res) => {
+        setTimeout(() => {
+          _req.destroy(new Error('something happened'));
+        }, 100);
+
+        res.on('error', common.mustCall());
+
+        let _err;
+        try {
+          for await (const chunk of res) {
+            chunk;
+          }
+        } catch (err) {
+          _err = err;
+        }
+
+        assert.strictEqual(_err.code, 'ECONNRESET');
+        server.close();
+      }))
+      .on('error', common.mustCall())
+      .end();
+  });
+}
+
+{
+  async function getParsedBody(request) {
+    let body = '';
+
+    for await (const data of request) {
+      body += data;
+    }
+
+    try {
+      return JSON.parse(body);
+    } catch {
+      return {};
+    }
+  }
+
+  const str = JSON.stringify({ asd: true });
+  const server = http.createServer(async (request, response) => {
+    const body = await getParsedBody(request);
+    response.statusCode = 200;
+    assert.strictEqual(JSON.stringify(body), str);
+    response.end(JSON.stringify(body));
+  }).listen(() => {
+    http
+      .request({
+        method: 'POST',
+        hostname: 'localhost',
+        port: server.address().port,
+      })
+      .end(str)
+      .on('response', async (res) => {
+        let body = '';
+        for await (const chunk of res) {
+          body += chunk;
+        }
+        assert.strictEqual(body, str);
+        server.close();
+      });
   });
 }
 
