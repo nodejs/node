@@ -5855,6 +5855,7 @@ struct RandomBytesJob : public CryptoJob {
 
 
 void RandomBytes(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsArrayBufferView());  // buffer; wrap object retains ref.
   CHECK(args[1]->IsUint32());  // offset
   CHECK(args[2]->IsUint32());  // size
@@ -5863,7 +5864,10 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   const uint32_t size = args[2].As<Uint32>()->Value();
   CHECK_GE(offset + size, offset);  // Overflow check.
   CHECK_LE(offset + size, Buffer::Length(args[0]));  // Bounds check.
-  Environment* env = Environment::GetCurrent(args);
+
+  if (size > INT_MAX)
+    return THROW_ERR_OUT_OF_RANGE(env, "buffer is too large");
+
   std::unique_ptr<RandomBytesJob> job(new RandomBytesJob(env));
   job->data = reinterpret_cast<unsigned char*>(Buffer::Data(args[0])) + offset;
   job->size = size;
