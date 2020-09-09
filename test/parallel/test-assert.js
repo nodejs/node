@@ -1418,6 +1418,12 @@ assert.throws(
   assert.match('I will pass', /pass$/);
 }
 
+// Use the assert.match boolean result.
+{
+  assert(assert.match('meow', /meow$/, false));
+  assert(!assert.match('meow', /woof$/, false));
+}
+
 // Multiple assert.doesNotMatch() tests.
 {
   assert.throws(
