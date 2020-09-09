@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#14.10.1">14.10.1</a><br/>
 <a href="#14.10.0">14.10.0</a><br/>
 <a href="#14.9.0">14.9.0</a><br/>
 <a href="#14.8.0">14.8.0</a><br/>
@@ -40,6 +41,19 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.10.1"></a>
+## 2020-09-10, Version 14.10.1 (Current), @richardlau
+
+### Notable Changes
+
+Node.js 14.10.0 included a streams regression with async generators
+and a docs rendering regression that are being fixed in this release.
+
+### Commits
+
+* [[`3c92f93b44`](https://github.com/nodejs/node/commit/3c92f93b44)] - **doc**: restore color for visited links (Rich Trott) [#35108](https://github.com/nodejs/node/pull/35108)
+* [[`0f94c6b4e4`](https://github.com/nodejs/node/commit/0f94c6b4e4)] - ***Revert*** "**stream**: simpler and faster Readable async iterator" (Richard Lau)
 
 <a id="14.10.0"></a>
 ## 2020-09-08, Version 14.10.0 (Current), @richardlau
