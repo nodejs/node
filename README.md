@@ -144,6 +144,7 @@ For information on reporting security vulnerabilities in Node.js, see
 * [Contributing to the project][]
 * [Working Groups][]
 * [Strategic Initiatives][]
+* [Technical values and prioritization][]
 
 ## Current Project Team Members
 
@@ -633,5 +634,6 @@ Other keys used to sign some previous releases:
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
-[Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
+[Technical values and prioritization]: doc/guides/technical-values.md
+[Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
