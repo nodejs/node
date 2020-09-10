@@ -2631,7 +2631,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `size` {number} The `size` must not be larger than `2**31 - 1`.
+* `size` {number} The `size` must be less or equal to `2**31 - 1`.
 * `callback` {Function}
   * `err` {Error}
   * `buf` {Buffer}
