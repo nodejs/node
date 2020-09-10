@@ -539,9 +539,8 @@ a code {
 #column2 ul li a.active,
 #column2 ul li a.active:hover,
 #column2 ul li a.active:focus {
-  color: #43853d;
-  border-radius: 0;
-  border-bottom: 1px solid #43853d;
+  font-weight: 700;
+  color: #fff;
   background-color: transparent;
 }
 
