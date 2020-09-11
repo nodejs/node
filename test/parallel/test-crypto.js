@@ -164,7 +164,7 @@ testImmutability(crypto.getCurves);
 const encodingError = {
   code: 'ERR_INVALID_ARG_VALUE',
   name: 'TypeError',
-  message: "The argument 'encoding' is invalid for data of length 1." +
+  message: "The 'encoding' argument is invalid for data of length 1." +
            " Received 'hex'",
 };
 

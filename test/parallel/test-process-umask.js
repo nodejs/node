@@ -61,7 +61,7 @@ assert.throws(() => {
   process.umask({});
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: 'The argument \'mask\' must be a 32-bit unsigned integer ' +
+  message: 'The \'mask\' argument must be a 32-bit unsigned integer ' +
            'or an octal string. Received {}'
 });
 
@@ -70,7 +70,7 @@ assert.throws(() => {
     process.umask(value);
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
-    message: 'The argument \'mask\' must be a 32-bit unsigned integer ' +
+    message: 'The \'mask\' argument must be a 32-bit unsigned integer ' +
              `or an octal string. Received '${value}'`
   });
 });

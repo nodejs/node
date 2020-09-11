@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(function() {
       {
         code: 'ERR_INVALID_ARG_VALUE',
         name: 'TypeError',
-        message: "The argument 'method' is invalid. Received '   '"
+        message: "The 'method' argument is invalid. Received '   '"
       }
     );
     assert.throws(

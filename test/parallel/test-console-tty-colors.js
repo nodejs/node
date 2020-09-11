@@ -67,7 +67,7 @@ check(false, false, false);
         });
       },
       {
-        message: `The argument 'colorMode' is invalid. Received ${received}`,
+        message: `The 'colorMode' argument is invalid. Received ${received}`,
         code: 'ERR_INVALID_ARG_VALUE'
       }
     );

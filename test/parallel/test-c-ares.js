@@ -70,7 +70,7 @@ dns.lookup('::1', common.mustCall((error, result, addressType) => {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: `The argument 'rrtype' is invalid. Received '${val}'`,
+    message: `The 'rrtype' argument is invalid. Received '${val}'`,
   };
 
   assert.throws(

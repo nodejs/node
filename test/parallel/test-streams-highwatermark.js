@@ -27,7 +27,7 @@ const { inspect } = require('util');
       }, {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.highWaterMark' is invalid. " +
+        message: "The 'options.highWaterMark' property is invalid. " +
           `Received ${inspect(invalidHwm)}`
       });
     }

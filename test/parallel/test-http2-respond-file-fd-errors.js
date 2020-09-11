@@ -66,7 +66,7 @@ server.on('stream', common.mustCall((stream) => {
         {
           name: 'TypeError',
           code: 'ERR_INVALID_ARG_VALUE',
-          message: `The property 'options.${option}' is invalid. ` +
+          message: `The 'options.${option}' property is invalid. ` +
             `Received ${inspect(types[type])}`
         }
       );

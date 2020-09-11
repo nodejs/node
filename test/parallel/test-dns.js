@@ -220,7 +220,7 @@ assert.deepStrictEqual(dns.getServers(), []);
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: /The argument 'hints' is invalid\. Received \d+/
+    message: /The 'hints' argument is invalid\. Received \d+/
   };
 
   assert.throws(() => {
@@ -296,7 +296,7 @@ dns.lookup('', {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: `The argument 'address' is invalid. Received '${invalidAddress}'`
+    message: `The 'address' argument is invalid. Received '${invalidAddress}'`
   };
 
   assert.throws(() => {

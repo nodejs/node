@@ -85,7 +85,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_VALUE',
       name: 'RangeError',
-      message: "The property 'prevValue.user' is invalid. " +
+      message: "The 'prevValue.user' property is invalid. " +
         `Received ${value.user}`,
     }
   );
@@ -100,7 +100,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_VALUE',
       name: 'RangeError',
-      message: "The property 'prevValue.system' is invalid. " +
+      message: "The 'prevValue.system' property is invalid. " +
         `Received ${value.system}`,
     }
   );

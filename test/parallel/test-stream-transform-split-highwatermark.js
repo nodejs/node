@@ -69,7 +69,7 @@ testTransform(0, 0, {
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.readableHighWaterMark' is invalid. " +
+    message: "The 'options.readableHighWaterMark' property is invalid. " +
       'Received NaN'
   });
 
@@ -78,7 +78,7 @@ testTransform(0, 0, {
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.writableHighWaterMark' is invalid. " +
+    message: "The 'options.writableHighWaterMark' property is invalid. " +
       'Received NaN'
   });
 }
