@@ -570,6 +570,11 @@ For information about the governance of the Node.js project, see
 Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
 maintaining the Node.js project.
 
+### Triagers
+
+* [PoojaDurgad](https://github.com/PoojaDurgad) -
+**Pooja Durgad** &lt;Pooja.D.P@ibm.com&gt;
+
 ### Release Keys
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
