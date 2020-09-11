@@ -35,6 +35,7 @@
       "<(V8_ROOT)/src/builtins/array-splice.tq",
       "<(V8_ROOT)/src/builtins/array-unshift.tq",
       "<(V8_ROOT)/src/builtins/array.tq",
+      "<(V8_ROOT)/src/builtins/arraybuffer.tq",
       "<(V8_ROOT)/src/builtins/base.tq",
       "<(V8_ROOT)/src/builtins/bigint.tq",
       "<(V8_ROOT)/src/builtins/boolean.tq",
