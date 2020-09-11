@@ -146,9 +146,6 @@
     # Sets -dV8_TRACE_FEEDBACK_UPDATES.
     'v8_enable_trace_feedback_updates%': 0,
 
-    # Sets -dV8_CONCURRENT_MARKING
-    'v8_enable_concurrent_marking%': 1,
-
     # Enables various testing features.
     'v8_enable_test_features%': 0,
 
@@ -321,9 +318,6 @@
       }],
       ['v8_enable_third_party_heap==1', {
         'defines': ['V8_ENABLE_THIRD_PARTY_HEAP',],
-      }],
-      ['v8_enable_concurrent_marking==1', {
-        'defines': ['V8_CONCURRENT_MARKING',],
       }],
       ['v8_enable_lazy_source_positions==1', {
         'defines': ['V8_ENABLE_LAZY_SOURCE_POSITIONS',],
