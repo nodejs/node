@@ -956,10 +956,14 @@ added: REPLACEME
   and this parameter is considered to be the `options` parameter.
 * `options` {Object} (Optional) The `options` parameter, if present, is an
   object supporting the following property:
-  * `expectsValue` {Array<string>|string} (Optional) One or more argument
+  * `optionsWithValue` {Array<string>|string} (Optional) One or more argument
     strings which _expect a value_ when present
-* Returns: {Object} An object having properties corresponding to parsed Options
-  and Flags, and a property `_` containing Positionals
+  * `multiOptions` {Array<string>|string} (Optional) One or more argument
+    strings which can be appear multiple times in `argv` and will be
+    concatenated into an array
+* Returns: {Object} An object having properties:
+  * `options`, an Object with properties and values corresponding to parsed Options and Flags
+  * `positionals`, an Array containing containing Positionals
 
 The `util.parseArgs` function parses command-line arguments from an array of
 strings and returns an object representation.
@@ -973,22 +977,33 @@ const argv = util.parseArgs();
 
 // argv.foo === true
 if (argv.foo) {
-  console.log(argv._); // prints [ 'bar', 'baz' ]
+  console.log(argv.positionals); // prints [ 'bar', 'baz' ]
 }
 ```
 
-Example using a custom `argv` and the `expectsValue` option:
+Example using a custom `argv` and the `optionsWithValue` option:
 
 ```js
 const argv = util.parseArgs(
   ['--foo', 'bar', 'baz'],
-  { expectsValue: ['foo'] }
+  { optionsWithValue: ['foo'] }
 );
 
 // argv.foo === 'bar'
 if (argv.foo === 'bar') {
-  console.log(argv._); // prints [ 'baz' ]
+  console.log(argv.positionals); // prints [ 'baz' ]
 }
+```
+
+Example using custom `argv`, `optionsWithValue`, and the `multiOptions` option:
+
+```js
+const argv = util.parseArgs(
+  ['--foo', 'bar', '--foo', 'baz'],
+  { optionsWithValue: 'foo', multiOptions: 'foo' }
+);
+
+console.log(argv.options.bar); // prints [ 'bar', 'baz' ]
 ```
 
 [`ERR_INVALID_ARG_TYPE`][] will be thrown if the `argv` parameter is not an
@@ -1005,9 +1020,9 @@ Arguments fall into one of three catgories:
   * When appearing _once_ in the array, the value of the property will be `true`
   * When _repeated_ in the array, the value of the property becomes a count of
     repetitions (e.g., `['-v', '-v' '-v']` results in `{ v: 3 }`)
-* _Options_, declared by `expectsValue`, which begin with one or more dashes,
+* _Options_, declared by `optionsWithValue`, which begin with one or more dashes,
   and _do_ have an associated value (e.g., `node app.js --require script.js`)
-  * Use the `expectsValue` option to `util.parseArgs` to declare Options
+  * Use the `optionsWithValue` option to `util.parseArgs` to declare Options
   * The Option _name_ is the string following the prefix of one-or-more dashes,
     e.g., the name of `--foo` is `foo`
   * The Option _value_ is the next string following the name, e.g., the Option
@@ -1021,10 +1036,10 @@ Arguments fall into one of three catgories:
     * The array ends with the Option name (e.g., `['--foo']`)
   * When repeated, values are concatenated into an Array; unlike Flags, they _do
     not_ become a numeric count
-  * When an Option name appears in the Array (or string) of `expectsValue`, and
+  * When an Option name appears in the Array (or string) of `optionsWithValue`, and
     does _not_ appear in the `argv` array, the resulting object _will not_
     contain a property with this Option name (e.g.,
-    `util.parseArgs(['--bar'], { expectsValue: 'foo' })` will result in
+    `util.parseArgs(['--bar'], { optionsWithValue: 'foo' })` will result in
     `{bar: true, _: [] }`
 * _Positionals_ (or "positional arguments"), which _do not_ begin with one or
   more dashes (e.g., `['script.js']`), _or_ every item in the `argv` Array
@@ -1037,7 +1052,7 @@ Arguments fall into one of three catgories:
     result in an object of `{_: ['--foo']}`)
 
 A Flag or Option with having the name `_` will be ignored. If it was declared
-as an Option (via the `expectsValue` option), its value will be ignored as well.
+as an Option (via the `optionsWithValue` option), its value will be ignored as well.
 
 `util.parseArgs` does not consider "short" arguments (e.g., `-v`) to be
 different than "long" arguments (e.g., `--verbose`).  Furthermore, it does not

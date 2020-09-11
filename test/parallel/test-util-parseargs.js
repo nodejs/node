@@ -8,116 +8,143 @@ const { format, parseArgs } = require('util');
   const data = new Map([
     [
       { argv: ['--foo', '--bar'] },
-      { foo: true, bar: true, _: [] }
+      { options: { foo: true, bar: true }, positionals: [] }
     ],
     [
       { argv: ['--foo', '-b'] },
-      { foo: true, b: true, _: [] }
+      { options: { foo: true, b: true }, positionals: [] }
     ],
     [
       { argv: ['---foo'] },
-      { foo: true, _: [] }
+      { options: { foo: true }, positionals: [] }
     ],
     [
       { argv: ['--foo=bar'] },
-      { foo: true, _: [] }
+      { options: { foo: true }, positionals: [] }
     ],
     [
-      { argv: ['--foo=bar'], opts: { expectsValue: ['foo'] } },
-      { foo: 'bar', _: [] }
+      { argv: ['--foo=bar'], opts: { optionsWithValue: ['foo'] } },
+      { options: { foo: 'bar' }, positionals: [] }
     ],
     [
       { argv: ['--foo', 'bar'] },
-      { foo: true, _: ['bar'] }
+      { options: { foo: true }, positionals: ['bar'] }
     ],
     [
-      { argv: ['--foo', 'bar'], opts: { expectsValue: 'foo' } },
-      { foo: 'bar', _: [] }
+      { argv: ['--foo', 'bar'], opts: { optionsWithValue: 'foo' } },
+      { options: { foo: 'bar' }, positionals: [] }
     ],
     [
       { argv: ['foo'] },
-      { _: ['foo'] }
+      { options: {}, positionals: ['foo'] }
     ],
     [
       { argv: ['--foo', '--', '--bar'] },
-      { foo: true, _: ['--bar'] }
+      { options: { foo: true }, positionals: ['--bar'] }
     ],
     [
-      { argv: ['--foo=bar', '--foo=baz'], opts: { expectsValue: 'foo' } },
-      { foo: ['bar', 'baz'], _: [] }
+      { argv: ['--foo=bar', '--foo=baz'], opts: { optionsWithValue: 'foo' } },
+      { options: { foo: 'baz' }, positionals: [] }
+    ],
+    [
+      {
+        argv: ['--foo=bar', '--foo=baz'],
+        opts: { optionsWithValue: 'foo', multiOptions: 'foo' }
+      },
+      { options: { foo: ['bar', 'baz'] }, positionals: [] }
     ],
     [
       { argv: ['--foo', '--foo'] },
-      { foo: 2, _: [] }
+      { options: { foo: true }, positionals: [] }
+    ],
+    [
+      { argv: ['--foo', '--foo'], opts: { multiOptions: 'foo' } },
+      { options: { foo: [true, true] }, positionals: [] }
     ],
     [
       { argv: ['--foo=true'] },
-      { foo: true, _: [] }
+      { options: { foo: true }, positionals: [] }
     ],
     [
       { argv: ['--foo=false'] },
-      { foo: true, _: [] }
+      { options: { foo: true }, positionals: [] }
     ],
     [
       { argv: ['--foo', 'true'] },
-      { foo: true, _: ['true'] }
+      { options: { foo: true }, positionals: ['true'] }
     ],
     [
-      { argv: ['--foo', 'true'], opts: { expectsValue: ['foo'] } },
-      { foo: 'true', _: [] }
+      { argv: ['--foo', 'true'], opts: { optionsWithValue: ['foo'] } },
+      { options: { foo: 'true' }, positionals: [] }
     ],
     [
-      { argv: ['--foo', 'false', 'false'], opts: { expectsValue: ['foo'] } },
-      { foo: 'false', _: ['false'] }
+      {
+        argv: ['--foo', 'false', 'false'],
+        opts: { optionsWithValue: ['foo'] }
+      },
+      { options: { foo: 'false' }, positionals: ['false'] }
     ],
     [
       { argv: ['--foo=true', '--foo=false'] },
-      { foo: 2, _: [] }
+      { options: { foo: true }, positionals: [] }
     ],
     [
       { argv: ['--foo', 'true', '--foo', 'false'] },
-      { foo: 2, _: ['true', 'false'] }
+      { options: { foo: true }, positionals: ['true', 'false'] }
     ],
     [
       { argv: ['--foo', 'true', '--foo', 'false'],
-        opts: { expectsValue: 'foo' } },
-      { foo: ['true', 'false'], _: [] }
+        opts: { optionsWithValue: 'foo', multiOptions: ['foo'] } },
+      { options: { foo: ['true', 'false'] }, positionals: [] }
+    ],
+    [
+      { argv: ['--foo', 'true', '--foo', 'false'],
+        opts: { optionsWithValue: 'foo' } },
+      { options: { foo: 'false' }, positionals: [] }
     ],
     [
       { argv: ['--foo', 'true', '--foo=false'],
-        opts: { expectsValue: 'foo' } },
-      { foo: ['true', 'false'], _: [] }
+        opts: { optionsWithValue: 'foo', multiOptions: ['foo'] } },
+      { options: { foo: ['true', 'false'] }, positionals: [] }
     ],
     [
       { argv: ['--foo', 'true', '--foo=false'] },
-      { foo: 2, _: ['true'] }
+      { options: { foo: true }, positionals: ['true'] }
     ],
     [
       {
         argv: ['--foo', 'bar', '--foo', 'baz'],
-        opts: { expectsValue: ['foo'] }
+        opts: { optionsWithValue: ['foo'], multiOptions: 'foo' }
       },
-      { foo: ['bar', 'baz'], _: [] }
+      { options: { foo: ['bar', 'baz'] }, positionals: [] }
     ],
     [
-      { argv: ['--foo', '--bar'], opts: { expectsValue: 'foo' } },
-      { foo: true, bar: true, _: [] }
+      { argv: ['--foo', '--bar'], opts: { optionsWithValue: 'foo' } },
+      { options: { foo: true, bar: true }, positionals: [] }
     ],
     [
-      { argv: ['--foo=--bar'], opts: { expectsValue: 'foo' } },
-      { foo: '--bar', _: [] }
+      { argv: ['--foo=--bar'], opts: { optionsWithValue: 'foo' } },
+      { options: { foo: '--bar' }, positionals: [] }
     ],
     [
       { argv: ['-_'] },
-      { _: [] }
+      { options: { _: true }, positionals: [] }
     ],
     [
-      { argv: ['--_=bar'], opts: { expectsValue: '_' } },
-      { _: [] }
+      { argv: ['--_=bar'], opts: { optionsWithValue: '_' } },
+      { options: { _: 'bar' }, positionals: [] }
     ],
     [
-      { argv: ['--_', 'bar'], opts: { expectsValue: '_' } },
-      { _: [] }
+      { argv: ['--_', 'bar'], opts: { optionsWithValue: '_' } },
+      { options: { _: 'bar' }, positionals: [] }
+    ],
+    [
+      { argv: [], opts: { optionsWithValue: 'foo', multiOptions: 'foo' } },
+      { options: { }, positionals: [] }
+    ],
+    [
+      { argv: [], opts: { multiOptions: 'foo' } },
+      { options: { }, positionals: [] }
     ]
   ]);
 
@@ -136,9 +163,13 @@ const { format, parseArgs } = require('util');
   const originalArgv = process.argv;
   process.argv = [process.execPath, __filename, '--foo', 'bar'];
   try {
-    assert.deepStrictEqual(parseArgs(), { foo: true, _: ['bar'] });
     assert.deepStrictEqual(
-      parseArgs({ expectsValue: 'foo' }), { foo: 'bar', _: [] }
+      parseArgs(),
+      { options: { foo: true }, positionals: ['bar'] }
+    );
+    assert.deepStrictEqual(
+      parseArgs({ optionsWithValue: 'foo' }),
+      { options: { foo: 'bar' }, positionals: [] }
     );
   } finally {
     process.argv = originalArgv;
