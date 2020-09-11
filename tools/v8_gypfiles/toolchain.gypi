@@ -86,9 +86,6 @@
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
 
-    # Allow to suppress the array bounds warning (default is no suppression).
-    'wno_array_bounds%': '',
-
     # Override where to find binutils
     'binutils_dir%': '',
 
@@ -141,7 +138,7 @@
         'cflags': [ '-Werror', '-Wno-unknown-pragmas' ],
       },{
         'cflags!': [ '-Wall', '-Wextra' ],
-        'cflags': [ '-Wno-return-type' ],
+        'cflags': [ '-Wno-return-type', '-Wno-int-in-bool-context' ],
       }],
       ['v8_target_arch=="arm"', {
         'defines': [
@@ -1116,10 +1113,6 @@
           'V8_ENABLE_FORCE_SLOW_PATH',
         ],
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
-            'cflags': [ '-Woverloaded-virtual', '<(wno_array_bounds)', ],
-          }],
           ['OS=="linux" and v8_enable_backtrace==1', {
             # Support for backtrace_symbols.
             'ldflags': [ '-rdynamic' ],
@@ -1276,7 +1269,6 @@
             'cflags': [
               '-fdata-sections',
               '-ffunction-sections',
-              '<(wno_array_bounds)',
             ],
             'conditions': [
               # Don't use -O3 with sanitizers.
