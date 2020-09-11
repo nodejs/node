@@ -951,22 +951,23 @@ equality.
 added: REPLACEME
 -->
 
-* `argv` {Array<string>|Object} (Optional) Array of argument strings; defaults
+* `argv` {string[]|Object} (Optional) Array of argument strings; defaults
   to [`process.argv.slice(2)`](process_argv). If an Object, the default is used,
   and this parameter is considered to be the `options` parameter.
 * `options` {Object} (Optional) The `options` parameter, if present, is an
-  object supporting the following property:
-  * `optionsWithValue` {Array<string>|string} (Optional) One or more argument
-    strings which _expect a value_ when present
-  * `multiOptions` {Array<string>|string} (Optional) One or more argument
-    strings which can be appear multiple times in `argv` and will be
-    concatenated into an array
+  object supporting the following properties:
+  * `optionsWithValue` {string[]|string} (Optional) One or more argument
+    strings which _expect a value_ when present (see [Options][]
+    for details)
+  * `multiOptions` {string[]|string} (Optional) One or more argument
+    strings which, when appearing multiple times in `argv`, will be concatenated
+    into an Array
 * Returns: {Object} An object having properties:
-  * `options`, an Object with properties and values corresponding to parsed
-    Options and Flags
-  * `positionals`, an Array containing containing Positionals
+  * `options` {Object}, having properties and values corresponding to parsed
+    [Options][] and [Flags][], if any
+  * `positionals` {string[]}, containing [Positionals][], if any
 
-The `util.parseArgs` function parses command-line arguments from an array of
+The `util.parseArgs` function parses command-line arguments from an Array of
 strings and returns an object representation.
 
 Example using [`process.argv`][]:
@@ -976,8 +977,7 @@ Example using [`process.argv`][]:
 // called via `node script.js --foo bar baz`
 const argv = util.parseArgs();
 
-// argv.foo === true
-if (argv.foo) {
+if (argv.foo === true) {
   console.log(argv.positionals); // prints [ 'bar', 'baz' ]
 }
 ```
@@ -1007,62 +1007,95 @@ const argv = util.parseArgs(
 console.log(argv.options.bar); // prints [ 'bar', 'baz' ]
 ```
 
+Example with custom `argv` and `multiOptions`:
+
+```js
+const argv = util.parseArgs(
+  ['-v', '-v', '-v'],
+  { multiOptions: 'v' }
+);
+
+console.log(argv.options.v); // prints [ true, true, true ]
+```
+
 [`ERR_INVALID_ARG_TYPE`][] will be thrown if the `argv` parameter is not an
 Array.
 
 Arguments fall into one of three catgories:
 
-* _Flags_, which begin with one or more dashes (`-`), and _do not_ have an
-  associated string value (e.g., `node app.js --verbose`)
-  * These will be parsed automatically; you do not need to "declare" them
-  * The Flag _name_ is the string following the prefix of one-or-more dashes,
-    e.g., the name of `--foo` is `foo`
-  * Flag names become property names in the returned object
-  * When appearing _once_ in the array, the value of the property will be `true`
-  * When _repeated_ in the array, the value of the property becomes a count of
-    repetitions (e.g., `['-v', '-v' '-v']` results in `{ v: 3 }`)
-* _Options_, declared by `optionsWithValue`, which begin with one or more
-  dashes, and _do_ have an associated value (e.g., `node app.js --require
-  script.js`)
-  * Use the `optionsWithValue` option to `util.parseArgs` to declare Options
-  * The Option _name_ is the string following the prefix of one-or-more dashes,
-    e.g., the name of `--foo` is `foo`
-  * The Option _value_ is the next string following the name, e.g., the Option
-    value of `['--foo' 'bar']` is `bar`
-  * Option values may be provided _with or without_ a `=` separator (e.g.,
-    `['--require=script.js']` is equivalent to `['--require', 'script.js']`)
-  * An Option value is considered "missing" and is results in `true` when:
-    * A `=` does not separate the Option name from its value (e.g., `--foo bar`)
-      _and_ the following argument begins with a dash (e.g., `['--foo',
-      '--bar']`), _OR_
-    * The array ends with the Option name (e.g., `['--foo']`)
-  * When repeated, values are concatenated into an Array; unlike Flags, they _do
-    not_ become a numeric count
-  * When an Option name appears in the Array (or string) of `optionsWithValue`,
-    and does _not_ appear in the `argv` array, the resulting object _will not_
-    contain a property with this Option name (e.g., `util.parseArgs(['--bar'],
-    { optionsWithValue: 'foo' })` will result in `{bar: true, _: [] }`
-* _Positionals_ (or "positional arguments"), which _do not_ begin with one or
-  more dashes (e.g., `['script.js']`), _or_ every item in the `argv` Array
-  following a `--` (e.g., `['--', 'script.js']`)
-  * Positionals appear in the Array property `_` of the returned object
-  * The `_` property will _always_ be present and an Array, even if empty
-  * If present in the `argv` Array, `--` is discarded and is omitted from the
-    returned object
-  * Positionals will _always_ be parsed verbatim (e.g., `['--', '--foo']` will
-    result in an object of `{_: ['--foo']}`)
+### Flags
 
-A Flag or Option having the name `_` will be ignored. If it was declared as an
-Option (via the `optionsWithValue` option), its value will be ignored as well.
+_Flags_ are arguments which begin with one or more dashes (`-`), and _do not_
+have an associated string value (e.g., `node app.js --verbose`).
 
-`util.parseArgs` does not consider "short" arguments (e.g., `-v`) to be
-different than "long" arguments (e.g., `--verbose`).  Furthermore, it does not
-allow concatenation of short arguments (e.g., `-v -D` cannot be expressed as
-`-vD`).
+* These will be parsed automatically; you do not need to "declare" them
+* The Flag _name_ is the string following the prefix of _one or more_ dashes,
+  e.g., the name of `--foo` is `foo`
+* Flag names become property names in the `options` property of the returned
+  object
+* By default, when appearing any number of times in the `argv` Array, the value
+  of the property will be `true`. To get a "count" of the times a Flag is
+  repeated, specify the Flag name in the `multiOptions` option; this will parsed
+  to an Array of `true` values, and you can derive the "count" from the `length`
+  property of this Array
+* When a Flag appears in `multiOptions`, and when provided in `argv`, the value
+  in the returned object will _always_ be an Array (even if it is only provided
+  once)
+* A Flag appearing in `multiOptions` but not in the `argv` Array will be omitted
+  from the `options` property of the returned object
 
-_No_ conversion to/from "camelCase" occurs; a Flag or Option name of `no-color`
-results in an object with a `no-color` property.  A Flag or Option name of
-`noColor` results in an object with a `noColor` property.
+### Options
+
+_Options_ are arguments which begin with one or more dashes (`-`), and _do_ have
+an associated value (e.g., `node app.js --require script.js`).
+
+* Use the `optionsWithValue` option to `util.parseArgs` to declare Options
+* The Option _name_ is the string following the prefix of one-or-more dashes,
+  e.g., the name of `--foo` is `foo`
+* The Option _value_ is the next string following the name, e.g., the Option
+  value of `['--foo' 'bar']` is `bar`
+* Option values may be provided _with or without_ a `=` separator (e.g.,
+  `['--require=script.js']` is equivalent to `['--require', 'script.js']`)
+* If an Option value is not provided, the Option will be omitted from the
+  `options` property of the returned object
+* An argument-like value (a value beginning with one or more dashes) immediately
+  following an Option in the `argv` Array will cause the Option to be omitted
+  from the `options` property of the returned object _unless_ the `=` separator
+  is used; e.g., `['--foo', '--bar']` where `foo` is an Option will return
+  `{options: {bar: true}, positionals: []}`, but `['--foo=--bar']` will return
+  `{options: {foo: '--bar'}, positionals: []}`
+* When an Option name appears in the Array (or string) of `optionsWithValue`,
+  and does _not_ appear in the `argv` Array, the resulting object _will not_
+  contain a property with this Option name (e.g., `util.parseArgs(['--bar'], {
+  optionsWithValue: 'foo' })` will result in `{options: {bar: true},
+  positionals: [] }`
+* When an Option appears in `multiOptions`, and when provided in `argv`, the
+  value in the returned object will _always_ be an Array (even if it is only
+  provided once)
+
+### Positionals
+
+_Positionals_ (or "positional arguments") are arguments which _do not_ begin
+with one or more dashes (e.g., `['script.js']`), _and/or_ all items in the
+`argv` Array following a `--` (e.g., `['--', 'script.js']`).
+
+* Positionals appear in the Array property `positionals` of the returned object
+* The `positionals` property will _always_ be present and an Array, even if
+  empty
+* If present in the `argv` Array, `--` is discarded and is omitted from the
+  returned object
+* Positionals will _always_ be parsed verbatim (e.g., `['--', '--foo']` will
+  result in an object of `{positionals: ['--foo'], options: {}}`)
+
+Please note:
+
+* `util.parseArgs` does not consider "short" arguments (e.g., `-v`) to be
+  different than "long" arguments (e.g., `--verbose`).  Furthermore, it does not
+  allow concatenation of short arguments (e.g., `-v -D` cannot be expressed as
+  `-vD`).
+* _No_ conversion to or from "camelCase" occurs; a Flag or Option name of
+  `no-color` results in an object with a `no-color` property. A Flag or Option
+  name of `noColor` results in an object with a `noColor` property.
 
 ## `util.promisify(original)`
 <!-- YAML
@@ -2616,9 +2649,12 @@ util.log('Timestamped message.');
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [`ERR_INVALID_ARG_TYPE`]: errors.html#ERR_INVALID_ARG_TYPE
+[Flags]: #util_flags
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
 [`napi_create_external()`]: n-api.html#n_api_napi_create_external
+[Options]: #util_options
+[Positionals]: #util_positionals
 [`process.argv`]: process.html#process_process_argv
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [util.inspect.custom]: #util_util_inspect_custom
