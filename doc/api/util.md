@@ -1060,8 +1060,9 @@ different than "long" arguments (e.g., `--verbose`).  Furthermore, it does not
 allow concatenation of short arguments (e.g., `-v -D` cannot be expressed as
 `-vD`).
 
-Conversion to/from "camelCase" occurs; a Flag or Option name of `no-color`
-results in an object with a `no-color` property.
+_No_ conversion to/from "camelCase" occurs; a Flag or Option name of `no-color`
+results in an object with a `no-color` property.  A Flag or Option name of
+`noColor` results in an object with a `noColor` property.
 
 ## `util.promisify(original)`
 <!-- YAML
