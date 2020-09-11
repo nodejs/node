@@ -946,7 +946,7 @@ Otherwise, returns `false`.
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
-## `util.parseArgs([argv[, options]])`
+## `util.parseArgs([argv][, options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -954,18 +954,18 @@ added: REPLACEME
 * `argv` {string[]|Object} (Optional) Array of argument strings; defaults
   to [`process.argv.slice(2)`](process_argv). If an Object, the default is used,
   and this parameter is considered to be the `options` parameter.
-* `options` {Object} (Optional) The `options` parameter, if present, is an
+* `options` {Object} (Optional) The `options` parameter is an
   object supporting the following properties:
   * `optionsWithValue` {string[]|string} (Optional) One or more argument
-    strings which _expect a value_ when present (see [Options][]
+    strings which _expect a value_ when present in `argv` (see [Options][]
     for details)
   * `multiOptions` {string[]|string} (Optional) One or more argument
     strings which, when appearing multiple times in `argv`, will be concatenated
     into an Array
 * Returns: {Object} An object having properties:
   * `options` {Object}, having properties and values corresponding to parsed
-    [Options][] and [Flags][], if any
-  * `positionals` {string[]}, containing [Positionals][], if any
+    [Options][] and [Flags][]
+  * `positionals` {string[]}, containing [Positionals][]
 
 The `util.parseArgs` function parses command-line arguments from an Array of
 strings and returns an object representation.
