@@ -1,8 +1,8 @@
-# Security Release Process
+# Security release process
 
 The security release process covers the steps required to plan/implement a
 security release. This document is copied into the description of the Next
-Security Release, and used to track progress on the release. It contains ***TEXT
+Security Release and used to track progress on the release. It contains ***TEXT
 LIKE THIS*** which will be replaced during the release process with the
 information described.
 
@@ -17,7 +17,7 @@ information described.
   * ...
 
 * [ ] PR release announcements in [private](https://github.com/nodejs-private/nodejs.org-private):
-  * (Use previous PRs as templates, don't forget to update the site banner, and
+  * (Use previous PRs as templates. Don't forget to update the site banner and
     the date in the slug so that it will move to the top of the blog list.)
   * [ ] pre-release: ***LINK TO PR***
   * [ ] post-release: ***LINK TO PR***
@@ -44,9 +44,9 @@ information described.
   (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
   nodejs/nodejs.org)
 
-* [ ] Post in the #nodejs-social channel in the OpenJS Foundation slack
+* [ ] Post in the #nodejs-social channel in the OpenJS Foundation Slack
   asking that the social team tweet/retweet the pre-announcement.
-  If you are on twitter you can just direct message the `@nodejs` handle.
+  If you are on Twitter, you can just direct message the `@nodejs` handle.
 
 * [ ] Request releaser(s) to start integrating the PRs to be released.
 
@@ -69,9 +69,9 @@ information described.
   * (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
     nodejs/nodejs.org)
 
-* [ ] Post in the #nodejs-social channel in the OpenJS Foundation slack
+* [ ] Post in the #nodejs-social channel in the OpenJS Foundation Slack
   asking that the social team tweet/retweet the announcement.
-  If you are on twitter you can just direct message the `@nodejs` handle.
+  If you are on Twitter, you can just direct message the `@nodejs` handle.
 
 * [ ] Comment in [docker-node][] issue that release is ready for integration.
   The docker-node team will build and release docker image updates.
@@ -93,5 +93,5 @@ information described.
 
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
 [docker-node]: https://github.com/nodejs/docker-node/issues
-[nodejs/build]: https://github.com/nodejs/build/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec
+[nodejs/build]: https://github.com/nodejs/build/issues
