@@ -962,7 +962,8 @@ added: REPLACEME
     strings which can be appear multiple times in `argv` and will be
     concatenated into an array
 * Returns: {Object} An object having properties:
-  * `options`, an Object with properties and values corresponding to parsed Options and Flags
+  * `options`, an Object with properties and values corresponding to parsed
+    Options and Flags
   * `positionals`, an Array containing containing Positionals
 
 The `util.parseArgs` function parses command-line arguments from an array of
@@ -1020,8 +1021,9 @@ Arguments fall into one of three catgories:
   * When appearing _once_ in the array, the value of the property will be `true`
   * When _repeated_ in the array, the value of the property becomes a count of
     repetitions (e.g., `['-v', '-v' '-v']` results in `{ v: 3 }`)
-* _Options_, declared by `optionsWithValue`, which begin with one or more dashes,
-  and _do_ have an associated value (e.g., `node app.js --require script.js`)
+* _Options_, declared by `optionsWithValue`, which begin with one or more
+  dashes, and _do_ have an associated value (e.g., `node app.js --require
+  script.js`)
   * Use the `optionsWithValue` option to `util.parseArgs` to declare Options
   * The Option _name_ is the string following the prefix of one-or-more dashes,
     e.g., the name of `--foo` is `foo`
@@ -1036,11 +1038,10 @@ Arguments fall into one of three catgories:
     * The array ends with the Option name (e.g., `['--foo']`)
   * When repeated, values are concatenated into an Array; unlike Flags, they _do
     not_ become a numeric count
-  * When an Option name appears in the Array (or string) of `optionsWithValue`, and
-    does _not_ appear in the `argv` array, the resulting object _will not_
-    contain a property with this Option name (e.g.,
-    `util.parseArgs(['--bar'], { optionsWithValue: 'foo' })` will result in
-    `{bar: true, _: [] }`
+  * When an Option name appears in the Array (or string) of `optionsWithValue`,
+    and does _not_ appear in the `argv` array, the resulting object _will not_
+    contain a property with this Option name (e.g., `util.parseArgs(['--bar'],
+    { optionsWithValue: 'foo' })` will result in `{bar: true, _: [] }`
 * _Positionals_ (or "positional arguments"), which _do not_ begin with one or
   more dashes (e.g., `['script.js']`), _or_ every item in the `argv` Array
   following a `--` (e.g., `['--', 'script.js']`)
@@ -1051,8 +1052,8 @@ Arguments fall into one of three catgories:
   * Positionals will _always_ be parsed verbatim (e.g., `['--', '--foo']` will
     result in an object of `{_: ['--foo']}`)
 
-A Flag or Option with having the name `_` will be ignored. If it was declared
-as an Option (via the `optionsWithValue` option), its value will be ignored as well.
+A Flag or Option having the name `_` will be ignored. If it was declared as an
+Option (via the `optionsWithValue` option), its value will be ignored as well.
 
 `util.parseArgs` does not consider "short" arguments (e.g., `-v`) to be
 different than "long" arguments (e.g., `--verbose`).  Furthermore, it does not
