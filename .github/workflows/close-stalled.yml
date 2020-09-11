@@ -15,6 +15,8 @@ jobs:
         stale-issue-label: stalled
         close-issue-message: Closing this because it has stalled. Feel free to reopen if this issue is still relevant, or to ping the collaborator who labelled it stalled if you have any questions.
         close-pr-message: Closing this because it has stalled. Feel free to reopen if this PR is still relevant, or to ping the collaborator who labelled it stalled if you have any questions.
+        # used to filter issues to check whether or not should be closed, avoids hitting maximum operations allowed if needing to paginate through all open issues
+        only-labels: stalled
         # deactivates automatic removal of stalled label if issue gets any activity
         remove-stale-when-updated: false
         # deactivates automatic stale labelling as we prefer to do that manually
