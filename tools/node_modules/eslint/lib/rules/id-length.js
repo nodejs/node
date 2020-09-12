@@ -64,12 +64,7 @@ module.exports = {
         const minLength = typeof options.min !== "undefined" ? options.min : 2;
         const maxLength = typeof options.max !== "undefined" ? options.max : Infinity;
         const properties = options.properties !== "never";
-        const exceptions = (options.exceptions ? options.exceptions : [])
-            .reduce((obj, item) => {
-                obj[item] = true;
-
-                return obj;
-            }, {});
+        const exceptions = new Set(options.exceptions);
         const exceptionPatterns = (options.exceptionPatterns || []).map(pattern => new RegExp(pattern, "u"));
         const reportedNode = new Set();
 
@@ -130,7 +125,7 @@ module.exports = {
                 const isShort = name.length < minLength;
                 const isLong = name.length > maxLength;
 
-                if (!(isShort || isLong) || exceptions[name] || matchesExceptionPattern(name)) {
+                if (!(isShort || isLong) || exceptions.has(name) || matchesExceptionPattern(name)) {
                     return; // Nothing to report
                 }
 
