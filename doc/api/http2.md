@@ -2418,7 +2418,6 @@ added: v8.4.0
 -->
 
 #### Error codes for `RST_STREAM` and `GOAWAY`
-<a id="error_codes"></a>
 
 | Value  | Name                | Constant                                      |
 |--------|---------------------|-----------------------------------------------|
@@ -3697,5 +3696,5 @@ following additional properties:
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[error code]: #error_codes
 [`writable.writableFinished`]: stream.html#stream_writable_writablefinished
+[error code]: #http2_error_codes_for_rst_stream_and_goaway
