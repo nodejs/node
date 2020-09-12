@@ -1381,7 +1381,7 @@ specifier.
 <a id="ERR_INVALID_PACKAGE_CONFIG"></a>
 ### `ERR_INVALID_PACKAGE_CONFIG`
 
-An invalid [`package.json`][] file was found which failed parsing.
+An invalid [`package.json`][] file failed parsing.
 
 <a id="ERR_INVALID_PACKAGE_TARGET"></a>
 ### `ERR_INVALID_PACKAGE_TARGET`
@@ -1611,7 +1611,7 @@ added: REPLACEME
 -->
 
 An object that needs to be explicitly listed in the `transferList` argument
-was found in the object passed to a [`postMessage()`][] call, but not provided
+is in the object passed to a [`postMessage()`][] call, but is not provided
 in the `transferList` for that call. Usually, this is a `MessagePort`.
 
 In Node.js versions prior to REPLACEME, the error code being used here was
@@ -2133,7 +2133,7 @@ import 'package-name'; // supported
 ### `ERR_VALID_PERFORMANCE_ENTRY_TYPE`
 
 While using the Performance Timing API (`perf_hooks`), no valid performance
-entry types were found.
+entry types are found.
 
 <a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
 ### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`
