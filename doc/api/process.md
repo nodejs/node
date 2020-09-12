@@ -1772,19 +1772,22 @@ tarball.
   builds of Node.js and will be missing on all other platforms._
 * `lts` {string} a string label identifying the [LTS][] label for this release.
   This property only exists for LTS releases and is `undefined` for all other
-  release types, including _Current_ releases. Currently the valid values are:
-  * `'Argon'` for the 4.x LTS line beginning with 4.2.0.
-  * `'Boron'` for the 6.x LTS line beginning with 6.9.0.
-  * `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
+  release types, including _Current_ releases.
+  Valid values include the LTS Release Codenames (including those
+  that are no longer supported). A non-exhaustive example of
+  these codenames includes:
+  * `'Dubnium'` for the 10.x LTS line beginning with 10.13.0.
+  * `'Erbium'` for the 12.x LTS line beginning with 12.13.0.
+  For other LTS Release Codenames, see [Node.js Changelog Archive](https://github.com/nodejs/node/blob/master/doc/changelogs/CHANGELOG_ARCHIVE.md)
 
 <!-- eslint-skip -->
 ```js
 {
   name: 'node',
-  lts: 'Argon',
-  sourceUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5.tar.gz',
-  headersUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib'
+  lts: 'Erbium',
+  sourceUrl: 'https://nodejs.org/download/release/v12.18.1/node-v12.18.1.tar.gz',
+  headersUrl: 'https://nodejs.org/download/release/v12.18.1/node-v12.18.1-headers.tar.gz',
+  libUrl: 'https://nodejs.org/download/release/v12.18.1/win-x64/node.lib'
 }
 ```
 
