@@ -2428,7 +2428,6 @@ added: v8.4.0
 -->
 
 #### Error codes for `RST_STREAM` and `GOAWAY`
-<a id="error_codes"></a>
 
 | Value  | Name                | Constant                                      |
 |--------|---------------------|-----------------------------------------------|
@@ -2552,7 +2551,6 @@ server.on('stream', (stream, headers) => {
 });
 ```
 
-<a id="http2-sensitive-headers"></a>
 #### Sensitive headers
 
 HTTP2 headers can be marked as sensitive, which means that the HTTP/2
@@ -3761,5 +3759,5 @@ you need to implement any fall-back behaviour yourself.
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [`writable.writableFinished`]: stream.html#stream_writable_writablefinished
-[error code]: #error_codes
-[Sensitive headers]: #http2-sensitive-headers
+[error code]: #http2_error_codes_for_rst_stream_and_goaway
+[Sensitive headers]: #http2_sensitive_headers
