@@ -37,7 +37,7 @@ const LINEBREAKS = new Set(["\r\n", "\r", "\n", "\u2028", "\u2029"]);
 // A set of node types that can contain a list of statements
 const STATEMENT_LIST_PARENTS = new Set(["Program", "BlockStatement", "SwitchCase"]);
 
-const DECIMAL_INTEGER_PATTERN = /^(0|[1-9](?:_?\d)*)$/u;
+const DECIMAL_INTEGER_PATTERN = /^(?:0|0[0-7]*[89]\d*|[1-9](?:_?\d)*)$/u;
 const OCTAL_ESCAPE_PATTERN = /^(?:[^\\]|\\[^0-7]|\\0(?![0-9]))*\\(?:[1-7]|0[0-9])/u;
 
 const LOGICAL_ASSIGNMENT_OPERATORS = new Set(["&&=", "||=", "??="]);
@@ -1244,6 +1244,8 @@ module.exports = {
      * 50        // true
      * 5_000     // true
      * 1_234_56  // true
+     * 08        // true
+     * 0192      // true
      * 5.        // false
      * .5        // false
      * 5.0       // false

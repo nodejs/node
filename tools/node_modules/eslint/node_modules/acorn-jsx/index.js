@@ -27,7 +27,7 @@ function getJsxTokens(acorn) {
     const tokTypes = {
       jsxName: new TokenType('jsxName'),
       jsxText: new TokenType('jsxText', {beforeExpr: true}),
-      jsxTagStart: new TokenType('jsxTagStart'),
+      jsxTagStart: new TokenType('jsxTagStart', {startsExpr: true}),
       jsxTagEnd: new TokenType('jsxTagEnd')
     };
 
