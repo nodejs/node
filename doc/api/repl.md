@@ -745,7 +745,7 @@ For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see:
 <https://gist.github.com/TooTallNate/2209310>.
 
-For an example of running a REPL instance over [curl(1)][], see:
+For an example of running a REPL instance over [`curl(1)`][], see:
 <https://gist.github.com/TooTallNate/2053342>.
 
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
@@ -761,5 +761,5 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [`reverse-i-search`]: #repl_reverse_i_search
 [TTY keybindings]: readline.html#readline_tty_keybindings
-[curl(1)]: https://curl.haxx.se/docs/manpage.html
+[`curl(1)`]: https://curl.haxx.se/docs/manpage.html
 [stream]: stream.html
