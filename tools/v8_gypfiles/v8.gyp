@@ -1492,6 +1492,8 @@
         'sources': [
           '<(V8_ROOT)/src/heap/base/stack.cc',
           '<(V8_ROOT)/src/heap/base/stack.h',
+          '<(V8_ROOT)/src/heap/base/worklist.cc',
+          '<(V8_ROOT)/src/heap/base/worklist.h',
         ],
         'conditions': [
           ['clang or OS!="win"', {
