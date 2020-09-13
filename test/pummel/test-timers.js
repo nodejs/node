@@ -26,10 +26,11 @@ const assert = require('assert');
 const WINDOW = 200; // Why does this need to be so big?
 
 
-const starttime = new Date();
 {
+  const starttime = Date.now();
+
   setTimeout(common.mustCall(function() {
-    const endtime = new Date();
+    const endtime = Date.now();
 
     const diff = endtime - starttime;
     assert.ok(diff > 0);
@@ -46,11 +47,13 @@ const starttime = new Date();
 }
 
 {
+  const starttime = Date.now();
+
   let interval_count = 0;
 
   setInterval(common.mustCall(function() {
     interval_count += 1;
-    const endtime = new Date();
+    const endtime = Date.now();
 
     const diff = endtime - starttime;
     assert.ok(diff > 0);
@@ -58,9 +61,9 @@ const starttime = new Date();
 
     const t = interval_count * 1000;
 
-    assert.strictEqual(t - WINDOW < diff && diff < t + WINDOW, true);
+    assert.ok(t - WINDOW < diff && diff < t + WINDOW, `t: ${t}`);
 
-    assert.strictEqual(interval_count <= 3, true);
+    assert.ok(interval_count <= 3, `interval_count: ${interval_count}`);
     if (interval_count === 3)
       clearInterval(this);
   }, 3), 1000);
