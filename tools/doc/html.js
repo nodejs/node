@@ -51,7 +51,9 @@ function navClasses() {
 }
 
 const gtocPath = path.join(docPath, 'api', 'index.md');
-const gtocMD = fs.readFileSync(gtocPath, 'utf8').replace(/^<!--.*?-->/gms, '');
+const gtocMD = fs.readFileSync(gtocPath, 'utf8')
+  .replace(/\(([^#?]+?)\.md\)/ig, (_, filename) => `(${filename}.html)`)
+  .replace(/^<!--.*?-->/gms, '');
 const gtocHTML = unified()
   .use(markdown)
   .use(remark2rehype, { allowDangerousHtml: true })
