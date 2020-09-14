@@ -1981,21 +1981,21 @@ added: v11.4.0
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [`'session'`]: #tls_event_session
-[`--tls-cipher-list`]: cli.html#cli_tls_cipher_list_list
-[`NODE_OPTIONS`]: cli.html#cli_node_options_options
+[`--tls-cipher-list`]: cli.md#cli_tls_cipher_list_list
+[`NODE_OPTIONS`]: cli.md#cli_node_options_options
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
-[`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
-[`Duplex`]: stream.html#stream_class_stream_duplex
-[`net.createServer()`]: net.html#net_net_createserver_options_connectionlistener
-[`net.Server.address()`]: net.html#net_server_address
-[`net.Server`]: net.html#net_class_net_server
-[`net.Socket`]: net.html#net_class_net_socket
+[`crypto.getCurves()`]: crypto.md#crypto_crypto_getcurves
+[`Duplex`]: stream.md#stream_class_stream_duplex
+[`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
+[`net.Server.address()`]: net.md#net_server_address
+[`net.Server`]: net.md#net_class_net_server
+[`net.Socket`]: net.md#net_class_net_socket
 [`server.addContext()`]: #tls_server_addcontext_hostname_context
 [`server.getTicketKeys()`]: #tls_server_getticketkeys
-[`server.listen()`]: net.html#net_server_listen
+[`server.listen()`]: net.md#net_server_listen
 [`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
-[`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
+[`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.DEFAULT_MAX_VERSION`]: #tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tls_tls_default_min_version
@@ -2017,14 +2017,14 @@ added: v11.4.0
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
-[OpenSSL Options]: crypto.html#crypto_openssl_options
+[OpenSSL Options]: crypto.md#crypto_openssl_options
 [perfect forward secrecy]: #tls_perfect_forward_secrecy
 [RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
 [RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929
 [SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
 [Session Resumption]: #tls_session_resumption
-[Stream]: stream.html#stream_stream
+[Stream]: stream.md#stream_stream
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #tls_certificate_object

@@ -1583,13 +1583,13 @@ Therefore, this feature requires opting in by setting the
 or [`child_process.fork()`][].
 
 [Advanced serialization]: #child_process_advanced_serialization
-[`'disconnect'`]: process.html#process_event_disconnect
+[`'disconnect'`]: process.md#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
-[`'message'`]: process.html#process_event_message
+[`'message'`]: process.md#process_event_message
 [`ChildProcess`]: #child_process_child_process
-[`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_eventemitter
+[`Error`]: errors.md#errors_class_error
+[`EventEmitter`]: events.md#events_class_eventemitter
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
 [`child_process.execFile()`]: #child_process_child_process_execfile_file_args_options_callback
 [`child_process.execFileSync()`]: #child_process_child_process_execfilesync_file_args_options
@@ -1598,13 +1598,13 @@ or [`child_process.fork()`][].
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
 [`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
-[`net.Server`]: net.html#net_class_net_server
-[`net.Socket`]: net.html#net_class_net_socket
+[`net.Server`]: net.md#net_class_net_server
+[`net.Socket`]: net.md#net_class_net_socket
 [`options.detached`]: #child_process_options_detached
-[`process.disconnect()`]: process.html#process_process_disconnect
-[`process.env`]: process.html#process_process_env
-[`process.execPath`]: process.html#process_process_execpath
-[`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
+[`process.disconnect()`]: process.md#process_process_disconnect
+[`process.env`]: process.md#process_process_env
+[`process.execPath`]: process.md#process_process_execpath
+[`process.send()`]: process.md#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
 [`subprocess.connected`]: #child_process_subprocess_connected
 [`subprocess.disconnect()`]: #child_process_subprocess_disconnect
@@ -1614,9 +1614,9 @@ or [`child_process.fork()`][].
 [`subprocess.stdin`]: #child_process_subprocess_stdin
 [`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
-[`util.promisify()`]: util.html#util_util_promisify_original
+[`util.promisify()`]: util.md#util_util_promisify_original
 [Default Windows shell]: #child_process_default_windows_shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Shell requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation
-[v8.serdes]: v8.html#v8_serialization_api
+[v8.serdes]: v8.md#v8_serialization_api

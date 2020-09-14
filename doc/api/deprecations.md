@@ -2650,127 +2650,127 @@ Type: Documentation-only
 The [`crypto.Certificate()` constructor][] is deprecated. Use
 [static methods of `crypto.Certificate()`][] instead.
 
-[`--pending-deprecation`]: cli.html#cli_pending_deprecation
-[`--throw-deprecation`]: cli.html#cli_throw_deprecation
-[`--unhandled-rejections`]: cli.html#cli_unhandled_rejections_mode
-[`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_static_method_buffer_allocunsafeslow_size
-[`Buffer.from(array)`]: buffer.html#buffer_static_method_buffer_from_array
-[`Buffer.from(buffer)`]: buffer.html#buffer_static_method_buffer_from_buffer
-[`Buffer.isBuffer()`]: buffer.html#buffer_static_method_buffer_isbuffer_obj
-[`Cipher`]: crypto.html#crypto_class_cipher
-[`Decipher`]: crypto.html#crypto_class_decipher
-[`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
-[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
-[`ReadStream.open()`]: fs.html#fs_class_fs_readstream
-[`Server.getConnections()`]: net.html#net_server_getconnections_callback
-[`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
-[`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
-[`WriteStream.open()`]: fs.html#fs_class_fs_writestream
-[`assert`]: assert.html
-[`asyncResource.runInAsyncScope()`]: async_hooks.html#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
-[`child_process`]: child_process.html
-[`clearInterval()`]: timers.html#timers_clearinterval_timeout
-[`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
-[`console.error()`]: console.html#console_console_error_data_args
-[`console.log()`]: console.html#console_console_log_data_args
-[`crypto.Certificate()` constructor]: crypto.html#crypto_legacy_api
-[`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
-[`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options
-[`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv_options
-[`crypto.createDecipher()`]: crypto.html#crypto_crypto_createdecipher_algorithm_password_options
-[`crypto.createDecipheriv()`]: crypto.html#crypto_crypto_createdecipheriv_algorithm_key_iv_options
-[`crypto.fips`]: crypto.html#crypto_crypto_fips
-[`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
-[`crypto.randomBytes()`]: crypto.html#crypto_crypto_randombytes_size_callback
-[`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
-[`decipher.final()`]: crypto.html#crypto_decipher_final_outputencoding
-[`decipher.setAuthTag()`]: crypto.html#crypto_decipher_setauthtag_buffer
-[`domain`]: domain.html
-[`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
-[`emitter.listenerCount(eventName)`]: events.html#events_emitter_listenercount_eventname
-[`fs.FileHandle`]: fs.html#fs_class_filehandle
-[`fs.access()`]: fs.html#fs_fs_access_path_mode_callback
-[`fs.createReadStream()`]: fs.html#fs_fs_createreadstream_path_options
-[`fs.createWriteStream()`]: fs.html#fs_fs_createwritestream_path_options
-[`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
-[`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
-[`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
-[`fs.lchown(path, uid, gid, callback)`]: fs.html#fs_fs_lchown_path_uid_gid_callback
-[`fs.lchownSync(path, uid, gid)`]: fs.html#fs_fs_lchownsync_path_uid_gid
-[`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
-[`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
-[`fs.stat()`]: fs.html#fs_fs_stat_path_options_callback
-[`http.get()`]: http.html#http_http_get_options_callback
-[`http.request()`]: http.html#http_http_request_options_callback
-[`https.get()`]: https.html#https_https_get_options_callback
-[`https.request()`]: https.html#https_https_request_options_callback
-[`module.createRequire()`]: module.html#module_module_createrequire_filename
-[`os.networkInterfaces()`]: os.html#os_os_networkinterfaces
-[`os.tmpdir()`]: os.html#os_os_tmpdir
-[`process.env`]: process.html#process_process_env
-[`process.mainModule`]: process.html#process_process_mainmodule
-[`punycode`]: punycode.html
-[`require.extensions`]: modules.html#modules_require_extensions
-[`require.main`]: modules.html#modules_accessing_the_main_module
-[`request.abort()`]: http.html#http_request_abort
-[`request.socket`]: http.html#http_request_socket
-[`request.connection`]: http.html#http_request_connection
-[`request.destroy()`]: http.html#http_request_destroy_error
-[`response.socket`]: http.html#http_response_socket
-[`response.connection`]: http.html#http_response_connection
-[`response.end()`]: http.html#http_response_end_data_encoding_callback
-[`response.finished`]: http.html#http_response_finished
-[`response.writableFinished`]: http.html#http_response_writablefinished
-[`response.writableEnded`]: http.html#http_response_writableended
-[`script.createCachedData()`]: vm.html#vm_script_createcacheddata
-[`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
-[`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
-[`socket.bufferSize`]: net.html#net_socket_buffersize
-[`timeout.ref()`]: timers.html#timers_timeout_ref
-[`timeout.refresh()`]: timers.html#timers_timeout_refresh
-[`timeout.unref()`]: timers.html#timers_timeout_unref
-[`tls.CryptoStream`]: tls.html#tls_class_tls_cryptostream
-[`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
-[`tls.SecurePair`]: tls.html#tls_class_tls_securepair
-[`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
-[`tls.checkServerIdentity()`]: tls.html#tls_tls_checkserveridentity_hostname_cert
-[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
-[`url.format()`]: url.html#url_url_format_urlobject
-[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
-[`url.resolve()`]: url.html#url_url_resolve_from_to
-[`util._extend()`]: util.html#util_util_extend_target_source
-[`util.getSystemErrorName()`]: util.html#util_util_getsystemerrorname_err
-[`util.inspect()`]: util.html#util_util_inspect_object_options
-[`util.inspect.custom`]: util.html#util_util_inspect_custom
-[`util.isArray()`]: util.html#util_util_isarray_object
-[`util.isBoolean()`]: util.html#util_util_isboolean_object
-[`util.isBuffer()`]: util.html#util_util_isbuffer_object
-[`util.isDate()`]: util.html#util_util_isdate_object
-[`util.isError()`]: util.html#util_util_iserror_object
-[`util.isFunction()`]: util.html#util_util_isfunction_object
-[`util.isNull()`]: util.html#util_util_isnull_object
-[`util.isNullOrUndefined()`]: util.html#util_util_isnullorundefined_object
-[`util.isNumber()`]: util.html#util_util_isnumber_object
-[`util.isObject()`]: util.html#util_util_isobject_object
-[`util.isPrimitive()`]: util.html#util_util_isprimitive_object
-[`util.isRegExp()`]: util.html#util_util_isregexp_object
-[`util.isString()`]: util.html#util_util_isstring_object
-[`util.isSymbol()`]: util.html#util_util_issymbol_object
-[`util.isUndefined()`]: util.html#util_util_isundefined_object
-[`util.log()`]: util.html#util_util_log_string
-[`util.types`]: util.html#util_util_types
-[`util`]: util.html
-[`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
-[`worker.terminate()`]: worker_threads.html#worker_threads_worker_terminate
-[`writable.writableLength`]: stream.html#stream_writable_writablelength
-[`zlib.bytesWritten`]: zlib.html#zlib_zlib_byteswritten
-[Legacy URL API]: url.html#url_legacy_url_api
+[`--pending-deprecation`]: cli.md#cli_pending_deprecation
+[`--throw-deprecation`]: cli.md#cli_throw_deprecation
+[`--unhandled-rejections`]: cli.md#cli_unhandled_rejections_mode
+[`Buffer.allocUnsafeSlow(size)`]: buffer.md#buffer_static_method_buffer_allocunsafeslow_size
+[`Buffer.from(array)`]: buffer.md#buffer_static_method_buffer_from_array
+[`Buffer.from(buffer)`]: buffer.md#buffer_static_method_buffer_from_buffer
+[`Buffer.isBuffer()`]: buffer.md#buffer_static_method_buffer_isbuffer_obj
+[`Cipher`]: crypto.md#crypto_class_cipher
+[`Decipher`]: crypto.md#crypto_class_decipher
+[`EventEmitter.listenerCount(emitter, eventName)`]: events.md#events_eventemitter_listenercount_emitter_eventname
+[`REPLServer.clearBufferedCommand()`]: repl.md#repl_replserver_clearbufferedcommand
+[`ReadStream.open()`]: fs.md#fs_class_fs_readstream
+[`Server.getConnections()`]: net.md#net_server_getconnections_callback
+[`Server.listen({fd: <number>})`]: net.md#net_server_listen_handle_backlog_callback
+[`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
+[`WriteStream.open()`]: fs.md#fs_class_fs_writestream
+[`assert`]: assert.md
+[`asyncResource.runInAsyncScope()`]: async_hooks.md#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
+[`child_process`]: child_process.md
+[`clearInterval()`]: timers.md#timers_clearinterval_timeout
+[`clearTimeout()`]: timers.md#timers_cleartimeout_timeout
+[`console.error()`]: console.md#console_console_error_data_args
+[`console.log()`]: console.md#console_console_log_data_args
+[`crypto.Certificate()` constructor]: crypto.md#crypto_legacy_api
+[`crypto.DEFAULT_ENCODING`]: crypto.md#crypto_crypto_default_encoding
+[`crypto.createCipher()`]: crypto.md#crypto_crypto_createcipher_algorithm_password_options
+[`crypto.createCipheriv()`]: crypto.md#crypto_crypto_createcipheriv_algorithm_key_iv_options
+[`crypto.createDecipher()`]: crypto.md#crypto_crypto_createdecipher_algorithm_password_options
+[`crypto.createDecipheriv()`]: crypto.md#crypto_crypto_createdecipheriv_algorithm_key_iv_options
+[`crypto.fips`]: crypto.md#crypto_crypto_fips
+[`crypto.pbkdf2()`]: crypto.md#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`crypto.randomBytes()`]: crypto.md#crypto_crypto_randombytes_size_callback
+[`crypto.scrypt()`]: crypto.md#crypto_crypto_scrypt_password_salt_keylen_options_callback
+[`decipher.final()`]: crypto.md#crypto_decipher_final_outputencoding
+[`decipher.setAuthTag()`]: crypto.md#crypto_decipher_setauthtag_buffer
+[`domain`]: domain.md
+[`ecdh.setPublicKey()`]: crypto.md#crypto_ecdh_setpublickey_publickey_encoding
+[`emitter.listenerCount(eventName)`]: events.md#events_emitter_listenercount_eventname
+[`fs.FileHandle`]: fs.md#fs_class_filehandle
+[`fs.access()`]: fs.md#fs_fs_access_path_mode_callback
+[`fs.createReadStream()`]: fs.md#fs_fs_createreadstream_path_options
+[`fs.createWriteStream()`]: fs.md#fs_fs_createwritestream_path_options
+[`fs.exists(path, callback)`]: fs.md#fs_fs_exists_path_callback
+[`fs.lchmod(path, mode, callback)`]: fs.md#fs_fs_lchmod_path_mode_callback
+[`fs.lchmodSync(path, mode)`]: fs.md#fs_fs_lchmodsync_path_mode
+[`fs.lchown(path, uid, gid, callback)`]: fs.md#fs_fs_lchown_path_uid_gid_callback
+[`fs.lchownSync(path, uid, gid)`]: fs.md#fs_fs_lchownsync_path_uid_gid
+[`fs.read()`]: fs.md#fs_fs_read_fd_buffer_offset_length_position_callback
+[`fs.readSync()`]: fs.md#fs_fs_readsync_fd_buffer_offset_length_position
+[`fs.stat()`]: fs.md#fs_fs_stat_path_options_callback
+[`http.get()`]: http.md#http_http_get_options_callback
+[`http.request()`]: http.md#http_http_request_options_callback
+[`https.get()`]: https.md#https_https_get_options_callback
+[`https.request()`]: https.md#https_https_request_options_callback
+[`module.createRequire()`]: module.md#module_module_createrequire_filename
+[`os.networkInterfaces()`]: os.md#os_os_networkinterfaces
+[`os.tmpdir()`]: os.md#os_os_tmpdir
+[`process.env`]: process.md#process_process_env
+[`process.mainModule`]: process.md#process_process_mainmodule
+[`punycode`]: punycode.md
+[`require.extensions`]: modules.md#modules_require_extensions
+[`require.main`]: modules.md#modules_accessing_the_main_module
+[`request.abort()`]: http.md#http_request_abort
+[`request.socket`]: http.md#http_request_socket
+[`request.connection`]: http.md#http_request_connection
+[`request.destroy()`]: http.md#http_request_destroy_error
+[`response.socket`]: http.md#http_response_socket
+[`response.connection`]: http.md#http_response_connection
+[`response.end()`]: http.md#http_response_end_data_encoding_callback
+[`response.finished`]: http.md#http_response_finished
+[`response.writableFinished`]: http.md#http_response_writablefinished
+[`response.writableEnded`]: http.md#http_response_writableended
+[`script.createCachedData()`]: vm.md#vm_script_createcacheddata
+[`setInterval()`]: timers.md#timers_setinterval_callback_delay_args
+[`setTimeout()`]: timers.md#timers_settimeout_callback_delay_args
+[`socket.bufferSize`]: net.md#net_socket_buffersize
+[`timeout.ref()`]: timers.md#timers_timeout_ref
+[`timeout.refresh()`]: timers.md#timers_timeout_refresh
+[`timeout.unref()`]: timers.md#timers_timeout_unref
+[`tls.CryptoStream`]: tls.md#tls_class_tls_cryptostream
+[`tls.SecureContext`]: tls.md#tls_tls_createsecurecontext_options
+[`tls.SecurePair`]: tls.md#tls_class_tls_securepair
+[`tls.TLSSocket`]: tls.md#tls_class_tls_tlssocket
+[`tls.checkServerIdentity()`]: tls.md#tls_tls_checkserveridentity_hostname_cert
+[`tls.createSecureContext()`]: tls.md#tls_tls_createsecurecontext_options
+[`url.format()`]: url.md#url_url_format_urlobject
+[`url.parse()`]: url.md#url_url_parse_urlstring_parsequerystring_slashesdenotehost
+[`url.resolve()`]: url.md#url_url_resolve_from_to
+[`util._extend()`]: util.md#util_util_extend_target_source
+[`util.getSystemErrorName()`]: util.md#util_util_getsystemerrorname_err
+[`util.inspect()`]: util.md#util_util_inspect_object_options
+[`util.inspect.custom`]: util.md#util_util_inspect_custom
+[`util.isArray()`]: util.md#util_util_isarray_object
+[`util.isBoolean()`]: util.md#util_util_isboolean_object
+[`util.isBuffer()`]: util.md#util_util_isbuffer_object
+[`util.isDate()`]: util.md#util_util_isdate_object
+[`util.isError()`]: util.md#util_util_iserror_object
+[`util.isFunction()`]: util.md#util_util_isfunction_object
+[`util.isNull()`]: util.md#util_util_isnull_object
+[`util.isNullOrUndefined()`]: util.md#util_util_isnullorundefined_object
+[`util.isNumber()`]: util.md#util_util_isnumber_object
+[`util.isObject()`]: util.md#util_util_isobject_object
+[`util.isPrimitive()`]: util.md#util_util_isprimitive_object
+[`util.isRegExp()`]: util.md#util_util_isregexp_object
+[`util.isString()`]: util.md#util_util_isstring_object
+[`util.isSymbol()`]: util.md#util_util_issymbol_object
+[`util.isUndefined()`]: util.md#util_util_isundefined_object
+[`util.log()`]: util.md#util_util_log_string
+[`util.types`]: util.md#util_util_types
+[`util`]: util.md
+[`worker.exitedAfterDisconnect`]: cluster.md#cluster_worker_exitedafterdisconnect
+[`worker.terminate()`]: worker_threads.md#worker_threads_worker_terminate
+[`writable.writableLength`]: stream.md#stream_writable_writablelength
+[`zlib.bytesWritten`]: zlib.md#zlib_zlib_byteswritten
+[Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
-[WHATWG URL API]: url.html#url_the_whatwg_url_api
-[alloc]: buffer.html#buffer_static_method_buffer_alloc_size_fill_encoding
-[alloc_unsafe_size]: buffer.html#buffer_static_method_buffer_allocunsafe_size
-[from_arraybuffer]: buffer.html#buffer_static_method_buffer_from_arraybuffer_byteoffset_length
-[from_string_encoding]: buffer.html#buffer_static_method_buffer_from_string_encoding
-[legacy `urlObject`]: url.html#url_legacy_urlobject
-[static methods of `crypto.Certificate()`]: crypto.html#crypto_class_certificate
+[WHATWG URL API]: url.md#url_the_whatwg_url_api
+[alloc]: buffer.md#buffer_static_method_buffer_alloc_size_fill_encoding
+[alloc_unsafe_size]: buffer.md#buffer_static_method_buffer_allocunsafe_size
+[from_arraybuffer]: buffer.md#buffer_static_method_buffer_from_arraybuffer_byteoffset_length
+[from_string_encoding]: buffer.md#buffer_static_method_buffer_from_string_encoding
+[legacy `urlObject`]: url.md#url_legacy_urlobject
+[static methods of `crypto.Certificate()`]: crypto.md#crypto_class_certificate

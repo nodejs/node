@@ -2607,23 +2607,23 @@ cases:
   code will be `128` + `6`, or `134`.
 
 [`'exit'`]: #process_event_exit
-[`'message'`]: child_process.html#child_process_event_message
+[`'message'`]: child_process.md#child_process_event_message
 [`'uncaughtException'`]: #process_event_uncaughtexception
-[`--unhandled-rejections`]: cli.html#cli_unhandled_rejections_mode
-[`Buffer`]: buffer.html
-[`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
-[`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
-[`ChildProcess`]: child_process.html#child_process_class_childprocess
-[`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_eventemitter
-[`NODE_OPTIONS`]: cli.html#cli_node_options_options
-[`Worker`]: worker_threads.html#worker_threads_class_worker
-[`console.error()`]: console.html#console_console_error_data_args
-[`console.log()`]: console.html#console_console_log_data_args
-[`domain`]: domain.html
-[`net.Server`]: net.html#net_class_net_server
-[`net.Socket`]: net.html#net_class_net_socket
-[`os.constants.dlopen`]: os.html#os_dlopen_constants
+[`--unhandled-rejections`]: cli.md#cli_unhandled_rejections_mode
+[`Buffer`]: buffer.md
+[`ChildProcess.disconnect()`]: child_process.md#child_process_subprocess_disconnect
+[`ChildProcess.send()`]: child_process.md#child_process_subprocess_send_message_sendhandle_options_callback
+[`ChildProcess`]: child_process.md#child_process_class_childprocess
+[`Error`]: errors.md#errors_class_error
+[`EventEmitter`]: events.md#events_class_eventemitter
+[`NODE_OPTIONS`]: cli.md#cli_node_options_options
+[`Worker`]: worker_threads.md#worker_threads_class_worker
+[`console.error()`]: console.md#console_console_error_data_args
+[`console.log()`]: console.md#console_console_log_data_args
+[`domain`]: domain.md
+[`net.Server`]: net.md#net_class_net_server
+[`net.Socket`]: net.md#net_class_net_socket
+[`os.constants.dlopen`]: os.md#os_dlopen_constants
 [`process.argv`]: #process_process_argv
 [`process.config`]: #process_process_config
 [`process.execPath`]: #process_process_execpath
@@ -2632,34 +2632,34 @@ cases:
 [`process.hrtime()`]: #process_process_hrtime_time
 [`process.hrtime.bigint()`]: #process_process_hrtime_bigint
 [`process.kill()`]: #process_process_kill_pid_signal
-[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
-[`require()`]: globals.html#globals_require
-[`require.main`]: modules.html#modules_accessing_the_main_module
-[`require.resolve()`]: modules.html#modules_require_resolve_request_options
-[`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
-[`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
-[Advanced serialization for `child_process`]: child_process.html#child_process_advanced_serialization
+[`require()`]: globals.md#globals_require
+[`require.main`]: modules.md#modules_accessing_the_main_module
+[`require.resolve()`]: modules.md#modules_require_resolve_request_options
+[`subprocess.kill()`]: child_process.md#child_process_subprocess_kill_signal
+[`v8.setFlagsFromString()`]: v8.md#v8_v8_setflagsfromstring_flags
+[Advanced serialization for `child_process`]: child_process.md#child_process_advanced_serialization
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
-[Child Process]: child_process.html
-[Cluster]: cluster.html
-[Duplex]: stream.html#stream_duplex_and_transform_streams
+[Child Process]: child_process.md
+[Cluster]: cluster.md
+[Duplex]: stream.md#stream_duplex_and_transform_streams
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
 [LTS]: https://github.com/nodejs/Release
-[Readable]: stream.html#stream_readable_streams
-[`readable.read()`]: stream.html#stream_readable_read_size
+[Readable]: stream.md#stream_readable_streams
+[`readable.read()`]: stream.md#stream_readable_read_size
 [Signal Events]: #process_signal_events
-[Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
-[TTY]: tty.html#tty_tty
-[Writable]: stream.html#stream_writable_streams
-[debugger]: debugger.html
-[note on process I/O]: process.html#process_a_note_on_process_i_o
+[Stream compatibility]: stream.md#stream_compatibility_with_older_node_js_versions
+[TTY]: tty.md#tty_tty
+[Writable]: stream.md#stream_writable_streams
+[debugger]: debugger.md
+[note on process I/O]: process.md#process_a_note_on_process_i_o
 [process.cpuUsage]: #process_process_cpuusage_previousvalue
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
-[report documentation]: report.html
-[terminal raw mode]: tty.html#tty_readstream_setrawmode_mode
+[report documentation]: report.md
+[terminal raw mode]: tty.md#tty_readstream_setrawmode_mode
 [uv_rusage_t]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
 [wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor
 [wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major

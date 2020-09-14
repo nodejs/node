@@ -5889,7 +5889,7 @@ This API may only be called from the main thread.
 
 [ABI Stability]: https://nodejs.org/en/docs/guides/abi-stability/
 [AppVeyor]: https://www.appveyor.com
-[C++ Addons]: addons.html
+[C++ Addons]: addons.md
 [CMake.js]: https://github.com/cmake-js/cmake-js
 [CMake]: https://cmake.org
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
@@ -5934,9 +5934,9 @@ This API may only be called from the main thread.
 [Xcode]: https://developer.apple.com/xcode/
 [`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
-[`Worker`]: worker_threads.html#worker_threads_class_worker
-[`global`]: globals.html#globals_global
-[`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource
+[`Worker`]: worker_threads.md#worker_threads_class_worker
+[`global`]: globals.md#globals_global
+[`init` hooks]: async_hooks.md#async_hooks_init_asyncid_type_triggerasyncid_resource
 [`napi_add_async_cleanup_hook`]: #n_api_napi_add_async_cleanup_hook
 [`napi_add_env_cleanup_hook`]: #n_api_napi_add_env_cleanup_hook
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
@@ -5992,14 +5992,14 @@ This API may only be called from the main thread.
 [`napi_wrap`]: #n_api_napi_wrap
 [`node-addon-api`]: https://github.com/nodejs/node-addon-api
 [`node_api.h`]: https://github.com/nodejs/node/blob/master/src/node_api.h
-[`process.release`]: process.html#process_process_release
+[`process.release`]: process.md#process_process_release
 [`uv_ref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
 [`uv_unref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
-[async_hooks `type`]: async_hooks.html#async_hooks_type
-[context-aware addons]: addons.html#addons_context_aware_addons
+[async_hooks `type`]: async_hooks.md#async_hooks_type
+[context-aware addons]: addons.md#addons_context_aware_addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
-[global scope]: globals.html
-[module scope]: modules.html#modules_the_module_scope
+[global scope]: globals.md
+[module scope]: modules.md#modules_the_module_scope
 [node-gyp]: https://github.com/nodejs/node-gyp
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
 [prebuild]: https://github.com/prebuild/prebuild

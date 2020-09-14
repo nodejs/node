@@ -5961,15 +5961,15 @@ A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
 the file contents.
 
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
-[`Buffer.byteLength`]: buffer.html#buffer_static_method_buffer_bytelength_string_encoding
-[`Buffer`]: buffer.html#buffer_buffer
+[`Buffer.byteLength`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
+[`Buffer`]: buffer.md#buffer_buffer
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`ReadStream`]: #fs_class_fs_readstream
-[Readable Stream]: stream.html#stream_class_stream_readable
-[`URL`]: url.html#url_the_whatwg_url_api
-[`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
+[Readable Stream]: stream.md#stream_class_stream_readable
+[`URL`]: url.md#url_the_whatwg_url_api
+[`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
 [`WriteStream`]: #fs_class_fs_writestream
 [`event ports`]: https://illumos.org/man/port_create
 [`filehandle.writeFile()`]: #fs_filehandle_writefile_data_options
@@ -5983,7 +5983,7 @@ the file contents.
 [`fs.copyFile()`]: #fs_fs_copyfile_src_dest_mode_callback
 [`fs.createReadStream()`]: #fs_fs_createreadstream_path_options
 [`fs.createWriteStream()`]: #fs_fs_createwritestream_path_options
-[`fs.exists()`]: fs.html#fs_fs_exists_path_callback
+[`fs.exists()`]: fs.md#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
 [`fs.ftruncate()`]: #fs_fs_ftruncate_fd_len_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
@@ -6015,11 +6015,11 @@ the file contents.
 [`fsPromises.utimes()`]: #fs_fspromises_utimes_path_atime_mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
-[`net.Socket`]: net.html#net_class_net_socket
-[`stat()`]: fs.html#fs_fs_stat_path_options_callback
-[`util.promisify()`]: util.html#util_util_promisify_original
+[`net.Socket`]: net.md#net_class_net_socket
+[`stat()`]: fs.md#fs_fs_stat_path_options_callback
+[`util.promisify()`]: util.md#util_util_promisify_original
 [Caveats]: #fs_caveats
-[Common System Errors]: errors.html#errors_common_system_errors
+[Common System Errors]: errors.md#errors_common_system_errors
 [FS constants]: #fs_fs_constants_1
 [File access constants]: #fs_file_access_constants
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
@@ -6031,4 +6031,4 @@ the file contents.
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags
-[Writable Stream]: stream.html#stream_class_stream_writable
+[Writable Stream]: stream.md#stream_class_stream_writable

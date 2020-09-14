@@ -2445,15 +2445,15 @@ const util = require('util');
 util.log('Timestamped message.');
 ```
 
-[`'uncaughtException'`]: process.html#process_event_uncaughtexception
-[`'warning'`]: process.html#process_event_warning
+[`'uncaughtException'`]: process.md#process_event_uncaughtexception
+[`'warning'`]: process.md#process_event_warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-[`Buffer.isBuffer()`]: buffer.html#buffer_static_method_buffer_isbuffer_obj
+[`Buffer.isBuffer()`]: buffer.md#buffer_static_method_buffer_isbuffer_obj
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`Date`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
-[`Error`]: errors.html#errors_class_error
+[`Error`]: errors.md#errors_class_error
 [`Float32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array
 [`Float64Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array
 [`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
@@ -2474,10 +2474,10 @@ util.log('Timestamped message.');
 [`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
 [`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
-[`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
-[`console.error()`]: console.html#console_console_error_data_args
+[`assert.deepStrictEqual()`]: assert.md#assert_assert_deepstrictequal_actual_expected_message
+[`console.error()`]: console.md#console_console_error_data_args
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
-[`tty.hasColors()`]: tty.html#tty_writestream_hascolors_count_env
+[`tty.hasColors()`]: tty.md#tty_writestream_hascolors_count_env
 [`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
@@ -2486,11 +2486,11 @@ util.log('Timestamped message.');
 [`util.types.isDate()`]: #util_util_types_isdate_value
 [`util.types.isNativeError()`]: #util_util_types_isnativeerror_value
 [`util.types.isSharedArrayBuffer()`]: #util_util_types_issharedarraybuffer_value
-[Common System Errors]: errors.html#errors_common_system_errors
+[Common System Errors]: errors.md#errors_common_system_errors
 [Custom inspection functions on objects]: #util_custom_inspection_functions_on_objects
 [Custom promisified functions]: #util_custom_promisified_functions
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
-[Internationalization]: intl.html
+[Internationalization]: intl.md
 [Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
@@ -2498,7 +2498,7 @@ util.log('Timestamped message.');
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
-[list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
-[`napi_create_external()`]: n-api.html#n_api_napi_create_external
+[list of deprecated APIS]: deprecations.md#deprecations_list_of_deprecated_apis
+[`napi_create_external()`]: n-api.md#n_api_napi_create_external
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [util.inspect.custom]: #util_util_inspect_custom

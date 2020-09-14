@@ -903,7 +903,7 @@ added: v0.4.0
 ```
 
 The `"main"` field defines the script that is used when the [package directory
-is loaded via `require()`](modules.html#modules_folders_as_modules). Its value
+is loaded via `require()`](modules.md#modules_folders_as_modules). Its value
 is interpreted as a path.
 
 ```js
@@ -959,10 +959,10 @@ analogous to the exports field.
 
 [Babel]: https://babeljs.io/
 [Conditional exports]: #packages_conditional_exports
-[CommonJS]: modules.html
-[`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.html#errors_err_package_path_not_exported
-[ES modules]: esm.html
-[ES module]: esm.html
+[CommonJS]: modules.md
+[`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#errors_err_package_path_not_exported
+[ES modules]: esm.md
+[ES module]: esm.md
 [`esm`]: https://github.com/standard-things/esm#readme
 [`"exports"`]: #packages_exports
 [`"main"`]: #packages_main
@@ -973,5 +973,5 @@ analogous to the exports field.
 [`package.json`]: #packages_node_js_package_json_field_definitions
 [self-reference]: #packages_self_referencing_a_package_using_its_name
 [subpath exports]: #packages_subpath_exports
-[the full specifier path]: modules_esm.html#modules_esm_mandatory_file_extensions
+[the full specifier path]: esm.md#esm_mandatory_file_extensions
 [the dual CommonJS/ES module packages section]: #packages_dual_commonjs_es_module_packages
