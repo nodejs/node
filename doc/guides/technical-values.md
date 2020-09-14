@@ -46,7 +46,7 @@ development and production. Some key elements of this include:
 * Small binary size
 * Small memory footprint
 * High-quality debugging tools
-* Diagnostic tooling (profilers, heapdumps, coredumps, etc.)
+* Robust diagnostic tools (profilers, etc.)
 * Responsible security practices
 
 ### 4 - Node.js maintainer experience
