@@ -145,6 +145,10 @@ const { format, parseArgs } = require('util');
     [
       { argv: [], opts: { multiOptions: 'foo' } },
       { options: { }, positionals: [] }
+    ],
+    [
+      { argv: ['--foo'], opts: { optionsWithValue: 'foo' } },
+      { options: {}, positionals: [] }
     ]
   ]);
 

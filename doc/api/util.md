@@ -1035,9 +1035,9 @@ have an associated string value (e.g., `node app.js --verbose`).
   object
 * By default, when appearing any number of times in the `argv` Array, the value
   of the property will be `true`. To get a "count" of the times a Flag is
-  repeated, specify the Flag name in the `multiOptions` option; this will parsed
-  to an Array of `true` values, and you can derive the "count" from the `length`
-  property of this Array
+  repeated, specify the Flag name in the `multiOptions` option; this will be
+  parsed to an Array of `true` values, and you can derive the "count" from the
+  `length` property of this Array
 * When a Flag appears in `multiOptions`, and when provided in `argv`, the value
   in the returned object will _always_ be an Array (even if it is only provided
   once)
@@ -1050,7 +1050,7 @@ have an associated string value (e.g., `node app.js --verbose`).
 
 ### Options
 
-_Options_ are arguments which begin with one or more dashes (`-`), and _do_ have
+_Options_ are arguments which begin with one or more dashes (`-`), and _expect_
 an associated value (e.g., `node app.js --require script.js`).
 
 * Use the `optionsWithValue` option to `util.parseArgs` to declare Options
@@ -1091,7 +1091,7 @@ with one or more dashes (e.g., `['script.js']`), _and/or_ all items in the
 * Positionals will _always_ be parsed verbatim (e.g., `['--', '--foo']` will
   result in an object of `{positionals: ['--foo'], options: {}}`)
 
-Please note:
+### Additional Considerations
 
 * `util.parseArgs` does not consider "short" arguments (e.g., `-v`) to be
   different than "long" arguments (e.g., `--verbose`).  Furthermore, it does not
