@@ -115,7 +115,7 @@ See [`http.Server#maxHeadersCount`][].
 
 ### `server.requestTimeout`
 <!-- YAML
-added: REPLACEME
+added: v14.11.0
 -->
 
 * {number} **Default:** `0`
