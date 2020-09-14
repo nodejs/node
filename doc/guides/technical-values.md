@@ -28,7 +28,7 @@ work. We seek to keep the trust of developers and end-users. Therefore, we value
 stability.
 Some key elements of this include:
 * Backwards compatibility
-* Predictable and stable releases
+* Stable releases on a predictable schedule
 * A strong safety net, including testing how changes
   in Node.js affect popular packages
 * Careful consideration of what goes into long term support (LTS) releases
