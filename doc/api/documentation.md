@@ -63,4 +63,4 @@ be unavoidable.
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
 [V8 JavaScript engine]: https://v8.dev/
-[warning]: process.html#process_event_warning
+[warning]: process.md#process_event_warning

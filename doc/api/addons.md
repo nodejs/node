@@ -10,7 +10,7 @@ Addons provide an interface between JavaScript and C/C++ libraries.
 There are three options for implementing addons: N-API, nan, or direct
 use of internal V8, libuv and Node.js libraries. Unless there is a need for
 direct access to functionality which is not exposed by N-API, use N-API.
-Refer to [C/C++ addons with N-API](n-api.html) for more information on N-API.
+Refer to [C/C++ addons with N-API](n-api.md) for more information on N-API.
 
 When not using N-API, implementing addons is complicated,
 involving knowledge of several components and APIs:
@@ -452,7 +452,7 @@ in the N-API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
 provided by N-API carries with it certain
-[implementation considerations](n-api.html#n_api_implications_of_abi_stability).
+[implementation considerations](n-api.md#n_api_implications_of_abi_stability).
 
 To use N-API in the above "Hello world" example, replace the content of
 `hello.cc` with the following. All other instructions remain the same.
@@ -490,7 +490,7 @@ NAPI_MODULE(NODE_GYP_MODULE_NAME, init)
 ```
 
 The functions available and how to use them are documented in
-[C/C++ addons with N-API](n-api.html).
+[C/C++ addons with N-API](n-api.md).
 
 ## Addon examples
 
@@ -1356,7 +1356,7 @@ console.log(result);
 // Prints: 30
 ```
 
-[`Worker`]: worker_threads.html#worker_threads_class_worker
+[`Worker`]: worker_threads.md#worker_threads_class_worker
 [Electron]: https://electronjs.org/
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
@@ -1367,5 +1367,5 @@ console.log(result);
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
-[require]: modules.html#modules_require_id
+[require]: modules.md#modules_require_id
 [v8-docs]: https://v8docs.nodesource.com/

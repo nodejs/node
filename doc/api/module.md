@@ -200,14 +200,14 @@ consists of the following keys:
 * originalLine: {number}
 * originalColumn: {number}
 
-[CommonJS]: modules.html
-[ES Modules]: esm.html
+[CommonJS]: modules.md
+[ES Modules]: esm.md
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
-[`--enable-source-maps`]: cli.html#cli_enable_source_maps
+[`--enable-source-maps`]: cli.md#cli_enable_source_maps
 [`Error.prepareStackTrace(error, trace)`]: https://v8.dev/docs/stack-trace-api#customizing-stack-traces
-[`NODE_V8_COVERAGE=dir`]: cli.html#cli_node_v8_coverage_dir
+[`NODE_V8_COVERAGE=dir`]: cli.md#cli_node_v8_coverage_dir
 [`SourceMap`]: #module_class_module_sourcemap
 [`createRequire()`]: #module_module_createrequire_filename
-[`module`]: modules.html#modules_the_module_object
-[module wrapper]: modules_cjs.html#modules_cjs_the_module_wrapper
+[`module`]: modules.md#modules_the_module_object
+[module wrapper]: modules.md#modules_the_module_wrapper
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx

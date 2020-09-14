@@ -556,12 +556,12 @@ This method does not display anything unless used in the inspector. The
 [`console.profileEnd()`]: #console_console_profileend_label
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
-[`process.stderr`]: process.html#process_process_stderr
-[`process.stdout`]: process.html#process_process_stdout
-[`util.format()`]: util.html#util_util_format_format_args
-[`util.inspect()`]: util.html#util_util_inspect_object_options
-[customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[`process.stderr`]: process.md#process_process_stderr
+[`process.stdout`]: process.md#process_process_stdout
+[`util.format()`]: util.md#util_util_format_format_args
+[`util.inspect()`]: util.md#util_util_inspect_object_options
+[customizing `util.inspect()` colors]: util.md#util_customizing_util_inspect_colors
 [falsy]: https://developer.mozilla.org/en-US/docs/Glossary/Falsy
-[inspector]: debugger.html
-[note on process I/O]: process.html#process_a_note_on_process_i_o
+[inspector]: debugger.md
+[note on process I/O]: process.md#process_a_note_on_process_i_o
 [truthy]: https://developer.mozilla.org/en-US/docs/Glossary/Truthy

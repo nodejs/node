@@ -1172,8 +1172,8 @@ Decompress a chunk of data with [`Unzip`][].
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`BrotliCompress`]: #zlib_class_zlib_brotlicompress
 [`BrotliDecompress`]: #zlib_class_zlib_brotlidecompress
-[`Buffer`]: buffer.html#buffer_class_buffer
-[`buffer.kMaxLength`]: buffer.html#buffer_buffer_kmaxlength
+[`Buffer`]: buffer.md#buffer_class_buffer
+[`buffer.kMaxLength`]: buffer.md#buffer_buffer_kmaxlength
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`DeflateRaw`]: #zlib_class_zlib_deflateraw
@@ -1185,7 +1185,7 @@ Decompress a chunk of data with [`Unzip`][].
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Unzip`]: #zlib_class_zlib_unzip
 [`deflateInit2` and `inflateInit2`]: https://zlib.net/manual.html#Advanced
-[`stream.Transform`]: stream.html#stream_class_stream_transform
+[`stream.Transform`]: stream.md#stream_class_stream_transform
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [Brotli parameters]: #zlib_brotli_constants
 [Memory usage tuning]: #zlib_memory_usage_tuning

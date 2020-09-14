@@ -1526,19 +1526,19 @@ and `removeEventListener()` is that `removeListener()` will return a reference
 to the `EventTarget`.
 
 [WHATWG-EventTarget]: https://dom.spec.whatwg.org/#interface-eventtarget
-[`--trace-warnings`]: cli.html#cli_trace_warnings
+[`--trace-warnings`]: cli.md#cli_trace_warnings
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
-[`domain`]: domain.html
+[`domain`]: domain.md
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
 [`EventTarget` error handling]: #events_eventtarget_error_handling
 [`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
-[`fs.ReadStream`]: fs.html#fs_class_fs_readstream
-[`net.Server`]: net.html#net_class_net_server
-[`process.on('warning')`]: process.html#process_event_warning
-[stream]: stream.html
+[`fs.ReadStream`]: fs.md#fs_class_fs_readstream
+[`net.Server`]: net.md#net_class_net_server
+[`process.on('warning')`]: process.md#process_event_warning
+[stream]: stream.md
 [capturerejections]: #events_capture_rejections_of_promises
 [rejection]: #events_emitter_symbol_for_nodejs_rejection_err_eventname_args
 [rejectionsymbol]: #events_events_capturerejectionsymbol

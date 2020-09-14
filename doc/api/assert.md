@@ -70,7 +70,7 @@ assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 To deactivate the colors, use the `NO_COLOR` or `NODE_DISABLE_COLORS`
 environment variables. This will also deactivate the colors in the REPL. For
 more on color support in terminal environments, read the tty
-[getColorDepth()](tty.html#tty_writestream_getcolordepth_env) documentation.
+[getColorDepth()](tty.md#tty_writestream_getcolordepth_env) documentation.
 
 ## Legacy assertion mode
 
@@ -1564,15 +1564,15 @@ argument.
 
 [`AssertionError`]: #assert_class_assert_assertionerror
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
-[`ERR_INVALID_RETURN_VALUE`]: errors.html#errors_err_invalid_return_value
-[`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
-[`Error`]: errors.html#errors_class_error
+[`ERR_INVALID_RETURN_VALUE`]: errors.md#errors_err_invalid_return_value
+[`Error.captureStackTrace`]: errors.md#errors_error_capturestacktrace_targetobject_constructoropt
+[`Error`]: errors.md#errors_class_error
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
 [`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
 [`Symbol`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol
-[`TypeError`]: errors.html#errors_class_typeerror
+[`TypeError`]: errors.md#errors_class_typeerror
 [`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
 [`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`CallTracker`]: #assert_class_assert_calltracker
@@ -1587,7 +1587,7 @@ argument.
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_fn_error_message
-[`process.on('exit')`]: process.html#process_event_exit
+[`process.on('exit')`]: process.md#process_event_exit
 [`tracker.calls()`]: #assert_tracker_calls_fn_exact
 [`tracker.verify()`]: #assert_tracker_verify
 [strict assertion mode]: #assert_strict_assertion_mode

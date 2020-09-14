@@ -3552,11 +3552,11 @@ See the [list of SSL OP Flags][] for details.
   </tr>
 </table>
 
-[`Buffer`]: buffer.html
+[`Buffer`]: buffer.md
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
 [`KeyObject`]: #crypto_class_keyobject
 [`Sign`]: #crypto_class_sign
-[`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
+[`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
 [`Verify`]: #crypto_class_verify
 [`cipher.final()`]: #crypto_cipher_final_outputencoding
 [`cipher.update()`]: #crypto_cipher_update_data_inputencoding_outputencoding
@@ -3594,12 +3594,12 @@ See the [list of SSL OP Flags][] for details.
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
 [`hmac.update()`]: #crypto_hmac_update_data_inputencoding
 [`keyObject.export()`]: #crypto_keyobject_export_options
-[`postMessage()`]: worker_threads.html#worker_threads_port_postmessage_value_transferlist
+[`postMessage()`]: worker_threads.md#worker_threads_port_postmessage_value_transferlist
 [`sign.sign()`]: #crypto_sign_sign_privatekey_outputencoding
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
-[`stream.Writable` options]: stream.html#stream_new_stream_writable_options
-[`stream.transform` options]: stream.html#stream_new_stream_transform_options
-[`util.promisify()`]: util.html#util_util_promisify_original
+[`stream.Writable` options]: stream.md#stream_new_stream_writable_options
+[`stream.transform` options]: stream.md#stream_new_stream_transform_options
+[`util.promisify()`]: util.md#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureencoding
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
@@ -3620,10 +3620,10 @@ See the [list of SSL OP Flags][] for details.
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
-[encoding]: buffer.html#buffer_buffers_and_character_encodings
+[encoding]: buffer.md#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [list of SSL OP Flags]: https://wiki.openssl.org/index.php/List_of_SSL_OP_Flags#Table_of_Options
 [safe integers]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
 [scrypt]: https://en.wikipedia.org/wiki/Scrypt
-[stream]: stream.html
-[stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
+[stream]: stream.md
+[stream-writable-write]: stream.md#stream_writable_write_chunk_encoding_callback

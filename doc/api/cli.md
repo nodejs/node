@@ -1584,27 +1584,27 @@ $ node --max-old-space-size=1536 index.js
 ```
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
-[REPL]: repl.html
+[REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [`--openssl-config`]: #cli_openssl_config_file
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
-[`Buffer`]: buffer.html#buffer_class_buffer
+[`Buffer`]: buffer.md#buffer_class_buffer
 [`NODE_OPTIONS`]: #cli_node_options_options
-[`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
-[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
-[`tls.DEFAULT_MAX_VERSION`]: tls.html#tls_tls_default_max_version
-[`tls.DEFAULT_MIN_VERSION`]: tls.html#tls_tls_default_min_version
-[`unhandledRejection`]: process.html#process_event_unhandledrejection
-[`worker_threads.threadId`]: worker_threads.html#worker_threads_worker_threadid
-[context-aware]: addons.html#addons_context_aware_addons
-[customizing ESM specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
-[debugger]: debugger.html
+[`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
+[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
+[`tls.DEFAULT_MAX_VERSION`]: tls.md#tls_tls_default_max_version
+[`tls.DEFAULT_MIN_VERSION`]: tls.md#tls_tls_default_min_version
+[`unhandledRejection`]: process.md#process_event_unhandledrejection
+[`worker_threads.threadId`]: worker_threads.md#worker_threads_worker_threadid
+[context-aware]: addons.md#addons_context_aware_addons
+[customizing ESM specifier resolution]: esm.md#esm_customizing_esm_specifier_resolution_algorithm
+[debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
-[emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
-[experimental ECMAScript Module loader]: esm.html#esm_experimental_loaders
+[emit_warning]: process.md#process_process_emitwarning_warning_type_code_ctor
+[experimental ECMAScript Module loader]: esm.md#esm_experimental_loaders
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection

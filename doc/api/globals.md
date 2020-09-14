@@ -322,27 +322,27 @@ The object that acts as the namespace for all W3C
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
-[`TextDecoder`]: util.html#util_class_util_textdecoder
-[`TextEncoder`]: util.html#util_class_util_textencoder
-[`URLSearchParams`]: url.html#url_class_urlsearchparams
-[`URL`]: url.html#url_class_url
-[`__dirname`]: modules.html#modules_dirname
-[`__filename`]: modules.html#modules_filename
-[`clearImmediate`]: timers.html#timers_clearimmediate_immediate
-[`clearInterval`]: timers.html#timers_clearinterval_timeout
-[`clearTimeout`]: timers.html#timers_cleartimeout_timeout
-[`console`]: console.html
-[`exports`]: modules.html#modules_exports
-[`module`]: modules.html#modules_module
-[`process.nextTick()`]: process.html#process_process_nexttick_callback_args
-[`process` object]: process.html#process_process
-[`require()`]: modules.html#modules_require_id
-[`setImmediate`]: timers.html#timers_setimmediate_callback_args
-[`setInterval`]: timers.html#timers_setinterval_callback_delay_args
-[`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
-[buffer section]: buffer.html
+[`TextDecoder`]: util.md#util_class_util_textdecoder
+[`TextEncoder`]: util.md#util_class_util_textencoder
+[`URLSearchParams`]: url.md#url_class_urlsearchparams
+[`URL`]: url.md#url_class_url
+[`__dirname`]: modules.md#modules_dirname
+[`__filename`]: modules.md#modules_filename
+[`clearImmediate`]: timers.md#timers_clearimmediate_immediate
+[`clearInterval`]: timers.md#timers_clearinterval_timeout
+[`clearTimeout`]: timers.md#timers_cleartimeout_timeout
+[`console`]: console.md
+[`exports`]: modules.md#modules_exports
+[`module`]: modules.md#modules_module
+[`process.nextTick()`]: process.md#process_process_nexttick_callback_args
+[`process` object]: process.md#process_process
+[`require()`]: modules.md#modules_require_id
+[`setImmediate`]: timers.md#timers_setimmediate_callback_args
+[`setInterval`]: timers.md#timers_setinterval_callback_delay_args
+[`setTimeout`]: timers.md#timers_settimeout_callback_delay_args
+[buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
-[module system documentation]: modules.html
-[timers]: timers.html
+[module system documentation]: modules.md
+[timers]: timers.md
 [webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
 [webassembly-org]: https://webassembly.org

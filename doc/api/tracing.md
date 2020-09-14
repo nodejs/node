@@ -207,7 +207,7 @@ t2.enable();
 console.log(trace_events.getEnabledCategories());
 ```
 
-[Performance API]: perf_hooks.html
-[V8]: v8.html
-[`Worker`]: worker_threads.html#worker_threads_class_worker
-[`async_hooks`]: async_hooks.html
+[Performance API]: perf_hooks.md
+[V8]: v8.md
+[`Worker`]: worker_threads.md#worker_threads_class_worker
+[`async_hooks`]: async_hooks.md

@@ -57,7 +57,7 @@ Node.js treats JavaScript code as CommonJS modules by default.
 Authors can tell Node.js to treat JavaScript code as ECMAScript modules
 via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
 `--input-type` flag. See
-[Modules: Packages](packages.html#packages_determining_module_system) for more
+[Modules: Packages](packages.md#packages_determining_module_system) for more
 details.
 
 <!-- Anchors to make sure old links find a target -->
@@ -78,7 +78,7 @@ details.
 
 ## Packages
 
-This section was moved to [Modules: Packages](packages.html).
+This section was moved to [Modules: Packages](packages.md).
 
 ## `import` Specifiers
 
@@ -1229,8 +1229,8 @@ success!
 ```
 
 <!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
-[CommonJS]: modules.html
-[Conditional exports]: packages.html#packages_conditional_exports
+[CommonJS]: modules.md
+[Conditional exports]: packages.md#packages_conditional_exports
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
@@ -1243,22 +1243,22 @@ success!
 [`import()`]: #esm_import_expressions
 [`import.meta.url`]: #esm_import_meta
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
-[`module.createRequire()`]: module.html#module_module_createrequire_filename
-[`module.syncBuiltinESMExports()`]: module.html#module_module_syncbuiltinesmexports
+[`module.createRequire()`]: module.md#module_module_createrequire_filename
+[`module.syncBuiltinESMExports()`]: module.md#module_module_syncbuiltinesmexports
 [`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
-[`util.TextDecoder`]: util.html#util_class_util_textdecoder
+[`util.TextDecoder`]: util.md#util_class_util_textdecoder
 [cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.3.1
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Top-Level Await]: https://github.com/tc39/proposal-top-level-await
-[Core modules]: modules.html#modules_core_modules
-[`package.json`]: packages.html#packages_node_js_package_json_field_definitions
-[`"exports"`]: packages.html#packages_exports
-[`"type"`]: packages.html#packages_type
+[Core modules]: modules.md#modules_core_modules
+[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
+[`"exports"`]: packages.md#packages_exports
+[`"type"`]: packages.md#packages_type

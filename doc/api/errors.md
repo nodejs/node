@@ -2580,82 +2580,82 @@ removed: v10.0.0
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
-[`'uncaughtException'`]: process.html#process_event_uncaughtexception
-[`--disable-proto=throw`]: cli.html#cli_disable_proto_mode
-[`--force-fips`]: cli.html#cli_force_fips
-[`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
+[`'uncaughtException'`]: process.md#process_event_uncaughtexception
+[`--disable-proto=throw`]: cli.md#cli_disable_proto_mode
+[`--force-fips`]: cli.md#cli_force_fips
+[`Class: assert.AssertionError`]: assert.md#assert_class_assert_assertionerror
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST
 [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`]: #ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST
-[`EventEmitter`]: events.html#events_class_eventemitter
-[`MessagePort`]: worker_threads.html#worker_threads_class_messageport
+[`EventEmitter`]: events.md#events_class_eventemitter
+[`MessagePort`]: worker_threads.md#worker_threads_class_messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
-[`REPL`]: repl.html
-[`Writable`]: stream.html#stream_class_stream_writable
-[`child_process`]: child_process.html
-[`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
-[`crypto.getDiffieHellman()`]: crypto.html#crypto_crypto_getdiffiehellman_groupname
-[`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
-[`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptsync_password_salt_keylen_options
-[`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
-[`dgram.connect()`]: dgram.html#dgram_socket_connect_port_address_callback
-[`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
-[`dgram.disconnect()`]: dgram.html#dgram_socket_disconnect
-[`dgram.remoteAddress()`]: dgram.html#dgram_socket_remoteaddress
+[`REPL`]: repl.md
+[`Writable`]: stream.md#stream_class_stream_writable
+[`child_process`]: child_process.md
+[`cipher.getAuthTag()`]: crypto.md#crypto_cipher_getauthtag
+[`crypto.getDiffieHellman()`]: crypto.md#crypto_crypto_getdiffiehellman_groupname
+[`crypto.scrypt()`]: crypto.md#crypto_crypto_scrypt_password_salt_keylen_options_callback
+[`crypto.scryptSync()`]: crypto.md#crypto_crypto_scryptsync_password_salt_keylen_options
+[`crypto.timingSafeEqual()`]: crypto.md#crypto_crypto_timingsafeequal_a_b
+[`dgram.connect()`]: dgram.md#dgram_socket_connect_port_address_callback
+[`dgram.createSocket()`]: dgram.md#dgram_dgram_createsocket_options_callback
+[`dgram.disconnect()`]: dgram.md#dgram_socket_disconnect
+[`dgram.remoteAddress()`]: dgram.md#dgram_socket_remoteaddress
 [`errno`(3) man page]: https://man7.org/linux/man-pages/man3/errno.3.html
-[`fs.Dir`]: fs.html#fs_class_fs_dir
-[`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
-[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
-[`fs.symlink()`]: fs.html#fs_fs_symlink_target_path_type_callback
-[`fs.symlinkSync()`]: fs.html#fs_fs_symlinksync_target_path_type
-[`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
-[`fs`]: fs.html
-[`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
-[`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
-[`http`]: http.html
-[`https`]: https.html
+[`fs.Dir`]: fs.md#fs_class_fs_dir
+[`fs.readFileSync`]: fs.md#fs_fs_readfilesync_path_options
+[`fs.readdir`]: fs.md#fs_fs_readdir_path_options_callback
+[`fs.symlink()`]: fs.md#fs_fs_symlink_target_path_type_callback
+[`fs.symlinkSync()`]: fs.md#fs_fs_symlinksync_target_path_type
+[`fs.unlink`]: fs.md#fs_fs_unlink_path_callback
+[`fs`]: fs.md
+[`hash.digest()`]: crypto.md#crypto_hash_digest_encoding
+[`hash.update()`]: crypto.md#crypto_hash_update_data_inputencoding
+[`http`]: http.md
+[`https`]: https.md
 [`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
-[`net`]: net.html
-[`new URL(input)`]: url.html#url_new_url_input_base
-[`new URLSearchParams(iterable)`]: url.html#url_new_urlsearchparams_iterable
-[`postMessage()`]: worker_threads.html#worker_threads_port_postmessage_value_transferlist
-[`process.on('exit')`]: process.html#Event:-`'exit'`
-[`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
-[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
-[`readable._read()`]: stream.html#stream_readable_read_size_1
-[`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
-[`require()`]: modules.html#modules_require_id
-[`server.close()`]: net.html#net_server_close_callback
-[`server.listen()`]: net.html#net_server_listen
-[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputencoding
-[`stream.pipe()`]: stream.html#stream_readable_pipe_destination_options
-[`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
-[`stream.unshift()`]: stream.html#stream_readable_unshift_chunk_encoding
-[`stream.write()`]: stream.html#stream_writable_write_chunk_encoding_callback
-[`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
-[`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
-[`util.getSystemErrorName(error.errno)`]: util.html#util_util_getsystemerrorname_err
-[`zlib`]: zlib.html
-[ES Module]: esm.html
-[ICU]: intl.html#intl_internationalization_support
+[`net`]: net.md
+[`new URL(input)`]: url.md#url_new_url_input_base
+[`new URLSearchParams(iterable)`]: url.md#url_new_urlsearchparams_iterable
+[`postMessage()`]: worker_threads.md#worker_threads_port_postmessage_value_transferlist
+[`process.on('exit')`]: process.md#Event:-`'exit'`
+[`process.send()`]: process.md#process_process_send_message_sendhandle_options_callback
+[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
+[`readable._read()`]: stream.md#stream_readable_read_size_1
+[`require('crypto').setEngine()`]: crypto.md#crypto_crypto_setengine_engine_flags
+[`require()`]: modules.md#modules_require_id
+[`server.close()`]: net.md#net_server_close_callback
+[`server.listen()`]: net.md#net_server_listen
+[`sign.sign()`]: crypto.md#crypto_sign_sign_privatekey_outputencoding
+[`stream.pipe()`]: stream.md#stream_readable_pipe_destination_options
+[`stream.push()`]: stream.md#stream_readable_push_chunk_encoding
+[`stream.unshift()`]: stream.md#stream_readable_unshift_chunk_encoding
+[`stream.write()`]: stream.md#stream_writable_write_chunk_encoding_callback
+[`subprocess.kill()`]: child_process.md#child_process_subprocess_kill_signal
+[`subprocess.send()`]: child_process.md#child_process_subprocess_send_message_sendhandle_options_callback
+[`util.getSystemErrorName(error.errno)`]: util.md#util_util_getsystemerrorname_err
+[`zlib`]: zlib.md
+[ES Module]: esm.md
+[ICU]: intl.md#intl_internationalization_support
 [Node.js error codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
-[WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings
-[WHATWG URL API]: url.html#url_the_whatwg_url_api
-[crypto digest algorithm]: crypto.html#crypto_crypto_gethashes
-[domains]: domain.html
-[event emitter-based]: events.html#events_class_eventemitter
-[`package.json`]: packages.html#packages_node_js_package_json_field_definitions
-[`"exports"`]: packages.html#packages_exports
+[WHATWG Supported Encodings]: util.md#util_whatwg_supported_encodings
+[WHATWG URL API]: url.md#url_the_whatwg_url_api
+[crypto digest algorithm]: crypto.md#crypto_crypto_gethashes
+[domains]: domain.md
+[event emitter-based]: events.md#events_class_eventemitter
+[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
+[`"exports"`]: packages.md#packages_exports
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
-[policy]: policy.html
+[policy]: policy.md
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
-[stream-based]: stream.html
+[stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
-[vm]: vm.html
-[self-reference a package using its name]: packages.html#packages_self_referencing_a_package_using_its_name
-[define a custom subpath]: packages.html#packages_subpath_exports
-[`"imports"`]: packages.html#packages_imports
+[vm]: vm.md
+[self-reference a package using its name]: packages.md#packages_self_referencing_a_package_using_its_name
+[define a custom subpath]: packages.md#packages_subpath_exports
+[`"imports"`]: packages.md#packages_imports

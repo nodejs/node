@@ -865,15 +865,15 @@ const { createInterface } = require('readline');
   </tr>
 </table>
 
-[`'SIGCONT'`]: readline.html#readline_event_sigcont
-[`'SIGTSTP'`]: readline.html#readline_event_sigtstp
+[`'SIGCONT'`]: readline.md#readline_event_sigcont
+[`'SIGTSTP'`]: readline.md#readline_event_sigtstp
 [`'line'`]: #readline_event_line
-[`fs.ReadStream`]: fs.html#fs_class_fs_readstream
-[`process.stdin`]: process.html#process_process_stdin
-[`process.stdout`]: process.html#process_process_stdout
+[`fs.ReadStream`]: fs.md#fs_class_fs_readstream
+[`process.stdin`]: process.md#process_process_stdin
+[`process.stdout`]: process.md#process_process_stdout
 [`rl.close()`]: #readline_rl_close
-[Readable]: stream.html#stream_readable_streams
-[TTY]: tty.html
+[Readable]: stream.md#stream_readable_streams
+[TTY]: tty.md
 [TTY keybindings]: #readline_tty_keybindings
-[Writable]: stream.html#stream_writable_streams
+[Writable]: stream.md#stream_writable_streams
 [reading files]: #readline_example_read_file_stream_line_by_line

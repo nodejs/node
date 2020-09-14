@@ -1189,10 +1189,10 @@ to associate the asynchronous operation with the correct execution context.
 [`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
 [`promiseResolve` callback]: #async_hooks_promiseresolve_asyncid
-[`EventEmitter`]: events.html#events_class_eventemitter
+[`EventEmitter`]: events.md#events_class_eventemitter
 [Hook Callbacks]: #async_hooks_hook_callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
-[`Stream`]: stream.html#stream_stream
-[`Worker`]: worker_threads.html#worker_threads_class_worker
+[`Stream`]: stream.md#stream_stream
+[`Worker`]: worker_threads.md#worker_threads_class_worker
 [promise execution tracking]: #async_hooks_promise_execution_tracking
-[`util.promisify()`]: util.html#util_util_promisify_original
+[`util.promisify()`]: util.md#util_util_promisify_original

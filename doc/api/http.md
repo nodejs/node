@@ -133,7 +133,7 @@ changes:
     options are respectively set to `false` and `Infinity`, in which case
     `Connection: close` will be used. **Default:** `false`.
   * `keepAliveMsecs` {number} When using the `keepAlive` option, specifies
-    the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
+    the [initial delay](net.md#net_socket_setkeepalive_enable_initialdelay)
     for TCP Keep-Alive packets. Ignored when the
     `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per
@@ -2646,23 +2646,23 @@ try {
 }
 ```
 
-[`--insecure-http-parser`]: cli.html#cli_insecure_http_parser
-[`--max-http-header-size`]: cli.html#cli_max_http_header_size_size
+[`--insecure-http-parser`]: cli.md#cli_insecure_http_parser
+[`--max-http-header-size`]: cli.md#cli_max_http_header_size_size
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'finish'`]: #http_event_finish
 [`'request'`]: #http_event_request
 [`'response'`]: #http_event_response
 [`'upgrade'`]: #http_event_upgrade
 [`Agent`]: #http_class_http_agent
-[`Buffer.byteLength()`]: buffer.html#buffer_static_method_buffer_bytelength_string_encoding
-[`Duplex`]: stream.html#stream_class_stream_duplex
-[`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow
-[`TypeError`]: errors.html#errors_class_typeerror
-[`URL`]: url.html#url_the_whatwg_url_api
+[`Buffer.byteLength()`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
+[`Duplex`]: stream.md#stream_class_stream_duplex
+[`HPE_HEADER_OVERFLOW`]: errors.md#errors_hpe_header_overflow
+[`TypeError`]: errors.md#errors_class_typeerror
+[`URL`]: url.md#url_the_whatwg_url_api
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`agent.getName()`]: #http_agent_getname_options
 [`destroy()`]: #http_agent_destroy
-[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
+[`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
 [`getHeader(name)`]: #http_request_getheader_name
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
@@ -2672,11 +2672,11 @@ try {
 [`http.globalAgent`]: #http_http_globalagent
 [`http.request()`]: #http_http_request_options_callback
 [`message.headers`]: #http_message_headers
-[`net.Server.close()`]: net.html#net_server_close_callback
-[`net.Server`]: net.html#net_class_net_server
-[`net.Socket`]: net.html#net_class_net_socket
-[`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
-[`new URL()`]: url.html#url_new_url_input_base
+[`net.Server.close()`]: net.md#net_server_close_callback
+[`net.Server`]: net.md#net_class_net_server
+[`net.Socket`]: net.md#net_class_net_socket
+[`net.createConnection()`]: net.md#net_net_createconnection_options_connectlistener
+[`new URL()`]: url.md#url_new_url_input_base
 [`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
 [`request.destroy()`]: #http_request_destroy_error
@@ -2684,7 +2684,7 @@ try {
 [`request.getHeader()`]: #http_request_getheader_name
 [`request.setHeader()`]: #http_request_setheader_name_value
 [`request.setTimeout()`]: #http_request_settimeout_timeout_callback
-[`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
+[`request.socket.getPeerCertificate()`]: tls.md#tls_tlssocket_getpeercertificate_detailed
 [`request.socket`]: #http_request_socket
 [`request.writableFinished`]: #http_request_writablefinished
 [`request.writableEnded`]: #http_request_writableended
@@ -2699,16 +2699,16 @@ try {
 [`response.write(data, encoding)`]: #http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http_response_writecontinue
 [`response.writeHead()`]: #http_response_writehead_statuscode_statusmessage_headers
-[`server.listen()`]: net.html#net_server_listen
+[`server.listen()`]: net.md#net_server_listen
 [`server.timeout`]: #http_server_timeout
 [`setHeader(name, value)`]: #http_request_setheader_name_value
-[`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
-[`socket.setKeepAlive()`]: net.html#net_socket_setkeepalive_enable_initialdelay
-[`socket.setNoDelay()`]: net.html#net_socket_setnodelay_nodelay
-[`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback
-[`socket.unref()`]: net.html#net_socket_unref
-[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
-[`writable.destroy()`]: stream.html#stream_writable_destroy_error
-[`writable.destroyed`]: stream.html#stream_writable_destroyed
-[`writable.cork()`]: stream.html#stream_writable_cork
-[`writable.uncork()`]: stream.html#stream_writable_uncork
+[`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
+[`socket.setKeepAlive()`]: net.md#net_socket_setkeepalive_enable_initialdelay
+[`socket.setNoDelay()`]: net.md#net_socket_setnodelay_nodelay
+[`socket.setTimeout()`]: net.md#net_socket_settimeout_timeout_callback
+[`socket.unref()`]: net.md#net_socket_unref
+[`url.parse()`]: url.md#url_url_parse_urlstring_parsequerystring_slashesdenotehost
+[`writable.destroy()`]: stream.md#stream_writable_destroy_error
+[`writable.destroyed`]: stream.md#stream_writable_destroyed
+[`writable.cork()`]: stream.md#stream_writable_cork
+[`writable.uncork()`]: stream.md#stream_writable_uncork

@@ -756,12 +756,12 @@ obs.observe({ entryTypes: ['function'], buffered: true });
 require('some-module');
 ```
 
-[`'exit'`]: process.html#process_event_exit
-[`process.hrtime()`]: process.html#process_process_hrtime_time
-[`child_process.spawnSync()`]: child_process.html#child_process_child_process_spawnsync_command_args_options
+[`'exit'`]: process.md#process_event_exit
+[`process.hrtime()`]: process.md#process_process_hrtime_time
+[`child_process.spawnSync()`]: child_process.md#child_process_child_process_spawnsync_command_args_options
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [`window.performance`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/performance
-[Async Hooks]: async_hooks.html
+[Async Hooks]: async_hooks.md
 [High Resolution Time]: https://www.w3.org/TR/hr-time-2
 [Performance Timeline]: https://w3c.github.io/performance-timeline/
 [Web Performance APIs]: https://w3c.github.io/perf-timing-primer/

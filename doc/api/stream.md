@@ -3086,17 +3086,17 @@ contain multi-byte characters.
 [`'finish'`]: #stream_event_finish
 [`'readable'`]: #stream_event_readable
 [`Duplex`]: #stream_class_stream_duplex
-[`EventEmitter`]: events.html#events_class_eventemitter
+[`EventEmitter`]: events.md#events_class_eventemitter
 [`Readable`]: #stream_class_stream_readable
 [`Symbol.hasInstance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/hasInstance
 [`Transform`]: #stream_class_stream_transform
 [`Writable`]: #stream_class_stream_writable
-[`fs.createReadStream()`]: fs.html#fs_fs_createreadstream_path_options
-[`fs.createWriteStream()`]: fs.html#fs_fs_createwritestream_path_options
-[`net.Socket`]: net.html#net_class_net_socket
-[`process.stderr`]: process.html#process_process_stderr
-[`process.stdin`]: process.html#process_process_stdin
-[`process.stdout`]: process.html#process_process_stdout
+[`fs.createReadStream()`]: fs.md#fs_fs_createreadstream_path_options
+[`fs.createWriteStream()`]: fs.md#fs_fs_createwritestream_path_options
+[`net.Socket`]: net.md#net_class_net_socket
+[`process.stderr`]: process.md#process_process_stderr
+[`process.stdin`]: process.md#process_process_stdin
+[`process.stdout`]: process.md#process_process_stdout
 [`readable._read()`]: #stream_readable_read_size_1
 [`readable.push('')`]: #stream_readable_push
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
@@ -3115,19 +3115,19 @@ contain multi-byte characters.
 [`writable.end()`]: #stream_writable_end_chunk_encoding_callback
 [`writable.uncork()`]: #stream_writable_uncork
 [`writable.writableFinished`]: #stream_writable_writablefinished
-[`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
+[`zlib.createDeflate()`]: zlib.md#zlib_zlib_createdeflate_options
 [API for stream consumers]: #stream_api_for_stream_consumers
 [API for stream implementers]: #stream_api_for_stream_implementers
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
-[HTTP requests, on the client]: http.html#http_class_http_clientrequest
-[HTTP responses, on the server]: http.html#http_class_http_serverresponse
-[TCP sockets]: net.html#net_class_net_socket
-[child process stdin]: child_process.html#child_process_subprocess_stdin
-[child process stdout and stderr]: child_process.html#child_process_subprocess_stdout
-[crypto]: crypto.html
-[fs read streams]: fs.html#fs_class_fs_readstream
-[fs write streams]: fs.html#fs_class_fs_writestream
-[http-incoming-message]: http.html#http_class_http_incomingmessage
+[HTTP requests, on the client]: http.md#http_class_http_clientrequest
+[HTTP responses, on the server]: http.md#http_class_http_serverresponse
+[TCP sockets]: net.md#net_class_net_socket
+[child process stdin]: child_process.md#child_process_subprocess_stdin
+[child process stdout and stderr]: child_process.md#child_process_subprocess_stdout
+[crypto]: crypto.md
+[fs read streams]: fs.md#fs_class_fs_readstream
+[fs write streams]: fs.md#fs_class_fs_writestream
+[http-incoming-message]: http.md#http_class_http_incomingmessage
 [hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
 [object-mode]: #stream_object_mode
 [readable-_construct]: #stream_readable_construct_callback
@@ -3151,4 +3151,4 @@ contain multi-byte characters.
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
 [writable-new]: #stream_new_stream_writable_options
-[zlib]: zlib.html
+[zlib]: zlib.md

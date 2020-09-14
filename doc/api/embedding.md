@@ -220,8 +220,8 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 }
 ```
 
-[`process.memoryUsage()`]: process.html#process_process_memoryusage
-[CLI options]: cli.html
-[deprecation policy]: deprecations.html
+[`process.memoryUsage()`]: process.md#process_process_memoryusage
+[CLI options]: cli.md
+[deprecation policy]: deprecations.md
 [embedtest.cc]: https://github.com/nodejs/node/blob/master/test/embedding/embedtest.cc
 [src/node.h]: https://github.com/nodejs/node/blob/master/src/node.h
