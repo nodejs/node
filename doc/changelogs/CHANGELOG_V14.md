@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#14.11.0">14.11.0</a><br/>
 <a href="#14.10.1">14.10.1</a><br/>
 <a href="#14.10.0">14.10.0</a><br/>
 <a href="#14.9.0">14.9.0</a><br/>
@@ -41,6 +42,23 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.11.0"></a>
+## 2020-09-15, Version 14.11.0 (Current), @richardlau
+
+### Notable Changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8251**: Denial of Service by resource exhaustion CWE-400 due to unfinished HTTP/1.1 requests (Critical).
+* **CVE-2020-8201**: HTTP Request Smuggling due to CR-to-Hyphen conversion (High).
+
+### Commits
+
+* [[`dd828376a0`](https://github.com/nodejs/node/commit/dd828376a0)] - **deps**: update llhttp to 2.1.2 (Fedor Indutny) [nodejs-private/node-private#215](https://github.com/nodejs-private/node-private/pull/215)
+* [[`753f3b247a`](https://github.com/nodejs/node/commit/753f3b247a)] - **http**: add requestTimeout (Matteo Collina, Paolo Insogna, Robert Nagy) [nodejs-private/node-private#208](https://github.com/nodejs-private/node-private/pull/208)
 
 <a id="14.10.1"></a>
 ## 2020-09-10, Version 14.10.1 (Current), @richardlau

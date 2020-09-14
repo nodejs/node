@@ -1261,7 +1261,7 @@ Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
 ### `server.requestTimeout`
 <!-- YAML
-added: REPLACEME
+added: v14.11.0
 -->
 
 * {number} **Default:** `0`
