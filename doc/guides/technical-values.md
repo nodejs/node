@@ -5,10 +5,6 @@ collaboration.
 
 ## Values and priority level
 
-This is only a subset of the overall priorities, listing only
-those which are at the top of the priority list. Anything on this
-list is very important for the project despite the relative priorities shown.
-
 * Priority 1 - Developer experience
 * Priority 2 - Stability
 * Priority 3 - Operational qualities
