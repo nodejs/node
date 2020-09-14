@@ -337,6 +337,18 @@ listed as supporting a later version.
 version 1 but continued to evolve until Node.js 8.6.0. The API is different in
 versions prior to Node.js 8.6.0. We recommend N-API version 3 or later.
 
+Each API documented for N-API will have a header named `added in:`, and APIs
+which are stable will have the additional header `N-API version:`.
+APIs are directly usable when using a Node.js version which supports
+the N-API version shown in `N-API version:` or higher.
+When using a Node.js version that does not support the
+`N-API version:` listed or if there is no `N-API version:` listed,
+then the API will only be available if
+`#define NAPI_EXPERIMENTAL` precedes the inclusion of `node_api.h`
+or `js_native_api.h`. If an API appears not to be available on
+a version of Node.js which is later than the one shown in `added in:` then
+this is most likely the reason for the apparent absence.
+
 The N-APIs associated strictly with accessing ECMAScript features from native
 code can be found separately in `js_native_api.h` and `js_native_api_types.h`.
 The APIs defined in these headers are included in `node_api.h` and
