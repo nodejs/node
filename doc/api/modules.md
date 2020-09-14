@@ -951,7 +951,7 @@ in order to be used.
 ## The `Module` object
 
 This section was moved to
-[Modules: `module` core module](modules_module.html#modules_module_the_module_object).
+[Modules: `module` core module](module.html#module_the_module_object).
 
 <!-- Anchors to make sure old links find a target -->
 * <a id="modules_module_builtinmodules" href="module.html#module_module_builtinmodules">`module.builtinModules`</a>
@@ -962,7 +962,7 @@ This section was moved to
 ## Source map v3 support
 
 This section was moved to
-[Modules: `module` core module](modules_module.html#modules_module_source_map_v3_support).
+[Modules: `module` core module](module.html#module_source_map_v3_support).
 
 <!-- Anchors to make sure old links find a target -->
 * <a id="modules_module_findsourcemap_path_error" href="module.html#module_module_findsourcemap_path_error">`module.findSourceMap(path[, error])`</a>
