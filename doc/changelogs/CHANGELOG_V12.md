@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.18.4">12.18.4</a><br/>
 <a href="#12.18.3">12.18.3</a><br/>
 <a href="#12.18.2">12.18.2</a><br/>
 <a href="#12.18.1">12.18.1</a><br/>
@@ -63,6 +64,24 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.18.4"></a>
+## 2020-09-15, Version 12.18.4 'Erbium' (LTS), @targos
+
+### Notable Changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8201**: HTTP Request Smuggling due to CR-to-Hyphen conversion (High).
+* **CVE-2020-8252**: fs.realpath.native on may cause buffer overflow (Medium).
+
+### Commits
+
+* [[`2ea6d255f8`](https://github.com/nodejs/node/commit/2ea6d255f8)] - **deps**: libuv: cherry-pick 0e6e8620 (cjihrig) [nodejs-private/node-private#221](https://github.com/nodejs-private/node-private/pull/221)
+* [[`65415049af`](https://github.com/nodejs/node/commit/65415049af)] - **deps**: update llhttp to 2.1.2 (Fedor Indutny) [nodejs-private/node-private#219](https://github.com/nodejs-private/node-private/pull/219)
+* [[`edad52e243`](https://github.com/nodejs/node/commit/edad52e243)] - **test**: modify tests to support the latest llhttp (Fedor Indutny) [nodejs-private/node-private#219](https://github.com/nodejs-private/node-private/pull/219)
 
 <a id="12.18.3"></a>
 ## 2020-07-22, Version 12.18.3 'Erbium' (LTS), @codebytere
