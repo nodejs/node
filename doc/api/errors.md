@@ -708,19 +708,6 @@ STDERR/STDOUT, and the data's length is longer than the `maxBuffer` option.
 `Console` was instantiated without `stdout` stream, or `Console` has a
 non-writable `stdout` or `stderr` stream.
 
-<a id="ERR_CONTEXT_NOT_INITIALIZED"></a>
-### `ERR_CONTEXT_NOT_INITIALIZED`
-
-The vm context passed into the API is not yet initialized. This could happen
-when an error occurs (and is caught) during the creation of the
-context, for example, when the allocation fails or the maximum call stack
-size is reached when the context is created.
-
-<a id="ERR_CONSTRUCT_CALL_REQUIRED"></a>
-### `ERR_CONSTRUCT_CALL_REQUIRED`
-
-A constructor for a class was called without `new`.
-
 <a id="ERR_CONSTRUCT_CALL_INVALID"></a>
 ### `ERR_CONSTRUCT_CALL_INVALID`
 <!--
@@ -728,6 +715,19 @@ added: v12.5.0
 -->
 
 A class constructor was called that is not callable.
+
+<a id="ERR_CONSTRUCT_CALL_REQUIRED"></a>
+### `ERR_CONSTRUCT_CALL_REQUIRED`
+
+A constructor for a class was called without `new`.
+
+<a id="ERR_CONTEXT_NOT_INITIALIZED"></a>
+### `ERR_CONTEXT_NOT_INITIALIZED`
+
+The vm context passed into the API is not yet initialized. This could happen
+when an error occurs (and is caught) during the creation of the
+context, for example, when the allocation fails or the maximum call stack
+size is reached when the context is created.
 
 <a id="ERR_CPU_USAGE"></a>
 ### `ERR_CPU_USAGE`
@@ -940,11 +940,6 @@ allowed size for a `Buffer`.
 An invalid symlink type was passed to the [`fs.symlink()`][] or
 [`fs.symlinkSync()`][] methods.
 
-<a id="ERR_HTTP_REQUEST_TIMEOUT"></a>
-### `ERR_HTTP_REQUEST_TIMEOUT`
-
-The client has not sent the entire request within the allowed time.
-
 <a id="ERR_HTTP_HEADERS_SENT"></a>
 ### `ERR_HTTP_HEADERS_SENT`
 
@@ -959,6 +954,11 @@ An invalid HTTP header value was specified.
 ### `ERR_HTTP_INVALID_STATUS_CODE`
 
 Status code was outside the regular status code range (100-999).
+
+<a id="ERR_HTTP_REQUEST_TIMEOUT"></a>
+### `ERR_HTTP_REQUEST_TIMEOUT`
+
+The client has not sent the entire request within the allowed time.
 
 <a id="ERR_HTTP_SOCKET_ENCODING"></a>
 ### `ERR_HTTP_SOCKET_ENCODING`
@@ -1010,6 +1010,12 @@ A non-specific HTTP/2 error has occurred.
 New HTTP/2 Streams may not be opened after the `Http2Session` has received a
 `GOAWAY` frame from the connected peer.
 
+<a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
+### `ERR_HTTP2_HEADER_SINGLE_VALUE`
+
+Multiple values were provided for an HTTP/2 header field that was required to
+have only a single value.
+
 <a id="ERR_HTTP2_HEADERS_AFTER_RESPOND"></a>
 ### `ERR_HTTP2_HEADERS_AFTER_RESPOND`
 
@@ -1019,12 +1025,6 @@ An additional headers was specified after an HTTP/2 response was initiated.
 ### `ERR_HTTP2_HEADERS_SENT`
 
 An attempt was made to send multiple response headers.
-
-<a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
-### `ERR_HTTP2_HEADER_SINGLE_VALUE`
-
-Multiple values were provided for an HTTP/2 header field that was required to
-have only a single value.
 
 <a id="ERR_HTTP2_INFO_STATUS_NOT_ALLOWED"></a>
 ### `ERR_HTTP2_INFO_STATUS_NOT_ALLOWED`
@@ -1226,12 +1226,6 @@ is set for the `Http2Stream`.
 `http2.connect()` was passed a URL that uses any protocol other than `http:` or
 `https:`.
 
-<a id="ERR_INTERNAL_ASSERTION"></a>
-### `ERR_INTERNAL_ASSERTION`
-
-There was a bug in Node.js or incorrect usage of Node.js internals.
-To fix the error, open an issue at <https://github.com/nodejs/node/issues>.
-
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 ### `ERR_INCOMPATIBLE_OPTION_PAIR`
 
@@ -1291,6 +1285,12 @@ before it was connected.
 
 An API was called on the main thread that can only be used from
 the worker thread.
+
+<a id="ERR_INTERNAL_ASSERTION"></a>
+### `ERR_INTERNAL_ASSERTION`
+
+There was a bug in Node.js or incorrect usage of Node.js internals.
+To fix the error, open an issue at <https://github.com/nodejs/node/issues>.
 
 <a id="ERR_INVALID_ADDRESS_FAMILY"></a>
 ### `ERR_INVALID_ADDRESS_FAMILY`
@@ -1609,6 +1609,18 @@ strict compliance with the API specification (which in some cases may accept
 For APIs that accept options objects, some options might be mandatory. This code
 is thrown if a required option is missing.
 
+<a id="ERR_MISSING_PASSPHRASE"></a>
+### `ERR_MISSING_PASSPHRASE`
+
+An attempt was made to read an encrypted key without specifying a passphrase.
+
+<a id="ERR_MISSING_PLATFORM_FOR_WORKER"></a>
+### `ERR_MISSING_PLATFORM_FOR_WORKER`
+
+The V8 platform used by this instance of Node.js does not support creating
+Workers. This is caused by lack of embedder support for Workers. In particular,
+this error will not occur with standard builds of Node.js.
+
 <a id="ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST"></a>
 ### `ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`
 <!-- YAML
@@ -1623,18 +1635,6 @@ In Node.js versions prior to REPLACEME, the error code being used here was
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][]. However, the set of
 transferable object types has been expanded to cover more types than
 `MessagePort`.
-
-<a id="ERR_MISSING_PASSPHRASE"></a>
-### `ERR_MISSING_PASSPHRASE`
-
-An attempt was made to read an encrypted key without specifying a passphrase.
-
-<a id="ERR_MISSING_PLATFORM_FOR_WORKER"></a>
-### `ERR_MISSING_PLATFORM_FOR_WORKER`
-
-The V8 platform used by this instance of Node.js does not support creating
-Workers. This is caused by lack of embedder support for Workers. In particular,
-this error will not occur with standard builds of Node.js.
 
 <a id="ERR_MODULE_NOT_FOUND"></a>
 ### `ERR_MODULE_NOT_FOUND`
@@ -1862,6 +1862,12 @@ A string was provided for a Subresource Integrity check, but was unable to be
 parsed. Check the format of integrity attributes by looking at the
 [Subresource Integrity specification][].
 
+<a id="ERR_STREAM_ALREADY_FINISHED"></a>
+### `ERR_STREAM_ALREADY_FINISHED`
+
+A stream method was called that cannot complete because the stream was
+finished.
+
 <a id="ERR_STREAM_CANNOT_PIPE"></a>
 ### `ERR_STREAM_CANNOT_PIPE`
 
@@ -1872,12 +1878,6 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
-
-<a id="ERR_STREAM_ALREADY_FINISHED"></a>
-### `ERR_STREAM_ALREADY_FINISHED`
-
-A stream method was called that cannot complete because the stream was
-finished.
 
 <a id="ERR_STREAM_NULL_VALUES"></a>
 ### `ERR_STREAM_NULL_VALUES`
@@ -1968,17 +1968,6 @@ added: v13.3.0
 
 The context must be a `SecureContext`.
 
-<a id="ERR_TLS_INVALID_STATE"></a>
-### `ERR_TLS_INVALID_STATE`
-<!-- YAML
-added:
- - v13.10.0
- - v12.17.0
--->
-
-The TLS socket must be connected and securily established. Ensure the 'secure'
-event is emitted before continuing.
-
 <a id="ERR_TLS_INVALID_PROTOCOL_METHOD"></a>
 ### `ERR_TLS_INVALID_PROTOCOL_METHOD`
 
@@ -1990,11 +1979,27 @@ disabled because it is insecure.
 
 Valid TLS protocol versions are `'TLSv1'`, `'TLSv1.1'`, or `'TLSv1.2'`.
 
+<a id="ERR_TLS_INVALID_STATE"></a>
+### `ERR_TLS_INVALID_STATE`
+<!-- YAML
+added:
+ - v13.10.0
+ - v12.17.0
+-->
+
+The TLS socket must be connected and securily established. Ensure the 'secure'
+event is emitted before continuing.
+
 <a id="ERR_TLS_PROTOCOL_VERSION_CONFLICT"></a>
 ### `ERR_TLS_PROTOCOL_VERSION_CONFLICT`
 
 Attempting to set a TLS protocol `minVersion` or `maxVersion` conflicts with an
 attempt to set the `secureProtocol` explicitly. Use one mechanism or the other.
+
+<a id="ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED"></a>
+### `ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED`
+
+Failed to set PSK identity hint. Hint may be too long.
 
 <a id="ERR_TLS_RENEGOTIATION_DISABLED"></a>
 ### `ERR_TLS_RENEGOTIATION_DISABLED`
@@ -2018,11 +2023,6 @@ vector for denial-of-service attacks.
 
 An attempt was made to issue Server Name Indication from a TLS server-side
 socket, which is only valid from a client.
-
-<a id="ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED"></a>
-### `ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED`
-
-Failed to set PSK identity hint. Hint may be too long.
 
 <a id="ERR_TRACE_EVENTS_CATEGORY_REQUIRED"></a>
 ### `ERR_TRACE_EVENTS_CATEGORY_REQUIRED`
