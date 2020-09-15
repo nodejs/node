@@ -217,20 +217,20 @@ fn1(); // Emits a deprecation warning with code DEP0001
 fn2(); // Does not emit a deprecation warning because it has the same code
 ```
 
-If either the `--no-deprecation` or `--no-warnings` command line flags are
+If either the `--no-deprecation` or `--no-warnings` command-line flags are
 used, or if the `process.noDeprecation` property is set to `true` *prior* to
 the first deprecation warning, the `util.deprecate()` method does nothing.
 
-If the `--trace-deprecation` or `--trace-warnings` command line flags are set,
+If the `--trace-deprecation` or `--trace-warnings` command-line flags are set,
 or the `process.traceDeprecation` property is set to `true`, a warning and a
 stack trace are printed to `stderr` the first time the deprecated function is
 called.
 
-If the `--throw-deprecation` command line flag is set, or the
+If the `--throw-deprecation` command-line flag is set, or the
 `process.throwDeprecation` property is set to `true`, then an exception will be
 thrown when the deprecated function is called.
 
-The `--throw-deprecation` command line flag and `process.throwDeprecation`
+The `--throw-deprecation` command-line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
