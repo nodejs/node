@@ -64,7 +64,8 @@ for pr in "$@"; do
   if ! tail -n 10 output | grep '. Post "Landed in .*/pull/'"${pr}"; then
     gitHubCurl "$(labelsUrl "$pr")" POST --data '{"labels": ["'"${COMMIT_QUEUE_FAILED_LABEL}"'"]}'
 
-    jq -n --arg content "<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre></details>" '{body: $content}' > output.json
+    cqurl="Commit Queue action: $GITHUB_SERVER_URL/${OWNER}/${REPOSITORY}/actions/runs/$GITHUB_RUN_ID"
+    jq -n --arg content "<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre></details>\n$cqurl" '{body: $content}' > output.json
     cat output.json
 
     gitHubCurl "$(commentsUrl "$pr")" POST --data @output.json
