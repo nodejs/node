@@ -1262,8 +1262,10 @@ class Heap {
   // Heap object allocation tracking. ==========================================
   // ===========================================================================
 
-  void AddHeapObjectAllocationTracker(HeapObjectAllocationTracker* tracker);
-  void RemoveHeapObjectAllocationTracker(HeapObjectAllocationTracker* tracker);
+  V8_EXPORT_PRIVATE void AddHeapObjectAllocationTracker(
+      HeapObjectAllocationTracker* tracker);
+  V8_EXPORT_PRIVATE void RemoveHeapObjectAllocationTracker(
+      HeapObjectAllocationTracker* tracker);
   bool has_heap_object_allocation_tracker() const {
     return !allocation_trackers_.empty();
   }
