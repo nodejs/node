@@ -355,7 +355,7 @@ emitter.once('event', () => {
 });
 ```
 
-The [`--trace-warnings`][] command line flag can be used to display the
+The [`--trace-warnings`][] command-line flag can be used to display the
 stack trace for such warnings.
 
 The emitted warning can be inspected with [`process.on('warning')`][] and will

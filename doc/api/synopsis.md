@@ -7,7 +7,7 @@
 
 `node [options] [V8 options] [script.js | -e "script" | - ] [arguments]`
 
-Please see the [Command Line Options][] document for more information.
+Please see the [Command-line options][] document for more information.
 
 ## Example
 An example of a [web server][] written with Node.js which responds with
@@ -86,6 +86,6 @@ Now, open any preferred web browser and visit `http://127.0.0.1:3000`.
 If the browser displays the string `Hello, World!`, that indicates
 the server is working.
 
-[Command Line Options]: cli.html#cli_command_line_options
+[Command-line options]: cli.html#cli_command_line_options
 [this guide]: https://nodejs.org/en/download/package-manager/
 [web server]: http.html

@@ -3242,12 +3242,12 @@ if `size` is less than or equal to half [`Buffer.poolSize`][]. Instances
 returned by [`Buffer.allocUnsafeSlow()`][] *never* use the shared internal
 memory pool.
 
-### The `--zero-fill-buffers` command line option
+### The `--zero-fill-buffers` command-line option
 <!-- YAML
 added: v5.10.0
 -->
 
-Node.js can be started using the `--zero-fill-buffers` command line option to
+Node.js can be started using the `--zero-fill-buffers` command-line option to
 cause all newly-allocated `Buffer` instances to be zero-filled upon creation by
 default. Without the option, buffers created with [`Buffer.allocUnsafe()`][],
 [`Buffer.allocUnsafeSlow()`][], and `new SlowBuffer(size)` are not zero-filled.

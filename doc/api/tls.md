@@ -308,10 +308,10 @@ HIGH
 !CAMELLIA
 ```
 
-This default can be replaced entirely using the [`--tls-cipher-list`][] command
-line switch (directly, or via the [`NODE_OPTIONS`][] environment variable). For
-instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS
-cipher suite:
+This default can be replaced entirely using the [`--tls-cipher-list`][]
+command-line switch (directly, or via the [`NODE_OPTIONS`][] environment
+variable). For instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4`
+the default TLS cipher suite:
 
 ```bash
 node --tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4' server.js

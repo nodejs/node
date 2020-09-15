@@ -18,7 +18,7 @@
 * [C++ embedder API](embedding.html)
 * [Child processes](child_process.html)
 * [Cluster](cluster.html)
-* [Command line options](cli.html)
+* [Command-line options](cli.html)
 * [Console](console.html)
 * [Crypto](crypto.html)
 * [Debugger](debugger.html)
