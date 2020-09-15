@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // A non-callable reject function throws eagerly
-
+var log = [];
 var p = new Promise(function(resolve, reject) {
   log.push("resolve");
   resolve();

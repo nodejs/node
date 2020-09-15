@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/memory-allocator.h"
 #include "src/heap/spaces.h"
 #include "src/libsampler/sampler.h"
 #include "test/cctest/cctest.h"
@@ -97,9 +98,9 @@ TEST(CodeRangeCorrectContents) {
   // We should only have the code range and the embedded code range.
   CHECK_EQ(2, pages->size());
   CHECK(PagesHasExactPage(pages, code_range.begin(), code_range.size()));
-  CHECK(PagesHasExactPage(pages,
-                          reinterpret_cast<Address>(i_isolate->embedded_blob()),
-                          i_isolate->embedded_blob_size()));
+  CHECK(PagesHasExactPage(
+      pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
+      i_isolate->embedded_blob_code_size()));
 }
 
 TEST(CodePagesCorrectContents) {
@@ -119,9 +120,9 @@ TEST(CodePagesCorrectContents) {
 
   // We should have the embedded code range even when there is no regular code
   // range.
-  CHECK(PagesHasExactPage(pages,
-                          reinterpret_cast<Address>(i_isolate->embedded_blob()),
-                          i_isolate->embedded_blob_size()));
+  CHECK(PagesHasExactPage(
+      pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
+      i_isolate->embedded_blob_code_size()));
 }
 
 TEST(OptimizedCodeWithCodeRange) {
@@ -281,7 +282,7 @@ TEST(LargeCodeObject) {
   {
     HandleScope scope(i_isolate);
     Handle<Code> foo_code =
-        Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+        Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
 
     CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
 
@@ -406,7 +407,7 @@ TEST(LargeCodeObjectWithSignalHandler) {
   {
     HandleScope scope(i_isolate);
     Handle<Code> foo_code =
-        Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+        Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
 
     CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
 
@@ -481,7 +482,8 @@ TEST(Sorted) {
     Handle<Code> code1, code3;
     Address code2_address;
 
-    code1 = Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+    code1 =
+        Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
     CHECK(i_isolate->heap()->InSpace(*code1, CODE_LO_SPACE));
 
     {
@@ -490,10 +492,11 @@ TEST(Sorted) {
       // Create three large code objects, we'll delete the middle one and check
       // everything is still sorted.
       Handle<Code> code2 =
-          Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+          Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION)
+              .Build();
       CHECK(i_isolate->heap()->InSpace(*code2, CODE_LO_SPACE));
-      code3 =
-          Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+      code3 = Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION)
+                  .Build();
       CHECK(i_isolate->heap()->InSpace(*code3, CODE_LO_SPACE));
 
       code2_address = code2->address();

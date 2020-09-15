@@ -52,9 +52,7 @@ class BitField final {
 
   // Returns a type U with the bit field value encoded.
   static constexpr U encode(T value) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(is_valid(value));
-#endif
+    CONSTEXPR_DCHECK(is_valid(value));
     return static_cast<U>(value) << kShift;
   }
 

@@ -50,12 +50,14 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
                              Handle<String> source) override;
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-  void NativeContextMoveEvent(Address from, Address to) override;
   void CodeMovingGCEvent() override {}
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta) override;
+                      int fp_to_sp_delta, bool reuse_code) override;
+  void CodeDependencyChangeEvent(Handle<Code> code,
+                                 Handle<SharedFunctionInfo> sfi,
+                                 const char* reason) override {}
 
   const char* GetName(Name name) {
     return function_and_resource_names_.GetName(name);

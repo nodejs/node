@@ -233,7 +233,8 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
 
   Handle<ScriptContextTable> new_script_context_table =
       ScriptContextTable::Extend(script_context, result);
-  native_context->set_script_context_table(*new_script_context_table);
+  native_context->synchronized_set_script_context_table(
+      *new_script_context_table);
   return result;
 }
 

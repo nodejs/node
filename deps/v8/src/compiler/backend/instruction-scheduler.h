@@ -13,7 +13,7 @@ namespace v8 {
 
 namespace base {
 class RandomNumberGenerator;
-}
+}  // namespace base
 
 namespace internal {
 namespace compiler {

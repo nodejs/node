@@ -40,9 +40,8 @@ local FLAGS = {
    -- Print commands to console before executing them.
    verbose = false;
 
-   -- Perform dead variable analysis (generates many false positives).
-   -- TODO add some sort of whiteliste to filter out false positives.
-   dead_vars = false;
+   -- Perform dead variable analysis.
+   dead_vars = true;
 
    -- Enable verbose tracing from the plugin itself.
    verbose_trace = false;
@@ -322,6 +321,7 @@ local WHITELIST = {
 
    -- CodeCreateEvent receives AbstractCode (a raw ptr) as an argument.
    "CodeCreateEvent",
+   "WriteField",
 };
 
 local function AddCause(name, cause)
@@ -477,6 +477,17 @@ local function SafeCheckCorrectnessForArch(arch, for_test)
    return errors, output
 end
 
+-- Source: https://stackoverflow.com/a/41515925/1540248
+local function StringDifference(str1,str2)
+   for i = 1,#str1 do -- Loop over strings
+         -- If that character is not equal to its counterpart
+         if str1:sub(i,i) ~= str2:sub(i,i) then
+            return i --Return that index
+         end
+   end
+   return #str1+1 -- Return the index after where the shorter one ends as fallback.
+end
+
 local function TestRun()
    local errors, output = SafeCheckCorrectnessForArch('x64', true)
    if not errors then
@@ -491,6 +502,16 @@ local function TestRun()
 
    if output ~= expectations then
       log("** Output mismatch from running tests. Please run them manually.")
+      local idx = StringDifference(output, expectations)
+
+      log("Difference at byte "..idx)
+      log("Expected: "..expectations:sub(idx-10,idx+10))
+      log("Actual: "..output:sub(idx-10,idx+10))
+
+      log("--- Full output ---")
+      log(output)
+      log("------")
+
       return false
    end
 

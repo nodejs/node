@@ -5,5 +5,5 @@
 // Flags: --random-seed=-1101427159 --enable-slow-asserts --expose-wasm
 
 (function __f_7() {
-  assertThrows(() => new WebAssembly.Memory({initial: 59199}), RangeError);
+  assertThrows(() => new WebAssembly.Memory({initial: 79199}), RangeError);
 })();

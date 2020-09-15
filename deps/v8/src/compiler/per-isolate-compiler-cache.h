@@ -37,7 +37,7 @@ class PerIsolateCompilerCache : public ZoneObject {
   void SetSnapshot(RefsMap* refs) {
     DCHECK(!HasSnapshot());
     DCHECK(!refs->IsEmpty());
-    refs_snapshot_ = new (zone_) RefsMap(refs, zone_);
+    refs_snapshot_ = zone_->New<RefsMap>(refs, zone_);
     DCHECK(HasSnapshot());
   }
 
@@ -46,7 +46,7 @@ class PerIsolateCompilerCache : public ZoneObject {
   static void Setup(Isolate* isolate) {
     if (isolate->compiler_cache() == nullptr) {
       Zone* zone = new Zone(isolate->allocator(), "Compiler zone");
-      PerIsolateCompilerCache* cache = new (zone) PerIsolateCompilerCache(zone);
+      PerIsolateCompilerCache* cache = zone->New<PerIsolateCompilerCache>(zone);
       isolate->set_compiler_utils(cache, zone);
     }
     DCHECK_NOT_NULL(isolate->compiler_cache());

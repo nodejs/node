@@ -13,10 +13,13 @@
 #include "src/base/bits.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/constants-table-builder.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
@@ -54,6 +57,7 @@
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/stack-frame-info-inl.h"
+#include "src/objects/string-set-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -83,7 +87,7 @@ int ComputeCodeObjectSize(const CodeDesc& desc) {
 }  // namespace
 
 Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
-                                  Code::Kind kind)
+                                  CodeKind kind)
     : isolate_(isolate),
       code_desc_(desc),
       kind_(kind),
@@ -116,6 +120,22 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         0, read_only_data_container_ ? AllocationType::kReadOnly
                                      : AllocationType::kOld);
     data_container->set_kind_specific_flags(kind_specific_flags_);
+  }
+
+  // Basic block profiling data for builtins is stored in the JS heap rather
+  // than in separately-allocated C++ objects. Allocate that data now if
+  // appropriate.
+  Handle<OnHeapBasicBlockProfilerData> on_heap_profiler_data;
+  if (profiler_data_ && isolate_->IsGeneratingEmbeddedBuiltins()) {
+    on_heap_profiler_data = profiler_data_->CopyToJSHeap(isolate_);
+
+    // Add the on-heap data to a global list, which keeps it alive and allows
+    // iteration.
+    Handle<ArrayList> list(isolate_->heap()->basic_block_profiling_data(),
+                           isolate_);
+    Handle<ArrayList> new_list =
+        ArrayList::Add(isolate_, list, on_heap_profiler_data);
+    isolate_->heap()->SetBasicBlockProfilingData(new_list);
   }
 
   Handle<Code> code;
@@ -189,6 +209,14 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       *(self_reference.location()) = code->ptr();
     }
 
+    // Likewise, any references to the basic block counters marker need to be
+    // updated to point to the newly-allocated counters array.
+    if (!on_heap_profiler_data.is_null()) {
+      isolate_->builtins_constants_table_builder()
+          ->PatchBasicBlockCountersReference(
+              handle(on_heap_profiler_data->counts(), isolate_));
+    }
+
     // Migrate generated code.
     // The generated code can contain embedded objects (typically from handles)
     // in a pointer-to-tagged-value format (i.e. with indirection like a handle)
@@ -209,6 +237,21 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // cache flush instructions to trigger access error on non-writable memory.
     // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
     code->FlushICache();
+  }
+
+  if (profiler_data_ && FLAG_turbo_profiling_verbose) {
+#ifdef ENABLE_DISASSEMBLER
+    std::ostringstream os;
+    code->Disassemble(nullptr, os, isolate_);
+    if (!on_heap_profiler_data.is_null()) {
+      Handle<String> disassembly =
+          isolate_->factory()->NewStringFromAsciiChecked(os.str().c_str(),
+                                                         AllocationType::kOld);
+      on_heap_profiler_data->set_code(*disassembly);
+    } else {
+      profiler_data_->SetCode(os);
+    }
+#endif  // ENABLE_DISASSEMBLER
   }
 
   return code;
@@ -325,6 +368,13 @@ Handle<Oddball> Factory::NewSelfReferenceMarker() {
                     Oddball::kSelfReferenceMarker);
 }
 
+Handle<Oddball> Factory::NewBasicBlockCountersMarker() {
+  return NewOddball(basic_block_counters_marker_map(),
+                    "basic_block_counters_marker",
+                    handle(Smi::FromInt(-1), isolate()), "undefined",
+                    Oddball::kBasicBlockCountersMarker);
+}
+
 Handle<PropertyArray> Factory::NewPropertyArray(int length) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_property_array();
@@ -347,7 +397,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
   HeapObject result;
   if (!allocation.To(&result)) return MaybeHandle<FixedArray>();
   if (size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
+    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(result);
     chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
   }
   result.set_map_after_allocation(*fixed_array_map(), SKIP_WRITE_BARRIER);
@@ -532,20 +582,6 @@ Handle<String> Factory::InternalizeUtf8String(
       Vector<const uc16>(buffer.get(), decoder.utf16_length()));
 }
 
-Handle<String> Factory::InternalizeString(Vector<const uint8_t> string,
-                                          bool convert_encoding) {
-  SequentialStringKey<uint8_t> key(string, HashSeed(isolate()),
-                                   convert_encoding);
-  return InternalizeStringWithKey(&key);
-}
-
-Handle<String> Factory::InternalizeString(Vector<const uint16_t> string,
-                                          bool convert_encoding) {
-  SequentialStringKey<uint16_t> key(string, HashSeed(isolate()),
-                                    convert_encoding);
-  return InternalizeStringWithKey(&key);
-}
-
 template <typename SeqString>
 Handle<String> Factory::InternalizeString(Handle<SeqString> string, int from,
                                           int length, bool convert_encoding) {
@@ -560,15 +596,6 @@ template Handle<String> Factory::InternalizeString(
 template Handle<String> Factory::InternalizeString(
     Handle<SeqTwoByteString> string, int from, int length,
     bool convert_encoding);
-
-template <class StringTableKey>
-Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
-  return StringTable::LookupKey(isolate(), key);
-}
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> Factory::InternalizeStringWithKey(OneByteStringKey* key);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> Factory::InternalizeStringWithKey(TwoByteStringKey* key);
 
 MaybeHandle<String> Factory::NewStringFromOneByte(
     const Vector<const uint8_t>& string, AllocationType allocation) {
@@ -837,15 +864,6 @@ Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
   return InternalizeString(Vector<const uint16_t>(buffer, 1));
 }
 
-Handle<String> Factory::MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2) {
-  if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
-    uint8_t buffer[] = {static_cast<uint8_t>(c1), static_cast<uint8_t>(c2)};
-    return InternalizeString(Vector<const uint8_t>(buffer, 2));
-  }
-  uint16_t buffer[] = {c1, c2};
-  return InternalizeString(Vector<const uint16_t>(buffer, 2));
-}
-
 Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
   DCHECK_GE(lead, 0xD800);
   DCHECK_LE(lead, 0xDBFF);
@@ -1075,7 +1093,7 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
   Handle<ScriptContextTable> context_table = Handle<ScriptContextTable>::cast(
       NewFixedArrayWithMap(read_only_roots().script_context_table_map_handle(),
                            ScriptContextTable::kMinLength));
-  context_table->set_used(0);
+  context_table->synchronized_set_used(0);
   return context_table;
 }
 
@@ -1136,8 +1154,8 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                                  Handle<ScopeInfo> scope_info,
                                                  Handle<JSReceiver> extension,
                                                  Handle<Context> wrapped,
-                                                 Handle<StringSet> blacklist) {
-  STATIC_ASSERT(Context::BLACK_LIST_INDEX ==
+                                                 Handle<StringSet> blocklist) {
+  STATIC_ASSERT(Context::BLOCK_LIST_INDEX ==
                 Context::MIN_CONTEXT_EXTENDED_SLOTS + 1);
   DCHECK(scope_info->IsDebugEvaluateScope());
   Handle<HeapObject> ext = extension.is_null()
@@ -1152,7 +1170,7 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
   c->set_previous(*previous);
   c->set_extension(*ext);
   if (!wrapped.is_null()) c->set(Context::WRAPPED_CONTEXT_INDEX, *wrapped);
-  if (!blacklist.is_null()) c->set(Context::BLACK_LIST_INDEX, *blacklist);
+  if (!blocklist.is_null()) c->set(Context::BLOCK_LIST_INDEX, *blocklist);
   return c;
 }
 
@@ -1297,6 +1315,19 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
   Handle<Foreign> foreign(Foreign::cast(result), isolate());
   foreign->set_foreign_address(isolate(), addr);
   return foreign;
+}
+
+Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
+                                              Handle<Map> parent) {
+  Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
+  Map map = *wasm_type_info_map();
+  HeapObject result = AllocateRawWithImmortalMap(map.instance_size(),
+                                                 AllocationType::kYoung, map);
+  Handle<WasmTypeInfo> info(WasmTypeInfo::cast(result), isolate());
+  info->set_foreign_address(isolate(), type_address);
+  info->set_parent(*parent);
+  info->set_subtypes(*subtypes);
+  return info;
 }
 
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
@@ -1484,11 +1515,16 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
   DCHECK(Heap::InYoungGeneration(raw_clone) || FLAG_single_generation);
 
-  // Since we know the clone is allocated in new space, we can copy
-  // the contents without worrying about updating the write barrier.
   Heap::CopyBlock(raw_clone.address(), source->address(), object_size);
   Handle<JSObject> clone(JSObject::cast(raw_clone), isolate());
 
+  if (FLAG_enable_unconditional_write_barriers) {
+    // By default, we shouldn't need to update the write barrier here, as the
+    // clone will be allocated in new space.
+    const ObjectSlot start(raw_clone.address());
+    const ObjectSlot end(raw_clone.address() + object_size);
+    isolate()->heap()->WriteBarrierForRange(raw_clone, start, end);
+  }
   if (!site.is_null()) {
     AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
         Object(raw_clone.ptr() + object_size));
@@ -1791,10 +1827,13 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   Handle<JSFunction> function(JSFunction::cast(New(map, allocation)),
                               isolate());
 
+  Handle<Code> code;
+  bool have_cached_code = info->TryGetCachedCode(isolate()).ToHandle(&code);
+
   function->initialize_properties(isolate());
   function->initialize_elements();
   function->set_shared(*info);
-  function->set_code(info->GetCode());
+  function->set_code(have_cached_code ? *code : info->GetCode());
   function->set_context(*context);
   function->set_raw_feedback_cell(*many_closures_cell());
   int header_size;
@@ -1805,6 +1844,13 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
     header_size = JSFunction::kSizeWithoutPrototype;
   }
   InitializeJSObjectBody(function, map, header_size);
+
+  if (have_cached_code) {
+    IsCompiledScope is_compiled_scope(info->is_compiled_scope(isolate()));
+    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(info, code);
+  }
+
   return function;
 }
 
@@ -1845,14 +1891,6 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
         // bootstrapping.
         (args.maybe_builtin_id_ == Builtins::kEmptyFunction ||
          args.maybe_builtin_id_ == Builtins::kProxyConstructor));
-  } else {
-    DCHECK(
-        (*map == *isolate()->sloppy_function_map()) ||
-        (*map == *isolate()->sloppy_function_without_prototype_map()) ||
-        (*map == *isolate()->sloppy_function_with_readonly_prototype_map()) ||
-        (*map == *isolate()->strict_function_map()) ||
-        (*map == *isolate()->strict_function_without_prototype_map()) ||
-        (*map == *isolate()->wasm_exported_function_map()));
   }
 #endif
 
@@ -1930,17 +1968,6 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   }
 
   return prototype;
-}
-
-Handle<WeakCell> Factory::NewWeakCell() {
-  // Allocate the WeakCell object in the old space, because 1) WeakCell weakness
-  // handling is only implemented in the old space 2) they're supposedly
-  // long-living. TODO(marja, gsathya): Support WeakCells in Scavenger.
-  Handle<WeakCell> result(
-      WeakCell::cast(AllocateRawWithImmortalMap(
-          WeakCell::kSize, AllocationType::kOld, *weak_cell_map())),
-      isolate());
-  return result;
 }
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
@@ -2028,8 +2055,8 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(
 
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
                                               Address off_heap_entry) {
-  CHECK_NOT_NULL(isolate()->embedded_blob());
-  CHECK_NE(0, isolate()->embedded_blob_size());
+  CHECK_NOT_NULL(isolate()->embedded_blob_code());
+  CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
   bool generate_jump_to_instruction_stream =
@@ -2135,7 +2162,8 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
       bytecode_array->incoming_new_target_or_generator_register());
   copy->set_constant_pool(bytecode_array->constant_pool());
   copy->set_handler_table(bytecode_array->handler_table());
-  copy->set_source_position_table(bytecode_array->source_position_table());
+  copy->set_synchronized_source_position_table(
+      bytecode_array->synchronized_source_position_table());
   copy->set_osr_loop_nesting_level(bytecode_array->osr_loop_nesting_level());
   copy->set_bytecode_age(bytecode_array->bytecode_age());
   bytecode_array->CopyBytecodesTo(*copy);
@@ -2438,13 +2466,6 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
          map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
   return Handle<JSGeneratorObject>::cast(NewJSObjectFromMap(map));
-}
-
-Handle<WasmStruct> Factory::NewWasmStruct(Handle<Map> map) {
-  int size = map->instance_size();
-  HeapObject result = AllocateRaw(size, AllocationType::kYoung);
-  result.set_map_after_allocation(*map);
-  return handle(WasmStruct::cast(result), isolate());
 }
 
 Handle<SourceTextModule> Factory::NewSourceTextModule(
@@ -2773,7 +2794,7 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   map->set_may_have_interesting_symbols(true);
   LOG(isolate(), MapDetails(*map));
   Handle<JSGlobalProxy> proxy = Handle<JSGlobalProxy>::cast(
-      NewJSObjectFromMap(map, AllocationType::kYoung));
+      NewJSObjectFromMap(map, AllocationType::kOld));
   // Create identity hash early in case there is any JS collection containing
   // a global proxy key and needs to be rehashed after deserialization.
   proxy->GetOrCreateIdentityHash(isolate());
@@ -2898,7 +2919,8 @@ V8_INLINE Handle<String> CharToString(Factory* factory, const char* string,
 
 void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
                                      Handle<String> js_string) {
-  if (!number_string_cache()->get(hash * 2).IsUndefined(isolate())) {
+  if (!number_string_cache()->get(hash * 2).IsUndefined(isolate()) &&
+      !FLAG_optimize_for_size) {
     int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
     if (number_string_cache()->length() != full_size) {
       Handle<FixedArray> new_cache =
@@ -3078,9 +3100,6 @@ Handle<StackTraceFrame> Factory::NewStackTraceFrame(
   frame->set_frame_index(index);
   frame->set_frame_info(*undefined_value());
 
-  int id = isolate()->last_stack_frame_info_id() + 1;
-  isolate()->set_last_stack_frame_info_id(id);
-  frame->set_id(id);
   return frame;
 }
 
@@ -3104,7 +3123,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   // TODO(szuend): Adjust this, once it is decided what name to use in both
   //               "simple" and "detailed" stack traces. This code is for
   //               backwards compatibility to fullfill test expectations.
-  auto function_name = frame->GetFunctionName();
+  Handle<PrimitiveHeapObject> function_name = frame->GetFunctionName();
   bool is_user_java_script = false;
   if (!is_wasm) {
     Handle<Object> function = frame->GetFunction();
@@ -3115,11 +3134,11 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     }
   }
 
-  Handle<Object> method_name = undefined_value();
-  Handle<Object> type_name = undefined_value();
-  Handle<Object> eval_origin = frame->GetEvalOrigin();
-  Handle<Object> wasm_module_name = frame->GetWasmModuleName();
-  Handle<Object> wasm_instance = frame->GetWasmInstance();
+  Handle<PrimitiveHeapObject> method_name = undefined_value();
+  Handle<PrimitiveHeapObject> type_name = undefined_value();
+  Handle<PrimitiveHeapObject> eval_origin = frame->GetEvalOrigin();
+  Handle<PrimitiveHeapObject> wasm_module_name = frame->GetWasmModuleName();
+  Handle<HeapObject> wasm_instance = frame->GetWasmInstance();
 
   // MethodName and TypeName are expensive to look up, so they are only
   // included when they are strictly needed by the stack trace
@@ -3163,7 +3182,8 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   info->set_is_toplevel(is_toplevel);
   info->set_is_async(frame->IsAsync());
   info->set_is_promise_all(frame->IsPromiseAll());
-  info->set_promise_all_index(frame->GetPromiseIndex());
+  info->set_is_promise_any(frame->IsPromiseAny());
+  info->set_promise_combinator_index(frame->GetPromiseIndex());
 
   return info;
 }
@@ -3272,12 +3292,11 @@ Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
   return handle(StoreHandler::cast(New(map, AllocationType::kOld)), isolate());
 }
 
-void Factory::SetRegExpAtomData(Handle<JSRegExp> regexp, JSRegExp::Type type,
-                                Handle<String> source, JSRegExp::Flags flags,
-                                Handle<Object> data) {
+void Factory::SetRegExpAtomData(Handle<JSRegExp> regexp, Handle<String> source,
+                                JSRegExp::Flags flags, Handle<Object> data) {
   Handle<FixedArray> store = NewFixedArray(JSRegExp::kAtomDataSize);
 
-  store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
+  store->set(JSRegExp::kTagIndex, Smi::FromInt(JSRegExp::ATOM));
   store->set(JSRegExp::kSourceIndex, *source);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
   store->set(JSRegExp::kAtomPatternIndex, *data);
@@ -3285,7 +3304,7 @@ void Factory::SetRegExpAtomData(Handle<JSRegExp> regexp, JSRegExp::Type type,
 }
 
 void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
-                                    JSRegExp::Type type, Handle<String> source,
+                                    Handle<String> source,
                                     JSRegExp::Flags flags, int capture_count,
                                     uint32_t backtrack_limit) {
   DCHECK(Smi::IsValid(backtrack_limit));
@@ -3294,7 +3313,7 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   Smi ticks_until_tier_up = FLAG_regexp_tier_up
                                 ? Smi::FromInt(FLAG_regexp_tier_up_ticks)
                                 : uninitialized;
-  store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
+  store->set(JSRegExp::kTagIndex, Smi::FromInt(JSRegExp::IRREGEXP));
   store->set(JSRegExp::kSourceIndex, *source);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
   store->set(JSRegExp::kIrregexpLatin1CodeIndex, uninitialized);
@@ -3306,6 +3325,28 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
   store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, ticks_until_tier_up);
   store->set(JSRegExp::kIrregexpBacktrackLimit, Smi::FromInt(backtrack_limit));
+  regexp->set_data(*store);
+}
+
+void Factory::SetRegExpExperimentalData(Handle<JSRegExp> regexp,
+                                        Handle<String> source,
+                                        JSRegExp::Flags flags,
+                                        int capture_count) {
+  Handle<FixedArray> store = NewFixedArray(JSRegExp::kExperimentalDataSize);
+  Smi uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
+
+  store->set(JSRegExp::kTagIndex, Smi::FromInt(JSRegExp::EXPERIMENTAL));
+  store->set(JSRegExp::kSourceIndex, *source);
+  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
+  store->set(JSRegExp::kIrregexpLatin1CodeIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpUC16CodeIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpLatin1BytecodeIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpUC16BytecodeIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpCaptureCountIndex, Smi::FromInt(capture_count));
+  store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpBacktrackLimit, uninitialized);
   regexp->set_data(*store);
 }
 

@@ -227,6 +227,7 @@ void SamplerManager::RemoveSampler(Sampler* sampler) {
 
 void SamplerManager::DoSample(const v8::RegisterState& state) {
   AtomicGuard atomic_guard(&samplers_access_counter_, false);
+  // TODO(petermarshall): Add stat counters for the bailouts here.
   if (!atomic_guard.is_success()) return;
   pthread_t thread_id = pthread_self();
   auto it = sampler_map_.find(thread_id);
@@ -468,7 +469,14 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->pc = reinterpret_cast<void*>(mcontext->__ss.__eip);
   state->sp = reinterpret_cast<void*>(mcontext->__ss.__esp);
   state->fp = reinterpret_cast<void*>(mcontext->__ss.__ebp);
-#endif  // V8_HOST_ARCH_IA32
+#elif V8_HOST_ARCH_ARM64
+  state->pc =
+      reinterpret_cast<void*>(arm_thread_state64_get_pc(mcontext->__ss));
+  state->sp =
+      reinterpret_cast<void*>(arm_thread_state64_get_sp(mcontext->__ss));
+  state->fp =
+      reinterpret_cast<void*>(arm_thread_state64_get_fp(mcontext->__ss));
+#endif  // V8_HOST_ARCH_*
 #elif V8_OS_FREEBSD
 #if V8_HOST_ARCH_IA32
   state->pc = reinterpret_cast<void*>(mcontext.mc_eip);

@@ -33,6 +33,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
   void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,
+                                       bool unicode,
                                        Label* on_no_match) override;
   void CheckNotCharacter(unsigned c, Label* on_not_equal) override;
   void CheckNotCharacterAfterAnd(unsigned c, unsigned and_with,

@@ -45,20 +45,6 @@ static void InitializeVerifiedMapDescriptors(
   CHECK(layout_descriptor.IsConsistentWithMap(map, true));
 }
 
-static Handle<String> MakeString(const char* str) {
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  return factory->InternalizeUtf8String(str);
-}
-
-
-static Handle<String> MakeName(const char* str, int suffix) {
-  EmbeddedVector<char, 128> buffer;
-  SNPrintF(buffer, "%s%d", str, suffix);
-  return MakeString(buffer.begin());
-}
-
-
 Handle<JSObject> GetObject(const char* name) {
   return Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
@@ -995,13 +981,14 @@ TEST(DescriptorArrayTrimming) {
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, kFieldCount);
   for (int i = 0; i < kSplitFieldIndex; i++) {
-    map = Map::CopyWithField(isolate, map, MakeName("prop", i), any_type, NONE,
-                             PropertyConstness::kMutable, Representation::Smi(),
-                             INSERT_TRANSITION)
+    map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", i),
+                             any_type, NONE, PropertyConstness::kMutable,
+                             Representation::Smi(), INSERT_TRANSITION)
               .ToHandleChecked();
   }
-  map = Map::CopyWithField(isolate, map, MakeName("dbl", kSplitFieldIndex),
-                           any_type, NONE, PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map,
+                           CcTest::MakeName("dbl", kSplitFieldIndex), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
   CHECK(map->layout_descriptor().IsConsistentWithMap(*map, true));
@@ -1015,7 +1002,7 @@ TEST(DescriptorArrayTrimming) {
 
     Handle<Map> tmp_map = map;
     for (int i = kSplitFieldIndex + 1; i < kFieldCount; i++) {
-      tmp_map = Map::CopyWithField(isolate, tmp_map, MakeName("dbl", i),
+      tmp_map = Map::CopyWithField(isolate, tmp_map, CcTest::MakeName("dbl", i),
                                    any_type, NONE, PropertyConstness::kMutable,
                                    Representation::Double(), INSERT_TRANSITION)
                     .ToHandleChecked();
@@ -1055,14 +1042,15 @@ TEST(DescriptorArrayTrimming) {
 
     Handle<Map> tmp_map = map;
     for (int i = kSplitFieldIndex + 1; i < kFieldCount - 1; i++) {
-      tmp_map = Map::CopyWithField(isolate, tmp_map, MakeName("tagged", i),
-                                   any_type, NONE, PropertyConstness::kMutable,
-                                   Representation::Tagged(), INSERT_TRANSITION)
-                    .ToHandleChecked();
+      tmp_map =
+          Map::CopyWithField(isolate, tmp_map, CcTest::MakeName("tagged", i),
+                             any_type, NONE, PropertyConstness::kMutable,
+                             Representation::Tagged(), INSERT_TRANSITION)
+              .ToHandleChecked();
       CHECK(tmp_map->layout_descriptor().IsConsistentWithMap(*tmp_map, true));
     }
-    tmp_map = Map::CopyWithField(isolate, tmp_map, MakeString("dbl"), any_type,
-                                 NONE, PropertyConstness::kMutable,
+    tmp_map = Map::CopyWithField(isolate, tmp_map, CcTest::MakeString("dbl"),
+                                 any_type, NONE, PropertyConstness::kMutable,
                                  Representation::Double(), INSERT_TRANSITION)
                   .ToHandleChecked();
     CHECK(tmp_map->layout_descriptor().IsConsistentWithMap(*tmp_map, true));
@@ -1087,8 +1075,8 @@ TEST(DoScavenge) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 0), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 0), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
 
@@ -1153,12 +1141,12 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 0), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 0), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 1), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 1), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Tagged(), INSERT_TRANSITION)
             .ToHandleChecked();
 
@@ -1390,14 +1378,14 @@ TEST(LayoutDescriptorSharing) {
   {
     Handle<Map> map = Map::Create(isolate, 64);
     for (int i = 0; i < 32; i++) {
-      Handle<String> name = MakeName("prop", i);
+      Handle<String> name = CcTest::MakeName("prop", i);
       map = Map::CopyWithField(isolate, map, name, any_type, NONE,
                                PropertyConstness::kMutable,
                                Representation::Smi(), INSERT_TRANSITION)
                 .ToHandleChecked();
     }
-    split_map = Map::CopyWithField(isolate, map, MakeString("dbl"), any_type,
-                                   NONE, PropertyConstness::kMutable,
+    split_map = Map::CopyWithField(isolate, map, CcTest::MakeString("dbl"),
+                                   any_type, NONE, PropertyConstness::kMutable,
                                    Representation::Double(), INSERT_TRANSITION)
                     .ToHandleChecked();
   }
@@ -1408,9 +1396,9 @@ TEST(LayoutDescriptorSharing) {
   CHECK(split_map->owns_descriptors());
 
   Handle<Map> map1 =
-      Map::CopyWithField(isolate, split_map, MakeString("foo"), any_type, NONE,
-                         PropertyConstness::kMutable, Representation::Double(),
-                         INSERT_TRANSITION)
+      Map::CopyWithField(isolate, split_map, CcTest::MakeString("foo"),
+                         any_type, NONE, PropertyConstness::kMutable,
+                         Representation::Double(), INSERT_TRANSITION)
           .ToHandleChecked();
   CHECK(!split_map->owns_descriptors());
   CHECK_EQ(*split_layout_descriptor, split_map->layout_descriptor());
@@ -1421,9 +1409,9 @@ TEST(LayoutDescriptorSharing) {
   CHECK(map1->layout_descriptor().IsConsistentWithMap(*map1, true));
 
   Handle<Map> map2 =
-      Map::CopyWithField(isolate, split_map, MakeString("bar"), any_type, NONE,
-                         PropertyConstness::kMutable, Representation::Tagged(),
-                         INSERT_TRANSITION)
+      Map::CopyWithField(isolate, split_map, CcTest::MakeString("bar"),
+                         any_type, NONE, PropertyConstness::kMutable,
+                         Representation::Tagged(), INSERT_TRANSITION)
           .ToHandleChecked();
 
   // Layout descriptors should not be shared with |split_map|.
@@ -1595,15 +1583,15 @@ static void TestWriteBarrierObjectShiftFieldsRight(
   Handle<JSObject> func = GetObject("func");
 
   Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithConstant(isolate, map, MakeName("prop", 0), func, NONE,
-                              INSERT_TRANSITION)
+  map = Map::CopyWithConstant(isolate, map, CcTest::MakeName("prop", 0), func,
+                              NONE, INSERT_TRANSITION)
             .ToHandleChecked();
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 1), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 1), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 2), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 2), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Tagged(), INSERT_TRANSITION)
             .ToHandleChecked();
 

@@ -39,64 +39,62 @@ namespace internal {
 
 TEST(Uint64Conversions) {
   // Start by checking the byte-order.
-  uint64_t ordered = V8_2PART_UINT64_C(0x01234567, 89ABCDEF);
+  uint64_t ordered = 0x0123'4567'89AB'CDEF;
   CHECK_EQ(3512700564088504e-318, Double(ordered).value());
 
-  uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
+  uint64_t min_double64 = 0x0000'0000'0000'0001;
   CHECK_EQ(5e-324, Double(min_double64).value());
 
-  uint64_t max_double64 = V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF);
+  uint64_t max_double64 = 0x7FEF'FFFF'FFFF'FFFF;
   CHECK_EQ(1.7976931348623157e308, Double(max_double64).value());
 }
 
 
 TEST(AsDiyFp) {
-  uint64_t ordered = V8_2PART_UINT64_C(0x01234567, 89ABCDEF);
+  uint64_t ordered = 0x0123'4567'89AB'CDEF;
   DiyFp diy_fp = Double(ordered).AsDiyFp();
   CHECK_EQ(0x12 - 0x3FF - 52, diy_fp.e());
   // The 52 mantissa bits, plus the implicit 1 in bit 52 as a UINT64.
-  CHECK(V8_2PART_UINT64_C(0x00134567, 89ABCDEF) == diy_fp.f());  // NOLINT
+  CHECK(0x0013'4567'89AB'CDEF == diy_fp.f());  // NOLINT
 
-  uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
+  uint64_t min_double64 = 0x0000'0000'0000'0001;
   diy_fp = Double(min_double64).AsDiyFp();
   CHECK_EQ(-0x3FF - 52 + 1, diy_fp.e());
   // This is a denormal; so no hidden bit.
   CHECK_EQ(1, diy_fp.f());
 
-  uint64_t max_double64 = V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF);
+  uint64_t max_double64 = 0x7FEF'FFFF'FFFF'FFFF;
   diy_fp = Double(max_double64).AsDiyFp();
   CHECK_EQ(0x7FE - 0x3FF - 52, diy_fp.e());
-  CHECK(V8_2PART_UINT64_C(0x001FFFFF, FFFFFFFF) == diy_fp.f());  // NOLINT
+  CHECK(0x001F'FFFF'FFFF'FFFF == diy_fp.f());  // NOLINT
 }
 
 
 TEST(AsNormalizedDiyFp) {
-  uint64_t ordered = V8_2PART_UINT64_C(0x01234567, 89ABCDEF);
+  uint64_t ordered = 0x0123'4567'89AB'CDEF;
   DiyFp diy_fp = Double(ordered).AsNormalizedDiyFp();
   CHECK_EQ(0x12 - 0x3FF - 52 - 11, diy_fp.e());
-  CHECK((V8_2PART_UINT64_C(0x00134567, 89ABCDEF) << 11) ==
-        diy_fp.f());  // NOLINT
+  CHECK((uint64_t{0x0013'4567'89AB'CDEF} << 11) == diy_fp.f());  // NOLINT
 
-  uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
+  uint64_t min_double64 = 0x0000'0000'0000'0001;
   diy_fp = Double(min_double64).AsNormalizedDiyFp();
   CHECK_EQ(-0x3FF - 52 + 1 - 63, diy_fp.e());
   // This is a denormal; so no hidden bit.
-  CHECK(V8_2PART_UINT64_C(0x80000000, 00000000) == diy_fp.f());  // NOLINT
+  CHECK(0x8000'0000'0000'0000 == diy_fp.f());  // NOLINT
 
-  uint64_t max_double64 = V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF);
+  uint64_t max_double64 = 0x7FEF'FFFF'FFFF'FFFF;
   diy_fp = Double(max_double64).AsNormalizedDiyFp();
   CHECK_EQ(0x7FE - 0x3FF - 52 - 11, diy_fp.e());
-  CHECK((V8_2PART_UINT64_C(0x001FFFFF, FFFFFFFF) << 11) ==
-        diy_fp.f());  // NOLINT
+  CHECK((uint64_t{0x001F'FFFF'FFFF'FFFF} << 11) == diy_fp.f());
 }
 
 
 TEST(IsDenormal) {
-  uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
+  uint64_t min_double64 = 0x0000'0000'0000'0001;
   CHECK(Double(min_double64).IsDenormal());
-  uint64_t bits = V8_2PART_UINT64_C(0x000FFFFF, FFFFFFFF);
+  uint64_t bits = 0x000F'FFFF'FFFF'FFFF;
   CHECK(Double(bits).IsDenormal());
-  bits = V8_2PART_UINT64_C(0x00100000, 00000000);
+  bits = 0x0010'0000'0000'0000;
   CHECK(!Double(bits).IsDenormal());
 }
 
@@ -105,7 +103,7 @@ TEST(IsSpecial) {
   CHECK(Double(V8_INFINITY).IsSpecial());
   CHECK(Double(-V8_INFINITY).IsSpecial());
   CHECK(Double(std::numeric_limits<double>::quiet_NaN()).IsSpecial());
-  uint64_t bits = V8_2PART_UINT64_C(0xFFF12345, 00000000);
+  uint64_t bits = 0xFFF1'2345'0000'0000;
   CHECK(Double(bits).IsSpecial());
   // Denormals are not special:
   CHECK(!Double(5e-324).IsSpecial());
@@ -132,7 +130,7 @@ TEST(IsInfinite) {
   CHECK(!Double(-0.0).IsInfinite());
   CHECK(!Double(1.0).IsInfinite());
   CHECK(!Double(-1.0).IsInfinite());
-  uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
+  uint64_t min_double64 = 0x0000'0000'0000'0001;
   CHECK(!Double(min_double64).IsInfinite());
 }
 
@@ -143,7 +141,7 @@ TEST(Sign) {
   CHECK_EQ(-1, Double(-V8_INFINITY).Sign());
   CHECK_EQ(1, Double(0.0).Sign());
   CHECK_EQ(-1, Double(-0.0).Sign());
-  uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
+  uint64_t min_double64 = 0x0000'0000'0000'0001;
   CHECK_EQ(1, Double(min_double64).Sign());
 }
 
@@ -170,7 +168,7 @@ TEST(NormalizedBoundaries) {
   CHECK((1 << 9) == diy_fp.f() - boundary_minus.f());  // NOLINT
   CHECK((1 << 10) == boundary_plus.f() - diy_fp.f());  // NOLINT
 
-  uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
+  uint64_t min_double64 = 0x0000'0000'0000'0001;
   diy_fp = Double(min_double64).AsNormalizedDiyFp();
   Double(min_double64).NormalizedBoundaries(&boundary_minus, &boundary_plus);
   CHECK_EQ(diy_fp.e(), boundary_minus.e());
@@ -182,7 +180,7 @@ TEST(NormalizedBoundaries) {
   CHECK((static_cast<uint64_t>(1) << 62) ==
         diy_fp.f() - boundary_minus.f());  // NOLINT
 
-  uint64_t smallest_normal64 = V8_2PART_UINT64_C(0x00100000, 00000000);
+  uint64_t smallest_normal64 = 0x0010'0000'0000'0000;
   diy_fp = Double(smallest_normal64).AsNormalizedDiyFp();
   Double(smallest_normal64).NormalizedBoundaries(&boundary_minus,
                                                  &boundary_plus);
@@ -193,7 +191,7 @@ TEST(NormalizedBoundaries) {
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
   CHECK((1 << 10) == diy_fp.f() - boundary_minus.f());  // NOLINT
 
-  uint64_t largest_denormal64 = V8_2PART_UINT64_C(0x000FFFFF, FFFFFFFF);
+  uint64_t largest_denormal64 = 0x000F'FFFF'FFFF'FFFF;
   diy_fp = Double(largest_denormal64).AsNormalizedDiyFp();
   Double(largest_denormal64).NormalizedBoundaries(&boundary_minus,
                                                   &boundary_plus);
@@ -202,7 +200,7 @@ TEST(NormalizedBoundaries) {
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
   CHECK((1 << 11) == diy_fp.f() - boundary_minus.f());  // NOLINT
 
-  uint64_t max_double64 = V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF);
+  uint64_t max_double64 = 0x7FEF'FFFF'FFFF'FFFF;
   diy_fp = Double(max_double64).AsNormalizedDiyFp();
   Double(max_double64).NormalizedBoundaries(&boundary_minus, &boundary_plus);
   CHECK_EQ(diy_fp.e(), boundary_minus.e());
@@ -225,8 +223,7 @@ TEST(NextDouble) {
   CHECK_EQ(0.0, d2.value());
   CHECK_EQ(4e-324, d2.NextDouble());
   CHECK_EQ(-1.7976931348623157e308, Double(-V8_INFINITY).NextDouble());
-  CHECK_EQ(V8_INFINITY,
-           Double(V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF)).NextDouble());
+  CHECK_EQ(V8_INFINITY, Double(uint64_t{0x7FEF'FFFF'FFFF'FFFF}).NextDouble());
 }
 
 }  // namespace internal

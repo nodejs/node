@@ -38,9 +38,7 @@ class TaggedIndex : public Object {
   // special in that we want them to be constexprs.
   constexpr TaggedIndex() : Object() {}
   explicit constexpr TaggedIndex(Address ptr) : Object(ptr) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(HAS_SMI_TAG(ptr));
-#endif
+    CONSTEXPR_DCHECK(HAS_SMI_TAG(ptr));
   }
 
   // Returns the integer value.
@@ -51,9 +49,7 @@ class TaggedIndex : public Object {
 
   // Convert a value to a TaggedIndex object.
   static inline TaggedIndex FromIntptr(intptr_t value) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(TaggedIndex::IsValid(value));
-#endif
+    CONSTEXPR_DCHECK(TaggedIndex::IsValid(value));
     return TaggedIndex((static_cast<Address>(value) << kSmiTagSize) | kSmiTag);
   }
 

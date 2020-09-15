@@ -35,7 +35,7 @@ Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(LocalIsolate* isolate) {
 template Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(
     Isolate* isolate);
 template Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(
-    OffThreadIsolate* isolate);
+    LocalIsolate* isolate);
 
 int HandlerTableBuilder::NewHandlerEntry() {
   int handler_id = static_cast<int>(entries_.size());

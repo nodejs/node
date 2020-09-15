@@ -970,7 +970,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
-      auto ool = new (zone()) OutOfLineTruncateDoubleToI(
+      auto ool = zone()->New<OutOfLineTruncateDoubleToI>(
           this, result, input, DetermineStubCallMode());
       __ cvttsd2si(result, Operand(input));
       __ cmp(result, 1);
@@ -987,9 +987,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone())
-          OutOfLineRecordWrite(this, object, operand, value, scratch0, scratch1,
-                               mode, DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
+                                                   scratch0, scratch1, mode,
+                                                   DetermineStubCallMode());
       __ mov(operand, value);
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
@@ -1339,7 +1339,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
-          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+          zone()->New<OutOfLineLoadFloat32NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(above, &done_compare, Label::kNear);
       __ j(below, &compare_swap, Label::kNear);
@@ -1365,7 +1365,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
-          new (zone()) OutOfLineLoadFloat64NaN(this, i.OutputDoubleRegister());
+          zone()->New<OutOfLineLoadFloat64NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(above, &done_compare, Label::kNear);
       __ j(below, &compare_swap, Label::kNear);
@@ -1390,7 +1390,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
-          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+          zone()->New<OutOfLineLoadFloat32NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(below, &done_compare, Label::kNear);
       __ j(above, &compare_swap, Label::kNear);
@@ -1420,7 +1420,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
-          new (zone()) OutOfLineLoadFloat64NaN(this, i.OutputDoubleRegister());
+          zone()->New<OutOfLineLoadFloat64NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(below, &done_compare, Label::kNear);
       __ j(above, &compare_swap, Label::kNear);
@@ -1845,16 +1845,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Peek: {
-      int reverse_slot = i.InputInt32(0) + 1;
+      int reverse_slot = i.InputInt32(0);
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
       if (instr->OutputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ movsd(i.OutputDoubleRegister(), Operand(ebp, offset));
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ movss(i.OutputFloatRegister(), Operand(ebp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          __ movdqu(i.OutputSimd128Register(), Operand(ebp, offset));
         }
       } else {
         __ mov(i.OutputRegister(), Operand(ebp, offset));
@@ -1966,7 +1968,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   tmp = i.TempSimd128Register(0);
       // The minpd instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform minpd in both orders, merge the resuls, and adjust.
-      __ Movapd(tmp, src1);
+      __ Movupd(tmp, src1);
       __ Minpd(tmp, tmp, src);
       __ Minpd(dst, src, src1);
       // propagate -0's and NaNs, which may be non-canonical.
@@ -1985,7 +1987,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   tmp = i.TempSimd128Register(0);
       // The maxpd instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform maxpd in both orders, merge the resuls, and adjust.
-      __ Movapd(tmp, src1);
+      __ Movupd(tmp, src1);
       __ Maxpd(tmp, tmp, src);
       __ Maxpd(dst, src, src1);
       // Find discrepancies.
@@ -2030,6 +2032,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ Maxpd(dst, dst, i.InputSimd128Register(1));
+      break;
+    }
+    case kIA32F64x2Round: {
+      RoundingMode const mode =
+          static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
+      __ Roundpd(i.OutputSimd128Register(), i.InputDoubleRegister(0), mode);
       break;
     }
     case kIA32I64x2SplatI32Pair: {
@@ -2375,7 +2383,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of maxps.
-      __ movaps(kScratchDoubleReg, src1);
+      __ vmovups(kScratchDoubleReg, src1);
       __ vmaxps(kScratchDoubleReg, kScratchDoubleReg, dst);
       __ vmaxps(dst, dst, src1);
       __ vxorps(dst, dst, kScratchDoubleReg);
@@ -2440,6 +2448,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ Maxps(dst, dst, i.InputSimd128Register(1));
+      break;
+    }
+    case kIA32F32x4Round: {
+      RoundingMode const mode =
+          static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
+      __ Roundps(i.OutputSimd128Register(), i.InputDoubleRegister(0), mode);
       break;
     }
     case kIA32I32x4Splat: {
@@ -2793,6 +2807,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I32x4BitMask: {
       __ Movmskps(i.OutputRegister(), i.InputSimd128Register(0));
+      break;
+    }
+    case kIA32I32x4DotI16x8S: {
+      __ Pmaddwd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
       break;
     }
     case kIA32I16x8Splat: {
@@ -3596,9 +3615,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovmskb(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
+    case kIA32S128Const: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Register tmp = i.TempRegister(0);
+      uint64_t low_qword = make_uint64(i.InputUint32(1), i.InputUint32(0));
+      __ Move(dst, low_qword);
+      __ Move(tmp, Immediate(i.InputUint32(2)));
+      __ Pinsrd(dst, tmp, 2);
+      __ Move(tmp, Immediate(i.InputUint32(3)));
+      __ Pinsrd(dst, tmp, 3);
+      break;
+    }
     case kIA32S128Zero: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Pxor(dst, dst);
+      break;
+    }
+    case kIA32S128AllOnes: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pcmpeqd(dst, dst);
       break;
     }
     case kSSES128Not: {
@@ -3687,7 +3722,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       // Out-of-range indices should return 0, add 112 so that any value > 15
       // saturates to 128 (top bit set), so pshufb will zero that lane.
-      __ Move(mask, (uint32_t)0x70707070);
+      __ Move(mask, uint32_t{0x70707070});
       __ Pshufd(mask, mask, 0x0);
       __ Paddusb(mask, i.InputSimd128Register(1));
       __ Pshufb(dst, mask);
@@ -4094,9 +4129,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpor(dst, dst, kScratchDoubleReg);
       break;
     }
-    case kIA32S1x4AnyTrue:
-    case kIA32S1x8AnyTrue:
-    case kIA32S1x16AnyTrue: {
+    case kIA32V32x4AnyTrue:
+    case kIA32V16x8AnyTrue:
+    case kIA32V8x16AnyTrue: {
       Register dst = i.OutputRegister();
       XMMRegister src = i.InputSimd128Register(0);
       Register tmp = i.TempRegister(0);
@@ -4110,13 +4145,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
-    case kIA32S1x4AllTrue:
+    case kIA32V32x4AllTrue:
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;
-    case kIA32S1x8AllTrue:
+    case kIA32V16x8AllTrue:
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqw);
       break;
-    case kIA32S1x16AllTrue: {
+    case kIA32V8x16AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }
@@ -4417,7 +4452,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // is added to the native module and copied into wasm code space.
         __ wasm_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
-            new (gen_->zone()) ReferenceMap(gen_->zone());
+            gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
         __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       }
@@ -4426,7 +4461,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     Instruction* instr_;
     CodeGenerator* gen_;
   };
-  auto ool = new (zone()) OutOfLineTrap(this, instr);
+  auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {
@@ -4655,9 +4690,6 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (call_descriptor->PushArgumentCount()) {
-        __ push(kJavaScriptCallArgCountRegister);
-      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
@@ -4727,7 +4759,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
       __ wasm_call(wasm::WasmCode::kWasmStackOverflow,
                    RelocInfo::WASM_STUB_CALL);
-      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       __ bind(&done);

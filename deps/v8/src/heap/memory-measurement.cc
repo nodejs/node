@@ -95,7 +95,7 @@ class V8_EXPORT_PRIVATE MeasureMemoryDelegate
  public:
   MeasureMemoryDelegate(Isolate* isolate, Handle<NativeContext> context,
                         Handle<JSPromise> promise, v8::MeasureMemoryMode mode);
-  ~MeasureMemoryDelegate();
+  ~MeasureMemoryDelegate() override;
 
   // v8::MeasureMemoryDelegate overrides:
   bool ShouldMeasure(v8::Local<v8::Context> context) override;
@@ -165,7 +165,12 @@ void MeasureMemoryDelegate::MeasurementComplete(
   JSPromise::Resolve(promise_, result).ToHandleChecked();
 }
 
-MemoryMeasurement::MemoryMeasurement(Isolate* isolate) : isolate_(isolate) {}
+MemoryMeasurement::MemoryMeasurement(Isolate* isolate)
+    : isolate_(isolate), random_number_generator_() {
+  if (FLAG_random_seed) {
+    random_number_generator_.SetSeed(FLAG_random_seed);
+  }
+}
 
 bool MemoryMeasurement::EnqueueRequest(
     std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
@@ -238,12 +243,16 @@ void MemoryMeasurement::ScheduleReportingTask() {
 }
 
 bool MemoryMeasurement::IsGCTaskPending(v8::MeasureMemoryExecution execution) {
+  DCHECK(execution == v8::MeasureMemoryExecution::kEager ||
+         execution == v8::MeasureMemoryExecution::kDefault);
   return execution == v8::MeasureMemoryExecution::kEager
              ? eager_gc_task_pending_
              : delayed_gc_task_pending_;
 }
 
 void MemoryMeasurement::SetGCTaskPending(v8::MeasureMemoryExecution execution) {
+  DCHECK(execution == v8::MeasureMemoryExecution::kEager ||
+         execution == v8::MeasureMemoryExecution::kDefault);
   if (execution == v8::MeasureMemoryExecution::kEager) {
     eager_gc_task_pending_ = true;
   } else {
@@ -252,6 +261,8 @@ void MemoryMeasurement::SetGCTaskPending(v8::MeasureMemoryExecution execution) {
 }
 
 void MemoryMeasurement::SetGCTaskDone(v8::MeasureMemoryExecution execution) {
+  DCHECK(execution == v8::MeasureMemoryExecution::kEager ||
+         execution == v8::MeasureMemoryExecution::kDefault);
   if (execution == v8::MeasureMemoryExecution::kEager) {
     eager_gc_task_pending_ = false;
   } else {
@@ -260,6 +271,7 @@ void MemoryMeasurement::SetGCTaskDone(v8::MeasureMemoryExecution execution) {
 }
 
 void MemoryMeasurement::ScheduleGCTask(v8::MeasureMemoryExecution execution) {
+  if (execution == v8::MeasureMemoryExecution::kLazy) return;
   if (IsGCTaskPending(execution)) return;
   SetGCTaskPending(execution);
   auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
@@ -286,8 +298,13 @@ void MemoryMeasurement::ScheduleGCTask(v8::MeasureMemoryExecution execution) {
   if (execution == v8::MeasureMemoryExecution::kEager) {
     taskrunner->PostTask(std::move(task));
   } else {
-    taskrunner->PostDelayedTask(std::move(task), kGCTaskDelayInSeconds);
+    taskrunner->PostDelayedTask(std::move(task), NextGCTaskDelayInSeconds());
   }
+}
+
+int MemoryMeasurement::NextGCTaskDelayInSeconds() {
+  return kGCTaskDelayInSeconds +
+         random_number_generator_.NextInt(kGCTaskDelayInSeconds);
 }
 
 void MemoryMeasurement::ReportResults() {

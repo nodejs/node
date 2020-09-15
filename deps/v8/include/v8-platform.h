@@ -80,6 +80,14 @@ class TaskRunner {
    * implementation takes ownership of |task|. The |task| cannot be nested
    * within other task executions.
    *
+   * Tasks which shouldn't be interleaved with JS execution must be posted with
+   * |PostNonNestableTask| or |PostNonNestableDelayedTask|. This is because the
+   * embedder may process tasks in a callback which is called during JS
+   * execution.
+   *
+   * In particular, tasks which execute JS must be non-nestable, since JS
+   * execution is not allowed to nest.
+   *
    * Requires that |TaskRunner::NonNestableTasksEnabled()| is true.
    */
   virtual void PostNonNestableTask(std::unique_ptr<Task> task) {}
@@ -97,6 +105,14 @@ class TaskRunner {
    * after the given number of seconds |delay_in_seconds|. The TaskRunner
    * implementation takes ownership of |task|. The |task| cannot be nested
    * within other task executions.
+   *
+   * Tasks which shouldn't be interleaved with JS execution must be posted with
+   * |PostNonNestableTask| or |PostNonNestableDelayedTask|. This is because the
+   * embedder may process tasks in a callback which is called during JS
+   * execution.
+   *
+   * In particular, tasks which execute JS must be non-nestable, since JS
+   * execution is not allowed to nest.
    *
    * Requires that |TaskRunner::NonNestableDelayedTasksEnabled()| is true.
    */
@@ -154,6 +170,13 @@ class JobDelegate {
    * details.
    */
   virtual void NotifyConcurrencyIncrease() = 0;
+
+  /**
+   * Returns a task_id unique among threads currently running this job, such
+   * that GetTaskId() < worker count. To achieve this, the same task_id may be
+   * reused by a different thread after a worker_task returns.
+   */
+  virtual uint8_t GetTaskId() = 0;
 };
 
 /**
@@ -187,6 +210,11 @@ class JobHandle {
   virtual void Cancel() = 0;
 
   /**
+   * Returns true if there's no work pending and no worker running.
+   */
+  virtual bool IsCompleted() = 0;
+
+  /**
    * Returns true if associated with a Job and other methods may be called.
    * Returns false after Join() or Cancel() was called.
    */
@@ -203,12 +231,17 @@ class JobTask {
   virtual void Run(JobDelegate* delegate) = 0;
 
   /**
-   * Controls the maximum number of threads calling Run() concurrently. Run() is
-   * only invoked if the number of threads previously running Run() was less
-   * than the value returned. Since GetMaxConcurrency() is a leaf function, it
-   * must not call back any JobHandle methods.
+   * Controls the maximum number of threads calling Run() concurrently, given
+   * the number of threads currently assigned to this job and executing Run().
+   * Run() is only invoked if the number of threads previously running Run() was
+   * less than the value returned. Since GetMaxConcurrency() is a leaf function,
+   * it must not call back any JobHandle methods.
    */
-  virtual size_t GetMaxConcurrency() const = 0;
+  virtual size_t GetMaxConcurrency(size_t worker_count) const = 0;
+
+  // TODO(1114823): Clean up once all overrides are removed.
+  V8_DEPRECATED("Use the version that takes |worker_count|.")
+  virtual size_t GetMaxConcurrency() const { return 0; }
 };
 
 /**
@@ -375,6 +408,69 @@ class PageAllocator {
    * memory area brings the memory transparently back.
    */
   virtual bool DiscardSystemPages(void* address, size_t size) { return true; }
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   */
+  class SharedMemoryMapping {
+   public:
+    // Implementations are expected to free the shared memory mapping in the
+    // destructor.
+    virtual ~SharedMemoryMapping() = default;
+    virtual void* GetMemory() const = 0;
+  };
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   */
+  class SharedMemory {
+   public:
+    // Implementations are expected to free the shared memory in the destructor.
+    virtual ~SharedMemory() = default;
+    virtual std::unique_ptr<SharedMemoryMapping> RemapTo(
+        void* new_address) const = 0;
+    virtual void* GetMemory() const = 0;
+    virtual size_t GetSize() const = 0;
+  };
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   *
+   * Reserve pages at a fixed address returning whether the reservation is
+   * possible. The reserved memory is detached from the PageAllocator and so
+   * should not be freed by it. It's intended for use with
+   * SharedMemory::RemapTo, where ~SharedMemoryMapping would free the memory.
+   */
+  virtual bool ReserveForSharedMemoryMapping(void* address, size_t size) {
+    return false;
+  }
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   *
+   * Allocates shared memory pages. Not all PageAllocators need support this and
+   * so this method need not be overridden.
+   * Allocates a new read-only shared memory region of size |length| and copies
+   * the memory at |original_address| into it.
+   */
+  virtual std::unique_ptr<SharedMemory> AllocateSharedPages(
+      size_t length, const void* original_address) {
+    return {};
+  }
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   *
+   * If not overridden and changed to return true, V8 will not attempt to call
+   * AllocateSharedPages or RemapSharedPages. If overridden, AllocateSharedPages
+   * and RemapSharedPages must also be overridden.
+   */
+  virtual bool CanAllocateSharedPages() { return false; }
 };
 
 /**
@@ -519,15 +615,12 @@ class Platform {
    * libplatform looks like:
    *  std::unique_ptr<JobHandle> PostJob(
    *      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-   *    return std::make_unique<DefaultJobHandle>(
-   *        std::make_shared<DefaultJobState>(
-   *            this, std::move(job_task), kNumThreads));
+   *    return v8::platform::NewDefaultJobHandle(
+   *        this, priority, std::move(job_task), NumberOfWorkerThreads());
    * }
    */
   virtual std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-    return nullptr;
-  }
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) = 0;
 
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in

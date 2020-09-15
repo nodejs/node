@@ -5,14 +5,14 @@
 #ifndef V8_OBJECTS_SLOTS_INL_H_
 #define V8_OBJECTS_SLOTS_INL_H_
 
-#include "src/objects/slots.h"
-
 #include "src/base/atomic-utils.h"
+#include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
+#include "src/objects/slots.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
@@ -29,7 +29,9 @@ bool FullObjectSlot::contains_value(Address raw_value) const {
   return base::AsAtomicPointer::Relaxed_Load(location()) == raw_value;
 }
 
-const Object FullObjectSlot::operator*() const { return Object(*location()); }
+Object FullObjectSlot::operator*() const { return Object(*location()); }
+
+Object FullObjectSlot::load(const Isolate* isolate) const { return **this; }
 
 void FullObjectSlot::store(Object value) const { *location() = value.ptr(); }
 
@@ -37,8 +39,16 @@ Object FullObjectSlot::Acquire_Load() const {
   return Object(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
+Object FullObjectSlot::Acquire_Load(const Isolate* isolate) const {
+  return Acquire_Load();
+}
+
 Object FullObjectSlot::Relaxed_Load() const {
   return Object(base::AsAtomicPointer::Relaxed_Load(location()));
+}
+
+Object FullObjectSlot::Relaxed_Load(const Isolate* isolate) const {
+  return Relaxed_Load();
 }
 
 void FullObjectSlot::Relaxed_Store(Object value) const {
@@ -65,8 +75,12 @@ Object FullObjectSlot::Release_CompareAndSwap(Object old, Object target) const {
 // FullMaybeObjectSlot implementation.
 //
 
-const MaybeObject FullMaybeObjectSlot::operator*() const {
+MaybeObject FullMaybeObjectSlot::operator*() const {
   return MaybeObject(*location());
+}
+
+MaybeObject FullMaybeObjectSlot::load(const Isolate* isolate) const {
+  return **this;
 }
 
 void FullMaybeObjectSlot::store(MaybeObject value) const {
@@ -75,6 +89,10 @@ void FullMaybeObjectSlot::store(MaybeObject value) const {
 
 MaybeObject FullMaybeObjectSlot::Relaxed_Load() const {
   return MaybeObject(base::AsAtomicPointer::Relaxed_Load(location()));
+}
+
+MaybeObject FullMaybeObjectSlot::Relaxed_Load(const Isolate* isolate) const {
+  return Relaxed_Load();
 }
 
 void FullMaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
@@ -91,8 +109,12 @@ void FullMaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
 // FullHeapObjectSlot implementation.
 //
 
-const HeapObjectReference FullHeapObjectSlot::operator*() const {
+HeapObjectReference FullHeapObjectSlot::operator*() const {
   return HeapObjectReference(*location());
+}
+
+HeapObjectReference FullHeapObjectSlot::load(const Isolate* isolate) const {
+  return **this;
 }
 
 void FullHeapObjectSlot::store(HeapObjectReference value) const {
@@ -121,15 +143,21 @@ inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
 }
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
-inline void MemsetTagged(ObjectSlot start, Object value, size_t counter) {
+inline void MemsetTagged(Tagged_t* start, Object value, size_t counter) {
 #ifdef V8_COMPRESS_POINTERS
   Tagged_t raw_value = CompressTagged(value.ptr());
-  STATIC_ASSERT(kTaggedSize == kInt32Size);
-  MemsetInt32(reinterpret_cast<int32_t*>(start.location()), raw_value, counter);
+  MemsetUint32(start, raw_value, counter);
 #else
   Address raw_value = value.ptr();
-  MemsetPointer(start.location(), raw_value, counter);
+  MemsetPointer(start, raw_value, counter);
 #endif
+}
+
+// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
+template <typename T>
+inline void MemsetTagged(SlotBase<T, Tagged_t> start, Object value,
+                         size_t counter) {
+  MemsetTagged(start.location(), value, counter);
 }
 
 // Sets |counter| number of kSystemPointerSize-sized values starting at |start|

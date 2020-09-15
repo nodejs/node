@@ -123,11 +123,10 @@
 }],  # ALWAYS
 
 ##############################################################################
-['(arch != ia32 and arch != x64)', {
-  # BUG(v8:9860). We can only safely read the native context for a frame on
-  # ia32 and x64.
-  'test-cpu-profiler/ContextFilterMovedNativeContext': [FAIL],
-  'test-cpu-profiler/ContextIsolation': [FAIL],
+['mode == debug', {
+  # These tests are supposed to fail in a DCHECK.
+  'test-persistent-handles/NewPersistentHandleFailsWhenParked': [FAIL],
+  'test-persistent-handles/NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
 }],
 
 ##############################################################################
@@ -169,11 +168,29 @@
   'test-debug/DebugBreakStackTrace': [PASS, SLOW],
 }],  # 'arch == arm64 and simulator_run'
 
+['arch == arm64 and system == macos and not simulator_run', {
+  # printf, being a variadic function, has a different, stack-based ABI on
+  # Apple silicon. See:
+  # https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
+  'test-assembler-arm64/printf_no_preserve': [SKIP],
+}],  # arch == arm64 and system == macos and not simulator_run
+
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'test-cpu-profiler/MultipleIsolates': [SKIP],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
+['variant == nooptimization', {
+  # Wasm serialization relies on TurboFan to be available, hence does not work
+  # in the 'nooptimization' variant.
+  'test-wasm-serialization/*': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestDeserializationBypassesCompilation': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestDeserializationFails': [SKIP],
+  'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
+  'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
+}],  # variant == nooptimization
 
 ##############################################################################
 ['variant == no_lfa', {
@@ -210,6 +227,7 @@
 ['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
   'test-api/InternalFieldsSubclassing': [SKIP],
+  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
 }],  # 'is_full_debug'
 
@@ -226,9 +244,6 @@
 
 ##############################################################################
 ['system == windows', {
-  # BUG(v8:4573).
-  'test-api/MultipleIsolatesOnIndividualThreads': [PASS, NO_VARIANTS],
-
   # BUG(v8:4642).
   'test-lockers/LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
 
@@ -394,6 +409,8 @@
   'test-liftoff-*': [SKIP],
   'test-wasm-breakpoints/*' : [SKIP],
   'test-wasm-debug-evaluate/*': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
+  'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
@@ -447,12 +464,20 @@
 
 ##############################################################################
 # The stack unwinder API is only supported on x64, arm64 and arm.
-['arch != x64 and arch != arm64', {
-  'test-unwinder/*': [SKIP]
-}],
-
 ['arch != x64 and arch != arm64 and arch != arm', {
   'test-unwinder-code-pages/*': [SKIP]
+}],
+
+# TODO(solanes, v8:10833): Re-enable these tests or create specific ones for
+# Arm. They are disabled because the stack is not being set up the way it does
+# in the wild.
+['arch == arm64 or arch == arm', {
+  'test-unwinder-code-pages/Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI': [SKIP],
+  'test-unwinder-code-pages/Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI': [SKIP],
+  'test-unwinder-code-pages/Unwind_OneJSFrame_Success_CodePagesAPI': [SKIP],
+  'test-unwinder-code-pages/Unwind_TwoJSFrames_Success_CodePagesAPI': [SKIP],
+  'test-unwinder-code-pages/Unwind_StackBounds_Basic_CodePagesAPI': [SKIP],
+  'test-unwinder-code-pages/Unwind_StackBounds_WithUnwinding_CodePagesAPI': [SKIP],
 }],
 
 ##############################################################################
@@ -543,8 +568,6 @@
   'test-run-variables/*': [SKIP],
   'test-serialize/*': [SKIP],
   'test-torque/*': [SKIP],
-  'test-unwinder/PCIsInV8_InCodeOrEmbeddedRange': [SKIP],
-  'test-unwinder/PCIsInV8_LargeCodeObject': [SKIP],
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
@@ -636,5 +659,25 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['variant == nci or variant == nci_as_midtier', {
+  # Optimizes and deopts differently than TurboFan.
+  'test-api/FastApiCalls': [SKIP],
+  'test-cpu-profiler/Deopt*': [SKIP],
+  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
+  'test-cpu-profiler/DetailedSourcePositionAPI': [SKIP],
+  'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [SKIP],
+  'test-heap/NewSpaceObjectsInOptimizedCode': [SKIP],
+  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [SKIP],
+  'test-heap/ObjectsInOptimizedCodeAreWeak': [SKIP],
+  'test-heap/OptimizedPretenuring*': [SKIP],
+  'test-heap-profiler/SamplingHeapProfilerPretenuredInlineAllocations': [SKIP],
+  'test-log/LogAll': [SKIP],
+
+  # NCI code currently does not use the feedback vector's optimized code cache.
+  'test-compiler/OptimizedCodeSharing1': [SKIP],
+}],  # variant == nci or variant == nci_as_midtier
 
 ]

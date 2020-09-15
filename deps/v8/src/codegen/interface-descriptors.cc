@@ -30,10 +30,12 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
 
 void CallInterfaceDescriptorData::InitializePlatformIndependent(
     Flags flags, int return_count, int parameter_count,
-    const MachineType* machine_types, int machine_types_length) {
+    const MachineType* machine_types, int machine_types_length,
+    StackArgumentOrder stack_order) {
   DCHECK(IsInitializedPlatformSpecific());
 
   flags_ = flags;
+  stack_order_ = stack_order;
   return_count_ = return_count;
   param_count_ = parameter_count;
   const int types_length = return_count_ + param_count_;
@@ -83,7 +85,6 @@ void CallDescriptors::InitializeOncePerProcess() {
   DCHECK(ContextOnlyDescriptor{}.HasContextParameter());
   DCHECK(!NoContextDescriptor{}.HasContextParameter());
   DCHECK(!AllocateDescriptor{}.HasContextParameter());
-  DCHECK(!AllocateHeapNumberDescriptor{}.HasContextParameter());
   DCHECK(!AbortDescriptor{}.HasContextParameter());
   DCHECK(!WasmFloat32ToNumberDescriptor{}.HasContextParameter());
   DCHECK(!WasmFloat64ToNumberDescriptor{}.HasContextParameter());
@@ -176,12 +177,6 @@ void InterpreterCEntry2Descriptor::InitializePlatformSpecific(
   InterpreterCEntryDescriptor_InitializePlatformSpecific(data);
 }
 
-void FastNewFunctionContextDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {ScopeInfoRegister(), SlotsRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void FastNewObjectDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {TargetRegister(), NewTargetRegister()};
@@ -224,6 +219,16 @@ void LoadGlobalWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {NameRegister(), SlotRegister(), VectorRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void LoadWithReceiverAndVectorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DCHECK(!AreAliased(ReceiverRegister(), LookupStartObjectRegister(),
+                     NameRegister(), SlotRegister(), VectorRegister()));
+  Register registers[] = {ReceiverRegister(), LookupStartObjectRegister(),
+                          NameRegister(), SlotRegister(), VectorRegister()};
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
 }
 
 void StoreGlobalDescriptor::InitializePlatformSpecific(
@@ -347,11 +352,6 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void NewArgumentsElementsDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // This descriptor must use the same set of registers as the
@@ -391,30 +391,8 @@ void WasmFloat64ToNumberDescriptor::InitializePlatformSpecific(
 }
 #endif  // !V8_TARGET_ARCH_IA32
 
-void WasmTableInitDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data,
-                                    kParameterCount - kStackArgumentsCount);
-}
-
-void WasmTableCopyDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data,
-                                    kParameterCount - kStackArgumentsCount);
-}
-
-void WasmAtomicNotifyDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
 #if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64)
 void WasmI32AtomicWait32Descriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
-void WasmI32AtomicWait64Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
@@ -423,11 +401,6 @@ void WasmI64AtomicWait32Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data,
                                     kParameterCount - kStackArgumentsCount);
-}
-
-void WasmI64AtomicWait64Descriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 #endif
 

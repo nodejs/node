@@ -43,6 +43,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // TODO(turbofan): Code using Int32Constant/Int64Constant to store pointer
   // constants is probably not serializable.
   Node* IntPtrConstant(intptr_t value);
+  Node* UintPtrConstant(uintptr_t value);
 
   Node* TaggedIndexConstant(intptr_t value);
 

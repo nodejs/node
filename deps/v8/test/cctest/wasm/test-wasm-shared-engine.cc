@@ -26,8 +26,6 @@ namespace test_wasm_shared_engine {
 // shared between multiple Isolates, sharing the underlying generated code.
 class SharedEngine {
  public:
-  explicit SharedEngine(size_t max_committed = kMaxWasmCodeMemory)
-      : wasm_engine_(std::make_unique<WasmEngine>()) {}
   ~SharedEngine() {
     // Ensure no remaining uses exist.
     CHECK(wasm_engine_.unique());
@@ -44,7 +42,7 @@ class SharedEngine {
   std::shared_ptr<WasmEngine> ExportEngineForSharing() { return wasm_engine_; }
 
  private:
-  std::shared_ptr<WasmEngine> wasm_engine_;
+  std::shared_ptr<WasmEngine> wasm_engine_ = std::make_unique<WasmEngine>();
 };
 
 // Helper type definition representing a WebAssembly module shared between
@@ -100,7 +98,8 @@ class SharedEngineIsolate {
   }
 
   int32_t Run(Handle<WasmInstanceObject> instance) {
-    return testing::RunWasmModuleForTesting(isolate(), instance, 0, nullptr);
+    return testing::CallWasmFunctionForTesting(isolate(), instance, "main", 0,
+                                               nullptr);
   }
 
  private:
@@ -132,8 +131,8 @@ namespace {
 
 ZoneBuffer* BuildReturnConstantModule(Zone* zone, int constant) {
   TestSignatures sigs;
-  ZoneBuffer* buffer = new (zone) ZoneBuffer(zone);
-  WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
+  ZoneBuffer* buffer = zone->New<ZoneBuffer>(zone);
+  WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
   f->builder()->AddExport(CStrVector("main"), f);
   byte code[] = {WASM_I32V_2(constant)};

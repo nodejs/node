@@ -63,7 +63,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
  public:
   ConstantFoldingReducerTest()
       : TypedGraphTest(3),
-        broker_(isolate(), zone(), FLAG_trace_heap_broker, false),
+        broker_(isolate(), zone()),
         simplified_(zone()),
         deps_(&broker_, zone()) {}
   ~ConstantFoldingReducerTest() override = default;
@@ -74,8 +74,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
-    // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph(), tick_counter());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
     ConstantFoldingReducer reducer(&graph_reducer, &jsgraph, broker());
     return reducer.Reduce(node);
   }

@@ -18,7 +18,7 @@ namespace v8 {
 
 namespace sampler {
 class Sampler;
-}
+}  // namespace sampler
 
 namespace internal {
 
@@ -67,18 +67,19 @@ class LowLevelLogger;
 class PerfBasicLogger;
 class PerfJitLogger;
 class Profiler;
+class SourcePosition;
 class Ticker;
 
 #undef LOG
 #define LOG(isolate, Call)                  \
   do {                                      \
-    auto* logger = (isolate)->logger();     \
+    auto&& logger = (isolate)->logger();    \
     if (logger->is_logging()) logger->Call; \
   } while (false)
 
 #define LOG_CODE_EVENT(isolate, Call)                        \
   do {                                                       \
-    auto* logger = (isolate)->logger();                      \
+    auto&& logger = (isolate)->logger();                     \
     if (logger->is_listening_to_code_events()) logger->Call; \
   } while (false)
 
@@ -125,17 +126,18 @@ class Logger : public CodeEventListener {
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
 
+  // Frees resources acquired in SetUp.
+  // When a temporary file is used for the log, returns its stream descriptor,
+  // leaving the file open.
+  V8_EXPORT_PRIVATE FILE* TearDownAndGetLogFile();
+
   // Sets the current code event handler.
   void SetCodeEventHandler(uint32_t options, JitCodeEventHandler event_handler);
 
   sampler::Sampler* sampler();
+  V8_EXPORT_PRIVATE std::string file_name() const;
 
   V8_EXPORT_PRIVATE void StopProfilerThread();
-
-  // Frees resources acquired in SetUp.
-  // When a temporary file is used for the log, returns its stream descriptor,
-  // leaving the file open.
-  V8_EXPORT_PRIVATE FILE* TearDown();
 
   // Emits an event with a string value -> (name, value).
   V8_EXPORT_PRIVATE void StringEvent(const char* name, const char* value);
@@ -207,12 +209,17 @@ class Logger : public CodeEventListener {
                              Handle<String> source) override;
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override;
-  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta) override;
+                      int fp_to_sp_delta, bool reuse_code) override;
+  void CodeDependencyChangeEvent(Handle<Code> code,
+                                 Handle<SharedFunctionInfo> sfi,
+                                 const char* reason) override;
+
+  void ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
+                         const char* kind, const char* reason);
 
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
@@ -238,6 +245,10 @@ class Logger : public CodeEventListener {
   void CurrentTimeEvent();
 
   V8_EXPORT_PRIVATE void TimerEvent(StartEnd se, const char* name);
+
+  void BasicBlockCounterEvent(const char* name, int block_id, uint32_t count);
+
+  void BuiltinHashEvent(const char* name, int hash);
 
   static void EnterExternal(Isolate* isolate);
   static void LeaveExternal(Isolate* isolate);
@@ -394,10 +405,12 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta) override {}
+                      int fp_to_sp_delta, bool reuse_code) override {}
+  void CodeDependencyChangeEvent(Handle<Code> code,
+                                 Handle<SharedFunctionInfo> sfi,
+                                 const char* reason) override {}
 
  protected:
   Isolate* isolate_;
@@ -451,13 +464,15 @@ class ExternalCodeEventListener : public CodeEventListener {
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta) override {}
+                      int fp_to_sp_delta, bool reuse_code) override {}
+  void CodeDependencyChangeEvent(Handle<Code> code,
+                                 Handle<SharedFunctionInfo> sfi,
+                                 const char* reason) override {}
 
   void StartListening(v8::CodeEventHandler* code_event_handler);
   void StopListening();

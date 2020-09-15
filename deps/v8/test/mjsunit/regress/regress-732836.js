@@ -4,7 +4,7 @@
 
 function boom() {
   var args = [];
-  for (var i = 0; i < 125000; i++)
+  for (var i = 0; i < 110000; i++)
     args.push(1.1);
   return Array.apply(Array, args);
 }

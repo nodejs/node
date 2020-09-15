@@ -2,3 +2,5 @@ IsConstructor
 IsEval
 IsAsync
 IsPromiseAll
+IsPromiseAny
+VisitRootPointers

@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/common/globals.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/memory-chunk-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"
@@ -16,8 +17,10 @@ namespace internal {
 namespace {
 AllocationSpace GetSpaceFromObject(Object object) {
   DCHECK(object.IsHeapObject());
-  return MemoryChunk::FromHeapObject(HeapObject::cast(object))
-      ->owner_identity();
+  BasicMemoryChunk* chunk =
+      BasicMemoryChunk::FromHeapObject(HeapObject::cast(object));
+  if (chunk->InReadOnlySpace()) return RO_SPACE;
+  return chunk->owner()->identity();
 }
 }  // namespace
 
@@ -42,6 +45,7 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
 #define INITIALLY_READ_ONLY_ROOT_LIST(V)  \
   V(api_private_symbol_table)             \
   V(api_symbol_table)                     \
+  V(basic_block_profiling_data)           \
   V(builtins_constants_table)             \
   V(current_microtask)                    \
   V(detached_contexts)                    \

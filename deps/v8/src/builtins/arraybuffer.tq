@@ -1,0 +1,66 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace arraybuffer {
+
+// #sec-get-arraybuffer.prototype.bytelength
+transitioning javascript builtin ArrayBufferPrototypeGetByteLength(
+    js-implicit context: NativeContext, receiver: JSAny)(): Number {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver,
+      'get ArrayBuffer.prototype.byteLength', receiver);
+  // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
+  if (IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver,
+        'get ArrayBuffer.prototype.byteLength', receiver);
+  }
+  // 4. If IsDetachedBuffer(O) is true, throw a TypeError exception.
+  // TODO(v8:4895): We don't actually throw here.
+  // 5. Let length be O.[[ArrayBufferByteLength]].
+  const length = o.byte_length;
+  // 6. Return length.
+  return Convert<Number>(length);
+}
+
+// #sec-get-sharedarraybuffer.prototype.bytelength
+transitioning javascript builtin SharedArrayBufferPrototypeGetByteLength(
+    js-implicit context: NativeContext, receiver: JSAny)(): Number {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver,
+      'get SharedArrayBuffer.prototype.byteLength', receiver);
+  // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
+  if (!IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver,
+        'get SharedArrayBuffer.prototype.byteLength', receiver);
+  }
+  // 4. Let length be O.[[ArrayBufferByteLength]].
+  const length = o.byte_length;
+  // 5. Return length.
+  return Convert<Number>(length);
+}
+
+// #sec-arraybuffer.isview
+transitioning javascript builtin ArrayBufferIsView(arg: JSAny): Boolean {
+  // 1. If Type(arg) is not Object, return false.
+  // 2. If arg has a [[ViewedArrayBuffer]] internal slot, return true.
+  // 3. Return false.
+  typeswitch (arg) {
+    case (JSArrayBufferView): {
+      return True;
+    }
+    case (JSAny): {
+      return False;
+    }
+  }
+}
+
+}  // namespace arraybuffer

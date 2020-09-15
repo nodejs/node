@@ -22,6 +22,10 @@ class CompilationDependency : public ZoneObject {
 
 #ifdef DEBUG
   virtual bool IsPretenureModeDependency() const { return false; }
+  virtual bool IsFieldRepresentationDependencyOnMap(
+      Handle<Map> const& receiver_map) const {
+    return false;
+  }
 #endif
 };
 

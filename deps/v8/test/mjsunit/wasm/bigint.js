@@ -164,8 +164,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   try {
     new WebAssembly.Global(argument);
   } catch (e) {
-    assertContains("'value' must be", e.message);
-    assertContains("i64", e.message);
+    assertContains("'value' must be a WebAssembly type", e.message);
   }
 })();
 

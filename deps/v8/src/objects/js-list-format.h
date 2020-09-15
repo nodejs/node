@@ -24,7 +24,7 @@
 
 namespace U_ICU_NAMESPACE {
 class ListFormatter;
-}
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {

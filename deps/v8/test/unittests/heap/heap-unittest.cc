@@ -10,6 +10,7 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
@@ -125,16 +126,14 @@ TEST_F(HeapTest, ASLR) {
 
 TEST_F(HeapTest, ExternalLimitDefault) {
   Heap* heap = i_isolate()->heap();
-  EXPECT_EQ(kExternalAllocationSoftLimit,
-            heap->isolate()->isolate_data()->external_memory_limit_);
+  EXPECT_EQ(kExternalAllocationSoftLimit, heap->external_memory_limit());
 }
 
 TEST_F(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling) {
   v8_isolate()->AdjustAmountOfExternalAllocatedMemory(+10 * MB);
   v8_isolate()->AdjustAmountOfExternalAllocatedMemory(-10 * MB);
   Heap* heap = i_isolate()->heap();
-  EXPECT_GE(heap->isolate()->isolate_data()->external_memory_limit_,
-            kExternalAllocationSoftLimit);
+  EXPECT_GE(heap->external_memory_limit(), kExternalAllocationSoftLimit);
 }
 
 #if V8_TARGET_ARCH_64_BIT
@@ -153,6 +152,7 @@ TEST_F(HeapWithPointerCompressionTest, HeapLayout) {
   // Check that all memory chunks belong this region.
   base::AddressRegion heap_reservation(isolate_root, size_t{4} * GB);
 
+  SafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
   for (;;) {
     MemoryChunk* chunk = iter.next();

@@ -17,6 +17,9 @@ namespace test_unwinder_code_pages {
 
 static const void* fake_stack_base = nullptr;
 
+#define CHECK_EQ_STACK_REGISTER(stack_value, register_value) \
+  CHECK_EQ(reinterpret_cast<void*>(stack_value), register_value)
+
 TEST(Unwind_BadState_Fail_CodePagesAPI) {
   JSEntryStubs entry_stubs;  // Fields are intialized to nullptr.
   RegisterState register_state;
@@ -32,6 +35,7 @@ TEST(Unwind_BadState_Fail_CodePagesAPI) {
   CHECK_NULL(register_state.pc);
 }
 
+// Unwind a middle JS frame (i.e not the JSEntry one).
 TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -44,11 +48,16 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   CHECK_LE(pages_length, arraysize(code_pages));
   RegisterState register_state;
 
+  // {stack} here mocks the stack, where the top of the stack (i.e the lowest
+  // addresses) are represented by lower indices.
   uintptr_t stack[3];
   void* stack_base = stack + arraysize(stack);
-  stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP (rbp).
+  // Index on the stack for the topmost fp (i.e the one right before the C++
+  // frame).
+  const int topmost_fp_index = 0;
+  stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP.
   stack[1] = 202;  // Return address into C++ code.
-  stack[2] = 303;  // The SP points here in the caller's frame.
+  stack[2] = reinterpret_cast<uintptr_t>(stack + 2);  // saved SP.
 
   register_state.sp = stack;
   register_state.fp = stack;
@@ -63,9 +72,9 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 2), register_state.fp);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 2), register_state.sp);
-  CHECK_EQ(reinterpret_cast<void*>(202), register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
 }
 
 // The unwinder should be able to unwind even if we haven't properly set up the
@@ -98,9 +107,12 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
   // Return address into JS code. It doesn't matter that this is not actually in
   // JSEntry, because we only check that for the top frame.
   stack[1] = reinterpret_cast<uintptr_t>(code + 10);
-  stack[2] = reinterpret_cast<uintptr_t>(stack + 5);  // saved FP (rbp).
+  // Index on the stack for the topmost fp (i.e the one right before the C++
+  // frame).
+  const int topmost_fp_index = 2;
+  stack[2] = reinterpret_cast<uintptr_t>(stack + 5);  // saved FP.
   stack[3] = 303;  // Return address into C++ code.
-  stack[4] = 404;
+  stack[4] = reinterpret_cast<uintptr_t>(stack + 4);
   stack[5] = 505;
 
   register_state.sp = stack;
@@ -115,9 +127,9 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 5), register_state.fp);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 4), register_state.sp);
-  CHECK_EQ(reinterpret_cast<void*>(303), register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
 }
 
 const char* foo_source = R"(
@@ -160,9 +172,12 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
 
   uintptr_t stack[3];
   void* stack_base = stack + arraysize(stack);
-  stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP (rbp).
+  // Index on the stack for the topmost fp (i.e the one right before the C++
+  // frame).
+  const int topmost_fp_index = 0;
+  stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP.
   stack[1] = 202;  // Return address into C++ code.
-  stack[2] = 303;  // The SP points here in the caller's frame.
+  stack[2] = reinterpret_cast<uintptr_t>(stack + 2);  // saved SP.
 
   register_state.sp = stack;
   register_state.fp = stack;
@@ -200,9 +215,9 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 2), register_state.fp);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 2), register_state.sp);
-  CHECK_EQ(reinterpret_cast<void*>(202), register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
 }
 
 // If the PC is within JSEntry but we haven't set up the frame yet, then we
@@ -232,36 +247,39 @@ TEST(Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
   stack[2] = 121;
   stack[3] = 131;
   stack[4] = 141;
-  stack[5] = 151;
+  stack[5] = 151;  // Here's where the saved fp would be. We are not going to be
+                   // unwinding so we do not need to set it up correctly.
   stack[6] = 100;  // Return address into C++ code.
-  stack[7] = 303;  // The SP points here in the caller's frame.
+  stack[7] = 303;  // Here's where the saved SP would be.
   stack[8] = 404;
   stack[9] = 505;
 
-  register_state.sp = stack + 5;
-  register_state.fp = stack + 9;
+  register_state.sp = &stack[5];
+  register_state.fp = &stack[9];
 
   // Put the current PC inside of JSEntry, before the frame is set up.
-  register_state.pc = code + 12;
+  uintptr_t* jsentry_pc_value = code + 12;
+  register_state.pc = jsentry_pc_value;
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(!unwound);
   // The register state should not change when unwinding fails.
-  CHECK_EQ(reinterpret_cast<void*>(stack + 9), register_state.fp);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 5), register_state.sp);
-  CHECK_EQ(code + 12, register_state.pc);
+  CHECK_EQ_STACK_REGISTER(&stack[9], register_state.fp);
+  CHECK_EQ_STACK_REGISTER(&stack[5], register_state.sp);
+  CHECK_EQ(jsentry_pc_value, register_state.pc);
 
   // Change the PC to a few instructions later, after the frame is set up.
-  register_state.pc = code + 16;
+  jsentry_pc_value = code + 16;
+  register_state.pc = jsentry_pc_value;
   unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   // TODO(petermarshall): More precisely check position within JSEntry rather
   // than just assuming the frame is unreadable.
   CHECK(!unwound);
   // The register state should not change when unwinding fails.
-  CHECK_EQ(reinterpret_cast<void*>(stack + 9), register_state.fp);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 5), register_state.sp);
-  CHECK_EQ(code + 16, register_state.pc);
+  CHECK_EQ_STACK_REGISTER(&stack[9], register_state.fp);
+  CHECK_EQ_STACK_REGISTER(&stack[5], register_state.sp);
+  CHECK_EQ(jsentry_pc_value, register_state.pc);
 }
 
 TEST(Unwind_OneJSFrame_Success_CodePagesAPI) {
@@ -288,9 +306,12 @@ TEST(Unwind_OneJSFrame_Success_CodePagesAPI) {
   stack[2] = 121;
   stack[3] = 131;
   stack[4] = 141;
-  stack[5] = reinterpret_cast<uintptr_t>(stack + 9);  // saved FP (rbp).
+  // Index on the stack for the topmost fp (i.e the one right before the C++
+  // frame).
+  const int topmost_fp_index = 5;
+  stack[5] = reinterpret_cast<uintptr_t>(stack + 9);  // saved FP.
   stack[6] = 100;  // Return address into C++ code.
-  stack[7] = 303;  // The SP points here in the caller's frame.
+  stack[7] = reinterpret_cast<uintptr_t>(stack + 7);  // saved SP.
   stack[8] = 404;
   stack[9] = 505;
 
@@ -304,9 +325,9 @@ TEST(Unwind_OneJSFrame_Success_CodePagesAPI) {
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 9), register_state.fp);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 7), register_state.sp);
-  CHECK_EQ(reinterpret_cast<void*>(100), register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
 }
 
 // Creates a fake stack with two JS frames on top of a C++ frame and checks that
@@ -333,13 +354,16 @@ TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
   void* stack_base = stack + arraysize(stack);
   stack[0] = 101;
   stack[1] = 111;
-  stack[2] = reinterpret_cast<uintptr_t>(stack + 5);  // saved FP (rbp).
+  stack[2] = reinterpret_cast<uintptr_t>(stack + 5);  // saved FP.
   // The fake return address is in the JS code range.
   stack[3] = reinterpret_cast<uintptr_t>(code + 10);
   stack[4] = 141;
-  stack[5] = reinterpret_cast<uintptr_t>(stack + 9);  // saved FP (rbp).
+  // Index on the stack for the topmost fp (i.e the one right before the C++
+  // frame).
+  const int topmost_fp_index = 5;
+  stack[5] = reinterpret_cast<uintptr_t>(stack + 9);  // saved FP.
   stack[6] = 100;  // Return address into C++ code.
-  stack[7] = 303;  // The SP points here in the caller's frame.
+  stack[7] = reinterpret_cast<uintptr_t>(stack + 7);  // saved SP.
   stack[8] = 404;
   stack[9] = 505;
 
@@ -353,9 +377,9 @@ TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 9), register_state.fp);
-  CHECK_EQ(reinterpret_cast<void*>(stack + 7), register_state.sp);
-  CHECK_EQ(reinterpret_cast<void*>(100), register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
 }
 
 // If the PC is in JSEntry then the frame might not be set up correctly, meaning
@@ -400,9 +424,9 @@ TEST(Unwind_StackBounds_Basic_CodePagesAPI) {
   code_pages[0].length_in_bytes = code_length * sizeof(uintptr_t);
 
   uintptr_t stack[3];
-  stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP (rbp).
+  stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP.
   stack[1] = 202;  // Return address into C++ code.
-  stack[2] = 303;  // The SP points here in the caller's frame.
+  stack[2] = 303;  // saved SP.
 
   register_state.sp = stack;
   register_state.fp = stack;
@@ -446,9 +470,9 @@ TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
   stack[2] = 121;
   stack[3] = 131;
   stack[4] = 141;
-  stack[5] = reinterpret_cast<uintptr_t>(stack + 9);  // saved FP (rbp).
+  stack[5] = reinterpret_cast<uintptr_t>(stack + 9);  // saved FP.
   stack[6] = reinterpret_cast<uintptr_t>(code + 20);  // JS code.
-  stack[7] = 303;  // The SP points here in the caller's frame.
+  stack[7] = 303;                                     // saved SP.
   stack[8] = 404;
   stack[9] = reinterpret_cast<uintptr_t>(stack) +
              (12 * sizeof(uintptr_t));                 // saved FP (OOB).
@@ -577,7 +601,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
   Handle<Code> foo_code =
-      Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+      Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
 
   CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
   byte* start = reinterpret_cast<byte*>(foo_code->InstructionStart());
@@ -665,6 +689,8 @@ TEST(Unwind_TwoNestedFunctions_CodePagesAPI) {
   UnwinderTestHelper helper(test_script);
 }
 #endif
+
+#undef CHECK_EQ_STACK_REGISTER
 }  // namespace test_unwinder_code_pages
 }  // namespace internal
 }  // namespace v8

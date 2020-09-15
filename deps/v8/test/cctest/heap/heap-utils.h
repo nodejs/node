@@ -66,15 +66,25 @@ void GcAndSweep(Heap* heap, AllocationSpace space);
 
 void ForceEvacuationCandidate(Page* page);
 
-void InvokeScavenge();
+void InvokeScavenge(Isolate* isolate = nullptr);
 
-void InvokeMarkSweep();
+void InvokeMarkSweep(Isolate* isolate = nullptr);
 
 template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
   return i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
+}
+
+bool InCorrectGeneration(HeapObject object);
+
+template <typename GlobalOrPersistent>
+bool InCorrectGeneration(v8::Isolate* isolate,
+                         const GlobalOrPersistent& global) {
+  v8::HandleScope scope(isolate);
+  auto tmp = global.Get(isolate);
+  return InCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
 }  // namespace heap

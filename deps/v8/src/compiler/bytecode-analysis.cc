@@ -20,8 +20,8 @@ using interpreter::OperandType;
 BytecodeLoopAssignments::BytecodeLoopAssignments(int parameter_count,
                                                  int register_count, Zone* zone)
     : parameter_count_(parameter_count),
-      bit_vector_(new (zone)
-                      BitVector(parameter_count + register_count, zone)) {}
+      bit_vector_(
+          zone->New<BitVector>(parameter_count + register_count, zone)) {}
 
 void BytecodeLoopAssignments::Add(interpreter::Register r) {
   if (r.is_parameter()) {

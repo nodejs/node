@@ -30,13 +30,12 @@ class SimplifiedOperatorReducerTest : public GraphTest {
 
  protected:
   Reduction Reduce(Node* node) {
-    JSHeapBroker broker(isolate(), zone(), FLAG_trace_heap_broker, false);
     MachineOperatorBuilder machine(zone());
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
-    GraphReducer graph_reducer(zone(), graph(), tick_counter());
-    SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph, &broker);
+    GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
+    SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph, broker());
     return reducer.Reduce(node);
   }
 

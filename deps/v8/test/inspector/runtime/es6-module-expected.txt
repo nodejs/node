@@ -2,6 +2,7 @@ Checks basic ES6 modules support.
 {
     method : Debugger.scriptParsed
     params : {
+        embedderName : module1
         endColumn : 17
         endLine : 5
         executionContextId : <executionContextId>
@@ -21,6 +22,7 @@ Checks basic ES6 modules support.
 {
     method : Debugger.scriptParsed
     params : {
+        embedderName : module2
         endColumn : 17
         endLine : 5
         executionContextId : <executionContextId>
@@ -40,6 +42,7 @@ Checks basic ES6 modules support.
 {
     method : Debugger.scriptParsed
     params : {
+        embedderName : module3
         endColumn : 0
         endLine : 11
         executionContextId : <executionContextId>
@@ -201,6 +204,7 @@ console.log(239)
 {
     method : Debugger.scriptFailedToParse
     params : {
+        embedderName : module4
         endColumn : 1
         endLine : 0
         executionContextId : <executionContextId>

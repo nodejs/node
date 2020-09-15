@@ -40,19 +40,25 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
+  //  -- a0 : actual argument count
   //  -- a1 : target function (preserved for callee)
   //  -- a3 : new target (preserved for callee)
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Push a copy of the target function and the new target.
+    // Push a copy of the target function, the new target and the actual
+    // argument count.
     // Push function as parameter to the runtime call.
-    __ Push(a1, a3, a1);
+    __ SmiTag(kJavaScriptCallArgCountRegister);
+    __ Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+            kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
 
     __ CallRuntime(function_id, 1);
 
-    // Restore target function and new target.
-    __ Pop(a1, a3);
+    // Restore target function, new target and actual argument count.
+    __ Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+           kJavaScriptCallArgCountRegister);
+    __ SmiUntag(kJavaScriptCallArgCountRegister);
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
@@ -844,6 +850,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       Register optimized_code_entry,
                                       Register scratch1, Register scratch2) {
   // ----------- S t a t e -------------
+  //  -- a0 : actual argument count
   //  -- a3 : new target (preserved for callee if needed, and caller)
   //  -- a1 : target function (preserved for callee if needed, and caller)
   // -----------------------------------
@@ -880,6 +887,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
                               Register optimization_marker) {
   // ----------- S t a t e -------------
+  //  -- a0 : actual argument count
   //  -- a3 : new target (preserved for callee if needed, and caller)
   //  -- a1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
@@ -989,10 +997,10 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
-// stack left to right.  The actual argument count matches the formal parameter
-// count expected by the function.
+// stack left to right.
 //
 // The live registers are:
+//   o a0 : actual argument count (not including the receiver)
 //   o a1: the JS function object being called.
 //   o a3: the incoming new target or generator object
 //   o cp: our context
@@ -1008,16 +1016,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
-  __ lw(a0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(kScratchReg,
+        FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ lw(kInterpreterBytecodeArrayRegister,
-        FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
-  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, t0);
+        FieldMemOperand(kScratchReg, SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister,
+                                kScratchReg);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label compile_lazy;
-  __ GetObjectType(kInterpreterBytecodeArrayRegister, a0, a0);
-  __ Branch(&compile_lazy, ne, a0, Operand(BYTECODE_ARRAY_TYPE));
+  __ GetObjectType(kInterpreterBytecodeArrayRegister, kScratchReg, kScratchReg);
+  __ Branch(&compile_lazy, ne, kScratchReg, Operand(BYTECODE_ARRAY_TYPE));
 
   // Load the feedback vector from the closure.
   __ lw(feedback_vector,
@@ -2785,6 +2795,11 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Pop(scratch, scratch2, scratch3);
   __ Pop(result_reg);
   __ Ret();
+}
+
+void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
+  // TODO(v8:10701): Implement for this platform.
+  __ Trap();
 }
 
 namespace {

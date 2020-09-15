@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
+#include "src/zone/zone-hashmap.h"
 
 namespace v8 {
 namespace internal {

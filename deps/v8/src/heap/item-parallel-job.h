@@ -18,7 +18,7 @@ namespace v8 {
 
 namespace base {
 class Semaphore;
-}
+}  // namespace base
 
 namespace internal {
 

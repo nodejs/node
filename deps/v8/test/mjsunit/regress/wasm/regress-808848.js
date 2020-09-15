@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// The test needs --wasm-tier-up because we can't serialize and deserialize
+// Liftoff code.
+// Flags: --allow-natives-syntax --wasm-tier-up
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -39,7 +41,7 @@ builder.addImport('mod', 'get', kSig_i_v);
 builder.addImport('mod', 'call', kSig_v_i);
 builder.
   addFunction('main', kSig_v_v).
-  addLocals({i32_count: kNumLocals}).
+  addLocals(kWasmI32, kNumLocals).
   addBody(body).
   exportAs('main');
 let m1_bytes = builder.toBuffer();

@@ -88,7 +88,7 @@ class RegExpMacroAssembler {
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
                                      Label* on_no_match) = 0;
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward,
+                                               bool read_backward, bool unicode,
                                                Label* on_no_match) = 0;
   // Check the current character for a match with a literal character.  If we
   // fail to match then goto the on_failure label.  End of input always
@@ -165,11 +165,16 @@ class RegExpMacroAssembler {
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
 
-  // Compares two-byte strings case insensitively.
+  // Compare two-byte strings case insensitively.
   // Called from generated RegExp code.
-  static int CaseInsensitiveCompareUC16(Address byte_offset1,
-                                        Address byte_offset2,
-                                        size_t byte_length, Isolate* isolate);
+  static int CaseInsensitiveCompareNonUnicode(Address byte_offset1,
+                                              Address byte_offset2,
+                                              size_t byte_length,
+                                              Isolate* isolate);
+  static int CaseInsensitiveCompareUnicode(Address byte_offset1,
+                                           Address byte_offset2,
+                                           size_t byte_length,
+                                           Isolate* isolate);
 
   // Check that we are not in the middle of a surrogate pair.
   void CheckNotInSurrogatePair(int cp_offset, Label* on_failure);

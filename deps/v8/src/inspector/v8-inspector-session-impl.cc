@@ -463,7 +463,7 @@ void V8InspectorSessionImpl::resume(bool terminateOnResume) {
   m_debuggerAgent->resume(terminateOnResume);
 }
 
-void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver(); }
+void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver({}); }
 
 std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
 V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,

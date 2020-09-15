@@ -761,20 +761,18 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
   if (options.enable_os_system) {
-    os_templ->Set(String::NewFromUtf8Literal(isolate, "system"),
-                  FunctionTemplate::New(isolate, System));
+    os_templ->Set(isolate, "system", FunctionTemplate::New(isolate, System));
   }
-  os_templ->Set(String::NewFromUtf8Literal(isolate, "chdir"),
+  os_templ->Set(isolate, "chdir",
                 FunctionTemplate::New(isolate, ChangeDirectory));
-  os_templ->Set(String::NewFromUtf8Literal(isolate, "setenv"),
+  os_templ->Set(isolate, "setenv",
                 FunctionTemplate::New(isolate, SetEnvironment));
-  os_templ->Set(String::NewFromUtf8Literal(isolate, "unsetenv"),
+  os_templ->Set(isolate, "unsetenv",
                 FunctionTemplate::New(isolate, UnsetEnvironment));
-  os_templ->Set(String::NewFromUtf8Literal(isolate, "umask"),
-                FunctionTemplate::New(isolate, SetUMask));
-  os_templ->Set(String::NewFromUtf8Literal(isolate, "mkdirp"),
+  os_templ->Set(isolate, "umask", FunctionTemplate::New(isolate, SetUMask));
+  os_templ->Set(isolate, "mkdirp",
                 FunctionTemplate::New(isolate, MakeDirectory));
-  os_templ->Set(String::NewFromUtf8Literal(isolate, "rmdir"),
+  os_templ->Set(isolate, "rmdir",
                 FunctionTemplate::New(isolate, RemoveDirectory));
 }
 

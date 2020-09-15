@@ -69,8 +69,7 @@ struct V8_EXPORT TickSample {
                              RecordCEntryFrame record_c_entry_frame,
                              void** frames, size_t frames_limit,
                              v8::SampleInfo* sample_info,
-                             bool use_simulator_reg_state = true,
-                             void** contexts = nullptr);
+                             bool use_simulator_reg_state = true);
 
   void print() const;
 
@@ -83,8 +82,6 @@ struct V8_EXPORT TickSample {
   static const unsigned kMaxFramesCountLog2 = 8;
   static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
   void* stack[kMaxFramesCount];     // Call stack.
-  void* contexts[kMaxFramesCount];  // Stack of associated native contexts.
-  void* top_context = nullptr;      // Address of the incumbent native context.
   unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
   bool update_stats : 1;  // Whether the sample should update aggregated stats.

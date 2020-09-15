@@ -15,9 +15,8 @@ namespace internal {
 // TODO(goszczycki): Move this somewhere every file in src/snapshot can use it.
 // The spaces suported by the serializer. Spaces after LO_SPACE (NEW_LO_SPACE
 // and CODE_LO_SPACE) are not supported.
-enum class SnapshotSpace {
+enum class SnapshotSpace : byte {
   kReadOnlyHeap = RO_SPACE,
-  kNew = NEW_SPACE,
   kOld = OLD_SPACE,
   kCode = CODE_SPACE,
   kMap = MAP_SPACE,

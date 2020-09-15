@@ -12,7 +12,7 @@ builder.addGlobal(kWasmI32, 1);
 const sig = builder.addType(makeSig([kWasmI32, kWasmI64, kWasmI64, kWasmI64], [kWasmF32]));
 // Generate function 1 (out of 3).
 builder.addFunction(undefined, sig)
-  .addLocals({i32_count: 57}).addLocals({i64_count: 11})
+  .addLocals(kWasmI32, 57).addLocals(kWasmI64, 11)
   .addBodyWithEnd([
 // signature: f_illl
 // body:

@@ -287,7 +287,7 @@ TEST(CaptureStackTrace) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::String> origin = v8_str("capture-stack-trace-test");
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(v8_str("AnalyzeStackInNativeCode"),
+  templ->Set(isolate, "AnalyzeStackInNativeCode",
              v8::FunctionTemplate::New(isolate, AnalyzeStackInNativeCode));
   LocalContext context(nullptr, templ);
 
@@ -625,7 +625,7 @@ TEST(SourceURLInStackTrace) {
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(
-      v8_str("AnalyzeStackOfEvalWithSourceURL"),
+      isolate, "AnalyzeStackOfEvalWithSourceURL",
       v8::FunctionTemplate::New(isolate, AnalyzeStackOfEvalWithSourceURL));
   LocalContext context(nullptr, templ);
 
@@ -666,7 +666,7 @@ TEST(ScriptIdInStackTrace) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(v8_str("AnalyzeScriptIdInStack"),
+  templ->Set(isolate, "AnalyzeScriptIdInStack",
              v8::FunctionTemplate::New(isolate, AnalyzeScriptIdInStack));
   LocalContext context(nullptr, templ);
 
@@ -702,7 +702,7 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(v8_str("AnalyzeStackOfInlineScriptWithSourceURL"),
+  templ->Set(isolate, "AnalyzeStackOfInlineScriptWithSourceURL",
              v8::FunctionTemplate::New(
                  CcTest::isolate(), AnalyzeStackOfInlineScriptWithSourceURL));
   LocalContext context(nullptr, templ);
@@ -746,7 +746,7 @@ TEST(DynamicWithSourceURLInStackTrace) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(v8_str("AnalyzeStackOfDynamicScriptWithSourceURL"),
+  templ->Set(isolate, "AnalyzeStackOfDynamicScriptWithSourceURL",
              v8::FunctionTemplate::New(
                  CcTest::isolate(), AnalyzeStackOfDynamicScriptWithSourceURL));
   LocalContext context(nullptr, templ);

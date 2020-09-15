@@ -115,7 +115,7 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
   return stackTrace;
 }
 
-}  //  namespace
+}  // namespace
 
 V8StackTraceId::V8StackTraceId() : id(0), debugger_id(V8DebuggerId().pair()) {}
 

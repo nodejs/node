@@ -16,8 +16,8 @@
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/control-flow-builders.h"
+#include "src/logging/local-logger.h"
 #include "src/logging/log.h"
-#include "src/logging/off-thread-logger.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
@@ -860,6 +860,7 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
     kStoreNamedStrict,
     kStoreNamedSloppy,
     kLoadProperty,
+    kLoadSuperProperty,
     kLoadGlobalNotInsideTypeof,
     kLoadGlobalInsideTypeof,
     kClosureFeedbackCell
@@ -877,6 +878,9 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
            int slot_index) {
     PutImpl(slot_kind, variable_index, name, slot_index);
   }
+  void Put(SlotKind slot_kind, const AstRawString* name, int slot_index) {
+    PutImpl(slot_kind, 0, name, slot_index);
+  }
 
   int Get(SlotKind slot_kind, Variable* variable) const {
     return GetImpl(slot_kind, 0, variable);
@@ -887,6 +891,9 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
   int Get(SlotKind slot_kind, int variable_index,
           const AstRawString* name) const {
     return GetImpl(slot_kind, variable_index, name);
+  }
+  int Get(SlotKind slot_kind, const AstRawString* name) const {
+    return GetImpl(slot_kind, 0, name);
   }
 
  private:
@@ -1005,9 +1012,9 @@ class AccessorTable
         zone_(zone) {}
 
   Accessors<PropertyT>* LookupOrInsert(Literal* key) {
-    auto it = this->find(key, true, ZoneAllocationPolicy(zone_));
+    auto it = this->find(key, true);
     if (it->second == nullptr) {
-      it->second = new (zone_) Accessors<PropertyT>();
+      it->second = zone_->New<Accessors<PropertyT>>();
       ordered_accessors_.push_back({key, it->second});
     }
     return it->second;
@@ -1052,8 +1059,8 @@ BytecodeGenerator::BytecodeGenerator(
       closure_scope_(info->scope()),
       current_scope_(info->scope()),
       eager_inner_literals_(eager_inner_literals),
-      feedback_slot_cache_(new (zone()) FeedbackSlotCache(zone())),
-      top_level_builder_(new (zone()) TopLevelDeclarationsBuilder()),
+      feedback_slot_cache_(zone()->New<FeedbackSlotCache>(zone())),
+      top_level_builder_(zone()->New<TopLevelDeclarationsBuilder>()),
       block_coverage_builder_(nullptr),
       function_literals_(0, zone()),
       native_function_literals_(0, zone()),
@@ -1074,8 +1081,8 @@ BytecodeGenerator::BytecodeGenerator(
       catch_prediction_(HandlerTable::UNCAUGHT) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
   if (info->has_source_range_map()) {
-    block_coverage_builder_ = new (zone())
-        BlockCoverageBuilder(zone(), builder(), info->source_range_map());
+    block_coverage_builder_ = zone()->New<BlockCoverageBuilder>(
+        zone(), builder(), info->source_range_map());
   }
 }
 
@@ -1090,10 +1097,10 @@ struct NullContextScopeHelper<Isolate> {
 };
 
 template <>
-struct NullContextScopeHelper<OffThreadIsolate> {
+struct NullContextScopeHelper<LocalIsolate> {
   class DummyNullContextScope {
    public:
-    explicit DummyNullContextScope(OffThreadIsolate*) {}
+    explicit DummyNullContextScope(LocalIsolate*) {}
   };
   using Type = DummyNullContextScope;
 };
@@ -1139,7 +1146,7 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
 template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     Isolate* isolate, Handle<Script> script);
 template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
-    OffThreadIsolate* isolate, Handle<Script> script);
+    LocalIsolate* isolate, Handle<Script> script);
 
 template <typename LocalIsolate>
 Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
@@ -1165,7 +1172,7 @@ Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
 template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
     Isolate* isolate);
 template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
-    OffThreadIsolate* isolate);
+    LocalIsolate* isolate);
 
 #ifdef DEBUG
 int BytecodeGenerator::CheckBytecodeMatches(BytecodeArray bytecode) {
@@ -1258,7 +1265,7 @@ void BytecodeGenerator::AllocateDeferredConstants(LocalIsolate* isolate,
 template void BytecodeGenerator::AllocateDeferredConstants(
     Isolate* isolate, Handle<Script> script);
 template void BytecodeGenerator::AllocateDeferredConstants(
-    OffThreadIsolate* isolate, Handle<Script> script);
+    LocalIsolate* isolate, Handle<Script> script);
 
 namespace {
 bool NeedsContextInitialization(DeclarationScope* scope) {
@@ -2913,14 +2920,15 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
   Register array = register_allocator()->NewRegister();
   SharedFeedbackSlot element_slot(feedback_spec(),
                                   FeedbackSlotKind::kStoreInArrayLiteral);
-  ZonePtrList<Expression>::iterator current = elements->begin();
-  ZonePtrList<Expression>::iterator end = elements->end();
+  ZonePtrList<Expression>::const_iterator current = elements->begin();
+  ZonePtrList<Expression>::const_iterator end = elements->end();
   bool is_empty = elements->is_empty();
 
   if (!is_empty && (*current)->IsSpread()) {
     // If we have a leading spread, use CreateArrayFromIterable to create
     // an array from it and then add the remaining components to that array.
     VisitForAccumulatorValue(*current);
+    builder()->SetExpressionPosition((*current)->AsSpread()->expression());
     builder()->CreateArrayFromIterable().StoreAccumulatorInRegister(array);
 
     if (++current != end) {
@@ -2976,7 +2984,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     // index, into the initial array (the remaining elements will be inserted
     // below).
     DCHECK_EQ(current, elements->begin());
-    ZonePtrList<Expression>::iterator first_spread_or_end =
+    ZonePtrList<Expression>::const_iterator first_spread_or_end =
         expr->first_spread_index() >= 0 ? current + expr->first_spread_index()
                                         : end;
     int array_index = 0;
@@ -3021,6 +3029,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       builder()->SetExpressionAsStatementPosition(
           subexpr->AsSpread()->expression());
       VisitForAccumulatorValue(subexpr->AsSpread()->expression());
+      builder()->SetExpressionPosition(subexpr->AsSpread()->expression());
       IteratorRecord iterator = BuildGetIteratorRecord(IteratorType::kNormal);
 
       Register value = register_allocator()->NewRegister();
@@ -4718,19 +4727,33 @@ void BytecodeGenerator::VisitNamedSuperPropertyLoad(Property* property,
   RegisterAllocationScope register_scope(this);
   SuperPropertyReference* super_property =
       property->obj()->AsSuperPropertyReference();
-  RegisterList args = register_allocator()->NewRegisterList(3);
-  BuildThisVariableLoad();
-  builder()->StoreAccumulatorInRegister(args[0]);
-  VisitForRegisterValue(super_property->home_object(), args[1]);
+  if (FLAG_super_ic) {
+    Register receiver = register_allocator()->NewRegister();
+    BuildThisVariableLoad();
+    builder()->StoreAccumulatorInRegister(receiver);
+    VisitForAccumulatorValue(super_property->home_object());
+    builder()->SetExpressionPosition(property);
+    auto name = property->key()->AsLiteral()->AsRawPropertyName();
+    FeedbackSlot slot = GetCachedLoadSuperICSlot(name);
+    builder()->LoadNamedPropertyFromSuper(receiver, name, feedback_index(slot));
+    if (opt_receiver_out.is_valid()) {
+      builder()->MoveRegister(receiver, opt_receiver_out);
+    }
+  } else {
+    RegisterList args = register_allocator()->NewRegisterList(3);
+    BuildThisVariableLoad();
+    builder()->StoreAccumulatorInRegister(args[0]);
+    VisitForRegisterValue(super_property->home_object(), args[1]);
 
-  builder()->SetExpressionPosition(property);
-  builder()
-      ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
-      .StoreAccumulatorInRegister(args[2])
-      .CallRuntime(Runtime::kLoadFromSuper, args);
+    builder()->SetExpressionPosition(property);
+    builder()
+        ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
+        .StoreAccumulatorInRegister(args[2])
+        .CallRuntime(Runtime::kLoadFromSuper, args);
 
-  if (opt_receiver_out.is_valid()) {
-    builder()->MoveRegister(args[0], opt_receiver_out);
+    if (opt_receiver_out.is_valid()) {
+      builder()->MoveRegister(args[0], opt_receiver_out);
+    }
   }
 }
 
@@ -4886,7 +4909,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       break;
     }
     case Call::NAMED_OPTIONAL_CHAIN_PROPERTY_CALL:
-    case Call::KEYED_OPTIONAL_CHAIN_PROPERTY_CALL: {
+    case Call::KEYED_OPTIONAL_CHAIN_PROPERTY_CALL:
+    case Call::PRIVATE_OPTIONAL_CHAIN_CALL: {
       OptionalChain* chain = callee_expr->AsOptionalChain();
       Property* property = chain->expression()->AsProperty();
       BuildOptionalChain([&]() {
@@ -6552,6 +6576,7 @@ FeedbackSlot BytecodeGenerator::GetCachedStoreGlobalICSlot(
 
 FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
                                                     const AstRawString* name) {
+  DCHECK(!expr->IsSuperPropertyReference());
   if (!FLAG_ignition_share_named_property_feedback) {
     return feedback_spec()->AddLoadICSlot();
   }
@@ -6569,6 +6594,23 @@ FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
   slot = feedback_spec()->AddLoadICSlot();
   feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name,
                              feedback_index(slot));
+  return slot;
+}
+
+FeedbackSlot BytecodeGenerator::GetCachedLoadSuperICSlot(
+    const AstRawString* name) {
+  if (!FLAG_ignition_share_named_property_feedback) {
+    return feedback_spec()->AddLoadICSlot();
+  }
+  FeedbackSlotCache::SlotKind slot_kind =
+      FeedbackSlotCache::SlotKind::kLoadSuperProperty;
+
+  FeedbackSlot slot(feedback_slot_cache()->Get(slot_kind, name));
+  if (!slot.IsInvalid()) {
+    return slot;
+  }
+  slot = feedback_spec()->AddLoadICSlot();
+  feedback_slot_cache()->Put(slot_kind, name, feedback_index(slot));
   return slot;
 }
 

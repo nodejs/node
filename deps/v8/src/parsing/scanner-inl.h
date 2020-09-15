@@ -305,7 +305,7 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
       // Special case for escapes at the start of an identifier.
       escaped = true;
       uc32 c = ScanIdentifierUnicodeEscape();
-      DCHECK(!IsIdentifierStart(-1));
+      DCHECK(!IsIdentifierStart(Invalid()));
       if (c == '\\' || !IsIdentifierStart(c)) {
         return Token::ILLEGAL;
       }

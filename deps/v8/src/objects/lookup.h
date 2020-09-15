@@ -85,6 +85,12 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         const Key& key, Handle<JSReceiver> holder,
                         Configuration configuration = DEFAULT);
 
+  // Usable for cases where "holder" is not necessarily a JSReceiver (a separate
+  // overloaded constructor is not possible).
+  static inline LookupIterator LookupWithReceiver(
+      Isolate* isolate, Handle<Object> receiver, const Key& key,
+      Handle<Object> holder, Configuration configuration = DEFAULT);
+
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;
     IsElement() ? RestartInternal<true>(state) : RestartInternal<false>(state);

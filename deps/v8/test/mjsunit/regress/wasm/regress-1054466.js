@@ -10,7 +10,7 @@ const builder = new WasmModuleBuilder();
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 // Generate function 1 (out of 1).
 builder.addFunction(undefined, 0 /* sig */)
-  .addLocals({i32_count: 2}).addLocals({f32_count: 2})
+  .addLocals(kWasmI32, 2).addLocals(kWasmF32, 2)
   .addBodyWithEnd([
 // signature: i_iii
 // body:
@@ -44,7 +44,7 @@ kExprI32Const, 0x83, 0x01,  // i32.const
 kSimdPrefix, kExprI32x4Splat,  // i32x4.splat
 kSimdPrefix, kExprI32x4Eq,  // i32x4.eq
 kSimdPrefix, kExprI32x4Eq,  // i32x4.eq
-kSimdPrefix, kExprS1x16AnyTrue,  // s1x16.any_true
+kSimdPrefix, kExprV8x16AnyTrue,  // v8x16.any_true
 kExprEnd,  // end @64
 ]);
 builder.addExport('main', 0);

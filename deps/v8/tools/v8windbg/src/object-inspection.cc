@@ -585,6 +585,79 @@ IFACEMETHODIMP V8LocalValueProperty::SetValue(
   return E_NOTIMPL;
 }
 
+IFACEMETHODIMP V8InternalCompilerNodeIdProperty::GetValue(
+    PCWSTR pwsz_key, IModelObject* p_v8_compiler_node_instance,
+    IModelObject** pp_value) noexcept {
+  WRL::ComPtr<IModelObject> sp_bit_field;
+  RETURN_IF_FAIL(p_v8_compiler_node_instance->GetRawValue(
+      SymbolKind::SymbolField, L"bit_field_", RawSearchNone, &sp_bit_field));
+
+  uint64_t bit_field_value;
+  RETURN_IF_FAIL(
+      UnboxULong64(sp_bit_field.Get(), &bit_field_value, true /*convert*/));
+
+  WRL::ComPtr<IDebugHostContext> sp_host_context;
+  RETURN_IF_FAIL(p_v8_compiler_node_instance->GetContext(&sp_host_context));
+
+  WRL::ComPtr<IDebugHostType> sp_id_field_type;
+  RETURN_IF_FAIL(Extension::Current()
+                     ->GetV8Module(sp_host_context)
+                     ->FindTypeByName(L"v8::internal::compiler::Node::IdField",
+                                      &sp_id_field_type));
+
+  // Get 2nd template parameter as 24 in class.
+  // v8::base::BitField<v8::internal::compiler::NodeId, 0, 24>.
+  bool is_generic;
+  RETURN_IF_FAIL(sp_id_field_type->IsGeneric(&is_generic));
+  if (!is_generic) return E_FAIL;
+
+  WRL::ComPtr<IDebugHostSymbol> sp_k_size_arg;
+  RETURN_IF_FAIL(sp_id_field_type->GetGenericArgumentAt(2, &sp_k_size_arg));
+
+  WRL::ComPtr<IDebugHostConstant> sp_k_size_constant;
+  RETURN_IF_FAIL(sp_k_size_arg.As(&sp_k_size_constant));
+
+  int k_size;
+  RETURN_IF_FAIL(GetInt32(sp_k_size_constant.Get(), &k_size));
+
+  // Compute node_id.
+  uint32_t node_id = bit_field_value & (0xFFFFFFFF >> k_size);
+  RETURN_IF_FAIL(CreateUInt32(node_id, pp_value));
+
+  return S_OK;
+}
+
+IFACEMETHODIMP V8InternalCompilerNodeIdProperty::SetValue(
+    PCWSTR /*pwsz_key*/, IModelObject* /*p_process_instance*/,
+    IModelObject* /*p_value*/) noexcept {
+  return E_NOTIMPL;
+}
+
+IFACEMETHODIMP V8InternalCompilerBitsetNameProperty::GetValue(
+    PCWSTR pwsz_key, IModelObject* p_v8_compiler_type_instance,
+    IModelObject** pp_value) noexcept {
+  WRL::ComPtr<IModelObject> sp_payload;
+  RETURN_IF_FAIL(p_v8_compiler_type_instance->GetRawValue(
+      SymbolKind::SymbolField, L"payload_", RawSearchNone, &sp_payload));
+
+  uint64_t payload_value;
+  RETURN_IF_FAIL(
+      UnboxULong64(sp_payload.Get(), &payload_value, true /*convert*/));
+
+  const char* bitset_name = ::BitsetName(payload_value);
+  if (!bitset_name) return E_FAIL;
+  std::string name(bitset_name);
+  RETURN_IF_FAIL(CreateString(ConvertToU16String(name), pp_value));
+
+  return S_OK;
+}
+
+IFACEMETHODIMP V8InternalCompilerBitsetNameProperty::SetValue(
+    PCWSTR /*pwsz_key*/, IModelObject* /*p_process_instance*/,
+    IModelObject* /*p_value*/) noexcept {
+  return E_NOTIMPL;
+}
+
 constexpr wchar_t usage[] =
     LR"(Invalid arguments.
 First argument should be a uint64 representing the tagged value to investigate.

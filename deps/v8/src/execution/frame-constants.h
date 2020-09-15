@@ -76,55 +76,9 @@ class CommonFrameConstants : public AllStatic {
 
 // StandardFrames are used for interpreted and optimized JavaScript
 // frames. They always have a context below the saved fp/constant
-// pool and below that the JSFunction of the executing function.
-//
-//  slot      JS frame
-//       +-----------------+--------------------------------
-//  -n-1 |   parameter 0   |                            ^
-//       |- - - - - - - - -|                            |
-//  -n   |                 |                          Caller
-//  ...  |       ...       |                       frame slots
-//  -2   |  parameter n-1  |                       (slot < 0)
-//       |- - - - - - - - -|                            |
-//  -1   |   parameter n   |                            v
-//  -----+-----------------+--------------------------------
-//   0   |   return addr   |   ^                        ^
-//       |- - - - - - - - -|   |                        |
-//   1   | saved frame ptr | Fixed                      |
-//       |- - - - - - - - -| Header <-- frame ptr       |
-//   2   | [Constant Pool] |   |                        |
-//       |- - - - - - - - -|   |                        |
-// 2+cp  |     Context     |   |   if a constant pool   |
-//       |- - - - - - - - -|   |    is used, cp = 1,    |
-// 3+cp  |    JSFunction   |   v   otherwise, cp = 0    |
-//       +-----------------+----                        |
-// 4+cp  |                 |   ^                      Callee
-//       |- - - - - - - - -|   |                   frame slots
-//  ...  |                 | Frame slots           (slot >= 0)
-//       |- - - - - - - - -|   |                        |
-//       |                 |   v                        |
-//  -----+-----------------+----- <-- stack ptr -------------
-//
-class StandardFrameConstants : public CommonFrameConstants {
- public:
-  static constexpr int kFixedFrameSizeFromFp =
-      2 * kSystemPointerSize + kCPSlotSize;
-  static constexpr int kFixedFrameSize =
-      kFixedFrameSizeAboveFp + kFixedFrameSizeFromFp;
-  static constexpr int kFixedSlotCountFromFp =
-      kFixedFrameSizeFromFp / kSystemPointerSize;
-  static constexpr int kFixedSlotCount = kFixedFrameSize / kSystemPointerSize;
-  static constexpr int kContextOffset = kContextOrFrameTypeOffset;
-  static constexpr int kFunctionOffset = -2 * kSystemPointerSize - kCPSlotSize;
-  static constexpr int kExpressionsOffset =
-      -3 * kSystemPointerSize - kCPSlotSize;
-  static constexpr int kLastObjectOffset = kContextOffset;
-};
-
-// OptimizedBuiltinFrameConstants are used for TF-generated builtins. They
-// always have a context below the saved fp/constant pool and below that the
-// JSFunction of the executing function and below that an integer (not a Smi)
-// containing the number of arguments passed to the builtin.
+// pool, below that the JSFunction of the executing function and below that an
+// integer (not a Smi) containing the actual number of arguments passed to the
+// JavaScript code.
 //
 //  slot      JS frame
 //       +-----------------+--------------------------------
@@ -155,12 +109,21 @@ class StandardFrameConstants : public CommonFrameConstants {
 //       |                 |   v                        |
 //  -----+-----------------+----- <-- stack ptr -------------
 //
-class OptimizedBuiltinFrameConstants : public StandardFrameConstants {
+class StandardFrameConstants : public CommonFrameConstants {
  public:
-  static constexpr int kArgCSize = kSystemPointerSize;
-  static constexpr int kArgCOffset = -3 * kSystemPointerSize - kCPSlotSize;
-  static constexpr int kFixedFrameSize = kFixedFrameSizeAboveFp - kArgCOffset;
+  static constexpr int kFixedFrameSizeFromFp =
+      3 * kSystemPointerSize + kCPSlotSize;
+  static constexpr int kFixedFrameSize =
+      kFixedFrameSizeAboveFp + kFixedFrameSizeFromFp;
+  static constexpr int kFixedSlotCountFromFp =
+      kFixedFrameSizeFromFp / kSystemPointerSize;
   static constexpr int kFixedSlotCount = kFixedFrameSize / kSystemPointerSize;
+  static constexpr int kContextOffset = kContextOrFrameTypeOffset;
+  static constexpr int kFunctionOffset = -2 * kSystemPointerSize - kCPSlotSize;
+  static constexpr int kArgCOffset = -3 * kSystemPointerSize - kCPSlotSize;
+  static constexpr int kExpressionsOffset =
+      -4 * kSystemPointerSize - kCPSlotSize;
+  static constexpr int kLastObjectOffset = kContextOffset;
 };
 
 // TypedFrames have a type maker value below the saved FP/constant pool to

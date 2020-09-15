@@ -20,7 +20,6 @@
 #include "src/objects/bigint.h"
 
 #include "src/execution/isolate-inl.h"
-#include "src/execution/off-thread-isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
@@ -418,10 +417,10 @@ template <typename LocalIsolate>
 Handle<BigInt> BigInt::Zero(LocalIsolate* isolate, AllocationType allocation) {
   return MutableBigInt::Zero(isolate, allocation);
 }
-template Handle<BigInt> BigInt::Zero<Isolate>(Isolate* isolate,
-                                              AllocationType allocation);
-template Handle<BigInt> BigInt::Zero<OffThreadIsolate>(
-    OffThreadIsolate* isolate, AllocationType allocation);
+template Handle<BigInt> BigInt::Zero(Isolate* isolate,
+                                     AllocationType allocation);
+template Handle<BigInt> BigInt::Zero(LocalIsolate* isolate,
+                                     AllocationType allocation);
 
 Handle<BigInt> BigInt::UnaryMinus(Isolate* isolate, Handle<BigInt> x) {
   // Special case: There is no -0n.
@@ -823,32 +822,39 @@ MaybeHandle<BigInt> BigInt::Decrement(Isolate* isolate, Handle<BigInt> x) {
   return MutableBigInt::MakeImmutable(result);
 }
 
-ComparisonResult BigInt::CompareToString(Isolate* isolate, Handle<BigInt> x,
-                                         Handle<String> y) {
+Maybe<ComparisonResult> BigInt::CompareToString(Isolate* isolate,
+                                                Handle<BigInt> x,
+                                                Handle<String> y) {
   // a. Let ny be StringToBigInt(y);
   MaybeHandle<BigInt> maybe_ny = StringToBigInt(isolate, y);
   // b. If ny is NaN, return undefined.
   Handle<BigInt> ny;
   if (!maybe_ny.ToHandle(&ny)) {
-    DCHECK(!isolate->has_pending_exception());
-    return ComparisonResult::kUndefined;
+    if (isolate->has_pending_exception()) {
+      return Nothing<ComparisonResult>();
+    } else {
+      return Just(ComparisonResult::kUndefined);
+    }
   }
   // c. Return BigInt::lessThan(x, ny).
-  return CompareToBigInt(x, ny);
+  return Just(CompareToBigInt(x, ny));
 }
 
-bool BigInt::EqualToString(Isolate* isolate, Handle<BigInt> x,
-                           Handle<String> y) {
+Maybe<bool> BigInt::EqualToString(Isolate* isolate, Handle<BigInt> x,
+                                  Handle<String> y) {
   // a. Let n be StringToBigInt(y).
   MaybeHandle<BigInt> maybe_n = StringToBigInt(isolate, y);
   // b. If n is NaN, return false.
   Handle<BigInt> n;
   if (!maybe_n.ToHandle(&n)) {
-    DCHECK(!isolate->has_pending_exception());
-    return false;
+    if (isolate->has_pending_exception()) {
+      return Nothing<bool>();
+    } else {
+      return Just(false);
+    }
   }
   // c. Return the result of x == n.
-  return EqualToBigInt(*x, *n);
+  return Just(EqualToBigInt(*x, *n));
 }
 
 bool BigInt::EqualToNumber(Handle<BigInt> x, Handle<Object> y) {
@@ -1048,9 +1054,13 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   if (obj->IsString()) {
     Handle<BigInt> n;
     if (!StringToBigInt(isolate, Handle<String>::cast(obj)).ToHandle(&n)) {
-      THROW_NEW_ERROR(isolate,
-                      NewSyntaxError(MessageTemplate::kBigIntFromObject, obj),
-                      BigInt);
+      if (isolate->has_pending_exception()) {
+        return MaybeHandle<BigInt>();
+      } else {
+        THROW_NEW_ERROR(isolate,
+                        NewSyntaxError(MessageTemplate::kBigIntFromObject, obj),
+                        BigInt);
+      }
     }
     return n;
   }
@@ -1125,7 +1135,7 @@ double MutableBigInt::ToDouble(Handle<BigIntBase> x) {
   return bit_cast<double>(double_bits);
 }
 
-// This is its own function to keep control flow sane. The meaning of the
+// This is its own function to simplify control flow. The meaning of the
 // parameters is defined by {ToDouble}'s local variable usage.
 MutableBigInt::Rounding MutableBigInt::DecideRounding(Handle<BigIntBase> x,
                                                       int mantissa_bits_unset,
@@ -1952,13 +1962,12 @@ MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
     return MaybeHandle<FreshlyAllocatedBigInt>();
   }
 }
-template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor<Isolate>(
+template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
     Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
     AllocationType allocation);
-template MaybeHandle<FreshlyAllocatedBigInt>
-BigInt::AllocateFor<OffThreadIsolate>(OffThreadIsolate* isolate, int radix,
-                                      int charcount, ShouldThrow should_throw,
-                                      AllocationType allocation);
+template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
+    LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
+    AllocationType allocation);
 
 template <typename LocalIsolate>
 Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
@@ -1969,7 +1978,7 @@ Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
 
 template Handle<BigInt> BigInt::Finalize<Isolate>(
     Handle<FreshlyAllocatedBigInt>, bool);
-template Handle<BigInt> BigInt::Finalize<OffThreadIsolate>(
+template Handle<BigInt> BigInt::Finalize<LocalIsolate>(
     Handle<FreshlyAllocatedBigInt>, bool);
 
 // The serialization format MUST NOT CHANGE without updating the format

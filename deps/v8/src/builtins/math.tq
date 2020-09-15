@@ -4,9 +4,6 @@
 
 namespace math {
 
-extern transitioning builtin
-NonNumberToNumber(implicit context: Context)(HeapObject): Number;
-
 transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
     never
     labels SmiResult(Smi), Float64Result(float64) {
@@ -20,7 +17,7 @@ transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
         goto Float64Result(Convert<float64>(h));
       }
       case (a: JSAnyNotNumber): {
-        x1 = NonNumberToNumber(a);
+        x1 = conversion::NonNumberToNumber(a);
       }
     }
   }
@@ -29,6 +26,7 @@ transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
 
 // ES6 #sec-math.abs
 extern macro IsIntPtrAbsWithOverflowSupported(): constexpr bool;
+extern macro TrySmiAdd(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiSub(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiAbs(Smi): Smi labels Overflow;
 extern macro Float64Abs(float64): float64;
@@ -439,19 +437,16 @@ extern macro RefillMathRandom(NativeContext): Smi;
 
 transitioning javascript builtin
 MathRandom(js-implicit context: NativeContext, receiver: JSAny)(): Number {
-  let smiIndex: Smi =
-      Cast<Smi>(context[NativeContextSlot::MATH_RANDOM_INDEX_INDEX])
-      otherwise unreachable;
+  let smiIndex: Smi = *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX);
   if (smiIndex == 0) {
     // refill math random.
     smiIndex = RefillMathRandom(context);
   }
   const newSmiIndex: Smi = smiIndex - 1;
-  context[NativeContextSlot::MATH_RANDOM_INDEX_INDEX] = newSmiIndex;
+  *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX) = newSmiIndex;
 
-  const array: FixedDoubleArray = Cast<FixedDoubleArray>(
-      context[NativeContextSlot::MATH_RANDOM_CACHE_INDEX])
-      otherwise unreachable;
+  const array: FixedDoubleArray =
+      *NativeContextSlot(ContextSlot::MATH_RANDOM_CACHE_INDEX);
   const random: float64 =
       array.floats[Convert<intptr>(newSmiIndex)].ValueUnsafeAssumeNotHole();
   return AllocateHeapNumberWithValue(random);

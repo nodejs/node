@@ -107,7 +107,7 @@ Node* ToInt32(RawMachineAssembler* m, MachineType type, Node* a) {
     case MachineRepresentation::kWord64:
       return m->TruncateInt64ToInt32(a);
     case MachineRepresentation::kFloat32:
-      return m->TruncateFloat32ToInt32(a);
+      return m->TruncateFloat32ToInt32(a, TruncateKind::kArchitectureDefault);
     case MachineRepresentation::kFloat64:
       return m->RoundFloat64ToInt32(a);
     default:
@@ -206,7 +206,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   RawMachineAssembler callee(
-      i_isolate, new (&zone) Graph(&zone), desc,
+      i_isolate, zone.New<Graph>(&zone), desc,
       MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -239,7 +239,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
-  OptimizedCompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("testing"), &zone, CodeKind::STUB);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, i_isolate, desc, callee.graph(),
                                        AssemblerOptions::Default(i_isolate),
@@ -259,7 +259,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CallDescriptor* wrapper_desc =
       Linkage::GetSimplifiedCDescriptor(&zone, sig_builder.Build());
   RawMachineAssembler caller(
-      i_isolate, new (&zone) Graph(&zone), wrapper_desc,
+      i_isolate, zone.New<Graph>(&zone), wrapper_desc,
       MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -285,7 +285,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Call the wrapper.
   OptimizedCompilationInfo wrapper_info(ArrayVector("wrapper"), &zone,
-                                        Code::STUB);
+                                        CodeKind::STUB);
   Handle<Code> wrapper_code =
       Pipeline::GenerateCodeForTesting(
           &wrapper_info, i_isolate, wrapper_desc, caller.graph(),

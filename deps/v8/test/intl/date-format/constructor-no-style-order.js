@@ -74,39 +74,63 @@ new Intl.DateTimeFormat(['en-US'], {
   }
 });
 
+// Read by ToDateTimeOptions and also in Table 1
+// https://tc39.es/proposal-intl-datetime-style/#table-datetimeformat-components
 assertEquals(2, weekday.length);
-assertEquals(1, weekday[0]);
-assertEquals(1, year.length);
-assertEquals(2, year[0]);
-assertEquals(1, month.length);
-assertEquals(3, month[0]);
-assertEquals(1, day.length);
-assertEquals(4, day[0]);
 assertEquals(2, hour.length);
-assertEquals(5, hour[0]);
 assertEquals(2, minute.length);
-assertEquals(6, minute[0]);
 assertEquals(2, second.length);
-assertEquals(7, second[0]);
-assertEquals(1, localeMatcher.length);
-assertEquals(8, localeMatcher[0]);
-assertEquals(1, hour12.length);
-assertEquals(9, hour12[0]);
-assertEquals(1, hourCycle.length);
-assertEquals(10, hourCycle[0]);
-assertEquals(1, timeZone.length);
-assertEquals(11, timeZone[0]);
-assertEquals(1, dateStyle.length);
-assertEquals(12, dateStyle[0]);
-assertEquals(1, timeStyle.length);
-assertEquals(13, timeStyle[0]);
-assertEquals(14, weekday[1]);
+
+// Read by ToDateTimeOptions and also overwrite with a default 'numeric'
+// https://tc39.es/proposal-intl-datetime-style/#table-datetimeformat-components
+assertEquals(1, year.length);
+assertEquals(1, month.length);
+assertEquals(1, day.length);
+
+// In Table 1
+// https://tc39.es/proposal-intl-datetime-style/#table-datetimeformat-components
 assertEquals(1, era.length);
+assertEquals(1, timeZoneName.length);
+
+// Read by ToDateTimeOptions and InitializeDateTimeFormat
+assertEquals(2, dateStyle.length);
+assertEquals(2, timeStyle.length);
+
+// Only read by InitializeDateTimeFormat
+assertEquals(1, localeMatcher.length);
+assertEquals(1, hour12.length);
+assertEquals(1, hourCycle.length);
+assertEquals(1, timeZone.length);
+assertEquals(1, formatMatcher.length);
+
+// ToDateTimeOptions
+assertEquals(1, weekday[0]);
+assertEquals(2, year[0]);
+assertEquals(3, month[0]);
+assertEquals(4, day[0]);
+assertEquals(5, hour[0]);
+assertEquals(6, minute[0]);
+assertEquals(7, second[0]);
+assertEquals(8, dateStyle[0]);
+assertEquals(9, timeStyle[0]);
+
+// InitializeDateTimeFormat
+assertEquals(10, localeMatcher[0]);
+assertEquals(11, hour12[0]);
+assertEquals(12, hourCycle[0]);
+assertEquals(13, timeZone[0]);
+
+// Table 1 loop in InitializeDateTimeFormat
+assertEquals(14, weekday[1]);
 assertEquals(15, era[0]);
 assertEquals(16, hour[1]);
 assertEquals(17, minute[1]);
 assertEquals(18, second[1]);
-assertEquals(1, timeZoneName.length);
 assertEquals(19, timeZoneName[0]);
-assertEquals(1, formatMatcher.length);
+
+// After the Table 1 loop in InitializeDateTimeFormat
 assertEquals(20, formatMatcher[0]);
+assertEquals(21, dateStyle[1]);
+assertEquals(22, timeStyle[1]);
+
+assertEquals(22, getCount);

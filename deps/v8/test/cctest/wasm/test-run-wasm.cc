@@ -11,6 +11,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/utils/utils.h"
+#include "src/wasm/wasm-opcodes-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -96,7 +97,7 @@ WASM_EXEC_TEST(Int32Add_P_fallthru) {
   FOR_INT32_INPUTS(i) { CHECK_EQ(base::AddWithWraparound(i, 13), r.Call(i)); }
 }
 
-static void RunInt32AddTest(ExecutionTier execution_tier, const byte* code,
+static void RunInt32AddTest(TestExecutionTier execution_tier, const byte* code,
                             size_t size) {
   TestSignatures sigs;
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
@@ -162,7 +163,7 @@ WASM_EXEC_TEST(Float64Add) {
 // clang-format messes up the FOR_INT32_INPUTS macros.
 // clang-format off
 template<typename ctype>
-static void TestInt32Binop(ExecutionTier execution_tier, WasmOpcode opcode,
+static void TestInt32Binop(TestExecutionTier execution_tier, WasmOpcode opcode,
                            ctype(*expected)(ctype, ctype)) {
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
@@ -222,7 +223,7 @@ WASM_I32_BINOP_TEST(GeU, uint32_t, a >= b)
 
 #undef WASM_I32_BINOP_TEST
 
-void TestInt32Unop(ExecutionTier execution_tier, WasmOpcode opcode,
+void TestInt32Unop(TestExecutionTier execution_tier, WasmOpcode opcode,
                    int32_t expected, int32_t a) {
   {
     WasmRunner<int32_t> r(execution_tier);
@@ -422,7 +423,7 @@ WASM_EXEC_TEST(Int32DivS_trap_effect) {
   CHECK_TRAP(r.Call(0, 0));
 }
 
-void TestFloat32Binop(ExecutionTier execution_tier, WasmOpcode opcode,
+void TestFloat32Binop(TestExecutionTier execution_tier, WasmOpcode opcode,
                       int32_t expected, float a, float b) {
   {
     WasmRunner<int32_t> r(execution_tier);
@@ -438,7 +439,7 @@ void TestFloat32Binop(ExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
-void TestFloat32BinopWithConvert(ExecutionTier execution_tier,
+void TestFloat32BinopWithConvert(TestExecutionTier execution_tier,
                                  WasmOpcode opcode, int32_t expected, float a,
                                  float b) {
   {
@@ -457,8 +458,8 @@ void TestFloat32BinopWithConvert(ExecutionTier execution_tier,
   }
 }
 
-void TestFloat32UnopWithConvert(ExecutionTier execution_tier, WasmOpcode opcode,
-                                int32_t expected, float a) {
+void TestFloat32UnopWithConvert(TestExecutionTier execution_tier,
+                                WasmOpcode opcode, int32_t expected, float a) {
   {
     WasmRunner<int32_t> r(execution_tier);
     // return int(op(K))
@@ -473,7 +474,7 @@ void TestFloat32UnopWithConvert(ExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
-void TestFloat64Binop(ExecutionTier execution_tier, WasmOpcode opcode,
+void TestFloat64Binop(TestExecutionTier execution_tier, WasmOpcode opcode,
                       int32_t expected, double a, double b) {
   {
     WasmRunner<int32_t> r(execution_tier);
@@ -489,7 +490,7 @@ void TestFloat64Binop(ExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
-void TestFloat64BinopWithConvert(ExecutionTier execution_tier,
+void TestFloat64BinopWithConvert(TestExecutionTier execution_tier,
                                  WasmOpcode opcode, int32_t expected, double a,
                                  double b) {
   {
@@ -507,8 +508,8 @@ void TestFloat64BinopWithConvert(ExecutionTier execution_tier,
   }
 }
 
-void TestFloat64UnopWithConvert(ExecutionTier execution_tier, WasmOpcode opcode,
-                                int32_t expected, double a) {
+void TestFloat64UnopWithConvert(TestExecutionTier execution_tier,
+                                WasmOpcode opcode, int32_t expected, double a) {
   {
     WasmRunner<int32_t> r(execution_tier);
     // return int(op(K))
@@ -723,8 +724,28 @@ WASM_EXEC_TEST(Select_float_parameters) {
   CHECK_FLOAT_EQ(2.0f, r.Call(2.0f, 1.0f, 1));
 }
 
+WASM_EXEC_TEST(Select_s128_parameters) {
+  WasmRunner<int32_t, int32_t> r(execution_tier);
+  int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  int32_t* output = r.builder().AddGlobal<int32_t>(kWasmS128);
+  // select(v128(0, 1, 2, 3), v128(4, 5, 6, 7), 1) == v128(0, 1, 2, 3)
+  for (int i = 0; i < 4; i++) {
+    WriteLittleEndianValue<int32_t>(&g0[i], i);
+    WriteLittleEndianValue<int32_t>(&g1[i], i + 4);
+  }
+  BUILD(r,
+        WASM_SET_GLOBAL(2, WASM_SELECT(WASM_GET_GLOBAL(0), WASM_GET_GLOBAL(1),
+                                       WASM_GET_LOCAL(0))),
+        WASM_ONE);
+  r.Call(1);
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(i, ReadLittleEndianValue<int32_t>(&output[i]));
+  }
+}
+
 WASM_EXEC_TEST(SelectWithType_float_parameters) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<float, float, float, int32_t> r(execution_tier);
   BUILD(r,
         WASM_SELECT_F(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)));
@@ -742,7 +763,7 @@ WASM_EXEC_TEST(Select) {
 }
 
 WASM_EXEC_TEST(SelectWithType) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // return select(11, 22, a);
   BUILD(r, WASM_SELECT_I(WASM_I32V_1(11), WASM_I32V_1(22), WASM_GET_LOCAL(0)));
@@ -763,7 +784,7 @@ WASM_EXEC_TEST(Select_strict1) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict1) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // select(a=0, a=1, a=2); return a
   BUILD(r,
@@ -788,7 +809,7 @@ WASM_EXEC_TEST(Select_strict2) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict2) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmI32);
@@ -816,7 +837,7 @@ WASM_EXEC_TEST(Select_strict3) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict3) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmI32);
@@ -1034,18 +1055,6 @@ WASM_EXEC_TEST(BrTable_loop_target) {
   r.Build(code, code + arraysize(code));
 
   CHECK_EQ(1, r.Call(0));
-}
-
-WASM_EXEC_TEST(BrTableMeetBottom) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
-  WasmRunner<int32_t> r(execution_tier);
-  BUILD(r,
-        WASM_BLOCK_I(WASM_STMTS(
-            WASM_BLOCK_F(WASM_STMTS(
-                WASM_UNREACHABLE, WASM_BR_TABLE(WASM_I32V_1(1), 2, BR_TARGET(0),
-                                                BR_TARGET(1), BR_TARGET(1)))),
-            WASM_DROP, WASM_I32V_1(14))));
-  CHECK_TRAP(r.Call());
 }
 
 WASM_EXEC_TEST(F32ReinterpretI32) {
@@ -1860,8 +1869,9 @@ WASM_EXEC_TEST(MemF32_Sum) {
 }
 
 template <typename T>
-T GenerateAndRunFold(ExecutionTier execution_tier, WasmOpcode binop, T* buffer,
-                     uint32_t size, ValueType astType, MachineType memType) {
+T GenerateAndRunFold(TestExecutionTier execution_tier, WasmOpcode binop,
+                     T* buffer, uint32_t size, ValueType astType,
+                     MachineType memType) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   T* memory = r.builder().AddMemoryElems<T>(static_cast<uint32_t>(
       RoundUp(size * sizeof(T), kWasmPageSize) / sizeof(sizeof(T))));
@@ -1995,11 +2005,11 @@ WASM_EXEC_TEST(Infinite_Loop_not_taken2_brif) {
 
 static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  Zone zone(isolate->allocator(), ZONE_NAME);
+  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   HandleScope scope(isolate);
-  // TODO(ahaas): Enable this test for anyref opcodes when code generation for
-  // them is implemented.
-  if (WasmOpcodes::IsAnyRefOpcode(opcode)) return;
+  // TODO(ahaas): Enable this test for externref opcodes when code generation
+  // for them is implemented.
+  if (WasmOpcodes::IsExternRefOpcode(opcode)) return;
   // Enable all optional operators.
   compiler::CommonOperatorBuilder common(&zone);
   compiler::MachineOperatorBuilder machine(
@@ -2617,7 +2627,7 @@ WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
     for (size_t i = 0; i < sizeof(__buf); ++i) vec.push_back(__buf[i]); \
   } while (false)
 
-static void Run_WasmMixedCall_N(ExecutionTier execution_tier, int start) {
+static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
   const int kExpected = 6333;
   const int kElemSize = 8;
   TestSignatures sigs;
@@ -2737,7 +2747,7 @@ WASM_EXEC_TEST(MultiReturnSub) {
 }
 
 template <typename T>
-void RunMultiReturnSelect(ExecutionTier execution_tier, const T* inputs) {
+void RunMultiReturnSelect(TestExecutionTier execution_tier, const T* inputs) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
   ValueType type = ValueType::For(MachineTypeForC<T>());
   ValueType storage[] = {type, type, type, type, type, type};
@@ -3309,7 +3319,7 @@ WASM_EXEC_TEST(F32CopySign) {
   }
 }
 
-static void CompileCallIndirectMany(ExecutionTier tier, ValueType param) {
+static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
@@ -3487,8 +3497,9 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
 // not overwritten.
 template <typename ctype>
 void BinOpOnDifferentRegisters(
-    ExecutionTier execution_tier, ValueType type, Vector<const ctype> inputs,
-    WasmOpcode opcode, std::function<ctype(ctype, ctype, bool*)> expect_fn) {
+    TestExecutionTier execution_tier, ValueType type,
+    Vector<const ctype> inputs, WasmOpcode opcode,
+    std::function<ctype(ctype, ctype, bool*)> expect_fn) {
   static constexpr int kMaxNumLocals = 8;
   for (int num_locals = 1; num_locals < kMaxNumLocals; ++num_locals) {
     // {init_locals_code} is shared by all code generated in the loop below.
@@ -3722,7 +3733,7 @@ WASM_EXEC_TEST(I64RemUOnDifferentRegisters) {
 }
 
 TEST(Liftoff_tier_up) {
-  WasmRunner<int32_t, int32_t, int32_t> r(ExecutionTier::kLiftoff);
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kLiftoff);
 
   WasmFunctionCompiler& add = r.NewFunction<int32_t, int32_t, int32_t>("add");
   BUILD(add, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -3760,6 +3771,15 @@ TEST(Liftoff_tier_up) {
     // Second run should now execute {sub}.
     CHECK_EQ(4, r.Call(11, 7));
   }
+}
+
+TEST(Regression_1085507) {
+  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
+  TestSignatures sigs;
+  uint32_t sig_v_i = r.builder().AddSignature(sigs.v_i());
+  BUILD(r, WASM_I32V_1(0), kExprIf, kLocalVoid, WASM_UNREACHABLE,
+        WASM_BLOCK_X(sig_v_i, kExprDrop), kExprElse, kExprEnd, WASM_I32V_1(0));
 }
 
 #undef B1

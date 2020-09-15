@@ -55,10 +55,11 @@ namespace torque {
 // should be instantiated in the appropriate scope.
 class TypeArgumentInference {
  public:
-  TypeArgumentInference(const GenericParameters& type_parameters,
-                        const TypeVector& explicit_type_arguments,
-                        const std::vector<TypeExpression*>& term_parameters,
-                        const TypeVector& term_argument_types);
+  TypeArgumentInference(
+      const GenericParameters& type_parameters,
+      const TypeVector& explicit_type_arguments,
+      const std::vector<TypeExpression*>& term_parameters,
+      const std::vector<base::Optional<const Type*>>& term_argument_types);
 
   bool HasFailed() const { return failure_reason_.has_value(); }
   const std::string& GetFailureReason() { return *failure_reason_; }

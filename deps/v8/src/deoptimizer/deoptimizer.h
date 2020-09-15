@@ -17,7 +17,9 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/js-function.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/allocation.h"
 #include "src/utils/boxed-float.h"
@@ -34,6 +36,7 @@ class TranslatedFrame;
 class TranslatedState;
 class RegisterValues;
 class MacroAssembler;
+class StrongRootsEntry;
 
 enum class BuiltinContinuationMode;
 
@@ -354,8 +357,7 @@ class TranslatedState {
                                 FixedArray literal_array, Address fp,
                                 RegisterValues* registers, FILE* trace_file);
   Address DecompressIfNeeded(intptr_t value);
-  Address ComputeArgumentsPosition(Address input_frame_pointer,
-                                   CreateArgumentsType type, int* length);
+  Address ComputeArgumentsPosition(Address input_frame_pointer, int* length);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
                                                CreateArgumentsType type,
@@ -444,7 +446,7 @@ class Deoptimizer : public Malloced {
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo shared,
                                                     BailoutId node_id);
 
-  static const char* MessageFor(DeoptimizeKind kind);
+  static const char* MessageFor(DeoptimizeKind kind, bool reuse_code);
 
   int output_count() const { return output_count_; }
 
@@ -454,6 +456,8 @@ class Deoptimizer : public Malloced {
 
   // Number of created JS frames. Not all created frames are necessarily JS.
   int jsframe_count() const { return jsframe_count_; }
+
+  bool should_reuse_code() const;
 
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           unsigned bailout_id, Address from, int fp_to_sp_delta,
@@ -479,6 +483,13 @@ class Deoptimizer : public Malloced {
   // (via code->set_marked_for_deoptimization) and unlinks all functions that
   // refer to that code.
   static void DeoptimizeMarkedCode(Isolate* isolate);
+
+  // Check the given address against a list of allowed addresses, to prevent a
+  // potential attacker from using the frame creation process in the
+  // deoptimizer, in particular the signing process, to gain control over the
+  // program.
+  // When building mksnapshot, always return false.
+  static bool IsValidReturnAddress(Address address);
 
   ~Deoptimizer();
 
@@ -598,6 +609,7 @@ class Deoptimizer : public Malloced {
   intptr_t caller_pc_;
   intptr_t caller_constant_pool_;
   intptr_t input_frame_context_;
+  intptr_t actual_argument_count_;
 
   // Key for lookup of previously materialized objects
   intptr_t stack_fp_;
@@ -812,6 +824,7 @@ class DeoptimizerData {
   void set_deopt_entry_code(DeoptimizeKind kind, Code code);
 
   Deoptimizer* current_;
+  StrongRootsEntry* strong_roots_entry_;
 
   friend class Deoptimizer;
 
@@ -911,7 +924,7 @@ class Translation {
                                                         int literal_id,
                                                         unsigned height);
   void ArgumentsElements(CreateArgumentsType type);
-  void ArgumentsLength(CreateArgumentsType type);
+  void ArgumentsLength();
   void BeginCapturedObject(int length);
   void AddUpdateFeedback(int vector_literal, int slot);
   void DuplicateObject(int object_index);

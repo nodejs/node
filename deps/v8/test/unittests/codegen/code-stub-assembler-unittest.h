@@ -14,7 +14,7 @@ namespace internal {
 
 class CodeStubAssemblerTest : public TestWithIsolateAndZone {
  public:
-  CodeStubAssemblerTest() = default;
+  CodeStubAssemblerTest() : TestWithIsolateAndZone(kCompressGraphZone) {}
   ~CodeStubAssemblerTest() override = default;
 };
 

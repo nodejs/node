@@ -12,6 +12,8 @@
 #include "src/common/globals.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/frame-states.h"
+#include "src/compiler/linkage.h"
+#include "src/compiler/node-properties.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-handle-set.h"
@@ -449,6 +451,8 @@ V8_EXPORT_PRIVATE Handle<HeapObject> HeapConstantOf(const Operator* op)
 const StringConstantBase* StringConstantBaseOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
+const char* StaticAssertSourceOf(const Operator* op);
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -459,7 +463,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
-  const Operator* StaticAssert();
+  const Operator* StaticAssert(const char* source);
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone,
                          IsSafetyCheck = IsSafetyCheck::kSafetyCheck);
@@ -526,7 +530,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types,
                                    SparseInputMask bitmask);
   const Operator* ArgumentsElementsState(ArgumentsStateType type);
-  const Operator* ArgumentsLengthState(ArgumentsStateType type);
+  const Operator* ArgumentsLengthState();
   const Operator* ObjectState(uint32_t object_id, int pointer_slots);
   const Operator* TypedObjectState(uint32_t object_id,
                                    const ZoneVector<MachineType>* types);
@@ -562,6 +566,77 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
+
+// Node wrappers.
+
+class CommonNodeWrapperBase : public NodeWrapper {
+ public:
+  explicit constexpr CommonNodeWrapperBase(Node* node) : NodeWrapper(node) {}
+
+  // Valid iff this node has exactly one effect input.
+  Effect effect() const {
+    DCHECK_EQ(node()->op()->EffectInputCount(), 1);
+    return Effect{NodeProperties::GetEffectInput(node())};
+  }
+
+  // Valid iff this node has exactly one control input.
+  Control control() const {
+    DCHECK_EQ(node()->op()->ControlInputCount(), 1);
+    return Control{NodeProperties::GetControlInput(node())};
+  }
+};
+
+#define DEFINE_INPUT_ACCESSORS(Name, name, TheIndex, Type) \
+  static constexpr int Name##Index() { return TheIndex; }  \
+  TNode<Type> name() const {                               \
+    return TNode<Type>::UncheckedCast(                     \
+        NodeProperties::GetValueInput(node(), TheIndex));  \
+  }
+
+class StartNode final : public CommonNodeWrapperBase {
+ public:
+  explicit constexpr StartNode(Node* node) : CommonNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kStart);
+  }
+
+  // The receiver is counted as part of formal parameters.
+  static constexpr int kReceiverOutputCount = 1;
+  // These outputs are in addition to formal parameters.
+  static constexpr int kExtraOutputCount = 4;
+
+  // Takes the formal parameter count of the current function (including
+  // receiver) and returns the number of value outputs of the start node.
+  static constexpr int OutputArityForFormalParameterCount(int argc) {
+    constexpr int kClosure = 1;
+    constexpr int kNewTarget = 1;
+    constexpr int kArgCount = 1;
+    constexpr int kContext = 1;
+    STATIC_ASSERT(kClosure + kNewTarget + kArgCount + kContext ==
+                  kExtraOutputCount);
+    // Checking related linkage methods here since they rely on Start node
+    // layout.
+    CONSTEXPR_DCHECK(Linkage::kJSCallClosureParamIndex == -1);
+    CONSTEXPR_DCHECK(Linkage::GetJSCallNewTargetParamIndex(argc) == argc + 0);
+    CONSTEXPR_DCHECK(Linkage::GetJSCallArgCountParamIndex(argc) == argc + 1);
+    CONSTEXPR_DCHECK(Linkage::GetJSCallContextParamIndex(argc) == argc + 2);
+    return argc + kClosure + kNewTarget + kArgCount + kContext;
+  }
+
+  int FormalParameterCount() const {
+    DCHECK_GE(node()->op()->ValueOutputCount(),
+              kExtraOutputCount + kReceiverOutputCount);
+    return node()->op()->ValueOutputCount() - kExtraOutputCount;
+  }
+
+  int FormalParameterCountWithoutReceiver() const {
+    DCHECK_GE(node()->op()->ValueOutputCount(),
+              kExtraOutputCount + kReceiverOutputCount);
+    return node()->op()->ValueOutputCount() - kExtraOutputCount -
+           kReceiverOutputCount;
+  }
+};
+
+#undef DEFINE_INPUT_ACCESSORS
 
 }  // namespace compiler
 }  // namespace internal

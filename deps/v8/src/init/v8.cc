@@ -98,9 +98,7 @@ void V8::InitializeOncePerProcessImpl() {
   // The --jitless and --interpreted-frames-native-stack flags are incompatible
   // since the latter requires code generation while the former prohibits code
   // generation.
-  CHECK_WITH_MSG(!FLAG_interpreted_frames_native_stack || !FLAG_jitless,
-                 "The --jitless and --interpreted-frames-native-stack flags "
-                 "are incompatible.");
+  CHECK(!FLAG_interpreted_frames_native_stack || !FLAG_jitless);
 
   base::OS::Initialize(FLAG_hard_abort, FLAG_gc_fake_mmap);
 

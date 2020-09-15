@@ -62,9 +62,7 @@ class HeapObject : public Object {
   DECL_GETTER(synchronized_map_word, MapWord)
   inline void synchronized_set_map_word(MapWord map_word);
 
-  // TODO(v8:7464): Once RO_SPACE is shared between isolates, this method can be
-  // removed as ReadOnlyRoots will be accessible from a global variable. For now
-  // this method exists to help remove GetIsolate/GetHeap from HeapObject, in a
+  // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
   // way that doesn't require passing Isolate/Heap down huge call chains or to
   // places where it might not be safe to access it.
   inline ReadOnlyRoots GetReadOnlyRoots() const;
@@ -84,10 +82,10 @@ class HeapObject : public Object {
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value)                  \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;          \
-  V8_INLINE bool Is##Type(OffThreadIsolate* isolate) const; \
-  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;       \
+#define IS_TYPE_FUNCTION_DECL(Type, Value)              \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;      \
+  V8_INLINE bool Is##Type(LocalIsolate* isolate) const; \
+  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)

@@ -241,11 +241,11 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; code:");
     Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(
         relocinfo->target_address());
-    Code::Kind kind = code.kind();
+    CodeKind kind = code.kind();
     if (code.is_builtin()) {
       out->AddFormatted(" Builtin::%s", Builtins::name(code.builtin_index()));
     } else {
-      out->AddFormatted(" %s", Code::Kind2String(kind));
+      out->AddFormatted(" %s", CodeKindToString(kind));
     }
   } else if (RelocInfo::IsWasmStubCall(rmode) && host.is_wasm_code()) {
     // Host is isolate-independent, try wasm native module instead.
@@ -260,7 +260,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, addr, &type)) {
       out->AddFormatted("    ;; %s deoptimization bailout",
-                        Deoptimizer::MessageFor(type));
+                        Deoptimizer::MessageFor(type, false));
     } else {
       out->AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
     }

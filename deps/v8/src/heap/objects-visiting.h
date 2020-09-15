@@ -30,7 +30,6 @@ namespace internal {
   V(EphemeronHashTable)                \
   V(FeedbackCell)                      \
   V(FeedbackMetadata)                  \
-  V(FeedbackVector)                    \
   V(FixedDoubleArray)                  \
   V(JSArrayBuffer)                     \
   V(JSDataView)                        \
@@ -61,7 +60,8 @@ namespace internal {
   V(WasmCapiFunctionData)              \
   V(WasmIndirectFunctionTable)         \
   V(WasmInstanceObject)                \
-  V(WasmStruct)
+  V(WasmStruct)                        \
+  V(WasmTypeInfo)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)

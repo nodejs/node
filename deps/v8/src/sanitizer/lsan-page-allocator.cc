@@ -4,6 +4,7 @@
 
 #include "src/sanitizer/lsan-page-allocator.h"
 
+#include "include/v8-platform.h"
 #include "src/base/logging.h"
 
 #if defined(LEAK_SANITIZER)
@@ -30,6 +31,22 @@ void* LsanPageAllocator::AllocatePages(void* hint, size_t size,
   }
 #endif
   return result;
+}
+
+std::unique_ptr<v8::PageAllocator::SharedMemory>
+LsanPageAllocator::AllocateSharedPages(size_t size,
+                                       const void* original_address) {
+  auto result = page_allocator_->AllocateSharedPages(size, original_address);
+#if defined(LEAK_SANITIZER)
+  if (result != nullptr) {
+    __lsan_register_root_region(result->GetMemory(), size);
+  }
+#endif
+  return result;
+}
+
+bool LsanPageAllocator::CanAllocateSharedPages() {
+  return page_allocator_->CanAllocateSharedPages();
 }
 
 bool LsanPageAllocator::FreePages(void* address, size_t size) {

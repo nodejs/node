@@ -9,8 +9,8 @@ group("gn_all") {
 
   data_deps = [
     "benchmarks:v8_benchmarks",
-    "intl:v8_intl",
     "fuzzer:v8_fuzzer",
+    "intl:v8_intl",
     "message:v8_message",
     "mjsunit:v8_mjsunit",
     "mozilla:v8_mozilla",
@@ -26,9 +26,14 @@ group("gn_all") {
     "wasm-api-tests:wasm_api_tests",
   ]
 
+  if (v8_fuzzilli) {
+    deps += [ "fuzzilli:v8_fuzzilli_test" ]
+  }
+
   if (host_os != "mac" || !is_android) {
     # These items don't compile for Android on Mac.
     deps += [
+      "benchmarks/cpp:gn_all",
       "cctest:cctest",
       "cctest:generate-bytecode-expectations",
       "unittests:unittests",
@@ -44,8 +49,8 @@ group("v8_perf") {
   testonly = true
 
   data_deps = [
-    "..:v8_python_base",
     "..:d8",
+    "..:v8_python_base",
     "../tools:v8_android_test_runner_deps",
     "../tools:v8_testrunner",
   ]

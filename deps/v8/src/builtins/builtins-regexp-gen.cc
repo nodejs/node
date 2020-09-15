@@ -28,7 +28,15 @@ using compiler::Node;
 // static
 void Builtins::Generate_RegExpInterpreterTrampoline(MacroAssembler* masm) {
   ExternalReference interpreter_code_entry =
-      ExternalReference::re_match_for_call_from_js(masm->isolate());
+      ExternalReference::re_match_for_call_from_js();
+  masm->Jump(interpreter_code_entry);
+}
+
+// Tail calls the experimental regular expression engine.
+// static
+void Builtins::Generate_RegExpExperimentalTrampoline(MacroAssembler* masm) {
+  ExternalReference interpreter_code_entry =
+      ExternalReference::re_experimental_match_for_call_from_js();
   masm->Jump(interpreter_code_entry);
 }
 
@@ -89,7 +97,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   const ElementsKind elements_kind = PACKED_ELEMENTS;
   TNode<Map> map = CAST(LoadContextElement(LoadNativeContext(context),
                                            Context::REGEXP_RESULT_MAP_INDEX));
-  TNode<AllocationSite> no_allocation_site = {};
+  base::Optional<TNode<AllocationSite>> no_allocation_site = base::nullopt;
   TNode<IntPtrT> length_intptr = SmiUntag(length);
 
   // Note: The returned `elements` may be in young large object space, but
@@ -276,8 +284,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
     TNode<IntPtrT> num_properties = WordSar(names_length, 1);
     TNode<NativeContext> native_context = LoadNativeContext(context);
-    TNode<Map> map = CAST(LoadContextElement(
-        native_context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+    TNode<Map> map = LoadSlowObjectWithNullPrototypeMap(native_context);
     TNode<NameDictionary> properties =
         AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
 
@@ -399,9 +406,9 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
       int32_t values[] = {
           JSRegExp::IRREGEXP,
           JSRegExp::ATOM,
-          JSRegExp::NOT_COMPILED,
+          JSRegExp::EXPERIMENTAL,
       };
-      Label* labels[] = {&next, &atom, &runtime};
+      Label* labels[] = {&next, &atom, &next};
 
       STATIC_ASSERT(arraysize(values) == arraysize(labels));
       Switch(tag, &unreachable, values, labels, arraysize(values));
@@ -606,9 +613,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     GotoIf(SmiGreaterThan(register_count, available_slots), &runtime);
 
     // Fill match_info.
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kNumberOfCapturesIndex,
-                                 register_count, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kNumberOfCapturesIndex, register_count);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
                                  string);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
@@ -844,19 +850,17 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
     const TNode<Smi> match_to =
         SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
 
-    UnsafeStoreFixedArrayElement(
-        match_info, RegExpMatchInfo::kNumberOfCapturesIndex,
-        SmiConstant(kNumRegisters), SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(match_info,
+                                 RegExpMatchInfo::kNumberOfCapturesIndex,
+                                 SmiConstant(kNumRegisters));
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
                                  subject_string);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
                                  subject_string);
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kFirstCaptureIndex,
-                                 match_from, SKIP_WRITE_BARRIER);
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kFirstCaptureIndex + 1,
-                                 match_to, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kFirstCaptureIndex, match_from);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kFirstCaptureIndex + 1, match_to);
 
     Return(match_info);
   }
@@ -1104,7 +1108,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
     BIND(&allocate_generic);
     {
       ConstructorBuiltinsAssembler constructor_assembler(this->state());
-      var_regexp = CAST(constructor_assembler.EmitFastNewObject(
+      var_regexp = CAST(constructor_assembler.FastNewObject(
           context, regexp_function, CAST(var_new_target.value())));
       Goto(&next);
     }
@@ -1354,9 +1358,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   const TNode<IntPtrT> int_limit = SmiUntag(limit);
 
   const ElementsKind kind = PACKED_ELEMENTS;
-  const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
-  TNode<AllocationSite> allocation_site = {};
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
@@ -1396,6 +1398,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       {
         TNode<Smi> length = SmiConstant(1);
         TNode<IntPtrT> capacity = IntPtrConstant(1);
+        base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt;
         var_result =
             AllocateJSArray(kind, array_map, capacity, length, allocation_site);
 
@@ -1508,10 +1511,10 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
         const TNode<IntPtrT> reg = var_reg.value();
         const TNode<Object> from = LoadFixedArrayElement(
             match_indices, reg,
-            RegExpMatchInfo::kFirstCaptureIndex * kTaggedSize, mode);
+            RegExpMatchInfo::kFirstCaptureIndex * kTaggedSize);
         const TNode<Smi> to = CAST(LoadFixedArrayElement(
             match_indices, reg,
-            (RegExpMatchInfo::kFirstCaptureIndex + 1) * kTaggedSize, mode));
+            (RegExpMatchInfo::kFirstCaptureIndex + 1) * kTaggedSize));
 
         Label select_capture(this), select_undefined(this), store_value(this);
         TVARIABLE(Object, var_value);
@@ -1570,6 +1573,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   {
     TNode<Smi> length = SmiZero();
     TNode<IntPtrT> capacity = IntPtrZero();
+    base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt;
     var_result =
         AllocateJSArray(kind, array_map, capacity, length, allocation_site);
     Goto(&done);

@@ -19,7 +19,7 @@ kExprEnd,   // @5
             ]);
   // Generate function 2 (out of 2).
   builder.addFunction(undefined, 1 /* sig */)
-    .addLocals({f32_count: 1}).addLocals({i32_count: 13})
+    .addLocals(kWasmF32, 1).addLocals(kWasmI32, 13)
     .addBodyWithEnd([
 // signature: v_v
 // body:

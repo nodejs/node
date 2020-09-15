@@ -7,6 +7,7 @@
 
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/third-party/heap-api.h"
 #include "src/objects/objects.h"
 
@@ -25,6 +26,7 @@ class V8_EXPORT_PRIVATE CombinedHeapObjectIterator final {
   HeapObject Next();
 
  private:
+  SafepointScope safepoint_scope_;
   HeapObjectIterator heap_iterator_;
   ReadOnlyHeapObjectIterator ro_heap_iterator_;
 };

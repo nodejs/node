@@ -8,12 +8,14 @@
 #include <utility>
 #include <vector>
 
+#include "src/common/globals.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array.h"
 #include "src/objects/map.h"
+#include "src/objects/string-table.h"
 #include "src/objects/string.h"
 #include "src/snapshot/deserializer-allocator.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -81,6 +83,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   }
 
   Isolate* isolate() const { return isolate_; }
+
   SnapshotByteSource* source() { return &source_; }
   const std::vector<AllocationSite>& new_allocation_sites() const {
     return new_allocation_sites_;
@@ -94,9 +97,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   }
   const std::vector<CallHandlerInfo>& call_handler_infos() const {
     return call_handler_infos_;
-  }
-  const std::vector<Handle<String>>& new_internalized_strings() const {
-    return new_internalized_strings_;
   }
   const std::vector<Handle<Script>>& new_scripts() const {
     return new_scripts_;
@@ -117,9 +117,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 
   void Rehash();
 
-  // Cached current isolate.
-  Isolate* isolate_;
-
  private:
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
@@ -130,35 +127,40 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   inline TSlot Write(TSlot dest, MaybeObject value);
 
   template <typename TSlot>
+  inline TSlot Write(TSlot dest, HeapObject value,
+                     HeapObjectReferenceType type);
+
+  template <typename TSlot>
   inline TSlot WriteAddress(TSlot dest, Address value);
 
   template <typename TSlot>
   inline TSlot WriteExternalPointer(TSlot dest, Address value);
 
-  // Fills in some heap data in an area from start to end (non-inclusive).  The
-  // space id is used for the write barrier.  The object_address is the address
-  // of the object we are writing into, or nullptr if we are not writing into an
-  // object, i.e. if we are writing a series of tagged values that are not on
-  // the heap. Return false if the object content has been deferred.
+  // Fills in some heap data in an area from start to end (non-inclusive). The
+  // object_address is the address of the object we are writing into, or nullptr
+  // if we are not writing into an object, i.e. if we are writing a series of
+  // tagged values that are not on the heap.
   template <typename TSlot>
-  bool ReadData(TSlot start, TSlot end, SnapshotSpace space,
-                Address object_address);
+  void ReadData(TSlot start, TSlot end, Address object_address);
 
-  // A helper function for ReadData, templatized on the bytecode for efficiency.
-  // Returns the new value of {current}.
-  template <typename TSlot, Bytecode bytecode,
-            SnapshotSpace space_number_if_any>
-  inline TSlot ReadDataCase(Isolate* isolate, TSlot current,
-                            Address current_object_address, byte data,
-                            bool write_barrier_needed);
+  // Helper for ReadData which reads the given bytecode and fills in some heap
+  // data into the given slot. May fill in zero or multiple slots, so it returns
+  // the next unfilled slot.
+  template <typename TSlot>
+  TSlot ReadSingleBytecodeData(byte data, TSlot current,
+                               Address object_address);
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
-  HeapObject ReadObject();
   HeapObject ReadObject(SnapshotSpace space_number);
-  void ReadCodeObjectBody(SnapshotSpace space_number,
-                          Address code_object_address);
+  HeapObject ReadMetaMap();
+  void ReadCodeObjectBody(Address code_object_address);
+
+  HeapObjectReferenceType GetAndResetNextReferenceType();
+
+ protected:
+  HeapObject ReadObject();
 
  public:
   void VisitCodeTarget(Code host, RelocInfo* rinfo);
@@ -175,6 +177,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject PostProcessNewObject(HeapObject obj, SnapshotSpace space);
 
+  // Cached current isolate.
+  Isolate* isolate_;
+
   // Objects from the attached object descriptions in the serialized user code.
   std::vector<Handle<HeapObject>> attached_objects_;
 
@@ -186,22 +191,27 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   std::vector<Code> new_code_objects_;
   std::vector<AccessorInfo> accessor_infos_;
   std::vector<CallHandlerInfo> call_handler_infos_;
-  std::vector<Handle<String>> new_internalized_strings_;
   std::vector<Handle<Script>> new_scripts_;
   std::vector<Handle<JSArrayBuffer>> new_off_heap_array_buffers_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
 
+  // Unresolved forward references (registered with kRegisterPendingForwardRef)
+  // are collected in order as (object, field offset) pairs. The subsequent
+  // forward ref resolution (with kResolvePendingForwardRef) accesses this
+  // vector by index.
+  //
+  // The vector is cleared when there are no more unresolved forward refs.
+  std::vector<std::pair<HeapObject, int>> unresolved_forward_refs_;
+  int num_unresolved_forward_refs_ = 0;
+
   DeserializerAllocator allocator_;
   const bool deserializing_user_code_;
+
+  bool next_reference_is_weak_ = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
   std::vector<HeapObject> to_rehash_;
-  // Store the objects whose maps are deferred and thus initialized as filler
-  // maps during deserialization, so that they can be processed later when the
-  // maps become available.
-  std::unordered_map<HeapObject, SnapshotSpace, Object::Hasher>
-      fillers_to_post_process_;
 
 #ifdef DEBUG
   uint32_t num_api_references_;
@@ -216,18 +226,17 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey final : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(String string);
+  explicit StringTableInsertionKey(Handle<String> string);
 
   bool IsMatch(String string) override;
 
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
-
-  String string() const { return string_; }
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate);
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate);
 
  private:
   uint32_t ComputeHashField(String string);
 
-  String string_;
+  Handle<String> string_;
   DISALLOW_HEAP_ALLOCATION(no_gc)
 };
 

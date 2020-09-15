@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 
+#include "include/v8-metrics.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/tasks/cancelable-task.h"
@@ -58,14 +59,17 @@ V8_EXPORT_PRIVATE
 WasmCode* CompileImportWrapper(
     WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
-    WasmImportWrapperCache::ModificationScope* cache_scope);
+    int expected_arity, WasmImportWrapperCache::ModificationScope* cache_scope);
 
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
 bool CompileLazy(Isolate*, NativeModule*, int func_index);
 
-int GetMaxBackgroundTasks();
+void TriggerTierUp(Isolate*, NativeModule*, int func_index);
+
+// Get the maximum concurrency for parallel compilation.
+int GetMaxCompileConcurrency();
 
 template <typename Key, typename Hash>
 class WrapperQueue {
@@ -75,7 +79,7 @@ class WrapperQueue {
   // Thread-safe.
   base::Optional<Key> pop() {
     base::Optional<Key> key = base::nullopt;
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     auto it = queue_.begin();
     if (it != queue_.end()) {
       key = *it;
@@ -88,6 +92,11 @@ class WrapperQueue {
   // successful.
   // Not thread-safe.
   bool insert(const Key& key) { return queue_.insert(key).second; }
+
+  size_t size() {
+    base::MutexGuard lock(&mutex_);
+    return queue_.size();
+  }
 
  private:
   base::Mutex mutex_;
@@ -118,7 +127,8 @@ class AsyncCompileJob {
 
   Isolate* isolate() const { return isolate_; }
 
-  Handle<Context> context() const { return native_context_; }
+  Handle<NativeContext> context() const { return native_context_; }
+  v8::metrics::Recorder::ContextId context_id() const { return context_id_; }
 
  private:
   class CompileTask;
@@ -201,7 +211,8 @@ class AsyncCompileJob {
   // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
-  Handle<Context> native_context_;
+  Handle<NativeContext> native_context_;
+  v8::metrics::Recorder::ContextId context_id_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
   Handle<WasmModuleObject> module_object_;

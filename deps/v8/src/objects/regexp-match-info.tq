@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 @hasSameInstanceTypeAsParent
+@doNotGenerateCast
 extern class RegExpMatchInfo extends FixedArray {
   macro GetStartOfCapture(implicit context: Context)(captureIndex:
                                                          constexpr int31): Smi {

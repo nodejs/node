@@ -18,8 +18,15 @@
   # https://crbug.com/v8/10356
   # This test worked in the wasm interpreter, but fails when using Liftoff for
   # debugging.
-  'debugger/wasm-anyref-global': [FAIL],
+  'debugger/wasm-externref-global': [FAIL],
 }],  # ALWAYS
+
+##############################################################################
+['arch == x64 and mode == debug', {
+  # Flaky tests: https://crbug.com/v8/10876
+  'debugger/pause-on-oom-extrawide': [PASS, FAIL],
+  'debugger/pause-on-oom-wide': [PASS, FAIL],
+}],  # 'arch == x64 and mode == debug'
 
 ##############################################################################
 ['system == android', {
@@ -91,5 +98,44 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+##############################################################################
+['tsan == True', {
+  # TSan handles SIGPROF incorrectly (https://crbug.com/v8/9869).
+  'cpu-profiler/console-profile-wasm': [SKIP],
+}],  # 'tsan == True'
+
+##############################################################################
+['gc_stress or gc_fuzzer or variant == stress_incremental_marking', {
+  # Skip tests that fail with GC stress: https://crbug.com/v8/10748
+  'cpu-profiler/coverage': [SKIP],
+  'cpu-profiler/coverage-block': [SKIP],
+  'debugger/get-possible-breakpoints': [SKIP],
+  'debugger/get-possible-breakpoints-array-literal': [SKIP],
+  'debugger/get-possible-breakpoints-master': [SKIP],
+  'debugger/limit-size-of-collected-scripts': [SKIP],
+  'debugger/not-hold-promises': [SKIP],
+  'debugger/regression-424142': [SKIP],
+  'debugger/return-break-locations': [SKIP],
+  'debugger/script-on-after-compile': [SKIP],
+  'debugger/set-breakpoint-at-last-line': [SKIP],
+  'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
+  'heap-profiler/collect-garbage' : [SKIP],
+  'runtime-call-stats/collection': [SKIP],
+  'runtime/context-destroyed-on-context-collected': [SKIP],
+  'runtime/evaluate-async': [SKIP],
+  'runtime/internal-properties-entries': [SKIP],
+  'type-profiler/type-profile-start-stop': [SKIP],
+}], # gc_stress
+
+##############################################################################
+['variant == stress_js_bg_compile_wasm_code_gc', {
+  # Skip tests that fail with GC stress: https://crbug.com/v8/10748
+  'debugger/wasm-debug-command': [SKIP],
+  'debugger/wasm-global-names': [SKIP],
+  'debugger/wasm-set-breakpoint-liftoff': [SKIP],
+  'debugger/wasm-source': [SKIP],
+  'debugger/wasm-stepping-with-skiplist': [SKIP],
+}], # stress_js_bg_compile_wasm_code_gc
 
 ]

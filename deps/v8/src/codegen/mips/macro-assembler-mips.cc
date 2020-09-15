@@ -146,10 +146,11 @@ void TurboAssembler::PushCommonFrame(Register marker_reg) {
 void TurboAssembler::PushStandardFrame(Register function_reg) {
   int offset = -StandardFrameConstants::kContextOffset;
   if (function_reg.is_valid()) {
-    Push(ra, fp, cp, function_reg);
-    offset += kPointerSize;
+    Push(ra, fp, cp, function_reg, kJavaScriptCallArgCountRegister);
+    offset += 2 * kPointerSize;
   } else {
-    Push(ra, fp, cp);
+    Push(ra, fp, cp, kJavaScriptCallArgCountRegister);
+    offset += kPointerSize;
   }
   Addu(fp, sp, Operand(offset));
 }
@@ -3906,6 +3907,7 @@ void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
+  set_last_call_pc_(pc_);
 }
 
 // Note: To call gcc-compiled C code on mips, you must call through t9.
@@ -3938,6 +3940,7 @@ void TurboAssembler::Call(Register target, Register base, int16_t offset,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
+  set_last_call_pc_(pc_);
 }
 
 void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
@@ -5427,7 +5430,7 @@ void TurboAssembler::CallCFunctionHelper(Register function_base,
 void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
   And(scratch, object, Operand(~kPageAlignmentMask));
-  lw(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  lw(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
 }

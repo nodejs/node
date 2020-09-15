@@ -189,10 +189,10 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   //  - Between the function scope and the native context, we only resolve
   //    variable names that are guaranteed to not be shadowed by stack-allocated
   //    variables. Contexts between the function context and the original
-  //    context have a blacklist attached to implement that.
+  //    context have a blocklist attached to implement that.
   // Context::Lookup has special handling for debug-evaluate contexts:
   //  - Look up in the materialized stack variables.
-  //  - Check the blacklist to find out whether to abort further lookup.
+  //  - Check the blocklist to find out whether to abort further lookup.
   //  - Look up in the original context.
   for (; !scope_iterator_.Done(); scope_iterator_.Next()) {
     ScopeIterator::ScopeType scope_type = scope_iterator_.Type();
@@ -208,7 +208,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       context_chain_element.wrapped_context = scope_iterator_.CurrentContext();
     }
     if (!scope_iterator_.InInnerScope()) {
-      context_chain_element.blacklist = scope_iterator_.GetLocals();
+      context_chain_element.blocklist = scope_iterator_.GetLocals();
     }
     context_chain_.push_back(context_chain_element);
   }
@@ -224,7 +224,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     scope_info->SetIsDebugEvaluateScope();
     evaluation_context_ = factory->NewDebugEvaluateContext(
         evaluation_context_, scope_info, element.materialized_object,
-        element.wrapped_context, element.blacklist);
+        element.wrapped_context, element.blocklist);
   }
 }
 
@@ -254,7 +254,7 @@ namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 // Use macro to include only the non-inlined version of an intrinsic.
-#define INTRINSIC_WHITELIST(V)                \
+#define INTRINSIC_ALLOWLIST(V)                \
   /* Conversions */                           \
   V(NumberToStringSlow)                       \
   V(ToBigInt)                                 \
@@ -357,8 +357,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(OptimizeOsr)                              \
   V(UnblockConcurrentRecompilation)
 
-// Intrinsics with inline versions have to be whitelisted here a second time.
-#define INLINE_INTRINSIC_WHITELIST(V) \
+// Intrinsics with inline versions have to be allowlisted here a second time.
+#define INLINE_INTRINSIC_ALLOWLIST(V) \
   V(Call)                             \
   V(IsJSReceiver)                     \
   V(AsyncFunctionEnter)               \
@@ -368,8 +368,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 #define CASE(Name) case Runtime::k##Name:
 #define INLINE_CASE(Name) case Runtime::kInline##Name:
   switch (id) {
-    INTRINSIC_WHITELIST(CASE)
-    INLINE_INTRINSIC_WHITELIST(INLINE_CASE)
+    INTRINSIC_ALLOWLIST(CASE)
+    INLINE_INTRINSIC_ALLOWLIST(INLINE_CASE)
     return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
@@ -381,8 +381,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 
 #undef CASE
 #undef INLINE_CASE
-#undef INTRINSIC_WHITELIST
-#undef INLINE_INTRINSIC_WHITELIST
+#undef INTRINSIC_ALLOWLIST
+#undef INLINE_INTRINSIC_ALLOWLIST
 }
 
 bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
@@ -393,7 +393,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   if (Bytecodes::IsJumpIfToBoolean(bytecode)) return true;
   if (Bytecodes::IsPrefixScalingBytecode(bytecode)) return true;
   switch (bytecode) {
-    // Whitelist for bytecodes.
+    // Allowlist for bytecodes.
     // Loads.
     case Bytecode::kLdaLookupSlot:
     case Bytecode::kLdaGlobal:
@@ -497,7 +497,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
 
 DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
   switch (id) {
-    // Whitelist for builtins.
+    // Allowlist for builtins.
     // Object builtins.
     case Builtins::kObjectConstructor:
     case Builtins::kObjectCreate:
@@ -673,7 +673,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kMathMax:
     case Builtins::kMathMin:
     case Builtins::kMathPow:
-    case Builtins::kMathRandom:
     case Builtins::kMathRound:
     case Builtins::kMathSign:
     case Builtins::kMathSin:
@@ -863,7 +862,7 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
   DCHECK(info->is_compiled());
   DCHECK(!info->needs_script_context());
   if (info->HasBytecodeArray()) {
-    // Check bytecodes against whitelist.
+    // Check bytecodes against allowlist.
     Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray(), isolate);
     if (FLAG_trace_side_effect_free_debug_evaluate) {
       bytecode_array->Print();
@@ -893,7 +892,7 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
                interpreter::Bytecodes::ToString(bytecode));
       }
 
-      // Did not match whitelist.
+      // Did not match allowlist.
       return DebugInfo::kHasSideEffects;
     }
     return requires_runtime_checks ? DebugInfo::kRequiresRuntimeChecks
@@ -905,7 +904,7 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
                  : DebugInfo::kHasSideEffects;
     }
   } else {
-    // Check built-ins against whitelist.
+    // Check built-ins against allowlist.
     int builtin_index =
         info->HasBuiltinId() ? info->builtin_id() : Builtins::kNoBuiltinId;
     if (!Builtins::IsBuiltinId(builtin_index))
@@ -1055,7 +1054,7 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
         sanity_check = true;
         continue;
       }
-      PrintF("Whitelisted builtin %s calls non-whitelisted builtin %s\n",
+      PrintF("Allowlisted builtin %s calls non-allowlisted builtin %s\n",
              Builtins::name(caller), Builtins::name(callee));
       failed = true;
     }

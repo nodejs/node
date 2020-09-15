@@ -9,6 +9,7 @@
 #include "include/cppgc/trace-trait.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/liveness-broker.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,8 +42,6 @@ class OtherPayload {
 class GCedMixinApplication : public GCed,
                              public OtherPayload,
                              public GCedMixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
-
  public:
   void Trace(cppgc::Visitor* visitor) const override {
     GCed::Trace(visitor);
@@ -53,13 +52,14 @@ class GCedMixinApplication : public GCed,
 }  // namespace
 
 TEST_F(TraceTraitTest, GetObjectStartGCed) {
-  auto* gced = MakeGarbageCollected<GCed>(GetHeap());
+  auto* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_EQ(gced,
             TraceTrait<GCed>::GetTraceDescriptor(gced).base_object_payload);
 }
 
 TEST_F(TraceTraitTest, GetObjectStartGCedMixin) {
-  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin_app =
+      MakeGarbageCollected<GCedMixinApplication>(GetAllocationHandle());
   auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   EXPECT_EQ(gced_mixin_app,
             TraceTrait<GCedMixin>::GetTraceDescriptor(gced_mixin)
@@ -67,14 +67,15 @@ TEST_F(TraceTraitTest, GetObjectStartGCedMixin) {
 }
 
 TEST_F(TraceTraitTest, TraceGCed) {
-  auto* gced = MakeGarbageCollected<GCed>(GetHeap());
+  auto* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_EQ(0u, GCed::trace_callcount);
   TraceTrait<GCed>::Trace(nullptr, gced);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
 TEST_F(TraceTraitTest, TraceGCedMixin) {
-  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin_app =
+      MakeGarbageCollected<GCedMixinApplication>(GetAllocationHandle());
   auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   EXPECT_EQ(0u, GCed::trace_callcount);
   TraceTrait<GCedMixin>::Trace(nullptr, gced_mixin);
@@ -82,7 +83,7 @@ TEST_F(TraceTraitTest, TraceGCedMixin) {
 }
 
 TEST_F(TraceTraitTest, TraceGCedThroughTraceDescriptor) {
-  auto* gced = MakeGarbageCollected<GCed>(GetHeap());
+  auto* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_EQ(0u, GCed::trace_callcount);
   TraceDescriptor desc = TraceTrait<GCed>::GetTraceDescriptor(gced);
   desc.callback(nullptr, desc.base_object_payload);
@@ -90,7 +91,8 @@ TEST_F(TraceTraitTest, TraceGCedThroughTraceDescriptor) {
 }
 
 TEST_F(TraceTraitTest, TraceGCedMixinThroughTraceDescriptor) {
-  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin_app =
+      MakeGarbageCollected<GCedMixinApplication>(GetAllocationHandle());
   auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   EXPECT_EQ(0u, GCed::trace_callcount);
   TraceDescriptor desc = TraceTrait<GCedMixin>::GetTraceDescriptor(gced_mixin);
@@ -128,7 +130,7 @@ class DispatchingVisitor final : public VisitorBase {
 }  // namespace
 
 TEST_F(VisitorTest, DispatchTraceGCed) {
-  Member<GCed> ref = MakeGarbageCollected<GCed>(GetHeap());
+  Member<GCed> ref = MakeGarbageCollected<GCed>(GetAllocationHandle());
   DispatchingVisitor visitor(ref, ref);
   EXPECT_EQ(0u, GCed::trace_callcount);
   visitor.Trace(ref);
@@ -136,7 +138,8 @@ TEST_F(VisitorTest, DispatchTraceGCed) {
 }
 
 TEST_F(VisitorTest, DispatchTraceGCedMixin) {
-  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin_app =
+      MakeGarbageCollected<GCedMixinApplication>(GetAllocationHandle());
   auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   // Ensure that we indeed test dispatching an inner object.
   EXPECT_NE(static_cast<void*>(gced_mixin_app), static_cast<void*>(gced_mixin));
@@ -148,7 +151,7 @@ TEST_F(VisitorTest, DispatchTraceGCedMixin) {
 }
 
 TEST_F(VisitorTest, DispatchTraceWeakGCed) {
-  WeakMember<GCed> ref = MakeGarbageCollected<GCed>(GetHeap());
+  WeakMember<GCed> ref = MakeGarbageCollected<GCed>(GetAllocationHandle());
   DispatchingVisitor visitor(ref, ref);
   visitor.Trace(ref);
   // No marking, so reference should be cleared.
@@ -156,7 +159,8 @@ TEST_F(VisitorTest, DispatchTraceWeakGCed) {
 }
 
 TEST_F(VisitorTest, DispatchTraceWeakGCedMixin) {
-  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin_app =
+      MakeGarbageCollected<GCedMixinApplication>(GetAllocationHandle());
   auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   // Ensure that we indeed test dispatching an inner object.
   EXPECT_NE(static_cast<void*>(gced_mixin_app), static_cast<void*>(gced_mixin));
@@ -202,7 +206,7 @@ class GCedWithCustomWeakCallback final
     WeakCallbackDispatcher::Call(broker, this);
   }
 
-  void Trace(cppgc::Visitor* visitor) {
+  void Trace(cppgc::Visitor* visitor) const {
     visitor->RegisterWeakCallbackMethod<
         GCedWithCustomWeakCallback,
         &GCedWithCustomWeakCallback::CustomWeakCallbackMethod>(this);
@@ -221,11 +225,41 @@ TEST_F(VisitorTest, DispatchRegisterWeakCallback) {
 
 TEST_F(VisitorTest, DispatchRegisterWeakCallbackMethod) {
   WeakCallbackVisitor visitor;
-  auto* gced = MakeGarbageCollected<GCedWithCustomWeakCallback>(GetHeap());
+  auto* gced =
+      MakeGarbageCollected<GCedWithCustomWeakCallback>(GetAllocationHandle());
   WeakCallbackDispatcher::Setup(gced);
   EXPECT_EQ(0u, WeakCallbackDispatcher::callback_callcount);
   gced->Trace(&visitor);
   EXPECT_EQ(1u, WeakCallbackDispatcher::callback_callcount);
+}
+
+namespace {
+
+class Composite final {
+ public:
+  static size_t callback_callcount;
+  Composite() { callback_callcount = 0; }
+  void Trace(Visitor* visitor) const { callback_callcount++; }
+};
+
+size_t Composite::callback_callcount;
+
+class GCedWithComposite final : public GarbageCollected<GCedWithComposite> {
+ public:
+  void Trace(Visitor* visitor) const { visitor->Trace(composite); }
+
+  Composite composite;
+};
+
+}  // namespace
+
+TEST_F(VisitorTest, DispatchToCompositeObject) {
+  Member<GCedWithComposite> ref =
+      MakeGarbageCollected<GCedWithComposite>(GetAllocationHandle());
+  DispatchingVisitor visitor(ref, ref);
+  EXPECT_EQ(0u, Composite::callback_callcount);
+  visitor.Trace(ref);
+  EXPECT_EQ(1u, Composite::callback_callcount);
 }
 
 }  // namespace internal

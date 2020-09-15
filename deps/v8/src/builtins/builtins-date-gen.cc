@@ -197,7 +197,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
       hint_is_invalid(this, Label::kDeferred);
 
   // Fast cases for internalized strings.
-  TNode<String> number_string = numberStringConstant();
+  TNode<String> number_string = NumberStringConstant();
   GotoIf(TaggedEqual(hint, number_string), &hint_is_number);
   TNode<String> default_string = DefaultStringConstant();
   GotoIf(TaggedEqual(hint, default_string), &hint_is_string);

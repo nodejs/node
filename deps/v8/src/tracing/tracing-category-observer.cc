@@ -57,6 +57,13 @@ void TracingCategoryObserver::OnTraceEnabled() {
     i::TracingFlags::ic_stats.fetch_or(ENABLED_BY_TRACING,
                                        std::memory_order_relaxed);
   }
+
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"),
+                                     &enabled);
+  if (enabled) {
+    i::TracingFlags::zone_stats.fetch_or(ENABLED_BY_TRACING,
+                                         std::memory_order_relaxed);
+  }
 }
 
 void TracingCategoryObserver::OnTraceDisabled() {

@@ -20,9 +20,9 @@ class Schedule;
 
 class BasicBlockInstrumentor : public AllStatic {
  public:
-  static BasicBlockProfiler::Data* Instrument(OptimizedCompilationInfo* info,
-                                              Graph* graph, Schedule* schedule,
-                                              Isolate* isolate);
+  static BasicBlockProfilerData* Instrument(OptimizedCompilationInfo* info,
+                                            Graph* graph, Schedule* schedule,
+                                            Isolate* isolate);
 };
 
 }  // namespace compiler

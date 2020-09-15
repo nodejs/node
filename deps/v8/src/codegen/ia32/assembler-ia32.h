@@ -528,6 +528,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rep_stos();
   void stos();
 
+  void xadd(Operand dst, Register src);
+  void xadd_b(Operand dst, Register src);
+  void xadd_w(Operand dst, Register src);
+
   // Exchange
   void xchg(Register dst, Register src);
   void xchg(Register dst, Operand src);
@@ -959,6 +963,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movapd(XMMRegister dst, Operand src) {
     sse2_instr(dst, src, 0x66, 0x0F, 0x28);
   }
+  void movupd(XMMRegister dst, Operand src) {
+    sse2_instr(dst, src, 0x66, 0x0F, 0x10);
+  }
 
   void movmskpd(Register dst, XMMRegister src);
   void movmskps(Register dst, XMMRegister src);
@@ -1063,6 +1070,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     pinsrd(dst, Operand(src), offset);
   }
   void pinsrd(XMMRegister dst, Operand src, uint8_t offset);
+
+  void roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   // AVX instructions
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
@@ -1331,6 +1341,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovapd(XMMRegister dst, Operand src) { vpd(0x28, dst, xmm0, src); }
   void vmovups(XMMRegister dst, XMMRegister src) { vmovups(dst, Operand(src)); }
   void vmovups(XMMRegister dst, Operand src) { vps(0x10, dst, xmm0, src); }
+  void vmovupd(XMMRegister dst, Operand src) { vpd(0x10, dst, xmm0, src); }
   void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
     vshufps(dst, src1, Operand(src2), imm8);
   }
@@ -1408,6 +1419,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vpinsrd(dst, src1, Operand(src2), offset);
   }
   void vpinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t offset);
+
+  void vroundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void vroundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void vcvtdq2ps(XMMRegister dst, XMMRegister src) {
     vcvtdq2ps(dst, Operand(src));

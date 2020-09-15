@@ -194,6 +194,7 @@ TEST(WeakMapPromotionMarkCompact) {
 }
 
 TEST(WeakMapScavenge) {
+  if (i::FLAG_single_generation) return;
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
@@ -230,6 +231,7 @@ TEST(WeakMapScavenge) {
 TEST(Regress2060a) {
   if (i::FLAG_never_compact) return;
   FLAG_always_compact = true;
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
@@ -271,6 +273,7 @@ TEST(Regress2060b) {
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
 #endif
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
 
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);

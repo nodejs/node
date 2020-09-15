@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-anyref
+// Flags: --expose-wasm --experimental-wasm-reftypes
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -25,8 +25,8 @@ function addTableWithAccessors(builder, type, size, name) {
 const builder = new WasmModuleBuilder();
 
 addTableWithAccessors(builder, kWasmAnyFunc, 10, 'table_func1');
-addTableWithAccessors(builder, kWasmAnyRef, 20, 'table_ref1');
-addTableWithAccessors(builder, kWasmAnyRef, 9, 'table_ref2');
+addTableWithAccessors(builder, kWasmExternRef, 20, 'table_ref1');
+addTableWithAccessors(builder, kWasmExternRef, 9, 'table_ref2');
 addTableWithAccessors(builder, kWasmAnyFunc, 12, 'table_func2');
 
 let exports = builder.instantiate().exports;

@@ -6,7 +6,7 @@
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-var kV8MaxWasmMemoryPages = 32767;  // ~ 2 GiB
+var kV8MaxWasmMemoryPages = 65536;  // 4 GiB
 var kSpecMaxWasmMemoryPages = 65536;  // 4 GiB
 
 (function testMemorySizeZero() {

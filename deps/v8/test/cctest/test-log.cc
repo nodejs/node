@@ -48,12 +48,12 @@ using v8::internal::Logger;
 
 namespace {
 
-
 #define SETUP_FLAGS()                            \
   bool saved_log = i::FLAG_log;                  \
   bool saved_prof = i::FLAG_prof;                \
   i::FLAG_log = true;                            \
   i::FLAG_prof = true;                           \
+  i::FLAG_log_code = true;                       \
   i::FLAG_logfile = i::Log::kLogToTemporaryFile; \
   i::FLAG_logfile_per_isolate = false
 
@@ -83,8 +83,8 @@ class ScopedLoggerInitializer {
 
   ~ScopedLoggerInitializer() {
     env_->Exit();
-    logger_->TearDown();
-    if (temp_file_ != nullptr) fclose(temp_file_);
+    FILE* log_file = logger_->TearDownAndGetLogFile();
+    if (log_file != nullptr) fclose(log_file);
     i::FLAG_prof = saved_prof_;
     i::FLAG_log = saved_log_;
   }
@@ -203,9 +203,8 @@ class ScopedLoggerInitializer {
 
  private:
   FILE* StopLoggingGetTempFile() {
-    temp_file_ = logger_->TearDown();
+    temp_file_ = logger_->TearDownAndGetLogFile();
     CHECK(temp_file_);
-    fflush(temp_file_);
     rewind(temp_file_);
     return temp_file_;
   }
@@ -513,7 +512,9 @@ UNINITIALIZED_TEST(Issue539892) {
 UNINITIALIZED_TEST(LogAll) {
   SETUP_FLAGS();
   i::FLAG_log_all = true;
+  i::FLAG_log_api = true;
   i::FLAG_turbo_inlining = false;
+  i::FLAG_log_internal_timer_events = true;
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

@@ -33,6 +33,7 @@ from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.shard import ShardProc
 from testrunner.testproc.sigproc import SignalProc
 from testrunner.testproc.timeout import TimeoutProc
+from testrunner.testproc import util
 
 
 BASE_DIR = (
@@ -168,6 +169,7 @@ PROGRESS_INDICATORS = {
   'dots': progress.DotsProgressIndicator,
   'color': progress.ColorProgressIndicator,
   'mono': progress.MonochromeProgressIndicator,
+  'stream': progress.StreamProgressIndicator,
 }
 
 class TestRunnerError(Exception):
@@ -193,6 +195,8 @@ class BuildConfig(object):
     self.msan = build_config['is_msan']
     self.no_i18n = not build_config['v8_enable_i18n_support']
     self.predictable = build_config['v8_enable_verify_predictable']
+    self.simulator_run = (build_config['target_cpu'] !=
+                          build_config['v8_target_cpu'])
     self.tsan = build_config['is_tsan']
     # TODO(machenbach): We only have ubsan not ubsan_vptr.
     self.ubsan_vptr = build_config['is_ubsan_vptr']
@@ -264,6 +268,9 @@ class BaseTestRunner(object):
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
         print(' '.join(sys.argv))
+
+        # Kill stray processes from previous tasks on swarming.
+        util.kill_processes_linux()
 
       self._load_build_config(options)
       command.setup(self.target_os, options.device)
@@ -346,9 +353,6 @@ class BaseTestRunner(object):
                       help="Path to a file for storing json results.")
     parser.add_option('--slow-tests-cutoff', type="int", default=100,
                       help='Collect N slowest tests')
-    parser.add_option("--junitout", help="File name of the JUnit output")
-    parser.add_option("--junittestsuite", default="v8tests",
-                      help="The testsuite name in the JUnit output file")
     parser.add_option("--exit-after-n-failures", type="int", default=100,
                       help="Exit after the first N failures instead of "
                            "running all tests. Pass 0 to disable this feature.")
@@ -367,6 +371,10 @@ class BaseTestRunner(object):
     # Test config
     parser.add_option("--command-prefix", default="",
                       help="Prepended to each shell command used to run a test")
+    parser.add_option('--dont-skip-slow-simulator-tests',
+                      help='Don\'t skip more slow tests when using a'
+                      ' simulator.', default=False, action='store_true',
+                      dest='dont_skip_simulator_slow_tests')
     parser.add_option("--extra-flags", action="append", default=[],
                       help="Additional flags to pass to each test command")
     parser.add_option("--isolates", action="store_true", default=False,
@@ -673,12 +681,11 @@ class BaseTestRunner(object):
       self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
       self.build_config.mips_arch_variant)
 
-    # TODO(machenbach): In GN we can derive simulator run from
-    # target_arch != v8_target_arch in the dumped build config.
     return {
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,
       "byteorder": sys.byteorder,
+      "cfi_vptr": self.build_config.cfi_vptr,
       "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": False,
       "endurance_fuzzer": False,
@@ -699,7 +706,8 @@ class BaseTestRunner(object):
       "optimize_for_size": "--optimize-for-size" in options.extra_flags,
       "predictable": self.build_config.predictable,
       "simd_mips": simd_mips,
-      "simulator_run": False,
+      "simulator_run": self.build_config.simulator_run and
+                       not options.dont_skip_simulator_slow_tests,
       "system": self.target_os,
       "tsan": self.build_config.tsan,
       "ubsan_vptr": self.build_config.ubsan_vptr,
@@ -800,9 +808,6 @@ class BaseTestRunner(object):
 
   def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
-    if options.junitout:
-      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
-                                                       options.junittestsuite))
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(
         self.framework_name,

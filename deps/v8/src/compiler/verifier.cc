@@ -722,6 +722,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSLoadNamed:
       CheckTypeIs(node, Type::Any());
       break;
+    case IrOpcode::kJSLoadNamedFromSuper:
+      CheckTypeIs(node, Type::Any());
+      break;
     case IrOpcode::kJSLoadGlobal:
       CheckTypeIs(node, Type::Any());
       CHECK(LoadGlobalParametersOf(node->op()).feedback().IsValid());
@@ -759,6 +762,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kTypeOf:
       CheckTypeIs(node, Type::InternalizedString());
+      break;
+    case IrOpcode::kTierUpCheck:
+    case IrOpcode::kUpdateInterruptBudget:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckNotTyped(node);
       break;
     case IrOpcode::kJSGetSuperConstructor:
       // We don't check the input for Type::Function because this_function can
@@ -818,6 +826,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kJSStoreModule:
       CheckNotTyped(node);
+      break;
+
+    case IrOpcode::kJSGetImportMeta:
+      CheckTypeIs(node, Type::Any());
       break;
 
     case IrOpcode::kJSGeneratorStore:
@@ -1218,6 +1230,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::SignedSmall());
       break;
     case IrOpcode::kArgumentsLength:
+    case IrOpcode::kRestLength:
       CheckValueInputIs(node, 0, Type::ExternalPointer());
       CheckTypeIs(node, TypeCache::Get()->kArgumentsLengthType);
       break;
@@ -1430,6 +1443,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckNotTyped(node);
       break;
+    case IrOpcode::kDynamicCheckMaps:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kCompareMaps:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Boolean());
@@ -1605,8 +1622,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kFastApiCall:
-      CHECK_GE(value_count, 1);
-      CheckValueInputIs(node, 0, Type::ExternalPointer());
+      CHECK_GE(value_count, 2);
+      CheckValueInputIs(node, 0, Type::ExternalPointer());  // callee
+      CheckValueInputIs(node, 1, Type::Any());              // receiver
       break;
 
     // Machine operators
@@ -2003,7 +2021,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
     ZoneQueue<BasicBlock*> queue(zone);
     queue.push(start);
     dominators[start->id().ToSize()] =
-        new (zone) BitVector(static_cast<int>(count), zone);
+        zone->New<BitVector>(static_cast<int>(count), zone);
     while (!queue.empty()) {
       BasicBlock* block = queue.front();
       queue.pop();
@@ -2019,7 +2037,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
         if (succ_doms == nullptr) {
           // First time visiting the node. S.doms = B U B.doms
-          succ_doms = new (zone) BitVector(static_cast<int>(count), zone);
+          succ_doms = zone->New<BitVector>(static_cast<int>(count), zone);
           succ_doms->CopyFrom(*block_doms);
           succ_doms->Add(block->id().ToInt());
           dominators[succ->id().ToSize()] = succ_doms;

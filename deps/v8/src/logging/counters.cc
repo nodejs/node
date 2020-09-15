@@ -17,11 +17,6 @@
 namespace v8 {
 namespace internal {
 
-std::atomic_uint TracingFlags::runtime_stats{0};
-std::atomic_uint TracingFlags::gc{0};
-std::atomic_uint TracingFlags::gc_stats{0};
-std::atomic_uint TracingFlags::ic_stats{0};
-
 StatsTable::StatsTable(Counters* counters)
     : lookup_function_(nullptr),
       create_histogram_function_(nullptr),
@@ -560,6 +555,17 @@ void RuntimeCallStats::Print(std::ostream& os) {
     entries.Add(GetCounter(i));
   }
   entries.Print(os);
+}
+
+void RuntimeCallStats::EnumerateCounters(
+    debug::RuntimeCallCounterCallback callback) {
+  if (current_timer_.Value() != nullptr) {
+    current_timer_.Value()->Snapshot();
+  }
+  for (int i = 0; i < kNumberOfCounters; i++) {
+    RuntimeCallCounter* counter = GetCounter(i);
+    callback(counter->name(), counter->count(), counter->time());
+  }
 }
 
 void RuntimeCallStats::Reset() {

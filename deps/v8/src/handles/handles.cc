@@ -6,6 +6,7 @@
 
 #include "src/api/api.h"
 #include "src/base/logging.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
@@ -34,14 +35,25 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (object.IsSmi()) return true;
   HeapObject heap_object = HeapObject::cast(object);
   if (IsReadOnlyHeapObject(heap_object)) return true;
-  if (Heap::InOffThreadSpace(heap_object)) return true;
-
   Isolate* isolate = GetIsolateFromWritableObject(heap_object);
   RootIndex root_index;
   if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
       RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
+
+  LocalHeap* local_heap = LocalHeap::Current();
+  if (FLAG_local_heaps && local_heap) {
+    // Local heap can't access handles when parked
+    if (!local_heap->IsHandleDereferenceAllowed()) return false;
+
+    if (local_heap->ContainsPersistentHandle(location_) ||
+        local_heap->ContainsLocalHandle(location_)) {
+      // The current thread owns the handle and thus can dereference it.
+      return true;
+    }
+  }
+
   return AllowHandleDereference::IsAllowed();
 }
 #endif
@@ -119,20 +131,34 @@ Address HandleScope::current_limit_address(Isolate* isolate) {
   return reinterpret_cast<Address>(&isolate->handle_scope_data()->limit);
 }
 
-CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate)
-    : isolate_(isolate), zone_(isolate->allocator(), ZONE_NAME) {
+CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate,
+                                           OptimizedCompilationInfo* info)
+    : isolate_(isolate),
+      info_(info),
+      zone_(info ? info->zone() : new Zone(isolate->allocator(), ZONE_NAME)) {
   HandleScopeData* handle_scope_data = isolate_->handle_scope_data();
   prev_canonical_scope_ = handle_scope_data->canonical_scope;
   handle_scope_data->canonical_scope = this;
   root_index_map_ = new RootIndexMap(isolate);
-  identity_map_ = new IdentityMap<Address*, ZoneAllocationPolicy>(
-      isolate->heap(), ZoneAllocationPolicy(&zone_));
+  identity_map_ = std::make_unique<CanonicalHandlesMap>(
+      isolate->heap(), ZoneAllocationPolicy(zone_));
   canonical_level_ = handle_scope_data->level;
 }
 
 CanonicalHandleScope::~CanonicalHandleScope() {
   delete root_index_map_;
-  delete identity_map_;
+  if (info_) {
+    // If we passed a compilation info as parameter, we created the identity map
+    // on its zone(). Then, we pass it to the compilation info which is
+    // responsible for the disposal.
+    info_->set_canonical_handles(DetachCanonicalHandles());
+  } else {
+    // If we don't have a compilation info, we created the zone manually. To
+    // properly dispose of said zone, we need to first free the identity_map_.
+    // Then we do so manually even though identity_map_ is a unique_ptr.
+    identity_map_.reset();
+    delete zone_;
+  }
   isolate_->handle_scope_data()->canonical_scope = prev_canonical_scope_;
 }
 
@@ -157,44 +183,9 @@ Address* CanonicalHandleScope::Lookup(Address object) {
   return *entry;
 }
 
-DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
-    : impl_(isolate->handle_scope_implementer()) {
-  impl_->BeginDeferredScope();
-  HandleScopeData* data = impl_->isolate()->handle_scope_data();
-  Address* new_next = impl_->GetSpareOrNewBlock();
-  Address* new_limit = &new_next[kHandleBlockSize];
-  // Check that at least one HandleScope with at least one Handle in it exists,
-  // see the class description.
-  DCHECK(!impl_->blocks()->empty());
-  // Check that we are not in a SealedHandleScope.
-  DCHECK(data->limit == &impl_->blocks()->back()[kHandleBlockSize]);
-  impl_->blocks()->push_back(new_next);
-
-#ifdef DEBUG
-  prev_level_ = data->level;
-#endif
-  data->level++;
-  prev_limit_ = data->limit;
-  prev_next_ = data->next;
-  data->next = new_next;
-  data->limit = new_limit;
-}
-
-DeferredHandleScope::~DeferredHandleScope() {
-  DCHECK(handles_detached_);
-  impl_->isolate()->handle_scope_data()->level--;
-  DCHECK_EQ(impl_->isolate()->handle_scope_data()->level, prev_level_);
-}
-
-std::unique_ptr<DeferredHandles> DeferredHandleScope::Detach() {
-  std::unique_ptr<DeferredHandles> deferred = impl_->Detach(prev_limit_);
-  HandleScopeData* data = impl_->isolate()->handle_scope_data();
-  data->next = prev_next_;
-  data->limit = prev_limit_;
-#ifdef DEBUG
-  handles_detached_ = true;
-#endif
-  return deferred;
+std::unique_ptr<CanonicalHandlesMap>
+CanonicalHandleScope::DetachCanonicalHandles() {
+  return std::move(identity_map_);
 }
 
 }  // namespace internal

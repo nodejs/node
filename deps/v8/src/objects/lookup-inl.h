@@ -56,6 +56,15 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     : LookupIterator(isolate, receiver, key.name(), key.index(), holder,
                      configuration) {}
 
+LookupIterator LookupIterator::LookupWithReceiver(Isolate* isolate,
+                                                  Handle<Object> receiver,
+                                                  const Key& key,
+                                                  Handle<Object> holder,
+                                                  Configuration configuration) {
+  return LookupIterator(isolate, receiver, key,
+                        GetRoot(isolate, holder, key.index()), configuration);
+}
+
 // This private constructor is the central bottleneck that all the other
 // constructors use.
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,

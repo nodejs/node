@@ -117,7 +117,7 @@
     ],
     'merges': [
       # Only enabled on branches created with tools/release/create_release.py
-      'v8-merges@googlegroups.com',
+      # 'v8-merges@googlegroups.com',
     ],
     'wasm': [
       'wasm-v8@google.com',

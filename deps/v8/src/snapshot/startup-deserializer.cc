@@ -37,6 +37,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
         this,
         base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak});
     Iterate(isolate, this);
+    DeserializeStringTable();
+
     isolate->heap()->IterateWeakRoots(
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
     DeserializeDeferredObjects();
@@ -73,8 +75,32 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   }
 }
 
+void StartupDeserializer::DeserializeStringTable() {
+  // See StartupSerializer::SerializeStringTable.
+
+  // Get the string table size.
+  int string_table_size = source()->GetInt();
+
+  // Add each string to the Isolate's string table.
+  // TODO(leszeks): Consider pre-sizing the string table.
+  for (int i = 0; i < string_table_size; ++i) {
+    String string = String::cast(ReadObject());
+    Address handle_storage = string.ptr();
+    Handle<String> handle(&handle_storage);
+    StringTableInsertionKey key(handle);
+    String result = *isolate()->string_table()->LookupKey(isolate(), &key);
+    USE(result);
+
+    // This is startup, so there should be no duplicate entries in the string
+    // table, and the lookup should unconditionally add the given string.
+    DCHECK_EQ(result, string);
+  }
+
+  DCHECK_EQ(string_table_size, isolate()->string_table()->NumberOfElements());
+}
+
 void StartupDeserializer::LogNewMapEvents() {
-  if (FLAG_trace_maps) LOG(isolate_, LogAllMaps());
+  if (FLAG_trace_maps) LOG(isolate(), LogAllMaps());
 }
 
 void StartupDeserializer::FlushICache() {

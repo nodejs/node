@@ -83,7 +83,7 @@ interface InstructionsPhase {
   instructionOffsetToPCOffset?: any;
   blockIdtoInstructionRange?: any;
   nodeIdToInstructionRange?: any;
-  codeOffsetsInfo?: CodeOffsetsInfo
+  codeOffsetsInfo?: CodeOffsetsInfo;
 }
 
 interface GraphPhase {
@@ -100,8 +100,44 @@ export interface Schedule {
   nodes: Array<any>;
 }
 
+export class Interval {
+  start: number;
+  end: number;
+
+  constructor(numbers: [number, number]) {
+    this.start = numbers[0];
+    this.end = numbers[1];
+  }
+}
+
+export interface ChildRange {
+  id: string;
+  type: string;
+  op: any;
+  intervals: Array<[number, number]>;
+  uses: Array<number>;
+}
+
+export interface Range {
+  child_ranges: Array<ChildRange>;
+  is_deferred: boolean;
+}
+
+export class RegisterAllocation {
+  fixedDoubleLiveRanges: Map<string, Range>;
+  fixedLiveRanges: Map<string, Range>;
+  liveRanges: Map<string, Range>;
+
+  constructor(registerAllocation) {
+    this.fixedDoubleLiveRanges = new Map<string, Range>(Object.entries(registerAllocation.fixed_double_live_ranges));
+    this.fixedLiveRanges = new Map<string, Range>(Object.entries(registerAllocation.fixed_live_ranges));
+    this.liveRanges = new Map<string, Range>(Object.entries(registerAllocation.live_ranges));
+  }
+}
+
 export interface Sequence {
   blocks: Array<any>;
+  register_allocation: RegisterAllocation;
 }
 
 class CodeOffsetsInfo {
@@ -720,8 +756,11 @@ export class SourceResolver {
     phase.schedule = state;
     return phase;
   }
+
   parseSequence(phase) {
-    phase.sequence = { blocks: phase.blocks };
+    phase.sequence = { blocks: phase.blocks,
+                       register_allocation: phase.register_allocation ? new RegisterAllocation(phase.register_allocation)
+                                                                      : undefined };
     return phase;
   }
 }

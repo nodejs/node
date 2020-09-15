@@ -24,12 +24,12 @@ namespace {
 void TestStubCacheOffsetCalculation(StubCache::Table table) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
+  CodeAssemblerTester data(isolate, kNumParams + 1);  // Include receiver.
   AccessorAssembler m(data.state());
 
   {
-    TNode<Name> name = m.CAST(m.Parameter(0));
-    TNode<Map> map = m.CAST(m.Parameter(1));
+    TNode<Name> name = m.CAST(m.Parameter(1));
+    TNode<Map> map = m.CAST(m.Parameter(2));
     TNode<IntPtrT> primary_offset =
         m.StubCachePrimaryOffsetForTesting(name, map);
     Node* result;
@@ -107,7 +107,7 @@ TEST(StubCacheSecondaryOffset) {
 
 namespace {
 
-Handle<Code> CreateCodeOfKind(Code::Kind kind) {
+Handle<Code> CreateCodeOfKind(CodeKind kind) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate, kind);
   CodeStubAssembler m(data.state());
@@ -121,17 +121,17 @@ TEST(TryProbeStubCache) {
   using Label = CodeStubAssembler::Label;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 3;
-  CodeAssemblerTester data(isolate, kNumParams);
+  CodeAssemblerTester data(isolate, kNumParams + 1);  // Include receiver.
   AccessorAssembler m(data.state());
 
   StubCache stub_cache(isolate);
   stub_cache.Clear();
 
   {
-    TNode<Object> receiver = m.CAST(m.Parameter(0));
-    TNode<Name> name = m.CAST(m.Parameter(1));
+    TNode<Object> receiver = m.CAST(m.Parameter(1));
+    TNode<Name> name = m.CAST(m.Parameter(2));
     TNode<MaybeObject> expected_handler =
-        m.UncheckedCast<MaybeObject>(m.Parameter(2));
+        m.UncheckedCast<MaybeObject>(m.Parameter(3));
 
     Label passed(&m), failed(&m);
 
@@ -204,7 +204,7 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    handlers.push_back(CreateCodeOfKind(Code::STUB));
+    handlers.push_back(CreateCodeOfKind(CodeKind::STUB));
   }
 
   // Ensure that GC does happen because from now on we are going to fill our

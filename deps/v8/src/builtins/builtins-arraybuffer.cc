@@ -105,35 +105,6 @@ BUILTIN(ArrayBufferConstructor_DoNotInitialize) {
                          InitializedFlag::kUninitialized);
 }
 
-// ES6 section 24.1.4.1 get ArrayBuffer.prototype.byteLength
-BUILTIN(ArrayBufferPrototypeGetByteLength) {
-  const char* const kMethodName = "get ArrayBuffer.prototype.byteLength";
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
-  CHECK_SHARED(false, array_buffer, kMethodName);
-  // TODO(franzih): According to the ES6 spec, we should throw a TypeError
-  // here if the JSArrayBuffer is detached.
-  return *isolate->factory()->NewNumberFromSize(array_buffer->byte_length());
-}
-
-// ES7 sharedmem 6.3.4.1 get SharedArrayBuffer.prototype.byteLength
-BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
-  const char* const kMethodName = "get SharedArrayBuffer.prototype.byteLength";
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSArrayBuffer, array_buffer,
-                 "get SharedArrayBuffer.prototype.byteLength");
-  CHECK_SHARED(true, array_buffer, kMethodName);
-  return *isolate->factory()->NewNumberFromSize(array_buffer->byte_length());
-}
-
-// ES6 section 24.1.3.1 ArrayBuffer.isView ( arg )
-BUILTIN(ArrayBufferIsView) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  Object arg = args[1];
-  return isolate->heap()->ToBoolean(arg.IsJSArrayBufferView());
-}
-
 static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
                           const char* kMethodName, bool is_shared) {
   HandleScope scope(isolate);

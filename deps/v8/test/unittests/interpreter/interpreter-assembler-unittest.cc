@@ -28,7 +28,7 @@ InterpreterAssemblerTestState::InterpreterAssemblerTestState(
     InterpreterAssemblerTest* test, Bytecode bytecode)
     : compiler::CodeAssemblerState(
           test->isolate(), test->zone(), InterpreterDispatchDescriptor{},
-          Code::BYTECODE_HANDLER, Bytecodes::ToString(bytecode),
+          CodeKind::BYTECODE_HANDLER, Bytecodes::ToString(bytecode),
           PoisoningMitigationLevel::kPoisonCriticalOnly) {}
 
 const interpreter::Bytecode kBytecodes[] = {

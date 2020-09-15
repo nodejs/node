@@ -13,21 +13,21 @@ class Zone;
 
 namespace compiler {
 
-class RegisterAllocationData;
+class TopTierRegisterAllocationData;
 
 // A register allocation pair of transformations: splinter and merge live ranges
 class LiveRangeSeparator final : public ZoneObject {
  public:
-  LiveRangeSeparator(RegisterAllocationData* data, Zone* zone)
+  LiveRangeSeparator(TopTierRegisterAllocationData* data, Zone* zone)
       : data_(data), zone_(zone) {}
 
   void Splinter();
 
  private:
-  RegisterAllocationData* data() const { return data_; }
+  TopTierRegisterAllocationData* data() const { return data_; }
   Zone* zone() const { return zone_; }
 
-  RegisterAllocationData* const data_;
+  TopTierRegisterAllocationData* const data_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(LiveRangeSeparator);
@@ -35,13 +35,13 @@ class LiveRangeSeparator final : public ZoneObject {
 
 class LiveRangeMerger final : public ZoneObject {
  public:
-  LiveRangeMerger(RegisterAllocationData* data, Zone* zone)
+  LiveRangeMerger(TopTierRegisterAllocationData* data, Zone* zone)
       : data_(data), zone_(zone) {}
 
   void Merge();
 
  private:
-  RegisterAllocationData* data() const { return data_; }
+  TopTierRegisterAllocationData* data() const { return data_; }
   Zone* zone() const { return zone_; }
 
   // Mark ranges spilled in deferred blocks, that also cover non-deferred code.
@@ -49,7 +49,7 @@ class LiveRangeMerger final : public ZoneObject {
   // because they would "spill in deferred blocks" anyway.
   void MarkRangesSpilledInDeferredBlocks();
 
-  RegisterAllocationData* const data_;
+  TopTierRegisterAllocationData* const data_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(LiveRangeMerger);

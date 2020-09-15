@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Tests stepping through wasm scripts by byte offsets');
 session.setupScriptMap();
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 
@@ -34,7 +34,7 @@ var func_b = builder.addFunction('wasm_B', kSig_v_i)
     .exportAs('main');
 
 let fact = builder.addFunction('fact', kSig_i_i)
-    .addLocals({i32_count: 1})
+    .addLocals(kWasmI32, 1)
     .addBody([
     // clang-format off
     kExprLocalGet, 0,
@@ -54,28 +54,13 @@ let fact = builder.addFunction('fact', kSig_i_i)
 
 var module_bytes = builder.toArray();
 
-function instantiate(bytes) {
-  var buffer = new ArrayBuffer(bytes.length);
-  var view = new Uint8Array(buffer);
-  for (var i = 0; i < bytes.length; ++i) {
-    view[i] = bytes[i] | 0;
-  }
-
-  var module = new WebAssembly.Module(buffer);
-  // Set global variable.
-  instance = new WebAssembly.Instance(module);
-}
-
 (async function test() {
   for (const action of ['stepInto', 'stepOver', 'stepOut', 'resume'])
     InspectorTest.logProtocolCommandCalls('Debugger.' + action);
 
   await Protocol.Debugger.enable();
   InspectorTest.log('Setting up global instance variable.');
-  Protocol.Runtime.evaluate({
-    expression: `var instance;` +
-        `(${instantiate.toString()})(${JSON.stringify(module_bytes)})`
-  });
+  WasmInspectorTest.instantiate(module_bytes);
   const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
 
   InspectorTest.log('Got wasm script: ' + wasmScript.url);

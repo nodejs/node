@@ -81,7 +81,7 @@ namespace {
 class DefaultAssemblerBuffer : public AssemblerBuffer {
  public:
   explicit DefaultAssemblerBuffer(int size)
-      : buffer_(OwnedVector<uint8_t>::New(size)) {
+      : buffer_(OwnedVector<uint8_t>::NewForOverwrite(size)) {
 #ifdef DEBUG
     ZapCode(reinterpret_cast<Address>(buffer_.start()), size);
 #endif

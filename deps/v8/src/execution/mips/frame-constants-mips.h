@@ -16,8 +16,7 @@ class EntryFrameConstants : public AllStatic {
  public:
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  static constexpr int kCallerFPOffset =
-      -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+  static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
 
   // Stack offsets for arguments passed to JSEntry.
   static constexpr int kArgcOffset = +0 * kSystemPointerSize;

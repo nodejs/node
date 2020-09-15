@@ -12,7 +12,6 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {

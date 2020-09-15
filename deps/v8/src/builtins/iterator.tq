@@ -50,9 +50,16 @@ extern builtin IterableToFixedArrayWithSymbolLookupSlow(
 
 transitioning builtin GetIteratorWithFeedback(
     context: Context, receiver: JSAny, loadSlot: TaggedIndex,
-    callSlot: TaggedIndex, feedback: Undefined|FeedbackVector): JSAny {
+    callSlot: TaggedIndex,
+    maybeFeedbackVector: Undefined|FeedbackVector): JSAny {
+  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
+  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  assert(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
   let iteratorMethod: JSAny;
-  typeswitch (feedback) {
+  typeswitch (maybeFeedbackVector) {
     case (Undefined): {
       iteratorMethod = GetProperty(receiver, IteratorSymbolConstant());
     }
@@ -64,7 +71,7 @@ transitioning builtin GetIteratorWithFeedback(
   // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
   const callSlotSmi: Smi = TaggedIndexToSmi(callSlot);
   return CallIteratorWithFeedback(
-      context, receiver, iteratorMethod, callSlotSmi, feedback);
+      context, receiver, iteratorMethod, callSlotSmi, maybeFeedbackVector);
 }
 
 transitioning builtin CallIteratorWithFeedback(

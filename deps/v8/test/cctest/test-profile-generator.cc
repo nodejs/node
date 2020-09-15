@@ -200,9 +200,7 @@ TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileTreeTestHelper helper(&tree);
 
-  ProfileStackTrace path = {{{&c, 5}, kNullAddress, false},
-                            {{&b, 3}, kNullAddress, false},
-                            {{&a, 1}, kNullAddress, false}};
+  ProfileStackTrace path = {{{&c, 5}}, {{&b, 3}}, {{&a, 1}}};
   tree.AddPathFromEnd(path, v8::CpuProfileNode::kNoLineNumberInfo, true,
                       v8::CpuProfilingMode::kCallerLineNumbers);
 
@@ -376,7 +374,7 @@ class TestSetup {
 
 }  // namespace
 
-TEST(RecordTickSample) {
+TEST(SymbolizeTickSample) {
   TestSetup test_setup;
   i::Isolate* isolate = CcTest::i_isolate();
   CpuProfilesCollection profiles(isolate);
@@ -401,7 +399,7 @@ TEST(RecordTickSample) {
   sample1.tos = ToPointer(0x1500);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
-  generator.RecordTickSample(sample1);
+  generator.SymbolizeTickSample(sample1);
   TickSample sample2;
   sample2.pc = ToPointer(0x1925);
   sample2.tos = ToPointer(0x1900);
@@ -409,14 +407,14 @@ TEST(RecordTickSample) {
   sample2.stack[1] = ToPointer(0x10000);  // non-existent.
   sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
-  generator.RecordTickSample(sample2);
+  generator.SymbolizeTickSample(sample2);
   TickSample sample3;
   sample3.pc = ToPointer(0x1510);
   sample3.tos = ToPointer(0x1500);
   sample3.stack[0] = ToPointer(0x1910);
   sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
-  generator.RecordTickSample(sample3);
+  generator.SymbolizeTickSample(sample3);
 
   CpuProfile* profile = profiles.StopProfiling("");
   CHECK(profile);
@@ -470,7 +468,7 @@ TEST(SampleIds) {
   sample1.pc = ToPointer(0x1600);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
-  generator.RecordTickSample(sample1);
+  generator.SymbolizeTickSample(sample1);
   TickSample sample2;
   sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample2.pc = ToPointer(0x1925);
@@ -478,14 +476,14 @@ TEST(SampleIds) {
   sample2.stack[1] = ToPointer(0x10000);  // non-existent.
   sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
-  generator.RecordTickSample(sample2);
+  generator.SymbolizeTickSample(sample2);
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample3.pc = ToPointer(0x1510);
   sample3.stack[0] = ToPointer(0x1910);
   sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
-  generator.RecordTickSample(sample3);
+  generator.SymbolizeTickSample(sample3);
 
   CpuProfile* profile = profiles.StopProfiling("");
   unsigned nodeId = 1;
@@ -518,7 +516,7 @@ TEST(NoSamples) {
   sample1.pc = ToPointer(0x1600);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
-  generator.RecordTickSample(sample1);
+  generator.SymbolizeTickSample(sample1);
 
   CpuProfile* profile = profiles.StopProfiling("");
   unsigned nodeId = 1;

@@ -1,0 +1,34 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<style>
+  @import "./index.css";
+
+  pre.scriptNode {
+    white-space: pre-wrap;
+  }
+
+  pre.scriptNode:before {
+    counter-reset: listing;
+  }
+
+  pre.scriptNode code {
+    counter-increment: listing;
+  }
+
+  pre.scriptNode code::before {
+    content: counter(listing) ". ";
+    display: inline-block;
+    width: 4em;
+    padding-left: auto;
+    margin-left: auto;
+    text-align: left;
+  }
+</style>
+<div class="panel">
+  <h2>Source Panel</h2>
+  <div id="script">
+    <pre class="scripNode"></pre>
+  </div>
+</div>

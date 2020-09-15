@@ -72,6 +72,20 @@ class RootVisitor {
     VisitRootPointers(root, description, p, p + 1);
   }
 
+  // Visits a contiguous arrays of off-heap pointers in the half-open range
+  // [start, end). Any or all of the values may be modified on return.
+  virtual void VisitRootPointers(Root root, const char* description,
+                                 OffHeapObjectSlot start,
+                                 OffHeapObjectSlot end) {
+    // This should be implemented for any visitor that visits the string table.
+    // If we ever add new off-heap data-structures that we want to walk as roots
+    // using this function, we should make it generic, by
+    //
+    //   1) Making this function pure virtual, and
+    //   2) Implementing it for all visitors.
+    UNREACHABLE();
+  }
+
   // Intended for serialization/deserialization checking: insert, or
   // check for the presence of, a tag at this position in the stream.
   // Also used for marking up GC roots in heap snapshots.

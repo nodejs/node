@@ -8,6 +8,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
   <meta charset="utf-8">
   <title>V8 Turbolizer</title>
   <link rel="stylesheet" href="turbo-visualizer.css">
+  <link rel="stylesheet" href="turbo-visualizer-ranges.css">
   <link rel="stylesheet" href="tabs.css">
   <link rel="icon" type="image/png" href="turbolizer.png">
 </head>
@@ -20,6 +21,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     <div id="load-file">
       <input id="upload-helper" type="file">
       <input id="upload" type="image" title="load graph" class="button-input" src="upload-icon.png" alt="upload graph">
+    </div>
+    <div id="resizer-ranges" class="resizer" style="visibility:hidden;"></div>
+    <div id="ranges" class="content" style="visibility:hidden;"></div>
+    <div id="show-hide-ranges" class="show-hide-pane" style="visibility: hidden">
+      <input id="ranges-expand" type="image" title="show ranges" src="up-arrow.png" class="button-input invisible">
+      <input id="ranges-shrink" type="image" title="hide ranges" src="down-arrow.png" class="button-input">
     </div>
   </div>
   <div id="resizer-right" class="resizer"></div>

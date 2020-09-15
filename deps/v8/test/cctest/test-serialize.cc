@@ -716,7 +716,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOverwriteGlobal) {
     v8::Local<v8::ObjectTemplate> global_template =
         v8::ObjectTemplate::New(isolate1);
     global_template->Set(
-        v8_str("f"), v8::FunctionTemplate::New(isolate1, UnreachableCallback));
+        isolate1, "f",
+        v8::FunctionTemplate::New(isolate1, UnreachableCallback));
     v8::Local<v8::Context> context =
         v8::Context::New(isolate1, nullptr, global_template);
     v8::Context::Scope c_scope(context);
@@ -1483,6 +1484,54 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithWarmup) {
   FreeCurrentEmbeddedBlob();
 }
 
+namespace {
+v8::StartupData CreateCustomSnapshotWithKeep() {
+  v8::SnapshotCreator creator;
+  v8::Isolate* isolate = creator.GetIsolate();
+  {
+    v8::HandleScope handle_scope(isolate);
+    {
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::String> source_str = v8_str(
+          "function f() { return Math.abs(1); }\n"
+          "function g() { return String.raw(1); }");
+      v8::ScriptOrigin origin(v8_str("test"));
+      v8::ScriptCompiler::Source source(source_str, origin);
+      CompileRun(isolate->GetCurrentContext(), &source,
+                 v8::ScriptCompiler::kEagerCompile);
+      creator.SetDefaultContext(context);
+    }
+  }
+  return creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+}
+}  // namespace
+
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithKeep) {
+  DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob = CreateCustomSnapshotWithKeep();
+
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CHECK(IsCompiled("f"));
+      CHECK(IsCompiled("g"));
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   DisableAlwaysOpt();
   // Flood the startup snapshot with shared function infos. If they are
@@ -1532,7 +1581,7 @@ int CountBuiltins() {
   int counter = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (obj.IsCode() && Code::cast(obj).kind() == Code::BUILTIN) counter++;
+    if (obj.IsCode() && Code::cast(obj).kind() == CodeKind::BUILTIN) counter++;
   }
   return counter;
 }
@@ -2809,8 +2858,12 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
       ExpectInt32("f()", 42);
       ExpectString("one_byte", "one_byte");
       ExpectString("two_byte", "two_byte");
-      CHECK(CompileRun("one_byte").As<v8::String>()->IsExternalOneByte());
-      CHECK(CompileRun("two_byte").As<v8::String>()->IsExternal());
+      v8::Local<v8::String> one_byte = CompileRun("one_byte").As<v8::String>();
+      v8::Local<v8::String> two_byte = CompileRun("two_byte").As<v8::String>();
+      CHECK(one_byte->IsExternalOneByte());
+      CHECK(!one_byte->IsExternalTwoByte());
+      CHECK(!two_byte->IsExternalOneByte());
+      CHECK(two_byte->IsExternalTwoByte());
     }
     isolate->Dispose();
   }
@@ -3180,7 +3233,7 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
           v8::External::New(isolate, &serialized_static_field);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
-      global_template->Set(v8_str("f"), callback);
+      global_template->Set(isolate, "f", callback);
       v8::Local<v8::Context> context =
           v8::Context::New(isolate, no_extension, global_template);
       creator.SetDefaultContext(context);
@@ -3336,6 +3389,12 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
+
+  // i::PerformCastCheck(Data*) should compile and be no-op
+  {
+    v8::Local<v8::Data> data;
+    i::PerformCastCheck(*data);
+  }
 
   {
     v8::SnapshotCreator creator;
@@ -3577,7 +3636,7 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
           v8::ObjectTemplate::New(isolate);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback);
-      global_template->Set(v8_str("f"), callback);
+      global_template->Set(isolate, "f", callback);
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
       v8::Local<v8::Context> context =
@@ -3604,7 +3663,7 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback);
       global_template->SetInternalFieldCount(3);
-      global_template->Set(v8_str("f"), callback);
+      global_template->Set(isolate, "f", callback);
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
       global_template->SetAccessor(v8_str("y"), AccessorForSerialization);

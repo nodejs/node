@@ -4,6 +4,10 @@
 
 #include "src/logging/log-utils.h"
 
+#include <atomic>
+#include <memory>
+
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/objects-inl.h"
@@ -19,40 +23,43 @@ const char* const Log::kLogToTemporaryFile = "&";
 const char* const Log::kLogToConsole = "-";
 
 // static
-FILE* Log::CreateOutputHandle(const char* file_name) {
+FILE* Log::CreateOutputHandle(std::string file_name) {
   // If we're logging anything, we need to open the log file.
   if (!Log::InitLogAtStart()) {
     return nullptr;
-  } else if (strcmp(file_name, kLogToConsole) == 0) {
+  } else if (Log::IsLoggingToConsole(file_name)) {
     return stdout;
-  } else if (strcmp(file_name, kLogToTemporaryFile) == 0) {
+  } else if (Log::IsLoggingToTemporaryFile(file_name)) {
     return base::OS::OpenTemporaryFile();
   } else {
-    return base::OS::FOpen(file_name, base::OS::LogFileOpenMode);
+    return base::OS::FOpen(file_name.c_str(), base::OS::LogFileOpenMode);
   }
 }
 
-Log::Log(Logger* logger, const char* file_name)
-    : is_stopped_(false),
+// static
+bool Log::IsLoggingToConsole(std::string file_name) {
+  return file_name.compare(Log::kLogToConsole) == 0;
+}
+
+// static
+bool Log::IsLoggingToTemporaryFile(std::string file_name) {
+  return file_name.compare(Log::kLogToTemporaryFile) == 0;
+}
+
+Log::Log(std::string file_name)
+    : file_name_(file_name),
       output_handle_(Log::CreateOutputHandle(file_name)),
       os_(output_handle_ == nullptr ? stdout : output_handle_),
-      format_buffer_(NewArray<char>(kMessageBufferSize)),
-      logger_(logger) {
-  // --log-all enables all the log flags.
-  if (FLAG_log_all) {
-    FLAG_log_api = true;
-    FLAG_log_code = true;
-    FLAG_log_suspect = true;
-    FLAG_log_handles = true;
-    FLAG_log_internal_timer_events = true;
-    FLAG_log_function_events = true;
-  }
-
-  // --prof implies --log-code.
-  if (FLAG_prof) FLAG_log_code = true;
-
+      is_enabled_(output_handle_ != nullptr),
+      format_buffer_(NewArray<char>(kMessageBufferSize)) {
   if (output_handle_ == nullptr) return;
-  Log::MessageBuilder msg(this);
+  WriteLogHeader();
+}
+
+void Log::WriteLogHeader() {
+  std::unique_ptr<Log::MessageBuilder> msg_ptr = NewMessageBuilder();
+  if (!msg_ptr) return;
+  Log::MessageBuilder& msg = *msg_ptr.get();
   LogSeparator kNext = LogSeparator::kSeparator;
   msg << "v8-version" << kNext << Version::GetMajor() << kNext
       << Version::GetMinor() << kNext << Version::GetBuild() << kNext
@@ -64,22 +71,31 @@ Log::Log(Logger* logger, const char* file_name)
   msg.WriteToLogFile();
 }
 
-FILE* Log::Close() {
-  FILE* result = nullptr;
-  if (output_handle_ != nullptr) {
-    if (strcmp(FLAG_logfile, kLogToTemporaryFile) != 0) {
-      fclose(output_handle_);
-    } else {
-      result = output_handle_;
-    }
-  }
-  output_handle_ = nullptr;
+std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
+  std::unique_ptr<Log::MessageBuilder> result(new Log::MessageBuilder(this));
 
-  format_buffer_.reset();
+  // Need to check here whether log is still enabled while the mutex is locked
+  // by Log::MessageBuilder. In case IsEnabled() is checked before locking the
+  // mutex we could still read an old value.
+  if (!IsEnabled()) return {};
 
-  is_stopped_ = false;
   return result;
 }
+
+FILE* Log::Close() {
+  base::MutexGuard guard(&mutex_);
+  FILE* result = nullptr;
+  if (output_handle_ != nullptr) {
+    fflush(output_handle_);
+    result = output_handle_;
+  }
+  output_handle_ = nullptr;
+  format_buffer_.reset();
+  is_enabled_.store(false, std::memory_order_relaxed);
+  return result;
+}
+
+std::string Log::file_name() const { return file_name_; }
 
 Log::MessageBuilder::MessageBuilder(Log* log)
     : log_(log), lock_guard_(&log_->mutex_) {
@@ -206,7 +222,10 @@ void Log::MessageBuilder::AppendRawFormatString(const char* format, ...) {
 
 void Log::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
 
-void Log::MessageBuilder::WriteToLogFile() { log_->os_ << std::endl; }
+void Log::MessageBuilder::WriteToLogFile() {
+  DCHECK(log_->IsEnabled());
+  log_->os_ << std::endl;
+}
 
 template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(

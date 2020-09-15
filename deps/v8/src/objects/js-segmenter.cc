@@ -26,36 +26,37 @@ namespace internal {
 MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
                                           Handle<Object> locales,
                                           Handle<Object> input_options) {
-  // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  // 4. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
   MAYBE_RETURN(maybe_requested_locales, Handle<JSSegmenter>());
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  // 11. If options is undefined, then
+  // 5. If options is undefined, then
   Handle<JSReceiver> options;
   if (input_options->IsUndefined(isolate)) {
-    // 11. a. Let options be ObjectCreate(null).
+    //  a. Let options be ObjectCreate(null).
     options = isolate->factory()->NewJSObjectWithNullProto();
-    // 12. Else
-  } else {
-    // 23. a. Let options be ? ToObject(options).
+  } else {  // 6. Else
+    // a. Let options be ? ToObject(options).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                                Object::ToObject(isolate, input_options),
                                JSSegmenter);
   }
 
-  // 4. Let opt be a new Record.
-  // 5. Let matcher be ? GetOption(options, "localeMatcher", "string",
+  // 7. Let opt be a new Record.
+  // 8. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
-  // 6. Set opt.[[localeMatcher]] to matcher.
+  // 9. Set opt.[[localeMatcher]] to matcher.
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
       Intl::GetLocaleMatcher(isolate, options, "Intl.Segmenter");
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSSegmenter>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  // 9. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
+  // 10. Let localeData be %Segmenter%.[[LocaleData]].
+
+  // 11. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
   Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
@@ -66,6 +67,7 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
+  // 12. Set segmenter.[[Locale]] to the value of r.[[locale]].
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 
@@ -100,32 +102,34 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
       break;
   }
 
-  CHECK(U_SUCCESS(status));
-  CHECK_NOT_NULL(icu_break_iterator.get());
+  DCHECK(U_SUCCESS(status));
+  DCHECK_NOT_NULL(icu_break_iterator.get());
 
   Handle<Managed<icu::BreakIterator>> managed_break_iterator =
       Managed<icu::BreakIterator>::FromUniquePtr(isolate, 0,
                                                  std::move(icu_break_iterator));
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSSegmenter> segmenter_holder = Handle<JSSegmenter>::cast(
+  Handle<JSSegmenter> segmenter = Handle<JSSegmenter>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowHeapAllocation no_gc;
-  segmenter_holder->set_flags(0);
+  segmenter->set_flags(0);
 
-  // 10. Set segmenter.[[Locale]] to the value of r.[[Locale]].
-  segmenter_holder->set_locale(*locale_str);
+  // 12. Set segmenter.[[Locale]] to the value of r.[[Locale]].
+  segmenter->set_locale(*locale_str);
 
   // 14. Set segmenter.[[SegmenterGranularity]] to granularity.
-  segmenter_holder->set_granularity(granularity_enum);
+  segmenter->set_granularity(granularity_enum);
 
-  segmenter_holder->set_icu_break_iterator(*managed_break_iterator);
-  return segmenter_holder;
+  segmenter->set_icu_break_iterator(*managed_break_iterator);
+
+  // 15. Return segmenter.
+  return segmenter;
 }
 
 // ecma402 #sec-Intl.Segmenter.prototype.resolvedOptions
-Handle<JSObject> JSSegmenter::ResolvedOptions(
-    Isolate* isolate, Handle<JSSegmenter> segmenter_holder) {
+Handle<JSObject> JSSegmenter::ResolvedOptions(Isolate* isolate,
+                                              Handle<JSSegmenter> segmenter) {
   Factory* factory = isolate->factory();
   // 3. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
@@ -141,23 +145,29 @@ Handle<JSObject> JSSegmenter::ResolvedOptions(
   //     [[Locale]]                    "locale"
   //     [[SegmenterGranularity]]      "granularity"
 
-  Handle<String> locale(segmenter_holder->locale(), isolate);
+  Handle<String> locale(segmenter->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->granularity_string(),
-                        segmenter_holder->GranularityAsString(), NONE);
+                        segmenter->GranularityAsString(isolate), NONE);
   // 5. Return options.
   return result;
 }
 
-Handle<String> JSSegmenter::GranularityAsString() const {
-  switch (granularity()) {
+Handle<String> JSSegmenter::GranularityAsString(Isolate* isolate) const {
+  return GetGranularityString(isolate, granularity());
+}
+
+Handle<String> JSSegmenter::GetGranularityString(Isolate* isolate,
+                                                 Granularity granularity) {
+  Factory* factory = isolate->factory();
+  switch (granularity) {
     case Granularity::GRAPHEME:
-      return GetReadOnlyRoots().grapheme_string_handle();
+      return factory->grapheme_string();
     case Granularity::WORD:
-      return GetReadOnlyRoots().word_string_handle();
+      return factory->word_string();
     case Granularity::SENTENCE:
-      return GetReadOnlyRoots().sentence_string_handle();
+      return factory->sentence_string();
   }
   UNREACHABLE();
 }

@@ -67,7 +67,7 @@ class FunctionalList {
   }
 
   void PushFront(A a, Zone* zone) {
-    elements_ = new (zone) Cons(std::move(a), elements_);
+    elements_ = zone->New<Cons>(std::move(a), elements_);
   }
 
   // If {hint} happens to be exactly what we want to allocate, avoid allocation

@@ -268,6 +268,23 @@ Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode) {
 }
 
 // static
+Callable CodeFactory::Call_WithFeedback(Isolate* isolate,
+                                        ConvertReceiverMode mode) {
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      return Builtins::CallableFor(
+          isolate, Builtins::kCall_ReceiverIsNullOrUndefined_WithFeedback);
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      return Builtins::CallableFor(
+          isolate, Builtins::kCall_ReceiverIsNotNullOrUndefined_WithFeedback);
+    case ConvertReceiverMode::kAny:
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kCall_ReceiverIsAny_WithFeedback);
+  }
+  UNREACHABLE();
+}
+
+// static
 Callable CodeFactory::CallWithArrayLike(Isolate* isolate) {
   return Builtins::CallableFor(isolate, Builtins::kCallWithArrayLike);
 }

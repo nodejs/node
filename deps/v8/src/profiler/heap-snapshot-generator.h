@@ -133,6 +133,11 @@ class HeapEntry {
   V8_INLINE HeapGraphEdge* child(int i);
   V8_INLINE Isolate* isolate() const;
 
+  void set_detachedness(v8::EmbedderGraph::Node::Detachedness value) {
+    detachedness_ = static_cast<uint8_t>(value);
+  }
+  uint8_t detachedness() const { return detachedness_; }
+
   void SetIndexedReference(
       HeapGraphEdge::Type type, int index, HeapEntry* entry);
   void SetNamedReference(
@@ -161,7 +166,12 @@ class HeapEntry {
     unsigned children_count_;
     unsigned children_end_index_;
   };
+#ifdef V8_TARGET_ARCH_64_BIT
+  size_t self_size_ : 48;
+#else   // !V8_TARGET_ARCH_64_BIT
   size_t self_size_;
+#endif  // !V8_TARGET_ARCH_64_BIT
+  uint8_t detachedness_ = 0;
   HeapSnapshot* snapshot_;
   const char* name_;
   SnapshotObjectId id_;

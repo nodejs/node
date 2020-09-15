@@ -314,7 +314,8 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
         TNode<JSArray> array;
         TNode<FixedArrayBase> elements;
         std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-            PACKED_ELEMENTS, array_map, SmiConstant(2), {}, IntPtrConstant(2));
+            PACKED_ELEMENTS, array_map, SmiConstant(2), base::nullopt,
+            IntPtrConstant(2));
         StoreFixedArrayElement(CAST(elements), 0, next_key, SKIP_WRITE_BARRIER);
         StoreFixedArrayElement(CAST(elements), 1, value, SKIP_WRITE_BARRIER);
         value = TNode<JSArray>::UncheckedCast(array);
@@ -482,6 +483,9 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   BIND(&if_empty_elements);
   Branch(WordEqual(object_enum_length, IntPtrConstant(0)), &if_empty, &if_fast);
 
+  // TODO(solanes): These if_xxx here and below seem to be quite similar for
+  // ObjectKeys and for ObjectGetOwnPropertyNames. In particular, if_fast seem
+  // to be the exact same.
   BIND(&if_fast);
   {
     // The {object} has a usable enum cache, use that.
@@ -497,12 +501,13 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    TNode<Smi> array_length = SmiTag(Signed(object_enum_length));
+    TNode<IntPtrT> object_enum_length_intptr = Signed(object_enum_length);
+    TNode<Smi> array_length = SmiTag(object_enum_length_intptr);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, {},
-        Signed(object_enum_length));
+        PACKED_ELEMENTS, array_map, array_length, base::nullopt,
+        object_enum_length_intptr);
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
-                           object_enum_length, SKIP_WRITE_BARRIER);
+                           object_enum_length_intptr, SKIP_WRITE_BARRIER);
     Return(array);
   }
 
@@ -577,28 +582,32 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   // Check whether there are enumerable properties.
   Branch(WordEqual(object_enum_length, IntPtrConstant(0)), &if_empty, &if_fast);
 
+  // TODO(solanes): These if_xxx here and below seem to be quite similar for
+  // ObjectKeys and for ObjectGetOwnPropertyNames. In particular, if_fast seem
+  // to be the exact same.
   BIND(&if_fast);
   {
     // The {object} has a usable enum cache and all own properties are
     // enumerable, use that.
     TNode<DescriptorArray> object_descriptors = LoadMapDescriptors(object_map);
-    TNode<EnumCache> object_enum_cache = CAST(
-        LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset));
+    TNode<EnumCache> object_enum_cache = LoadObjectField<EnumCache>(
+        object_descriptors, DescriptorArray::kEnumCacheOffset);
     auto object_enum_keys = LoadObjectField<FixedArrayBase>(
         object_enum_cache, EnumCache::kKeysOffset);
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
+    TNode<JSArray> array;
+    TNode<FixedArrayBase> elements;
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    TNode<Smi> array_length = SmiTag(Signed(object_enum_length));
-    TNode<JSArray> array;
-    TNode<FixedArrayBase> elements;
+    TNode<IntPtrT> object_enum_length_intptr = Signed(object_enum_length);
+    TNode<Smi> array_length = SmiTag(object_enum_length_intptr);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, {},
-        Signed(object_enum_length));
+        PACKED_ELEMENTS, array_map, array_length, base::nullopt,
+        object_enum_length_intptr);
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
-                           object_enum_length, SKIP_WRITE_BARRIER);
+                           object_enum_length_intptr, SKIP_WRITE_BARRIER);
     Return(array);
   }
 
@@ -1022,7 +1031,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
   TNode<Object> prototype = args.GetOptionalArgumentValue(kPrototypeArg);
   TNode<Object> properties = args.GetOptionalArgumentValue(kPropertiesArg);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<NativeContext> native_context = CAST(Parameter(Descriptor::kContext));
 
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);
@@ -1058,14 +1067,13 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   {
     TVARIABLE(Map, map);
     TVARIABLE(HeapObject, properties);
-    Label non_null_proto(this), instantiate_map(this), good(this);
+    Label null_proto(this), non_null_proto(this), instantiate_map(this);
 
-    Branch(IsNull(prototype), &good, &non_null_proto);
+    Branch(IsNull(prototype), &null_proto, &non_null_proto);
 
-    BIND(&good);
+    BIND(&null_proto);
     {
-      map = CAST(LoadContextElement(
-          context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+      map = LoadSlowObjectWithNullPrototypeMap(native_context);
       properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
       Goto(&instantiate_map);
     }
@@ -1073,11 +1081,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&non_null_proto);
     {
       properties = EmptyFixedArrayConstant();
-      TNode<HeapObject> object_function =
-          CAST(LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX));
-      TNode<Map> object_function_map = LoadObjectField<Map>(
-          object_function, JSFunction::kPrototypeOrInitialMapOffset);
-      map = object_function_map;
+      map = LoadObjectFunctionInitialMap(native_context);
       GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
       // Try loading the prototype info.
@@ -1101,8 +1105,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
   BIND(&call_runtime);
   {
-    TNode<Object> result =
-        CallRuntime(Runtime::kObjectCreate, context, prototype, properties);
+    TNode<Object> result = CallRuntime(Runtime::kObjectCreate, native_context,
+                                       prototype, properties);
     args.PopAndReturn(result);
   }
 }
@@ -1152,6 +1156,18 @@ TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
   TNode<Object> callable = CAST(Parameter(Descriptor::kRight));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
+  Return(InstanceOf(object, callable, context));
+}
+
+TF_BUILTIN(InstanceOf_WithFeedback, ObjectBuiltinsAssembler) {
+  TNode<Object> object = CAST(Parameter(Descriptor::kLeft));
+  TNode<Object> callable = CAST(Parameter(Descriptor::kRight));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<UintPtrT> slot = UncheckedCast<UintPtrT>(Parameter(Descriptor::kSlot));
+
+  CollectInstanceOfFeedback(callable, context, maybe_feedback_vector, slot);
   Return(InstanceOf(object, callable, context));
 }
 

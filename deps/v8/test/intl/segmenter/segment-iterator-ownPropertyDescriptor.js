@@ -11,6 +11,9 @@ assertTrue(descriptor.writable);
 assertFalse(descriptor.enumerable);
 assertTrue(descriptor.configurable);
 
+let segmenterPrototype = Object.getPrototypeOf(seg);
+assertEquals("Intl.Segmenter", segmenterPrototype[Symbol.toStringTag]);
+
 // ecma402 #sec-Intl.Segmenter.prototype
 // Intl.Segmenter.prototype
 // The value of Intl.Segmenter.prototype is %SegmenterPrototype%.
@@ -29,10 +32,11 @@ for (let func of ["segment", "resolvedOptions"]) {
   assertTrue(descriptor.configurable);
 }
 
-let segmentIterator = seg.segment('text');
-let prototype = Object.getPrototypeOf(segmentIterator);
-for (let func of ["next", "following", "preceding"]) {
-  let descriptor = Object.getOwnPropertyDescriptor(prototype, func);
+
+let segments = seg.segment('text');
+let segmentsPrototype = Object.getPrototypeOf(segments);
+for (let func of ["containing", Symbol.iterator]) {
+  let descriptor = Object.getOwnPropertyDescriptor(segmentsPrototype, func);
   assertTrue(descriptor.writable);
   assertFalse(descriptor.enumerable);
   assertTrue(descriptor.configurable);
@@ -47,34 +51,44 @@ function checkGetterProperty(prototype, property) {
   assertTrue(desc.configurable);
 }
 
-// Test the descriptor is correct for properties.
-checkGetterProperty(prototype, 'index');
-checkGetterProperty(prototype, 'breakType');
-
-// Test the SegmentIteratorPrototype methods are called with same
+// Test the SegmentsPrototype methods are called with same
 // receiver and won't throw.
-assertDoesNotThrow(() => prototype.next.call(segmentIterator));
-assertDoesNotThrow(() => prototype.following.call(segmentIterator));
-assertDoesNotThrow(() => prototype.preceding.call(segmentIterator));
+assertDoesNotThrow(() => segmentsPrototype.containing.call(segments));
+assertDoesNotThrow(() => segmentsPrototype[Symbol.iterator].call(segments));
 
 // Test the SegmentIteratorPrototype methods are called with a different
 // receiver and correctly throw.
 var otherReceivers = [
     1, 123.45, undefined, null, "string", true, false,
     Intl, Intl.Segmenter, Intl.Segmenter.prototype,
-    prototype,
+    segmentsPrototype,
     new Intl.Segmenter(),
     new Intl.Collator(),
     new Intl.DateTimeFormat(),
     new Intl.NumberFormat(),
 ];
 for (let rec of otherReceivers) {
-   assertThrows(() => prototype.next.call(rec), TypeError);
-   assertThrows(() => prototype.following.call(rec), TypeError);
-   assertThrows(() => prototype.preceding.call(rec), TypeError);
+   assertThrows(() => segmentsPrototype.containing.call(rec), TypeError);
 }
 
-// Check the property of the return object of next()
+let segmentIterator = segments[Symbol.iterator]();
+let segmentIteratorPrototype = Object.getPrototypeOf(segmentIterator);
+for (let func of ["next"]) {
+  let descriptor = Object.getOwnPropertyDescriptor(segmentIteratorPrototype,
+      func);
+  assertTrue(descriptor.writable);
+  assertFalse(descriptor.enumerable);
+  assertTrue(descriptor.configurable);
+}
+
+assertEquals("Segmenter String Iterator",
+    segmentIteratorPrototype[Symbol.toStringTag]);
+let desc = Object.getOwnPropertyDescriptor(
+    segmentIteratorPrototype, Symbol.toStringTag);
+assertFalse(desc.writable);
+assertFalse(desc.enumerable);
+assertTrue(desc.configurable);
+
 let nextReturn = segmentIterator.next();
 
 function checkProperty(obj, property) {
@@ -83,9 +97,3 @@ function checkProperty(obj, property) {
   assertTrue(desc.enumerable);
   assertTrue(desc.configurable);
 }
-
-checkProperty(nextReturn, 'done');
-checkProperty(nextReturn, 'value');
-checkProperty(nextReturn.value, 'segment');
-checkProperty(nextReturn.value, 'breakType');
-checkProperty(nextReturn.value, 'index');

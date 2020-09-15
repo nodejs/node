@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --experimental-wasm-type-reflection
+
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information when pausing in wasm functions');
 session.setupScriptMap();
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
-
-let evaluate = code => Protocol.Runtime.evaluate({expression: code});
 
 let breakpointLocation = undefined;  // Will be set by {instantiateWasm}.
 
@@ -31,7 +33,7 @@ let breakpointLocation = undefined;  // Will be set by {instantiateWasm}.
   InspectorTest.logMessage(breakpoint.result.actualLocation);
 
   // Now run the wasm code.
-  await evaluate('instance.exports.main(4)');
+  await WasmInspectorTest.evalWithUrl('instance.exports.main(4)', 'runWasm');
   InspectorTest.log('exports.main returned. Test finished.');
   InspectorTest.completeTest();
 })();
@@ -56,7 +58,7 @@ async function printPauseLocationsAndContinue(msg) {
       }
       var properties = await Protocol.Runtime.getProperties(
           {'objectId': scope.object.objectId});
-      await dumpScopeProperties(properties);
+      await WasmInspectorTest.dumpScopeProperties(properties);
     }
   }
   InspectorTest.log();
@@ -64,61 +66,68 @@ async function printPauseLocationsAndContinue(msg) {
 }
 
 async function instantiateWasm() {
-  utils.load('test/mjsunit/wasm/wasm-module-builder.js');
-
   var builder = new WasmModuleBuilder();
-  // Also add a global, so we have some global scope.
-  builder.addGlobal(kWasmI32, true);
+  // Add a global, memory and exports to populate the module scope.
+  builder.addGlobal(kWasmI32, true).exportAs('exported_global');
+  builder.addMemory(1,1).exportMemoryAs('exported_memory');
+  builder.addTable(kWasmAnyFunc, 3).exportAs('exported_table');
 
   // Add a function without breakpoint, to check that locals are shown
   // correctly in compiled code.
-  builder.addFunction('call_func', kSig_v_i).addLocals({f32_count: 1}).addBody([
-    // Set local 1 to 7.2.
-    ...wasmF32Const(7.2), kExprLocalSet, 1,
-    // Call function 'func', forwarding param 0.
-    kExprLocalGet, 0, kExprCallFunction, 1
-  ]).exportAs('main');
+  const main = builder.addFunction('call_func', kSig_v_i).addLocals(kWasmF32, 1)
+    .addBody([
+      // Set local 1 to 7.2.
+      ...wasmF32Const(7.2), kExprLocalSet, 1,
+      // Call function 'func', forwarding param 0.
+      kExprLocalGet, 0, kExprCallFunction, 1
+    ]).exportAs('main');
 
   // A second function which will be stepped through.
-  let func = builder.addFunction('func', kSig_v_i)
-      .addLocals(
-          {i32_count: 1, i64_count: 1, f64_count: 3},
-          ['i32Arg', undefined, 'i64_local', 'unicode☼f64', '0', '0'])
-      .addBody([
-        // Set param 0 to 11.
-        kExprI32Const, 11, kExprLocalSet, 0,
-        // Set local 1 to 47.
-        kExprI32Const, 47, kExprLocalSet, 1,
-        // Set local 2 to 0x7FFFFFFFFFFFFFFF (max i64).
-        kExprI64Const, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
-        kExprLocalSet, 2,
-        // Set local 2 to 0x8000000000000000 (min i64).
-        kExprI64Const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
-        kExprLocalSet, 2,
-        // Set local 3 to 1/7.
-        kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
-        kExprF64UConvertI32, kExprF64Div, kExprLocalSet, 3,
+  const func = builder.addFunction('func', kSig_v_i, ['i32Arg'])
+    .addLocals(kWasmI32, 1)
+    .addLocals(kWasmI64, 1, ['i64_local'])
+    .addLocals(kWasmF64, 3, ['unicode☼f64', '0', '0'])
+    .addBody([
+      // Set param 0 to 11.
+      kExprI32Const, 11, kExprLocalSet, 0,
+      // Set local 1 to 47.
+      kExprI32Const, 47, kExprLocalSet, 1,
+      // Set local 2 to 0x7FFFFFFFFFFFFFFF (max i64).
+      kExprI64Const, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
+      kExprLocalSet, 2,
+      // Set local 2 to 0x8000000000000000 (min i64).
+      kExprI64Const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
+      kExprLocalSet, 2,
+      // Set local 3 to 1/7.
+      kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
+      kExprF64UConvertI32, kExprF64Div, kExprLocalSet, 3,
 
-        // Set global 0 to 15
-        kExprI32Const, 15, kExprGlobalSet, 0,
-      ]);
+      // Set global 0 to 15
+      kExprI32Const, 15, kExprGlobalSet, 0,
+    ]);
+
+  // Append function to table to test function table output.
+  builder.appendToTable([main.index]);
 
   let moduleBytes = builder.toArray();
   breakpointLocation = func.body_offset;
 
-  function instantiate(bytes) {
-    var buffer = new ArrayBuffer(bytes.length);
-    var view = new Uint8Array(buffer);
-    for (var i = 0; i < bytes.length; ++i) {
-      view[i] = bytes[i] | 0;
-    }
+  function addWasmJSToTable() {
+    // Create WasmJS functions to test the function tables output.
+    const js_func = function js_func() { return 7; };
+    const wasmjs_func = new WebAssembly.Function(
+      {parameters:[], results:['i32']}, js_func);
+    const wasmjs_anonymous_func = new WebAssembly.Function(
+      {parameters:[], results:['i32']}, _ => 7);
 
-    var module = new WebAssembly.Module(buffer);
-    return new WebAssembly.Instance(module);
+    instance.exports.exported_table.set(0, wasmjs_func);
+    instance.exports.exported_table.set(1, wasmjs_anonymous_func);
   }
 
   InspectorTest.log('Calling instantiate function.');
-  evaluate(`var instance = (${instantiate})(${JSON.stringify(moduleBytes)})`);
+  await WasmInspectorTest.instantiate(moduleBytes);
+  await WasmInspectorTest.evalWithUrl(`(${addWasmJSToTable})()`,
+                                      'populateTable');
 }
 
 function printIfFailure(message) {
@@ -140,24 +149,4 @@ async function waitForWasmScripts() {
     }
   }
   return wasm_script_ids;
-}
-
-async function getScopeValues(value) {
-  if (value.type == 'object') {
-    let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
-    printIfFailure(msg);
-    const printProperty = function(elem) {
-      return `"${elem.name}": ${elem.value.value} (${elem.value.type})`;
-    }
-    return msg.result.result.map(printProperty).join(', ');
-  }
-  return value.value + ' (' + value.type + ')';
-}
-
-async function dumpScopeProperties(message) {
-  printIfFailure(message);
-  for (var value of message.result.result) {
-    var value_str = await getScopeValues(value.value);
-    InspectorTest.log('   ' + value.name + ': ' + value_str);
-  }
 }

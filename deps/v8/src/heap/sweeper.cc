@@ -5,11 +5,12 @@
 #include "src/heap/sweeper.h"
 
 #include "src/execution/vm-state-inl.h"
-#include "src/heap/array-buffer-tracker-inl.h"
+#include "src/heap/code-object-registry.h"
+#include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/heap/remembered-set-inl.h"
+#include "src/heap/remembered-set.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -245,6 +246,25 @@ void Sweeper::EnsureCompleted() {
   sweeping_in_progress_ = false;
 }
 
+void Sweeper::DrainSweepingWorklists() {
+  if (!sweeping_in_progress_) return;
+
+  ForAllSweepingSpaces(
+      [this](AllocationSpace space) { DrainSweepingWorklistForSpace(space); });
+}
+
+void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
+  if (!sweeping_in_progress_) return;
+  ParallelSweepSpace(space, 0);
+}
+
+void Sweeper::SupportConcurrentSweeping() {
+  ForAllSweepingSpaces([this](AllocationSpace space) {
+    const int kMaxPagesToSweepPerSpace = 1;
+    ParallelSweepSpace(space, 0, kMaxPagesToSweepPerSpace);
+  });
+}
+
 bool Sweeper::AreSweeperTasksRunning() { return num_sweeping_tasks_ != 0; }
 
 V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
@@ -257,14 +277,15 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   if (free_space_mode == ZAP_FREE_SPACE) {
     ZapCode(free_start, size);
   }
+  ClearFreedMemoryMode clear_memory_mode =
+      (free_list_mode == REBUILD_FREE_LIST)
+          ? ClearFreedMemoryMode::kDontClearFreedMemory
+          : ClearFreedMemoryMode::kClearFreedMemory;
+  page->heap()->CreateFillerObjectAtBackground(
+      free_start, static_cast<int>(size), clear_memory_mode);
   if (free_list_mode == REBUILD_FREE_LIST) {
-    freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
-        free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
-
-  } else {
-    Heap::CreateFillerObjectAt(ReadOnlyRoots(page->heap()), free_start,
-                               static_cast<int>(size),
-                               ClearFreedMemoryMode::kClearFreedMemory);
+    freed_bytes =
+        reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(free_start, size);
   }
   if (should_reduce_memory_) page->DiscardUnusedMemory(free_start, size);
 
@@ -332,10 +353,6 @@ int Sweeper::RawSweep(
 
   // Phase 1: Prepare the page for sweeping.
 
-  // Before we sweep objects on the page, we free dead array buffers which
-  // requires valid mark bits.
-  ArrayBufferTracker::FreeDead(p, marking_state_);
-
   // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
   // counter. The free operations below will decrease allocated_bytes_ to actual
   // live bytes and keep track of wasted_memory_.
@@ -369,6 +386,10 @@ int Sweeper::RawSweep(
   // The free ranges map is used for filtering typed slots.
   FreeRangesMap free_ranges_map;
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  p->object_start_bitmap()->Clear();
+#endif
+
   // Iterate over the page using the live objects and free the memory before
   // the given live object.
   Address free_start = p->area_start();
@@ -393,6 +414,10 @@ int Sweeper::RawSweep(
     int size = object.SizeFromMap(map);
     live_bytes += size;
     free_start = free_end + size;
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    p->object_start_bitmap()->SetBit(object.address());
+#endif
   }
 
   // If there is free memory after the last live object also free that.

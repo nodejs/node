@@ -437,7 +437,7 @@ class ReadStringVisitor : public TqObjectVisitor {
 class AddInfoVisitor : public TqObjectVisitor {
  public:
   // Returns a descriptive string and a list of properties for the given object.
-  // Both may be empty, and are meant as an addition to, not a replacement for,
+  // Both may be empty, and are meant as an addition or a replacement for,
   // the Torque-generated data about the object.
   static std::pair<std::string, std::vector<std::unique_ptr<ObjectProperty>>>
   Visit(const TqObject* object, d::MemoryAccessor accessor,
@@ -452,6 +452,22 @@ class AddInfoVisitor : public TqObjectVisitor {
     if (str.has_value()) {
       brief_ = "\"" + *str + "\"";
     }
+  }
+
+  void VisitExternalString(const TqExternalString* object) override {
+    VisitString(object);
+    // Cast resource field to v8::String::ExternalStringResourceBase* would add
+    // more info.
+    properties_.push_back(std::make_unique<ObjectProperty>(
+        "resource",
+        CheckTypeName<v8::String::ExternalStringResourceBase*>(
+            "v8::String::ExternalStringResourceBase*"),
+        CheckTypeName<v8::String::ExternalStringResourceBase*>(
+            "v8::String::ExternalStringResourceBase*"),
+        object->GetResourceAddress(), 1,
+        sizeof(v8::String::ExternalStringResourceBase*),
+        std::vector<std::unique_ptr<StructProperty>>(),
+        d::PropertyKind::kSingle));
   }
 
   void VisitJSObject(const TqJSObject* object) override {
@@ -524,8 +540,21 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesNotCompressed(
   auto extra_info =
       AddInfoVisitor::Visit(typed.object.get(), accessor, heap_addresses);
   brief = JoinWithSpace(brief, extra_info.first);
-  props.insert(props.end(), std::make_move_iterator(extra_info.second.begin()),
-               std::make_move_iterator(extra_info.second.end()));
+
+  // Overwrite existing properties if they have the same name.
+  for (size_t i = 0; i < extra_info.second.size(); i++) {
+    bool overwrite = false;
+    for (size_t j = 0; j < props.size(); j++) {
+      if (strcmp(props[j]->GetPublicView()->name,
+                 extra_info.second[i]->GetPublicView()->name) == 0) {
+        props[j] = std::move(extra_info.second[i]);
+        overwrite = true;
+        break;
+      }
+    }
+    if (overwrite) continue;
+    props.push_back(std::move(extra_info.second[i]));
+  }
 
   brief = AppendAddressAndType(brief, address, typed.object->GetName());
 

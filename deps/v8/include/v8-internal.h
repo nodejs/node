@@ -178,14 +178,8 @@ class Internals {
 
   // IsolateData layout guarantees.
   static const int kIsolateEmbedderDataOffset = 0;
-  static const int kExternalMemoryOffset =
-      kNumIsolateDataSlots * kApiSystemPointerSize;
-  static const int kExternalMemoryLimitOffset =
-      kExternalMemoryOffset + kApiInt64Size;
-  static const int kExternalMemoryLowSinceMarkCompactOffset =
-      kExternalMemoryLimitOffset + kApiInt64Size;
   static const int kIsolateFastCCallCallerFpOffset =
-      kExternalMemoryLowSinceMarkCompactOffset + kApiInt64Size;
+      kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerPcOffset =
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
   static const int kIsolateStackGuardOffset =
@@ -420,7 +414,8 @@ void CastCheck<false>::Perform(T* data) {}
 
 template <class T>
 V8_INLINE void PerformCastCheck(T* data) {
-  CastCheck<std::is_base_of<Data, T>::value>::Perform(data);
+  CastCheck<std::is_base_of<Data, T>::value &&
+            !std::is_same<Data, std::remove_cv_t<T>>::value>::Perform(data);
 }
 
 // A base class for backing stores, which is needed due to vagaries of

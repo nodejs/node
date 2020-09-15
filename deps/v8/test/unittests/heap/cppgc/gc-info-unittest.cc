@@ -23,7 +23,7 @@ TEST(GCInfoTableTest, InitialEmpty) {
 TEST(GCInfoTableTest, ResizeToMaxIndex) {
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  GCInfo info = {nullptr, false};
+  GCInfo info = {nullptr, nullptr, false};
   for (GCInfoIndex i = GCInfoTable::kMinIndex; i < GCInfoTable::kMaxIndex;
        i++) {
     GCInfoIndex index = table.RegisterNewGCInfo(info);
@@ -34,7 +34,7 @@ TEST(GCInfoTableTest, ResizeToMaxIndex) {
 TEST(GCInfoTableDeathTest, MoreThanMaxIndexInfos) {
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  GCInfo info = {nullptr, false};
+  GCInfo info = {nullptr, nullptr, false};
   // Create GCInfoTable::kMaxIndex entries.
   for (GCInfoIndex i = GCInfoTable::kMinIndex; i < GCInfoTable::kMaxIndex;
        i++) {
@@ -46,7 +46,7 @@ TEST(GCInfoTableDeathTest, MoreThanMaxIndexInfos) {
 TEST(GCInfoTableDeathTest, OldTableAreaIsReadOnly) {
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  GCInfo info = {nullptr, false};
+  GCInfo info = {nullptr, nullptr, false};
   // Use up all slots until limit.
   GCInfoIndex limit = table.LimitForTesting();
   // Bail out if initial limit is already the maximum because of large committed
@@ -76,7 +76,7 @@ class ThreadRegisteringGCInfoObjects final : public v8::base::Thread {
         num_registrations_(num_registrations) {}
 
   void Run() final {
-    GCInfo info = {nullptr, false};
+    GCInfo info = {nullptr, nullptr, false};
     for (GCInfoIndex i = 0; i < num_registrations_; i++) {
       table_->RegisterNewGCInfo(info);
     }
@@ -101,7 +101,7 @@ TEST(GCInfoTableTest, MultiThreadedResizeToMaxIndex) {
 
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  GCInfo info = {nullptr, false};
+  GCInfo info = {nullptr, nullptr, false};
   for (size_t i = 0; i < main_thread_initialized; i++) {
     table.RegisterNewGCInfo(info);
   }
@@ -126,8 +126,14 @@ namespace {
 
 class GCInfoTraitTest : public testing::TestWithPlatform {};
 
-class BasicType final {};
-class OtherBasicType final {};
+class BasicType final {
+ public:
+  void Trace(Visitor*) const {}
+};
+class OtherBasicType final {
+ public:
+  void Trace(Visitor*) const {}
+};
 
 }  // namespace
 

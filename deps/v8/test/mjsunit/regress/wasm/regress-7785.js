@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --experimental-wasm-anyref
+// The test needs --wasm-tier-up because we can't serialize and deserialize
+// Liftoff code.
+// Flags: --allow-natives-syntax --experimental-wasm-reftypes --wasm-tier-up
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function testAnyRefNull() {
+(function testExternRefNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull])
+      .addBody([kExprRefNull, kWasmExternRef])
       .exportFunc();
 
   var wire_bytes = builder.toBuffer();
@@ -21,7 +23,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(null, instance.exports.main());
 })();
 
-(function testAnyRefIsNull() {
+(function testExternRefIsNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
       .addBody([kExprLocalGet, 0, kExprRefIsNull])

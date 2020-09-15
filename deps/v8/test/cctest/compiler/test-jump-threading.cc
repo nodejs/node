@@ -50,6 +50,15 @@ class TestCode : public HandleAndZoneScope {
     End();
     return pos;
   }
+  int Return(int size, bool defer = false, bool deconstruct_frame = false) {
+    Start(defer, deconstruct_frame);
+    InstructionOperand ops[] = {Immediate(size)};
+    sequence_.AddInstruction(Instruction::New(main_zone(), kArchRet, 0, nullptr,
+                                              1, ops, 0, nullptr));
+    int pos = static_cast<int>(sequence_.instructions().size() - 1);
+    End();
+    return pos;
+  }
   void Nop() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
@@ -88,11 +97,17 @@ class TestCode : public HandleAndZoneScope {
   InstructionOperand UseRpo(int num) {
     return sequence_.AddImmediate(Constant(RpoNumber::FromInt(num)));
   }
-  void Start(bool deferred = false) {
+  InstructionOperand Immediate(int num) {
+    return sequence_.AddImmediate(Constant(num));
+  }
+  void Start(bool deferred = false, bool deconstruct_frame = false) {
     if (current_ == nullptr) {
-      current_ = new (main_zone())
-          InstructionBlock(main_zone(), rpo_number_, RpoNumber::Invalid(),
-                           RpoNumber::Invalid(), deferred, false);
+      current_ = main_zone()->New<InstructionBlock>(
+          main_zone(), rpo_number_, RpoNumber::Invalid(), RpoNumber::Invalid(),
+          RpoNumber::Invalid(), deferred, false);
+      if (deconstruct_frame) {
+        current_->mark_must_deconstruct_frame();
+      }
       blocks_.push_back(current_);
       sequence_.StartBlock(rpo_number_);
     }
@@ -628,6 +643,14 @@ void CheckJump(TestCode* code, int pos, int target) {
   CHECK_EQ(target, code->sequence_.InputRpo(instr, 0).ToInt());
 }
 
+void CheckRet(TestCode* code, int pos) {
+  Instruction* instr = code->sequence_.InstructionAt(pos);
+  CHECK_EQ(kArchRet, instr->arch_opcode());
+  CHECK_EQ(1, static_cast<int>(instr->InputCount()));
+  CHECK_EQ(0, static_cast<int>(instr->OutputCount()));
+  CHECK_EQ(0, static_cast<int>(instr->TempCount()));
+}
+
 void CheckNop(TestCode* code, int pos) {
   Instruction* instr = code->sequence_.InstructionAt(pos);
   CHECK_EQ(kArchNop, instr->arch_opcode());
@@ -761,6 +784,86 @@ TEST(Rewire_diamond) {
       CheckAssemblyOrder(&code, 5, assembly);
     }
   }
+}
+
+TEST(RewireRet) {
+  TestCode code;
+
+  // B0
+  code.Branch(1, 2);
+  // B1
+  int j1 = code.Return(0);
+  // B2
+  int j2 = code.Return(0);
+  // B3
+  code.End();
+
+  int forward[] = {0, 1, 1, 3};
+  VerifyForwarding(&code, 4, forward);
+  ApplyForwarding(&code, 4, forward);
+
+  CheckRet(&code, j1);
+  CheckNop(&code, j2);
+}
+
+TEST(RewireRet1) {
+  TestCode code;
+
+  // B0
+  code.Branch(1, 2);
+  // B1
+  int j1 = code.Return(0);
+  // B2
+  int j2 = code.Return(0, true, true);
+  // B3
+  code.End();
+
+  int forward[] = {0, 1, 2, 3};
+  VerifyForwarding(&code, 4, forward);
+  ApplyForwarding(&code, 4, forward);
+
+  CheckRet(&code, j1);
+  CheckRet(&code, j2);
+}
+
+TEST(RewireRet2) {
+  TestCode code;
+
+  // B0
+  code.Branch(1, 2);
+  // B1
+  int j1 = code.Return(0, true, true);
+  // B2
+  int j2 = code.Return(0, true, true);
+  // B3
+  code.End();
+
+  int forward[] = {0, 1, 1, 3};
+  VerifyForwarding(&code, 4, forward);
+  ApplyForwarding(&code, 4, forward);
+
+  CheckRet(&code, j1);
+  CheckNop(&code, j2);
+}
+
+TEST(DifferentSizeRet) {
+  TestCode code;
+
+  // B0
+  code.Branch(1, 2);
+  // B1
+  int j1 = code.Return(0);
+  // B2
+  int j2 = code.Return(1);
+  // B3
+  code.End();
+
+  int forward[] = {0, 1, 2, 3};
+  VerifyForwarding(&code, 4, forward);
+  ApplyForwarding(&code, 4, forward);
+
+  CheckRet(&code, j1);
+  CheckRet(&code, j2);
 }
 
 }  // namespace compiler

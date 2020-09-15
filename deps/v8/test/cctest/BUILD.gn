@@ -60,6 +60,12 @@ v8_header_set("cctest_headers") {
   sources = [ "cctest.h" ]
 }
 
+config("cctest_sources_config") {
+  if (is_clang) {
+    cflags = [ "-Wno-string-concatenation" ]
+  }
+}
+
 v8_source_set("cctest_sources") {
   testonly = true
 
@@ -148,6 +154,7 @@ v8_source_set("cctest_sources") {
     "heap/test-spaces.cc",
     "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",
+    "heap/test-write-barrier.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
     "interpreter/interpreter-tester.cc",
@@ -196,6 +203,10 @@ v8_source_set("cctest_sources") {
     "test-code-pages.cc",
     "test-code-stub-assembler.cc",
     "test-compiler.cc",
+    "test-concurrent-descriptor-array.cc",
+    "test-concurrent-prototype.cc",
+    "test-concurrent-script-context-table.cc",
+    "test-concurrent-transition-array.cc",
     "test-constantpool.cc",
     "test-conversions.cc",
     "test-cpu-profiler.cc",
@@ -262,7 +273,6 @@ v8_source_set("cctest_sources") {
     "test-unboxed-doubles.cc",
     "test-unscopables-hidden-prototype.cc",
     "test-unwinder-code-pages.cc",
-    "test-unwinder.cc",
     "test-usecounters.cc",
     "test-utils.cc",
     "test-version.cc",
@@ -393,9 +403,11 @@ v8_source_set("cctest_sources") {
   }
 
   configs = [
+    "../..:cppgc_base_config",
     "../..:external_config",
     "../..:internal_config_base",
     "../..:v8_tracing_config",
+    ":cctest_sources_config",
   ]
 
   public_deps = [
@@ -404,7 +416,7 @@ v8_source_set("cctest_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "../..:wasm_module_runner",
+    "../..:wasm_test_common",
     "../../tools/debug_helper:v8_debug_helper",
     "//build/win:default_exe_manifest",
   ]

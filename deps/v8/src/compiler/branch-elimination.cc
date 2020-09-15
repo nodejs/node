@@ -130,18 +130,7 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
   bool condition_value;
   // If we know the condition we can discard the branch.
   if (from_input.LookupCondition(condition, &branch, &condition_value)) {
-    // Mark the branch as a safety check if necessary.
-    // Check if {branch} is dead because we might have a stale side-table entry.
-    if (!branch->IsDead() && branch->opcode() != IrOpcode::kDead) {
-      IsSafetyCheck branch_safety = IsSafetyCheckOf(branch->op());
-      IsSafetyCheck combined_safety =
-          CombineSafetyChecks(branch_safety, IsSafetyCheckOf(node->op()));
-      if (branch_safety != combined_safety) {
-        NodeProperties::ChangeOp(
-            branch, common()->MarkAsSafetyCheck(branch->op(), combined_safety));
-      }
-    }
-
+    MarkAsSafetyCheckIfNeeded(branch, node);
     for (Node* const use : node->uses()) {
       switch (use->opcode()) {
         case IrOpcode::kIfTrue:
@@ -184,17 +173,9 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
   ControlPathConditions conditions = node_conditions_.Get(control);
   bool condition_value;
   Node* branch;
+  // If we know the condition we can discard the branch.
   if (conditions.LookupCondition(condition, &branch, &condition_value)) {
-    // Mark the branch as a safety check.
-    IsSafetyCheck branch_safety = IsSafetyCheckOf(branch->op());
-    IsSafetyCheck combined_safety =
-        CombineSafetyChecks(branch_safety, p.is_safety_check());
-    if (branch_safety != combined_safety) {
-      NodeProperties::ChangeOp(
-          branch, common()->MarkAsSafetyCheck(branch->op(), combined_safety));
-    }
-
-    // If we know the condition we can discard the branch.
+    MarkAsSafetyCheckIfNeeded(branch, node);
     if (condition_is_true == condition_value) {
       // We don't update the conditions here, because we're replacing {node}
       // with the {control} node that already contains the right information.
@@ -303,7 +284,7 @@ Reduction BranchElimination::UpdateConditions(
 void BranchElimination::ControlPathConditions::AddCondition(
     Zone* zone, Node* condition, Node* branch, bool is_true,
     ControlPathConditions hint) {
-  DCHECK_EQ(false, LookupCondition(condition, nullptr, nullptr));
+  DCHECK(!LookupCondition(condition, nullptr, nullptr));
   PushFront({condition, branch, is_true}, zone, hint);
 }
 
@@ -317,6 +298,19 @@ bool BranchElimination::ControlPathConditions::LookupCondition(
     }
   }
   return false;
+}
+
+void BranchElimination::MarkAsSafetyCheckIfNeeded(Node* branch, Node* node) {
+  // Check if {branch} is dead because we might have a stale side-table entry.
+  if (!branch->IsDead() && branch->opcode() != IrOpcode::kDead) {
+    IsSafetyCheck branch_safety = IsSafetyCheckOf(branch->op());
+    IsSafetyCheck combined_safety =
+        CombineSafetyChecks(branch_safety, IsSafetyCheckOf(node->op()));
+    if (branch_safety != combined_safety) {
+      NodeProperties::ChangeOp(
+          branch, common()->MarkAsSafetyCheck(branch->op(), combined_safety));
+    }
+  }
 }
 
 Graph* BranchElimination::graph() const { return jsgraph()->graph(); }

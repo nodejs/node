@@ -90,7 +90,7 @@ struct WasmException {
 struct WasmDataSegment {
   // Construct an active segment.
   explicit WasmDataSegment(WasmInitExpr dest_addr)
-      : dest_addr(dest_addr), active(true) {}
+      : dest_addr(std::move(dest_addr)), active(true) {}
 
   // Construct a passive segment, which has no dest_addr.
   WasmDataSegment() : active(false) {}
@@ -119,7 +119,7 @@ struct WasmElemSegment {
   WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
       : type(kWasmFuncRef),
         table_index(table_index),
-        offset(offset),
+        offset(std::move(offset)),
         status(kStatusActive) {}
 
   // Construct a passive or declarative segment, which has no table index or
@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
   void AddForTesting(int function_index, WireBytesRef name);
 
  private:
-  // {function_names_}, {global_names_} and {memory_names_} are
+  // {function_names_}, {global_names_}, {memory_names_} and {table_names_} are
   // populated lazily after decoding, and therefore need a mutex to protect
   // concurrent modifications from multiple {WasmModuleObject}.
   mutable base::Mutex mutex_;
@@ -218,6 +218,9 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
   mutable std::unique_ptr<
       std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
       memory_names_;
+  mutable std::unique_ptr<
+      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
+      table_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
@@ -292,6 +295,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<TypeDefinition> types;    // by type index
   std::vector<uint8_t> type_kinds;      // by type index
   std::vector<uint32_t> signature_ids;  // by signature index
+
+  bool has_type(uint32_t index) const { return index < types.size(); }
+
   void add_signature(const FunctionSig* sig) {
     types.push_back(TypeDefinition(sig));
     type_kinds.push_back(kWasmFunctionTypeCode);
@@ -327,6 +333,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   bool has_array(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmArrayTypeCode;
   }
+
   std::vector<WasmFunction> functions;
   std::vector<WasmDataSegment> data_segments;
   std::vector<WasmTable> tables;
@@ -347,6 +354,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(WasmModule);
 };
 
@@ -496,10 +504,12 @@ class TruncatedUserString {
   char buffer_[kMaxLen];
 };
 
-// Print the signature into the given {buffer}. If {buffer} is non-empty, it
-// will be null-terminated, even if the signature is cut off. Returns the number
-// of characters written, excluding the terminating null-byte.
-size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig*);
+// Print the signature into the given {buffer}, using {delimiter} as separator
+// between parameter types and return types. If {buffer} is non-empty, it will
+// be null-terminated, even if the signature is cut off. Returns the number of
+// characters written, excluding the terminating null-byte.
+size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig*,
+                      char delimiter = ':');
 
 }  // namespace wasm
 }  // namespace internal

@@ -71,7 +71,7 @@ ReleaseObject with invalid params.
 {
     error : {
         code : -32602
-        data : objectId: string value expected
+        data : Failed to deserialize params.objectId - BINDINGS: mandatory field missing at <some position>
         message : Invalid parameters
     }
     id : <messageId>
@@ -150,7 +150,7 @@ ReleaseObjectGroup with invalid params
 {
     error : {
         code : -32602
-        data : objectGroup: string value expected
+        data : Failed to deserialize params.objectGroup - BINDINGS: mandatory field missing at <some position>
         message : Invalid parameters
     }
     id : <messageId>

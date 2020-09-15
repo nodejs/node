@@ -12,7 +12,7 @@ namespace internal {
 
 namespace wasm {
 class StreamingDecoder;
-}
+}  // namespace wasm
 
 // Exposes a WebAssembly API to JavaScript through the V8 API.
 class WasmJs {

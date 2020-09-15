@@ -91,9 +91,11 @@ class BasicBlock;
   V(Word64Or)                             \
   V(WordAnd)                              \
   V(WordEqual)                            \
+  V(WordOr)                               \
   V(WordSar)                              \
   V(WordSarShiftOutZeros)                 \
   V(WordShl)                              \
+  V(WordShr)                              \
   V(WordXor)
 
 #define CHECKED_ASSEMBLER_MACH_BINOP_LIST(V) \
@@ -116,6 +118,7 @@ class BasicBlock;
   V(False, Boolean)                             \
   V(FixedArrayMap, Map)                         \
   V(FixedDoubleArrayMap, Map)                   \
+  V(WeakFixedArrayMap, Map)                     \
   V(HeapNumberMap, Map)                         \
   V(MinusOne, Number)                           \
   V(NaN, Number)                                \
@@ -129,47 +132,6 @@ class BasicBlock;
   V(Zero, Number)
 
 class GraphAssembler;
-
-// Wrapper classes for special node/edge types (effect, control, frame states)
-// that otherwise don't fit into the type system.
-
-class NodeWrapper {
- public:
-  explicit constexpr NodeWrapper(Node* node) : node_(node) {}
-  operator Node*() const { return node_; }
-  Node* operator->() const { return node_; }
-
- private:
-  Node* node_;
-};
-
-class Effect : public NodeWrapper {
- public:
-  explicit constexpr Effect(Node* node) : NodeWrapper(node) {
-    // TODO(jgruber): Remove the End special case.
-    SLOW_DCHECK(node == nullptr || node->op()->opcode() == IrOpcode::kEnd ||
-                node->op()->EffectOutputCount() > 0);
-  }
-};
-
-class Control : public NodeWrapper {
- public:
-  explicit constexpr Control(Node* node) : NodeWrapper(node) {
-    // TODO(jgruber): Remove the End special case.
-    SLOW_DCHECK(node == nullptr || node->opcode() == IrOpcode::kEnd ||
-                node->op()->ControlOutputCount() > 0);
-  }
-};
-
-class FrameState : public NodeWrapper {
- public:
-  explicit constexpr FrameState(Node* node) : NodeWrapper(node) {
-    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
-    // test, among others).
-    SLOW_DCHECK(node->opcode() == IrOpcode::kFrameState ||
-                node->opcode() == IrOpcode::kStart);
-  }
-};
 
 enum class GraphAssemblerLabelType { kDeferred, kNonDeferred, kLoop };
 
@@ -278,6 +240,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Projection(int index, Node* value);
   Node* ExternalConstant(ExternalReference ref);
 
+  Node* Parameter(int index);
+
   Node* LoadFramePointer();
 
   Node* LoadHeapNumberValue(Node* heap_number);
@@ -291,10 +255,20 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   CHECKED_ASSEMBLER_MACH_BINOP_LIST(BINOP_DECL)
 #undef BINOP_DECL
 
-  // Debugging
   Node* DebugBreak();
 
-  Node* Unreachable();
+  // Unreachable nodes are similar to Goto in that they reset effect/control to
+  // nullptr and it's thus not possible to append other nodes without first
+  // binding a new label.
+  // The block_updater_successor label is a crutch to work around block updater
+  // weaknesses (see the related comment in ConnectUnreachableToEnd); if the
+  // block updater exists, we cannot connect unreachable to end, instead we
+  // must preserve the Goto pattern.
+  Node* Unreachable(GraphAssemblerLabel<0u>* block_updater_successor = nullptr);
+  // This special variant doesn't connect the Unreachable node to end, and does
+  // not reset current effect/control. Intended only for special use-cases like
+  // lowering DeadValue.
+  Node* UnreachableWithoutConnectToEnd();
 
   Node* IntPtrEqual(Node* left, Node* right);
   Node* TaggedEqual(Node* left, Node* right);
@@ -309,9 +283,12 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* BitcastWordToTaggedSigned(Node* value);
   Node* BitcastTaggedToWord(Node* value);
   Node* BitcastTaggedToWordForTagAndSmiBits(Node* value);
+  Node* BitcastMaybeObjectToWord(Node* value);
 
   Node* TypeGuard(Type type, Node* value);
   Node* Checkpoint(FrameState frame_state);
+
+  TNode<RawPtrT> StackSlot(int size, int alignment);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Store(StoreRepresentation rep, Node* object, int offset, Node* value);
@@ -331,14 +308,28 @@ class V8_EXPORT_PRIVATE GraphAssembler {
       DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  Node* DeoptimizeIf(
+      DeoptimizeKind kind, DeoptimizeReason reason,
+      FeedbackSource const& feedback, Node* condition, Node* frame_state,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  Node* DeoptimizeIfNot(
+      DeoptimizeKind kind, DeoptimizeReason reason,
+      FeedbackSource const& feedback, Node* condition, Node* frame_state,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   Node* DeoptimizeIfNot(
       DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  TNode<Object> Call(const CallDescriptor* call_descriptor, int inputs_size,
+                     Node** inputs);
+  TNode<Object> Call(const Operator* op, int inputs_size, Node** inputs);
   template <typename... Args>
-  Node* Call(const CallDescriptor* call_descriptor, Args... args);
+  TNode<Object> Call(const CallDescriptor* call_descriptor, Node* first_arg,
+                     Args... args);
   template <typename... Args>
-  Node* Call(const Operator* op, Args... args);
+  TNode<Object> Call(const Operator* op, Node* first_arg, Args... args);
+  void TailCall(const CallDescriptor* call_descriptor, int inputs_size,
+                Node** inputs);
 
   // Basic control operations.
   template <size_t VarCount>
@@ -374,6 +365,13 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
                  Vars...);
 
+  bool HasActiveBlock() const {
+    // This is false if the current block has been terminated (e.g. by a Goto or
+    // Unreachable). In that case, a new label must be bound before we can
+    // continue emitting nodes.
+    return control() != nullptr;
+  }
+
   // Updates current effect and control based on outputs of {node}.
   V8_INLINE void UpdateEffectControlWith(Node* node) {
     if (node->op()->EffectOutputCount() > 0) {
@@ -399,8 +397,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   void ConnectUnreachableToEnd();
 
-  Control control() { return Control(control_); }
-  Effect effect() { return Effect(effect_); }
+  Control control() const { return Control(control_); }
+  Effect effect() const { return Effect(effect_); }
 
  protected:
   class BasicBlockUpdater;
@@ -758,19 +756,19 @@ void GraphAssembler::GotoIfNot(Node* condition,
 }
 
 template <typename... Args>
-Node* GraphAssembler::Call(const CallDescriptor* call_descriptor,
-                           Args... args) {
+TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,
+                                   Node* first_arg, Args... args) {
   const Operator* op = common()->Call(call_descriptor);
-  return Call(op, args...);
+  return Call(op, first_arg, args...);
 }
 
 template <typename... Args>
-Node* GraphAssembler::Call(const Operator* op, Args... args) {
-  DCHECK_EQ(IrOpcode::kCall, op->opcode());
-  Node* args_array[] = {args..., effect(), control()};
-  int size = static_cast<int>(sizeof...(args)) + op->EffectInputCount() +
+TNode<Object> GraphAssembler::Call(const Operator* op, Node* first_arg,
+                                   Args... args) {
+  Node* args_array[] = {first_arg, args..., effect(), control()};
+  int size = static_cast<int>(1 + sizeof...(args)) + op->EffectInputCount() +
              op->ControlInputCount();
-  return AddNode(graph()->NewNode(op, size, args_array));
+  return Call(op, size, args_array);
 }
 
 class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {

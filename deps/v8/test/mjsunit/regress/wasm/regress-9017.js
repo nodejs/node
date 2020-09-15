@@ -16,7 +16,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 var builder = new WasmModuleBuilder();
 
 var func_idx = builder.addFunction('helper', kSig_i_v)
-    .addLocals({i32_count: 1})
+    .addLocals(kWasmI32, 1)
     .addBody([
         kExprI32Const, 0x01,
     ]).index;
