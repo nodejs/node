@@ -263,6 +263,8 @@ extras_accessors = [
     'UncompiledData, inferred_name, String, kInferredNameOffset',
     'UncompiledData, start_position, int32_t, kStartPositionOffset',
     'UncompiledData, end_position, int32_t, kEndPositionOffset',
+    'Script, name, Object, kNameOffset',
+    'Script, line_ends, Object, kLineEndsOffset',
     'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
     'SharedFunctionInfo, internal_formal_parameter_count, uint16_t, kFormalParameterCountOffset',
     'SharedFunctionInfo, flags, int, kFlagsOffset',
