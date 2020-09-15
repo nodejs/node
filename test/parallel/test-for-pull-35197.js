@@ -5,7 +5,7 @@ const assert = require('assert');
 const http2 = require('http2');
 if (!common.hasCrypto){
     common.skip('missing crypto');
-    process.exit()
+    
 }
 const serverOptions = {
     key: fixtures.readKey('agent1-key.pem'),
