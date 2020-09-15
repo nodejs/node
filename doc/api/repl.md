@@ -224,7 +224,7 @@ Error: foo
 
 #### `await` keyword
 
-With the [`--experimental-repl-await`][] command line option specified,
+With the [`--experimental-repl-await`][] command-line option specified,
 experimental support for the `await` keyword is enabled.
 
 ```console
@@ -539,7 +539,7 @@ added: v11.10.0
   * `repl` {repl.REPLServer}
 
 Initializes a history log file for the REPL instance. When executing the
-Node.js binary and using the command line REPL, a history file is initialized
+Node.js binary and using the command-line REPL, a history file is initialized
 by default. However, this is not the case when creating a REPL
 programmatically. Use this method to initialize a history log file when working
 with REPL instances programmatically.

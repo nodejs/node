@@ -449,7 +449,7 @@ changes:
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
-`command`, with command line arguments in `args`. If omitted, `args` defaults
+`command`, with command-line arguments in `args`. If omitted, `args` defaults
 to an empty array.
 
 **If the `shell` option is enabled, do not pass unsanitized user input to this
@@ -1398,7 +1398,7 @@ the child process if any, else `null`.
 
 * {Array}
 
-The `subprocess.spawnargs` property represents the full list of command line
+The `subprocess.spawnargs` property represents the full list of command-line
 arguments the child process was launched with.
 
 ### `subprocess.spawnfile`
@@ -1547,7 +1547,7 @@ to `stdout` although there are only 4 characters.
 ## Shell requirements
 
 The shell should understand the `-c` switch. If the shell is `'cmd.exe'`, it
-should understand the `/d /s /c` switches and command line parsing should be
+should understand the `/d /s /c` switches and command-line parsing should be
 compatible.
 
 ## Default Windows shell
