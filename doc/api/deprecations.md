@@ -1744,7 +1744,7 @@ Type: Deprecation revoked
 
 Importing assert directly was not recommended as the exposed functions use
 loose equality checks. The deprecation was revoked because use of the `assert`
-module is not discouraged, and the deprecation caused end user confusion.
+module is not discouraged, and the deprecation caused developer confusion.
 
 ### DEP0090: Invalid GCM authentication tag lengths
 <!-- YAML

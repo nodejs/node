@@ -20,7 +20,7 @@ changes:
 <!-- source_link=lib/domain.js -->
 
 **This module is pending deprecation**. Once a replacement API has been
-finalized, this module will be fully deprecated. Most end users should
+finalized, this module will be fully deprecated. Most developers should
 **not** have cause to use this module. Users who absolutely must have
 the functionality that domains provide may rely on it for the time being
 but should expect to have to migrate to a different solution
