@@ -1778,7 +1778,7 @@ provided by the addon:
 napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor desc =
-    {"hello", NULL, Method, NULL, NULL, NULL, napi_default, NULL};
+    {"hello", NULL, Method, NULL, NULL, NULL, napi_default_property, NULL};
   status = napi_define_properties(env, exports, 1, &desc);
   if (status != napi_ok) return NULL;
   return exports;
@@ -1805,7 +1805,7 @@ To define a class so that new instances can be created (often used with
 napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor properties[] = {
-    { "value", NULL, NULL, GetValue, SetValue, NULL, napi_default, NULL },
+    { "value", NULL, NULL, GetValue, SetValue, NULL, napi_default_method, NULL },
     DECLARE_NAPI_METHOD("plusOne", PlusOne),
     DECLARE_NAPI_METHOD("multiply", Multiply),
   };
@@ -3719,8 +3719,8 @@ if (status != napi_ok) return status;
 
 // Set the properties
 napi_property_descriptor descriptors[] = {
-  { "foo", NULL, NULL, NULL, NULL, fooValue, napi_default, NULL },
-  { "bar", NULL, NULL, NULL, NULL, barValue, napi_default, NULL }
+  { "foo", NULL, NULL, NULL, NULL, fooValue, napi_default_method, NULL },
+  { "bar", NULL, NULL, NULL, NULL, barValue, napi_default_method, NULL }
 }
 status = napi_define_properties(env,
                                 obj,
@@ -3742,6 +3742,14 @@ typedef enum {
   // Used with napi_define_class to distinguish static properties
   // from instance properties. Ignored by napi_define_properties.
   napi_static = 1 << 10,
+
+  // Default for class methods.
+  napi_default_method = napi_writable | napi_configurable,
+
+  // Default for object properties, like in JS obj[prop].
+  napi_default_property = napi_writable |
+                          napi_enumerable |
+                          napi_configurable,
 } napi_property_attributes;
 ```
 
@@ -3760,6 +3768,10 @@ They can be one or more of the following bitflags:
 * `napi_static`: The property will be defined as a static property on a class as
   opposed to an instance property, which is the default. This is used only by
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
+* `napi_default_method`: The property is configureable, writeable but not
+  enumerable like a method in a JS class.
+* `napi_default_property`: The property is writable, enumerable and configurable
+  like a property set via JS code `obj.key = value`.
 
 #### napi_property_descriptor
 
