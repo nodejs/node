@@ -12,7 +12,7 @@ const dnsPromises = require('dns').promises;
     {
       code: 'ERR_INVALID_ARG_VALUE',
       name: 'TypeError',
-      message: `The 'rrtype' is invalid. Received '${rrtype}' argument`
+      message: `The 'rrtype' argument is invalid. Received '${rrtype}'`
     }
   );
 }
