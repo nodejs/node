@@ -920,7 +920,7 @@ A `Promise` that was callbackified via `util.callbackify()` was rejected with a
 falsy value.
 
 <a id="ERR_FEATURE_UNAVAILABLE_ON_PLATFORM"></a>
-#### `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`
+### `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`
 <!-- YAML
 added: v14.0.0
 -->
