@@ -600,7 +600,7 @@ Vulnerabilities fixed:
 * [[`d60b13f2e3`](https://github.com/nodejs/node/commit/d60b13f2e3)] - **zlib**: switch to lazy init for zlib streams (Andrey Pechkurov) [#34048](https://github.com/nodejs/node/pull/34048)
 
 <a id="12.18.4"></a>
-## 2020-09-15, Version 12.18.4 'Erbium' (LTS), @targos
+## 2020-09-15, Version 12.18.4 'Erbium' (LTS), @BethGriggs prepared by @targos
 
 ### Notable Changes
 
