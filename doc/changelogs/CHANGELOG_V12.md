@@ -66,7 +66,7 @@
   * [Archive](CHANGELOG_ARCHIVE.md)
 
 <a id="12.18.4"></a>
-## 2020-09-15, Version 12.18.4 'Erbium' (LTS), @targos
+## 2020-09-15, Version 12.18.4 'Erbium' (LTS), @BethGriggs prepared by @targos
 
 ### Notable Changes
 
