@@ -3731,6 +3731,12 @@ if (status != napi_ok) return status;
 
 ### Structures
 #### napi_property_attributes
+<!-- YAML
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/35214
+   description: added `napi_default_method` and `napi_default_property`
+-->
 
 ```c
 typedef enum {
@@ -3742,6 +3748,14 @@ typedef enum {
   // Used with napi_define_class to distinguish static properties
   // from instance properties. Ignored by napi_define_properties.
   napi_static = 1 << 10,
+
+  // Default for class methods.
+  napi_default_method = napi_writable | napi_configurable,
+
+  // Default for object properties, like in JS obj[prop].
+  napi_default_property = napi_writable |
+                          napi_enumerable |
+                          napi_configurable,
 } napi_property_attributes;
 ```
 
@@ -3760,6 +3774,10 @@ They can be one or more of the following bitflags:
 * `napi_static`: The property will be defined as a static property on a class as
   opposed to an instance property, which is the default. This is used only by
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
+* `napi_default_method`: The property is configureable, writeable but not
+  enumerable like a method in a JS class.
+* `napi_default_property`: The property is writable, enumerable and configurable
+  like a property set via JS code `obj.key = value`.
 
 #### napi_property_descriptor
 
