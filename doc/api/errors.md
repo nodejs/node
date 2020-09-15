@@ -224,7 +224,7 @@ above `constructorOpt`, including `constructorOpt`, will be omitted from the
 generated stack trace.
 
 The `constructorOpt` argument is useful for hiding implementation
-details of error generation from an end user. For instance:
+details of error generation from the user. For instance:
 
 ```js
 function MyError() {
