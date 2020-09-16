@@ -748,18 +748,18 @@ a `net.Server` and `net.Socket` instance, see:
 For an example of running a REPL instance over [`curl(1)`][], see:
 <https://gist.github.com/TooTallNate/2053342>.
 
+[TTY keybindings]: readline.html#readline_tty_keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
 [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.html#errors_err_domain_cannot_set_uncaught_exception_capture
 [`ERR_INVALID_REPL_INPUT`]: errors.html#errors_err_invalid_repl_input
+[`curl(1)`]: https://curl.haxx.se/docs/manpage.html
 [`domain`]: domain.html
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
 [`repl.ReplServer`]: #repl_class_replserver
 [`repl.start()`]: #repl_repl_start_options
-[`util.inspect()`]: util.html#util_util_inspect_object_options
 [`reverse-i-search`]: #repl_reverse_i_search
-[TTY keybindings]: readline.html#readline_tty_keybindings
-[`curl(1)`]: https://curl.haxx.se/docs/manpage.html
+[`util.inspect()`]: util.html#util_util_inspect_object_options
 [stream]: stream.html
