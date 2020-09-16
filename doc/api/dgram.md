@@ -524,7 +524,7 @@ The maximum size of an `IPv4/v6` datagram depends on the `MTU`
 (_Maximum Transmission Unit_) and on the `Payload Length` field size.
 
 * The `Payload Length` field is `16 bits` wide, which means that a normal
-  payload exceed 64K octets _including_ the internet header and data
+  payload cannot exceed 64K octets _including_ the internet header and data
   (65,507 bytes = 65,535 − 8 bytes UDP header − 20 bytes IP header);
   this is generally true for loopback interfaces, but such long datagram
   messages are impractical for most hosts and networks.
