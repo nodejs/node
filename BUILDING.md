@@ -97,45 +97,37 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                        | Support Type | Notes                             |
-| ---------------- | ---------------- | ------------------------------- | ------------ | --------------------------------- |
-| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1       | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, Debian 9, EL 7 <sup>[2](#fn2)</sup> |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental | e.g. Alpine 3.8                   |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental | Downgraded as of Node.js 10       |
-| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1       | e.g. Ubuntu 16.04, Debian 9, EL 7 <sup>[3](#fn3)</sup> |
-| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1       | e.g. Ubuntu 18.04, Debian 9       |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental | Downgraded as of Node.js 12       |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2       | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, EL 7  <sup>[2](#fn2)</sup> |
-| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2       | e.g. EL 7 <sup>[2](#fn2)</sup>    |
-| Windows          | x64, x86 (WoW64) | >= Windows 8.1/2012 R2          | Tier 1       | <sup>[4](#fn4),[5](#fn5)</sup>    |
-| Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> | |
-| Windows          | x64, x86         | Windows Server 2012 (not R2)    | Experimental |                                   |
-| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running) |    |
-| macOS            | x64              | >= 10.13                        | Tier 1       |                                   |
-| SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
-| AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
-| FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
+#### Tier 1
 
-<em id="fn1">1</em>: GCC 6 is not provided on the base platform. Users will
+| Operating System | Architectures    | Versions                        | Notes                             |
+| ---------------- | ---------------- | ------------------------------- | --------------------------------- |
+| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | e.g. Ubuntu 16.04 <sup>[1](#tier1-fn1)</sup>, Debian 9, EL 7 <sup>[2](#tier1-fn2)</sup> |
+| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | e.g. Ubuntu 16.04, Debian 9, EL 7 <sup>[3](#tier1-fn3)</sup> |
+| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | e.g. Ubuntu 18.04, Debian 9       |
+| Windows          | x64, x86 (WoW64) | >= Windows 8.1/2012 R2          | <sup>[4](#tier1-fn4),[5](#tier1-fn5)</sup>    |
+| Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling) <sup>[6](#tier1-fn6)</sup> |
+| macOS            | x64              | >= 10.13                        |                                   |
+
+<em id="tier1-fn1">1</em>: GCC 6 is not provided on the base platform. Users will
   need the
   [Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
   or similar to source a newer compiler.
 
-<em id="fn2">2</em>: GCC 6 is not provided on the base platform. Users will
+<em id="tier1-fn2">2</em>: GCC 6 is not provided on the base platform. Users will
   need the
   [devtoolset-6](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-6/)
   or later to source a newer compiler.
 
-<em id="fn3">3</em>: Older kernel versions may work for ARM64. However the
+<em id="tier1-fn3">3</em>: Older kernel versions may work for ARM64. However the
   Node.js test infrastructure only tests >= 4.5.
 
-<em id="fn4">4</em>: On Windows, running Node.js in Windows terminal emulators
+<em id="tier1-fn4">4</em>: On Windows, running Node.js in Windows terminal emulators
   like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
   for the tty channels to work (e.g. `winpty node.exe script.js`).
   In "Git bash" if you call the node shell alias (`node` without the `.exe`
   extension), `winpty` is used automatically.
 
-<em id="fn5">5</em>: The Windows Subsystem for Linux (WSL) is not
+<em id="tier1-fn5">5</em>: The Windows Subsystem for Linux (WSL) is not
   supported, but the GNU/Linux build process and binaries should work. The
   community will only address issues that reproduce on native GNU/Linux
   systems. Issues that only reproduce on WSL should be reported in the
@@ -143,12 +135,43 @@ platforms. This is true regardless of entries in the table below.
   Windows binary (`node.exe`) in WSL is not recommended. It will not work
   without workarounds such as stdio redirection.
 
-<em id="fn6">6</em>: Running Node.js on x86 Windows should work and binaries
+<em id="tier1-fn6">6</em>: Running Node.js on x86 Windows should work and binaries
 are provided. However, tests in our infrastructure only run on WoW64.
 Furthermore, compiling on x86 Windows is Experimental and
 may not be possible.
 
-<em id="fn7">7</em>: The default FreeBSD 12.0 compiler is Clang 6.0.1, but
+
+#### Tier 2
+
+| Operating System | Architectures    | Versions                        | Notes                             |
+| ---------------- | ---------------- | ------------------------------- | --------------------------------- |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | e.g. Ubuntu 16.04 <sup>[1](#tier2-fn1)</sup>, EL 7  <sup>[2](#tier2-fn2)</sup> |
+| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | e.g. EL 7 <sup>[2](#tier2-fn2)</sup>              |
+| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running) |
+| SmartOS          | x64              | >= 18                           |                                             |
+| AIX              | ppc64be >=power7 | >= 7.2 TL02                     |                                             |
+
+<em id="tier2-fn1">1</em>: GCC 6 is not provided on the base platform. Users will
+  need the
+  [Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
+  or similar to source a newer compiler.
+
+<em id="tier2-fn2">2</em>: GCC 6 is not provided on the base platform. Users will
+  need the
+  [devtoolset-6](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-6/)
+  or later to source a newer compiler.
+
+#### Experimental
+
+| Operating System | Architectures    | Versions                        | Notes                             |
+| ---------------- | ---------------- | ------------------------------- | --------------------------------- |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | e.g. Alpine 3.8                   |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Downgraded as of Node.js 10       |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Downgraded as of Node.js 12       |
+| Windows          | x64, x86         | Windows Server 2012 (not R2)    |                                   |
+| FreeBSD          | x64              | >= 11                           | Downgraded as of Node.js 12  <sup>[1](#tier3-fn1)</sup>     |
+
+<em id="tier3-fn1">1</em>: The default FreeBSD 12.0 compiler is Clang 6.0.1, but
 FreeBSD 12.1 upgrades to 8.0.1. Other Clang/LLVM versions are available
 via the system's package manager, including Clang 9.0.
 
