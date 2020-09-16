@@ -31,6 +31,7 @@ typedef enum {
   // from instance properties. Ignored by napi_define_properties.
   napi_static = 1 << 10,
 
+#ifdef NAPI_EXPERIMENTAL
   // Default for class methods.
   napi_default_method = napi_writable | napi_configurable,
 
@@ -38,6 +39,7 @@ typedef enum {
   napi_default_jsproperty = napi_writable |
                             napi_enumerable |
                             napi_configurable,
+#endif
 } napi_property_attributes;
 
 typedef enum {
