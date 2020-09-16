@@ -1062,8 +1062,8 @@ an associated value (e.g., `node app.js --require script.js`).
   value of `['--foo' 'bar']` is `bar`
 * Option values may be provided _with or without_ a `=` separator (e.g.,
   `['--require=script.js']` is equivalent to `['--require', 'script.js']`)
-* If an Option value is not provided, the Option will be omitted from the
-  `options` property of the returned object
+* If an Option value is not found in `argv`, the associated value will be parsed
+  to an empty string (`''`)
 * An argument-like value (a value beginning with one or more dashes) immediately
   following an Option in the `argv` Array will cause the Option to be omitted
   from the `options` property of the returned object _unless_ the `=` separator

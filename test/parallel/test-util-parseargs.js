@@ -156,7 +156,7 @@ const { format, parseArgs } = require('util');
     ],
     [
       { argv: ['--foo'], opts: { optionsWithValue: 'foo' } },
-      { options: {}, positionals: [] }
+      { options: { foo: '' }, positionals: [] }
     ]
   ]);
 
