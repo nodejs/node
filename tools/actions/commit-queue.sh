@@ -7,6 +7,9 @@ REPOSITORY=$2
 GITHUB_TOKEN=$3
 shift 3
 
+UPSTREAM=origin
+DEFAULT_BRANCH=master
+
 API_URL=https://api.github.com
 COMMIT_QUEUE_LABEL='commit-queue'
 COMMIT_QUEUE_FAILED_LABEL='commit-queue-failed'
@@ -77,9 +80,12 @@ for pr in "$@"; do
     git node land --abort --yes
   else
     rm output
-    git push origin master
 
-    gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$(git rev-parse HEAD)"'"}'
+    commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
+
+    git push $UPSTREAM $DEFAULT_BRANCH
+
+    gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$commits"'"}'
 
     gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
   fi
