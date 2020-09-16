@@ -236,6 +236,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
 class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
+  DISALLOW_COPY_AND_ASSIGN(WasmModuleBuilder);
 
   // Building methods.
   uint32_t AddImport(Vector<const char> name, FunctionSig* sig,
