@@ -7180,6 +7180,39 @@ TEST(Regress10698) {
   filler.set_map_after_allocation(*factory->one_pointer_filler_map());
 }
 
+class TestAllocationTracker : public HeapObjectAllocationTracker {
+ public:
+  explicit TestAllocationTracker(int expected_size)
+      : expected_size_(expected_size) {}
+
+  void AllocationEvent(Address addr, int size) {
+    CHECK(expected_size_ == size);
+    address_ = addr;
+  }
+
+  Address address() { return address_; }
+
+ private:
+  int expected_size_;
+  Address address_;
+};
+
+HEAP_TEST(CodeLargeObjectSpace) {
+  Heap* heap = CcTest::heap();
+  int size_in_bytes = kMaxRegularHeapObjectSize + kSystemPointerSize;
+  TestAllocationTracker allocation_tracker{size_in_bytes};
+  heap->AddHeapObjectAllocationTracker(&allocation_tracker);
+
+  AllocationResult allocation = heap->AllocateRaw(
+      size_in_bytes, AllocationType::kCode, AllocationOrigin::kGeneratedCode,
+      AllocationAlignment::kCodeAligned);
+
+  CHECK(allocation.ToObjectChecked().address() == allocation_tracker.address());
+  heap->CreateFillerObjectAt(allocation.ToObjectChecked().address(),
+                             size_in_bytes, ClearRecordedSlots::kNo);
+  heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
