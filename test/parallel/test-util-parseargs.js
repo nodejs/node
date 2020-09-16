@@ -67,11 +67,19 @@ const { format, parseArgs } = require('util');
     ],
     [
       { argv: ['--foo=false'] },
+      { options: { foo: false }, positionals: [] }
+    ],
+    [
+      { argv: ['--foo=bar'] },
       { options: { foo: true }, positionals: [] }
     ],
     [
       { argv: ['--foo', 'true'] },
       { options: { foo: true }, positionals: ['true'] }
+    ],
+    [
+      { argv: ['--foo', 'false'] },
+      { options: { foo: true }, positionals: ['false'] }
     ],
     [
       { argv: ['--foo', 'true'], opts: { optionsWithValue: ['foo'] } },
@@ -86,7 +94,7 @@ const { format, parseArgs } = require('util');
     ],
     [
       { argv: ['--foo=true', '--foo=false'] },
-      { options: { foo: true }, positionals: [] }
+      { options: { foo: false }, positionals: [] }
     ],
     [
       { argv: ['--foo', 'true', '--foo', 'false'] },
@@ -109,7 +117,7 @@ const { format, parseArgs } = require('util');
     ],
     [
       { argv: ['--foo', 'true', '--foo=false'] },
-      { options: { foo: true }, positionals: ['true'] }
+      { options: { foo: false }, positionals: ['true'] }
     ],
     [
       {

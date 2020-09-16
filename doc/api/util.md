@@ -1043,10 +1043,12 @@ have an associated string value (e.g., `node app.js --verbose`).
   once)
 * A Flag appearing in `multiOptions` but not in the `argv` Array will be omitted
   from the `options` property of the returned object
-* If a string value is erroneously provided in `argv` for a Flag via the `=`
-  separator, the string value will be replaced with `true`; e.g.,
-  `['--require=script.js']` becomes `{options: {require: true}}, positionals:
-  []}`
+* _Special case for negated Flags_: If a string value of `false` is provided in
+  `argv` for a Flag via the `=` separator, the value will become boolean
+  `false`, e.g., `['--verbose=false']` becomes `{options: {verbose: false}},
+  positionals: []}`; any value other than the string `false` will become `true`,
+  and if `=` is not provided, the value is interpreted as a
+  [Positional][Positionals]
 
 ### Options
 
