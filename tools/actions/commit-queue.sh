@@ -79,9 +79,11 @@ for pr in "$@"; do
     git node land --abort --yes
   else
     rm output
+
+    commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
+
     git push $UPSTREAM $DEFAULT_BRANCH
 
-    commits="$(git merge-base $UPSTREAM/$DEFAULT_BRANCH HEAD)...$(git rev-parse HEAD)"
     gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$commits"'"}'
 
     gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
