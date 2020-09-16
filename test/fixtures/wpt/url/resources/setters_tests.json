@@ -1324,6 +1324,27 @@
                 "hostname": "test",
                 "port": "12"
             }
+        },
+        {
+            "comment": "Drop /. from path",
+            "href": "non-spec:/.//p",
+            "new_value": "h",
+            "expected": {
+                "href": "non-spec://h//p",
+                "host": "h",
+                "hostname": "h",
+                "pathname": "//p"
+            }
+        },
+        {
+            "href": "non-spec:/.//p",
+            "new_value": "",
+            "expected": {
+                "href": "non-spec:////p",
+                "host": "",
+                "hostname": "",
+                "pathname": "//p"
+            }
         }
     ],
     "port": [
@@ -1671,6 +1692,40 @@
             "expected": {
                 "href": "file:///",
                 "pathname": "/"
+            }
+        },
+        {
+            "comment": "Serialize /. in path",
+            "href": "non-spec:/",
+            "new_value": "/.//p",
+            "expected": {
+                "href": "non-spec:/.//p",
+                "pathname": "//p"
+            }
+        },
+        {
+            "href": "non-spec:/",
+            "new_value": "/..//p",
+            "expected": {
+                "href": "non-spec:/.//p",
+                "pathname": "//p"
+            }
+        },
+        {
+            "href": "non-spec:/",
+            "new_value": "//p",
+            "expected": {
+                "href": "non-spec:/.//p",
+                "pathname": "//p"
+            }
+        },
+        {
+            "comment": "Drop /. from path",
+            "href": "non-spec:/.//",
+            "new_value": "p",
+            "expected": {
+                "href": "non-spec:/p",
+                "pathname": "/p"
             }
         }
     ],
