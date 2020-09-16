@@ -39,7 +39,7 @@ typedef enum {
   napi_default_jsproperty = napi_writable |
                             napi_enumerable |
                             napi_configurable,
-#endif
+#endif  // NAPI_EXPERIMENTAL
 } napi_property_attributes;
 
 typedef enum {
