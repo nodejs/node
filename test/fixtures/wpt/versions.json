@@ -8,15 +8,15 @@
     "path": "encoding"
   },
   "url": {
-    "commit": "6c74b7e43c9a1f6dc3dc529e427e2ef96152409e",
+    "commit": "551c9d604fb8b97d3f8c65793bb047d15baddbc2",
     "path": "url"
   },
   "resources": {
-    "commit": "55e9dc7f5e74bb5bd189920ef348169f795ab71c",
+    "commit": "1d14e821b9586f250e6a31d550504e3d16a05ae7",
     "path": "resources"
   },
   "interfaces": {
-    "commit": "4471cda31be9e299ba0546e115f84d5010ed8136",
+    "commit": "15e47f779cf61555669b0f67e2c49b9c830b9019",
     "path": "interfaces"
   },
   "html/webappapis/microtask-queuing": {

@@ -44,11 +44,6 @@ interface TextEncoder {
 };
 TextEncoder includes TextEncoderCommon;
 
-interface mixin GenericTransformStream {
-  readonly attribute ReadableStream readable;
-  readonly attribute WritableStream writable;
-};
-
 [Exposed=(Window,Worker)]
 interface TextDecoderStream {
   constructor(optional DOMString label = "utf-8", optional TextDecoderOptions options = {});
