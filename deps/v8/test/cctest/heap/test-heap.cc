@@ -7002,6 +7002,75 @@ TEST(Regress978156) {
   marking_state->GreyToBlack(filler);
 }
 
+TEST(GarbageCollectionWithLocalHeap) {
+  FLAG_local_heaps = true;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+
+  Heap* heap = CcTest::i_isolate()->heap();
+
+  LocalHeap local_heap(heap);
+  CcTest::CollectGarbage(OLD_SPACE);
+  { ParkedScope parked_scope(&local_heap); }
+  CcTest::CollectGarbage(OLD_SPACE);
+}
+
+TEST(Regress10698) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Heap* heap = CcTest::i_isolate()->heap();
+  Factory* factory = CcTest::i_isolate()->factory();
+  HandleScope handle_scope(CcTest::i_isolate());
+  // This is modeled after the manual allocation folding of heap numbers in
+  // JSON parser (See commit ba7b25e).
+  // Step 1. Allocate a byte array in the old space.
+  Handle<ByteArray> array =
+      factory->NewByteArray(kTaggedSize, AllocationType::kOld);
+  // Step 2. Start incremental marking.
+  SimulateIncrementalMarking(heap, false);
+  // Step 3. Allocate another byte array. It will be black.
+  factory->NewByteArray(kTaggedSize, AllocationType::kOld);
+  Address address = reinterpret_cast<Address>(array->GetDataStartAddress());
+  HeapObject filler = HeapObject::FromAddress(address);
+  // Step 4. Set the filler at the end of the first array.
+  // It will have an impossible markbit pattern because the second markbit
+  // will be taken from the second array.
+  filler.set_map_after_allocation(*factory->one_pointer_filler_map());
+}
+
+class TestAllocationTracker : public HeapObjectAllocationTracker {
+ public:
+  explicit TestAllocationTracker(int expected_size)
+      : expected_size_(expected_size) {}
+
+  void AllocationEvent(Address addr, int size) {
+    CHECK(expected_size_ == size);
+    address_ = addr;
+  }
+
+  Address address() { return address_; }
+
+ private:
+  int expected_size_;
+  Address address_;
+};
+
+HEAP_TEST(CodeLargeObjectSpace) {
+  Heap* heap = CcTest::heap();
+  int size_in_bytes = kMaxRegularHeapObjectSize + kSystemPointerSize;
+  TestAllocationTracker allocation_tracker{size_in_bytes};
+  heap->AddHeapObjectAllocationTracker(&allocation_tracker);
+
+  AllocationResult allocation = heap->AllocateRaw(
+      size_in_bytes, AllocationType::kCode, AllocationOrigin::kGeneratedCode,
+      AllocationAlignment::kCodeAligned);
+
+  CHECK(allocation.ToObjectChecked().address() == allocation_tracker.address());
+  heap->CreateFillerObjectAt(allocation.ToObjectChecked().address(),
+                             size_in_bytes, ClearRecordedSlots::kNo);
+  heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
