@@ -103,11 +103,11 @@ std::string DoubleToCString(double v) {
 }  // namespace
 
 std::unique_ptr<TracedValue> TracedValue::Create() {
-  return std::unique_ptr<TracedValue>(new TracedValue(false));
+  return std::make_unique<TracedValue>(false);
 }
 
 std::unique_ptr<TracedValue> TracedValue::CreateArray() {
-  return std::unique_ptr<TracedValue>(new TracedValue(true));
+  return std::make_unique<TracedValue>(true);
 }
 
 TracedValue::TracedValue(bool root_is_array) :
