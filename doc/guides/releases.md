@@ -747,6 +747,14 @@ For example:
 
 The changes must be made as part of a new semver-minor release.
 
+### Update release labels
+
+The `lts-watch-vN.x` issue label must be created, with the same color as other
+existing labels for that release line, such as `vN.x`.
+
+If the release is transitioning from Active LTS to Maintenance, the
+`backport-requested-vN.x` label must be deleted.
+
 ## Major Releases
 
 The process for cutting a new Node.js major release has a number of differences
@@ -782,6 +790,21 @@ up until the date of release.
 One month or less before the release date, commits must be cherry-picked into
 the two branches. To land `SEMVER-MAJOR` at this time requires no objections
 from the TSC.
+
+### Create release labels
+
+The following issue labels must be created:
+
+* `vN.x`
+* `backport-blocked-vN.x`
+* `backport-open-vN.x`
+* `backport-requested-vN.x`
+* `backported-to-vN.x`
+* `dont-land-on-vN.x`
+
+The label description can be copied from existing labels of previous releases.
+The label color must be the same for all new labels, but different from the
+labels of previous releases.
 
 ### Release Proposal
 
