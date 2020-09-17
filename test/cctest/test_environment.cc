@@ -486,7 +486,7 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
       isolate_->EnqueueMicrotask([](void* arg) {
         ++*static_cast<int*>(arg);
       }, &called);
-    }, node::CallbackFlags::kRefed);
+    });
     uv_run(&current_loop, UV_RUN_DEFAULT);
   }
 
