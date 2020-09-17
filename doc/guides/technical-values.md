@@ -53,7 +53,7 @@ Some key elements of this include:
 * Low-friction policies and processes
 * Good CI and tooling to make maintainers productive
 
-### 5 - Technology and API currency
+### 5 - Up to date Technology and APIs
 We value providing developers with modern APIs and technologies
 following existing standards whenever possible.
 Some key elements of this include:
