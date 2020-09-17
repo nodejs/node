@@ -239,8 +239,8 @@ session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
 });
 ```
 
-[`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
-[`session.connect()`]: #inspector_session_connect
 [CPU Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/Profiler
 [Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
 [Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler
+[`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
+[`session.connect()`]: #inspector_session_connect
