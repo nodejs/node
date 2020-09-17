@@ -266,7 +266,7 @@ which are stable, `N-API version:`. APIs are directly usable when using
 a Node.js version which supports the N-API version shown in `N-API version:`
 or higher. When using a Node.js version that does not support the
 `N-API version:` listed or if there is no `N-API version:` listed,
-then the API will only be available if you include
+then the API will only be available if
 `#define NAPI_EXPERIMENTAL`. If an API is not available and you are
 using a version of Node.js which is later than `added in:`
 this is most likely the reason for the apparent absence.
