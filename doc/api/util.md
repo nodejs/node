@@ -951,7 +951,7 @@ equality.
 added: REPLACEME
 -->
 
-* `argv` {string[]|Object} (Optional) Array of argument strings; defaults
+* `argv` {string[]} (Optional) Array of argument strings; defaults
   to [`process.argv.slice(2)`](process_argv). If an Object, the default is used,
   and this parameter is considered to be the `options` parameter.
 * `options` {Object} (Optional) The `options` parameter is an
