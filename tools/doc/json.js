@@ -24,7 +24,7 @@
 const unified = require('unified');
 const common = require('./common.js');
 const html = require('remark-html');
-const select = require('unist-util-select');
+const { selectAll } = require('unist-util-select');
 
 module.exports = { jsonAPI };
 
@@ -38,7 +38,7 @@ function jsonAPI({ filename }) {
     const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/s;
 
     // Extract definitions.
-    const definitions = select(tree, 'definition');
+    const definitions = selectAll('definition', tree);
 
     // Determine the start, stop, and depth of each section.
     const sections = [];
