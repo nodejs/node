@@ -54,7 +54,7 @@ const gtocPath = path.join(docPath, 'api', 'index.md');
 const gtocMD = fs.readFileSync(gtocPath, 'utf8').replace(/^<!--.*?-->/gms, '');
 const gtocHTML = unified()
   .use(markdown)
-  .use(remark2rehype, { allowDangerousHTML: true })
+  .use(remark2rehype, { allowDangerousHtml: true })
   .use(raw)
   .use(navClasses)
   .use(htmlStringify)
@@ -281,7 +281,7 @@ function parseYAML(text) {
     meta.changes.forEach((change) => {
       const description = unified()
         .use(markdown)
-        .use(remark2rehype, { allowDangerousHTML: true })
+        .use(remark2rehype, { allowDangerousHtml: true })
         .use(raw)
         .use(htmlStringify)
         .processSync(change.description).toString();
@@ -379,7 +379,7 @@ function buildToc({ filename, apilinks }) {
 
     file.toc = unified()
       .use(markdown)
-      .use(remark2rehype, { allowDangerousHTML: true })
+      .use(remark2rehype, { allowDangerousHtml: true })
       .use(raw)
       .use(htmlStringify)
       .processSync(toc).toString();

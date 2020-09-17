@@ -87,7 +87,7 @@ async function main() {
     .use(html.firstHeader)
     .use(html.preprocessElements, { filename })
     .use(html.buildToc, { filename, apilinks })
-    .use(remark2rehype, { allowDangerousHTML: true })
+    .use(remark2rehype, { allowDangerousHtml: true })
     .use(raw)
     .use(htmlStringify)
     .process(input);
