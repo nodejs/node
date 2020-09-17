@@ -89,6 +89,6 @@ replace that with the staging branch for the targeted release line.
 After the pull request lands, replace the `backport-requested-v10.x` label
 on the original pull request with `backported-to-v10.x`.
 
-[Release Schedule]: https://github.com/nodejs/Release#release-schedule1
 [Release Plan]: https://github.com/nodejs/Release#release-plan
+[Release Schedule]: https://github.com/nodejs/Release#release-schedule1
 [`node-test-pull-request`]: https://ci.nodejs.org/job/node-test-pull-request/build

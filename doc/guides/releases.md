@@ -869,9 +869,9 @@ test, or doc-related are to be listed as notable changes. Some SEMVER-MINOR
 commits may be listed as notable changes on a case-by-case basis. Use your
 judgment there.
 
-[CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
+[CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
+[Partner Communities]: https://github.com/nodejs/community-committee/blob/master/governance/PARTNER_COMMUNITIES.md
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
-[Partner Communities]: https://github.com/nodejs/community-committee/blob/master/governance/PARTNER_COMMUNITIES.md
 [webchat.freenode.net]: https://webchat.freenode.net/

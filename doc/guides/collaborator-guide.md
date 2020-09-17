@@ -771,10 +771,10 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 [backporting guide]: backporting-to-release-lines.md
 [commit message guidelines]: contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
+[git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
-[git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
 [unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22

@@ -33,5 +33,5 @@ information on maintaining ICU in Node.js
 internationalization-related APIs in Node.js
 * [The ICU Homepage][ICU]
 
-[ICU data slicer]: https://github.com/unicode-org/icu/blob/master/docs/userguide/icu_data/buildtool.md
 [ICU]: http://icu-project.org
+[ICU data slicer]: https://github.com/unicode-org/icu/blob/master/docs/userguide/icu_data/buildtool.md

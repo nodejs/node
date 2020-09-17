@@ -551,8 +551,8 @@ Supported options keys are:
   benchmarker
 
 [autocannon]: https://github.com/mcollina/autocannon
-[wrk]: https://github.com/wg/wrk
-[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
+[benchmark-ci]: https://github.com/nodejs/benchmarking/blob/master/docs/core_benchmarks.md
 [git-for-windows]: https://git-scm.com/download/win
 [nghttp2.org]: https://nghttp2.org
-[benchmark-ci]: https://github.com/nodejs/benchmarking/blob/master/docs/core_benchmarks.md
+[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
+[wrk]: https://github.com/wg/wrk
