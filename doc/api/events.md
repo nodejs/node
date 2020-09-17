@@ -1528,13 +1528,13 @@ to the `EventTarget`.
 [WHATWG-EventTarget]: https://dom.spec.whatwg.org/#interface-eventtarget
 [`--trace-warnings`]: cli.md#cli_trace_warnings
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
+[`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
+[`EventTarget` error handling]: #events_eventtarget_error_handling
+[`Event` Web API]: https://dom.spec.whatwg.org/#event
 [`domain`]: domain.md
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
-[`Event` Web API]: https://dom.spec.whatwg.org/#event
-[`EventTarget` error handling]: #events_eventtarget_error_handling
-[`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
 [`fs.ReadStream`]: fs.md#fs_class_fs_readstream
 [`net.Server`]: net.md#net_class_net_server
 [`process.on('warning')`]: process.md#process_event_warning

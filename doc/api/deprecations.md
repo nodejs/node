@@ -2650,6 +2650,10 @@ Type: Documentation-only
 The [`crypto.Certificate()` constructor][] is deprecated. Use
 [static methods of `crypto.Certificate()`][] instead.
 
+[Legacy URL API]: url.md#url_legacy_url_api
+[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
+[RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
+[WHATWG URL API]: url.md#url_the_whatwg_url_api
 [`--pending-deprecation`]: cli.md#cli_pending_deprecation
 [`--throw-deprecation`]: cli.md#cli_throw_deprecation
 [`--unhandled-rejections`]: cli.md#cli_unhandled_rejections_mode
@@ -2710,18 +2714,18 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 [`process.env`]: process.md#process_process_env
 [`process.mainModule`]: process.md#process_process_mainmodule
 [`punycode`]: punycode.md
-[`require.extensions`]: modules.md#modules_require_extensions
-[`require.main`]: modules.md#modules_accessing_the_main_module
 [`request.abort()`]: http.md#http_request_abort
-[`request.socket`]: http.md#http_request_socket
 [`request.connection`]: http.md#http_request_connection
 [`request.destroy()`]: http.md#http_request_destroy_error
-[`response.socket`]: http.md#http_response_socket
+[`request.socket`]: http.md#http_request_socket
+[`require.extensions`]: modules.md#modules_require_extensions
+[`require.main`]: modules.md#modules_accessing_the_main_module
 [`response.connection`]: http.md#http_response_connection
 [`response.end()`]: http.md#http_response_end_data_encoding_callback
 [`response.finished`]: http.md#http_response_finished
-[`response.writableFinished`]: http.md#http_response_writablefinished
+[`response.socket`]: http.md#http_response_socket
 [`response.writableEnded`]: http.md#http_response_writableended
+[`response.writableFinished`]: http.md#http_response_writablefinished
 [`script.createCachedData()`]: vm.md#vm_script_createcacheddata
 [`setInterval()`]: timers.md#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.md#timers_settimeout_callback_delay_args
@@ -2764,10 +2768,6 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 [`worker.terminate()`]: worker_threads.md#worker_threads_worker_terminate
 [`writable.writableLength`]: stream.md#stream_writable_writablelength
 [`zlib.bytesWritten`]: zlib.md#zlib_zlib_byteswritten
-[Legacy URL API]: url.md#url_legacy_url_api
-[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-[RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
-[WHATWG URL API]: url.md#url_the_whatwg_url_api
 [alloc]: buffer.md#buffer_static_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.md#buffer_static_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.md#buffer_static_method_buffer_from_arraybuffer_byteoffset_length

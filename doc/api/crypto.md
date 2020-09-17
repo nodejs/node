@@ -3552,6 +3552,23 @@ See the [list of SSL OP Flags][] for details.
   </tr>
 </table>
 
+[AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
+[CCM mode]: #crypto_ccm_mode
+[Caveats]: #crypto_support_for_weak_or_compromised_algorithms
+[Crypto constants]: #crypto_crypto_constants_1
+[HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
+[HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
+[NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
+[NIST SP 800-132]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
+[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
+[Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
+[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
+[RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
+[RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
+[RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
+[RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
+[RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
+[RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [`Buffer`]: buffer.md
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
 [`KeyObject`]: #crypto_class_keyobject
@@ -3602,27 +3619,10 @@ See the [list of SSL OP Flags][] for details.
 [`util.promisify()`]: util.md#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureencoding
-[AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
-[CCM mode]: #crypto_ccm_mode
-[Caveats]: #crypto_support_for_weak_or_compromised_algorithms
-[Crypto constants]: #crypto_crypto_constants_1
-[HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
-[HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
-[NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
-[NIST SP 800-132]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
-[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-[modulo bias]: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#Modulo_bias
-[Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
-[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
-[RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
-[RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
-[RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
-[RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
-[RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
-[RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [encoding]: buffer.md#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [list of SSL OP Flags]: https://wiki.openssl.org/index.php/List_of_SSL_OP_Flags#Table_of_Options
+[modulo bias]: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#Modulo_bias
 [safe integers]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
 [scrypt]: https://en.wikipedia.org/wiki/Scrypt
 [stream]: stream.md

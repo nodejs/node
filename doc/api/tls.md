@@ -1976,21 +1976,36 @@ added: v11.4.0
   `'TLSv1.3'`. If multiple of the options are provided, the lowest minimum is
   used.
 
+[Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
+[DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
+[ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
+[Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
+[OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
+[OpenSSL Options]: crypto.md#crypto_openssl_options
+[RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
+[RFC 4086]: https://tools.ietf.org/html/rfc4086
+[RFC 4279]: https://tools.ietf.org/html/rfc4279
+[RFC 5077]: https://tools.ietf.org/html/rfc5077
+[RFC 5929]: https://tools.ietf.org/html/rfc5929
+[SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
+[Session Resumption]: #tls_session_resumption
+[Stream]: stream.md#stream_stream
+[TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
+[`--tls-cipher-list`]: cli.md#cli_tls_cipher_list_list
+[`Duplex`]: stream.md#stream_class_stream_duplex
+[`NODE_OPTIONS`]: cli.md#cli_node_options_options
 [`'newSession'`]: #tls_event_newsession
 [`'resumeSession'`]: #tls_event_resumesession
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [`'session'`]: #tls_event_session
-[`--tls-cipher-list`]: cli.md#cli_tls_cipher_list_list
-[`NODE_OPTIONS`]: cli.md#cli_node_options_options
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
 [`crypto.getCurves()`]: crypto.md#crypto_crypto_getcurves
-[`Duplex`]: stream.md#stream_class_stream_duplex
-[`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
 [`net.Server.address()`]: net.md#net_server_address
 [`net.Server`]: net.md#net_class_net_server
 [`net.Socket`]: net.md#net_class_net_socket
+[`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
 [`server.addContext()`]: #tls_server_addcontext_hostname_context
 [`server.getTicketKeys()`]: #tls_server_getticketkeys
 [`server.listen()`]: net.md#net_server_listen
@@ -2011,25 +2026,10 @@ added: v11.4.0
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
 [`tls.getCiphers()`]: #tls_tls_getciphers
 [`tls.rootCertificates`]: #tls_tls_rootcertificates
-[Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
-[DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
-[ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-[forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
-[Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
-[OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
-[OpenSSL Options]: crypto.md#crypto_openssl_options
-[perfect forward secrecy]: #tls_perfect_forward_secrecy
-[RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
-[RFC 5077]: https://tools.ietf.org/html/rfc5077
-[RFC 5929]: https://tools.ietf.org/html/rfc5929
-[SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
-[Session Resumption]: #tls_session_resumption
-[Stream]: stream.md#stream_stream
-[TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #tls_certificate_object
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
+[forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
-[RFC 4279]: https://tools.ietf.org/html/rfc4279
-[RFC 4086]: https://tools.ietf.org/html/rfc4086
+[perfect forward secrecy]: #tls_perfect_forward_secrecy

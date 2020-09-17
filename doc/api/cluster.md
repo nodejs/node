@@ -873,6 +873,8 @@ socket.on('data', (id) => {
 });
 ```
 
+[Advanced serialization for `child_process`]: child_process.md#child_process_advanced_serialization
+[Child Process module]: child_process.md#child_process_child_process_fork_modulepath_args_options
 [`.fork()`]: #cluster_cluster_fork_env
 [`.setupMaster()`]: #cluster_cluster_setupmaster_settings
 [`ChildProcess.send()`]: child_process.md#child_process_subprocess_send_message_sendhandle_options_callback
@@ -885,5 +887,3 @@ socket.on('data', (id) => {
 [`process` event: `'message'`]: process.md#process_event_message
 [`server.close()`]: net.md#net_event_close
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
-[Advanced serialization for `child_process`]: child_process.md#child_process_advanced_serialization
-[Child Process module]: child_process.md#child_process_child_process_fork_modulepath_args_options

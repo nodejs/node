@@ -1562,6 +1562,11 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing error-prone notation, avoid a string as the second
 argument.
 
+[Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
+[Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
+[Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
+[SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
+[Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
 [`AssertionError`]: #assert_class_assert_assertionerror
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [`ERR_INVALID_RETURN_VALUE`]: errors.md#errors_err_invalid_return_value
@@ -1591,10 +1596,5 @@ argument.
 [`tracker.calls()`]: #assert_tracker_calls_fn_exact
 [`tracker.verify()`]: #assert_tracker_verify
 [strict assertion mode]: #assert_strict_assertion_mode
-[Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
-[Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
-[Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
-[SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
-[Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots

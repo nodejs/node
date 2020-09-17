@@ -2499,20 +2499,20 @@ server.listen({
 });
 ```
 
-[`crypto.getCurves()`]: crypto.md#crypto_crypto_getcurves
-[`stream.Readable`]: #stream_class_stream_readable
-[`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
-[`tls.getCiphers()`]: tls.md#tls_tls_getciphers
 [ALPN]: https://tools.ietf.org/html/rfc7301
-[RFC 4007]: https://tools.ietf.org/html/rfc4007
 [Certificate Object]: https://nodejs.org/dist/latest-v12.x/docs/api/tls.html#tls_certificate_object
-[custom DNS lookup function]: #quic_custom_dns_lookup_functions
 [Handling client hello]: #quic_handling_client_hello
-[modifying the default cipher suite]: tls.md#tls_modifying_the_default_tls_cipher_suite
 [OCSP requests]: #quic_online_certificate_status_protocol_ocsp
 [OCSP responses]: #quic_online_certificate_status_protocol_ocsp
 [OpenSSL Options]: crypto.md#crypto_openssl_options
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
+[RFC 4007]: https://tools.ietf.org/html/rfc4007
+[`crypto.getCurves()`]: crypto.md#crypto_crypto_getcurves
+[`stream.Readable`]: #stream_class_stream_readable
+[`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
+[`tls.getCiphers()`]: tls.md#tls_tls_getciphers
+[custom DNS lookup function]: #quic_custom_dns_lookup_functions
+[modifying the default cipher suite]: tls.md#tls_modifying_the_default_tls_cipher_suite
 [promisified version of `lookup()`]: dns.md#dns_dnspromises_lookup_hostname_options
 ['qlog']: #quic_quicsession_qlog
 [qlog standard]: https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-00.html

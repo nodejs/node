@@ -1320,8 +1320,8 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 
 [IPC]: #net_ipc_support
 [Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
-[Readable Stream]: stream.md#stream_class_stream_readable
 [QUIC documentation]: quic.md
+[Readable Stream]: stream.md#stream_class_stream_readable
 [`'close'`]: #net_event_close
 [`'connect'`]: #net_event_connect
 [`'connection'`]: #net_event_connection
@@ -1333,8 +1333,8 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`'timeout'`]: #net_event_timeout
 [`EventEmitter`]: events.md#events_class_eventemitter
 [`child_process.fork()`]: child_process.md#child_process_child_process_fork_modulepath_args_options
-[`dns.lookup()` hints]: dns.md#dns_supported_getaddrinfo_flags
 [`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
+[`dns.lookup()` hints]: dns.md#dns_supported_getaddrinfo_flags
 [`net.Server`]: #net_class_net_server
 [`net.Socket`]: #net_class_net_socket
 [`net.connect()`]: #net_net_connect
@@ -1366,10 +1366,10 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
-[`writable.writableLength`]: stream.md#stream_writable_writablelength
-[`writable.destroyed`]: stream.md#stream_writable_destroyed
 [`writable.destroy()`]: stream.md#stream_writable_destroy_error
+[`writable.destroyed`]: stream.md#stream_writable_destroyed
 [`writable.end()`]: stream.md#stream_writable_end_chunk_encoding_callback
+[`writable.writableLength`]: stream.md#stream_writable_writablelength
 [half-closed]: https://tools.ietf.org/html/rfc1122
 [stream_writable_write]: stream.md#stream_writable_write_chunk_encoding_callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0

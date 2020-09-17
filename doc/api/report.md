@@ -598,5 +598,5 @@ The thread which is generating the report will wait for the reports from Worker
 threads to finish. However, the latency for this will usually be low, as both
 running JavaScript and the event loop are interrupted to generate the report.
 
-[`process API documentation`]: process.md
 [`Worker`]: worker_threads.md
+[`process API documentation`]: process.md

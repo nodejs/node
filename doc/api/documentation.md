@@ -60,7 +60,7 @@ Most Unix system calls have Windows analogues. Still, behavior differences may
 be unavoidable.
 
 [Semantic Versioning]: https://semver.org/
+[V8 JavaScript engine]: https://v8.dev/
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
-[V8 JavaScript engine]: https://v8.dev/
 [warning]: process.md#process_event_warning

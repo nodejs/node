@@ -2708,7 +2708,7 @@ try {
 [`socket.setTimeout()`]: net.md#net_socket_settimeout_timeout_callback
 [`socket.unref()`]: net.md#net_socket_unref
 [`url.parse()`]: url.md#url_url_parse_urlstring_parsequerystring_slashesdenotehost
+[`writable.cork()`]: stream.md#stream_writable_cork
 [`writable.destroy()`]: stream.md#stream_writable_destroy_error
 [`writable.destroyed`]: stream.md#stream_writable_destroyed
-[`writable.cork()`]: stream.md#stream_writable_cork
 [`writable.uncork()`]: stream.md#stream_writable_uncork

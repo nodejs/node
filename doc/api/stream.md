@@ -3080,6 +3080,12 @@ This is not a problem in common cases with `latin1` or `ascii`. But it is
 advised to be mindful about this behavior when working with strings that could
 contain multi-byte characters.
 
+[API for stream consumers]: #stream_api_for_stream_consumers
+[API for stream implementers]: #stream_api_for_stream_implementers
+[Compatibility]: #stream_compatibility_with_older_node_js_versions
+[HTTP requests, on the client]: http.md#http_class_http_clientrequest
+[HTTP responses, on the server]: http.md#http_class_http_serverresponse
+[TCP sockets]: net.md#net_class_net_socket
 [`'data'`]: #stream_event_data
 [`'drain'`]: #stream_event_drain
 [`'end'`]: #stream_event_end
@@ -3116,12 +3122,6 @@ contain multi-byte characters.
 [`writable.uncork()`]: #stream_writable_uncork
 [`writable.writableFinished`]: #stream_writable_writablefinished
 [`zlib.createDeflate()`]: zlib.md#zlib_zlib_createdeflate_options
-[API for stream consumers]: #stream_api_for_stream_consumers
-[API for stream implementers]: #stream_api_for_stream_implementers
-[Compatibility]: #stream_compatibility_with_older_node_js_versions
-[HTTP requests, on the client]: http.md#http_class_http_clientrequest
-[HTTP responses, on the server]: http.md#http_class_http_serverresponse
-[TCP sockets]: net.md#net_class_net_socket
 [child process stdin]: child_process.md#child_process_subprocess_stdin
 [child process stdout and stderr]: child_process.md#child_process_subprocess_stdout
 [crypto]: crypto.md

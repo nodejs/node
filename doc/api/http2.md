@@ -3707,10 +3707,10 @@ you need to implement any fall-back behaviour yourself.
 [ALPN negotiation]: #http2_alpn_negotiation
 [Compatibility API]: #http2_compatibility_api
 [HTTP/1]: http.md
+[HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTP/2 Headers Object]: #http2_headers_object
 [HTTP/2 Settings Object]: #http2_settings_object
 [HTTP/2 Unencrypted]: https://http2.github.io/faq/#does-http2-require-encryption
-[HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTPS]: https.md
 [Performance Observer]: perf_hooks.md
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
@@ -3736,13 +3736,13 @@ you need to implement any fall-back behaviour yourself.
 [`http2.createServer()`]: #http2_http2_createserver_options_onrequesthandler
 [`http2session.close()`]: #http2_http2session_close_callback
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
-[`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
 [`net.Server.close()`]: net.md#net_server_close_callback
 [`net.Socket.bufferSize`]: net.md#net_socket_buffersize
 [`net.Socket.prototype.ref()`]: net.md#net_socket_ref
 [`net.Socket.prototype.unref()`]: net.md#net_socket_unref
 [`net.Socket`]: net.md#net_class_net_socket
 [`net.connect()`]: net.md#net_net_connect
+[`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
 [`request.authority`]: #http2_request_authority
 [`request.socket`]: #http2_request_socket
 [`request.socket.getPeerCertificate()`]: tls.md#tls_tlssocket_getpeercertificate_detailed

@@ -454,9 +454,10 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 ```
 
 [`Agent`]: #https_class_https_agent
+[`Session Resumption`]: tls.md#tls_session_resumption
 [`URL`]: url.md#url_the_whatwg_url_api
-[`http.Agent`]: http.md#http_class_http_agent
 [`http.Agent(options)`]: http.md#http_new_agent_options
+[`http.Agent`]: http.md#http_class_http_agent
 [`http.Server#headersTimeout`]: http.md#http_server_headerstimeout
 [`http.Server#keepAliveTimeout`]: http.md#http_server_keepalivetimeout
 [`http.Server#maxHeadersCount`]: http.md#http_server_maxheaderscount
@@ -476,5 +477,4 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`tls.connect()`]: tls.md#tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: tls.md#tls_tls_createsecurecontext_options
 [`tls.createServer()`]: tls.md#tls_tls_createserver_options_secureconnectionlistener
-[`Session Resumption`]: tls.md#tls_session_resumption
 [sni wiki]: https://en.wikipedia.org/wiki/Server_Name_Indication

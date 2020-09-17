@@ -2580,6 +2580,16 @@ removed: v10.0.0
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
+[ES Module]: esm.md
+[ICU]: intl.md#intl_internationalization_support
+[Node.js error codes]: #nodejs-error-codes
+[RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
+[Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
+[V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
+[WHATWG Supported Encodings]: util.md#util_whatwg_supported_encodings
+[WHATWG URL API]: url.md#url_the_whatwg_url_api
+[`"exports"`]: packages.md#packages_exports
+[`"imports"`]: packages.md#packages_imports
 [`'uncaughtException'`]: process.md#process_event_uncaughtexception
 [`--disable-proto=throw`]: cli.md#cli_disable_proto_mode
 [`--force-fips`]: cli.md#cli_force_fips
@@ -2619,6 +2629,7 @@ closed.
 [`net`]: net.md
 [`new URL(input)`]: url.md#url_new_url_input_base
 [`new URLSearchParams(iterable)`]: url.md#url_new_urlsearchparams_iterable
+[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
 [`postMessage()`]: worker_threads.md#worker_threads_port_postmessage_value_transferlist
 [`process.on('exit')`]: process.md#Event:-`'exit'`
 [`process.send()`]: process.md#process_process_send_message_sendhandle_options_callback
@@ -2637,25 +2648,14 @@ closed.
 [`subprocess.send()`]: child_process.md#child_process_subprocess_send_message_sendhandle_options_callback
 [`util.getSystemErrorName(error.errno)`]: util.md#util_util_getsystemerrorname_err
 [`zlib`]: zlib.md
-[ES Module]: esm.md
-[ICU]: intl.md#intl_internationalization_support
-[Node.js error codes]: #nodejs-error-codes
-[V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
-[WHATWG Supported Encodings]: util.md#util_whatwg_supported_encodings
-[WHATWG URL API]: url.md#url_the_whatwg_url_api
 [crypto digest algorithm]: crypto.md#crypto_crypto_gethashes
+[define a custom subpath]: packages.md#packages_subpath_exports
 [domains]: domain.md
 [event emitter-based]: events.md#events_class_eventemitter
-[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
-[`"exports"`]: packages.md#packages_exports
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [policy]: policy.md
-[RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
+[self-reference a package using its name]: packages.md#packages_self_referencing_a_package_using_its_name
 [stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html
-[Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.md
-[self-reference a package using its name]: packages.md#packages_self_referencing_a_package_using_its_name
-[define a custom subpath]: packages.md#packages_subpath_exports
-[`"imports"`]: packages.md#packages_imports

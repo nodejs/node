@@ -902,13 +902,17 @@ Calling `unref()` on a worker will allow the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again will have no effect.
 
+[Addons worker support]: addons.md#addons_worker_support
+[ECMAScript module loader]: esm.md#esm_data_imports
+[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[Signals events]: process.md#process_signal_events
+[Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
 [`'close'` event]: #worker_threads_event_close
 [`'exit'` event]: #worker_threads_event_exit
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`AsyncResource`]: async_hooks.md#async_hooks_class_asyncresource
-[`Buffer`]: buffer.md
 [`Buffer.allocUnsafe()`]: buffer.md#buffer_static_method_buffer_allocunsafe_size
-[ECMAScript module loader]: esm.md#esm_data_imports
+[`Buffer`]: buffer.md
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#errors_err_missing_message_port_in_transfer_list
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#ERR_WORKER_NOT_RUNNING
 [`EventEmitter`]: events.md
@@ -921,8 +925,9 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker`]: #worker_threads_class_worker
 [`cluster` module]: cluster.md
-[`fs.open()`]: fs.md#fs_fs_open_path_flags_mode_callback
+[`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`fs.close()`]: fs.md#fs_fs_close_fd_callback
+[`fs.open()`]: fs.md#fs_fs_open_path_flags_mode_callback
 [`markAsUntransferable()`]: #worker_threads_worker_markasuntransferable_object
 [`port.on('message')`]: #worker_threads_event_message
 [`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/onmessage
@@ -951,13 +956,8 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`worker.SHARE_ENV`]: #worker_threads_worker_share_env
 [`worker.terminate()`]: #worker_threads_worker_terminate
 [`worker.threadId`]: #worker_threads_worker_threadid_1
-[Addons worker support]: addons.md#addons_worker_support
 [async-resource-worker-pool]: async_hooks.md#async-resource-worker-pool
-[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
-[Signals events]: process.md#process_signal_events
-[Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [child processes]: child_process.md
 [contextified]: vm.md#vm_what_does_it_mean_to_contextify_an_object
 [v8.serdes]: v8.md#v8_serialization_api
-[`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs

@@ -201,5 +201,5 @@ Chrome DevTools doesn't support debugging [worker threads][] yet.
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [V8 Inspector]: #debugger_v8_inspector_integration_for_node_js
-[worker threads]: worker_threads.md
 [ndb]: https://github.com/GoogleChromeLabs/ndb/
+[worker threads]: worker_threads.md
