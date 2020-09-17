@@ -9,7 +9,7 @@ collaboration.
 * Priority 2 - Stability
 * Priority 3 - Operational qualities
 * Priority 4 - Node.js maintainer experience
-* Priority 5 - Technology and API currency
+* Priority 5 - Up to date Technology and APIs
 
 ## Value descriptions
 
