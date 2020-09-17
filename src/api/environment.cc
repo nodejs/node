@@ -708,7 +708,9 @@ void AddLinkedBinding(Environment* env,
 static std::atomic<uint64_t> next_thread_id{0};
 
 ThreadId AllocateEnvironmentThreadId() {
-  return ThreadId { next_thread_id++ };
+  ThreadId ret;
+  ret.id = next_thread_id++;
+  return ret;
 }
 
 void DefaultProcessExitHandler(Environment* env, int exit_code) {
