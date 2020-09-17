@@ -1167,13 +1167,16 @@ changes:
 
 Decompress a chunk of data with [`Unzip`][].
 
+[Brotli parameters]: #zlib_brotli_constants
+[Memory usage tuning]: #zlib_memory_usage_tuning
+[RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
+[Streams API]: stream.md
 [`.flush()`]: #zlib_zlib_flush_kind_callback
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`BrotliCompress`]: #zlib_class_zlib_brotlicompress
 [`BrotliDecompress`]: #zlib_class_zlib_brotlidecompress
 [`Buffer`]: buffer.md#buffer_class_buffer
-[`buffer.kMaxLength`]: buffer.md#buffer_buffer_kmaxlength
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`DeflateRaw`]: #zlib_class_zlib_deflateraw
@@ -1184,13 +1187,10 @@ Decompress a chunk of data with [`Unzip`][].
 [`Inflate`]: #zlib_class_zlib_inflate
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Unzip`]: #zlib_class_zlib_unzip
+[`buffer.kMaxLength`]: buffer.md#buffer_buffer_kmaxlength
 [`deflateInit2` and `inflateInit2`]: https://zlib.net/manual.html#Advanced
 [`stream.Transform`]: stream.md#stream_class_stream_transform
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
-[Brotli parameters]: #zlib_brotli_constants
-[Memory usage tuning]: #zlib_memory_usage_tuning
-[RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
-[Streams API]: stream.md
 [convenience methods]: #zlib_convenience_methods
 [zlib documentation]: https://zlib.net/manual.html#Constants
 [zlib.createGzip example]: #zlib_zlib

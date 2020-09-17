@@ -1370,6 +1370,10 @@ console.log(myURL.origin);
 // Prints https://xn--1xa.example.com
 ```
 
+[ICU]: intl.md#intl_options_for_building_node_js
+[Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
+[WHATWG URL Standard]: https://url.spec.whatwg.org/
+[WHATWG URL]: #url_the_whatwg_url_api
 [`Error`]: errors.md#errors_class_error
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
@@ -1389,10 +1393,6 @@ console.log(myURL.origin);
 [`url.toString()`]: #url_url_tostring
 [`urlSearchParams.entries()`]: #url_urlsearchparams_entries
 [`urlSearchParams@@iterator()`]: #url_urlsearchparams_symbol_iterator
-[ICU]: intl.md#intl_options_for_building_node_js
-[Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
-[WHATWG URL Standard]: https://url.spec.whatwg.org/
-[WHATWG URL]: #url_the_whatwg_url_api
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
 [host name spoofing]: https://hackerone.com/reports/678487
 [legacy `urlObject`]: #url_legacy_urlobject

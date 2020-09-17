@@ -971,19 +971,19 @@ This section was moved to
   * <a id="modules_sourcemap_payload" href="module.html#module_sourcemap_payload">`sourceMap.payload`</a>
   * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#module_sourcemap_findentry_linenumber_columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
+[ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
+[`"main"`]: packages.md#packages_main
 [`Error`]: errors.md#errors_class_error
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
 [`module` object]: #modules_the_module_object
 [`module.id`]: #modules_module_id
 [`module.children`]: #modules_module_children
+[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
 [`path.dirname()`]: path.md#path_path_dirname_path
-[ECMAScript Modules]: esm.md
+[`require.main`]: #modules_require_main
 [an error]: errors.md#errors_err_require_esm
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
 [native addons]: addons.md
-[`require.main`]: #modules_require_main
-[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
-[`"main"`]: packages.md#packages_main

@@ -2606,6 +2606,18 @@ cases:
   For example, signal `SIGABRT` has value `6`, so the expected exit
   code will be `128` + `6`, or `134`.
 
+[Advanced serialization for `child_process`]: child_process.md#child_process_advanced_serialization
+[Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
+[Child Process]: child_process.md
+[Cluster]: cluster.md
+[Duplex]: stream.md#stream_duplex_and_transform_streams
+[Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
+[LTS]: https://github.com/nodejs/Release
+[Readable]: stream.md#stream_readable_streams
+[Signal Events]: #process_signal_events
+[Stream compatibility]: stream.md#stream_compatibility_with_older_node_js_versions
+[TTY]: tty.md#tty_tty
+[Writable]: stream.md#stream_writable_streams
 [`'exit'`]: #process_event_exit
 [`'message'`]: child_process.md#child_process_event_message
 [`'uncaughtException'`]: #process_event_uncaughtexception
@@ -2617,6 +2629,7 @@ cases:
 [`Error`]: errors.md#errors_class_error
 [`EventEmitter`]: events.md#events_class_eventemitter
 [`NODE_OPTIONS`]: cli.md#cli_node_options_options
+[`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
 [`Worker`]: worker_threads.md#worker_threads_class_worker
 [`console.error()`]: console.md#console_console_error_data_args
 [`console.log()`]: console.md#console_console_log_data_args
@@ -2634,25 +2647,12 @@ cases:
 [`process.kill()`]: #process_process_kill_pid_signal
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
-[`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
+[`readable.read()`]: stream.md#stream_readable_read_size
 [`require()`]: globals.md#globals_require
 [`require.main`]: modules.md#modules_accessing_the_main_module
 [`require.resolve()`]: modules.md#modules_require_resolve_request_options
 [`subprocess.kill()`]: child_process.md#child_process_subprocess_kill_signal
 [`v8.setFlagsFromString()`]: v8.md#v8_v8_setflagsfromstring_flags
-[Advanced serialization for `child_process`]: child_process.md#child_process_advanced_serialization
-[Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
-[Child Process]: child_process.md
-[Cluster]: cluster.md
-[Duplex]: stream.md#stream_duplex_and_transform_streams
-[Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
-[LTS]: https://github.com/nodejs/Release
-[Readable]: stream.md#stream_readable_streams
-[`readable.read()`]: stream.md#stream_readable_read_size
-[Signal Events]: #process_signal_events
-[Stream compatibility]: stream.md#stream_compatibility_with_older_node_js_versions
-[TTY]: tty.md#tty_tty
-[Writable]: stream.md#stream_writable_streams
 [debugger]: debugger.md
 [note on process I/O]: process.md#process_a_note_on_process_i_o
 [process.cpuUsage]: #process_process_cpuusage_previousvalue
@@ -2661,5 +2661,5 @@ cases:
 [report documentation]: report.md
 [terminal raw mode]: tty.md#tty_readstream_setrawmode_mode
 [uv_rusage_t]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
-[wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor
 [wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major
+[wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor

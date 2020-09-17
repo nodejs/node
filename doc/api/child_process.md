@@ -1583,6 +1583,9 @@ Therefore, this feature requires opting in by setting the
 or [`child_process.fork()`][].
 
 [Advanced serialization]: #child_process_advanced_serialization
+[Default Windows shell]: #child_process_default_windows_shell
+[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[Shell requirements]: #child_process_shell_requirements
 [`'disconnect'`]: process.md#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
@@ -1615,8 +1618,5 @@ or [`child_process.fork()`][].
 [`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
 [`util.promisify()`]: util.md#util_util_promisify_original
-[Default Windows shell]: #child_process_default_windows_shell
-[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
-[Shell requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation
 [v8.serdes]: v8.md#v8_serialization_api

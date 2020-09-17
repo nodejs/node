@@ -1160,6 +1160,11 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
+[DNS error codes]: #dns_error_codes
+[Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
+[Implementation considerations section]: #dns_implementation_considerations
+[RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
+[RFC 8482]: https://tools.ietf.org/html/rfc8482
 [`Error`]: errors.md#errors_class_error
 [`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
 [`dgram.createSocket()`]: dgram.md#dgram_dgram_createsocket_options_callback
@@ -1197,9 +1202,4 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dnsPromises.setServers()`]: #dns_dnspromises_setservers_servers
 [`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
 [`util.promisify()`]: util.md#util_util_promisify_original
-[DNS error codes]: #dns_error_codes
-[Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
-[Implementation considerations section]: #dns_implementation_considerations
-[RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
-[RFC 8482]: https://tools.ietf.org/html/rfc8482
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags

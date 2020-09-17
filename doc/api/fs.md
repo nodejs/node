@@ -5960,6 +5960,17 @@ through `fs.open()` or `fs.writeFile()` or `fsPromises.open()`) will fail with
 A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
 the file contents.
 
+[Caveats]: #fs_caveats
+[Common System Errors]: errors.md#errors_common_system_errors
+[FS constants]: #fs_fs_constants_1
+[File access constants]: #fs_file_access_constants
+[MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
+[MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
+[MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
+[MSDN-Using-Streams]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/using-streams
+[Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
+[Readable Stream]: stream.md#stream_class_stream_readable
+[Writable Stream]: stream.md#stream_class_stream_writable
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
 [`Buffer`]: buffer.md#buffer_buffer
@@ -5967,7 +5978,6 @@ the file contents.
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`ReadStream`]: #fs_class_fs_readstream
-[Readable Stream]: stream.md#stream_class_stream_readable
 [`URL`]: url.md#url_the_whatwg_url_api
 [`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
 [`WriteStream`]: #fs_class_fs_writestream
@@ -6018,17 +6028,7 @@ the file contents.
 [`net.Socket`]: net.md#net_class_net_socket
 [`stat()`]: fs.md#fs_fs_stat_path_options_callback
 [`util.promisify()`]: util.md#util_util_promisify_original
-[Caveats]: #fs_caveats
-[Common System Errors]: errors.md#errors_common_system_errors
-[FS constants]: #fs_fs_constants_1
-[File access constants]: #fs_file_access_constants
-[MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
-[MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
-[MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
-[MSDN-Using-Streams]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/using-streams
-[Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
 [bigints]: https://tc39.github.io/proposal-bigint
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags
-[Writable Stream]: stream.md#stream_class_stream_writable

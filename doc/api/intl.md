@@ -189,6 +189,13 @@ to be helpful:
   dedicated to ECMA-402.
 
 ["ICU Data"]: http://userguide.icu-project.org/icudata
+[BUILDING.md]: https://github.com/nodejs/node/blob/master/BUILDING.md
+[ECMA-262]: https://tc39.github.io/ecma262/
+[ECMA-402]: https://tc39.github.io/ecma402/
+[ICU]: http://site.icu-project.org/
+[REPL]: repl.md#repl_repl
+[Test262]: https://github.com/tc39/test262/tree/master/test/intl402
+[WHATWG URL parser]: url.md#url_the_whatwg_url_api
 [`--icu-data-dir`]: cli.md#cli_icu_data_dir_file
 [`Date.prototype.toLocaleString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString
 [`Intl.DateTimeFormat`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
@@ -202,13 +209,6 @@ to be helpful:
 [`String.prototype.toUpperCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase
 [`require('buffer').transcode()`]: buffer.md#buffer_buffer_transcode_source_fromenc_toenc
 [`require('util').TextDecoder`]: util.md#util_class_util_textdecoder
-[BUILDING.md]: https://github.com/nodejs/node/blob/master/BUILDING.md
-[ECMA-262]: https://tc39.github.io/ecma262/
-[ECMA-402]: https://tc39.github.io/ecma402/
-[ICU]: http://site.icu-project.org/
-[REPL]: repl.md#repl_repl
-[Test262]: https://github.com/tc39/test262/tree/master/test/intl402
-[WHATWG URL parser]: url.md#url_the_whatwg_url_api
 [btest402]: https://github.com/srl295/btest402
 [full-icu]: https://www.npmjs.com/package/full-icu
 [internationalized domain names]: https://en.wikipedia.org/wiki/Internationalized_domain_name

@@ -1183,6 +1183,8 @@ If you need to keep using callback-based API, or your code assumes
 a custom thenable implementation, use the [`AsyncResource`][] class
 to associate the asynchronous operation with the correct execution context.
 
+[Hook Callbacks]: #async_hooks_hook_callbacks
+[PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`AsyncResource`]: #async_hooks_class_asyncresource
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
@@ -1190,9 +1192,7 @@ to associate the asynchronous operation with the correct execution context.
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
 [`promiseResolve` callback]: #async_hooks_promiseresolve_asyncid
 [`EventEmitter`]: events.md#events_class_eventemitter
-[Hook Callbacks]: #async_hooks_hook_callbacks
-[PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`Stream`]: stream.md#stream_stream
 [`Worker`]: worker_threads.md#worker_threads_class_worker
-[promise execution tracking]: #async_hooks_promise_execution_tracking
 [`util.promisify()`]: util.md#util_util_promisify_original
+[promise execution tracking]: #async_hooks_promise_execution_tracking
