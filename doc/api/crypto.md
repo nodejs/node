@@ -2062,7 +2062,7 @@ and it will be impossible to extract the private key from the returned object.
 added: v11.6.0
 -->
 
-* `key` {Buffer}
+* `key` {Buffer | TypedArray | DataView}
 * Returns: {KeyObject}
 
 Creates and returns a new key object containing a secret key for symmetric
