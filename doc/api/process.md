@@ -2342,7 +2342,7 @@ important ways:
    * Pipes (and sockets): *synchronous* on Windows, *asynchronous* on POSIX
 
 These behaviors are partly for historical reasons, as changing them would
-create backwards incompatibility, but they are also expected by some users.
+create backward incompatibility, but they are also expected by some users.
 
 Synchronous writes avoid problems such as output written with `console.log()` or
 `console.error()` being unexpectedly interleaved, or not written at all if

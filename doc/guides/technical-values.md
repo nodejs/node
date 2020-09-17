@@ -26,7 +26,7 @@ with Node.js. Some key elements of this include:
 Whenever possible, we seek to ensure that working code continues to work. To
 keep the trust of developers and users, we value stability.
 Some key elements of this include:
-* Backwards compatibility
+* Backward compatibility
 * Stable releases on a predictable schedule
 * A strong safety net, including testing how changes
   in Node.js affect popular packages
