@@ -436,7 +436,7 @@ If the graceful disconnect behavior is not needed, use `worker.process.kill()`.
 
 Causes `.exitedAfterDisconnect` to be set.
 
-This method is aliased as `worker.destroy()` for backwards compatibility.
+This method is aliased as `worker.destroy()` for backward compatibility.
 
 In a worker, `process.kill()` exists, but it is not this function;
 it is [`kill()`][].

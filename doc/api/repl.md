@@ -246,8 +246,8 @@ added: v13.6.0
 -->
 
 The REPL supports bi-directional reverse-i-search similar to [ZSH][]. It is
-triggered with `<ctrl> + R` to search backwards and `<ctrl> + S` to search
-forwards.
+triggered with `<ctrl> + R` to search backward and `<ctrl> + S` to search
+forward.
 
 Duplicated history entires will be skipped.
 
