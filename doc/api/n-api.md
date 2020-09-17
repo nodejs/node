@@ -269,7 +269,7 @@ or higher. When using a Node.js version that does not support the
 then the API will only be available if you include
 `#define NAPI_EXPERIMENTAL`. If an API is not available and you are
 using a version of Node.js which is later than `added in:`
-this is most likely the reason.
+this is most likely the reason for the apparent absence.
 
 The N-APIs associated strictly with accessing ECMAScript features from native
 code can be found separately in `js_native_api.h` and `js_native_api_types.h`.
