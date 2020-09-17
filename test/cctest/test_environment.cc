@@ -267,10 +267,10 @@ TEST_F(EnvironmentTest, SetImmediateCleanup) {
       EXPECT_EQ(env_arg, *env);
       called++;
     });
-    (*env)->SetUnrefImmediate([&](node::Environment* env_arg) {
+    (*env)->SetImmediate([&](node::Environment* env_arg) {
       EXPECT_EQ(env_arg, *env);
       called_unref++;
-    });
+    }, node::CallbackFlags::kUnrefed);
   }
 
   EXPECT_EQ(called, 1);
@@ -306,29 +306,6 @@ TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
 
   CHECK_EQ(callback_calls, 1);
   CHECK_EQ(ab->ByteLength(), 0);
-}
-
-TEST_F(EnvironmentTest, SetImmediateCleanup) {
-  int called = 0;
-  int called_unref = 0;
-
-  {
-    const v8::HandleScope handle_scope(isolate_);
-    const Argv argv;
-    Env env {handle_scope, argv};
-
-    (*env)->SetImmediate([&](node::Environment* env_arg) {
-      EXPECT_EQ(env_arg, *env);
-      called++;
-    });
-    (*env)->SetImmediate([&](node::Environment* env_arg) {
-      EXPECT_EQ(env_arg, *env);
-      called_unref++;
-    }, node::CallbackFlags::kUnrefed);
-  }
-
-  EXPECT_EQ(called, 1);
-  EXPECT_EQ(called_unref, 0);
 }
 
 #if HAVE_INSPECTOR
