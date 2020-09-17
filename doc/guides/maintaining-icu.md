@@ -261,8 +261,8 @@ Node.js (see the top level README.md). Only modifying `icu-small` would cause
 the patch not to be landed in case the user specifies the ICU source code
 another way.
 
+[CLDR]: https://unicode.org/cldr
+[Ecma402]: https://github.com/tc39/ecma402
 [ICU]: http://icu-project.org
 [Unicode]: https://unicode.org
 [tz]: https://www.iana.org/time-zones
-[CLDR]: https://unicode.org/cldr
-[Ecma402]: https://github.com/tc39/ecma402

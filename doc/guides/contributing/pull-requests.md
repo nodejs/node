@@ -593,15 +593,15 @@ widely used, so don't be discouraged!
 If you want to know more about the code review and the landing process, see the
 [Collaborator Guide][].
 
-[approved]: #getting-approvals-for-your-pull-request
-[benchmark results]: ../writing-and-running-benchmarks.md
 [Building guide]: ../../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Collaborator Guide]: ../collaborator-guide.md
+[IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
+[Onboarding guide]: ../../../onboarding.md
+[approved]: #getting-approvals-for-your-pull-request
+[benchmark results]: ../writing-and-running-benchmarks.md
 [guide for writing tests in Node.js]: ../writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
-[IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
-[Onboarding guide]: ../../../onboarding.md
 [running tests]: ../../../BUILDING.md#running-tests
