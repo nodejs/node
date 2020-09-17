@@ -434,9 +434,9 @@ Nightly coverage reports for the Node.js master branch are available at
 
 [ASCII]: https://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
+[Test Coverage section of the Building guide]: https://github.com/nodejs/node/blob/master/BUILDING.md#running-coverage
 [`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md
 [all maintained branches]: https://github.com/nodejs/lts
+[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories
 [node.green]: https://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
-[Test Coverage section of the Building guide]: https://github.com/nodejs/node/blob/master/BUILDING.md#running-coverage
-[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories

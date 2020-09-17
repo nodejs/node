@@ -27,11 +27,12 @@ function findMarkdownFilesRecursively(dirPath) {
     if (
       entry.isDirectory() &&
       entry.name !== 'api' &&
-      entry.name !== 'tmp' &&
-      entry.name !== 'fixtures' &&
       entry.name !== 'changelogs' &&
       entry.name !== 'deps' &&
-      entry.name !== 'node_modules'
+      entry.name !== 'fixtures' &&
+      entry.name !== 'node_modules' &&
+      entry.name !== 'out' &&
+      entry.name !== 'tmp'
     ) {
       findMarkdownFilesRecursively(path);
     } else if (entry.isFile() && extname(entry.name) === '.md') {
@@ -46,6 +47,7 @@ function checkFile(path) {
     .parse(fs.readFileSync(path));
 
   const base = pathToFileURL(path);
+  let previousDefinitionLabel;
   for (const node of getLinksRecursively(tree)) {
     const targetURL = new URL(node.url, base);
     if (targetURL.protocol === 'file:' && !fs.existsSync(targetURL)) {
@@ -54,6 +56,19 @@ function checkFile(path) {
         `::error file=${path},line=${line},col=${column}::` : '') +
         `Broken link at ${path}:${line}:${column} (${node.url})`);
       process.exitCode = 1;
+    }
+    if (node.type === 'definition') {
+      if (previousDefinitionLabel &&
+          previousDefinitionLabel > node.label) {
+        const { line, column } = node.position.start;
+        console.error((process.env.GITHUB_ACTIONS ?
+          `::error file=${path},line=${line},col=${column}::` : '') +
+          `Unordered reference at ${path}:${line}:${column} (` +
+          `"${node.label}" should be before "${previousDefinitionLabel})"`
+        );
+        process.exitCode = 1;
+      }
+      previousDefinitionLabel = node.label;
     }
   }
 }
