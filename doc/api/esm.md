@@ -1229,15 +1229,24 @@ success!
 ```
 
 <!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
+[6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [CommonJS]: modules.md
 [Conditional exports]: packages.md#packages_conditional_exports
+[Core modules]: modules.md#modules_core_modules
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
-[ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
+[ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [Terminology]: #esm_terminology
+[Top-Level Await]: https://github.com/tc39/proposal-top-level-await
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
+[`"exports"`]: packages.md#packages_exports
+[`"type"`]: packages.md#packages_type
+[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
+[`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #esm_import_expressions
@@ -1245,20 +1254,11 @@ success!
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: module.md#module_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: module.md#module_module_syncbuiltinesmexports
+[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
 [`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
-[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
-[`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
-[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`util.TextDecoder`]: util.md#util_class_util_textdecoder
 [cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.3.1
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
-[6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
-[Top-Level Await]: https://github.com/tc39/proposal-top-level-await
-[Core modules]: modules.md#modules_core_modules
-[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
-[`"exports"`]: packages.md#packages_exports
-[`"type"`]: packages.md#packages_type

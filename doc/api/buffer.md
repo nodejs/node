@@ -3261,7 +3261,12 @@ While there are clear performance advantages to using
 [`Buffer.allocUnsafe()`][], extra care *must* be taken in order to avoid
 introducing security vulnerabilities into an application.
 
+[ASCII]: https://en.wikipedia.org/wiki/ASCII
+[Base64]: https://en.wikipedia.org/wiki/Base64
+[ISO-8859-1]: https://en.wikipedia.org/wiki/ISO-8859-1
 [RFC 4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
+[UTF-16]: https://en.wikipedia.org/wiki/UTF-16
+[UTF-8]: https://en.wikipedia.org/wiki/UTF-8
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`Buffer.alloc()`]: #buffer_static_method_buffer_alloc_size_fill_encoding
@@ -3281,10 +3286,10 @@ introducing security vulnerabilities into an application.
 [`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String#lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
-[`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
 [`TypedArray#set()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/set
 [`TypedArray#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/slice
 [`TypedArray#subarray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/subarray
+[`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`buf.buffer`]: #buffer_buf_buffer
@@ -3301,11 +3306,6 @@ introducing security vulnerabilities into an application.
 [`buffer.constants.MAX_STRING_LENGTH`]: #buffer_buffer_constants_max_string_length
 [`buffer.kMaxLength`]: #buffer_buffer_kmaxlength
 [`util.inspect()`]: util.md#util_util_inspect_object_options
-[ASCII]: https://en.wikipedia.org/wiki/ASCII
-[Base64]: https://en.wikipedia.org/wiki/Base64
-[ISO-8859-1]: https://en.wikipedia.org/wiki/ISO-8859-1
-[UTF-8]: https://en.wikipedia.org/wiki/UTF-8
-[UTF-16]: https://en.wikipedia.org/wiki/UTF-16
 [binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
