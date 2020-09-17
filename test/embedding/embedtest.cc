@@ -62,7 +62,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   std::shared_ptr<ArrayBufferAllocator> allocator =
       ArrayBufferAllocator::Create();
 
-  Isolate* isolate = NewIsolate(allocator, &loop, platform);
+  Isolate* isolate = NewIsolate(allocator.get(), &loop, platform);
   if (isolate == nullptr) {
     fprintf(stderr, "%s: Failed to initialize V8 Isolate\n", args[0].c_str());
     return 1;
