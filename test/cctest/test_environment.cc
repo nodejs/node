@@ -380,7 +380,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
         node::ArrayBufferAllocator::Create();
     uv_loop_t loop;
     uv_loop_init(&loop);
-    v8::Isolate* isolate = NewIsolate(aba, &loop, data->platform);
+    v8::Isolate* isolate = NewIsolate(aba.get(), &loop, data->platform);
     CHECK_NOT_NULL(isolate);
 
     {
