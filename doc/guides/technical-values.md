@@ -23,9 +23,8 @@ with Node.js. Some key elements of this include:
 * Enabling/supporting external packages to ensure overall developer experience
 
 ### 2 - Stability
-Whenever possible, we seek to insure that currently-working code continues to
-work. We seek to keep the trust of developers and end-users. Therefore, we value
-stability.
+Whenever possible, we seek to ensure that working code continues to work. To
+keep the trust of developers and users, we value stability.
 Some key elements of this include:
 * Backwards compatibility
 * Stable releases on a predictable schedule
