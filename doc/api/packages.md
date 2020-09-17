@@ -322,7 +322,7 @@ import featureY from 'es-module-package/features/y/y';
 
 This is a direct static replacement without any special handling for file
 extensions. In the previous example, `pkg/features/x.json` would be resolved to
-`./src/featrues/x.json.js` in the mapping.
+`./src/features/x.json.js` in the mapping.
 
 The property of exports being statically enumerable is maintained with exports
 patterns since the individual exports for a package can be determined by
