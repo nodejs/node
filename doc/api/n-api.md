@@ -267,7 +267,8 @@ a Node.js version which supports the N-API version shown in `N-API version:`
 or higher. When using a Node.js version that does not support the
 `N-API version:` listed or if there is no `N-API version:` listed,
 then the API will only be available if
-`#define NAPI_EXPERIMENTAL` precedes the inclusion of `node_api.h` or `js_native_api.h`. If an API appears not to be available on
+`#define NAPI_EXPERIMENTAL` precedes the inclusion of `node_api.h`
+or `js_native_api.h`. If an API appears not to be available on
 a version of Node.js which is later than the one shown in `added in:` then
 this is most likely the reason for the apparent absence.
 
