@@ -258,9 +258,9 @@ import submodule from 'es-module-package/private-module.js';
 
 > Stability: 1 - Experimental
 
-Explicitly listing each exports subpath entry is recommended for packages with
-a small number of exports. But for packages that have very large numbers of
-subpaths this can start to cause package.json bloat and maintenance issues.
+For packages with a small number of exports, we recommend explicitly listing
+each exports subpath entry. But for packages that have large numbers of
+subpaths, this might cause `package.json` bloat and maintenance issues.
 
 For these use cases, subpath export patterns can be used instead:
 
