@@ -41,6 +41,8 @@ async_hooks.createHook({
   }
 }).enable();
 
+// testing
+
 for (const call of [binding.callViaFunction,
                     binding.callViaString,
                     binding.callViaUtf8Name]) {
