@@ -598,6 +598,8 @@ $ ./tools/release.sh -i ~/.ssh/node_id_rsa
 
 `tools/release.sh` will perform the following actions when run:
 
+<details>
+
 **a.** Select a GPG key from your private keys. It will use a command similar
 to: `gpg --list-secret-keys` to list your keys. If you don't have any keys, it
 will bail. If you have only one key, it will use that. If you have more than
@@ -631,6 +633,7 @@ SHASUMS256.txt.sig.
 
 **g.** Upload the `SHASUMS256.txt` files back to the server into the release
 directory.
+</details>
 
 If you didn't wait for ARM builds in the previous step before promoting the
 release, you should re-run `tools/release.sh` after the ARM builds have
