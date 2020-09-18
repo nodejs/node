@@ -117,8 +117,8 @@ function removeAsync(dir) {
     assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
     assert.strictEqual(err.name, 'TypeError');
     assert.match(err.message, /^The argument 'path' is not a directory\./);
+    fs.unlinkSync(filePath);
   }));
-  fs.unlinkSync(filePath);
 }
 
 // Test the synchronous version.
@@ -147,15 +147,18 @@ function removeAsync(dir) {
   const filePath = path.join(tmpdir.path, 'rmdir-sync-file.txt');
   fs.writeFileSync(filePath, '');
 
-  assert.throws(() => {
-    fs.rmdirSync(filePath, { recursive: true });
-  }, {
-    code: 'ERR_INVALID_ARG_VALUE',
-    name: 'TypeError',
-    message: /^The argument 'path' is not a directory\./
-  });
+  try {
+    assert.throws(() => {
+      fs.rmdirSync(filePath, { recursive: true });
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+      name: 'TypeError',
+      message: /^The argument 'path' is not a directory\./
+    });
+  } finally {
+    fs.unlinkSync(filePath);
+  }
 
-  fs.unlinkSync(filePath);
 
   // Recursive removal should succeed.
   fs.rmdirSync(dir, { recursive: true });
@@ -189,17 +192,21 @@ function removeAsync(dir) {
   });
 
   // Should fail if target is a file
-  const filePath = path.join(tmpdir.path, 'rmdir-sync-file.txt');
+  const filePath = path.join(tmpdir.path, 'rmdir-promises-file.txt');
   fs.writeFileSync(filePath, '');
 
-  assert.rejects(fs.promises.rmdir(
-    filePath,
-    { recursive: true }
-  ), {
-    code: 'ERR_INVALID_ARG_VALUE',
-    name: 'TypeError',
-    message: /^The argument 'path' is not a directory\./
-  });
+  try {
+    assert.rejects(fs.promises.rmdir(
+      filePath,
+      { recursive: true }
+    ), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      name: 'TypeError',
+      message: /^The argument 'path' is not a directory\./
+    });
+  } finally {
+    fs.unlinkSync(filePath);
+  }
 
   // Attempted removal should fail now because the directory is gone.
   assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
