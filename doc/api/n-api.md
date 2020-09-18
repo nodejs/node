@@ -262,7 +262,7 @@ version 1 but continued to evolve until Node.js 8.6.0. The API is different in
 versions prior to Node.js 8.6.0. We recommend N-API version 3 or later.
 
 Each API documented for N-API will have a header named `added in:`, and APIs
-which are stable, `N-API version:`. APIs are directly usable when using
+which are stable will have the additional header `N-API version:`. APIs are directly usable when using
 a Node.js version which supports the N-API version shown in `N-API version:`
 or higher. When using a Node.js version that does not support the
 `N-API version:` listed or if there is no `N-API version:` listed,
