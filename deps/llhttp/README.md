@@ -1,5 +1,4 @@
 # llhttp
-[![Build Status](https://secure.travis-ci.org/nodejs/llhttp.svg)](http://travis-ci.org/nodejs/llhttp)
 
 Port of [http_parser][0] to [llparse][1].
 
