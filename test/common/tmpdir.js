@@ -6,7 +6,11 @@ const path = require('path');
 const { isMainThread } = require('worker_threads');
 
 function rimrafSync(pathname) {
-  fs.rmdirSync(pathname, { maxRetries: 3, recursive: true });
+  try {
+    fs.rmdirSync(pathname, { maxRetries: 3, recursive: true });
+  } catch {
+    // do nothing
+  }
 }
 
 const testRoot = process.env.NODE_TEST_DIR ?
