@@ -22,7 +22,7 @@
 #include "base_object-inl.h"
 #include "memory_tracker-inl.h"
 #include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h.
-#include "node_crypto_bio.h"
+#include "crypto/crypto_bio.h"
 #include "openssl/bio.h"
 #include "util-inl.h"
 #include <climits>

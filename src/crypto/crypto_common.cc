@@ -3,7 +3,7 @@
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "node_crypto.h"
-#include "node_crypto_common.h"
+#include "crypto/crypto_common.h"
 #include "node.h"
 #include "node_internals.h"
 #include "node_url.h"

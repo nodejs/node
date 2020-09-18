@@ -25,7 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 // ClientHelloParser
-#include "node_crypto_clienthello.h"
+#include "crypto/crypto_clienthello.h"
 
 #include "allocated_buffer.h"
 #include "env.h"
