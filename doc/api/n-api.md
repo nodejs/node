@@ -3792,10 +3792,10 @@ They can be one or more of the following bitflags:
 * `napi_static`: The property will be defined as a static property on a class as
   opposed to an instance property, which is the default. This is used only by
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
-* `napi_default_method`: The property is configureable, writeable but not
-  enumerable like a method in a JS class.
-* `napi_default_property`: The property is writable, enumerable and configurable
-  like a property set via JS code `obj.key = value`.
+* `napi_default_method`: Like a method in a JS class, the property is
+  configurable and writeable, but not enumerable.
+* `napi_default_property`: Like a property set via assignment in JavaScript, the
+  property is writable, enumerable, and configurable.
 
 #### napi_property_descriptor
 
