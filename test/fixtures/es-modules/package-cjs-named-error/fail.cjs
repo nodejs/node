@@ -1,3 +1,4 @@
 module.exports = {
-  comeOn: 'fhqwhgads'
+  comeOn: 'fhqwhgads',
+  everybody: 'to the limit',
 };
