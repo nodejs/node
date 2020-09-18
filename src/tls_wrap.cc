@@ -26,9 +26,9 @@
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"  // Buffer
 #include "node_crypto.h"  // SecureContext
-#include "node_crypto_bio.h"  // NodeBIO
+#include "crypto/crypto_bio.h"  // NodeBIO
 // ClientHelloParser
-#include "node_crypto_clienthello-inl.h"
+#include "crypto/crypto_clienthello-inl.h"
 #include "node_errors.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"

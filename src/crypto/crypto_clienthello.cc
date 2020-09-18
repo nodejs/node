@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node_crypto_clienthello.h"  // NOLINT(build/include_inline)
-#include "node_crypto_clienthello-inl.h"
+#include "crypto/crypto_clienthello.h"  // NOLINT(build/include_inline)
+#include "crypto/crypto_clienthello-inl.h"
 
 namespace node {
 namespace crypto {

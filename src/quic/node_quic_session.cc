@@ -5,7 +5,7 @@
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
-#include "node_crypto_common.h"
+#include "crypto/crypto_common.h"
 #include "ngtcp2/ngtcp2.h"
 #include "nghttp3/nghttp3.h"  // NGHTTP3_ALPN_H3
 #include "ngtcp2/ngtcp2_crypto.h"

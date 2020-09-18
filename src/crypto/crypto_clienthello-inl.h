@@ -19,12 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
-#define SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
+#ifndef SRC_CRYPTO_CRYPTO_CLIENTHELLO_INL_H_
+#define SRC_CRYPTO_CRYPTO_CLIENTHELLO_INL_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_crypto_clienthello.h"
+#include "crypto/crypto_clienthello.h"
 #include "util.h"
 
 namespace node {
@@ -88,4 +88,4 @@ inline bool ClientHelloParser::IsPaused() const {
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#endif  // SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
+#endif  // SRC_CRYPTO_CRYPTO_CLIENTHELLO_INL_H_
