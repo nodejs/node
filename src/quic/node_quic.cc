@@ -2,7 +2,7 @@
 #include "node.h"
 #include "env-inl.h"
 #include "node_crypto.h"  // SecureContext
-#include "node_crypto_common.h"
+#include "crypto/crypto_common.h"
 #include "node_errors.h"
 #include "node_process.h"
 #include "node_quic_crypto.h"
