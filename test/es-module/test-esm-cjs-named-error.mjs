@@ -10,6 +10,10 @@ const expectedRelative = 'The requested module \'./fail.cjs\' is expected to ' +
   'import pkg from \'./fail.cjs\';\n' +
   'const { comeOn } = pkg;';
 
+const expectedWithoutExample = 'The requested module \'./fail.cjs\' is ' +
+  'expected to be of type CommonJS, which does not support named exports. ' +
+  'CommonJS modules can be imported by importing the default export.';
+
 const expectedRenamed = 'The requested module \'./fail.cjs\' is expected to ' +
   'be of type CommonJS, which does not support named exports. CommonJS ' +
   'modules can be imported by importing the default export.\n' +
@@ -51,6 +55,13 @@ rejects(async () => {
   name: 'SyntaxError',
   message: expectedRenamed
 }, 'should correctly format named imports with renames');
+
+rejects(async () => {
+  await import(`${fixtureBase}/multi-line.mjs`);
+}, {
+  name: 'SyntaxError',
+  message: expectedWithoutExample,
+}, 'should correctly format named imports across multiple lines');
 
 rejects(async () => {
   await import(`${fixtureBase}/json-hack.mjs`);
