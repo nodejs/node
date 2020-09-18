@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const Stream = require('stream').Stream;
+const { Stream, PassThrough } = require('stream');
 
 {
   const source = new Stream();
@@ -107,4 +107,26 @@ const Stream = require('stream').Stream;
   // Removing some OTHER random listener should not do anything
   w.removeListener('error', () => {});
   removed = true;
+}
+
+{
+  const src = new PassThrough({ objectMode: true });
+  const dst = new PassThrough();
+
+  src.pipe(dst).on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+  }));
+
+  src.write({});
+}
+
+{
+  const src = new Stream();
+  const dst = new PassThrough();
+
+  src.pipe(dst).on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+  }));
+
+  src.emit('data', {});
 }
