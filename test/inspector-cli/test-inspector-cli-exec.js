@@ -31,7 +31,7 @@ const assert = require('assert');
     .then(() => {
       assert.match(
         cli.output,
-        /Press Ctrl \+ C to leave debug repl\n+> /,
+        /Press Ctrl\+C to leave debug repl\n+> /,
         'shows hint for how to leave repl');
       assert.doesNotMatch(cli.output, /debug>/, 'changes the repl style');
     })
