@@ -67,7 +67,7 @@ break in myscript.js:4
   5 }, 1000);
   6 console.log('hello');
 debug> repl
-Press Ctrl + C to leave debug repl
+Press Ctrl+C to leave debug repl
 > x
 5
 > 2 + 2
