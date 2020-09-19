@@ -19,9 +19,10 @@ function run({ input, output, event, checkTerminalCodes = true }) {
 
   stream.write = (msg) => found += msg.replace('\r', '');
 
-  let expected = `${terminalCode}.editor\n` +
-                 '// Entering editor mode (^D to finish, ^C to cancel)\n' +
-                 `${input}${output}\n${terminalCode}`;
+  let expected =
+    `${terminalCode}.editor\n` +
+    '// Entering editor mode (Ctrl+D to finish, Ctrl+C to cancel)\n' +
+    `${input}${output}\n${terminalCode}`;
 
   const replServer = repl.start({
     prompt: '> ',
@@ -47,7 +48,7 @@ function run({ input, output, event, checkTerminalCodes = true }) {
 const tests = [
   {
     input: '',
-    output: '\n(To exit, press ^C again or ^D or type .exit)',
+    output: '\n(To exit, press Ctrl+C again or Ctrl+D or type .exit)',
     event: { ctrl: true, name: 'c' }
   },
   {
