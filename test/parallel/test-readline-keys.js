@@ -92,10 +92,13 @@ addTest('io.JS', [
 ]);
 
 // Named characters
-addTest('\n\r\t', [
+addTest('\n\r\t\x1b\n\x1b\r\x1b\t', [
   { name: 'enter', sequence: '\n' },
   { name: 'return', sequence: '\r' },
   { name: 'tab', sequence: '\t' },
+  { name: 'enter', sequence: '\x1b\n', meta: true },
+  { name: 'return', sequence: '\x1b\r', meta: true },
+  { name: 'tab', sequence: '\x1b\t', meta: true },
 ]);
 
 // Space and backspace
@@ -131,6 +134,25 @@ addTest('a\x1baA\x1bA', [
   { name: 'a', sequence: 'A', shift: true },
   { name: 'a', sequence: '\x1bA', meta: true, shift: true },
 ]);
+
+// xterm/gnome ESC [ letter (with modifiers)
+/* eslint-disable max-len */
+addTest('\x1b[2P\x1b[3P\x1b[4P\x1b[5P\x1b[6P\x1b[7P\x1b[8P\x1b[3Q\x1b[8Q\x1b[3R\x1b[8R\x1b[3S\x1b[8S', [
+  { name: 'f1', sequence: '\x1b[2P', code: '[P', shift: true, meta: false, ctrl: false },
+  { name: 'f1', sequence: '\x1b[3P', code: '[P', shift: false, meta: true, ctrl: false },
+  { name: 'f1', sequence: '\x1b[4P', code: '[P', shift: true, meta: true, ctrl: false },
+  { name: 'f1', sequence: '\x1b[5P', code: '[P', shift: false, meta: false, ctrl: true },
+  { name: 'f1', sequence: '\x1b[6P', code: '[P', shift: true, meta: false, ctrl: true },
+  { name: 'f1', sequence: '\x1b[7P', code: '[P', shift: false, meta: true, ctrl: true },
+  { name: 'f1', sequence: '\x1b[8P', code: '[P', shift: true, meta: true, ctrl: true },
+  { name: 'f2', sequence: '\x1b[3Q', code: '[Q', meta: true },
+  { name: 'f2', sequence: '\x1b[8Q', code: '[Q', shift: true, meta: true, ctrl: true },
+  { name: 'f3', sequence: '\x1b[3R', code: '[R', meta: true },
+  { name: 'f3', sequence: '\x1b[8R', code: '[R', shift: true, meta: true, ctrl: true },
+  { name: 'f4', sequence: '\x1b[3S', code: '[S', meta: true },
+  { name: 'f4', sequence: '\x1b[8S', code: '[S', shift: true, meta: true, ctrl: true },
+]);
+/* eslint-enable max-len */
 
 // xterm/gnome ESC O letter
 addTest('\x1bOP\x1bOQ\x1bOR\x1bOS', [
