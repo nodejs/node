@@ -34,8 +34,8 @@ feature set.
 
 The following special commands are supported by all REPL instances:
 
-* `.break`: When in the process of inputting a multi-line expression, entering
-  the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
+* `.break`: When in the process of inputting a multi-line expression, enter
+  the `.break` command (or press **Ctrl+C**) to abort
   further input or processing of that expression.
 * `.clear`: Resets the REPL `context` to an empty object and clears any
   multi-line expression being input.
@@ -45,7 +45,7 @@ The following special commands are supported by all REPL instances:
   `> .save ./file/to/save.js`
 * `.load`: Load a file into the current REPL session.
   `> .load ./file/to/load.js`
-* `.editor`: Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel).
+* `.editor`: Enter editor mode (**Ctrl+D** to finish, **Ctrl+C** to cancel).
 
 ```console
 > .editor
@@ -63,10 +63,10 @@ welcome('Node.js User');
 
 The following key combinations in the REPL have these special effects:
 
-* `<ctrl>-C`: When pressed once, has the same effect as the `.break` command.
+* **Ctrl+C**: When pressed once, has the same effect as the `.break` command.
   When pressed twice on a blank line, has the same effect as the `.exit`
   command.
-* `<ctrl>-D`: Has the same effect as the `.exit` command.
+* **Ctrl+D**: Has the same effect as the `.exit` command.
 * `<tab>`: When pressed on a blank line, displays global and local (scope)
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
@@ -248,14 +248,14 @@ added:
 -->
 
 The REPL supports bi-directional reverse-i-search similar to [ZSH][]. It is
-triggered with `<ctrl> + R` to search backward and `<ctrl> + S` to search
-forward.
+triggered with **Ctrl+R** to search backward and **Ctrl+S** to search
+forwards.
 
 Duplicated history entires will be skipped.
 
 Entries are accepted as soon as any button is pressed that doesn't correspond
-with the reverse search. Cancelling is possible by pressing `escape` or
-`<ctrl> + C`.
+with the reverse search. Cancelling is possible by pressing **Esc** or
+**Ctrl+C**.
 
 Changing the direction immediately searches for the next entry in the expected
 direction from the current position on.
@@ -284,7 +284,7 @@ repl.start({ prompt: '> ', eval: myEval });
 
 #### Recoverable errors
 
-As a user is typing input into the REPL prompt, pressing the `<enter>` key will
+As a user is typing input into the REPL prompt, pressing **Enter** will
 send the current line of input to the `eval` function. In order to support
 multi-line input, the eval function can return an instance of `repl.Recoverable`
 to the provided callback function:
@@ -381,8 +381,8 @@ added: v0.7.7
 -->
 
 The `'exit'` event is emitted when the REPL is exited either by receiving the
-`.exit` command as input, the user pressing `<ctrl>-C` twice to signal `SIGINT`,
-or by pressing `<ctrl>-D` to signal `'end'` on the input stream. The listener
+`.exit` command as input, the user pressing **Ctrl+C** twice to signal `SIGINT`,
+or by pressing **Ctrl+D** to signal `'end'` on the input stream. The listener
 callback is invoked without any arguments.
 
 ```js
