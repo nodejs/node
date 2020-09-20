@@ -1797,6 +1797,9 @@ the request body should be sent. See the [`'checkContinue'`][] event on
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35274
+    description: Allow passing headers as an array.
   - version:
      - v11.10.0
      - v10.17.0
@@ -1813,13 +1816,18 @@ changes:
 
 * `statusCode` {number}
 * `statusMessage` {string}
-* `headers` {Object}
+* `headers` {Object|Array}
 * Returns: {http.ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
 Optionally one can give a human-readable `statusMessage` as the second
 argument.
+
+`headers` may be an `Array` where the keys and values are in the same list.
+It is *not* a list of tuples. So, the even-numbered offsets are key values,
+and the odd-numbered offsets are the associated values. The array is in the same
+format as `request.rawHeaders`.
 
 Returns a reference to the `ServerResponse`, so that calls can be chained.
 
