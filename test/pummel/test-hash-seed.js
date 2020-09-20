@@ -2,6 +2,10 @@
 
 // Check that spawn child doesn't create duplicated entries
 const common = require('../common');
+if (!common.enoughTestCpu) {
+  common.skip('CPU-intensive test');
+}
+
 const kRepetitions = 2;
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
