@@ -1805,7 +1805,7 @@ changes:
 
 * `statusCode` {number}
 * `statusMessage` {string}
-* `headers` {Object|Array}
+* `headers` {Object}
 * Returns: {http.ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
