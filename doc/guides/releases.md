@@ -599,6 +599,7 @@ $ ./tools/release.sh -i ~/.ssh/node_id_rsa
 `tools/release.sh` will perform the following actions when run:
 
 <details>
+
 **a.** Select a GPG key from your private keys. It will use a command similar
 to: `gpg --list-secret-keys` to list your keys. If you don't have any keys, it
 will bail. If you have only one key, it will use that. If you have more than
