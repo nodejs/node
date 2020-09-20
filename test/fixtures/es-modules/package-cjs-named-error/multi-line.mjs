@@ -1,4 +1,4 @@
 import {
   comeOn,
-  rightNow,
+  everybody,
 } from './fail.cjs';
