@@ -19,5 +19,3 @@ assert.strictEqual(server.requestTimeout, 0);
 const requestTimeout = common.platformTimeout(1000);
 server.requestTimeout = requestTimeout;
 assert.strictEqual(server.requestTimeout, requestTimeout);
-
-server.close();
