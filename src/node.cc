@@ -661,6 +661,7 @@ inline void PlatformInit() {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = TrapWebAssemblyOrContinue;
+    sa.sa_flags = SA_SIGINFO;
     CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
   }
 #endif  // defined(_WIN32)
