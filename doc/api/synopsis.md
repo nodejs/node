@@ -20,8 +20,8 @@ there to show the start of each command.
 Lines that don’t start with `$` or `>` character show the output of the previous
 command.
 
-First, make sure to have downloaded and installed Node.js. See [this guide][]
-for further install information.
+First, make sure to have downloaded and installed Node.js. See
+[Installing Node.js via package manager][] for further install information.
 
 Now, create an empty project folder called `projects`, then navigate into it.
 
@@ -87,5 +87,5 @@ If the browser displays the string `Hello, World!`, that indicates
 the server is working.
 
 [Command-line options]: cli.html#cli_command_line_options
-[this guide]: https://nodejs.org/en/download/package-manager/
+[Installing Node.js via package manager]: https://nodejs.org/en/download/package-manager/
 [web server]: http.html
