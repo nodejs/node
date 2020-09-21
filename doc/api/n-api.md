@@ -3751,7 +3751,7 @@ if (status != napi_ok) return status;
 #### napi_property_attributes
 <!-- YAML
 changes:
- - version: REPLACEME
+ - version: v14.12.0
    pr-url: https://github.com/nodejs/node/pull/35214
    description: added `napi_default_method` and `napi_default_property`
 -->

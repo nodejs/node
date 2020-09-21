@@ -4167,7 +4167,7 @@ This happens when:
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `buffer` parameter will stringify an object with an
                  explicit `toString` function.
@@ -4233,7 +4233,7 @@ the end of the file.
 <!-- YAML
 added: v0.11.5
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `string` parameter will stringify an object with an
                  explicit `toString` function.
@@ -4296,7 +4296,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `data` parameter will stringify an object with an
                  explicit `toString` function.
@@ -4391,7 +4391,7 @@ to contain only `', World'`.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `data` parameter will stringify an object with an
                  explicit `toString` function.
@@ -4427,7 +4427,7 @@ this API: [`fs.writeFile()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `buffer` parameter will stringify an object with an
                  explicit `toString` function.
@@ -4461,7 +4461,7 @@ this API: [`fs.write(fd, buffer...)`][].
 <!-- YAML
 added: v0.11.5
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `string` parameter will stringify an object with an
                  explicit `toString` function.
@@ -4842,7 +4842,7 @@ This function does not work on AIX versions before 7.1, it will resolve the
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `buffer` parameter will stringify an object with an
                  explicit `toString` function.
@@ -4883,7 +4883,7 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `string` parameter will stringify an object with an
                  explicit `toString` function.
@@ -4923,7 +4923,7 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `data` parameter will stringify an object with an
                  explicit `toString` function.
@@ -5558,7 +5558,7 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `data` parameter will stringify an object with an
                  explicit `toString` function.
