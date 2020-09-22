@@ -237,7 +237,8 @@ changes:
 * `origin` {string} Indicates if the exception originates from an unhandled
   rejection or from an synchronous error. Can either be `'uncaughtException'` or
   `'unhandledRejection'`. The latter is only used in conjunction with the
-  [`--unhandled-rejections`][] flag set to `strict` and an unhandled rejection.
+  [`--unhandled-rejections`][] flag set to `strict` or `throw` and
+  an unhandled rejection.
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
@@ -308,7 +309,9 @@ added:
 * `err` {Error} The uncaught exception.
 * `origin` {string} Indicates if the exception originates from an unhandled
   rejection or from synchronous errors. Can either be `'uncaughtException'` or
-  `'unhandledRejection'`.
+  `'unhandledRejection'`. The latter is only used in conjunction with the
+  [`--unhandled-rejections`][] flag set to `strict` or `throw` and
+  an unhandled rejection.
 
 The `'uncaughtExceptionMonitor'` event is emitted before an
 `'uncaughtException'` event is emitted or a hook installed via
