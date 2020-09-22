@@ -447,7 +447,7 @@ static void napi_module_register_cb(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Context> context,
                                     void* priv) {
   napi_module_register_by_symbol(exports, module, context,
-      static_cast<napi_module*>(priv)->nm_register_func);
+      static_cast<const napi_module*>(priv)->nm_register_func);
 }
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
@@ -480,9 +480,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   }
 }
 
-// Registers a NAPI module.
-void napi_module_register(napi_module* mod) {
-  node::node_module* nm = new node::node_module {
+namespace node {
+node_module napi_module_to_node_module(const napi_module* mod) {
+  return {
     -1,
     mod->nm_flags | NM_F_DELETEME,
     nullptr,
@@ -490,9 +490,16 @@ void napi_module_register(napi_module* mod) {
     nullptr,
     napi_module_register_cb,
     mod->nm_modname,
-    mod,  // priv
+    const_cast<napi_module*>(mod),  // priv
     nullptr,
   };
+}
+}  // namespace node
+
+// Registers a NAPI module.
+void napi_module_register(napi_module* mod) {
+  node::node_module* nm = new node::node_module(
+      node::napi_module_to_node_module(mod));
   node::node_module_register(nm);
 }
 

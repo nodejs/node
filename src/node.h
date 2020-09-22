@@ -117,6 +117,8 @@
 // Forward-declare libuv loop
 struct uv_loop_s;
 
+struct napi_module;
+
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
 namespace node {
@@ -819,6 +821,8 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 // In each variant, the registration function needs to be usable at least for
 // the time during which the Environment exists.
 NODE_EXTERN void AddLinkedBinding(Environment* env, const node_module& mod);
+NODE_EXTERN void AddLinkedBinding(Environment* env,
+                                  const struct napi_module& mod);
 NODE_EXTERN void AddLinkedBinding(Environment* env,
                                   const char* name,
                                   addon_context_register_func fn,
