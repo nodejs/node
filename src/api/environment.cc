@@ -677,6 +677,10 @@ void AddLinkedBinding(Environment* env, const node_module& mod) {
     prev_head->nm_link = &env->extra_linked_bindings()->back();
 }
 
+void AddLinkedBinding(Environment* env, const napi_module& mod) {
+  AddLinkedBinding(env, napi_module_to_node_module(&mod));
+}
+
 void AddLinkedBinding(Environment* env,
                       const char* name,
                       addon_context_register_func fn,
