@@ -92,8 +92,14 @@ signed by someone who has been authorized to create a release.
 
 The GPG keys should be fetchable from a known third-party keyserver. The SKS
 Keyservers at <https://sks-keyservers.net> are recommended. Use the
-[submission](https://pgp.mit.edu/) form to submit a new GPG key. Keys should be
-fetchable via:
+[submission](https://pgp.mit.edu/) form to submit a new GPG key. You'll need to
+do an ASCII-armored export of your key first:
+
+```console
+$ gpg --armor --export email@server.com > ~/nodekey.asc
+```
+
+Keys should be fetchable via:
 
 ```console
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys <FINGERPRINT>
