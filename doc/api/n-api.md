@@ -4392,8 +4392,8 @@ napi_status napi_get_cb_info(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] cbinfo`: The callback info passed into the callback function.
-* `[in-out] argc`: Specifies the size of the provided `argv` array and receives
-  the actual count of arguments.
+* `[in-out] argc`: Specifies the length of the provided `argv` array and
+  receives the actual count of arguments.
 * `[out] argv`: Buffer to which the `napi_value` representing the arguments are
   copied. If there are more arguments than the provided count, only the
   requested number of arguments are copied. If there are fewer arguments
