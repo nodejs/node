@@ -6781,8 +6781,8 @@ HEAP_TEST(CodeLargeObjectSpace) {
       AllocationAlignment::kCodeAligned);
 
   CHECK(allocation.ToObjectChecked().address() == allocation_tracker.address());
-  heap->CreateFillerObjectAt(allocation.ToAddress(), size_in_bytes,
-                             ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(allocation.ToObjectChecked().address(),
+                             size_in_bytes, ClearRecordedSlots::kNo);
   heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
 }
 
