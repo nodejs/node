@@ -398,6 +398,8 @@ namespace fs {
 std::string Basename(const std::string& str, const std::string& extension);
 }  // namespace fs
 
+node_module napi_module_to_node_module(const napi_module* mod);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

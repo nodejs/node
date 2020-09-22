@@ -31,7 +31,7 @@ struct uv_loop_s;  // Forward declaration.
 typedef napi_value (*napi_addon_register_func)(napi_env env,
                                                napi_value exports);
 
-typedef struct {
+typedef struct napi_module {
   int nm_version;
   unsigned int nm_flags;
   const char* nm_filename;
