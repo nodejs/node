@@ -114,10 +114,13 @@ function removeAsync(dir) {
   const filePath = path.join(tmpdir.path, 'rmdir-async-file.txt');
   fs.writeFileSync(filePath, '');
   fs.rmdir(filePath, { recursive: true }, common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
-    assert.strictEqual(err.name, 'TypeError');
-    assert.match(err.message, /^The argument 'path' is not a directory\./);
-    fs.unlinkSync(filePath);
+    try {
+      assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
+      assert.strictEqual(err.name, 'TypeError');
+      assert.match(err.message, /^The argument 'path' is not a directory\./);
+    } finally {
+      fs.unlinkSync(filePath);
+    }
   }));
 }
 
@@ -196,7 +199,7 @@ function removeAsync(dir) {
   fs.writeFileSync(filePath, '');
 
   try {
-    assert.rejects(fs.promises.rmdir(
+    await assert.rejects(fs.promises.rmdir(
       filePath,
       { recursive: true }
     ), {
