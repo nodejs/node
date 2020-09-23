@@ -160,7 +160,7 @@ added: v14.2.0
 
 This feature is currently experimental and behavior might still change.
 
-### `new assert.CallTracker()`
+### `new assert.CallTracker()`
 <!-- YAML
 added: v14.2.0
 -->
