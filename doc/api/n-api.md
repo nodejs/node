@@ -5180,9 +5180,11 @@ NAPI_EXTERN napi_status napi_make_callback(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] async_context`: Context for the async operation that is
    invoking the callback. This should normally be a value previously
-   obtained from [`napi_async_init`][]. However `NULL` is also allowed,
-   which indicates the current async context (if any) is to be used
-   for the callback.
+   obtained from [`napi_async_init`][].
+   In order to retain ABI compatibility with previous versions, passing `NULL`
+   for `async_context` will not result in an error. However, this will result
+   in incorrect operation of async hooks. Potential issues include loss of
+   async context when using the `AsyncLocalStorage` API.
 * `[in] recv`: The `this` object passed to the called function.
 * `[in] func`: `napi_value` representing the JavaScript function to be invoked.
 * `[in] argc`: The count of elements in the `argv` array.
