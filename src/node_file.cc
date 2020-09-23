@@ -2262,7 +2262,7 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[3]);
   if (req_wrap_async != nullptr) {  // lutimes(path, atime, mtime, req)
     AsyncCall(env, req_wrap_async, args, "lutime", UTF8, AfterNoArgs,
               uv_fs_lutime, *path, atime, mtime);
