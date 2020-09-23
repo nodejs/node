@@ -426,16 +426,20 @@ See [`Intl.Segmenter`](https://github.com/tc39/proposal-intl-segmenter).
 ### DEP0018: Unhandled promise rejections
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35316
+    description: End-of-Life.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/8217
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Unhandled promise rejections are deprecated. In the future, promise rejections
-that are not handled will terminate the Node.js process with a non-zero exit
-code.
+Unhandled promise rejections are deprecated. By default, promise rejections
+that are not handled terminate the Node.js process with a non-zero exit
+code. To change the way Node.js treats unhandled rejections, use the
+[`--unhandled-rejections`][] command-line option.
 
 ### DEP0019: `require('.')` resolved outside directory
 <!-- YAML
@@ -2648,6 +2652,7 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
+[`--unhandled-rejections`]: cli.html#cli_unhandled_rejections_mode
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_static_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_static_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_static_method_buffer_from_buffer
