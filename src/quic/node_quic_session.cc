@@ -1984,7 +1984,7 @@ bool QuicSession::OpenUnidirectionalStream(int64_t* stream_id) {
   return ngtcp2_conn_open_uni_stream(connection(), stream_id, nullptr) == 0;
 }
 
-// When ngtcp2 receives a successfull response to a PATH_CHALLENGE,
+// When ngtcp2 receives a successful response to a PATH_CHALLENGE,
 // it will trigger the OnPathValidation callback which will, in turn
 // invoke this. There's really nothing to do here but update stats and
 // and optionally notify the javascript side if there is a handler registered.
