@@ -364,12 +364,15 @@ For example, a package that wants to provide different ES module exports for
 Node.js supports the following conditions out of the box:
 
 * `"import"` - matched when the package is loaded via `import` or
-   `import()`. Can reference either an ES module or CommonJS file, as both
-   `import` and `import()` can load either ES module or CommonJS sources.
-   _Always matched when the `"require"` condition is not matched._
-* `"require"` - matched when the package is loaded via `require()`.
-   As `require()` only supports CommonJS, the referenced file must be CommonJS.
-   _Always matched when the `"import"` condition is not matched._
+   `import()`, or via any top-level import or resolve operation by the
+   ECMAScript module loader. Applies regardless of the module format of the
+   target file. _Always mutually exclusive with `"require"`._
+* `"require"` - matched when the package is loaded via `require()`. The
+   referenced file should be loadable with `require()` although the condition
+   will be matched regardless of the module format of the target file. Expected
+   formats include CommonJS, JSON, and native addons but not ES modules as
+   `require()` doesn't support them. _Always mutually exclusive with
+   `"import"`._
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file. _This condition should always come after `"import"` or
    `"require"`._
