@@ -115,9 +115,14 @@ function removeAsync(dir) {
   fs.writeFileSync(filePath, '');
   fs.rmdir(filePath, { recursive: true }, common.mustCall((err) => {
     try {
-      assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
-      assert.strictEqual(err.name, 'TypeError');
-      assert.match(err.message, /^The argument 'path' is not a directory\./);
+      assert.strictEqual(err.code, 'ERR_FS_ENOTDIR');
+      assert.strictEqual(err.name, 'SystemError');
+      assert.match(err.message, /^not a directory/);
+      assert.strictEqual(err.info.code, 'ENOTDIR');
+      assert.strictEqual(err.info.message, 'not a directory');
+      assert.strictEqual(err.info.path, filePath);
+      assert.strictEqual(err.info.syscall, 'rmdir');
+      assert.strictEqual(err.info.errno, -20);
     } finally {
       fs.unlinkSync(filePath);
     }
@@ -154,9 +159,16 @@ function removeAsync(dir) {
     assert.throws(() => {
       fs.rmdirSync(filePath, { recursive: true });
     }, {
-      code: 'ERR_INVALID_ARG_VALUE',
-      name: 'TypeError',
-      message: /^The argument 'path' is not a directory\./
+      code: 'ERR_FS_ENOTDIR',
+      name: 'SystemError',
+      message: /^not a directory/,
+      info: {
+        code: 'ENOTDIR',
+        message: 'not a directory',
+        path: filePath,
+        syscall: 'rmdir',
+        errno: -20
+      }
     });
   } finally {
     fs.unlinkSync(filePath);
@@ -203,9 +215,16 @@ function removeAsync(dir) {
       filePath,
       { recursive: true }
     ), {
-      code: 'ERR_INVALID_ARG_VALUE',
-      name: 'TypeError',
-      message: /^The argument 'path' is not a directory\./
+      code: 'ERR_FS_ENOTDIR',
+      name: 'SystemError',
+      message: /^not a directory/,
+      info: {
+        code: 'ENOTDIR',
+        message: 'not a directory',
+        path: filePath,
+        syscall: 'rmdir',
+        errno: -20
+      }
     });
   } finally {
     fs.unlinkSync(filePath);
