@@ -2370,7 +2370,7 @@ Synchronous lchown(2). Returns `undefined`.
 
 ## `fs.lutimes(path, atime, mtime, callback)`
 <!-- YAML
-addded: REPLACEME
+added: REPLACEME
 -->
 
 * `path` {string|Buffer|URL}
