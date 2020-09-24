@@ -1160,8 +1160,6 @@ class Environment : public MemoryRetainer {
 
   inline bool filehandle_close_warning() const;
   inline void set_filehandle_close_warning(bool on);
-  inline bool emit_insecure_umask_warning() const;
-  inline void set_emit_insecure_umask_warning(bool on);
 
   inline void set_source_maps_enabled(bool on);
   inline bool source_maps_enabled() const;
@@ -1386,7 +1384,6 @@ class Environment : public MemoryRetainer {
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
   bool emit_filehandle_warning_ = true;
-  bool emit_insecure_umask_warning_ = true;
   bool source_maps_enabled_ = false;
 
   size_t async_callback_scope_depth_ = 0;

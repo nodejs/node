@@ -206,17 +206,6 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
 
   uint32_t old;
   if (args[0]->IsUndefined()) {
-    if (env->emit_insecure_umask_warning()) {
-      env->set_emit_insecure_umask_warning(false);
-      if (ProcessEmitDeprecationWarning(
-              env,
-              "Calling process.umask() with no arguments is prone to race "
-              "conditions and is a potential security vulnerability.",
-              "DEP0139").IsNothing()) {
-        return;
-      }
-    }
-
     old = umask(0);
     umask(static_cast<mode_t>(old));
   } else {
