@@ -92,13 +92,13 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
   if ((sa->sa_family == AF_INET) &&
       (salen == sizeof(struct sockaddr_in)))
     {
-      addr = (struct sockaddr_in *)sa;
+      addr = CARES_INADDR_CAST(struct sockaddr_in *, sa);
       port = addr->sin_port;
     }
   else if ((sa->sa_family == AF_INET6) &&
            (salen == sizeof(struct sockaddr_in6)))
     {
-      addr6 = (struct sockaddr_in6 *)sa;
+      addr6 = CARES_INADDR_CAST(struct sockaddr_in6 *, sa);
       port = addr6->sin6_port;
     }
   else
