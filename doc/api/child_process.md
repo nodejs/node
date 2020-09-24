@@ -43,6 +43,10 @@ the first one case-insensitively matching `PATH` to perform command lookup.
 This may lead to issues on Windows when passing objects to `env` option that
 have multiple variants of `PATH` variable.
 
+On Windows Node.js will sanitize the `env` by removing case-insensitive
+duplicates. Only first (in lexicographic order) entry will be passed to the
+child process.
+
 The [`child_process.spawn()`][] method spawns the child process asynchronously,
 without blocking the Node.js event loop. The [`child_process.spawnSync()`][]
 function provides equivalent functionality in a synchronous manner that blocks
@@ -1389,9 +1393,9 @@ connection to the child.
 
 ### `subprocess.signalCode`
 
-* {integer}
+* {string|null}
 
-The `subprocess.signalCode` property indicates the signal number received by
+The `subprocess.signalCode` property indicates the signal received by
 the child process if any, else `null`.
 
 ### `subprocess.spawnargs`

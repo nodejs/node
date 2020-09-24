@@ -36,7 +36,9 @@ const env = {
   'HELLO': 'WORLD',
   'UNDEFINED': undefined,
   'NULL': null,
-  'EMPTY': ''
+  'EMPTY': '',
+  'duplicate': 'lowercase',
+  'DUPLICATE': 'uppercase',
 };
 Object.setPrototypeOf(env, {
   'FOO': 'BAR'
@@ -65,4 +67,11 @@ child.stdout.on('end', mustCall(() => {
   assert.ok(!response.includes('UNDEFINED=undefined'));
   assert.ok(response.includes('NULL=null'));
   assert.ok(response.includes(`EMPTY=${os.EOL}`));
+  if (isWindows) {
+    assert.ok(response.includes('DUPLICATE=uppercase'));
+    assert.ok(!response.includes('duplicate=lowercase'));
+  } else {
+    assert.ok(response.includes('DUPLICATE=uppercase'));
+    assert.ok(response.includes('duplicate=lowercase'));
+  }
 }));
