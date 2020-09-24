@@ -11,7 +11,7 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 Last update:
 
 - console: https://github.com/web-platform-tests/wpt/tree/9786a4b131/console
-- encoding: https://github.com/web-platform-tests/wpt/tree/5059d2c777/encoding
+- encoding: https://github.com/web-platform-tests/wpt/tree/d7f9e16c9a/encoding
 - url: https://github.com/web-platform-tests/wpt/tree/418f7fabeb/url
 - resources: https://github.com/web-platform-tests/wpt/tree/e1fddfbf80/resources
 - interfaces: https://github.com/web-platform-tests/wpt/tree/8ada332aea/interfaces
