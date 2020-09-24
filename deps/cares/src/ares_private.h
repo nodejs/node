@@ -50,6 +50,11 @@
 #define STATIC_TESTABLE static
 #endif
 
+/* By using a double cast, we can get rid of the bogus warning of
+ * warning: cast from 'const struct sockaddr *' to 'const struct sockaddr_in6 *' increases required alignment from 1 to 4 [-Wcast-align]
+ */
+#define CARES_INADDR_CAST(type, var) ((type)((void *)var))
+
 #if defined(WIN32) && !defined(WATT32)
 
 #define WIN_NS_9X            "System\\CurrentControlSet\\Services\\VxD\\MSTCP"

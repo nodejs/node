@@ -1,85 +1,30 @@
-c-ares version 1.16.0
+c-ares version 1.16.1
+
+Security:
+ o Prevent possible use-after-free and double-free in ares_getaddrinfo() if
+   ares_destroy() is called prior to ares_getaddrinfo() completing.  Reported
+   by Jann Horn at Google Project Zero.
 
 Changes:
- o Introduction of ares_getaddrinfo() API which provides similar output
-   (including proper sorting as per RFC 6724) to the system native API, but
-   utilizes different data structures in order to provide additional information
-   such as TTLs and all aliases.  Please reference the respective man pages for
-   usage details. [3] [4] [5] [7] [8] [13] [14] [15] [16] [17] [22]
- o Parse SOA records from ns_t_any response [29] [30]
- o CMake: Provide c-ares version in package export file [24]
- o CMake: Add CPACK functionality for DEB and RPM [28]
- o CMake: Generate PDB files during build [33] [34]
- o CMake: Support manpage installation [37] [38]
+ o Allow TXT records on CHAOS qclass.  Used for retriving things like
+   version.bind, version.server, authoris.bind, hostname.bind, and id.server.
+   [3]
 
 Bug fixes:
- o Fix bad expectation in IPv6 localhost test. [1] [2]
- o AutoTools: use XC_CHECK_BUILD_FLAGS instead of XC_CHECK_USER_FLAGS to prevent
-   complaints about CPPFLAGS in CFLAGS. [6]
- o Fix .onion handling
- o Command line usage was out of date for adig and ahost. [18]
- o Typos in manpages [19] [20]
- o If ares_getenv is defined, it must return a value on all platforms [21]
- o If /etc/resolv.conf has invalid lookup values, use the defaults. [23]
- o Tests: Separate live tests from SetServers* tests as only live tests should
-   require internet access. [25]
- o ares_gethostbyname() should return ENODATA if no valid A or AAAA record is
-   found, but a CNAME was found. [26] [27]
- o CMake: Rework library function checking to prevent unintended linking with
-   system libraries that aren't needed. [31] [32]
- o Due to use of inet_addr() it was not possible to return 255.255.255.255 from
-   ares_gethostbyname(). [35] [36]
- o CMake: Fix building of tests on Windows
+ o Fix Windows Unicode incompatibilities with ares_getaddrinfo() [1]
+ o Silence false cast-align compiler warnings due to valid casts of
+   struct sockaddr to struct sockaddr_in and struct sockaddr_in6.
+ o MacOS should use libresolv for retrieving DNS servers, like iOS
+ o CMake build system should populate the INCLUDE_DIRECTORIES property of 
+   installed targets [2]
+ o Correct macros in use for the ares_getaddrinfo.3 man page
 
 Thanks go to these friendly people for their efforts and contributions:
- Abhishek Arya (@inferno-chromium), Adam Majer (@AdamMajer),
- Andrew Selivanov (@ki11roy), Ben Noordhuis (@bnoordhuis),
- Brad House (@bradh352), Christian Ammer (@ChristianAmmer), Dan Noé (@dnoe),
- Daniel Stenberg (@bagder), Darrin Cullop (@dwcullop),
- Dron Rathore (@DronRathore), Fabrice Fontaine (@ffontaine),
- Gregor Jasny (@gjasny), @kedixa, Khaidi Chu (@XadillaX),
- Kyle Edwards (@KyleFromKitware), @lifenjoiner, Michal Rostecki (@mrostecki),
- Peter Eisentraut (@petere), Piotr Pietraszkiewicz (@ppietrasa),
- Stephen Bryant (@bf-bryants), @tjwalton, Vy Nguyen (@oontvoo)
- (22 contributors)
+ Brad House (@bradh352), Daniel Stenberg (@bagder), Dmitry Igrishin (@dmitigr),
+ Jann Horn, Shelly Vohr, Teemu R (@rytilahti)
+ (6 contributors)
 
 References to bug reports and discussions on issues:
- [1] = https://github.com/c-ares/c-ares/pull/227
- [2] = https://github.com/c-ares/c-ares/issues/85
- [3] = https://github.com/c-ares/c-ares/pull/112
- [4] = https://github.com/c-ares/c-ares/pull/233
- [5] = https://github.com/c-ares/c-ares/pull/234
- [6] = https://github.com/c-ares/c-ares/pull/236
- [7] = https://github.com/c-ares/c-ares/pull/235
- [8] = https://github.com/c-ares/c-ares/pull/239
- [9] = https://github.com/c-ares/c-ares/pull/241
- [10] = https://github.com/c-ares/c-ares/pull/187
- [11] = https://github.com/c-ares/c-ares/pull/252
- [12] = https://github.com/c-ares/c-ares/issues/251
- [13] = https://github.com/c-ares/c-ares/pull/258
- [14] = https://github.com/c-ares/c-ares/pull/257
- [15] = https://github.com/c-ares/c-ares/pull/262
- [16] = https://github.com/c-ares/c-ares/pull/264
- [17] = https://github.com/c-ares/c-ares/pull/265
- [18] = https://github.com/c-ares/c-ares/pull/256
- [19] = https://github.com/c-ares/c-ares/pull/269
- [20] = https://github.com/c-ares/c-ares/pull/275
- [21] = https://github.com/c-ares/c-ares/pull/279
- [22] = https://github.com/c-ares/c-ares/pull/290
- [23] = https://github.com/c-ares/c-ares/pull/274
- [24] = https://github.com/c-ares/c-ares/pull/296
- [25] = https://github.com/c-ares/c-ares/pull/299
- [26] = https://github.com/c-ares/c-ares/pull/304
- [27] = https://github.com/c-ares/c-ares/issues/303
- [28] = https://github.com/c-ares/c-ares/pull/283
- [29] = https://github.com/c-ares/c-ares/pull/103
- [30] = https://github.com/c-ares/c-ares/issues/102
- [31] = https://github.com/c-ares/c-ares/pull/310
- [32] = https://github.com/c-ares/c-ares/issues/307
- [33] = https://github.com/c-ares/c-ares/pull/311
- [34] = https://github.com/c-ares/c-ares/issues/245
- [35] = https://github.com/c-ares/c-ares/issues/309
- [36] = https://github.com/c-ares/c-ares/pull/312
- [37] = https://github.com/c-ares/c-ares/issues/297
- [38] = https://github.com/c-ares/c-ares/pull/314
-
+ [1] = https://github.com/c-ares/c-ares/pull/328
+ [2] = https://github.com/c-ares/c-ares/pull/323
+ [3] = https://github.com/c-ares/c-ares/pull/321

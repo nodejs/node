@@ -1337,13 +1337,13 @@ static int same_address(struct sockaddr *sa, struct ares_addr *aa)
         {
           case AF_INET:
             addr1 = &aa->addrV4;
-            addr2 = &((struct sockaddr_in *)sa)->sin_addr;
+            addr2 = &(CARES_INADDR_CAST(struct sockaddr_in *, sa))->sin_addr;
             if (memcmp(addr1, addr2, sizeof(aa->addrV4)) == 0)
               return 1; /* match */
             break;
           case AF_INET6:
             addr1 = &aa->addrV6;
-            addr2 = &((struct sockaddr_in6 *)sa)->sin6_addr;
+            addr2 = &(CARES_INADDR_CAST(struct sockaddr_in6 *, sa))->sin6_addr;
             if (memcmp(addr1, addr2, sizeof(aa->addrV6)) == 0)
               return 1; /* match */
             break;
