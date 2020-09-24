@@ -787,11 +787,13 @@ bool ToASCII(const std::string& input, std::string* output) {
 #else
 // Intentional non-ops if ICU is not present.
 bool ToUnicode(const std::string& input, std::string* output) {
+  std::cerr << "Warning: Cannot convert to unicode when intl is disabled!\n";
   *output = input;
   return true;
 }
 
 bool ToASCII(const std::string& input, std::string* output) {
+  std::cerr << "Warning: Cannot convert to ASCII when intl is disabled!\n";
   *output = input;
   return true;
 }
