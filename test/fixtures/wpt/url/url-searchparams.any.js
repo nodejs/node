@@ -7,7 +7,7 @@ function runURLSearchParamTests() {
     var url = bURL('http://example.org/?a=b')
     assert_true("searchParams" in url)
     var searchParams = url.searchParams
-    assert_true(url.searchParams === searchParams, 'Object identity should hold.')
+    assert_equals(url.searchParams, searchParams, 'Object identity should hold.')
   }, 'URL.searchParams getter')
 
   test(function() {
