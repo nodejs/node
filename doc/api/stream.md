@@ -379,6 +379,10 @@ See also: [`writable.uncork()`][], [`writable._writev()`][stream-_writev].
 ##### `writable.destroy([error])`
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/29197
+    description: Work as noop when called on an already `destroyed` stream.
 -->
 
 * `error` {Error} Optional, an error to emit with `'error'` event.
@@ -961,6 +965,10 @@ called and `readableFlowing` is not `true`.
 ##### `readable.destroy([error])`
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/29197
+    description: Work as noop when called on an already `destroyed` stream.
 -->
 
 * `error` {Error} Error which will be passed as payload in `'error'` event
@@ -1525,6 +1533,10 @@ Examples of `Transform` streams include:
 ##### `transform.destroy([error])`
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/29197
+    description: Work as noop when called on an already `destroyed` stream.
 -->
 
 * `error` {Error}
