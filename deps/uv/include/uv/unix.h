@@ -69,6 +69,8 @@
 # include "uv/posix.h"
 #elif defined(__HAIKU__)
 # include "uv/posix.h"
+#elif defined(__QNX__)
+# include "uv/posix.h"
 #endif
 
 #ifndef NI_MAXHOST
