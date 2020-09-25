@@ -56,31 +56,6 @@ int uv__platform_loop_init(uv_loop_t* loop) {
 void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
-
-#ifdef __DragonFly__
-int uv_exepath(char* buffer, size_t* size) {
-  char abspath[PATH_MAX * 2 + 1];
-  ssize_t abspath_size;
-
-  if (buffer == NULL || size == NULL || *size == 0)
-    return UV_EINVAL;
-
-  abspath_size = readlink("/proc/curproc/file", abspath, sizeof(abspath));
-  if (abspath_size < 0)
-    return UV__ERR(errno);
-
-  assert(abspath_size > 0);
-  *size -= 1;
-
-  if (*size > abspath_size)
-    *size = abspath_size;
-
-  memcpy(buffer, abspath, *size);
-  buffer[*size] = '\0';
-
-  return 0;
-}
-#else
 int uv_exepath(char* buffer, size_t* size) {
   char abspath[PATH_MAX * 2 + 1];
   int mib[4];
@@ -110,7 +85,6 @@ int uv_exepath(char* buffer, size_t* size) {
 
   return 0;
 }
-#endif
 
 uint64_t uv_get_free_memory(void) {
   int freecount;
@@ -290,25 +264,18 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 }
 
 
-int uv__sendmmsg(int fd,
-                 struct uv__mmsghdr* mmsg,
-                 unsigned int vlen,
-                 unsigned int flags) {
+int uv__sendmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen) {
 #if __FreeBSD__ >= 11
-  return sendmmsg(fd, mmsg, vlen, flags);
+  return sendmmsg(fd, mmsg, vlen, /* flags */ 0);
 #else
   return errno = ENOSYS, -1;
 #endif
 }
 
 
-int uv__recvmmsg(int fd,
-                 struct uv__mmsghdr* mmsg,
-                 unsigned int vlen,
-                 unsigned int flags,
-                 struct timespec* timeout) {
+int uv__recvmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen) {
 #if __FreeBSD__ >= 11
-  return recvmmsg(fd, mmsg, vlen, flags, timeout);
+  return recvmmsg(fd, mmsg, vlen, 0 /* flags */, NULL /* timeout */);
 #else
   return errno = ENOSYS, -1;
 #endif

@@ -100,13 +100,13 @@ static void connect_local_cb(uv_connect_t* req, int status) {
   connect_cb_called++;
 }
 
-static int is_supported_system() {
+static int is_supported_system(void) {
   int semver[3];
   int min_semver[3] = {10, 0, 16299};
   int cnt;
   uv_utsname_t uname;
   ASSERT_EQ(uv_os_uname(&uname), 0);
-  if (strcmp(uname.sysname, "Windows_NT") == 0) {    
+  if (strcmp(uname.sysname, "Windows_NT") == 0) {
     cnt = sscanf(uname.release, "%d.%d.%d", &semver[0], &semver[1], &semver[2]);
     if (cnt != 3) {
       return 0;
