@@ -580,6 +580,15 @@ This property contains the number of bytes (or objects) in the queue
 ready to be written. The value provides introspection data regarding
 the status of the `highWaterMark`.
 
+##### `writable.writableNeedDrain`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` if the stream's buffer has been full and stream will emit `'drain'`.
+
 ##### `writable.writableObjectMode`
 <!-- YAML
 added: v12.3.0
