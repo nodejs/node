@@ -614,6 +614,12 @@ enum uv_udp_flags {
    * must not be freed by the recv_cb callback.
    */
   UV_UDP_MMSG_CHUNK = 8,
+  /*
+   * Indicates that the buffer provided has been fully utilized by recvmmsg and
+   * that it should now be freed by the recv_cb callback. When this flag is set
+   * in uv_udp_recv_cb, nread will always be 0 and addr will always be NULL.
+   */
+  UV_UDP_MMSG_FREE = 16,
 
   /*
    * Indicates that recvmmsg should be used, if available.
@@ -865,6 +871,7 @@ UV_EXTERN int uv_timer_stop(uv_timer_t* handle);
 UV_EXTERN int uv_timer_again(uv_timer_t* handle);
 UV_EXTERN void uv_timer_set_repeat(uv_timer_t* handle, uint64_t repeat);
 UV_EXTERN uint64_t uv_timer_get_repeat(const uv_timer_t* handle);
+UV_EXTERN uint64_t uv_timer_get_due_in(const uv_timer_t* handle);
 
 
 /*

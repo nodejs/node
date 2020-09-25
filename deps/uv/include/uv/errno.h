@@ -317,7 +317,7 @@
 #if defined(EPROTO) && !defined(_WIN32)
 # define UV__EPROTO UV__ERR(EPROTO)
 #else
-# define UV__EPROTO UV__ERR(4046)
+# define UV__EPROTO (-4046)
 #endif
 
 #if defined(EPROTONOSUPPORT) && !defined(_WIN32)
