@@ -13,9 +13,6 @@
     "fail": "getter/setter names are wrong, etc."
   },
   "urlsearchparams-constructor.any.js": {
-    "fail": "TODO: fix https://github.com/nodejs/node/issues/33892"
-  },
-  "urlsearchparams-stringifier.any.js": {
-    "fail": "TODO: fix https://github.com/nodejs/node/issues/33892"
+    "fail": "FormData is not defined"
   }
 }
