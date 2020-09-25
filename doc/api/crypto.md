@@ -1030,7 +1030,7 @@ const fs = require('fs');
 const hash = crypto.createHash('sha256');
 
 const input = fs.createReadStream('test.js');
-input.pipe(hash).pipe(process.stdout);
+input.pipe(hash).setEncoding('hex').pipe(process.stdout);
 ```
 
 Example: Using the [`hash.update()`][] and [`hash.digest()`][] methods:
