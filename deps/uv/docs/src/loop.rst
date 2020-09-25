@@ -73,6 +73,8 @@ API
 
       This option is necessary to use :c:func:`uv_metrics_idle_time`.
 
+    .. versionchanged:: 1.39.0 added the UV_METRICS_IDLE_TIME option.
+
 .. c:function:: int uv_loop_close(uv_loop_t* loop)
 
     Releases all internal loop resources. Call this function only when the loop

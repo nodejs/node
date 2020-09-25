@@ -146,7 +146,7 @@ if(WIN32)
   list(APPEND uv_test_sources src/win/snprintf.c test/runner-win.c)
 else()
   list(APPEND uv_defines _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE)
-  if(NOT CMAKE_SYSTEM_NAME MATCHES "Android|OS390")
+  if(NOT CMAKE_SYSTEM_NAME MATCHES "Android|OS390|QNX")
     # TODO: This should be replaced with find_package(Threads) if possible
     # Android has pthread as part of its c library, not as a separate
     # libpthread.so.
@@ -296,6 +296,30 @@ if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   list(APPEND uv_defines __EXTENSIONS__ _XOPEN_SOURCE=500)
   list(APPEND uv_libraries kstat nsl sendfile socket)
   list(APPEND uv_sources src/unix/no-proctitle.c src/unix/sunos.c)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+  list(APPEND uv_defines _BSD_SOURCE)
+  list(APPEND uv_libraries bsd network)
+  list(APPEND uv_sources
+	  src/unix/haiku.c
+	  src/unix/bsd-ifaddrs.c
+	  src/unix/no-fsevents.c
+	  src/unix/no-proctitle.c
+	  src/unix/posix-hrtime.c
+	  src/unix/posix-poll.c)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "QNX")
+  list(APPEND uv_sources
+    src/unix/posix-hrtime.c
+    src/unix/posix-poll.c
+    src/unix/qnx.c
+    src/unix/bsd-ifaddrs.c
+    src/unix/no-proctitle.c
+    src/unix/no-fsevents.c)
+  list(APPEND uv_cflags -fno-strict-aliasing)
+  list(APPEND uv_libraries socket)
 endif()
 
 if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|Linux|NetBSD|OpenBSD")
@@ -568,10 +592,11 @@ if(UNIX OR MINGW)
   set(libdir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
   set(prefix ${CMAKE_INSTALL_PREFIX})
   configure_file(libuv.pc.in libuv.pc @ONLY)
+  configure_file(libuv-static.pc.in libuv-static.pc @ONLY)
 
   install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
   install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DOCDIR})
-  install(FILES ${PROJECT_BINARY_DIR}/libuv.pc
+  install(FILES ${PROJECT_BINARY_DIR}/libuv.pc ${PROJECT_BINARY_DIR}/libuv-static.pc
           DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
   install(TARGETS uv LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
   install(TARGETS uv_a ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})

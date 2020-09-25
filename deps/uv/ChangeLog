@@ -1,3 +1,38 @@
+2020.09.26, Version 1.40.0 (Stable), 4e69e333252693bd82d6338d6124f0416538dbfc
+
+Changes since version 1.39.0:
+
+* udp: add UV_UDP_MMSG_FREE recv_cb flag (Ryan Liptak)
+
+* include: re-map UV__EPROTO from 4046 to -4046 (YuMeiJie)
+
+* doc: correct UV_UDP_MMSG_FREE version added (cjihrig)
+
+* doc: add uv_metrics_idle_time() version metadata (Ryan Liptak)
+
+* win,tty: pass through utf-16 surrogate pairs (Mustafa M)
+
+* unix: fix DragonFly BSD build (Aleksej Lebedev)
+
+* win,udp: fix error code returned by connect() (Santiago Gimeno)
+
+* src: suppress user_timeout maybe-uninitialized (Daniel Bevenius)
+
+* test: fix compiler warning (Vladimír Čunát)
+
+* build: fix the Haiku cmake build (David Carlier)
+
+* linux: fix i386 sendmmsg/recvmmsg support (Ben Noordhuis)
+
+* build: add libuv-static pkg-config file (Nikolay Mitev)
+
+* unix,win: add uv_timer_get_due_in() (Ulrik Strid)
+
+* build,unix: add QNX support (Elad Lahav)
+
+* include: remove incorrect UV__ERR() for EPROTO (cjihrig)
+
+
 2020.08.26, Version 1.39.0 (Stable), 25f4b8b8a3c0f934158cd37a37b0525d75ca488e
 
 Changes since version 1.38.1:

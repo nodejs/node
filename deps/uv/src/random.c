@@ -33,7 +33,7 @@ static int uv__random(void* buf, size_t buflen) {
 
 #if defined(__PASE__)
   rc = uv__random_readpath("/dev/urandom", buf, buflen);
-#elif defined(_AIX)
+#elif defined(_AIX) || defined(__QNX__)
   rc = uv__random_readpath("/dev/random", buf, buflen);
 #elif defined(__APPLE__) || defined(__OpenBSD__) || \
      (defined(__ANDROID_API__) && __ANDROID_API__ >= 28)

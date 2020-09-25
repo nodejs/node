@@ -124,6 +124,17 @@ TEST_IMPL(udp_connect) {
 
   buf = uv_buf_init("EXIT", 4);
 
+  // connect() to INADDR_ANY fails on Windows wih WSAEADDRNOTAVAIL
+  ASSERT_EQ(0, uv_ip4_addr("0.0.0.0", TEST_PORT, &tmp_addr));
+  r = uv_udp_connect(&client, (const struct sockaddr*) &tmp_addr);
+#ifdef _WIN32
+  ASSERT_EQ(r, UV_EADDRNOTAVAIL);
+#else
+  ASSERT_EQ(r, 0);
+  r = uv_udp_connect(&client, NULL);
+  ASSERT_EQ(r, 0);
+#endif
+
   ASSERT(0 == uv_ip4_addr("8.8.8.8", TEST_PORT, &ext_addr));
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &lo_addr));
 

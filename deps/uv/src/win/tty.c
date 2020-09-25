@@ -2122,13 +2122,6 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
         abort();
       }
 
-      /* We wouldn't mind emitting utf-16 surrogate pairs. Too bad, the windows
-       * console doesn't really support UTF-16, so just emit the replacement
-       * character. */
-      if (utf8_codepoint > 0xffff) {
-        utf8_codepoint = UNICODE_REPLACEMENT_CHARACTER;
-      }
-
       if (utf8_codepoint == 0x0a || utf8_codepoint == 0x0d) {
         /* EOL conversion - emit \r\n when we see \n. */
 
@@ -2154,6 +2147,12 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
         /* Encode character into utf-16 buffer. */
         ENSURE_BUFFER_SPACE(1);
         utf16_buf[utf16_buf_used++] = (WCHAR) utf8_codepoint;
+        previous_eol = 0;
+      } else {
+        ENSURE_BUFFER_SPACE(2);
+        utf8_codepoint -= 0x10000;
+        utf16_buf[utf16_buf_used++] = (WCHAR) (utf8_codepoint / 0x400 + 0xD800);
+        utf16_buf[utf16_buf_used++] = (WCHAR) (utf8_codepoint % 0x400 + 0xDC00);
         previous_eol = 0;
       }
     }

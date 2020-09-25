@@ -1073,7 +1073,7 @@ int uv__udp_connect(uv_udp_t* handle,
 
   err = connect(handle->socket, addr, addrlen);
   if (err)
-    return uv_translate_sys_error(err);
+    return uv_translate_sys_error(WSAGetLastError());
 
   handle->flags |= UV_HANDLE_UDP_CONNECTED;
 
@@ -1089,7 +1089,7 @@ int uv__udp_disconnect(uv_udp_t* handle) {
 
     err = connect(handle->socket, &addr, sizeof(addr));
     if (err)
-      return uv_translate_sys_error(err);
+      return uv_translate_sys_error(WSAGetLastError());
 
     handle->flags &= ~UV_HANDLE_UDP_CONNECTED;
     return 0;
