@@ -51,6 +51,21 @@ if (channel.hasSubscribers) {
     some: 'data'
   });
 }
+
+// Spans correlate a sequence of events
+const span = channel.span({
+  some: 'start data'
+});
+
+// Annotations are for data not strictly related to the start or end events
+span.annotate({
+  some: 'annotation'
+});
+
+// This end event will share an `id` with the span started above
+span.end({
+  some: 'end data'
+});
 ```
 
 #### `diagnostics_channel.hasSubscribers(name)`
@@ -174,6 +189,140 @@ channel.subscribe(onMessage);
 
 channel.unsubscribe(onMessage);
 ```
+
+#### `channel.span(data)`
+
+* `data` {any} The message to send as the start event of the span
+* Returns: {Span} The span object
+
+Create a span object to tie a sequence of events together. This wraps the input
+data in a new object which includes an action type of `start`, `annotation`, or
+`end` and a numeric id to link span messages together for later reconstitution.
+
+```js
+const diagnostics_channel = require('diagnostics_channel');
+
+const channel = diagnostics_channel.channel('my-channel');
+
+const span = channel.span({
+  some: 'message'
+});
+```
+
+### Class: `Span`
+
+The class `Span` represents a series of messages to send to a named channel.
+It is used to automatically apply a shared id to all messages sent through the
+span enabling later reconstitution of the message sequence.
+
+#### `span.id`
+
+* Returns: {number} Span id
+
+This is a process-unique identifier which allows all messages from this span
+to be correlated.
+
+#### `span.annotate(data)`
+
+* `data` {any} The message to send as an annotation event of the span
+
+Send an `annotation` event to the message sequence.
+
+This is useful for augmenting the span with additional data before completion.
+For example, a library may use a connection pool internally and want to report
+the host name of the acquired connection to a span representing a higher-level
+interaction.
+
+```js
+const diagnostics_channel = require('diagnostics_channel');
+
+const channel = diagnostics_channel.channel('my-channel');
+
+const span = channel.span({
+  some: 'message'
+});
+
+span.annotate({
+  some: 'other message'
+});
+```
+
+#### `span.end(data)`
+
+* `data` {any} The message to send as the end event of the span
+
+Send an `end` event representing the completion of the message sequence.
+
+This will mark the span as complete. Any further attempts to send messages
+through the span will be ignored.
+
+```js
+const diagnostics_channel = require('diagnostics_channel');
+
+const channel = diagnostics_channel.channel('my-channel');
+
+const span = channel.span({
+  some: 'message'
+});
+
+span.end({
+  some: 'other message'
+});
+```
+
+#### `Span.aggregate(channel, [map, ] onSpan)`
+
+* `channel` {Channel} Channel to listen to
+* `map` {Function} Run for each span message
+* `onSpan` {Function} Handler to receive a reconstituted span
+* Returns: {Function} Function to stop the aggregate and unsubscribe
+
+Reconstitutes span events on a channel into an array of events by listening to
+and aggregating events from each span until its end event is reached.
+
+```js
+const diagnostics_channel = require('diagnostics_channel');
+const { Span } = diagnostics_channel;
+
+const channel = diagnostics_channel.channel('my-channel');
+
+function map(spanMessage) {
+  spanMessage.ts = Date.now();
+}
+
+function onSpan(span) {
+  // Receives an array of span events whenver a span is ended.
+}
+
+Span.aggregate(channel, map, onSpan);
+```
+
+### Class: `SpanMessage`
+
+A `SpanMessage` is a container type used to bind a shared id to each message
+within a span and an action name to describe what is happening to the span.
+The action name is one of
+
+#### `spanMessage.id`
+
+* Returns: {number} Span id
+
+This is a process-unique identifier which allows span message events to be
+correlated to a single span.
+
+#### `spanMessage.action`
+
+* Returns: {string} Action name
+
+This describes what action was taken on the span. This may be one of: `start`,
+`end`, and `annotate` which is used to report intermediate data not linked to
+the `start` or `end`.
+
+#### `spanMessage.data`
+
+* Returns: {any} The message data
+
+The `data` contains the message data provided through the `Span` interface.
 
 [`diagnostics_channel.channel(name)`]: #diagnostics_channel_diagnostics_channel_channel_name
 [`channel.subscribe(onMessage)`]: #diagnostics_channel_channel_subscribe_onmessage
