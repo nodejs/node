@@ -10,7 +10,7 @@
 #define NAPI_VERSION 2147483647
 #else
 // The baseline version for N-API
-#define NAPI_VERSION 6
+#define NAPI_VERSION 7
 #endif
 #endif
 
@@ -747,7 +747,7 @@ napi_get_all_property_names(napi_env env,
 
 #endif  // NAPI_VERSION >= 6
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 7
 // ArrayBuffer detaching
 NAPI_EXTERN napi_status
 napi_detach_arraybuffer(napi_env env,
@@ -757,7 +757,7 @@ NAPI_EXTERN napi_status
 napi_is_detached_arraybuffer(napi_env env,
                              napi_value value,
                              bool* result);
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 7
 
 EXTERN_C_END
 

@@ -2951,9 +2951,8 @@ of the ECMAScript Language Specification.
 ### napi_detach_arraybuffer
 <!-- YAML
 added: v10.22.0
+napiVersion: 7
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_detach_arraybuffer(napi_env env,
@@ -2977,9 +2976,8 @@ defined in [Section 24.1.1.3][] of the ECMAScript Language Specification.
 ### napi_is_detached_arraybuffer
 <!-- YAML
 added: v10.22.0
+napiVersion: 7
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_is_detached_arraybuffer(napi_env env,
