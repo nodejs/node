@@ -42,7 +42,7 @@ TEST_IMPL(dlerror) {
 
   msg = uv_dlerror(&lib);
   ASSERT(msg != NULL);
-#ifndef __OpenBSD__
+#if !defined(__OpenBSD__) && !defined(__QNX__)
   ASSERT(strstr(msg, path) != NULL);
 #endif
   ASSERT(strstr(msg, dlerror_no_error) == NULL);
@@ -50,7 +50,7 @@ TEST_IMPL(dlerror) {
   /* Should return the same error twice in a row. */
   msg = uv_dlerror(&lib);
   ASSERT(msg != NULL);
-#ifndef __OpenBSD__
+#if !defined(__OpenBSD__) && !defined(__QNX__)
   ASSERT(strstr(msg, path) != NULL);
 #endif
   ASSERT(strstr(msg, dlerror_no_error) == NULL);
