@@ -469,6 +469,12 @@ code. If you wish to create the token yourself in advance, see
 
 ### Technical HOWTO
 
+Infrequently, it is necessary to manually perform the steps required to land a
+pull request rather than rely on `git-node`.
+
+<details>
+<Summary>Manual Landing Steps</Summary>
+
 Clear any `am`/`rebase` that might already be underway:
 
 ```text
@@ -625,6 +631,8 @@ Close the pull request with a "Landed in `<commit hash>`" comment. Even if
 your pull request shows the purple merged status,
 add the "Landed in \<commit hash>..\<commit hash>" comment if you added
 more than one commit.
+
+</details>
 
 ### Troubleshooting
 
