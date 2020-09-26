@@ -1362,6 +1362,42 @@ napi_status napi_define_properties(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status napi_object_freeze(napi_env env,
+                               napi_value object) {
+  NAPI_PREAMBLE(env);
+
+  v8::Local<v8::Context> context = env->context();
+  v8::Local<v8::Object> obj;
+
+  CHECK_TO_OBJECT(env, context, obj, object);
+
+  v8::Maybe<bool> set_frozen =
+    obj->SetIntegrityLevel(context, v8::IntegrityLevel::kFrozen);
+
+  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env,
+    set_frozen.FromMaybe(false), napi_generic_failure);
+
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_object_seal(napi_env env,
+                             napi_value object) {
+  NAPI_PREAMBLE(env);
+
+  v8::Local<v8::Context> context = env->context();
+  v8::Local<v8::Object> obj;
+
+  CHECK_TO_OBJECT(env, context, obj, object);
+
+  v8::Maybe<bool> set_sealed =
+    obj->SetIntegrityLevel(context, v8::IntegrityLevel::kSealed);
+
+  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env,
+    set_sealed.FromMaybe(false), napi_generic_failure);
+
+  return GET_RETURN_STATUS(env);
+}
+
 napi_status napi_is_array(napi_env env, napi_value value, bool* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, value);

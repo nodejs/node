@@ -275,3 +275,43 @@ assert.deepStrictEqual(test_object.TestGetProperty(), {
   keyIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument'
 });
+
+{
+  const obj = { x: 'a', y: 'b', z: 'c' };
+
+  test_object.TestSeal(obj);
+
+  assert.strictEqual(Object.isSealed(obj), true);
+
+  assert.throws(() => {
+    obj.w = 'd';
+  }, /Cannot add property w, object is not extensible/);
+
+  assert.throws(() => {
+    delete obj.x;
+  }, /Cannot delete property 'x' of #<Object>/);
+
+  // Sealed objects allow updating existing properties,
+  // so this should not throw.
+  obj.x = 'd';
+}
+
+{
+  const obj = { x: 10, y: 10, z: 10 };
+
+  test_object.TestFreeze(obj);
+
+  assert.strictEqual(Object.isFrozen(obj), true);
+
+  assert.throws(() => {
+    obj.x = 10;
+  }, /Cannot assign to read only property 'x' of object '#<Object>/);
+
+  assert.throws(() => {
+    obj.w = 15;
+  }, /Cannot add property w, object is not extensible/);
+
+  assert.throws(() => {
+    delete obj.x;
+  }, /Cannot delete property 'x' of #<Object>/);
+}

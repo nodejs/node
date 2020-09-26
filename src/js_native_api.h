@@ -550,6 +550,10 @@ napi_check_object_type_tag(napi_env env,
                            napi_value value,
                            const napi_type_tag* type_tag,
                            bool* result);
+NAPI_EXTERN napi_status napi_object_freeze(napi_env env,
+                                           napi_value object);
+NAPI_EXTERN napi_status napi_object_seal(napi_env env,
+                                         napi_value object);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

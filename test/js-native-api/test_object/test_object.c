@@ -472,6 +472,30 @@ static napi_value TestGetProperty(napi_env env,
   return object;
 }
 
+static napi_value TestFreeze(napi_env env,
+                             napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  napi_value object = args[0];
+  NAPI_CALL(env, napi_object_freeze(env, object));
+
+  return object;
+}
+
+static napi_value TestSeal(napi_env env,
+                           napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  napi_value object = args[0];
+  NAPI_CALL(env, napi_object_seal(env, object));
+
+  return object;
+}
+
 // We create two type tags. They are basically 128-bit UUIDs.
 static const napi_type_tag type_tags[2] = {
   { 0xdaf987b3cc62481a, 0xb745b0497f299531 },
@@ -532,6 +556,8 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NAPI_PROPERTY("TypeTaggedInstance", TypeTaggedInstance),
     DECLARE_NAPI_PROPERTY("CheckTypeTag", CheckTypeTag),
     DECLARE_NAPI_PROPERTY("TestGetProperty", TestGetProperty),
+    DECLARE_NAPI_PROPERTY("TestFreeze", TestFreeze),
+    DECLARE_NAPI_PROPERTY("TestSeal", TestSeal),
   };
 
   init_test_null(env, exports);
