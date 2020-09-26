@@ -1492,42 +1492,42 @@
         'conditions': [
           ['clang or OS!="win"', {
             'conditions': [
-              ['v8_target_arch=="x64"', {
+              ['v8_current_cpu=="x64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_asm.cc',
                 ],
               }],
-              ['v8_target_arch=="ia32"', {
+              ['v8_current_cpu=="ia32"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_asm.cc',
                 ],
               }],
-              ['v8_target_arch=="arm"', {
+              ['v8_current_cpu=="arm"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/arm/push_registers_asm.cc',
                 ],
               }],
-              ['v8_target_arch=="arm64"', {
+              ['v8_current_cpu=="arm64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_asm.cc',
                 ],
               }],
-              ['v8_target_arch=="ppc64"', {
+              ['v8_current_cpu=="ppc64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/ppc/push_registers_asm.cc',
                 ],
               }],
-              ['v8_target_arch=="s390x"', {
+              ['v8_current_cpu=="s390x"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/s390/push_registers_asm.cc',
                 ],
               }],
-              ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
+              ['v8_current_cpu=="mips" or v8_current_cpu=="mipsel"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/mips/push_registers_asm.cc',
                 ],
               }],
-              ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
+              ['v8_current_cpu=="mips64" or v8_current_cpu=="mips64el"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/mpis64/push_registers_asm.cc',
                 ],
@@ -1536,17 +1536,17 @@
           }],
           ['OS=="win"', {
             'conditions': [
-              ['v8_target_arch=="x64"', {
+              ['v8_current_cpu=="x64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.S',
                 ],
               }],
-              ['v8_target_arch=="ia32"', {
+              ['v8_current_cpu=="ia32"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.S',
                 ],
               }],
-              ['v8_target_arch=="arm64"', {
+              ['v8_current_cpu=="arm64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_masm.S',
                 ],
