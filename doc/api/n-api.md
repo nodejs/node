@@ -1526,11 +1526,11 @@ for a reference is 0, all subsequent calls to
 get the object associated with the reference [`napi_get_reference_value`][]
 will return `NULL` for the returned `napi_value`. An attempt to call
 [`napi_reference_ref`][] for a reference whose object has been collected
-will result in an error.
+results in an error.
 
 References must be deleted once they are no longer required by the addon. When
-a reference is deleted it will no longer prevent the corresponding object from
-being collected. Failure to delete a persistent reference will result in
+a reference is deleted, it will no longer prevent the corresponding object from
+being collected. Failure to delete a persistent reference results in
 a 'memory leak' with both the native memory for the persistent reference and
 the corresponding object on the heap being retained forever.
 
@@ -3092,7 +3092,7 @@ napi_status napi_get_value_string_latin1(napi_env env,
   passed in, the length of the string in bytes and excluding the null terminator
   is returned in `result`.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string will be truncated and null-terminated.
+  insufficient, the returned string is truncated and null-terminated.
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
@@ -3122,7 +3122,7 @@ napi_status napi_get_value_string_utf8(napi_env env,
   in, the length of the string in bytes and excluding the null terminator is
   returned in `result`.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string will be truncated and null-terminated.
+  insufficient, the returned string is truncated and null-terminated.
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
@@ -3151,7 +3151,7 @@ napi_status napi_get_value_string_utf16(napi_env env,
   passed in, the length of the string in 2-byte code units and excluding the
   null terminator is returned.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string will be truncated and null-terminated.
+  insufficient, the returned string is truncated and null-terminated.
 * `[out] result`: Number of 2-byte code units copied into the buffer, excluding
   the null terminator.
 
@@ -5141,8 +5141,8 @@ napi_status napi_async_init(napi_env env,
 * `[in] async_resource`: Object associated with the async work
   that will be passed to possible `async_hooks` [`init` hooks][].
   In order to retain ABI compatibility with previous versions,
-  passing `NULL` for `async_resource` will not result in an error, however,
-  this will result incorrect operation of async hooks for the
+  passing `NULL` for `async_resource` does not result in an error. However,
+  this results in incorrect operation of async hooks for the
   napi_async_context created. Potential issues include
   loss of async context when using the AsyncLocalStorage API.
 * `[in] async_resource_name`: Identifier for the kind of resource
@@ -5194,7 +5194,7 @@ NAPI_EXTERN napi_status napi_make_callback(napi_env env,
    invoking the callback. This should normally be a value previously
    obtained from [`napi_async_init`][].
    In order to retain ABI compatibility with previous versions, passing `NULL`
-   for `async_context` will not result in an error. However, this will result
+   for `async_context` does not result in an error. However, this results
    in incorrect operation of async hooks. Potential issues include loss of
    async context when using the `AsyncLocalStorage` API.
 * `[in] recv`: The `this` object passed to the called function.
