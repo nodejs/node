@@ -163,6 +163,8 @@ module.exports = {
             return node.type === "VariableDeclarator" &&
                 node.id.type === "Identifier" &&
                 node.init.type === "MemberExpression" &&
+                !node.init.computed &&
+                node.init.property.type === "Identifier" &&
                 node.id.name === node.init.property.name;
         }
 
