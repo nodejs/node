@@ -64,7 +64,8 @@
 
 {{## def.nonEmptySchema:_schema:
   (it.opts.strictKeywords
-    ? typeof _schema == 'object' && Object.keys(_schema).length > 0
+    ? (typeof _schema == 'object' && Object.keys(_schema).length > 0)
+      || _schema === false
     : it.util.schemaHasRules(_schema, it.RULES.all))
 #}}
 
