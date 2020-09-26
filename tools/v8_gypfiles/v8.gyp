@@ -1492,42 +1492,42 @@
         'conditions': [
           ['clang or OS!="win"', {
             'conditions': [
-              ['v8_current_cpu=="x64"', {
+              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_asm.cc',
                 ],
               }],
-              ['v8_current_cpu=="ia32"', {
+              ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_asm.cc',
                 ],
               }],
-              ['v8_current_cpu=="arm"', {
+              ['_toolset == "host" and host_arch == "arm" or _toolset == "target" and target_arch=="arm"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/arm/push_registers_asm.cc',
                 ],
               }],
-              ['v8_current_cpu=="arm64"', {
+              ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_asm.cc',
                 ],
               }],
-              ['v8_current_cpu=="ppc64"', {
+              ['_toolset == "host" and host_arch == "ppc64" or _toolset == "target" and target_arch=="ppc64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/ppc/push_registers_asm.cc',
                 ],
               }],
-              ['v8_current_cpu=="s390x"', {
+              ['_toolset == "host" and host_arch == "s390x" or _toolset == "target" and target_arch=="s390x"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/s390/push_registers_asm.cc',
                 ],
               }],
-              ['v8_current_cpu=="mips" or v8_current_cpu=="mipsel"', {
+              ['_toolset == "host" and host_arch == "mips" or _toolset == "target" and target_arch=="mips" or _toolset == "host" and host_arch == "mipsel" or _toolset == "target" and target_arch=="mipsel"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/mips/push_registers_asm.cc',
                 ],
               }],
-              ['v8_current_cpu=="mips64" or v8_current_cpu=="mips64el"', {
+              ['_toolset == "host" and host_arch == "mips64" or _toolset == "target" and target_arch=="mips64" or _toolset == "host" and host_arch == "mips64el" or _toolset == "target" and target_arch=="mips64el"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/mpis64/push_registers_asm.cc',
                 ],
@@ -1536,17 +1536,17 @@
           }],
           ['OS=="win"', {
             'conditions': [
-              ['v8_current_cpu=="x64"', {
+              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.S',
                 ],
               }],
-              ['v8_current_cpu=="ia32"', {
+              ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.S',
                 ],
               }],
-              ['v8_current_cpu=="arm64"', {
+              ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_masm.S',
                 ],
