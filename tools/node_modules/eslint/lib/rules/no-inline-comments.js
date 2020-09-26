@@ -21,7 +21,17 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-inline-comments"
         },
 
-        schema: [],
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    ignorePattern: {
+                        type: "string"
+                    }
+                },
+                additionalProperties: false
+            }
+        ],
 
         messages: {
             unexpectedInlineComment: "Unexpected comment inline with code."
@@ -30,6 +40,12 @@ module.exports = {
 
     create(context) {
         const sourceCode = context.getSourceCode();
+        const options = context.options[0];
+        let customIgnoreRegExp;
+
+        if (options && options.ignorePattern) {
+            customIgnoreRegExp = new RegExp(options.ignorePattern, "u");
+        }
 
         /**
          * Will check that comments are not on lines starting with or ending with code
@@ -48,6 +64,11 @@ module.exports = {
 
             // Nothing on both sides
             if (isPreambleEmpty && isPostambleEmpty) {
+                return;
+            }
+
+            // Matches the ignore pattern
+            if (customIgnoreRegExp && customIgnoreRegExp.test(node.value)) {
                 return;
             }
 
@@ -80,9 +101,9 @@ module.exports = {
 
         return {
             Program() {
-                const comments = sourceCode.getAllComments();
-
-                comments.filter(token => token.type !== "Shebang").forEach(testCodeAroundComment);
+                sourceCode.getAllComments()
+                    .filter(token => token.type !== "Shebang")
+                    .forEach(testCodeAroundComment);
             }
         };
     }
