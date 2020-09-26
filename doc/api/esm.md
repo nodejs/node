@@ -949,8 +949,7 @@ The resolver can throw the following errors:
 * _Package Import Not Defined_: Package imports do not define the specifier.
 * _Module Not Found_: The package or module requested does not exist.
 
-<details>
-<summary>Resolver algorithm specification</summary>
+### Resolver Algorithm Specification
 
 **ESM_RESOLVE**(_specifier_, _parentURL_)
 
@@ -1203,8 +1202,6 @@ _internal_, _conditions_)
 > 1. If the file at _packageURL_ does not parse as valid JSON, then
 >    1. Throw an _Invalid Package Configuration_ error.
 > 1. Return the parsed JSON source of the file at _pjsonURL_.
-
-</details>
 
 ### Customizing ESM specifier resolution algorithm
 
