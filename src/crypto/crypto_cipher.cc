@@ -47,6 +47,145 @@ bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
 bool IsValidGCMTagLength(unsigned int tag_len) {
   return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
 }
+
+// Collects and returns information on the given cipher
+void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsObject());
+  Local<Object> info = args[0].As<Object>();
+
+  CHECK(args[1]->IsString() || args[1]->IsInt32());
+
+  const EVP_CIPHER* cipher;
+  if (args[1]->IsString()) {
+    Utf8Value name(env->isolate(), args[1]);
+    cipher = EVP_get_cipherbyname(*name);
+  } else {
+    int nid = args[1].As<Int32>()->Value();
+    cipher = EVP_get_cipherbyname(OBJ_nid2sn(nid));
+  }
+
+  if (cipher == nullptr)
+    return;
+
+  int mode = EVP_CIPHER_mode(cipher);
+  int iv_length = EVP_CIPHER_iv_length(cipher);
+  int key_length = EVP_CIPHER_key_length(cipher);
+  int block_length = EVP_CIPHER_block_size(cipher);
+  const char* mode_label = nullptr;
+  switch (mode) {
+    case EVP_CIPH_CBC_MODE: mode_label = "cbc"; break;
+    case EVP_CIPH_CCM_MODE: mode_label = "ccm"; break;
+    case EVP_CIPH_CFB_MODE: mode_label = "cfb"; break;
+    case EVP_CIPH_CTR_MODE: mode_label = "ctr"; break;
+    case EVP_CIPH_ECB_MODE: mode_label = "ecb"; break;
+    case EVP_CIPH_GCM_MODE: mode_label = "gcm"; break;
+    case EVP_CIPH_OCB_MODE: mode_label = "ocb"; break;
+    case EVP_CIPH_OFB_MODE: mode_label = "ofb"; break;
+    case EVP_CIPH_WRAP_MODE: mode_label = "wrap"; break;
+    case EVP_CIPH_XTS_MODE: mode_label = "xts"; break;
+    case EVP_CIPH_STREAM_CIPHER: mode_label = "stream"; break;
+  }
+
+  // If the testKeyLen and testIvLen arguments are specified,
+  // then we will make an attempt to see if they are usable for
+  // the cipher in question, returning undefined if they are not.
+  // If they are, the info object will be returned with the values
+  // given.
+  if (args[2]->IsInt32() || args[3]->IsInt32()) {
+    // Test and input IV or key length to determine if it's acceptable.
+    // If it is, then the getCipherInfo will succeed with the given
+    // values.
+    CipherCtxPointer ctx(EVP_CIPHER_CTX_new());
+    if (!EVP_CipherInit_ex(ctx.get(), cipher, nullptr, nullptr, nullptr, 1))
+      return;
+
+    if (args[2]->IsInt32()) {
+      int check_len = args[2].As<Int32>()->Value();
+      if (!EVP_CIPHER_CTX_set_key_length(ctx.get(), check_len))
+        return;
+      key_length = check_len;
+    }
+
+    if (args[3]->IsInt32()) {
+      int check_len = args[3].As<Int32>()->Value();
+      // For CCM modes, the IV may be between 7 and 13 bytes.
+      // For GCM and OCB modes, we'll check by attempting to
+      // set the value. For everything else, just check that
+      // check_len == iv_length.
+      switch (mode) {
+        case EVP_CIPH_CCM_MODE:
+          if (check_len < 7 || check_len > 13)
+            return;
+          break;
+        case EVP_CIPH_GCM_MODE:
+          // Fall through
+        case EVP_CIPH_OCB_MODE:
+          if (!EVP_CIPHER_CTX_ctrl(
+                  ctx.get(),
+                  EVP_CTRL_AEAD_SET_IVLEN,
+                  check_len,
+                  nullptr)) {
+            return;
+          }
+          break;
+        default:
+          if (check_len != iv_length)
+            return;
+      }
+      iv_length = check_len;
+    }
+  }
+
+  if (mode_label != nullptr &&
+      info->Set(
+          env->context(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "mode"),
+          OneByteString(env->isolate(), mode_label)).IsNothing()) {
+    return;
+  }
+
+  if (info->Set(
+          env->context(),
+          env->name_string(),
+          OneByteString(env->isolate(), EVP_CIPHER_name(cipher))).IsNothing()) {
+    return;
+  }
+
+  if (info->Set(
+          env->context(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "nid"),
+          Int32::New(env->isolate(), EVP_CIPHER_nid(cipher))).IsNothing()) {
+    return;
+  }
+
+  // Stream ciphers do not have a meaningful block size
+  if (mode != EVP_CIPH_STREAM_CIPHER &&
+      info->Set(
+          env->context(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "blockSize"),
+          Int32::New(env->isolate(), block_length)).IsNothing()) {
+    return;
+  }
+
+  // Ciphers that do not use an IV shouldn't report a length
+  if (iv_length != 0 &&
+      info->Set(
+          env->context(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "ivLength"),
+          Int32::New(env->isolate(), iv_length)).IsNothing()) {
+    return;
+  }
+
+  if (info->Set(
+          env->context(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "keyLength"),
+          Int32::New(env->isolate(), key_length)).IsNothing()) {
+    return;
+  }
+
+  args.GetReturnValue().Set(info);
+}
 }  // namespace
 
 void CipherBase::GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
@@ -150,6 +289,8 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_verify_recover_init,
                                          EVP_PKEY_verify_recover>);
+
+  env->SetMethodNoSideEffect(target, "getCipherInfo", GetCipherInfo);
 
   NODE_DEFINE_CONSTANT(target, kWebCryptoCipherEncrypt);
   NODE_DEFINE_CONSTANT(target, kWebCryptoCipherDecrypt);
