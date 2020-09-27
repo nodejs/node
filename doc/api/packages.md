@@ -212,9 +212,10 @@ To set the main entry point for a package, it is advisable to define both
 }
 ```
 
-When defining the [`"exports"`][] field all subpaths of the package will be
+When defining the [`"exports"`][] field, all subpaths of the package will be
 encapsulated and no longer available to importers. For example,
-`require('pkg/subpath.js')` would throw a new "Package Path Not Exported" error.
+`require('pkg/subpath.js')` would throw an [`ERR_PACKAGE_PATH_NOT_EXPORTED`][]
+error.
 
 This encapsulation of exports provides more reliable guarantees
 about package interfaces for tools and when handling semver upgrades for a
@@ -812,13 +813,13 @@ changes:
 * Type: {string}
 
 The `"type"` field defines the module format that Node.js will use for all
-`.js` files within a particular `package.json` file’s [package boundary][].
+`.js` files that have that `package.json` file as their [package boundary][].
 
-Files ending with `.js` will be loaded as ES modules when the nearest parent
+Files ending with `.js` will be loaded as ES modules when the package boundary
 `package.json` file contains a top-level field `"type"` with a value of
 `"module"`.
 
-The nearest parent `package.json` is defined as the first `package.json` found
+The package boundary `package.json` is defined as the first `package.json` found
 when searching in the current folder, that folder’s parent, and so on up
 until a node_modules folder or the volume root is reached.
 
@@ -834,9 +835,9 @@ until a node_modules folder or the volume root is reached.
 node my-app.js # Runs as ES module
 ```
 
-If no `package.json` is found once the volume root is reached, or if the nearest
-parent `package.json` lacks a `"type"` field, or contains `"type": "commonjs"`,
-`.js` files are treated as [CommonJS][].
+If no `package.json` is found once the volume root is reached, or if the package
+boundary `package.json` lacks a `"type"` field, or contains
+`"type": "commonjs"`, `.js` files are treated as [CommonJS][].
 
 `import` statements of `.js` files are treated as ES modules if the package
 boundary `package.json` contains `"type": "module"`.
@@ -962,6 +963,7 @@ analogous to the exports field.
 [Babel]: https://babeljs.io/
 [Conditional exports]: #packages_conditional_exports
 [CommonJS]: modules.html
+[`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.html#errors_err_package_path_not_exported
 [ES modules]: esm.html
 [ES module]: esm.html
 [`esm`]: https://github.com/standard-things/esm#readme
