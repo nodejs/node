@@ -382,7 +382,7 @@ added: v8.0.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/29197
-    description: Work as noop when called on an already `destroyed` stream.
+    description: Work as a no-op on a stream that has already been destroyed.
 -->
 
 * `error` {Error} Optional, an error to emit with `'error'` event.
@@ -397,8 +397,8 @@ This is a destructive and immediate way to destroy a stream. Previous calls to
 Use `end()` instead of destroy if data should flush before close, or wait for
 the `'drain'` event before destroying the stream.
 
-Once `destroy()` has been called any further calls will be a noop and no
-further errors except from `_destroy` may be emitted as `'error'`.
+Once `destroy()` has been called any further calls will be a no-op and no
+further errors except from `_destroy()` may be emitted as `'error'`.
 
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
@@ -968,7 +968,7 @@ added: v8.0.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/29197
-    description: Work as noop when called on an already `destroyed` stream.
+    description: Work as a no-op on a stream that has already been destroyed.
 -->
 
 * `error` {Error} Error which will be passed as payload in `'error'` event
@@ -979,8 +979,8 @@ event (unless `emitClose` is set to `false`). After this call, the readable
 stream will release any internal resources and subsequent calls to `push()`
 will be ignored.
 
-Once `destroy()` has been called any further calls will be a noop and no
-further errors except from `_destroy` may be emitted as `'error'`.
+Once `destroy()` has been called any further calls will be a no-op and no
+further errors except from `_destroy()` may be emitted as `'error'`.
 
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
@@ -1536,7 +1536,7 @@ added: v8.0.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/29197
-    description: Work as noop when called on an already `destroyed` stream.
+    description: Work as a no-op on a stream that has already been destroyed.
 -->
 
 * `error` {Error}
@@ -1549,8 +1549,8 @@ Implementors should not override this method, but instead implement
 The default implementation of `_destroy()` for `Transform` also emit `'close'`
 unless `emitClose` is set in false.
 
-Once `destroy()` has been called any further calls will be a noop and no
-further errors except from `_destroy` may be emitted as `'error'`.
+Once `destroy()` has been called, any further calls will be a no-op and no
+further errors except from `_destroy()` may be emitted as `'error'`.
 
 ### `stream.finished(stream[, options], callback)`
 <!-- YAML
@@ -1953,6 +1953,56 @@ const myWritable = new Writable({
 });
 ```
 
+#### `writable._construct(callback)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function} Call this function (optionally with an error
+  argument) when the stream has finished initializing.
+
+The `_construct()` method MUST NOT be called directly. It may be implemented
+by child classes, and if so, will be called by the internal `Writable`
+class methods only.
+
+This optional function will be called in a tick after the stream constructor
+has returned, delaying any `_write()`, `_final()` and `_destroy()` calls until
+`callback` is called. This is useful to initialize state or asynchronously
+initialize resources before the stream can be used.
+
+```js
+const { Writable } = require('stream');
+const fs = require('fs');
+
+class WriteStream extends Writable {
+  constructor(filename) {
+    super();
+    this.filename = filename;
+    this.fd = fd;
+  }
+  _construct(callback) {
+    fs.open(this.filename, (fd, err) => {
+      if (err) {
+        callback(err);
+      } else {
+        this.fd = fd;
+        callback();
+      }
+    });
+  }
+  _write(chunk, encoding, callback) {
+    fs.write(this.fd, chunk, callback);
+  }
+  _destroy(err, callback) {
+    if (this.fd) {
+      fs.close(this.fd, (er) => callback(er || err));
+    } else {
+      callback(err);
+    }
+  }
+}
+```
+
 #### `writable._write(chunk, encoding, callback)`
 <!-- YAML
 changes:
@@ -2217,6 +2267,63 @@ const myReadable = new Readable({
     // ...
   }
 });
+```
+
+#### `readable._construct(callback)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function} Call this function (optionally with an error
+  argument) when the stream has finished initializing.
+
+The `_construct()` method MUST NOT be called directly. It may be implemented
+by child classes, and if so, will be called by the internal `Readable`
+class methods only.
+
+This optional function will be scheduled in the next tick by the stream
+constructor, delaying any `_read()` and `_destroy()` calls until `callback` is
+called. This is useful to initialize state or asynchronously initialize
+resources before the stream can be used.
+
+```js
+const { Readable } = require('stream');
+const fs = require('fs');
+
+class ReadStream extends Readable {
+  constructor(filename) {
+    super();
+    this.filename = filename;
+    this.fd = null;
+  }
+  _construct(callback) {
+    fs.open(this.filename, (fd, err) => {
+      if (err) {
+        callback(err);
+      } else {
+        this.fd = fd;
+        callback();
+      }
+    });
+  }
+  _read(n) {
+    const buf = Buffer.alloc(n);
+    fs.read(this.fd, buf, 0, n, null, (err, bytesRead) => {
+      if (err) {
+        this.destroy(err);
+      } else {
+        this.push(bytesRead > 0 ? buf.slice(0, bytesRead) : null);
+      }
+    });
+  }
+  _destroy(err, callback) {
+    if (this.fd) {
+      fs.close(this.fd, (er) => callback(er || err));
+    } else {
+      callback(err);
+    }
+  }
+}
 ```
 
 #### `readable._read(size)`
