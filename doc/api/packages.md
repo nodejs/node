@@ -212,8 +212,8 @@ To set the main entry point for a package, it is advisable to define both
 }
 ```
 
-When defining the the [`"exports"`][] field all subpaths of the package will
-be encapsulated and no longer available to importers. For example,
+When defining the [`"exports"`][] field all subpaths of the package will be
+encapsulated and no longer available to importers. For example,
 `require('pkg/subpath.js')` would throw a new "Package Path Not Exported" error.
 
 This encapsulation of exports provides more reliable guarantees
@@ -763,17 +763,17 @@ loading system, and are described in detail below.
   by package managers as the name of the package.
 * [`"type"`][] - The package type determining whether to load `.js` files as
   CommonJS or ES modules.
-* [`"main"`][] - The default module when loading the package, if exports is not
-  specified, and in versions of Node.js prior to the introduction of exports.
 * [`"exports"`][] - Package exports and conditional exports. When present,
   limits which submodules may be loaded from within the package.
+* [`"main"`][] - The default module when loading the package, if exports is not
+  specified, and in versions of Node.js prior to the introduction of exports.
 * [`"imports"`][] - Package imports, for use by modules within the package
   itself.
 
 ### `"name"`
 <!-- YAML
 added:
-  - v12.16.0p
+  - v12.16.0
   - v13.1.0
 changes:
   - version:
@@ -849,30 +849,6 @@ import './startup.js'; // Loaded as ES module because of package.json
 Regardless of the value of the `"type"` field, `.mjs` files are always treated
 as ES modules and `.cjs` files are always treated as CommonJS.
 
-### `"main"`
-<!-- YAML
-added: v0.4.0
--->
-
-* Type: {string}
-
-```json
-{
-  "main": "./main.js"
-}
-```
-
-The `"main"` field defines the script that is used when the [package directory
-is loaded via `require()`](modules.html#modules_folders_as_modules). Its value
-is interpreted as a path.
-
-```js
-require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
-```
-
-When a package has an [`"exports"`][] field, this will take precedence over the
-`"main"` field when importing the package by name.
-
 ### `"exports"`
 <!-- YAML
 added: v12.7.0
@@ -914,6 +890,30 @@ referenced via `require` or via `import`.
 
 All paths defined in the `"exports"` must be relative file URLs starting with
 `./`.
+
+### `"main"`
+<!-- YAML
+added: v0.4.0
+-->
+
+* Type: {string}
+
+```json
+{
+  "main": "./main.js"
+}
+```
+
+The `"main"` field defines the script that is used when the [package directory
+is loaded via `require()`](modules.html#modules_folders_as_modules). Its value
+is interpreted as a path.
+
+```js
+require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
+```
+
+When a package has an [`"exports"`][] field, this will take precedence over the
+`"main"` field when importing the package by name.
 
 ### `"imports"`
 <!-- YAML
