@@ -32,8 +32,12 @@ server.listen(0, common.mustCall(() => {
 
   const req = client.request({ ':path': '/' });
   req.end();
-  req.resume(); // Otherwise close won't be emitted if there's pending data.
 
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_CANCEL'
+  }));
   req.on('close', common.mustCall(() => {
     client.close();
     server.close();

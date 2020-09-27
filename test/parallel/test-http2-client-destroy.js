@@ -116,7 +116,7 @@ const Countdown = require('../common/countdown');
       client.destroy();
     });
 
-    client.request();
+    client.request().on('error', common.expectsError());
   }));
 }
 
@@ -161,7 +161,7 @@ const Countdown = require('../common/countdown');
 
     client.close();
     req.resume();
-    req.on('end', common.mustCall());
+    req.on('end', common.mustNotCall());
     req.on('close', common.mustCall(() => server.close()));
   }));
 }

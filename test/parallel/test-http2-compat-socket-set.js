@@ -83,7 +83,7 @@ server.on('request', common.mustCall(function(request, response) {
       assert.strictEqual(request.stream._isProcessing, true);
     });
   }));
-  response.stream.destroy();
+  response.end();
 }));
 
 server.listen(0, common.mustCall(function() {

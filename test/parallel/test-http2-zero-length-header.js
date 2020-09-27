@@ -17,10 +17,16 @@ server.on('stream', (stream, headers) => {
     '__proto__': null,
     [http2.sensitiveHeaders]: []
   });
-  stream.session.destroy();
+  stream.respond({ ':status': 200 });
+  stream.end();
   server.close();
 });
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}/`);
-  client.request({ ':path': '/', '': 'foo', 'bar': '' }).end();
+  const req = client.request({ ':path': '/', '': 'foo', 'bar': '' });
+  req.on('error', common.mustNotCall());
+  req.on('end', common.mustCall());
+  req.on('close', common.mustCall(() => {
+    client.close();
+  }));
 }));

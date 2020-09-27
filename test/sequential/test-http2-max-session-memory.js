@@ -38,7 +38,7 @@ server.listen(0, common.mustCall(() => {
       }));
       req.on('close', common.mustCall(() => {
         server.close();
-        client.destroy();
+        client.close();
       }));
     });
 

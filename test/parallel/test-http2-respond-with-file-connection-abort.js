@@ -28,5 +28,11 @@ server.listen(0, common.mustCall(() => {
     net.Socket.prototype.destroy.call(client.socket);
     server.close();
   }));
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_CANCEL'
+  }));
+  req.on('end', common.mustNotCall());
   req.end();
 }));

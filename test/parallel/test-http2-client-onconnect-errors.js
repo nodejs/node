@@ -102,7 +102,7 @@ function runTest(test) {
     });
   }
 
-  req.on('end', common.mustCall());
+  req.on('end', common.mustNotCall());
   req.on('close', common.mustCall(() => {
     client.destroy();
 
