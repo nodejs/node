@@ -1490,6 +1490,9 @@
           '<(V8_ROOT)/src/heap/base/stack.h',
         ],
         'conditions': [
+          ['want_separate_host_toolset', {
+            'toolsets': ['host', 'target'],
+          }],
           ['clang or OS!="win"', {
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
