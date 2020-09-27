@@ -1039,6 +1039,21 @@ child process, the `message` argument can contain data that JSON is not able
 to represent.
 See [Advanced serialization][] for more details.
 
+### Event: `'spawn'`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'spawn'` event is emitted once the child process has spawned successfully.
+
+If emitted, the `'spawn'` event comes before all other events and before any
+data is received via `stdout` or `stderr`.
+
+The `'spawn'` event will fire regardless of whether an error occurs **within**
+the spawned process. For example, if `bash some-command` spawns successfully,
+the `'spawn'` event will fire, though `bash` may fail to spawn `some-command`.
+This caveat also applies when using `{ shell: true }`.
+
 ### `subprocess.channel`
 <!-- YAML
 added: v7.1.0
