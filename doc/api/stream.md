@@ -389,7 +389,7 @@ added: v8.0.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/29197
-    description: Work as noop when called on an already `destroyed` stream.
+    description: Work as a no-op on a stream that has already been destroyed.
 -->
 
 * `error` {Error} Optional, an error to emit with `'error'` event.
@@ -404,8 +404,8 @@ This is a destructive and immediate way to destroy a stream. Previous calls to
 Use `end()` instead of destroy if data should flush before close, or wait for
 the `'drain'` event before destroying the stream.
 
-Once `destroy()` has been called any further calls will be a noop and no
-further errors except from `_destroy` may be emitted as `'error'`.
+Once `destroy()` has been called any further calls will be a no-op and no
+further errors except from `_destroy()` may be emitted as `'error'`.
 
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
@@ -975,7 +975,7 @@ added: v8.0.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/29197
-    description: Work as noop when called on an already `destroyed` stream.
+    description: Work as a no-op on a stream that has already been destroyed.
 -->
 
 * `error` {Error} Error which will be passed as payload in `'error'` event
@@ -986,8 +986,8 @@ event (unless `emitClose` is set to `false`). After this call, the readable
 stream will release any internal resources and subsequent calls to `push()`
 will be ignored.
 
-Once `destroy()` has been called any further calls will be a noop and no
-further errors except from `_destroy` may be emitted as `'error'`.
+Once `destroy()` has been called any further calls will be a no-op and no
+further errors except from `_destroy()` may be emitted as `'error'`.
 
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
@@ -1542,7 +1542,7 @@ added: v8.0.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/29197
-    description: Work as noop when called on an already `destroyed` stream.
+    description: Work as a no-op on a stream that has already been destroyed.
 -->
 
 * `error` {Error}
@@ -1555,8 +1555,8 @@ Implementors should not override this method, but instead implement
 The default implementation of `_destroy()` for `Transform` also emit `'close'`
 unless `emitClose` is set in false.
 
-Once `destroy()` has been called any further calls will be a noop and no
-further errors except from `_destroy` may be emitted as `'error'`.
+Once `destroy()` has been called, any further calls will be a no-op and no
+further errors except from `_destroy()` may be emitted as `'error'`.
 
 ### `stream.finished(stream[, options], callback)`
 <!-- YAML
@@ -1980,7 +1980,7 @@ by child classes, and if so, will be called by the internal `Writable`
 class methods only.
 
 This optional function will be called in a tick after the stream constructor
-has returned, delaying any `_write`, `_final` and `_destroy` calls until
+has returned, delaying any `_write()`, `_final()` and `_destroy()` calls until
 `callback` is called. This is useful to initialize state or asynchronously
 initialize resources before the stream can be used.
 
@@ -2298,7 +2298,7 @@ by child classes, and if so, will be called by the internal `Readable`
 class methods only.
 
 This optional function will be scheduled in the next tick by the stream
-constructor, delaying any `_read` and `_destroy` calls until `callback` is
+constructor, delaying any `_read()` and `_destroy()` calls until `callback` is
 called. This is useful to initialize state or asynchronously initialize
 resources before the stream can be used.
 
