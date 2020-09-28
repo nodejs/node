@@ -15,7 +15,7 @@ export function getGlobalPreloadCode() {
 
 export function resolve(specifier, context, defaultResolve) {
   const def = defaultResolve(specifier, context);
-  if (def.url.startsWith('nodejs:')) {
+  if (def.url.startsWith('node:')) {
     return {
       url: `custom-${def.url}`,
     };
@@ -24,7 +24,7 @@ export function resolve(specifier, context, defaultResolve) {
 }
 
 export function getSource(url, context, defaultGetSource) {
-  if (url.startsWith('custom-nodejs:')) {
+  if (url.startsWith('custom-node:')) {
     const urlObj = new URL(url);
     return {
       source: generateBuiltinModule(urlObj.pathname),
@@ -35,7 +35,7 @@ export function getSource(url, context, defaultGetSource) {
 }
 
 export function getFormat(url, context, defaultGetFormat) {
-  if (url.startsWith('custom-nodejs:')) {
+  if (url.startsWith('custom-node:')) {
     return { format: 'module' };
   }
   return defaultGetFormat(url, context, defaultGetFormat);
