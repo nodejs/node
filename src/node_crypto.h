@@ -447,8 +447,7 @@ class KeyObjectData {
 
 class KeyObjectHandle : public BaseObject {
  public:
-  static v8::Local<v8::Function> Initialize(Environment* env,
-                                            v8::Local<v8::Object> target);
+  static v8::Local<v8::Function> Initialize(Environment* env);
 
   static v8::MaybeLocal<v8::Object> Create(Environment* env,
                                            std::shared_ptr<KeyObjectData> data);
