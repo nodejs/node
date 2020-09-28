@@ -405,6 +405,8 @@ copy /Y ..\CHANGELOG.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy CHANGELOG.md && goto package_error
 robocopy ..\deps\npm %TARGET_NAME%\node_modules\npm /e /xd test > nul
 if errorlevel 8 echo Cannot copy npm package && goto package_error
+robocopy ..\deps\corepack %TARGET_NAME%\node_modules\corepack /e /xd test > nul
+if errorlevel 8 echo Cannot copy corepack package && goto package_error
 copy /Y ..\deps\npm\bin\npm %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy npm && goto package_error
 copy /Y ..\deps\npm\bin\npm.cmd %TARGET_NAME%\ > nul
@@ -413,6 +415,10 @@ copy /Y ..\deps\npm\bin\npx %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy npx && goto package_error
 copy /Y ..\deps\npm\bin\npx.cmd %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
+copy /Y ..\deps\corepack\shims\nodewin\corepack %TARGET_NAME%\ > nul
+if errorlevel 1 echo Cannot copy corepack && goto package_error
+copy /Y ..\deps\corepack\shims\nodewin\corepack.cmd %TARGET_NAME%\ > nul
+if errorlevel 1 echo Cannot copy corepack.cmd && goto package_error
 copy /Y ..\tools\msvs\nodevars.bat %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy nodevars.bat && goto package_error
 copy /Y ..\tools\msvs\install_tools\*.* %TARGET_NAME%\ > nul

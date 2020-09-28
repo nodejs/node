@@ -62,6 +62,7 @@ _UpgradeReport_Files/
 *.wixobj
 /tools/msvs/genfiles/
 /npm.wxs
+/corepack.wxs
 /tools/msvs/msi/Release/
 /tools/msvs/msi/obj/
 /tools/msvs/msi/x64/
