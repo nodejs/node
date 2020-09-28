@@ -1054,6 +1054,14 @@ endif
 # Builds the macOS installer for releases.
 pkg: $(PKG)
 
+corepack-update:
+	rm -rf /tmp/node-corepack-clone
+	git clone 'https://github.com/nodejs/corepack.git' /tmp/node-corepack-clone
+	cd /tmp/node-corepack-clone && yarn pack
+	rm -rf deps/corepack && mkdir -p deps/corepack
+	cd deps/corepack && tar xf /tmp/node-corepack-clone/package.tgz --strip-components=1
+	chmod +x deps/corepack/shims/*
+
 # Note: this is strictly for release builds on release machines only.
 pkg-upload: pkg
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"

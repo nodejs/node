@@ -18,6 +18,9 @@
     <String Id="npm_Title">npm package manager</String>
     <String Id="npm_Description">Installa npm, il package manager raccomandato per [ProductName].</String>
 
+    <String Id="corepack_Title">corepack manager</String>
+    <String Id="corepack_Description">Installa corepack, il package manager universale per [ProductName].</String>
+
     <String Id="DocumentationShortcuts_Title">Collegamenti alla documentazione online</String>
     <String Id="DocumentationShortcuts_Description">Aggiunge i collegamenti al menu start alla documentazione online per [ProductName] [FullVersion] e per il sito web di [ProductName].</String>
 
