@@ -49,12 +49,6 @@ files in the package should be interpreted.
 
 ### `package.json` and file extensions
 
-A folder containing a `package.json` file, and all subfolders below that folder
-until the next folder containing another [`package.json`][], are a
-_package boundary_. Package boundaries do not carry through `node_modules`
-folders, which are effectively treated as if they contained an empty
-`package.json`.
-
 Within a package, the [`package.json`][] [`"type"`][] field defines how
 Node.js should interpret `.js` files. If a `package.json` file does not have a
 `"type"` field, `.js` files are treated as [CommonJS][].
@@ -87,7 +81,6 @@ the nearest parent `package.json`.
 
 Files ending with `.cjs` are always loaded as [CommonJS][] regardless of the
 nearest parent `package.json`.
-boundary.
 
 ```js
 import './legacy-file.cjs';
@@ -761,8 +754,7 @@ This section describes the fields used by the Node.js runtime. Other tools (such
 as [npm](https://docs.npmjs.com/creating-a-package-json-file)) may use
 additional fields which are ignored by Node.js and not documented here.
 
-The following fields in `package.json` files are relevant to the Node.js module
-loading system, and are described in detail below.
+The following fields in `package.json` files are used in Node.js:
 
 * [`"name"`][] - Relevant when using named imports within a package. Also used
   by package managers as the name of the package.
@@ -817,7 +809,7 @@ changes:
 * Type: {string}
 
 The `"type"` field defines the module format that Node.js will use for all
-`.js` files that have that `package.json` file as their [package boundary][].
+`.js` files that have that `package.json` file as their nearest parent.
 
 Files ending with `.js` will be loaded as ES modules when the nearest parent
 `package.json` file contains a top-level field `"type"` with a value of
@@ -979,7 +971,7 @@ analogous to the exports field.
 [`"type"`]: #packages_type
 [entry points]: #packages_package_entry_points
 [`package.json`]: #packages_node_js_package_json_field_definitions
-[package boundary]: #packages_package_boundaries_and_file_extensions
+[`package.json` and file extensions]: #packages_package_json_and_file_extensions
 [self-reference]: #packages_self_referencing_a_package_using_its_name
 [subpath exports]: #packages_subpath_exports
 [the full specifier path]: modules_esm.html#modules_esm_mandatory_file_extensions
