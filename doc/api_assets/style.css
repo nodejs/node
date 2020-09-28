@@ -572,6 +572,14 @@ td > *:last-child {
   margin-bottom: 0;
 }
 
+kbd {
+  font-size: 1.2em;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 1px 2px 0;
+  border: 1px solid black;
+}
+
 .changelog > summary {
   margin: .5rem 0;
   padding: .5rem 0;
