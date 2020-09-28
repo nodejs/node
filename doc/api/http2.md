@@ -1879,6 +1879,19 @@ A value of `0` will disable the timeout behavior on incoming connections.
 The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
 
+#### `server.updateSettings([settings])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `settings` {HTTP/2 Settings Object}
+
+Used to update the server with the provided settings.
+
+Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values.
+
+Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
+
 ### Class: `Http2SecureServer`
 <!-- YAML
 added: v8.4.0
@@ -2057,6 +2070,19 @@ A value of `0` will disable the timeout behavior on incoming connections.
 
 The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
+
+#### `server.updateSettings([settings])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `settings` {HTTP/2 Settings Object}
+
+Used to update the server with the provided settings.
+
+Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values.
+
+Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 
 ### `http2.createServer(options[, onRequestHandler])`
 <!-- YAML
