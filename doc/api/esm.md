@@ -1252,7 +1252,7 @@ success!
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`util.TextDecoder`]: util.html#util_class_util_textdecoder
-[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.3.1
+[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.3.3
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
