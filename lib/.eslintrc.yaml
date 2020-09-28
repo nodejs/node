@@ -11,6 +11,8 @@ rules:
     - error
     - name: Array
       message: "Use `const { Array } = primordials;` instead of the global."
+    - name: ArrayBuffer
+      message: "Use `const { ArrayBuffer } = primordials;` instead of the global."
     - name: BigInt
       message: "Use `const { BigInt } = primordials;` instead of the global."
     - name: BigInt64Array
@@ -67,6 +69,12 @@ rules:
       message: "Use `const { URIError } = primordials;` instead of the global."
     - name: Uint16Array
       message: "Use `const { Uint16Array } = primordials;` instead of the global."
+    - name: Uint32Array
+      message: "Use `const { Uint32Array } = primordials;` instead of the global."
+    - name: Uint8Array
+      message: "Use `const { Uint8Array } = primordials;` instead of the global."
+    - name: Uint8ClampedArray
+      message: "Use `const { Uint8ClampedArray } = primordials;` instead of the global."
     - name: WeakMap
       message: "Use `const { WeakMap } = primordials;` instead of the global."
     - name: WeakSet
