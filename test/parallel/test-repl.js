@@ -757,7 +757,7 @@ const errorTests = [
   {
     send: 'console',
     expect: [
-      '{',
+      'Object [console] {',
       '  log: [Function: log],',
       '  warn: [Function: warn],',
       '  dir: [Function: dir],',
