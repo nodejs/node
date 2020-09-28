@@ -839,9 +839,10 @@ until a node_modules folder or the volume root is reached.
 node my-app.js # Runs as ES module
 ```
 
-If no `package.json` is found once the volume root is reached, or if the nearest
-parent `package.json` lacks a `"type"` field, or contains `"type": "commonjs"`,
-`.js` files are treated as [CommonJS][].
+If the nearest parent `package.json` lacks a `"type"` field, or contains
+`"type": "commonjs"`, `.js` files are treated as [CommonJS][]. If the volume
+root is reached and no `package.json` is found, `.js` files are treated as
+[CommonJS][].
 
 `import` statements of `.js` files are treated as ES modules if the nearest
 parent `package.json` contains `"type": "module"`.
@@ -958,7 +959,7 @@ where `import '#dep'` would now get the resolution of the external package
 `dep-node-native` (including its exports in turn), and instead get the local
 file `./dep-polyfill.js` relative to the package in other environments.
 
-Unlike the exports field, import maps permit mapping to external packages,
+Unlike the `"exports"` field, import maps permit mapping to external packages,
 providing an important use case for conditional loading scenarios.
 
 Apart from the above, the resolution rules for the imports field are otherwise
