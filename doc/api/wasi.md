@@ -136,6 +136,7 @@ If `start()` is called more than once, an exception is thrown.
 <!-- YAML
 added:
  - v14.6.0
+ - v12.19.0
 -->
 
 * `instance` {WebAssembly.Instance}

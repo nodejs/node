@@ -1,6 +1,6 @@
 # C++ embedder API
 
-<!--introduced_in=v14.0.0-->
+<!--introduced_in=v12.19.0-->
 
 Node.js provides a number of C++ APIs that can be used to execute JavaScript
 in a Node.js environment from other C++ software.

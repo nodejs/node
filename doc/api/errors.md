@@ -1581,7 +1581,9 @@ failed.
 <a id="ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE"></a>
 ### `ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE`
 <!-- YAML
-added: v14.5.0
+added:
+  - v14.5.0
+  - v12.19.0
 -->
 
 A message posted to a [`MessagePort`][] could not be deserialized in the target

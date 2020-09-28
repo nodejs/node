@@ -405,7 +405,9 @@ if the socket is not connected.
 <!-- YAML
 added: v0.1.99
 changes:
-  - version: v14.5.0
+  - version:
+    - v14.5.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/22413
     description: The `msg` parameter can now be any `TypedArray` or `DataView`.
   - version: v8.0.0

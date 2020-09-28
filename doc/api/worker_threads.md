@@ -84,7 +84,9 @@ if (isMainThread) {
 
 ## `worker.markAsUntransferable(object)`
 <!-- YAML
-added: v14.5.0
+added:
+  - v14.5.0
+  - v12.19.0
 -->
 
 Mark an object as not transferable. If `object` occurs in the transfer list of
@@ -344,7 +346,9 @@ to `postMessage()` and no further arguments.
 
 ### Event: `'messageerror'`
 <!-- YAML
-added: v14.5.0
+added:
+  - v14.5.0
+  - v12.19.0
 -->
 
 * `error` {Error} An Error object
@@ -367,10 +371,14 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: v14.5.0
+  - version:
+    - v14.5.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33360
     description: Added `KeyObject` to the list of cloneable types.
-  - version: v14.5.0
+  - version:
+    - v14.5.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33772
     description: Added `FileHandle` to the list of transferable types.
 -->
@@ -630,6 +638,7 @@ changes:
     description: The `trackUnmanagedFds` option was set to `true` by default.
   - version:
     - v14.6.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34303
     description: The `trackUnmanagedFds` option was introduced.
   - version:
@@ -756,7 +765,9 @@ All messages sent from the worker thread will be emitted before the
 
 ### Event: `'messageerror'`
 <!-- YAML
-added: v14.5.0
+added:
+  - v14.5.0
+  - v12.19.0
 -->
 
 * `error` {Error} An Error object
