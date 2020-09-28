@@ -21,6 +21,8 @@ rules:
       message: "Use `const { Boolean } = primordials;` instead of the global."
     - name: Error
       message: "Use `const { Error } = primordials;` instead of the global."
+    - name: EvalError
+      message: "Use `const { EvalError } = primordials;` instead of the global."
     - name: Float32Array
       message: "Use `const { Float32Array } = primordials;` instead of the global."
     - name: Float64Array
@@ -43,6 +45,10 @@ rules:
       message: "Use `const { Object } = primordials;` instead of the global."
     - name: Promise
       message: "Use `const { Promise } = primordials;` instead of the global."
+    - name: RangeError
+      message: "Use `const { RangeError } = primordials;` instead of the global."
+    - name: ReferenceError
+      message: "Use `const { ReferenceError } = primordials;` instead of the global."
     - name: Reflect
       message: "Use `const { Reflect } = primordials;` instead of the global."
     - name: RegExp
@@ -53,6 +59,12 @@ rules:
       message: "Use `const { String } = primordials;` instead of the global."
     - name: Symbol
       message: "Use `const { Symbol } = primordials;` instead of the global."
+    - name: SyntaxError
+      message: "Use `const { SyntaxError } = primordials;` instead of the global."
+    - name: TypeError
+      message: "Use `const { TypeError } = primordials;` instead of the global."
+    - name: URIError
+      message: "Use `const { URIError } = primordials;` instead of the global."
     - name: Uint16Array
       message: "Use `const { Uint16Array } = primordials;` instead of the global."
     - name: WeakMap
