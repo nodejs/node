@@ -38,6 +38,9 @@
 /out
 /*.msi
 /*.wixpdb
+/*.qlog
+# For GitHub Codespaces
+/pythonenv*
 
 # === Rules for artifacts of `./configure` ===
 /icu_config.gypi
