@@ -2529,7 +2529,9 @@ purpose and is only available on CommonJS environment.
 ### DEP0139: `process.umask()` with no arguments
 <!-- YAML
 changes:
-  - version: v14.0.0
+  - version:
+    - v12.19.0
+    - v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32499
     description: Documentation-only deprecation.
 -->
@@ -2545,9 +2547,9 @@ API.
 <!-- YAML
 changes:
   - version:
-    - v14.1.0
-    - v13.14.0
-    pr-url: https://github.com/nodejs/node/pull/32807
+    - v12.19.0
+    - v14.6.0
+    pr-url: https://github.com/nodejs/node/pull/32217
     description: Documentation-only deprecation.
 -->
 

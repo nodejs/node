@@ -1217,7 +1217,9 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: v14.5.0
+  - version:
+    - v14.5.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33360
     description: Instances of this class can now be passed to worker threads
                  using `postMessage`.
@@ -2803,7 +2805,9 @@ request.
 
 ### `crypto.randomInt([min, ]max[, callback])`
 <!-- YAML
-added: v14.10.0
+added:
+  - v14.10.0
+  - v12.19.0
 -->
 
 * `min` {integer} Start of random range (inclusive). **Default**: `0`.
