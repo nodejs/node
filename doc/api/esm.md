@@ -1003,7 +1003,7 @@ The resolver can throw the following errors:
 > 1. If _selfUrl_ is not **undefined**, return _selfUrl_.
 > 1. If _packageSubpath_ is _"."_ and _packageName_ is a Node.js builtin
 >    module, then
->    1. Return the string _"nodejs:"_ concatenated with _packageSpecifier_.
+>    1. Return the string _"node:"_ concatenated with _packageSpecifier_.
 > 1. While _parentURL_ is not the file system root,
 >    1. Let _packageURL_ be the URL resolution of _"node_modules/"_
 >       concatenated with _packageSpecifier_, relative to _parentURL_.
