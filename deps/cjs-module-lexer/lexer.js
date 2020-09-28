@@ -820,14 +820,14 @@ function isIdentifierChar(code, astral) {
 
 function identifier () {
   let ch = source.codePointAt(pos);
-  if (!isIdentifierStart(ch, true) && ch != '\\')
+  if (!isIdentifierStart(ch, true) || ch === '\\')
     return false;
   pos += codePointLen(ch);
   while (ch = source.codePointAt(pos)) {
     if (isIdentifierChar(ch, true)) {
       pos += codePointLen(ch);
     }
-    else if (ch == '\\') {
+    else if (ch === '\\') {
       // no identifier escapes support for now
       return false;
     }
