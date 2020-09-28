@@ -3265,8 +3265,11 @@ size_t KeyObjectData::GetSymmetricKeySize() const {
   return symmetric_key_len_;
 }
 
-Local<Function> KeyObjectHandle::Initialize(Environment* env,
-                                            Local<Object> target) {
+Local<Function> KeyObjectHandle::Initialize(Environment* env) {
+  Local<Function> templ = env->crypto_key_object_handle_constructor();
+  if (!templ.IsEmpty()) {
+    return templ;
+  }
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(
       KeyObjectHandle::kInternalFieldCount);
@@ -3280,20 +3283,16 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env,
   env->SetProtoMethod(t, "export", Export);
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObjectHandle"),
-              function).Check();
-
-  return function;
+  env->set_crypto_key_object_handle_constructor(function);
+  return KeyObjectHandle::Initialize(env);
 }
 
 MaybeLocal<Object> KeyObjectHandle::Create(
     Environment* env,
     std::shared_ptr<KeyObjectData> data) {
   Local<Object> obj;
-  if (!env->crypto_key_object_handle_constructor()
-           ->NewInstance(env->context(), 0, nullptr)
-           .ToLocal(&obj)) {
+  Local<Function> fctun = KeyObjectHandle::Initialize(env);
+  if (!fctun->NewInstance(env->context(), 0, nullptr).ToLocal(&obj)) {
     return MaybeLocal<Object>();
   }
 
@@ -3466,6 +3465,11 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
 
   Local<Value> handle = KeyObjectHandle::Create(env, data_).ToLocalChecked();
   Local<Function> key_ctor;
+  Local<Value> arg = FIXED_ONE_BYTE_STRING(env->isolate(),
+                                              "internal/crypto/keys");
+  if (env->native_module_require()->
+      Call(context, Null(env->isolate()), 1, &arg).IsEmpty())
+    return {};
   switch (data_->GetKeyType()) {
     case kKeyTypeSecret:
       key_ctor = env->crypto_key_object_secret_constructor();
@@ -6950,8 +6954,9 @@ void Initialize(Local<Object> target,
 
   Environment* env = Environment::GetCurrent(context);
   SecureContext::Initialize(env, target);
-  env->set_crypto_key_object_handle_constructor(
-      KeyObjectHandle::Initialize(env, target));
+  target->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObjectHandle"),
+            KeyObjectHandle::Initialize(env)).Check();
   env->SetMethod(target, "createNativeKeyObjectClass",
                  CreateNativeKeyObjectClass);
   CipherBase::Initialize(env, target);
