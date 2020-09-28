@@ -4,7 +4,10 @@
 
 ## Introduction
 
-A package is a folder described by a `package.json` file.
+A package is a folder tree described by a `package.json` file. The package
+consists of the folder containing the `package.json` file and all subfolders
+until the next folder containing another `package.json` file, or a folder
+named `node_modules`.
 
 This section provides guidance for package authors writing `package.json` files
 along with a reference for the [`package.json`][] fields defined by Node.js.
@@ -44,7 +47,7 @@ future-proof the package in case the default type of Node.js ever changes, and
 it will also make things easier for build tools and loaders to determine how the
 files in the package should be interpreted.
 
-### Package boundaries and file extensions
+### `package.json` and file extensions
 
 A folder containing a `package.json` file, and all subfolders below that folder
 until the next folder containing another [`package.json`][], are a
@@ -52,23 +55,23 @@ _package boundary_. Package boundaries do not carry through `node_modules`
 folders, which are effectively treated as if they contained an empty
 `package.json`.
 
-Within a package boundary, the [`package.json`][] [`"type"`][] field defines how
+Within a package, the [`package.json`][] [`"type"`][] field defines how
 Node.js should interpret `.js` files. If a `package.json` file does not have a
 `"type"` field, `.js` files are treated as [CommonJS][].
 
 A `package.json` `"type"` value of `"module"` tells Node.js to interpret `.js`
-files within that package boundary as using [ES module][] syntax.
+files within that package as using [ES module][] syntax.
 
-The package boundary applies not only to initial entry points (`node my-app.js`)
+The `"type"` field applies not only to initial entry points (`node my-app.js`)
 but also to files referenced by `import` statements and `import()` expressions.
 
 ```js
-// my-app.js, in an ES module package boundary because there is a package.json
+// my-app.js, treated as an ES module because there is a package.json
 // file in the same folder with "type": "module".
 
 import './startup/init.js';
 // Loaded as ES module since ./startup contains no package.json file,
-// and therefore inherits the ES module package boundary from one level up.
+// and therefore inherits the "type" value from one level up.
 
 import 'commonjs-package';
 // Loaded as CommonJS since ./node_modules/commonjs-package/package.json
@@ -80,9 +83,10 @@ import './node_modules/commonjs-package/index.js';
 ```
 
 Files ending with `.mjs` are always loaded as [ES modules][] regardless of
-package boundary.
+the nearest parent `package.json`.
 
-Files ending with `.cjs` are always loaded as [CommonJS][] regardless of package
+Files ending with `.cjs` are always loaded as [CommonJS][] regardless of the
+nearest parent `package.json`.
 boundary.
 
 ```js
@@ -94,17 +98,17 @@ import 'commonjs-package/src/index.mjs';
 ```
 
 The `.mjs` and `.cjs` extensions may be used to mix types within the same
-package boundary:
+package:
 
-* Within a `"type": "module"` package boundary, Node.js can be instructed to
+* Within a `"type": "module"` package, Node.js can be instructed to
   interpret a particular file as [CommonJS][] by naming it with a `.cjs`
   extension (since both `.js` and `.mjs` files are treated as ES modules within
-  a `"module"` package boundary).
+  a `"module"` package).
 
-* Within a `"type": "commonjs"` package boundary, Node.js can be instructed to
+* Within a `"type": "commonjs"` package, Node.js can be instructed to
   interpret a particular file as an [ES module][] by naming it with an `.mjs`
   extension (since both `.js` and `.cjs` files are treated as CommonJS within a
-  `"commonjs"` package boundary).
+  `"commonjs"` package).
 
 ### `--input-type` flag
 
