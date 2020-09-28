@@ -2,7 +2,7 @@
 import { expectsError, mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
-const unknownBuiltinModule = 'unknown-builtin-module';
+const unknownBuiltinModule = 'node:unknown-builtin-module';
 
 import(unknownBuiltinModule)
 .then(assert.fail, expectsError({
