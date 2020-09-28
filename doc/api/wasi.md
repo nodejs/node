@@ -129,7 +129,7 @@ If `start()` is called more than once, an exception is thrown.
 ### `wasi.initialize(instance)`
 <!-- YAML
 added:
- - REPLACEME
+ - v12.19.0
 -->
 
 * `instance` {WebAssembly.Instance}

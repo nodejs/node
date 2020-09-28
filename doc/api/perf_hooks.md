@@ -165,7 +165,7 @@ wrapped();
 
 ### `performance.eventLoopUtilization([util1][,util2])`
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 * `util1` {Object} The result of a previous call to `eventLoopUtilization()`
@@ -384,7 +384,7 @@ initialized.
 
 ### `performanceNodeTiming.idleTime`
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 * {number}

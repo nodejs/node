@@ -607,7 +607,7 @@ For more details, review the [Object lifetime management][].
 
 #### napi_type_tag
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 A 128-bit value stored as two unsigned 64-bit integers. It serves as a UUID
@@ -628,7 +628,7 @@ typedef struct {
 
 #### napi_async_cleanup_hook_handle
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 An opaque value returned by [`napi_add_async_cleanup_hook`][]. It must be passed
@@ -765,7 +765,7 @@ handle and/or callback scope inside the function body is not necessary.
 
 #### napi_async_cleanup_hook
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 Function pointer used with [`napi_add_async_cleanup_hook`][]. It will be called
@@ -1615,9 +1615,9 @@ with `napi_add_env_cleanup_hook`, otherwise the process will abort.
 
 #### napi_add_async_cleanup_hook
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34819
     description: Changed signature of the `hook` callback.
 -->
@@ -1654,9 +1654,9 @@ is being torn down anyway.
 
 #### napi_remove_async_cleanup_hook
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34819
     description: Removed `env` parameter.
 -->
@@ -4710,7 +4710,7 @@ JavaScript object becomes garbage-collected.
 
 ### napi_type_tag_object
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -4737,7 +4737,7 @@ If the object already has an associated type tag, this API will return
 
 ### napi_check_object_type_tag
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 > Stability: 1 - Experimental

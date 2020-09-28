@@ -236,7 +236,7 @@ NODE_MODULE_INIT(/* exports, module, context */) {
 #### Worker support
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34572
     description: Cleanup hooks may now be asynchronous.
 -->

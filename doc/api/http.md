@@ -113,7 +113,7 @@ http.get({
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: REPLACEME
+  - version: v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33617
     description: Add `maxTotalSockets` option to agent constructor.
 -->
@@ -295,7 +295,7 @@ can have open per origin. Origin is the returned value of [`agent.getName()`][].
 
 ### `agent.maxTotalSockets`
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 * {number}
@@ -715,14 +715,14 @@ added: v0.1.97
 
 ### `request.host`
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 * {string} The request host.
 
 ### `request.protocol`
 <!-- YAML
-added: REPLACEME
+added: v12.19.0
 -->
 
 * {string} The request protocol.
@@ -1852,7 +1852,7 @@ const req = http.request({
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v12.19.0
     pr-url: https://github.com/nodejs/node/pull/32789
     description: The function returns `this` for consistency with other Readable
                  streams.
