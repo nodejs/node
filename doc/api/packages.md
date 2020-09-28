@@ -971,7 +971,6 @@ analogous to the exports field.
 [`"type"`]: #packages_type
 [entry points]: #packages_package_entry_points
 [`package.json`]: #packages_node_js_package_json_field_definitions
-[`package.json` and file extensions]: #packages_package_json_and_file_extensions
 [self-reference]: #packages_self_referencing_a_package_using_its_name
 [subpath exports]: #packages_subpath_exports
 [the full specifier path]: modules_esm.html#modules_esm_mandatory_file_extensions
