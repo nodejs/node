@@ -48,9 +48,9 @@ function expectFsNamespace(result) {
   expectFsNamespace(import('fs'));
   expectFsNamespace(eval('import("fs")'));
   expectFsNamespace(eval('import("fs")'));
-  expectFsNamespace(import('nodejs:fs'));
+  expectFsNamespace(import('node:fs'));
 
-  expectModuleError(import('nodejs:unknown'),
+  expectModuleError(import('node:unknown'),
                     'ERR_UNKNOWN_BUILTIN_MODULE');
   expectModuleError(import('./not-an-existing-module.mjs'),
                     'ERR_MODULE_NOT_FOUND');
