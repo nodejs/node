@@ -78,6 +78,9 @@ void NativeModuleLoader::InitializeModuleCategories() {
     "internal/main/"
   };
 
+  module_categories_.can_be_required.emplace(
+      "internal/deps/cjs-module-lexer/lexer");
+
   module_categories_.cannot_be_required = std::set<std::string> {
 #if !HAVE_INSPECTOR
       "inspector",
@@ -118,7 +121,8 @@ void NativeModuleLoader::InitializeModuleCategories() {
       if (prefix.length() > id.length()) {
         continue;
       }
-      if (id.find(prefix) == 0) {
+      if (id.find(prefix) == 0 &&
+          module_categories_.can_be_required.count(id) == 0) {
         module_categories_.cannot_be_required.emplace(id);
       }
     }
