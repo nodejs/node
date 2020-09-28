@@ -35,7 +35,7 @@ feature set.
 The following special commands are supported by all REPL instances:
 
 * `.break`: When in the process of inputting a multi-line expression, enter
-  the `.break` command (or press **Ctrl+C**) to abort
+  the `.break` command (or press <kbd>Ctrl</kbd>+<kbd>C</kbd>) to abort
   further input or processing of that expression.
 * `.clear`: Resets the REPL `context` to an empty object and clears any
   multi-line expression being input.
@@ -45,7 +45,8 @@ The following special commands are supported by all REPL instances:
   `> .save ./file/to/save.js`
 * `.load`: Load a file into the current REPL session.
   `> .load ./file/to/load.js`
-* `.editor`: Enter editor mode (**Ctrl+D** to finish, **Ctrl+C** to cancel).
+* `.editor`: Enter editor mode (<kbd>Ctrl</kbd>+<kbd>D</kbd> to finish,
+  <kbd>Ctrl</kbd>+<kbd>C</kbd> to cancel).
 
 ```console
 > .editor
@@ -63,11 +64,12 @@ welcome('Node.js User');
 
 The following key combinations in the REPL have these special effects:
 
-* **Ctrl+C**: When pressed once, has the same effect as the `.break` command.
+* <kbd>Ctrl</kbd>+<kbd>C</kbd>: When pressed once, has the same effect as the
+  `.break` command.
   When pressed twice on a blank line, has the same effect as the `.exit`
   command.
-* **Ctrl+D**: Has the same effect as the `.exit` command.
-* `<tab>`: When pressed on a blank line, displays global and local (scope)
+* <kbd>Ctrl</kbd>+<kbd>D</kbd>: Has the same effect as the `.exit` command.
+* <kbd>Tab</kbd>: When pressed on a blank line, displays global and local (scope)
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
 
@@ -248,14 +250,15 @@ added:
 -->
 
 The REPL supports bi-directional reverse-i-search similar to [ZSH][]. It is
-triggered with **Ctrl+R** to search backward and **Ctrl+S** to search
+triggered with <kbd>Ctrl</kbd>+<kbd>R</kbd> to search backward and
+<kbd>Ctrl</kbd>+<kbd>S</kbd> to search
 forwards.
 
 Duplicated history entires will be skipped.
 
 Entries are accepted as soon as any button is pressed that doesn't correspond
-with the reverse search. Cancelling is possible by pressing **Esc** or
-**Ctrl+C**.
+with the reverse search. Cancelling is possible by pressing <kbd>Esc</kbd> or
+<kbd>Ctrl</kbd>+<kbd>C</kbd>.
 
 Changing the direction immediately searches for the next entry in the expected
 direction from the current position on.
@@ -381,8 +384,10 @@ added: v0.7.7
 -->
 
 The `'exit'` event is emitted when the REPL is exited either by receiving the
-`.exit` command as input, the user pressing **Ctrl+C** twice to signal `SIGINT`,
-or by pressing **Ctrl+D** to signal `'end'` on the input stream. The listener
+`.exit` command as input, the user pressing <kbd>Ctrl</kbd>+<kbd>C</kbd> twice
+to signal `SIGINT`,
+or by pressing <kbd>Ctrl</kbd>+<kbd>D</kbd> to signal `'end'` on the input
+stream. The listener
 callback is invoked without any arguments.
 
 ```js
@@ -615,7 +620,8 @@ changes:
     * `repl.REPL_MODE_STRICT` to evaluate expressions in strict mode. This is
       equivalent to prefacing every repl statement with `'use strict'`.
   * `breakEvalOnSigint` {boolean} Stop evaluating the current piece of code when
-    `SIGINT` is received, such as when `Ctrl+C` is pressed. This cannot be used
+    `SIGINT` is received, such as when <kbd>Ctrl</kbd>+<kbd>C</kbd> is pressed.
+    This cannot be used
     together with a custom `eval` function. **Default:** `false`.
   * `preview` {boolean} Defines if the repl prints autocomplete and output
     previews or not. **Default:** `true` with the default eval function and
