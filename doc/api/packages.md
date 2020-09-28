@@ -16,7 +16,7 @@ initial input, or when referenced by `import` statements within ES module code:
 
 * Files ending in `.mjs`.
 
-* Files ending in `.js` when the package boundary `package.json` file contains a
+* Files ending in `.js` when the nearest parent `package.json` file contains a
   top-level [`"type"`][] field with a value of `"module"`.
 
 * Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
@@ -32,8 +32,8 @@ or when referenced by `import` statements within ES module code:
 
 * Files ending in `.cjs`.
 
-* Files ending in `.js` when the package boundary `package.json` file contains a
-  top-level [`"type"`][] field with a value of `"commonjs"`.
+* Files ending in `.js` when the nearest parent `package.json` file contains a
+  top-level field [`"type"`][] with a value of `"commonjs"`.
 
 * Strings passed in as an argument to `--eval` or `--print`, or piped to `node`
   via `STDIN`, with the flag `--input-type=commonjs`.
@@ -815,11 +815,11 @@ changes:
 The `"type"` field defines the module format that Node.js will use for all
 `.js` files that have that `package.json` file as their [package boundary][].
 
-Files ending with `.js` will be loaded as ES modules when the package boundary
+Files ending with `.js` will be loaded as ES modules when the nearest parent
 `package.json` file contains a top-level field `"type"` with a value of
 `"module"`.
 
-The package boundary `package.json` is defined as the first `package.json` found
+The nearest parent `package.json` is defined as the first `package.json` found
 when searching in the current folder, that folder’s parent, and so on up
 until a node_modules folder or the volume root is reached.
 
@@ -835,12 +835,12 @@ until a node_modules folder or the volume root is reached.
 node my-app.js # Runs as ES module
 ```
 
-If no `package.json` is found once the volume root is reached, or if the package
-boundary `package.json` lacks a `"type"` field, or contains
-`"type": "commonjs"`, `.js` files are treated as [CommonJS][].
+If no `package.json` is found once the volume root is reached, or if the nearest
+parent `package.json` lacks a `"type"` field, or contains `"type": "commonjs"`,
+`.js` files are treated as [CommonJS][].
 
-`import` statements of `.js` files are treated as ES modules if the package
-boundary `package.json` contains `"type": "module"`.
+`import` statements of `.js` files are treated as ES modules if the nearest
+parent `package.json` contains `"type": "module"`.
 
 ```js
 // my-app.js, part of the same example as above
