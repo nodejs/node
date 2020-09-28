@@ -71,6 +71,8 @@ rules:
       message: "Use `const { WeakMap } = primordials;` instead of the global."
     - name: WeakSet
       message: "Use `const { WeakSet } = primordials;` instead of the global."
+    - name: parseFloat
+      message: "Use `const { NumberParseFloat } = primordials;` instead of the global."
     - name: parseInt
       message: "Use `const { NumberParseInt } = primordials;` instead of the global."
   no-restricted-syntax:
