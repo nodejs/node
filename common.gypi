@@ -111,6 +111,9 @@
       ['target_arch in "ppc64 s390x"', {
         'v8_enable_backtrace': 1,
       }],
+      ['OS=="linux"', {
+        'node_section_ordering_info%': ''
+      }]
     ],
   },
 
@@ -172,15 +175,19 @@
         },
         'cflags': [ '-O3' ],
         'conditions': [
-          ['node_section_ordering_file!="-"', {
-            'cflags': [
-              '-fuse-ld=gold',
-              '-ffunction-sections',
+          ['OS=="linux"', {
+            'conditions': [
+              ['node_section_ordering_info!=""', {
+                'cflags': [
+                  '-fuse-ld=gold',
+                  '-ffunction-sections',
+                ],
+                'ldflags': [
+                  '-fuse-ld=gold',
+                  '-Wl,--section-ordering-file=<(node_section_ordering_info)',
+                ],
+              }],
             ],
-            'ldflags': [
-              '-fuse-ld=gold',
-              '-Wl,--section-ordering-file=<(node_section_ordering_file)',
-            ]
           }],
           ['OS=="solaris"', {
             # pull in V8's postmortem metadata

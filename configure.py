@@ -504,7 +504,7 @@ parser.add_option('--use-largepages-script-lld',
 
 parser.add_option('--use-section-ordering-file',
     action='store',
-    dest='node_section_ordering_file',
+    dest='node_section_ordering_info',
     default='',
     help='Pass a section ordering file to the linker. This requires that ' +
          'Node.js be linked using the gold linker. The gold linker must have ' +
@@ -1779,6 +1779,7 @@ def configure_section_file(o):
     proc = subprocess.Popen(['ld.gold'] + ['-v'], stdin = subprocess.PIPE,
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   except OSError:
+    warn('''No acceptable ld.gold linker found!''')
     return 0
 
   match = re.match(r"^GNU gold.*([0-9]+)\.([0-9]+)$",
@@ -1791,12 +1792,11 @@ def configure_section_file(o):
       error('''GNU gold version must be greater than 1.2 in order to use section
             reordering''')
 
-  if options.node_section_ordering_file != "":
-    o['variables']['node_section_ordering_file'] = os.path.realpath(
-      str(options.node_section_ordering_file))
+  if options.node_section_ordering_info != "":
+    o['variables']['node_section_ordering_info'] = os.path.realpath(
+      str(options.node_section_ordering_info))
   else:
-    # An empty string here will cause gyp to fail.
-    o['variables']['node_section_ordering_file'] = "-"
+    o['variables']['node_section_ordering_info'] = ""
 
 def make_bin_override():
   if sys.platform == 'win32':
