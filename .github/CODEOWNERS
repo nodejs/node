@@ -24,6 +24,13 @@
 /doc/guides/offboarding.md @nodejs/tsc
 /doc/guides/onboarding-extras.md @nodejs/tsc
 
+# streams
+
+/lib/_stream* @nodejs/streams
+/lib/stream.js @nodejs/streams
+/lib/stream/* @nodejs/streams
+/lib/internal/streams/* @nodejs/streams
+
 # net
 
 /deps/cares @nodejs/net
