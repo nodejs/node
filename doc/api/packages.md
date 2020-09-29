@@ -860,6 +860,10 @@ changes:
     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31008
     description: Implement logical conditional exports ordering.
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34718
+    description: Add support for `"exports"` patterns.
 -->
 
 * Type: {Object} | {string} | {string[]}
