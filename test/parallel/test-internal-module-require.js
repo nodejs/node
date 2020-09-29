@@ -60,7 +60,6 @@ const expectedPublicModules = new Set([
   'repl',
   'stream',
   'string_decoder',
-  'sys',
   'timers',
   'tls',
   'trace_events',
