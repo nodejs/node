@@ -1,6 +1,4 @@
-import { URL } from 'url';
 import path from 'path';
-import process from 'process';
 import { builtinModules } from 'module';
 
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
@@ -8,17 +6,31 @@ const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 const baseURL = new URL('file://');
 baseURL.pathname = process.cwd() + '/';
 
-export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
+/**
+ * @param {string} specifier
+ * @param {{
+ *     parentURL:(string|undefined),
+ *     conditions:Array<string>,
+ * }} context
+ * @param {Function} defaultResolve
+ * @returns {{
+ *   url:string,
+ * }}
+ */
+export function resolve(specifier, context, defaultResolve) {
+  const { parentURL = baseURL } = context;
   if (builtinModules.includes(specifier)) {
     return {
       url: 'nodejs:' + specifier
     };
   }
-  if (/^\.{1,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
+  if (!(specifier.startsWith('file:') || /^\.{1,2}[/]/.test(specifier))) {
     // For node_modules support:
     // return defaultResolve(specifier, {parentURL}, defaultResolve);
     throw new Error(
-      `imports must be URLs or begin with './', or '../'; '${specifier}' does not`);
+      "Imports must either be URLs or begin with './' or '../'; " +
+      `'${specifier}' satisfied neither of these requirements.`
+    );
   }
   const resolved = new URL(specifier, parentURL);
   return {
@@ -26,7 +38,15 @@ export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
   };
 }
 
-export function getFormat(url, context, defaultGetFormat) {
+/**
+ * @param {string} url
+ * // param {Object} context
+ * // param {Function} defaultGetFormat
+ * @returns {{
+ *   format:string,
+ * }}
+ */
+export function getFormat(url /* , context, defaultGetFormat */) {
   if (url.startsWith('nodejs:') && builtinModules.includes(url.slice(7))) {
     return {
       format: 'builtin'
@@ -36,7 +56,7 @@ export function getFormat(url, context, defaultGetFormat) {
   const ext = path.extname(pathname);
   if (!JS_EXTENSIONS.has(ext)) {
     throw new Error(
-      `Cannot load file with non-JavaScript file extension ${ext}.`);
+      `Cannot load file with non-JavaScript file extension of '${ext}'.`);
   }
   return {
     format: 'module'
