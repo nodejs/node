@@ -13,6 +13,7 @@ using v8::BigInt;
 using v8::Boolean;
 using v8::Context;
 using v8::External;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
@@ -34,6 +35,8 @@ using v8::SKIP_SYMBOLS;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
+using v8::WeakCallbackInfo;
+using v8::WeakCallbackType;
 
 static void GetOwnNonIndexProperties(
     const FunctionCallbackInfo<Value>& args) {
@@ -190,6 +193,42 @@ static void Sleep(const FunctionCallbackInfo<Value>& args) {
   uv_sleep(msec);
 }
 
+struct ObjectParentGlobal {
+  Global<Object> obj;
+  Global<Function> callback;
+};
+
+static void ObjectWeakCallbackFunction(
+  const WeakCallbackInfo<ObjectParentGlobal> &info
+) {
+  ObjectParentGlobal* objectParentData = info.GetParameter();
+  Isolate* isolate = info.GetIsolate();
+  Local<Function> callback = PersistentToLocal::Default(isolate,
+                                  objectParentData->callback);
+  callback->Call(isolate->GetCurrentContext(),
+                  Undefined(isolate), 0, nullptr);
+  objectParentData->obj.Reset();
+  objectParentData->callback.Reset();
+  delete objectParentData;
+}
+
+static void ObjectWeakCallBack(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsFunction());
+  Isolate* isolate = args.GetIsolate();
+  Local<Object> obj = args[0].As<Object>();
+  Local<Function> callback = args[1].As<Function>();
+  ObjectParentGlobal* objectParentData = new ObjectParentGlobal;
+  objectParentData->obj.Reset(isolate, obj);
+  // kParameter will make env change when run ObjectWeakCallbackFunction
+  objectParentData->obj.SetWeak(objectParentData, ObjectWeakCallbackFunction,
+                       WeakCallbackType::kFinalizer);
+  // Note that the obj cannot be in the persistence callback
+  // otherwise a circular reference will occur
+  objectParentData->callback.Reset(isolate, callback);
+}
+
 void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView());
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
@@ -287,6 +326,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetConstructorName);
   registry->Register(GetExternalValue);
   registry->Register(Sleep);
+  registry->Register(ObjectWeakCallBack);
   registry->Register(ArrayBufferViewHasBuffer);
   registry->Register(WeakReference::New);
   registry->Register(WeakReference::Get);
@@ -331,6 +371,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
   env->SetMethodNoSideEffect(target, "getExternalValue", GetExternalValue);
   env->SetMethod(target, "sleep", Sleep);
+  env->SetMethod(target, "objectWeakCallBack", ObjectWeakCallBack);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());
