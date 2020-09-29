@@ -1203,10 +1203,6 @@ def EvalSingleCondition(cond_expr, true_dict, false_dict, phase, variables, buil
             ast_code = compile(cond_expr_expanded, "<string>", "eval")
             cached_conditions_asts[cond_expr_expanded] = ast_code
         env = {"__builtins__": {}, "v": StrictVersion}
-        if ('_toolset == "host" and host_arch == "ia32"' in cond_expr):
-            print('___________________________')
-            print(variables)
-            print('___________________________')
         if eval(ast_code, env, variables):
             return true_dict
         return false_dict
