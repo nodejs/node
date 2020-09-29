@@ -361,6 +361,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // Indirect functions must be allocated before adding extra tables.
   bool allocating_indirect_functions_allowed_ = true;
 #endif
+
+  DISALLOW_COPY_AND_ASSIGN(WasmModuleBuilder);
 };
 
 inline FunctionSig* WasmFunctionBuilder::signature() {
