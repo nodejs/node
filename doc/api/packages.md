@@ -857,7 +857,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/29978
     description: Implement conditional exports.
   - version:
-    - v12.15.0
+    - v12.16.0
     - v13.7.0
     pr-url: https://github.com/nodejs/node/pull/31001
     description: Remove the `--experimental-conditional-exports` option.
