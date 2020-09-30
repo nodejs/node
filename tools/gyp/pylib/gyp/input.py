@@ -66,7 +66,7 @@ def IsPathSection(section):
     if section in path_sections:
         return True
 
-    # Sections mathing the regexp '_(dir|file|path)s?$' are also
+    # Sections matching the regexp '_(dir|file|path)s?$' are also
     # considered PathSections. Using manual string matching since that
     # is much faster than the regexp and this can be called hundreds of
     # thousands of times so micro performance matters.
@@ -232,8 +232,8 @@ def LoadOneBuildFile(build_file_path, data, aux_data, includes, is_target, check
         # to make sure platform specific newlines ('\r\n' or '\r') are converted to '\n'
         # which otherwise will fail eval()
         if sys.platform == "zos":
-            # On z/OS, universal-newlines mode treats the file as an ascii file. But since
-            # node-gyp produces ebcdic files, do not use that mode.
+            # On z/OS, universal-newlines mode treats the file as an ascii file.
+            # But since node-gyp produces ebcdic files, do not use that mode.
             build_file_contents = open(build_file_path, "r").read()
         else:
             build_file_contents = open(build_file_path, "rU").read()
@@ -1731,10 +1731,10 @@ class DependencyGraphNode(object):
                     node_dependent.dependencies, key=ExtractNodeRef
                 ):
                     if node_dependent_dependency.ref not in flat_list:
-                        # The dependent one or more dependencies not in flat_list.  There
-                        # will be more chances to add it to flat_list when examining
-                        # it again as a dependent of those other dependencies, provided
-                        # that there are no cycles.
+                        # The dependent one or more dependencies not in flat_list.
+                        # There will be more chances to add it to flat_list
+                        # when examining it again as a dependent of those other
+                        # dependencies, provided that there are no cycles.
                         is_in_degree_zero = False
                         break
 
@@ -2427,7 +2427,7 @@ def MergeDicts(to, fro, to_file, fro_file):
 def MergeConfigWithInheritance(
     new_configuration_dict, build_file, target_dict, configuration, visited
 ):
-    # Skip if previously visted.
+    # Skip if previously visited.
     if configuration in visited:
         return
 
@@ -2641,10 +2641,10 @@ def ProcessListFiltersInDict(name, the_dict):
                 pattern_re = re.compile(pattern)
 
                 if action == "exclude":
-                    # This item matches an exclude regex, so set its value to 0 (exclude).
+                    # This item matches an exclude regex, set its value to 0 (exclude).
                     action_value = 0
                 elif action == "include":
-                    # This item matches an include regex, so set its value to 1 (include).
+                    # This item matches an include regex, set its value to 1 (include).
                     action_value = 1
                 else:
                     # This is an action that doesn't make any sense.
@@ -2659,8 +2659,8 @@ def ProcessListFiltersInDict(name, the_dict):
 
                 for index, list_item in enumerate(the_list):
                     if list_actions[index] == action_value:
-                        # Even if the regex matches, nothing will change so continue (regex
-                        # searches are expensive).
+                        # Even if the regex matches, nothing will change so continue
+                        # (regex searches are expensive).
                         continue
                     if pattern_re.search(list_item):
                         # Regular expression match.
@@ -2748,36 +2748,6 @@ def ValidateTargetType(target, target_dict):
             "Target %s has type %s but standalone_static_library flag is"
             " only valid for static_library type." % (target, target_type)
         )
-
-
-def ValidateSourcesInTarget(target, target_dict, build_file, duplicate_basename_check):
-    if not duplicate_basename_check:
-        return
-    if target_dict.get("type", None) != "static_library":
-        return
-    sources = target_dict.get("sources", [])
-    basenames = {}
-    for source in sources:
-        name, ext = os.path.splitext(source)
-        is_compiled_file = ext in [".c", ".cc", ".cpp", ".cxx", ".m", ".mm", ".s", ".S"]
-        if not is_compiled_file:
-            continue
-        basename = os.path.basename(name)  # Don't include extension.
-        basenames.setdefault(basename, []).append(source)
-
-    error = ""
-    for basename, files in basenames.items():
-        if len(files) > 1:
-            error += "  %s: %s\n" % (basename, " ".join(files))
-
-    if error:
-        print(
-            "static library %s has several files with the same basename:\n" % target
-            + error
-            + "libtool on Mac cannot handle that. Use "
-            "--no-duplicate-basename-check to disable this validation."
-        )
-        raise GypError("Duplicate basenames in sources section, see list above")
 
 
 def ValidateRulesInTarget(target, target_dict, extra_sources_for_rules):
@@ -3021,7 +2991,6 @@ def Load(
     generator_input_info,
     check,
     circular_check,
-    duplicate_basename_check,
     parallel,
     root_targets,
 ):
@@ -3167,9 +3136,6 @@ def Load(
         target_dict = targets[target]
         build_file = gyp.common.BuildFile(target)
         ValidateTargetType(target, target_dict)
-        ValidateSourcesInTarget(
-            target, target_dict, build_file, duplicate_basename_check
-        )
         ValidateRulesInTarget(target, target_dict, extra_sources_for_rules)
         ValidateRunAsInTarget(target, target_dict, build_file)
         ValidateActionsInTarget(target, target_dict, build_file)
