@@ -105,12 +105,26 @@ There are four types of specifiers:
 Bare specifiers, and the bare specifier portion of deep import specifiers, are
 strings; but everything else in a specifier is a URL.
 
-Only `file:` and `data:` URLs are supported. A specifier like
+`file:`, `node:`, and `data:` URLs are supported. A specifier like
 `'https://example.com/app.js'` may be supported by browsers but it is not
 supported in Node.js.
 
 Specifiers may not begin with `/` or `//`. These are reserved for potential
 future use. The root of the current volume may be referenced via `file:///`.
+
+#### `node:` Imports
+
+<!-- YAML
+added: REPLACEME
+-->
+
+`node:` URLs are supported as a means to load Node.js builtin modules. This
+URL scheme allows for builtin modules to be referenced by valid absolute URL
+strings.
+
+```js
+import fs from 'node:fs/promises';
+```
 
 #### `data:` Imports
 
