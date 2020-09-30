@@ -16,9 +16,9 @@ const http = require('http');
     http.get({ port: server.address().port }, common.mustCall((res) => {
       assert.strictEqual(res.headers.test, '2');
       assert.strictEqual(res.headers.test2, '2');
-      res.resume().on('end', () => {
+      res.resume().on('end', common.mustCall(() => {
         server.close();
-      });
+      }));
     }));
   }));
 }
@@ -33,9 +33,29 @@ const http = require('http');
     http.get({ port: server.address().port }, common.mustCall((res) => {
       assert.strictEqual(res.headers.test, '1');
       assert.strictEqual(res.headers.test2, '2');
-      res.resume().on('end', () => {
+      res.resume().on('end', common.mustCall(() => {
         server.close();
-      });
+      }));
+    }));
+  }));
+}
+
+
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    try {
+      res.writeHead(200, [ 'test', '1', 'test2', '2', 'asd' ]);
+    } catch (err) {
+      assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
+    }
+    res.end();
+  }));
+
+  server.listen(0, common.mustCall(function() {
+    http.get({ port: server.address().port }, common.mustCall((res) => {
+      res.resume().on('end', common.mustCall(() => {
+        server.close();
+      }));
     }));
   }));
 }
