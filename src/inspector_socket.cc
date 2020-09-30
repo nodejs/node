@@ -1,7 +1,7 @@
 #include "inspector_socket.h"
 #include "llhttp.h"
 
-#include "base64.h"
+#include "base64-inl.h"
 #include "util-inl.h"
 
 #include "openssl/sha.h"  // Sha-1 hash
