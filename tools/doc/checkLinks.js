@@ -31,6 +31,7 @@ function findMarkdownFilesRecursively(dirPath) {
       entry.name !== 'changelogs' &&
       entry.name !== 'deps' &&
       entry.name !== 'fixtures' &&
+      entry.name !== 'gyp' &&
       entry.name !== 'node_modules' &&
       entry.name !== 'out' &&
       entry.name !== 'tmp'
