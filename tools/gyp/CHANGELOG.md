@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2020-09-30
+
+### Added
+- Extended compile_commands_json generator to consider more file extensions than
+  just `c` and `cc`. `cpp` and `cxx` are now supported.
+- Source files with duplicate basenames are now supported.
+
+### Removed
+- The `--no-duplicate-basename-check` option was removed.
+- The `msvs_enable_marmasm` configuration option was removed in favor of
+  auto-inclusion of the "marmasm" sections for Windows on ARM.
+
 ## [0.4.0] - 2020-07-14
 
 ### Added
@@ -34,7 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This is the first release of this project, based on https://chromium.googlesource.com/external/gyp
 with changes made over the years in Node.js and node-gyp.
 
-[Unreleased]: https://github.com/nodejs/gyp-next/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/nodejs/gyp-next/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/nodejs/gyp-next/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/nodejs/gyp-next/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nodejs/gyp-next/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/nodejs/gyp-next/compare/v0.2.0...v0.2.1
