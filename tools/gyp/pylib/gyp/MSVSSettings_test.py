@@ -678,7 +678,8 @@ class TestSequenceFunctions(unittest.TestCase):
                 "MSBuild, index value (21) not in expected range [0, 3)",
                 "Warning: while converting VCCLCompilerTool/UsePrecompiledHeader to "
                 "MSBuild, index value (13) not in expected range [0, 3)",
-                "Warning: while converting VCCLCompilerTool/GeneratePreprocessedFile to "
+                "Warning: while converting "
+                "VCCLCompilerTool/GeneratePreprocessedFile to "
                 "MSBuild, value must be one of [0, 1, 2]; got 14",
                 "Warning: while converting VCLinkerTool/Driver to "
                 "MSBuild, index value (10) not in expected range [0, 4)",
@@ -1348,7 +1349,8 @@ class TestSequenceFunctions(unittest.TestCase):
                 "EmbedManifest": "false",
                 "GenerateCatalogFiles": "true",
                 "InputResourceManifests": "asfsfdafs",
-                "ManifestResourceFile": "$(IntDir)\\$(TargetFileName).embed.manifest.resfdsf",
+                "ManifestResourceFile":
+                    "$(IntDir)\\$(TargetFileName).embed.manifest.resfdsf",
                 "OutputManifestFile": "$(TargetPath).manifestdfs",
                 "RegistrarScriptFile": "sdfsfd",
                 "ReplacementsFile": "sdffsd",
@@ -1532,7 +1534,8 @@ class TestSequenceFunctions(unittest.TestCase):
                 "LinkIncremental": "",
             },
             "ManifestResourceCompile": {
-                "ResourceOutputFileName": "$(IntDir)$(TargetFileName).embed.manifest.resfdsf"
+                "ResourceOutputFileName":
+                    "$(IntDir)$(TargetFileName).embed.manifest.resfdsf"
             },
         }
         self.maxDiff = 9999  # on failure display a long diff

@@ -84,7 +84,6 @@ generator_additional_non_configuration_keys = [
     "msvs_enable_winrt",
     "msvs_requires_importlibrary",
     "msvs_enable_winphone",
-    "msvs_enable_marmasm",
     "msvs_application_type_revision",
     "msvs_target_platform_version",
     "msvs_target_platform_minversion",
@@ -183,7 +182,8 @@ def _FixPath(path):
 
 def _IsWindowsAbsPath(path):
     """
-  On Cygwin systems Python needs a little help determining if a path is an absolute Windows path or not, so that
+  On Cygwin systems Python needs a little help determining if a path
+  is an absolute Windows path or not, so that
   it does not treat those as relative, which results in bad paths like:
   '..\\C:\\<some path>\\some_source_code_file.cc'
   """
@@ -753,7 +753,7 @@ def _EscapeEnvironmentVariableExpansion(s):
 
   Returns:
       The escaped string.
-  """
+  """  # noqa: E731,E123,E501
     s = s.replace("%", "%%")
     return s
 
@@ -846,7 +846,7 @@ def _EscapeCppDefineForMSVS(s):
     s = _EscapeEnvironmentVariableExpansion(s)
     s = _EscapeCommandLineArgumentForMSVS(s)
     s = _EscapeVCProjCommandLineArgListItem(s)
-    # cl.exe replaces literal # characters with = in preprocesor definitions for
+    # cl.exe replaces literal # characters with = in preprocessor definitions for
     # some reason. Octal-encode to work around that.
     s = s.replace("#", "\\%03o" % ord("#"))
     return s
@@ -885,7 +885,7 @@ def _EscapeCppDefineForMSBuild(s):
     s = _EscapeEnvironmentVariableExpansion(s)
     s = _EscapeCommandLineArgumentForMSBuild(s)
     s = _EscapeMSBuildSpecialCharacters(s)
-    # cl.exe replaces literal # characters with = in preprocesor definitions for
+    # cl.exe replaces literal # characters with = in preprocessor definitions for
     # some reason. Octal-encode to work around that.
     s = s.replace("#", "\\%03o" % ord("#"))
     return s
@@ -1029,45 +1029,6 @@ def _GenerateProject(project, options, version, generator_flags, spec):
         return _GenerateMSVSProject(project, options, version, generator_flags)
 
 
-# TODO: Avoid code duplication with _ValidateSourcesForOSX in make.py.
-def _ValidateSourcesForMSVSProject(spec, version):
-    """Makes sure if duplicate basenames are not specified in the source list.
-
-  Arguments:
-    spec: The target dictionary containing the properties of the target.
-    version: The VisualStudioVersion object.
-  """
-    # This validation should not be applied to MSVC2010 and later.
-    assert not version.UsesVcxproj()
-
-    # TODO: Check if MSVC allows this for loadable_module targets.
-    if spec.get("type", None) not in ("static_library", "shared_library"):
-        return
-    sources = spec.get("sources", [])
-    basenames = {}
-    for source in sources:
-        name, ext = os.path.splitext(source)
-        is_compiled_file = ext in [".c", ".cc", ".cpp", ".cxx", ".m", ".mm", ".s", ".S"]
-        if not is_compiled_file:
-            continue
-        basename = os.path.basename(name)  # Don't include extension.
-        basenames.setdefault(basename, []).append(source)
-
-    error = ""
-    for basename, files in basenames.items():
-        if len(files) > 1:
-            error += "  %s: %s\n" % (basename, " ".join(files))
-
-    if error:
-        print(
-            "static library %s has several files with the same basename:\n"
-            % spec["target_name"]
-            + error
-            + "MSVC08 cannot handle that."
-        )
-        raise GypError("Duplicate basenames in sources section, see list above")
-
-
 def _GenerateMSVSProject(project, options, version, generator_flags):
     """Generates a .vcproj file.  It may create .rules and .user files too.
 
@@ -1093,11 +1054,6 @@ def _GenerateMSVSProject(project, options, version, generator_flags):
     config_type = _GetMSVSConfigurationType(spec, project.build_file)
     for config_name, config in spec["configurations"].items():
         _AddConfigurationToMSVSProject(p, spec, config_type, config_name, config)
-
-    # MSVC08 and prior version cannot handle duplicate basenames in the same
-    # target.
-    # TODO: Take excluded sources into consideration if possible.
-    _ValidateSourcesForMSVSProject(spec, version)
 
     # Prepare list of sources and excluded sources.
     gyp_file = os.path.split(project.build_file)[1]
@@ -1415,7 +1371,7 @@ def _GetOutputTargetExt(spec):
 
 
 def _GetDefines(config):
-    """Returns the list of preprocessor definitions for this configuation.
+    """Returns the list of preprocessor definitions for this configuration.
 
   Arguments:
     config: The dictionary that defines the special processing to be done
@@ -2277,7 +2233,7 @@ def _AppendFiltersForMSBuild(
       sources: The hierarchy of filters and sources to process.
       extension_to_rule_name: A dictionary mapping file extensions to rules.
       filter_group: The list to which filter entries will be appended.
-      source_group: The list to which source entries will be appeneded.
+      source_group: The list to which source entries will be appended.
   """
     for source in sources:
         if isinstance(source, MSVSProject.Filter):
@@ -2374,8 +2330,8 @@ def _GenerateRulesForMSBuild(
 ):
     # MSBuild rules are implemented using three files: an XML file, a .targets
     # file and a .props file.
-    # See http://blogs.msdn.com/b/vcblog/archive/2010/04/21/quick-help-on-vs2010-custom-build-rule.aspx
-    # for more details.
+    # For more details see:
+    # https://devblogs.microsoft.com/cppblog/quick-help-on-vs2010-custom-build-rule/
     rules = spec.get("rules", [])
     rules_native = [r for r in rules if not int(r.get("msvs_external_rule", 0))]
     rules_external = [r for r in rules if int(r.get("msvs_external_rule", 0))]
@@ -3623,8 +3579,9 @@ def _AddSources2(
                     if precompiled_source != "":
                         precompiled_source = _FixPath(precompiled_source)
                         if not extensions_excluded_from_precompile:
-                            # If the precompiled header is generated by a C source, we must
-                            # not try to use it for C++ sources, and vice versa.
+                            # If the precompiled header is generated by a C source,
+                            # we must not try to use it for C++ sources,
+                            # and vice versa.
                             basename, extension = os.path.splitext(precompiled_source)
                             if extension == ".c":
                                 extensions_excluded_from_precompile = [
@@ -3657,6 +3614,15 @@ def _AddSources2(
                     extension_to_rule_name,
                     _GetUniquePlatforms(spec),
                 )
+                if group == "compile":
+                    # Always add an <ObjectFileName> value to support duplicate
+                    # source file basenames.
+                    file_name = os.path.splitext(source)[0] + ".obj"
+                    if (file_name.startswith("..\\")):
+                        file_name = re.sub(r"^(\.\.\\)+", "", file_name)
+                    elif (file_name.startswith("$(")):
+                        file_name = re.sub(r"^\$\([^)]+\)\\", "", file_name)
+                    detail.append(["ObjectFileName", "$(IntDir)\\" + file_name])
                 grouped_sources[group].append([element, {"Include": source}] + detail)
 
 
@@ -3704,6 +3670,7 @@ def _GetMSBuildProjectReferences(project):
 def _GenerateMSBuildProject(project, options, version, generator_flags, spec):
     spec = project.spec
     configurations = spec["configurations"]
+    toolset = spec["toolset"]
     project_dir, project_file_name = os.path.split(project.path)
     gyp.common.EnsureDirExists(project.path)
     # Prepare list of sources and excluded sources.
@@ -3717,6 +3684,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags, spec):
     rule_dependencies = set()
     extension_to_rule_name = {}
     list_excluded = generator_flags.get("msvs_list_excluded_files", True)
+    platforms = _GetUniquePlatforms(spec)
 
     # Don't generate rules if we are using an external builder like ninja.
     if not spec.get("msvs_external_builder"):
@@ -3759,7 +3727,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags, spec):
         sources,
         rule_dependencies,
         extension_to_rule_name,
-        _GetUniquePlatforms(spec),
+        platforms,
     )
     missing_sources = _VerifySourcesExist(sources, project_dir)
 
@@ -3812,7 +3780,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags, spec):
         content += _GetMSBuildLocalProperties(project.msbuild_toolset)
     content += import_cpp_props_section
     content += import_masm_props_section
-    if spec.get("msvs_enable_marmasm"):
+    if "arm64" in platforms and toolset == "target":
         content += import_marmasm_props_section
     content += _GetMSBuildExtensions(props_files_of_rules)
     content += _GetMSBuildPropertySheets(configurations, spec)
@@ -3834,7 +3802,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags, spec):
     content += _GetMSBuildProjectReferences(project)
     content += import_cpp_targets_section
     content += import_masm_targets_section
-    if spec.get("msvs_enable_marmasm"):
+    if "arm64" in platforms and toolset == "target":
         content += import_marmasm_targets_section
     content += _GetMSBuildExtensionTargets(targets_files_of_rules)
 
