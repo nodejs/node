@@ -49,7 +49,7 @@ static const unsigned char llparse_blob7[] = {
 };
 #ifdef __SSE4_2__
 static const unsigned char ALIGN(16) llparse_blob8[] = {
-  0x9, 0x9, ' ', '~', 0x80, 0xfe, 0x0, 0x0, 0x0, 0x0, 0x0,
+  0x9, 0x9, ' ', '~', 0x80, 0xff, 0x0, 0x0, 0x0, 0x0, 0x0,
   0x0, 0x0, 0x0, 0x0, 0x0
 };
 #endif  /* __SSE4_2__ */
@@ -1595,7 +1595,7 @@ static llparse_state_t llhttp__internal__run(
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
       };
       if (p == endp) {
         return s_n_llhttp__internal__n_header_value_connection_token;
@@ -1916,7 +1916,7 @@ static llparse_state_t llhttp__internal__run(
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
       };
       if (p == endp) {
         return s_n_llhttp__internal__n_header_value;
@@ -1975,7 +1975,7 @@ static llparse_state_t llhttp__internal__run(
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
       };
       if (p == endp) {
         return s_n_llhttp__internal__n_header_value_te_token;
@@ -6863,7 +6863,7 @@ static const unsigned char llparse_blob7[] = {
 };
 #ifdef __SSE4_2__
 static const unsigned char ALIGN(16) llparse_blob8[] = {
-  0x9, 0x9, ' ', '~', 0x80, 0xfe, 0x0, 0x0, 0x0, 0x0, 0x0,
+  0x9, 0x9, ' ', '~', 0x80, 0xff, 0x0, 0x0, 0x0, 0x0, 0x0,
   0x0, 0x0, 0x0, 0x0, 0x0
 };
 #endif  /* __SSE4_2__ */
@@ -8358,7 +8358,7 @@ static llparse_state_t llhttp__internal__run(
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
       };
       if (p == endp) {
         return s_n_llhttp__internal__n_header_value_connection_token;
@@ -8679,7 +8679,7 @@ static llparse_state_t llhttp__internal__run(
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
       };
       if (p == endp) {
         return s_n_llhttp__internal__n_header_value;
@@ -8738,7 +8738,7 @@ static llparse_state_t llhttp__internal__run(
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
       };
       if (p == endp) {
         return s_n_llhttp__internal__n_header_value_te_token;

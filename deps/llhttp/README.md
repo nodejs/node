@@ -22,7 +22,7 @@ were tried. However, all of them failed due to resulting significant performance
 degradation.
 
 This project is a port of [http_parser][0] to TypeScript. [llparse][1] is used
-to generate the output C and/or bitcode artifacts, which could be compiled and
+to generate the output C source file, which could be compiled and
 linked with the embedder's program (like [Node.js][7]).
 
 ## Performance
@@ -31,7 +31,7 @@ So far llhttp outperforms http_parser:
 
 |                 | input size |  bandwidth   |  reqs/sec  |   time  |
 |:----------------|-----------:|-------------:|-----------:|--------:|
-| **llhttp** _(C)_ | 8192.00 mb | 1777.24 mb/s | 3583799.39 ops/sec | 4.61 s |
+| **llhttp**      | 8192.00 mb | 1777.24 mb/s | 3583799.39 ops/sec | 4.61 s |
 | **http_parser** | 8192.00 mb | 694.66 mb/s | 1406180.33 req/sec | 11.79 s |
 
 llhttp is faster by approximately **156%**.
