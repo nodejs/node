@@ -118,7 +118,7 @@ future use. The root of the current volume may be referenced via `file:///`.
 added: REPLACEME
 -->
 
-[`node:` URLs][] are supported as a means to load Node.js builtin modules. This
+`node:` URLs are supported as a means to load Node.js builtin modules. This
 URL scheme allows for builtin modules to be referenced by valid absolute URL
 strings.
 
