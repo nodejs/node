@@ -226,7 +226,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   // Check can_call_into_js() first because calling Get() might do so.
   Environment* env = Environment::GetCurrent(recv->CreationContext());
   CHECK_NOT_NULL(env);
-  if (!env->can_call_into_js()) Local<Value>();
+  if (!env->can_call_into_js()) return Local<Value>();
 
   Local<Value> callback_v;
   if (!recv->Get(isolate->GetCurrentContext(), symbol).To(&callback_v))
