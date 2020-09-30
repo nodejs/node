@@ -229,7 +229,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   if (!env->can_call_into_js()) return Local<Value>();
 
   Local<Value> callback_v;
-  if (!recv->Get(isolate->GetCurrentContext(), symbol).To(&callback_v))
+  if (!recv->Get(isolate->GetCurrentContext(), symbol).ToLocal(&callback_v))
     return Local<Value>();
   if (!callback_v->IsFunction()) {
     // This used to return an empty value, but Undefined() makes more sense
