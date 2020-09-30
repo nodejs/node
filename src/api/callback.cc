@@ -223,10 +223,19 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                int argc,
                                Local<Value> argv[],
                                async_context asyncContext) {
-  Local<Value> callback_v =
-      recv->Get(isolate->GetCurrentContext(), symbol).ToLocalChecked();
-  if (callback_v.IsEmpty()) return Local<Value>();
-  if (!callback_v->IsFunction()) return Local<Value>();
+  // Check can_call_into_js() first because calling Get() might do so.
+  Environment* env = Environment::GetCurrent(recv->CreationContext());
+  CHECK_NOT_NULL(env);
+  if (!env->can_call_into_js()) return Local<Value>();
+
+  Local<Value> callback_v;
+  if (!recv->Get(isolate->GetCurrentContext(), symbol).ToLocal(&callback_v))
+    return Local<Value>();
+  if (!callback_v->IsFunction()) {
+    // This used to return an empty value, but Undefined() makes more sense
+    // since no exception is pending here.
+    return Undefined(isolate);
+  }
   Local<Function> callback = callback_v.As<Function>();
   return MakeCallback(isolate, recv, callback, argc, argv, asyncContext);
 }
