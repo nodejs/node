@@ -471,7 +471,9 @@ changes:
   - version: v13.9.0
     pr-url: https://github.com/nodejs/node/pull/31318
     description: The `tabSize` option is supported now.
-  - version: v8.3.0, 6.11.4
+  - version:
+    - v8.3.0
+    - v6.11.4
     pr-url: https://github.com/nodejs/node/pull/13497
     description: Remove max limit of `crlfDelay` option.
   - version: v6.6.0
