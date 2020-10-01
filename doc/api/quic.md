@@ -94,7 +94,7 @@ At any given time, a `QuicSession` exists is one of four possible states:
 * `Ready` - Entered as soon as the TLS 1.3 handshake completes. Once the
   `QuicSession` enters the `Ready` state, it may be used to exchange
   application data using `QuicStream` instances.
-* `Closed` - Entere as soon as the `QuicSession` connection has been
+* `Closed` - Entered as soon as the `QuicSession` connection has been
   terminated.
 
 New instances of `QuicClientSession` are created using the `connect()`
@@ -152,7 +152,7 @@ socket.on('session', (session) => {
 ```
 
 As with client `QuicSession` instances, the `QuicServerSession` cannot be
-used to exhange application data until the `'secure'` event has been emitted.
+used to exchange application data until the `'secure'` event has been emitted.
 
 ### QuicSession and ALPN
 
@@ -197,7 +197,7 @@ peer opened the stream. A unidirectional stream can be written to only by the
 QuicSession that opened it.
 
 The `'stream'` event is emitted by the `QuicSession` when a new `QuicStream`
-has been initated by the connected peer:
+has been initiated by the connected peer:
 
 ```js
 session.on('stream', (stream) => {
@@ -403,7 +403,7 @@ added: REPLACEME
 
 * `error` {Object} An `Error` object.
 
-Closes and destroys the `QuicEndpoint` instance making it usuable.
+Closes and destroys the `QuicEndpoint` instance making it unusable.
 
 #### `quicendpoint.destroyed`
 <!-- YAML
@@ -712,7 +712,7 @@ added: REPLACEME
 
 * Type: {number}
 
-The number of retransmissions caused by delayed acknowledgements.
+The number of retransmissions caused by delayed acknowledgments.
 
 #### `quicsession.address`
 <!-- YAML
@@ -962,7 +962,7 @@ added: REPLACEME
 
 * Type: {number}
 
-The number of key update operations that have occured.
+The number of key update operations that have occurred.
 
 #### `quicsession.latestRTT`
 <!-- YAML
@@ -1078,7 +1078,7 @@ added: REPLACEME
 If `qlog` support is enabled for `QuicSession`, the `quicsession.qlog` property
 provides a [`stream.Readable`][] that may be used to access the `qlog` event
 data according to the [qlog standard][]. For client `QuicSessions`, the
-`quicsession.qlog` property will be `undefined` untilt the `'qlog'` event
+`quicsession.qlog` property will be `undefined` until the `'qlog'` event
 is emitted.
 
 #### `quicsession.remoteAddress`
@@ -1441,7 +1441,7 @@ added: REPLACEME
 * Returns: {QuicEndpoint}
 
 Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance. An
-error will be thrown if `quicsock.addEndpoint()` is called either after
+error will be thrown if `quicsocket.addEndpoint()` is called either after
 the `QuicSocket` has already started binding to the local ports, or after
 the `QuicSocket` has been destroyed.
 
@@ -1474,7 +1474,7 @@ Will be `true` if the `QuicSocket` has been successfully bound to a local UDP
 port. Initially the value is `false`.
 
 `QuicSocket` instances are not bound to a local UDP port until the first time
-eithe `quicsocket.listen()` or `quicsocket.connect()` is called. The `'ready'`
+either `quicsocket.listen()` or `quicsocket.connect()` is called. The `'ready'`
 event will be emitted once the `QuicSocket` has been bound and the value of
 `quicsocket.bound` will become `true`.
 
@@ -2146,7 +2146,7 @@ Read-only.
 added: REPLACEME
 -->
 
-* Returns: {Promise`}
+* Returns: {Promise}
 
 Closes the `QuicStream` by ending both sides of the `QuicStream` `Duplex`.
 Returns a `Promise` that is resolved once the `QuicStream` has been destroyed.
@@ -2299,7 +2299,7 @@ added: REPLACEME
   * `length` {number} The amount of data from the fd to send.
     Default: `-1`.
 
-Instead of using a `Quicstream` as a writable stream, send data from a given
+Instead of using a `QuicStream` as a writable stream, send data from a given
 file descriptor.
 
 If `offset` is set to a non-negative number, reading starts from that position
@@ -2366,7 +2366,7 @@ added: REPLACEME
 
 * Type: {boolean}
 
-Will be `true` if the `QuicStream` is undirectional. Whether the `QuicStream`
+Will be `true` if the `QuicStream` is unidirectional. Whether the `QuicStream`
 will be readable or writable depends on whether the `quicstream.session` is
 a `QuicClientSession` or `QuicServerSession`, and whether the `QuicStream`
 was initiated locally or remotely.
