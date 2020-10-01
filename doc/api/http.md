@@ -926,8 +926,7 @@ added: v0.3.0
 
 Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
-because of how the protocol parser attaches to the socket. The `socket`
-may also be accessed via `request.connection`.
+because of how the protocol parser attaches to the socket.
 
 ```js
 const http = require('http');
@@ -1157,7 +1156,7 @@ This event is emitted when a new TCP stream is established. `socket` is
 typically an object of type [`net.Socket`][]. Usually users will not want to
 access this event. In particular, the socket will not emit `'readable'` events
 because of how the protocol parser attaches to the socket. The `socket` can
-also be accessed at `request.connection`.
+also be accessed at `request.socket`.
 
 This event can also be explicitly emitted by users to inject connections
 into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
@@ -1658,8 +1657,7 @@ added: v0.3.0
 Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
 because of how the protocol parser attaches to the socket. After
-`response.end()`, the property is nulled. The `socket` may also be accessed
-via `response.connection`.
+`response.end()`, the property is nulled.
 
 ```js
 const http = require('http');
@@ -2059,7 +2057,7 @@ added: v0.5.9
 * `callback` {Function}
 * Returns: {http.IncomingMessage}
 
-Calls `message.connection.setTimeout(msecs, callback)`.
+Calls `message.socket.setTimeout(msecs, callback)`.
 
 ### `message.socket`
 <!-- YAML
