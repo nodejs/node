@@ -117,7 +117,7 @@ const customTypesMap = {
   'module': 'modules.html#modules_the_module_object',
 
   'module.SourceMap':
-    'modules_module.html#modules_module_class_module_sourcemap',
+    'module.html#module_class_module_sourcemap',
 
   'require': 'modules.html#modules_require_id',
 
