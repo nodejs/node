@@ -383,7 +383,7 @@ For information about the governance of the Node.js project, see
 * [rexagod](https://github.com/rexagod) -
 **Pranshu Srivastava** &lt;rexagod@gmail.com&gt; (he/him)
 * [richardlau](https://github.com/richardlau) -
-**Richard Lau** &lt;riclau@uk.ibm.com&gt;
+**Richard Lau** &lt;rlau@redhat.com&gt;
 * [rickyes](https://github.com/rickyes) -
 **Ricky Zhou** &lt;0x19951125@gmail.com&gt; (he/him)
 * [ronag](https://github.com/ronag) -
@@ -582,7 +582,7 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 `8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600`
 * **Myles Borins** &lt;myles.borins@gmail.com&gt;
 `C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
-* **Richard Lau** &lt;riclau@uk.ibm.com&gt;
+* **Richard Lau** &lt;rlau@redhat.com&gt;
 `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
 * **Rod Vagg** &lt;rod@vagg.org&gt;
 `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
