@@ -19,6 +19,7 @@ changes:
   - version:
       - v13.9.0
       - v12.16.2
+    pr-url: https://github.com/nodejs/node/pull/31635
     description: Changed "strict mode" to "strict assertion mode" and "legacy
                  mode" to "legacy assertion mode" to avoid confusion with the
                  more usual meaning of "strict mode".
