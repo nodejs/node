@@ -157,7 +157,7 @@ For information about the governance of the Node.js project, see
 * [apapirovski](https://github.com/apapirovski) -
 **Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [BethGriggs](https://github.com/BethGriggs) -
-**Beth Griggs** &lt;Bethany.Griggs@uk.ibm.com&gt; (she/her)
+**Beth Griggs** &lt;bgriggs@redhat.com&gt; (she/her)
 * [BridgeAR](https://github.com/BridgeAR) -
 **Ruben Bridgewater** &lt;ruben@bridgewater.de&gt; (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
@@ -257,7 +257,7 @@ For information about the governance of the Node.js project, see
 * [benjamingr](https://github.com/benjamingr) -
 **Benjamin Gruenbaum** &lt;benjamingr@gmail.com&gt;
 * [BethGriggs](https://github.com/BethGriggs) -
-**Beth Griggs** &lt;Bethany.Griggs@uk.ibm.com&gt; (she/her)
+**Beth Griggs** &lt;bgriggs@redhat.com&gt; (she/her)
 * [bmeck](https://github.com/bmeck) -
 **Bradley Farias** &lt;bradley.meck@gmail.com&gt;
 * [bmeurer](https://github.com/bmeurer) -
@@ -572,7 +572,7 @@ maintaining the Node.js project.
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
-* **Beth Griggs** &lt;bethany.griggs@uk.ibm.com&gt;
+* **Beth Griggs** &lt;bgriggs@redhat.com&gt;
 `4ED778F539E3634C779C87C6D7062848A1AB005C`
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
