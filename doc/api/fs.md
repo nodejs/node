@@ -1758,6 +1758,10 @@ fs.copyFileSync('source.txt', 'destination.txt', COPYFILE_EXCL);
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: v13.6.0
+    pr-url: https://github.com/nodejs/node/pull/29083
+    description: The `fs` options allow overriding the used `fs`
+                 implementation.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29212
     description: Enable `emitClose` option.
@@ -1776,10 +1780,6 @@ changes:
   - version: v2.3.0
     pr-url: https://github.com/nodejs/node/pull/1845
     description: The passed `options` object can be a string now.
-  - version: v13.6.0
-    pr-url: https://github.com/nodejs/node/pull/29083
-    description: The `fs` options allow overriding the used `fs`
-                 implementation.
 -->
 
 * `path` {string|Buffer|URL}
@@ -1863,6 +1863,10 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: v13.6.0
+    pr-url: https://github.com/nodejs/node/pull/29083
+    description: The `fs` options allow overriding the used `fs`
+                 implementation.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29212
     description: Enable `emitClose` option.
@@ -1879,10 +1883,6 @@ changes:
   - version: v2.3.0
     pr-url: https://github.com/nodejs/node/pull/1845
     description: The passed `options` object can be a string now.
-  - version: v13.6.0
-    pr-url: https://github.com/nodejs/node/pull/29083
-    description: The `fs` options allow overriding the used `fs`
-                 implementation.
 -->
 
 * `path` {string|Buffer|URL}
@@ -2553,10 +2553,6 @@ not the file that it refers to.
 <!-- YAML
 added: v0.1.30
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/33716
-    description: Accepts a `throwIfNoEntry` option to specify whether
-                 an exception should be thrown if the entry does not exist.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -3810,10 +3806,6 @@ Stats {
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/33716
-    description: Accepts a `throwIfNoEntry` option to specify whether
-                 an exception should be thrown if the entry does not exist.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
