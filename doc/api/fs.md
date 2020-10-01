@@ -2938,7 +2938,7 @@ changes:
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31402
     description: Options object can be passed in
-                 to make Buffer, offset, length and position optional
+                 to make Buffer, offset, length and position optional.
 -->
 * `fd` {integer}
 * `options` {Object}
@@ -3240,7 +3240,7 @@ changes:
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32460
     description: Options object can be passed in
-                 to make offset, length and position optional
+                 to make offset, length and position optional.
 -->
 
 * `fd` {integer}
@@ -3799,7 +3799,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23724
     description: If the `type` argument is left undefined, Node will autodetect
-                 `target` type and automatically select `dir` or `file`
+                 `target` type and automatically select `dir` or `file`.
 -->
 
 * `target` {string|Buffer|URL}
@@ -3847,7 +3847,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23724
     description: If the `type` argument is left undefined, Node will autodetect
-                 `target` type and automatically select `dir` or `file`
+                 `target` type and automatically select `dir` or `file`.
 -->
 
 * `target` {string|Buffer|URL}
@@ -4240,7 +4240,7 @@ changes:
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
-                 `DataView`
+                 `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing

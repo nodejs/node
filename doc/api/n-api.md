@@ -3764,7 +3764,7 @@ if (status != napi_ok) return status;
 changes:
  - version: v14.12.0
    pr-url: https://github.com/nodejs/node/pull/35214
-   description: added `napi_default_method` and `napi_default_property`
+   description: added `napi_default_method` and `napi_default_property`.
 -->
 
 ```c
@@ -5806,13 +5806,12 @@ napiVersion: 4
 changes:
   - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33453
-    description: >
-      Support for `napi_would_deadlock` has been reverted.
+    description: Support for `napi_would_deadlock` has been reverted.
   - version: v14.1.0
     pr-url: https://github.com/nodejs/node/pull/32689
-    description: >
-      Return `napi_would_deadlock` when called with `napi_tsfn_blocking` from
-      the main thread or a worker thread and the queue is full.
+    description: Return `napi_would_deadlock` when called with
+                 `napi_tsfn_blocking` from the main thread or a worker thread
+                 and the queue is full.
 -->
 
 ```c

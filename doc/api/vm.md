@@ -61,7 +61,7 @@ changes:
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20300
     description: The `produceCachedData` is deprecated in favour of
-                 `script.createCachedData()`
+                 `script.createCachedData()`.
 -->
 
 * `code` {string} The JavaScript code to compile.
@@ -820,7 +820,8 @@ changes:
     description: The `importModuleDynamically` option is now supported.
   - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33364
-    description: Removal of `importModuleDynamically` due to compatibility issues
+    description: Removal of `importModuleDynamically` due to compatibility
+                 issues.
 -->
 
 * `code` {string} The body of the function to compile.

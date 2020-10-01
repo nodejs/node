@@ -514,7 +514,7 @@ added: v1.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/35093
-    decription: The buffer argument can be a string or ArrayBuffer and is
+    description: The buffer argument can be a string or ArrayBuffer and is
                 limited to no more than 2 ** 31 - 1 bytes.
   - version: v7.2.0
     pr-url: https://github.com/nodejs/node/pull/9398
@@ -543,7 +543,7 @@ added: v1.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/35093
-    decription: The buffer argument can be a string or ArrayBuffer and is
+    description: The buffer argument can be a string or ArrayBuffer and is
                 limited to no more than 2 ** 31 - 1 bytes.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/17825
@@ -884,11 +884,11 @@ added: v0.11.14
 changes:
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5522
-    description: The default `inputEncoding` changed from `binary` to `utf8`
+    description: The default `inputEncoding` changed from `binary` to `utf8`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16849
     description: Changed error format to better support invalid public key
-                 error
+                 error.
 -->
 
 * `otherPublicKey` {string|ArrayBuffer|Buffer|TypedArray|DataView}
@@ -1295,14 +1295,14 @@ changes:
     description: Added support for `'dh'`.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26960
-    description: Added support for `'rsa-pss'`
+    description: Added support for `'rsa-pss'`.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26786
     description: This property now returns `undefined` for KeyObject
                  instances of unrecognized type instead of aborting.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26774
-    description: Added support for `'x25519'` and `'x448'`
+    description: Added support for `'x25519'` and `'x448'`.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26319
     description: Added support for `'ed25519'` and `'ed448'`.
