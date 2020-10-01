@@ -290,7 +290,7 @@ changes:
   - version: v13.6.0
     pr-url: https://github.com/nodejs/node/pull/30980
     description: changed from `--experimental-wasi-unstable-preview0` to
-                 `--experimental-wasi-unstable-preview1`
+                 `--experimental-wasi-unstable-preview1`.
 -->
 
 Enable experimental WebAssembly System Interface (WASI) support.
@@ -694,7 +694,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: Changed from `--diagnostic-report-directory` to
-                 `--report-directory`
+                 `--report-directory`.
 -->
 
 Location at which the report will be generated.
@@ -711,7 +711,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-filename` to
-                 `--report-filename`
+                 `--report-filename`.
 -->
 
 Name of the file to which the report will be written.
@@ -729,7 +729,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-on-fatalerror` to
-                 `--report-on-fatalerror`
+                 `--report-on-fatalerror`.
 -->
 
 Enables the report to be triggered on fatal errors (internal errors within
@@ -750,7 +750,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-on-signal` to
-                 `--report-on-signal`
+                 `--report-on-signal`.
 -->
 
 Enables report to be generated upon receiving the specified (or predefined)
@@ -769,7 +769,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-signal` to
-                 `--report-signal`
+                 `--report-signal`.
 -->
 
 Sets or resets the signal for report generation (not supported on Windows).
@@ -787,7 +787,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-uncaught-exception` to
-                 `--report-uncaught-exception`
+                 `--report-uncaught-exception`.
 -->
 
 Enables report to be generated on uncaught exceptions. Useful when inspecting
