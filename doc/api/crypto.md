@@ -842,11 +842,11 @@ added: v0.11.14
 changes:
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5522
-    description: The default `inputEncoding` changed from `binary` to `utf8`
+    description: The default `inputEncoding` changed from `binary` to `utf8`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16849
     description: Changed error format to better support invalid public key
-                 error
+                 error.
 -->
 
 * `otherPublicKey` {string | Buffer | TypedArray | DataView}
@@ -1249,14 +1249,14 @@ changes:
     description: Added support for `'dh'`.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26960
-    description: Added support for `'rsa-pss'`
+    description: Added support for `'rsa-pss'`.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26786
     description: This property now returns `undefined` for KeyObject
                  instances of unrecognized type instead of aborting.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26774
-    description: Added support for `'x25519'` and `'x448'`
+    description: Added support for `'x25519'` and `'x448'`.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26319
     description: Added support for `'ed25519'` and `'ed448'`.

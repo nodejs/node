@@ -314,10 +314,10 @@ changes:
                  minor comparison adjustments to make the check less surprising.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: The `Error` names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: The `Set` and `Map` content is also compared
+    description: The `Set` and `Map` content is also compared.
   - version:
     - v6.4.0
     - v4.7.1
@@ -440,10 +440,10 @@ changes:
               comparison.
   - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: The `Error` names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: The `Set` and `Map` content is also compared
+    description: The `Set` and `Map` content is also compared.
   - version:
     - v6.4.0
     - v4.7.1
@@ -983,10 +983,10 @@ changes:
                  NaN.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: The `Error` names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: The `Set` and `Map` content is also compared
+    description: The `Set` and `Map` content is also compared.
   - version:
     - v6.4.0
     - v4.7.1
@@ -1071,10 +1071,10 @@ changes:
               comparison.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: The `Error` names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: The `Set` and `Map` content is also compared
+    description: The `Set` and `Map` content is also compared.
   - version:
     - v6.4.0
     - v4.7.1
@@ -1160,7 +1160,7 @@ added: v0.1.21
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
-    description: Used comparison changed from Strict Equality to `Object.is()`
+    description: Used comparison changed from Strict Equality to `Object.is()`.
 -->
 
 * `actual` {any}
@@ -1339,7 +1339,7 @@ added: v0.1.21
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
-    description: Used comparison changed from Strict Equality to `Object.is()`
+    description: Used comparison changed from Strict Equality to `Object.is()`.
 -->
 
 * `actual` {any}
