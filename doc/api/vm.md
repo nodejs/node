@@ -54,14 +54,14 @@ executed in specific contexts.
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: v5.7.0
-    pr-url: https://github.com/nodejs/node/pull/4777
-    description: The `cachedData` and `produceCachedData` options are
-                 supported now.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20300
     description: The `produceCachedData` is deprecated in favour of
                  `script.createCachedData()`.
+  - version: v5.7.0
+    pr-url: https://github.com/nodejs/node/pull/4777
+    description: The `cachedData` and `produceCachedData` options are
+                 supported now.
 -->
 
 * `code` {string} The JavaScript code to compile.
@@ -813,15 +813,15 @@ const vm = require('vm');
 <!-- YAML
 added: v10.10.0
 changes:
+  - version: v14.3.0
+    pr-url: https://github.com/nodejs/node/pull/33364
+    description: Removal of `importModuleDynamically` due to compatibility
+                 issues.
   - version:
     - v14.1.0
     - v13.14.0
     pr-url: https://github.com/nodejs/node/pull/32985
     description: The `importModuleDynamically` option is now supported.
-  - version: v14.3.0
-    pr-url: https://github.com/nodejs/node/pull/33364
-    description: Removal of `importModuleDynamically` due to compatibility
-                 issues.
 -->
 
 * `code` {string} The body of the function to compile.

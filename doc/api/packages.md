@@ -882,24 +882,24 @@ as ES modules and `.cjs` files are always treated as CommonJS.
 added: v12.7.0
 changes:
   - version:
-    - v13.2.0
-    - v12.16.0
-    pr-url: https://github.com/nodejs/node/pull/29978
-    description: Implement conditional exports.
-  - version:
-    - v13.7.0
-    - v12.16.0
-    pr-url: https://github.com/nodejs/node/pull/31001
-    description: Remove the `--experimental-conditional-exports` option.
+    - v14.13.0
+    pr-url: https://github.com/nodejs/node/pull/34718
+    description: Add support for `"exports"` patterns.
   - version:
     - v13.7.0
     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31008
     description: Implement logical conditional exports ordering.
   - version:
-    - v14.13.0
-    pr-url: https://github.com/nodejs/node/pull/34718
-    description: Add support for `"exports"` patterns.
+    - v13.7.0
+    - v12.16.0
+    pr-url: https://github.com/nodejs/node/pull/31001
+    description: Remove the `--experimental-conditional-exports` option.
+  - version:
+    - v13.2.0
+    - v12.16.0
+    pr-url: https://github.com/nodejs/node/pull/29978
+    description: Implement conditional exports.
 -->
 
 * Type: {Object} | {string} | {string[]}

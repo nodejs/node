@@ -882,13 +882,13 @@ console.log(uncompressedKey === ecdh.getPublicKey('hex'));
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: v6.0.0
-    pr-url: https://github.com/nodejs/node/pull/5522
-    description: The default `inputEncoding` changed from `binary` to `utf8`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16849
     description: Changed error format to better support invalid public key
                  error.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 
 * `otherPublicKey` {string|ArrayBuffer|Buffer|TypedArray|DataView}
