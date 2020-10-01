@@ -3,6 +3,7 @@
 deprecated: v1.4.2
 changes:
   - version: v8.8.0
+    pr-url: https://github.com/nodejs/node/pull/15695
     description: Any `Promise`s created in VM contexts no longer have a
                  `.domain` property. Their handlers are still executed in the
                  proper domain, however, and `Promise`s created in the main
