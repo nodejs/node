@@ -5226,6 +5226,7 @@ added: v8.0.0
 napiVersion: 1
 changes:
   - version: v8.6.0
+    pr-url: https://github.com/nodejs/node/pull/15189
     description: Added `async_context` parameter.
 -->
 
