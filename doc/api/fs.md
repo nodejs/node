@@ -2917,6 +2917,9 @@ If `position` is an integer, the file position will remain unchanged.
 
 The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
+If the file is not modified concurrently, the end-of-file is reached when the
+number of bytes read is zero.
+
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
@@ -4676,6 +4679,9 @@ If `position` is an integer, the file position will remain unchanged.
 Following successful read, the `Promise` is resolved with an object with a
 `bytesRead` property specifying the number of bytes read, and a `buffer`
 property that is a reference to the passed in `buffer` argument.
+
+If the file is not modified concurrently, the end-of-file is reached when the
+number of bytes read is zero.
 
 #### `filehandle.read(options)`
 <!-- YAML
