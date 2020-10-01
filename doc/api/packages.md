@@ -800,12 +800,12 @@ The following fields in `package.json` files are used in Node.js:
 ### `"name"`
 <!-- YAML
 added:
-  - v12.16.0
   - v13.1.0
+  - v12.16.0
 changes:
   - version:
-    - v12.16.0
     - v13.6.0
+    - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31002
     description: Remove the `--experimental-resolve-self` option.
 -->
@@ -830,8 +830,8 @@ The `"name"` field can be used in addition to the [`"exports"`][] field to
 added: v12.0.0
 changes:
   - version:
-    - v12.17.0
     - v13.2.0
+    - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29866
     description: Unflag `--experimental-modules`.
 -->
@@ -882,18 +882,18 @@ as ES modules and `.cjs` files are always treated as CommonJS.
 added: v12.7.0
 changes:
   - version:
-    - v12.16.0
     - v13.2.0
+    - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29978
     description: Implement conditional exports.
   - version:
-    - v12.16.0
     - v13.7.0
+    - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31001
     description: Remove the `--experimental-conditional-exports` option.
   - version:
-    - v12.16.0
     - v13.7.0
+    - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31008
     description: Implement logical conditional exports ordering.
   - version:

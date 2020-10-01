@@ -1374,7 +1374,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` option can be a `TypedArray` or
      `DataView` now.
-  - version: v5.3.0, v4.7.0
+  - version:
+    - v5.3.0
+    - v4.7.0
     pr-url: https://github.com/nodejs/node/pull/4246
     description: The `secureContext` option is supported now.
   - version: v5.0.0
