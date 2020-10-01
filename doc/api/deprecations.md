@@ -1739,7 +1739,7 @@ changes:
     description: Deprecation revoked.
   - version:
       - v9.9.0
-      - v10.0.0
+      - v8.13.0
     pr-url: https://github.com/nodejs/node/pull/17002
     description: Documentation-only deprecation.
 -->
@@ -2547,9 +2547,9 @@ API.
 <!-- YAML
 changes:
   - version:
-    - v12.19.0
-    - v14.6.0
-    pr-url: https://github.com/nodejs/node/pull/32217
+    - v14.1.0
+    - v13.14.0
+    pr-url: https://github.com/nodejs/node/pull/32807
     description: Documentation-only deprecation.
 -->
 
@@ -2598,7 +2598,9 @@ no longer required due to simplification of the implementation.
 ### DEP0144: `module.parent`
 <!-- YAML
 changes:
-  - version: v14.6.0
+  - version:
+    - v14.6.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/32217
     description: Documentation-only deprecation.
 -->
