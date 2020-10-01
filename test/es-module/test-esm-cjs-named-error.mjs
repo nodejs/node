@@ -3,20 +3,25 @@ import { rejects } from 'assert';
 
 const fixtureBase = '../fixtures/es-modules/package-cjs-named-error';
 
-const errTemplate = (specifier, name, namedImports) =>
+const errTemplate = (specifier, name, namedImports, defaultName) =>
   `Named export '${name}' not found. The requested module` +
   ` '${specifier}' is a CommonJS module, which may not support ` +
   'all module.exports as named exports.\nCommonJS modules can ' +
   'always be imported via the default export, for example using:' +
-  `\n\nimport pkg from '${specifier}';\n` + (namedImports ?
-    `const ${namedImports} = pkg;\n` : '');
+  `\n\nimport ${defaultName || 'pkg'} from '${specifier}';\n` + (namedImports ?
+    `const ${namedImports} = ${defaultName || 'pkg'};\n` : '');
 
-const expectedWithoutExample = errTemplate('./fail.cjs', 'comeOn');
+const expectedMultiLine = errTemplate('./fail.cjs', 'comeOn',
+                                      '{ comeOn, everybody }');
 
 const expectedRelative = errTemplate('./fail.cjs', 'comeOn', '{ comeOn }');
 
 const expectedRenamed = errTemplate('./fail.cjs', 'comeOn',
                                     '{ comeOn: comeOnRenamed }');
+
+const expectedDefaultRenamed =
+  errTemplate('./fail.cjs', 'everybody', '{ comeOn: comeOnRenamed, everybody }',
+              'abc');
 
 const expectedPackageHack =
     errTemplate('./json-hack/fail.js', 'comeOn', '{ comeOn }');
@@ -45,10 +50,17 @@ rejects(async () => {
 }, 'should correctly format named imports with renames');
 
 rejects(async () => {
+  await import(`${fixtureBase}/default-and-renamed-import.mjs`);
+}, {
+  name: 'SyntaxError',
+  message: expectedDefaultRenamed
+}, 'should correctly format hybrid default and named imports with renames');
+
+rejects(async () => {
   await import(`${fixtureBase}/multi-line.mjs`);
 }, {
   name: 'SyntaxError',
-  message: expectedWithoutExample,
+  message: expectedMultiLine,
 }, 'should correctly format named imports across multiple lines');
 
 rejects(async () => {
