@@ -1803,7 +1803,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/25974
     description: Return `this` from `writeHead()` to allow chaining with
                  `end()`.
-  - version: v5.11.0, v4.4.5
+  - version:
+    - v5.11.0
+    - v4.4.5
     pr-url: https://github.com/nodejs/node/pull/6291
     description: A `RangeError` is thrown if `statusCode` is not a number in
                  the range `[100, 999]`.
@@ -2195,7 +2197,9 @@ changes:
   - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30570
     description: The `maxHeaderSize` option is supported now.
-  - version: v9.6.0, v8.12.0
+  - version:
+    - v9.6.0
+    - v8.12.0
     pr-url: https://github.com/nodejs/node/pull/15752
     description: The `options` argument is supported now.
 -->
