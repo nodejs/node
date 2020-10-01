@@ -1,12 +1,16 @@
-exports = module.exports = readLocalPkg
+'use strict'
 
-var npm = require('../npm.js')
-var readJson = require('read-package-json')
+const { resolve } = require('path')
+const readJson = require('read-package-json-fast')
+const npm = require('../npm.js')
 
-function readLocalPkg (cb) {
-  if (npm.config.get('global')) return cb()
-  var path = require('path')
-  readJson(path.resolve(npm.prefix, 'package.json'), function (er, d) {
-    return cb(er, d && d.name)
-  })
+async function readLocalPackageName (cb) {
+  if (npm.flatOptions.global) {
+    return
+  }
+
+  const filepath = resolve(npm.flatOptions.prefix, 'package.json')
+  return (await readJson(filepath)).name
 }
+
+module.exports = readLocalPackageName

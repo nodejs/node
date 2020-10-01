@@ -1,11 +1,11 @@
-.TH "NPM\-BUGS" "1" "August 2020" "" ""
+.TH "NPM\-BUGS" "1" "October 2020" "" ""
 .SH "NAME"
 \fBnpm-bugs\fR \- Bugs for a package in a web browser maybe
 .SS Synopsis
 .P
 .RS 2
 .nf
-npm bugs [<pkgname>]
+npm bugs [<pkgname> [<pkgname> \.\.\.]]
 
 aliases: issues
 .fi
@@ -22,11 +22,16 @@ a \fBpackage\.json\fP in the current folder and use the \fBname\fP property\.
 .IP \(bu 2
 Default: OS X: \fB"open"\fP, Windows: \fB"start"\fP, Others: \fB"xdg\-open"\fP
 .IP \(bu 2
-Type: String
+Type: String or Boolean
 
 .RE
 .P
 The browser that is called by the \fBnpm bugs\fP command to open websites\.
+.P
+Set to \fBfalse\fP to suppress browser behavior and instead print urls to
+terminal\.
+.P
+Set to \fBtrue\fP to use default system URL opener\.
 .SS registry
 .RS 0
 .IP \(bu 2

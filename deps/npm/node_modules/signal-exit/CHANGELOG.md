@@ -1,6 +1,14 @@
-# Change Log
+# Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [3.0.3](https://github.com/tapjs/signal-exit/compare/v3.0.2...v3.0.3) (2020-03-26)
+
+
+### Bug Fixes
+
+* patch `SIGHUP` to `SIGINT` when on Windows ([cfd1046](https://github.com/tapjs/signal-exit/commit/cfd1046079af4f0e44f93c69c237a09de8c23ef2))
+* **ci:** use Travis for Windows builds ([007add7](https://github.com/tapjs/signal-exit/commit/007add793d2b5ae3c382512103adbf321768a0b8))
 
 <a name="3.0.1"></a>
 ## [3.0.1](https://github.com/tapjs/signal-exit/compare/v3.0.0...v3.0.1) (2016-09-08)

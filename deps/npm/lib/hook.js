@@ -1,70 +1,40 @@
-'use strict'
-
-const BB = require('bluebird')
-
-const hookApi = require('libnpm/hook')
-const npmConfig = require('./config/figgy-config.js')
+const hookApi = require('libnpmhook')
+const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const pudding = require('figgy-pudding')
 const relativeDate = require('tiny-relative-date')
 const Table = require('cli-table3')
-const validate = require('aproba')
-const npm = require('./npm')
 
-hook.usage = [
+const usageUtil = require('./utils/usage.js')
+const usage = usageUtil('hook', [
   'npm hook add <pkg> <url> <secret> [--type=<type>]',
   'npm hook ls [pkg]',
   'npm hook rm <id>',
   'npm hook update <id> <url> <secret>'
-].join('\n')
+].join('\n'))
 
-hook.completion = (opts, cb) => {
-  validate('OF', [opts, cb])
-  return cb(null, []) // fill in this array with completion values
-}
+const completion = require('./utils/completion/none.js')
 
-const HookConfig = pudding({
-  json: {},
-  loglevel: {},
-  parseable: {},
-  silent: {},
-  unicode: {}
+const cmd = (args, cb) => hook(args).then(() => cb()).catch(cb)
+
+const hook = async (args) => otplease(npm.flatOptions, opts => {
+  switch (args[0]) {
+    case 'add':
+      return add(args[1], args[2], args[3], opts)
+    case 'ls':
+      return ls(args[1], opts)
+    case 'rm':
+      return rm(args[1], opts)
+    case 'update':
+    case 'up':
+      return update(args[1], args[2], args[3], opts)
+    default:
+      throw usage
+  }
 })
 
-function UsageError () {
-  throw Object.assign(new Error(hook.usage), {code: 'EUSAGE'})
-}
-
-module.exports = (args, cb) => BB.try(() => hook(args)).then(
-  val => cb(null, val),
-  err => err.code === 'EUSAGE' ? cb(err.message) : cb(err)
-)
-function hook (args) {
-  if (args.length === 4) { // secret is passed in the args
-    // we have the user secret in the CLI args, we need to redact it from the referer.
-    redactUserSecret()
-  }
-  return otplease(npmConfig(), opts => {
-    opts = HookConfig(opts)
-    switch (args[0]) {
-      case 'add':
-        return add(args[1], args[2], args[3], opts)
-      case 'ls':
-        return ls(args[1], opts)
-      case 'rm':
-        return rm(args[1], opts)
-      case 'update':
-      case 'up':
-        return update(args[1], args[2], args[3], opts)
-      default:
-        UsageError()
-    }
-  })
-}
-
-function add (pkg, uri, secret, opts) {
-  return hookApi.add(pkg, uri, secret, opts).then(hook => {
+const add = (pkg, uri, secret, opts) => {
+  hookApi.add(pkg, uri, secret, opts).then(hook => {
     if (opts.json) {
       output(JSON.stringify(hook, null, 2))
     } else if (opts.parseable) {
@@ -78,8 +48,8 @@ function add (pkg, uri, secret, opts) {
   })
 }
 
-function ls (pkg, opts) {
-  return hookApi.ls(opts.concat({package: pkg})).then(hooks => {
+const ls = (pkg, opts) => {
+  return hookApi.ls({ ...opts, package: pkg }).then(hooks => {
     if (opts.json) {
       output(JSON.stringify(hooks, null, 2))
     } else if (opts.parseable) {
@@ -95,10 +65,10 @@ function ls (pkg, opts) {
       } else {
         output(`You have ${hooks.length} hooks configured.`)
       }
-      const table = new Table({head: ['id', 'target', 'endpoint']})
+      const table = new Table({ head: ['id', 'target', 'endpoint'] })
       hooks.forEach((hook) => {
         table.push([
-          {rowSpan: 2, content: hook.id},
+          { rowSpan: 2, content: hook.id },
           hookName(hook),
           hook.endpoint
         ])
@@ -111,7 +81,7 @@ function ls (pkg, opts) {
             hook.response_code
           ])
         } else {
-          table.push([{colSpan: 2, content: 'never triggered'}])
+          table.push([{ colSpan: 2, content: 'never triggered' }])
         }
       })
       output(table.toString())
@@ -119,7 +89,7 @@ function ls (pkg, opts) {
   })
 }
 
-function rm (id, opts) {
+const rm = (id, opts) => {
   return hookApi.rm(id, opts).then(hook => {
     if (opts.json) {
       output(JSON.stringify(hook, null, 2))
@@ -134,7 +104,7 @@ function rm (id, opts) {
   })
 }
 
-function update (id, uri, secret, opts) {
+const update = (id, uri, secret, opts) => {
   return hookApi.update(id, uri, secret, opts).then(hook => {
     if (opts.json) {
       output(JSON.stringify(hook, null, 2))
@@ -149,17 +119,11 @@ function update (id, uri, secret, opts) {
   })
 }
 
-function hookName (hook) {
+const hookName = (hook) => {
   let target = hook.name
   if (hook.type === 'scope') { target = '@' + target }
   if (hook.type === 'owner') { target = '~' + target }
   return target
 }
 
-function redactUserSecret () {
-  const referer = npm.referer
-  if (!referer) return
-  const splittedReferer = referer.split(' ')
-  splittedReferer[4] = '[REDACTED]'
-  npm.referer = splittedReferer.join(' ')
-}
+module.exports = Object.assign(cmd, { usage, completion })

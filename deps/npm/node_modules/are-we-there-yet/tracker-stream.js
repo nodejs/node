@@ -33,3 +33,4 @@ TrackerStream.prototype._flush = function (cb) {
 delegate(TrackerStream.prototype, 'tracker')
   .method('completed')
   .method('addWork')
+  .method('finish')

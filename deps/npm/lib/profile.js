@@ -1,23 +1,17 @@
 'use strict'
 
-const BB = require('bluebird')
-
 const ansistyles = require('ansistyles')
-const figgyPudding = require('figgy-pudding')
 const inspect = require('util').inspect
 const log = require('npmlog')
 const npm = require('./npm.js')
-const npmConfig = require('./config/figgy-config.js')
 const otplease = require('./utils/otplease.js')
 const output = require('./utils/output.js')
-const profile = require('libnpm/profile')
+const profile = require('npm-profile')
 const pulseTillDone = require('./utils/pulse-till-done.js')
 const qrcodeTerminal = require('qrcode-terminal')
-const queryString = require('query-string')
-const qw = require('qw')
 const readUserInfo = require('./utils/read-user-info.js')
 const Table = require('cli-table3')
-const url = require('url')
+const { URL } = require('url')
 
 module.exports = profileCmd
 
@@ -27,7 +21,7 @@ profileCmd.usage =
   'npm profile get [<key>]\n' +
   'npm profile set <key> <value>'
 
-profileCmd.subcommands = qw`enable-2fa disable-2fa get set`
+profileCmd.subcommands = ['enable-2fa', 'disable-2fa', 'get', 'set']
 
 profileCmd.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -35,7 +29,7 @@ profileCmd.completion = function (opts, cb) {
     case 'enable-2fa':
     case 'enable-tfa':
       if (argv.length === 3) {
-        return cb(null, qw`auth-and-writes auth-only`)
+        return cb(null, ['auth-and-writes', 'auth-only'])
       } else {
         return cb(null, [])
       }
@@ -52,13 +46,6 @@ profileCmd.completion = function (opts, cb) {
 function withCb (prom, cb) {
   prom.then((value) => cb(null, value), cb)
 }
-
-const ProfileOpts = figgyPudding({
-  json: {},
-  otp: {},
-  parseable: {},
-  registry: {}
-})
 
 function profileCmd (args, cb) {
   if (args.length === 0) return cb(new Error(profileCmd.usage))
@@ -87,13 +74,22 @@ function profileCmd (args, cb) {
   }
 }
 
-const knownProfileKeys = qw`
-  name email ${'two-factor auth'} fullname homepage
-  freenode twitter github created updated`
+const knownProfileKeys = [
+  'name',
+  'email',
+  'two-factor auth',
+  'fullname',
+  'homepage',
+  'freenode',
+  'twitter',
+  'github',
+  'created',
+  'updated'
+]
 
 function get (args) {
   const tfa = 'two-factor auth'
-  const conf = ProfileOpts(npmConfig())
+  const conf = npm.flatOptions
   return pulseTillDone.withPromise(profile.get(conf)).then((info) => {
     if (!info.cidr_whitelist) delete info.cidr_whitelist
     if (conf.json) {
@@ -105,7 +101,7 @@ function get (args) {
     Object.keys(info).filter((k) => !(k in cleaned)).forEach((k) => { cleaned[k] = info[k] || '' })
     delete cleaned.tfa
     delete cleaned.email_verified
-    cleaned['email'] += info.email_verified ? ' (verified)' : '(unverified)'
+    cleaned.email += info.email_verified ? ' (verified)' : '(unverified)'
     if (info.tfa && !info.tfa.pending) {
       cleaned[tfa] = info.tfa.mode
     } else {
@@ -128,18 +124,25 @@ function get (args) {
         })
       } else {
         const table = new Table()
-        Object.keys(cleaned).forEach((k) => table.push({[ansistyles.bright(k)]: cleaned[k]}))
+        Object.keys(cleaned).forEach((k) => table.push({ [ansistyles.bright(k)]: cleaned[k] }))
         output(table.toString())
       }
     }
   })
 }
 
-const writableProfileKeys = qw`
-  email password fullname homepage freenode twitter github`
+const writableProfileKeys = [
+  'email',
+  'password',
+  'fullname',
+  'homepage',
+  'freenode',
+  'twitter',
+  'github'
+]
 
 function set (args) {
-  let conf = ProfileOpts(npmConfig())
+  const conf = npm.flatOptions
   const prop = (args[0] || '').toLowerCase().trim()
   let value = args.length > 1 ? args.slice(1).join(' ') : null
   if (prop !== 'password' && value === null) {
@@ -153,16 +156,16 @@ function set (args) {
   if (writableProfileKeys.indexOf(prop) === -1) {
     return Promise.reject(Error(`"${prop}" is not a property we can set. Valid properties are: ` + writableProfileKeys.join(', ')))
   }
-  return BB.try(() => {
+  return Promise.resolve().then(() => {
     if (prop === 'password') {
       return readUserInfo.password('Current password: ').then((current) => {
         return readPasswords().then((newpassword) => {
-          value = {old: current, new: newpassword}
+          value = { old: current, new: newpassword }
         })
       })
     } else if (prop === 'email') {
       return readUserInfo.password('Password: ').then((current) => {
-        return {password: current, email: value}
+        return { password: current, email: value }
       })
     }
     function readPasswords () {
@@ -185,7 +188,7 @@ function set (args) {
       return otplease(conf, conf => profile.set(newUser, conf))
         .then((result) => {
           if (conf.json) {
-            output(JSON.stringify({[prop]: result[prop]}, null, 2))
+            output(JSON.stringify({ [prop]: result[prop] }, null, 2))
           } else if (conf.parseable) {
             output(prop + '\t' + result[prop])
           } else if (result[prop] != null) {
@@ -209,7 +212,7 @@ function enable2fa (args) {
       '  auth-only - Require two-factor authentication only when logging in\n' +
       '  auth-and-writes - Require two-factor authentication when logging in AND when publishing'))
   }
-  const conf = ProfileOpts(npmConfig())
+  const conf = npm.flatOptions
   if (conf.json || conf.parseable) {
     return Promise.reject(new Error(
       'Enabling two-factor authentication is an interactive operation and ' +
@@ -222,7 +225,7 @@ function enable2fa (args) {
     }
   }
 
-  return BB.try(() => {
+  return Promise.resolve().then(() => {
     // if they're using legacy auth currently then we have to update them to a
     // bearer token before continuing.
     const auth = getAuth(conf)
@@ -232,8 +235,8 @@ function enable2fa (args) {
         auth.basic.password, false, [], conf
       ).then((result) => {
         if (!result.token) throw new Error('Your registry ' + conf.registry + 'does not seem to support bearer tokens. Bearer tokens are required for two-factor authentication')
-        npm.config.setCredentialsByURI(conf.registry, {token: result.token})
-        return BB.fromNode((cb) => npm.config.save('user', cb))
+        npm.config.setCredentialsByURI(conf.registry, { token: result.token })
+        return npm.config.save('user')
       })
     }
   }).then(() => {
@@ -246,7 +249,7 @@ function enable2fa (args) {
       if (!info.tfa) return
       if (info.tfa.pending) {
         log.info('profile', 'Resetting two-factor authentication')
-        return pulseTillDone.withPromise(profile.set({tfa: {password, mode: 'disable'}}, conf))
+        return pulseTillDone.withPromise(profile.set({ tfa: { password, mode: 'disable' } }, conf))
       } else {
         if (conf.auth.otp) return
         return readUserInfo.otp('Enter one-time password from your authenticator app: ').then((otp) => {
@@ -265,15 +268,15 @@ function enable2fa (args) {
     if (typeof challenge.tfa !== 'string' || !/^otpauth:[/][/]/.test(challenge.tfa)) {
       throw new Error('Unknown error enabling two-factor authentication. Expected otpauth URL, got: ' + inspect(challenge.tfa))
     }
-    const otpauth = url.parse(challenge.tfa)
-    const opts = queryString.parse(otpauth.query)
+    const otpauth = new URL(challenge.tfa)
+    const secret = otpauth.searchParams.get('secret')
     return qrcode(challenge.tfa).then((code) => {
-      output('Scan into your authenticator app:\n' + code + '\n Or enter code:', opts.secret)
+      output('Scan into your authenticator app:\n' + code + '\n Or enter code:', secret)
     }).then((code) => {
       return readUserInfo.otp('And an OTP code from your authenticator: ')
     }).then((otp1) => {
       log.info('profile', 'Finalizing two-factor authentication')
-      return profile.set({tfa: [otp1]}, conf)
+      return profile.set({ tfa: [otp1] }, conf)
     }).then((result) => {
       output('2FA successfully enabled. Below are your recovery codes, please print these out.')
       output('You will need these to recover access to your account if you lose your authentication device.')
@@ -286,12 +289,12 @@ function getAuth (conf) {
   const creds = npm.config.getCredentialsByURI(conf.registry)
   let auth
   if (creds.token) {
-    auth = {token: creds.token}
+    auth = { token: creds.token }
   } else if (creds.username) {
-    auth = {basic: {username: creds.username, password: creds.password}}
+    auth = { basic: { username: creds.username, password: creds.password } }
   } else if (creds.auth) {
     const basic = Buffer.from(creds.auth, 'base64').toString().split(':', 2)
-    auth = {basic: {username: basic[0], password: basic[1]}}
+    auth = { basic: { username: basic[0], password: basic[1] } }
   } else {
     auth = {}
   }
@@ -301,23 +304,23 @@ function getAuth (conf) {
 }
 
 function disable2fa (args) {
-  let conf = ProfileOpts(npmConfig())
+  let conf = npm.flatOptions
   return pulseTillDone.withPromise(profile.get(conf)).then((info) => {
     if (!info.tfa || info.tfa.pending) {
       output('Two factor authentication not enabled.')
       return
     }
     return readUserInfo.password().then((password) => {
-      return BB.try(() => {
+      return Promise.resolve().then(() => {
         if (conf.otp) return
         return readUserInfo.otp('Enter one-time password from your authenticator: ').then((otp) => {
-          conf = conf.concat({otp})
+          conf = { ...conf, otp }
         })
       }).then(() => {
         log.info('profile', 'disabling tfa')
-        return pulseTillDone.withPromise(profile.set({tfa: {password: password, mode: 'disable'}}, conf)).then(() => {
+        return pulseTillDone.withPromise(profile.set({ tfa: { password: password, mode: 'disable' } }, conf)).then(() => {
           if (conf.json) {
-            output(JSON.stringify({tfa: false}, null, 2))
+            output(JSON.stringify({ tfa: false }, null, 2))
           } else if (conf.parseable) {
             output('tfa\tfalse')
           } else {

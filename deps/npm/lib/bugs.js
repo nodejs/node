@@ -1,31 +1,49 @@
-module.exports = bugs
+const log = require('npmlog')
+const pacote = require('pacote')
+const { promisify } = require('util')
+const openUrl = promisify(require('./utils/open-url.js'))
+const usageUtil = require('./utils/usage.js')
+const npm = require('./npm.js')
+const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 
-var log = require('npmlog')
-var openUrl = require('./utils/open-url')
-var fetchPackageMetadata = require('./fetch-package-metadata.js')
-var usage = require('./utils/usage')
+const usage = usageUtil('bugs', 'npm bugs [<pkgname>]')
+const completion = require('./utils/completion/none.js')
 
-bugs.usage = usage(
-  'bugs',
-  'npm bugs [<pkgname>]'
-)
+const cmd = (args, cb) => bugs(args).then(() => cb()).catch(cb)
 
-bugs.completion = function (opts, cb) {
-  // FIXME: there used to be registry completion here, but it stopped making
-  // sense somewhere around 50,000 packages on the registry
-  cb()
+const bugs = async args => {
+  if (!args || !args.length) {
+    args = ['.']
+  }
+  await Promise.all(args.map(pkg => getBugs(pkg)))
 }
 
-function bugs (args, cb) {
-  var n = args.length ? args[0] : '.'
-  fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
-    if (er) return cb(er)
-
-    var url = d.bugs && ((typeof d.bugs === 'string') ? d.bugs : d.bugs.url)
-    if (!url) {
-      url = 'https://www.npmjs.org/package/' + d.name
+const getBugsUrl = mani => {
+  if (mani.bugs) {
+    if (typeof mani.bugs === 'string') {
+      return mani.bugs
     }
-    log.silly('bugs', 'url', url)
-    openUrl(url, 'bug list available at the following URL', cb)
-  })
+    if (typeof mani.bugs === 'object' && mani.bugs.url) {
+      return mani.bugs.url
+    }
+  }
+
+  // try to get it from the repo, if possible
+  const info = hostedFromMani(mani)
+  if (info) {
+    return info.bugs()
+  }
+
+  // just send them to the website, hopefully that has some info!
+  return `https://www.npmjs.com/package/${mani.name}`
 }
+
+const getBugs = async pkg => {
+  const opts = { ...npm.flatOptions, fullMetadata: true }
+  const mani = await pacote.manifest(pkg, opts)
+  const url = getBugsUrl(mani)
+  log.silly('bugs', 'url', url)
+  await openUrl(url, `${mani.name} bug list available at the following URL`)
+}
+
+module.exports = Object.assign(cmd, { usage, completion })

@@ -23,7 +23,7 @@ you will most certainly enjoy this command.
 
 ### See Also
 
-* [npm star](/cli-commands/npm-star)
-* [npm view](/cli-commands/npm-view)
-* [npm whoami](/cli-commands/npm-whoami)
-* [npm adduser](/cli-commands/npm-adduser)
+* [npm star](/cli-commands/star)
+* [npm view](/cli-commands/view)
+* [npm whoami](/cli-commands/whoami)
+* [npm adduser](/cli-commands/adduser)

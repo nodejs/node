@@ -1,5 +1,42 @@
 # Change Log
 
+<a name="4.0.0"></a>
+## [4.0.0](https://github.com/npm/libnpmaccess/compare/v3.0.2...v4.0.0) (2020-03-02)
+
+### BREAKING CHANGES
+- `25ac61b` fix: remove figgy-pudding ([@claudiahdz](https://github.com/claudiahdz))
+- `8d6f692` chore: rename opts.mapJson to opts.mapJSON ([@mikemimik](https://github.com/mikemimik))
+
+### Features
+- `257879a` chore: removed standard-version as a dep; updated scripts for version/publishing ([@mikemimik](https://github.com/mikemimik))
+- `46c6740` fix: pull-request feedback; read full commit message ([@mikemimik](https://github.com/mikemimik))
+- `778c102` chore: updated test, made case more clear ([@mikemimik](https://github.com/mikemimik))
+- `6dc9852` fix: refactored 'pwrap' function out of code base; use native promises ([@mikemimik](https://github.com/mikemimik))
+- `d2e7219` chore: updated package scripts; update CI workflow ([@mikemimik](https://github.com/mikemimik))
+- `5872364` chore: renamed test/util/ to test/fixture/; tap will ignore now ([@mikemimik](https://github.com/mikemimik))
+- `3c6b71d` chore: linted test file; made tap usage 'better' ([@mikemimik](https://github.com/mikemimik))
+- `20f0858` fix: added default values to params for API functions (with tests) ([@mikemimik](https://github.com/mikemimik))
+- `3218289` feat: replace get-stream with minipass ([@mikemimik](https://github.com/mikemimik))
+
+### Documentation
+- `6c8ffa0` docs: removed opts.Promise from docs; no longer in use ([@mikemimik](https://github.com/mikemimik))
+- `311bff5` chore: added return types to function docs in README ([@mikemimik](https://github.com/mikemimik))
+- `823726a` chore: removed travis badge, added github actions badge ([@mikemimik](https://github.com/mikemimik))
+- `80e80ac` chore: updated README ([@mikemimik](https://github.com/mikemimik))
+
+### Dependencies
+- `baed2b9` deps: standard-version@7.1.0 (audit fix) ([@mikemimik](https://github.com/mikemimik))
+- `65c2204` deps: nock@12.0.1 (audit fix) ([@mikemimik](https://github.com/mikemimik))
+- `2668386` deps: npm-registry-fetch@8.0.0 ([@mikemimik](https://github.com/mikemimik))
+- `ef093e2` deps: tap@14.10.6 ([@mikemimik](https://github.com/mikemimik))
+
+### Miscellanieous
+- `8e33902` chore: basic project updates ([@claudiahdz](https://github.com/claudiahdz))
+- `50e1433` fix: update return value; add tests ([@mikemimik](https://github.com/mikemimik))
+- `36d5c80` chore: updated gitignore; includes coverage folder ([@mikemimik](https://github.com/mikemimik))
+
+---
+
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 <a name="3.0.2"></a>

@@ -1,9 +1,3 @@
----
-section: using-npm
-title: semver
-description: The semantic versioner for npm
----
-
 semver(7) -- The semantic versioner for npm
 ===========================================
 

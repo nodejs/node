@@ -44,7 +44,7 @@ class Cell {
     let optionsChars = this.options.chars || {};
     let tableChars = tableOptions.chars;
     let chars = (this.chars = {});
-    CHAR_NAMES.forEach(function(name) {
+    CHAR_NAMES.forEach(function (name) {
       setOption(optionsChars, tableChars, name, chars);
     });
 
@@ -138,7 +138,7 @@ class Cell {
     let content = [];
     if (this.cells) {
       //TODO: cells should always exist - some tests don't fill it in though
-      this.widths.forEach(function(width, index) {
+      this.widths.forEach(function (width, index) {
         content.push(this._topLeftChar(index));
         content.push(utils.repeat(this.chars[this.y == 0 ? 'top' : 'mid'], width));
       }, this);

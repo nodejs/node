@@ -138,4 +138,4 @@ interface SocksUDPFrameDetails {
     remoteHost: SocksRemoteHost;
     data: Buffer;
 }
-export { DEFAULT_TIMEOUT, ERRORS, SocksProxyType, SocksCommand, Socks4Response, Socks5Auth, Socks5HostType, Socks5Response, SocksClientState, SocksProxy, SocksRemoteHost, SocksCommandOption, SocksClientOptions, SocksClientChainOptions, SocksClientEstablishedEvent, SocksClientBoundEvent, SocksUDPFrameDetails, SOCKS_INCOMING_PACKET_SIZES };
+export { DEFAULT_TIMEOUT, ERRORS, SocksProxyType, SocksCommand, Socks4Response, Socks5Auth, Socks5HostType, Socks5Response, SocksClientState, SocksProxy, SocksRemoteHost, SocksCommandOption, SocksClientOptions, SocksClientChainOptions, SocksClientEstablishedEvent, SocksClientBoundEvent, SocksUDPFrameDetails, SOCKS_INCOMING_PACKET_SIZES, };

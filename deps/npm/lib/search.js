@@ -2,14 +2,13 @@
 
 module.exports = exports = search
 
+const Pipeline = require('minipass-pipeline')
+
 const npm = require('./npm.js')
-const allPackageSearch = require('./search/all-package-search')
-const figgyPudding = require('figgy-pudding')
 const formatPackageStream = require('./search/format-package-stream.js')
-const libSearch = require('libnpm/search')
+
+const libSearch = require('libnpmsearch')
 const log = require('npmlog')
-const ms = require('mississippi')
-const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
 const usage = require('./utils/usage')
 
@@ -22,26 +21,14 @@ search.completion = function (opts, cb) {
   cb(null, [])
 }
 
-const SearchOpts = figgyPudding({
-  description: {},
-  exclude: {},
-  include: {},
-  limit: {},
-  log: {},
-  staleness: {},
-  unicode: {}
-})
-
 function search (args, cb) {
-  const opts = SearchOpts(npmConfig()).concat({
-    description: npm.config.get('description'),
-    exclude: prepareExcludes(npm.config.get('searchexclude')),
-    include: prepareIncludes(args, npm.config.get('searchopts')),
-    limit: npm.config.get('searchlimit') || 20,
-    log: log,
-    staleness: npm.config.get('searchstaleness'),
-    unicode: npm.config.get('unicode')
-  })
+  const opts = {
+    ...npm.flatOptions,
+    ...npm.flatOptions.search,
+    include: prepareIncludes(args, npm.flatOptions.search.opts),
+    exclude: prepareExcludes(npm.flatOptions.search.exclude)
+  }
+
   if (opts.include.length === 0) {
     return cb(new Error('search must be called with arguments'))
   }
@@ -49,49 +36,31 @@ function search (args, cb) {
   // Used later to figure out whether we had any packages go out
   let anyOutput = false
 
-  const entriesStream = ms.through.obj()
-
-  let esearchWritten = false
-  libSearch.stream(opts.include, opts).on('data', pkg => {
-    entriesStream.write(pkg)
-    !esearchWritten && (esearchWritten = true)
-  }).on('error', err => {
-    if (esearchWritten) {
-      // If esearch errored after already starting output, we can't fall back.
-      return entriesStream.emit('error', err)
-    }
-    log.warn('search', 'fast search endpoint errored. Using old search.')
-    allPackageSearch(opts)
-      .on('data', pkg => entriesStream.write(pkg))
-      .on('error', err => entriesStream.emit('error', err))
-      .on('end', () => entriesStream.end())
-  }).on('end', () => entriesStream.end())
-
   // Grab a configured output stream that will spit out packages in the
   // desired format.
+  //
+  // This is a text minipass stream
   var outputStream = formatPackageStream({
-    args: args, // --searchinclude options are not highlighted
-    long: npm.config.get('long'),
-    description: npm.config.get('description'),
-    json: npm.config.get('json'),
-    parseable: npm.config.get('parseable'),
-    color: npm.color
+    args, // --searchinclude options are not highlighted
+    ...opts
   })
-  outputStream.on('data', chunk => {
+
+  log.silly('search', 'searching packages')
+  const p = new Pipeline(libSearch.stream(opts.include, opts), outputStream)
+
+  p.on('data', chunk => {
     if (!anyOutput) { anyOutput = true }
     output(chunk.toString('utf8'))
   })
 
-  log.silly('search', 'searching packages')
-  ms.pipe(entriesStream, outputStream, err => {
-    if (err) return cb(err)
-    if (!anyOutput && !npm.config.get('json') && !npm.config.get('parseable')) {
+  p.promise().then(() => {
+    if (!anyOutput && !opts.json && !opts.parseable) {
       output('No matches found for ' + (args.map(JSON.stringify).join(' ')))
     }
     log.silly('search', 'search completed')
     log.clearProgress()
     cb(null, {})
-  })
+  }, err => cb(err))
 }
 
 function prepareIncludes (args, searchopts) {

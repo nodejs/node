@@ -1,4 +1,4 @@
-// Copyright 2015 Joyent, Inc.
+// Copyright 2018 Joyent, Inc.
 
 module.exports = {
 	read: read,
@@ -15,6 +15,7 @@ var pem = require('./pem');
 var ssh = require('./ssh');
 var rfc4253 = require('./rfc4253');
 var dnssec = require('./dnssec');
+var putty = require('./putty');
 
 var DNSSEC_PRIVKEY_HEADER_PREFIX = 'Private-key-format: v1';
 
@@ -26,6 +27,8 @@ function read(buf, options) {
 			return (ssh.read(buf, options));
 		if (buf.match(/^\s*ecdsa-/))
 			return (ssh.read(buf, options));
+		if (buf.match(/^putty-user-key-file-2:/i))
+			return (putty.read(buf, options));
 		if (findDNSSECHeader(buf))
 			return (dnssec.read(buf, options));
 		buf = Buffer.from(buf, 'binary');
@@ -35,12 +38,26 @@ function read(buf, options) {
 			return (pem.read(buf, options));
 		if (findSSHHeader(buf))
 			return (ssh.read(buf, options));
+		if (findPuTTYHeader(buf))
+			return (putty.read(buf, options));
 		if (findDNSSECHeader(buf))
 			return (dnssec.read(buf, options));
 	}
 	if (buf.readUInt32BE(0) < buf.length)
 		return (rfc4253.read(buf, options));
 	throw (new Error('Failed to auto-detect format of key'));
+}
+
+function findPuTTYHeader(buf) {
+	var offset = 0;
+	while (offset < buf.length &&
+	    (buf[offset] === 32 || buf[offset] === 10 || buf[offset] === 9))
+		++offset;
+	if (offset + 22 <= buf.length &&
+	    buf.slice(offset, offset + 22).toString('ascii').toLowerCase() ===
+	    'putty-user-key-file-2:')
+		return (true);
+	return (false);
 }
 
 function findSSHHeader(buf) {

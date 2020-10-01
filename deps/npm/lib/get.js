@@ -1,12 +1,14 @@
+const npm = require('./npm.js')
+const usageUtil = require('./utils/usage.js')
 
-module.exports = get
+const usage = usageUtil(
+  'get',
+  'npm get <key> <value> (See `npm config`)'
+)
 
-get.usage = 'npm get <key> <value> (See `npm config`)'
+const completion = npm.commands.config.completion
 
-var npm = require('./npm.js')
-
-get.completion = npm.commands.config.completion
-
-function get (args, cb) {
+const cmd = (args, cb) =>
   npm.commands.config(['get'].concat(args), cb)
-}
+
+module.exports = Object.assign(cmd, { usage, completion })

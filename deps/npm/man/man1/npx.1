@@ -1,175 +1,211 @@
-.TH "NPX" "1" "July 2020" "npx@10.2.3" "User Commands"
+.TH "NPX" "1" "October 2020" "" ""
 .SH "NAME"
-\fBnpx\fR \- execute npm package binaries
-.SH SYNOPSIS
+\fBnpx\fR \- Run a command from a local or remote npm package
+.SS Synopsis
 .P
-\fBnpx [options] <command>[@version] [command\-arg]\.\.\.\fP
+.RS 2
+.nf
+npm exec \-\- <pkg>[@<version>] [args\.\.\.]
+npm exec \-p <pkg>[@<version>] \-\- <cmd> [args\.\.\.]
+npm exec \-c '<cmd> [args\.\.\.]'
+npm exec \-p foo \-c '<cmd> [args\.\.\.]'
+
+npx <pkg>[@<specifier>] [args\.\.\.]
+npx \-p <pkg>[@<specifier>] <cmd> [args\.\.\.]
+npx \-c '<cmd> [args\.\.\.]'
+npx \-p <pkg>[@<specifier>] \-c '<cmd> [args\.\.\.]'
+
+alias: npm x, npx
+
+\-p <pkg> \-\-package=<pkg> (may be specified multiple times)
+\-c <cmd> \-\-call=<cmd> (may not be mixed with positional arguments)
+.fi
+.RE
+.SS Description
 .P
-\fBnpx [options] [\-p|\-\-package <pkg>]\.\.\. <command> [command\-arg]\.\.\.\fP
+This command allows you to run an arbitrary command from an npm package
+(either one installed locally, or fetched remotely), in a similar context
+as running it via \fBnpm run\fP\|\.
 .P
-\fBnpx [options] \-c '<command\-string>'\fP
+Whatever packages are specified by the \fB\-\-package\fP or \fB\-p\fP option will be
+provided in the \fBPATH\fP of the executed command, along with any locally
+installed package executables\.  The \fB\-\-package\fP or \fB\-p\fP option may be
+specified multiple times, to execute the supplied command in an environment
+where all specified packages are available\.
 .P
-\fBnpx \-\-shell\-auto\-fallback [shell]\fP
-.SH INSTALL
+If any requested packages are not present in the local project
+dependencies, then they are installed to a folder in the npm cache, which
+is added to the \fBPATH\fP environment variable in the executed process\.  A
+prompt is printed (which can be suppressed by providing either \fB\-\-yes\fP or
+\fB\-\-no\fP)\.
 .P
-\fBnpm install \-g npx\fP
-.SH DESCRIPTION
+Package names provided without a specifier will be matched with whatever
+version exists in the local project\.  Package names with a specifier will
+only be considered a match if they have the exact same name and version as
+the local dependency\.
 .P
-Executes \fB<command>\fP either from a local \fBnode_modules/\.bin\fP, or from a central cache, installing any packages needed in order for \fB<command>\fP to run\.
-.P
-By default, \fBnpx\fP will check whether \fB<command>\fP exists in \fB$PATH\fP, or in the local project binaries, and execute that\. If \fB<command>\fP is not found, it will be installed prior to execution\.
-.P
-Unless a \fB\-\-package\fP option is specified, \fBnpx\fP will try to guess the name of the binary to invoke depending on the specifier provided\. All package specifiers understood by \fBnpm\fP may be used with \fBnpx\fP, including git specifiers, remote tarballs, local directories, or scoped packages\.
-.P
-If a full specifier is included, or if \fB\-\-package\fP is used, npx will always use a freshly\-installed, temporary version of the package\. This can also be forced with the \fB\-\-ignore\-existing\fP flag\.
+If no \fB\-c\fP or \fB\-\-call\fP option is provided, then the positional arguments
+are used to generate the command string\.  If no \fB\-p\fP or \fB\-\-package\fP options
+are provided, then npm will attempt to determine the executable name from
+the package specifier provided as the first positional argument according
+to the following heuristic:
 .RS 0
 .IP \(bu 2
-\fB\-p, \-\-package <package>\fP \- define the package to be installed\. This defaults to the value of \fB<command>\fP\|\. This is only needed for packages with multiple binaries if you want to call one of the other executables, or where the binary name does not match the package name\. If this option is provided \fB<command>\fP will be executed as\-is, without interpreting \fB@version\fP if it's there\. Multiple \fB\-\-package\fP options may be provided, and all the packages specified will be installed\.
+If the package has a single entry in its \fBbin\fP field in \fBpackage\.json\fP,
+then that command will be used\.
 .IP \(bu 2
-\fB\-\-no\-install\fP \- If passed to \fBnpx\fP, it will only try to run \fB<command>\fP if it already exists in the current path or in \fB$prefix/node_modules/\.bin\fP\|\. It won't try to install missing commands\.
+If the package has multiple \fBbin\fP entries, and one of them matches the
+unscoped portion of the \fBname\fP field, then that command will be used\.
 .IP \(bu 2
-\fB\-\-cache <path>\fP \- set the location of the npm cache\. Defaults to npm's own cache settings\.
-.IP \(bu 2
-\fB\-\-userconfig <path>\fP \- path to the user configuration file to pass to npm\. Defaults to whatever npm's current default is\.
-.IP \(bu 2
-\fB\-c <string>\fP \- Execute \fB<string>\fP inside an \fBnpm run\-script\fP\-like shell environment, with all the usual environment variables available\. Only the first item in \fB<string>\fP will be automatically used as \fB<command>\fP\|\. Any others \fImust\fR use \fB\-p\fP\|\.
-.IP \(bu 2
-\fB\-\-shell <string>\fP \- The shell to invoke the command with, if any\.
-.IP \(bu 2
-\fB\-\-shell\-auto\-fallback [<shell>]\fP \- Generates shell code to override your shell's "command not found" handler with one that calls \fBnpx\fP\|\. Tries to figure out your shell, or you can pass its name (either \fBbash\fP, \fBfish\fP, or \fBzsh\fP) as an option\. See below for how to install\.
-.IP \(bu 2
-\fB\-\-ignore\-existing\fP \- If this flag is set, npx will not look in \fB$PATH\fP, or in the current package's \fBnode_modules/\.bin\fP for an existing version before deciding whether to install\. Binaries in those paths will still be available for execution, but will be shadowed by any packages requested by this install\.
-.IP \(bu 2
-\fB\-q, \-\-quiet\fP \- Suppressed any output from npx itself (progress bars, error messages, install reports)\. Subcommand output itself will not be silenced\.
-.IP \(bu 2
-\fB\-n, \-\-node\-arg\fP \- Extra node argument to supply to node when binary is a node script\. You can supply this option multiple times to add more arguments\.
-.IP \(bu 2
-\fB\-v, \-\-version\fP \- Show the current npx version\.
+If this does not result in exactly one option (either because there are
+no bin entries, or none of them match the \fBname\fP of the package), then
+\fBnpm exec\fP exits with an error\.
 
 .RE
-.SH EXAMPLES
-.SS Running a project\-local bin
 .P
-.RS 2
-.nf
-$ npm i \-D webpack
-$ npx webpack \.\.\.
-.fi
-.RE
-.SS One\-off invocation without local installation
+To run a binary \fIother than\fR the named binary, specify one or more
+\fB\-\-package\fP options, which will prevent npm from inferring the package from
+the first command argument\.
+.SS \fBnpx\fP vs \fBnpm exec\fP
 .P
-.RS 2
-.nf
-$ npm rm webpack
-$ npx webpack \-\- \.\.\.
-$ cat package\.json
-\|\.\.\.webpack not in "devDependencies"\.\.\.
-.fi
-.RE
-.SS Invoking a command from a github repository
-.P
-.RS 2
-.nf
-$ npx github:piuccio/cowsay
-\|\.\.\.or\.\.\.
-$ npx git+ssh://my\.hosted\.git:cowsay\.git#semver:^1
-\|\.\.\.etc\.\.\.
-.fi
-.RE
-.SS Execute a full shell command using one npx call w/ multiple packages
-.P
-.RS 2
-.nf
-$ npx \-p lolcatjs \-p cowsay \-c \\
-  'echo "$npm_package_name@$npm_package_version" | cowsay | lolcatjs'
-\|\.\.\.
- _____
-< your\-cool\-package@1\.2\.3 >
- \-\-\-\-\-
-        \\   ^__^
-         \\  (oo)\\_______
-            (__)\\       )\\/\\
-                ||\-\-\-\-w |
-                ||     ||
-.fi
-.RE
-.SS Run node binary with \-\-inspect
-.P
-.RS 2
-.nf
-$ npx \-\-node\-arg=\-\-inspect cowsay
-Debugger listening on ws://127\.0\.0\.1:9229/\.\.\.\.
-.fi
-.RE
-.SS Specify a node version to run npm scripts (or anything else!)
-.P
-.RS 2
-.nf
-npx \-p node@8 npm run build
-.fi
-.RE
-.SH SHELL AUTO FALLBACK
-.P
-You can configure \fBnpx\fP to run as your default fallback command when you type something in the command line with an \fB@\fP but the command is not found\. This includes installing packages that were not found in the local prefix either\.
+When run via the \fBnpx\fP binary, all flags and options \fImust\fR be set prior to
+any positional arguments\.  When run via \fBnpm exec\fP, a double\-hyphen \fB\-\-\fP
+flag can be used to suppress npm's parsing of switches and options that
+should be sent to the executed command\.
 .P
 For example:
 .P
 .RS 2
 .nf
-$ npm@4 \-\-version
-(stderr) npm@4 not found\. Trying with npx\.\.\.
-4\.6\.1
-$ asdfasdfasf
-zsh: command not found: asfdasdfasdf
+$ npx foo@latest bar \-\-package=@npmcli/foo
 .fi
 .RE
 .P
-Currently, \fBzsh\fP, \fBbash\fP (>= 4), and \fBfish\fP are supported\. You can access these completion scripts using \fBnpx \-\-shell\-auto\-fallback <shell>\fP\|\.
-.P
-To install permanently, add the relevant line below to your \fB~/\.bashrc\fP, \fB~/\.zshrc\fP, \fB~/\.config/fish/config\.fish\fP, or as needed\. To install just for the shell session, simply run the line\.
-.P
-You can optionally pass through \fB\-\-no\-install\fP when generating the fallback to prevent it from installing packages if the command is missing\.
-.SS For bash@>=4:
+In this case, npm will resolve the \fBfoo\fP package name, and run the
+following command:
 .P
 .RS 2
 .nf
-$ source <(npx \-\-shell\-auto\-fallback bash)
+$ foo bar \-\-package=@npmcli/foo
 .fi
 .RE
-.SS For zsh:
+.P
+Since the \fB\-\-package\fP option comes \fIafter\fR the positional arguments, it is
+treated as an argument to the executed command\.
+.P
+In contrast, due to npm's argument parsing logic, running this command is
+different:
 .P
 .RS 2
 .nf
-$ source <(npx \-\-shell\-auto\-fallback zsh)
+$ npm exec foo@latest bar \-\-package=@npmcli/foo
 .fi
 .RE
-.SS For fish:
+.P
+In this case, npm will parse the \fB\-\-package\fP option first, resolving the
+\fB@npmcli/foo\fP package\.  Then, it will execute the following command in that
+context:
 .P
 .RS 2
 .nf
-$ source (npx \-\-shell\-auto\-fallback fish | psub)
+$ foo@latest bar
 .fi
 .RE
-.SH ACKNOWLEDGEMENTS
 .P
-Huge thanks to Kwyn Meagher \fIhttps://blog\.kwyn\.io\fR for generously donating the package name in the main npm registry\. Previously \fBnpx\fP was used for a Tessel board Neopixels library, which can now be found under \fBnpx\-tessel\fP \fIhttps://npm\.im/npx\-tessel\fR\|\.
-.SH AUTHOR
+The double\-hyphen character is recommended to explicitly tell npm to stop
+parsing command line options and switches\.  The following command would
+thus be equivalent to the \fBnpx\fP command above:
 .P
-Written by Kat Marchan \fIhttps://github\.com/zkat\fR\|\.
-.SH REPORTING BUGS
+.RS 2
+.nf
+$ npm exec \-\- foo@latest bar \-\-package=@npmcli/foo
+.fi
+.RE
+.SS Examples
 .P
-Please file any relevant issues on Github\. \fIhttps://github\.com/npm/npx\fR
-.SH LICENSE
+Run the version of \fBtap\fP in the local dependencies, with the provided
+arguments:
 .P
-This work is released by its authors into the public domain under CC0\-1\.0\. See \fBLICENSE\.md\fP for details\.
-.SH SEE ALSO
+.RS 2
+.nf
+$ npm exec \-\- tap \-\-bail test/foo\.js
+$ npx tap \-\-bail test/foo\.js
+.fi
+.RE
+.P
+Run a command \fIother than\fR the command whose name matches the package name
+by specifying a \fB\-\-package\fP option:
+.P
+.RS 2
+.nf
+$ npm exec \-\-package=foo \-\- bar \-\-bar\-argument
+# ~ or ~
+$ npx \-\-package=foo bar \-\-bar\-argument
+.fi
+.RE
+.P
+Run an arbitrary shell script, in the context of the current project:
+.P
+.RS 2
+.nf
+$ npm x \-c 'eslint && say "hooray, lint passed"'
+$ npx \-c 'eslint && say "hooray, lint passed"'
+.fi
+.RE
+.SS Compatibility with Older npx Versions
+.P
+The \fBnpx\fP binary was rewritten in npm v7\.0\.0, and the standalone \fBnpx\fP
+package deprecated at that time\.  \fBnpx\fP uses the \fBnpm exec\fP
+command instead of a separate argument parser and install process, with
+some affordances to maintain backwards compatibility with the arguments it
+accepted in previous versions\.
+.P
+This resulted in some shifts in its functionality:
 .RS 0
 .IP \(bu 2
-\fBnpm(1)\fP
+Any \fBnpm\fP config value may be provided\.
 .IP \(bu 2
-\fBnpm\-run\-script(1)\fP
+To prevent security and user\-experience problems from mistyping package
+names, \fBnpx\fP prompts before installing anything\.  Suppress this
+prompt with the \fB\-y\fP or \fB\-\-yes\fP option\.
 .IP \(bu 2
-\fBnpm\-config(7)\fP
+The \fB\-\-no\-install\fP option is deprecated, and will be converted to \fB\-\-no\fP\|\.
+.IP \(bu 2
+Shell fallback functionality is removed, as it is not advisable\.
+.IP \(bu 2
+The \fB\-p\fP argument is a shorthand for \fB\-\-parseable\fP in npm, but shorthand
+for \fB\-\-package\fP in npx\.  This is maintained, but only for the \fBnpx\fP
+executable\.
+.IP \(bu 2
+The \fB\-\-ignore\-existing\fP option is removed\.  Locally installed bins are
+always present in the executed process \fBPATH\fP\|\.
+.IP \(bu 2
+The \fB\-\-npm\fP option is removed\.  \fBnpx\fP will always use the \fBnpm\fP it ships
+with\.
+.IP \(bu 2
+The \fB\-\-node\-arg\fP and \fB\-n\fP options are removed\.
+.IP \(bu 2
+The \fB\-\-always\-spawn\fP option is redundant, and thus removed\.
+.IP \(bu 2
+The \fB\-\-shell\fP option is replaced with \fB\-\-script\-shell\fP, but maintained
+in the \fBnpx\fP executable for backwards compatibility\.
 
 .RE
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help scripts
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help start
+.IP \(bu 2
+npm help restart
+.IP \(bu 2
+npm help stop
+.IP \(bu 2
+npm help config
 
+.RE

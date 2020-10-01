@@ -51,3 +51,10 @@ const decode = new zlib.BrotliDecompress()
 const output = whereToWriteTheDecodedData()
 input.pipe(decode).pipe(output)
 ```
+
+## REPRODUCIBLE BUILDS
+
+To create reproducible gzip compressed files across different operating
+systems, set `portable: true` in the options.  This causes minizlib to set
+the `OS` indicator in byte 9 of the extended gzip header to `0xFF` for
+'unknown'.

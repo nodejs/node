@@ -148,6 +148,15 @@ you want your scoped package to be publicly viewable (and installable) set
 `--access=public`. The only valid values for `access` are `public` and
 `restricted`. Unscoped packages _always_ have an access level of `public`.
 
+#### all
+
+* Default: `false`
+* Type: Boolean
+
+When running `npm outdated` and `npm ls`, setting `--all` will show all
+outdated or installed packages, rather than only those directly depended
+upon by the current project.
+
 #### allow-same-version
 
 * Default: false
@@ -179,7 +188,7 @@ When "dev" or "development" and running local `npm shrinkwrap`,
 
 When "true" submit audit reports alongside `npm install` runs to the default
 registry and all registries configured for scopes.  See the documentation
-for [`npm audit`](/cli-commands/npm-audit) for details on what is submitted.
+for [`npm audit`](/cli-commands/audit) for details on what is submitted.
 
 #### audit-level
 
@@ -227,9 +236,14 @@ ostensibly Unix systems.
 #### browser
 
 * Default: OS X: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
-* Type: String
+* Type: String or Boolean
 
-The browser that is called by the `npm docs` command to open websites.
+The browser that is called by npm commands to open websites.
+
+Set to `false` to suppress browser behavior and instead print urls to
+terminal.
+
+Set to `true` to use default system URL opener.
 
 #### ca
 
@@ -270,7 +284,7 @@ well as for the CA information to be stored in a file on disk.
 * Default: Windows: `%AppData%\npm-cache`, Posix: `~/.npm`
 * Type: path
 
-The location of npm's cache directory.  See [`npm cache`](/cli-commands/npm-cache)
+The location of npm's cache directory.  See [`npm cache`](/cli-commands/cache)
 
 #### cache-lock-stale
 
@@ -345,16 +359,12 @@ disabled when the environment variable `NO_COLOR` is set to any value.
 
 #### depth
 
-* Default: Infinity
+* Default: 0
 * Type: Number
 
-The depth to go when recursing directories for `npm ls`,
-`npm cache ls`, and `npm outdated`.
+The depth to go when recursing packages for `npm ls`.
 
-For `npm outdated`, a setting of `Infinity` will be treated as `0`
-since that gives more useful information.  To show the outdated status
-of all packages and dependents, use a large integer value,
-e.g., `npm outdated --depth 9999`
+To make this default to `Infinity` instead of `0`, set `--all`.
 
 #### description
 
@@ -403,12 +413,23 @@ the current Node.js version.
 * Default: false
 * Type: Boolean
 
-Makes various commands more forceful.
+Removes various protections against unfortunate side effects, common
+mistakes, unnecessary performance degradation, and malicious input.
 
-* lifecycle script failure does not block progress.
-* publishing clobbers previously published versions.
-* skips cache when requesting from the registry.
-* prevents checks against clobbering non-npm files.
+* Allow clobbering non-npm files in global installs.
+* Allow the `npm version` command to work on an unclean git repository.
+* Allow deleting the cache folder with `npm cache clean`.
+* Allow installing packages that have an `engines` declaration requiring a
+  different version of npm.
+* Allow installing packages that have an `engines` declaration requiring a
+  different version of `node`, even if `--engines-strict` is enabled.
+* Allow `npm audit fix` to install modules outside your stated dependency
+  range (including SemVer-major changes).
+* Allow a module to be installed as a direct dependency of itself.
+* Allow unpublishing all versions of a published package.
+
+If you don't have a clear idea of what you want to do, it is strongly
+recommended that you do not use this option!
 
 #### format-package-lock
 
@@ -449,14 +470,21 @@ packages.
 The "maxTimeout" config for the `retry` module to use when fetching
 packages.
 
+#### fetch-timeout
+
+* Default: 300000 (5 minutes)
+* Type: Number
+
+The maximum amount of time to wait for HTTP requests to complete.
+
 #### fund
 
 * Default: true
 * Type: Boolean
 
 When "true" displays the message at the end of each `npm install`
-acknowledging the number of dependencies looking for funding.
-See [`npm fund`](/cli-commands/npm-fund) for details.
+aknowledging the number of dependencies looking for funding.
+See [`npm fund`](/cli-commands/fund) for details.
 
 #### git
 
@@ -571,7 +599,7 @@ If true, npm does not run scripts specified in package.json files.
 A module that will be loaded by the `npm init` command.  See the
 documentation for the
 [init-package-json](https://github.com/isaacs/init-package-json) module
-for more information, or [npm init](/cli-commands/npm-init).
+for more information, or [npm init](/cli-commands/init).
 
 #### init-author-name
 
@@ -644,6 +672,25 @@ such as the one included with node 0.8, can install the package.  This
 eliminates all automatic deduping. If used with `global-style` this option
 will be preferred.
 
+#### legacy-peer-deps
+
+* Default: false
+* Type: Boolean
+
+Causes npm to completely ignore `peerDependencies` when building a package
+tree, as in npm versions 3 through 6.
+
+If a package cannot be installed because of overly strict
+`peerDependencies` that collide, it provides a way to move forward
+resolving the situation.
+
+This differs from `--omit=peer`, in that `--omit=peer` will avoid unpacking
+`peerDependencies` on disk, but will still design a tree such that
+`peerDependencies` _could_ be unpacked in a correct place.
+
+Use of `legacy-peer-deps` is not recommended, as it will not enforce the
+`peerDependencies` contract that meta-dependencies may rely on.
+
 #### link
 
 * Default: false
@@ -679,21 +726,6 @@ What level of logs to report.  On failure, *all* logs are written to
 `npm-debug.log` in the current working directory.
 
 Any logs of a higher level than the setting are shown. The default is "notice".
-
-#### logstream
-
-* Default: process.stderr
-* Type: Stream
-
-This is the stream that is passed to the
-[npmlog](https://github.com/npm/npmlog) module at run time.
-
-It cannot be set from the command line, but if you are using npm
-programmatically, you may wish to send logs to somewhere other than
-stderr.
-
-If the `color` config is set to true, then this stream will receive
-colored output if it is a TTY.
 
 #### logs-max
 
@@ -763,14 +795,6 @@ A comma-separated string or an array of domain extensions that a proxy should no
 
 Force offline mode: no network requests will be done during install. To allow
 the CLI to fill in missing cache data, see `--prefer-offline`.
-
-#### onload-script
-
-* Default: false
-* Type: path
-
-A node module to `require()` when npm loads.  Useful for programmatic
-usage.
 
 #### only
 
@@ -1144,6 +1168,24 @@ should be polled while the user is completing authentication.
 
 If `--auth-type=sso`, the type of SSO type to use.
 
+#### strict-peer-deps
+
+* Default: false
+* Type: Boolean
+
+If set to `true`, and `--legacy-peer-deps` is not set, then _any_
+conflicting `peerDependencies` will be treated as an install failure, even
+if npm could reasonably guess the appropriate resolution based on non-peer
+dependency relationships.
+
+By default, conflicting `peerDependencies` in the dependency graph will be
+resolved using the nearest non-peer dependency specification, even if doing
+so will result in some packages receiving a peer dependency outside the
+range set in their package's `peerDependencies` object.  When such and
+override is performed, a warning is printed, explaining the conflict and
+the packages involved.  If `--strict-peer-deps` is set, then the warning is
+treated as a failure.
+
 #### strict-ssl
 
 * Default: true
@@ -1228,7 +1270,7 @@ version of npm than the latest.
 * Type: Boolean
 
 Set to show short usage output (like the -H output)
-instead of complete help when doing [`npm help`](/cli-commands/npm-help).
+instead of complete help when doing [`npm help`](/cli-commands/help).
 
 #### user
 
@@ -1293,7 +1335,7 @@ Set to `"browser"` to view html help content in the default web browser.
 
 ### See also
 
-* [npm config](/cli-commands/npm-config)
+* [npm config](/cli-commands/config)
 * [npmrc](/configuring-npm/npmrc)
 * [npm scripts](/using-npm/scripts)
 * [npm folders](/configuring-npm/folders)

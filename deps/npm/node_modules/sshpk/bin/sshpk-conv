@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // -*- mode: js -*-
 // vim: set filetype=javascript :
-// Copyright 2015 Joyent, Inc.	All rights reserved.
+// Copyright 2018 Joyent, Inc.	All rights reserved.
 
 var dashdash = require('dashdash');
 var sshpk = require('../lib/index');
@@ -48,6 +48,21 @@ var options = [
 		help: 'Print key metadata instead of converting'
 	},
 	{
+		names: ['fingerprint', 'F'],
+		type: 'bool',
+		help: 'Output key fingerprint'
+	},
+	{
+		names: ['hash', 'H'],
+		type: 'string',
+		help: 'Hash function to use for key fingeprint with -F'
+	},
+	{
+		names: ['spki', 's'],
+		type: 'bool',
+		help: 'With -F, generates an SPKI fingerprint instead of SSH'
+	},
+	{
 		names: ['comment', 'c'],
 		type: 'string',
 		help: 'Set key comment, if output format supports'
@@ -75,13 +90,18 @@ if (require.main === module) {
 		var help = parser.help({}).trimRight();
 		console.error('sshpk-conv: converts between SSH key formats\n');
 		console.error(help);
-		console.error('\navailable formats:');
+		console.error('\navailable key formats:');
 		console.error('	 - pem, pkcs1	  eg id_rsa');
 		console.error('	 - ssh		  eg id_rsa.pub');
 		console.error('	 - pkcs8	  format you want for openssl');
 		console.error('	 - openssh	  like output of ssh-keygen -o');
 		console.error('	 - rfc4253	  raw OpenSSH wire format');
 		console.error('	 - dnssec	  dnssec-keygen format');
+		console.error('  - putty          PuTTY ppk format');
+		console.error('\navailable fingerprint formats:');
+		console.error('  - hex            colon-separated hex for SSH');
+		console.error('                   straight hex for SPKI');
+		console.error('  - base64         SHA256:* format from OpenSSH');
 		process.exit(1);
 	}
 
@@ -111,9 +131,7 @@ if (require.main === module) {
 			inFile = fs.createReadStream(inFilePath);
 		}
 	} catch (e) {
-		console.error('sshpk-conv: error opening input file' +
-		     ': ' + e.name + ': ' + e.message);
-		process.exit(1);
+		ifError(e, 'error opening input file');
 	}
 
 	var outFile = process.stdout;
@@ -124,9 +142,7 @@ if (require.main === module) {
 			outFile = fs.createWriteStream(opts.out);
 		}
 	} catch (e) {
-		console.error('sshpk-conv: error opening output file' +
-		    ': ' + e.name + ': ' + e.message);
-		process.exit(1);
+		ifError(e, 'error opening output file');
 	}
 
 	var bufs = [];
@@ -150,20 +166,14 @@ if (require.main === module) {
 		} catch (e) {
 			if (e.name === 'KeyEncryptedError') {
 				getPassword(function (err, pw) {
-					if (err) {
-						console.log('sshpk-conv: ' +
-						    err.name + ': ' +
-						    err.message);
-						process.exit(1);
-					}
+					if (err)
+						ifError(err);
 					parseOpts.passphrase = pw;
 					processKey();
 				});
 				return;
 			}
-			console.error('sshpk-conv: ' +
-			    e.name + ': ' + e.message);
-			process.exit(1);
+			ifError(e);
 		}
 
 		if (opts.derive)
@@ -172,18 +182,7 @@ if (require.main === module) {
 		if (opts.comment)
 			key.comment = opts.comment;
 
-		if (!opts.identify) {
-			fmt = undefined;
-			if (opts.outformat)
-				fmt = opts.outformat;
-			outFile.write(key.toBuffer(fmt));
-			if (fmt === 'ssh' ||
-			    (!opts.private && fmt === undefined))
-				outFile.write('\n');
-			outFile.once('drain', function () {
-				process.exit(0);
-			});
-		} else {
+		if (opts.identify) {
 			var kind = 'public';
 			if (sshpk.PrivateKey.isPrivateKey(key))
 				kind = 'private';
@@ -193,10 +192,52 @@ if (require.main === module) {
 				console.log('ECDSA curve: %s', key.curve);
 			if (key.comment)
 				console.log('Comment: %s', key.comment);
-			console.log('Fingerprint:');
-			console.log('  ' + key.fingerprint().toString());
-			console.log('  ' + key.fingerprint('md5').toString());
+			console.log('SHA256 fingerprint: ' +
+			    key.fingerprint('sha256').toString());
+			console.log('MD5 fingerprint: ' +
+			    key.fingerprint('md5').toString());
+			console.log('SPKI-SHA256 fingerprint: ' +
+			    key.fingerprint('sha256', 'spki').toString());
 			process.exit(0);
+			return;
 		}
+
+		if (opts.fingerprint) {
+			var hash = opts.hash;
+			var type = opts.spki ? 'spki' : 'ssh';
+			var format = opts.outformat;
+			var fp = key.fingerprint(hash, type).toString(format);
+			outFile.write(fp);
+			outFile.write('\n');
+			outFile.once('drain', function () {
+				process.exit(0);
+			});
+			return;
+		}
+
+		fmt = undefined;
+		if (opts.outformat)
+			fmt = opts.outformat;
+		outFile.write(key.toBuffer(fmt));
+		if (fmt === 'ssh' ||
+		    (!opts.private && fmt === undefined))
+			outFile.write('\n');
+		outFile.once('drain', function () {
+			process.exit(0);
+		});
 	});
+}
+
+function ifError(e, txt) {
+	if (txt)
+		txt = txt + ': ';
+	else
+		txt = '';
+	console.error('sshpk-conv: ' + txt + e.name + ': ' + e.message);
+	if (process.env['DEBUG'] || process.env['V']) {
+		console.error(e.stack);
+		if (e.innerErr)
+			console.error(e.innerErr.stack);
+	}
+	process.exit(1);
 }

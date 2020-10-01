@@ -1,17 +1,15 @@
 module.exports = owner
 
-const BB = require('bluebird')
-
 const log = require('npmlog')
-const npa = require('libnpm/parse-arg')
-const npmConfig = require('./config/figgy-config.js')
-const npmFetch = require('libnpm/fetch')
+const npa = require('npm-package-arg')
+const npm = require('./npm.js')
+const npmFetch = require('npm-registry-fetch')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const packument = require('libnpm/packument')
-const readLocalPkg = BB.promisify(require('./utils/read-local-package.js'))
+const { packument } = require('pacote')
+const readLocalPkg = require('./utils/read-local-package.js')
 const usage = require('./utils/usage')
-const whoami = BB.promisify(require('./whoami.js'))
+const getIdentity = require('./utils/get-identity')
 
 owner.usage = usage(
   'owner',
@@ -29,9 +27,9 @@ owner.completion = function (opts, cb) {
     else subs.push('ls', 'list')
     return cb(null, subs)
   }
-  BB.try(() => {
-    const opts = npmConfig()
-    return whoami([], true).then(username => {
+  Promise.resolve().then(() => {
+    const opts = npm.flatOptions
+    return getIdentity(opts).then(username => {
       const un = encodeURIComponent(username)
       let byUser, theUser
       switch (argv[2]) {
@@ -72,16 +70,16 @@ owner.completion = function (opts, cb) {
           return cb()
       }
     })
-  }).nodeify(cb)
+  }).then(() => cb(), cb)
 }
 
 function UsageError () {
-  throw Object.assign(new Error(owner.usage), {code: 'EUSAGE'})
+  throw Object.assign(new Error(owner.usage), { code: 'EUSAGE' })
 }
 
 function owner ([action, ...args], cb) {
-  const opts = npmConfig()
-  BB.try(() => {
+  const opts = npm.flatOptions
+  Promise.resolve().then(() => {
     switch (action) {
       case 'ls': case 'list': return ls(args[0], opts)
       case 'add': return add(args[0], args[1], opts)
@@ -103,7 +101,7 @@ function ls (pkg, opts) {
   }
 
   const spec = npa(pkg)
-  return packument(spec, opts.concat({fullMetadata: true})).then(
+  return packument(spec, { ...opts, fullMetadata: true }).then(
     data => {
       var owners = data.maintainers
       if (!owners || !owners.length) {
@@ -183,7 +181,7 @@ function rm (user, pkg, opts) {
 }
 
 function withMutation (spec, user, opts, mutation) {
-  return BB.try(() => {
+  return Promise.resolve().then(() => {
     if (user) {
       const uri = `/-/user/org.couchdb.user:${encodeURIComponent(user)}`
       return npmFetch.json(uri, opts).then(mutate_, err => {
@@ -203,9 +201,10 @@ function withMutation (spec, user, opts, mutation) {
     }
 
     if (u) u = { name: u.name, email: u.email }
-    return packument(spec, opts.concat({
+    return packument(spec, {
+      ...opts,
       fullMetadata: true
-    })).then(data => {
+    }).then(data => {
       // save the number of maintainers before mutation so that we can figure
       // out if maintainers were added or removed
       const beforeMutation = data.maintainers.length
@@ -221,12 +220,12 @@ function withMutation (spec, user, opts, mutation) {
       }
       const dataPath = `/${spec.escapedName}/-rev/${encodeURIComponent(data._rev)}`
       return otplease(opts, opts => {
-        const reqOpts = opts.concat({
+        return npmFetch.json(dataPath, {
+          ...opts,
           method: 'PUT',
           body: data,
           spec
         })
-        return npmFetch.json(dataPath, reqOpts)
       }).then(data => {
         if (data.error) {
           throw new Error('Failed to update package metadata: ' + JSON.stringify(data))
