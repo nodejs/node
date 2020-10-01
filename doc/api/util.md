@@ -241,10 +241,6 @@ changes:
   - version: v12.11.0
     pr-url: https://github.com/nodejs/node/pull/29606
     description: The `%c` specifier is ignored now.
-  - version: v11.4.0
-    pr-url: https://github.com/nodejs/node/pull/23708
-    description: The `%d`, `%f` and `%i` specifiers now support Symbols
-                 properly.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23162
     description: The `format` argument is now only taken as such if it actually
@@ -256,6 +252,10 @@ changes:
                  first argument. This change removes previously present quotes
                  from strings that were being output when the first argument
                  was not a string.
+  - version: v11.4.0
+    pr-url: https://github.com/nodejs/node/pull/23708
+    description: The `%d`, `%f` and `%i` specifiers now support Symbols
+                 properly.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24806
     description: The `%o` specifier's `depth` has default depth of 4 again.
@@ -475,13 +475,13 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/27109
     description: The `compact` options default is changed to `3` and the
                  `breakLength` options default is changed to `80`.
-  - version: v11.11.0
-    pr-url: https://github.com/nodejs/node/pull/26269
-    description: The `compact` option accepts numbers for a new output mode.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/24971
     description: Internal properties no longer appear in the context argument
                  of a custom inspection function.
+  - version: v11.11.0
+    pr-url: https://github.com/nodejs/node/pull/26269
+    description: The `compact` option accepts numbers for a new output mode.
   - version: v11.7.0
     pr-url: https://github.com/nodejs/node/pull/25006
     description: ArrayBuffers now also show their binary contents.
@@ -494,13 +494,13 @@ changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22846
     description: The `depth` default changed to `20`.
-  - version: v10.12.0
-    pr-url: https://github.com/nodejs/node/pull/22788
-    description: The `sorted` option is supported now.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22756
     description: The inspection output is now limited to about 128 MB. Data
                  above that size will not be fully inspected.
+  - version: v10.12.0
+    pr-url: https://github.com/nodejs/node/pull/22788
+    description: The `sorted` option is supported now.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20725
     description: Inspecting linked lists and similar objects is now possible

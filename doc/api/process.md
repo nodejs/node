@@ -2520,12 +2520,12 @@ To get the version string without the prepended _v_, use
 <!-- YAML
 added: v0.2.0
 changes:
-  - version: v4.2.0
-    pr-url: https://github.com/nodejs/node/pull/3102
-    description: The `icu` property is now supported.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15785
     description: The `v8` property now includes a Node.js specific suffix.
+  - version: v4.2.0
+    pr-url: https://github.com/nodejs/node/pull/3102
+    description: The `icu` property is now supported.
 -->
 
 * {Object}

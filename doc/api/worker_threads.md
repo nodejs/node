@@ -653,15 +653,15 @@ changes:
     description: The `filename` parameter can be a WHATWG `URL` object using
                  `file:` protocol.
   - version:
-     - v13.2.0
-     - v12.16.0
-    pr-url: https://github.com/nodejs/node/pull/26628
-    description: The `resourceLimits` option was introduced.
-  - version:
      - v13.4.0
      - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30559
     description: The `argv` option was introduced.
+  - version:
+     - v13.2.0
+     - v12.16.0
+    pr-url: https://github.com/nodejs/node/pull/26628
+    description: The `resourceLimits` option was introduced.
 -->
 
 * `filename` {string|URL} The path to the Worker’s main script or module. Must
