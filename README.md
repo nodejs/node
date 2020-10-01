@@ -415,7 +415,7 @@ For information about the governance of the Node.js project, see
 * [starkwang](https://github.com/starkwang) -
 **Weijia Wang** &lt;starkwang@126.com&gt;
 * [sxa](https://github.com/sxa) -
-**Stewart X Addison** &lt;sxa@uk.ibm.com&gt;
+**Stewart X Addison** &lt;sxa@redhat.com&gt; (he/him)
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [TimothyGu](https://github.com/TimothyGu) -
