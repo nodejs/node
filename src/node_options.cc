@@ -3,6 +3,7 @@
 
 #include "env-inl.h"
 #include "node_binding.h"
+#include "node_errors.h"
 #include "node_internals.h"
 
 #include <errno.h>
@@ -849,8 +850,8 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!env->has_run_bootstrapping_code()) {
     // No code because this is an assertion.
-    return env->ThrowError(
-        "Should not query options before bootstrapping is done");
+    return THROW_ERR_INVALID_STATE(
+        env, "Should not query options before bootstrapping is done");
   }
   env->set_has_serialized_options(true);
 

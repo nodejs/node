@@ -40,6 +40,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
+  V(ERR_INVALID_STATE, Error)                                                  \
   V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                    \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
@@ -96,6 +97,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE,                                   \
     "Context not associated with Node.js environment")                         \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")       \
+  V(ERR_INVALID_STATE, "Invalid state")                                        \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \
