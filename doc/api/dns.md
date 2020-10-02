@@ -424,7 +424,7 @@ added: v0.3.2
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `records` {object[]}
+  * `records` {Object[]}
 
 Uses the DNS protocol to resolve `CAA` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
