@@ -28,6 +28,8 @@ console.log(colors.black.bgWhite('Background color attack!'));
 console.log(colors.random('Use random styles on everything!'));
 console.log(colors.america('America, Heck Yeah!'));
 
+console.log(colors.brightCyan('Blindingly ') + colors.brightRed('bright? ') + colors.brightYellow('Why ') + colors.brightGreen('not?!'));
+
 console.log('Setting themes is useful');
 
 //

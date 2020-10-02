@@ -28,6 +28,7 @@ module.exports = {
 	identityForHost: Identity.forHost,
 	identityForUser: Identity.forUser,
 	identityForEmail: Identity.forEmail,
+	identityFromArray: Identity.fromArray,
 
 	/* errors */
 	FingerprintFormatError: errs.FingerprintFormatError,

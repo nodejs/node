@@ -152,8 +152,8 @@ The following paths and files are never ignored, so adding them to
 If, given the structure of your project, you find `.npmignore` to be a
 maintenance headache, you might instead try populating the `files`
 property of `package.json`, which is an array of file or directory names
-that should be included in your package. Sometimes a whitelist is easier
-to manage than a blacklist.
+that should be included in your package. Sometimes manually picking
+which items to allow is easier to manage than building a block list.
 
 #### Testing whether your `.npmignore` or `files` config works
 

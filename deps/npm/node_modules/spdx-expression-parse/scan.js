@@ -70,14 +70,14 @@ module.exports = function (source) {
   function documentRef () {
     if (read('DocumentRef-')) {
       var string = expectIdstring()
-      return {type: 'DOCUMENTREF', string: string}
+      return { type: 'DOCUMENTREF', string: string }
     }
   }
 
   function licenseRef () {
     if (read('LicenseRef-')) {
       var string = expectIdstring()
-      return {type: 'LICENSEREF', string: string}
+      return { type: 'LICENSEREF', string: string }
     }
   }
 

@@ -12,14 +12,14 @@ function pickManifestFromRegistryMetadata (spec, tag, versions, metadata) {
   if (tagged &&
       metadata.versions[tagged] &&
       semver.satisfies(tagged, spec, true)) {
-    return {resolvedTo: tag, manifest: metadata.versions[tagged]}
+    return { resolvedTo: tag, manifest: metadata.versions[tagged] }
   }
   // find the max satisfying version.
   var ms = semver.maxSatisfying(versions, spec, true)
   if (ms) {
-    return {resolvedTo: ms, manifest: metadata.versions[ms]}
+    return { resolvedTo: ms, manifest: metadata.versions[ms] }
   } else if (spec === '*' && versions.length && tagged && metadata.versions[tagged]) {
-    return {resolvedTo: tag, manifest: metadata.versions[tagged]}
+    return { resolvedTo: tag, manifest: metadata.versions[tagged] }
   } else {
 
   }

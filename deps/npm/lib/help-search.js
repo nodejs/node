@@ -1,77 +1,73 @@
+const fs = require('fs')
+const path = require('path')
+const npm = require('./npm.js')
+const glob = require('glob')
+const color = require('ansicolors')
+const output = require('./utils/output.js')
+const usageUtil = require('./utils/usage.js')
+const { promisify } = require('util')
+const readFile = promisify(fs.readFile)
+const didYouMean = require('./utils/did-you-mean.js')
+const { cmdList } = require('./utils/cmd-list.js')
 
-module.exports = helpSearch
+const usage = usageUtil('help-search', 'npm help-search <text>')
+const completion = require('./utils/completion/none.js')
 
-var fs = require('graceful-fs')
-var path = require('path')
-var asyncMap = require('slide').asyncMap
-var npm = require('./npm.js')
-var glob = require('glob')
-var color = require('ansicolors')
-var output = require('./utils/output.js')
+const npmUsage = require('./utils/npm-usage.js')
 
-helpSearch.usage = 'npm help-search <text>'
+const cmd = (args, cb) => helpSearch(args).then(() => cb()).catch(cb)
 
-function helpSearch (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+const helpSearch = async args => {
+  if (!args.length) {
+    throw usage
   }
-  if (!args.length) return cb(helpSearch.usage)
 
-  var docPath = path.resolve(__dirname, '..', 'doc')
-  return glob(docPath + '/*/*.md', function (er, files) {
-    if (er) return cb(er)
-    readFiles(files, function (er, data) {
-      if (er) return cb(er)
-      searchFiles(args, data, function (er, results) {
-        if (er) return cb(er)
-        formatResults(args, results, cb)
-      })
-    })
-  })
+  const docPath = path.resolve(__dirname, '..', 'docs/content')
+
+  // XXX: make glob return a promise and remove this wrapping
+  const files = await new Promise((res, rej) =>
+    glob(`${docPath}/*/*.md`, (er, files) => er ? rej(er) : res(files)))
+
+  const data = await readFiles(files)
+  const results = await searchFiles(args, data, files)
+  const formatted = formatResults(args, results)
+  if (!formatted.trim()) {
+    npmUsage(false)
+  } else {
+    output(formatted)
+    output(didYouMean(args[0], cmdList))
+  }
 }
 
-function readFiles (files, cb) {
-  var res = {}
-  asyncMap(files, function (file, cb) {
-    fs.readFile(file, 'utf8', function (er, data) {
-      res[file] = data
-      return cb(er)
-    })
-  }, function (er) {
-    return cb(er, res)
-  })
+const readFiles = async files => {
+  const res = {}
+  await Promise.all(files.map(async file => {
+    res[file] = (await readFile(file, 'utf8'))
+      .replace(/^---\n(.*\n)*?---\n/, '').trim()
+  }))
+  return res
 }
 
-function searchFiles (args, files, cb) {
-  var results = []
-  Object.keys(files).forEach(function (file) {
-    var data = files[file]
-
+const searchFiles = async (args, data, files) => {
+  const results = []
+  for (const [file, content] of Object.entries(data)) {
+    const lowerCase = content.toLowerCase()
     // skip if no matches at all
-    var match
-    for (var a = 0, l = args.length; a < l && !match; a++) {
-      match = data.toLowerCase().indexOf(args[a].toLowerCase()) !== -1
+    if (!args.some(a => lowerCase.includes(a.toLowerCase()))) {
+      continue
     }
-    if (!match) return
 
-    var lines = data.split(/\n+/)
+    const lines = content.split(/\n+/)
 
     // if a line has a search term, then skip it and the next line.
     // if the next line has a search term, then skip all 3
     // otherwise, set the line to null.  then remove the nulls.
-    l = lines.length
-    for (var i = 0; i < l; i++) {
-      var line = lines[i]
-      var nextLine = lines[i + 1]
-      var ll
-
-      match = false
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const nextLine = lines[i + 1]
+      let match = false
       if (nextLine) {
-        for (a = 0, ll = args.length; a < ll && !match; a++) {
-          match = nextLine.toLowerCase()
-            .indexOf(args[a].toLowerCase()) !== -1
-        }
+        match = args.some(a => nextLine.toLowerCase().includes(a.toLowerCase()))
         if (match) {
           // skip over the next line, and the line after it.
           i += 2
@@ -79,10 +75,8 @@ function searchFiles (args, files, cb) {
         }
       }
 
-      match = false
-      for (a = 0, ll = args.length; a < ll && !match; a++) {
-        match = line.toLowerCase().indexOf(args[a].toLowerCase()) !== -1
-      }
+      match = args.some(a => line.toLowerCase().includes(a.toLowerCase()))
+
       if (match) {
         // skip over the next line
         i++
@@ -93,120 +87,128 @@ function searchFiles (args, files, cb) {
     }
 
     // now squish any string of nulls into a single null
-    lines = lines.reduce(function (l, r) {
-      if (!(r === null && l[l.length - 1] === null)) l.push(r)
+    const pruned = lines.reduce((l, r) => {
+      if (!(r === null && l[l.length - 1] === null)) {
+        l.push(r)
+      }
       return l
     }, [])
 
-    if (lines[lines.length - 1] === null) lines.pop()
-    if (lines[0] === null) lines.shift()
+    if (pruned[pruned.length - 1] === null) {
+      pruned.pop()
+    }
+    if (pruned[0] === null) {
+      pruned.shift()
+    }
 
-    // now see how many args were found at all.
-    var found = {}
-    var totalHits = 0
-    lines.forEach(function (line) {
-      args.forEach(function (arg) {
-        var hit = (line || '').toLowerCase()
+    // now count how many args were found
+    const found = {}
+    let totalHits = 0
+    for (const line of pruned) {
+      for (const arg of args) {
+        const hit = (line || '').toLowerCase()
           .split(arg.toLowerCase()).length - 1
+
         if (hit > 0) {
           found[arg] = (found[arg] || 0) + hit
           totalHits += hit
         }
-      })
-    })
-
-    var cmd = 'npm help '
-    if (path.basename(path.dirname(file)) === 'api') {
-      cmd = 'npm apihelp '
+      }
     }
-    cmd += path.basename(file, '.md').replace(/^npm-/, '')
+
+    const cmd = 'npm help ' +
+      path.basename(file, '.md').replace(/^npm-/, '')
     results.push({
-      file: file,
-      cmd: cmd,
-      lines: lines,
+      file,
+      cmd,
+      lines: pruned,
       found: Object.keys(found),
       hits: found,
-      totalHits: totalHits
+      totalHits
     })
-  })
+  }
 
   // if only one result, then just show that help section.
   if (results.length === 1) {
-    return npm.commands.help([results[0].file.replace(/\.md$/, '')], cb)
-  }
-
-  if (results.length === 0) {
-    output('No results for ' + args.map(JSON.stringify).join(' '))
-    return cb()
+    npm.commands.help([results[0].file.replace(/\.md$/, '')], er => {
+      if (er) {
+        throw er
+      }
+    })
+    return []
   }
 
   // sort results by number of results found, then by number of hits
   // then by number of matching lines
-  results = results.sort(function (a, b) {
-    return a.found.length > b.found.length ? -1
-      : a.found.length < b.found.length ? 1
-        : a.totalHits > b.totalHits ? -1
-          : a.totalHits < b.totalHits ? 1
-            : a.lines.length > b.lines.length ? -1
-              : a.lines.length < b.lines.length ? 1
-                : 0
-  })
-
-  cb(null, results)
+  return results.sort((a, b) =>
+    a.found.length > b.found.length ? -1
+    : a.found.length < b.found.length ? 1
+    : a.totalHits > b.totalHits ? -1
+    : a.totalHits < b.totalHits ? 1
+    : a.lines.length > b.lines.length ? -1
+    : a.lines.length < b.lines.length ? 1
+    : 0).slice(0, 10)
 }
 
-function formatResults (args, results, cb) {
-  if (!results) return cb(null)
-
-  var cols = Math.min(process.stdout.columns || Infinity, 80) + 1
-
-  var out = results.map(function (res) {
-    var out = res.cmd
-    var r = Object.keys(res.hits)
-      .map(function (k) {
-        return k + ':' + res.hits[k]
-      }).sort(function (a, b) {
-        return a > b ? 1 : -1
-      }).join(' ')
-
-    out += ((new Array(Math.max(1, cols - out.length - r.length)))
-      .join(' ')) + r
-
-    if (!npm.config.get('long')) return out
-
-    out = '\n\n' + out + '\n' +
-      (new Array(cols)).join('—') + '\n' +
-      res.lines.map(function (line, i) {
-        if (line === null || i > 3) return ''
-        for (var out = line, a = 0, l = args.length; a < l; a++) {
-          var finder = out.toLowerCase().split(args[a].toLowerCase())
-          var newOut = ''
-          var p = 0
-
-          finder.forEach(function (f) {
-            newOut += out.substr(p, f.length)
-
-            var hilit = out.substr(p + f.length, args[a].length)
-            if (npm.color) hilit = color.bgBlack(color.red(hilit))
-            newOut += hilit
-
-            p += f.length + args[a].length
-          })
-        }
-
-        return newOut
-      }).join('\n').trim()
-    return out
-  }).join('\n')
-
-  if (results.length && !npm.config.get('long')) {
-    out = 'Top hits for ' + (args.map(JSON.stringify).join(' ')) + '\n' +
-          (new Array(cols)).join('—') + '\n' +
-          out + '\n' +
-          (new Array(cols)).join('—') + '\n' +
-          '(run with -l or --long to see more context)'
+const formatResults = (args, results) => {
+  if (!results) {
+    return 'No results for ' + args.map(JSON.stringify).join(' ')
   }
 
-  output(out.trim())
-  cb(null, results)
+  const cols = Math.min(process.stdout.columns || Infinity, 80) + 1
+
+  const out = results.map(res => {
+    const out = [res.cmd]
+    const r = Object.keys(res.hits)
+      .map(k => `${k}:${res.hits[k]}`)
+      .sort((a, b) => a > b ? 1 : -1)
+      .join(' ')
+
+    out.push(' '.repeat((Math.max(1, cols - out.join(' ').length - r.length - 1))))
+    out.push(r)
+
+    if (!npm.flatOptions.long) {
+      return out.join('')
+    }
+
+    out.unshift('\n\n')
+    out.push('\n')
+    out.push('-'.repeat(cols - 1) + '\n')
+    res.lines.forEach((line, i) => {
+      if (line === null || i > 3) {
+        return
+      }
+      if (!npm.color) {
+        out.push(line + '\n')
+        return
+      }
+      const hilitLine = []
+      for (const arg of args) {
+        const finder = line.toLowerCase().split(arg.toLowerCase())
+        let p = 0
+        for (const f of finder) {
+          hilitLine.push(line.substr(p, f.length))
+          const word = line.substr(p + f.length, arg.length)
+          const hilit = color.bgBlack(color.red(word))
+          hilitLine.push(hilit)
+          p += f.length + arg.length
+        }
+      }
+      out.push(hilitLine.join('') + '\n')
+    })
+
+    return out.join('')
+  }).join('\n')
+
+  const finalOut = results.length && !npm.flatOptions.long
+    ? 'Top hits for ' + (args.map(JSON.stringify).join(' ')) + '\n' +
+      '—'.repeat(cols - 1) + '\n' +
+      out + '\n' +
+      '—'.repeat(cols - 1) + '\n' +
+      '(run with -l or --long to see more context)'
+    : out
+
+  return finalOut.trim()
 }
+
+module.exports = Object.assign(cmd, { usage, completion })

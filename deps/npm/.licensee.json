@@ -5,11 +5,5 @@
     ],
     "blueOak": "bronze"
   },
-  "corrections": true,
-  "packages": {
-    "config-chain": "1.1.12",
-    "cyclist": "0.2.2",
-    "json-schema": "0.2.3",
-    "qrcode-terminal": "0.12.0"
-  }
+  "corrections": true
 }

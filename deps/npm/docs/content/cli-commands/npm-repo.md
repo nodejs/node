@@ -11,7 +11,7 @@ description: Open package repository page in the browser
 ### Synopsis
 
 ```bash
-npm repo [<pkg>]
+npm repo [<pkgname> [<pkgname> ...]]
 ```
 
 ### Description
@@ -26,11 +26,16 @@ a `package.json` in the current folder and use the `name` property.
 #### browser
 
 * Default: OS X: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
-* Type: String
+* Type: String or Boolean
 
 The browser that is called by the `npm repo` command to open websites.
 
+Set to `false` to suppress browser behavior and instead print urls to
+terminal.
+
+Set to `true` to use default system URL opener.
+
 ### See Also
 
-* [npm docs](/cli-commands/npm-docs)
-* [npm config](/cli-commands/npm-config)
+* [npm docs](/cli-commands/docs)
+* [npm config](/cli-commands/config)

@@ -7,8 +7,8 @@ exports.send = sendMetrics
 const fs = require('fs')
 const path = require('path')
 const npm = require('../npm.js')
-const regFetch = require('libnpm/fetch')
-const uuid = require('uuid')
+const regFetch = require('npm-registry-fetch')
+const { v4: uuidv4 } = require('uuid')
 const cacheFile = require('./cache-file.js')
 
 let inMetrics = false
@@ -42,7 +42,7 @@ function saveMetrics (itWorked) {
     }
   } catch (ex) {
     metrics = {
-      metricId: uuid.v4(),
+      metricId: uuidv4(),
       metrics: {
         from: new Date().toISOString(),
         to: new Date().toISOString(),

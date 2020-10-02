@@ -1,8 +1,7 @@
 'use strict'
 
-const figgyPudding = require('figgy-pudding')
-const liborg = require('libnpm/org')
-const npmConfig = require('./config/figgy-config.js')
+const liborg = require('libnpmorg')
+const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const Table = require('cli-table3')
@@ -15,13 +14,6 @@ org.usage =
   'npm org set orgname username [developer | admin | owner]\n' +
   'npm org rm orgname username\n' +
   'npm org ls orgname [<username>]'
-
-const OrgConfig = figgyPudding({
-  json: {},
-  loglevel: {},
-  parseable: {},
-  silent: {}
-})
 
 org.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -40,12 +32,11 @@ org.completion = function (opts, cb) {
 }
 
 function UsageError () {
-  throw Object.assign(new Error(org.usage), {code: 'EUSAGE'})
+  throw Object.assign(new Error(org.usage), { code: 'EUSAGE' })
 }
 
 function org ([cmd, orgname, username, role], cb) {
-  otplease(npmConfig(), opts => {
-    opts = OrgConfig(opts)
+  return otplease(npm.flatOptions, opts => {
     switch (cmd) {
       case 'add':
       case 'set':
@@ -141,7 +132,7 @@ function orgList (org, user, opts) {
         output([user, roster[user]].join('\t'))
       })
     } else if (!opts.silent && opts.loglevel !== 'silent') {
-      const table = new Table({head: ['user', 'role']})
+      const table = new Table({ head: ['user', 'role'] })
       Object.keys(roster).sort().forEach(user => {
         table.push([user, roster[user]])
       })

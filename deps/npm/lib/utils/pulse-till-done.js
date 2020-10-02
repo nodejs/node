@@ -1,7 +1,6 @@
 'use strict'
 const validate = require('aproba')
 const log = require('npmlog')
-const Bluebird = require('bluebird')
 
 let pulsers = 0
 let pulse
@@ -21,18 +20,22 @@ module.exports = function (prefix, cb) {
   validate('SF', [prefix, cb])
   if (!prefix) prefix = 'network'
   pulseStart(prefix)
-  return function () {
+  return (er, ...args) => {
     pulseStop()
-    cb.apply(null, arguments)
+    cb(er, ...args)
   }
 }
-module.exports.withPromise = pulseWhile
 
-function pulseWhile (prefix, promise) {
+const pulseWhile = async (prefix, promise) => {
   if (!promise) {
     promise = prefix
     prefix = ''
   }
   pulseStart(prefix)
-  return Bluebird.resolve(promise).finally(() => pulseStop())
+  try {
+    return await promise
+  } finally {
+    pulseStop()
+  }
 }
+module.exports.withPromise = pulseWhile

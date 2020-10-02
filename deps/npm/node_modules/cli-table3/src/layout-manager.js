@@ -2,10 +2,10 @@ const objectAssign = require('object-assign');
 const Cell = require('./cell');
 const { ColSpanCell, RowSpanCell } = Cell;
 
-(function() {
+(function () {
   function layoutTable(table) {
-    table.forEach(function(row, rowIndex) {
-      row.forEach(function(cell, columnIndex) {
+    table.forEach(function (row, rowIndex) {
+      row.forEach(function (cell, columnIndex) {
         cell.y = rowIndex;
         cell.x = columnIndex;
         for (let y = rowIndex; y >= 0; y--) {
@@ -24,8 +24,8 @@ const { ColSpanCell, RowSpanCell } = Cell;
 
   function maxWidth(table) {
     let mw = 0;
-    table.forEach(function(row) {
-      row.forEach(function(cell) {
+    table.forEach(function (row) {
+      row.forEach(function (cell) {
         mw = Math.max(mw, cell.x + (cell.colSpan || 1));
       });
     });
@@ -76,8 +76,8 @@ const { ColSpanCell, RowSpanCell } = Cell;
   }
 
   function addRowSpanCells(table) {
-    table.forEach(function(row, rowIndex) {
-      row.forEach(function(cell) {
+    table.forEach(function (row, rowIndex) {
+      row.forEach(function (cell) {
         for (let i = 1; i < cell.rowSpan; i++) {
           let rowSpanCell = new RowSpanCell(cell);
           rowSpanCell.x = cell.x;
@@ -140,7 +140,7 @@ const { ColSpanCell, RowSpanCell } = Cell;
   }
 
   function generateCells(rows) {
-    return rows.map(function(row) {
+    return rows.map(function (row) {
       if (!Array.isArray(row)) {
         let key = Object.keys(row)[0];
         row = row[key];
@@ -151,7 +151,7 @@ const { ColSpanCell, RowSpanCell } = Cell;
           row = [key, row];
         }
       }
-      return row.map(function(cell) {
+      return row.map(function (cell) {
         return new Cell(cell);
       });
     });
@@ -178,11 +178,11 @@ const { ColSpanCell, RowSpanCell } = Cell;
 })();
 
 function makeComputeWidths(colSpan, desiredWidth, x, forcedMin) {
-  return function(vals, table) {
+  return function (vals, table) {
     let result = [];
     let spanners = [];
-    table.forEach(function(row) {
-      row.forEach(function(cell) {
+    table.forEach(function (row) {
+      row.forEach(function (cell) {
         if ((cell[colSpan] || 1) > 1) {
           spanners.push(cell);
         } else {
@@ -191,7 +191,7 @@ function makeComputeWidths(colSpan, desiredWidth, x, forcedMin) {
       });
     });
 
-    vals.forEach(function(val, index) {
+    vals.forEach(function (val, index) {
       if (typeof val === 'number') {
         result[index] = val;
       }

@@ -1,0 +1,44 @@
+{
+  "name": "npm-package-arg",
+  "version": "6.1.1",
+  "description": "Parse the things that can be arguments to `npm install`",
+  "main": "npa.js",
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "npa.js"
+  ],
+  "dependencies": {
+    "hosted-git-info": "^2.7.1",
+    "osenv": "^0.1.5",
+    "semver": "^5.6.0",
+    "validate-npm-package-name": "^3.0.0"
+  },
+  "devDependencies": {
+    "standard": "^11.0.1",
+    "standard-version": "^4.4.0",
+    "tap": "^12.5.0",
+    "weallbehave": "^1.2.0",
+    "weallcontribute": "^1.0.8"
+  },
+  "scripts": {
+    "prerelease": "npm t",
+    "postrelease": "npm publish && git push --follow-tags",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap --100 -J --coverage test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/npm-package-arg"
+  },
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/npm-package-arg/issues"
+  },
+  "homepage": "https://github.com/npm/npm-package-arg"
+}

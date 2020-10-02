@@ -28,7 +28,7 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
         while (i1 < l1) {
           $property = arr1[i1 += 1];
           var $propertySch = it.schema.properties[$property];
-          if (!($propertySch && it.util.schemaHasRules($propertySch, it.RULES.all))) {
+          if (!($propertySch && (it.opts.strictKeywords ? (typeof $propertySch == 'object' && Object.keys($propertySch).length > 0) || $propertySch === false : it.util.schemaHasRules($propertySch, it.RULES.all)))) {
             $required[$required.length] = $property;
           }
         }
@@ -89,7 +89,8 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
         }
         var __err = out;
         out = $$outStack.pop();
-        if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
+        if (!it.compositeRule && $breakOnError) {
+          /* istanbul ignore if */
           if (it.async) {
             out += ' throw new ValidationError([' + (__err) + ']); ';
           } else {
@@ -148,7 +149,8 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
         }
         var __err = out;
         out = $$outStack.pop();
-        if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
+        if (!it.compositeRule && $breakOnError) {
+          /* istanbul ignore if */
           if (it.async) {
             out += ' throw new ValidationError([' + (__err) + ']); ';
           } else {

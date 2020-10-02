@@ -9,8 +9,8 @@ var extend = Object.assign || function _extend (target, source) {
   // Don't do anything if source isn't an object
   if (source === null || typeof source !== 'object') return target
 
-  var keys = Object.keys(source)
-  var i = keys.length
+  const keys = Object.keys(source)
+  let i = keys.length
   while (i--) {
     target[keys[i]] = source[keys[i]]
   }
@@ -56,7 +56,7 @@ GitHost.prototype._fill = function (template, opts) {
       vars[key] = value.split('/').map(function (pathComponent) {
         return encodeURIComponent(pathComponent)
       }).join('/')
-    } else {
+    } else if (key !== 'domain') {
       vars[key] = encodeURIComponent(value)
     }
   })

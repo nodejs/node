@@ -12,7 +12,7 @@ function setWarning (reqOrRes, code, message, replace) {
   // warn-text  = quoted-string
   // warn-date  = <"> HTTP-date <">
   // (https://tools.ietf.org/html/rfc2616#section-14.46)
-  const host = url.parse(reqOrRes.url).host
+  const host = new url.URL(reqOrRes.url).host
   const jsonMessage = JSON.stringify(message)
   const jsonDate = JSON.stringify(new Date().toUTCString())
   const header = replace ? 'set' : 'append'

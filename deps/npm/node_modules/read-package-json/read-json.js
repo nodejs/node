@@ -1,15 +1,10 @@
-var fs
-try {
-  fs = require('graceful-fs')
-} catch (er) {
-  fs = require('fs')
-}
+var fs = require('fs')
 
 var path = require('path')
 
 var glob = require('glob')
 var normalizeData = require('normalize-package-data')
-var safeJSON = require('json-parse-better-errors')
+var safeJSON = require('json-parse-even-better-errors')
 var util = require('util')
 var normalizePackageBin = require('npm-normalize-package-bin')
 

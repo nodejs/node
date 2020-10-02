@@ -17,6 +17,9 @@ module.exports = function generate__limitLength(it, $keyword, $ruleType) {
   } else {
     $schemaValue = $schema;
   }
+  if (!($isData || typeof $schema == 'number')) {
+    throw new Error($keyword + ' must be number');
+  }
   var $op = $keyword == 'maxLength' ? '>' : '<';
   out += 'if ( ';
   if ($isData) {
@@ -64,7 +67,8 @@ module.exports = function generate__limitLength(it, $keyword, $ruleType) {
   }
   var __err = out;
   out = $$outStack.pop();
-  if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
+  if (!it.compositeRule && $breakOnError) {
+    /* istanbul ignore if */
     if (it.async) {
       out += ' throw new ValidationError([' + (__err) + ']); ';
     } else {

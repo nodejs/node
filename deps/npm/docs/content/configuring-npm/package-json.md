@@ -272,13 +272,15 @@ Conversely, some files are always ignored:
 * `.hg`
 * `.lock-wscript`
 * `.wafpickle-N`
+* `.*.swp`
 * `.DS_Store`
+* `._*`
 * `npm-debug.log`
 * `.npmrc`
 * `node_modules`
 * `config.gypi`
+* `*.orig`
 * `package-lock.json` (use shrinkwrap instead)
-* All files containing a `*` character (incompatible with Windows)
 
 ### main
 
@@ -531,7 +533,7 @@ See [semver](/using-npm/semver) for more details about specifying version ranges
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
-* `tag` A specific version tagged and published as `tag`  See [`npm dist-tag`](/cli-commands/npm-dist-tag)
+* `tag` A specific version tagged and published as `tag`  See [`npm dist-tag`](/cli-commands/dist-tag)
 * `path/path/path` See [Local Paths](#local-paths) below
 
 For example, these are all valid:
@@ -823,8 +825,8 @@ module will run on:
 "os" : [ "darwin", "linux" ]
 ```
 
-You can also blacklist instead of whitelist operating systems,
-just prepend the blacklisted os with a '!':
+You can also block instead of allowing operating systems,
+just prepend the blocked os with a '!':
 
 ```json
 "os" : [ "!win32" ]
@@ -832,7 +834,7 @@ just prepend the blacklisted os with a '!':
 
 The host operating system is determined by `process.platform`
 
-It is allowed to both blacklist, and whitelist, although there isn't any
+It is allowed to both block and allow an item, although there isn't any
 good reason to do this.
 
 ### cpu
@@ -844,7 +846,7 @@ you can specify which ones.
 "cpu" : [ "x64", "ia32" ]
 ```
 
-Like the `os` option, you can also blacklist architectures:
+Like the `os` option, you can also block architectures:
 
 ```json
 "cpu" : [ "!arm", "!mips" ]
@@ -908,10 +910,10 @@ npm will default some values based on package contents.
 ### SEE ALSO
 
 * [semver](/using-npm/semver)
-* [npm init](/cli-commands/npm-init)
-* [npm version](/cli-commands/npm-version)
-* [npm config](/cli-commands/npm-config)
-* [npm help](/cli-commands/npm-help)
-* [npm install](/cli-commands/npm-install)
-* [npm publish](/cli-commands/npm-publish)
-* [npm uninstall](/cli-commands/npm-uninstall)
+* [npm init](/cli-commands/init)
+* [npm version](/cli-commands/version)
+* [npm config](/cli-commands/config)
+* [npm help](/cli-commands/help)
+* [npm install](/cli-commands/install)
+* [npm publish](/cli-commands/publish)
+* [npm uninstall](/cli-commands/uninstall)

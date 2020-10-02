@@ -126,6 +126,9 @@ Parameters
   - `rfc4253`: raw OpenSSH wire format
   - `openssh`: new post-OpenSSH 6.5 internal format, produced by 
                `ssh-keygen -o`
+  - `dnssec`: `.key` file format output by `dnssec-keygen` etc
+  - `putty`: the PuTTY `.ppk` file format (supports truncated variant without
+             all the lines from `Private-Lines:` onwards)
 - `options` -- Optional Object, extra options, with keys:
   - `filename` -- Optional String, name for the key being parsed 
                   (eg. the filename that was opened). Used to generate
@@ -174,7 +177,7 @@ Parameters
 
 Same as `this.toBuffer(format).toString()`.
 
-### `Key#fingerprint([algorithm = 'sha256'])`
+### `Key#fingerprint([algorithm = 'sha256'[, hashType = 'ssh']])`
 
 Creates a new `Fingerprint` object representing this Key's fingerprint.
 
@@ -182,6 +185,9 @@ Parameters
 
 - `algorithm` -- String name of hash algorithm to use, valid options are `md5`,
                  `sha1`, `sha256`, `sha384`, `sha512`
+- `hashType` -- String name of fingerprint hash type to use, valid options are
+                `ssh` (the type of fingerprint used by OpenSSH, e.g. in
+                `ssh-keygen`), `spki` (used by HPKP, some OpenSSL applications)
 
 ### `Key#createVerify([hashAlgorithm])`
 
@@ -231,6 +237,7 @@ Parameters
                       `ssh-keygen -o`
   - `pkcs1`, `pkcs8`: variants of `pem`
   - `rfc4253`: raw OpenSSH wire format
+  - `dnssec`: `.private` format output by `dnssec-keygen` etc.
 - `options` -- Optional Object, extra options, with keys:
   - `filename` -- Optional String, name for the key being parsed
                   (eg. the filename that was opened). Used to generate
@@ -333,7 +340,7 @@ Parameters
 
 ## Fingerprints
 
-### `parseFingerprint(fingerprint[, algorithms])`
+### `parseFingerprint(fingerprint[, options])`
 
 Pre-parses a fingerprint, creating a `Fingerprint` object that can be used to
 quickly locate a key by using the `Fingerprint#matches` function.
@@ -341,9 +348,15 @@ quickly locate a key by using the `Fingerprint#matches` function.
 Parameters
 
 - `fingerprint` -- String, the fingerprint value, in any supported format
-- `algorithms` -- Optional list of strings, names of hash algorithms to limit
-                  support to. If `fingerprint` uses a hash algorithm not on
-                  this list, throws `InvalidAlgorithmError`.
+- `options` -- Optional Object, with properties:
+  - `algorithms` -- Array of strings, names of hash algorithms to limit
+                support to. If `fingerprint` uses a hash algorithm not on
+                this list, throws `InvalidAlgorithmError`.
+  - `hashType` -- String, the type of hash the fingerprint uses, either `ssh`
+                  or `spki` (normally auto-detected based on the format, but
+                  can be overridden)
+  - `type` -- String, the entity this fingerprint identifies, either `key` or
+              `certificate`
 
 ### `Fingerprint.isFingerprint(obj)`
 
@@ -364,14 +377,19 @@ Parameters
               `base64`. If this `Fingerprint` uses the `md5` algorithm, the
               default format is `hex`. Otherwise, the default is `base64`.
 
-### `Fingerprint#matches(key)`
+### `Fingerprint#matches(keyOrCertificate)`
 
-Verifies whether or not this `Fingerprint` matches a given `Key`. This function
-uses double-hashing to avoid leaking timing information. Returns a boolean.
+Verifies whether or not this `Fingerprint` matches a given `Key` or
+`Certificate`. This function uses double-hashing to avoid leaking timing
+information. Returns a boolean.
+
+Note that a `Key`-type Fingerprint will always return `false` if asked to match
+a `Certificate` and vice versa.
 
 Parameters
 
-- `key` -- a `Key` object, the key to match this fingerprint against
+- `keyOrCertificate` -- a `Key` object or `Certificate` object, the entity to
+                        match this fingerprint against
 
 ## Signatures
 
@@ -507,6 +525,24 @@ is valid for. The possible strings at the moment are:
              Authority)
  * `'crl'` -- key can be used to sign Certificate Revocation Lists (CRLs)
 
+### `Certificate#getExtension(nameOrOid)`
+
+Retrieves information about a certificate extension, if present, or returns
+`undefined` if not. The string argument `nameOrOid` should be either the OID
+(for X509 extensions) or the name (for OpenSSH extensions) of the extension
+to retrieve.
+
+The object returned will have the following properties:
+
+ * `format` -- String, set to either `'x509'` or `'openssh'`
+ * `name` or `oid` -- String, only one set based on value of `format`
+ * `data` -- Buffer, the raw data inside the extension
+
+### `Certificate#getExtensions()`
+
+Returns an Array of all present certificate extensions, in the same manner and
+format as `getExtension()`.
+
 ### `Certificate#isExpired([when])`
 
 Tests whether the Certificate is currently expired (i.e. the `validFrom` and
@@ -614,6 +650,44 @@ Parameters
 
 Returns an Identity instance.
 
+### `identityFromArray(arr)`
+
+Constructs an Identity from an array of DN components (see `Identity#toArray()`
+for the format).
+
+Parameters
+
+ - `arr` -- an Array of Objects, DN components with `name` and `value`
+
+Returns an Identity instance.
+
+
+Supported attributes in DNs:
+
+| Attribute name | OID |
+| -------------- | --- |
+| `cn` | `2.5.4.3` |
+| `o` | `2.5.4.10` |
+| `ou` | `2.5.4.11` |
+| `l` | `2.5.4.7` |
+| `s` | `2.5.4.8` |
+| `c` | `2.5.4.6` |
+| `sn` | `2.5.4.4` |
+| `postalCode` | `2.5.4.17` |
+| `serialNumber` | `2.5.4.5` |
+| `street` | `2.5.4.9` |
+| `x500UniqueIdentifier` | `2.5.4.45` |
+| `role` | `2.5.4.72` |
+| `telephoneNumber` | `2.5.4.20` |
+| `description` | `2.5.4.13` |
+| `dc` | `0.9.2342.19200300.100.1.25` |
+| `uid` | `0.9.2342.19200300.100.1.1` |
+| `mail` | `0.9.2342.19200300.100.1.3` |
+| `title` | `2.5.4.12` |
+| `gn` | `2.5.4.42` |
+| `initials` | `2.5.4.43` |
+| `pseudonym` | `2.5.4.65` |
+
 ### `Identity#toString()`
 
 Returns the identity as an LDAP-style DN string.
@@ -631,7 +705,39 @@ Set when `type` is `'host'`, `'user'`, or `'email'`, respectively. Strings.
 
 ### `Identity#cn`
 
-The value of the first `CN=` in the DN, if any.
+The value of the first `CN=` in the DN, if any. It's probably better to use
+the `#get()` method instead of this property.
+
+### `Identity#get(name[, asArray])`
+
+Returns the value of a named attribute in the Identity DN. If there is no
+attribute of the given name, returns `undefined`. If multiple components
+of the DN contain an attribute of this name, an exception is thrown unless
+the `asArray` argument is given as `true` -- then they will be returned as
+an Array in the same order they appear in the DN.
+
+Parameters
+
+ - `name` -- a String
+ - `asArray` -- an optional Boolean
+
+### `Identity#toArray()`
+
+Returns the Identity as an Array of DN component objects. This looks like:
+
+```js
+[ {
+  "name": "cn",
+  "value": "Joe Bloggs"
+},
+{
+  "name": "o",
+  "value": "Organisation Ltd"
+} ]
+```
+
+Each object has a `name` and a `value` property. The returned objects may be
+safely modified.
 
 Errors
 ------

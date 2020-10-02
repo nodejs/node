@@ -6,7 +6,7 @@ const encode = exports.encode = (num, buf) => {
   if (!Number.isSafeInteger(num))
     // The number is so large that javascript cannot represent it with integer
     // precision.
-    throw TypeError('cannot encode number outside of javascript safe integer range')
+    throw Error('cannot encode number outside of javascript safe integer range')
   else if (num < 0)
     encodeNegative(num, buf)
   else
@@ -50,12 +50,12 @@ const parse = exports.parse = (buf) => {
   else if (pre === 0xff)
     value = twos(buf)
   else
-    throw TypeError('invalid base256 encoding')
+    throw Error('invalid base256 encoding')
 
   if (!Number.isSafeInteger(value))
     // The number is so large that javascript cannot represent it with integer
     // precision.
-    throw TypeError('parsed number outside of javascript safe integer range')
+    throw Error('parsed number outside of javascript safe integer range')
 
   return value
 }
