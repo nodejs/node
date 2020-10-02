@@ -1,3 +1,20 @@
+# v5.0.0 (2020-02-27)
+
+- Drop the CLI from the project, just maintain the library
+- Drop support for EOL Node.js versions
+- Remove `Promise` option, just use native Promises
+- Remove `figgy-pudding`
+- Use `npm-registry-fetch` v8
+- fix: do not try to open invalid URLs for WebLogin
+
+# v4.0.3 (2020-02-27)
+
+- fix: do not try to open invalid URLs for WebLogin
+
+# v4.0.2 (2019-07-16)
+
+- Update `npm-registry-fetch` to 4.0.0
+
 # v4.0.1 (2018-08-29)
 
 - `opts.password` needs to be base64-encoded when passed in for login

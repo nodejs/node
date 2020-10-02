@@ -14,17 +14,17 @@ function getLib() {
 (function wrapAll() {
   var lib = getLib();
   retry.wrap(lib);
-  assert.equal(lib.fn1.name, 'bound retryWrapper');
-  assert.equal(lib.fn2.name, 'bound retryWrapper');
-  assert.equal(lib.fn3.name, 'bound retryWrapper');
+  assert.equal(lib.fn1.name, 'retryWrapper');
+  assert.equal(lib.fn2.name, 'retryWrapper');
+  assert.equal(lib.fn3.name, 'retryWrapper');
 }());
 
 (function wrapAllPassOptions() {
   var lib = getLib();
   retry.wrap(lib, {retries: 2});
-  assert.equal(lib.fn1.name, 'bound retryWrapper');
-  assert.equal(lib.fn2.name, 'bound retryWrapper');
-  assert.equal(lib.fn3.name, 'bound retryWrapper');
+  assert.equal(lib.fn1.name, 'retryWrapper');
+  assert.equal(lib.fn2.name, 'retryWrapper');
+  assert.equal(lib.fn3.name, 'retryWrapper');
   assert.equal(lib.fn1.options.retries, 2);
   assert.equal(lib.fn2.options.retries, 2);
   assert.equal(lib.fn3.options.retries, 2);
@@ -33,17 +33,17 @@ function getLib() {
 (function wrapDefined() {
   var lib = getLib();
   retry.wrap(lib, ['fn2', 'fn3']);
-  assert.notEqual(lib.fn1.name, 'bound retryWrapper');
-  assert.equal(lib.fn2.name, 'bound retryWrapper');
-  assert.equal(lib.fn3.name, 'bound retryWrapper');
+  assert.notEqual(lib.fn1.name, 'retryWrapper');
+  assert.equal(lib.fn2.name, 'retryWrapper');
+  assert.equal(lib.fn3.name, 'retryWrapper');
 }());
 
 (function wrapDefinedAndPassOptions() {
   var lib = getLib();
   retry.wrap(lib, {retries: 2}, ['fn2', 'fn3']);
-  assert.notEqual(lib.fn1.name, 'bound retryWrapper');
-  assert.equal(lib.fn2.name, 'bound retryWrapper');
-  assert.equal(lib.fn3.name, 'bound retryWrapper');
+  assert.notEqual(lib.fn1.name, 'retryWrapper');
+  assert.equal(lib.fn2.name, 'retryWrapper');
+  assert.equal(lib.fn3.name, 'retryWrapper');
   assert.equal(lib.fn2.options.retries, 2);
   assert.equal(lib.fn3.options.retries, 2);
 }());
@@ -61,30 +61,6 @@ function getLib() {
     callbackCalled = true;
   });
   assert.ok(callbackCalled);
-}());
-
-(function runWrappedSeveralWithoutError() {
-  var callbacksCalled = 0;
-  var lib = {
-    fn1: function (a, callback) {
-      assert.equal(a, 1);
-      assert.equal(typeof callback, 'function');
-      callback();
-    },
-    fn2: function (a, callback) {
-      assert.equal(a, 2);
-      assert.equal(typeof callback, 'function');
-      callback();
-    }
-  };
-  retry.wrap(lib, {}, ['fn1', 'fn2']);
-  lib.fn1(1, function() {
-    callbacksCalled++;
-  });
-  lib.fn2(2, function() {
-    callbacksCalled++;
-  });
-  assert.equal(callbacksCalled, 2);
 }());
 
 (function runWrappedWithError() {

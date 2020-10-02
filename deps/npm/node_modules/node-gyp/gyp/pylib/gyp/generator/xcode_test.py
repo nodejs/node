@@ -12,12 +12,14 @@ import sys
 
 
 class TestEscapeXcodeDefine(unittest.TestCase):
-  if sys.platform == 'darwin':
-    def test_InheritedRemainsUnescaped(self):
-      self.assertEqual(xcode.EscapeXcodeDefine('$(inherited)'), '$(inherited)')
+    if sys.platform == "darwin":
 
-    def test_Escaping(self):
-      self.assertEqual(xcode.EscapeXcodeDefine('a b"c\\'), 'a\\ b\\"c\\\\')
+        def test_InheritedRemainsUnescaped(self):
+            self.assertEqual(xcode.EscapeXcodeDefine("$(inherited)"), "$(inherited)")
 
-if __name__ == '__main__':
-  unittest.main()
+        def test_Escaping(self):
+            self.assertEqual(xcode.EscapeXcodeDefine('a b"c\\'), 'a\\ b\\"c\\\\')
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -12,7 +12,7 @@ and [cli-table2](https://github.com/jamestalmage/cli-table2), which are both
 unmaintained. `cli-table3` includes all the additional features from
 `cli-table2`.
 
-![Screenshot](http://i.imgur.com/sYq4T.png)
+![Screenshot](https://i.imgur.com/sYq4T.png)
 
 ## Features not in the original cli-table
 
@@ -30,7 +30,7 @@ unmaintained. `cli-table3` includes all the additional features from
 
 - Customizable characters that constitute the table.
 - Color/background styling in the header through
-  [colors.js](http://github.com/marak/colors.js)
+  [colors.js](https://github.com/marak/colors.js)
 - Column width customization
 - Text truncation based on predefined widths
 - Text alignment (left, right, center)
@@ -187,8 +187,8 @@ $ yarn docs
 
 ## Credits
 
-- James Talmage - author &lt;james.talmage@jrtechnical.com&gt; ([jamestalmage](http://github.com/jamestalmage))
-- Guillermo Rauch - author of the original cli-table &lt;guillermo@learnboost.com&gt; ([Guille](http://github.com/guille))
+- James Talmage - author &lt;james.talmage@jrtechnical.com&gt; ([jamestalmage](https://github.com/jamestalmage))
+- Guillermo Rauch - author of the original cli-table &lt;guillermo@learnboost.com&gt; ([Guille](https://github.com/guille))
 
 ## License
 

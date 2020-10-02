@@ -1,5 +1,13 @@
 ## Change Log
 
+### v2.88.0 (2018/08/10)
+- [#2996](https://github.com/request/request/pull/2996) fix(uuid): import versioned uuid (@kwonoj)
+- [#2994](https://github.com/request/request/pull/2994) Update to oauth-sign 0.9.0 (@dlecocq)
+- [#2993](https://github.com/request/request/pull/2993) Fix header tests (@simov)
+- [#2904](https://github.com/request/request/pull/2904) #515, #2894 Strip port suffix from Host header if the protocol is known. (#2904) (@paambaati)
+- [#2791](https://github.com/request/request/pull/2791) Improve AWS SigV4 support. (#2791) (@vikhyat)
+- [#2977](https://github.com/request/request/pull/2977) Update test certificates (@simov)
+
 ### v2.87.0 (2018/05/21)
 - [#2943](https://github.com/request/request/pull/2943) Replace hawk dependency with a local implemenation (#2943) (@hueniverse)
 

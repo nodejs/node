@@ -25,7 +25,7 @@ config param; if there are multiple funding sources for the package, the
 user will be instructed to pass the `--which` command to disambiguate.
 
 The list will avoid duplicated entries and will stack all packages
-that share the same type/url as a single entry. Given this nature the
+that share the same url as a single entry. Given this nature the
 list is not going to have the same shape of the output from `npm ls`.
 
 ### Configuration
@@ -61,8 +61,8 @@ If there are multiple funding sources, which 1-indexed source URL to open.
 
 ## See Also
 
-* [npm docs](/cli-commands/npm-docs)
-* [npm config](/cli-commands/npm-config)
-* [npm install](/cli-commands/npm-install)
-* [npm ls](/cli-commands/npm-ls)
+* [npm docs](/cli-commands/docs)
+* [npm config](/cli-commands/config)
+* [npm install](/cli-commands/install)
+* [npm ls](/cli-commands/ls)
 

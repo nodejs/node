@@ -1,6 +1,6 @@
 'use strict';
 
-var ruleModules = require('./_rules')
+var ruleModules = require('../dotjs')
   , toHash = require('./util').toHash;
 
 module.exports = function rules() {
@@ -11,17 +11,20 @@ module.exports = function rules() {
     { type: 'string',
       rules: [ 'maxLength', 'minLength', 'pattern', 'format' ] },
     { type: 'array',
-      rules: [ 'maxItems', 'minItems', 'uniqueItems', 'contains', 'items' ] },
+      rules: [ 'maxItems', 'minItems', 'items', 'contains', 'uniqueItems' ] },
     { type: 'object',
       rules: [ 'maxProperties', 'minProperties', 'required', 'dependencies', 'propertyNames',
                { 'properties': ['additionalProperties', 'patternProperties'] } ] },
-    { rules: [ '$ref', 'const', 'enum', 'not', 'anyOf', 'oneOf', 'allOf' ] }
+    { rules: [ '$ref', 'const', 'enum', 'not', 'anyOf', 'oneOf', 'allOf', 'if' ] }
   ];
 
-  var ALL = [ 'type' ];
+  var ALL = [ 'type', '$comment' ];
   var KEYWORDS = [
-    'additionalItems', '$schema', '$id', 'id', 'title',
-    'description', 'default', 'definitions'
+    '$schema', '$id', 'id', '$data', '$async', 'title',
+    'description', 'default', 'definitions',
+    'examples', 'readOnly', 'writeOnly',
+    'contentMediaType', 'contentEncoding',
+    'additionalItems', 'then', 'else'
   ];
   var TYPES = [ 'number', 'integer', 'string', 'array', 'object', 'boolean', 'null' ];
   RULES.all = toHash(ALL);
@@ -47,6 +50,11 @@ module.exports = function rules() {
       };
       return rule;
     });
+
+    RULES.all.$comment = {
+      keyword: '$comment',
+      code: ruleModules.$comment
+    };
 
     if (group.type) RULES.types[group.type] = group;
   });

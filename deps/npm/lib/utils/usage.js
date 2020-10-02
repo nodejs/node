@@ -1,5 +1,5 @@
 'use strict'
-var aliases = require('../config/cmd-list').aliases
+var aliases = require('../utils/cmd-list').aliases
 
 module.exports = function usage (cmd, txt, opt) {
   var post = Object.keys(aliases).reduce(function (p, c) {

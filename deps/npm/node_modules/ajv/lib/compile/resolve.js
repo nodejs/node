@@ -1,6 +1,6 @@
 'use strict';
 
-var url = require('url')
+var URI = require('uri-js')
   , equal = require('fast-deep-equal')
   , util = require('./util')
   , SchemaObject = require('./schema_obj')
@@ -67,10 +67,10 @@ function resolve(compile, root, ref) {
  */
 function resolveSchema(root, ref) {
   /* jshint validthis: true */
-  var p = url.parse(ref, false, true)
+  var p = URI.parse(ref)
     , refPath = _getFullPath(p)
     , baseId = getFullPath(this._getId(root.schema));
-  if (refPath !== baseId) {
+  if (Object.keys(root.schema).length === 0 || refPath !== baseId) {
     var id = normalizeId(refPath);
     var refVal = this._refs[id];
     if (typeof refVal == 'string') {
@@ -115,9 +115,9 @@ var PREVENT_SCOPE_CHANGE = util.toHash(['properties', 'patternProperties', 'enum
 /* @this Ajv */
 function getJsonPointer(parsedRef, baseId, schema, root) {
   /* jshint validthis: true */
-  parsedRef.hash = parsedRef.hash || '';
-  if (parsedRef.hash.slice(0,2) != '#/') return;
-  var parts = parsedRef.hash.split('/');
+  parsedRef.fragment = parsedRef.fragment || '';
+  if (parsedRef.fragment.slice(0,1) != '/') return;
+  var parts = parsedRef.fragment.split('/');
 
   for (var i = 1; i < parts.length; i++) {
     var part = parts[i];
@@ -206,14 +206,13 @@ function countKeys(schema) {
 
 function getFullPath(id, normalize) {
   if (normalize !== false) id = normalizeId(id);
-  var p = url.parse(id, false, true);
+  var p = URI.parse(id);
   return _getFullPath(p);
 }
 
 
 function _getFullPath(p) {
-  var protocolSeparator = p.protocol || p.href.slice(0,2) == '//' ? '//' : '';
-  return (p.protocol||'') + protocolSeparator + (p.host||'') + (p.path||'')  + '#';
+  return URI.serialize(p).split('#')[0] + '#';
 }
 
 
@@ -225,7 +224,7 @@ function normalizeId(id) {
 
 function resolveUrl(baseId, id) {
   id = normalizeId(id);
-  return url.resolve(baseId, id);
+  return URI.resolve(baseId, id);
 }
 
 
@@ -246,7 +245,7 @@ function resolveIds(schema) {
       fullPath += '/' + (typeof keyIndex == 'number' ? keyIndex : util.escapeFragment(keyIndex));
 
     if (typeof id == 'string') {
-      id = baseId = normalizeId(baseId ? url.resolve(baseId, id) : id);
+      id = baseId = normalizeId(baseId ? URI.resolve(baseId, id) : id);
 
       var refVal = self._refs[id];
       if (typeof refVal == 'string') refVal = self._refs[refVal];

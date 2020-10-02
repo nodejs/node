@@ -92,9 +92,9 @@ begin with a number or the letter `v`.
 
 ### See Also
 
-* [npm publish](/cli-commands/npm-publish)
-* [npm install](/cli-commands/npm-install)
-* [npm dedupe](/cli-commands/npm-dedupe)
+* [npm publish](/cli-commands/publish)
+* [npm install](/cli-commands/install)
+* [npm dedupe](/cli-commands/dedupe)
 * [npm registry](/using-npm/registry)
-* [npm config](/cli-commands/npm-config)
+* [npm config](/cli-commands/config)
 * [npmrc](/configuring-npm/npmrc)

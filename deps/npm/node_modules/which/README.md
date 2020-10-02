@@ -17,6 +17,9 @@ which('node', function (er, resolvedPath) {
   // if it is found, then the absolute path to the exec is returned
 })
 
+// or promise
+which('node').then(resolvedPath => { ... }).catch(er => { ... not found ... })
+
 // sync usage
 // throws if not found
 var resolved = which.sync('node')

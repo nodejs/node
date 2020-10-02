@@ -19,6 +19,7 @@
     , $ownProperties = it.opts.ownProperties;
 
   for ($property in $schema) {
+    if ($property == '__proto__') continue;
     var $sch = $schema[$property];
     var $deps = Array.isArray($sch) ? $propertyDeps : $schemaDeps;
     $deps[$property] = $sch;
@@ -76,5 +77,3 @@ var missing{{=$lvl}};
   {{= $closingBraces }}
   if ({{=$errs}} == errors) {
 {{?}}
-
-{{# def.cleanUp }}

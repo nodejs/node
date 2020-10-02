@@ -29,7 +29,6 @@ const maxMetaEntrySize = 1024 * 1024
 const Entry = require('./read-entry.js')
 const Pax = require('./pax.js')
 const zlib = require('minizlib')
-const Buffer = require('./buffer.js')
 
 const gzipHeader = Buffer.from([0x1f, 0x8b])
 const STATE = Symbol('state')
@@ -58,6 +57,9 @@ const MAYBEEND = Symbol('maybeEnd')
 const WRITING = Symbol('writing')
 const ABORTED = Symbol('aborted')
 const DONE = Symbol('onDone')
+const SAW_VALID_ENTRY = Symbol('sawValidEntry')
+const SAW_NULL_BLOCK = Symbol('sawNullBlock')
+const SAW_EOF = Symbol('sawEOF')
 
 const noop = _ => true
 
@@ -65,6 +67,21 @@ module.exports = warner(class Parser extends EE {
   constructor (opt) {
     opt = opt || {}
     super(opt)
+
+    this.file = opt.file || ''
+
+    // set to boolean false when an entry starts.  1024 bytes of \0
+    // is technically a valid tarball, albeit a boring one.
+    this[SAW_VALID_ENTRY] = null
+
+    // these BADARCHIVE errors can't be detected early. listen on DONE.
+    this.on(DONE, _ => {
+      if (this[STATE] === 'begin' || this[SAW_VALID_ENTRY] === false) {
+        // either less than 1 block of data, or all entries were invalid.
+        // Either way, probably not even a tarball.
+        this.warn('TAR_BAD_ARCHIVE', 'Unrecognized archive format')
+      }
+    })
 
     if (opt.ondone)
       this.on(DONE, opt.ondone)
@@ -95,6 +112,8 @@ module.exports = warner(class Parser extends EE {
     this[ENDED] = false
     this[UNZIP] = null
     this[ABORTED] = false
+    this[SAW_NULL_BLOCK] = false
+    this[SAW_EOF] = false
     if (typeof opt.onwarn === 'function')
       this.on('warn', opt.onwarn)
     if (typeof opt.onentry === 'function')
@@ -102,58 +121,90 @@ module.exports = warner(class Parser extends EE {
   }
 
   [CONSUMEHEADER] (chunk, position) {
+    if (this[SAW_VALID_ENTRY] === null)
+      this[SAW_VALID_ENTRY] = false
     let header
     try {
       header = new Header(chunk, position, this[EX], this[GEX])
     } catch (er) {
-      return this.warn('invalid entry', er)
+      return this.warn('TAR_ENTRY_INVALID', er)
     }
 
-    if (header.nullBlock)
-      this[EMIT]('nullBlock')
-    else if (!header.cksumValid)
-      this.warn('invalid entry', header)
-    else if (!header.path)
-      this.warn('invalid: path is required', header)
-    else {
-      const type = header.type
-      if (/^(Symbolic)?Link$/.test(type) && !header.linkpath)
-        this.warn('invalid: linkpath required', header)
-      else if (!/^(Symbolic)?Link$/.test(type) && header.linkpath)
-        this.warn('invalid: linkpath forbidden', header)
+    if (header.nullBlock) {
+      if (this[SAW_NULL_BLOCK]) {
+        this[SAW_EOF] = true
+        // ending an archive with no entries.  pointless, but legal.
+        if (this[STATE] === 'begin')
+          this[STATE] = 'header'
+        this[EMIT]('eof')
+      } else {
+        this[SAW_NULL_BLOCK] = true
+        this[EMIT]('nullBlock')
+      }
+    } else {
+      this[SAW_NULL_BLOCK] = false
+      if (!header.cksumValid)
+        this.warn('TAR_ENTRY_INVALID', 'checksum failure', {header})
+      else if (!header.path)
+        this.warn('TAR_ENTRY_INVALID', 'path is required', {header})
       else {
-        const entry = this[WRITEENTRY] = new Entry(header, this[EX], this[GEX])
+        const type = header.type
+        if (/^(Symbolic)?Link$/.test(type) && !header.linkpath)
+          this.warn('TAR_ENTRY_INVALID', 'linkpath required', {header})
+        else if (!/^(Symbolic)?Link$/.test(type) && header.linkpath)
+          this.warn('TAR_ENTRY_INVALID', 'linkpath forbidden', {header})
+        else {
+          const entry = this[WRITEENTRY] = new Entry(header, this[EX], this[GEX])
 
-        if (entry.meta) {
-          if (entry.size > this.maxMetaEntrySize) {
-            entry.ignore = true
-            this[EMIT]('ignoredEntry', entry)
-            this[STATE] = 'ignore'
-          } else if (entry.size > 0) {
-            this[META] = ''
-            entry.on('data', c => this[META] += c)
-            this[STATE] = 'meta'
-          }
-        } else {
-
-          this[EX] = null
-          entry.ignore = entry.ignore || !this.filter(entry.path, entry)
-          if (entry.ignore) {
-            this[EMIT]('ignoredEntry', entry)
-            this[STATE] = entry.remain ? 'ignore' : 'begin'
-          } else {
-            if (entry.remain)
-              this[STATE] = 'body'
-            else {
-              this[STATE] = 'begin'
-              entry.end()
+          // we do this for meta & ignored entries as well, because they
+          // are still valid tar, or else we wouldn't know to ignore them
+          if (!this[SAW_VALID_ENTRY]) {
+            if (entry.remain) {
+              // this might be the one!
+              const onend = () => {
+                if (!entry.invalid)
+                  this[SAW_VALID_ENTRY] = true
+              }
+              entry.on('end', onend)
+            } else {
+              this[SAW_VALID_ENTRY] = true
             }
+          }
 
-            if (!this[READENTRY]) {
-              this[QUEUE].push(entry)
-              this[NEXTENTRY]()
-            } else
-              this[QUEUE].push(entry)
+          if (entry.meta) {
+            if (entry.size > this.maxMetaEntrySize) {
+              entry.ignore = true
+              this[EMIT]('ignoredEntry', entry)
+              this[STATE] = 'ignore'
+              entry.resume()
+            } else if (entry.size > 0) {
+              this[META] = ''
+              entry.on('data', c => this[META] += c)
+              this[STATE] = 'meta'
+            }
+          } else {
+            this[EX] = null
+            entry.ignore = entry.ignore || !this.filter(entry.path, entry)
+
+            if (entry.ignore) {
+              // probably valid, just not something we care about
+              this[EMIT]('ignoredEntry', entry)
+              this[STATE] = entry.remain ? 'ignore' : 'header'
+              entry.resume()
+            } else {
+              if (entry.remain)
+                this[STATE] = 'body'
+              else {
+                this[STATE] = 'header'
+                entry.end()
+              }
+
+              if (!this[READENTRY]) {
+                this[QUEUE].push(entry)
+                this[NEXTENTRY]()
+              } else
+                this[QUEUE].push(entry)
+            }
           }
         }
       }
@@ -211,7 +262,7 @@ module.exports = warner(class Parser extends EE {
     entry.write(c)
 
     if (!entry.blockRemain) {
-      this[STATE] = 'begin'
+      this[STATE] = 'header'
       this[WRITEENTRY] = null
       entry.end()
     }
@@ -265,11 +316,11 @@ module.exports = warner(class Parser extends EE {
     }
   }
 
-  abort (msg, error) {
+  abort (error) {
     this[ABORTED] = true
-    this.warn(msg, error)
     this.emit('abort', error)
-    this.emit('error', error)
+    // always throws, even in non-strict mode
+    this.warn('TAR_ABORT', error, { recoverable: false })
   }
 
   write (chunk) {
@@ -295,8 +346,7 @@ module.exports = warner(class Parser extends EE {
         this[ENDED] = false
         this[UNZIP] = new zlib.Unzip()
         this[UNZIP].on('data', chunk => this[CONSUMECHUNK](chunk))
-        this[UNZIP].on('error', er =>
-          this.abort(er.message, er))
+        this[UNZIP].on('error', er => this.abort(er))
         this[UNZIP].on('end', _ => {
           this[ENDED] = true
           this[CONSUMECHUNK]()
@@ -341,9 +391,10 @@ module.exports = warner(class Parser extends EE {
       this[EMITTEDEND] = true
       const entry = this[WRITEENTRY]
       if (entry && entry.blockRemain) {
+        // truncated, likely a damaged file
         const have = this[BUFFER] ? this[BUFFER].length : 0
-        this.warn('Truncated input (needed ' + entry.blockRemain +
-                  ' more bytes, only ' + have + ' available)', entry)
+        this.warn('TAR_BAD_ARCHIVE', `Truncated input (needed ${
+          entry.blockRemain} more bytes, only ${have} available)`, {entry})
         if (this[BUFFER])
           entry.write(this[BUFFER])
         entry.end()
@@ -353,11 +404,11 @@ module.exports = warner(class Parser extends EE {
   }
 
   [CONSUMECHUNK] (chunk) {
-    if (this[CONSUMING]) {
+    if (this[CONSUMING])
       this[BUFFERCONCAT](chunk)
-    } else if (!chunk && !this[BUFFER]) {
+    else if (!chunk && !this[BUFFER])
       this[MAYBEEND]()
-    } else {
+    else {
       this[CONSUMING] = true
       if (this[BUFFER]) {
         this[BUFFERCONCAT](chunk)
@@ -368,7 +419,10 @@ module.exports = warner(class Parser extends EE {
         this[CONSUMECHUNKSUB](chunk)
       }
 
-      while (this[BUFFER] && this[BUFFER].length >= 512 && !this[ABORTED]) {
+      while (this[BUFFER] &&
+          this[BUFFER].length >= 512 &&
+          !this[ABORTED] &&
+          !this[SAW_EOF]) {
         const c = this[BUFFER]
         this[BUFFER] = null
         this[CONSUMECHUNKSUB](c)
@@ -385,9 +439,10 @@ module.exports = warner(class Parser extends EE {
     // the buffer.  Advance the position and put any remainder in the buffer.
     let position = 0
     let length = chunk.length
-    while (position + 512 <= length && !this[ABORTED]) {
+    while (position + 512 <= length && !this[ABORTED] && !this[SAW_EOF]) {
       switch (this[STATE]) {
         case 'begin':
+        case 'header':
           this[CONSUMEHEADER](chunk, position)
           position += 512
           break

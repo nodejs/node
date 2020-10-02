@@ -1,78 +1,52 @@
+const Arborist = require('@npmcli/arborist')
+const npm = require('./npm.js')
+const usageUtil = require('./utils/usage.js')
+const { resolve } = require('path')
+const output = require('./utils/output.js')
+const npa = require('npm-package-arg')
+const semver = require('semver')
 
-module.exports = rebuild
+const cmd = (args, cb) => rebuild(args).then(() => cb()).catch(cb)
 
-var readInstalled = require('read-installed')
-var semver = require('semver')
-var log = require('npmlog')
-var npm = require('./npm.js')
-var npa = require('npm-package-arg')
-var usage = require('./utils/usage')
-var output = require('./utils/output.js')
+const usage = usageUtil('rebuild', 'npm rebuild [[<@scope>/]<name>[@<version>] ...]')
 
-rebuild.usage = usage(
-  'rebuild',
-  'npm rebuild [[<@scope>/<name>]...]'
-)
+const completion = require('./utils/completion/installed-deep.js')
 
-rebuild.completion = require('./utils/completion/installed-deep.js')
+const rebuild = async args => {
+  const globalTop = resolve(npm.globalDir, '..')
+  const where = npm.flatOptions.global ? globalTop : npm.prefix
+  const arb = new Arborist({
+    ...npm.flatOptions,
+    path: where
+  })
 
-function rebuild (args, cb) {
-  var opt = { depth: npm.config.get('depth'), dev: true }
-  readInstalled(npm.prefix, opt, function (er, data) {
-    log.info('readInstalled', typeof data)
-    if (er) return cb(er)
-    var set = filter(data, args)
-    var folders = Object.keys(set).filter(function (f) {
-      return f !== npm.prefix
+  if (args.length) {
+    // get the set of nodes matching the name that we want rebuilt
+    const tree = await arb.loadActual()
+    const filter = getFilterFn(args)
+    await arb.rebuild({
+      nodes: tree.inventory.filter(filter)
     })
-    if (!folders.length) return cb()
-    log.silly('rebuild set', folders)
-    cleanBuild(folders, set, cb)
+  } else {
+    await arb.rebuild()
+  }
+
+  output('rebuilt dependencies successfully')
+}
+
+const getFilterFn = args => {
+  const specs = args.map(arg => {
+    const spec = npa(arg)
+    if (spec.type === 'tag' && spec.rawSpec === '') { return spec }
+    if (spec.type !== 'range' && spec.type !== 'version') { throw new Error('`npm rebuild` only supports SemVer version/range specifiers') }
+    return spec
+  })
+  return node => specs.some(spec => {
+    const { version } = node.package
+    if (spec.name !== node.name) { return false }
+    if (spec.rawSpec === '' || spec.rawSpec === '*') { return true }
+    return semver.satisfies(version, spec.fetchSpec)
   })
 }
 
-function cleanBuild (folders, set, cb) {
-  npm.commands.build(folders, function (er) {
-    if (er) return cb(er)
-    output(folders.map(function (f) {
-      return set[f] + ' ' + f
-    }).join('\n'))
-    cb()
-  })
-}
-
-function filter (data, args, set, seen) {
-  if (!set) set = {}
-  if (!seen) seen = new Set()
-  if (set.hasOwnProperty(data.path)) return set
-  if (seen.has(data)) return set
-  seen.add(data)
-  var pass
-  if (!args.length) pass = true // rebuild everything
-  else if (data.name && data._id) {
-    for (var i = 0, l = args.length; i < l; i++) {
-      var arg = args[i]
-      var nv = npa(arg)
-      var n = nv.name
-      var v = nv.rawSpec
-      if (n !== data.name) continue
-      if (!semver.satisfies(data.version, v, true)) continue
-      pass = true
-      break
-    }
-  }
-  if (pass && data._id) {
-    log.verbose('rebuild', 'path, id', [data.path, data._id])
-    set[data.path] = data._id
-  }
-  // need to also dive through kids, always.
-  // since this isn't an install these won't get auto-built unless
-  // they're not dependencies.
-  Object.keys(data.dependencies || {}).forEach(function (d) {
-    // return
-    var dep = data.dependencies[d]
-    if (typeof dep === 'string') return
-    filter(dep, args, set, seen)
-  })
-  return set
-}
+module.exports = Object.assign(cmd, { usage, completion })

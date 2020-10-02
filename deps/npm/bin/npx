@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# This is used by the Node.js installer, which expects the cygwin/mingw
+# shell script to already be present in the npm dependency folder.
+
 (set -o igncr) 2>/dev/null && set -o igncr; # cygwin encoding fix
 
 basedir=`dirname "$0"`

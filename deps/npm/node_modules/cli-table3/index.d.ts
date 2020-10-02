@@ -68,18 +68,15 @@ declare namespace CliTable3 {
         readonly width: number;
     }
 
-    type Table = HorizontalTable | VerticalTable | CrossTable;
+    type Table = GenericTable<HorizontalTableRow|VerticalTableRow|CrossTableRow>;
     type Cell = CellValue | CellOptions;
 
-    type HorizontalTable = GenericTable<HorizontalTableRow>;
     type HorizontalTableRow = Cell[];
 
-    type VerticalTable = GenericTable<VerticalTableRow>;
     interface VerticalTableRow {
         [name: string]: Cell;
     }
 
-    type CrossTable = GenericTable<CrossTableRow>;
     interface CrossTableRow {
         [name: string]: Cell[];
     }

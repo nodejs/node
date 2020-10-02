@@ -1,36 +1,34 @@
 # cidr-regex
-[![](https://img.shields.io/npm/v/cidr-regex.svg?style=flat)](https://www.npmjs.org/package/cidr-regex) [![](https://img.shields.io/npm/dm/cidr-regex.svg)](https://www.npmjs.org/package/cidr-regex) [![](https://api.travis-ci.org/silverwind/cidr-regex.svg?style=flat)](https://travis-ci.org/silverwind/cidr-regex)
+[![](https://img.shields.io/npm/v/cidr-regex.svg?style=flat)](https://www.npmjs.org/package/cidr-regex) [![](https://img.shields.io/npm/dm/cidr-regex.svg)](https://www.npmjs.org/package/cidr-regex)
 
 > Regular expression for matching IP addresses in CIDR notation
 
-## Install
-
-```sh
-$ npm install --save cidr-regex
-```
-
 ## Usage
 
+```sh
+$ npm i cidr-regex
+```
+
 ```js
-const cidrRegex = require('cidr-regex');
+const cidrRegex = require("cidr-regex");
 
 // Contains a CIDR IP address?
-cidrRegex().test('foo 192.168.0.1/24');
+cidrRegex().test("foo 192.168.0.1/24");
 //=> true
 
 // Is a CIDR IP address?
-cidrRegex({exact: true}).test('foo 192.168.0.1/24');
+cidrRegex({exact: true}).test("foo 192.168.0.1/24");
 //=> false
 
-cidrRegex.v6({exact: true}).test('1:2:3:4:5:6:7:8/64');
+cidrRegex.v6({exact: true}).test("1:2:3:4:5:6:7:8/64");
 //=> true
 
-'foo 192.168.0.1/24 bar 1:2:3:4:5:6:7:8/64 baz'.match(cidrRegex());
-//=> ['192.168.0.1/24', '1:2:3:4:5:6:7:8/64']
+// Extract CIDRs from string
+"foo 192.168.0.1/24 bar 1:2:3:4:5:6:7:8/64 baz".match(cidrRegex());
+//=> ["192.168.0.1/24", "1:2:3:4:5:6:7:8/64"]
 ```
 
 ## API
-
 ### cidrRegex([options])
 
 Returns a regex for matching both IPv4 and IPv6 CIDR IP addresses.
@@ -49,7 +47,6 @@ Type: `boolean`<br>
 Default: `false` *(Matches any CIDR IP address in a string)*
 
 Only match an exact string. Useful with `RegExp#test()` to check if a string is a CIDR IP address.
-
 
 ## Related
 

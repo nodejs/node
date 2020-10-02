@@ -76,7 +76,7 @@ const mkdir = module.exports = (dir, opt, cb) => {
     })
 
   if (preserve)
-    return mkdirp(dir, mode, done)
+    return mkdirp(dir, {mode}).then(made => done(null, made), done)
 
   const sub = path.relative(cwd, dir)
   const parts = sub.split(/\/|\\/)

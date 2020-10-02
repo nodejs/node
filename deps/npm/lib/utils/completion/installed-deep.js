@@ -1,52 +1,46 @@
-module.exports = installedDeep
+'use strict'
 
-var npm = require('../../npm.js')
-var readInstalled = require('read-installed')
+const { resolve } = require('path')
+const Arborist = require('@npmcli/arborist')
+const npm = require('../../npm.js')
+
+const readNames = async () => {
+  const {
+    depth,
+    global,
+    prefix
+  } = npm.flatOptions
+
+  const getValues = (tree) =>
+    [...tree.inventory.values()]
+      .map(i => {
+        return i
+      })
+      .filter(i => (i.depth - 1) <= depth)
+      .sort((a, b) => a.depth - b.depth)
+      .sort((a, b) => a.depth === b.depth ? a.name.localeCompare(b.name) : 0)
+
+  const res = new Set()
+  const gArb = new Arborist({ global: true, path: resolve(npm.globalDir, '..') })
+  const gTree = await gArb.loadActual({ global: true })
+
+  for (const node of getValues(gTree)) {
+    res.add(global ? node.name : [node.name, '-g'])
+  }
+
+  if (!global) {
+    const arb = new Arborist({ global: false, path: prefix })
+    const tree = await arb.loadActual()
+    for (const node of getValues(tree)) {
+      res.add(node.name)
+    }
+  }
+
+  return [...res]
+}
 
 function installedDeep (opts, cb) {
-  var local
-  var global
-  var depth = npm.config.get('depth')
-  var opt = { depth: depth, dev: true }
-
-  if (npm.config.get('global')) {
-    local = []
-    next()
-  } else {
-    readInstalled(npm.prefix, opt, function (er, data) {
-      local = getNames(data || {})
-      next()
-    })
-  }
-
-  readInstalled(npm.config.get('prefix'), opt, function (er, data) {
-    global = getNames(data || {})
-    next()
-  })
-
-  function getNames_ (d, n) {
-    if (d.realName && n) {
-      if (n[d.realName]) return n
-      n[d.realName] = true
-    }
-    if (!n) n = {}
-    Object.keys(d.dependencies || {}).forEach(function (dep) {
-      getNames_(d.dependencies[dep], n)
-    })
-    return n
-  }
-  function getNames (d) {
-    return Object.keys(getNames_(d))
-  }
-
-  function next () {
-    if (!local || !global) return
-    if (!npm.config.get('global')) {
-      global = global.map(function (g) {
-        return [g, '-g']
-      })
-    }
-    var names = local.concat(global)
-    return cb(null, names)
-  }
+  return readNames().then(res => cb(null, res)).catch(cb)
 }
+
+module.exports = installedDeep

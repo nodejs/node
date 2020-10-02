@@ -1,20 +1,12 @@
 'use strict'
 
-const BB = require('bluebird')
-
-const fetch = require('libnpm/fetch')
-const figgyPudding = require('figgy-pudding')
+const fetch = require('npm-registry-fetch')
 const log = require('npmlog')
-const npa = require('libnpm/parse-arg')
+const npa = require('npm-package-arg')
 const npm = require('./npm.js')
-const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
 const usage = require('./utils/usage.js')
-const whoami = require('./whoami.js')
-
-const StarConfig = figgyPudding({
-  'unicode': {}
-})
+const getItentity = require('./utils/get-identity')
 
 star.usage = usage(
   'star',
@@ -30,21 +22,24 @@ star.completion = function (opts, cb) {
 
 module.exports = star
 function star (args, cb) {
-  const opts = StarConfig(npmConfig())
-  return BB.try(() => {
+  const opts = npm.flatOptions
+  return Promise.resolve().then(() => {
     if (!args.length) throw new Error(star.usage)
-    let s = opts.unicode ? '\u2605 ' : '(*)'
-    const u = opts.unicode ? '\u2606 ' : '( )'
-    const using = !(npm.command.match(/^un/))
-    if (!using) s = u
-    return BB.map(args.map(npa), pkg => {
-      return BB.all([
-        whoami([pkg], true, () => {}),
-        fetch.json(pkg.escapedName, opts.concat({
+    // if we're unstarring, then show an empty star image
+    // otherwise, show the full star image
+    const unstar = /^un/.test(npm.command)
+    const full = opts.unicode ? '\u2605 ' : '(*)'
+    const empty = opts.unicode ? '\u2606 ' : '( )'
+    const show = unstar ? empty : full
+    return Promise.all(args.map(npa).map(pkg => {
+      return Promise.all([
+        getItentity(opts),
+        fetch.json(pkg.escapedName, {
+          ...opts,
           spec: pkg,
-          query: {write: true},
-          'prefer-online': true
-        }))
+          query: { write: true },
+          preferOnline: true
+        })
       ]).then(([username, fullData]) => {
         if (!username) { throw new Error('You need to be logged in!') }
         const body = {
@@ -53,7 +48,7 @@ function star (args, cb) {
           users: fullData.users || {}
         }
 
-        if (using) {
+        if (!unstar) {
           log.info('star', 'starring', body._id)
           body.users[username] = true
           log.verbose('star', 'starring', body)
@@ -62,16 +57,17 @@ function star (args, cb) {
           log.info('star', 'unstarring', body._id)
           log.verbose('star', 'unstarring', body)
         }
-        return fetch.json(pkg.escapedName, opts.concat({
+        return fetch.json(pkg.escapedName, {
+          ...opts,
           spec: pkg,
           method: 'PUT',
           body
-        }))
+        })
       }).then(data => {
-        output(s + ' ' + pkg.name)
+        output(show + ' ' + pkg.name)
         log.verbose('star', data)
         return data
       })
-    })
-  }).nodeify(cb)
+    }))
+  }).then(() => cb(), cb)
 }

@@ -1,17 +1,12 @@
-var meant = require('meant')
+const leven = require('leven')
 
-function didYouMean (scmd, commands) {
-  var bestSimilarity = meant(scmd, commands).map(function (str) {
-    return '    ' + str
-  })
-
-  if (bestSimilarity.length === 0) return ''
-  if (bestSimilarity.length === 1) {
-    return '\nDid you mean this?\n' + bestSimilarity[0]
-  } else {
-    return ['\nDid you mean one of these?']
-      .concat(bestSimilarity.slice(0, 3)).join('\n')
-  }
+const didYouMean = (scmd, commands) => {
+  const best = commands
+    .filter(cmd => leven(scmd, cmd) < scmd.length * 0.4)
+    .map(str => `    ${str}`)
+  return best.length === 0 ? ''
+    : best.length === 1 ? `\nDid you mean this?\n${best[0]}`
+    : `\nDid you mean one of these?\n${best.slice(0, 3).join('\n')}`
 }
 
 module.exports = didYouMean

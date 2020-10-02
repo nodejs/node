@@ -32,7 +32,7 @@ actually packing anything. Reports on what would have gone into the tarball.
 
 ### See Also
 
-* [npm cache](/cli-commands/npm-cache)
-* [npm publish](/cli-commands/npm-publish)
-* [npm config](/cli-commands/npm-config)
+* [npm cache](/cli-commands/cache)
+* [npm publish](/cli-commands/publish)
+* [npm config](/cli-commands/config)
 * [npmrc](/configuring-npm/npmrc)

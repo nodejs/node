@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "August 2020" "" ""
+.TH "CONFIG" "7" "October 2020" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -178,6 +178,18 @@ When publishing scoped packages, the access level defaults to \fBrestricted\fP\|
 you want your scoped package to be publicly viewable (and installable) set
 \fB\-\-access=public\fP\|\. The only valid values for \fBaccess\fP are \fBpublic\fP and
 \fBrestricted\fP\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fP\|\.
+.SS all
+.RS 0
+.IP \(bu 2
+Default: \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When running \fBnpm outdated\fP and \fBnpm ls\fP, setting \fB\-\-all\fP will show all
+outdated or installed packages, rather than only those directly depended
+upon by the current project\.
 .SS allow\-same\-version
 .RS 0
 .IP \(bu 2
@@ -284,11 +296,16 @@ ostensibly Unix systems\.
 .IP \(bu 2
 Default: OS X: \fB"open"\fP, Windows: \fB"start"\fP, Others: \fB"xdg\-open"\fP
 .IP \(bu 2
-Type: String
+Type: String or Boolean
 
 .RE
 .P
-The browser that is called by the \fBnpm docs\fP command to open websites\.
+The browser that is called by npm commands to open websites\.
+.P
+Set to \fBfalse\fP to suppress browser behavior and instead print urls to
+terminal\.
+.P
+Set to \fBtrue\fP to use default system URL opener\.
 .SS ca
 .RS 0
 .IP \(bu 2
@@ -443,19 +460,15 @@ disabled when the environment variable \fBNO_COLOR\fP is set to any value\.
 .SS depth
 .RS 0
 .IP \(bu 2
-Default: Infinity
+Default: 0
 .IP \(bu 2
 Type: Number
 
 .RE
 .P
-The depth to go when recursing directories for \fBnpm ls\fP,
-\fBnpm cache ls\fP, and \fBnpm outdated\fP\|\.
+The depth to go when recursing packages for \fBnpm ls\fP\|\.
 .P
-For \fBnpm outdated\fP, a setting of \fBInfinity\fP will be treated as \fB0\fP
-since that gives more useful information\.  To show the outdated status
-of all packages and dependents, use a large integer value,
-e\.g\., \fBnpm outdated \-\-depth 9999\fP
+To make this default to \fBInfinity\fP instead of \fB0\fP, set \fB\-\-all\fP\|\.
 .SS description
 .RS 0
 .IP \(bu 2
@@ -522,18 +535,33 @@ Type: Boolean
 
 .RE
 .P
-Makes various commands more forceful\.
+Removes various protections against unfortunate side effects, common
+mistakes, unnecessary performance degradation, and malicious input\.
 .RS 0
 .IP \(bu 2
-lifecycle script failure does not block progress\.
+Allow clobbering non\-npm files in global installs\.
 .IP \(bu 2
-publishing clobbers previously published versions\.
+Allow the \fBnpm version\fP command to work on an unclean git repository\.
 .IP \(bu 2
-skips cache when requesting from the registry\.
+Allow deleting the cache folder with \fBnpm cache clean\fP\|\.
 .IP \(bu 2
-prevents checks against clobbering non\-npm files\.
+Allow installing packages that have an \fBengines\fP declaration requiring a
+different version of npm\.
+.IP \(bu 2
+Allow installing packages that have an \fBengines\fP declaration requiring a
+different version of \fBnode\fP, even if \fB\-\-engines\-strict\fP is enabled\.
+.IP \(bu 2
+Allow \fBnpm audit fix\fP to install modules outside your stated dependency
+range (including SemVer\-major changes)\.
+.IP \(bu 2
+Allow a module to be installed as a direct dependency of itself\.
+.IP \(bu 2
+Allow unpublishing all versions of a published package\.
 
 .RE
+.P
+If you don't have a clear idea of what you want to do, it is strongly
+recommended that you do not use this option!
 .SS format\-package\-lock
 .RS 0
 .IP \(bu 2
@@ -588,6 +616,16 @@ Type: Number
 .P
 The "maxTimeout" config for the \fBretry\fP module to use when fetching
 packages\.
+.SS fetch\-timeout
+.RS 0
+.IP \(bu 2
+Default: 300000 (5 minutes)
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The maximum amount of time to wait for HTTP requests to complete\.
 .SS fund
 .RS 0
 .IP \(bu 2
@@ -598,7 +636,7 @@ Type: Boolean
 .RE
 .P
 When "true" displays the message at the end of each \fBnpm install\fP
-acknowledging the number of dependencies looking for funding\.
+aknowledging the number of dependencies looking for funding\.
 See npm help \fBfund\fP for details\.
 .SS git
 .RS 0
@@ -856,6 +894,28 @@ Causes npm to install the package such that versions of npm prior to 1\.4,
 such as the one included with node 0\.8, can install the package\.  This
 eliminates all automatic deduping\. If used with \fBglobal\-style\fP this option
 will be preferred\.
+.SS legacy\-peer\-deps
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Causes npm to completely ignore \fBpeerDependencies\fP when building a package
+tree, as in npm versions 3 through 6\.
+.P
+If a package cannot be installed because of overly strict
+\fBpeerDependencies\fP that collide, it provides a way to move forward
+resolving the situation\.
+.P
+This differs from \fB\-\-omit=peer\fP, in that \fB\-\-omit=peer\fP will avoid unpacking
+\fBpeerDependencies\fP on disk, but will still design a tree such that
+\fBpeerDependencies\fP \fIcould\fR be unpacked in a correct place\.
+.P
+Use of \fBlegacy\-peer\-deps\fP is not recommended, as it will not enforce the
+\fBpeerDependencies\fP contract that meta\-dependencies may rely on\.
 .SS link
 .RS 0
 .IP \(bu 2
@@ -906,24 +966,6 @@ What level of logs to report\.  On failure, \fIall\fR logs are written to
 \fBnpm\-debug\.log\fP in the current working directory\.
 .P
 Any logs of a higher level than the setting are shown\. The default is "notice"\.
-.SS logstream
-.RS 0
-.IP \(bu 2
-Default: process\.stderr
-.IP \(bu 2
-Type: Stream
-
-.RE
-.P
-This is the stream that is passed to the
-npmlog \fIhttps://github\.com/npm/npmlog\fR module at run time\.
-.P
-It cannot be set from the command line, but if you are using npm
-programmatically, you may wish to send logs to somewhere other than
-stderr\.
-.P
-If the \fBcolor\fP config is set to true, then this stream will receive
-colored output if it is a TTY\.
 .SS logs\-max
 .RS 0
 .IP \(bu 2
@@ -1020,17 +1062,6 @@ Type: Boolean
 .P
 Force offline mode: no network requests will be done during install\. To allow
 the CLI to fill in missing cache data, see \fB\-\-prefer\-offline\fP\|\.
-.SS onload\-script
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: path
-
-.RE
-.P
-A node module to \fBrequire()\fP when npm loads\.  Useful for programmatic
-usage\.
 .SS only
 .RS 0
 .IP \(bu 2
@@ -1521,6 +1552,27 @@ Type: 'oauth', 'saml', or null
 .RE
 .P
 If \fB\-\-auth\-type=sso\fP, the type of SSO type to use\.
+.SS strict\-peer\-deps
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to \fBtrue\fP, and \fB\-\-legacy\-peer\-deps\fP is not set, then \fIany\fR
+conflicting \fBpeerDependencies\fP will be treated as an install failure, even
+if npm could reasonably guess the appropriate resolution based on non\-peer
+dependency relationships\.
+.P
+By default, conflicting \fBpeerDependencies\fP in the dependency graph will be
+resolved using the nearest non\-peer dependency specification, even if doing
+so will result in some packages receiving a peer dependency outside the
+range set in their package's \fBpeerDependencies\fP object\.  When such and
+override is performed, a warning is printed, explaining the conflict and
+the packages involved\.  If \fB\-\-strict\-peer\-deps\fP is set, then the warning is
+treated as a failure\.
 .SS strict\-ssl
 .RS 0
 .IP \(bu 2

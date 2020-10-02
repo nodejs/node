@@ -30,13 +30,12 @@ In the output:
   with a dist-tag of `latest`. This may or may not be the maximum version of
   the package, or the most-recently published version of the package, depending
   on how the package's developer manages the latest [dist-tag](npm-dist-tag).
-* `location` is where in the dependency tree the package is located. Note that
-  `npm outdated` defaults to a depth of 0, so unless you override that, you'll
-  always be seeing only top-level dependencies that are outdated.
+* `location` is where in the physical tree the package is located.
+* `depended by` shows which package depends on the displayed dependency
 * `package type` (when using `--long` / `-l`) tells you whether this package is
-  a `dependency` or a `devDependency`. Packages not included in `package.json`
+  a `dependency` or a dev/peer/optional dependency. Packages not included in `package.json`
   are always marked `dependencies`.
-* `homepage` (when using `--long` / `-l`) is the `homepage` value contained in the package's `package.json`
+* `homepage` (when using `--long` / `-l`) is the `homepage` value contained in the package's packument
 * Red means there's a newer version matching your semver requirements, so you should update now.
 * Yellow indicates that there's a newer version above your semver requirements (usually new major, or new 0.x minor) so proceed with caution.
 
@@ -44,12 +43,12 @@ In the output:
 
 ```bash
 $ npm outdated
-Package      Current   Wanted   Latest  Location
-glob          5.0.15   5.0.15    6.0.1  test-outdated-output
-nothingness    0.0.3      git      git  test-outdated-output
-npm            3.5.1    3.5.2    3.5.1  test-outdated-output
-local-dev      0.0.3   linked   linked  test-outdated-output
-once           1.3.2    1.3.3    1.3.3  test-outdated-output
+Package      Current   Wanted   Latest  Location                  Depended by
+glob          5.0.15   5.0.15    6.0.1  node_modules/glob         dependent-package-name
+nothingness    0.0.3      git      git  node_modules/nothingness  dependent-package-name
+npm            3.5.1    3.5.2    3.5.1  node_modules/npm          dependent-package-name
+local-dev      0.0.3   linked   linked  local-dev                 dependent-package-name
+once           1.3.2    1.3.3    1.3.3  node_modules/once         dependent-package-name
 ```
 
 With these `dependencies`:
@@ -109,16 +108,16 @@ Show parseable output instead of tree view.
 Check packages in the global install prefix instead of in the current
 project.
 
-#### depth
+#### all
 
-* Default: 0
-* Type: Int
+* Default: false
+* Type: Boolean
 
-Max depth for checking dependency tree.
+Display all outdated dependencies on the tree.
 
 ### See Also
 
-* [npm update](/cli-commands/npm-update)
-* [npm dist-tag](/cli-commands/npm-dist-tag)
+* [npm update](/cli-commands/update)
+* [npm dist-tag](/cli-commands/dist-tag)
 * [npm registry](/using-npm/registry)
 * [npm folders](/configuring-npm/folders)

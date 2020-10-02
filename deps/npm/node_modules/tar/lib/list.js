@@ -1,7 +1,5 @@
 'use strict'
 
-const Buffer = require('./buffer.js')
-
 // XXX: This shares a lot in common with extract.js
 // maybe some DRY opportunity here?
 

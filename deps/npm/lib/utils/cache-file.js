@@ -1,9 +1,8 @@
-// XXX use infer-owner or gentle-fs.mkdir here
 const npm = require('../npm.js')
 const path = require('path')
 const chownr = require('chownr')
 const writeFileAtomic = require('write-file-atomic')
-const mkdirp = require('mkdirp')
+const mkdirp = require('mkdirp-infer-owner')
 const fs = require('graceful-fs')
 
 let cache = null

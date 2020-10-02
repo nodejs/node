@@ -1,41 +1,42 @@
-module.exports = docs
+const log = require('npmlog')
+const pacote = require('pacote')
+const { promisify } = require('util')
+const openUrl = promisify(require('./utils/open-url.js'))
+const usageUtil = require('./utils/usage.js')
+const npm = require('./npm.js')
+const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 
-var openUrl = require('./utils/open-url')
-var log = require('npmlog')
-var fetchPackageMetadata = require('./fetch-package-metadata.js')
-var usage = require('./utils/usage')
+const usage = usageUtil('docs', 'npm docs [<pkgname> [<pkgname> ...]]')
+const completion = require('./utils/completion/none.js')
 
-docs.usage = usage(
-  'docs',
-  'npm docs <pkgname>' +
-  '\nnpm docs .'
-)
-docs.completion = function (opts, cb) {
-  // FIXME: there used to be registry completion here, but it stopped making
-  // sense somewhere around 50,000 packages on the registry
-  cb()
+const cmd = (args, cb) => docs(args).then(() => cb()).catch(cb)
+
+const docs = async args => {
+  if (!args || !args.length) {
+    args = ['.']
+  }
+  await Promise.all(args.map(pkg => getDocs(pkg)))
 }
 
-function docs (args, cb) {
-  if (!args || !args.length) args = ['.']
-  var pending = args.length
-  log.silly('docs', args)
-  args.forEach(function (proj) {
-    getDoc(proj, function (err) {
-      if (err) {
-        return cb(err)
-      }
-      --pending || cb()
-    })
-  })
+const getDocsUrl = mani => {
+  if (mani.homepage) {
+    return mani.homepage
+  }
+
+  const info = hostedFromMani(mani)
+  if (info) {
+    return info.docs()
+  }
+
+  return 'https://www.npmjs.com/package/' + mani.name
 }
 
-function getDoc (project, cb) {
-  log.silly('getDoc', project)
-  fetchPackageMetadata(project, '.', {fullMetadata: true}, function (er, d) {
-    if (er) return cb(er)
-    var url = d.homepage
-    if (!url) url = 'https://www.npmjs.org/package/' + d.name
-    return openUrl(url, 'docs available at the following URL', cb)
-  })
+const getDocs = async pkg => {
+  const opts = { ...npm.flatOptions, fullMetadata: true }
+  const mani = await pacote.manifest(pkg, opts)
+  const url = getDocsUrl(mani)
+  log.silly('docs', 'url', url)
+  await openUrl(url, `${mani.name} docs available at the following URL`)
 }
+
+module.exports = Object.assign(cmd, { usage, completion })

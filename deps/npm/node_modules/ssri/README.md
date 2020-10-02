@@ -1,6 +1,6 @@
-# ssri [![npm version](https://img.shields.io/npm/v/ssri.svg)](https://npm.im/ssri) [![license](https://img.shields.io/npm/l/ssri.svg)](https://npm.im/ssri) [![Travis](https://img.shields.io/travis/zkat/ssri.svg)](https://travis-ci.org/zkat/ssri) [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/zkat/ssri?svg=true)](https://ci.appveyor.com/project/zkat/ssri) [![Coverage Status](https://coveralls.io/repos/github/zkat/ssri/badge.svg?branch=latest)](https://coveralls.io/github/zkat/ssri?branch=latest)
+# ssri [![npm version](https://img.shields.io/npm/v/ssri.svg)](https://npm.im/ssri) [![license](https://img.shields.io/npm/l/ssri.svg)](https://npm.im/ssri) [![Travis](https://img.shields.io/travis/npm/ssri.svg)](https://travis-ci.org/npm/ssri) [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/npm/ssri?svg=true)](https://ci.appveyor.com/project/npm/ssri) [![Coverage Status](https://coveralls.io/repos/github/npm/ssri/badge.svg?branch=latest)](https://coveralls.io/github/npm/ssri?branch=latest)
 
-[`ssri`](https://github.com/zkat/ssri), short for Standard Subresource
+[`ssri`](https://github.com/npm/ssri), short for Standard Subresource
 Integrity, is a Node.js utility for parsing, manipulating, serializing,
 generating, and verifying [Subresource
 Integrity](https://w3c.github.io/webappsec/specs/subresourceintegrity/) hashes.
@@ -19,6 +19,7 @@ Integrity](https://w3c.github.io/webappsec/specs/subresourceintegrity/) hashes.
     * [`parse`](#parse)
     * [`stringify`](#stringify)
     * [`Integrity#concat`](#integrity-concat)
+    * [`Integrity#merge`](#integrity-merge)
     * [`Integrity#toString`](#integrity-to-string)
     * [`Integrity#toJSON`](#integrity-to-json)
     * [`Integrity#match`](#integrity-match)
@@ -182,6 +183,45 @@ const mobileIntegrity = ssri.fromData(fs.readFileSync('./index.mobile.js'))
 // for the *prioritized* algorithm succeeds. That is, in order for this fallback
 // to work, both desktop and mobile *must* use the same `algorithm` values.
 desktopIntegrity.concat(mobileIntegrity)
+```
+
+#### <a name="integrity-merge"></a> `> Integrity#merge(otherIntegrity, [opts])`
+
+Safely merges another IntegrityLike or integrity string into an `Integrity`
+object.
+
+If the other integrity value has any algorithms in common with the current
+object, then the hash digests must match, or an error is thrown.
+
+Any new hashes will be added to the current object's set.
+
+This is useful when an integrity value may be upgraded with a stronger
+algorithm, you wish to prevent accidentally supressing integrity errors by
+overwriting the expected integrity value.
+
+##### Example
+
+```javascript
+const data = fs.readFileSync('data.txt')
+
+// integrity.txt contains 'sha1-X1UT+IIv2+UUWvM7ZNjZcNz5XG4='
+// because we were young, and didn't realize sha1 would not last
+const expectedIntegrity = ssri.parse(fs.readFileSync('integrity.txt', 'utf8'))
+const match = ssri.checkData(data, expectedIntegrity, {
+  algorithms: ['sha512', 'sha1']
+})
+if (!match) {
+  throw new Error('data corrupted or something!')
+}
+
+// get a stronger algo!
+if (match && match.algorithm !== 'sha512') {
+  const updatedIntegrity = ssri.fromData(data, { algorithms: ['sha512'] })
+  expectedIntegrity.merge(updatedIntegrity)
+  fs.writeFileSync('integrity.txt', expectedIntegrity.toString())
+  // file now contains
+  // 'sha1-X1UT+IIv2+UUWvM7ZNjZcNz5XG4= sha512-yzd8ELD1piyANiWnmdnpCL5F52f10UfUdEkHywVZeqTt0ymgrxR63Qz0GB7TKPoeeZQmWCaz7T1+9vBnypkYWg=='
+}
 ```
 
 #### <a name="integrity-to-string"></a> `> Integrity#toString([opts]) -> String`

@@ -114,6 +114,18 @@ The fastest is fast-stable-stringify
 ```
 
 
+## Enterprise support
+
+fast-json-stable-stringify package is a part of [Tidelift enterprise subscription](https://tidelift.com/subscription/pkg/npm-fast-json-stable-stringify?utm_source=npm-fast-json-stable-stringify&utm_medium=referral&utm_campaign=enterprise&utm_term=repo) - it provides a centralised commercial support to open-source software users, in addition to the support provided by software maintainers.
+
+
+## Security contact
+
+To report a security vulnerability, please use the
+[Tidelift security contact](https://tidelift.com/security).
+Tidelift will coordinate the fix and disclosure. Please do NOT report security vulnerability via GitHub issues.
+
+
 # license
 
 [MIT](https://github.com/epoberezkin/fast-json-stable-stringify/blob/master/LICENSE)

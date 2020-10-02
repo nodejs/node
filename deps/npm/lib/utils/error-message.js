@@ -1,29 +1,31 @@
 'use strict'
-var npm = require('../npm.js')
-var util = require('util')
-var nameValidator = require('validate-npm-package-name')
-var npmlog = require('npmlog')
-var replaceInfo = require('./replace-info.js')
+const npm = require('../npm.js')
+const { format } = require('util')
+const { resolve } = require('path')
+const nameValidator = require('validate-npm-package-name')
+const npmlog = require('npmlog')
+const { report: explainEresolve } = require('./explain-eresolve.js')
 
-module.exports = errorMessage
-
-function errorMessage (er) {
-  var short = []
-  var detail = []
-
-  er.message = replaceInfo(er.message)
-  er.stack = replaceInfo(er.stack)
-
+module.exports = (er) => {
+  const short = []
+  const detail = []
   switch (er.code) {
+    case 'ERESOLVE':
+      short.push(['ERESOLVE', er.message])
+      detail.push(['', ''])
+      detail.push(['', explainEresolve(er)])
+      break
+
+    case 'ENOLOCK': {
+      const cmd = npm.command || ''
+      short.push([cmd, 'This command requires an existing lockfile.'])
+      detail.push([cmd, 'Try creating one first with: npm i --package-lock-only'])
+      detail.push([cmd, `Original error: ${er.message}`])
+      break
+    }
+
     case 'ENOAUDIT':
       short.push(['audit', er.message])
-      break
-    case 'EAUDITNOPJSON':
-      short.push(['audit', er.message])
-      break
-    case 'EAUDITNOLOCK':
-      short.push(['audit', er.message])
-      detail.push(['audit', 'Try creating one first with: npm i --package-lock-only'])
       break
 
     case 'ECONNREFUSED':
@@ -38,13 +40,13 @@ function errorMessage (er) {
       break
 
     case 'EACCES':
-    case 'EPERM':
+    case 'EPERM': {
       const isCachePath = typeof er.path === 'string' &&
-        npm.config && er.path.startsWith(npm.config.get('cache'))
+        npm.config.loaded && er.path.startsWith(npm.config.get('cache'))
       const isCacheDest = typeof er.dest === 'string' &&
-        npm.config && er.dest.startsWith(npm.config.get('cache'))
+        npm.config.loaded && er.dest.startsWith(npm.config.get('cache'))
 
-      const isWindows = process.platform === 'win32'
+      const isWindows = require('./is-windows.js')
 
       if (!isWindows && (isCachePath || isCacheDest)) {
         // user probably doesn't need this, but still add it to the debug log
@@ -66,7 +68,7 @@ function errorMessage (er) {
           '',
           [
             '\nThe operation was rejected by your operating system.',
-            (process.platform === 'win32'
+            (isWindows
               ? 'It\'s possible that the file was already in use (by a text editor or antivirus),\n' +
                 'or that you lack permissions to access it.'
               : 'It is likely you do not have the permissions to access this file as the current user'),
@@ -76,32 +78,7 @@ function errorMessage (er) {
           ].join('\n')])
       }
       break
-
-    case 'EUIDLOOKUP':
-      short.push(['lifecycle', er.message])
-      detail.push([
-        '',
-        [
-          '',
-          'Failed to look up the user/group for running scripts.',
-          '',
-          'Try again with a different --user or --group settings, or',
-          'run with --unsafe-perm to execute scripts as root.'
-        ].join('\n')
-      ])
-      break
-
-    case 'ELIFECYCLE':
-      short.push(['', er.message])
-      detail.push([
-        '',
-        [
-          '',
-          'Failed at the ' + er.pkgid + ' ' + er.stage + ' script.',
-          'This is probably not a problem with npm. There is likely additional logging output above.'
-        ].join('\n')]
-      )
-      break
+    }
 
     case 'ENOGIT':
       short.push(['', er.message])
@@ -116,11 +93,11 @@ function errorMessage (er) {
       break
 
     case 'EJSONPARSE':
-      const path = require('path')
       // Check whether we ran into a conflict in our own package.json
-      if (er.file === path.join(npm.prefix, 'package.json')) {
-        const isDiff = require('../install/read-shrinkwrap.js')._isDiff
+      if (er.file === resolve(npm.prefix, 'package.json')) {
+        const { isDiff } = require('parse-conflict-json')
         const txt = require('fs').readFileSync(er.file, 'utf8')
+          .replace(/\r\n/g, '\n')
         if (isDiff(txt)) {
           detail.push([
             '',
@@ -139,8 +116,8 @@ function errorMessage (er) {
       detail.push([
         'JSON.parse',
         [
-          'Failed to parse package.json data.',
-          'package.json must be actual JSON, not just JavaScript.'
+          'Failed to parse JSON data.',
+          'Note: package.json must be actual JSON, not just JavaScript.'
         ].join('\n')
       ])
       break
@@ -161,8 +138,10 @@ function errorMessage (er) {
       } else {
         // npm ERR! code E401
         // npm ERR! Unable to authenticate, need: Basic
-        const auth = (er.headers && er.headers['www-authenticate'] && er.headers['www-authenticate'].map((au) => au.split(/,\s*/))[0]) || []
-        if (auth.indexOf('Bearer') !== -1) {
+        const auth = !er.headers || !er.headers['www-authenticate'] ? []
+          : er.headers['www-authenticate'].map((au) => au.split(/[,\s]+/))[0]
+
+        if (auth.includes('Bearer')) {
           short.push(['', 'Unable to authenticate, your authentication token seems to be invalid.'])
           detail.push([
             '',
@@ -171,7 +150,7 @@ function errorMessage (er) {
               '    npm login'
             ].join('\n')
           ])
-        } else if (auth.indexOf('Basic') !== -1) {
+        } else if (auth.includes('Basic')) {
           short.push(['', 'Incorrect or missing password.'])
           detail.push([
             '',
@@ -195,30 +174,26 @@ function errorMessage (er) {
 
     case 'E404':
       // There's no need to have 404 in the message as well.
-      var msg = er.message.replace(/^404\s+/, '')
-      short.push(['404', msg])
+      short.push(['404', er.message.replace(/^404\s+/, '')])
       if (er.pkgid && er.pkgid !== '-') {
-        var pkg = er.pkgid.replace(/(?!^)@.*$/, '')
+        const pkg = er.pkgid.replace(/(?!^)@.*$/, '')
 
         detail.push(['404', ''])
         detail.push(['404', '', "'" + er.pkgid + "' is not in the npm registry."])
 
-        var valResult = nameValidator(pkg)
+        const valResult = nameValidator(pkg)
 
         if (valResult.validForNewPackages) {
           detail.push(['404', 'You should bug the author to publish it (or use the name yourself!)'])
         } else {
-          detail.push(['404', 'Your package name is not valid, because', ''])
+          detail.push(['404', 'This package name is not valid, because', ''])
 
-          var errorsArray = (valResult.errors || []).concat(valResult.warnings || [])
+          const errorsArray = (valResult.errors || []).concat(valResult.warnings || [])
           errorsArray.forEach(function (item, idx) {
             detail.push(['404', ' ' + (idx + 1) + '. ' + item])
           })
         }
 
-        if (er.parent) {
-          detail.push(['404', "It was specified as a dependency of '" + er.parent + "'"])
-        }
         detail.push(['404', '\nNote that you can also install from a'])
         detail.push(['404', 'tarball, folder, http url, or git url.'])
       }
@@ -244,32 +219,19 @@ function errorMessage (er) {
       ])
       break
 
-    case 'ECYCLE':
-      short.push([
-        'cycle',
-        [
-          er.message,
-          'While installing: ' + er.pkgid
-        ].join('\n')
-      ])
-      detail.push([
-        'cycle',
-        [
-          'Found a pathological dependency case that npm cannot solve.',
-          'Please report this to the package author.'
-        ].join('\n')
-      ])
-      break
-
-    case 'EBADPLATFORM':
-      var validOs = er.os.join ? er.os.join(',') : er.os
-      var validArch = er.cpu.join ? er.cpu.join(',') : er.cpu
-      var expected = {os: validOs, arch: validArch}
-      var actual = {os: process.platform, arch: process.arch}
+    case 'EBADPLATFORM': {
+      const validOs = er.required &&
+        er.required.os &&
+        er.required.os.join ? er.required.os.join(',') : er.required.os
+      const validArch = er.required &&
+        er.required.cpu &&
+        er.required.cpu.join ? er.required.cpu.join(',') : er.required.cpu
+      const expected = { os: validOs, arch: validArch }
+      const actual = { os: process.platform, arch: process.arch }
       short.push([
         'notsup',
         [
-          util.format('Unsupported platform for %s: wanted %j (current: %j)', er.pkgid, expected, actual)
+          format('Unsupported platform for %s: wanted %j (current: %j)', er.pkgid, expected, actual)
         ].join('\n')
       ])
       detail.push([
@@ -282,6 +244,7 @@ function errorMessage (er) {
         ].join('\n')
       ])
       break
+    }
 
     case 'EEXIST':
       short.push(['', er.message])
@@ -311,58 +274,38 @@ function errorMessage (er) {
       ])
       break
 
-    case 'ENOPACKAGEJSON':
-      short.push(['package.json', er.message])
-      detail.push([
-        'package.json',
-        [
-          "npm can't find a package.json file in your current directory."
-        ].join('\n')
-      ])
-      break
-
     case 'ETARGET':
       short.push(['notarget', er.message])
-      msg = [
+      detail.push(['notarget', [
         'In most cases you or one of your dependencies are requesting',
         "a package version that doesn't exist."
-      ]
-      if (er.parent) {
-        msg.push("\nIt was specified as a dependency of '" + er.parent + "'\n")
-      }
-      detail.push(['notarget', msg.join('\n')])
+      ].join('\n')])
       break
 
     case 'E403':
       short.push(['403', er.message])
-      msg = [
+      detail.push(['403', [
         'In most cases, you or one of your dependencies are requesting',
-        'a package version that is forbidden by your security policy.'
-      ]
-      if (er.parent) {
-        msg.push("\nIt was specified as a dependency of '" + er.parent + "'\n")
-      }
-      detail.push(['403', msg.join('\n')])
+        'a package version that is forbidden by your security policy, or',
+        'on a server you do not have access to.'
+      ].join('\n')])
       break
 
-    case 'ENOTSUP':
-      if (er.required) {
-        short.push(['notsup', er.message])
-        short.push(['notsup', 'Not compatible with your version of node/npm: ' + er.pkgid])
-        detail.push([
-          'notsup',
-          [
-            'Not compatible with your version of node/npm: ' + er.pkgid,
-            'Required: ' + JSON.stringify(er.required),
-            'Actual:   ' + JSON.stringify({
-              npm: npm.version,
-              node: npm.config.get('node-version')
-            })
-          ].join('\n')
-        ])
-        break
-      } // else passthrough
-      /* eslint no-fallthrough:0 */
+    case 'EBADENGINE':
+      short.push(['engine', er.message])
+      short.push(['engine', 'Not compatible with your version of node/npm: ' + er.pkgid])
+      detail.push([
+        'notsup',
+        [
+          'Not compatible with your version of node/npm: ' + er.pkgid,
+          'Required: ' + JSON.stringify(er.required),
+          'Actual:   ' + JSON.stringify({
+            npm: npm.version,
+            node: npm.config.loaded ? npm.config.get('node-version') : process.version
+          })
+        ].join('\n')
+      ])
+      break
 
     case 'ENOSPC':
       short.push(['nospc', er.message])
@@ -406,21 +349,26 @@ function errorMessage (er) {
         'typeerror',
         [
           'This is an error with npm itself. Please report this error at:',
-          '    <https://npm.community>'
+          '    https://github.com/npm/cli/issues'
         ].join('\n')
       ])
       break
 
     default:
       short.push(['', er.message || er])
+      if (er.signal) {
+        detail.push(['signal', er.signal])
+      }
+      if (er.cmd && Array.isArray(er.args)) {
+        detail.push(['command', ...[er.cmd, ...er.args]])
+      }
+      if (er.stdout) {
+        detail.push(['', er.stdout.trim()])
+      }
+      if (er.stderr) {
+        detail.push(['', er.stderr.trim()])
+      }
       break
   }
-  if (er.optional) {
-    short.unshift(['optional', er.optional + ' (' + er.location + '):'])
-    short.concat(detail).forEach(function (msg) {
-      if (!msg[0]) msg[0] = 'optional'
-      if (msg[1]) msg[1] = msg[1].toString().replace(/(^|\n)/g, '$1SKIPPING OPTIONAL DEPENDENCY: ')
-    })
-  }
-  return {summary: short, detail: detail}
+  return { summary: short, detail: detail }
 }

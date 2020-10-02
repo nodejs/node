@@ -1,0 +1,30 @@
+{
+  "name": "@npmcli/node-gyp",
+  "version": "1.0.1",
+  "description": "Tools for dealing with node-gyp packages",
+  "scripts": {
+    "test": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags"
+  },
+  "keywords": [
+    "npm",
+    "cli",
+    "node-gyp"
+  ],
+  "files": [
+    "lib/**/*.js"
+  ],
+  "main": "lib/index.js",
+  "author": "Brian Jenkins <bonkydog@bonkydog.com>",
+  "license": "ISC",
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "devDependencies": {
+    "tap": "^14.10.6",
+    "tmp": "^0.2.1"
+  }
+}

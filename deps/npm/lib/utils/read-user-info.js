@@ -1,6 +1,6 @@
 'use strict'
-const Bluebird = require('bluebird')
-const readAsync = Bluebird.promisify(require('read'))
+const { promisify } = require('util')
+const readAsync = promisify(require('read'))
 const userValidate = require('npm-user-validate')
 const log = require('npmlog')
 
@@ -10,12 +10,8 @@ exports.username = readUsername
 exports.email = readEmail
 
 function read (opts) {
-  return Bluebird.try(() => {
-    log.clearProgress()
-    return readAsync(opts)
-  }).finally(() => {
-    log.showProgress()
-  })
+  log.clearProgress()
+  return readAsync(opts).finally(() => log.showProgress())
 }
 
 function readOTP (msg, otp, isRetry) {
@@ -30,7 +26,7 @@ function readOTP (msg, otp, isRetry) {
   }
   if (isRetry && otp && /^[\d ]+$|^[A-Fa-f0-9]{64,64}$/.test(otp)) return otp.replace(/\s+/g, '')
 
-  return read({prompt: msg, default: otp || ''})
+  return read({ prompt: msg, default: otp || '' })
     .then((otp) => readOTP(msg, otp, true))
 }
 
@@ -38,7 +34,7 @@ function readPassword (msg, password, isRetry) {
   if (!msg) msg = 'npm password: '
   if (isRetry && password) return password
 
-  return read({prompt: msg, silent: true, default: password || ''})
+  return read({ prompt: msg, silent: true, default: password || '' })
     .then((password) => readPassword(msg, password, true))
 }
 
@@ -53,7 +49,7 @@ function readUsername (msg, username, opts, isRetry) {
     }
   }
 
-  return read({prompt: msg, default: username || ''})
+  return read({ prompt: msg, default: username || '' })
     .then((username) => readUsername(msg, username, opts, true))
 }
 
@@ -68,6 +64,6 @@ function readEmail (msg, email, opts, isRetry) {
     }
   }
 
-  return read({prompt: msg, default: email || ''})
+  return read({ prompt: msg, default: email || '' })
     .then((username) => readEmail(msg, username, opts, true))
 }

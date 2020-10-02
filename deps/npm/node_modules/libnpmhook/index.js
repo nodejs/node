@@ -1,21 +1,11 @@
 'use strict'
 
 const fetch = require('npm-registry-fetch')
-const figgyPudding = require('figgy-pudding')
-const getStream = require('get-stream')
 const validate = require('aproba')
-
-const HooksConfig = figgyPudding({
-  package: {},
-  limit: {},
-  offset: {},
-  Promise: {default: () => Promise}
-})
 
 const eu = encodeURIComponent
 const cmd = module.exports = {}
-cmd.add = (name, endpoint, secret, opts) => {
-  opts = HooksConfig(opts)
+cmd.add = (name, endpoint, secret, opts = {}) => {
   validate('SSSO', [name, endpoint, secret, opts])
   let type = 'package'
   if (name.match(/^@[^/]+$/)) {
@@ -25,18 +15,19 @@ cmd.add = (name, endpoint, secret, opts) => {
     type = 'owner'
     name = name.substr(1)
   }
-  return fetch.json('/-/npm/v1/hooks/hook', opts.concat({
+  return fetch.json('/-/npm/v1/hooks/hook', {
+    ...opts,
     method: 'POST',
     body: { type, name, endpoint, secret }
-  }))
+  })
 }
 
-cmd.rm = (id, opts) => {
-  opts = HooksConfig(opts)
+cmd.rm = (id, opts = {}) => {
   validate('SO', [id, opts])
-  return fetch.json(`/-/npm/v1/hooks/hook/${eu(id)}`, opts.concat({
+  return fetch.json(`/-/npm/v1/hooks/hook/${eu(id)}`, {
+    ...opts,
     method: 'DELETE'
-  }, opts)).catch(err => {
+  }).catch(err => {
     if (err.code === 'E404') {
       return null
     } else {
@@ -45,36 +36,35 @@ cmd.rm = (id, opts) => {
   })
 }
 
-cmd.update = (id, endpoint, secret, opts) => {
-  opts = HooksConfig(opts)
+cmd.update = (id, endpoint, secret, opts = {}) => {
   validate('SSSO', [id, endpoint, secret, opts])
-  return fetch.json(`/-/npm/v1/hooks/hook/${eu(id)}`, opts.concat({
+  return fetch.json(`/-/npm/v1/hooks/hook/${eu(id)}`, {
+    ...opts,
     method: 'PUT',
     body: {endpoint, secret}
-  }, opts))
+  })
 }
 
-cmd.find = (id, opts) => {
-  opts = HooksConfig(opts)
+cmd.find = (id, opts = {}) => {
   validate('SO', [id, opts])
   return fetch.json(`/-/npm/v1/hooks/hook/${eu(id)}`, opts)
 }
 
-cmd.ls = (opts) => {
-  return getStream.array(cmd.ls.stream(opts))
+cmd.ls = (opts = {}) => {
+  return cmd.ls.stream(opts).collect()
 }
 
-cmd.ls.stream = (opts) => {
-  opts = HooksConfig(opts)
-  const {package: pkg, limit, offset} = opts
+cmd.ls.stream = (opts = {}) => {
+  const { package: pkg, limit, offset } = opts
   validate('S|Z', [pkg])
   validate('N|Z', [limit])
   validate('N|Z', [offset])
-  return fetch.json.stream('/-/npm/v1/hooks', 'objects.*', opts.concat({
+  return fetch.json.stream('/-/npm/v1/hooks', 'objects.*', {
+    ...opts,
     query: {
       package: pkg,
       limit,
       offset
     }
-  }))
+  })
 }

@@ -40,10 +40,6 @@ using the legacy CouchDB APIs.
 
 * `opener` Function (url) → Promise, returns a promise that resolves after a browser has been opened for the user at `url`.
 * `prompter` Function (creds) → Promise, returns a promise that resolves to an object with `username`, `email` and `password` properties.
-* [`opts`](#opts) Object (optional) plus extra keys:
-  * `creds` Object, passed through to prompter, common values are:
-    * `username` String, default value for username
-    * `email` String, default value for email
 
 #### **Promise Value**
 
@@ -71,9 +67,6 @@ using the legacy CouchDB APIs.
 
 * `opener` Function (url) → Promise, returns a promise that resolves after a browser has been opened for the user at `url`.
 * `prompter` Function (creds) → Promise, returns a promise that resolves to an object with `username`, and `password` properties.
-* [`opts`](#opts) Object (optional) plus extra keys:
-  * `creds` Object, passed through to prompter, common values are:
-    * `name` String, default value for username
 
 #### **Promise Value**
 
@@ -512,18 +505,24 @@ Otherwise the code will be the HTTP response code.
 ### <a name="opts"></a> options objects
 
 The various API functions accept an optional `opts` object as a final
-argument. This opts object can either be a regular Object, or a
-[`figgy-pudding`](https://npm.im/figgy-pudding) options object instance.
+argument.
 
-Unless otherwise noted, the options accepted are the same as the
+Options are passed to
 [`npm-registry-fetch`
-options](https://www.npmjs.com/package/npm-registry-fetch#fetch-opts).
+options](https://www.npmjs.com/package/npm-registry-fetch#fetch-opts), so
+anything provided to this module will affect the behavior of that one as
+well.
 
 Of particular note are `opts.registry`, and the auth-related options:
 
-* `opts.token` - used for Bearer auth
+* `opts.creds` Object, passed through to prompter, common values are:
+  * `username` String, default value for username
+  * `email` String, default value for email
 * `opts.username` and `opts.password` - used for Basic auth
-* `opts.otp` - the 2fa OTP token
+* `opts.otp` String, the two-factor-auth one-time-password (Will prompt for
+  this if needed and not provided.)
+* `opts.hostname` String, the hostname of the current machine, to show the
+  user during the WebAuth flow.  (Defaults to `os.hostname()`.)
 
 ## <a name="logging"></a> Logging
 

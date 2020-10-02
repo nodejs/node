@@ -1,7 +1,6 @@
 var util = require('util');
 var Stream = require('stream').Stream;
 var DelayedStream = require('delayed-stream');
-var defer = require('./defer.js');
 
 module.exports = CombinedStream;
 function CombinedStream() {
@@ -14,6 +13,8 @@ function CombinedStream() {
   this._released = false;
   this._streams = [];
   this._currentStream = null;
+  this._insideLoop = false;
+  this._pendingNext = false;
 }
 util.inherits(CombinedStream, Stream);
 
@@ -68,6 +69,24 @@ CombinedStream.prototype.pipe = function(dest, options) {
 
 CombinedStream.prototype._getNext = function() {
   this._currentStream = null;
+
+  if (this._insideLoop) {
+    this._pendingNext = true;
+    return; // defer call
+  }
+
+  this._insideLoop = true;
+  try {
+    do {
+      this._pendingNext = false;
+      this._realGetNext();
+    } while (this._pendingNext);
+  } finally {
+    this._insideLoop = false;
+  }
+};
+
+CombinedStream.prototype._realGetNext = function() {
   var stream = this._streams.shift();
 
 
@@ -89,7 +108,7 @@ CombinedStream.prototype._getNext = function() {
       this._handleErrors(stream);
     }
 
-    defer(this._pipeNext.bind(this, stream));
+    this._pipeNext(stream);
   }.bind(this));
 };
 

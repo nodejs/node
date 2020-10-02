@@ -1,60 +1,66 @@
 // npm explore <pkg>[@<version>]
 // open a subshell to the package folder.
 
-module.exports = explore
-explore.usage = 'npm explore <pkg> [ -- <command>]'
-explore.completion = require('./utils/completion/installed-shallow.js')
+const usageUtil = require('./utils/usage.js')
+const completion = require('./utils/completion/installed-shallow.js')
+const usage = usageUtil('explore', 'npm explore <pkg> [ -- <command>]')
 
-var npm = require('./npm.js')
-var spawn = require('./utils/spawn')
-var path = require('path')
-var fs = require('graceful-fs')
-var isWindows = require('./utils/is-windows.js')
-var escapeExecPath = require('./utils/escape-exec-path.js')
-var escapeArg = require('./utils/escape-arg.js')
-var output = require('./utils/output.js')
-var log = require('npmlog')
+const cmd = (args, cb) => explore(args).then(() => cb()).catch(cb)
 
-function explore (args, cb) {
-  if (args.length < 1 || !args[0]) return cb(explore.usage)
-  var p = args.shift()
+const output = require('./utils/output.js')
+const npm = require('./npm.js')
+const isWindows = require('./utils/is-windows.js')
+const escapeArg = require('./utils/escape-arg.js')
+const escapeExecPath = require('./utils/escape-exec-path.js')
+const log = require('npmlog')
 
-  var cwd = path.resolve(npm.dir, p)
-  var opts = {cwd: cwd, stdio: 'inherit'}
+const spawn = require('@npmcli/promise-spawn')
 
-  var shellArgs = []
+const { resolve } = require('path')
+const { promisify } = require('util')
+const stat = promisify(require('fs').stat)
+
+const explore = async args => {
+  if (args.length < 1 || !args[0]) {
+    throw usage
+  }
+
+  const pkg = args.shift()
+  const cwd = resolve(npm.dir, pkg)
+  const opts = { cwd, stdio: 'inherit', stdioString: true }
+
+  const shellArgs = []
   if (args.length) {
     if (isWindows) {
-      var execCmd = escapeExecPath(args.shift())
-      var execArgs = [execCmd].concat(args.map(escapeArg))
+      const execCmd = escapeExecPath(args.shift())
       opts.windowsVerbatimArguments = true
-      shellArgs = ['/d', '/s', '/c'].concat(execArgs)
+      shellArgs.push('/d', '/s', '/c', execCmd, ...args.map(escapeArg))
     } else {
-      shellArgs = ['-c', args.map(escapeArg).join(' ').trim()]
+      shellArgs.push('-c', args.map(escapeArg).join(' ').trim())
     }
   }
 
-  var sh = npm.config.get('shell')
-  fs.stat(cwd, function (er, s) {
-    if (er || !s.isDirectory()) {
-      return cb(new Error(
-        "It doesn't look like " + p + ' is installed.'
-      ))
-    }
-
-    if (!shellArgs.length) {
-      output(
-        '\nExploring ' + cwd + '\n' +
-          "Type 'exit' or ^D when finished\n"
-      )
-    }
-
-    log.silly('explore', {sh, shellArgs, opts})
-    var shell = spawn(sh, shellArgs, opts)
-    shell.on('close', function (er) {
-      // only fail if non-interactive.
-      if (!shellArgs.length) return cb()
-      cb(er)
-    })
+  await stat(cwd).catch(er => {
+    throw new Error(`It doesn't look like ${pkg} is installed.`)
   })
+
+  const sh = npm.flatOptions.shell
+  log.disableProgress()
+
+  if (!shellArgs.length) {
+    output(`\nExploring ${cwd}\nType 'exit' or ^D when finished\n`)
+  }
+
+  log.silly('explore', { sh, shellArgs, opts })
+
+  // only noisily fail if non-interactive, but still keep exit code intact
+  const proc = spawn(sh, shellArgs, opts)
+  try {
+    const res = await (shellArgs.length ? proc : proc.catch(er => er))
+    process.exitCode = res.code
+  } finally {
+    log.enableProgress()
+  }
 }
+
+module.exports = Object.assign(cmd, { completion, usage })

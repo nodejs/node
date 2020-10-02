@@ -41,9 +41,9 @@ behavior will be accompanied by an increase in major version number
 
 ### See Also
 
-* [npm run-script](/cli-commands/npm-run-script)
+* [npm run-script](/cli-commands/run-script)
 * [npm scripts](/using-npm/scripts)
-* [npm test](/cli-commands/npm-test)
-* [npm start](/cli-commands/npm-start)
-* [npm stop](/cli-commands/npm-stop)
-* [npm restart](/cli-commands/npm-restart)
+* [npm test](/cli-commands/test)
+* [npm start](/cli-commands/start)
+* [npm stop](/cli-commands/stop)
+* [npm restart](/cli-commands/restart)

@@ -1,64 +1,61 @@
 // initialize a package.json file
 
-module.exports = init
+const usageUtil = require('./utils/usage.js')
+const completion = require('./utils/completion/none.js')
 
-var path = require('path')
-var log = require('npmlog')
-var npa = require('npm-package-arg')
-var npm = require('./npm.js')
-var npx = require('libnpx')
-var initJson = require('init-package-json')
-var isRegistry = require('./utils/is-registry.js')
-var output = require('./utils/output.js')
-var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
-var usage = require('./utils/usage')
+const npa = require('npm-package-arg')
+const npm = require('./npm.js')
+const initJson = require('init-package-json')
+const output = require('./utils/output.js')
 
-init.usage = usage(
+const usage = usageUtil(
   'init',
   '\nnpm init [--force|-f|--yes|-y|--scope]' +
   '\nnpm init <@scope> (same as `npx <@scope>/create`)' +
   '\nnpm init [<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)'
 )
 
-function init (args, cb) {
+const cmd = (args, cb) => init(args).then(() => cb()).catch(cb)
+
+const init = async args => {
+  // the new npx style way
   if (args.length) {
-    var NPM_PATH = path.resolve(__dirname, '../bin/npm-cli.js')
-    var initerName = args[0]
-    var packageName = initerName
+    const initerName = args[0]
+    let packageName = initerName
     if (/^@[^/]+$/.test(initerName)) {
       packageName = initerName + '/create'
     } else {
-      var req = npa(initerName)
+      const req = npa(initerName)
       if (req.type === 'git' && req.hosted) {
-        var { user, project } = req.hosted
+        const { user, project } = req.hosted
         packageName = initerName
           .replace(user + '/' + project, user + '/create-' + project)
-      } else if (isRegistry(req)) {
+      } else if (req.registry) {
         packageName = req.name.replace(/^(@[^/]+\/)?/, '$1create-')
         if (req.rawSpec) {
           packageName += '@' + req.rawSpec
         }
       } else {
-        var err = new Error(
+        throw Object.assign(new Error(
           'Unrecognized initializer: ' + initerName +
           '\nFor more package binary executing power check out `npx`:' +
           '\nhttps://www.npmjs.com/package/npx'
-        )
-        err.code = 'EUNSUPPORTED'
-        throw err
+        ), { code: 'EUNSUPPORTED' })
       }
     }
-    var npxArgs = [process.argv0, '[fake arg]', '--always-spawn', packageName, ...process.argv.slice(4)]
-    var parsed = npx.parseArgs(npxArgs, NPM_PATH)
-
-    return npx(parsed)
-      .then(() => cb())
-      .catch(cb)
+    npm.config.set('package', [])
+    npm.flatOptions = { ...npm.flatOptions, package: [] }
+    return new Promise((res, rej) => {
+      npm.commands.exec([packageName, ...args.slice(1)], er => er ? rej(er) : res())
+    })
   }
-  var dir = process.cwd()
-  log.pause()
-  var initFile = npm.config.get('init-module')
-  if (!initJson.yes(npm.config)) {
+
+  // the old way
+  const dir = process.cwd()
+  npm.log.pause()
+  npm.log.disableProgress()
+  const initFile = npm.config.get('init-module')
+  if (!npm.flatOptions.yes && !npm.flatOptions.force) {
     output([
       'This utility will walk you through creating a package.json file.',
       'It only covers the most common items, and tries to guess sensible defaults.',
@@ -72,14 +69,24 @@ function init (args, cb) {
       'Press ^C at any time to quit.'
     ].join('\n'))
   }
-  initJson(dir, initFile, npm.config, noProgressTillDone(function (er, data) {
-    log.resume()
-    log.silly('package data', data)
-    if (er && er.message === 'canceled') {
-      log.warn('init', 'canceled')
-      return cb(null, data)
-    }
-    log.info('init', 'written successfully')
-    cb(er, data)
-  }))
+  // XXX promisify init-package-json
+  await new Promise((res, rej) => {
+    initJson(dir, initFile, npm.config, (er, data) => {
+      npm.log.resume()
+      npm.log.enableProgress()
+      npm.log.silly('package data', data)
+      if (er && er.message === 'canceled') {
+        npm.log.warn('init', 'canceled')
+        return res()
+      }
+      npm.log.info('init', 'written successfully')
+      if (er) {
+        rej(er)
+      } else {
+        res(data)
+      }
+    })
+  })
 }
+
+module.exports = Object.assign(cmd, { completion, usage })

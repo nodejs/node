@@ -1,47 +1,29 @@
-'use strict'
-
-const npmConfig = require('./config/figgy-config.js')
-const fetch = require('libnpm/fetch')
-const figgyPudding = require('figgy-pudding')
 const log = require('npmlog')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
+const usageUtil = require('./utils/usage.js')
 
-const PingConfig = figgyPudding({
-  json: {},
-  registry: {}
-})
+const usage = usageUtil('ping', 'npm ping\nping registry')
+const completion = require('./utils/completion/none.js')
 
-module.exports = ping
+const cmd = (args, cb) => ping(args).then(() => cb()).catch(cb)
+const pingUtil = require('./utils/ping.js')
 
-ping.usage = 'npm ping\nping registry'
-
-function ping (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
-  }
-
-  const opts = PingConfig(npmConfig())
-  const registry = opts.registry
-  log.notice('PING', registry)
+const ping = async args => {
+  log.notice('PING', npm.flatOptions.registry)
   const start = Date.now()
-  return fetch('/-/ping?write=true', opts).then(
-    res => res.json().catch(() => ({}))
-  ).then(details => {
-    if (silent) {
-    } else {
-      const time = Date.now() - start
-      log.notice('PONG', `${time / 1000}ms`)
-      if (npm.config.get('json')) {
-        output(JSON.stringify({
-          registry,
-          time,
-          details
-        }, null, 2))
-      } else if (Object.keys(details).length) {
-        log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
-      }
-    }
-  }).nodeify(cb)
+  const details = await pingUtil(npm.flatOptions)
+  const time = Date.now() - start
+  log.notice('PONG', `${time / 1000}ms`)
+  if (npm.flatOptions.json) {
+    output(JSON.stringify({
+      registry: npm.flatOptions.registry,
+      time,
+      details
+    }, null, 2))
+  } else if (Object.keys(details).length) {
+    log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
+  }
 }
+
+module.exports = Object.assign(cmd, { completion, usage })

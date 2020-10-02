@@ -1,16 +1,12 @@
-/* eslint-disable standard/no-callback-literal */
-module.exports = test
-
 const testCmd = require('./utils/lifecycle-cmd.js')('test')
+const { completion, usage } = testCmd
+const cmd = (args, cb) => testCmd(args, er => {
+  if (er && er.code === 'ELIFECYCLE') {
+    /* eslint-disable standard/no-callback-literal */
+    cb('Test failed.  See above for more details.')
+  } else {
+    cb(er)
+  }
+})
 
-test.usage = testCmd.usage
-
-function test (args, cb) {
-  testCmd(args, function (er) {
-    if (!er) return cb()
-    if (er.code === 'ELIFECYCLE') {
-      return cb('Test failed.  See above for more details.')
-    }
-    return cb(er)
-  })
-}
+module.exports = Object.assign(cmd, { completion, usage })

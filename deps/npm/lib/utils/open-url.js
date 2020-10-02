@@ -3,6 +3,16 @@ const npm = require('../npm.js')
 const output = require('./output.js')
 const opener = require('opener')
 
+const { URL } = require('url')
+
+const isUrlValid = url => {
+  try {
+    return /^(https?|file):$/.test(new URL(url).protocol)
+  } catch (_) {
+    return false
+  }
+}
+
 // attempt to open URL in web-browser, print address otherwise:
 module.exports = function open (url, errMsg, cb, browser = npm.config.get('browser')) {
   function printAlternateMsg () {
@@ -12,19 +22,22 @@ module.exports = function open (url, errMsg, cb, browser = npm.config.get('brows
         title: errMsg,
         url
       }, null, 2)
-      : `${errMsg}:\n\n${url}`
+      : `${errMsg}:\n  ${url}\n`
 
     output(alternateMsg)
   }
 
-  const skipBrowser = process.argv.indexOf('--no-browser') > -1
-
-  if (skipBrowser) {
+  if (browser === false) {
     printAlternateMsg()
     return cb()
   }
 
-  opener(url, { command: browser }, (er) => {
+  if (!isUrlValid(url)) {
+    return cb(new Error('Invalid URL: ' + url))
+  }
+
+  const command = browser === true ? null : browser
+  opener(url, { command }, (er) => {
     if (er && er.code === 'ENOENT') {
       printAlternateMsg()
       return cb()
