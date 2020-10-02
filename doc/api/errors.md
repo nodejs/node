@@ -960,6 +960,14 @@ An unknown cipher was specified.
 An unknown Diffie-Hellman group name was given. See
 [`crypto.getDiffieHellman()`][] for a list of valid group names.
 
+<a id="ERR_DLOPEN_FAILED"></a>
+### `ERR_DLOPEN_FAILED`
+<!-- YAML
+added: REPLACEME
+-->
+
+A call to `process.dlopen()` failed.
+
 <a id="ERR_DIR_CLOSED"></a>
 ### `ERR_DIR_CLOSED`
 
@@ -1501,6 +1509,15 @@ An invalid HTTP token was supplied.
 ### `ERR_INVALID_IP_ADDRESS`
 
 An IP address is not valid.
+
+<a id="ERR_INVALID_MODULE"></a>
+### `ERR_INVALID_MODULE`
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt was made to load a module that does not exist or was otherwise not
+valid.
 
 <a id="ERR_INVALID_MODULE_SPECIFIER"></a>
 ### `ERR_INVALID_MODULE_SPECIFIER`
