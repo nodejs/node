@@ -37,6 +37,7 @@
 #include "node_main_instance.h"
 #include "node_options.h"
 #include "node_perf_common.h"
+#include "policy/policy.h"
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
@@ -375,6 +376,7 @@ constexpr size_t kFsStatsBufferLength =
   V(replacement_string, "replacement")                                         \
   V(require_string, "require")                                                 \
   V(retry_string, "retry")                                                     \
+  V(run_in_privileged_scope_string, "runInPrivilegedScope")                    \
   V(scheme_string, "scheme")                                                   \
   V(scopeid_string, "scopeid")                                                 \
   V(serial_number_string, "serialNumber")                                      \
@@ -547,6 +549,7 @@ constexpr size_t kFsStatsBufferLength =
   V(primordials, v8::Object)                                                   \
   V(promise_hook_handler, v8::Function)                                        \
   V(promise_reject_callback, v8::Function)                                     \
+  V(run_in_privileged_scope, v8::Function)                                     \
   V(script_data_constructor_function, v8::Function)                            \
   V(source_map_cache_getter, v8::Function)                                     \
   V(tick_callback_function, v8::Function)                                      \
@@ -977,6 +980,7 @@ class Environment : public MemoryRetainer {
   v8::MaybeLocal<v8::Value> BootstrapInternalLoaders();
   v8::MaybeLocal<v8::Value> BootstrapNode();
   v8::MaybeLocal<v8::Value> RunBootstrapping();
+  bool BootstrapPrivilegedAccessContext();
 
   inline size_t async_callback_scope_depth() const;
   inline void PushAsyncCallbackScope();
@@ -1035,6 +1039,8 @@ class Environment : public MemoryRetainer {
   inline const std::vector<std::string>& exec_argv();
   inline const std::vector<std::string>& argv();
   const std::string& exec_path() const;
+
+  inline policy::PrivilegedAccessContext* privileged_access_context();
 
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
@@ -1397,6 +1403,7 @@ class Environment : public MemoryRetainer {
   std::list<binding::DLib> loaded_addons_;
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
+  policy::PrivilegedAccessContext privileged_access_context_;
   uv_timer_t timer_handle_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;

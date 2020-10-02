@@ -56,6 +56,7 @@ class ExternalReferenceRegistry {
   V(handle_wrap)                                                               \
   V(messaging)                                                                 \
   V(native_module)                                                             \
+  V(policy)                                                                    \
   V(process_methods)                                                           \
   V(process_object)                                                            \
   V(task_queue)                                                                \

@@ -28,6 +28,7 @@ void OnFatalError(const char* location, const char* message);
 // a `Local<Value>` containing the TypeError with proper code and message
 
 #define ERRORS_WITH_CODE(V)                                                    \
+  V(ERR_ACCESS_DENIED, Error)                                                  \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                   \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                      \
   V(ERR_BUFFER_TOO_LARGE, Error)                                               \
@@ -105,6 +106,7 @@ void OnFatalError(const char* location, const char* message);
 // Errors with predefined static messages
 
 #define PREDEFINED_ERROR_MESSAGES(V)                                           \
+  V(ERR_ACCESS_DENIED, "Access is denied")                                     \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                          \
     "Buffer is not available for the current Context")                         \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \

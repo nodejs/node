@@ -313,6 +313,7 @@ Environment::Environment(IsolateData* isolate_data,
                          ThreadId thread_id)
     : isolate_(isolate),
       isolate_data_(isolate_data),
+      privileged_access_context_(isolate_data->options()->per_env.get()),
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
       immediate_info_(isolate, MAYBE_FIELD_PTR(env_info, immediate_info)),
       tick_info_(isolate, MAYBE_FIELD_PTR(env_info, tick_info)),

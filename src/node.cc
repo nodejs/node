@@ -39,6 +39,7 @@
 #include "node_revert.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
+#include "policy/policy.h"
 
 #if HAVE_OPENSSL
 #include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h
@@ -294,6 +295,18 @@ void Environment::InitializeDiagnostics() {
 #endif
 }
 
+bool Environment::BootstrapPrivilegedAccessContext() {
+  Local<Function> run_in_privileged_scope;
+  MaybeLocal<Function> maybe_run_in_privileged_scope =
+    Function::New(
+        context(),
+        policy::PrivilegedAccessContext::Run);
+  if (!maybe_run_in_privileged_scope.ToLocal(&run_in_privileged_scope))
+    return false;
+  set_run_in_privileged_scope(run_in_privileged_scope);
+  return true;
+}
+
 MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
   EscapableHandleScope scope(isolate_);
 
@@ -302,7 +315,8 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
       process_string(),
       FIXED_ONE_BYTE_STRING(isolate_, "getLinkedBinding"),
       FIXED_ONE_BYTE_STRING(isolate_, "getInternalBinding"),
-      primordials_string()};
+      primordials_string(),
+      run_in_privileged_scope_string()};
   std::vector<Local<Value>> loaders_args = {
       process_object(),
       NewFunctionTemplate(binding::GetLinkedBinding)
@@ -311,7 +325,8 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
       NewFunctionTemplate(binding::GetInternalBinding)
           ->GetFunction(context())
           .ToLocalChecked(),
-      primordials()};
+      primordials(),
+      run_in_privileged_scope()};
 
   // Bootstrap internal loaders
   Local<Value> loader_exports;
@@ -348,12 +363,14 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       process_string(),
       require_string(),
       internal_binding_string(),
-      primordials_string()};
+      primordials_string(),
+      run_in_privileged_scope_string()};
   std::vector<Local<Value>> node_args = {
       process_object(),
       native_module_require(),
       internal_binding_loader(),
-      primordials()};
+      primordials(),
+      run_in_privileged_scope()};
 
   MaybeLocal<Value> result = ExecuteBootstrapper(
       this, "internal/bootstrap/node", &node_params, &node_args);
@@ -399,6 +416,10 @@ MaybeLocal<Value> Environment::RunBootstrapping() {
 
   CHECK(!has_run_bootstrapping_code());
 
+  if (!BootstrapPrivilegedAccessContext()) {
+    return MaybeLocal<Value>();
+  }
+
   if (BootstrapInternalLoaders().IsEmpty()) {
     return MaybeLocal<Value>();
   }
@@ -436,7 +457,8 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
       env->require_string(),
       env->internal_binding_string(),
       env->primordials_string(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "markBootstrapComplete")};
+      FIXED_ONE_BYTE_STRING(env->isolate(), "markBootstrapComplete"),
+      env->run_in_privileged_scope_string()};
 
   std::vector<Local<Value>> arguments = {
       env->process_object(),
@@ -445,7 +467,8 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
       env->primordials(),
       env->NewFunctionTemplate(MarkBootstrapComplete)
           ->GetFunction(env->context())
-          .ToLocalChecked()};
+          .ToLocalChecked(),
+      env->run_in_privileged_scope()};
 
   return scope.EscapeMaybe(
       ExecuteBootstrapper(env, main_script_id, &parameters, &arguments));

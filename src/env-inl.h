@@ -29,6 +29,7 @@
 #include "env.h"
 #include "node.h"
 #include "util-inl.h"
+#include "policy/policy-inl.h"
 #include "uv.h"
 #include "v8.h"
 #include "node_perf_common.h"
@@ -244,6 +245,10 @@ Environment* Environment::ForAsyncHooks(AsyncHooks* hooks) {
 
 inline size_t Environment::async_callback_scope_depth() const {
   return async_callback_scope_depth_;
+}
+
+policy::PrivilegedAccessContext* Environment::privileged_access_context() {
+  return &privileged_access_context_;
 }
 
 inline void Environment::PushAsyncCallbackScope() {
