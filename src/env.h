@@ -217,6 +217,8 @@ constexpr size_t kFsStatsBufferLength =
   V(dh_string, "DH")                                                           \
   V(dns_a_string, "A")                                                         \
   V(dns_aaaa_string, "AAAA")                                                   \
+  V(dns_caa_string, "CAA")                                                     \
+  V(dns_critical_string, "critical")                                           \
   V(dns_cname_string, "CNAME")                                                 \
   V(dns_mx_string, "MX")                                                       \
   V(dns_naptr_string, "NAPTR")                                                 \

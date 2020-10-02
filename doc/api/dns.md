@@ -81,6 +81,7 @@ The following methods from the `dns` module are available:
 * [`resolver.resolve4()`][`dns.resolve4()`]
 * [`resolver.resolve6()`][`dns.resolve6()`]
 * [`resolver.resolveAny()`][`dns.resolveAny()`]
+* [`resolver.resolveCaa()`][`dns.resolveCaa()`]
 * [`resolver.resolveCname()`][`dns.resolveCname()`]
 * [`resolver.resolveMx()`][`dns.resolveMx()`]
 * [`resolver.resolveNaptr()`][`dns.resolveNaptr()`]
@@ -290,6 +291,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
 | `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
 | `'CNAME'` | canonical name records         | {string}    | [`dns.resolveCname()`][] |
+| `'CAA'`   | CA authorization               | {Object}    | [`dns.resolveCaa()`][]   |
 | `'MX'`    | mail exchange records          | {Object}    | [`dns.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dns.resolveNaptr()`][] |
 | `'NS'`    | name server records            | {string}    | [`dns.resolveNs()`][]    |
@@ -413,6 +415,21 @@ Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
 will contain an array of canonical name records available for the `hostname`
 (e.g. `['bar.example.com']`).
+
+## `dns.resolveCaa(hostname, callback)`
+<!-- YAML
+added: v0.3.2
+-->
+
+* `hostname` {string}
+* `callback` {Function}
+  * `err` {Error}
+  * `records` {object[]}
+
+Uses the DNS protocol to resolve `CAA` records for the `hostname`. The
+`addresses` argument passed to the `callback` function
+will contain an array of certification authority authorization records
+available for the `hostname` (e.g. `[{critial: 0, iodef: 'letsencrypt.org']`).
 
 ## `dns.resolveMx(hostname, callback)`
 <!-- YAML

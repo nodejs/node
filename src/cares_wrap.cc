@@ -888,6 +888,43 @@ int ParseMxReply(Environment* env,
   return ARES_SUCCESS;
 }
 
+int ParseCaaReply(Environment* env,
+                  const unsigned char* buf,
+                  int len,
+                  Local<Array> ret,
+                  bool need_type = false) {
+  HandleScope handle_scope(env->isolate());
+  auto context = env->context();
+
+  struct ares_caa_reply* caa_start;
+  int status = ares_parse_caa_reply(buf, len, &caa_start);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  uint32_t offset = ret->Length();
+  ares_caa_reply* current = caa_start;
+  for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
+    Local<Object> caa_record = Object::New(env->isolate());
+
+    caa_record->Set(context,
+                    env->dns_critical_string(),
+                    Integer::New(env->isolate(), current->critical)).Check();
+    caa_record->Set(context,
+                    OneByteString(env->isolate(), current->property),
+                    OneByteString(env->isolate(), current->value)).Check();
+    if (need_type)
+      caa_record->Set(context,
+                      env->type_string(),
+                      env->dns_caa_string()).Check();
+
+    ret->Set(context, i + offset, caa_record).Check();
+  }
+
+  ares_free_data(caa_start);
+  return ARES_SUCCESS;
+}
+
 int ParseTxtReply(Environment* env,
                   const unsigned char* buf,
                   int len,
@@ -1445,6 +1482,36 @@ class QueryAaaaWrap: public QueryWrap {
   }
 };
 
+class QueryCaaWrap: public QueryWrap {
+ public:
+  QueryCaaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
+      : QueryWrap(channel, req_wrap_obj, "resolve6") {
+  }
+
+  int Send(const char* name) override {
+    AresQuery(name, ns_c_in, ns_t_caa);
+    return 0;
+  }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(QueryAaaaWrap)
+  SET_SELF_SIZE(QueryAaaaWrap)
+
+ protected:
+  void Parse(unsigned char* buf, int len) override {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+
+    Local<Array> ret = Array::New(env()->isolate());
+    int status = ParseCaaReply(env(), buf, len, ret);
+    if (status != ARES_SUCCESS) {
+      ParseError(status);
+      return;
+    }
+
+    this->CallOnComplete(ret);
+  }
+};
 
 class QueryCnameWrap: public QueryWrap {
  public:
@@ -2242,6 +2309,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
   env->SetProtoMethod(channel_wrap, "queryA", Query<QueryAWrap>);
   env->SetProtoMethod(channel_wrap, "queryAaaa", Query<QueryAaaaWrap>);
+  env->SetProtoMethod(channel_wrap, "queryCaa", Query<QueryCaaWrap>);
   env->SetProtoMethod(channel_wrap, "queryCname", Query<QueryCnameWrap>);
   env->SetProtoMethod(channel_wrap, "queryMx", Query<QueryMxWrap>);
   env->SetProtoMethod(channel_wrap, "queryNs", Query<QueryNsWrap>);
