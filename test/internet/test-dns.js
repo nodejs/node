@@ -438,8 +438,6 @@ TEST(function test_resolveCaa_failure(done) {
   checkWrap(req);
 });
 
-
-
 TEST(async function test_resolveCname(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
