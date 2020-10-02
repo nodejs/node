@@ -81,6 +81,7 @@ The following methods from the `dns` module are available:
 * [`resolver.resolve4()`][`dns.resolve4()`]
 * [`resolver.resolve6()`][`dns.resolve6()`]
 * [`resolver.resolveAny()`][`dns.resolveAny()`]
+* [`resolver.resolveCaa()`][`dns.resolveCaa()`]
 * [`resolver.resolveCname()`][`dns.resolveCname()`]
 * [`resolver.resolveMx()`][`dns.resolveMx()`]
 * [`resolver.resolveNaptr()`][`dns.resolveNaptr()`]
@@ -289,6 +290,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
 | `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
+| `'CAA'`   | CA authorization records       | {Object}    | [`dns.resolveCaa()`][]   |
 | `'CNAME'` | canonical name records         | {string}    | [`dns.resolveCname()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dns.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dns.resolveNaptr()`][] |
@@ -413,6 +415,22 @@ Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
 will contain an array of canonical name records available for the `hostname`
 (e.g. `['bar.example.com']`).
+
+## `dns.resolveCaa(hostname, callback)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `hostname` {string}
+* `callback` {Function}
+  * `err` {Error}
+  * `records` {Object[]}
+
+Uses the DNS protocol to resolve `CAA` records for the `hostname`. The
+`addresses` argument passed to the `callback` function
+will contain an array of certification authority authorization records
+available for the `hostname` (e.g. `[{critial: 0, iodef:
+'mailto:pki@example.com'}, {critical: 128, issue: 'pki.example.com'}]`).
 
 ## `dns.resolveMx(hostname, callback)`
 <!-- YAML
@@ -665,6 +683,7 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.resolve4()`][`dnsPromises.resolve4()`]
 * [`resolver.resolve6()`][`dnsPromises.resolve6()`]
 * [`resolver.resolveAny()`][`dnsPromises.resolveAny()`]
+* [`resolver.resolveCaa()`][`dnsPromises.resolveCaa()`]
 * [`resolver.resolveCname()`][`dnsPromises.resolveCname()`]
 * [`resolver.resolveMx()`][`dnsPromises.resolveMx()`]
 * [`resolver.resolveNaptr()`][`dnsPromises.resolveNaptr()`]
@@ -806,6 +825,7 @@ based on `rrtype`:
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dnsPromises.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dnsPromises.resolve6()`][]     |
 | `'ANY'`   | any records                    | {Object}    | [`dnsPromises.resolveAny()`][]   |
+| `'CAA'`   | CA authorization records       | {Object}    | [`dnsPromises.resolveCaa()`][] |
 | `'CNAME'` | canonical name records         | {string}    | [`dnsPromises.resolveCname()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dnsPromises.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dnsPromises.resolveNaptr()`][] |
@@ -894,6 +914,19 @@ Here is an example of the result object:
     expire: 1800,
     minttl: 60 } ]
 ```
+
+## `dnsPromises.resolveCaa(hostname)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `hostname` {string}
+
+Uses the DNS protocol to resolve `CAA` records for the `hostname`. On success,
+the `Promise` is resolved with an array of objects containing available
+certification authority authorization records available for the `hostname`
+(e.g. `[{critial: 0, iodef: 'mailto:pki@example.com'},{critical: 128, issue:
+'pki.example.com'}]`).
 
 ### `dnsPromises.resolveCname(hostname)`
 <!-- YAML
@@ -1174,6 +1207,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dns.resolve4()`]: #dns_dns_resolve4_hostname_options_callback
 [`dns.resolve6()`]: #dns_dns_resolve6_hostname_options_callback
 [`dns.resolveAny()`]: #dns_dns_resolveany_hostname_callback
+[`dns.resolveCaa()`]: #dns_dns_resolvecaa_hostname_callback
 [`dns.resolveCname()`]: #dns_dns_resolvecname_hostname_callback
 [`dns.resolveMx()`]: #dns_dns_resolvemx_hostname_callback
 [`dns.resolveNaptr()`]: #dns_dns_resolvenaptr_hostname_callback
@@ -1190,6 +1224,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dnsPromises.resolve4()`]: #dns_dnspromises_resolve4_hostname_options
 [`dnsPromises.resolve6()`]: #dns_dnspromises_resolve6_hostname_options
 [`dnsPromises.resolveAny()`]: #dns_dnspromises_resolveany_hostname
+[`dnsPromises.resolveCaa()`]: #dns_dnspromises_resolvecaa_hostname
 [`dnsPromises.resolveCname()`]: #dns_dnspromises_resolvecname_hostname
 [`dnsPromises.resolveMx()`]: #dns_dnspromises_resolvemx_hostname
 [`dnsPromises.resolveNaptr()`]: #dns_dnspromises_resolvenaptr_hostname

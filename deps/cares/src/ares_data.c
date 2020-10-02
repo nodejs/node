@@ -119,6 +119,16 @@ void ares_free_data(void *dataptr)
             ares_free(ptr->data.soa_reply.hostmaster);
           break;
 
+        case ARES_DATATYPE_CAA_REPLY:
+ 
+          if (ptr->data.caa_reply.next)
+            next_data = ptr->data.caa_reply.next;
+          if (ptr->data.caa_reply.property)
+            ares_free(ptr->data.caa_reply.property);
+          if (ptr->data.caa_reply.value)
+            ares_free(ptr->data.caa_reply.value);
+          break;
+
         default:
           return;
       }
@@ -172,6 +182,14 @@ void *ares_malloc_data(ares_datatype type)
         ptr->data.txt_reply.next = NULL;
         ptr->data.txt_reply.txt = NULL;
         ptr->data.txt_reply.length = 0;
+        break;
+
+      case ARES_DATATYPE_CAA_REPLY:
+        ptr->data.caa_reply.next = NULL;
+        ptr->data.caa_reply.plength = 0;
+        ptr->data.caa_reply.property = NULL;
+        ptr->data.caa_reply.length = 0;
+        ptr->data.caa_reply.value = NULL;
         break;
 
       case ARES_DATATYPE_ADDR_NODE:
