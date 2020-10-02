@@ -399,6 +399,45 @@ TEST(function test_resolveSoa_failure(done) {
   checkWrap(req);
 });
 
+TEST(async function test_resolveCaa(done) {
+  function validateResult(result) {
+    assert.ok(Array.isArray(result[0]));
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(typeof result[0].critical, 'number');
+    assert.strictEqual(result[0].critical, 0);
+    assert.strictEqual(result[0].issue, 'pki.goog');
+  }
+
+  validateResult(await dnsPromises.resolveCaa(addresses.CAA_HOST));
+
+  const req = dns.resolveCaa(addresses.CAA_HOST, function(err, records) {
+    assert.ifError(err);
+    validateResult(records);
+    done();
+  });
+
+  checkWrap(req);
+});
+
+TEST(function test_resolveCaa_failure(done) {
+  dnsPromises.resolveTxt(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ENOTFOUND');
+    }));
+
+  const req = dns.resolveCaa(addresses.INVALID_HOST, function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.code, 'ENOTFOUND');
+
+    assert.strictEqual(result, undefined);
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
 TEST(async function test_resolveCname(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);

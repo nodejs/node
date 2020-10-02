@@ -13,7 +13,8 @@ const types = {
   PTR: 12,
   MX: 15,
   TXT: 16,
-  ANY: 255
+  ANY: 255,
+  CAA: 257
 };
 
 const classes = {
@@ -267,6 +268,14 @@ function writeDNSPacket(parsed) {
         buffers.push(new Uint32Array([
           rr.serial, rr.refresh, rr.retry, rr.expire, rr.minttl
         ]));
+        break;
+      }
+      case 'CAA':
+      {
+        rdLengthBuf[0] = 5 + rr.issue.length + 2;
+        buffers.push(Buffer.from([Number(rr.critical)]));
+        buffers.push(Buffer.from([Number(5)]));
+        buffers.push(Buffer.from('issue' + rr.issue));
         break;
       }
       default:

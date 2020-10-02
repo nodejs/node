@@ -75,6 +75,7 @@
         'src/ares__parse_into_addrinfo.c',
         'src/ares_parse_aaaa_reply.c',
         'src/ares_parse_a_reply.c',
+        'src/ares_parse_caa_reply.c',
         'src/ares_parse_mx_reply.c',
         'src/ares_parse_naptr_reply.c',
         'src/ares_parse_ns_reply.c',
