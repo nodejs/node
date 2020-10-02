@@ -573,12 +573,18 @@ td > *:last-child {
 }
 
 kbd {
-  font-size: 1.2em;
-  font-weight: 700;
+  background-color: #eee;
   border-radius: 3px;
-  padding: 1px 2px 0;
-  border: 1px solid black;
-}
+  border: 1px solid #b4b4b4;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .2), 0 2px 0 0 rgba(255, 255, 255, .7) inset;
+  color: #333;
+  display: inline-block;
+  font-size: .85em;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  white-space: nowrap;
+ }
 
 .changelog > summary {
   margin: .5rem 0;
