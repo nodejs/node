@@ -1384,7 +1384,7 @@ CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
 
 # Related CI job: node-test-linter
 lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs
-	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
+	@if ! ( grep -IEqrs "$(CONFLICT_RE)" --exclude="error-message.js" benchmark deps doc lib src test tools ) \
 		&& ! ( $(FIND) . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
 	else \

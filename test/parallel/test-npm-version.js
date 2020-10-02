@@ -14,5 +14,5 @@ const npmPathPackageJson = path.resolve(
 );
 
 const pkg = require(npmPathPackageJson);
-assert(pkg.version.match(/^\d+\.\d+\.\d+$/),
+assert(pkg.version.match(/^\d+\.\d+\.\d+-rc\.\d+$/),
        `unexpected version number: ${pkg.version}`);
