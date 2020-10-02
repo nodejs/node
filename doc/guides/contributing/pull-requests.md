@@ -130,7 +130,17 @@ Any documentation you write (including code comments and API documentation)
 should follow the [Style Guide](../doc-style-guide.md). Code samples
 included in the API docs will also be checked when running `make lint` (or
 `vcbuild.bat lint` on Windows). If you are adding to or deprecating an API,
-use `REPLACEME` for the version number in the documentation YAML.
+add or change the appropriate YAML documentation. Use `REPLACEME` for the
+version number in the documentation YAML:
+
+```markdown
+### `request.method`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string} The request method.
+```
 
 For contributing C++ code, you may want to look at the
 [C++ Style Guide](../cpp-style-guide.md), as well as the
