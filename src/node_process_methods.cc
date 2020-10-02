@@ -137,8 +137,9 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
 
-  if (args.Length() != 2)
-    return env->ThrowError("Bad argument.");
+  if (args.Length() < 2) {
+    THROW_ERR_MISSING_ARGS(env, "Bad argument.");
+  }
 
   int pid;
   if (!args[0]->Int32Value(context).To(&pid)) return;
@@ -292,8 +293,8 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() != 1) {
-    return env->ThrowError("Invalid number of arguments.");
+  if (args.Length() < 1) {
+    return THROW_ERR_MISSING_ARGS(env, "Invalid number of arguments.");
   }
 
   CHECK(args[0]->IsNumber());
@@ -317,9 +318,8 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
 
-  if (args.Length() != 1) {
-    env->ThrowError("Invalid number of arguments.");
-    return;
+  if (args.Length() < 1) {
+    return THROW_ERR_MISSING_ARGS(env, "Invalid number of arguments.");
   }
 
   HANDLE process = nullptr;
