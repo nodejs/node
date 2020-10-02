@@ -30,6 +30,7 @@ typedef enum {
   ARES_DATATYPE_OPTIONS,      /* struct ares_options   */
 #endif
   ARES_DATATYPE_ADDR_PORT_NODE, /* struct ares_addr_port_node - introduced in 1.11.0 */
+  ARES_DATATYPE_CAA_REPLY,    /* struct ares_caa_reply   - introduced in 1.17 */
   ARES_DATATYPE_LAST          /* not used              - introduced in 1.7.0 */
 } ares_datatype;
 
@@ -65,6 +66,7 @@ struct ares_data {
     struct ares_mx_reply     mx_reply;
     struct ares_naptr_reply  naptr_reply;
     struct ares_soa_reply    soa_reply;
+    struct ares_caa_reply    caa_reply;
   } data;
 };
 

@@ -5,8 +5,7 @@
         'defines': [
           '_DARWIN_USE_64_BIT_INODE=1',
           '_LARGEFILE_SOURCE',
-          '_FILE_OFFSET_BITS=64',
-          '_GNU_SOURCE'
+          '_FILE_OFFSET_BITS=64', '_GNU_SOURCE'
         ]
       }],
       [ 'OS=="aix"', {
@@ -75,6 +74,7 @@
         'src/ares__parse_into_addrinfo.c',
         'src/ares_parse_aaaa_reply.c',
         'src/ares_parse_a_reply.c',
+        'src/ares_parse_caa_reply.c',
         'src/ares_parse_mx_reply.c',
         'src/ares_parse_naptr_reply.c',
         'src/ares_parse_ns_reply.c',
