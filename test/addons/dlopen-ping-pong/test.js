@@ -12,8 +12,16 @@ const bindingPath = require.resolve(`./build/${common.buildType}/binding`);
 console.log('process.dlopen:', bindingPath);
 process.dlopen(module, bindingPath,
                os.constants.dlopen.RTLD_NOW | os.constants.dlopen.RTLD_GLOBAL);
-console.log('module.exports.load:', `${path.dirname(bindingPath)}/ping.so`);
-module.exports.load(`${path.dirname(bindingPath)}/ping.so`);
+
+let pingSOPath = `${path.dirname(bindingPath)}/lib.target/ping.so`;
+
+if (common.isOSX) {
+  pingSOPath = `${path.dirname(bindingPath)}/ping.so`;
+}
+
+console.log('module.exports.load:', pingSOPath);
+module.exports.load(pingSOPath);
+
 assert.strictEqual(module.exports.ping(), 'pong');
 
 // Check that after the addon is loaded with
