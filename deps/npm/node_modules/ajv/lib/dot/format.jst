@@ -24,7 +24,7 @@
    ({{=$format}} && {{=$formatType}} == '{{=$ruleType}}'
                  && !(typeof {{=$format}} == 'function'
                      ? {{? it.async}}
-                        (async{{=$lvl}} ? {{=it.yieldAwait}} {{=$format}}({{=$data}}) : {{=$format}}({{=$data}}))
+                        (async{{=$lvl}} ? await {{=$format}}({{=$data}}) : {{=$format}}({{=$data}}))
                        {{??}}
                         {{=$format}}({{=$data}})
                        {{?}}
@@ -97,7 +97,7 @@
       if (!it.async) throw new Error('async format in sync schema');
       var $formatRef = 'formats' + it.util.getProperty($schema) + '.validate';
     }}
-    if (!({{=it.yieldAwait}} {{=$formatRef}}({{=$data}}))) {
+    if (!(await {{=$formatRef}}({{=$data}}))) {
   {{??}}
     if (!{{# def.checkFormat }}) {
   {{?}}

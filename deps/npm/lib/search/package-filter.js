@@ -7,7 +7,7 @@ function filter (data, include, exclude, opts) {
 }
 
 function getWords (data, opts) {
-  return [ data.name ]
+  return [data.name]
     .concat((opts && opts.description) ? data.description : [])
     .concat((data.maintainers || []).map(function (m) {
       return '=' + m.name

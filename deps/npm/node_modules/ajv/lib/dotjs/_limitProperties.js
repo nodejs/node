@@ -17,6 +17,9 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
   } else {
     $schemaValue = $schema;
   }
+  if (!($isData || typeof $schema == 'number')) {
+    throw new Error($keyword + ' must be number');
+  }
   var $op = $keyword == 'maxProperties' ? '>' : '<';
   out += 'if ( ';
   if ($isData) {
@@ -34,7 +37,7 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
       if ($keyword == 'maxProperties') {
         out += 'more';
       } else {
-        out += 'less';
+        out += 'fewer';
       }
       out += ' than ';
       if ($isData) {
@@ -59,7 +62,8 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
   }
   var __err = out;
   out = $$outStack.pop();
-  if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
+  if (!it.compositeRule && $breakOnError) {
+    /* istanbul ignore if */
     if (it.async) {
       out += ' throw new ValidationError([' + (__err) + ']); ';
     } else {

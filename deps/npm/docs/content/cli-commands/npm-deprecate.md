@@ -32,5 +32,5 @@ format an empty string.
 
 ### See Also
 
-* [npm publish](/cli-commands/npm-publish)
+* [npm publish](/cli-commands/publish)
 * [npm registry](/using-npm/registry)

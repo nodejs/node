@@ -1,16 +1,14 @@
 module.exports = fileCompletion
 
-var mkdir = require('mkdirp')
-var glob = require('glob')
+const mkdir = require('mkdirp')
+const glob = require('glob')
 
 function fileCompletion (root, req, depth, cb) {
   if (typeof cb !== 'function') {
     cb = depth
     depth = Infinity
   }
-  mkdir(root, function (er) {
-    if (er) return cb(er)
-
+  mkdir(root).catch(cb).then(() => {
     // can be either exactly the req, or a descendent
     var pattern = root + '/{' + req + ',' + req + '/**/*}'
     var opts = { mark: true, dot: true, maxDepth: depth }

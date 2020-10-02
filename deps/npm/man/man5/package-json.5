@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "August 2020" "" ""
+.TH "PACKAGE\.JSON" "5" "October 2020" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SS Description
@@ -308,7 +308,11 @@ Conversely, some files are always ignored:
 .IP \(bu 2
 \fB\|\.wafpickle\-N\fP
 .IP \(bu 2
+\fB\|\.*\.swp\fP
+.IP \(bu 2
 \fB\|\.DS_Store\fP
+.IP \(bu 2
+\fB\|\._*\fP
 .IP \(bu 2
 \fBnpm\-debug\.log\fP
 .IP \(bu 2
@@ -318,9 +322,9 @@ Conversely, some files are always ignored:
 .IP \(bu 2
 \fBconfig\.gypi\fP
 .IP \(bu 2
-\fBpackage\-lock\.json\fP (use shrinkwrap instead)
+\fB*\.orig\fP
 .IP \(bu 2
-All files containing a \fB*\fP character (incompatible with Windows)
+\fBpackage\-lock\.json\fP (use shrinkwrap instead)
 
 .RE
 .SS main
@@ -909,8 +913,8 @@ module will run on:
 .fi
 .RE
 .P
-You can also blacklist instead of whitelist operating systems,
-just prepend the blacklisted os with a '!':
+You can also block instead of allowing operating systems,
+just prepend the blocked os with a '!':
 .P
 .RS 2
 .nf
@@ -920,7 +924,7 @@ just prepend the blacklisted os with a '!':
 .P
 The host operating system is determined by \fBprocess\.platform\fP
 .P
-It is allowed to both blacklist, and whitelist, although there isn't any
+It is allowed to both block and allow an item, although there isn't any
 good reason to do this\.
 .SS cpu
 .P
@@ -933,7 +937,7 @@ you can specify which ones\.
 .fi
 .RE
 .P
-Like the \fBos\fP option, you can also blacklist architectures:
+Like the \fBos\fP option, you can also block architectures:
 .P
 .RS 2
 .nf

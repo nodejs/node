@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.6.0 (2020-03-30)
+
+#### :boom: Breaking Change
+* [#156](https://github.com/cli-table/cli-table3/pull/156) Drop support for Node 6 and 8 ([@Turbo87](https://github.com/Turbo87))
+
+#### :bug: Bug Fix
+* [#92](https://github.com/cli-table/cli-table3/pull/92) Emoji Length Calculation Fix ([@acupoftee](https://github.com/acupoftee))
+* [#53](https://github.com/cli-table/cli-table3/pull/53) "Table" union type definition fix ([@macieklad](https://github.com/macieklad))
+
+#### :memo: Documentation
+* [#135](https://github.com/cli-table/cli-table3/pull/135) docs: use https ([@DanielRuf](https://github.com/DanielRuf))
+
+#### :house: Internal
+* [#132](https://github.com/cli-table/cli-table3/pull/132) Update lockfile ([@DanielRuf](https://github.com/DanielRuf))
+* [#134](https://github.com/cli-table/cli-table3/pull/134) Fix ESLint errors ([@DanielRuf](https://github.com/DanielRuf))
+* [#103](https://github.com/cli-table/cli-table3/pull/103) Fix Jest configuration ([@boneskull](https://github.com/boneskull))
+
+#### Committers: 5
+- Christopher Hiller ([@boneskull](https://github.com/boneskull))
+- Daniel Ruf ([@DanielRuf](https://github.com/DanielRuf))
+- Maciej Ładoś ([@macieklad](https://github.com/macieklad))
+- Tee ([@acupoftee](https://github.com/acupoftee))
+- Tobias Bieniek ([@Turbo87](https://github.com/Turbo87))
+
+
 ## v0.5.1 (2018-07-19)
 
 #### :rocket: Enhancement

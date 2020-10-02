@@ -1,0 +1,57 @@
+{
+  "name": "@npmcli/map-workspaces",
+  "version": "1.0.1",
+  "files": [
+    "index.js"
+  ],
+  "engines": {
+    "node": ">=10"
+  },
+  "description": "Retrieves a name:pathname Map for a given workspaces config",
+  "repository": "https://github.com/npm/map-workspaces",
+  "keywords": [
+    "npm",
+    "npmcli",
+    "libnpm",
+    "cli",
+    "workspaces",
+    "map-workspaces"
+  ],
+  "author": "npm Inc. <support@npmjs.com>",
+  "contributors": [
+    {
+      "name": "Ruy Adorno",
+      "url": "https://ruyadorno.com",
+      "twitter": "ruyadorno"
+    }
+  ],
+  "license": "ISC",
+  "scripts": {
+    "lint": "standard",
+    "pretest": "npm run lint",
+    "test": "tap test*.js",
+    "snap": "tap test*.js",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "standard": {
+    "ignore": [
+      "/tap-snapshots/"
+    ]
+  },
+  "devDependencies": {
+    "require-inject": "^1.4.4",
+    "standard": "^14.3.4",
+    "tap": "^14.10.8"
+  },
+  "dependencies": {
+    "@npmcli/name-from-folder": "^1.0.1",
+    "glob": "^7.1.6",
+    "minimatch": "^3.0.4",
+    "read-package-json-fast": "^1.2.1"
+  }
+}

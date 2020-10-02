@@ -20,10 +20,10 @@ function SBCSCodec(codecOptions, iconv) {
         codecOptions.chars = asciiString + codecOptions.chars;
     }
 
-    this.decodeBuf = new Buffer.from(codecOptions.chars, 'ucs2');
+    this.decodeBuf = Buffer.from(codecOptions.chars, 'ucs2');
     
     // Encoding buffer.
-    var encodeBuf = new Buffer.alloc(65536, iconv.defaultCharSingleByte.charCodeAt(0));
+    var encodeBuf = Buffer.alloc(65536, iconv.defaultCharSingleByte.charCodeAt(0));
 
     for (var i = 0; i < codecOptions.chars.length; i++)
         encodeBuf[codecOptions.chars.charCodeAt(i)] = i;

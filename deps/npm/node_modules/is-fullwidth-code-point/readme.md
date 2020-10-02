@@ -13,7 +13,7 @@ $ npm install --save is-fullwidth-code-point
 ## Usage
 
 ```js
-var isFullwidthCodePoint = require('is-fullwidth-code-point');
+const isFullwidthCodePoint = require('is-fullwidth-code-point');
 
 isFullwidthCodePoint('谢'.codePointAt());
 //=> true
@@ -36,4 +36,4 @@ Type: `number`
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

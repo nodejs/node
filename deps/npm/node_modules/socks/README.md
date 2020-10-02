@@ -14,7 +14,7 @@ Fully featured SOCKS proxy client supporting SOCKSv4, SOCKSv4a, and SOCKSv5. Inc
 
 ### Requirements
 
-* Node.js v6.0+  (Please use [v1](https://github.com/JoshGlazebrook/socks/tree/82d83923ad960693d8b774cafe17443ded7ed584) for older versions of Node.js)
+* Node.js v10.0+  (Please use [v1](https://github.com/JoshGlazebrook/socks/tree/82d83923ad960693d8b774cafe17443ded7ed584) for older versions of Node.js)
 
 ### Looking for v1?
 * Docs for v1 are available [here](https://github.com/JoshGlazebrook/socks/tree/82d83923ad960693d8b774cafe17443ded7ed584)

@@ -4,7 +4,6 @@
 // the data could not be faithfully encoded in a simple header.
 // (Also, check header.needPax to see if it needs a pax header.)
 
-const Buffer = require('./buffer.js')
 const types = require('./types.js')
 const pathModule = require('path').posix
 const large = require('./large-numbers.js')

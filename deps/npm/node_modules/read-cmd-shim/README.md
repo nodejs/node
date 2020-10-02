@@ -7,18 +7,18 @@ is pointing at.  This acts as the equivalent of
 ### Usage
 
 ```
-var readCmdShim = require('read-cmd-shim')
+const readCmdShim = require('read-cmd-shim')
 
-readCmdShim('/path/to/shim.cmd', function (er, destination) {
+readCmdShim('/path/to/shim.cmd').then(destination => {
   …
 })
 
-var destination = readCmdShim.sync('/path/to/shim.cmd')
+const destination = readCmdShim.sync('/path/to/shim.cmd')
 ```
 
-### readCmdShim(path, callback)
+### readCmdShim(path) -> Promise
 
-Reads the `cmd-shim` located at `path` and calls back with the _relative_
+Reads the `cmd-shim` located at `path` and resolves with the _relative_
 path that the shim points at. Consider this as roughly the equivalent of
 `fs.readlink`.
 
@@ -30,7 +30,6 @@ include a stack trace from where `readCmdShim` was called.  Plus it can
 return a special `ENOTASHIM` exception, when it can't find a cmd-shim in the
 file referenced by `path`.  This should only happen if you pass in a
 non-command shim.
-
 
 ### readCmdShim.sync(path)
 

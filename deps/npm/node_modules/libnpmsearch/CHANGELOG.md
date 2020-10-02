@@ -1,5 +1,20 @@
 # Change Log
 
+<a name="3.0.0"></a>
+# [3.0.0](https://github.com/npm/libnpmhook/compare/v2.0.2...v3.0.0) (2020-02-26)
+
+### Breaking Changes
+
+* [`45f4db1`](https://github.com/npm/libnpmsearch/commit/45f4db1) fix: remove figgy-pudding ([@claudiahdz](https://github.com/claudiahdz))
+
+### Miscellaneuous
+
+* [`b413aae`](https://github.com/npm/libnpmsearch/commit/b413aae) chore: basic project updates ([@claudiahdz](https://github.com/claudiahdz))
+* [`534983c`](https://github.com/npm/libnpmsearch/commit/534983c) chore: remove pr temmsearch ([@ruyadorno](https://github.com/ruyadorno))
+* [`c503a89`](https://github.com/npm/libnpmsearch/commit/c503a89) chore: cleanup badges + contributing ([@ruyadorno](https://github.com/ruyadorno))
+
+---
+
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 <a name="2.0.2"></a>

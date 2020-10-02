@@ -1,8 +1,10 @@
 'use strict'
 
-var ms = require('mississippi')
-var jsonstream = require('JSONStream')
-var columnify = require('columnify')
+// XXX these output classes should not live in here forever.  it'd be good to
+// split them out, perhaps to libnpmsearch
+
+const Minipass = require('minipass')
+const columnify = require('columnify')
 
 // This module consumes package data in the following format:
 //
@@ -18,29 +20,44 @@ var columnify = require('columnify')
 // The returned stream will format this package data
 // into a byte stream of formatted, displayable output.
 
-module.exports = formatPackageStream
-function formatPackageStream (opts) {
-  opts = opts || {}
-  if (opts.json) {
-    return jsonOutputStream()
-  } else {
-    return textOutputStream(opts)
+module.exports = (opts = {}) =>
+  opts.json ? new JSONOutputStream() : new TextOutputStream(opts)
+
+class JSONOutputStream extends Minipass {
+  constructor () {
+    super()
+    this._didFirst = false
+  }
+
+  write (obj) {
+    if (!this._didFirst) {
+      super.write('[\n')
+      this._didFirst = true
+    } else {
+      super.write('\n,\n')
+    }
+    try {
+      return super.write(JSON.stringify(obj))
+    } catch (er) {
+      return this.emit('error', er)
+    }
+  }
+
+  end () {
+    super.write(this._didFirst ? ']\n' : '\n]\n')
   }
 }
 
-function jsonOutputStream () {
-  return ms.pipeline.obj(
-    ms.through.obj(),
-    jsonstream.stringify('[', ',', ']'),
-    ms.through()
-  )
-}
+class TextOutputStream extends Minipass {
+  constructor (opts) {
+    super()
+    this._opts = opts
+    this._line = 0
+  }
 
-function textOutputStream (opts) {
-  var line = 0
-  return ms.through.obj(function (pkg, enc, cb) {
-    cb(null, prettify(pkg, ++line, opts))
-  })
+  write (pkg) {
+    return super.write(prettify(pkg, ++this._line, this._opts))
+  }
 }
 
 function prettify (data, num, opts) {

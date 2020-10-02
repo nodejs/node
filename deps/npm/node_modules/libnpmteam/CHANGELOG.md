@@ -1,5 +1,17 @@
 # Change Log
 
+## [2.0.0](https://github.com/npm/libnpmteam/compare/v1.0.2...v2.0.0) (2020-03-02)
+
+### BREAKING CHANGE
+- Removed `figgy-pudding` as a dependecy
+- Using native promises
+- Require node >= v10
+
+### Feature
+- Updated stream interface to `minipass` type stream
+
+---
+
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 <a name="1.0.2"></a>

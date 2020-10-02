@@ -1,18 +1,16 @@
 'use strict'
 
-const BB = require('bluebird')
-
 const exec = require('child_process').execFile
 const spawn = require('./spawn')
 const npm = require('../npm.js')
 const which = require('which')
 const git = npm.config.get('git')
-const assert = require('assert')
 const log = require('npmlog')
 const noProgressTillDone = require('./no-progress-while-running.js').tillDone
+const { promisify } = require('util')
 
 exports.spawn = spawnGit
-exports.exec = BB.promisify(execGit)
+exports.exec = promisify(execGit)
 exports.chainableExec = chainableExec
 exports.whichAndExec = whichAndExec
 
@@ -47,7 +45,6 @@ function chainableExec () {
 }
 
 function whichAndExec (args, options, cb) {
-  assert.equal(typeof cb, 'function', 'no callback provided')
   // check for git
   which(git, function (err) {
     if (err) {

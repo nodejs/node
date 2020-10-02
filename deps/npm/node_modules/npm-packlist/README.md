@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.com/npm/npm-packlist.svg?token=hHeDp9pQmz9kvsgRNVHy&branch=master)](https://travis-ci.com/npm/npm-packlist)
 
-Get a list of the files to add from a folder into an npm package
+Get a list of the files to add from a folder into an npm package.
 
 These can be handed to [tar](http://npm.im/tar) like so to make an npm
 package tarball:
@@ -56,6 +56,84 @@ This uses the following rules:
 
     You can explicitly re-include any of these with a `files` list in
     `package.json` or a negated ignore file rule.
+
+Only the `package.json` file in the very root of the project is ever
+inspected for a `files` list.  Below the top level of the root package,
+`package.json` is treated as just another file, and no package-specific
+semantics are applied.
+
+### Interaction between `package.json` and `.npmignore` rules
+
+For simplicity, it is best to use _either_ a `files` list in `package.json`
+_or_ a `.npmignore` file, and not both.  If you only use one of these
+methods, you can skip this documentation section.
+
+The `files` list in `package.json` is used to direct the exploration of the
+tree.  In other words, that's all the walker will ever look at when
+exploring that level.
+
+In some cases this can lead to a `.npmignore` file being ignored.  If a
+_directory_ is listed in `files`, then any rules in a root or nested
+`.npmignore` files will be honored.
+
+For example, with this package.json:
+
+```json
+{
+  "files": [ "dir" ]
+}
+```
+
+a `.npmignore` file at `dir/.npmignore` (and any subsequent
+sub-directories) will be honored.  However, a `.npmignore` at the root
+level will be skipped.
+
+Conversely, with this package.json:
+
+```
+{
+  "files": ["dir/subdir"]
+}
+```
+
+a `.npmignore` file at `dir/.npmignore` will not be honored.
+
+Any specific file matched by a glob or filename in the package.json `files`
+list will be included, and cannot be excluded by any `.npmignore` files in
+nested directories, or by a `.npmignore` file in the root package
+directory, unless that root `.npmignore` file is also in the `files` list.
+
+The previous (v1) implementation used in npm 6 and below treated
+`package.json` as a special sort of "reverse ignore" file.  That is, it was
+parsed and handled as if it was a `.npmignore` file with `!` prepended to
+all of the globs in the `files` list.  In order to include children of a
+directory listed in `files`, they would _also_ have `/**` appended to them.
+
+This is tricky to explain, but is a significant improvement over the
+previous (v1) implementation used in npm 6 and below, with the following
+beneficial properties:
+
+- If you have `{"files":["lib"]}` in `package.json`, then the walker will
+  still ignore files such as `lib/.DS_Store` and `lib/.foo.swp`.  The
+  previous implementation would include these files, as they'd be matched
+  by the computed `!lib/**` ignore rule.
+- If you have `{"files":["lib/a.js","lib/b.js"]}` in `package.json`, and a
+  `lib/.npmignore` containing `a.js`, then the walker will still include
+  the two files indicated in `package.json`, and ignore the
+  `lib/.npmignore` file.  The previous implementation would mark these
+  files for inclusion, but then _exclude_ them when it came to the nested
+  `.npmignore` file.  (Ignore file semantics dictate that a "closer" ignore
+  file always takes precedence.)
+- A file in `lib/pkg-template/package.json` will be included, and its
+  `files` list will not have any bearing on other files being included or
+  skipped.  When treating `package.json` as just Yet Another ignore file,
+  this was not the case, leading to difficulty for modules that aim to
+  initialize a project.
+
+In general, this walk should work as a reasonable developer would expect.
+Matching human expectation is tricky business, and if you find cases where
+it violates those expectations, [please let us
+know](https://github.com/npm/npm-packlist/issues).
 
 ## API
 

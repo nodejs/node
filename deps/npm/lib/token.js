@@ -1,13 +1,10 @@
 'use strict'
 
-const profile = require('libnpm/profile')
+const profile = require('npm-profile')
 const npm = require('./npm.js')
-const figgyPudding = require('figgy-pudding')
-const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const Table = require('cli-table3')
-const Bluebird = require('bluebird')
 const isCidrV4 = require('is-cidr').v4
 const isCidrV6 = require('is-cidr').v6
 const readUserInfo = require('./utils/read-user-info.js')
@@ -19,15 +16,27 @@ module.exports = token
 
 token._validateCIDRList = validateCIDRList
 
-token.usage =
+const usageUtil = require('./utils/usage.js')
+token.usage = usageUtil('token',
   'npm token list\n' +
   'npm token revoke <tokenKey>\n' +
-  'npm token create [--read-only] [--cidr=list]\n'
+  'npm token create [--read-only] [--cidr=list]')
+
+const UsageError = (msg) =>
+  Object.assign(new Error(`\nUsage: ${msg}\n\n` + token.usage), {
+    code: 'EUSAGE'
+  })
+
+const InvalidCIDRError = (msg) =>
+  Object.assign(new Error(msg), { code: 'EINVALIDCIDR' })
 
 token.subcommands = ['list', 'revoke', 'create']
 
 token.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
+  if (argv.length === 2) {
+    return cb(null, token.subcommands)
+  }
 
   switch (argv[2]) {
     case 'list':
@@ -61,7 +70,7 @@ function token (args, cb) {
       withCb(create(args.slice(1)), cb)
       break
     default:
-      cb(new Error('Unknown profile command: ' + args[0]))
+      cb(UsageError(`${args[0]} is not a recognized subcommand.`))
   }
 }
 
@@ -80,44 +89,28 @@ function generateTokenIds (tokens, minLength) {
   return byId
 }
 
-const TokenConfig = figgyPudding({
-  auth: {},
-  registry: {},
-  otp: {},
-  cidr: {},
-  'read-only': {},
-  json: {},
-  parseable: {}
-})
-
 function config () {
-  let conf = TokenConfig(npmConfig())
+  const conf = { ...npm.flatOptions }
   const creds = npm.config.getCredentialsByURI(conf.registry)
   if (creds.token) {
-    conf = conf.concat({
-      auth: { token: creds.token }
-    })
+    conf.auth = { token: creds.token }
   } else if (creds.username) {
-    conf = conf.concat({
-      auth: {
-        basic: {
-          username: creds.username,
-          password: creds.password
-        }
+    conf.auth = {
+      basic: {
+        username: creds.username,
+        password: creds.password
       }
-    })
+    }
   } else if (creds.auth) {
     const auth = Buffer.from(creds.auth, 'base64').toString().split(':', 2)
-    conf = conf.concat({
-      auth: {
-        basic: {
-          username: auth[0],
-          password: auth[1]
-        }
+    conf.auth = {
+      basic: {
+        username: auth[0],
+        password: auth[1]
       }
-    })
+    }
   } else {
-    conf = conf.concat({ auth: {} })
+    conf.auth = {}
   }
   if (conf.otp) conf.auth.otp = conf.otp
   return conf
@@ -164,7 +157,7 @@ function list (args) {
 
 function rm (args) {
   if (args.length === 0) {
-    throw new Error('npm token revoke <tokenKey>')
+    return Promise.reject(UsageError('`<tokenKey>` argument is required.'))
   }
   const conf = config()
   const toRemove = []
@@ -176,20 +169,20 @@ function rm (args) {
       if (matches.length === 1) {
         toRemove.push(matches[0].key)
       } else if (matches.length > 1) {
-        throw new Error(`Token ID "${id}" was ambiguous, a new token may have been created since you last ran \`npm-profile token list\`.`)
+        throw new Error(`Token ID "${id}" was ambiguous, a new token may have been created since you last ran \`npm token list\`.`)
       } else {
         const tokenMatches = tokens.filter((token) => id.indexOf(token.token) === 0)
-        if (tokenMatches === 0) {
+        if (tokenMatches.length === 0) {
           throw new Error(`Unknown token id or value "${id}".`)
         }
         toRemove.push(id)
       }
     })
-    return Bluebird.map(toRemove, (key) => {
+    return Promise.all(toRemove.map(key => {
       return otplease(conf, conf => {
         return profile.removeToken(key, conf)
       })
-    })
+    }))
   })).then(() => {
     if (conf.json) {
       output(JSON.stringify(toRemove))
@@ -204,10 +197,10 @@ function rm (args) {
 function create (args) {
   const conf = config()
   const cidr = conf.cidr
-  const readonly = conf['read-only']
+  const readonly = conf.readOnly
 
-  const validCIDR = validateCIDRList(cidr)
   return readUserInfo.password().then((password) => {
+    const validCIDR = validateCIDRList(cidr)
     log.info('token', 'creating')
     return pulseTillDone.withPromise(otplease(conf, conf => {
       return profile.createToken(password, readonly, validCIDR, conf)
@@ -221,7 +214,7 @@ function create (args) {
       Object.keys(result).forEach((k) => output(k + '\t' + result[k]))
     } else {
       const table = new Table()
-      Object.keys(result).forEach((k) => table.push({[ansistyles.bright(k)]: String(result[k])}))
+      Object.keys(result).forEach((k) => table.push({ [ansistyles.bright(k)]: String(result[k]) }))
       output(table.toString())
     }
   })
@@ -229,10 +222,10 @@ function create (args) {
 
 function validateCIDR (cidr) {
   if (isCidrV6(cidr)) {
-    throw new Error('CIDR whitelist can only contain IPv4 addresses, ' + cidr + ' is IPv6')
+    throw InvalidCIDRError('CIDR whitelist can only contain IPv4 addresses, ' + cidr + ' is IPv6')
   }
   if (!isCidrV4(cidr)) {
-    throw new Error('CIDR whitelist contains invalid CIDR entry: ' + cidr)
+    throw InvalidCIDRError('CIDR whitelist contains invalid CIDR entry: ' + cidr)
   }
 }
 
