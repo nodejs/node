@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          # Needs the whole git history for ncu to work
+          # See https://github.com/nodejs/node-core-utils/pull/486
+          fetch-depth: 0
           # A personal token is required because pushing with GITHUB_TOKEN will
           # prevent commits from running CI after they land on master. It needs
           # to be set here because `checkout` configures GitHub authentication
