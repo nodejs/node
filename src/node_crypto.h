@@ -519,7 +519,9 @@ class NativeKeyObject : public BaseObject {
                   v8::Local<v8::Object> wrap,
                   const std::shared_ptr<KeyObjectData>& handle_data)
     : BaseObject(env, wrap),
-      handle_data_(handle_data) {}
+      handle_data_(handle_data) {
+    MakeWeak();
+  }
 
   std::shared_ptr<KeyObjectData> handle_data_;
 };
