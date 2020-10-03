@@ -135,7 +135,8 @@ int NodeMainInstance::Run() {
         if (more && !env->is_stopping()) continue;
 
         if (!uv_loop_alive(env->event_loop())) {
-          EmitBeforeExit(env.get());
+          if (EmitProcessBeforeExit(env.get()).IsNothing())
+            break;
         }
 
         // Emit `beforeExit` if the loop became alive either after emitting
@@ -148,7 +149,7 @@ int NodeMainInstance::Run() {
 
     env->set_trace_sync_io(false);
     if (!env->is_stopping()) env->VerifyNoStrongBaseObjects();
-    exit_code = EmitExit(env.get());
+    exit_code = EmitProcessExit(env.get()).FromMaybe(1);
   }
 
   ResetStdio();
