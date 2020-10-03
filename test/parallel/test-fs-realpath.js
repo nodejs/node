@@ -298,17 +298,16 @@ function test_deep_symlink_mix(realpath, realpathSync, callback) {
     return callback();
   }
 
-  /*
-  /tmp/node-test-realpath-f1 -> $tmpDir/node-test-realpath-d1/foo
-  /tmp/node-test-realpath-d1 -> $tmpDir/node-test-realpath-d2
-  /tmp/node-test-realpath-d2/foo -> $tmpDir/node-test-realpath-f2
-  /tmp/node-test-realpath-f2
-    -> $tmpDir/targets/nested-index/one/realpath-c
-  $tmpDir/targets/nested-index/one/realpath-c
-    -> $tmpDir/targets/nested-index/two/realpath-c
-  $tmpDir/targets/nested-index/two/realpath-c -> $tmpDir/cycles/root.js
-  $tmpDir/targets/cycles/root.js (hard)
-  */
+  // /tmp/node-test-realpath-f1 -> $tmpDir/node-test-realpath-d1/foo
+  // /tmp/node-test-realpath-d1 -> $tmpDir/node-test-realpath-d2
+  // /tmp/node-test-realpath-d2/foo -> $tmpDir/node-test-realpath-f2
+  // /tmp/node-test-realpath-f2
+  //   -> $tmpDir/targets/nested-index/one/realpath-c
+  // $tmpDir/targets/nested-index/one/realpath-c
+  //   -> $tmpDir/targets/nested-index/two/realpath-c
+  // $tmpDir/targets/nested-index/two/realpath-c -> $tmpDir/cycles/root.js
+  // $tmpDir/targets/cycles/root.js (hard)
+
   const entry = tmp('node-test-realpath-f1');
   try { fs.unlinkSync(tmp('node-test-realpath-d2/foo')); } catch {}
   try { fs.rmdirSync(tmp('node-test-realpath-d2')); } catch {}

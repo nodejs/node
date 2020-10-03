@@ -1,10 +1,8 @@
 'use strict';
 
-/*
- * This test makes sure that `writeFile()` always writes from the current
- * position of the file, instead of truncating the file, when used with file
- * descriptors.
- */
+// This test makes sure that `writeFile()` always writes from the current
+// position of the file, instead of truncating the file, when used with file
+// descriptors.
 
 const common = require('../common');
 const assert = require('assert');

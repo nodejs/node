@@ -194,11 +194,9 @@ const PIPE = (() => {
   return path.join(pipePrefix, pipeName);
 })();
 
-/*
- * Check that when running a test with
- * `$node --abort-on-uncaught-exception $file child`
- * the process aborts.
- */
+// Check that when running a test with
+// `$node --abort-on-uncaught-exception $file child`
+// the process aborts.
 function childShouldThrowAndAbort() {
   let testCmd = '';
   if (!isWindows) {

@@ -1,12 +1,10 @@
 'use strict';
 const common = require('../common');
 
-/*
- * These tests make sure that the `options` object passed to these functions are
- * never altered.
- *
- * Refer: https://github.com/nodejs/node/issues/7655
- */
+// These tests make sure that the `options` object passed to these functions are
+// never altered.
+//
+// Refer: https://github.com/nodejs/node/issues/7655
 
 const assert = require('assert');
 const fs = require('fs');

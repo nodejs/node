@@ -32,29 +32,27 @@ tmpdir.refresh();
 createFileWithPerms(readOnlyFile, 0o444);
 createFileWithPerms(readWriteFile, 0o666);
 
-/*
- * On non-Windows supported platforms, fs.access(readOnlyFile, W_OK, ...)
- * always succeeds if node runs as the super user, which is sometimes the
- * case for tests running on our continuous testing platform agents.
- *
- * In this case, this test tries to change its process user id to a
- * non-superuser user so that the test that checks for write access to a
- * read-only file can be more meaningful.
- *
- * The change of user id is done after creating the fixtures files for the same
- * reason: the test may be run as the superuser within a directory in which
- * only the superuser can create files, and thus it may need superuser
- * privileges to create them.
- *
- * There's not really any point in resetting the process' user id to 0 after
- * changing it to 'nobody', since in the case that the test runs without
- * superuser privilege, it is not possible to change its process user id to
- * superuser.
- *
- * It can prevent the test from removing files created before the change of user
- * id, but that's fine. In this case, it is the responsibility of the
- * continuous integration platform to take care of that.
- */
+// On non-Windows supported platforms, fs.access(readOnlyFile, W_OK, ...)
+// always succeeds if node runs as the super user, which is sometimes the
+// case for tests running on our continuous testing platform agents.
+//
+// In this case, this test tries to change its process user id to a
+// non-superuser user so that the test that checks for write access to a
+// read-only file can be more meaningful.
+//
+// The change of user id is done after creating the fixtures files for the same
+// reason: the test may be run as the superuser within a directory in which
+// only the superuser can create files, and thus it may need superuser
+// privileges to create them.
+//
+// There's not really any point in resetting the process' user id to 0 after
+// changing it to 'nobody', since in the case that the test runs without
+// superuser privilege, it is not possible to change its process user id to
+// superuser.
+//
+// It can prevent the test from removing files created before the change of user
+// id, but that's fine. In this case, it is the responsibility of the
+// continuous integration platform to take care of that.
 let hasWriteAccessForReadonlyFile = false;
 if (!common.isWindows && process.getuid() === 0) {
   hasWriteAccessForReadonlyFile = true;
