@@ -47,15 +47,13 @@ if (isWindows) {
   echo = spawn('echo', ['hello\nnode\nand\nworld\n']);
 }
 
-/*
- * grep and sed hang if the spawn function leaks file descriptors to child
- * processes.
- * This happens when calling pipe(2) and then forgetting to set the
- * FD_CLOEXEC flag on the resulting file descriptors.
- *
- * This test checks child processes exit, meaning they don't hang like
- * explained above.
- */
+// If the spawn function leaks file descriptors to subprocesses, grep and sed
+// hang.
+// This happens when calling pipe(2) and then forgetting to set the
+// FD_CLOEXEC flag on the resulting file descriptors.
+//
+// This test checks child processes exit, meaning they don't hang like
+// explained above.
 
 
 // pipe echo | grep

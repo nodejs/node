@@ -27,11 +27,9 @@ tmpdir.refresh();
 const assert = require('assert');
 const { spawn } = require('child_process');
 
-/*
-  Spawns 'pwd' with given options, then test
-  - whether the exit code equals expectCode,
-  - optionally whether the trimmed stdout result matches expectData
-*/
+// Spawns 'pwd' with given options, then test
+// - whether the exit code equals expectCode,
+// - optionally whether the trimmed stdout result matches expectData
 function testCwd(options, expectCode = 0, expectData) {
   const child = spawn(...common.pwdCommand, options);
 

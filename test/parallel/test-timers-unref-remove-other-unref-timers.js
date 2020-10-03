@@ -1,11 +1,9 @@
 'use strict';
 
-/*
- * This test is a regression test for joyent/node#8897.
- *
- * It tests some private implementation details that should not be
- * considered public interface.
- */
+// Regression test for https://github.com/nodejs/node-v0.x-archive/issues/8897.
+
+// Test some private implementation details that should not be
+// considered public interface.
 const common = require('../common');
 const timers = require('timers');
 

@@ -7,9 +7,7 @@ const url = require('url');
 // When source is false
 assert.strictEqual(url.resolveObject('', 'foo'), 'foo');
 
-/*
- [from, path, expected]
-*/
+// [from, path, expected]
 const relativeTests = [
   ['/foo/bar/baz', 'quux', '/foo/bar/quux'],
   ['/foo/bar/baz', 'quux/asdf', '/foo/bar/quux/asdf'],

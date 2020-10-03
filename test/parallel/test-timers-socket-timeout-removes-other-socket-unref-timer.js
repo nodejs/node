@@ -1,8 +1,6 @@
 'use strict';
 
-/*
- * This test is a regression test for joyent/node#8897.
- */
+// Regression test for https://github.com/nodejs/node-v0.x-archive/issues/8897.
 
 const common = require('../common');
 const net = require('net');
@@ -14,12 +12,10 @@ const server = net.createServer(function onClient(client) {
   clients.push(client);
 
   if (clients.length === 2) {
-    /*
-     * Enroll two timers, and make the one supposed to fire first
-     * unenroll the other one supposed to fire later. This mutates
-     * the list of unref timers when traversing it, and exposes the
-     * original issue in joyent/node#8897.
-     */
+    // Enroll two timers, and make the one supposed to fire first
+    // unenroll the other one supposed to fire later. This mutates
+    // the list of unref timers when traversing it, and exposes the
+    // original issue in joyent/node#8897.
     clients[0].setTimeout(1, () => {
       clients[1].setTimeout(0);
       clients[0].end();

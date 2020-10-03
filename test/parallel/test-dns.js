@@ -207,15 +207,13 @@ assert.deepStrictEqual(dns.getServers(), []);
 }
 
 {
-  /*
-  * Make sure that dns.lookup throws if hints does not represent a valid flag.
-  * (dns.V4MAPPED | dns.ADDRCONFIG | dns.ALL) + 1 is invalid because:
-  * - it's different from dns.V4MAPPED and dns.ADDRCONFIG and dns.ALL.
-  * - it's different from any subset of them bitwise ored.
-  * - it's different from 0.
-  * - it's an odd number different than 1, and thus is invalid, because
-  * flags are either === 1 or even.
-  */
+  // Make sure that dns.lookup throws if hints does not represent a valid flag.
+  // (dns.V4MAPPED | dns.ADDRCONFIG | dns.ALL) + 1 is invalid because:
+  // - it's different from dns.V4MAPPED and dns.ADDRCONFIG and dns.ALL.
+  // - it's different from any subset of them bitwise ored.
+  // - it's different from 0.
+  // - it's an odd number different than 1, and thus is invalid, because
+  // flags are either === 1 or even.
   const hints = (dns.V4MAPPED | dns.ADDRCONFIG | dns.ALL) + 1;
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',

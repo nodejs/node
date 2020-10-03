@@ -5,17 +5,15 @@ const assert = require('assert');
 const domain = require('domain');
 const EventEmitter = require('events');
 
-/*
- * Make sure that the domains stack and the active domain is setup properly when
- * a domain's error handler is called due to an error event being emitted.
- * More specifically, we want to test that:
- * - the active domain in the domain's error handler is *not* that domain, *but*
- *   the active domain is a any direct parent domain at the time the error was
- *   emitted.
- * - the domains stack in the domain's error handler does *not* include that
- *   domain, *but* it includes all parents of that domain when the error was
- *   emitted.
- */
+// Make sure that the domains stack and the active domain is setup properly when
+// a domain's error handler is called due to an error event being emitted.
+// More specifically, we want to test that:
+// - the active domain in the domain's error handler is//not* that domain,//but*
+//   the active domain is a any direct parent domain at the time the error was
+//   emitted.
+// - the domains stack in the domain's error handler does//not* include that
+//   domain, *but* it includes all parents of that domain when the error was
+//   emitted.
 const d1 = domain.create();
 const d2 = domain.create();
 const d3 = domain.create();

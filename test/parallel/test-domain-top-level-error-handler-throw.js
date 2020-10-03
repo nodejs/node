@@ -1,11 +1,9 @@
 'use strict';
 
-/*
- * The goal of this test is to make sure that when a top-level error
- * handler throws an error following the handling of a previous error,
- * the process reports the error message from the error thrown in the
- * top-level error handler, not the one from the previous error.
- */
+// The goal of this test is to make sure that when a top-level error
+// handler throws an error following the handling of a previous error,
+// the process reports the error message from the error thrown in the
+// top-level error handler, not the one from the previous error.
 
 require('../common');
 

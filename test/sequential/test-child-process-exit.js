@@ -48,12 +48,6 @@ assert.ok(!child.stderr);
 
 console.error('gen=%d, pid=%d', gen, process.pid);
 
-/*
-var timer = setTimeout(function() {
-  throw new Error('timeout! gen='+gen);
-}, 1000);
-*/
-
 child.on('exit', function(code) {
   console.error('exit %d from gen %d', code, gen + 1);
 });

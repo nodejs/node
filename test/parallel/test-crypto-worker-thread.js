@@ -4,8 +4,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 // Issue https://github.com/nodejs/node/issues/35263
-/* Description: test for checking keyobject passed to worker thread
- does not crash */
+// Description: Test that passing keyobject to worker thread does not crash.
 const { createSecretKey } = require('crypto');
 
 const { Worker, isMainThread, workerData } = require('worker_threads');

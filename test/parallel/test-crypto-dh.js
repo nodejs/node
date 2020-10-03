@@ -182,9 +182,9 @@ const aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
 const bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
 assert.strictEqual(aSecret, bSecret);
 
-/* Ensure specific generator (buffer) works as expected.
- * The values below (modp2/modp2buf) are for a 1024 bits long prime from
- * RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
+// Ensure specific generator (buffer) works as expected.
+// The values below (modp2/modp2buf) are for a 1024 bits long prime from
+// RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
 const modp2 = crypto.createDiffieHellmanGroup('modp2');
 const modp2buf = Buffer.from([
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc9, 0x0f,

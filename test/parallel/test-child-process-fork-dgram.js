@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-/*
- * The purpose of this test is to make sure that when forking a process,
- * sending a fd representing a UDP socket to the child and sending messages
- * to this endpoint, these messages are distributed to the parent and the
- * child process.
- */
+
+// The purpose of this test is to make sure that when forking a process,
+// sending a fd representing a UDP socket to the child and sending messages
+// to this endpoint, these messages are distributed to the parent and the
+// child process.
+
 
 const common = require('../common');
 if (common.isWindows)
@@ -80,10 +80,8 @@ if (process.argv[2] === 'child') {
     const serverPort = parentServer.address().port;
 
     const timer = setInterval(() => {
-      /*
-       * Both the parent and the child got at least one message,
-       * test passed, clean up everything.
-       */
+      // Both the parent and the child got at least one message,
+      // test passed, clean up everything.
       if (parentGotMessage && childGotMessage) {
         clearInterval(timer);
         client.close();

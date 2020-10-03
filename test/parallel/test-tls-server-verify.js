@@ -265,10 +265,8 @@ function runTest(port, testIndex) {
     rejectUnauthorized: tcase.rejectUnauthorized
   };
 
-  /*
-   * If renegotiating - session might be resumed and openssl won't request
-   * client's certificate (probably because of bug in the openssl)
-   */
+  // If renegotiating - session might be resumed and openssl won't request
+  // client's certificate (probably because of bug in the openssl)
   if (tcase.renegotiate) {
     serverOptions.secureOptions =
         SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;

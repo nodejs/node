@@ -3,10 +3,8 @@
 const common = require('../common');
 const domain = require('domain');
 
-/*
- * Make sure that the domains stack is cleared after a top-level domain
- * error handler exited gracefully.
- */
+// Make sure that the domains stack is cleared after a top-level domain
+// error handler exited gracefully.
 const d = domain.create();
 
 d.on('error', common.mustCall(() => {

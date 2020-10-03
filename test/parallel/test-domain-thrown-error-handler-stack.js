@@ -3,11 +3,9 @@
 const common = require('../common');
 const domain = require('domain');
 
-/*
- * Make sure that when an erorr is thrown from a nested domain, its error
- * handler runs outside of that domain, but within the context of any parent
- * domain.
- */
+// Make sure that when an erorr is thrown from a nested domain, its error
+// handler runs outside of that domain, but within the context of any parent
+// domain.
 
 const d = domain.create();
 const d2 = domain.create();

@@ -14,10 +14,8 @@ const childProcess = require('child_process');
 
 let offset = 0;
 
-/*
- * This test suite checks that inspector port in cluster is incremented
- * for different execArgv combinations
- */
+// This test suite checks that inspector port in cluster is incremented
+// for different execArgv combinations
 
 function testRunnerMain() {
   let defaultPortCase = spawnMaster({

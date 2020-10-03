@@ -28,41 +28,40 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-/* This test verifies padding with leading zeroes for shared
- * secrets that are strictly smaller than the modulus (prime).
- * See:
- *  RFC 4346: https://www.ietf.org/rfc/rfc4346.txt
- *  https://github.com/nodejs/node-v0.x-archive/issues/7906
- *  https://github.com/nodejs/node-v0.x-archive/issues/5239
- *
- * In FIPS mode OPENSSL_DH_FIPS_MIN_MODULUS_BITS = 1024, meaning we need
- * a FIPS-friendly >= 1024 bit prime, we can use MODP 14 from RFC 3526:
- * https://www.ietf.org/rfc/rfc3526.txt
- *
- * We can generate appropriate values with this code:
- *
- * crypto = require('crypto');
- *
- * for (;;) {
- *   var a = crypto.getDiffieHellman('modp14'),
- *   var b = crypto.getDiffieHellman('modp14');
- *
- *   a.generateKeys();
- *   b.generateKeys();
- *
- *   var aSecret = a.computeSecret(b.getPublicKey()).toString('hex');
- *   console.log("A public: " + a.getPublicKey().toString('hex'));
- *   console.log("A private: " + a.getPrivateKey().toString('hex'));
- *   console.log("B public: " + b.getPublicKey().toString('hex'));
- *   console.log("B private: " + b.getPrivateKey().toString('hex'));
- *   console.log("A secret: " + aSecret);
- *   console.log('-------------------------------------------------');
- *   if(aSecret.substring(0,2) === "00") {
- *     console.log("found short key!");
- *     return;
- *   }
- * }
- */
+// This test verifies padding with leading zeroes for shared
+// secrets that are strictly smaller than the modulus (prime).
+// See:
+//  RFC 4346: https://www.ietf.org/rfc/rfc4346.txt
+//  https://github.com/nodejs/node-v0.x-archive/issues/7906
+//  https://github.com/nodejs/node-v0.x-archive/issues/5239
+//
+// In FIPS mode OPENSSL_DH_FIPS_MIN_MODULUS_BITS = 1024, meaning we need
+// a FIPS-friendly >= 1024 bit prime, we can use MODP 14 from RFC 3526:
+// https://www.ietf.org/rfc/rfc3526.txt
+//
+// We can generate appropriate values with this code:
+//
+// crypto = require('crypto');
+//
+// for (;;) {
+//   var a = crypto.getDiffieHellman('modp14'),
+//   var b = crypto.getDiffieHellman('modp14');
+//
+//   a.generateKeys();
+//   b.generateKeys();
+//
+//   var aSecret = a.computeSecret(b.getPublicKey()).toString('hex');
+//   console.log("A public: " + a.getPublicKey().toString('hex'));
+//   console.log("A private: " + a.getPrivateKey().toString('hex'));
+//   console.log("B public: " + b.getPublicKey().toString('hex'));
+//   console.log("B private: " + b.getPrivateKey().toString('hex'));
+//   console.log("A secret: " + aSecret);
+//   console.log('-------------------------------------------------');
+//   if(aSecret.substring(0,2) === "00") {
+//     console.log("found short key!");
+//     return;
+//   }
+// }
 
 const apub =
 '5484455905d3eff34c70980e871f27f05448e66f5a6efbb97cbcba4e927196c2bd9ea272cded91\
