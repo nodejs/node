@@ -194,9 +194,9 @@ class TLSWrap : public AsyncWrap,
   // Waiting for ClearIn() to pass to SSL_write().
   AllocatedBuffer pending_cleartext_input_;
   size_t write_size_ = 0;
-  WriteWrap* current_write_ = nullptr;
+  BaseObjectPtr<AsyncWrap> current_write_;
   bool in_dowrite_ = false;
-  WriteWrap* current_empty_write_ = nullptr;
+  BaseObjectPtr<AsyncWrap> current_empty_write_;
   bool write_callback_scheduled_ = false;
   bool started_ = false;
   bool established_ = false;
