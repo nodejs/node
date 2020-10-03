@@ -103,19 +103,18 @@ TEST(async function test_lookup_ipv6_explicit(done) {
   checkWrap(req);
 });
 
-/* This ends up just being too problematic to test
-TEST(function test_lookup_ipv6_implicit(done) {
-  var req = dns.lookup(addresses.INET6_HOST, function(err, ip, family) {
-    assert.ifError(err);
-    assert.ok(net.isIPv6(ip));
-    assert.strictEqual(family, 6);
+// This ends up just being too problematic to test
+// TEST(function test_lookup_ipv6_implicit(done) {
+//   var req = dns.lookup(addresses.INET6_HOST, function(err, ip, family) {
+//     assert.ifError(err);
+//     assert.ok(net.isIPv6(ip));
+//     assert.strictEqual(family, 6);
 
-    done();
-  });
+//     done();
+//   });
 
-  checkWrap(req);
-});
-*/
+//   checkWrap(req);
+// });
 
 TEST(async function test_lookup_ipv6_explicit_object(done) {
   function validateResult(res) {
@@ -233,15 +232,15 @@ TEST(function test_lookupservice_ip_ipv6(done) {
   checkWrap(req);
 });
 
-/* Disabled because it appears to be not working on linux. */
-/* TEST(function test_lookup_localhost_ipv6(done) {
-  var req = dns.lookup('localhost', 6, function(err, ip, family) {
-    assert.ifError(err);
-    assert.ok(net.isIPv6(ip));
-    assert.strictEqual(family, 6);
-
-    done();
-  });
-
-  checkWrap(req);
-}); */
+// Disabled because it appears to be not working on Linux.
+// TEST(function test_lookup_localhost_ipv6(done) {
+//   var req = dns.lookup('localhost', 6, function(err, ip, family) {
+//     assert.ifError(err);
+//     assert.ok(net.isIPv6(ip));
+//     assert.strictEqual(family, 6);
+//
+//     done();
+//   });
+//
+//   checkWrap(req);
+// });

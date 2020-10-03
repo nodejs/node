@@ -20,13 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-/*
- * The goal of this test is to cover the Workers' implementation of
- * Worker.prototype.destroy. Worker.prototype.destroy is called within
- * the worker's context: once when the worker is still connected to the
- * master, and another time when it's not connected to it, so that we cover
- * both code paths.
- */
+
+// The goal of this test is to cover the Workers' implementation of
+// Worker.prototype.destroy. Worker.prototype.destroy is called within
+// the worker's context: once when the worker is still connected to the
+// master, and another time when it's not connected to it, so that we cover
+// both code paths.
 
 const common = require('../common');
 const assert = require('assert');

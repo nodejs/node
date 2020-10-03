@@ -1,15 +1,13 @@
 'use strict';
 
-/*
- * This is a regression test for https://github.com/nodejs/node/issues/7722.
- *
- * When nested timers have the same timeout, calling clearTimeout on the
- * older timer after it has fired causes the list the newer timer is in
- * to be deleted. Since the newer timer was not cleared, it still blocks
- * the event loop completing for the duration of its timeout, however, since
- * no reference exists to it in its list, it cannot be canceled and its
- * callback is not called when the timeout elapses.
- */
+// This is a regression test for https://github.com/nodejs/node/issues/7722.
+//
+// When nested timers have the same timeout, calling clearTimeout on the
+// older timer after it has fired causes the list the newer timer is in
+// to be deleted. Since the newer timer was not cleared, it still blocks
+// the event loop completing for the duration of its timeout, however, since
+// no reference exists to it in its list, it cannot be canceled and its
+// callback is not called when the timeout elapses.
 
 const common = require('../common');
 

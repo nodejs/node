@@ -7,11 +7,8 @@ require('../common');
 const assert = require('assert');
 const parse = require('querystring').parse;
 
-/*
-taken from express-js/body-parser
-https://github.com/expressjs/body-parser/
-blob/ed25264fb494cf0c8bc992b8257092cd4f694d5e/test/urlencoded.js#L636-L651
-*/
+// Taken from express-js/body-parser
+// https://github.com/expressjs/body-parser/blob/ed25264fb494cf0c8bc992b8257092cd4f694d5e/test/urlencoded.js#L636-L651
 function createManyParams(count) {
   let str = '';
 

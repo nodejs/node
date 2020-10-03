@@ -31,28 +31,28 @@ assert.strictEqual(makeCallback(this,
 
 // TODO(node-api): napi_make_callback needs to support
 // strings passed for the func argument
-/*
-const recv = {
-  one: common.mustCall(function() {
-    assert.strictEqual(0, arguments.length);
-    assert.strictEqual(this, recv);
-    return 42;
-  }),
-  two: common.mustCall(function(x) {
-    assert.strictEqual(1, arguments.length);
-    assert.strictEqual(this, recv);
-    assert.strictEqual(x, 1337);
-    return 42;
-  }),
-};
+//
+// const recv = {
+//   one: common.mustCall(function() {
+//     assert.strictEqual(0, arguments.length);
+//     assert.strictEqual(this, recv);
+//     return 42;
+//   }),
+//   two: common.mustCall(function(x) {
+//     assert.strictEqual(1, arguments.length);
+//     assert.strictEqual(this, recv);
+//     assert.strictEqual(x, 1337);
+//     return 42;
+//   }),
+// };
+//
+// assert.strictEqual(makeCallback(recv, 'one'), 42);
+// assert.strictEqual(makeCallback(recv, 'two', 1337), 42);
+//
+// // Check that callbacks on a receiver from a different context works.
+// const foreignObject = vm.runInNewContext('({ fortytwo() { return 42; } })');
+// assert.strictEqual(makeCallback(foreignObject, 'fortytwo'), 42);
 
-assert.strictEqual(makeCallback(recv, 'one'), 42);
-assert.strictEqual(makeCallback(recv, 'two', 1337), 42);
-
-// Check that callbacks on a receiver from a different context works.
-const foreignObject = vm.runInNewContext('({ fortytwo() { return 42; } })');
-assert.strictEqual(makeCallback(foreignObject, 'fortytwo'), 42);
-*/
 
 // Check that the callback is made in the context of the receiver.
 const target = vm.runInNewContext(`

@@ -3,13 +3,11 @@
 require('../common');
 const assert = require('assert');
 
-/*
- * We need to check the following things:
- *  - We are correctly resolving big endian (doesn't mean anything for 8 bit)
- *  - Correctly resolving little endian (doesn't mean anything for 8 bit)
- *  - Correctly using the offsets
- *  - Correctly interpreting values that are beyond the signed range as unsigned
- */
+// We need to check the following things:
+//  - We are correctly resolving big endian (doesn't mean anything for 8 bit)
+//  - Correctly resolving little endian (doesn't mean anything for 8 bit)
+//  - Correctly using the offsets
+//  - Correctly interpreting values that are beyond the signed range as unsigned
 
 { // OOB
   const data = Buffer.alloc(8);

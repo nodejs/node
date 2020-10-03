@@ -20,10 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-/*
- * Repeated requests for a domain that fails to resolve
- * should trigger the error event after each attempt.
- */
+
+// Repeated requests for a domain that fails to resolve
+// should trigger the error event after each attempt.
 
 const common = require('../common');
 const assert = require('assert');
