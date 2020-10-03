@@ -483,6 +483,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "exit code 1 unless 'unhandledRejection' hook is set).",
             &EnvironmentOptions::unhandled_rejections,
             kAllowedInEnvironment);
+  AddOption("--verify-base-objects",
+            "", /* undocumented, only for debugging */
+            &EnvironmentOptions::verify_base_objects,
+            kAllowedInEnvironment);
 
   AddOption("--check",
             "syntax check script without executing",

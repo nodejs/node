@@ -147,6 +147,7 @@ int NodeMainInstance::Run() {
     }
 
     env->set_trace_sync_io(false);
+    if (!env->is_stopping()) env->VerifyNoStrongBaseObjects();
     exit_code = EmitExit(env.get());
   }
 
