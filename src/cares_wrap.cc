@@ -49,6 +49,10 @@
 # include <arpa/nameser.h>
 #endif
 
+#ifndef T_CAA
+#  define T_CAA    257 /* Certification Authority Authorization */
+#endif
+
 #if defined(__OpenBSD__)
 # define AI_V4MAPPED 0
 #endif
@@ -1489,7 +1493,7 @@ class QueryCaaWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    AresQuery(name, ns_c_in, ns_t_caa);
+    AresQuery(name, ns_c_in, T_CAA);
     return 0;
   }
 
