@@ -85,6 +85,7 @@ class HandleWrap : public AsyncWrap {
              AsyncWrap::ProviderType provider);
   virtual void OnClose() {}
   void OnGCCollect() final;
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override;
 
   void MarkAsInitialized();
   void MarkAsUninitialized();

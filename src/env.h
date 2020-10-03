@@ -833,6 +833,7 @@ class Environment : public MemoryRetainer {
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   void CreateProperties();
+  void VerifyNoStrongBaseObjects();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
 #if HAVE_INSPECTOR

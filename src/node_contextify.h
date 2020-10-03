@@ -174,6 +174,8 @@ class CompiledFnEntry final : public BaseObject {
                   v8::Local<v8::ScriptOrModule> script);
   ~CompiledFnEntry();
 
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override { return true; }
+
  private:
   uint32_t id_;
   v8::Global<v8::ScriptOrModule> script_;
