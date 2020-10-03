@@ -14,6 +14,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::NewStringType;
 using v8::None;
 using v8::Object;
 using v8::PropertyCallbackInfo;
@@ -27,8 +28,11 @@ Local<Set> ToJsSet(Local<Context> context, const std::set<std::string>& in) {
   Isolate* isolate = context->GetIsolate();
   Local<Set> out = Set::New(isolate);
   for (auto const& x : in) {
-    out->Add(context, OneByteString(isolate, x.c_str(), x.size()))
+    NewStringType type = NewStringType::kNormal;
+    Local<String> string =
+        String::NewFromUtf8(isolate, x.c_str(), type, x.size())
         .ToLocalChecked();
+    out->Add(context, string).ToLocalChecked();
   }
   return out;
 }

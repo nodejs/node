@@ -17,6 +17,7 @@ using v8::Local;
 using v8::ScriptCompiler;
 
 static std::string GetDefName(const std::string& id) {
+  if (id == "🦕") return "deno";
   char buf[64] = {0};
   size_t size = id.size();
   CHECK_LT(size, sizeof(buf));

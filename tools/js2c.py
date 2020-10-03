@@ -117,6 +117,7 @@ def AddModule(filename, definitions, initializers):
   name = NormalizeFileName(filename)
   slug = SLUGGER_RE.sub('_', name)
   var = slug + '_raw'
+  if name == '🦕': var = 'deno_raw'
   definition, size = GetDefinition(var, code)
   initializer = INITIALIZER.format(name, var, size)
   definitions.append(definition)
