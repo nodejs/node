@@ -3,7 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-  const path = require('path');
+const path = require('path');
 const exec = require('child_process').exec;
 const assert = require('assert');
 const fs = require('fs');
