@@ -110,12 +110,14 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
         more = uv_loop_alive(&loop);
         if (more) continue;
 
-        node::EmitBeforeExit(env.get());
+        if (node::EmitProcessBeforeExit(env.get()).IsNothing())
+          break;
+
         more = uv_loop_alive(&loop);
       } while (more == true);
     }
 
-    exit_code = node::EmitExit(env.get());
+    exit_code = node::EmitProcessExit(env.get()).FromMaybe(1);
 
     node::Stop(env.get());
   }

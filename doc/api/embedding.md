@@ -181,9 +181,10 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
         more = uv_loop_alive(&loop);
         if (more) continue;
 
-        // node::EmitBeforeExit() is used to emit the 'beforeExit' event on
-        // the `process` object.
-        node::EmitBeforeExit(env.get());
+        // node::EmitProcessBeforeExit() is used to emit the 'beforeExit' event
+        // on the `process` object.
+        if (node::EmitProcessBeforeExit(env.get()).IsNothing())
+          break;
 
         // 'beforeExit' can also schedule new work that keeps the event loop
         // running.
@@ -191,8 +192,8 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       } while (more == true);
     }
 
-    // node::EmitExit() returns the current exit code.
-    exit_code = node::EmitExit(env.get());
+    // node::EmitProcessExit() returns the current exit code.
+    exit_code = node::EmitProcessExit(env.get()).FromMaybe(1);
 
     // node::Stop() can be used to explicitly stop the event loop and keep
     // further JavaScript from running. It can be called from any thread,
