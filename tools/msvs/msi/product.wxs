@@ -83,6 +83,15 @@
       </Feature>
     </Feature>
 
+    <Feature Id="corepack"
+             Level="1"
+             Title="!(loc.corepack_Title)"
+             Description="!(loc.corepack_Description)">
+      <ComponentRef Id="CorepackCmdScript"/>
+      <ComponentRef Id="CorepackBashScript"/>
+      <ComponentGroupRef Id="CorepackSourceFiles"/>
+    </Feature>
+
     <Feature Id="npm"
              Level="1"
              Title="!(loc.npm_Title)"
@@ -205,6 +214,14 @@
     </DirectoryRef>
 
     <DirectoryRef Id="INSTALLDIR">
+      <Component Id="CorepackCmdScript">
+        <File Id="corepack.cmd" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\corepack.cmd"/>
+      </Component>
+
+      <Component Id="CorepackBashScript">
+        <File Id="corepack.sh" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\corepack"/>
+      </Component>
+
       <Component Id="NpmCmdScript">
         <File Id="npm.cmd" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm.cmd"/>
       </Component>
