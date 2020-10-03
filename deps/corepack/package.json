@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "bin": {
     "corepack": "./dist/corepack.js",
     "pnpm": "./dist/pnpm.js",
@@ -8,11 +8,12 @@
     "yarn": "./dist/yarn.js",
     "yarnpkg": "./dist/yarnpkg.js"
   },
-  "packageManager": "yarn@^2.0.0-rc.29",
+  "packageManager": "yarn@2.0.0-rc.29",
   "devDependencies": {
     "@babel/core": "^7.11.0",
     "@babel/plugin-proposal-class-properties": "^7.10.4",
     "@babel/plugin-proposal-decorators": "^7.10.5",
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.10.4",
     "@babel/plugin-transform-modules-commonjs": "^7.8.3",
     "@babel/preset-typescript": "^7.10.4",
     "@types/debug": "^4.1.5",
@@ -20,17 +21,18 @@
     "@types/node": "^13.9.2",
     "@types/semver": "^7.1.0",
     "@types/tar": "^4.0.3",
+    "@types/which": "^1.3.2",
     "@typescript-eslint/eslint-plugin": "^2.0.0",
     "@typescript-eslint/parser": "^4.2.0",
     "@yarnpkg/eslint-config": "^0.1.0",
     "@yarnpkg/fslib": "^2.1.0",
     "@zkochan/cmd-shim": "^5.0.0",
-    "clipanion": "^2.4.4",
+    "clipanion": "^2.6.2",
     "debug": "^4.1.1",
-    "enquirer": "^2.3.6",
     "eslint": "^7.10.0",
     "eslint-plugin-arca": "^0.9.5",
     "jest": "^25.1.0",
+    "nock": "^13.0.4",
     "semver": "^7.1.3",
     "supports-color": "^7.1.0",
     "tar": "^6.0.1",
@@ -39,13 +41,15 @@
     "ts-node": "^8.10.2",
     "typescript": "^3.9.7",
     "webpack": "next",
-    "webpack-cli": "^3.3.11"
+    "webpack-cli": "^3.3.11",
+    "which": "^2.0.2"
   },
   "scripts": {
-    "build": "rm -rf dist && yarn webpack && yarn ts-node ./mkshims.ts",
+    "build": "rm -rf dist && webpack && ts-node ./mkshims.ts",
     "corepack": "ts-node ./sources/main.ts",
-    "prepack": "yarn build",
-    "postpack": "rm -rf dist shims"
+    "prepack": "node ./.yarn/releases/*.*js build",
+    "postpack": "rm -rf dist shims",
+    "test": "yarn jest"
   },
   "files": [
     "dist",
