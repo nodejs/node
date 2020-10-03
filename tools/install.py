@@ -113,10 +113,11 @@ def npm_files(action):
 def corepack_files(action):
   package_files(action, 'corepack', {
     'corepack': 'dist/corepack.js',
-    'yarn': 'dist/yarn.js',
-    'yarnpkg': 'dist/yarn.js',
-    'pnpm': 'dist/pnpm.js',
-    'pnpx': 'dist/pnpx.js',
+#   Not the default just yet:
+#   'yarn': 'dist/yarn.js',
+#   'yarnpkg': 'dist/yarn.js',
+#   'pnpm': 'dist/pnpm.js',
+#   'pnpx': 'dist/pnpx.js',
   })
 
 def subdir_files(path, dest, action):
