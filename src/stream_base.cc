@@ -621,12 +621,16 @@ StreamResource::~StreamResource() {
 
 ShutdownWrap* StreamBase::CreateShutdownWrap(
     Local<Object> object) {
-  return new SimpleShutdownWrap<AsyncWrap>(this, object);
+  auto* wrap = new SimpleShutdownWrap<AsyncWrap>(this, object);
+  wrap->MakeWeak();
+  return wrap;
 }
 
 WriteWrap* StreamBase::CreateWriteWrap(
     Local<Object> object) {
-  return new SimpleWriteWrap<AsyncWrap>(this, object);
+  auto* wrap = new SimpleWriteWrap<AsyncWrap>(this, object);
+  wrap->MakeWeak();
+  return wrap;
 }
 
 }  // namespace node

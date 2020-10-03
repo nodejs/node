@@ -144,12 +144,12 @@ using Http2Headers = NgHeaders<Http2HeadersTraits>;
 using Http2RcBufferPointer = NgRcBufPointer<Http2RcBufferPointerTraits>;
 
 struct NgHttp2StreamWrite : public MemoryRetainer {
-  WriteWrap* req_wrap = nullptr;
+  BaseObjectPtr<AsyncWrap> req_wrap;
   uv_buf_t buf;
 
   inline explicit NgHttp2StreamWrite(uv_buf_t buf_) : buf(buf_) {}
-  inline NgHttp2StreamWrite(WriteWrap* req, uv_buf_t buf_) :
-      req_wrap(req), buf(buf_) {}
+  inline NgHttp2StreamWrite(BaseObjectPtr<AsyncWrap> req_wrap, uv_buf_t buf_) :
+      req_wrap(std::move(req_wrap)), buf(buf_) {}
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(NgHttp2StreamWrite)
