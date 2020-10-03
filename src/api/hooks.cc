@@ -9,8 +9,11 @@ using v8::Context;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
 using v8::NewStringType;
+using v8::Nothing;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -30,6 +33,10 @@ void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
 }
 
 void EmitBeforeExit(Environment* env) {
+  USE(EmitProcessBeforeExit(env));
+}
+
+Maybe<bool> EmitProcessBeforeExit(Environment* env) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "BeforeExit", env);
   if (!env->destroy_async_id_list()->empty())
@@ -40,39 +47,49 @@ void EmitBeforeExit(Environment* env) {
 
   Local<Value> exit_code_v;
   if (!env->process_object()->Get(env->context(), env->exit_code_string())
-      .ToLocal(&exit_code_v)) return;
+      .ToLocal(&exit_code_v)) return Nothing<bool>();
 
   Local<Integer> exit_code;
-  if (!exit_code_v->ToInteger(env->context()).ToLocal(&exit_code)) return;
+  if (!exit_code_v->ToInteger(env->context()).ToLocal(&exit_code)) {
+    return Nothing<bool>();
+  }
 
-  // TODO(addaleax): Provide variants of EmitExit() and EmitBeforeExit() that
-  // actually forward empty MaybeLocal<>s (and check env->can_call_into_js()).
-  USE(ProcessEmit(env, "beforeExit", exit_code));
+  return ProcessEmit(env, "beforeExit", exit_code).IsEmpty() ?
+      Nothing<bool>() : Just(true);
 }
 
 int EmitExit(Environment* env) {
+  return EmitProcessExit(env).FromMaybe(1);
+}
+
+Maybe<int> EmitProcessExit(Environment* env) {
   // process.emit('exit')
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Object> process_object = env->process_object();
-  process_object
+
+  // TODO(addaleax): It might be nice to share process._exiting and
+  // process.exitCode via getter/setter pairs that pass data directly to the
+  // native side, so that we don't manually have to read and write JS properties
+  // here. These getters could use e.g. a typed array for performance.
+  if (process_object
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "_exiting"),
-            True(env->isolate()))
-      .Check();
+            True(env->isolate())).IsNothing()) return Nothing<int>();
 
   Local<String> exit_code = env->exit_code_string();
-  int code = process_object->Get(env->context(), exit_code)
-                 .ToLocalChecked()
-                 ->Int32Value(env->context())
-                 .ToChecked();
-  ProcessEmit(env, "exit", Integer::New(env->isolate(), code));
+  Local<Value> code_v;
+  int code;
+  if (!process_object->Get(env->context(), exit_code).ToLocal(&code_v) ||
+      !code_v->Int32Value(env->context()).To(&code) ||
+      ProcessEmit(env, "exit", Integer::New(env->isolate(), code)).IsEmpty() ||
+      // Reload exit code, it may be changed by `emit('exit')`
+      !process_object->Get(env->context(), exit_code).ToLocal(&code_v) ||
+      !code_v->Int32Value(env->context()).To(&code)) {
+    return Nothing<int>();
+  }
 
-  // Reload exit code, it may be changed by `emit('exit')`
-  return process_object->Get(env->context(), exit_code)
-      .ToLocalChecked()
-      ->Int32Value(env->context())
-      .ToChecked();
+  return Just(code);
 }
 
 typedef void (*CleanupHook)(void* arg);
