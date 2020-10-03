@@ -77,6 +77,11 @@ class ShutdownWrap : public StreamReq {
       StreamBase* stream,
       v8::Local<v8::Object> req_wrap_obj);
 
+  static inline ShutdownWrap* FromObject(v8::Local<v8::Object> req_wrap_obj);
+  template <typename T, bool kIsWeak>
+  static inline ShutdownWrap* FromObject(
+      const BaseObjectPtrImpl<T, kIsWeak>& base_obj);
+
   // Call stream()->EmitAfterShutdown() and dispose of this request wrap.
   void OnDone(int status) override;
 };
@@ -88,6 +93,11 @@ class WriteWrap : public StreamReq {
   inline WriteWrap(
       StreamBase* stream,
       v8::Local<v8::Object> req_wrap_obj);
+
+  static inline WriteWrap* FromObject(v8::Local<v8::Object> req_wrap_obj);
+  template <typename T, bool kIsWeak>
+  static inline WriteWrap* FromObject(
+      const BaseObjectPtrImpl<T, kIsWeak>& base_obj);
 
   // Call stream()->EmitAfterWrite() and dispose of this request wrap.
   void OnDone(int status) override;

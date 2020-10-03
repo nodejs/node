@@ -243,6 +243,28 @@ StreamBase* StreamBase::FromObject(v8::Local<v8::Object> obj) {
           StreamBase::kStreamBaseField));
 }
 
+WriteWrap* WriteWrap::FromObject(v8::Local<v8::Object> req_wrap_obj) {
+  return static_cast<WriteWrap*>(StreamReq::FromObject(req_wrap_obj));
+}
+
+template <typename T, bool kIsWeak>
+WriteWrap* WriteWrap::FromObject(
+    const BaseObjectPtrImpl<T, kIsWeak>& base_obj) {
+  if (!base_obj) return nullptr;
+  return FromObject(base_obj->object());
+}
+
+ShutdownWrap* ShutdownWrap::FromObject(v8::Local<v8::Object> req_wrap_obj) {
+  return static_cast<ShutdownWrap*>(StreamReq::FromObject(req_wrap_obj));
+}
+
+template <typename T, bool kIsWeak>
+ShutdownWrap* ShutdownWrap::FromObject(
+    const BaseObjectPtrImpl<T, kIsWeak>& base_obj) {
+  if (!base_obj) return nullptr;
+  return FromObject(base_obj->object());
+}
+
 void WriteWrap::SetAllocatedStorage(AllocatedBuffer&& storage) {
   CHECK_NULL(storage_.data());
   storage_ = std::move(storage);
