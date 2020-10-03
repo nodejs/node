@@ -168,6 +168,7 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
       }
 
       env->set_trace_sync_io(false);
+      if (!env->is_stopping()) env->VerifyNoStrongBaseObjects();
       exit_code = EmitExit(env.get());
     }
 

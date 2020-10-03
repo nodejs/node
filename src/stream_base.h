@@ -412,6 +412,10 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(SimpleShutdownWrap)
   SET_SELF_SIZE(SimpleShutdownWrap)
+
+  bool IsAllowedStrongObjectAtExit() const override {
+    return OtherBase::IsAllowedStrongObjectAtExit();
+  }
 };
 
 template <typename OtherBase>
@@ -425,6 +429,10 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(SimpleWriteWrap)
   SET_SELF_SIZE(SimpleWriteWrap)
+
+  bool IsAllowedStrongObjectAtExit() const override {
+    return OtherBase::IsAllowedStrongObjectAtExit();
+  }
 };
 
 }  // namespace node
