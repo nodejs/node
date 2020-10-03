@@ -50,6 +50,7 @@ class Worker : public AsyncWrap {
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Worker)
   SET_SELF_SIZE(Worker)
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override;
 
   bool is_stopped() const;
 

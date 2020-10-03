@@ -88,6 +88,7 @@ assert(undocumented.delete('--experimental-report'));
 assert(undocumented.delete('--experimental-worker'));
 assert(undocumented.delete('--no-node-snapshot'));
 assert(undocumented.delete('--loader'));
+assert(undocumented.delete('--verify-base-objects'));
 
 assert.strictEqual(undocumented.size, 0,
                    'The following options are not documented as allowed in ' +

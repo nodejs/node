@@ -156,6 +156,10 @@ class JSBindingsConnection : public AsyncWrap {
   SET_MEMORY_INFO_NAME(JSBindingsConnection)
   SET_SELF_SIZE(JSBindingsConnection)
 
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    return true;  // Binding connections emit events on their own.
+  }
+
  private:
   std::unique_ptr<InspectorSession> session_;
   Global<Function> callback_;
