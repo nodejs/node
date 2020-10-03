@@ -45,7 +45,9 @@ void EmitBeforeExit(Environment* env) {
   Local<Integer> exit_code;
   if (!exit_code_v->ToInteger(env->context()).ToLocal(&exit_code)) return;
 
-  ProcessEmit(env, "beforeExit", exit_code).ToLocalChecked();
+  // TODO(addaleax): Provide variants of EmitExit() and EmitBeforeExit() that
+  // actually forward empty MaybeLocal<>s (and check env->can_call_into_js()).
+  USE(ProcessEmit(env, "beforeExit", exit_code));
 }
 
 int EmitExit(Environment* env) {
