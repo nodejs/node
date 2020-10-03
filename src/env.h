@@ -934,9 +934,8 @@ class Environment : public MemoryRetainer {
   void CreateProperties();
   void DeserializeProperties(const EnvSerializeInfo* info);
 
-  typedef void (*BaseObjectIterator)(size_t, BaseObject*);
-  void ForEachBaseObject(BaseObjectIterator iterator);
   void PrintAllBaseObjects();
+  void VerifyNoStrongBaseObjects();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
 #if HAVE_INSPECTOR

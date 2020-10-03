@@ -362,8 +362,10 @@ void Worker::Run() {
     {
       int exit_code;
       bool stopped = is_stopped();
-      if (!stopped)
+      if (!stopped) {
+        env_->VerifyNoStrongBaseObjects();
         exit_code = EmitExit(env_.get());
+      }
       Mutex::ScopedLock lock(mutex_);
       if (exit_code_ == 0 && !stopped)
         exit_code_ = exit_code;
@@ -712,6 +714,12 @@ void Worker::Exit(int code, const char* error_code, const char* error_message) {
 
 void Worker::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("parent_port", parent_port_);
+}
+
+bool Worker::IsNotIndicativeOfMemoryLeakAtExit() const {
+  // Worker objects always stay alive as long as the child thread, regardless
+  // of whether they are being referenced in the parent thread.
+  return true;
 }
 
 class WorkerHeapSnapshotTaker : public AsyncWrap {

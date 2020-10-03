@@ -1194,22 +1194,43 @@ void Environment::RemoveUnmanagedFd(int fd) {
   }
 }
 
-void Environment::ForEachBaseObject(BaseObjectIterator iterator) {
-  size_t i = 0;
-  for (const auto& hook : cleanup_hooks_) {
-    BaseObject* obj = hook.GetBaseObject();
-    if (obj != nullptr) iterator(i, obj);
-    i++;
-  }
-}
-
-void PrintBaseObject(size_t i, BaseObject* obj) {
-  std::cout << "#" << i << " " << obj << ": " << obj->MemoryInfoName() << "\n";
-}
-
 void Environment::PrintAllBaseObjects() {
+  size_t i = 0;
   std::cout << "BaseObjects\n";
-  ForEachBaseObject(PrintBaseObject);
+  ForEachBaseObject([&](BaseObject* obj) {
+    std::cout << "#" << i++ << " " << obj << ": " <<
+      obj->MemoryInfoName() << "\n";
+  });
+}
+
+void Environment::VerifyNoStrongBaseObjects() {
+  // When a process exits cleanly, i.e. because the event loop ends up without
+  // things to wait for, the Node.js objects that are left on the heap should
+  // be:
+  //
+  //   1. weak, i.e. ready for garbage collection once no longer referenced, or
+  //   2. detached, i.e. scheduled for destruction once no longer referenced, or
+  //   3. an unrefed libuv handle, i.e. does not keep the event loop alive, or
+  //   4. an inactive libuv handle (essentially the same here)
+  //
+  // There are a few exceptions to this rule, but generally, if there are
+  // C++-backed Node.js objects on the heap that do not fall into the above
+  // categories, we may be looking at a potential memory leak. Most likely,
+  // the cause is a missing MakeWeak() call on the corresponding object.
+  //
+  // In order to avoid this kind of problem, we check the list of BaseObjects
+  // for these criteria. Currently, we only do so when explicitly instructed to
+  // or when in debug mode (where --verify-base-objects is always-on).
+
+  if (!options()->verify_base_objects) return;
+
+  ForEachBaseObject([this](BaseObject* obj) {
+    if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
+    fprintf(stderr, "Found bad BaseObject during clean exit: %s\n",
+            obj->MemoryInfoName().c_str());
+    fflush(stderr);
+    ABORT();
+  });
 }
 
 EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
@@ -1471,6 +1492,10 @@ Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
     env->set_base_object_ctor_template(tmpl);
   }
   return tmpl;
+}
+
+bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {
+  return IsWeakOrDetached();
 }
 
 }  // namespace node

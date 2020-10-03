@@ -78,6 +78,11 @@ class BaseObject : public MemoryRetainer {
   // root and will not be touched by the garbage collector.
   inline void ClearWeak();
 
+  // Reports whether this BaseObject is using a weak reference or detached,
+  // i.e. whether is can be deleted by GC once no strong BaseObjectPtrs refer
+  // to it anymore.
+  inline bool IsWeakOrDetached() const;
+
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
@@ -146,6 +151,10 @@ class BaseObject : public MemoryRetainer {
       NestedTransferables() const;
   virtual v8::Maybe<bool> FinalizeTransferRead(
       v8::Local<v8::Context> context, v8::ValueDeserializer* deserializer);
+
+  // Indicates whether this object is expected to use a strong reference during
+  // a clean process exit (due to an empty event loop).
+  virtual bool IsNotIndicativeOfMemoryLeakAtExit() const;
 
   virtual inline void OnGCCollect();
 

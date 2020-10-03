@@ -475,6 +475,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "an error), 'warn' (enforce warnings) or 'none' (silence warnings)",
             &EnvironmentOptions::unhandled_rejections,
             kAllowedInEnvironment);
+  AddOption("--verify-base-objects",
+            "", /* undocumented, only for debugging */
+            &EnvironmentOptions::verify_base_objects,
+            kAllowedInEnvironment);
 
   AddOption("--check",
             "syntax check script without executing",

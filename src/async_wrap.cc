@@ -99,6 +99,12 @@ struct AsyncWrapObject : public AsyncWrap {
     return tmpl;
   }
 
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    // We can't really know what the underlying operation does. One of the
+    // signs that it's time to remove this class. :)
+    return true;
+  }
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(AsyncWrapObject)
   SET_SELF_SIZE(AsyncWrapObject)

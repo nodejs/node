@@ -880,6 +880,15 @@ class Parser : public AsyncWrap, public StreamListener {
     return HPE_PAUSED;
   }
 
+
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    // HTTP parsers are able to emit events without any GC root referring
+    // to them, because they receive events directly from the underlying
+    // libuv resource.
+    return true;
+  }
+
+
   llhttp_t parser_;
   StringPtr fields_[kMaxHeaderFieldsCount];  // header fields
   StringPtr values_[kMaxHeaderFieldsCount];  // header values
