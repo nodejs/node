@@ -348,7 +348,8 @@ void Worker::Run() {
           more = uv_loop_alive(&data.loop_);
           if (more && !is_stopped()) continue;
 
-          EmitBeforeExit(env_.get());
+          if (EmitProcessBeforeExit(env_.get()).IsNothing())
+            break;
 
           // Emit `beforeExit` if the loop became alive either after emitting
           // event, or after running some callbacks.
@@ -364,7 +365,7 @@ void Worker::Run() {
       bool stopped = is_stopped();
       if (!stopped) {
         env_->VerifyNoStrongBaseObjects();
-        exit_code = EmitExit(env_.get());
+        exit_code = EmitProcessExit(env_.get()).FromMaybe(1);
       }
       Mutex::ScopedLock lock(mutex_);
       if (exit_code_ == 0 && !stopped)
