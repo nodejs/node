@@ -96,8 +96,9 @@ bool TLSWrap::InvokeQueued(int status, const char* error_str) {
     return false;
 
   if (current_write_) {
-    WriteWrap* w = WriteWrap::FromObject(current_write_);
+    BaseObjectPtr<AsyncWrap> current_write = std::move(current_write_);
     current_write_.reset();
+    WriteWrap* w = WriteWrap::FromObject(current_write);
     w->Done(status, error_str);
   }
 
@@ -374,8 +375,10 @@ void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
   Debug(this, "OnStreamAfterWrite(status = %d)", status);
   if (current_empty_write_) {
     Debug(this, "Had empty write");
-    WriteWrap* finishing = WriteWrap::FromObject(current_empty_write_);
+    BaseObjectPtr<AsyncWrap> current_empty_write =
+        std::move(current_empty_write_);
     current_empty_write_.reset();
+    WriteWrap* finishing = WriteWrap::FromObject(current_empty_write);
     finishing->Done(status);
     return;
   }
