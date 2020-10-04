@@ -2650,11 +2650,11 @@ Type: Documentation-only
 The [`crypto.Certificate()` constructor][] is deprecated. Use
 [static methods of `crypto.Certificate()`][] instead.
 
-### DEP0147: `Permissive rmdir recursive is deprecated, use rm recursive`
+### DEP0147: `Permissive recursive rmdir is deprecated; use recursive rm`
 <!-- YAML
 changes:
-  - version: v15.0.0
-    pr-url: https://github.com/nodejs/node/pull/?
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35494
     description: Runtime deprecation.
 -->
 

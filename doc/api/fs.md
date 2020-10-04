@@ -3600,7 +3600,7 @@ the future.
 
 ## `fs.rm(path[, options], callback)`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * `path` {string|Buffer|URL}
@@ -3624,7 +3624,7 @@ to the completion callback.
 
 ## `fs.rmSync(path[, options])`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * `path` {string|Buffer|URL}
