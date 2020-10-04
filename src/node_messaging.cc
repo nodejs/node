@@ -1004,6 +1004,12 @@ void MessagePort::Stop(const FunctionCallbackInfo<Value>& args) {
   port->Stop();
 }
 
+void MessagePort::CheckType(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(
+      GetMessagePortConstructorTemplate(env)->HasInstance(args[0]));
+}
+
 void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port;
   ASSIGN_OR_RETURN_UNWRAP(&port, args[0].As<Object>());
@@ -1339,6 +1345,7 @@ static void InitMessaging(Local<Object> target,
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.
   env->SetMethod(target, "stopMessagePort", MessagePort::Stop);
+  env->SetMethod(target, "checkMessagePort", MessagePort::CheckType);
   env->SetMethod(target, "drainMessagePort", MessagePort::Drain);
   env->SetMethod(target, "receiveMessageOnPort", MessagePort::ReceiveMessage);
   env->SetMethod(target, "moveMessagePortToContext",
@@ -1363,6 +1370,7 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(MessagePort::PostMessage);
   registry->Register(MessagePort::Start);
   registry->Register(MessagePort::Stop);
+  registry->Register(MessagePort::CheckType);
   registry->Register(MessagePort::Drain);
   registry->Register(MessagePort::ReceiveMessage);
   registry->Register(MessagePort::MoveToContext);
