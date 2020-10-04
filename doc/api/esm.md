@@ -1998,7 +1998,7 @@ success!
 [TypedArray]: https://www.ecma-international.org/ecma-262/6.0/#sec-typedarray-objects
 [Uint8Array]: https://www.ecma-international.org/ecma-262/6.0/#sec-uint8array
 [`util.TextDecoder`]: util.html#util_class_util_textdecoder
-[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.3.1
+[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.4.0
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the full specifier path]: #esm_mandatory_file_extensions
