@@ -413,8 +413,8 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
   SET_MEMORY_INFO_NAME(SimpleShutdownWrap)
   SET_SELF_SIZE(SimpleShutdownWrap)
 
-  bool IsAllowedStrongObjectAtExit() const override {
-    return OtherBase::IsAllowedStrongObjectAtExit();
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    return OtherBase::IsNotIndicativeOfMemoryLeakAtExit();
   }
 };
 
@@ -430,8 +430,8 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
   SET_MEMORY_INFO_NAME(SimpleWriteWrap)
   SET_SELF_SIZE(SimpleWriteWrap)
 
-  bool IsAllowedStrongObjectAtExit() const override {
-    return OtherBase::IsAllowedStrongObjectAtExit();
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    return OtherBase::IsNotIndicativeOfMemoryLeakAtExit();
   }
 };
 

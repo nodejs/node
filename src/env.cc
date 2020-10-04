@@ -1225,7 +1225,7 @@ void Environment::VerifyNoStrongBaseObjects() {
   if (!options()->verify_base_objects) return;
 
   ForEachBaseObject([this](BaseObject* obj) {
-    if (obj->IsAllowedStrongObjectAtExit()) return;
+    if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
     fprintf(stderr, "Found bad BaseObject during clean exit: %s\n",
             obj->MemoryInfoName().c_str());
     fflush(stderr);
@@ -1494,7 +1494,7 @@ Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
   return tmpl;
 }
 
-bool BaseObject::IsAllowedStrongObjectAtExit() const {
+bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {
   return IsWeakOrDetached();
 }
 

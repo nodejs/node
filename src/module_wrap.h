@@ -60,7 +60,7 @@ class ModuleWrap : public BaseObject {
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
 
-  bool IsAllowedStrongObjectAtExit() const override {
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
     // XXX: The garbage collection rules for ModuleWrap are *super* unclear.
     // Do these objects ever get GC'd? Are we just okay with leaking them?
     return true;

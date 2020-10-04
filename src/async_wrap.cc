@@ -99,7 +99,7 @@ struct AsyncWrapObject : public AsyncWrap {
     return tmpl;
   }
 
-  bool IsAllowedStrongObjectAtExit() const override {
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
     // We can't really know what the underlying operation does. One of the
     // signs that it's time to remove this class. :)
     return true;

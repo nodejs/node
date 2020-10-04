@@ -881,7 +881,7 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  bool IsAllowedStrongObjectAtExit() const override {
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
     // HTTP parsers are able to emit events without any GC root referring
     // to them, because they receive events directly from the underlying
     // libuv resource.

@@ -716,7 +716,7 @@ void Worker::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("parent_port", parent_port_);
 }
 
-bool Worker::IsAllowedStrongObjectAtExit() const {
+bool Worker::IsNotIndicativeOfMemoryLeakAtExit() const {
   // Worker objects always stay alive as long as the child thread, regardless
   // of whether they are being referenced in the parent thread.
   return true;

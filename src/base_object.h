@@ -154,7 +154,7 @@ class BaseObject : public MemoryRetainer {
 
   // Indicates whether this object is expected to use a strong reference during
   // a clean process exit (due to an empty event loop).
-  virtual bool IsAllowedStrongObjectAtExit() const;
+  virtual bool IsNotIndicativeOfMemoryLeakAtExit() const;
 
   virtual inline void OnGCCollect();
 

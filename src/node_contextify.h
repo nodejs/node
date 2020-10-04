@@ -174,7 +174,7 @@ class CompiledFnEntry final : public BaseObject {
                   v8::Local<v8::ScriptOrModule> script);
   ~CompiledFnEntry();
 
-  bool IsAllowedStrongObjectAtExit() const override { return true; }
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override { return true; }
 
  private:
   uint32_t id_;

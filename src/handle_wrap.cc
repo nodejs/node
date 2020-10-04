@@ -89,7 +89,7 @@ void HandleWrap::OnGCCollect() {
 }
 
 
-bool HandleWrap::IsAllowedStrongObjectAtExit() const {
+bool HandleWrap::IsNotIndicativeOfMemoryLeakAtExit() const {
   return IsWeakOrDetached() ||
          !HandleWrap::HasRef(this) ||
          !uv_is_active(GetHandle());
