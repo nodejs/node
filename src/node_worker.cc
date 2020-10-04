@@ -2,6 +2,7 @@
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_buffer.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
@@ -860,9 +861,20 @@ void InitWorker(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kTotalResourceLimitCount);
 }
 
-}  // anonymous namespace
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetEnvMessagePort);
+  registry->Register(Worker::New);
+  registry->Register(Worker::StartThread);
+  registry->Register(Worker::StopThread);
+  registry->Register(Worker::Ref);
+  registry->Register(Worker::Unref);
+  registry->Register(Worker::GetResourceLimits);
+  registry->Register(Worker::TakeHeapSnapshot);
+}
 
+}  // anonymous namespace
 }  // namespace worker
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(worker, node::worker::InitWorker)
+NODE_MODULE_EXTERNAL_REFERENCE(worker, node::worker::RegisterExternalReferences)

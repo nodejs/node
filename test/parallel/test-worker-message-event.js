@@ -1,8 +1,6 @@
-// Flags: --expose-internals
 'use strict';
 require('../common');
 const assert = require('assert');
-const { MessageEvent, MessageChannel } = require('internal/worker/io');
 
 const dummyPort = new MessageChannel().port1;
 
@@ -89,4 +87,8 @@ const dummyPort = new MessageChannel().port1;
     code: 'ERR_INVALID_ARG_TYPE',
     message: /The "init\.ports\[0\]" property must be an instance of MessagePort/,
   });
+}
+
+{
+  assert(new MessageEvent('message') instanceof Event);
 }

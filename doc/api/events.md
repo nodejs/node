@@ -1069,9 +1069,15 @@ const ac = new AbortController();
 process.nextTick(() => ac.abort());
 ```
 
+<a id="event-target-and-event-api"></a>
 ## `EventTarget` and `Event` API
 <!-- YAML
 added: v14.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35496
+    description:
+      The `EventTarget` and `Event` classes are now available as globals.
 -->
 
 > Stability: 1 - Experimental
@@ -1082,7 +1088,7 @@ Neither the `EventTarget` nor `Event` classes are available for end
 user code to create.
 
 ```js
-const target = getEventTargetSomehow();
+const target = new EventTarget();
 
 target.addEventListener('foo', (event) => {
   console.log('foo event happened!');
@@ -1168,7 +1174,7 @@ const handler4 = {
   }
 };
 
-const target = getEventTargetSomehow();
+const target = new EventTarget();
 
 target.addEventListener('foo', handler1);
 target.addEventListener('foo', handler2);
@@ -1189,6 +1195,10 @@ The `EventTarget` does not implement any special default handling for
 ### Class: `Event`
 <!-- YAML
 added: v14.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35496
+    description: The `Event` class is now available through the global object.
 -->
 
 The `Event` object is an adaptation of the [`Event` Web API][]. Instances
@@ -1341,6 +1351,11 @@ The event type identifier.
 ### Class: `EventTarget`
 <!-- YAML
 added: v14.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35496
+    description:
+      The `EventTarget` class is now available through the global object.
 -->
 
 #### `eventTarget.addEventListener(type, listener[, options])`
@@ -1374,7 +1389,7 @@ a `listener`. Any individual `listener` may be added once with
 ```js
 function handler(event) {}
 
-const target = getEventTargetSomehow();
+const target = new EventTarget();
 target.addEventListener('foo', handler, { capture: true });  // first
 target.addEventListener('foo', handler, { capture: false }); // second
 
