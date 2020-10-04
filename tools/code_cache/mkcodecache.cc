@@ -24,6 +24,7 @@ using v8::Local;
 int wmain(int argc, wchar_t* argv[]) {
 #else   // UNIX
 int main(int argc, char* argv[]) {
+  argv = uv_setup_args(argc, argv);
 #endif  // _WIN32
 
   v8::V8::SetFlagsFromString("--random_seed=42");
