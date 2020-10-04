@@ -10,6 +10,7 @@ let openTokenDepth,
   nextBraceIsClass,
   starExportMap,
   lastStarExportSpecifier,
+  lastExportsAssignSpecifier,
   _exports,
   reexports;
 
@@ -25,10 +26,16 @@ function resetState () {
   nextBraceIsClass = false;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
+  lastExportsAssignSpecifier = null;
 
   _exports = new Set();
   reexports = new Set();
 }
+
+// RequireType
+const Import = 0;
+const ExportAssign = 1;
+const ExportStar = 2;
 
 const strictReserved = new Set(['implements', 'interface', 'let', 'package', 'private', 'protected', 'public', 'static', 'yield', 'enum']);
 
@@ -42,6 +49,8 @@ module.exports = function parseCJS (source, name = '@') {
     e.loc = pos;
     throw e;
   }
+  if (lastExportsAssignSpecifier)
+    reexports.add(lastExportsAssignSpecifier);
   const result = { exports: [..._exports], reexports: [...reexports] };
   resetState();
   return result;
@@ -79,25 +88,25 @@ function parseSource (cjsSource) {
     if (openTokenDepth === 0) {
       switch (ch) {
         case 105/*i*/:
-          if (source.slice(pos + 1, pos + 6) === 'mport' && keywordStart(pos))
+          if (source.startsWith('mport', pos + 1) && keywordStart(pos))
             throwIfImportStatement();
           lastTokenPos = pos;
           continue;
         case 114/*r*/:
           const startPos = pos;
-          if (tryParseRequire(false) && keywordStart(startPos))
+          if (tryParseRequire(Import) && keywordStart(startPos))
             tryBacktrackAddStarExportBinding(startPos - 1);
           lastTokenPos = pos;
           continue;
         case 95/*_*/:
-          if (source.slice(pos + 1, pos + 8) === '_export' && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+          if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
             pos += 8;
-            if (source.slice(pos, pos + 4) === 'Star')
+            if (source.startsWith('Star', pos))
               pos += 4;
             if (source.charCodeAt(pos) === 40/*(*/) {
               openTokenPosStack[openTokenDepth++] = lastTokenPos;
               if (source.charCodeAt(++pos) === 114/*r*/)
-                tryParseRequire(true);
+                tryParseRequire(ExportStar);
             }
           }
           lastTokenPos = pos;
@@ -107,7 +116,7 @@ function parseSource (cjsSource) {
 
     switch (ch) {
       case 101/*e*/:
-        if (source.slice(pos + 1, pos + 6) === 'xport' && keywordStart(pos)) {
+        if (source.startsWith('xport', pos + 1) && keywordStart(pos)) {
           if (source.charCodeAt(pos + 6) === 115/*s*/)
             tryParseExportsDotAssign(false);
           else if (openTokenDepth === 0)
@@ -115,15 +124,15 @@ function parseSource (cjsSource) {
         }
         break;
       case 99/*c*/:
-        if (keywordStart(pos) && source.slice(pos + 1, pos + 5) === 'lass' && isBrOrWs(source.charCodeAt(pos + 5)))
+        if (keywordStart(pos) && source.startsWith('lass', pos + 1) && isBrOrWs(source.charCodeAt(pos + 5)))
           nextBraceIsClass = true;
         break;
       case 109/*m*/:
-        if (source.slice(pos + 1, pos + 6) === 'odule' && keywordStart(pos))
+        if (source.startsWith('odule', pos + 1) && keywordStart(pos))
           tryParseModuleExportsDotAssign();
         break;
       case 79/*O*/:
-        if (source.slice(pos + 1, pos + 6) === 'bject' && keywordStart(pos))
+        if (source.startsWith('bject', pos + 1) && keywordStart(pos))
           tryParseObjectDefineOrKeys(openTokenDepth === 0);
         break;
       case 40/*(*/:
@@ -233,11 +242,11 @@ function tryBacktrackAddStarExportBinding (bPos) {
         bPos--;
       switch (source.charCodeAt(bPos)) {
         case 114/*r*/:
-          if (source.slice(bPos - 2, bPos) !== 'va')
+          if (!source.startsWith('va', bPos - 2))
             return;
           break;
         case 116/*t*/:
-          if (source.slice(bPos - 2, bPos) !== 'le' && source.slice(bPos - 4, bPos) !== 'cons')
+          if (!source.startsWith('le', bPos - 2) && !source.startsWith('cons', bPos - 4))
             return;
           break;
         default: return;
@@ -254,7 +263,7 @@ function tryParseObjectDefineOrKeys (keys) {
   if (ch === 46/*.*/) {
     pos++;
     ch = commentWhitespace();
-    if (ch === 100/*d*/ && source.slice(pos + 1, pos + 14) === 'efineProperty') {
+    if (ch === 100/*d*/ && source.startsWith('efineProperty', pos + 1)) {
       pos += 14;
       revertPos = pos - 1;
       ch = commentWhitespace();
@@ -279,7 +288,7 @@ function tryParseObjectDefineOrKeys (keys) {
         }
       }
     }
-    else if (keys && ch === 107/*k*/ && source.slice(pos + 1, pos + 4) === 'eys') {
+    else if (keys && ch === 107/*k*/ && source.startsWith('eys', pos + 1)) {
       while (true) {
         pos += 4;
         revertPos = pos - 1;
@@ -298,14 +307,14 @@ function tryParseObjectDefineOrKeys (keys) {
         if (ch !== 46/*.*/) break;
         pos++;
         ch = commentWhitespace();
-        if (ch !== 102/*f*/ || source.slice(pos + 1, pos + 7) !== 'orEach') break;
+        if (ch !== 102/*f*/ || !source.startsWith('orEach', pos + 1)) break;
         pos += 7;
         ch = commentWhitespace();
         revertPos = pos - 1;
         if (ch !== 40/*(*/) break;
         pos++;
         ch = commentWhitespace();
-        if (ch !== 102/*f*/ || source.slice(pos + 1, pos + 8) !== 'unction') break;
+        if (ch !== 102/*f*/ || !source.startsWith('unction', pos + 1)) break;
         pos += 8;
         ch = commentWhitespace();
         if (ch !== 40/*(*/) break;
@@ -321,23 +330,23 @@ function tryParseObjectDefineOrKeys (keys) {
         if (ch !== 123/*{*/) break;
         pos++;
         ch = commentWhitespace();
-        if (ch !== 105/*i*/ || source.slice(pos + 1, pos + 3) !== 'f ') break;
+        if (ch !== 105/*i*/ || !source.startsWith('f ', pos + 1)) break;
         pos += 3;
         ch = commentWhitespace();
         if (ch !== 40/*(*/) break;
         pos++;
         ch = commentWhitespace();
-        if (it_id !== source.slice(pos, pos + it_id.length)) break;
+        if (!source.startsWith(it_id, pos)) break;
         pos += it_id.length;
         ch = commentWhitespace();
         // `if (` IDENTIFIER$2 `===` ( `'default'` | `"default"` ) `||` IDENTIFIER$2 `===` ( '__esModule' | `"__esModule"` ) `) return` `;`? |
         if (ch === 61/*=*/) {
-          if (source.slice(pos + 1, pos + 3) !== '==') break;
+          if (!source.startsWith('==', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
           if (ch !== 34/*"*/ && ch !== 39/*'*/) break;
           let quot = ch;
-          if (source.slice(pos + 1, pos + 8) !== 'default') break;
+          if (!source.startsWith('default', pos + 1)) break;
           pos += 8;
           ch = commentWhitespace();
           if (ch !== quot) break;
@@ -354,7 +363,7 @@ function tryParseObjectDefineOrKeys (keys) {
           ch = commentWhitespace();
           if (ch !== 34/*"*/ && ch !== 39/*'*/) break;
           quot = ch;
-          if (source.slice(pos + 1, pos + 11) !== '__esModule') break;
+          if (!source.startsWith('__esModule', pos + 1)) break;
           pos += 11;
           ch = commentWhitespace();
           if (ch !== quot) break;
@@ -363,7 +372,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 41/*)*/) break;
           pos += 1;
           ch = commentWhitespace();
-          if (ch !== 114/*r*/ || source.slice(pos + 1, pos + 6) !== 'eturn') break;
+          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
           pos += 6;
           ch = commentWhitespace();
           if (ch === 59/*;*/)
@@ -372,12 +381,12 @@ function tryParseObjectDefineOrKeys (keys) {
         }
         // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) `)`
         else if (ch === 33/*!*/) {
-          if (source.slice(pos + 1, pos + 3) !== '==') break;
+          if (!source.startsWith('==', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
           if (ch !== 34/*"*/ && ch !== 39/*'*/) break;
           const quot = ch;
-          if (source.slice(pos + 1, pos + 8) !== 'default') break;
+          if (!source.startsWith('default', pos + 1)) break;
           pos += 8;
           ch = commentWhitespace();
           if (ch !== quot) break;
@@ -429,7 +438,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 46/*.*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 100/*d*/ || source.slice(pos + 1, pos + 14) !== 'efineProperty') break;
+          if (ch !== 100/*d*/ || !source.startsWith('efineProperty', pos + 1)) break;
           pos += 14;
           ch = commentWhitespace();
           if (ch !== 40/*(*/) break;
@@ -440,7 +449,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 44/*,*/) break;
           pos++;
           ch = commentWhitespace();
-          if (source.slice(pos, pos + it_id.length) !== it_id) break;
+          if (!source.startsWith(it_id, pos)) break;
           pos += it_id.length;
           ch = commentWhitespace();
           if (ch !== 44/*,*/) break;
@@ -449,25 +458,25 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 123/*{*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 101/*e*/ || source.slice(pos + 1, pos + 10) !== 'numerable') break;
+          if (ch !== 101/*e*/ || !source.startsWith('numerable', pos + 1)) break;
           pos += 10;
           ch = commentWhitespace();
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 116/*t*/ && source.slice(pos + 1, pos + 4) !== 'rue') break;
+          if (ch !== 116/*t*/ && !source.startsWith('rue', pos + 1)) break;
           pos += 4;
           ch = commentWhitespace();
           if (ch !== 44/*,*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 103/*g*/ || source.slice(pos + 1, pos + 3) !== 'et') break;
+          if (ch !== 103/*g*/ || !source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 102/*f*/ || source.slice(pos + 1, pos + 8) !== 'unction') break;
+          if (ch !== 102/*f*/ || !source.startsWith('unction', pos + 1)) break;
           pos += 8;
           ch = commentWhitespace();
           if (ch !== 40/*(*/) break;
@@ -479,16 +488,16 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 123/*{*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 114/*r*/ || source.slice(pos + 1, pos + 6) !== 'eturn') break;
+          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
           pos += 6;
           ch = commentWhitespace();
-          if (source.slice(pos, pos + id.length) !== id) break;
+          if (!source.startsWith(id, pos)) break;
           pos += id.length;
           ch = commentWhitespace();
           if (ch !== 91/*[*/) break;
           pos++;
           ch = commentWhitespace();
-          if (source.slice(pos, pos + it_id.length) !== it_id) break;
+          if (!source.startsWith(it_id, pos)) break;
           pos += it_id.length;
           ch = commentWhitespace();
           if (ch !== 93/*]*/) break;
@@ -534,7 +543,7 @@ function tryParseObjectDefineOrKeys (keys) {
 
 function readExportsOrModuleDotExports (ch) {
   const revertPos = pos;
-  if (ch === 109/*m*/ && source.slice(pos + 1, pos + 6) === 'odule') {
+  if (ch === 109/*m*/ && source.startsWith('odule', pos + 1)) {
     pos += 6;
     ch = commentWhitespace();
     if (ch !== 46/*.*/) {
@@ -544,7 +553,7 @@ function readExportsOrModuleDotExports (ch) {
     pos++;
     ch = commentWhitespace();
   }
-  if (ch === 101/*e*/ && source.slice(pos + 1, pos + 7) === 'xports') {
+  if (ch === 101/*e*/ && source.startsWith('xports', pos + 1)) {
     pos += 7;
     return true;
   }
@@ -561,7 +570,7 @@ function tryParseModuleExportsDotAssign () {
   if (ch === 46/*.*/) {
     pos++;
     ch = commentWhitespace();
-    if (ch === 101/*e*/ && source.slice(pos + 1, pos + 7) === 'xports') {
+    if (ch === 101/*e*/ && source.startsWith('xports', pos + 1)) {
       tryParseExportsDotAssign(true);
       return;
     }
@@ -623,16 +632,16 @@ function tryParseExportsDotAssign (assign) {
 
         // require('...')
         if (ch === 114/*r*/)
-          tryParseRequire(true);
+          tryParseRequire(ExportAssign);
       }
     }
   }
   pos = revertPos;
 }
 
-function tryParseRequire (directStarExport) {
+function tryParseRequire (requireType) {
   // require('...')
-  if (source.slice(pos + 1, pos + 7) === 'equire') {
+  if (source.startsWith('equire', pos + 1)) {
     pos += 7;
     const revertPos = pos - 1;
     let ch = commentWhitespace();
@@ -645,13 +654,17 @@ function tryParseRequire (directStarExport) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
-          if (directStarExport) {
-            reexports.add(source.slice(reexportStart, reexportEnd));
+          switch (requireType) {
+            case ExportAssign:
+              lastExportsAssignSpecifier = source.slice(reexportStart, reexportEnd);
+              return true;
+            case ExportStar:
+              reexports.add(source.slice(reexportStart, reexportEnd));
+              return true;
+            default:
+              lastStarExportSpecifier = source.slice(reexportStart, reexportEnd);
+              return true;
           }
-          else {
-            lastStarExportSpecifier = source.slice(reexportStart, reexportEnd);
-          }
-          return true;
         }
       }
       else if (ch === 34/*"*/) {
@@ -659,13 +672,17 @@ function tryParseRequire (directStarExport) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
-          if (directStarExport) {
-            reexports.add(source.slice(reexportStart, reexportEnd));
+          switch (requireType) {
+            case ExportAssign:
+              lastExportsAssignSpecifier = source.slice(reexportStart, reexportEnd);
+              return true;
+            case ExportStar:
+              reexports.add(source.slice(reexportStart, reexportEnd));
+              return true;
+            default:
+              lastStarExportSpecifier = source.slice(reexportStart, reexportEnd);
+              return true;
           }
-          else {
-            lastStarExportSpecifier = source.slice(reexportStart, reexportEnd);
-          }
-          return true;
         }
       }
     }
@@ -1029,7 +1046,7 @@ function keywordStart (pos) {
 function readPrecedingKeyword (pos, match) {
   if (pos < match.length - 1)
     return false;
-  return source.slice(pos - match.length + 1, pos + 1) === match && (pos === 0 || isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - match.length)));
+  return source.startsWith(match, pos - match.length + 1) && (pos === 0 || isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - match.length)));
 }
 
 function readPrecedingKeyword1 (pos, ch) {
@@ -1111,8 +1128,8 @@ function isExpressionKeyword (pos) {
 }
 
 function isParenKeyword (curPos) {
-  return source.charCodeAt(curPos) === 101/*e*/ && source.slice(curPos - 4, curPos) === 'whil' ||
-      source.charCodeAt(curPos) === 114/*r*/ && source.slice(curPos - 2, curPos) === 'fo' ||
+  return source.charCodeAt(curPos) === 101/*e*/ && source.startsWith('whil', curPos - 4) ||
+      source.charCodeAt(curPos) === 114/*r*/ && source.startsWith('fo', curPos - 2) ||
       source.charCodeAt(curPos - 1) === 105/*i*/ && source.charCodeAt(curPos) === 102/*f*/;
 }
 
@@ -1142,11 +1159,11 @@ function isExpressionTerminator (curPos) {
     case 41/*)*/:
       return true;
     case 104/*h*/:
-      return source.slice(curPos - 4, curPos) === 'catc';
+      return source.startsWith('catc', curPos - 4);
     case 121/*y*/:
-      return source.slice(curPos - 6, curPos) === 'finall';
+      return source.startsWith('finall', curPos - 6);
     case 101/*e*/:
-      return source.slice(curPos - 3, curPos) === 'els';
+      return source.startsWith('els', curPos - 3);
   }
   return false;
 }
