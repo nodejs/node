@@ -6,7 +6,7 @@ Error: test
     at abc (../fixtures/node_modules/bar.js:4:4)
 foobar
     at * (*console_colors.js:*:*)
-*[90m    at * (internal*:*:*)*[39m
+*[90m    at * (node:internal*:*:*)*[39m
 *[90m    at *[39m
 *[90m    at *[39m
 *[90m    at *[39m
@@ -27,8 +27,8 @@ Error: Should not ever get here.
 
 Error
     at evalmachine.<anonymous>:*:*
-*[90m    at Script.runInThisContext (vm.js:*:*)*[39m
-*[90m    at Object.runInThisContext (vm.js:*:*)*[39m
+*[90m    at Script.runInThisContext (node:vm:*:*)*[39m
+*[90m    at Object.runInThisContext (node:vm:*:*)*[39m
     at * (*console_colors.js:*:*)
 *[90m    at *[39m
 *[90m    at *[39m

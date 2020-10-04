@@ -5,9 +5,9 @@ throw undefined;
 undefined
 Thrown at:
     at *throw_undefined_traced.js:*:*
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
-    at Module._extensions..js (internal/modules/cjs/loader.js:*:*)
-    at Module.load (internal/modules/cjs/loader.js:*:*)
-    at Module._load (internal/modules/cjs/loader.js:*:*)
-    at executeUserEntryPoint (internal/modules/run_main.js:*:*)
-    at internal/main/run_main_module.js:*:*
+    at Module._compile (node:internal/modules/cjs/loader:*:*)
+    at Module._extensions..js (node:internal/modules/cjs/loader:*:*)
+    at Module.load (node:internal/modules/cjs/loader:*:*)
+    at Module._load (node:internal/modules/cjs/loader:*:*)
+    at executeUserEntryPoint (node:internal/modules/run_main:*:*)
+    at node:internal/main/run_main_module:*:*

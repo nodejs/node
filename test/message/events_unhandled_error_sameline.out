@@ -1,17 +1,17 @@
-events.js:*
+node:events:*
       throw er; // Unhandled 'error' event
       ^
 
 Error
     at Object.<anonymous> (*events_unhandled_error_sameline.js:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
-    at Object.Module._extensions..js (internal/modules/cjs/loader.js:*:*)
-    at Module.load (internal/modules/cjs/loader.js:*:*)
-    at Function.Module._load (internal/modules/cjs/loader.js:*:*)
-    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*)
-    at internal/main/run_main_module.js:*:*
+    at Module._compile (node:internal/modules/cjs/loader:*:*)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*:*)
+    at Module.load (node:internal/modules/cjs/loader:*:*)
+    at Function.Module._load (node:internal/modules/cjs/loader:*:*)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*:*)
+    at node:internal/main/run_main_module:*:*
 Emitted 'error' event at:
     at Object.<anonymous> (*events_unhandled_error_sameline.js:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at Module._compile (node:internal/modules/cjs/loader:*:*)
     [... lines matching original stack trace ...]
-    at internal/main/run_main_module.js:*:*
+    at node:internal/main/run_main_module:*:*
