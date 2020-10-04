@@ -64,7 +64,8 @@ class ExternalReferenceRegistry {
   V(string_decoder)                                                            \
   V(trace_events)                                                              \
   V(timers)                                                                    \
-  V(types)
+  V(types)                                                                     \
+  V(worker)
 
 #if NODE_HAVE_I18N_SUPPORT
 #define EXTERNAL_REFERENCE_BINDING_LIST_I18N(V) V(icu)
