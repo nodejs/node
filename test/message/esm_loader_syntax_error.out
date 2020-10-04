@@ -5,5 +5,5 @@ await async () => 0;
 ^^^^^^^^^^^^^
 
 SyntaxError: Malformed arrow function parameter list
-    at Loader.moduleStrategy (internal/modules/esm/translators.js:*:*)
-    at async link (internal/modules/esm/module_job.js:*:*)
+    at Loader.moduleStrategy (node:internal/modules/esm/translators:*:*)
+    at async link (node:internal/modules/esm/module_job:*:*)

@@ -3,4 +3,4 @@ await async () => 0;
 ^^^^^^^^^^^^^
 
 SyntaxError: Malformed arrow function parameter list
-    at Loader.moduleStrategy (internal/modules/esm/translators.js:*:*)
+    at Loader.moduleStrategy (node:internal/modules/esm/translators:*:*)
