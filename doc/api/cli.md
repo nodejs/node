@@ -537,6 +537,14 @@ added: v6.0.0
 
 Silence all process warnings (including deprecations).
 
+### `--node-memory-debug`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable extra debug checks for memory leaks in Node.js internals. This is
+usually only useful for developers debugging Node.js itself.
+
 ### `--openssl-config=file`
 <!-- YAML
 added: v6.9.0
@@ -1278,6 +1286,7 @@ Node.js options that are allowed are:
 * `--no-deprecation`
 * `--no-force-async-hooks-checks`
 * `--no-warnings`
+* `--node-memory-debug`
 * `--openssl-config`
 * `--pending-deprecation`
 * `--policy-integrity`
