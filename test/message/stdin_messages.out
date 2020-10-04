@@ -4,16 +4,16 @@ with(this){__filename}
 ^^^^
 
 SyntaxError: Strict mode code may not include a with statement
-    at new Script (vm.js:*)
-    at createScript (vm.js:*)
-    at Object.runInThisContext (vm.js:*)
-    at internal/process/execution.js:*:*
+    at new Script (node:vm:*)
+    at createScript (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at node:internal/process/execution:*:*
     at [stdin]-wrapper:*:*
-    at evalScript (internal/process/execution.js:*:*)
-    at internal/main/eval_stdin.js:*:*
-    at Socket.<anonymous> (internal/process/execution.js:*:*)
-    at Socket.emit (events.js:*:*)
-    at endReadableNT (internal/streams/readable.js:*:*)
+    at evalScript (node:internal/process/execution:*:*)
+    at node:internal/main/eval_stdin:*:*
+    at Socket.<anonymous> (node:internal/process/execution:*:*)
+    at Socket.emit (node:events:*:*)
+    at endReadableNT (node:internal/streams/readable:*:*)
 42
 42
 [stdin]:1
@@ -22,30 +22,30 @@ throw new Error("hello")
 
 Error: hello
     at [stdin]:1:7
-    at Script.runInThisContext (vm.js:*)
-    at Object.runInThisContext (vm.js:*)
-    at internal/process/execution.js:*:*
+    at Script.runInThisContext (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at node:internal/process/execution:*:*
     at [stdin]-wrapper:*:*
-    at evalScript (internal/process/execution.js:*:*)
-    at internal/main/eval_stdin.js:*:*
-    at Socket.<anonymous> (internal/process/execution.js:*:*)
-    at Socket.emit (events.js:*:*)
-    at endReadableNT (internal/streams/readable.js:*:*)
+    at evalScript (node:internal/process/execution:*:*)
+    at node:internal/main/eval_stdin:*:*
+    at Socket.<anonymous> (node:internal/process/execution:*:*)
+    at Socket.emit (node:events:*:*)
+    at endReadableNT (node:internal/streams/readable:*:*)
 [stdin]:1
 throw new Error("hello")
 ^
 
 Error: hello
     at [stdin]:1:*
-    at Script.runInThisContext (vm.js:*)
-    at Object.runInThisContext (vm.js:*)
-    at internal/process/execution.js:*:*
+    at Script.runInThisContext (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at node:internal/process/execution:*:*
     at [stdin]-wrapper:*:*
-    at evalScript (internal/process/execution.js:*:*)
-    at internal/main/eval_stdin.js:*:*
-    at Socket.<anonymous> (internal/process/execution.js:*:*)
-    at Socket.emit (events.js:*:*)
-    at endReadableNT (internal/streams/readable.js:*:*)
+    at evalScript (node:internal/process/execution:*:*)
+    at node:internal/main/eval_stdin:*:*
+    at Socket.<anonymous> (node:internal/process/execution:*:*)
+    at Socket.emit (node:events:*:*)
+    at endReadableNT (node:internal/streams/readable:*:*)
 100
 [stdin]:1
 let x = 100; y = x;
@@ -53,15 +53,15 @@ let x = 100; y = x;
 
 ReferenceError: y is not defined
     at [stdin]:1:16
-    at Script.runInThisContext (vm.js:*)
-    at Object.runInThisContext (vm.js:*)
-    at internal/process/execution.js:*:*
+    at Script.runInThisContext (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at node:internal/process/execution:*:*
     at [stdin]-wrapper:*:*
-    at evalScript (internal/process/execution.js:*:*)
-    at internal/main/eval_stdin.js:*:*
-    at Socket.<anonymous> (internal/process/execution.js:*:*)
-    at Socket.emit (events.js:*:*)
-    at endReadableNT (internal/streams/readable.js:*:*)
+    at evalScript (node:internal/process/execution:*:*)
+    at node:internal/main/eval_stdin:*:*
+    at Socket.<anonymous> (node:internal/process/execution:*:*)
+    at Socket.emit (node:events:*:*)
+    at endReadableNT (node:internal/streams/readable:*:*)
 
 [stdin]:1
 let ______________________________________________; throw 10
