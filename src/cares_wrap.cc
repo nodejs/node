@@ -1390,6 +1390,13 @@ class QueryAnyWrap: public QueryWrap {
     if (!soa_record.IsEmpty())
       ret->Set(context, ret->Length(), soa_record).Check();
 
+    /* Parse CAA records */
+    status = ParseCaaReply(env(), buf, len, ret, true);
+    if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+      ParseError(status);
+      return;
+    }
+
     CallOnComplete(ret);
   }
 };
