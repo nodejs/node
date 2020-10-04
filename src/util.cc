@@ -144,7 +144,10 @@ std::string GetProcessTitle(const char* default_title) {
     if (rc == 0)
       break;
 
-    if (rc != UV_ENOBUFS)
+    // If uv_setup_args() was not called, `uv_get_process_title()` will always
+    // return `UV_ENOBUFS`, no matter the input size. Guard against a possible
+    // infinite loop by limiting the buffer size.
+    if (rc != UV_ENOBUFS || buf.size() >= 1024 * 1024)
       return default_title;
 
     buf.resize(2 * buf.size());
