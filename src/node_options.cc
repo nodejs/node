@@ -762,6 +762,12 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
 
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
+
+  AddOption("--node-memory-debug",
+            "Run with extra debug checks for memory leaks in Node.js itself",
+            NoOp{}, kAllowedInEnvironment);
+  Implies("--node-memory-debug", "--debug-arraybuffer-allocations");
+  Implies("--node-memory-debug", "--verify-base-objects");
 }
 
 inline std::string RemoveBrackets(const std::string& host) {
