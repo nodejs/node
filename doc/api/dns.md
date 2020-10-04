@@ -418,7 +418,7 @@ will contain an array of canonical name records available for the `hostname`
 
 ## `dns.resolveCaa(hostname, callback)`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * `hostname` {string}
@@ -916,7 +916,7 @@ Here is an example of the result object:
 
 ## `dnsPromises.resolveCaa(hostname)`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * `hostname` {string}
