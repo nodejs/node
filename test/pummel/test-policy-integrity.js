@@ -109,7 +109,7 @@ function drainQueue() {
       `deletable-policy-${testId}.json`
     );
     const cliPolicy = willDeletePolicy ? tmpPolicyPath : policyPath;
-    fs.rmdirSync(configDirPath, { maxRetries: 3, recursive: true });
+    fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
     fs.mkdirSync(configDirPath, { recursive: true });
     const manifest = {
       onerror: onError,
@@ -185,7 +185,7 @@ function drainQueue() {
         console.log(`stderr: ${Buffer.concat(stderr)}`);
         throw e;
       }
-      fs.rmdirSync(configDirPath, { maxRetries: 3, recursive: true });
+      fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
       drainQueue();
     });
   }

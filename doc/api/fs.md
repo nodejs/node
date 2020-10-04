@@ -3598,6 +3598,51 @@ that represent files will be deleted. The permissive behavior of the
 `recursive` option is deprecated, `ENOTDIR` and `ENOENT` will be thrown in
 the future.
 
+## `fs.rm(path[, options], callback)`
+<!-- YAML
+added: v15.0.0
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `force` Ignore errors
+  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    backoff wait of `retryDelay` ms longer on each try. This option represents
+    the number of retries. This option is ignored if the `recursive` option is
+    not `true`. **Default:** `0`.
+  * `recursive` {boolean} If `true`, perform a recursive removal. In
+    recursive mode operations are retried on failure. **Default:** `false`.
+  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+    retries. This option is ignored if the `recursive` option is not `true`.
+    **Default:** `100`.
+* `callback` {Function}
+  * `err` {Error}
+
+Asynchronous rm(2). No arguments other than a possible exception are given
+to the completion callback.
+
+## `fs.rmSync(path[, options])`
+<!-- YAML
+added: v15.0.0
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `force` Ignore errors
+  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    backoff wait of `retryDelay` ms longer on each try. This option represents
+    the number of retries. This option is ignored if the `recursive` option is
+    not `true`. **Default:** `0`.
+  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
+    recursive mode operations are retried on failure. **Default:** `false`.
+  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+    retries. This option is ignored if the `recursive` option is not `true`.
+    **Default:** `100`.
+
+Synchronous rm(2). Returns `undefined`.
+
 ## `fs.stat(path[, options], callback)`
 <!-- YAML
 added: v0.0.2

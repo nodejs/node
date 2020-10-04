@@ -5,15 +5,12 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { validateRmdirOptions } = require('internal/fs/utils');
-
-const realEmitWarning = process.emitWarning;
-process.emitWarning = () => { throw new Error('deprecated'); };
+const { validateRmOptionsSync } = require('internal/fs/utils');
 
 tmpdir.refresh();
 
 let count = 0;
-const nextDirPath = (name = 'rmdir-recursive') =>
+const nextDirPath = (name = 'rm') =>
   path.join(tmpdir.path, `${name}-${count++}`);
 
 function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
@@ -67,25 +64,20 @@ function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
 
 function removeAsync(dir) {
   // Removal should fail without the recursive option.
-  fs.rmdir(dir, common.mustCall((err) => {
-    assert.strictEqual(err.syscall, 'rmdir');
+  fs.rm(dir, common.mustCall((err) => {
+    assert.strictEqual(err.syscall, 'rm');
 
     // Removal should fail without the recursive option set to true.
-    fs.rmdir(dir, { recursive: false }, common.mustCall((err) => {
-      assert.strictEqual(err.syscall, 'rmdir');
+    fs.rm(dir, { recursive: false }, common.mustCall((err) => {
+      assert.strictEqual(err.syscall, 'rm');
 
       // Recursive removal should succeed.
-      fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
+      fs.rm(dir, { recursive: true }, common.mustCall((err) => {
         assert.ifError(err);
 
-        // No error should occur if recursive and the directory does not exist.
-        fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
-          assert.ifError(err);
-
-          // Attempted removal should fail now because the directory is gone.
-          fs.rmdir(dir, common.mustCall((err) => {
-            assert.strictEqual(err.syscall, 'rmdir');
-          }));
+        // Attempted removal should fail now because the directory is gone.
+        fs.rm(dir, common.mustCall((err) => {
+          assert.strictEqual(err.syscall, 'stat');
         }));
       }));
     }));
@@ -108,6 +100,27 @@ function removeAsync(dir) {
   dir = nextDirPath();
   makeNonEmptyDirectory(1, 10, 2, dir, true);
   removeAsync(dir);
+
+  // Should fail if target does not exist
+  fs.rm(
+    path.join(tmpdir.path, 'noexist.txt'),
+    { recursive: true },
+    common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ENOENT');
+    })
+  );
+
+  // Should delete a file
+  const filePath = path.join(tmpdir.path, 'rm-async-file.txt');
+  fs.writeFileSync(filePath, '');
+  fs.rm(filePath, { recursive: true }, common.mustCall((err) => {
+    try {
+      assert.strictEqual(err, null);
+      assert.strictEqual(fs.existsSync(filePath), false);
+    } finally {
+      fs.rmSync(filePath, { force: true });
+    }
+  }));
 }
 
 // Test the synchronous version.
@@ -117,22 +130,36 @@ function removeAsync(dir) {
 
   // Removal should fail without the recursive option set to true.
   assert.throws(() => {
-    fs.rmdirSync(dir);
-  }, { syscall: 'rmdir' });
+    fs.rmSync(dir);
+  }, { syscall: 'rm' });
   assert.throws(() => {
-    fs.rmdirSync(dir, { recursive: false });
-  }, { syscall: 'rmdir' });
+    fs.rmSync(dir, { recursive: false });
+  }, { syscall: 'rm' });
+
+  // Should fail if target does not exist
+  assert.throws(() => {
+    fs.rmSync(path.join(tmpdir.path, 'noexist.txt'), { recursive: true });
+  }, {
+    code: 'ENOENT',
+    name: 'Error',
+    message: /^ENOENT: no such file or directory, stat/
+  });
+
+  // Should delete a file
+  const filePath = path.join(tmpdir.path, 'rm-file.txt');
+  fs.writeFileSync(filePath, '');
+
+  try {
+    fs.rmSync(filePath, { recursive: true });
+  } finally {
+    fs.rmSync(filePath, { force: true });
+  }
 
   // Recursive removal should succeed.
-  fs.rmdirSync(dir, { recursive: true });
-
-  // No error should occur if recursive and the directory does not exist.
-  assert.throws(() => {
-    fs.rmdirSync(dir, { recursive: true });
-  }, { message: 'deprecated' });
+  fs.rmSync(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
-  assert.throws(() => fs.rmdirSync(dir), { syscall: 'rmdir' });
+  assert.throws(() => fs.rmSync(dir), { syscall: 'stat' });
 }
 
 // Test the Promises based version.
@@ -141,48 +168,76 @@ function removeAsync(dir) {
   makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
-  assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
-  assert.rejects(fs.promises.rmdir(dir, { recursive: false }), {
-    syscall: 'rmdir'
+  assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
+  assert.rejects(fs.promises.rm(dir, { recursive: false }), {
+    syscall: 'rm'
   });
 
   // Recursive removal should succeed.
-  await fs.promises.rmdir(dir, { recursive: true });
-
-  // No error should occur if recursive and the directory does not exist.
-  await fs.promises.rmdir(dir, { recursive: true });
+  await fs.promises.rm(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
-  assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
+  assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
+
+  // Should fail if target does not exist
+  assert.rejects(fs.promises.rm(
+    path.join(tmpdir.path, 'noexist.txt'),
+    { recursive: true }
+  ), {
+    code: 'ENOENT',
+    name: 'Error',
+    message: /^ENOENT: no such file or directory, stat/
+  });
+
+  // Should not fail if target does not exist and force option is true
+  fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), { force: true });
+
+  // Should delete file
+  const filePath = path.join(tmpdir.path, 'rm-promises-file.txt');
+  fs.writeFileSync(filePath, '');
+
+  try {
+    await fs.promises.rm(filePath, { recursive: true });
+  } finally {
+    fs.rmSync(filePath, { force: true });
+  }
 })().then(common.mustCall());
 
 // Test input validation.
 {
+  const dir = nextDirPath();
+  makeNonEmptyDirectory(4, 10, 2, dir, true);
+  const filePath = (path.join(tmpdir.path, 'rm-args-file.txt'));
+  fs.writeFileSync(filePath, '');
+
   const defaults = {
     retryDelay: 100,
     maxRetries: 0,
-    recursive: false
+    recursive: false,
+    force: false
   };
   const modified = {
     retryDelay: 953,
     maxRetries: 5,
-    recursive: true
+    recursive: true,
+    force: false
   };
 
-  assert.deepStrictEqual(validateRmdirOptions(), defaults);
-  assert.deepStrictEqual(validateRmdirOptions({}), defaults);
-  assert.deepStrictEqual(validateRmdirOptions(modified), modified);
-  assert.deepStrictEqual(validateRmdirOptions({
+  assert.deepStrictEqual(validateRmOptionsSync(filePath), defaults);
+  assert.deepStrictEqual(validateRmOptionsSync(filePath, {}), defaults);
+  assert.deepStrictEqual(validateRmOptionsSync(filePath, modified), modified);
+  assert.deepStrictEqual(validateRmOptionsSync(filePath, {
     maxRetries: 99
   }), {
     retryDelay: 100,
     maxRetries: 99,
-    recursive: false
+    recursive: false,
+    force: false
   });
 
   [null, 'foo', 5, NaN].forEach((bad) => {
     assert.throws(() => {
-      validateRmdirOptions(bad);
+      validateRmOptionsSync(filePath, bad);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -192,7 +247,7 @@ function removeAsync(dir) {
 
   [undefined, null, 'foo', Infinity, function() {}].forEach((bad) => {
     assert.throws(() => {
-      validateRmdirOptions({ recursive: bad });
+      validateRmOptionsSync(filePath, { recursive: bad });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -201,7 +256,7 @@ function removeAsync(dir) {
   });
 
   assert.throws(() => {
-    validateRmdirOptions({ retryDelay: -1 });
+    validateRmOptionsSync(filePath, { retryDelay: -1 });
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
@@ -209,17 +264,10 @@ function removeAsync(dir) {
   });
 
   assert.throws(() => {
-    validateRmdirOptions({ maxRetries: -1 });
+    validateRmOptionsSync(filePath, { maxRetries: -1 });
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: /^The value of "maxRetries" is out of range\./
   });
 }
-
-// Reset back to default after the test.
-Object.defineProperty(process, 'emitWarning', {
-  value: realEmitWarning,
-  configurable: true,
-  writable: true
-});
