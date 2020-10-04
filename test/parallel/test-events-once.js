@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-internals --no-warnings
+// Flags: --no-warnings
 
 const common = require('../common');
 const { once, EventEmitter } = require('events');
@@ -9,7 +9,6 @@ const {
   fail,
   rejects,
 } = require('assert');
-const { EventTarget, Event } = require('internal/event_target');
 
 async function onceAnEvent() {
   const ee = new EventEmitter();

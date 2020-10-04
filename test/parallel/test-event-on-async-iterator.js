@@ -5,9 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const { on, EventEmitter } = require('events');
 const {
-  EventTarget,
-  NodeEventTarget,
-  Event
+  NodeEventTarget
 } = require('internal/event_target');
 
 async function basic() {
