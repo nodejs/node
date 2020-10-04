@@ -1073,7 +1073,7 @@ process.nextTick(() => ac.abort());
 added: v14.5.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/35496
     description:
       The `EventTarget` and `Event` classes are now available as globals.
 -->
@@ -1195,7 +1195,7 @@ The `EventTarget` does not implement any special default handling for
 added: v14.5.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/35496
     description: The `Event` class is now available through the global object.
 -->
 
@@ -1351,7 +1351,7 @@ The event type identifier.
 added: v14.5.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/35496
     description:
       The `EventTarget` class is now available through the global object.
 -->
