@@ -144,7 +144,7 @@ std::string GetProcessTitle(const char* default_title) {
     if (rc == 0)
       break;
 
-    if (rc != UV_ENOBUFS)
+    if (rc != UV_ENOBUFS || buf.size() >= 1024 * 1024)
       return default_title;
 
     buf.resize(2 * buf.size());
