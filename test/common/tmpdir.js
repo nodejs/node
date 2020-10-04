@@ -5,8 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const { isMainThread } = require('worker_threads');
 
-function rimrafSync(pathname) {
-  fs.rmdirSync(pathname, { maxRetries: 3, recursive: true });
+function rmSync(pathname) {
+  fs.rmSync(pathname, { maxRetries: 3, recursive: true, force: true });
 }
 
 const testRoot = process.env.NODE_TEST_DIR ?
@@ -20,7 +20,7 @@ const tmpPath = path.join(testRoot, tmpdirName);
 
 let firstRefresh = true;
 function refresh() {
-  rimrafSync(this.path);
+  rmSync(this.path);
   fs.mkdirSync(this.path);
 
   if (firstRefresh) {
@@ -37,7 +37,7 @@ function onexit() {
     process.chdir(testRoot);
 
   try {
-    rimrafSync(tmpPath);
+    rmSync(tmpPath);
   } catch (e) {
     console.error('Can\'t clean tmpdir:', tmpPath);
 

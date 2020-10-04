@@ -20,7 +20,7 @@ function hash(algo, body) {
 }
 
 const tmpdirPath = path.join(tmpdir.path, 'test-policy-parse-integrity');
-fs.rmdirSync(tmpdirPath, { maxRetries: 3, recursive: true });
+fs.rmSync(tmpdirPath, { maxRetries: 3, recursive: true, force: true });
 fs.mkdirSync(tmpdirPath, { recursive: true });
 
 const policyFilepath = path.join(tmpdirPath, 'policy');

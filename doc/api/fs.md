@@ -3533,9 +3533,9 @@ changes:
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
-    backoff wait of `retryDelay` ms longer on each try. This option represents
-    the number of retries. This option is ignored if the `recursive` option is
-    not `true`. **Default:** `0`.
+    backoff wait of `retryDelay` milliseconds longer on each try. This option
+    represents the number of retries. This option is ignored if the `recursive`
+    option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, errors are not reported if `path` does not exist, and
     operations are retried on failure. **Default:** `false`.
@@ -3584,9 +3584,9 @@ changes:
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
-    backoff wait of `retryDelay` ms longer on each try. This option represents
-    the number of retries. This option is ignored if the `recursive` option is
-    not `true`. **Default:** `0`.
+    backoff wait of `retryDelay` milliseconds longer on each try. This option
+    represents the number of retries. This option is ignored if the `recursive`
+    option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, errors are not reported if `path` does not exist, and
     operations are retried on failure. **Default:** `false`.
@@ -3604,6 +3604,53 @@ Setting `recursive` to `true` results in behavior similar to the Unix command
 that represent files will be deleted. The permissive behavior of the
 `recursive` option is deprecated, `ENOTDIR` and `ENOENT` will be thrown in
 the future.
+
+## `fs.rm(path[, options], callback)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `force` don't error on nonexistent path
+  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    backoff wait of `retryDelay` milliseconds longer on each try. This option
+    represents the number of retries. This option is ignored if the `recursive`
+    option is not `true`. **Default:** `0`.
+  * `recursive` {boolean} If `true`, perform a recursive removal. In
+    recursive mode operations are retried on failure. **Default:** `false`.
+  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+    retries. This option is ignored if the `recursive` option is not `true`.
+    **Default:** `100`.
+* `callback` {Function}
+  * `err` {Error}
+
+Asynchronously removes files and directories (modeled on the standard POSIX `rm`
+utility). No arguments other than a possible exception are given to the
+completion callback.
+
+## `fs.rmSync(path[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `force` Ignore errors
+  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    backoff wait of `retryDelay` milliseconds longer on each try. This option
+    represents the number of retries. This option is ignored if the `recursive`
+    option is not `true`. **Default:** `0`.
+  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
+    recursive mode operations are retried on failure. **Default:** `false`.
+  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+    retries. This option is ignored if the `recursive` option is not `true`.
+    **Default:** `100`.
+
+Synchronously removes files and directories (modeled on the standard POSIX `rm`
+utility). Returns `undefined`.
 
 ## `fs.stat(path[, options], callback)`
 <!-- YAML
@@ -5477,9 +5524,9 @@ changes:
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
-    backoff wait of `retryDelay` ms longer on each try. This option represents
-    the number of retries. This option is ignored if the `recursive` option is
-    not `true`. **Default:** `0`.
+    backoff wait of `retryDelay` milliseconds longer on each try. This option
+    represents the number of retries. This option is ignored if the `recursive`
+    option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, errors are not reported if `path` does not exist, and
     operations are retried on failure. **Default:** `false`.
@@ -5500,6 +5547,28 @@ Setting `recursive` to `true` results in behavior similar to the Unix command
 that represent files will be deleted. The permissive behavior of the
 `recursive` option is deprecated, `ENOTDIR` and `ENOENT` will be thrown in
 the future.
+
+## `fsPromises.rm(path[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `force` Ignore errors
+  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    backoff wait of `retryDelay` milliseconds longer on each try. This option
+    represents the number of retries. This option is ignored if the `recursive`
+    option is not `true`. **Default:** `0`.
+  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
+    recursive mode operations are retried on failure. **Default:** `false`.
+  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+    retries. This option is ignored if the `recursive` option is not `true`.
+    **Default:** `100`.
+
+Synchronously removes files and directories (modeled on the standard POSIX `rm`
+utility). Resolves the `Promise` with no arguments on success.
 
 ### `fsPromises.stat(path[, options])`
 <!-- YAML
