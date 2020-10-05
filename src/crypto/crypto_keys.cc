@@ -266,20 +266,22 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
   return ParseKeyResult::kParseKeyFailed;
 }
 
-Local<Value> BIOToStringOrBuffer(Environment* env,
-                                 BIO* bio,
-                                 PKFormatType format) {
+MaybeLocal<Value> BIOToStringOrBuffer(
+    Environment* env,
+    BIO* bio,
+    PKFormatType format) {
   BUF_MEM* bptr;
   BIO_get_mem_ptr(bio, &bptr);
   if (format == kKeyFormatPEM) {
     // PEM is an ASCII format, so we will return it as a string.
     return String::NewFromUtf8(env->isolate(), bptr->data,
                                NewStringType::kNormal,
-                               bptr->length).ToLocalChecked();
+                               bptr->length).FromMaybe(Local<Value>());
   } else {
     CHECK_EQ(format, kKeyFormatDER);
     // DER is binary, return it as a buffer.
-    return Buffer::Copy(env, bptr->data, bptr->length).ToLocalChecked();
+    return Buffer::Copy(env, bptr->data, bptr->length)
+        .FromMaybe(Local<Value>());
   }
 }
 
@@ -1108,13 +1110,13 @@ void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!result.IsEmpty())
-    args.GetReturnValue().Set(result.ToLocalChecked());
+    args.GetReturnValue().Set(result.FromMaybe(Local<Value>()));
 }
 
-Local<Value> KeyObjectHandle::ExportSecretKey() const {
+MaybeLocal<Value> KeyObjectHandle::ExportSecretKey() const {
   const char* buf = data_->GetSymmetricKey();
   unsigned int len = data_->GetSymmetricKeySize();
-  return Buffer::Copy(env(), buf, len).ToLocalChecked();
+  return Buffer::Copy(env(), buf, len).FromMaybe(Local<Value>());
 }
 
 MaybeLocal<Value> KeyObjectHandle::ExportPublicKey(
@@ -1183,7 +1185,9 @@ void NativeKeyObject::CreateNativeKeyObjectClass(
       KeyObjectHandle::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  Local<Value> ctor = t->GetFunction(env->context()).ToLocalChecked();
+  Local<Value> ctor;
+  if (!t->GetFunction(env->context()).ToLocal(&ctor))
+    return;
 
   Local<Value> recv = Undefined(env->isolate());
   Local<Value> ret_v;
@@ -1210,7 +1214,10 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
     return {};
   }
 
-  Local<Value> handle = KeyObjectHandle::Create(env, data_).ToLocalChecked();
+  Local<Value> handle;
+  if (!KeyObjectHandle::Create(env, data_).ToLocal(&handle))
+    return {};
+
   Local<Function> key_ctor;
   Local<Value> arg = FIXED_ONE_BYTE_STRING(env->isolate(),
                                            "internal/crypto/keys");
@@ -1232,8 +1239,10 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
       CHECK(false);
   }
 
-  Local<Value> key =
-      key_ctor->NewInstance(context, 1, &handle).ToLocalChecked();
+  Local<Value> key;
+  if (!key_ctor->NewInstance(context, 1, &handle).ToLocal(&key))
+    return {};
+
   return BaseObjectPtr<BaseObject>(Unwrap<KeyObjectHandle>(key.As<Object>()));
 }
 

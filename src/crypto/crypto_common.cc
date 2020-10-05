@@ -931,7 +931,7 @@ MaybeLocal<Value> GetPeerCert(
   // First and main certificate.
   X509Pointer first_cert(sk_X509_value(peer_certs.get(), 0));
   CHECK(first_cert);
-  maybe_cert = X509ToObject(env, first_cert.release()).ToLocalChecked();
+  maybe_cert = X509ToObject(env, first_cert.release());
   if (!maybe_cert.ToLocal(&result))
     return MaybeLocal<Value>();
 

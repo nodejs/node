@@ -253,7 +253,7 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(size,
            BN_bn2binpad(
                pub_key, reinterpret_cast<unsigned char*>(data.data()), size));
-  args.GetReturnValue().Set(data.ToBuffer().ToLocalChecked());
+  args.GetReturnValue().Set(data.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 
@@ -275,7 +275,7 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
   CHECK_EQ(
       size,
       BN_bn2binpad(num, reinterpret_cast<unsigned char*>(data.data()), size));
-  args.GetReturnValue().Set(data.ToBuffer().ToLocalChecked());
+  args.GetReturnValue().Set(data.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
@@ -357,7 +357,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(size, 0);
   ZeroPadDiffieHellmanSecret(static_cast<size_t>(size), &ret);
 
-  args.GetReturnValue().Set(ret.ToBuffer().ToLocalChecked());
+  args.GetReturnValue().Set(ret.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 void DiffieHellman::SetKey(const FunctionCallbackInfo<Value>& args,
@@ -613,7 +613,7 @@ void DiffieHellman::Stateless(const FunctionCallbackInfo<Value>& args) {
   if (out.size() == 0)
     return ThrowCryptoError(env, ERR_get_error(), "diffieHellman failed");
 
-  args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
+  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 Maybe<bool> DHBitsTraits::AdditionalConfig(
