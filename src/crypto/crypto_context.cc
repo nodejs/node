@@ -21,7 +21,6 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBufferView;
-using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
@@ -551,7 +550,9 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
   const Utf8Value engine_id(env->isolate(), args[1]);
   EnginePointer engine = LoadEngineById(*engine_id, &errors);
   if (!engine) {
-    env->isolate()->ThrowException(errors.ToException(env).ToLocalChecked());
+    Local<Value> exception;
+    if (errors.ToException(env).ToLocal(&exception))
+      env->isolate()->ThrowException(exception);
     return;
   }
 
@@ -1061,7 +1062,9 @@ void SecureContext::SetClientCertEngine(
   const node::Utf8Value engine_id(env->isolate(), args[0]);
   EnginePointer engine = LoadEngineById(*engine_id, &errors);
   if (!engine) {
-    env->isolate()->ThrowException(errors.ToException(env).ToLocalChecked());
+    Local<Value> exception;
+    if (errors.ToException(env).ToLocal(&exception))
+      env->isolate()->ThrowException(exception);
     return;
   }
 
@@ -1079,7 +1082,10 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  Local<Object> buff = Buffer::New(wrap->env(), 48).ToLocalChecked();
+  Local<Object> buff;
+  if (!Buffer::New(wrap->env(), 48).ToLocal(&buff))
+    return;
+
   memcpy(Buffer::Data(buff), wrap->ticket_key_name_, 16);
   memcpy(Buffer::Data(buff) + 16, wrap->ticket_key_hmac_, 16);
   memcpy(Buffer::Data(buff) + 32, wrap->ticket_key_aes_, 16);
@@ -1143,45 +1149,59 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Value> argv[] = {
-    Buffer::Copy(env,
-                 reinterpret_cast<char*>(name),
-                 kTicketPartSize).ToLocalChecked(),
-    Buffer::Copy(env,
-                 reinterpret_cast<char*>(iv),
-                 kTicketPartSize).ToLocalChecked(),
-    Boolean::New(env->isolate(), enc != 0)
-  };
+  Local<Value> argv[3];
 
-  Local<Value> ret = node::MakeCallback(env->isolate(),
-                                        sc->object(),
-                                        env->ticketkeycallback_string(),
-                                        arraysize(argv),
-                                        argv,
-                                        {0, 0}).ToLocalChecked();
+  if (!Buffer::Copy(
+          env,
+          reinterpret_cast<char*>(name),
+          kTicketPartSize).ToLocal(&argv[0]) ||
+      !Buffer::Copy(
+          env,
+          reinterpret_cast<char*>(iv),
+          kTicketPartSize).ToLocal(&argv[1])) {
+    return -1;
+  }
+
+  argv[2] = env != 0 ? v8::True(env->isolate()) : v8::False(env->isolate());
+
+  Local<Value> ret;
+  if (!node::MakeCallback(
+          env->isolate(),
+          sc->object(),
+          env->ticketkeycallback_string(),
+          arraysize(argv),
+          argv,
+          {0, 0}).ToLocal(&ret) ||
+      !ret->IsArray()) {
+    return -1;
+  }
   Local<Array> arr = ret.As<Array>();
 
-  int r =
-      arr->Get(env->context(),
-               kTicketKeyReturnIndex).ToLocalChecked()
-               ->Int32Value(env->context()).FromJust();
+  Local<Value> val;
+  if (!arr->Get(env->context(), kTicketKeyReturnIndex).ToLocal(&val) ||
+      !val->IsInt32()) {
+    return -1;
+  }
+
+  int r = val.As<Int32>()->Value();
   if (r < 0)
     return r;
 
-  Local<Value> hmac = arr->Get(env->context(),
-                               kTicketKeyHMACIndex).ToLocalChecked();
-  Local<Value> aes = arr->Get(env->context(),
-                              kTicketKeyAESIndex).ToLocalChecked();
-  if (Buffer::Length(aes) != kTicketPartSize)
+  Local<Value> hmac;
+  Local<Value> aes;
+
+  if (!arr->Get(env->context(), kTicketKeyHMACIndex).ToLocal(&hmac) ||
+      !arr->Get(env->context(), kTicketKeyAESIndex).ToLocal(&aes) ||
+      Buffer::Length(aes) != kTicketPartSize) {
     return -1;
+  }
 
   if (enc) {
-    Local<Value> name_val = arr->Get(env->context(),
-                                     kTicketKeyNameIndex).ToLocalChecked();
-    Local<Value> iv_val = arr->Get(env->context(),
-                                   kTicketKeyIVIndex).ToLocalChecked();
-
-    if (Buffer::Length(name_val) != kTicketPartSize ||
+    Local<Value> name_val;
+    Local<Value> iv_val;
+    if (!arr->Get(env->context(), kTicketKeyNameIndex).ToLocal(&name_val) ||
+        !arr->Get(env->context(), kTicketKeyIVIndex).ToLocal(&iv_val) ||
+        Buffer::Length(name_val) != kTicketPartSize ||
         Buffer::Length(iv_val) != kTicketPartSize) {
       return -1;
     }
@@ -1272,7 +1292,9 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetNull();
 
   int size = i2d_X509(cert, nullptr);
-  Local<Object> buff = Buffer::New(env, size).ToLocalChecked();
+  Local<Object> buff;
+  if (!Buffer::New(env, size).ToLocal(&buff))
+    return;
   unsigned char* serialized = reinterpret_cast<unsigned char*>(
       Buffer::Data(buff));
   i2d_X509(cert, &serialized);
