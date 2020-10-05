@@ -377,7 +377,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   if (ret.error != kSignOk)
     return crypto::CheckThrow(env, ret.error);
 
-  args.GetReturnValue().Set(ret.signature.ToBuffer().ToLocalChecked());
+  args.GetReturnValue().Set(ret.signature.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 Verify::Verify(Environment* env, Local<Object> wrap)
@@ -581,7 +581,7 @@ void Sign::SignSync(const FunctionCallbackInfo<Value>& args) {
     signature = ConvertSignatureToP1363(env, key, std::move(signature));
   }
 
-  args.GetReturnValue().Set(signature.ToBuffer().ToLocalChecked());
+  args.GetReturnValue().Set(signature.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 void Verify::VerifySync(const FunctionCallbackInfo<Value>& args) {

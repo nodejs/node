@@ -178,10 +178,14 @@ MaybeLocal<Value> CryptoErrorVector::ToException(
     if (copy.empty()) copy.push_back("no error");  // But possibly a bug...
     // Use last element as the error message, everything else goes
     // into the .opensslErrorStack property on the exception object.
-    auto exception_string =
-        String::NewFromUtf8(env->isolate(), copy.back().data(),
-                            NewStringType::kNormal, copy.back().size())
-        .ToLocalChecked();
+    Local<String> exception_string;
+    if (!String::NewFromUtf8(
+            env->isolate(),
+            copy.back().data(),
+            NewStringType::kNormal,
+            copy.back().size()).ToLocal(&exception_string)) {
+      return MaybeLocal<Value>();
+    }
     copy.pop_back();
     return copy.ToException(env, exception_string);
   }
@@ -192,11 +196,12 @@ MaybeLocal<Value> CryptoErrorVector::ToException(
   if (!empty()) {
     CHECK(exception_v->IsObject());
     Local<Object> exception = exception_v.As<Object>();
-    Maybe<bool> ok = exception->Set(env->context(),
-                    env->openssl_error_stack(),
-                    ToV8Value(env->context(), *this).ToLocalChecked());
-    if (ok.IsNothing())
+    Local<Value> stack;
+    if (!ToV8Value(env->context(), *this).ToLocal(&stack) ||
+        exception->Set(env->context(), env->openssl_error_stack(), stack)
+            .IsNothing()) {
       return MaybeLocal<Value>();
+    }
   }
 
   return exception_v;
@@ -470,18 +475,18 @@ void ThrowCryptoError(Environment* env,
     message = message_buffer;
   }
   HandleScope scope(env->isolate());
-  Local<String> exception_string =
-      String::NewFromUtf8(env->isolate(), message).ToLocalChecked();
+  Local<String> exception_string;
+  Local<Value> exception;
+  Local<Object> obj;
+  if (!String::NewFromUtf8(env->isolate(), message).ToLocal(&exception_string))
+    return;
   CryptoErrorVector errors;
   errors.Capture();
-  Local<Value> exception;
-  if (!errors.ToException(env, exception_string).ToLocal(&exception))
+  if (!errors.ToException(env, exception_string).ToLocal(&exception) ||
+      !exception->ToObject(env->context()).ToLocal(&obj) ||
+      error::Decorate(env, obj, err).IsNothing()) {
     return;
-  Local<Object> obj;
-  if (!exception->ToObject(env->context()).ToLocal(&obj))
-    return;
-  if (error::Decorate(env, obj, err).IsNothing())
-    return;
+  }
   env->isolate()->ThrowException(exception);
 }
 
