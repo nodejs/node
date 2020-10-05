@@ -594,7 +594,7 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(
       Buffer::Copy(env, cipher->auth_tag_, cipher->auth_tag_len_)
-          .ToLocalChecked());
+          .FromMaybe(Local<Value>()));
 }
 
 void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
@@ -784,7 +784,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
     }
 
     CHECK(out.data() != nullptr || out.size() == 0);
-    args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
+    args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
   });
 }
 
@@ -875,7 +875,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error(), msg);
   }
 
-  args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
+  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 template <PublicKeyCipher::Operation operation,

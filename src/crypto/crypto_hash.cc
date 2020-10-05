@@ -198,7 +198,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     env->isolate()->ThrowException(error);
     return;
   }
-  args.GetReturnValue().Set(rc.ToLocalChecked());
+  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
 }
 
 HashConfig::HashConfig(HashConfig&& other) noexcept

@@ -197,8 +197,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   if (!r)
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to compute ECDH key");
 
-  Local<Object> buf = out.ToBuffer().ToLocalChecked();
-  args.GetReturnValue().Set(buf);
+  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
@@ -244,8 +243,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
                               reinterpret_cast<unsigned char*>(out.data()),
                               size));
 
-  Local<Object> buf = out.ToBuffer().ToLocalChecked();
-  args.GetReturnValue().Set(buf);
+  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {

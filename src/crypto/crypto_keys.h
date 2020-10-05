@@ -196,7 +196,7 @@ class KeyObjectHandle : public BaseObject {
 
   static void Export(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  v8::Local<v8::Value> ExportSecretKey() const;
+  v8::MaybeLocal<v8::Value> ExportSecretKey() const;
   v8::MaybeLocal<v8::Value> ExportPublicKey(
       const PublicKeyEncodingConfig& config) const;
   v8::MaybeLocal<v8::Value> ExportPrivateKey(

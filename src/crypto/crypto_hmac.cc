@@ -134,7 +134,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
     env->isolate()->ThrowException(error);
     return;
   }
-  args.GetReturnValue().Set(rc.ToLocalChecked());
+  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
 }
 
 HmacConfig::HmacConfig(HmacConfig&& other) noexcept

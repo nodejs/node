@@ -82,7 +82,7 @@ void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (pkey.data() == nullptr)
     return args.GetReturnValue().SetEmptyString();
 
-  args.GetReturnValue().Set(pkey.ToBuffer().ToLocalChecked());
+  args.GetReturnValue().Set(pkey.ToBuffer().FromMaybe(Local<Value>()));
 }
 
 OpenSSLBuffer ExportChallenge(const ArrayBufferOrViewContents<char>& input) {
