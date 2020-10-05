@@ -148,14 +148,14 @@ TEST_F(URLTest, FromFilePath) {
 #else
   file_url = URL::FromFilePath("/");
   EXPECT_EQ("file:", file_url.protocol());
-  EXPECT_EQ("/", file_url.path());
+  EXPECT_EQ("//", file_url.path());
 
   file_url = URL::FromFilePath("/a/b/c");
   EXPECT_EQ("file:", file_url.protocol());
-  EXPECT_EQ("/a/b/c", file_url.path());
+  EXPECT_EQ("//a/b/c", file_url.path());
 
   file_url = URL::FromFilePath("/a/%%.js");
   EXPECT_EQ("file:", file_url.protocol());
-  EXPECT_EQ("/a/%25%25.js", file_url.path());
+  EXPECT_EQ("//a/%25%25.js", file_url.path());
 #endif
 }
