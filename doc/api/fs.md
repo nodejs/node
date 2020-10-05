@@ -384,7 +384,7 @@ an [`fs.Dirent`][], or `null` if there are no more directory entries to read.
 
 Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms.
-Entries added or removed while iterating over the directory may or may not be
+Entries added or removed while iterating over the directory might not be
 included in the iteration results.
 
 ### `dir.read(callback)`
@@ -404,7 +404,7 @@ After the read is completed, the `callback` will be called with an
 
 Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms.
-Entries added or removed while iterating over the directory may or may not be
+Entries added or removed while iterating over the directory might not be
 included in the iteration results.
 
 ### `dir.readSync()`
@@ -421,7 +421,7 @@ If there are no more directory entries to read, `null` will be returned.
 
 Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms.
-Entries added or removed while iterating over the directory may or may not be
+Entries added or removed while iterating over the directory might not be
 included in the iteration results.
 
 ### `dir[Symbol.asyncIterator]()`
@@ -441,7 +441,7 @@ See [`fs.Dir`][] for an example.
 
 Directory entries returned by this iterator are in no particular order as
 provided by the operating system's underlying directory mechanisms.
-Entries added or removed while iterating over the directory may or may not be
+Entries added or removed while iterating over the directory might not be
 included in the iteration results.
 
 ## Class: `fs.Dirent`
@@ -3532,7 +3532,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    `EPERM` error is encountered, Node.js retries the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
@@ -3583,7 +3583,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    `EPERM` error is encountered, Node.js retries the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
@@ -4435,8 +4435,8 @@ fs.write(fd, Buffer.from(data, options.encoding), callback);
 ```
 
 The difference from directly calling `fs.write()` is that under some unusual
-conditions, `fs.write()` may write only part of the buffer and will need to be
-retried to write the remaining data, whereas `fs.writeFile()` will retry until
+conditions, `fs.write()` might write only part of the buffer and need to be
+retried to write the remaining data, whereas `fs.writeFile()` retries until
 the data is entirely written (or an error occurs).
 
 The implications of this are a common source of confusion. In
@@ -5525,7 +5525,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    `EPERM` error is encountered, Node.js retries the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
@@ -6025,7 +6025,7 @@ or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by `CreateFileW`.
 The exclusive flag `'x'` (`O_EXCL` flag in open(2)) causes the operation to
 return an error if the path already exists. On POSIX, if the path is a symbolic
 link, using `O_EXCL` returns an error even if the link is to a path that does
-not exist. The exclusive flag may or may not work with network file systems.
+not exist. The exclusive flag might not work with network file systems.
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
