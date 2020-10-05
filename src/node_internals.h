@@ -100,10 +100,6 @@ std::string GetHumanReadableProcessName();
 void InitializeContextRuntime(v8::Local<v8::Context>);
 bool InitializePrimordials(v8::Local<v8::Context> context);
 
-namespace task_queue {
-void PromiseRejectCallback(v8::PromiseRejectMessage message);
-}  // namespace task_queue
-
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }

@@ -31,14 +31,14 @@ using v8::SealHandleScope;
 using v8::String;
 using v8::Value;
 
-static bool AllowWasmCodeGenerationCallback(Local<Context> context,
-                                            Local<String>) {
+bool AllowWasmCodeGenerationCallback(Local<Context> context,
+                                     Local<String>) {
   Local<Value> wasm_code_gen =
       context->GetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration);
   return wasm_code_gen->IsUndefined() || wasm_code_gen->IsTrue();
 }
 
-static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
+bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   DebugSealHandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   return env != nullptr &&
@@ -48,9 +48,9 @@ static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
          !env->inside_should_not_abort_on_uncaught_scope();
 }
 
-static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
-                                      Local<Value> exception,
-                                      Local<Array> trace) {
+MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
+                                            Local<Value> exception,
+                                            Local<Array> trace) {
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
     return exception->ToString(context).FromMaybe(Local<Value>());
@@ -245,7 +245,7 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
 
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
     auto* promise_reject_cb = s.promise_reject_callback ?
-      s.promise_reject_callback : task_queue::PromiseRejectCallback;
+      s.promise_reject_callback : PromiseRejectCallback;
     isolate->SetPromiseRejectCallback(promise_reject_cb);
   }
 

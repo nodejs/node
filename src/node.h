@@ -495,6 +495,16 @@ NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
 // This may return nullptr if context is not associated with a Node instance.
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
 
+NODE_EXTERN void OnFatalError(const char* location, const char* message);
+NODE_EXTERN void PromiseRejectCallback(v8::PromiseRejectMessage message);
+NODE_EXTERN bool AllowWasmCodeGenerationCallback(v8::Local<v8::Context> context,
+                                            v8::Local<v8::String>);
+NODE_EXTERN bool ShouldAbortOnUncaughtException(v8::Isolate* isolate);
+NODE_EXTERN v8::MaybeLocal<v8::Value> PrepareStackTraceCallback(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Value> exception,
+    v8::Local<v8::Array> trace);
+
 // This returns the MultiIsolatePlatform used in the main thread of Node.js.
 // If NODE_USE_V8_PLATFORM has not been defined when Node.js was built,
 // it returns nullptr.
