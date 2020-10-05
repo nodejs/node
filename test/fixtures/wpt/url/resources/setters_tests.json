@@ -1672,8 +1672,8 @@
             "href": "file://monkey/",
             "new_value": "\\\\",
             "expected": {
-                "href": "file://monkey/",
-                "pathname": "/"
+                "href": "file://monkey//",
+                "pathname": "//"
             }
         },
         {
@@ -1681,8 +1681,8 @@
             "href": "file:///unicorn",
             "new_value": "//\\/",
             "expected": {
-                "href": "file:///",
-                "pathname": "/"
+                "href": "file://////",
+                "pathname": "////"
             }
         },
         {
@@ -1690,8 +1690,8 @@
             "href": "file:///unicorn",
             "new_value": "//monkey/..//",
             "expected": {
-                "href": "file:///",
-                "pathname": "/"
+                "href": "file://///",
+                "pathname": "///"
             }
         },
         {
