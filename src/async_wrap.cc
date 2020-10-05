@@ -54,7 +54,6 @@ using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::ReadOnly;
 using v8::String;
-using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 using v8::WeakCallbackInfo;
@@ -69,45 +68,6 @@ static const char* const provider_names[] = {
   #PROVIDER,
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
-};
-
-
-struct AsyncWrapObject : public AsyncWrap {
-  static inline void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    CHECK(args.IsConstructCall());
-    CHECK(env->async_wrap_object_ctor_template()->HasInstance(args.This()));
-    CHECK(args[0]->IsUint32());
-    auto type = static_cast<ProviderType>(args[0].As<Uint32>()->Value());
-    new AsyncWrapObject(env, args.This(), type);
-  }
-
-  inline AsyncWrapObject(Environment* env, Local<Object> object,
-                         ProviderType type) : AsyncWrap(env, object, type) {}
-
-  static Local<FunctionTemplate> GetConstructorTemplate(Environment* env) {
-    Local<FunctionTemplate> tmpl = env->async_wrap_object_ctor_template();
-    if (tmpl.IsEmpty()) {
-      tmpl = env->NewFunctionTemplate(AsyncWrapObject::New);
-      tmpl->SetClassName(
-          FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
-      tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-      tmpl->InstanceTemplate()->SetInternalFieldCount(
-          AsyncWrapObject::kInternalFieldCount);
-      env->set_async_wrap_object_ctor_template(tmpl);
-    }
-    return tmpl;
-  }
-
-  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
-    // We can't really know what the underlying operation does. One of the
-    // signs that it's time to remove this class. :)
-    return true;
-  }
-
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(AsyncWrapObject)
-  SET_SELF_SIZE(AsyncWrapObject)
 };
 
 void AsyncWrap::DestroyAsyncIdsCallback(Environment* env) {
@@ -751,11 +711,6 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->set_async_hooks_promise_resolve_function(Local<Function>());
   env->set_async_hooks_binding(target);
 
-  target->Set(env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"),
-      AsyncWrapObject::GetConstructorTemplate(env)
-          ->GetFunction(env->context()).ToLocalChecked()).Check();
-
   // TODO(qard): maybe this should be GetConstructorTemplate instead?
   PromiseWrap::Initialize(env);
 }
@@ -772,7 +727,6 @@ void AsyncWrap::RegisterExternalReferences(
   registry->Register(EnablePromiseHook);
   registry->Register(DisablePromiseHook);
   registry->Register(RegisterDestroyHook);
-  registry->Register(AsyncWrapObject::New);
   registry->Register(AsyncWrap::GetAsyncId);
   registry->Register(AsyncWrap::AsyncReset);
   registry->Register(AsyncWrap::GetProviderType);
