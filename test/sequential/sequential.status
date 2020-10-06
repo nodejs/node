@@ -35,3 +35,7 @@ test-perf-hooks: SKIP
 [$arch==arm]
 # https://github.com/nodejs/node/issues/26401#issuecomment-613095719
 test-worker-prof: PASS, FLAKY
+# The test itself is not flaky but it cannot finish within timeout on ARM and
+# since there is no way to change test timeout mark it as flaky instead so
+# that it will at least be checked on other platforms
+test-fs-path-dir: PASS, FLAKY
