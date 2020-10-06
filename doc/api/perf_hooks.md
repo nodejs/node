@@ -55,7 +55,9 @@ Performance Timeline. If `name` is provided, removes only the named mark.
 
 ### `performance.eventLoopUtilization([utilization1[, utilization2]])`
 <!-- YAML
-added: v14.10.0
+added:
+ - v14.10.0
+ - v12.19.0
 -->
 
 * `utilization1` {Object} The result of a previous call to
@@ -345,7 +347,9 @@ initialized.
 
 ### `performanceNodeTiming.idleTime`
 <!-- YAML
-added: v14.10.0
+added:
+  - v14.10.0
+  - v12.19.0
 -->
 
 * {number}
