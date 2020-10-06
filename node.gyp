@@ -1361,6 +1361,9 @@
           'defines': [
             'HAVE_OPENSSL=1',
           ],
+          'sources': [
+            'test/cctest/test_node_crypto.cc',
+          ]
         }],
         [ 'node_use_openssl=="true" and experimental_quic==1', {
           'defines': [
@@ -1385,7 +1388,10 @@
            ]
         }],
         ['OS=="solaris"', {
-          'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
+          'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ],
+          'sources!': [
+            'test/cctest/test_node_crypto.cc',
+          ]
         }],
         # Skip cctest while building shared lib node for Windows
         [ 'OS=="win" and node_shared=="true"', {
