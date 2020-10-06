@@ -23,11 +23,25 @@ void IsExtraRootCertsFileLoaded(
 
 class SecureContext final : public BaseObject {
  public:
+  using GetSessionCb = SSL_SESSION* (*)(SSL*, const unsigned char*, int, int*);
+  using KeylogCb = void (*)(const SSL*, const char*);
+  using NewSessionCb = int (*)(SSL*, SSL_SESSION*);
+  using SelectSNIContextCb = int (*)(SSL*, int*, void*);
+
   ~SecureContext() override;
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   SSL_CTX* operator*() const { return ctx_.get(); }
+
+  SSL_CTX* ssl_ctx() const { return ctx_.get(); }
+
+  SSLPointer CreateSSL();
+
+  void SetGetSessionCallback(GetSessionCb cb);
+  void SetKeylogCallback(KeylogCb cb);
+  void SetNewSessionCallback(NewSessionCb cb);
+  void SetSelectSNIContextCallback(SelectSNIContextCb cb);
 
   // TODO(joyeecheung): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()

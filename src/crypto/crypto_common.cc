@@ -799,6 +799,8 @@ MaybeLocal<Array> GetClientHelloCiphers(
 
 
 MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
+  if (SSL_get_current_cipher(ssl.get()) == nullptr)
+    return MaybeLocal<Object>();
   EscapableHandleScope scope(env->isolate());
   Local<Object> info = Object::New(env->isolate());
 
