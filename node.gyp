@@ -1363,6 +1363,9 @@
           'defines': [
             'HAVE_OPENSSL=1',
           ],
+          'sources': [
+            'test/cctest/test_node_crypto.cc',
+          ]
         }],
         [ 'node_use_openssl=="true" and experimental_quic==1', {
           'defines': [

@@ -186,12 +186,15 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                        issuer);
 }
 
-static X509_STORE* NewRootCertStore() {
+}  // namespace
+
+X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
   static Mutex root_certs_vector_mutex;
   Mutex::ScopedLock lock(root_certs_vector_mutex);
 
-  if (root_certs_vector.empty()) {
+  if (root_certs_vector.empty() &&
+      per_process::cli_options->ssl_openssl_cert_store == false) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       X509* x509 =
           PEM_read_bio_X509(NodeBIO::NewFixed(root_certs[i],
@@ -209,7 +212,9 @@ static X509_STORE* NewRootCertStore() {
 
   X509_STORE* store = X509_STORE_new();
   if (*system_cert_path != '\0') {
+    ERR_set_mark();
     X509_STORE_load_locations(store, system_cert_path, nullptr);
+    ERR_pop_to_mark();
   }
 
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
@@ -224,7 +229,6 @@ static X509_STORE* NewRootCertStore() {
 
   return store;
 }
-}  // namespace
 
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
