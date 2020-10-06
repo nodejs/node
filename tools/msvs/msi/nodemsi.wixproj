@@ -52,6 +52,9 @@
     <Compile Include="..\..\..\npm.wxs">
       <Link>npm.wxs</Link>
     </Compile>
+    <Compile Include="..\..\..\corepack.wxs">
+      <Link>corepack.wxs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <WixExtension Include="WixUIExtension">
@@ -84,6 +87,8 @@
   <Import Project="$(WixTargetsPath)" />
   <Target Name="BeforeBuild">
     <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm" PreprocessorVariable="var.NpmSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NpmSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs" RunAsSeparateProcess="true">
+    </HeatDirectory>
+    <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack" PreprocessorVariable="var.CorepackSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="CorepackSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\corepack.wxs" RunAsSeparateProcess="true">
     </HeatDirectory>
   </Target>
   <PropertyGroup>
