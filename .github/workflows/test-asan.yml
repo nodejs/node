@@ -14,7 +14,7 @@ on:
       - 'doc/**'
 
 env:
-  PYTHON_VERSION: 3.8
+  PYTHON_VERSION: 3.9
   FLAKY_TESTS: dontcare
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
