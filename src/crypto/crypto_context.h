@@ -21,6 +21,8 @@ void GetRootCertificates(
 void IsExtraRootCertsFileLoaded(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
+X509_STORE* NewRootCertStore();
+
 class SecureContext final : public BaseObject {
  public:
   using GetSessionCb = SSL_SESSION* (*)(SSL*, const unsigned char*, int, int*);
