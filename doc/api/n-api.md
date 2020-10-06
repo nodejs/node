@@ -5167,18 +5167,30 @@ napi_status napi_async_init(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] async_resource`: Object associated with the async work
-  that will be passed to possible `async_hooks` [`init` hooks][].
-  In order to retain ABI compatibility with previous versions,
-  passing `NULL` for `async_resource` does not result in an error. However,
-  this results in incorrect operation of async hooks for the
-  napi_async_context created. Potential issues include
-  loss of async context when using the AsyncLocalStorage API.
-* `[in] async_resource_name`: Identifier for the kind of resource
-  that is being provided for diagnostic information exposed by the
-  `async_hooks` API.
+  that will be passed to possible `async_hooks` [`init` hooks][] and can be
+  accessed by [`async_hooks.executionAsyncResource()`][].
+* `[in] async_resource_name`: Identifier for the kind of resource that is being
+  provided for diagnostic information exposed by the `async_hooks` API.
 * `[out] result`: The initialized async context.
 
 Returns `napi_ok` if the API succeeded.
+
+The `async_resource` object needs to be kept alive until
+[`napi_async_destroy`][] to keep `async_hooks` related API acts correctly. In
+order to retain ABI compatibility with previous versions, `napi_async_context`s
+are not maintaining the strong reference to the `async_resource` objects to
+avoid introducing causing memory leaks. However, if the `async_resource` is
+garbage collected by JavaScript engine before the `napi_async_context` was
+destroyed by `napi_async_destroy`, calling `napi_async_context` related APIs
+like [`napi_open_callback_scope`][] and [`napi_make_callback`][] can cause
+problems like loss of async context when using the `AsyncLocalStoage` API.
+
+In order to retain ABI compatibility with previous versions, passing `NULL`
+for `async_resource` does not result in an error. However, this is not
+recommended as this will result poor results with  `async_hooks`
+[`init` hooks][] and `async_hooks.executionAsyncResource()` as the resource is
+now required by the underlying `async_hooks` implementation in order to provide
+the linkage between async callbacks.
 
 ### napi_async_destroy
 <!-- YAML
@@ -5266,7 +5278,9 @@ NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] resource_object`: An object associated with the async work
-  that will be passed to possible `async_hooks` [`init` hooks][].
+  that will be passed to possible `async_hooks` [`init` hooks][]. This
+  parameter has been deprecated and is ignored at runtime. Use the
+  `async_resource` parameter in [`napi_async_init`][] instead.
 * `[in] context`: Context for the async operation that is invoking the callback.
   This should be a value previously obtained from [`napi_async_init`][].
 * `[out] result`: The newly created scope.
@@ -5963,6 +5977,7 @@ This API may only be called from the main thread.
 [`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
 [`Worker`]: worker_threads.md#worker_threads_class_worker
+[`async_hooks.executionAsyncResource()`]: async_hooks.md#async_hooks_async_hooks_executionasyncresource
 [`global`]: globals.md#globals_global
 [`init` hooks]: async_hooks.md#async_hooks_init_asyncid_type_triggerasyncid_resource
 [`napi_add_async_cleanup_hook`]: #n_api_napi_add_async_cleanup_hook
@@ -5970,6 +5985,7 @@ This API may only be called from the main thread.
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
 [`napi_async_cleanup_hook`]: #n_api_napi_async_cleanup_hook
 [`napi_async_complete_callback`]: #n_api_napi_async_complete_callback
+[`napi_async_destroy`]: #n_api_napi_async_destroy
 [`napi_async_init`]: #n_api_napi_async_init
 [`napi_callback`]: #n_api_napi_callback
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
