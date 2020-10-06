@@ -17,7 +17,7 @@ const hook_result = {
 
 const test_hook = async_hooks.createHook({
   init: (id, type) => {
-    if (type === 'test_gcable') {
+    if (type === 'test_async') {
       hook_result.id = id;
       hook_result.init_called = true;
     }
@@ -28,7 +28,7 @@ const test_hook = async_hooks.createHook({
 });
 
 test_hook.enable();
-createAsyncResource();
+createAsyncResource({});
 
 // Trigger GC. This does *not* use global.gc(), because what we want to verify
 // is that `napi_async_destroy()` can be called when there is no JS context

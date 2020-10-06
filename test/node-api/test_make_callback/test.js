@@ -13,20 +13,25 @@ function myMultiArgFunc(arg1, arg2, arg3) {
   return 42;
 }
 
-assert.strictEqual(makeCallback(process, common.mustCall(function() {
+/**
+ * Resource should be able to be arbitrary objects without special internal
+ * slots. Testing with plain object here.
+ */
+const resource = {};
+assert.strictEqual(makeCallback(resource, process, common.mustCall(function() {
   assert.strictEqual(arguments.length, 0);
   assert.strictEqual(this, process);
   return 42;
 })), 42);
 
-assert.strictEqual(makeCallback(process, common.mustCall(function(x) {
+assert.strictEqual(makeCallback(resource, process, common.mustCall(function(x) {
   assert.strictEqual(arguments.length, 1);
   assert.strictEqual(this, process);
   assert.strictEqual(x, 1337);
   return 42;
 }), 1337), 42);
 
-assert.strictEqual(makeCallback(this,
+assert.strictEqual(makeCallback(resource, this,
                                 common.mustCall(myMultiArgFunc), 1, 2, 3), 42);
 
 // TODO(node-api): napi_make_callback needs to support
@@ -62,7 +67,7 @@ const target = vm.runInNewContext(`
       return Object;
     })
 `);
-assert.notStrictEqual(makeCallback(process, target, Object), Object);
+assert.notStrictEqual(makeCallback(resource, process, target, Object), Object);
 
 // Runs in inner context.
 const forward = vm.runInNewContext(`
@@ -78,4 +83,4 @@ function endpoint($Object) {
   return Object;
 }
 
-assert.strictEqual(makeCallback(process, forward, endpoint), Object);
+assert.strictEqual(makeCallback(resource, process, forward, endpoint), Object);
