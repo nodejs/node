@@ -472,6 +472,26 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_.get(), TicketCompatibilityCallback);
 }
 
+SSLPointer SecureContext::CreateSSL() {
+  return SSLPointer(SSL_new(ctx_.get()));
+}
+
+void SecureContext::SetNewSessionCallback(NewSessionCb cb) {
+  SSL_CTX_sess_set_new_cb(ctx_.get(), cb);
+}
+
+void SecureContext::SetGetSessionCallback(GetSessionCb cb) {
+  SSL_CTX_sess_set_get_cb(ctx_.get(), cb);
+}
+
+void SecureContext::SetSelectSNIContextCallback(SelectSNIContextCb cb) {
+  SSL_CTX_set_tlsext_servername_callback(ctx_.get(), cb);
+}
+
+void SecureContext::SetKeylogCallback(KeylogCb cb) {
+  SSL_CTX_set_keylog_callback(ctx_.get(), cb);
+}
+
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 

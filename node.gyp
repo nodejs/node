@@ -934,7 +934,7 @@
             'src/crypto/crypto_keys.cc',
             'src/crypto/crypto_keygen.cc',
             'src/crypto/crypto_scrypt.cc',
-            'src/crypto/crypto_ssl.cc',
+            'src/crypto/crypto_tls.cc',
             'src/crypto/crypto_aes.cc',
             'src/crypto/crypto_bio.h',
             'src/crypto/crypto_clienthello-inl.h',
@@ -951,7 +951,7 @@
             'src/crypto/crypto_keys.h',
             'src/crypto/crypto_keygen.h',
             'src/crypto/crypto_scrypt.h',
-            'src/crypto/crypto_ssl.h',
+            'src/crypto/crypto_tls.h',
             'src/crypto/crypto_clienthello.h',
             'src/crypto/crypto_context.h',
             'src/crypto/crypto_ecdh.h',
@@ -961,9 +961,7 @@
             'src/crypto/crypto_random.h',
             'src/crypto/crypto_timing.h',
             'src/node_crypto.cc',
-            'src/node_crypto.h',
-            'src/tls_wrap.cc',
-            'src/tls_wrap.h'
+            'src/node_crypto.h'
           ],
         }],
         [ 'OS in "linux freebsd mac" and '
