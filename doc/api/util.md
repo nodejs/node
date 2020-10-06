@@ -450,7 +450,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: v12.19.0
+  - version:
+    - v14.6.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33690
     description: If `object` is from a different `vm.Context` now, a custom
                  inspection function on it will not receive context-specific
