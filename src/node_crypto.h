@@ -47,7 +47,7 @@
 #include "crypto/crypto_scrypt.h"
 #include "crypto/crypto_sig.h"
 #include "crypto/crypto_spkac.h"
-#include "crypto/crypto_ssl.h"
+#include "crypto/crypto_tls.h"
 #include "crypto/crypto_timing.h"
 #include "crypto/crypto_util.h"
 
