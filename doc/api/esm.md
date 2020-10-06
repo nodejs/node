@@ -136,7 +136,7 @@ future use. The root of the current volume may be referenced via `file:///`.
 #### `node:` Imports
 
 <!-- YAML
-added: REPLACEME
+added: v14.13.1
 -->
 
 `node:` URLs are supported as a means to load Node.js builtin modules. This
