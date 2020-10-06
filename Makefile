@@ -943,7 +943,9 @@ endif
 .PHONY: release-only
 release-only: check-xz
 	@if [ "$(DISTTYPE)" = "release" ] && `grep -q REPLACEME doc/api/*.md`; then \
-		echo 'Please update REPLACEME in Added: tags in doc/api/*.md (See doc/guides/releases.md)' ; \
+		echo 'Please update REPLACEME tags in the following doc/api/*.md files (See doc/guides/releases.md):\n' ; \
+		REPLACEMES="$(shell grep -l REPLACEME doc/api/*.md)" ; \
+		echo "$$REPLACEMES\n" | tr " " "\n" ; \
 		exit 1 ; \
 	fi
 	@if [ "$(DISTTYPE)" = "release" ] && \
