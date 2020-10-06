@@ -1969,7 +1969,7 @@ const myWritable = new Writable({
 
 #### `writable._construct(callback)`
 <!-- YAML
-added: REPLACEME
+added: v14.13.1
 -->
 
 * `callback` {Function} Call this function (optionally with an error
@@ -2287,7 +2287,7 @@ const myReadable = new Readable({
 
 #### `readable._construct(callback)`
 <!-- YAML
-added: REPLACEME
+added: v14.13.1
 -->
 
 * `callback` {Function} Call this function (optionally with an error
