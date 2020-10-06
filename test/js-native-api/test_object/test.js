@@ -284,15 +284,16 @@ assert.deepStrictEqual(test_object.TestGetProperty(), {
   assert.strictEqual(Object.isSealed(obj), true);
 
   assert.throws(() => {
-    obj['w'] = 'd'
+    obj.w = 'd';
   }, /Cannot add property w, object is not extensible/);
 
   assert.throws(() => {
-    delete obj['x']
+    delete obj.x;
   }, /Cannot delete property 'x' of #<Object>/);
 
-  // Sealed objects allow updating existing properties.
-  assert.doesNotThrow(() => { obj['x'] = 'd' });
+  // Sealed objects allow updating existing properties,
+  // so this should not throw.
+  obj.x = 'd';
 }
 
 {
@@ -303,14 +304,14 @@ assert.deepStrictEqual(test_object.TestGetProperty(), {
   assert.strictEqual(Object.isFrozen(obj), true);
 
   assert.throws(() => {
-    obj['x'] = 10
+    obj.x = 10;
   }, /Cannot assign to read only property 'x' of object '#<Object>/);
 
   assert.throws(() => {
-    obj['w'] = 15
+    obj.w = 15;
   }, /Cannot add property w, object is not extensible/);
 
   assert.throws(() => {
-    delete obj['x']
+    delete obj.x;
   }, /Cannot delete property 'x' of #<Object>/);
 }
