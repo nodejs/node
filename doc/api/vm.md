@@ -1269,7 +1269,7 @@ vm.runInNewContext(
   { loop, console },
   { timeout: 5 }
 );
-// This prints *before* 'entering loop' (!)
+// This is printed *before* 'entering loop' (!)
 console.log('done executing');
 ```
 
