@@ -215,11 +215,11 @@
 
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="CorepackCmdScript">
-        <File Id="corepack.cmd" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\corepack.cmd"/>
+        <File Id="corepack.cmd" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\corepack.cmd"/>
       </Component>
 
       <Component Id="CorepackBashScript">
-        <File Id="corepack.sh" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\corepack"/>
+        <File Id="corepack.sh" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\corepack"/>
       </Component>
 
       <Component Id="NpmCmdScript">
