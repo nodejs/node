@@ -3642,7 +3642,7 @@ added: REPLACEME
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
 
-Syncronously removes files and directories (modeled on the standard POSIX `rm`
+Synchronously removes files and directories (modeled on the standard POSIX `rm`
 utility). Returns `undefined`.
 
 ## `fs.stat(path[, options], callback)`
