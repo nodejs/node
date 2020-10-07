@@ -244,6 +244,12 @@ Copy/paste the URL for the job into a comment in the pull request.
 [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
 is an exception where the GitHub bot will automatically post for you.
 
+The [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
+CI job can be started by adding the `request-ci` label into the pull request.
+Once this label is added, `github-actions bot` will start
+the `node-test-pull-request` automatically. If the `github-actions bot`
+is unable to start the job, it will update the label with `request-ci-failed`.
+
 ### Internal vs. public API
 
 All functionality in the official Node.js documentation is part of the public
