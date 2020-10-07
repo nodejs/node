@@ -255,6 +255,16 @@ function removeAsync(dir) {
     });
   });
 
+  [undefined, null, 'foo', Infinity, function() {}].forEach((bad) => {
+    assert.throws(() => {
+      validateRmOptionsSync(filePath, { force: bad });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: /^The "force" argument must be of type boolean\./
+    });
+  });
+
   assert.throws(() => {
     validateRmOptionsSync(filePath, { retryDelay: -1 });
   }, {

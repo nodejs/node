@@ -3605,7 +3605,7 @@ added: REPLACEME
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `force` Ignore errors
+  * `force` don't error on nonexistent path
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
     backoff wait of `retryDelay` ms longer on each try. This option represents
@@ -3619,8 +3619,9 @@ added: REPLACEME
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous rm(2). No arguments other than a possible exception are given
-to the completion callback.
+Asynchronously removes files and directories (modeled on the standard POSIX `rm`
+utility). No arguments other than a possible exception are given to the
+completion callback.
 
 ## `fs.rmSync(path[, options])`
 <!-- YAML
@@ -3641,7 +3642,8 @@ added: REPLACEME
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
 
-Synchronous rm(2). Returns `undefined`.
+Syncronously removes files and directories (modeled on the standard POSIX `rm`
+utility). Returns `undefined`.
 
 ## `fs.stat(path[, options], callback)`
 <!-- YAML

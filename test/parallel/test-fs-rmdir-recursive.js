@@ -7,9 +7,6 @@ const fs = require('fs');
 const path = require('path');
 const { validateRmdirOptions } = require('internal/fs/utils');
 
-const realEmitWarning = process.emitWarning;
-process.emitWarning = () => { throw new Error('deprecated'); };
-
 tmpdir.refresh();
 
 let count = 0;
@@ -127,9 +124,7 @@ function removeAsync(dir) {
   fs.rmdirSync(dir, { recursive: true });
 
   // No error should occur if recursive and the directory does not exist.
-  assert.throws(() => {
-    fs.rmdirSync(dir, { recursive: true });
-  }, { message: 'deprecated' });
+  fs.rmdirSync(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
   assert.throws(() => fs.rmdirSync(dir), { syscall: 'rmdir' });
@@ -216,10 +211,3 @@ function removeAsync(dir) {
     message: /^The value of "maxRetries" is out of range\./
   });
 }
-
-// Reset back to default after the test.
-Object.defineProperty(process, 'emitWarning', {
-  value: realEmitWarning,
-  configurable: true,
-  writable: true
-});
