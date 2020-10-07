@@ -394,9 +394,9 @@ A `TypeError` will be thrown if `size` is not a number.
 The `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`][] that is used as a pool for the fast allocation of new
 `Buffer` instances created using [`Buffer.allocUnsafe()`][],
-[`Buffer.from(array)`][], and the deprecated `new Buffer(size)` constructor only
-when `size` is less than or equal to `Buffer.poolSize >> 1` (floor of
-[`Buffer.poolSize`][] divided by two).
+[`Buffer.from(array)`][], [`Buffer.concat()`][], and the deprecated
+`new Buffer(size)` constructor only when `size` is less than or equal
+to `Buffer.poolSize >> 1` (floor of [`Buffer.poolSize`][] divided by two).
 
 Use of this pre-allocated internal memory pool is a key difference between
 calling `Buffer.alloc(size, fill)` vs. `Buffer.allocUnsafe(size).fill(fill)`.
@@ -572,6 +572,9 @@ console.log(bufA);
 console.log(bufA.length);
 // Prints: 42
 ```
+
+`Buffer.concat()` may also use the internal `Buffer` pool like
+[`Buffer.allocUnsafe()`][] does.
 
 ### Static method: `Buffer.from(array)`
 <!-- YAML
@@ -3321,6 +3324,7 @@ introducing security vulnerabilities into an application.
 [`Buffer.alloc()`]: #buffer_static_method_buffer_alloc_size_fill_encoding
 [`Buffer.allocUnsafe()`]: #buffer_static_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow()`]: #buffer_static_method_buffer_allocunsafeslow_size
+[`Buffer.concat()`]: #buffer_static_method_buffer_concat_list_totallength
 [`Buffer.from(array)`]: #buffer_static_method_buffer_from_array
 [`Buffer.from(arrayBuf)`]: #buffer_static_method_buffer_from_arraybuffer_byteoffset_length
 [`Buffer.from(buffer)`]: #buffer_static_method_buffer_from_buffer
