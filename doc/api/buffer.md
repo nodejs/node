@@ -1422,7 +1422,7 @@ added:
 changes:
   - version:
     - v14.10.0
-    = v12.19.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34960
     description: This function is also available as `buf.readBigUint64LE()`.
 -->
