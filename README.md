@@ -240,6 +240,8 @@ For information about the governance of the Node.js project, see
 
 * [addaleax](https://github.com/addaleax) -
 **Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
+* [aduh95](https://github.com/aduh95) -
+**Antoine du Hamel** &lt;duhamelantoine1995@gmail.com&gt; (he/him)
 * [ak239](https://github.com/ak239) -
 **Aleksei Koziatinskii** &lt;ak239spb@gmail.com&gt;
 * [AndreasMadsen](https://github.com/AndreasMadsen) -
