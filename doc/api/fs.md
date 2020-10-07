@@ -3526,7 +3526,7 @@ changes:
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
-    backoff wait of `retryDelay` ms longer on each try. This option represents
+    backoff wait of `retryDelay` milliseconds longer on each try. This option represents
     the number of retries. This option is ignored if the `recursive` option is
     not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
@@ -3577,7 +3577,7 @@ changes:
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
-    backoff wait of `retryDelay` ms longer on each try. This option represents
+    backoff wait of `retryDelay` milliseconds longer on each try. This option represents
     the number of retries. This option is ignored if the `recursive` option is
     not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
@@ -3608,7 +3608,7 @@ added: REPLACEME
   * `force` don't error on nonexistent path
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
-    backoff wait of `retryDelay` ms longer on each try. This option represents
+    backoff wait of `retryDelay` milliseconds longer on each try. This option represents
     the number of retries. This option is ignored if the `recursive` option is
     not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive removal. In
@@ -3633,7 +3633,7 @@ added: REPLACEME
   * `force` Ignore errors
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
-    backoff wait of `retryDelay` ms longer on each try. This option represents
+    backoff wait of `retryDelay` milliseconds longer on each try. This option represents
     the number of retries. This option is ignored if the `recursive` option is
     not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
@@ -5512,7 +5512,7 @@ changes:
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
-    backoff wait of `retryDelay` ms longer on each try. This option represents
+    backoff wait of `retryDelay` milliseconds longer on each try. This option represents
     the number of retries. This option is ignored if the `recursive` option is
     not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
