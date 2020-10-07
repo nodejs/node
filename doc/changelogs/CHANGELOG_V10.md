@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.23.0">10.23.0</a><br/>
 <a href="#10.22.1">10.22.1</a><br/>
 <a href="#10.22.0">10.22.0</a><br/>
 <a href="#10.21.0">10.21.0</a><br/>
@@ -69,6 +70,34 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.23.0"></a>
+## 2020-10-27, Version 10.23.0 'Dubnium' (LTS), @richardlau
+
+### Notable changes
+
+* **deps**:
+  * upgrade npm to 6.14.8 (Ruy Adorno) [#34834](https://github.com/nodejs/node/pull/34834)
+* **n-api**:
+  * create N-API version 7 (Gabriel Schulhof) [#35199](https://github.com/nodejs/node/pull/35199)
+  * expose napi_build_version variable (NickNaso) [#27835](https://github.com/nodejs/node/pull/27835)
+* **tools**:
+  * add debug entitlements for macOS 10.15+ (Gabriele Greco) [#34378](https://github.com/nodejs/node/pull/34378)
+
+### Commits
+
+* [[`b83f9a56fc`](https://github.com/nodejs/node/commit/b83f9a56fc)] - **build**: expose napi_build_version variable (NickNaso) [#27835](https://github.com/nodejs/node/pull/27835)
+* [[`020ba1a2b8`](https://github.com/nodejs/node/commit/020ba1a2b8)] - **build**: enable backtrace when V8 is built for PPC and S390x (Michaël Zasso) [#32113](https://github.com/nodejs/node/pull/32113)
+* [[`eee9412a8c`](https://github.com/nodejs/node/commit/eee9412a8c)] - **deps**: upgrade npm to 6.14.8 (Ruy Adorno) [#34834](https://github.com/nodejs/node/pull/34834)
+* [[`038593d5ff`](https://github.com/nodejs/node/commit/038593d5ff)] - **deps**: upgrade npm to 6.14.7 (claudiahdz) [#34468](https://github.com/nodejs/node/pull/34468)
+* [[`3564424625`](https://github.com/nodejs/node/commit/3564424625)] - **deps**: V8: cherry-pick eec10a2fd8fa (Stephen Belanger) [#33778](https://github.com/nodejs/node/pull/33778)
+* [[`e9e86e1b60`](https://github.com/nodejs/node/commit/e9e86e1b60)] - **http2**: support non-empty DATA frame with END_STREAM flag (Carlos Lopez) [#33875](https://github.com/nodejs/node/pull/33875)
+* [[`751820b6c2`](https://github.com/nodejs/node/commit/751820b6c2)] - **http2,doc**: minor fixes (Alba Mendez) [#28044](https://github.com/nodejs/node/pull/28044)
+* [[`54c2bc2e62`](https://github.com/nodejs/node/commit/54c2bc2e62)] - **(SEMVER-MINOR)** **n-api**: create N-API version 7 (Gabriel Schulhof) [#35199](https://github.com/nodejs/node/pull/35199)
+* [[`2eb627301c`](https://github.com/nodejs/node/commit/2eb627301c)] - **src**: allows escaping NODE_OPTIONS with backslashes (Maël Nison) [#24065](https://github.com/nodejs/node/pull/24065)
+* [[`5170d14b36`](https://github.com/nodejs/node/commit/5170d14b36)] - **test**: fix test-linux-perf flakiness (Matheus Marchini) [#27615](https://github.com/nodejs/node/pull/27615)
+* [[`21b86d7f19`](https://github.com/nodejs/node/commit/21b86d7f19)] - **test,v8**: skip less and stabilize test-linux-perf.js (Refael Ackermann) [#27364](https://github.com/nodejs/node/pull/27364)
+* [[`ee11ab50a7`](https://github.com/nodejs/node/commit/ee11ab50a7)] - **tools**: add debug entitlements for macOS 10.15+ (Gabriele Greco) [#34378](https://github.com/nodejs/node/pull/34378)
 
 <a id="10.22.1"></a>
 ## 2020-09-15, Version 10.22.1 'Dubnium' (LTS), @BethGriggs
