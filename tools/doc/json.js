@@ -437,7 +437,7 @@ const eventPrefix = '^Event: +';
 const classPrefix = '^[Cc]lass: +';
 const ctorPrefix = '^(?:[Cc]onstructor: +)?`?new +';
 const classMethodPrefix = '^Static method: +';
-const maybeClassPropertyPrefix = '(?:Class Property: +)?';
+const maybeClassPropertyPrefix = '(?:Class property: +)?';
 
 const maybeQuote = '[\'"]?';
 const notQuotes = '[^\'"]+';
