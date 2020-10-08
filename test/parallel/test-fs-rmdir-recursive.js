@@ -7,15 +7,13 @@ const fs = require('fs');
 const path = require('path');
 const { validateRmdirOptions } = require('internal/fs/utils');
 
-const realEmitWarning = process.emitWarning;
-process.emitWarning = () => {
-  // Reset back to default after the test.
-  process.emitWarning = realEmitWarning;
-
-  throw new Error('deprecated');
-};
-
 tmpdir.refresh();
+
+common.expectWarning(
+  'DeprecationWarning',
+  'Permissive rmdir recursive is deprecated, use rm recursive instead',
+  'DEP0147'
+);
 
 let count = 0;
 const nextDirPath = (name = 'rmdir-recursive') =>
@@ -83,8 +81,8 @@ function removeAsync(dir) {
       fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
         assert.ifError(err);
 
-        // No deprecation warning should occur if recursive and the directory
-        // does not exist because the warning has already been output once.
+        // Should print deprecation warning if recursive and directory does not
+        // exist.
         fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
           assert.ifError(err);
 
@@ -132,11 +130,8 @@ function removeAsync(dir) {
   // Recursive removal should succeed.
   fs.rmdirSync(dir, { recursive: true });
 
-  // Should print deprecation warning if recursive and the directory does not
-  // exist.
-  assert.throws(() => {
-    fs.rmdirSync(dir, { recursive: true });
-  }, { message: 'deprecated' });
+  // Should print deprecation warning if recursive and directory does not exist.
+  fs.rmdirSync(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
   assert.throws(() => fs.rmdirSync(dir), { syscall: 'rmdir' });
@@ -156,8 +151,7 @@ function removeAsync(dir) {
   // Recursive removal should succeed.
   await fs.promises.rmdir(dir, { recursive: true });
 
-  // No deprecation warning should occur if recursive and the directory does not
-  // exist because the warning has already been output once.
+  // Should print deprecation warning if recursive and directory does not exist.
   fs.promises.rmdir(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
