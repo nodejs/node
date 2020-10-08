@@ -53,7 +53,8 @@
   },
   "files": [
     "dist",
-    "shims"
+    "shims",
+    "LICENSE.md"
   ],
   "publishConfig": {
     "executableFiles": [
