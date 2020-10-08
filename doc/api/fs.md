@@ -3588,7 +3588,8 @@ added: REPLACEME
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `force` don't error on nonexistent path
+  * `force` {boolean} When `true`, exceptions will be ignored if `path` does
+    not exist. **Default:** `false`.
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
@@ -3613,7 +3614,8 @@ added: REPLACEME
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `force` Ignore errors
+  * `force` {boolean} When `true`, exceptions will be ignored if `path` does
+    not exist. **Default:** `false`.
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
@@ -5525,7 +5527,8 @@ added: REPLACEME
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `force` Ignore errors
+  * `force` {boolean} When `true`, exceptions will be ignored if `path` does
+    not exist. **Default:** `false`.
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
