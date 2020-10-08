@@ -7,6 +7,14 @@ const fs = require('fs');
 const path = require('path');
 const { validateRmdirOptions } = require('internal/fs/utils');
 
+const realEmitWarning = process.emitWarning;
+process.emitWarning = () => {
+  // Reset back to default after the test.
+  process.emitWarning = realEmitWarning;
+
+  throw new Error('deprecated');
+};
+
 tmpdir.refresh();
 
 let count = 0;
@@ -75,7 +83,8 @@ function removeAsync(dir) {
       fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
         assert.ifError(err);
 
-        // No error should occur if recursive and the directory does not exist.
+        // No deprecation warning should occur if recursive and the directory
+        // does not exist because the warning has already been output once.
         fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
           assert.ifError(err);
 
@@ -123,8 +132,11 @@ function removeAsync(dir) {
   // Recursive removal should succeed.
   fs.rmdirSync(dir, { recursive: true });
 
-  // No error should occur if recursive and the directory does not exist.
-  fs.rmdirSync(dir, { recursive: true });
+  // Should print deprecation warning if recursive and the directory does not
+  // exist.
+  assert.throws(() => {
+    fs.rmdirSync(dir, { recursive: true });
+  }, { message: 'deprecated' });
 
   // Attempted removal should fail now because the directory is gone.
   assert.throws(() => fs.rmdirSync(dir), { syscall: 'rmdir' });
@@ -144,8 +156,9 @@ function removeAsync(dir) {
   // Recursive removal should succeed.
   await fs.promises.rmdir(dir, { recursive: true });
 
-  // No error should occur if recursive and the directory does not exist.
-  await fs.promises.rmdir(dir, { recursive: true });
+  // No deprecation warning should occur if recursive and the directory does not
+  // exist because the warning has already been output once.
+  fs.promises.rmdir(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
   assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
