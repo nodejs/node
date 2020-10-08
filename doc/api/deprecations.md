@@ -2666,12 +2666,15 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/35579
     description: Documentation-only deprecation.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35562
+    description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
-on nonexistent paths, or when given a file as a target.
+if `path` does not exist or is a file.
 Use `fs.rm(path, { recursive: true, force: true })` instead.
 
 [Legacy URL API]: url.md#url_legacy_url_api
