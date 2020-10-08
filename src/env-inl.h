@@ -614,6 +614,22 @@ inline const std::string& Environment::exec_path() const {
   return exec_path_;
 }
 
+inline std::string Environment::GetCwd() {
+  char cwd[PATH_MAX_BYTES];
+  size_t size = PATH_MAX_BYTES;
+  const int err = uv_cwd(cwd, &size);
+
+  if (err == 0) {
+    CHECK_GT(size, 0);
+    return cwd;
+  }
+
+  // This can fail if the cwd is deleted. In that case, fall back to
+  // exec_path.
+  const std::string& exec_path = exec_path_;
+  return exec_path.substr(0, exec_path.find_last_of(kPathSeparator));
+}
+
 #if HAVE_INSPECTOR
 inline void Environment::set_coverage_directory(const char* dir) {
   coverage_directory_ = std::string(dir);

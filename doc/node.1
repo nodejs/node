@@ -182,6 +182,10 @@ Same requirements as
 .It Fl -frozen-intrinsics
 Enable experimental frozen intrinsics support.
 .
+.It Fl -heapsnapshot-near-heap-limit Ns = Ns Ar max_count
+Generate heap snapshot when the V8 heap usage is approaching the heap limit.
+No more than the specified number of snapshots will be generated.
+.
 .It Fl -heapsnapshot-signal Ns = Ns Ar signal
 Generate heap snapshot on specified signal.
 .
