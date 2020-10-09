@@ -2756,7 +2756,9 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v14.9.0
+  - version:
+    - v14.9.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34729
     description: This function is also available as `buf.writeUint16LE()`.
   - version: v10.0.0
