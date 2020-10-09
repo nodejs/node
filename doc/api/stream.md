@@ -580,7 +580,7 @@ added: REPLACEME
 
 * {boolean}
 
-Is `true` if buffer is full.
+Is `true` if the stream's buffer has been full and stream will emit `'drain'`.
 
 ##### `writable.writableObjectMode`
 <!-- YAML
