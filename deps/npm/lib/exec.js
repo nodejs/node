@@ -59,6 +59,8 @@ const crypto = require('crypto')
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const escapeArg = require('./utils/escape-arg.js')
+const fileExists = require('./utils/file-exists.js')
+const PATH = require('./utils/path.js')
 
 const cmd = (args, cb) => exec(args).then(() => cb()).catch(cb)
 
@@ -69,8 +71,38 @@ const exec = async args => {
     throw usage
   }
 
+  const pathArr = [...PATH]
+
   const needPackageCommandSwap = args.length && !packages.length
+  // if there's an argument and no package has been explicitly asked for
+  // check the local and global bin paths for a binary named the same as
+  // the argument and run it if it exists, otherwise fall through to
+  // the behavior of treating the single argument as a package name
   if (needPackageCommandSwap) {
+    let binExists = false
+    if (await fileExists(`${npm.localBin}/${args[0]}`)) {
+      pathArr.unshift(npm.localBin)
+      binExists = true
+    } else if (await fileExists(`${npm.globalBin}/${args[0]}`)) {
+      pathArr.unshift(npm.globalBin)
+      binExists = true
+    }
+
+    if (binExists) {
+      return await runScript({
+        cmd: [args[0], ...args.slice(1).map(escapeArg)].join(' ').trim(),
+        banner: false,
+        // we always run in cwd, not --prefix
+        path: process.cwd(),
+        stdioString: true,
+        event: 'npx',
+        env: {
+          PATH: pathArr.join(delimiter)
+        },
+        stdio: 'inherit'
+      })
+    }
+
     packages.push(args[0])
   }
 
@@ -111,7 +143,6 @@ const exec = async args => {
   // do we have all the packages in manifest list?
   const needInstall = manis.some(mani => manifestMissing(tree, mani))
 
-  const pathArr = [process.env.PATH]
   if (needInstall) {
     const installDir = cacheInstallDir(packages)
     await mkdirp(installDir)
@@ -126,19 +157,25 @@ const exec = async args => {
 
     // no need to install if already present
     if (add.length) {
+      const isTTY = process.stdin.isTTY && process.stdout.isTTY
       if (!npm.flatOptions.yes) {
         // set -n to always say no
         if (npm.flatOptions.yes === false) {
           throw 'canceled'
         }
-        const addList = add.map(a => `  ${a.replace(/@$/, '')}`)
-          .join('\n') + '\n'
-        const prompt = `Need to install the following packages:\n${
-          addList
-        }Ok to proceed? `
-        const confirm = await read({ prompt, default: 'y' })
-        if (confirm.trim().toLowerCase().charAt(0) !== 'y') {
-          throw 'canceled'
+
+        if (!isTTY) {
+          npm.log.warn('exec', `The following package${add.length === 1 ? ' was' : 's were'} not found and will be installed: ${add.map((pkg) => pkg.replace(/@$/, '')).join(', ')}`)
+        } else {
+          const addList = add.map(a => `  ${a.replace(/@$/, '')}`)
+            .join('\n') + '\n'
+          const prompt = `Need to install the following packages:\n${
+            addList
+          }Ok to proceed? `
+          const confirm = await read({ prompt, default: 'y' })
+          if (confirm.trim().toLowerCase().charAt(0) !== 'y') {
+            throw 'canceled'
+          }
         }
       }
       await arb.reify({ ...npm.flatOptions, add })

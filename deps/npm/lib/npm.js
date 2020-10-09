@@ -164,8 +164,6 @@ const npm = module.exports = new class extends EventEmitter {
     await this.config.load()
     this.argv = this.config.parsedArgv.remain
 
-    setUserAgent(this.config)
-
     this.color = setupLog(this.config, this)
     process.env.COLOR = this.color ? '1' : '0'
 
@@ -279,7 +277,6 @@ const startMetrics = require('./utils/metrics.js').start
 
 const which = promisify(require('which'))
 
-const setUserAgent = require('./utils/set-user-agent.js')
 const deref = require('./utils/deref-command.js')
 const setupLog = require('./utils/setup-log.js')
 const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
