@@ -11,7 +11,8 @@ tmpdir.refresh();
 
 common.expectWarning(
   'DeprecationWarning',
-  'Permissive rmdir recursive is deprecated, use rm recursive instead',
+  'Permissive rmdir recursive is deprecated, use rm recursive and force \
+instead',
   'DEP0147'
 );
 
