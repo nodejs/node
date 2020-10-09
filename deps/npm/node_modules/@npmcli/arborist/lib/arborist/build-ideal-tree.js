@@ -265,7 +265,11 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       this[_global] ? this[_globalRootNode]()
       : rpj(this.path + '/package.json').then(
         pkg => this[_rootNodeFromPackage](pkg),
-        er => this[_rootNodeFromPackage]({})
+        er => {
+          if (er.code === 'EJSONPARSE')
+            throw er
+          return this[_rootNodeFromPackage]({})
+        }
       ))
       .then(root => this[_loadWorkspaces](root))
       // ok to not have a virtual tree.  probably initial install.

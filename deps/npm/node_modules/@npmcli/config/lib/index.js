@@ -47,6 +47,7 @@ const envReplace = require('./env-replace.js')
 const parseField = require('./parse-field.js')
 const typeDescription = require('./type-description.js')
 const setEnvs = require('./set-envs.js')
+const getUserAgent = require('./get-user-agent.js')
 
 // types that can be saved back to
 const confFileTypes = new Set([
@@ -243,6 +244,10 @@ class Config {
 
     // set proper globalPrefix now that everything is loaded
     this.globalPrefix = this.get('prefix')
+
+    process.emit('time', 'config:load:setUserAgent')
+    this.setUserAgent()
+    process.emit('timeEnd', 'config:load:setUserAgent')
 
     process.emit('time', 'config:load:setEnvs')
     this.setEnvs()
@@ -692,6 +697,12 @@ class Config {
       configurable: true,
       writable: true,
     })
+  }
+
+  // the user-agent configuration is a template that gets populated
+  // with some variables, that takes place here
+  setUserAgent () {
+    this.set('user-agent', getUserAgent(this))
   }
 
   // set up the environment object we have with npm_config_* environs
