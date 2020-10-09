@@ -131,6 +131,14 @@ module.exports = {
                     text
                 }));
 
+                /*
+                 * If file ends with a linebreak, `sourceCode.lines` will have one extra empty line at the end.
+                 * That isn't a real line, so we shouldn't count it.
+                 */
+                if (lines.length > 1 && lodash.last(lines).text === "") {
+                    lines.pop();
+                }
+
                 if (skipBlankLines) {
                     lines = lines.filter(l => l.text.trim() !== "");
                 }
