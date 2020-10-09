@@ -218,7 +218,7 @@ module.exports = {
                 }
 
                 case "ArrowFunctionExpression": {
-                    const firstToken = sourceCode.getFirstToken(node);
+                    const firstToken = sourceCode.getFirstToken(node, { skip: (node.async ? 1 : 0) });
 
                     if (!astUtils.isOpeningParenToken(firstToken)) {
 

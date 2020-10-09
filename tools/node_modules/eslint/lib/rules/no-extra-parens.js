@@ -1109,7 +1109,22 @@ module.exports = {
             },
 
             UnaryExpression: checkArgumentWithPrecedence,
-            UpdateExpression: checkArgumentWithPrecedence,
+            UpdateExpression(node) {
+                if (node.prefix) {
+                    checkArgumentWithPrecedence(node);
+                } else {
+                    const { argument } = node;
+                    const operatorToken = sourceCode.getLastToken(node);
+
+                    if (argument.loc.end.line === operatorToken.loc.start.line) {
+                        checkArgumentWithPrecedence(node);
+                    } else {
+                        if (hasDoubleExcessParens(argument)) {
+                            report(argument);
+                        }
+                    }
+                }
+            },
             AwaitExpression: checkArgumentWithPrecedence,
 
             VariableDeclarator(node) {
