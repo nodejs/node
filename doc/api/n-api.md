@@ -253,46 +253,43 @@ listed as supporting a later version.
     <th scope="col">1</th>
     <th scope="col">2</th>
     <th scope="col">3</th>
-    <th scope="col">4</th>
-    <th scope="col">5</th>
-    <th scope="col">6</th>
-    <th scope="col">7</th>
   </tr>
   <tr>
     <th scope="row">v6.x</th>
     <td></td>
     <td></td>
     <td>v6.14.2*</td>
-    <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
   </tr>
   <tr>
     <th scope="row">v8.x</th>
     <td>v8.6.0**</td>
     <td>v8.10.0*</td>
     <td>v8.11.2</td>
-    <td>v8.16.0</td>
-    <td></td>
-    <td></td>
-    <td></td>
   </tr>
   <tr>
     <th scope="row">v9.x</th>
     <td>v9.0.0*</td>
     <td>v9.3.0*</td>
     <td>v9.11.0*</td>
+  </tr>
+  <tr>
+    <th scope="row">≥ v10.x</th>
+    <td>all releases</td>
+    <td>all releases</td>
+    <td>all releases</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
     <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
+    <th scope="col">4</th>
+    <th scope="col">5</th>
+    <th scope="col">6</th>
+    <th scope="col">7</th>
   </tr>
   <tr>
     <th scope="row">v10.x</th>
-    <td>v10.0.0</td>
-    <td>v10.0.0</td>
-    <td>v10.0.0</td>
     <td>v10.16.0</td>
     <td>v10.17.0</td>
     <td>v10.20.0</td>
@@ -300,9 +297,6 @@ listed as supporting a later version.
   </tr>
   <tr>
     <th scope="row">v11.x</th>
-    <td>v11.0.0</td>
-    <td>v11.0.0</td>
-    <td>v11.0.0</td>
     <td>v11.8.0</td>
     <td></td>
     <td></td>
@@ -311,18 +305,12 @@ listed as supporting a later version.
   <tr>
     <th scope="row">v12.x</th>
     <td>v12.0.0</td>
-    <td>v12.0.0</td>
-    <td>v12.0.0</td>
-    <td>v12.0.0</td>
     <td>v12.11.0</td>
     <td>v12.17.0</td>
-    <td></td>
+    <td>v12.19.0</td>
   </tr>
   <tr>
     <th scope="row">v13.x</th>
-    <td>v13.0.0</td>
-    <td>v13.0.0</td>
-    <td>v13.0.0</td>
     <td>v13.0.0</td>
     <td>v13.0.0</td>
     <td></td>
@@ -330,9 +318,6 @@ listed as supporting a later version.
   </tr>
   <tr>
     <th scope="row">v14.x</th>
-    <td>v14.0.0</td>
-    <td>v14.0.0</td>
-    <td>v14.0.0</td>
     <td>v14.0.0</td>
     <td>v14.0.0</td>
     <td>v14.0.0</td>
