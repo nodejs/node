@@ -132,10 +132,6 @@ def files(action):
       output_file += '.dll'
     else:
       output_file = 'lib' + output_file + '.' + variables.get('shlib_suffix')
-      # GYP will output to lib.target except on OS X, this is hardcoded
-      # in its source - see the _InstallableTargetInstallPath function.
-      if sys.platform != 'darwin':
-        output_prefix += 'lib.target/'
 
   if 'false' == variables.get('node_shared'):
     action([output_prefix + output_file], 'bin/' + output_file)
