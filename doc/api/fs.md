@@ -5567,7 +5567,7 @@ added: REPLACEME
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
 
-Synchronously removes files and directories (modeled on the standard POSIX `rm`
+Removes files and directories (modeled on the standard POSIX `rm`
 utility). Resolves the `Promise` with no arguments on success.
 
 ### `fsPromises.stat(path[, options])`
