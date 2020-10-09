@@ -19,6 +19,8 @@ class Arborist {
 }
 
 let PROGRESS_ENABLED = true
+const LOG_WARN = []
+let PROGRESS_IGNORED = false
 const npm = {
   flatOptions: {
     yes: true,
@@ -27,6 +29,8 @@ const npm = {
     legacyPeerDeps: false
   },
   localPrefix: 'local-prefix',
+  localBin: 'local-bin',
+  globalBin: 'global-bin',
   config: {
     get: k => {
       if (k !== 'cache') {
@@ -41,6 +45,9 @@ const npm = {
     },
     enableProgress: () => {
       PROGRESS_ENABLED = true
+    },
+    warn: (...args) => {
+      LOG_WARN.push(args)
     }
   }
 }
@@ -48,7 +55,7 @@ const npm = {
 const RUN_SCRIPTS = []
 const runScript = async opt => {
   RUN_SCRIPTS.push(opt)
-  if (PROGRESS_ENABLED) {
+  if (!PROGRESS_IGNORED && PROGRESS_ENABLED) {
     throw new Error('progress not disabled during run script!')
   }
 }
@@ -71,6 +78,8 @@ const read = (options, cb) => {
   process.nextTick(() => cb(READ_ERROR, READ_RESULT))
 }
 
+const PATH = require('../../lib/utils/path.js')
+
 const exec = requireInject('../../lib/exec.js', {
   '@npmcli/arborist': Arborist,
   '@npmcli/run-script': runScript,
@@ -88,10 +97,62 @@ t.afterEach(cb => {
   READ.length = 0
   READ_RESULT = ''
   READ_ERROR = null
+  LOG_WARN.length = 0
+  PROGRESS_IGNORED = false
   npm.flatOptions.legacyPeerDeps = false
   npm.flatOptions.package = []
   npm.flatOptions.call = ''
+  npm.localBin = 'local-bin'
+  npm.globalBin = 'global-bin'
   cb()
+})
+
+t.test('npx foo, bin already exists locally', async t => {
+  const path = t.testdir({
+    foo: 'just some file'
+  })
+
+  PROGRESS_IGNORED = true
+  npm.localBin = path
+
+  await exec(['foo'], er => {
+    t.ifError(er, 'npm exec')
+  })
+  t.strictSame(RUN_SCRIPTS, [{
+    cmd: 'foo',
+    banner: false,
+    path: process.cwd(),
+    stdioString: true,
+    event: 'npx',
+    env: {
+      PATH: [path, ...PATH].join(delimiter)
+    },
+    stdio: 'inherit'
+  }])
+})
+
+t.test('npx foo, bin already exists globally', async t => {
+  const path = t.testdir({
+    foo: 'just some file'
+  })
+
+  PROGRESS_IGNORED = true
+  npm.globalBin = path
+
+  await exec(['foo'], er => {
+    t.ifError(er, 'npm exec')
+  })
+  t.strictSame(RUN_SCRIPTS, [{
+    cmd: 'foo',
+    banner: false,
+    path: process.cwd(),
+    stdioString: true,
+    event: 'npx',
+    env: {
+      PATH: [path, ...PATH].join(delimiter)
+    },
+    stdio: 'inherit'
+  }])
 })
 
 t.test('npm exec foo, already present locally', async t => {
@@ -464,7 +525,16 @@ t.test('positional args and --call together is an error', t => {
   return exec(['foo'], er => t.equal(er, exec.usage))
 })
 
-t.test('prompt when installs are needed if not already present', async t => {
+t.test('prompt when installs are needed if not already present and shell is a TTY', async t => {
+  const stdoutTTY = process.stdout.isTTY
+  const stdinTTY = process.stdin.isTTY
+  t.teardown(() => {
+    process.stdout.isTTY = stdoutTTY
+    process.stdin.isTTY = stdinTTY
+  })
+  process.stdout.isTTY = true
+  process.stdin.isTTY = true
+
   const packages = ['foo', 'bar']
   READ_RESULT = 'yolo'
 
@@ -522,7 +592,138 @@ t.test('prompt when installs are needed if not already present', async t => {
   }])
 })
 
+t.test('skip prompt when installs are needed if not already present and shell is not a tty (multiple packages)', async t => {
+  const stdoutTTY = process.stdout.isTTY
+  const stdinTTY = process.stdin.isTTY
+  t.teardown(() => {
+    process.stdout.isTTY = stdoutTTY
+    process.stdin.isTTY = stdinTTY
+  })
+  process.stdout.isTTY = false
+  process.stdin.isTTY = false
+
+  const packages = ['foo', 'bar']
+  READ_RESULT = 'yolo'
+
+  npm.flatOptions.package = packages
+  npm.flatOptions.yes = undefined
+
+  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+  const path = t.testdir()
+  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  npm.localPrefix = path
+  ARB_ACTUAL_TREE[path] = {
+    children: new Map()
+  }
+  ARB_ACTUAL_TREE[installDir] = {
+    children: new Map()
+  }
+  MANIFESTS.foo = {
+    name: 'foo',
+    version: '1.2.3',
+    bin: {
+      foo: 'foo'
+    },
+    _from: 'foo@'
+  }
+  MANIFESTS.bar = {
+    name: 'bar',
+    version: '1.2.3',
+    bin: {
+      bar: 'bar'
+    },
+    _from: 'bar@'
+  }
+  await exec(['foobar'], er => {
+    if (er) {
+      throw er
+    }
+  })
+  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+  t.match(ARB_CTOR, [ { package: packages, path } ])
+  t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install both packages')
+  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+  t.match(RUN_SCRIPTS, [{
+    pkg: { scripts: { npx: 'foobar' } },
+    banner: false,
+    path: process.cwd(),
+    stdioString: true,
+    event: 'npx',
+    env: { PATH },
+    stdio: 'inherit'
+  }])
+  t.strictSame(READ, [], 'should not have prompted')
+  t.strictSame(LOG_WARN, [['exec', 'The following packages were not found and will be installed: bar, foo']], 'should have printed a warning')
+})
+
+t.test('skip prompt when installs are needed if not already present and shell is not a tty (single package)', async t => {
+  const stdoutTTY = process.stdout.isTTY
+  const stdinTTY = process.stdin.isTTY
+  t.teardown(() => {
+    process.stdout.isTTY = stdoutTTY
+    process.stdin.isTTY = stdinTTY
+  })
+  process.stdout.isTTY = false
+  process.stdin.isTTY = false
+
+  const packages = ['foo']
+  READ_RESULT = 'yolo'
+
+  npm.flatOptions.package = packages
+  npm.flatOptions.yes = undefined
+
+  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+  const path = t.testdir()
+  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  npm.localPrefix = path
+  ARB_ACTUAL_TREE[path] = {
+    children: new Map()
+  }
+  ARB_ACTUAL_TREE[installDir] = {
+    children: new Map()
+  }
+  MANIFESTS.foo = {
+    name: 'foo',
+    version: '1.2.3',
+    bin: {
+      foo: 'foo'
+    },
+    _from: 'foo@'
+  }
+  await exec(['foobar'], er => {
+    if (er) {
+      throw er
+    }
+  })
+  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+  t.match(ARB_CTOR, [ { package: packages, path } ])
+  t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install the package')
+  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+  t.match(RUN_SCRIPTS, [{
+    pkg: { scripts: { npx: 'foobar' } },
+    banner: false,
+    path: process.cwd(),
+    stdioString: true,
+    event: 'npx',
+    env: { PATH },
+    stdio: 'inherit'
+  }])
+  t.strictSame(READ, [], 'should not have prompted')
+  t.strictSame(LOG_WARN, [['exec', 'The following package was not found and will be installed: foo']], 'should have printed a warning')
+})
+
 t.test('abort if prompt rejected', async t => {
+  const stdoutTTY = process.stdout.isTTY
+  const stdinTTY = process.stdin.isTTY
+  t.teardown(() => {
+    process.stdout.isTTY = stdoutTTY
+    process.stdin.isTTY = stdinTTY
+  })
+  process.stdout.isTTY = true
+  process.stdin.isTTY = true
+
   const packages = ['foo', 'bar']
   READ_RESULT = 'no, why would I want such a thing??'
 
@@ -570,6 +771,15 @@ t.test('abort if prompt rejected', async t => {
 })
 
 t.test('abort if prompt false', async t => {
+  const stdoutTTY = process.stdout.isTTY
+  const stdinTTY = process.stdin.isTTY
+  t.teardown(() => {
+    process.stdout.isTTY = stdoutTTY
+    process.stdin.isTTY = stdinTTY
+  })
+  process.stdout.isTTY = true
+  process.stdin.isTTY = true
+
   const packages = ['foo', 'bar']
   READ_ERROR = 'canceled'
 
@@ -617,6 +827,15 @@ t.test('abort if prompt false', async t => {
 })
 
 t.test('abort if -n provided', async t => {
+  const stdoutTTY = process.stdout.isTTY
+  const stdinTTY = process.stdin.isTTY
+  t.teardown(() => {
+    process.stdout.isTTY = stdoutTTY
+    process.stdin.isTTY = stdinTTY
+  })
+  process.stdout.isTTY = true
+  process.stdin.isTTY = true
+
   const packages = ['foo', 'bar']
 
   npm.flatOptions.package = packages

@@ -1,3 +1,25 @@
+## v7.0.0-rc.4 (2020-10-09)
+
+* [`09b456f2d`](https://github.com/npm/cli/commit/09b456f2d776e2757956d2b9869febd1e01a1076)
+  `@npmcli/config@1.2.1`
+    * [#1919](https://github.com/npm/cli/pull/1919)
+      exposes `npm_config_user_agent` env variable
+      ([@nlf](https://github.com/nlf))
+* [`e859fba9e`](https://github.com/npm/cli/commit/e859fba9e7c267b0587b7d22da72e33f3e8f906b)
+  [#1936](https://github.com/npm/cli/pull/1936)
+  fix npx for non-interactive shells
+  ([@nlf](https://github.com/nlf))
+* [`9320b8e4f`](https://github.com/npm/cli/commit/9320b8e4f0e0338ea95e970ec9bbf0704def64b8)
+  [#1906](https://github.com/npm/cli/pull/1906)
+  restore old npx behavior of running existing bins first
+  ([@nlf](https://github.com/nlf))
+* [`7bd47ca2c`](https://github.com/npm/cli/commit/7bd47ca2c718df0a7d809f1992b7a87eece3f6dc)
+  `@npmcli/arborist@0.0.33`
+    * fixed handling of invalid package.json file
+* [`02737453b`](https://github.com/npm/cli/commit/02737453bc2363daeef8c4e4b7d239e2299029b2)
+  `make-fetch-happen@8.0.10`
+    * do not calculate integrity values of http errors
+
 ## v7.0.0-rc.3 (2020-10-06)
 
 * [`d816c2efa`](https://github.com/npm/cli/commit/d816c2efae41930cbdf4fff8657e0adc450d1dd4)

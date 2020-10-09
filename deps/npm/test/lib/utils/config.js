@@ -70,12 +70,14 @@ const networkInterfaces = () => ({
 })
 const tmpdir = () => '/tmp'
 const os = { networkInterfaces, tmpdir }
+const pkg = { version: '7.0.0' }
 
 t.test('working network interfaces, not windows', t => {
   const config = requireInject('../../../lib/utils/config.js', {
     os,
     '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': false
+    '../../../lib/utils/is-windows.js': false,
+    '../../../package.json': pkg
   })
   t.matchSnapshot(config)
   t.end()
@@ -85,7 +87,8 @@ t.test('no working network interfaces, on windows', t => {
   const config = requireInject('../../../lib/utils/config.js', {
     os: { tmpdir, networkInterfaces: networkInterfacesThrow },
     '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': true
+    '../../../lib/utils/is-windows.js': true,
+    '../../../package.json': pkg
   })
   t.matchSnapshot(config)
   t.end()
@@ -109,7 +112,8 @@ t.test('no process.umask() method', t => {
   const config = requireInject('../../../lib/utils/config.js', {
     os: { tmpdir, networkInterfaces: networkInterfacesThrow },
     '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': true
+    '../../../lib/utils/is-windows.js': true,
+    '../../../package.json': pkg
   })
   t.equal(config.defaults.umask, 0o22)
   t.matchSnapshot(config)

@@ -29,6 +29,7 @@ Object {
     "cafile": null,
     "call": "",
     "cert": null,
+    "ci-name": null,
     "cidr": null,
     "color": true,
     "commit-hooks": true,
@@ -78,6 +79,7 @@ Object {
     "node-options": null,
     "node-version": "v14.8.0",
     "noproxy": null,
+    "npm-version": "7.0.0",
     "offline": false,
     "omit": Array [],
     "only": null,
@@ -201,9 +203,6 @@ Object {
     "n": Array [
       "--no-yes",
     ],
-    "N": Array [
-      "--no-registry",
-    ],
     "no-desc": Array [
       "--no-description",
     ],
@@ -317,6 +316,10 @@ Object {
       null,
       "{String TYPE}",
     ],
+    "ci-name": Array [
+      null,
+      "{String TYPE}",
+    ],
     "cidr": Array [
       null,
       "{String TYPE}",
@@ -349,10 +352,6 @@ Object {
     "global": "{Boolean TYPE}",
     "global-style": "{Boolean TYPE}",
     "globalconfig": "{PATH MODULE}",
-    "group": Array [
-      "{Number TYPE}",
-      "{String TYPE}",
-    ],
     "heading": "{String TYPE}",
     "https-proxy": Array [
       null,
@@ -421,6 +420,7 @@ Object {
       "{String TYPE}",
       "{Array TYPE}",
     ],
+    "npm-version": "{SEMVER MODULE}",
     "offline": "{Boolean TYPE}",
     "omit": Array [
       "{Array TYPE}",
@@ -543,6 +543,7 @@ Object {
     "cafile": null,
     "call": "",
     "cert": null,
+    "ci-name": null,
     "cidr": null,
     "color": true,
     "commit-hooks": true,
@@ -592,6 +593,7 @@ Object {
     "node-options": null,
     "node-version": "v14.8.0",
     "noproxy": null,
+    "npm-version": "7.0.0",
     "offline": false,
     "omit": Array [],
     "only": null,
@@ -715,9 +717,6 @@ Object {
     "n": Array [
       "--no-yes",
     ],
-    "N": Array [
-      "--no-registry",
-    ],
     "no-desc": Array [
       "--no-description",
     ],
@@ -831,6 +830,10 @@ Object {
       null,
       "{String TYPE}",
     ],
+    "ci-name": Array [
+      null,
+      "{String TYPE}",
+    ],
     "cidr": Array [
       null,
       "{String TYPE}",
@@ -863,10 +866,6 @@ Object {
     "global": "{Boolean TYPE}",
     "global-style": "{Boolean TYPE}",
     "globalconfig": "{PATH MODULE}",
-    "group": Array [
-      "{Number TYPE}",
-      "{String TYPE}",
-    ],
     "heading": "{String TYPE}",
     "https-proxy": Array [
       null,
@@ -935,6 +934,7 @@ Object {
       "{String TYPE}",
       "{Array TYPE}",
     ],
+    "npm-version": "{SEMVER MODULE}",
     "offline": "{Boolean TYPE}",
     "omit": Array [
       "{Array TYPE}",
@@ -1057,6 +1057,7 @@ Object {
     "cafile": null,
     "call": "",
     "cert": null,
+    "ci-name": null,
     "cidr": null,
     "color": true,
     "commit-hooks": true,
@@ -1106,6 +1107,7 @@ Object {
     "node-options": null,
     "node-version": "v14.8.0",
     "noproxy": null,
+    "npm-version": "7.0.0",
     "offline": false,
     "omit": Array [],
     "only": null,
@@ -1229,9 +1231,6 @@ Object {
     "n": Array [
       "--no-yes",
     ],
-    "N": Array [
-      "--no-registry",
-    ],
     "no-desc": Array [
       "--no-description",
     ],
@@ -1345,6 +1344,10 @@ Object {
       null,
       "{String TYPE}",
     ],
+    "ci-name": Array [
+      null,
+      "{String TYPE}",
+    ],
     "cidr": Array [
       null,
       "{String TYPE}",
@@ -1377,10 +1380,6 @@ Object {
     "global": "{Boolean TYPE}",
     "global-style": "{Boolean TYPE}",
     "globalconfig": "{PATH MODULE}",
-    "group": Array [
-      "{Number TYPE}",
-      "{String TYPE}",
-    ],
     "heading": "{String TYPE}",
     "https-proxy": Array [
       null,
@@ -1451,6 +1450,7 @@ Object {
       "{String TYPE}",
       "{Array TYPE}",
     ],
+    "npm-version": "{SEMVER MODULE}",
     "offline": "{Boolean TYPE}",
     "omit": Array [
       "{Array TYPE}",

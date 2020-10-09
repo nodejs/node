@@ -43,6 +43,7 @@ const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
 const isWindowsShell = require('./utils/is-windows-shell.js')
 const output = require('./utils/output.js')
+const fileExists = require('./utils/file-exists.js')
 
 const usageUtil = require('./utils/usage.js')
 const usage = usageUtil('completion', 'source <(npm completion)')
@@ -56,13 +57,10 @@ const completion = async (opts, cb) => {
     return cb()
   }
 
-  const fs = require('fs')
-  const stat = promisify(fs.stat)
-  const exists = f => stat(f).then(() => true).catch(() => false)
   const { resolve } = require('path')
   const [bashExists, zshExists] = await Promise.all([
-    exists(resolve(process.env.HOME, '.bashrc')),
-    exists(resolve(process.env.HOME, '.zshrc'))
+    fileExists(resolve(process.env.HOME, '.bashrc')),
+    fileExists(resolve(process.env.HOME, '.zshrc'))
   ])
   const out = []
   if (zshExists) {
