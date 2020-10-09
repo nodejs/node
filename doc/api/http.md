@@ -1193,7 +1193,7 @@ per connection (in the case of HTTP Keep-Alive connections).
 added: v0.1.94
 changes:
   - version: v10.0.0
-    pr-url: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19981
     description: Not listening to this event no longer causes the socket
                  to be destroyed if a client sends an Upgrade header.
 -->
