@@ -1059,6 +1059,7 @@ The externally maintained libraries used by Node.js are:
 
 - GYP, located at tools/gyp, is licensed as follows:
   """
+    Copyright (c) 2020 Node.js contributors. All rights reserved.
     Copyright (c) 2009 Google Inc. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
