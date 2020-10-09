@@ -1819,7 +1819,7 @@ argument.
 `headers` may be an `Array` where the keys and values are in the same list.
 It is *not* a list of tuples. So, the even-numbered offsets are key values,
 and the odd-numbered offsets are the associated values. The array is in the same
-as as format `request.rawHeaders`.
+format as `request.rawHeaders`.
 
 Returns a reference to the `ServerResponse`, so that calls can be chained.
 
