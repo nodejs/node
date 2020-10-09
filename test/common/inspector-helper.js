@@ -130,6 +130,7 @@ class InspectorSession {
     this._unprocessedNotifications = [];
     this._notificationCallback = null;
     this._scriptsIdsByUrl = new Map();
+    this._pausedDetails = null;
 
     let buffer = Buffer.alloc(0);
     socket.on('data', (data) => {
@@ -179,6 +180,10 @@ class InspectorSession {
           this.mainScriptId = scriptId;
         }
       }
+      if (message.method === 'Debugger.paused')
+        this._pausedDetails = message.params;
+      if (message.method === 'Debugger.resumed')
+        this._pausedDetails = null;
 
       if (this._notificationCallback) {
         // In case callback needs to install another
@@ -265,6 +270,10 @@ class InspectorSession {
         (notification) =>
           this._isBreakOnLineNotification(notification, line, url),
         `break on ${url}:${line}`);
+  }
+
+  pausedDetails() {
+    return this._pausedDetails;
   }
 
   _matchesConsoleOutputNotification(notification, type, values) {
