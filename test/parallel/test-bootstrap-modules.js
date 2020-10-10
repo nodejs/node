@@ -56,7 +56,6 @@ const expectedModules = new Set([
   'NativeModule internal/modules/cjs/helpers',
   'NativeModule internal/modules/cjs/loader',
   'NativeModule internal/modules/esm/create_dynamic_module',
-  'NativeModule internal/deps/cjs-module-lexer/lexer',
   'NativeModule internal/modules/esm/get_format',
   'NativeModule internal/modules/esm/get_source',
   'NativeModule internal/modules/esm/loader',
