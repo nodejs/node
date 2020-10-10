@@ -511,11 +511,12 @@ process.on('SIGTERM', handle);
   installed its default behavior will be removed.
 * `'SIGTERM'` is not supported on Windows, it can be listened on.
 * `'SIGINT'` from the terminal is supported on all platforms, and can usually be
-  generated with `<Ctrl>+C` (though this may be configurable). It is not
-  generated when [terminal raw mode][] is enabled and `<Ctrl>+C` is used.
-* `'SIGBREAK'` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
-  non-Windows platforms it can be listened on, but there is no way to send or
-  generate it.
+  generated with <kbd>Ctrl</kbd>+<kbd>C</kbd> (though this may be configurable).
+  It is not generated when [terminal raw mode][] is enabled and
+  <kbd>Ctrl</kbd>+<kbd>C</kbd> is used.
+* `'SIGBREAK'` is delivered on Windows when <kbd>Ctrl</kbd>+<kbd>Break</kbd> is
+  pressed. On non-Windows platforms, it can be listened on, but there is no way
+  to send or generate it.
 * `'SIGWINCH'` is delivered when the console has been resized. On Windows, this
   will only happen on write to the console when the cursor is being moved, or
   when a readable tty is used in raw mode.
