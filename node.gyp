@@ -275,6 +275,7 @@
       'deps/acorn-plugins/acorn-private-methods/index.js',
       'deps/acorn-plugins/acorn-static-class-features/index.js',
       'deps/cjs-module-lexer/lexer.js',
+      'deps/cjs-module-lexer/dist/lexer.js',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkcodecache_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkcodecache<(EXECUTABLE_SUFFIX)',
