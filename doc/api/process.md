@@ -2248,7 +2248,7 @@ exception value itself as its first argument.
 If such a function is set, the [`'uncaughtException'`][] event will
 not be emitted. If `--abort-on-uncaught-exception` was passed from the
 command line or set through [`v8.setFlagsFromString()`][], the process will
-not abort. This api does not alter the behavior of diagnostic report 
+not abort. This api does not alter the behavior of diagnostic report
 configured to on uncaught exceptions.
 
 To unset the capture function,
