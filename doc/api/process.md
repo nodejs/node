@@ -1699,7 +1699,8 @@ added:
 
 * {integer}
 
-The `process.ppid` property returns the PID of the current parent process.
+The `process.ppid` property returns the PID of the parent of the
+current process.
 
 ```js
 console.log(`The parent process is pid ${process.ppid}`);
