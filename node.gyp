@@ -575,6 +575,7 @@
       'sources': [
         'src/api/async_resource.cc',
         'src/api/callback.cc',
+        'src/api/embed_helpers.cc',
         'src/api/encoding.cc',
         'src/api/environment.cc',
         'src/api/exceptions.cc',

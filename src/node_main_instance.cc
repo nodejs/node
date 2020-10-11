@@ -23,7 +23,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 using v8::Object;
-using v8::SealHandleScope;
 
 std::unique_ptr<ExternalReferenceRegistry> NodeMainInstance::registry_ =
     nullptr;
@@ -140,37 +139,7 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
     if (exit_code == 0) {
       LoadEnvironment(env.get());
 
-      env->set_trace_sync_io(env->options()->trace_sync_io);
-
-      {
-        SealHandleScope seal(isolate_);
-        bool more;
-        env->performance_state()->Mark(
-            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
-        do {
-          uv_run(env->event_loop(), UV_RUN_DEFAULT);
-
-          per_process::v8_platform.DrainVMTasks(isolate_);
-
-          more = uv_loop_alive(env->event_loop());
-          if (more && !env->is_stopping()) continue;
-
-          if (!uv_loop_alive(env->event_loop())) {
-            if (EmitProcessBeforeExit(env.get()).IsNothing())
-              break;
-          }
-
-          // Emit `beforeExit` if the loop became alive either after emitting
-          // event, or after running some callbacks.
-          more = uv_loop_alive(env->event_loop());
-        } while (more == true && !env->is_stopping());
-        env->performance_state()->Mark(
-            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
-      }
-
-      env->set_trace_sync_io(false);
-      if (!env->is_stopping()) env->VerifyNoStrongBaseObjects();
-      exit_code = EmitProcessExit(env.get()).FromMaybe(1);
+      exit_code = SpinEventLoop(env.get()).FromMaybe(1);
     }
 
     ResetStdio();

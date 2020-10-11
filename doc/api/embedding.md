@@ -67,6 +67,13 @@ int main(int argc, char** argv) {
 ```
 
 ### Per-instance state
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35597
+    description:
+      The `CommonEnvironmentSetup` and `SpinEventLoop` utilities were added.
+-->
 
 Node.js has a concept of a “Node.js instance”, that is commonly being referred
 to as `node::Environment`. Each `node::Environment` is associated with:
@@ -99,52 +106,26 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
                     const std::vector<std::string>& args,
                     const std::vector<std::string>& exec_args) {
   int exit_code = 0;
-  // Set up a libuv event loop.
-  uv_loop_t loop;
-  int ret = uv_loop_init(&loop);
-  if (ret != 0) {
-    fprintf(stderr, "%s: Failed to initialize loop: %s\n",
-            args[0].c_str(),
-            uv_err_name(ret));
+
+  // Setup up a libuv event loop, v8::Isolate, and Node.js Environment.
+  std::vector<std::string> errors;
+  std::unique_ptr<CommonEnvironmentSetup> setup =
+      CommonEnvironmentSetup::Create(platform, &errors, args, exec_args);
+  if (!setup) {
+    for (const std::string& err : errors)
+      fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
     return 1;
   }
 
-  std::shared_ptr<ArrayBufferAllocator> allocator =
-      ArrayBufferAllocator::Create();
-
-  Isolate* isolate = NewIsolate(allocator, &loop, platform);
-  if (isolate == nullptr) {
-    fprintf(stderr, "%s: Failed to initialize V8 Isolate\n", args[0].c_str());
-    return 1;
-  }
+  Isolate* isolate = setup->isolate();
+  Environment* env = setup->env();
 
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
-
-    // Create a node::IsolateData instance that will later be released using
-    // node::FreeIsolateData().
-    std::unique_ptr<IsolateData, decltype(&node::FreeIsolateData)> isolate_data(
-        node::CreateIsolateData(isolate, &loop, platform, allocator.get()),
-        node::FreeIsolateData);
-
-    // Set up a new v8::Context.
-    HandleScope handle_scope(isolate);
-    Local<Context> context = node::NewContext(isolate);
-    if (context.IsEmpty()) {
-      fprintf(stderr, "%s: Failed to initialize V8 Context\n", args[0].c_str());
-      return 1;
-    }
-
     // The v8::Context needs to be entered when node::CreateEnvironment() and
     // node::LoadEnvironment() are being called.
-    Context::Scope context_scope(context);
-
-    // Create a node::Environment instance that will later be released using
-    // node::FreeEnvironment().
-    std::unique_ptr<Environment, decltype(&node::FreeEnvironment)> env(
-        node::CreateEnvironment(isolate_data.get(), context, args, exec_args),
-        node::FreeEnvironment);
+    Context::Scope context_scope(setup->context());
 
     // Set up the Node.js instance for execution, and run code inside of it.
     // There is also a variant that takes a callback and provides it with
@@ -156,7 +137,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     // load files from the disk, and uses the standard CommonJS file loader
     // instead of the internal-only `require` function.
     MaybeLocal<Value> loadenv_ret = node::LoadEnvironment(
-        env.get(),
+        env,
         "const publicRequire ="
         "  require('module').createRequire(process.cwd() + '/');"
         "globalThis.require = publicRequire;"
@@ -165,57 +146,13 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
       return 1;
 
-    {
-      // SealHandleScope protects against handle leaks from callbacks.
-      SealHandleScope seal(isolate);
-      bool more;
-      do {
-        uv_run(&loop, UV_RUN_DEFAULT);
-
-        // V8 tasks on background threads may end up scheduling new tasks in the
-        // foreground, which in turn can keep the event loop going. For example,
-        // WebAssembly.compile() may do so.
-        platform->DrainTasks(isolate);
-
-        // If there are new tasks, continue.
-        more = uv_loop_alive(&loop);
-        if (more) continue;
-
-        // node::EmitProcessBeforeExit() is used to emit the 'beforeExit' event
-        // on the `process` object.
-        if (node::EmitProcessBeforeExit(env.get()).IsNothing())
-          break;
-
-        // 'beforeExit' can also schedule new work that keeps the event loop
-        // running.
-        more = uv_loop_alive(&loop);
-      } while (more == true);
-    }
-
-    // node::EmitProcessExit() returns the current exit code.
-    exit_code = node::EmitProcessExit(env.get()).FromMaybe(1);
+    exit_code = node::SpinEventLoop(env).FromMaybe(1);
 
     // node::Stop() can be used to explicitly stop the event loop and keep
     // further JavaScript from running. It can be called from any thread,
     // and will act like worker.terminate() if called from another thread.
-    node::Stop(env.get());
+    node::Stop(env);
   }
-
-  // Unregister the Isolate with the platform and add a listener that is called
-  // when the Platform is done cleaning up any state it had associated with
-  // the Isolate.
-  bool platform_finished = false;
-  platform->AddIsolateFinishedCallback(isolate, [](void* data) {
-    *static_cast<bool*>(data) = true;
-  }, &platform_finished);
-  platform->UnregisterIsolate(isolate);
-  isolate->Dispose();
-
-  // Wait until the platform has cleaned up all relevant resources.
-  while (!platform_finished)
-    uv_run(&loop, UV_RUN_ONCE);
-  int err = uv_loop_close(&loop);
-  assert(err == 0);
 
   return exit_code;
 }

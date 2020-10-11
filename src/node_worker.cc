@@ -27,6 +27,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
@@ -332,45 +333,14 @@ void Worker::Run() {
 
         Debug(this, "Loaded environment for worker %llu", thread_id_.id);
       }
-
-      if (is_stopped()) return;
-      {
-        SealHandleScope seal(isolate_);
-        bool more;
-        env_->performance_state()->Mark(
-            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
-        do {
-          if (is_stopped()) break;
-          uv_run(&data.loop_, UV_RUN_DEFAULT);
-          if (is_stopped()) break;
-
-          platform_->DrainTasks(isolate_);
-
-          more = uv_loop_alive(&data.loop_);
-          if (more && !is_stopped()) continue;
-
-          if (EmitProcessBeforeExit(env_.get()).IsNothing())
-            break;
-
-          // Emit `beforeExit` if the loop became alive either after emitting
-          // event, or after running some callbacks.
-          more = uv_loop_alive(&data.loop_);
-        } while (more == true && !is_stopped());
-        env_->performance_state()->Mark(
-            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
-      }
     }
 
     {
-      int exit_code;
-      bool stopped = is_stopped();
-      if (!stopped) {
-        env_->VerifyNoStrongBaseObjects();
-        exit_code = EmitProcessExit(env_.get()).FromMaybe(1);
-      }
+      Maybe<int> exit_code = SpinEventLoop(env_.get());
       Mutex::ScopedLock lock(mutex_);
-      if (exit_code_ == 0 && !stopped)
-        exit_code_ = exit_code;
+      if (exit_code_ == 0 && exit_code.IsJust()) {
+        exit_code_ = exit_code.FromJust();
+      }
 
       Debug(this, "Exiting thread for worker %llu with exit code %d",
             thread_id_.id, exit_code_);

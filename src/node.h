@@ -553,6 +553,73 @@ NODE_EXTERN void RunAtExit(Environment* env);
 // with a Node instance.
 NODE_EXTERN struct uv_loop_s* GetCurrentEventLoop(v8::Isolate* isolate);
 
+// Runs the main loop for a given Environment. This roughly performs the
+// following steps:
+// 1. Call uv_run() on the event loop until it is drained.
+// 2. Call platform->DrainTasks() on the associated platform/isolate.
+//   3. If the event loop is alive again, go to Step 1.
+// 4. Call EmitProcessBeforeExit().
+//   5. If the event loop is alive again, go to Step 1.
+// 6. Call EmitProcessExit() and forward the return value.
+// If at any point node::Stop() is called, the function will attempt to return
+// as soon as possible, returning an empty `Maybe`.
+// This function only works if `env` has an associated `MultiIsolatePlatform`.
+NODE_EXTERN v8::Maybe<int> SpinEventLoop(Environment* env);
+
+class NODE_EXTERN CommonEnvironmentSetup {
+ public:
+  ~CommonEnvironmentSetup();
+
+  // Create a new CommonEnvironmentSetup, that is, a group of objects that
+  // together form the typical setup for a single Node.js Environment instance.
+  // If any error occurs, `*errors` will be populated and the returned pointer
+  // will be empty.
+  // env_args will be passed through as arguments to CreateEnvironment(), after
+  // `isolate_data` and `context`.
+  template <typename... EnvironmentArgs>
+  static std::unique_ptr<CommonEnvironmentSetup> Create(
+      MultiIsolatePlatform* platform,
+      std::vector<std::string>* errors,
+      EnvironmentArgs&&... env_args);
+
+  struct uv_loop_s* event_loop() const;
+  std::shared_ptr<ArrayBufferAllocator> array_buffer_allocator() const;
+  v8::Isolate* isolate() const;
+  IsolateData* isolate_data() const;
+  Environment* env() const;
+  v8::Local<v8::Context> context() const;
+
+  CommonEnvironmentSetup(const CommonEnvironmentSetup&) = delete;
+  CommonEnvironmentSetup& operator=(const CommonEnvironmentSetup&) = delete;
+  CommonEnvironmentSetup(CommonEnvironmentSetup&&) = delete;
+  CommonEnvironmentSetup& operator=(CommonEnvironmentSetup&&) = delete;
+
+ private:
+  struct Impl;
+  Impl* impl_;
+  CommonEnvironmentSetup(
+      MultiIsolatePlatform*,
+      std::vector<std::string>*,
+      std::function<Environment*(const CommonEnvironmentSetup*)>);
+};
+
+// Implementation for CommonEnvironmentSetup::Create
+template <typename... EnvironmentArgs>
+std::unique_ptr<CommonEnvironmentSetup> CommonEnvironmentSetup::Create(
+    MultiIsolatePlatform* platform,
+    std::vector<std::string>* errors,
+    EnvironmentArgs&&... env_args) {
+  auto ret = std::unique_ptr<CommonEnvironmentSetup>(new CommonEnvironmentSetup(
+      platform, errors,
+      [&](const CommonEnvironmentSetup* setup) -> Environment* {
+        return CreateEnvironment(
+            setup->isolate_data(), setup->context(),
+            std::forward<EnvironmentArgs>(env_args)...);
+      }));
+  if (!errors->empty()) ret.reset();
+  return ret;
+}
+
 /* Converts a unixtime to V8 Date */
 NODE_DEPRECATED("Use v8::Date::New() directly",
                 inline v8::Local<v8::Value> NODE_UNIXTIME_V8(double time) {
