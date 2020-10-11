@@ -21,8 +21,11 @@
 
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const cluster = require('cluster');
+const fs = require('fs');
+const path = require('path');
 
 const totalWorkers = 2;
 
@@ -30,6 +33,10 @@ const totalWorkers = 2;
 if (cluster.isWorker) {
   const http = require('http');
   http.Server(() => {}).listen(0, '127.0.0.1');
+  process.on('exit', () => {
+    fs.writeFileSync(
+      process.env.DONE_FILE_PATTERN.replace('$pid', process.pid), 'done');
+  });
 } else if (process.argv[2] === 'cluster') {
   // Send PID to testcase process
   let forkNum = 0;
@@ -66,6 +73,9 @@ if (cluster.isWorker) {
   cluster.fork();
 } else {
   // This is the testcase
+  tmpdir.refresh();
+  const doneFilePattern = path.resolve(tmpdir.path, 'done-$pid');
+  process.env.DONE_FILE_PATTERN = doneFilePattern;
 
   const fork = require('child_process').fork;
 
@@ -88,12 +98,10 @@ if (cluster.isWorker) {
     // Check that the cluster died accidentally (non-zero exit code)
     assert.strictEqual(code, 1);
 
-    // XXX(addaleax): The fact that this uses raw PIDs makes the test inherently
-    // flaky – another process might end up being started right after the
-    // workers finished and receive the same PID.
     const pollWorkers = () => {
-      // When primary is dead all workers should be dead too
-      if (workers.some((pid) => common.isAlive(pid))) {
+      // When master is dead all workers should be dead too
+      if (workers.some(
+        (pid) => !fs.existsSync(doneFilePattern.replace('$pid', pid)))) {
         setTimeout(pollWorkers, 50);
       }
     };
