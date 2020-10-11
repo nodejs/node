@@ -90,7 +90,7 @@ changes:
     This option is part of the experimental modules API, and should not be
     considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.Module}
+    * `script` {vm.Script}
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -984,7 +984,7 @@ changes:
     This option is part of the experimental modules API, and should not be
     considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.Module}
+    * `script` {vm.Script}
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -1082,7 +1082,7 @@ changes:
     This option is part of the experimental modules API, and should not be
     considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.Module}
+    * `script` {vm.Script}
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -1161,7 +1161,7 @@ changes:
     This option is part of the experimental modules API, and should not be
     considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.Module}
+    * `script` {vm.Script}
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
