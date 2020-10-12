@@ -10716,7 +10716,8 @@ static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
 
 void HeapSnapshot::Delete() {
   i::Isolate* isolate = ToInternal(this)->profiler()->isolate();
-  if (isolate->heap_profiler()->GetSnapshotsCount() > 1) {
+  if (isolate->heap_profiler()->GetSnapshotsCount() > 1 ||
+      isolate->heap_profiler()->IsTakingSnapshot()) {
     ToInternal(this)->Delete();
   } else {
     // If this is the last snapshot, clean up all accessory data as well.
