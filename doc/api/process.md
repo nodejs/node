@@ -1457,7 +1457,7 @@ Use care when dropping privileges:
 
 ```js
 console.log(process.getgroups());         // [ 0 ]
-process.initgroups('bnoordhuis', 1000);   // switch user
+process.initgroups('nodeuser', 1000);     // switch user
 console.log(process.getgroups());         // [ 27, 30, 46, 1000, 0 ]
 process.setgid(1000);                     // drop root gid
 console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
