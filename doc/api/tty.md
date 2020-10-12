@@ -74,7 +74,7 @@ Allows configuration of `tty.ReadStream` so that it operates as a raw device.
 When in raw mode, input is always available character-by-character, not
 including modifiers. Additionally, all special processing of characters by the
 terminal is disabled, including echoing input characters.
-`CTRL`+`C` will no longer cause a `SIGINT` when in this mode.
+<kbd>Ctrl</kbd>+<kbd>C</kbd> will no longer cause a `SIGINT` when in this mode.
 
 ## Class: `tty.WriteStream`
 <!-- YAML
