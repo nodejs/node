@@ -18,7 +18,8 @@ namespace internal {
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
       names_(new StringsStorage()),
-      is_tracking_object_moves_(false) {}
+      is_tracking_object_moves_(false),
+      is_taking_snapshot_(false) {}
 
 HeapProfiler::~HeapProfiler() = default;
 
@@ -28,7 +29,8 @@ void HeapProfiler::DeleteAllSnapshots() {
 }
 
 void HeapProfiler::MaybeClearStringsStorage() {
-  if (snapshots_.empty() && !sampling_heap_profiler_ && !allocation_tracker_) {
+  if (snapshots_.empty() && !sampling_heap_profiler_ && !allocation_tracker_ &&
+      !is_taking_snapshot_) {
     names_.reset(new StringsStorage());
   }
 }
@@ -66,6 +68,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver,
     bool treat_global_objects_as_roots) {
+  is_taking_snapshot_ = true;
   HeapSnapshot* result = new HeapSnapshot(this, treat_global_objects_as_roots);
   {
     HeapSnapshotGenerator generator(result, control, resolver, heap());
@@ -78,6 +81,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   }
   ids_->RemoveDeadEntries();
   is_tracking_object_moves_ = true;
+  is_taking_snapshot_ = false;
 
   heap()->isolate()->debug()->feature_tracker()->Track(
       DebugFeatureTracker::kHeapSnapshot);
@@ -138,9 +142,11 @@ void HeapProfiler::StopHeapObjectsTracking() {
   }
 }
 
-int HeapProfiler::GetSnapshotsCount() {
+int HeapProfiler::GetSnapshotsCount() const {
   return static_cast<int>(snapshots_.size());
 }
+
+bool HeapProfiler::IsTakingSnapshot() const { return is_taking_snapshot_; }
 
 HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
   return snapshots_.at(index).get();
