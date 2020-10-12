@@ -1763,8 +1763,7 @@ tarball.
 
 `process.release` contains the following properties:
 
-* `name` {string} A value that will always be `'node'` for Node.js. For
-  legacy io.js releases, this will be `'io.js'`.
+* `name` {string} A value that will always be `'node'`.
 * `sourceUrl` {string} an absolute URL pointing to a _`.tar.gz`_ file containing
   the source code of the current release.
 * `headersUrl`{string} an absolute URL pointing to a _`.tar.gz`_ file containing
