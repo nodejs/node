@@ -2664,15 +2664,15 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/35579
-    description: Documentation-only deprecation.
+    pr-url: https://github.com/nodejs/node/pull/35562
+    description: Runtime deprecation.
 -->
 
 Type: Documentation-only
 
 In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
-on nonexistent paths, or when given a file as a target.
-Use `fs.rm(path, { recursive: true, force: true })` instead.
+on nonexistent paths, or when given a file as a target, use
+`fs.rm(path, {recursive: true, force: true })` instead.
 
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
