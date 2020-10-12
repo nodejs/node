@@ -1458,6 +1458,11 @@ changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The privateKey can also be an ArrayBuffer and CryptoKey.
+  - version:
+     - v12.16.0
+     - v13.2.0
+    pr-url: https://github.com/nodejs/node/pull/29292
+    description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26960
     description: This function now supports RSA-PSS keys.
@@ -1576,6 +1581,11 @@ changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The object can also be an ArrayBuffer and CryptoKey.
+  - version:
+     - v12.16.0
+     - v13.2.0
+    pr-url: https://github.com/nodejs/node/pull/29292
+    description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26960
     description: This function now supports RSA-PSS keys.
@@ -3314,6 +3324,12 @@ Throws an error if FIPS mode is not available.
 ### `crypto.sign(algorithm, data, key)`
 <!-- YAML
 added: v12.0.0
+changes:
+  - version:
+     - v12.16.0
+     - v13.2.0
+    pr-url: https://github.com/nodejs/node/pull/29292
+    description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -3380,6 +3396,11 @@ changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The data, key, and signature arguments can also be ArrayBuffer.
+  - version:
+     - v12.16.0
+     - v13.2.0
+    pr-url: https://github.com/nodejs/node/pull/29292
+    description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
