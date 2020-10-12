@@ -1177,6 +1177,9 @@ And `process.argv`:
 ['/usr/local/bin/node', 'script.js', '--version']
 ```
 
+Refer to [`Worker` constructor][] for the detailed behavior of worker
+threads with this property.
+
 ## `process.execPath`
 <!-- YAML
 added: v0.1.100
@@ -2629,6 +2632,7 @@ cases:
 [`NODE_OPTIONS`]: cli.md#cli_node_options_options
 [`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
 [`Worker`]: worker_threads.md#worker_threads_class_worker
+[`Worker` constructor]: worker_threads.md#worker_threads_new_worker_filename_options
 [`console.error()`]: console.md#console_console_error_data_args
 [`console.log()`]: console.md#console_console_log_data_args
 [`domain`]: domain.md
