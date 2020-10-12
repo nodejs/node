@@ -253,7 +253,6 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
-  AbortController,
   clearImmediate,
   clearInterval,
   clearTimeout,
@@ -263,6 +262,9 @@ let knownGlobals = [
   setTimeout,
   queueMicrotask,
 ];
+
+if (global.AbortController)
+  knownGlobals.push(global.AbortController);
 
 if (global.gc) {
   knownGlobals.push(global.gc);
