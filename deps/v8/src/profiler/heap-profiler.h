@@ -49,7 +49,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream,
                                         int64_t* timestamp_us);
-  int GetSnapshotsCount();
+  int GetSnapshotsCount() const;
+  bool IsTakingSnapshot() const;
   HeapSnapshot* GetSnapshot(int index);
   SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
   SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
@@ -93,6 +94,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<StringsStorage> names_;
   std::unique_ptr<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;
+  bool is_taking_snapshot_;
   base::Mutex profiler_mutex_;
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
