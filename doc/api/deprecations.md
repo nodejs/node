@@ -2671,11 +2671,11 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
-on nonexistent paths, or when given a file as a target, use
-`fs.rm(path, {recursive: true, force: true })` instead.
+if `path` does not exist or is a file.
+Use `fs.rm(path, { recursive: true, force: true })` instead.
 
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
