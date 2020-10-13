@@ -9,13 +9,6 @@ const { validateRmdirOptions } = require('internal/fs/utils');
 
 tmpdir.refresh();
 
-common.expectWarning(
-  'DeprecationWarning',
-  'Permissive rmdir recursive is deprecated, use rm recursive and force \
-instead',
-  'DEP0147'
-);
-
 let count = 0;
 const nextDirPath = (name = 'rmdir-recursive') =>
   path.join(tmpdir.path, `${name}-${count++}`);
@@ -82,8 +75,7 @@ function removeAsync(dir) {
       fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
         assert.ifError(err);
 
-        // Should print deprecation warning if recursive and directory does not
-        // exist.
+        // Succeeds if recursive and directory (but will warn).
         fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
           assert.ifError(err);
 
@@ -131,7 +123,7 @@ function removeAsync(dir) {
   // Recursive removal should succeed.
   fs.rmdirSync(dir, { recursive: true });
 
-  // Should print deprecation warning if recursive and directory does not exist.
+  // No error should occur if recursive and the directory does not exist.
   fs.rmdirSync(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
@@ -152,7 +144,7 @@ function removeAsync(dir) {
   // Recursive removal should succeed.
   await fs.promises.rmdir(dir, { recursive: true });
 
-  // Should print deprecation warning if recursive and directory does not exist.
+  // No error should occur if recursive and the directory does not exist.
   fs.promises.rmdir(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
