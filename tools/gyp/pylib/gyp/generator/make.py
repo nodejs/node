@@ -1621,10 +1621,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                     if any(dep.endswith(".so") or ".so." in dep for dep in deps):
                         # We want to get the literal string "$ORIGIN"
                         # into the link command, so we need lots of escaping.
-                        ldflags.append(r"-Wl,-rpath=\$$ORIGIN/lib.%s/" % self.toolset)
-                        ldflags.append(
-                            r"-Wl,-rpath-link=\$(builddir)/lib.%s/" % self.toolset
-                        )
+                        ldflags.append(r"-Wl,-rpath=\$$ORIGIN/")
+                        ldflags.append(r"-Wl,-rpath-link=\$(builddir)/")
                 library_dirs = config.get("library_dirs", [])
                 ldflags += [("-L%s" % library_dir) for library_dir in library_dirs]
                 self.WriteList(ldflags, "LDFLAGS_%s" % configname)
@@ -2172,14 +2170,16 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
     def _InstallableTargetInstallPath(self):
         """Returns the location of the final output for an installable target."""
+        # Functionality removed for all platforms to match Xcode and hoist
+        # shared libraries into PRODUCT_DIR for users:
         # Xcode puts shared_library results into PRODUCT_DIR, and some gyp files
         # rely on this. Emulate this behavior for mac.
-        if self.type == "shared_library" and (
-            self.flavor != "mac" or self.toolset != "target"
-        ):
-            # Install all shared libs into a common directory (per toolset) for
-            # convenient access with LD_LIBRARY_PATH.
-            return "$(builddir)/lib.%s/%s" % (self.toolset, self.alias)
+        # if self.type == "shared_library" and (
+        #     self.flavor != "mac" or self.toolset != "target"
+        # ):
+        #    # Install all shared libs into a common directory (per toolset) for
+        #    # convenient access with LD_LIBRARY_PATH.
+        #    return "$(builddir)/lib.%s/%s" % (self.toolset, self.alias)
         return "$(builddir)/" + self.alias
 
 
