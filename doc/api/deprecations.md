@@ -2666,7 +2666,7 @@ changes:
 Type: Documentation-only
 
 In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
-on nonexistent paths, or when given a file as a target.
+if `path` does not exist or is a file.
 Use `fs.rm(path, { recursive: true, force: true })` instead.
 
 [Legacy URL API]: url.md#url_legacy_url_api
