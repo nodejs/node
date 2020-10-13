@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2020-10-13
+
+### Added
+- The Makefile generator will now output shared libraries directly to the product
+  directory on all platforms (previously only macOS).
+
 ## [0.5.0] - 2020-09-30
 
 ### Added
@@ -46,7 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This is the first release of this project, based on https://chromium.googlesource.com/external/gyp
 with changes made over the years in Node.js and node-gyp.
 
-[Unreleased]: https://github.com/nodejs/gyp-next/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/nodejs/gyp-next/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/nodejs/gyp-next/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/nodejs/gyp-next/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/nodejs/gyp-next/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nodejs/gyp-next/compare/v0.2.1...v0.3.0
