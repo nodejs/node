@@ -30,7 +30,7 @@ var gitHosts = module.exports = {
   gist: {
     'protocols': [ 'git', 'git+ssh', 'git+https', 'ssh', 'https' ],
     'domain': 'gist.github.com',
-    'pathmatch': /^[/](?:([^/]+)[/])?([a-z0-9]{32,})(?:[.]git)?$/,
+    'pathmatch': /^[/](?:([^/]+)[/])?([a-z0-9]{7,})(?:[.]git)?$/,
     'filetemplate': 'https://gist.githubusercontent.com/{user}/{project}/raw{/committish}/{path}',
     'bugstemplate': 'https://{domain}/{project}',
     'gittemplate': 'git://{domain}/{project}.git{#committish}',
