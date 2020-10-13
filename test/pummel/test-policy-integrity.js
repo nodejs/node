@@ -2,6 +2,7 @@
 
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
+common.requireNoPackageJSONAbove();
 
 const { debuglog } = require('util');
 const debug = debuglog('test');
