@@ -57,7 +57,6 @@ const _delistFromMeta = Symbol('_delistFromMeta')
 const _global = Symbol.for('global')
 const _workspaces = Symbol('_workspaces')
 const _explain = Symbol('_explain')
-const _explainEdge = Symbol('_explainEdge')
 const _explanation = Symbol('_explanation')
 
 const relpath = require('./relpath.js')
@@ -340,9 +339,8 @@ class Node {
       why.whileInstalling = {
         name,
         version,
+        path: this.root.sourceReference.path,
       }
-      if (edge)
-        this[_explainEdge](edge, seen)
     }
 
     if (this.sourceReference)
@@ -358,7 +356,7 @@ class Node {
 
     why.dependents = []
     if (edge)
-      why.dependents.push(this[_explainEdge](edge, seen))
+      why.dependents.push(edge.explain(seen))
     else {
       // if we have an edge from the root, just show that, and stop there
       // no need to go deeper, because it doesn't provide much more value.
@@ -376,19 +374,9 @@ class Node {
         edges.push(edge)
       }
       for (const edge of edges)
-        why.dependents.push(this[_explainEdge](edge, seen))
+        why.dependents.push(edge.explain(seen))
     }
     return why
-  }
-
-  // return the edge data, and an explanation of how that edge came to be here
-  [_explainEdge] (edge, seen) {
-    return {
-      type: edge.type,
-      spec: edge.spec,
-      ...(edge.error ? { error: edge.error } : {}),
-      from: edge.from.explain(null, seen),
-    }
   }
 
   isDescendantOf (node) {
@@ -446,6 +434,14 @@ class Node {
   get inDepBundle () {
     const bundler = this.getBundler()
     return !!bundler && bundler !== this.root
+  }
+
+  get isWorkspace () {
+    if (this.isRoot)
+      return false
+    const { root } = this
+    const { type, to } = root.edgesOut.get(this.package.name) || {}
+    return type === 'workspace' && to && (to.target === this || to === this)
   }
 
   get isRoot () {

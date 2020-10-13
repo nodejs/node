@@ -132,38 +132,6 @@ npm ls \-gpld
 npm ls \-\-global \-\-parseable \-\-long \-\-loglevel info
 .fi
 .RE
-.SS Per\-Package Config Settings
-.P
-When running scripts (see npm help \fBscripts\fP) the package\.json "config"
-keys are overwritten in the environment if there is a config param of
-\fB<name>[@<version>]:<key>\fP\|\.  For example, if the package\.json has
-this:
-.P
-.RS 2
-.nf
-{ "name" : "foo"
-, "config" : { "port" : "8080" }
-, "scripts" : { "start" : "node server\.js" } }
-.fi
-.RE
-.P
-and the server\.js is this:
-.P
-.RS 2
-.nf
-http\.createServer(\.\.\.)\.listen(process\.env\.npm_package_config_port)
-.fi
-.RE
-.P
-then the user could change the behavior by doing:
-.P
-.RS 2
-.nf
-npm config set foo:port 80
-.fi
-.RE
-.P
-See npm help package\.json for more information\.
 .SS Config Settings
 .SS access
 .RS 0
@@ -414,6 +382,23 @@ Type: Number
 \fBDEPRECATED\fR: This option has been deprecated in favor of \fB\-\-prefer\-offline\fP\|\.
 .P
 \fB\-\-cache\-min=9999 (or bigger)\fP is an alias for \fB\-\-prefer\-offline\fP\|\.
+.SS call
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Optional companion option for \fBnpm exec\fP, \fBnpx\fP that allows for specifying a
+custom command to be run along with the installed packages\.
+.P
+.RS 2
+.nf
+npm exec \-\-package yo \-\-package generator\-node \-\-call "yo node"
+.fi
+.RE
 .SS cert
 .RS 0
 .IP \(bu 2
@@ -443,6 +428,16 @@ Type: String, Array, null
 .RE
 .P
 This is a list of CIDR address to be used when configuring limited access tokens with the \fBnpm token create\fP command\.
+.SS commit\-hooks
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run git commit hooks when using the \fBnpm version\fP command\.
 .SS color
 .RS 0
 .IP \(bu 2
@@ -460,15 +455,15 @@ disabled when the environment variable \fBNO_COLOR\fP is set to any value\.
 .SS depth
 .RS 0
 .IP \(bu 2
-Default: 0
+Default: null
 .IP \(bu 2
-Type: Number
+Type: null or Number
 
 .RE
 .P
 The depth to go when recursing packages for \fBnpm ls\fP\|\.
 .P
-To make this default to \fBInfinity\fP instead of \fB0\fP, set \fB\-\-all\fP\|\.
+To make this default to \fBInfinity\fP instead of \fBnull\fP, set \fB\-\-all\fP\|\.
 .SS description
 .RS 0
 .IP \(bu 2
@@ -488,7 +483,7 @@ Type: Boolean
 
 .RE
 .P
-Install \fBdev\-dependencies\fP along with packages\.
+[Deprecated] Install \fBdev\-dependencies\fP along with packages\.
 .SS dry\-run
 .RS 0
 .IP \(bu 2
@@ -572,6 +567,18 @@ Type: Boolean
 .RE
 .P
 Format \fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP as a human readable file\.
+.SS fund
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When "true" displays the message at the end of each \fBnpm install\fP
+aknowledging the number of dependencies looking for funding\.
+See npm help \fBfund\fP for details\.
 .SS fetch\-retries
 .RS 0
 .IP \(bu 2
@@ -626,18 +633,6 @@ Type: Number
 .RE
 .P
 The maximum amount of time to wait for HTTP requests to complete\.
-.SS fund
-.RS 0
-.IP \(bu 2
-Default: true
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-When "true" displays the message at the end of each \fBnpm install\fP
-aknowledging the number of dependencies looking for funding\.
-See npm help \fBfund\fP for details\.
 .SS git
 .RS 0
 .IP \(bu 2
@@ -660,16 +655,6 @@ Type: Boolean
 .RE
 .P
 Tag the commit when using the \fBnpm version\fP command\.
-.SS commit\-hooks
-.RS 0
-.IP \(bu 2
-Default: \fBtrue\fP
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Run git commit hooks when using the \fBnpm version\fP command\.
 .SS global
 .RS 0
 .IP \(bu 2
@@ -717,17 +702,6 @@ direct dependencies will show in \fBnode_modules\fP and everything they depend
 on will be flattened in their \fBnode_modules\fP folders\.  This obviously will
 eliminate some deduping\. If used with \fBlegacy\-bundling\fP, \fBlegacy\-bundling\fP will be
 preferred\.
-.SS group
-.RS 0
-.IP \(bu 2
-Default: GID of the current process
-.IP \(bu 2
-Type: String or Number
-
-.RE
-.P
-The group to use when running package scripts in global mode as the root
-user\.
 .SS heading
 .RS 0
 .IP \(bu 2
@@ -784,8 +758,20 @@ Type: Boolean
 .RE
 .P
 If true, npm does not run scripts specified in package\.json files\.
+.SS include
+.RS 0
+.IP \(bu 2
+Default: \fB[prod|dev|optional|peer]\fP
+.IP \(bu 2
+Type: Array
+
+.RE
+.P
+Option that allows for defining which types of dependencies to install\.
 .SS init\-module
 .RS 0
+.IP \(bu 2
+Alias: \fBinit\.module\fP
 .IP \(bu 2
 Default: ~/\.npm\-init\.js
 .IP \(bu 2
@@ -795,10 +781,12 @@ Type: path
 .P
 A module that will be loaded by the \fBnpm init\fP command\.  See the
 documentation for the
-init\-package\-json \fIhttps://github\.com/isaacs/init\-package\-json\fR module
+init\-package\-json \fIhttps://github\.com/npm/init\-package\-json\fR module
 for more information, or npm help init\.
 .SS init\-author\-name
 .RS 0
+.IP \(bu 2
+Alias: \fBinit\.author\.name\fP
 .IP \(bu 2
 Default: ""
 .IP \(bu 2
@@ -810,6 +798,8 @@ The value \fBnpm init\fP should use by default for the package author's name\.
 .SS init\-author\-email
 .RS 0
 .IP \(bu 2
+Alias: \fBinit\.author\.email\fP
+.IP \(bu 2
 Default: ""
 .IP \(bu 2
 Type: String
@@ -819,6 +809,8 @@ Type: String
 The value \fBnpm init\fP should use by default for the package author's email\.
 .SS init\-author\-url
 .RS 0
+.IP \(bu 2
+Alias: \fBinit\.author\.url\fP
 .IP \(bu 2
 Default: ""
 .IP \(bu 2
@@ -830,6 +822,8 @@ The value \fBnpm init\fP should use by default for the package author's homepage
 .SS init\-license
 .RS 0
 .IP \(bu 2
+Alias: \fBinit\.license\fP
+.IP \(bu 2
 Default: "ISC"
 .IP \(bu 2
 Type: String
@@ -839,6 +833,8 @@ Type: String
 The value \fBnpm init\fP should use by default for the package license\.
 .SS init\-version
 .RS 0
+.IP \(bu 2
+Alias: \fBinit\.version\fP
 .IP \(bu 2
 Default: "1\.0\.0"
 .IP \(bu 2
@@ -1652,18 +1648,6 @@ Type: Boolean
 .P
 When set to true, npm uses unicode characters in the tree output\.  When
 false, it uses ascii characters to draw trees\.
-.SS unsafe\-perm
-.RS 0
-.IP \(bu 2
-Default: false if running as root, true otherwise
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Set to true to suppress the UID/GID switching when running package
-scripts\.  If set explicitly to false, then installing as a non\-root user
-will fail\.
 .SS update\-notifier
 .RS 0
 .IP \(bu 2
@@ -1686,16 +1670,6 @@ Type: Boolean
 .P
 Set to show short usage output (like the \-H output)
 instead of complete help when doing npm help \fBhelp\fP\|\.
-.SS user
-.RS 0
-.IP \(bu 2
-Default: "nobody"
-.IP \(bu 2
-Type: String or Number
-
-.RE
-.P
-The UID to set to when running package scripts as root\.
 .SS userconfig
 .RS 0
 .IP \(bu 2

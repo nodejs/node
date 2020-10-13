@@ -70,8 +70,14 @@ exports.name =  yes ? name : prompt('package name', niceName(name), function (da
   return er
 })
 
+const defaultDottedInitVersion = config &&
+  config.defaults &&
+  config.defaults['init.version']
+const dottedInitVersion =
+  config.get('init.version') !== defaultDottedInitVersion &&
+  config.get('init.version')
 var version = package.version ||
-              config.get('init.version') ||
+              dottedInitVersion ||
               config.get('init-version') ||
               '1.0.0'
 exports.version = yes ?
@@ -230,8 +236,14 @@ if (!package.author) {
   : yes ? '' : prompt('author')
 }
 
+const defaultDottedInitLicense = config &&
+  config.defaults &&
+  config.defaults['init.license']
+const dottedInitLicense =
+  config.get('init.license') !== defaultDottedInitLicense &&
+  config.get('init.license')
 var license = package.license ||
-              config.get('init.license') ||
+              dottedInitLicense ||
               config.get('init-license') ||
               'ISC'
 exports.license = yes ? license : prompt('license', license, function (data) {

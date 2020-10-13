@@ -70,7 +70,7 @@ const _queueNamedUpdates = Symbol('queueNamedUpdates')
 const _queueVulnDependents = Symbol('queueVulnDependents')
 const _avoidRange = Symbol('avoidRange')
 const _shouldUpdateNode = Symbol('shouldUpdateNode')
-const _resetDepFlags = Symbol('resetDepFlags')
+const resetDepFlags = require('../reset-dep-flags.js')
 const _loadFailures = Symbol('loadFailures')
 const _pruneFailedOptional = Symbol('pruneFailedOptional')
 const _linkNodes = Symbol('linkNodes')
@@ -89,9 +89,18 @@ const _strictPeerDeps = Symbol('strictPeerDeps')
 const _checkEngineAndPlatform = Symbol('checkEngineAndPlatform')
 const _checkEngine = Symbol('checkEngine')
 const _checkPlatform = Symbol('checkPlatform')
+const _virtualRoots = Symbol('virtualRoots')
+const _virtualRoot = Symbol('virtualRoot')
 
 // used for the ERESOLVE error to show the last peer conflict encountered
 const _peerConflict = Symbol('peerConflict')
+
+const _failPeerConflict = Symbol('failPeerConflict')
+const _explainPeerConflict = Symbol('explainPeerConflict')
+const _warnPeerConflict = Symbol('warnPeerConflict')
+const _edgesOverridden = Symbol('edgesOverridden')
+// exposed symbol for unit testing the placeDep method directly
+const _peerSetSource = Symbol.for('peerSetSource')
 
 // used by Reify mixin
 const _force = Symbol.for('force')
@@ -142,6 +151,13 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     this[_linkNodes] = new Set()
     this[_manifests] = new Map()
     this[_peerConflict] = null
+    this[_edgesOverridden] = new Set()
+
+    // a map of each module in a peer set to the thing that depended on
+    // that set of peers in the first place.  Use a WeakMap so that we
+    // don't hold onto references for nodes that are garbage collected.
+    this[_peerSetSource] = new WeakMap()
+    this[_virtualRoots] = new Map()
   }
 
   get explicitRequests () {
@@ -294,6 +310,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
           await new this.constructor(this.options).loadActual({ root })
         return root
       })
+
       .then(tree => {
         // null the virtual tree, because we're about to hack away at it
         // if you want another one, load another copy.
@@ -707,16 +724,42 @@ This is a one-time fix-up, please be patient...
     // Set `preferDedupe: true` in the options to replace the shallower
     // dep if allowed.
 
-    const tasks = await Promise.all(
-      // resolve all the edges into nodes using pacote.manifest
-      // return a {dep,edge} object so that we can track the reason
-      // for this node through the parallelized async operation.
-      // note that dep.edgesOut will have all its peer deps resolved,
-      // since they're relevant in the calculation about where to place
-      // the new and/or updated dependency.
-      this[_problemEdges](node).map(edge => this[_nodeFromEdge](edge)
-        .then(dep => ({edge, dep})))
-    )
+    const tasks = []
+    const peerSource = this[_peerSetSource].get(node) || node
+    for (const edge of this[_problemEdges](node)) {
+      if (this[_edgesOverridden].has(edge))
+        continue
+
+      // peerSetSource is only relevant when we have a peerEntryEdge
+      // otherwise we're setting regular non-peer deps as if they have
+      // a virtual root of whatever brought in THIS node.
+      // so we VR the node itself if the edge is not a peer
+      const source = edge.peer ? peerSource : node
+      const virtualRoot = this[_virtualRoot](source, true)
+      // reuse virtual root if we already have one, but don't
+      // try to do the override ahead of time, since we MAY be able
+      // to create a more correct tree than the virtual root could.
+      const vrEdge = virtualRoot && virtualRoot.edgesOut.get(edge.name)
+      const vrDep = vrEdge && vrEdge.valid && vrEdge.to
+      // only re-use the virtualRoot if it's a peer edge we're placing.
+      // otherwise, we end up in situations where we override peer deps that
+      // we could have otherwise found homes for.  Eg:
+      // xy -> (x, y)
+      // x -> PEER(z@1)
+      // y -> PEER(z@2)
+      // If xy is a dependency, we can resolve this like:
+      // project
+      // +-- xy
+      // |   +-- y
+      // |   +-- z@2
+      // +-- x
+      // +-- z@1
+      // But if x and y are loaded in the same virtual root, then they will
+      // be forced to agree on a version of z.
+      const dep = vrDep && vrDep.satisfies(edge) ? vrDep
+        : await this[_nodeFromEdge](edge, edge.peer ? virtualRoot : null)
+      tasks.push({edge, dep})
+    }
 
     const placed = tasks
       .sort((a, b) => a.edge.name.localeCompare(b.edge.name))
@@ -746,31 +789,43 @@ This is a one-time fix-up, please be patient...
 
   // loads a node from an edge, and then loads its peer deps (and their
   // peer deps, on down the line) into a virtual root parent.
-  [_nodeFromEdge] (edge, parent) {
+  [_nodeFromEdge] (edge, parent_) {
     // create a virtual root node with the same deps as the node that
     // is requesting this one, so that we can get all the peer deps in
     // a context where they're likely to be resolvable.
-    const { legacyPeerDeps } = this
-    parent = parent || new Node({
-      path: '/virtual-root',
-      sourceReference: edge.from,
-      legacyPeerDeps,
-    })
+    const parent = parent_ || this[_virtualRoot](edge.from)
 
     const spec = npa.resolve(edge.name, edge.spec, edge.from.path)
     return this[_nodeFromSpec](edge.name, spec, parent, edge)
       .then(node => {
-      // handle otherwise unresolvable dependency nesting loops by
-      // creating a symbolic link
-      // a1 -> b1 -> a2 -> b2 -> a1 -> ...
-      // instead of nesting forever, when the loop occurs, create
-      // a symbolic link to the earlier instance
+        // handle otherwise unresolvable dependency nesting loops by
+        // creating a symbolic link
+        // a1 -> b1 -> a2 -> b2 -> a1 -> ...
+        // instead of nesting forever, when the loop occurs, create
+        // a symbolic link to the earlier instance
         for (let p = edge.from.resolveParent; p; p = p.resolveParent) {
           if (p.matches(node) && !p.isRoot)
             return new Link({ parent, target: p })
         }
+        // keep track of the thing that caused this node to be included.
+        const src = parent.sourceReference
+        this[_peerSetSource].set(node, src)
         return this[_loadPeerSet](node)
       })
+  }
+
+  [_virtualRoot] (node, reuse = false) {
+    if (reuse && this[_virtualRoots].has(node))
+      return this[_virtualRoots].get(node)
+
+    const vr = new Node({
+      path: '/virtual-root',
+      sourceReference: node,
+      legacyPeerDeps: this.legacyPeerDeps,
+    })
+
+    this[_virtualRoots].set(node, vr)
+    return vr
   }
 
   [_problemEdges] (node) {
@@ -801,13 +856,13 @@ This is a one-time fix-up, please be patient...
         if (edge.to && edge.to.inShrinkwrap)
           return false
 
-        // If the edge has an error, there's a problem.
-        if (!edge.valid)
-          return true
-
         // If the edge has no destination, that's a problem.
         if (!edge.to)
           return edge.type !== 'peerOptional'
+
+        // If the edge has an error, there's a problem.
+        if (!edge.valid)
+          return true
 
         // If user has explicitly asked to update this package by name, it's a problem.
         if (this[_updateNames].includes(edge.name))
@@ -891,19 +946,100 @@ This is a one-time fix-up, please be patient...
   // We prefer to get peer deps that meet the requiring node's dependency,
   // if possible, since that almost certainly works (since that package was
   // developed with this set of deps) and will typically be more restrictive.
-  [_loadPeerSet] (node) {
+  // Note that the peers in the set can conflict either with each other,
+  // or with a direct dependency from the virtual root parent!  In strict
+  // mode, this is always an error.  In force mode, it never is, and we
+  // prefer the parent's non-peer dep over a peer dep, or the version that
+  // gets placed first.  In non-strict mode, we behave strictly if the
+  // virtual root is based on the root project, and allow non-peer parent
+  // deps to override, but throw if no preference can be determined.
+  async [_loadPeerSet] (node) {
     const peerEdges = [...node.edgesOut.values()]
-      .filter(e => e.peer && !e.valid)
-      .map(e => node.parent && node.parent.edgesOut.get(e.name) || e)
-    return Promise.all(
-      peerEdges.map(edge => this[_nodeFromEdge](edge, node.parent))
-    ).then(() => node)
+      // we only care about peers here, and don't install peerOptionals
+      .filter(e => e.peer && !e.valid && !e.optional)
+      .sort(({name: a}, {name: b}) => a.localeCompare(b))
+
+    for (const edge of peerEdges) {
+      // already placed this one, and we're happy with it.
+      if (edge.valid)
+        continue
+
+      const parentEdge = node.parent.edgesOut.get(edge.name)
+      const {isRoot, isWorkspace} = node.parent.sourceReference
+      const isMine = isRoot || isWorkspace
+      if (edge.missing) {
+        if (!parentEdge) {
+          // easy, just put the thing there
+          await this[_nodeFromEdge](edge, node.parent)
+          continue
+        } else {
+          // try to put the parent's preference, and make sure that satisfies.
+          // if so, we're good.
+          // if it does not, then we have a problem in strict mode, no problem
+          // in force mode, and a problem in non-strict mode if this isn't
+          // on behalf of the root node.  In all such cases, we warn at least.
+          await this[_nodeFromEdge](parentEdge, node.parent)
+
+          // hooray! that worked!
+          if (edge.valid)
+            continue
+
+          // allow it
+          if (this[_force] || !isMine && !this[_strictPeerDeps])
+            continue
+          else
+            this[_failPeerConflict](edge)
+        }
+      }
+
+      // at this point we know that there is a dep there, and
+      // we don't like it.  always fail strictly, always allow forcibly or
+      // in non-strict mode if it's not our fault.  don't warn here, because
+      // we are going to warn again when we place the deps, if we end up
+      // overriding for something else.
+      if (this[_force] || !isMine && !this[_strictPeerDeps])
+        continue
+
+      // ok, it's the root, or we're in unforced strict mode, so this is bad
+      this[_failPeerConflict](edge)
+    }
+    return node
+  }
+
+  [_failPeerConflict] (edge) {
+    const expl = this[_explainPeerConflict](edge)
+    throw Object.assign(new Error('unable to resolve dependency tree'), expl)
+  }
+
+  [_explainPeerConflict] (edge) {
+    const node = edge.from
+    const curNode = node.resolve(edge.name)
+    const pc = this[_peerConflict] || { peer: null, current: null }
+    const current = curNode ? curNode.explain() : pc.current
+    const peerConflict = pc.peer
+    return {
+      code: 'ERESOLVE',
+      current,
+      edge: edge.explain(),
+      peerConflict,
+      strictPeerDeps: this[_strictPeerDeps],
+    }
+  }
+
+  [_warnPeerConflict] (edge) {
+    // track that we've overridden this edge, so that we don't keep trying
+    // to re-resolve it in an infinite loop.
+    this[_edgesOverridden].add(edge)
+    const expl = this[_explainPeerConflict](edge)
+    this.log.warn('ERESOLVE', 'overriding peer dependency', expl)
   }
 
   // starting from either node, or in the case of non-root peer deps,
   // the node's parent, walk up the tree until we find the first spot
   // where this dep cannot be placed, and use the one right before that.
   // place dep, requested by node, to satisfy edge
+  // XXX split this out into a separate method or mixin?  It's quite a lot
+  // of functionality that ought to have its own unit tests more conveniently.
   [_placeDep] (dep, node, edge, peerEntryEdge = null) {
     if (edge.to &&
         !edge.error &&
@@ -911,16 +1047,15 @@ This is a one-time fix-up, please be patient...
         !this[_isVulnerable](edge.to))
       return []
 
-    // top nodes should still get peer deps from their parent or fsParent
-    // if possible, and only install locally if there's no other option,
-    // eg for a link outside of the project root.
+    // top nodes should still get peer deps from their fsParent if possible,
+    // and only install locally if there's no other option, eg for a link
+    // outside of the project root, or for a conflicted dep.
     const start = edge.peer && !node.isRoot
       ? node.resolveParent || node
       : node
 
     let target
     let canPlace = null
-    let warnPeer = false
     for (let check = start; check; check = check.resolveParent) {
       const cp = this[_canPlaceDep](dep, check, edge, peerEntryEdge)
 
@@ -928,17 +1063,8 @@ This is a one-time fix-up, please be patient...
       if (cp !== CONFLICT) {
         canPlace = cp
         target = check
-      } else {
-        if (check === start) {
-          // if it's a peer dep, and the first place we're putting it conflicts
-          // because the node has a direct dependency on the pkg in question,
-          // then we treat that as an override when --force is applied, and
-          // just warn about it.
-          const checkEdge = check.edgesOut.get(edge.name)
-          warnPeer = check === start && edge.peer && checkEdge
-        }
+      } else
         break
-      }
 
       // nest packages like npm v1 and v2
       // very disk-inefficient
@@ -951,38 +1077,16 @@ This is a one-time fix-up, please be patient...
         break
     }
 
-    if (!target) {
-      const curNode = node.resolve(edge.name)
-      const pc = this[_peerConflict] || { peer: null, current: null }
-      // we'll only get one of these
-      const current = curNode ? curNode.explain() : pc.current
-      const peerConflict = pc.peer
-      const expl = {
-        code: 'ERESOLVE',
-        dep: dep.explain(edge),
-        current,
-        peerConflict,
-        fixWithForce: edge.peer && !!warnPeer,
-        type: edge.type,
-        isPeer: edge.peer,
-      }
-      const override = this[_force] || !this[_strictPeerDeps]
-
-      if (override && expl.fixWithForce) {
-        this.log.warn('ERESOLVE', 'overriding peer dependency', expl)
-        return []
-      } else {
-        const er = new Error('unable to resolve dependency tree')
-        throw Object.assign(er, expl)
-      }
-    }
+    if (!target)
+      this[_failPeerConflict](edge)
 
     this.log.silly(
       'placeDep',
       target.location || 'ROOT',
-      `${edge.name}@${edge.spec}`,
-      canPlace,
-      `for: ${node.package._id || node.location}`
+      `${dep.name}@${dep.version}`,
+      canPlace.description || /* istanbul ignore next */ canPlace,
+      `for: ${node.package._id || node.location}`,
+      `want: ${edge.spec || '*'}`
     )
 
     // it worked, so we clearly have no peer conflicts at this point.
@@ -1034,10 +1138,12 @@ This is a one-time fix-up, please be patient...
       edge.to.parent = null
 
     // visit any dependents who are upset by this change
-    for (const edge of dep.edgesIn) {
-      if (!edge.valid) {
-        this.addTracker('idealTree', edge.from.name, edge.from.location)
-        this[_depsQueue].push(edge.from)
+    // if it's an angry overridden peer edge, however, make sure we
+    // skip over it!
+    for (const edgeIn of dep.edgesIn) {
+      if (edgeIn !== edge && !edgeIn.valid && !this[_depsSeen].has(edge.from)) {
+        this.addTracker('idealTree', edgeIn.from.name, edgeIn.from.location)
+        this[_depsQueue].push(edgeIn.from)
       }
     }
 
@@ -1073,27 +1179,29 @@ This is a one-time fix-up, please be patient...
     // also place its unmet or invalid peer deps at this location
     // note that dep has now been removed from the virtualRoot set
     // by virtue of being placed in the target's node_modules.
-    if (virtualRoot) {
-      const peers = []
-      // double loop so that we don't yank things out and then fail to find
-      // them in the virtualRoot's children.
-      for (const peerEdge of dep.edgesOut.values()) {
-        // XXX needs some rework
-        if (peerEdge.peer && !peerEdge.valid) {
-          const peer = virtualRoot.children.get(peerEdge.name) /* istanbul ignore next - should be impossible */ ||
-            peerEdge.to
-          /* istanbul ignore else - should be impossible */
-          if (peer)
-            peers.push([peer, peerEdge])
-        }
-      }
-
-      for (const [peer, peerEdge] of peers) {
-        const peerPlaced = this[_placeDep](
-          peer, dep, peerEdge, peerEntryEdge || edge)
-        placed.push(...peerPlaced)
-      }
+    const peers = []
+    // double loop so that we don't yank things out and then fail to find
+    // them in the virtualRoot's children.
+    for (const peerEdge of dep.edgesOut.values()) {
+      if (!peerEdge.peer || peerEdge.valid)
+        continue
+      const peer = virtualRoot.children.get(peerEdge.name)
+      // since we re-use virtualRoots, it's possible that the node was
+      // already placed somewhere in the tree, and thus plucked off the
+      // virtual root.  however, in that case, it should have been no
+      // longer a missing/invalid peer dep, so something is messed up.
+      if (peer)
+        peers.push([peer, peerEdge])
     }
+
+    for (const [peer, peerEdge] of peers) {
+      const peerPlaced = this[_placeDep](
+        peer, dep, peerEdge, peerEntryEdge || edge)
+      placed.push(...peerPlaced)
+    }
+
+    // we're done with this now, clean it up.
+    this[_virtualRoots].delete(virtualRoot.sourceReference)
 
     return placed
   }
@@ -1138,43 +1246,26 @@ This is a one-time fix-up, please be patient...
   // When we check peers, we pass along the peerEntryEdge to track the
   // original edge that caused us to load the family of peer dependencies.
   [_canPlaceDep] (dep, target, edge, peerEntryEdge = null) {
-    // peer deps of root deps are effectively root deps
-    const isRootDep = target.isRoot && (
-      // a direct dependency from the root node
-      edge.from === target ||
-      // a member of the peer set of a direct root dependency
-      peerEntryEdge && peerEntryEdge.from === target
-    )
-
     const entryEdge = peerEntryEdge || edge
+    const source = this[_peerSetSource].get(dep)
+    const virtualRoot = dep.parent
+    const vrEdge = virtualRoot.edgesOut.get(edge.name)
 
-    // has child by that name already
-    if (target.children.has(dep.name)) {
-      const current = target.children.get(dep.name)
-      // if the integrities match, then it's literally the same exact bytes,
-      // even if it came from somewhere else.
-      if (dep.integrity && dep.integrity === current.integrity)
+    const isSource = target === source
+    const { isRoot, isWorkspace } = source || {}
+    const isMine = isRoot || isWorkspace
+
+    if (target.children.has(edge.name)) {
+      const current = target.children.get(edge.name)
+
+      // same thing = keep
+      if (dep.matches(current))
         return KEEP
 
-      // we can always place the root's deps in the root nm folder
-      if (isRootDep)
-        return this[_canPlacePeers](dep, target, edge, REPLACE, peerEntryEdge)
-
-      // if the version is greater, try to use the new one
-      const curVer = current.version
-      const newVer = dep.version
-      // always try to replace if the version is greater
+      const { version: curVer } = current
+      const { version: newVer } = dep
       const tryReplace = curVer && newVer && semver.gte(newVer, curVer)
-      if (tryReplace && current.canReplaceWith(dep))
-        return this[_canPlacePeers](dep, target, edge, REPLACE, peerEntryEdge)
-
-      // ok, see if the current one satisfies the edge we're working on then
-      if (edge.satisfiedBy(current))
-        return KEEP
-
-      // last try, if we prefer deduplication over novelty, check to see if
-      // this (older) dep can satisfy the needs of the less nested instance
-      if (this[_preferDedupe] && current.canReplaceWith(dep)) {
+      if (tryReplace && dep.canReplace(current)) {
         const res = this[_canPlacePeers](dep, target, edge, REPLACE, peerEntryEdge)
         /* istanbul ignore else - It's extremely rare that a replaceable
          * node would be a conflict, if the current one wasn't a conflict,
@@ -1184,50 +1275,105 @@ This is a one-time fix-up, please be patient...
           return res
       }
 
-      // if this is a peer dep, AND target is the resolveParent of the edge,
-      // then this is the only place it can go.  If the current node is not
-      // a non-peer dependency of this specific target, then it can replace
-      // and dupe it deeper in the tree.  If the current node is a peer dep
-      // in a set that is a non-peer dep of a deeper target, then replace
-      // the whole peer set and the module bringing it in, and add the
-      // dependent to the queue for re-evaluation.
-      if (edge.peer && target === edge.from.resolveParent && !peerEntryEdge) {
-        const peerSet = getPeerSet(current)
-        for (const p of peerSet) {
-          // if any have a non-peer dep from the target, or a peer dep if
-          // the target is root, then we can't safely replace.
-          for (const edge of p.edgesIn) {
-            if (edge.peer) {
-              // root deps take precedence always.
-              // in case this is an edge coming from a link it's also
-              // going to conflict since deps are effectively relative
-              // to its link node parent
-              if (edge.from.isTop)
-                return CONFLICT
+      // ok, can't replace the current with new one, but maybe current is ok?
+      if (edge.satisfiedBy(current))
+        return KEEP
 
-              // other peer deps on this node are irrelevant though.
-              continue
-            }
-            // note that we MAY resolve this conflict by using the target's
-            // conflicting dep on the peer, if --force is set.
-            if (edge.from === target)
-              return CONFLICT
-          }
-        }
-        // all peers could be nested deeper in the tree, so replace
-        // adding to the queue will happen later when we scan dep's edgesIn
-        return REPLACE
+      // if we prefer deduping, then try replacing newer with older
+      if (this[_preferDedupe] && !tryReplace && dep.canReplace(current)) {
+        const res = this[_canPlacePeers](dep, target, edge, REPLACE, peerEntryEdge)
+        /* istanbul ignore else - It's extremely rare that a replaceable
+         * node would be a conflict, if the current one wasn't a conflict,
+         * but it is theoretically possible if peer deps are pinned.  In
+         * that case we treat it like any other conflict, and keep trying */
+        if (res !== CONFLICT)
+          return res
       }
 
-      // no agreement could be reached :(
+      // check for conflict override cases.
+      // first: is this the only place this thing can go?  If the target is
+      // the source, then one of these things are true.
+      //
+      // 1. the conflicted dep was deduped up to here from a lower dependency
+      // w -> (x,y)
+      // x -> (z)
+      // y -> PEER(p@1)
+      // z -> (q)
+      // q -> (p@2)
+      //
+      // When building, let's say that x is fully placed, with all of its
+      // deps, and we're _adding_ y.  Since the peer on p@1 was not initially
+      // present, it's been deduped up to w, and now needs to be pushed out.
+      // Replace it, and potentially also replace its peer set (though that'll
+      // be accomplished by making the same determination when we call
+      // _canPlacePeers)
+      //
+      // 2. the dep we're TRYING to place here ought to be overridden by the
+      // one that's here now, because current is (a) a direct dep of the
+      // source, or (b) an already-placed peer in a conflicted peer set, or
+      // (c) an already-placed peer in a different peer set at the same level.
+      // If strict or ours, conflict.  Otherwise, keep.
+      if (isSource) {
+        // check to see if the current module could go deeper in the tree
+        const peerSet = getPeerSet(current)
+        let canReplace = true
+        OUTER: for (const p of peerSet) {
+          // if any have a non-peer dep from the target, or a peer dep if
+          // the target is root, then cannot safely replace and dupe deeper.
+          for (const edge of p.edgesIn) {
+            if (peerSet.has(edge.from))
+              continue
+
+            // only respect valid edges, however, since we're likely trying
+            // to fix the very one that's currently broken!
+            if (edge.from === target && edge.valid) {
+              canReplace = false
+              break OUTER
+            }
+          }
+        }
+        if (canReplace) {
+          const ret = this[_canPlacePeers](dep, target, edge, REPLACE, peerEntryEdge)
+          /* istanbul ignore else - extremely rare that the peer set would
+           * conflict if we can replace the node in question, but theoretically
+           * possible, if peer deps are pinned aggressively. */
+          if (ret !== CONFLICT)
+            return ret
+        }
+
+        // so it's not a deeper dep that's been deduped.  That means that the
+        // only way it could have ended up here is if it's a conflicted peer.
+        /* istanbul ignore else - would have already crashed if not forced,
+         * and either mine or strict, when creating the peerSet.  Keeping this
+         * check so that we're not only relying on action at a distance. */
+        if (!this[_strictPeerDeps] && !isMine || this[_force]) {
+          this[_warnPeerConflict](edge, dep)
+          return KEEP
+        }
+      }
+
+      if (vrEdge && vrEdge.satisfiedBy(current)) {
+        /* istanbul ignore else - If the virtual root was satisfied, in
+         * such a way that it was an override, and it's NOT forced, and is
+         * ours, or is in strict mode, then it would have crashed during
+         * the creation of the peerSet.  Nevertheless, this is a good check
+         * to ensure we're not warning when we should be conflicting. */
+        if (this[_force] || !isMine && !this[_strictPeerDeps]) {
+          this[_warnPeerConflict](edge)
+          return KEEP
+        }
+      }
+
+      // no justification for overriding, and no agreement possible.
       return CONFLICT
     }
 
-    // check to see if the target DOESN'T have a child by that name,
-    // but DOES have a conflicting dependency of its own.  no need to check
-    // if this is the edge we're already looking to resolve!
+    // no existing node at this location!
+    // check to see if the target doesn't have a child by that name,
+    // but WANTS one, and won't be happy with this one.  if this is the
+    // edge we're looking to resolve, then not relevant, of course.
     if (target !== entryEdge.from && target.edgesOut.has(dep.name)) {
-      const edge = target.edgesOut.get(dep.name)
+      const targetEdge = target.edgesOut.get(dep.name)
       // It might be that the dep would not be valid here, BUT some other
       // version would.  Could to try to resolve that, but that makes this no
       // longer a pure synchronous function.  ugh.
@@ -1240,15 +1386,28 @@ This is a one-time fix-up, please be patient...
       // a specific name, however, or if a dep makes an incompatible change
       // to its peer dep in a non-semver-major version bump, or if the parent
       // is unbounded in its dependency list.
-      if (!edge.satisfiedBy(dep))
+      if (!targetEdge.satisfiedBy(dep)) {
+        if (isSource) {
+          // conflicted peer dep.  accept what's there, if overriding
+          /* istanbul ignore else - If it's the source, and the source's edge
+           * is not valid, then either we crashed when creating the peer set,
+           * or it's forced, or it's not ours and not strict. Keep this check
+           * to avoid relying on action at a distance, however. */
+          if (this[_force] || !isMine && !this[_strictPeerDeps]) {
+            this[_warnPeerConflict](edge)
+            return KEEP
+          }
+        }
+
         return CONFLICT
+      }
     }
 
-    // check to see what the name resolves to here, and who depends on it
-    // and if they'd be ok with the new dep being there instead.  we know
-    // at this point that it's not the target's direct child node.  this is
-    // only a check we do when deduping.  if it's a direct dep of the target,
-    // then we just make the invalid edge and resolve it later.
+    // check to see what that name resolves to here, and who may depend on
+    // being able to reach it by crawling up past this parent.  we know
+    // at this point that it's not the target's direct child node.  if it's
+    // a direct dep of the target, we just make the invalid edge and
+    // resolve it later.
     const current = target !== entryEdge.from && target.resolve(dep.name)
     if (current) {
       for (const edge of current.edgesIn.values()) {
@@ -1259,6 +1418,7 @@ This is a one-time fix-up, please be patient...
       }
     }
 
+    // no objections!  ok to place here
     return this[_canPlacePeers](dep, target, edge, OK, peerEntryEdge)
   }
 
@@ -1271,25 +1431,28 @@ This is a one-time fix-up, please be patient...
       return ret
 
     for (const peer of dep.parent.children.values()) {
-      if (peer !== dep) {
-        const peerEdge = dep.edgesOut.get(peer.name) ||
-          [...peer.edgesIn].find(e => e.peer)
-        /* istanbul ignore else - pretty sure this is impossible, but just
-           being cautious */
-        if (peerEdge) {
-          const canPlacePeer = this[_canPlaceDep](peer, target, peerEdge, edge)
-          if (canPlacePeer === CONFLICT) {
-            const current = target.resolve(peer.name)
-            this[_peerConflict] = {
-              peer: peer.explain(peerEdge),
-              current: current && current.explain(),
-            }
-            return CONFLICT
-          }
-        }
-      }
-    }
+      if (peer === dep)
+        continue
 
+      const peerEdge = dep.edgesOut.get(peer.name) ||
+        [...peer.edgesIn].find(e => e.peer)
+
+      /* istanbul ignore if - pretty sure this is impossible, but just
+         being cautious */
+      if (!peerEdge)
+        continue
+
+      const canPlacePeer = this[_canPlaceDep](peer, target, peerEdge, edge)
+      if (canPlacePeer !== CONFLICT)
+        continue
+
+      const current = target.resolve(peer.name)
+      this[_peerConflict] = {
+        peer: peer.explain(peerEdge),
+        current: current && current.explain(),
+      }
+      return CONFLICT
+    }
     return ret
   }
 
@@ -1362,7 +1525,7 @@ This is a one-time fix-up, please be patient...
     // nothing to prune, because we built it from scratch.  if we didn't
     // add or remove anything, then also nothing to do.
     if (metaFromDisk && mutateTree)
-      this[_resetDepFlags]()
+      resetDepFlags(this.idealTree)
 
     // update all the dev/optional/etc flags in the tree
     // either we started with a fresh tree, or we
@@ -1395,22 +1558,6 @@ This is a one-time fix-up, please be patient...
   [_idealTreePrune] () {
     for (const node of this.idealTree.inventory.filter(n => n.extraneous))
       node.parent = null
-  }
-
-  // we'll need to actually do a walk from the root, because you can have
-  // a cycle of deps that all depend on each other, but no path from root.
-  // Also, since the ideal tree is loaded from the shrinkwrap, it had
-  // extraneous flags set false that might now be actually extraneous, and
-  // dev/optional flags that are also now incorrect.  This method sets
-  // all flags to true, so we can find the set that is actually extraneous.
-  [_resetDepFlags] () {
-    for (const node of this.idealTree.inventory.values()) {
-      node.extraneous = true
-      node.dev = true
-      node.devOptional = true
-      node.peer = true
-      node.optional = true
-    }
   }
 
   [_pruneFailedOptional] () {
