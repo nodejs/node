@@ -1887,7 +1887,7 @@ present.
 
 ```js
 const data = process.report.getReport();
-console.log(data.header.nodeJsVersion);
+console.log(data.header.nodejsVersion);
 
 // Similar to process.report.writeReport()
 const fs = require('fs');
