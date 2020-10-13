@@ -2,10 +2,12 @@ const { test, cleanSnapshot } = require('tap')
 const requireInject = require('require-inject')
 
 test('should publish with libnpmpublish', (t) => {
+  const publishConfig = { registry: 'https://some.registry' }
   const testDir = t.testdir({
     'package.json': JSON.stringify({
       name: 'my-cool-pkg',
-      version: '1.0.0'
+      version: '1.0.0',
+      publishConfig
     }, null, 2)
   })
 
@@ -32,6 +34,7 @@ test('should publish with libnpmpublish', (t) => {
         t.ok(arg, 'gets path')
         t.ok(manifest, 'gets manifest')
         t.ok(opts, 'gets opts object')
+        t.same(opts.publishConfig, publishConfig, 'publishConfig is passed through')
         t.ok(true, 'libnpmpublish is called')
       }
     },

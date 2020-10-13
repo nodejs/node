@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [8.1.5](https://github.com/npm/registry-fetch/compare/v8.1.4...v8.1.5) (2020-10-12)
+
+
+### Bug Fixes
+
+* respect publishConfig.registry when specified ([32e36ef](https://github.com/npm/registry-fetch/commit/32e36efe86302ed319973cd5b1e6ccc3f62e557e)), closes [#35](https://github.com/npm/registry-fetch/issues/35)
+
 ### [8.1.4](https://github.com/npm/registry-fetch/compare/v8.1.3...v8.1.4) (2020-08-17)
 
 

@@ -29,10 +29,17 @@ common options: [-P|--save-prod|-D|--save-dev|-O|--save-optional] [-E|--save-exa
 
 ### Description
 
-This command installs a package, and any packages that it depends on. If the
-package has a package-lock or shrinkwrap file, the installation of dependencies
-will be driven by that, with an `npm-shrinkwrap.json` taking precedence if both
-files exist. See [package-lock.json](/configuring-npm/package-lock-json) and [`npm shrinkwrap`](/cli-commands/shrinkwrap).
+This command installs a package and any packages that it depends on. If the
+package has a package-lock, or an npm shrinkwrap file, or a yarn lock file, the
+installation of dependencies will be driven by that, respecting the following
+order of precedence:
+
+* `node_modules/.package-lock.json`
+* `npm-shrinkwrap.json`
+* `package-lock.json`
+* `yarn.lock`
+
+See [package-lock.json](/configuring-npm/package-lock-json) and [`npm shrinkwrap`](/cli-commands/shrinkwrap).
 
 A `package` is:
 
@@ -50,9 +57,9 @@ perhaps if you also want to be able to easily install it elsewhere
 after packing it up into a tarball (b).
 
 
-* `npm install` (in package directory, no arguments):
+* `npm install` (in a package directory, no arguments):
 
-    Install the dependencies in the local node_modules folder.
+    Install the dependencies in the local `node_modules` folder.
 
     In global mode (ie, with `-g` or `--global` appended to the command),
     it installs the current package context (ie, the current working
@@ -75,13 +82,13 @@ after packing it up into a tarball (b).
     Install the package in the directory as a symlink in the current project.
     Its dependencies will be installed before it's linked. If `<folder>` sits
     inside the root of your project, its dependencies may be hoisted to the
-    toplevel `node_modules` as they would for other types of dependencies.
+    top-level `node_modules` as they would for other types of dependencies.
 
 * `npm install <tarball file>`:
 
     Install a package that is sitting on the filesystem.  Note: if you just want
     to link a dev directory into your npm root, you can do this more easily by
-    using `npm link`.
+    using [`npm link`](/cli-commands/npm-link).
 
     Tarball requirements:
     * The filename *must* use `.tar`, `.tar.gz`, or `.tgz` as
@@ -113,24 +120,6 @@ after packing it up into a tarball (b).
     Example:
 
           npm install sax
-
-* `npm install <alias>@npm:<name>`:
-
-    Install a package under a custom alias. Allows multiple versions of
-    a same-name package side-by-side, more convenient import names for
-    packages with otherwise long ones and using git forks replacements
-    or forked npm packages as replacements. Aliasing works only on your
-    project and does not rename packages in transitive dependencies.
-    Aliases should follow the naming conventions stated in
-    [`validate-npm-package-name`](https://www.npmjs.com/package/validate-npm-package-name#naming-rules).
-
-    Examples:
-
-          npm install my-react@npm:react
-          npm install jquery2@npm:jquery@2
-          npm install jquery3@npm:jquery@3
-          npm install npa@npm:npm-package-arg
-
 
     `npm install` saves any specified packages into `dependencies` by default.
     Additionally, you can control where and how they get saved with some
@@ -181,6 +170,24 @@ after packing it up into a tarball (b).
     working directory, then it will try to install that, and only try to
     fetch the package by name if it is not valid.
 
+* `npm install <alias>@npm:<name>`:
+
+    Install a package under a custom alias. Allows multiple versions of
+    a same-name package side-by-side, more convenient import names for
+    packages with otherwise long ones, and using git forks replacements
+    or forked npm packages as replacements. Aliasing works only on your
+    project and does not rename packages in transitive dependencies.
+    Aliases should follow the naming conventions stated in
+    [`validate-npm-package-name`](https://www.npmjs.com/package/validate-npm-package-name#naming-rules).
+
+    Examples:
+
+          npm install my-react@npm:react
+          npm install jquery2@npm:jquery@2
+          npm install jquery3@npm:jquery@3
+          npm install npa@npm:npm-package-arg
+
+
 * `npm install [<@scope>/]<name>@<tag>`:
 
     Install the version of the package that is referenced by the specified tag.
@@ -217,7 +224,7 @@ after packing it up into a tarball (b).
     Example:
     ```bash
     npm install sax@">=0.1.0 <0.2.0"
-    npm install @myorg/privatepackage@">=0.1.0 <0.2.0"
+    npm install @myorg/privatepackage@"16 - 17"
     ```
 
 * `npm install <git remote url>`:
@@ -263,6 +270,7 @@ after packing it up into a tarball (b).
 
     ```bash
     npm install git+ssh://git@github.com:npm/cli.git#v1.0.27
+    npm install git+ssh://git@github.com:npm/cli#pull/273
     npm install git+ssh://git@github.com:npm/cli#semver:^5.0
     npm install git+https://isaacs@github.com/npm/cli.git
     npm install git://github.com/npm/cli.git#v1.0.27
@@ -283,7 +291,7 @@ after packing it up into a tarball (b).
     specified, then `master` is used.
 
     As with regular git dependencies, `dependencies` and `devDependencies` will
-    be installed if the package has a `prepare` script, before the package is
+    be installed if the package has a `prepare` script before the package is
     done installing.
 
     Examples:
@@ -300,7 +308,7 @@ after packing it up into a tarball (b).
     optional and will not be saved in `package.json`.
 
     As with regular git dependencies, `dependencies` and `devDependencies` will
-    be installed if the package has a `prepare` script, before the package is
+    be installed if the package has a `prepare` script before the package is
     done installing.
 
     Example:
@@ -322,7 +330,7 @@ after packing it up into a tarball (b).
     specified, then `master` is used.
 
     As with regular git dependencies, `dependencies` and `devDependencies` will
-    be installed if the package has a `prepare` script, before the package is
+    be installed if the package has a `prepare` script before the package is
     done installing.
 
     Example:
@@ -344,7 +352,7 @@ after packing it up into a tarball (b).
     specified, then `master` is used.
 
     As with regular git dependencies, `dependencies` and `devDependencies` will
-    be installed if the package has a `prepare` script, before the package is
+    be installed if the package has a `prepare` script before the package is
     done installing.
 
     Example:
@@ -354,7 +362,7 @@ after packing it up into a tarball (b).
     npm install gitlab:myusr/myproj#semver:^5.0
     ```
 
-You may combine multiple arguments, and even multiple types of arguments.
+You may combine multiple arguments and even multiple types of arguments.
 For example:
 
 ```bash
@@ -378,10 +386,6 @@ local copy exists on disk.
 npm install sax --force
 ```
 
-The `--no-fund` argument will hide the message displayed at the end of each
-install that acknowledges the number of dependencies looking for funding.
-See `npm-fund(1)`
-
 The `-g` or `--global` argument will cause npm to install the package globally
 rather than locally.  See [folders](/configuring-npm/folders).
 
@@ -398,17 +402,29 @@ The `--legacy-bundling` argument will cause npm to install the package such
 that versions of npm prior to 1.4, such as the one included with node 0.8,
 can install the package. This eliminates all automatic deduping.
 
+The `--legacy-peer-deps` argument will cause npm to ignore all
+`peerDependencies` when installing, similar to npm@6 and older.
+
 The `--link` argument will cause npm to link global installs into the
-local space in some cases.
+local space whenever packages from the global space may satisfy a dependency
+required version.
+
+The `--no-audit` argument can be used to disable sending audit reports to
+the configured registries.  See [`npm-audit`](npm-audit) for details on what
+is sent.
 
 The `--no-bin-links` argument will prevent npm from creating symlinks for
 any binaries the package might contain.
+
+The `--no-fund` argument will hide the message displayed at the end of each
+install that acknowledges the number of dependencies looking for funding.
+See [`npm-fund`](/cli-commands/npm-fund)
 
 The `--no-optional` argument will prevent optional dependencies from
 being installed.
 
 The `--no-shrinkwrap` argument, which will ignore an available
-package lock or shrinkwrap file and use the package.json instead.
+package-lock or shrinkwrap file and use the package.json instead.
 
 The `--no-package-lock` argument will prevent npm from creating a
 `package-lock.json` file.  When running with package-lock's disabled npm
@@ -418,32 +434,20 @@ The `--nodedir=/path/to/node/source` argument will allow npm to find the
 node source code so that npm can compile native modules.
 
 The `--only={prod[uction]|dev[elopment]}` argument will cause either only
-`devDependencies` or only non-`devDependencies` to be installed regardless of the `NODE_ENV`.
+`devDependencies` or only non-`devDependencies` to be installed regardless
+of the `NODE_ENV`.
 
-The `--no-audit` argument can be used to disable sending of audit reports to
-the configured registries.  See [`npm-audit`](npm-audit) for details on what is sent.
+The `--strict-peer-deps` argument will cause the install to fail on any
+`peerDependencies` conflict, even if it's possible to use a heuristic to
+provide a least-surprising resolution to a given conflict.
 
 See [`config`](/using-npm/config).  Many of the configuration params have some
 effect on installation, since that's most of what npm does.
 
 #### Algorithm
 
-To install a package, npm uses the following algorithm:
-```bash
-load the existing node_modules tree from disk
-clone the tree
-fetch the package.json and assorted metadata and add it to the clone
-walk the clone and add any missing dependencies
-  dependencies will be added as close to the top as is possible
-  without breaking any other modules
-compare the original tree with the cloned tree and make a list of
-actions to take to convert one to the other
-execute all of the actions, deepest first
-  kinds of actions are install, update, remove and move
-```
-
-For this `package{dep}` structure: `A{B,C}, B{C}, C{D}`,
-this algorithm produces:
+Given a `package{dep}` structure: `A{B,C}, B{C}, C{D}`,
+the npm install algorithm produces:
 
 ```bash
 A
@@ -466,39 +470,13 @@ A
 +-- D@1
 ```
 
-Because B's D@1 will be installed in the top level, C now has to install D@2
+Because B's D@1 will be installed in the top-level, C now has to install D@2
 privately for itself. This algorithm is deterministic, but different trees may
 be produced if two dependencies are requested for installation in a different
 order.
 
-See [folders](/configuring-npm/folders) for a more detailed description of the specific folder structures that npm creates.
-
-### Limitations of npm's Install Algorithm
-
-npm will refuse to install any package with an identical name to the
-current package. This can be overridden with the `--force` flag, but in
-most cases can simply be addressed by changing the local package name.
-
-There are some very rare and pathological edge-cases where a cycle can
-cause npm to try to install a never-ending tree of packages.  Here is
-the simplest case:
-
-```bash
-A -> B -> A' -> B' -> A -> B -> A' -> B' -> A -> ...
-```
-
-where `A` is some version of a package, and `A'` is a different version
-of the same package.  Because `B` depends on a different version of `A`
-than the one that is already in the tree, it must install a separate
-copy.  The same is true of `A'`, which must install `B'`.  Because `B'`
-depends on the original version of `A`, which has been overridden, the
-cycle falls into infinite regress.
-
-To avoid this situation, npm flat-out refuses to install any
-`name@version` that is already present anywhere in the tree of package
-folder ancestors.  A more correct, but more complex, solution would be
-to symlink the existing version into the new location.  If this ever
-affects a real use-case, it will be investigated.
+See [folders](/configuring-npm/folders) for a more detailed description of the
+specific folder structures that npm creates.
 
 ### See Also
 

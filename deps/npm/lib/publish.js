@@ -69,7 +69,8 @@ const publish_ = async (arg, opts) => {
     // The purpose of re-reading the manifest is in case it changed,
     // so that we send the latest and greatest thing to the registry
     manifest = await readJson(`${arg}/package.json`)
-    await otplease(opts, opts => libpub(arg, manifest, opts))
+    const { publishConfig } = manifest
+    await otplease(opts, opts => libpub(arg, manifest, { ...opts, publishConfig }))
   }
 
   // publish

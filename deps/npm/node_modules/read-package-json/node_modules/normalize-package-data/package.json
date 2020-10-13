@@ -1,0 +1,32 @@
+{
+  "name": "normalize-package-data",
+  "version": "3.0.0",
+  "author": "Meryn Stol <merynstol@gmail.com>",
+  "description": "Normalizes data that can be found in package.json files.",
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/normalize-package-data.git"
+  },
+  "main": "lib/normalize.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "dependencies": {
+    "hosted-git-info": "^3.0.6",
+    "resolve": "^1.17.0",
+    "semver": "^7.3.2",
+    "validate-npm-package-license": "^3.0.1"
+  },
+  "devDependencies": {
+    "tap": "^14.10.8"
+  },
+  "files": [
+    "lib/*.js",
+    "lib/*.json",
+    "AUTHORS"
+  ],
+  "engines": {
+    "node": ">=10"
+  }
+}

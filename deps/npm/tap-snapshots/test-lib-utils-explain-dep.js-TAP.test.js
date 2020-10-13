@@ -77,7 +77,7 @@ exports[`test/lib/utils/explain-dep.js TAP manyDeps > explain color deep 1`] = `
     [1mprod-dep[22m@"[1m1.x[22m" from the root project
   [36moptional[39m [1mmanydep[22m@"[1m1.x[22m" from [1moptdep[22m@[1m1.0.0[22m [1m[36moptional[39m[22m[2m[22m
   [2mnode_modules/optdep[22m
-    optdep [1moptdep[22m@"[1m1.0.0[22m" from the root project
+    [36moptional[39m [1moptdep[22m@"[1m1.0.0[22m" from the root project
   [1mmanydep[22m@"[1m1.0.x[22m" from [1mextra-neos[22m@[1m1337.420.69-lol[22m [1m[31mextraneous[39m[22m[2m[22m
   [2mnode_modules/extra-neos[22m
   [33mdev[39m [1mmanydep[22m@"[1m*[22m" from [1mdeep-dev[22m@[1m2.3.4[22m [1m[33mdev[39m[22m[2m[22m
@@ -114,13 +114,13 @@ manydep@1.0.0
 exports[`test/lib/utils/explain-dep.js TAP optional > explain color deep 1`] = `
 [1moptdep[22m@[1m1.0.0[22m [1m[36moptional[39m[22m[2m[22m
 [2mnode_modules/optdep[22m
-  optdep [1moptdep[22m@"[1m1.0.0[22m" from the root project
+  [36moptional[39m [1moptdep[22m@"[1m1.0.0[22m" from the root project
 `
 
 exports[`test/lib/utils/explain-dep.js TAP optional > explain nocolor shallow 1`] = `
 optdep@1.0.0 optional
 node_modules/optdep
-  optdep optdep@"1.0.0" from the root project
+  optional optdep@"1.0.0" from the root project
 `
 
 exports[`test/lib/utils/explain-dep.js TAP optional > print color 1`] = `

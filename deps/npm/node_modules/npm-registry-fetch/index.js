@@ -29,6 +29,7 @@ function regFetch (uri, /* istanbul ignore next */ opts_ = {}) {
   }
   const registry = opts.registry = (
     (opts.spec && pickRegistry(opts.spec, opts)) ||
+    (opts.publishConfig && opts.publishConfig.registry) ||
     opts.registry ||
     /* istanbul ignore next */
     'https://registry.npmjs.org/'
@@ -153,6 +154,10 @@ function pickRegistry (spec, opts = {}) {
 
   if (!registry && opts.scope) {
     registry = opts[opts.scope.replace(/^@?/, '@') + ':registry']
+  }
+
+  if (!registry && opts.publishConfig) {
+    registry = opts.publishConfig.registry
   }
 
   if (!registry) {

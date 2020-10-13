@@ -58,7 +58,7 @@ const explainDependents = ({ name, dependents }, depth, color) => {
 
   const max = Math.ceil(depth / 2)
   const messages = dependents.slice(0, max)
-    .map(dep => explainDependency(name, dep, depth, color))
+    .map(edge => explainEdge(edge, depth, color))
 
   // show just the names of the first 5 deps that overflowed the list
   if (dependents.length > max) {
@@ -82,7 +82,7 @@ const explainDependents = ({ name, dependents }, depth, color) => {
   return str.split('\n').join('\n  ')
 }
 
-const explainDependency = (name, { type, from, spec }, depth, color) => {
+const explainEdge = ({ name, type, from, spec }, depth, color) => {
   const { bold } = color ? chalk : nocolor
   return (type === 'prod' ? '' : `${colorType(type, color)} `) +
     `${bold(name)}@"${bold(spec)}" from ` +
@@ -98,4 +98,4 @@ const explainFrom = (from, depth, color) => {
     explainDependents(from, depth - 1, color)
 }
 
-module.exports = { explainNode, printNode }
+module.exports = { explainNode, printNode, explainEdge }

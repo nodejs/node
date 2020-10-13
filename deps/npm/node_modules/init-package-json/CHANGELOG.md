@@ -1,6 +1,10 @@
 # Change Log
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+<a name="2.0.0"></a>
+## [2.0.0](https://github.com/npm/init-package-json/compare/v1.10.3...v2.0.0) (2020-10-09)
+* BREAKING: requires node10+
+* fix: compat with new `@npmcli/config` module
+* chore: update deps to latest and greatest
 
 <a name="1.10.3"></a>
 ## [1.10.3](https://github.com/npm/init-package-json/compare/v1.10.2...v1.10.3) (2018-03-07)

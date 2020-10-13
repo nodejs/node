@@ -109,33 +109,6 @@ npm ls -gpld
 npm ls --global --parseable --long --loglevel info
 ```
 
-### Per-Package Config Settings
-
-When running scripts (see [`scripts`](/using-npm/scripts)) the package.json "config"
-keys are overwritten in the environment if there is a config param of
-`<name>[@<version>]:<key>`.  For example, if the package.json has
-this:
-
-```json
-{ "name" : "foo"
-, "config" : { "port" : "8080" }
-, "scripts" : { "start" : "node server.js" } }
-```
-
-and the server.js is this:
-
-```javascript
-http.createServer(...).listen(process.env.npm_package_config_port)
-```
-
-then the user could change the behavior by doing:
-
-```bash
-npm config set foo:port 80
-```
-
-See [package.json](/configuring-npm/package-json) for more information.
-
 ### Config Settings
 
 #### access
@@ -325,6 +298,18 @@ Number of ms to wait for cache lock files to expire.
 
 `--cache-min=9999 (or bigger)` is an alias for `--prefer-offline`.
 
+#### call
+
+* Default: ""
+* Type: String
+
+Optional companion option for `npm exec`, `npx` that allows for specifying a
+custom command to be run along with the installed packages.
+
+```bash
+npm exec --package yo --package generator-node --call "yo node"
+```
+
 #### cert
 
 * Default: `null`
@@ -346,6 +331,13 @@ It is _not_ the path to a certificate file (and there is no "certfile" option).
 
 This is a list of CIDR address to be used when configuring limited access tokens with the `npm token create` command.
 
+#### commit-hooks
+
+* Default: `true`
+* Type: Boolean
+
+Run git commit hooks when using the `npm version` command.
+
 #### color
 
 * Default: true
@@ -359,12 +351,12 @@ disabled when the environment variable `NO_COLOR` is set to any value.
 
 #### depth
 
-* Default: 0
-* Type: Number
+* Default: null
+* Type: null or Number
 
 The depth to go when recursing packages for `npm ls`.
 
-To make this default to `Infinity` instead of `0`, set `--all`.
+To make this default to `Infinity` instead of `null`, set `--all`.
 
 #### description
 
@@ -378,7 +370,7 @@ Show the description in `npm search`
 * Default: false
 * Type: Boolean
 
-Install `dev-dependencies` along with packages.
+\[Deprecated\] Install `dev-dependencies` along with packages.
 
 #### dry-run
 
@@ -438,6 +430,15 @@ recommended that you do not use this option!
 
 Format `package-lock.json` or `npm-shrinkwrap.json` as a human readable file.
 
+#### fund
+
+* Default: true
+* Type: Boolean
+
+When "true" displays the message at the end of each `npm install`
+aknowledging the number of dependencies looking for funding.
+See [`npm fund`](/cli-commands/fund) for details.
+
 #### fetch-retries
 
 * Default: 2
@@ -477,15 +478,6 @@ packages.
 
 The maximum amount of time to wait for HTTP requests to complete.
 
-#### fund
-
-* Default: true
-* Type: Boolean
-
-When "true" displays the message at the end of each `npm install`
-aknowledging the number of dependencies looking for funding.
-See [`npm fund`](/cli-commands/fund) for details.
-
 #### git
 
 * Default: `"git"`
@@ -501,13 +493,6 @@ the git binary.
 * Type: Boolean
 
 Tag the commit when using the `npm version` command.
-
-#### commit-hooks
-
-* Default: `true`
-* Type: Boolean
-
-Run git commit hooks when using the `npm version` command.
 
 #### global
 
@@ -541,14 +526,6 @@ direct dependencies will show in `node_modules` and everything they depend
 on will be flattened in their `node_modules` folders.  This obviously will
 eliminate some deduping. If used with `legacy-bundling`, `legacy-bundling` will be
 preferred.
-
-#### group
-
-* Default: GID of the current process
-* Type: String or Number
-
-The group to use when running package scripts in global mode as the root
-user.
 
 #### heading
 
@@ -591,18 +568,27 @@ If true, npm will not run `prepublish` scripts.
 
 If true, npm does not run scripts specified in package.json files.
 
+#### include
+
+* Default: `[prod|dev|optional|peer]`
+* Type: Array
+
+Option that allows for defining which types of dependencies to install.
+
 #### init-module
 
+* Alias: `init.module`
 * Default: ~/.npm-init.js
 * Type: path
 
 A module that will be loaded by the `npm init` command.  See the
 documentation for the
-[init-package-json](https://github.com/isaacs/init-package-json) module
+[init-package-json](https://github.com/npm/init-package-json) module
 for more information, or [npm init](/cli-commands/init).
 
 #### init-author-name
 
+* Alias: `init.author.name`
 * Default: ""
 * Type: String
 
@@ -610,6 +596,7 @@ The value `npm init` should use by default for the package author's name.
 
 #### init-author-email
 
+* Alias: `init.author.email`
 * Default: ""
 * Type: String
 
@@ -617,6 +604,7 @@ The value `npm init` should use by default for the package author's email.
 
 #### init-author-url
 
+* Alias: `init.author.url`
 * Default: ""
 * Type: String
 
@@ -624,6 +612,7 @@ The value `npm init` should use by default for the package author's homepage.
 
 #### init-license
 
+* Alias: `init.license`
 * Default: "ISC"
 * Type: String
 
@@ -631,6 +620,7 @@ The value `npm init` should use by default for the package license.
 
 #### init-version
 
+* Alias: `init.version`
 * Default: "1.0.0"
 * Type: semver
 
@@ -1247,15 +1237,6 @@ on success, but left behind on failure for forensic purposes.
 When set to true, npm uses unicode characters in the tree output.  When
 false, it uses ascii characters to draw trees.
 
-#### unsafe-perm
-
-* Default: false if running as root, true otherwise
-* Type: Boolean
-
-Set to true to suppress the UID/GID switching when running package
-scripts.  If set explicitly to false, then installing as a non-root user
-will fail.
-
 #### update-notifier
 
 * Default: true
@@ -1271,13 +1252,6 @@ version of npm than the latest.
 
 Set to show short usage output (like the -H output)
 instead of complete help when doing [`npm help`](/cli-commands/help).
-
-#### user
-
-* Default: "nobody"
-* Type: String or Number
-
-The UID to set to when running package scripts as root.
 
 #### userconfig
 

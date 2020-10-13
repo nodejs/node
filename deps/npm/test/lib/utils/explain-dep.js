@@ -13,6 +13,7 @@ const cases = {
     dependents: [
       {
         type: 'prod',
+        name: 'prod-dep',
         spec: '1.x',
         from: {
           location: '/path/to/project'
@@ -29,6 +30,7 @@ const cases = {
     dependents: [
       {
         type: 'prod',
+        name: 'deep-dev',
         spec: '2.x',
         from: {
           name: 'metadev',
@@ -37,6 +39,7 @@ const cases = {
           dependents: [
             {
               type: 'prod',
+              name: 'metadev',
               spec: '3.x',
               from: {
                 name: 'topdev',
@@ -45,6 +48,7 @@ const cases = {
                 dependents: [
                   {
                     type: 'dev',
+                    name: 'topdev',
                     spec: '4.x',
                     from: {
                       location: '/path/to/project'
@@ -66,7 +70,8 @@ const cases = {
     optional: true,
     dependents: [
       {
-        type: 'optdep',
+        type: 'optional',
+        name: 'optdep',
         spec: '1.0.0',
         from: {
           location: '/path/to/project'
@@ -83,6 +88,7 @@ const cases = {
     dependents: [
       {
         type: 'peer',
+        name: 'peer',
         spec: '1.0.0',
         from: {
           location: '/path/to/project'
@@ -106,31 +112,37 @@ cases.manyDeps = {
   dependents: [
     {
       type: 'prod',
+      name: 'manydep',
       spec: '1.0.0',
       from: cases.prodDep
     },
     {
       type: 'optional',
+      name: 'manydep',
       spec: '1.x',
       from: cases.optional
     },
     {
       type: 'prod',
+      name: 'manydep',
       spec: '1.0.x',
       from: cases.extraneous
     },
     {
       type: 'dev',
+      name: 'manydep',
       spec: '*',
       from: cases.deepDev
     },
     {
       type: 'peer',
+      name: 'manydep',
       spec: '>1.0.0-beta <1.0.1',
       from: cases.peer
     },
     {
       type: 'prod',
+      name: 'manydep',
       spec: '1',
       from: {
         name: 'a package with a pretty long name',
@@ -142,6 +154,7 @@ cases.manyDeps = {
     },
     {
       type: 'prod',
+      name: 'manydep',
       spec: '1',
       from: {
         name: 'another package with a pretty long name',
@@ -153,6 +166,7 @@ cases.manyDeps = {
     },
     {
       type: 'prod',
+      name: 'manydep',
       spec: '1',
       from: {
         name: 'yet another a package with a pretty long name',

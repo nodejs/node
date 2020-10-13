@@ -1,3 +1,51 @@
+## v7.0.0 (2020-10-12)
+
+### BUG FIXES
+
+* [`7bcdb3636`](https://github.com/npm/cli/commit/7bcdb3636e29291b9c722fe03a8450859dcb5b4f)
+  [#1949](https://github.com/npm/cli/pull/1949) fix: ensure `publishConfig`
+  is passed through ([@nlf](https://github.com/nlf))
+* [`97978462e`](https://github.com/npm/cli/commit/97978462e9050261e4ce2549e71fe94a48796577)
+  fix: patch `config.js` to remove duplicate vals
+  ([@darcyclarke](https://github.com/darcyclarke))
+
+### DOCUMENTION
+
+* [`60769d757`](https://github.com/npm/cli/commit/60769d757859c88e2cceab66975f182a47822816)
+  [#1911](https://github.com/npm/cli/pull/1911) docs: v7 npm-install
+  refresh ([@ruyadorno](https://github.com/ruyadorno))
+* [`08de49042`](https://github.com/npm/cli/commit/08de4904255742cbf7477a20bdeebe82f283a406)
+  [#1938](https://github.com/npm/cli/pull/1938) docs: v7 using npm config
+  updates ([@ruyadorno](https://github.com/ruyadorno))
+
+### DEPENDENCIES
+
+* [`15366a1cf`](https://github.com/npm/cli/commit/15366a1cf0073327b90ac7eb977ff8a73b52cc62)
+  `npm-registry-fetch@8.1.5`
+* [`f04a74140`](https://github.com/npm/cli/commit/f04a74140bf65db36be3c379e0eb20dd6db3cc5c)
+  `init-package-json@2.0.0`
+    * [`1de21dce0`](https://github.com/npm/cli/commit/1de21dce0e56874203a789ce33124a4fc4d3b15f)
+      fix: support dot-separated aliases defined in a `.npmrc` ini files
+      for `init-*` configs ([@ruyadorno](https://github.com/ruyadorno))
+* [`a67275cd9`](https://github.com/npm/cli/commit/a67275cd9a75fa05ee3d3265832d0a015b14e81c)
+  `eslint@7.11.0`
+* [`6fb83b78d`](https://github.com/npm/cli/commit/6fb83b78db09adfafd7cbd4b926e77802c4993e4)
+  `hosted-git-info@3.0.6`
+* [`1ca30cc9b`](https://github.com/npm/cli/commit/1ca30cc9b8e7edc2043c1f848855f19781729dc9)
+  `libnpmfund@1.0.0`
+* [`28a2d2ba4`](https://github.com/npm/cli/commit/28a2d2ba4a63808614f5d98685a64531e3198b93)
+  `@npmcli/arborist@1.0.0`
+    * [npm/rfcs#239](https://github.com/npm/rfcs/pull/239) Improve handling
+      of conflicting `peerDependencies` in transitive dependencies, so that
+      `--force` will always accept a best effort override, and
+      `--strict-peer-deps` will fail faster on conflicts.
+* [`9306c6833`](https://github.com/npm/cli/commit/9306c6833e2e77675e0cfddd569b6b54a8bcf172)
+  `libnpmfund@1.0.1`
+* [`fafb348ef`](https://github.com/npm/cli/commit/fafb348ef976116d47ada238beb258d5db5758a7)
+  `npm-package-arg@8.1.0`
+* [`365f2e756`](https://github.com/npm/cli/commit/365f2e7565d0cfde858a43d894a77fb3c6338bb7)
+  `read-package-json@3.0.0`
+
 ## v7.0.0-rc.4 (2020-10-09)
 
 * [`09b456f2d`](https://github.com/npm/cli/commit/09b456f2d776e2757956d2b9869febd1e01a1076)
