@@ -1294,9 +1294,9 @@ success!
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
-[`util.TextDecoder`]: util.html#util_class_util_textdecoder
-[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.4.0
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
+[`util.TextDecoder`]: util.md#util_class_util_textdecoder
+[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.4.2
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
