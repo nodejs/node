@@ -75,7 +75,7 @@ function removeAsync(dir) {
       fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
         assert.ifError(err);
 
-        // Succeeds if recursive and directory (but will warn).
+        // No error should occur if recursive and the directory does not exist.
         fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
           assert.ifError(err);
 
@@ -145,7 +145,7 @@ function removeAsync(dir) {
   await fs.promises.rmdir(dir, { recursive: true });
 
   // No error should occur if recursive and the directory does not exist.
-  fs.promises.rmdir(dir, { recursive: true });
+  await fs.promises.rmdir(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
   assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
