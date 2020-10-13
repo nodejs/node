@@ -2660,7 +2660,7 @@ Type: Documentation-only
 The [`crypto.Certificate()` constructor][] is deprecated. Use
 [static methods of `crypto.Certificate()`][] instead.
 
-### DEP0XXX: `fs.rmdir(path, { recursive: true })`
+### DEP0147: `fs.rmdir(path, { recursive: true })`
 <!-- YAML
 changes:
   - version: REPLACEME
