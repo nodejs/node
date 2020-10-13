@@ -4,6 +4,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) common.skip('missing crypto');
+common.requireNoPackageJSONAbove();
 
 const Manifest = require('internal/policy/manifest').Manifest;
 const assert = require('assert');

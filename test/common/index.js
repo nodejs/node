@@ -699,6 +699,20 @@ function gcUntil(name, condition) {
   });
 }
 
+function requireNoPackageJSONAbove() {
+  let possiblePackage = path.join(__dirname, '..', 'package.json');
+  let lastPackage = null;
+  while (possiblePackage !== lastPackage) {
+    if (fs.existsSync(possiblePackage)) {
+      assert.fail(
+        'This test shouldn\'t load properties from a package.json above ' +
+        `its file location. Found package.json at ${possiblePackage}.`);
+    }
+    lastPackage = possiblePackage;
+    possiblePackage = path.join(possiblePackage, '..', '..', 'package.json');
+  }
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -737,6 +751,7 @@ const common = {
   platformTimeout,
   printSkipMessage,
   pwdCommand,
+  requireNoPackageJSONAbove,
   runWithInvalidFD,
   skip,
   skipIf32Bits,
