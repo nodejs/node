@@ -7,7 +7,10 @@ const assert = require('assert');
 const server = http.createServer(common.mustCall((req, res) => {
   const body = 'hello world\n';
 
-  res.writeHead(200, { 'Content-Length': body.length });
+  res.writeHead(200, {
+    'Content-Length': body.length,
+    'Keep-Alive': 'timeout=50'
+  });
   res.write(body);
   res.end();
 }));
@@ -21,7 +24,7 @@ server.listen(0, common.mustCall(function() {
   }, common.mustCall((response) => {
     response.resume();
     assert.strictEqual(
-      response.headers['keep-alive'], 'timeout=12');
+      response.headers['keep-alive'], 'timeout=50');
     server.close();
     agent.destroy();
   }));
