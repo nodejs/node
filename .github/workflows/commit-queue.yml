@@ -35,10 +35,8 @@ jobs:
         uses: actions/setup-node@v2-beta
         with:
           node-version: '12'
-      - name: Install dependencies
-        run: |
-          sudo apt-get install jq -y
-          npm install -g node-core-utils@latest
+      - name: Install node-core-utils
+        run: npm install -g node-core-utils@latest
 
       - name: Set variables
         run: |
