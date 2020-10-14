@@ -1511,16 +1511,16 @@ the permissions for the file owner. The middle digit (`6` in the example),
 specifies permissions for the group. The right-most digit (`5` in the example),
 specifies the permissions for others.
 
-| Number  |       Description        |
-| ------- | ------------------------ |
-|   `7`   | read, write, and execute |
-|   `6`   | read and write           |
-|   `5`   | read and execute         |
-|   `4`   | read only                |
-|   `3`   | write and execute        |
-|   `2`   | write only               |
-|   `1`   | execute only             |
-|   `0`   | no permission            |
+| Number | Description              |
+| ------ | ------------------------ |
+| `7`    | read, write, and execute |
+| `6`    | read and write           |
+| `5`    | read and execute         |
+| `4`    | read only                |
+| `3`    | write and execute        |
+| `2`    | write only               |
+| `1`    | execute only             |
+| `0`    | no permission            |
 
 For example, the octal value `0o765` means:
 
