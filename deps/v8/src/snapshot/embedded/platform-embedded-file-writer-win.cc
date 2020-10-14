@@ -503,7 +503,7 @@ void PlatformEmbeddedFileWriterWin::SourceInfo(int fileid, const char* filename,
 void PlatformEmbeddedFileWriterWin::DeclareFunctionBegin(const char* name,
                                                          uint32_t size) {
   if (target_arch_ == EmbeddedTargetArch::kArm64) {
-    fprintf(fp_, "%s%s FUNCTION\n", SYMBOL_PREFIX, name);
+    fprintf(fp_, "\n%s%s FUNCTION\n", SYMBOL_PREFIX, name);
 
   } else {
     fprintf(fp_, "%s%s PROC\n", SYMBOL_PREFIX, name);
