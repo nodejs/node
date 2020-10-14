@@ -4196,7 +4196,7 @@ specification).
 
 #### napi_object_freeze
 <!-- YAML
-added: REPLACEME
+added: v14.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -4221,7 +4221,7 @@ ECMA-262 specification.
 
 #### napi_object_seal
 <!-- YAML
-added: REPLACEME
+added: v14.14.0
 -->
 
 > Stability: 1 - Experimental
