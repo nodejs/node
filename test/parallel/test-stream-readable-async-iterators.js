@@ -13,17 +13,6 @@ const http = require('http');
 
 async function tests() {
   {
-    const AsyncIteratorPrototype = Object.getPrototypeOf(
-      Object.getPrototypeOf(async function* () {}).prototype);
-    const rs = new Readable({
-      read() {}
-    });
-    assert.strictEqual(
-      Object.getPrototypeOf(Object.getPrototypeOf(rs[Symbol.asyncIterator]())),
-      AsyncIteratorPrototype);
-  }
-
-  {
     // v1 stream
 
     const stream = new Stream();
@@ -194,9 +183,16 @@ async function tests() {
     resolved.forEach(common.mustCall(
       (item, i) => assert.strictEqual(item.value, 'hello-' + i), max));
 
-    errors.forEach((promise) => {
+    errors.slice(0, 1).forEach((promise) => {
       promise.catch(common.mustCall((err) => {
         assert.strictEqual(err.message, 'kaboom');
+      }));
+    });
+
+    errors.slice(1).forEach((promise) => {
+      promise.then(common.mustCall(({ done, value }) => {
+        assert.strictEqual(done, true);
+        assert.strictEqual(value, undefined);
       }));
     });
 
@@ -287,28 +283,6 @@ async function tests() {
 
     assert.strictEqual(err.message, 'kaboom');
     assert.strictEqual(received, 1);
-  }
-
-  {
-    // Iterator throw.
-
-    const readable = new Readable({
-      objectMode: true,
-      read() {
-        this.push('hello');
-      }
-    });
-
-    readable.on('error', common.mustCall((err) => {
-      assert.strictEqual(err.message, 'kaboom');
-    }));
-
-    const it = readable[Symbol.asyncIterator]();
-    it.throw(new Error('kaboom')).catch(common.mustCall((err) => {
-      assert.strictEqual(err.message, 'kaboom');
-    }));
-
-    assert.strictEqual(readable.destroyed, true);
   }
 
   {
@@ -582,12 +556,15 @@ async function tests() {
       assert.strictEqual(e, err);
     })(), (async () => {
       let e;
+      let x;
       try {
-        await d;
+        x = await d;
       } catch (_e) {
         e = _e;
       }
-      assert.strictEqual(e, err);
+      assert.strictEqual(e, undefined);
+      assert.strictEqual(x.done, true);
+      assert.strictEqual(x.value, undefined);
     })()]);
   }
 
@@ -607,7 +584,6 @@ async function tests() {
       assert.strictEqual(err, _err);
     }));
   }
-
 
   {
     // Don't destroy if no auto destroy.
@@ -736,8 +712,14 @@ async function tests() {
     _req = http.request(`http://localhost:${server.address().port}`)
       .on('response', common.mustCall(async (res) => {
         setTimeout(() => {
-          _req.destroy(new Error('something happened'));
+          res.destroy(new Error('something happened'));
         }, 100);
+
+        res.on('aborted', () => {
+          const err = new Error();
+          err.code = 'ECONNRESET';
+          res.emit('error', err);
+        })
 
         res.on('error', common.mustCall());
 
