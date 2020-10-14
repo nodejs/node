@@ -558,12 +558,12 @@ be an array of objects with the following properties:
 added: v0.1.27
 -->
 
-<!--lint disable no-undefined-references-->
+<!--lint disable no-undefined-references list-item-bullet-indent-->
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
   * `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">&lt;string[][]&gt;</a>
-<!--lint enable no-undefined-references-->
+<!--lint enable no-undefined-references list-item-bullet-indent-->
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a
