@@ -43,8 +43,6 @@ async function tests() {
     });
 
     const iter = Readable.prototype[Symbol.asyncIterator].call(stream);
-    await iter.next();
-    await iter.next();
     await iter.next()
       .then(common.mustNotCall())
       .catch(common.mustCall((err) => {
