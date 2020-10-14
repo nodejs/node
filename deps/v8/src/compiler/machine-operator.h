@@ -197,6 +197,8 @@ ShiftKind ShiftKindOf(Operator const*) V8_WARN_UNUSED_RESULT;
 // makes it easier to detect an overflow. This parameter is ignored on platforms
 // like x64 and ia32 where a range overflow does not result in INT_MAX.
 enum class TruncateKind { kArchitectureDefault, kSetOverflowToMin };
+std::ostream& operator<<(std::ostream& os, TruncateKind kind);
+size_t hash_value(TruncateKind kind);
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
