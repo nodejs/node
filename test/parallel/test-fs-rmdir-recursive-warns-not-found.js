@@ -6,12 +6,14 @@ const path = require('path');
 
 tmpdir.refresh();
 
-// Should warn when trying to delete a nonexistent path
+
 {
+  // Should warn when trying to delete a nonexistent path
   common.expectWarning(
     'DeprecationWarning',
-    'Permissive rmdir recursive is deprecated, use rm recursive and force \
-instead',
+    'In future versions of Node.js, fs.rmdir(path, { recursive: true }) ' +
+    'will throw if path does not exist or is a file. Use fs.rm(path, ' +
+    '{ recursive: true, force: true }) instead',
     'DEP0147'
   );
   fs.rmdir(
