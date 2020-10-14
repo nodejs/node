@@ -1,8 +1,9 @@
 'use strict';
 
-require('../common');
+const { mustCall } = require('../common');
 
-const TIMEOUT = 50;
+const TIMEOUT = 10;
+const SPIN_DUR = 50;
 
 const assert = require('assert');
 const { performance } = require('perf_hooks');
@@ -21,13 +22,15 @@ if (nodeTiming.loopStart === -1) {
                          { idle: 0, active: 0, utilization: 0 });
 }
 
-// Place in setTimeout() to make sure there is some idle time, but not going to
-// assert this since it could make the test flaky.
-setTimeout(() => {
+setTimeout(mustCall(function r() {
   const t = Date.now();
   const elu1 = eventLoopUtilization();
 
-  while (Date.now() - t < 50) { }
+  // Force idle time to accumulate before allowing test to continue.
+  if (elu1.idle <= 0)
+    return setTimeout(mustCall(r), 5);
+
+  while (Date.now() - t < SPIN_DUR) { }
 
   const elu2 = eventLoopUtilization();
   const elu3 = eventLoopUtilization(elu1);
@@ -38,12 +41,13 @@ setTimeout(() => {
   assert.strictEqual(elu3.utilization, 1);
   assert.strictEqual(elu4.utilization, 1);
   assert.strictEqual(elu2.active - elu1.active, elu4.active);
-  assert.ok(elu2.active > elu3.active);
-  assert.ok(elu2.active > elu4.active);
-  assert.ok(elu3.active > elu4.active);
+  assert.ok(elu3.active > SPIN_DUR - 10, `${elu3.active} <= ${SPIN_DUR - 10}`);
+  assert.ok(elu3.active > elu4.active, `${elu3.active} <= ${elu4.active}`);
+  assert.ok(elu2.active > elu3.active, `${elu2.active} <= ${elu3.active}`);
+  assert.ok(elu2.active > elu4.active, `${elu2.active} <= ${elu4.active}`);
 
-  setTimeout(runIdleTimeTest, TIMEOUT);
-}, 5);
+  setTimeout(mustCall(runIdleTimeTest), TIMEOUT);
+}), 5);
 
 function runIdleTimeTest() {
   const idleTime = nodeTiming.idleTime;
@@ -55,7 +59,7 @@ function runIdleTimeTest() {
   assert.strictEqual(elu1.idle, idleTime);
   assert.strictEqual(elu1.utilization, elu1.active / sum);
 
-  setTimeout(runCalcTest, TIMEOUT, elu1);
+  setTimeout(mustCall(runCalcTest), TIMEOUT, elu1);
 }
 
 function runCalcTest(elu1) {
@@ -65,18 +69,20 @@ function runCalcTest(elu1) {
   const active_delta = elu2.active - elu1.active;
   const idle_delta = elu2.idle - elu1.idle;
 
-  assert.ok(elu2.idle >= 0);
-  assert.ok(elu2.active >= 0);
-  assert.ok(elu3.idle >= 0);
-  assert.ok(elu3.active >= 0);
-  assert.ok(elu2.idle + elu2.active > elu1.idle + elu2.active);
-  assert.ok(elu2.idle + elu2.active >= now - nodeTiming.loopStart);
+  assert.ok(elu2.idle >= 0, `${elu2.idle} < 0`);
+  assert.ok(elu2.active >= 0, `${elu2.active} < 0`);
+  assert.ok(elu3.idle >= 0, `${elu3.idle} < 0`);
+  assert.ok(elu3.active >= 0, `${elu3.active} < 0`);
+  assert.ok(elu2.idle + elu2.active > elu1.idle + elu1.active,
+            `${elu2.idle + elu2.active} <= ${elu1.idle + elu1.active}`);
+  assert.ok(elu2.idle + elu2.active >= now - nodeTiming.loopStart,
+            `${elu2.idle + elu2.active} < ${now - nodeTiming.loopStart}`);
   assert.strictEqual(elu3.active, elu2.active - elu1.active);
   assert.strictEqual(elu3.idle, elu2.idle - elu1.idle);
   assert.strictEqual(elu3.utilization,
                      active_delta / (idle_delta + active_delta));
 
-  setImmediate(runWorkerTest);
+  setImmediate(mustCall(runWorkerTest));
 }
 
 function runWorkerTest() {
@@ -90,10 +96,11 @@ function runWorkerTest() {
   const elu1 = eventLoopUtilization();
   const worker = new Worker(__filename, { argv: [ 'iamalive' ] });
 
-  worker.on('message', (msg) => {
+  worker.on('message', mustCall((msg) => {
     const elu2 = eventLoopUtilization(elu1);
     const data = JSON.parse(msg);
 
-    assert.ok(elu2.active + elu2.idle > data.active + data.idle);
-  });
+    assert.ok(elu2.active + elu2.idle > data.active + data.idle,
+              `${elu2.active + elu2.idle} <= ${data.active + data.idle}`);
+  }));
 }
