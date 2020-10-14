@@ -40,8 +40,8 @@ jobs:
 
       - name: Set variables
         run: |
-          echo "::set-env name=REPOSITORY::$(echo ${{ github.repository }} | cut -d/ -f2)"
-          echo "::set-env name=OWNER::${{ github.repository_owner }}"
+          echo "REPOSITORY=$(echo ${{ github.repository }} | cut -d/ -f2)" >> $GITHUB_ENV
+          echo "OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
 
       - name: Get Pull Requests
         uses: octokit/graphql-action@v2.x
