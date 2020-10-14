@@ -712,14 +712,14 @@ async function tests() {
     _req = http.request(`http://localhost:${server.address().port}`)
       .on('response', common.mustCall(async (res) => {
         setTimeout(() => {
-          res.destroy(new Error('something happened'));
+          _req.destroy(new Error('something happened'));
         }, 100);
 
         res.on('aborted', () => {
           const err = new Error();
           err.code = 'ECONNRESET';
           res.emit('error', err);
-        })
+        });
 
         res.on('error', common.mustCall());
 
