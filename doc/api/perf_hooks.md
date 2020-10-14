@@ -72,8 +72,11 @@ added:
 The `eventLoopUtilization()` method returns an object that contains the
 cumulative duration of time the event loop has been both idle and active as a
 high resolution milliseconds timer. The `utilization` value is the calculated
-Event Loop Utilization (ELU). If bootstrapping has not yet finished, the
-properties have the value of `0`.
+Event Loop Utilization (ELU).
+
+If bootstrapping has not yet finished on the main thread the properties have
+the value of `0`. The ELU is immediately available on [Worker threads][] since
+bootstrap happens within the event loop.
 
 Both `utilization1` and `utilization2` are optional parameters.
 
@@ -762,6 +765,7 @@ require('some-module');
 [Performance Timeline]: https://w3c.github.io/performance-timeline/
 [User Timing]: https://www.w3.org/TR/user-timing/
 [Web Performance APIs]: https://w3c.github.io/perf-timing-primer/
+[Worker threads]: worker_threads.md#worker_threads_worker_threads
 [`'exit'`]: process.md#process_event_exit
 [`child_process.spawnSync()`]: child_process.md#child_process_child_process_spawnsync_command_args_options
 [`process.hrtime()`]: process.md#process_process_hrtime_time

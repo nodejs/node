@@ -765,6 +765,39 @@ void Worker::TakeHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(scheduled ? taker->object() : Local<Object>());
 }
 
+void Worker::LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Mutex::ScopedLock lock(w->mutex_);
+  // Using w->is_stopped() here leads to a deadlock, and checking is_stopped()
+  // before locking the mutex is a race condition. So manually do the same
+  // check.
+  if (w->stopped_ || w->env_ == nullptr)
+    return args.GetReturnValue().Set(-1);
+
+  uint64_t idle_time = uv_metrics_idle_time(w->env_->event_loop());
+  args.GetReturnValue().Set(1.0 * idle_time / 1e6);
+}
+
+void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Mutex::ScopedLock lock(w->mutex_);
+  // Using w->is_stopped() here leads to a deadlock, and checking is_stopped()
+  // before locking the mutex is a race condition. So manually do the same
+  // check.
+  if (w->stopped_ || w->env_ == nullptr)
+    return args.GetReturnValue().Set(-1);
+
+  double loop_start_time = w->env_->performance_state()->milestones[
+      node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START];
+  CHECK_GE(loop_start_time, 0);
+  args.GetReturnValue().Set(
+      (loop_start_time - node::performance::timeOrigin) / 1e6);
+}
+
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates
@@ -798,6 +831,8 @@ void InitWorker(Local<Object> target,
     env->SetProtoMethod(w, "unref", Worker::Unref);
     env->SetProtoMethod(w, "getResourceLimits", Worker::GetResourceLimits);
     env->SetProtoMethod(w, "takeHeapSnapshot", Worker::TakeHeapSnapshot);
+    env->SetProtoMethod(w, "loopIdleTime", Worker::LoopIdleTime);
+    env->SetProtoMethod(w, "loopStartTime", Worker::LoopStartTime);
 
     Local<String> workerString =
         FIXED_ONE_BYTE_STRING(env->isolate(), "Worker");
