@@ -194,6 +194,7 @@ an [IPC][] server depending on what it listens to.
 
 Possible signatures:
 
+<!--lint disable no-undefined-references-->
 * [`server.listen(handle[, backlog][, callback])`][`server.listen(handle)`]
 * [`server.listen(options[, callback])`][`server.listen(options)`]
 * [`server.listen(path[, backlog][, callback])`][`server.listen(path)`]
@@ -201,6 +202,7 @@ Possible signatures:
 * <a href="#net_server_listen_port_host_backlog_callback">
   <code>server.listen([port[, host[, backlog]]][, callback])</code></a>
   for TCP servers
+<!--lint enable no-undefined-references-->
 
 This function is asynchronous. When the server starts listening, the
 [`'listening'`][] event will be emitted. The last parameter `callback`
@@ -282,12 +284,14 @@ changes:
   functions.
 * Returns: {net.Server}
 
+<!--lint disable no-undefined-references-->
 If `port` is specified, it behaves the same as
 <a href="#net_server_listen_port_host_backlog_callback">
 <code>server.listen([port[, host[, backlog]]][, callback])</code></a>.
 Otherwise, if `path` is specified, it behaves the same as
 [`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
 If none of them is specified, an error will be thrown.
+<!--lint enable no-undefined-references-->
 
 If `exclusive` is `false` (default), then cluster workers will use the same
 underlying handle, allowing connection handling duties to be shared. When
