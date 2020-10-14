@@ -39,21 +39,21 @@ this guide.
   * Use [language][]-aware fences. (<code>```js</code>)
   * For the [info string][], use one of the following.
 
-    | Meaning       | Info string       |
-    | ------------- | ----------------- |
-    | Bash          | `bash`            |
-    | C             | `c`               |
-    | C++           | `cpp`             |
-    | CoffeeScript  | `coffee`          |
-    | Diff          | `diff`            |
-    | HTTP          | `http`            |
-    | JavaScript    | `js`              |
-    | JSON          | `json`            |
-    | Markdown      | `markdown`        |
-    | Plaintext     | `text`            |
-    | Powershell    | `powershell`      |
-    | R             | `r`               |
-    | Shell Session | `console`         |
+    | Meaning       | Info string  |
+    | ------------- | ------------ |
+    | Bash          | `bash`       |
+    | C             | `c`          |
+    | C++           | `cpp`        |
+    | CoffeeScript  | `coffee`     |
+    | Diff          | `diff`       |
+    | HTTP          | `http`       |
+    | JavaScript    | `js`         |
+    | JSON          | `json`       |
+    | Markdown      | `markdown`   |
+    | Plaintext     | `text`       |
+    | Powershell    | `powershell` |
+    | R             | `r`          |
+    | Shell Session | `console`    |
 
     If one of your language-aware fences needs an info string that is not
     already on this list, you may use `text` until the grammar gets added to

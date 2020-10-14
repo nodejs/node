@@ -93,56 +93,56 @@ The tools are currently assigned to Tiers as follows:
 
 ## Tier 1
 
- | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
- |-----------|---------------------------|-------------------------------|-------------------------|-------------|
- | FFDC | diagnostic report | Yes | Yes | 1 |
- | | | | | |
+| Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+|-----------|---------------------------|-------------------------------|-------------------------|-------------|
+| FFDC | diagnostic report | Yes | Yes | 1 |
+| | | | | |
 
 ## Tier 2
 
- | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
- |-----------|---------------------------|-------------------------------|-------------------------|-------------|
- |           |                           |                               |                         |             |
+| Tool Type | Tool/API Name | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+|-----------|---------------|-------------------------------|-------------------------|-------------|
+|           |               |                               |                         |             |
 
 ## Tier 3
 
- | Tool Type | Tool/API Name                        | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
- |-----------|--------------------------------------|-------------------------------|-------------------------|-------------|
- | Profiling | V8 CPU profiler                      | Partial (V8 Tests)            | Yes                     |     1       |
- | Profiling | --prof/--prof-process flags          | Yes                           | Yes                     |     1       |
- | Profiling | V8 CodeEventHandler API              | Partial (V8 Tests)            | Yes                     |     2       |
- | Profiling | V8 --interpreted-frames-native-stack | Yes                           | Yes                     |     2       |
- | Profiling | Linux perf                           | Yes                           | Partial                 |     2       |
+| Tool Type | Tool/API Name                        | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+|-----------|--------------------------------------|-------------------------------|-------------------------|-------------|
+| Profiling | V8 CPU profiler                      | Partial (V8 Tests)            | Yes                     |     1       |
+| Profiling | --prof/--prof-process flags          | Yes                           | Yes                     |     1       |
+| Profiling | V8 CodeEventHandler API              | Partial (V8 Tests)            | Yes                     |     2       |
+| Profiling | V8 --interpreted-frames-native-stack | Yes                           | Yes                     |     2       |
+| Profiling | Linux perf                           | Yes                           | Partial                 |     2       |
 
 ## Tier 4
 
- | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
- |-----------|---------------------------|-------------------------------|-------------------------|-------------|
- |           |                           |                               |                         |             |
+| Tool Type | Tool/API Name | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+|-----------|---------------|-------------------------------|-------------------------|-------------|
+|           |               |                               |                         |             |
 
 ## Not yet classified
 
- | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
- |-----------|---------------------------|-------------------------------|-------------------------|-------------|
- | FFDC      | node-report               | No                            | No                      |     1       |
- | Memory    | mdb_V8                    | No                            | No                      |     4       |
- | Memory    | node-heapdump             | No                            | No                      |     2       |
- | Memory    | V8 heap profiler          | No                            | Yes                     |     1       |
- | Memory    | V8 sampling heap profiler | No                            | Yes                     |     1       |
- | AsyncFlow | Async Hooks (API)         | ?                             | Yes                     |     1       |
- | Debugger  | V8 Debug protocol (API)   | No                            | Yes                     |     1       |
- | Debugger  | Command line Debug Client | ?                             | Yes                     |     1       |
- | Debugger  | llnode                    | ?                             | No                      |     2       |
- | Debugger  | Chrome Dev tools          | ?                             | No                      |     3       |
- | Debugger  | Chakracore - time-travel  | No                            | Data source only        | too early   |
- | Tracing   | trace_events (API)        | No                            | Yes                     |     1       |
- | Tracing   | DTrace                    | No                            | Partial                 |     3       |
- | Tracing   | LTTng                     | No                            | Removed?                |     N/A     |
- | Tracing   | ETW                       | No                            | Partial                 |     3       |
- | Tracing   | Systemtap                 | No                            | Partial                 |     ?       |
- | Profiling | DTrace                    | No                            | Partial                 |     3       |
- | Profiling | Windows Xperf             | No                            | ?                       |     ?       |
- | Profiling | 0x                        | No                            | No                      |     4       |
- | Profiling | node-clinic               | No                            | No                      | too early   |
- | F/P/T     | appmetrics                | No                            | No                      |     ?       |
- | M/T       | eBPF tracing tool         | No                            | No                      |     ?       |
+| Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+|-----------|---------------------------|-------------------------------|-------------------------|-------------|
+| FFDC      | node-report               | No                            | No                      |     1       |
+| Memory    | mdb_V8                    | No                            | No                      |     4       |
+| Memory    | node-heapdump             | No                            | No                      |     2       |
+| Memory    | V8 heap profiler          | No                            | Yes                     |     1       |
+| Memory    | V8 sampling heap profiler | No                            | Yes                     |     1       |
+| AsyncFlow | Async Hooks (API)         | ?                             | Yes                     |     1       |
+| Debugger  | V8 Debug protocol (API)   | No                            | Yes                     |     1       |
+| Debugger  | Command line Debug Client | ?                             | Yes                     |     1       |
+| Debugger  | llnode                    | ?                             | No                      |     2       |
+| Debugger  | Chrome Dev tools          | ?                             | No                      |     3       |
+| Debugger  | Chakracore - time-travel  | No                            | Data source only        | too early   |
+| Tracing   | trace_events (API)        | No                            | Yes                     |     1       |
+| Tracing   | DTrace                    | No                            | Partial                 |     3       |
+| Tracing   | LTTng                     | No                            | Removed?                |     N/A     |
+| Tracing   | ETW                       | No                            | Partial                 |     3       |
+| Tracing   | Systemtap                 | No                            | Partial                 |     ?       |
+| Profiling | DTrace                    | No                            | Partial                 |     3       |
+| Profiling | Windows Xperf             | No                            | ?                       |     ?       |
+| Profiling | 0x                        | No                            | No                      |     4       |
+| Profiling | node-clinic               | No                            | No                      | too early   |
+| F/P/T     | appmetrics                | No                            | No                      |     ?       |
+| M/T       | eBPF tracing tool         | No                            | No                      |     ?       |

@@ -167,16 +167,16 @@ Depending on the host platform, the selection of toolchains may vary.
 
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
-| Binary package        | Platform and Toolchain                                                   |
-| --------------------- | ------------------------------------------------------------------------ |
-| aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                       |
-| darwin-x64 (and .pkg) | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13 |
-| linux-arm64           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
-| linux-armv7l          | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)   |
-| linux-ppc64le         | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
-| linux-s390x           | RHEL 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                    |
-| linux-x64             | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
-| win-x64 and win-x86   | Windows 2012 R2 (x64) with Visual Studio 2019                            |
+| Binary package        | Platform and Toolchain                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                                                            |
+| darwin-x64 (and .pkg) | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13                                      |
+| linux-arm64           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
+| linux-armv7l          | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
+| linux-ppc64le         | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
+| linux-s390x           | RHEL 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                         |
+| linux-x64             | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
+| win-x64 and win-x86   | Windows 2012 R2 (x64) with Visual Studio 2019                                                                 |
 
 <em id="fn8">8</em>: The Enterprise Linux devtoolset-8 allows us to compile
 binaries with GCC 8 but linked to the glibc and libstdc++ versions of the host
