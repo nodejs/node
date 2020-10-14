@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 ```
 
 ### Per-instance state
-<!--
+<!-- YAML
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/35597
