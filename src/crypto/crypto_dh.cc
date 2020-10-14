@@ -524,11 +524,11 @@ WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
   switch (format) {
     case kWebCryptoKeyFormatPKCS8:
       if (key_data->GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::ERR_INVALID_KEY_TYPE;
+        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return PKEY_PKCS8_Export(key_data.get(), out);
     case kWebCryptoKeyFormatSPKI:
       if (key_data->GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::ERR_INVALID_KEY_TYPE;
+        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return PKEY_SPKI_Export(key_data.get(), out);
     default:
       UNREACHABLE();

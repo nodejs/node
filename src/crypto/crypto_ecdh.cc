@@ -549,18 +549,18 @@ WebCryptoKeyExportStatus EC_Raw_Export(
   // Get the allocated data size...
   size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
   if (len == 0)
-    return WebCryptoKeyExportStatus::ERR_FAILED;
+    return WebCryptoKeyExportStatus::FAILED;
 
   unsigned char* data = MallocOpenSSL<unsigned char>(len);
   size_t check_len = EC_POINT_point2oct(group, point, form, data, len, nullptr);
   if (check_len == 0)
-    return WebCryptoKeyExportStatus::ERR_FAILED;
+    return WebCryptoKeyExportStatus::FAILED;
 
   CHECK_EQ(len, check_len);
 
   *out = ByteSource::Allocated(reinterpret_cast<char*>(data), len);
 
-  return WebCryptoKeyExportStatus::ERR_OK;
+  return WebCryptoKeyExportStatus::OK;
 }
 }  // namespace
 
@@ -581,15 +581,15 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
   switch (format) {
     case kWebCryptoKeyFormatRaw:
       if (key_data->GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::ERR_INVALID_KEY_TYPE;
+        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return EC_Raw_Export(key_data.get(), params, out);
     case kWebCryptoKeyFormatPKCS8:
       if (key_data->GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::ERR_INVALID_KEY_TYPE;
+        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return PKEY_PKCS8_Export(key_data.get(), out);
     case kWebCryptoKeyFormatSPKI:
       if (key_data->GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::ERR_INVALID_KEY_TYPE;
+        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return PKEY_SPKI_Export(key_data.get(), out);
     default:
       UNREACHABLE();

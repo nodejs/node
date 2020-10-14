@@ -179,7 +179,7 @@ WebCryptoKeyExportStatus RSA_JWK_Export(
     KeyObjectData* key_data,
     const RSAKeyExportConfig& params,
     ByteSource* out) {
-  return WebCryptoKeyExportStatus::ERR_FAILED;
+  return WebCryptoKeyExportStatus::FAILED;
 }
 
 template <PublicKeyCipher::EVP_PKEY_cipher_init_t init,
@@ -268,16 +268,16 @@ WebCryptoKeyExportStatus RSAKeyExportTraits::DoExport(
   switch (format) {
     case kWebCryptoKeyFormatRaw:
       // Not supported for RSA keys of either type
-      return WebCryptoKeyExportStatus::ERR_FAILED;
+      return WebCryptoKeyExportStatus::FAILED;
     case kWebCryptoKeyFormatJWK:
       return RSA_JWK_Export(key_data.get(), params, out);
     case kWebCryptoKeyFormatPKCS8:
       if (key_data->GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::ERR_INVALID_KEY_TYPE;
+        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return PKEY_PKCS8_Export(key_data.get(), out);
     case kWebCryptoKeyFormatSPKI:
       if (key_data->GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::ERR_INVALID_KEY_TYPE;
+        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return PKEY_SPKI_Export(key_data.get(), out);
     default:
       UNREACHABLE();
