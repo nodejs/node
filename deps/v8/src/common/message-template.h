@@ -33,6 +33,9 @@ namespace internal {
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \
     "ArrayBuffer subclass returned this from species constructor")             \
+  T(AwaitNotInAsyncContext,                                                    \
+    "await is only valid in async functions and the top level bodies of "      \
+    "modules")                                                                 \
   T(AwaitNotInAsyncFunction, "await is only valid in async function")          \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(BadSortComparisonFunction,                                                 \
