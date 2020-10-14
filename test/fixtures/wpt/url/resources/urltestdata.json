@@ -4618,7 +4618,7 @@
     "search": "",
     "hash": ""
   },
-  "# unknown scheme with non-URL characters in the path",
+  "# unknown scheme with non-URL characters",
   {
     "input": "wow:\uFFFF",
     "base": "about:blank",
@@ -4632,6 +4632,21 @@
     "port": "",
     "pathname": "%EF%BF%BF",
     "search": "",
+    "hash": ""
+  },
+  {
+    "input": "http://example.com/\uD800\uD801\uDFFE\uDFFF\uFDD0\uFDCF\uFDEF\uFDF0\uFFFE\uFFFF?\uD800\uD801\uDFFE\uDFFF\uFDD0\uFDCF\uFDEF\uFDF0\uFFFE\uFFFF",
+    "base": "about:blank",
+    "href": "http://example.com/%EF%BF%BD%F0%90%9F%BE%EF%BF%BD%EF%B7%90%EF%B7%8F%EF%B7%AF%EF%B7%B0%EF%BF%BE%EF%BF%BF?%EF%BF%BD%F0%90%9F%BE%EF%BF%BD%EF%B7%90%EF%B7%8F%EF%B7%AF%EF%B7%B0%EF%BF%BE%EF%BF%BF",
+    "origin": "http://example.com",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "example.com",
+    "hostname": "example.com",
+    "port": "",
+    "pathname": "/%EF%BF%BD%F0%90%9F%BE%EF%BF%BD%EF%B7%90%EF%B7%8F%EF%B7%AF%EF%B7%B0%EF%BF%BE%EF%BF%BF",
+    "search": "?%EF%BF%BD%F0%90%9F%BE%EF%BF%BD%EF%B7%90%EF%B7%8F%EF%B7%AF%EF%B7%B0%EF%BF%BE%EF%BF%BF",
     "hash": ""
   },
   "Forbidden host code points",
@@ -5246,6 +5261,34 @@
     "hash": ""
   },
   {
+    "input": "/",
+    "base": "file://h/C:/a/b",
+    "href": "file://h/C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "h",
+    "hostname": "h",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "/",
+    "base": "file://h/a/b",
+    "href": "file://h/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "h",
+    "hostname": "h",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
     "input": "//d:",
     "base": "file:///C:/a/b",
     "href": "file:///d:",
@@ -5629,6 +5672,20 @@
   {
     "input": "C|",
     "base": "file://host/dir/file",
+    "href": "file://host/C:",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/C:",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "C|",
+    "base": "file://host/D:/dir1/dir2/file",
     "href": "file://host/C:",
     "protocol": "file:",
     "username": "",
