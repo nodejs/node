@@ -17,8 +17,6 @@ jobs:
       - uses: actions/checkout@v2
 
       # Install dependencies
-      - name: Install jq
-        run: sudo apt-get install jq -y
       - name: Install Node.js
         uses: actions/setup-node@v2-beta
         with:
