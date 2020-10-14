@@ -1261,10 +1261,10 @@ WebCryptoKeyExportStatus PKEY_SPKI_Export(
   CHECK_EQ(key_data->GetKeyType(), kKeyTypePublic);
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!i2d_PUBKEY_bio(bio.get(), key_data->GetAsymmetricKey().get()))
-    return WebCryptoKeyExportStatus::ERR_FAILED;
+    return WebCryptoKeyExportStatus::FAILED;
 
   *out = ByteSource::FromBIO(bio);
-  return WebCryptoKeyExportStatus::ERR_OK;
+  return WebCryptoKeyExportStatus::OK;
 }
 
 WebCryptoKeyExportStatus PKEY_PKCS8_Export(
@@ -1274,10 +1274,10 @@ WebCryptoKeyExportStatus PKEY_PKCS8_Export(
   BIOPointer bio(BIO_new(BIO_s_mem()));
   PKCS8Pointer p8inf(EVP_PKEY2PKCS8(key_data->GetAsymmetricKey().get()));
   if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio.get(), p8inf.get()))
-    return WebCryptoKeyExportStatus::ERR_FAILED;
+    return WebCryptoKeyExportStatus::FAILED;
 
   *out = ByteSource::FromBIO(bio);
-  return WebCryptoKeyExportStatus::ERR_OK;
+  return WebCryptoKeyExportStatus::OK;
 }
 
 namespace Keys {
