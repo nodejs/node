@@ -83,6 +83,7 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return get(isolate, index).IsTheHole(isolate);
 }
 
+#if !defined(_WIN32) || (defined(_WIN64) && _MSC_VER < 1930 && __cplusplus < 201703L)
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
@@ -90,6 +91,7 @@ void FixedArray::set(int index, Smi value) {
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
+#endif
 
 void FixedArray::set(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
