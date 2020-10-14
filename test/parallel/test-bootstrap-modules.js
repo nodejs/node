@@ -108,6 +108,7 @@ const expectedModules = new Set([
 if (!common.isMainThread) {
   [
     'Internal Binding messaging',
+    'Internal Binding performance',
     'Internal Binding symbols',
     'Internal Binding worker',
     'NativeModule internal/streams/duplex',
