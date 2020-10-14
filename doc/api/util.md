@@ -1159,18 +1159,18 @@ Different Node.js build configurations support different sets of encodings.
 
 #### Encodings supported when Node.js is built with the `small-icu` option
 
-| Encoding     | Aliases                           |
-| -----------  | --------------------------------- |
-| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
-| `'utf-16le'` | `'utf-16'`                        |
-| `'utf-16be'` |                                   |
+| Encoding     | Aliases                         |
+| -----------  | ------------------------------- |
+| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'` |
+| `'utf-16le'` | `'utf-16'`                      |
+| `'utf-16be'` |                                 |
 
 #### Encodings supported when ICU is disabled
 
-| Encoding     | Aliases                           |
-| -----------  | --------------------------------- |
-| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
-| `'utf-16le'` | `'utf-16'`                        |
+| Encoding     | Aliases                         |
+| -----------  | ------------------------------- |
+| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'` |
+| `'utf-16le'` | `'utf-16'`                      |
 
 The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
 is not supported.
