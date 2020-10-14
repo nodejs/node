@@ -15,8 +15,6 @@ namespace node {
 namespace crypto {
 class Hash final : public BaseObject {
  public:
-  ~Hash() override;
-
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -36,10 +34,9 @@ class Hash final : public BaseObject {
   Hash(Environment* env, v8::Local<v8::Object> wrap);
 
  private:
-  EVPMDPointer mdctx_;
-  bool has_md_;
-  unsigned int md_len_;
-  unsigned char* md_value_;
+  EVPMDPointer mdctx_ {};
+  unsigned int md_len_ = 0;
+  ByteSource digest_;
 };
 
 struct HashConfig final : public MemoryRetainer {

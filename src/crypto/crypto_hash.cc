@@ -24,17 +24,13 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-Hash::Hash(Environment* env, Local<Object> wrap)
-    : BaseObject(env, wrap),
-      mdctx_(nullptr),
-      has_md_(false),
-      md_value_(nullptr) {
+Hash::Hash(Environment* env, Local<Object> wrap) : BaseObject(env, wrap) {
   MakeWeak();
 }
 
 void Hash::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("mdctx", mdctx_ ? kSizeOf_EVP_MD_CTX : 0);
-  tracker->TrackFieldWithSize("md", md_len_);
+  tracker->TrackFieldWithSize("md", digest_ ? md_len_ : 0);
 }
 
 void Hash::GetHashes(const FunctionCallbackInfo<Value>& args) {
@@ -61,11 +57,6 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
   env->SetMethodNoSideEffect(target, "getHashes", GetHashes);
 
   HashJob::Initialize(env, target);
-}
-
-Hash::~Hash() {
-  if (md_value_ != nullptr)
-    OPENSSL_clear_free(md_value_, md_len_);
 }
 
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
@@ -150,47 +141,50 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
+  unsigned int len = hash->md_len_;
+
   // TODO(tniessen): SHA3_squeeze does not work for zero-length outputs on all
   // platforms and will cause a segmentation fault if called. This workaround
   // causes hash.digest() to correctly return an empty buffer / string.
   // See https://github.com/openssl/openssl/issues/9431.
-  if (!hash->has_md_ && hash->md_len_ == 0) {
-    hash->has_md_ = true;
-  }
 
-  if (!hash->has_md_) {
+  if (!hash->digest_ && len > 0) {
     // Some hash algorithms such as SHA3 do not support calling
     // EVP_DigestFinal_ex more than once, however, Hash._flush
     // and Hash.digest can both be used to retrieve the digest,
     // so we need to cache it.
     // See https://github.com/nodejs/node/issues/28245.
 
-    hash->md_value_ = MallocOpenSSL<unsigned char>(hash->md_len_);
+    char* md_value = MallocOpenSSL<char>(len);
+    ByteSource digest = ByteSource::Allocated(md_value, len);
 
     size_t default_len = EVP_MD_CTX_size(hash->mdctx_.get());
     int ret;
-    if (hash->md_len_ == default_len) {
-      ret = EVP_DigestFinal_ex(hash->mdctx_.get(), hash->md_value_,
-                               &hash->md_len_);
+    if (len == default_len) {
+      ret = EVP_DigestFinal_ex(
+          hash->mdctx_.get(),
+          reinterpret_cast<unsigned char*>(md_value),
+          &len);
+      // The output length should always equal hash->md_len_
+      CHECK_EQ(len, hash->md_len_);
     } else {
-      ret = EVP_DigestFinalXOF(hash->mdctx_.get(), hash->md_value_,
-                               hash->md_len_);
+      ret = EVP_DigestFinalXOF(
+          hash->mdctx_.get(),
+          reinterpret_cast<unsigned char*>(md_value),
+          len);
     }
 
-    if (ret != 1) {
-      OPENSSL_free(hash->md_value_);
-      hash->md_value_ = nullptr;
+    if (ret != 1)
       return ThrowCryptoError(env, ERR_get_error());
-    }
 
-    hash->has_md_ = true;
+    hash->digest_ = std::move(digest);
   }
 
   Local<Value> error;
   MaybeLocal<Value> rc =
       StringBytes::Encode(env->isolate(),
-                          reinterpret_cast<const char*>(hash->md_value_),
-                          hash->md_len_,
+                          hash->digest_.get(),
+                          len,
                           encoding,
                           &error);
   if (rc.IsEmpty()) {
