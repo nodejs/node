@@ -262,9 +262,9 @@ enum WebCryptoKeyFormat {
 };
 
 enum class WebCryptoKeyExportStatus {
-  ERR_OK,
-  ERR_INVALID_KEY_TYPE,
-  ERR_FAILED
+  OK,
+  INVALID_KEY_TYPE,
+  FAILED
 };
 
 template <typename KeyExportTraits>
@@ -336,13 +336,13 @@ class KeyExportJob final : public CryptoJob<KeyExportTraits> {
                 format_,
                 *CryptoJob<KeyExportTraits>::params(),
                 &out_)) {
-      case WebCryptoKeyExportStatus::ERR_OK:
+      case WebCryptoKeyExportStatus::OK:
         // Success!
         break;
-      case WebCryptoKeyExportStatus::ERR_INVALID_KEY_TYPE:
+      case WebCryptoKeyExportStatus::INVALID_KEY_TYPE:
         // Fall through
         // TODO(@jasnell): Separate error for this
-      case WebCryptoKeyExportStatus::ERR_FAILED: {
+      case WebCryptoKeyExportStatus::FAILED: {
         CryptoErrorVector* errors = CryptoJob<KeyExportTraits>::errors();
         errors->Capture();
         if (errors->empty())
