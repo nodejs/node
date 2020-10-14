@@ -909,7 +909,9 @@ class ParserBase {
 
     if (scanner()->current_token() == Token::AWAIT && !is_async_function()) {
       ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kAwaitNotInAsyncFunction);
+                      flags().allow_harmony_top_level_await()
+                          ? MessageTemplate::kAwaitNotInAsyncContext
+                          : MessageTemplate::kAwaitNotInAsyncFunction);
       return;
     }
 
