@@ -118,10 +118,8 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
                       "used, not both");
   }
 
-  if (heap_snapshot_near_heap_limit < 1 &&
-      heap_snapshot_near_heap_limit != -1) {
-    errors->push_back(
-        "--heap-snapshot-near-heap-limit must be either postive or -1");
+  if (heap_snapshot_near_heap_limit < 0) {
+    errors->push_back("--heap-snapshot-near-heap-limit must not be negative");
   }
 
 #if HAVE_INSPECTOR

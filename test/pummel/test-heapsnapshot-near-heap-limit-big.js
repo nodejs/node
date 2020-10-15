@@ -38,6 +38,6 @@ if (!common.enoughTestMem)
     assert(stderr.includes(
       'Not generating snapshots because it\'s too risky'));
   } else {
-    assert(list.length > 0 && list.length <= 5);
+    assert(list.length > 0 && list.length <= 3);
   }
 }

@@ -25,8 +25,10 @@ const env = {
 }
 
 {
+  console.log('\nTesting limit = 0');
   tmpdir.refresh();
   const child = spawnSync(process.execPath, [
+    '--trace-gc',
     '--heapsnapshot-near-heap-limit=0',
     '--max-old-space-size=50',
     fixtures.path('workload', 'grow.js')
@@ -34,7 +36,13 @@ const env = {
     cwd: tmpdir.path,
     env,
   });
-  assert.strictEqual(child.status, 9);
+  console.log(child.stdout.toString());
+  console.log(child.stderr.toString());
+  assert(common.nodeProcessAborted(child.status, child.signal),
+         'process should have aborted, but did not');
+  const list = fs.readdirSync(tmpdir.path)
+    .filter((file) => file.endsWith('.heapsnapshot'));
+  assert.strictEqual(list.length, 0);
 }
 
 {

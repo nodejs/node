@@ -341,9 +341,8 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 Writes a V8 heap snapshot to disk when the V8 heap usage is approaching the
-heap limit. `count` should be either -1 (in which case no snapshots would be
-written), or a positive integer (in which case Node.js will write no more than
-`max_count` snapshots to disk).
+heap limit. `count` should be a non-negative integer (in which case
+Node.js will write no more than `max_count` snapshots to disk).
 
 When generating snapshots, garbage collection may be triggered and bring
 the heap usage down, therefore multiple snapshots may be written to disk
