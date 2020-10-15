@@ -47,7 +47,7 @@ const server = http.createServer((req, res) => {
   }, 100);
 });
 
-server.listen(0, function() {
+server.listen(0, () => {
   const req = http.request({
     port: this.address().port,
     path: '/',
