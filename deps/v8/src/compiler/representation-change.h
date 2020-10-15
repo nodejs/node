@@ -119,6 +119,7 @@ enum class TypeCheckKind : uint8_t {
   kSigned32,
   kSigned64,
   kNumber,
+  kNumberOrBoolean,
   kNumberOrOddball,
   kHeapObject,
   kBigInt,
@@ -137,6 +138,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "Signed64";
     case TypeCheckKind::kNumber:
       return os << "Number";
+    case TypeCheckKind::kNumberOrBoolean:
+      return os << "NumberOrBoolean";
     case TypeCheckKind::kNumberOrOddball:
       return os << "NumberOrOddball";
     case TypeCheckKind::kHeapObject:
@@ -266,6 +269,12 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
                    TypeCheckKind::kNumber, feedback);
   }
+  static UseInfo CheckedNumberOrBooleanAsFloat64(
+      IdentifyZeros identify_zeros, const FeedbackSource& feedback) {
+    return UseInfo(MachineRepresentation::kFloat64,
+                   Truncation::Any(identify_zeros),
+                   TypeCheckKind::kNumberOrBoolean, feedback);
+  }
   static UseInfo CheckedNumberOrOddballAsFloat64(
       IdentifyZeros identify_zeros, const FeedbackSource& feedback) {
     return UseInfo(MachineRepresentation::kFloat64,
@@ -316,7 +325,7 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   RepresentationChanger(JSGraph* jsgraph, JSHeapBroker* broker);
 
   // Changes representation from {output_type} to {use_rep}. The {truncation}
-  // parameter is only used for sanity checking - if the changer cannot figure
+  // parameter is only used for checking - if the changer cannot figure
   // out signedness for the word32->float64 conversion, then we check that the
   // uses truncate to word32 (so they do not care about signedness).
   Node* GetRepresentationFor(Node* node, MachineRepresentation output_rep,

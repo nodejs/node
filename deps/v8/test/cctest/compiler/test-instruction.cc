@@ -26,7 +26,8 @@ using TestInstrSeq = v8::internal::compiler::InstructionSequence;
 class InstructionTester : public HandleAndZoneScope {
  public:  // We're all friends here.
   InstructionTester()
-      : graph(zone()),
+      : HandleAndZoneScope(kCompressGraphZone),
+        graph(zone()),
         schedule(zone()),
         common(zone()),
         machine(zone()),
@@ -48,8 +49,8 @@ class InstructionTester : public HandleAndZoneScope {
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
-    code = new (main_zone())
-        TestInstrSeq(main_isolate(), main_zone(), instruction_blocks);
+    code = main_zone()->New<TestInstrSeq>(main_isolate(), main_zone(),
+                                          instruction_blocks);
   }
 
   Node* Int32Constant(int32_t val) {

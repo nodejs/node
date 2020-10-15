@@ -6,10 +6,10 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
-
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects-inl.h"
@@ -95,12 +95,18 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
 #undef RO_ROOT_LIST_CASE
 }
 
-static void DumpSpaceFirstPageAddress(FILE* out, i::PagedSpace* space) {
+static void DumpSpaceFirstPageAddress(FILE* out, i::BaseSpace* space,
+                                      i::Address first_page) {
   const char* name = space->name();
-  i::Address first_page = reinterpret_cast<i::Address>(space->first_page());
   i::Tagged_t compressed = i::CompressTagged(first_page);
   uintptr_t unsigned_compressed = static_cast<uint32_t>(compressed);
   i::PrintF(out, "  0x%08" V8PRIxPTR ": \"%s\",\n", unsigned_compressed, name);
+}
+
+template <typename SpaceT>
+static void DumpSpaceFirstPageAddress(FILE* out, SpaceT* space) {
+  i::Address first_page = space->FirstPageAddress();
+  DumpSpaceFirstPageAddress(out, space, first_page);
 }
 
 static int DumpHeapConstants(FILE* out, const char* argv0) {
@@ -133,13 +139,15 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
+        DumpKnownMap(out, heap, i::BaseSpace::GetSpaceName(i::RO_SPACE),
+                     object);
       }
       i::PagedSpaceObjectIterator iterator(heap, heap->map_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, i::Heap::GetSpaceName(i::MAP_SPACE), object);
+        DumpKnownMap(out, heap, i::BaseSpace::GetSpaceName(i::MAP_SPACE),
+                     object);
       }
       i::PrintF(out, "}\n");
     }
@@ -153,7 +161,8 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
            object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
         if (object.IsMap()) continue;
-        DumpKnownObject(out, heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
+        DumpKnownObject(out, heap, i::BaseSpace::GetSpaceName(i::RO_SPACE),
+                        object);
       }
 
       i::PagedSpaceIterator spit(heap);

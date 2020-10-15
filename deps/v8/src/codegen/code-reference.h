@@ -16,7 +16,7 @@ class CodeDesc;
 
 namespace wasm {
 class WasmCode;
-}
+}  // namespace wasm
 
 class CodeReference {
  public:

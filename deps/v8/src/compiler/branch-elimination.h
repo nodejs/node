@@ -74,6 +74,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction UpdateConditions(Node* node, ControlPathConditions prev_conditions,
                              Node* current_condition, Node* current_branch,
                              bool is_true_branch);
+  void MarkAsSafetyCheckIfNeeded(Node* branch, Node* node);
 
   Node* dead() const { return dead_; }
   Graph* graph() const;

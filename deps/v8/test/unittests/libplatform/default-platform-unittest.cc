@@ -19,15 +19,15 @@ namespace {
 struct MockTask : public Task {
   // See issue v8:8185
   ~MockTask() /* override */ { Die(); }
-  MOCK_METHOD0(Run, void());
-  MOCK_METHOD0(Die, void());
+  MOCK_METHOD(void, Run, (), (override));
+  MOCK_METHOD(void, Die, ());
 };
 
 struct MockIdleTask : public IdleTask {
   // See issue v8:8185
   ~MockIdleTask() /* override */ { Die(); }
-  MOCK_METHOD1(Run, void(double deadline_in_seconds));
-  MOCK_METHOD0(Die, void());
+  MOCK_METHOD(void, Run, (double deadline_in_seconds), (override));
+  MOCK_METHOD(void, Die, ());
 };
 
 class DefaultPlatformWithMockTime : public DefaultPlatform {
@@ -225,7 +225,7 @@ class TestBackgroundTask : public Task {
       : sem_(sem), executed_(executed) {}
 
   ~TestBackgroundTask() override { Die(); }
-  MOCK_METHOD0(Die, void());
+  MOCK_METHOD(void, Die, ());
 
   void Run() override {
     *executed_ = true;

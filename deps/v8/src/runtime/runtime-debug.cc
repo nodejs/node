@@ -241,7 +241,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 
     Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
     Handle<String> generator_status =
-        factory->NewStringFromAsciiChecked("[[GeneratorStatus]]");
+        factory->NewStringFromAsciiChecked("[[GeneratorState]]");
     result->set(0, *generator_status);
     Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
     result->set(1, *status_str);
@@ -261,7 +261,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     const char* status = JSPromise::Status(promise->status());
     Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
     Handle<String> promise_status =
-        factory->NewStringFromAsciiChecked("[[PromiseStatus]]");
+        factory->NewStringFromAsciiChecked("[[PromiseState]]");
     result->set(0, *promise_status);
     Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
     result->set(1, *status_str);
@@ -271,7 +271,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                                  : promise->result(),
                              isolate);
     Handle<String> promise_value =
-        factory->NewStringFromAsciiChecked("[[PromiseValue]]");
+        factory->NewStringFromAsciiChecked("[[PromiseResult]]");
     result->set(2, *promise_value);
     result->set(3, *value_obj);
     return factory->NewJSArrayWithElements(result);
@@ -303,6 +303,15 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         factory->NewStringFromAsciiChecked("[[PrimitiveValue]]");
     result->set(0, *primitive_value);
     result->set(1, js_value->value());
+    return factory->NewJSArrayWithElements(result);
+  } else if (object->IsJSArrayBuffer()) {
+    Handle<JSArrayBuffer> js_array_buffer = Handle<JSArrayBuffer>::cast(object);
+    Handle<FixedArray> result = factory->NewFixedArray(1 * 2);
+
+    Handle<String> is_detached_str =
+        factory->NewStringFromAsciiChecked("[[IsDetached]]");
+    result->set(0, *is_detached_str);
+    result->set(1, isolate->heap()->ToBoolean(js_array_buffer->was_detached()));
     return factory->NewJSArrayWithElements(result);
   }
   return factory->NewJSArray(0);
@@ -495,7 +504,8 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   if (line < 0) return -1;
 
   if (script->type() == Script::TYPE_WASM) {
-    return GetWasmFunctionOffset(script->wasm_native_module()->module(), line);
+    // Wasm positions are relative to the start of the module.
+    return 0;
   }
 
   Script::InitLineEnds(script->GetIsolate(), script);
@@ -847,10 +857,9 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
 
   // Track the embedded blob size as well.
   {
-    int embedded_blob_size = 0;
     i::EmbeddedData d = i::EmbeddedData::FromBlob();
-    embedded_blob_size = static_cast<int>(d.size());
-    PrintF("Embedded blob is %d bytes\n", embedded_blob_size);
+    PrintF("Embedded blob is %d bytes\n",
+           static_cast<int>(d.code_size() + d.metadata_size()));
   }
 
   FreeCurrentEmbeddedBlob();

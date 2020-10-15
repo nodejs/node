@@ -32,7 +32,8 @@ TEST(WeakReferencesBasic) {
   HandleScope outer_scope(isolate);
 
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-  CHECK(Heap::InYoungGeneration(*lh));
+
+  if (!FLAG_single_generation) CHECK(Heap::InYoungGeneration(*lh));
 
   MaybeObject code_object = lh->data1();
   CHECK(code_object->IsSmi());
@@ -49,7 +50,8 @@ TEST(WeakReferencesBasic) {
     assm.nop();  // supported on all architectures
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     CHECK(code->IsCode());
 
     lh->set_data1(HeapObjectReference::Weak(*code));
@@ -101,6 +103,7 @@ TEST(WeakReferencesOldToOld) {
 TEST(WeakReferencesOldToNew) {
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and referring to an new space object.
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -124,6 +127,7 @@ TEST(WeakReferencesOldToNew) {
 }
 
 TEST(WeakReferencesOldToNewScavenged) {
+  if (FLAG_single_generation) return;
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and referring to an new space object, which is then scavenged.
   CcTest::InitializeVM();
@@ -169,7 +173,7 @@ TEST(WeakReferencesOldToCleared) {
 }
 
 TEST(ObjectMovesBeforeClearingWeakField) {
-  if (!FLAG_incremental_marking) {
+  if (!FLAG_incremental_marking || FLAG_single_generation) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -180,7 +184,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
 
   HandleScope outer_scope(isolate);
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-  CHECK(Heap::InYoungGeneration(*lh));
+  CHECK(InCorrectGeneration(*lh));
   LoadHandler lh_location = *lh;
   {
     HandleScope inner_scope(isolate);
@@ -220,12 +224,12 @@ TEST(ObjectWithWeakFieldDies) {
   {
     HandleScope outer_scope(isolate);
     Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-    CHECK(Heap::InYoungGeneration(*lh));
+    CHECK(InCorrectGeneration(*lh));
     {
       HandleScope inner_scope(isolate);
       // Create a new FixedArray which the LoadHandler will point to.
       Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
-      CHECK(Heap::InYoungGeneration(*fixed_array));
+      CHECK(InCorrectGeneration(*fixed_array));
       lh->set_data1(HeapObjectReference::Weak(*fixed_array));
       // inner_scope will go out of scope, so when marking the next time,
       // *fixed_array will stay white.
@@ -244,6 +248,7 @@ TEST(ObjectWithWeakFieldDies) {
 }
 
 TEST(ObjectWithWeakReferencePromoted) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -269,6 +274,7 @@ TEST(ObjectWithWeakReferencePromoted) {
 }
 
 TEST(ObjectWithClearedWeakReferencePromoted) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -305,20 +311,20 @@ TEST(WeakReferenceWriteBarrier) {
 
   HandleScope outer_scope(isolate);
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-  CHECK(Heap::InYoungGeneration(*lh));
+  CHECK(InCorrectGeneration(*lh));
 
   {
     HandleScope inner_scope(isolate);
 
     // Create a new FixedArray which the LoadHandler will point to.
     Handle<FixedArray> fixed_array1 = factory->NewFixedArray(1);
-    CHECK(Heap::InYoungGeneration(*fixed_array1));
+    CHECK(InCorrectGeneration(*fixed_array1));
     lh->set_data1(HeapObjectReference::Weak(*fixed_array1));
 
     SimulateIncrementalMarking(heap, true);
 
     Handle<FixedArray> fixed_array2 = factory->NewFixedArray(1);
-    CHECK(Heap::InYoungGeneration(*fixed_array2));
+    CHECK(InCorrectGeneration(*fixed_array2));
     // This write will trigger the write barrier.
     lh->set_data1(HeapObjectReference::Weak(*fixed_array2));
   }
@@ -354,7 +360,8 @@ TEST(WeakArraysBasic) {
   CHECK(array->IsWeakFixedArray());
   CHECK(!array->IsFixedArray());
   CHECK_EQ(array->length(), length);
-  CHECK(Heap::InYoungGeneration(*array));
+
+  if (!FLAG_single_generation) CHECK(Heap::InYoungGeneration(*array));
 
   for (int i = 0; i < length; ++i) {
     HeapObject heap_object;
@@ -461,7 +468,7 @@ TEST(WeakArrayListBasic) {
         isolate, array, MaybeObjectHandle(Smi::FromInt(7), isolate));
     CHECK_EQ(array->length(), 8);
 
-    CHECK(Heap::InYoungGeneration(*array));
+    CHECK(InCorrectGeneration(*array));
 
     CHECK_EQ(array->Get(0), HeapObjectReference::Weak(*index0));
     CHECK_EQ(array->Get(1).ToSmi().value(), 1);

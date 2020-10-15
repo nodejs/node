@@ -31,6 +31,14 @@ ObjectDeserializer::DeserializeSharedFunctionInfo(
              : MaybeHandle<SharedFunctionInfo>();
 }
 
+MaybeHandle<SharedFunctionInfo>
+ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
+    LocalIsolate* isolate, const SerializedCodeData* data,
+    Handle<String> source) {
+  // TODO(leszeks): Add LocalHeap support to deserializer
+  UNREACHABLE();
+}
+
 MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   Initialize(isolate);
   if (!allocator()->ReserveSpace()) return MaybeHandle<HeapObject>();
@@ -43,58 +51,36 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
     Object root;
     VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(&root));
     DeserializeDeferredObjects();
-    FlushICache();
+    CHECK(new_code_objects().empty());
     LinkAllocationSites();
     LogNewMapEvents();
     result = handle(HeapObject::cast(root), isolate);
     allocator()->RegisterDeserializedObjectsForBlackAllocation();
   }
+
   Rehash();
   CommitPostProcessedObjects();
   return scope.CloseAndEscape(result);
 }
 
-void ObjectDeserializer::FlushICache() {
-  DCHECK(deserializing_user_code());
-  for (Code code : new_code_objects()) {
-    // Record all references to embedded objects in the new code object.
-#ifndef V8_DISABLE_WRITE_BARRIERS
-    WriteBarrierForCode(code);
-#endif
-    FlushInstructionCache(code.raw_instruction_start(),
-                          code.raw_instruction_size());
-  }
-}
-
 void ObjectDeserializer::CommitPostProcessedObjects() {
-  CHECK_LE(new_internalized_strings().size(), kMaxInt);
-  StringTable::EnsureCapacityForDeserialization(
-      isolate(), static_cast<int>(new_internalized_strings().size()));
-  for (Handle<String> string : new_internalized_strings()) {
-    DisallowHeapAllocation no_gc;
-    StringTableInsertionKey key(*string);
-    StringTable::AddKeyNoResize(isolate(), &key);
-  }
-
-  Heap* heap = isolate()->heap();
-  Factory* factory = isolate()->factory();
-  for (Handle<Script> script : new_scripts()) {
-    // Assign a new script id to avoid collision.
-    script->set_id(isolate()->GetNextScriptId());
-    LogScriptEvents(*script);
-    // Add script to list.
-    Handle<WeakArrayList> list = factory->script_list();
-    list = WeakArrayList::AddToEnd(isolate(), list,
-                                   MaybeObjectHandle::Weak(script));
-    heap->SetRootScriptList(*list);
-  }
-
   for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
     uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
     auto bs = backing_store(store_index);
     SharedFlag shared =
         bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
     buffer->Setup(shared, bs);
+  }
+
+  for (Handle<Script> script : new_scripts()) {
+    // Assign a new script id to avoid collision.
+    script->set_id(isolate()->GetNextScriptId());
+    LogScriptEvents(*script);
+    // Add script to list.
+      Handle<WeakArrayList> list = isolate()->factory()->script_list();
+      list = WeakArrayList::AddToEnd(isolate(), list,
+                                     MaybeObjectHandle::Weak(script));
+      isolate()->heap()->SetRootScriptList(*list);
   }
 }
 

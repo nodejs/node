@@ -34,6 +34,11 @@ class BuiltinsConstantsTableBuilder final {
   void PatchSelfReference(Handle<Object> self_reference,
                           Handle<Code> code_object);
 
+  // References to the array that stores basic block usage counters start out as
+  // references to a unique oddball. Once the actual array has been allocated,
+  // such entries in the constants map must be patched up.
+  void PatchBasicBlockCountersReference(Handle<ByteArray> counters);
+
   // Should be called after all affected code (e.g. builtins and bytecode
   // handlers) has been generated.
   void Finalize();

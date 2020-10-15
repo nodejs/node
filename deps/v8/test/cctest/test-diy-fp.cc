@@ -60,20 +60,20 @@ TEST(Multiply) {
   CHECK_EQ(0, diy_fp1.f());
   CHECK_EQ(64, diy_fp1.e());
 
-  diy_fp1 = DiyFp(V8_2PART_UINT64_C(0x80000000, 00000000), 11);
+  diy_fp1 = DiyFp(0x8000'0000'0000'0000, 11);
   diy_fp2 = DiyFp(2, 13);
   product = DiyFp::Times(diy_fp1, diy_fp2);
   CHECK_EQ(1, product.f());
   CHECK_EQ(11 + 13 + 64, product.e());
 
   // Test rounding.
-  diy_fp1 = DiyFp(V8_2PART_UINT64_C(0x80000000, 00000001), 11);
+  diy_fp1 = DiyFp(0x8000'0000'0000'0001, 11);
   diy_fp2 = DiyFp(1, 13);
   product = DiyFp::Times(diy_fp1, diy_fp2);
   CHECK_EQ(1, product.f());
   CHECK_EQ(11 + 13 + 64, product.e());
 
-  diy_fp1 = DiyFp(V8_2PART_UINT64_C(0x7FFFFFFF, FFFFFFFF), 11);
+  diy_fp1 = DiyFp(0x7FFF'FFFF'FFFF'FFFF, 11);
   diy_fp2 = DiyFp(1, 13);
   product = DiyFp::Times(diy_fp1, diy_fp2);
   CHECK_EQ(0, product.f());
@@ -82,11 +82,11 @@ TEST(Multiply) {
   // Halfway cases are allowed to round either way. So don't check for it.
 
   // Big numbers.
-  diy_fp1 = DiyFp(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF), 11);
-  diy_fp2 = DiyFp(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF), 13);
+  diy_fp1 = DiyFp(0xFFFF'FFFF'FFFF'FFFF, 11);
+  diy_fp2 = DiyFp(0xFFFF'FFFF'FFFF'FFFF, 13);
   // 128bit result: 0xFFFFFFFFFFFFFFFE0000000000000001
   product = DiyFp::Times(diy_fp1, diy_fp2);
-  CHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFE) == product.f());
+  CHECK_EQ(0xFFFF'FFFF'FFFF'FFFE, product.f());
   CHECK_EQ(11 + 13 + 64, product.e());
 }
 

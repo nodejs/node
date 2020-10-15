@@ -28,9 +28,7 @@ class Vector {
   constexpr Vector() : start_(nullptr), length_(0) {}
 
   constexpr Vector(T* data, size_t length) : start_(data), length_(length) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(length == 0 || data != nullptr);
-#endif
+    CONSTEXPR_DCHECK(length == 0 || data != nullptr);
   }
 
   static Vector<T> New(size_t length) {
@@ -115,9 +113,7 @@ class Vector {
   }
 
   // Implicit conversion from Vector<T> to Vector<const T>.
-  inline operator Vector<const T>() const {
-    return Vector<const T>::cast(*this);
-  }
+  operator Vector<const T>() const { return {start_, length_}; }
 
   template <typename S>
   static Vector<T> cast(Vector<S> input) {
@@ -163,6 +159,7 @@ class OwnedVector {
       : data_(std::move(data)), length_(length) {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
   }
+
   // Implicit conversion from {OwnedVector<U>} to {OwnedVector<T>}, instantiable
   // if {std::unique_ptr<U>} can be converted to {std::unique_ptr<T>}.
   // Can be used to convert {OwnedVector<T>} to {OwnedVector<const T>}.
@@ -207,9 +204,18 @@ class OwnedVector {
   }
 
   // Allocates a new vector of the specified size via the default allocator.
+  // Elements in the new vector are value-initialized.
   static OwnedVector<T> New(size_t size) {
     if (size == 0) return {};
     return OwnedVector<T>(std::make_unique<T[]>(size), size);
+  }
+
+  // Allocates a new vector of the specified size via the default allocator.
+  // Elements in the new vector are default-initialized.
+  static OwnedVector<T> NewForOverwrite(size_t size) {
+    if (size == 0) return {};
+    // TODO(v8): Use {std::make_unique_for_overwrite} once we allow C++20.
+    return OwnedVector<T>(std::unique_ptr<T[]>(new T[size]), size);
   }
 
   // Allocates a new vector containing the specified collection of values.
@@ -222,7 +228,8 @@ class OwnedVector {
     Iterator begin = std::begin(collection);
     Iterator end = std::end(collection);
     using non_const_t = typename std::remove_const<T>::type;
-    auto vec = OwnedVector<non_const_t>::New(std::distance(begin, end));
+    auto vec =
+        OwnedVector<non_const_t>::NewForOverwrite(std::distance(begin, end));
     std::copy(begin, end, vec.start());
     return vec;
   }
@@ -287,6 +294,14 @@ template <typename Container>
 inline constexpr auto VectorOf(Container&& c)
     -> decltype(VectorOf(c.data(), c.size())) {
   return VectorOf(c.data(), c.size());
+}
+
+// Construct a Vector from an initializer list. The vector can obviously only be
+// used as long as the initializer list is live. Valid uses include direct use
+// in parameter lists: F(VectorOf({1, 2, 3}));
+template <typename T>
+inline constexpr Vector<const T> VectorOf(std::initializer_list<T> list) {
+  return VectorOf(list.begin(), list.size());
 }
 
 template <typename T, size_t kSize>

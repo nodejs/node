@@ -713,16 +713,18 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   TransitionsAccessor transitions(isolate_, split_map);
 
   // Invalidate a transition target at |key|.
-  Map maybe_transition = transitions.SearchTransition(
-      GetKey(split_index), split_details.kind(), split_details.attributes());
-  if (!maybe_transition.is_null()) {
-    maybe_transition.DeprecateTransitionTree(isolate_);
+  Handle<Map> maybe_transition(
+      transitions.SearchTransition(GetKey(split_index), split_details.kind(),
+                                   split_details.attributes()),
+      isolate_);
+  if (!maybe_transition->is_null()) {
+    maybe_transition->DeprecateTransitionTree(isolate_);
   }
 
   // If |maybe_transition| is not nullptr then the transition array already
   // contains entry for given descriptor. This means that the transition
   // could be inserted regardless of whether transitions array is full or not.
-  if (maybe_transition.is_null() && !transitions.CanHaveMoreTransitions()) {
+  if (maybe_transition->is_null() && !transitions.CanHaveMoreTransitions()) {
     return Normalize("Normalize_CantHaveMoreTransitions");
   }
 

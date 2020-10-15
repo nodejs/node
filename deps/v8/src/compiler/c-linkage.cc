@@ -222,7 +222,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   flags |= CallDescriptor::kNoAllocate;
 
-  return new (zone) CallDescriptor(  // --
+  return zone->New<CallDescriptor>(  // --
       CallDescriptor::kCallAddress,  // kind
       target_type,                   // target MachineType
       target_loc,                    // target location

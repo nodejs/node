@@ -54,7 +54,6 @@ namespace internal {
   V(SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE)      \
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
   V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
-  V(STRING_TABLE_SUB_TYPE)                       \
   V(TEMPLATE_INFO_SUB_TYPE)                      \
   V(FEEDBACK_METADATA_SUB_TYPE)                  \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
@@ -110,6 +109,13 @@ class FixedArray
   V8_EXPORT_PRIVATE static Handle<FixedArray> SetAndGrow(
       Isolate* isolate, Handle<FixedArray> array, int index,
       Handle<Object> value);
+
+  // Synchronized setters and getters.
+  inline Object synchronized_get(int index) const;
+  inline Object synchronized_get(const Isolate* isolate, int index) const;
+  // Currently only Smis are written with release semantics, hence we can avoid
+  // a write barrier.
+  inline void synchronized_set(int index, Smi value);
 
   // Setter that uses write barrier.
   inline void set(int index, Object value);
@@ -453,11 +459,14 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   // number returned by Length() is stored in the first entry.
   static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
 
+  static const int kHeaderFields = 1;
+
  private:
   static Handle<ArrayList> EnsureSpace(Isolate* isolate,
                                        Handle<ArrayList> array, int length);
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
+  STATIC_ASSERT(kHeaderFields == kFirstIndex);
   TQ_OBJECT_CONSTRUCTORS(ArrayList)
 };
 
@@ -465,7 +474,8 @@ enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
 
 template <SearchMode search_mode, typename T>
 inline int Search(T* array, Name name, int valid_entries = 0,
-                  int* out_insertion_index = nullptr);
+                  int* out_insertion_index = nullptr,
+                  bool concurrent_search = false);
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info
 // that is attached to code objects.

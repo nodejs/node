@@ -159,3 +159,46 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(" --right--");
   assertEquals(3, module.exports.main(0, -2, 3));
 })();
+
+(function TestMultiReturnCallWithLongSig() {
+  print(arguments.callee.name);
+  const callee_inputs = 10;
+  // Tail call from a function with less, as many, or more parameters than the
+  // callee.
+  for (caller_inputs = 9; caller_inputs <= 11; ++caller_inputs) {
+    let builder = new WasmModuleBuilder();
+
+    // f just returns its arguments in reverse order.
+    const f_params = new Array(callee_inputs).fill(kWasmI32);
+    const f_returns = f_params;
+    const f_sig = builder.addType(makeSig(f_params, f_returns));
+    let f_body = [];
+    for (i = 0; i < callee_inputs; ++i) {
+      f_body.push(kExprLocalGet, callee_inputs - i - 1);
+    }
+    const f = builder.addFunction("f", f_sig).addBody(f_body);
+
+    // Slice or pad the caller inputs to match the callee.
+    const main_params = new Array(caller_inputs).fill(kWasmI32);
+    const main_sig = builder.addType(makeSig(main_params, f_returns));
+    let main_body = [];
+    for (i = 0; i < callee_inputs; ++i) {
+      main_body.push(kExprLocalGet, Math.min(caller_inputs - 1, i));
+    }
+    main_body.push(kExprReturnCall, f.index);
+    builder.addFunction("main", main_sig).addBody(main_body).exportFunc();
+
+    let module = builder.instantiate();
+
+    inputs = [];
+    for (i = 0; i < caller_inputs; ++i) {
+      inputs.push(i);
+    }
+    let expect = inputs.slice(0, callee_inputs);
+    while (expect.length < callee_inputs) {
+      expect.push(inputs[inputs.length - 1]);
+    }
+    expect.reverse();
+    assertEquals(expect, module.exports.main(...inputs));
+  }
+})();

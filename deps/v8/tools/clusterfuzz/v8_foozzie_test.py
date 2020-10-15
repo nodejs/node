@@ -49,10 +49,6 @@ class ConfigTest(unittest.TestCase):
     assert all(map(lambda x: x[2] in CONFIGS, EXPERIMENTS))
     # The last config item points to a known build configuration.
     assert all(map(lambda x: x[3] in KNOWN_BUILDS, EXPERIMENTS))
-    # Ensure we compare different configs and same d8, or same config
-    # to different d8.
-    is_sane_comparison = lambda x: (x[1] == x[2]) == ('d8' != x[3])
-    assert all(map(is_sane_comparison, EXPERIMENTS))
     # All flags have a probability.
     first_is_float = lambda x: type(x[0]) == float
     assert all(map(first_is_float, FLAGS))
@@ -101,10 +97,26 @@ class ConfigTest(unittest.TestCase):
 
 
 class UnitTest(unittest.TestCase):
+  def testCluster(self):
+    crash_test_example_path = 'CrashTests/path/to/file.js'
+    self.assertEqual(
+        v8_foozzie.ORIGINAL_SOURCE_DEFAULT,
+        v8_foozzie.cluster_failures(''))
+    self.assertEqual(
+        v8_foozzie.ORIGINAL_SOURCE_CRASHTESTS,
+        v8_foozzie.cluster_failures(crash_test_example_path))
+    self.assertEqual(
+        '_o_O_',
+        v8_foozzie.cluster_failures(
+            crash_test_example_path,
+            known_failures={crash_test_example_path: '_o_O_'}))
+    self.assertEqual(
+        '980',
+        v8_foozzie.cluster_failures('v8/test/mjsunit/apply.js'))
+
   def testDiff(self):
     def diff_fun(one, two, skip=False):
-      suppress = v8_suppressions.get_suppression(
-          'x64', 'ignition', 'x64', 'ignition_turbo', skip)
+      suppress = v8_suppressions.get_suppression(skip)
       return suppress.diff_lines(one.splitlines(), two.splitlines())
 
     one = ''
@@ -117,19 +129,19 @@ class UnitTest(unittest.TestCase):
     diff = None, None
     self.assertEqual(diff, diff_fun(one, two))
 
-    # Ignore line before caret, caret position and error message.
+    # Ignore line before caret and caret position.
     one = """
 undefined
 weird stuff
       ^
-somefile.js: TypeError: undefined is not a function
+somefile.js: TypeError: suppressed message
   undefined
 """
     two = """
 undefined
 other weird stuff
             ^
-somefile.js: TypeError: baz is not a function
+somefile.js: TypeError: suppressed message
   undefined
 """
     diff = None, None
@@ -170,22 +182,22 @@ otherfile.js: TypeError: undefined is not a constructor
     # Test that skipping suppressions works.
     one = """
 v8-foozzie source: foo
-23:TypeError: bar is not a function
+weird stuff
+      ^
 """
     two = """
 v8-foozzie source: foo
-42:TypeError: baz is not a function
+other weird stuff
+            ^
 """
     self.assertEqual((None, 'foo'), diff_fun(one, two))
-    diff = """- 23:TypeError: bar is not a function
-+ 42:TypeError: baz is not a function""", 'foo'
+    diff = ('-       ^\n+             ^', 'foo')
     self.assertEqual(diff, diff_fun(one, two, skip=True))
 
   def testOutputCapping(self):
     def output(stdout, is_crash):
       exit_code = -1 if is_crash else 0
-      return v8_commands.Output(
-          exit_code=exit_code, timed_out=False, stdout=stdout, pid=0)
+      return v8_commands.Output(exit_code=exit_code, stdout=stdout, pid=0)
 
     def check(stdout1, stdout2, is_crash1, is_crash2, capped_lines1,
               capped_lines2):
@@ -222,9 +234,10 @@ v8-foozzie source: foo
     check('123', '45', True, True, '12', '45')
 
 
-def cut_verbose_output(stdout):
-  # This removes first lines containing d8 commands.
-  return '\n'.join(stdout.split('\n')[4:])
+def cut_verbose_output(stdout, n_comp):
+  # This removes the first lines containing d8 commands of `n_comp` comparison
+  # runs.
+  return '\n'.join(stdout.split('\n')[n_comp * 2:])
 
 
 def run_foozzie(second_d8_dir, *extra_flags, **kwargs):
@@ -258,7 +271,8 @@ class SystemTest(unittest.TestCase):
   """
   def testSyntaxErrorDiffPass(self):
     stdout = run_foozzie('build1', '--skip-sanity-checks')
-    self.assertEqual('# V8 correctness - pass\n', cut_verbose_output(stdout))
+    self.assertEqual('# V8 correctness - pass\n',
+                     cut_verbose_output(stdout, 3))
     # Default comparison includes suppressions.
     self.assertIn('v8_suppressions.js', stdout)
     # Default comparison doesn't include any specific mock files.
@@ -275,7 +289,7 @@ class SystemTest(unittest.TestCase):
                   '--second-config-extra-flags=--flag3')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEqual(expected_output, cut_verbose_output(e.output))
+    self.assertEqual(expected_output, cut_verbose_output(e.output, 2))
 
   def testSanityCheck(self):
     with open(os.path.join(TEST_DATA, 'sanity_check_output.txt')) as f:

@@ -59,6 +59,26 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
   return true;
 }
 
+bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
+                                                         size_t size) {
+  Address address = reinterpret_cast<Address>(ptr);
+  CHECK(IsAligned(address, allocate_page_size_));
+  CHECK(IsAligned(size, commit_page_size_));
+  CHECK(region_allocator_.contains(address, size));
+
+  // Region allocator requires page size rather than commit size so just over-
+  // allocate there since any extra space couldn't be used anyway.
+  size_t region_size = RoundUp(size, allocate_page_size_);
+  if (!region_allocator_.AllocateRegionAt(
+          address, region_size, RegionAllocator::RegionState::kExcluded)) {
+    return false;
+  }
+
+  CHECK(page_allocator_->SetPermissions(ptr, size,
+                                        PageAllocator::Permission::kNoAccess));
+  return true;
+}
+
 bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
   MutexGuard guard(&mutex_);
 

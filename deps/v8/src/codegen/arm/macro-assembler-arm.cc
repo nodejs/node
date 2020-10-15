@@ -2455,7 +2455,7 @@ void TurboAssembler::CheckPageFlag(Register object, int mask, Condition cc,
   Register scratch = temps.Acquire();
   DCHECK(cc == eq || cc == ne);
   Bfc(scratch, object, 0, kPageSizeBits);
-  ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  ldr(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
   tst(scratch, Operand(mask));
   b(cc, condition_met);
 }

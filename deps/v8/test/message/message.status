@@ -41,6 +41,7 @@
 # TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
 ['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
   'wasm-trace-memory-liftoff': [SKIP],
+  'wasm-trace-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
 
 ['variant == code_serializer', {
@@ -57,6 +58,7 @@
 ['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'mjsunit/fail/assert-promise-result-wasm-compile-fail': [SKIP],
+  'mjsunit/fail/assert-in-promise-fail-recursive': [FAIL],
   'fail/wasm-*': [SKIP],
   'wasm-*': [SKIP],
 

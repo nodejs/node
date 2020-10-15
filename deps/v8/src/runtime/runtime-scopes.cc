@@ -18,6 +18,8 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime-utils.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -408,20 +410,19 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
   if (argument_count > 0) {
     if (parameter_count > 0) {
       int mapped_count = Min(argument_count, parameter_count);
-      Handle<FixedArray> parameter_map = isolate->factory()->NewFixedArray(
-          mapped_count + 2, AllocationType::kYoung);
-      parameter_map->set_map(
-          ReadOnlyRoots(isolate).sloppy_arguments_elements_map());
-      result->set_map(isolate->native_context()->fast_aliased_arguments_map());
-      result->set_elements(*parameter_map);
 
       // Store the context and the arguments array at the beginning of the
       // parameter map.
       Handle<Context> context(isolate->context(), isolate);
       Handle<FixedArray> arguments = isolate->factory()->NewFixedArray(
           argument_count, AllocationType::kYoung);
-      parameter_map->set(0, *context);
-      parameter_map->set(1, *arguments);
+
+      Handle<SloppyArgumentsElements> parameter_map =
+          isolate->factory()->NewSloppyArgumentsElements(
+              mapped_count, context, arguments, AllocationType::kYoung);
+
+      result->set_map(isolate->native_context()->fast_aliased_arguments_map());
+      result->set_elements(*parameter_map);
 
       // Loop over the actual parameters backwards.
       int index = argument_count - 1;
@@ -438,7 +439,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
       // arguments object.
       for (int i = 0; i < mapped_count; i++) {
         arguments->set(i, parameters[i]);
-        parameter_map->set_the_hole(i + 2);
+        parameter_map->set_mapped_entries(
+            i, *isolate->factory()->the_hole_value());
       }
 
       // Walk all context slots to find context allocated parameters. Mark each
@@ -449,7 +451,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         if (parameter >= mapped_count) continue;
         arguments->set_the_hole(parameter);
         Smi slot = Smi::FromInt(scope_info->ContextHeaderLength() + i);
-        parameter_map->set(parameter + 2, slot);
+        parameter_map->set_mapped_entries(parameter, slot);
       }
     } else {
       // If there is no aliasing, the arguments object elements are not
@@ -550,30 +552,6 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   return *result;
 }
 
-RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  // Note that args[0] is the address of an array of full object pointers
-  // (a.k.a. FullObjectSlot), which looks like a Smi because it's aligned.
-  DCHECK(args[0].IsSmi());
-  FullObjectSlot frame(args[0].ptr());
-  CONVERT_SMI_ARG_CHECKED(length, 1);
-  CONVERT_SMI_ARG_CHECKED(mapped_count, 2);
-  Handle<FixedArray> result =
-      isolate->factory()->NewUninitializedFixedArray(length);
-  int const offset = length + 1;
-  DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  int number_of_holes = Min(mapped_count, length);
-  for (int index = 0; index < number_of_holes; ++index) {
-    result->set_the_hole(isolate, index);
-  }
-  for (int index = number_of_holes; index < length; ++index) {
-    result->set(index, *(frame + (offset - index)), mode);
-  }
-  return *result;
-}
-
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -610,40 +588,35 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   return *isolate->factory()->NewFunctionContext(outer, scope_info);
 }
 
+// TODO(jgruber): Rename these functions to 'New...Context'.
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, extension_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
   Handle<Context> current(isolate->context(), isolate);
-  Handle<Context> context =
-      isolate->factory()->NewWithContext(current, scope_info, extension_object);
-  isolate->set_context(*context);
-  return *context;
+  return *isolate->factory()->NewWithContext(current, scope_info,
+                                             extension_object);
 }
 
+// TODO(jgruber): Rename these functions to 'New...Context'.
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
   Handle<Context> current(isolate->context(), isolate);
-  Handle<Context> context =
-      isolate->factory()->NewCatchContext(current, scope_info, thrown_object);
-  isolate->set_context(*context);
-  return *context;
+  return *isolate->factory()->NewCatchContext(current, scope_info,
+                                              thrown_object);
 }
 
-
+// TODO(jgruber): Rename these functions to 'New...Context'.
 RUNTIME_FUNCTION(Runtime_PushBlockContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
   Handle<Context> current(isolate->context(), isolate);
-  Handle<Context> context =
-      isolate->factory()->NewBlockContext(current, scope_info);
-  isolate->set_context(*context);
-  return *context;
+  return *isolate->factory()->NewBlockContext(current, scope_info);
 }
 
 

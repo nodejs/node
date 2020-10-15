@@ -148,6 +148,7 @@ v8_source_set("cctest_sources") {
     "heap/test-spaces.cc",
     "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",
+    "heap/test-write-barrier.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
     "interpreter/interpreter-tester.cc",
@@ -196,6 +197,10 @@ v8_source_set("cctest_sources") {
     "test-code-pages.cc",
     "test-code-stub-assembler.cc",
     "test-compiler.cc",
+    "test-concurrent-descriptor-array.cc",
+    "test-concurrent-prototype.cc",
+    "test-concurrent-script-context-table.cc",
+    "test-concurrent-transition-array.cc",
     "test-constantpool.cc",
     "test-conversions.cc",
     "test-cpu-profiler.cc",
@@ -393,6 +398,7 @@ v8_source_set("cctest_sources") {
   }
 
   configs = [
+    "../..:cppgc_base_config",
     "../..:external_config",
     "../..:internal_config_base",
     "../..:v8_tracing_config",
@@ -404,7 +410,7 @@ v8_source_set("cctest_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "../..:wasm_module_runner",
+    "../..:wasm_test_common",
     "../../tools/debug_helper:v8_debug_helper",
     "//build/win:default_exe_manifest",
   ]

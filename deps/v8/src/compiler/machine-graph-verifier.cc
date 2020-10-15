@@ -735,23 +735,6 @@ class MachineRepresentationChecker {
     }
   }
 
-  void CheckValueInputIsCompressed(Node const* node, int index) {
-    Node const* input = node->InputAt(index);
-    switch (inferrer_->GetRepresentation(input)) {
-      case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCompressedPointer:
-        return;
-      default:
-        break;
-    }
-    std::ostringstream str;
-    str << "TypeError: node #" << node->id() << ":" << *node->op()
-        << " uses node #" << input->id() << ":" << *input->op()
-        << " which doesn't have a compressed representation.";
-    PrintDebugHelp(str, node);
-    FATAL("%s", str.str().c_str());
-  }
-
   void CheckValueInputIsTagged(Node const* node, int index) {
     Node const* input = node->InputAt(index);
     switch (inferrer_->GetRepresentation(input)) {
@@ -982,35 +965,6 @@ class MachineRepresentationChecker {
     if (should_log_error) {
       PrintDebugHelp(str, node);
       FATAL("%s", str.str().c_str());
-    }
-  }
-
-  bool Intersect(MachineRepresentation lhs, MachineRepresentation rhs) {
-    return (GetRepresentationProperties(lhs) &
-            GetRepresentationProperties(rhs)) != 0;
-  }
-
-  enum RepresentationProperties { kIsPointer = 1, kIsTagged = 2 };
-
-  int GetRepresentationProperties(MachineRepresentation representation) {
-    switch (representation) {
-      case MachineRepresentation::kTagged:
-      case MachineRepresentation::kTaggedPointer:
-        return kIsPointer | kIsTagged;
-      case MachineRepresentation::kTaggedSigned:
-        return kIsTagged;
-      case MachineRepresentation::kWord32:
-        return MachineRepresentation::kWord32 ==
-                       MachineType::PointerRepresentation()
-                   ? kIsPointer
-                   : 0;
-      case MachineRepresentation::kWord64:
-        return MachineRepresentation::kWord64 ==
-                       MachineType::PointerRepresentation()
-                   ? kIsPointer
-                   : 0;
-      default:
-        return 0;
     }
   }
 

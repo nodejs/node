@@ -218,7 +218,7 @@ setVariableValue with invalid scopeNumber
 {
     error : {
         code : -32602
-        data : scopeNumber: integer value expected
+        data : Failed to deserialize params.scopeNumber - BINDINGS: int32 value expected at <some position>
         message : Invalid parameters
     }
     id : <messageId>
@@ -253,7 +253,7 @@ setVariableValue with invalid objectId
 {
     error : {
         code : -32602
-        data : newValue.objectId: string value expected
+        data : Failed to deserialize params.newValue.objectId - BINDINGS: string value expected at <some position>
         message : Invalid parameters
     }
     id : <messageId>

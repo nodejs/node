@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "src/base/hashmap.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 

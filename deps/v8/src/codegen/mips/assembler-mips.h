@@ -170,6 +170,35 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 
+  // Mips uses BlockTrampolinePool to prevent generating trampoline inside a
+  // continuous instruction block. For Call instrution, it prevents generating
+  // trampoline between jalr and delay slot instruction. In the destructor of
+  // BlockTrampolinePool, it must check if it needs to generate trampoline
+  // immediately, if it does not do this, the branch range will go beyond the
+  // max branch offset, that means the pc_offset after call CheckTrampolinePool
+  // may be not the Call instruction's location. So we use last_call_pc here for
+  // safepoint record.
+  int pc_offset_for_safepoint() {
+#ifdef DEBUG
+    Instr instr1 =
+        instr_at(static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize));
+    Instr instr2 = instr_at(
+        static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize * 2));
+    if (GetOpcodeField(instr1) != SPECIAL) {  // instr1 == jialc.
+      DCHECK(IsMipsArchVariant(kMips32r6) && GetOpcodeField(instr1) == POP76 &&
+             GetRs(instr1) == 0);
+    } else {
+      if (GetFunctionField(instr1) == SLL) {  // instr1 == nop, instr2 == jalr.
+        DCHECK(GetOpcodeField(instr2) == SPECIAL &&
+               GetFunctionField(instr2) == JALR);
+      } else {  // instr1 == jalr.
+        DCHECK(GetFunctionField(instr1) == JALR);
+      }
+    }
+#endif
+    return static_cast<int>(last_call_pc_ - buffer_start_);
+  }
+
   // Label operations & relative jumps (PPUM Appendix D).
   //
   // Takes a branch opcode (cc) and a label (L) and generates
@@ -1593,6 +1622,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenPCRelativeJumpAndLink(Register t, int32_t imm32,
                                 RelocInfo::Mode rmode, BranchDelaySlot bdslot);
 
+  void set_last_call_pc_(byte* pc) { last_call_pc_ = pc; }
+
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -1855,6 +1886,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
+
+  // Keep track of the last Call's position to ensure that safepoint can get the
+  // correct information even if there is a trampoline immediately after the
+  // Call.
+  byte* last_call_pc_;
 
  private:
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);

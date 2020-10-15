@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100
+// Flags: --stack-size=100 --sim-stack-size=100
 
 function f() {
 }

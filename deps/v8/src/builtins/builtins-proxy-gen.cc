@@ -62,9 +62,10 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
 
 TNode<Context> ProxiesCodeStubAssembler::CreateProxyRevokeFunctionContext(
     TNode<JSProxy> proxy, TNode<NativeContext> native_context) {
-  const TNode<Context> context =
-      AllocateSyntheticFunctionContext(native_context, kProxyContextLength);
-  StoreContextElementNoWriteBarrier(context, kProxySlot, proxy);
+  const TNode<Context> context = AllocateSyntheticFunctionContext(
+      native_context, ProxyRevokeFunctionContextSlot::kProxyContextLength);
+  StoreContextElementNoWriteBarrier(
+      context, ProxyRevokeFunctionContextSlot::kProxySlot, proxy);
   return context;
 }
 

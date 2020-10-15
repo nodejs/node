@@ -59,9 +59,9 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   DCHECK_GE(local_register_count_, 0);
 
   if (FLAG_ignition_reo) {
-    register_optimizer_ = new (zone) BytecodeRegisterOptimizer(
+    register_optimizer_ = zone->New<BytecodeRegisterOptimizer>(
         zone, &register_allocator_, fixed_register_count(), parameter_count,
-        new (zone) RegisterTransferWriter(this));
+        zone->New<RegisterTransferWriter>(this));
   }
 }
 
@@ -107,7 +107,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 #ifdef DEBUG
 int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
@@ -129,7 +129,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     Bytecode bytecode) {
@@ -1554,8 +1554,8 @@ BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
 
   size_t constant_pool_index = constant_array_builder()->InsertJumpTable(size);
 
-  return new (zone())
-      BytecodeJumpTable(constant_pool_index, size, case_value_base, zone());
+  return zone()->New<BytecodeJumpTable>(constant_pool_index, size,
+                                        case_value_base, zone());
 }
 
 size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {

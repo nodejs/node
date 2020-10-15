@@ -1188,6 +1188,19 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   return *value;
 }
 
+RUNTIME_FUNCTION(Runtime_SetOwnPropertyIgnoreAttributes) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, o, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, attributes, 3);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSObject::SetOwnPropertyIgnoreAttributes(
+                   o, key, value, PropertyAttributes(attributes->value())));
+}
+
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
   HandleScope scope(isolate);
 

@@ -14,6 +14,7 @@
 #include "src/objects/code.h"
 #include "src/objects/js-array.h"
 #include "src/objects/map.h"
+#include "src/objects/string-table.h"
 #include "src/objects/string.h"
 #include "src/snapshot/deserializer-allocator.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -81,6 +82,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   }
 
   Isolate* isolate() const { return isolate_; }
+
   SnapshotByteSource* source() { return &source_; }
   const std::vector<AllocationSite>& new_allocation_sites() const {
     return new_allocation_sites_;
@@ -94,9 +96,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   }
   const std::vector<CallHandlerInfo>& call_handler_infos() const {
     return call_handler_infos_;
-  }
-  const std::vector<Handle<String>>& new_internalized_strings() const {
-    return new_internalized_strings_;
   }
   const std::vector<Handle<Script>>& new_scripts() const {
     return new_scripts_;
@@ -116,9 +115,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   bool can_rehash() const { return can_rehash_; }
 
   void Rehash();
-
-  // Cached current isolate.
-  Isolate* isolate_;
 
  private:
   void VisitRootPointers(Root root, const char* description,
@@ -148,17 +144,18 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   // Returns the new value of {current}.
   template <typename TSlot, Bytecode bytecode,
             SnapshotSpace space_number_if_any>
-  inline TSlot ReadDataCase(Isolate* isolate, TSlot current,
-                            Address current_object_address, byte data,
-                            bool write_barrier_needed);
+  inline TSlot ReadDataCase(TSlot current, Address current_object_address,
+                            byte data, bool write_barrier_needed);
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
-  HeapObject ReadObject();
   HeapObject ReadObject(SnapshotSpace space_number);
   void ReadCodeObjectBody(SnapshotSpace space_number,
                           Address code_object_address);
+
+ protected:
+  HeapObject ReadObject();
 
  public:
   void VisitCodeTarget(Code host, RelocInfo* rinfo);
@@ -175,6 +172,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject PostProcessNewObject(HeapObject obj, SnapshotSpace space);
 
+  // Cached current isolate.
+  Isolate* isolate_;
+
   // Objects from the attached object descriptions in the serialized user code.
   std::vector<Handle<HeapObject>> attached_objects_;
 
@@ -186,7 +186,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   std::vector<Code> new_code_objects_;
   std::vector<AccessorInfo> accessor_infos_;
   std::vector<CallHandlerInfo> call_handler_infos_;
-  std::vector<Handle<String>> new_internalized_strings_;
   std::vector<Handle<Script>> new_scripts_;
   std::vector<Handle<JSArrayBuffer>> new_off_heap_array_buffers_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
@@ -216,18 +215,17 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey final : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(String string);
+  explicit StringTableInsertionKey(Handle<String> string);
 
   bool IsMatch(String string) override;
 
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
-
-  String string() const { return string_; }
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate);
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate);
 
  private:
   uint32_t ComputeHashField(String string);
 
-  String string_;
+  Handle<String> string_;
   DISALLOW_HEAP_ALLOCATION(no_gc)
 };
 

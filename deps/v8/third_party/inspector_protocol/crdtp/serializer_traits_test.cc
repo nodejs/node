@@ -172,12 +172,12 @@ TEST(FieldSerializerTraits, RequiredField) {
 template <typename T>
 class FieldSerializerTraits_MaybeTest : public ::testing::Test {};
 using MaybeTypes =
-    ::testing::Types<glue::detail::ValueMaybe<bool>,
-                     glue::detail::ValueMaybe<double>,
-                     glue::detail::ValueMaybe<int32_t>,
-                     glue::detail::ValueMaybe<std::string>,
-                     glue::detail::PtrMaybe<Foo>,
-                     glue::detail::PtrMaybe<std::vector<std::unique_ptr<Foo>>>>;
+    ::testing::Types<detail::ValueMaybe<bool>,
+                     detail::ValueMaybe<double>,
+                     detail::ValueMaybe<int32_t>,
+                     detail::ValueMaybe<std::string>,
+                     detail::PtrMaybe<Foo>,
+                     detail::PtrMaybe<std::vector<std::unique_ptr<Foo>>>>;
 TYPED_TEST_SUITE(FieldSerializerTraits_MaybeTest, MaybeTypes);
 
 TYPED_TEST(FieldSerializerTraits_MaybeTest, NoOutputForFieldsIfNotJust) {
@@ -188,9 +188,8 @@ TYPED_TEST(FieldSerializerTraits_MaybeTest, NoOutputForFieldsIfNotJust) {
 
 TEST(FieldSerializerTraits, MaybeBool) {
   std::vector<uint8_t> out;
-  SerializeField(SpanFrom("true"), glue::detail::ValueMaybe<bool>(true), &out);
-  SerializeField(SpanFrom("false"), glue::detail::ValueMaybe<bool>(false),
-                 &out);
+  SerializeField(SpanFrom("true"), detail::ValueMaybe<bool>(true), &out);
+  SerializeField(SpanFrom("false"), detail::ValueMaybe<bool>(false), &out);
 
   std::vector<uint8_t> expected;
   cbor::EncodeString8(SpanFrom("true"), &expected);
@@ -203,7 +202,7 @@ TEST(FieldSerializerTraits, MaybeBool) {
 
 TEST(FieldSerializerTraits, MaybeDouble) {
   std::vector<uint8_t> out;
-  SerializeField(SpanFrom("dbl"), glue::detail::ValueMaybe<double>(3.14), &out);
+  SerializeField(SpanFrom("dbl"), detail::ValueMaybe<double>(3.14), &out);
 
   std::vector<uint8_t> expected;
   cbor::EncodeString8(SpanFrom("dbl"), &expected);
@@ -215,7 +214,7 @@ TEST(FieldSerializerTraits, MaybeDouble) {
 TEST(FieldSerializerTraits, MaybePtrFoo) {
   std::vector<uint8_t> out;
   SerializeField(SpanFrom("foo"),
-                 glue::detail::PtrMaybe<Foo>(std::make_unique<Foo>(42)), &out);
+                 detail::PtrMaybe<Foo>(std::make_unique<Foo>(42)), &out);
 
   std::vector<uint8_t> expected;
   cbor::EncodeString8(SpanFrom("foo"), &expected);

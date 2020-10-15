@@ -62,6 +62,20 @@ static const char kDebuggerNotPaused[] =
 
 static const size_t kBreakpointHintMaxLength = 128;
 static const intptr_t kBreakpointHintMaxSearchOffset = 80 * 10;
+// Limit the number of breakpoints returned, as we otherwise may exceed
+// the maximum length of a message in mojo (see https://crbug.com/1105172).
+static const size_t kMaxNumBreakpoints = 1000;
+
+// TODO(1099680): getScriptSource and getWasmBytecode return Wasm wire bytes
+// as protocol::Binary, which is encoded as JSON string in the communication
+// to the DevTools front-end and hence leads to either crashing the renderer
+// that is being debugged or the renderer that's running the front-end if we
+// allow arbitrarily big Wasm byte sequences here. Ideally we would find a
+// different way to transfer the wire bytes (middle- to long-term), but as a
+// short-term solution, we should at least not crash.
+static const size_t kWasmBytecodeMaxLength = (v8::String::kMaxLength / 4) * 3;
+static const char kWasmBytecodeExceedsTransferLimit[] =
+    "WebAssembly bytecode exceeds the transfer limit";
 
 namespace {
 
@@ -304,6 +318,26 @@ protocol::DictionaryValue* getOrCreateObject(protocol::DictionaryValue* object,
   object->setObject(key, std::move(newDictionary));
   return value;
 }
+
+Response isValidPosition(protocol::Debugger::ScriptPosition* position) {
+  if (position->getLineNumber() < 0)
+    return Response::ServerError("Position missing 'line' or 'line' < 0.");
+  if (position->getColumnNumber() < 0)
+    return Response::ServerError("Position missing 'column' or 'column' < 0.");
+  return Response::Success();
+}
+
+Response isValidRangeOfPositions(std::vector<std::pair<int, int>>& positions) {
+  for (size_t i = 1; i < positions.size(); ++i) {
+    if (positions[i - 1].first < positions[i].first) continue;
+    if (positions[i - 1].first == positions[i].first &&
+        positions[i - 1].second < positions[i].second)
+      continue;
+    return Response::ServerError(
+        "Input positions array is not sorted or contains duplicate values.");
+  }
+  return Response::Success();
+}
 }  // namespace
 
 V8DebuggerAgentImpl::V8DebuggerAgentImpl(
@@ -374,6 +408,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_blackboxedPositions.clear();
   m_blackboxPattern.reset();
   resetBlackboxedStateCache();
+  m_skipList.clear();
   m_scripts.clear();
   m_cachedScriptIds.clear();
   m_cachedScriptSize = 0;
@@ -725,7 +760,12 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
 
   *locations =
       std::make_unique<protocol::Array<protocol::Debugger::BreakLocation>>();
-  for (size_t i = 0; i < v8Locations.size(); ++i) {
+
+  // TODO(1106269): Return an error instead of capping the number of
+  // breakpoints.
+  const size_t numBreakpointsToSend =
+      std::min(v8Locations.size(), kMaxNumBreakpoints);
+  for (size_t i = 0; i < numBreakpointsToSend; ++i) {
     std::unique_ptr<protocol::Debugger::BreakLocation> breakLocation =
         protocol::Debugger::BreakLocation::create()
             .setScriptId(scriptId)
@@ -823,6 +863,33 @@ bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
   // blackboxed...
   return itStartRange == itEndRange &&
          std::distance(ranges.begin(), itStartRange) % 2;
+}
+
+bool V8DebuggerAgentImpl::shouldBeSkipped(const String16& scriptId, int line,
+                                          int column) {
+  if (m_skipList.empty()) return false;
+
+  auto it = m_skipList.find(scriptId);
+  if (it == m_skipList.end()) return false;
+
+  const std::vector<std::pair<int, int>>& ranges = it->second;
+  DCHECK(!ranges.empty());
+  const std::pair<int, int> location = std::make_pair(line, column);
+  auto itLowerBound = std::lower_bound(ranges.begin(), ranges.end(), location,
+                                       positionComparator);
+
+  bool shouldSkip = false;
+  if (itLowerBound != ranges.end()) {
+    // Skip lists are defined as pairs of locations that specify the
+    // start and the end of ranges to skip: [ranges[0], ranges[1], ..], where
+    // locations in [ranges[0], ranges[1]) should be skipped, i.e.
+    // [(lineStart, columnStart), (lineEnd, columnEnd)).
+    const bool isSameAsLowerBound = location == *itLowerBound;
+    const bool isUnevenIndex = (itLowerBound - ranges.begin()) % 2;
+    shouldSkip = isSameAsLowerBound ^ isUnevenIndex;
+  }
+
+  return shouldSkip;
 }
 
 bool V8DebuggerAgentImpl::acceptsPause(bool isOOMBreak) const {
@@ -978,6 +1045,9 @@ Response V8DebuggerAgentImpl::getScriptSource(
   *scriptSource = it->second->source(0);
   v8::MemorySpan<const uint8_t> span;
   if (it->second->wasmBytecode().To(&span)) {
+    if (span.size() > kWasmBytecodeMaxLength) {
+      return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
+    }
     *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
   }
   return Response::Success();
@@ -993,6 +1063,9 @@ Response V8DebuggerAgentImpl::getWasmBytecode(const String16& scriptId,
   if (!it->second->wasmBytecode().To(&span))
     return Response::ServerError("Script with id " + scriptId.utf8() +
                                  " is not WebAssembly");
+  if (span.size() > kWasmBytecodeMaxLength) {
+    return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
+  }
   *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
   return Response::Success();
 }
@@ -1053,15 +1126,34 @@ Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
   return Response::Success();
 }
 
-Response V8DebuggerAgentImpl::stepOver() {
+Response V8DebuggerAgentImpl::stepOver(
+    Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+
+  if (inSkipList.isJust()) {
+    const Response res = processSkipList(inSkipList.fromJust());
+    if (res.IsError()) return res;
+  } else {
+    m_skipList.clear();
+  }
+
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepOverStatement(m_session->contextGroupId());
   return Response::Success();
 }
 
-Response V8DebuggerAgentImpl::stepInto(Maybe<bool> inBreakOnAsyncCall) {
+Response V8DebuggerAgentImpl::stepInto(
+    Maybe<bool> inBreakOnAsyncCall,
+    Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+
+  if (inSkipList.isJust()) {
+    const Response res = processSkipList(inSkipList.fromJust());
+    if (res.IsError()) return res;
+  } else {
+    m_skipList.clear();
+  }
+
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepIntoStatement(m_session->contextGroupId(),
                                 inBreakOnAsyncCall.fromMaybe(false));
@@ -1326,23 +1418,14 @@ Response V8DebuggerAgentImpl::setBlackboxedRanges(
   positions.reserve(inPositions->size());
   for (const std::unique_ptr<protocol::Debugger::ScriptPosition>& position :
        *inPositions) {
-    if (position->getLineNumber() < 0)
-      return Response::ServerError("Position missing 'line' or 'line' < 0.");
-    if (position->getColumnNumber() < 0)
-      return Response::ServerError(
-          "Position missing 'column' or 'column' < 0.");
+    Response res = isValidPosition(position.get());
+    if (res.IsError()) return res;
+
     positions.push_back(
         std::make_pair(position->getLineNumber(), position->getColumnNumber()));
   }
-
-  for (size_t i = 1; i < positions.size(); ++i) {
-    if (positions[i - 1].first < positions[i].first) continue;
-    if (positions[i - 1].first == positions[i].first &&
-        positions[i - 1].second < positions[i].second)
-      continue;
-    return Response::ServerError(
-        "Input positions array is not sorted or contains duplicate values.");
-  }
+  Response res = isValidRangeOfPositions(positions);
+  if (res.IsError()) return res;
 
   m_blackboxedPositions[scriptId] = positions;
   it->second->resetBlackboxedStateCache();
@@ -1534,11 +1617,11 @@ void V8DebuggerAgentImpl::didParseSource(
   bool isModule = script->isModule();
   String16 scriptId = script->scriptId();
   String16 scriptURL = script->sourceURL();
+  String16 embedderName = script->embedderName();
   String16 scriptLanguage = getScriptLanguage(*script);
-  Maybe<int> codeOffset =
-      script->getLanguage() == V8DebuggerScript::Language::JavaScript
-          ? Maybe<int>()
-          : script->codeOffset();
+  Maybe<int> codeOffset;
+  if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly)
+    codeOffset = script->codeOffset();
   std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
       getDebugSymbols(*script);
 
@@ -1577,19 +1660,17 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
         scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
-        std::move(scriptLanguage));
+        std::move(scriptLanguage), embedderName);
     return;
   }
 
-  // TODO(herhut, dgozman): Report correct length for Wasm if needed for
-  // coverage. Or do not send the length at all and change coverage instead.
   if (scriptRef->isSourceLoadedLazily()) {
     m_frontend.scriptParsed(
         scriptId, scriptURL, 0, 0, 0, 0, contextId, scriptRef->hash(),
         std::move(executionContextAuxDataParam), isLiveEditParam,
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam, 0,
         std::move(stackTrace), std::move(codeOffset), std::move(scriptLanguage),
-        std::move(debugSymbols));
+        std::move(debugSymbols), embedderName);
   } else {
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
@@ -1598,7 +1679,7 @@ void V8DebuggerAgentImpl::didParseSource(
         isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
         isModuleParam, scriptRef->length(), std::move(stackTrace),
         std::move(codeOffset), std::move(scriptLanguage),
-        std::move(debugSymbols));
+        std::move(debugSymbols), embedderName);
   }
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;
@@ -1712,10 +1793,11 @@ void V8DebuggerAgentImpl::didPause(
                                  WrapMode::kNoPreview, &obj);
       std::unique_ptr<protocol::DictionaryValue> breakAuxData;
       if (obj) {
-        breakAuxData = obj->toValue();
+        std::vector<uint8_t> serialized;
+        obj->AppendSerialized(&serialized);
+        breakAuxData = protocol::DictionaryValue::cast(
+            protocol::Value::parseBinary(serialized.data(), serialized.size()));
         breakAuxData->setBoolean("uncaught", isUncaught);
-      } else {
-        breakAuxData = nullptr;
       }
       hitReasons.push_back(
           std::make_pair(breakReason, std::move(breakAuxData)));
@@ -1839,10 +1921,10 @@ void V8DebuggerAgentImpl::reset() {
   if (!enabled()) return;
   m_blackboxedPositions.clear();
   resetBlackboxedStateCache();
+  m_skipList.clear();
   m_scripts.clear();
   m_cachedScriptIds.clear();
   m_cachedScriptSize = 0;
-  m_breakpointIdToDebuggerBreakpointIds.clear();
 }
 
 void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
@@ -1861,4 +1943,38 @@ void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
   }
 }
 
+Response V8DebuggerAgentImpl::processSkipList(
+    protocol::Array<protocol::Debugger::LocationRange>* skipList) {
+  std::unordered_map<String16, std::vector<std::pair<int, int>>> skipListInit;
+  for (std::unique_ptr<protocol::Debugger::LocationRange>& range : *skipList) {
+    protocol::Debugger::ScriptPosition* start = range->getStart();
+    protocol::Debugger::ScriptPosition* end = range->getEnd();
+    String16 scriptId = range->getScriptId();
+
+    auto it = m_scripts.find(scriptId);
+    if (it == m_scripts.end())
+      return Response::ServerError("No script with passed id.");
+
+    Response res = isValidPosition(start);
+    if (res.IsError()) return res;
+
+    res = isValidPosition(end);
+    if (res.IsError()) return res;
+
+    skipListInit[scriptId].emplace_back(start->getLineNumber(),
+                                        start->getColumnNumber());
+    skipListInit[scriptId].emplace_back(end->getLineNumber(),
+                                        end->getColumnNumber());
+  }
+
+  // Verify that the skipList is sorted, and that all ranges
+  // are properly defined (start comes before end).
+  for (auto skipListPair : skipListInit) {
+    Response res = isValidRangeOfPositions(skipListPair.second);
+    if (res.IsError()) return res;
+  }
+
+  m_skipList = std::move(skipListInit);
+  return Response::Success();
+}
 }  // namespace v8_inspector

@@ -15,7 +15,7 @@ namespace compiler {
 class GraphAndBuilders {
  public:
   explicit GraphAndBuilders(Zone* zone)
-      : main_graph_(new (zone) Graph(zone)),
+      : main_graph_(zone->New<Graph>(zone)),
         main_common_(zone),
         main_machine_(zone, MachineType::PointerRepresentation(),
                       InstructionSelector::SupportedMachineOperatorFlags(),

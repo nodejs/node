@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "include/cppgc/internal/pointer-policies.h"
-#include "include/cppgc/internal/persistent-node.h"
 
+#include "include/cppgc/internal/persistent-node.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap.h"

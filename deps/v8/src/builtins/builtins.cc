@@ -350,8 +350,8 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
     Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags,
     bool generate_jump_to_instruction_stream) {
-  DCHECK_NOT_NULL(isolate->embedded_blob());
-  DCHECK_NE(0, isolate->embedded_blob_size());
+  DCHECK_NOT_NULL(isolate->embedded_blob_code());
+  DCHECK_NE(0, isolate->embedded_blob_code_size());
 
   OffHeapTrampolineGenerator generator(isolate);
 
@@ -360,7 +360,7 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
                                              ? TrampolineType::kJump
                                              : TrampolineType::kAbort);
 
-  return Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+  return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
       .set_read_only_data_container(kind_specfic_flags)
       .set_self_reference(generator.CodeObject())
       .set_is_executable(generate_jump_to_instruction_stream)

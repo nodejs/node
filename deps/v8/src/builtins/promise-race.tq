@@ -6,30 +6,14 @@
 
 namespace promise {
 
-extern macro PromiseForwardingHandlerSymbolConstant(): Symbol;
-const kPromiseForwardingHandlerSymbol: Symbol =
-    PromiseForwardingHandlerSymbolConstant();
-extern macro PromiseHandledBySymbolConstant(): Symbol;
-const kPromiseHandledBySymbol: Symbol = PromiseHandledBySymbolConstant();
-extern macro ResolveStringConstant(): String;
-const kResolveString: String = ResolveStringConstant();
-extern macro SetPropertyStrict(Context, Object, Object, Object): Object;
-extern macro IsPromiseResolveProtectorCellInvalid(): bool;
-
-macro IsPromiseResolveLookupChainIntact(implicit context: Context)(
-    nativeContext: NativeContext, constructor: JSReceiver): bool {
-  if (IsForceSlowPath()) return false;
-  const promiseFun = UnsafeCast<JSFunction>(
-      nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
-  return promiseFun == constructor && !IsPromiseResolveProtectorCellInvalid();
-}
-
 // https://tc39.es/ecma262/#sec-promise.race
 transitioning javascript builtin
 PromiseRace(
     js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
   const receiver = Cast<JSReceiver>(receiver)
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Promise.race');
+
+  const nativeContext = LoadNativeContext(context);
 
   // Let promiseCapability be ? NewPromiseCapability(C).
   // Don't fire debugEvent so that forwarding the rejection through all does
@@ -39,6 +23,10 @@ PromiseRace(
   const reject = capability.reject;
   const promise = capability.promise;
 
+  // NewPromiseCapability guarantees that receiver is Constructor.
+  assert(Is<Constructor>(receiver));
+  const constructor = UnsafeCast<Constructor>(receiver);
+
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
   if (IsDebugActive()) deferred {
@@ -46,10 +34,15 @@ PromiseRace(
     }
 
   try {
-    // Let iterator be GetIterator(iterable).
-    // IfAbruptRejectPromise(iterator, promiseCapability).
+    let promiseResolveFunction: JSAny;
     let i: iterator::IteratorRecord;
     try {
+      // Let promiseResolve be GetPromiseResolve(C).
+      // IfAbruptRejectPromise(promiseResolve, promiseCapability).
+      promiseResolveFunction = GetPromiseResolve(nativeContext, constructor);
+
+      // Let iterator be GetIterator(iterable).
+      // IfAbruptRejectPromise(iterator, promiseCapability).
       i = iterator::GetIterator(iterable);
     } catch (e) deferred {
       goto Reject(e);
@@ -57,26 +50,8 @@ PromiseRace(
 
     // Let result be PerformPromiseRace(iteratorRecord, C, promiseCapability).
     try {
-      // We can skip the "resolve" lookup on {constructor} if it's the
-      // Promise constructor and the Promise.resolve protector is intact,
-      // as that guards the lookup path for the "resolve" property on the
-      // Promise constructor.
-      const nativeContext = LoadNativeContext(context);
-      let promiseResolveFunction: JSAny = Undefined;
-      if (!IsPromiseResolveLookupChainIntact(nativeContext, receiver))
-        deferred {
-          // 3. Let _promiseResolve_ be ? Get(_constructor_, `"resolve"`).
-          const resolve = GetProperty(receiver, kResolveString);
-
-          // 4. If IsCallable(_promiseResolve_) is *false*, throw a
-          // *TypeError* exception.
-          promiseResolveFunction = Cast<Callable>(resolve)
-              otherwise ThrowTypeError(
-              MessageTemplate::kCalledNonCallable, 'resolve');
-        }
-
-      const fastIteratorResultMap = UnsafeCast<Map>(
-          nativeContext[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
+      const fastIteratorResultMap = *NativeContextSlot(
+          nativeContext, ContextSlot::ITERATOR_RESULT_MAP_INDEX);
       while (true) {
         let nextValue: JSAny;
         try {
@@ -96,9 +71,8 @@ PromiseRace(
         }
         // Let nextPromise be ? Call(constructor, _promiseResolve_, «
         // nextValue »).
-        const nextPromise = CallResolve(
-            UnsafeCast<Constructor>(receiver), promiseResolveFunction,
-            nextValue);
+        const nextPromise =
+            CallResolve(constructor, promiseResolveFunction, nextValue);
 
         // Perform ? Invoke(nextPromise, "then", « resolveElement,
         //                  resultCapability.[[Reject]] »).

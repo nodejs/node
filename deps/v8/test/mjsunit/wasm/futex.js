@@ -282,12 +282,12 @@ if (this.Worker) {
     if (num >= numWorkers) {
       // if numWorkers or more is passed to wake, numWorkers workers should be
       // woken.
-      assertEquals(numWorkers, Atomics.wake(i32a, indexJs, num));
+      assertEquals(numWorkers, Atomics.notify(i32a, indexJs, num));
     } else {
       // if num < numWorkers is passed to wake, num workers should be woken.
       // Then the remaining workers are woken for the next part
-      assertEquals(num, Atomics.wake(i32a, indexJs, num));
-      assertEquals(numWorkers-num, Atomics.wake(i32a, indexJs, numWorkers));
+      assertEquals(num, Atomics.notify(i32a, indexJs, num));
+      assertEquals(numWorkers-num, Atomics.notify(i32a, indexJs, numWorkers));
     }
     for (let id = 0; id < numWorkers; id++) {
       assertEquals(msg, workers[id].getMessage());

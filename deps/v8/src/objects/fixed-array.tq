@@ -36,11 +36,13 @@ extern class ByteArray extends FixedArrayBase {
 
 @hasSameInstanceTypeAsParent
 @generateCppClass
+@doNotGenerateCast
 extern class ArrayList extends FixedArray {
 }
 
 @hasSameInstanceTypeAsParent
 @generateCppClass
+@doNotGenerateCast
 extern class TemplateList extends FixedArray {
 }
 
@@ -101,6 +103,9 @@ operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
   a.objects[i] = v;
 }
 
+extern macro AllocateFixedArray(
+    constexpr ElementsKind, intptr, constexpr AllocationFlag): FixedArrayBase;
+
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
 extern macro CalculateNewElementsCapacity(Smi): Smi;
@@ -124,7 +129,7 @@ macro ExtractFixedArray(
   return NewFixedArray(
       capacity,
       IteratorSequence<Object>(
-          (& source.objects).Iterator(first, first + count),
+          (&source.objects).Iterator(first, first + count),
           ConstantIterator(TheHole)));
 }
 macro ExtractFixedDoubleArray(
@@ -134,7 +139,7 @@ macro ExtractFixedDoubleArray(
   return NewFixedDoubleArray(
       capacity,
       IteratorSequence<float64_or_hole>(
-          (& source.floats).Iterator(first, first + count),
+          (&source.floats).Iterator(first, first + count),
           ConstantIterator(kDoubleHole)));
 }
 

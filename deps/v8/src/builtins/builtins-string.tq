@@ -5,6 +5,43 @@
 #include 'src/builtins/builtins-string-gen.h'
 
 namespace string {
+
+// TODO(bbudge) Remove the 'RT' suffix on this runtime function.
+extern transitioning runtime ToStringRT(Context, JSAny): String;
+
+@export
+transitioning macro ToStringImpl(context: Context, o: JSAny): String {
+  let result: JSAny = o;
+  while (true) {
+    typeswitch (result) {
+      case (num: Number): {
+        return NumberToString(num);
+      }
+      case (str: String): {
+        return str;
+      }
+      case (oddball: Oddball): {
+        return oddball.to_string;
+      }
+      case (JSReceiver): {
+        result = NonPrimitiveToPrimitive_String(context, result);
+        continue;
+      }
+      case (Symbol): {
+        ThrowTypeError(MessageTemplate::kSymbolToString);
+      }
+      case (JSAny): {
+        return ToStringRT(context, o);
+      }
+    }
+  }
+  unreachable;
+}
+
+transitioning builtin ToString(context: Context, o: JSAny): String {
+  return ToStringImpl(context, o);
+}
+
 extern macro StringBuiltinsAssembler::SubString(
     String, uintptr, uintptr): String;
 
@@ -80,7 +117,7 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
       // check.
       const kMaxStringLengthFitsSmi: constexpr bool =
           kStringMaxLengthUintptr < kSmiMaxValue;
-      StaticAssert(kMaxStringLengthFitsSmi);
+      static_assert(kMaxStringLengthFitsSmi);
       if (index >= length) goto IfOutOfBounds;
       goto IfInBounds(string, index, length);
     }

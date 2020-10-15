@@ -16,6 +16,7 @@
 namespace v8 {
 namespace internal {
 
+class ProfileDataFromFile;
 class TickCounter;
 
 namespace compiler {
@@ -37,13 +38,16 @@ class V8_EXPORT_PRIVATE Scheduler {
   // The complete scheduling algorithm. Creates a new schedule and places all
   // nodes from the graph into it.
   static Schedule* ComputeSchedule(Zone* temp_zone, Graph* graph, Flags flags,
-                                   TickCounter* tick_counter);
+                                   TickCounter* tick_counter,
+                                   const ProfileDataFromFile* profile_data);
 
   // Compute the RPO of blocks in an existing schedule.
   static BasicBlockVector* ComputeSpecialRPO(Zone* zone, Schedule* schedule);
 
   // Computes the dominator tree on an existing schedule that has RPO computed.
   static void GenerateDominatorTree(Schedule* schedule);
+
+  const ProfileDataFromFile* profile_data() const { return profile_data_; }
 
  private:
   // Placement of a node changes during scheduling. The placement state
@@ -85,9 +89,11 @@ class V8_EXPORT_PRIVATE Scheduler {
   SpecialRPONumberer* special_rpo_;      // Special RPO numbering of blocks.
   ControlEquivalence* equivalence_;      // Control dependence equivalence.
   TickCounter* const tick_counter_;
+  const ProfileDataFromFile* profile_data_;
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
-            size_t node_count_hint_, TickCounter* tick_counter);
+            size_t node_count_hint_, TickCounter* tick_counter,
+            const ProfileDataFromFile* profile_data);
 
   inline SchedulerData DefaultSchedulerData();
   inline SchedulerData* GetData(Node* node);

@@ -6,6 +6,8 @@
 #define V8_WASM_MODULE_INSTANTIATE_H_
 
 #include <stdint.h>
+
+#include "include/v8-metrics.h"
 #include "include/v8config.h"
 
 namespace v8 {

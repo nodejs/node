@@ -125,7 +125,7 @@ TEST(DeoptimizeSimple) {
                   .ToLocalChecked()
                   ->Int32Value(env.local())
                   .FromJust());
-  CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
+  CHECK(!GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 
   // Test lazy deoptimization of a simple function. Call the function after the
@@ -145,7 +145,7 @@ TEST(DeoptimizeSimple) {
                   .ToLocalChecked()
                   ->Int32Value(env.local())
                   .FromJust());
-  CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
+  CHECK(!GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 }
 
@@ -172,7 +172,7 @@ TEST(DeoptimizeSimpleWithArguments) {
                   .ToLocalChecked()
                   ->Int32Value(env.local())
                   .FromJust());
-  CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
+  CHECK(!GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 
   // Test lazy deoptimization of a simple function with some arguments. Call the
@@ -193,7 +193,7 @@ TEST(DeoptimizeSimpleWithArguments) {
                   .ToLocalChecked()
                   ->Int32Value(env.local())
                   .FromJust());
-  CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
+  CHECK(!GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 }
 
@@ -226,7 +226,7 @@ TEST(DeoptimizeSimpleNested) {
                     .ToLocalChecked()
                     ->Int32Value(env.local())
                     .FromJust());
-    CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
+    CHECK(!GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
     CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
   }
 }
@@ -437,7 +437,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
       CompileRun(f_source);
       CompileRun("f('a+', new X());");
       CHECK(!i_isolate->use_optimizer() ||
-            GetJSFunction(env.local(), "f")->IsOptimized());
+            GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
 
       // Call f and force deoptimization while processing the binary operation.
       CompileRun(
@@ -446,7 +446,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
     }
     CcTest::CollectAllGarbage(i_isolate);
 
-    CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
+    CHECK(!GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
     CHECK_EQ(1, env->Global()
                     ->Get(env.local(), v8_str("count"))
                     .ToLocalChecked()
@@ -499,13 +499,13 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
   CompileRun(f_source);
   CompileRun("f(7, new X());");
   CHECK(!i_isolate->use_optimizer() ||
-        GetJSFunction((*env).local(), "f")->IsOptimized());
+        GetJSFunction((*env).local(), "f")->HasAttachedOptimizedCode());
 
   // Call f and force deoptimization while processing the binary operation.
   CompileRun("deopt = true;"
              "var result = f(7, new X());");
   CcTest::CollectAllGarbage(i_isolate);
-  CHECK(!GetJSFunction((*env).local(), "f")->IsOptimized());
+  CHECK(!GetJSFunction((*env).local(), "f")->HasAttachedOptimizedCode());
 }
 
 
@@ -702,7 +702,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
       CompileRun(f_source);
       CompileRun("f('a', new X());");
       CHECK(!i_isolate->use_optimizer() ||
-            GetJSFunction(env.local(), "f")->IsOptimized());
+            GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
 
       // Call f and force deoptimization while processing the comparison.
       CompileRun(
@@ -711,7 +711,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
     }
     CcTest::CollectAllGarbage(i_isolate);
 
-    CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
+    CHECK(!GetJSFunction(env.local(), "f")->HasAttachedOptimizedCode());
     CHECK_EQ(1, env->Global()
                     ->Get(env.local(), v8_str("count"))
                     .ToLocalChecked()
@@ -793,10 +793,10 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
       CompileRun("f2(new X(), 'z');");
       CompileRun("g2(new X(), 'z');");
       if (i_isolate->use_optimizer()) {
-        CHECK(GetJSFunction(env.local(), "f1")->IsOptimized());
-        CHECK(GetJSFunction(env.local(), "g1")->IsOptimized());
-        CHECK(GetJSFunction(env.local(), "f2")->IsOptimized());
-        CHECK(GetJSFunction(env.local(), "g2")->IsOptimized());
+        CHECK(GetJSFunction(env.local(), "f1")->HasAttachedOptimizedCode());
+        CHECK(GetJSFunction(env.local(), "g1")->HasAttachedOptimizedCode());
+        CHECK(GetJSFunction(env.local(), "f2")->HasAttachedOptimizedCode());
+        CHECK(GetJSFunction(env.local(), "g2")->HasAttachedOptimizedCode());
       }
 
       // Call functions and force deoptimization while processing the ics.
@@ -809,10 +809,10 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
     }
     CcTest::CollectAllGarbage(i_isolate);
 
-    CHECK(!GetJSFunction(env.local(), "f1")->IsOptimized());
-    CHECK(!GetJSFunction(env.local(), "g1")->IsOptimized());
-    CHECK(!GetJSFunction(env.local(), "f2")->IsOptimized());
-    CHECK(!GetJSFunction(env.local(), "g2")->IsOptimized());
+    CHECK(!GetJSFunction(env.local(), "f1")->HasAttachedOptimizedCode());
+    CHECK(!GetJSFunction(env.local(), "g1")->HasAttachedOptimizedCode());
+    CHECK(!GetJSFunction(env.local(), "f2")->HasAttachedOptimizedCode());
+    CHECK(!GetJSFunction(env.local(), "g2")->HasAttachedOptimizedCode());
     CHECK_EQ(4, env->Global()
                     ->Get(env.local(), v8_str("count"))
                     .ToLocalChecked()
@@ -898,10 +898,10 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
       CompileRun("f2(new X(), 'z');");
       CompileRun("g2(new X(), 'z');");
       if (i_isolate->use_optimizer()) {
-        CHECK(GetJSFunction(env.local(), "f1")->IsOptimized());
-        CHECK(GetJSFunction(env.local(), "g1")->IsOptimized());
-        CHECK(GetJSFunction(env.local(), "f2")->IsOptimized());
-        CHECK(GetJSFunction(env.local(), "g2")->IsOptimized());
+        CHECK(GetJSFunction(env.local(), "f1")->HasAttachedOptimizedCode());
+        CHECK(GetJSFunction(env.local(), "g1")->HasAttachedOptimizedCode());
+        CHECK(GetJSFunction(env.local(), "f2")->HasAttachedOptimizedCode());
+        CHECK(GetJSFunction(env.local(), "g2")->HasAttachedOptimizedCode());
       }
 
       // Call functions and force deoptimization while processing the ics.
@@ -911,10 +911,10 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
     }
     CcTest::CollectAllGarbage(i_isolate);
 
-    CHECK(!GetJSFunction(env.local(), "f1")->IsOptimized());
-    CHECK(!GetJSFunction(env.local(), "g1")->IsOptimized());
-    CHECK(!GetJSFunction(env.local(), "f2")->IsOptimized());
-    CHECK(!GetJSFunction(env.local(), "g2")->IsOptimized());
+    CHECK(!GetJSFunction(env.local(), "f1")->HasAttachedOptimizedCode());
+    CHECK(!GetJSFunction(env.local(), "g1")->HasAttachedOptimizedCode());
+    CHECK(!GetJSFunction(env.local(), "f2")->HasAttachedOptimizedCode());
+    CHECK(!GetJSFunction(env.local(), "g2")->HasAttachedOptimizedCode());
     CHECK_EQ(1, env->Global()
                     ->Get(env.local(), v8_str("count"))
                     .ToLocalChecked()

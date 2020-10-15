@@ -200,13 +200,17 @@ class PosixCommand(BaseCommand):
         stderr=subprocess.PIPE,
         env=self._get_env(),
         shell=True,
+        # Make the new shell create its own process group. This allows to kill
+        # all spawned processes reliably (https://crbug.com/v8/8292).
+        preexec_fn=os.setsid,
       )
     except Exception as e:
       sys.stderr.write('Error executing: %s\n' % self)
       raise e
 
   def _kill_process(self, process):
-    process.kill()
+    # Kill the whole process group (PID == GPID after setsid).
+    os.killpg(process.pid, signal.SIGKILL)
 
 
 def taskkill_windows(process, verbose=False, force=True):

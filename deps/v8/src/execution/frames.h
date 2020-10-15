@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 class WasmCode;
-}
+}  // namespace wasm
 
 // Forward declarations.
 class AbstractCode;
@@ -29,7 +29,6 @@ class RootVisitor;
 class StackFrameIteratorBase;
 class StringStream;
 class ThreadLocalTop;
-class WasmDebugInfo;
 class WasmInstanceObject;
 class WasmModuleObject;
 
@@ -220,6 +219,11 @@ class StackFrame {
   Address UnpaddedFP() const;
 
   inline Address pc() const;
+
+  // Skip authentication of the PC, when using CFI. Used in the profiler, where
+  // in certain corner-cases we do not use an address on the stack, which would
+  // be signed, as the PC of the frame.
+  inline Address unauthenticated_pc() const;
 
   Address constant_pool() const { return *constant_pool_address(); }
   void set_constant_pool(Address constant_pool) {
@@ -995,6 +999,8 @@ class WasmToJsFrame : public StubFrame {
 class JsToWasmFrame : public StubFrame {
  public:
   Type type() const override { return JS_TO_WASM; }
+
+  void Iterate(RootVisitor* v) const override;
 
  protected:
   inline explicit JsToWasmFrame(StackFrameIteratorBase* iterator);

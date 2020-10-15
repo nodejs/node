@@ -1251,10 +1251,6 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
     DCHECK(lhs.Is(rhs));
-    // TODO(neis): The last condition in this DCHECK is due the unittest
-    // throwing arbitrary types at the typer. This is not easy to fix.
-    DCHECK(lhs.Is(Type::NonInternal()) || lhs.Is(Type::Hole()) ||
-           FLAG_testing_d8_test_runner);
     return singleton_true();
   }
   if ((lhs.Is(Type::Unique()) || rhs.Is(Type::Unique())) && !lhs.Maybe(rhs)) {

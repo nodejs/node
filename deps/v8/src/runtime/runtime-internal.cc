@@ -326,13 +326,15 @@ RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   function->raw_feedback_cell().set_interrupt_budget(FLAG_interrupt_budget);
   if (!function->has_feedback_vector()) {
-    JSFunction::EnsureFeedbackVector(function);
+    IsCompiledScope is_compiled_scope(
+        function->shared().is_compiled_scope(isolate));
+    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.
@@ -342,9 +344,24 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
   {
     SealHandleScope shs(isolate);
     isolate->counters()->runtime_profiler_ticks()->Increment();
-    isolate->runtime_profiler()->MarkCandidatesForOptimization();
+    isolate->runtime_profiler()->MarkCandidatesForOptimizationFromBytecode();
     return ReadOnlyRoots(isolate).undefined_value();
   }
+}
+
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromCode) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackCell, feedback_cell, 0);
+
+  DCHECK(feedback_cell->value().IsFeedbackVector());
+
+  feedback_cell->set_interrupt_budget(FLAG_interrupt_budget);
+
+  SealHandleScope shs(isolate);
+  isolate->counters()->runtime_profiler_ticks()->Increment();
+  isolate->runtime_profiler()->MarkCandidatesForOptimizationFromCode();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {

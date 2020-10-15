@@ -59,7 +59,7 @@ Handle<Object> InterpreterTester::NewObject(const char* script) {
 
 Handle<String> InterpreterTester::GetName(Isolate* isolate, const char* name) {
   Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(name);
-  return isolate->factory()->string_table()->LookupString(isolate, result);
+  return isolate->string_table()->LookupString(isolate, result);
 }
 
 std::string InterpreterTester::SourceForBody(const char* body) {

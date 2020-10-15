@@ -6,7 +6,18 @@
 """This program wraps an arbitrary command since gn currently can only execute
 scripts."""
 
+from __future__ import print_function
+
 import subprocess
 import sys
 
-sys.exit(subprocess.call(sys.argv[1:]))
+result = subprocess.call(sys.argv[1:])
+if result != 0:
+  # Windows error codes such as 0xC0000005 and 0xC0000409 are much easier
+  # to recognize and differentiate in hex.
+  if result < -100:
+    # Print negative hex numbers as positive by adding 2^32.
+    print('Return code is %08X' % (result + 2**32))
+  else:
+    print('Return code is %d' % result)
+sys.exit(result)

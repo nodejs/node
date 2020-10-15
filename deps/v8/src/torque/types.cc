@@ -912,6 +912,13 @@ VisitResult VisitResult::NeverResult() {
   return result;
 }
 
+VisitResult VisitResult::TopTypeResult(std::string top_reason,
+                                       const Type* from_type) {
+  VisitResult result;
+  result.type_ = TypeOracle::GetTopType(std::move(top_reason), from_type);
+  return result;
+}
+
 std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
   auto optional = SizeOf(this->name_and_type.type);
   if (optional.has_value()) {

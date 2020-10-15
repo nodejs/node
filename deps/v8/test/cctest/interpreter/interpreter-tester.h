@@ -127,6 +127,7 @@ class InterpreterTester {
   template <class... A>
   Handle<JSFunction> GetBytecodeFunction() {
     Handle<JSFunction> function;
+    IsCompiledScope is_compiled_scope;
     if (source_) {
       CompileRun(source_);
       v8::Local<v8::Context> context =
@@ -136,6 +137,7 @@ class InterpreterTester {
                                     ->Get(context, v8_str(kFunctionName))
                                     .ToLocalChecked());
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
+      is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     } else {
       int arg_count = sizeof...(A);
       std::string source("(function " + function_name() + "(");
@@ -146,10 +148,12 @@ class InterpreterTester {
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source.c_str()))));
       function->set_code(*BUILTIN_CODE(isolate_, InterpreterEntryTrampoline));
+      is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     }
 
     if (!bytecode_.is_null()) {
       function->shared().set_function_data(*bytecode_.ToHandleChecked());
+      is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     }
     if (HasFeedbackMetadata()) {
       function->set_raw_feedback_cell(isolate_->heap()->many_closures_cell());
@@ -157,7 +161,7 @@ class InterpreterTester {
       // overwriting existing metadata.
       function->shared().set_raw_outer_scope_info_or_feedback_metadata(
           *feedback_metadata_.ToHandleChecked());
-      JSFunction::EnsureFeedbackVector(function);
+      JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
     }
     return function;
   }

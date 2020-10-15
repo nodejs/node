@@ -99,8 +99,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
                            protocol::Binary* bytecode) override;
   Response pause() override;
   Response resume(Maybe<bool> terminateOnResume) override;
-  Response stepOver() override;
-  Response stepInto(Maybe<bool> inBreakOnAsyncCall) override;
+  Response stepOver(Maybe<protocol::Array<protocol::Debugger::LocationRange>>
+                        inSkipList) override;
+  Response stepInto(Maybe<bool> inBreakOnAsyncCall,
+                    Maybe<protocol::Array<protocol::Debugger::LocationRange>>
+                        inSkipList) override;
   Response stepOut() override;
   Response pauseOnAsyncCall(std::unique_ptr<protocol::Runtime::StackTraceId>
                                 inParentStackTraceId) override;
@@ -159,6 +162,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   bool isFunctionBlackboxed(const String16& scriptId,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end);
+  bool shouldBeSkipped(const String16& scriptId, int line, int column);
 
   bool acceptsPause(bool isOOMBreak) const;
 
@@ -195,6 +199,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   bool isPaused() const;
 
   void setScriptInstrumentationBreakpointIfNeeded(V8DebuggerScript* script);
+
+  Response processSkipList(
+      protocol::Array<protocol::Debugger::LocationRange>* skipList);
 
   using ScriptsMap =
       std::unordered_map<String16, std::unique_ptr<V8DebuggerScript>>;
@@ -236,6 +243,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unique_ptr<V8Regex> m_blackboxPattern;
   std::unordered_map<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
+  std::unordered_map<String16, std::vector<std::pair<int, int>>> m_skipList;
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };

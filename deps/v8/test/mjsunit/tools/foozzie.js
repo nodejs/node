@@ -59,8 +59,8 @@ function testArrayType(arrayType, pattern) {
     arr[0] = -NaN;
     return new Uint32Array(arr.buffer);
   };
-  // Test passing NaN using set.
   testSameOptimized(pattern, create);
+  // Test passing NaN using set.
   create = function() {
     const arr = new arrayType(1);
     arr.set([-NaN], 0);
@@ -77,6 +77,24 @@ if (isBigEndian){
 else {
   testArrayType(Float64Array, [0, 1072693248]);
 }
+
+// Test that DataView has the same NaN patterns with optimized and
+// unoptimized code.
+var expected_array = [4213246272,405619796,61503,0,3675212096,32831];
+if (isBigEndian){
+  expected_array = [1074340347,1413754136,1072693248,0,1078530011,1065353216];
+}
+testSameOptimized(expected_array, () => {
+  const array = new Uint32Array(6);
+  const view = new DataView(array.buffer);
+  view.setFloat64(0, Math.PI);
+  view.setFloat64(8, -undefined);
+  view.setFloat32(16, Math.fround(Math.PI));
+  view.setFloat32(20, -undefined);
+  assertEquals(Math.PI, view.getFloat64(0));
+  assertEquals(Math.fround(Math.PI), view.getFloat32(16));
+  return array;
+});
 
 // Realm.eval is just eval.
 assertEquals(1477662728716, Realm.eval(Realm.create(), `Date.now()`));

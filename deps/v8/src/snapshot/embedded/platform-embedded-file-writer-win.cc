@@ -118,7 +118,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
       if (unwind_infos[i].is_leaf_function()) continue;
 
       uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
-                                      reinterpret_cast<Address>(blob->data());
+                                      reinterpret_cast<Address>(blob->code());
       uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
 
       const std::vector<int>& xdata_desc = unwind_infos[i].fp_offsets();
@@ -198,7 +198,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
     if (unwind_infos[i].is_leaf_function()) continue;
 
     uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
-                                    reinterpret_cast<Address>(blob->data());
+                                    reinterpret_cast<Address>(blob->code());
     uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
 
     const std::vector<int>& xdata_desc = unwind_infos[i].fp_offsets();

@@ -27,7 +27,8 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   ~V8HeapProfilerAgentImpl() override;
   void restore();
 
-  Response collectGarbage() override;
+  void collectGarbage(
+      std::unique_ptr<CollectGarbageCallback> callback) override;
 
   Response enable() override;
   Response startTrackingHeapObjects(Maybe<bool> trackAllocations) override;
@@ -55,6 +56,9 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
       std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>*) override;
 
  private:
+  struct AsyncGC;
+  class GCTask;
+
   void startTrackingHeapObjectsInternal(bool trackAllocations);
   void stopTrackingHeapObjectsInternal();
   void requestHeapStatsUpdate();
@@ -65,6 +69,7 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   protocol::HeapProfiler::Frontend m_frontend;
   protocol::DictionaryValue* m_state;
   bool m_hasTimer;
+  std::shared_ptr<AsyncGC> m_async_gc;
 
   DISALLOW_COPY_AND_ASSIGN(V8HeapProfilerAgentImpl);
 };

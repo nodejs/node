@@ -12,7 +12,6 @@
 #include "src/objects/arguments-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/free-space-inl.h"
-#include "src/objects/js-aggregate-error-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -39,6 +38,7 @@
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
+#include "src/objects/js-segments-inl.h"
 #endif
 
 #endif  // V8_OBJECTS_CLASS_DEFINITIONS_TQ_DEPS_INL_H_

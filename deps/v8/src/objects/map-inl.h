@@ -5,8 +5,6 @@
 #ifndef V8_OBJECTS_MAP_INL_H_
 #define V8_OBJECTS_MAP_INL_H_
 
-#include "src/objects/map.h"
-
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/cell-inl.h"
@@ -14,12 +12,14 @@
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/layout-descriptor-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -45,7 +45,8 @@ SYNCHRONIZED_ACCESSORS(Map, synchronized_instance_descriptors, DescriptorArray,
 SYNCHRONIZED_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
                                kLayoutDescriptorOffset,
                                FLAG_unbox_double_fields)
-WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
+SYNCHRONIZED_WEAK_ACCESSORS(Map, raw_transitions,
+                            kTransitionsOrPrototypeInfoOffset)
 
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSReceiver())
@@ -55,7 +56,7 @@ ACCESSORS_CHECKED(Map, prototype_info, Object,
 
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
-// is explicitly whitelisted here. The former is never modified after the map
+// is explicitly allowlisted here. The former is never modified after the map
 // is setup but it's being read by concurrent marker when pointer compression
 // is enabled. The latter bit can be modified on a live objects.
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
@@ -227,8 +228,6 @@ FixedArrayBase Map::GetInitialElements() const {
   if (has_fast_elements() || has_fast_string_wrapper_elements() ||
       has_any_nonextensible_elements()) {
     result = GetReadOnlyRoots().empty_fixed_array();
-  } else if (has_fast_sloppy_arguments_elements()) {
-    result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
   } else if (has_typed_array_elements()) {
     result = GetReadOnlyRoots().empty_byte_array();
   } else if (has_dictionary_elements()) {
@@ -698,8 +697,7 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
     descriptors.Append(desc);
     SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-    MarkingBarrierForDescriptorArray(isolate->heap(), *this, descriptors,
-                                     number_of_own_descriptors + 1);
+    WriteBarrier::Marking(*this, descriptors, number_of_own_descriptors + 1);
 #endif
   }
   // Properly mark the map if the {desc} is an "interesting symbol".
@@ -756,7 +754,7 @@ ACCESSORS_CHECKED2(Map, constructor_or_backpointer, Object,
 ACCESSORS_CHECKED(Map, native_context, NativeContext,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsContextMap())
-ACCESSORS_CHECKED(Map, wasm_type_info, Foreign,
+ACCESSORS_CHECKED(Map, wasm_type_info, WasmTypeInfo,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsWasmStructMap() || IsWasmArrayMap())
 

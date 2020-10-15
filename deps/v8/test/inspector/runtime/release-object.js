@@ -31,7 +31,7 @@ const {Protocol} = InspectorTest.start(
     async function testReleaseObjectInvalid() {
       const releaseObjectResult = await Protocol.Runtime.releaseObject({});
       InspectorTest.log('ReleaseObject with invalid params.');
-      InspectorTest.logMessage(releaseObjectResult);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(releaseObjectResult));
     },
     async function testObjectGroups() {
       await logAndEvaluate('var a = {x:3};');
@@ -58,7 +58,7 @@ const {Protocol} = InspectorTest.start(
     async function testReleaseObjectGroupInvalid() {
       const releaseObjectGroupResult = await Protocol.Runtime.releaseObjectGroup({});
       InspectorTest.log('ReleaseObjectGroup with invalid params');
-      InspectorTest.logMessage(releaseObjectGroupResult);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(releaseObjectGroupResult));
     }
   ]);
 

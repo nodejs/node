@@ -109,8 +109,8 @@ void PropertyAccessBuilder::BuildCheckMaps(
                              *effect, control);
 }
 
-Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
-                                             Node* control,
+Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Effect* effect,
+                                             Control control,
                                              Handle<HeapObject> value) {
   HeapObjectMatcher m(receiver);
   if (m.Is(value)) return receiver;
@@ -183,6 +183,63 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
   return jsgraph()->Constant(*value);
 }
 
+Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
+                                                Node* holder,
+                                                FieldAccess& field_access,
+                                                bool is_inobject, Node** effect,
+                                                Node** control) {
+  Node* storage = holder;
+  if (!is_inobject) {
+    storage = *effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
+        storage, *effect, *control);
+  }
+  if (field_access.machine_type.representation() ==
+      MachineRepresentation::kFloat64) {
+    bool const is_heapnumber = !is_inobject || !FLAG_unbox_double_fields;
+    if (is_heapnumber) {
+      FieldAccess const storage_access = {kTaggedBase,
+                                          field_access.offset,
+                                          name.object(),
+                                          MaybeHandle<Map>(),
+                                          Type::OtherInternal(),
+                                          MachineType::TaggedPointer(),
+                                          kPointerWriteBarrier,
+                                          LoadSensitivity::kCritical,
+                                          field_access.const_field_info};
+      storage = *effect = graph()->NewNode(
+          simplified()->LoadField(storage_access), storage, *effect, *control);
+      field_access.offset = HeapNumber::kValueOffset;
+      field_access.name = MaybeHandle<Name>();
+    }
+  }
+  Node* value = *effect = graph()->NewNode(
+      simplified()->LoadField(field_access), storage, *effect, *control);
+  return value;
+}
+
+Node* PropertyAccessBuilder::BuildMinimorphicLoadDataField(
+    NameRef const& name, MinimorphicLoadPropertyAccessInfo const& access_info,
+    Node* receiver, Node** effect, Node** control) {
+  DCHECK_NULL(dependencies());
+  MachineRepresentation const field_representation =
+      ConvertRepresentation(access_info.field_representation());
+
+  FieldAccess field_access = {
+      kTaggedBase,
+      access_info.offset(),
+      name.object(),
+      MaybeHandle<Map>(),
+      access_info.field_type(),
+      MachineType::TypeForRepresentation(field_representation),
+      kFullWriteBarrier,
+      LoadSensitivity::kCritical,
+      ConstFieldInfo::None()};
+  return BuildLoadDataField(name, receiver, field_access,
+                            access_info.is_inobject(), effect, control);
+}
+
 Node* PropertyAccessBuilder::BuildLoadDataField(
     NameRef const& name, PropertyAccessInfo const& access_info, Node* receiver,
     Node** effect, Node** control) {
@@ -192,46 +249,22 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
     return value;
   }
 
-  FieldIndex const field_index = access_info.field_index();
-  Type const field_type = access_info.field_type();
   MachineRepresentation const field_representation =
       ConvertRepresentation(access_info.field_representation());
   Node* storage = ResolveHolder(access_info, receiver);
-  if (!field_index.is_inobject()) {
-    storage = *effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
-        storage, *effect, *control);
-  }
+
   FieldAccess field_access = {
       kTaggedBase,
-      field_index.offset(),
+      access_info.field_index().offset(),
       name.object(),
       MaybeHandle<Map>(),
-      field_type,
+      access_info.field_type(),
       MachineType::TypeForRepresentation(field_representation),
       kFullWriteBarrier,
       LoadSensitivity::kCritical,
       access_info.GetConstFieldInfo()};
-  if (field_representation == MachineRepresentation::kFloat64) {
-    if (!field_index.is_inobject() || !FLAG_unbox_double_fields) {
-      FieldAccess const storage_access = {kTaggedBase,
-                                          field_index.offset(),
-                                          name.object(),
-                                          MaybeHandle<Map>(),
-                                          Type::OtherInternal(),
-                                          MachineType::TaggedPointer(),
-                                          kPointerWriteBarrier,
-                                          LoadSensitivity::kCritical,
-                                          access_info.GetConstFieldInfo()};
-      storage = *effect = graph()->NewNode(
-          simplified()->LoadField(storage_access), storage, *effect, *control);
-      field_access.offset = HeapNumber::kValueOffset;
-      field_access.name = MaybeHandle<Name>();
-    }
-  } else if (field_representation == MachineRepresentation::kTaggedPointer ||
-             field_representation ==
-                 MachineRepresentation::kCompressedPointer) {
+  if (field_representation == MachineRepresentation::kTaggedPointer ||
+      field_representation == MachineRepresentation::kCompressedPointer) {
     // Remember the map of the field value, if its map is stable. This is
     // used by the LoadElimination to eliminate map checks on the result.
     Handle<Map> field_map;
@@ -243,9 +276,9 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       }
     }
   }
-  Node* value = *effect = graph()->NewNode(
-      simplified()->LoadField(field_access), storage, *effect, *control);
-  return value;
+  return BuildLoadDataField(name, storage, field_access,
+                            access_info.field_index().is_inobject(), effect,
+                            control);
 }
 
 }  // namespace compiler

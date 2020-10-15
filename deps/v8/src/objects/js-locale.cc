@@ -42,7 +42,7 @@ struct OptionData {
 Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
                                     Handle<JSReceiver> options,
                                     icu::LocaleBuilder* builder) {
-  CHECK(isolate);
+  DCHECK(isolate);
 
   const std::vector<const char*> hour_cycle_values = {"h11", "h12", "h23",
                                                       "h24"};
@@ -234,8 +234,8 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
 
   v8::String::Utf8Value bcp47_tag(v8_isolate, v8::Utils::ToLocal(tag));
   builder->setLanguageTag({*bcp47_tag, bcp47_tag.length()});
-  CHECK_LT(0, bcp47_tag.length());
-  CHECK_NOT_NULL(*bcp47_tag);
+  DCHECK_LT(0, bcp47_tag.length());
+  DCHECK_NOT_NULL(*bcp47_tag);
   // 2. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError
   // exception.
   if (!JSLocale::StartsWithUnicodeLanguageId(*bcp47_tag)) {

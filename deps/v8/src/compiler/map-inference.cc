@@ -98,8 +98,8 @@ bool MapInference::Is(Handle<Map> expected_map) {
   return maps[0].equals(expected_map);
 }
 
-void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
-                                   Node* control,
+void MapInference::InsertMapChecks(JSGraph* jsgraph, Effect* effect,
+                                   Control control,
                                    const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   CHECK(feedback.IsValid());
@@ -114,12 +114,12 @@ void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
 bool MapInference::RelyOnMapsViaStability(
     CompilationDependencies* dependencies) {
   CHECK(HaveMaps());
-  return RelyOnMapsHelper(dependencies, nullptr, nullptr, nullptr, {});
+  return RelyOnMapsHelper(dependencies, nullptr, nullptr, Control{nullptr}, {});
 }
 
 bool MapInference::RelyOnMapsPreferStability(
-    CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
-    Node* control, const FeedbackSource& feedback) {
+    CompilationDependencies* dependencies, JSGraph* jsgraph, Effect* effect,
+    Control control, const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   if (Safe()) return false;
   if (RelyOnMapsViaStability(dependencies)) return true;
@@ -128,8 +128,8 @@ bool MapInference::RelyOnMapsPreferStability(
 }
 
 bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
-                                    JSGraph* jsgraph, Node** effect,
-                                    Node* control,
+                                    JSGraph* jsgraph, Effect* effect,
+                                    Control control,
                                     const FeedbackSource& feedback) {
   if (Safe()) return true;
 

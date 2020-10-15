@@ -11,9 +11,12 @@
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
+#include "src/handles/persistent-handles.h"
 #include "src/objects/objects.h"
+#include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
 
@@ -21,11 +24,10 @@ namespace v8 {
 
 namespace tracing {
 class TracedValue;
-}
+}  // namespace tracing
 
 namespace internal {
 
-class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class JavaScriptFrame;
@@ -34,7 +36,7 @@ class Zone;
 
 namespace wasm {
 struct WasmCompilationResult;
-}
+}  // namespace wasm
 
 // OptimizedCompilationInfo encapsulates the information needed to compile
 // optimized code for a given function, and the results of the optimized
@@ -43,38 +45,65 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
  public:
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
+
+#define FLAGS(V)                                                              \
+  V(FunctionContextSpecializing, function_context_specializing, 0)            \
+  V(Inlining, inlining, 1)                                                    \
+  V(DisableFutureOptimization, disable_future_optimization, 2)                \
+  V(Splitting, splitting, 3)                                                  \
+  V(SourcePositions, source_positions, 4)                                     \
+  V(BailoutOnUninitialized, bailout_on_uninitialized, 5)                      \
+  V(LoopPeeling, loop_peeling, 6)                                             \
+  V(UntrustedCodeMitigations, untrusted_code_mitigations, 7)                  \
+  V(SwitchJumpTable, switch_jump_table, 8)                                    \
+  V(CalledWithCodeStartRegister, called_with_code_start_register, 9)          \
+  V(PoisonRegisterArguments, poison_register_arguments, 10)                   \
+  V(AllocationFolding, allocation_folding, 11)                                \
+  V(AnalyzeEnvironmentLiveness, analyze_environment_liveness, 12)             \
+  V(TraceTurboJson, trace_turbo_json, 13)                                     \
+  V(TraceTurboGraph, trace_turbo_graph, 14)                                   \
+  V(TraceTurboScheduled, trace_turbo_scheduled, 15)                           \
+  V(TraceTurboAllocation, trace_turbo_allocation, 16)                         \
+  V(TraceHeapBroker, trace_heap_broker, 17)                                   \
+  V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18)          \
+  V(TurboControlFlowAwareAllocation, turbo_control_flow_aware_allocation, 19) \
+  V(TurboPreprocessRanges, turbo_preprocess_ranges, 20)                       \
+  V(ConcurrentInlining, concurrent_inlining, 21)
+
   enum Flag {
-    kFunctionContextSpecializing = 1 << 0,
-    kInliningEnabled = 1 << 1,
-    kDisableFutureOptimization = 1 << 2,
-    kSplittingEnabled = 1 << 3,
-    kSourcePositionsEnabled = 1 << 4,
-    kBailoutOnUninitialized = 1 << 5,
-    kLoopPeelingEnabled = 1 << 6,
-    kUntrustedCodeMitigations = 1 << 7,
-    kSwitchJumpTableEnabled = 1 << 8,
-    kCalledWithCodeStartRegister = 1 << 9,
-    kPoisonRegisterArguments = 1 << 10,
-    kAllocationFoldingEnabled = 1 << 11,
-    kAnalyzeEnvironmentLiveness = 1 << 12,
-    kTraceTurboJson = 1 << 13,
-    kTraceTurboGraph = 1 << 14,
-    kTraceTurboScheduled = 1 << 15,
-    kTraceTurboAllocation = 1 << 16,
-    kTraceHeapBroker = 1 << 17,
-    kWasmRuntimeExceptionSupport = 1 << 18,
-    kTurboControlFlowAwareAllocation = 1 << 19,
-    kTurboPreprocessRanges = 1 << 20,
-    kConcurrentInlining = 1 << 21,
+#define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
+    FLAGS(DEF_ENUM)
+#undef DEF_ENUM
   };
+
+#define DEF_GETTER(Camel, Lower, Bit) \
+  bool Lower() const {                \
+    DCHECK(FlagGetIsValid(k##Camel)); \
+    return GetFlag(k##Camel);         \
+  }
+  FLAGS(DEF_GETTER)
+#undef DEF_GETTER
+
+#define DEF_SETTER(Camel, Lower, Bit) \
+  void set_##Lower() {                \
+    DCHECK(FlagSetIsValid(k##Camel)); \
+    SetFlag(k##Camel);                \
+  }
+  FLAGS(DEF_SETTER)
+#undef DEF_SETTER
+
+#ifdef DEBUG
+  bool FlagGetIsValid(Flag flag) const;
+  bool FlagSetIsValid(Flag flag) const;
+#endif  // DEBUG
 
   // Construct a compilation info for optimized compilation.
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
-                           Handle<JSFunction> closure);
+                           Handle<JSFunction> closure, CodeKind code_kind);
   // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
-                           Code::Kind code_kind);
+                           CodeKind code_kind);
 
   ~OptimizedCompilationInfo();
 
@@ -86,43 +115,11 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
-  Code::Kind code_kind() const { return code_kind_; }
+  CodeKind code_kind() const { return code_kind_; }
   int32_t builtin_index() const { return builtin_index_; }
   void set_builtin_index(int32_t index) { builtin_index_ = index; }
   BailoutId osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
-
-  // Flags used by optimized compilation.
-
-  void MarkAsConcurrentInlining() { SetFlag(kConcurrentInlining); }
-  bool is_concurrent_inlining() const { return GetFlag(kConcurrentInlining); }
-
-  void MarkAsTurboControlFlowAwareAllocation() {
-    SetFlag(kTurboControlFlowAwareAllocation);
-  }
-  bool is_turbo_control_flow_aware_allocation() const {
-    return GetFlag(kTurboControlFlowAwareAllocation);
-  }
-
-  void MarkAsTurboPreprocessRanges() { SetFlag(kTurboPreprocessRanges); }
-  bool is_turbo_preprocess_ranges() const {
-    return GetFlag(kTurboPreprocessRanges);
-  }
-
-  void MarkAsFunctionContextSpecializing() {
-    SetFlag(kFunctionContextSpecializing);
-  }
-  bool is_function_context_specializing() const {
-    return GetFlag(kFunctionContextSpecializing);
-  }
-
-  void MarkAsSourcePositionsEnabled() { SetFlag(kSourcePositionsEnabled); }
-  bool is_source_positions_enabled() const {
-    return GetFlag(kSourcePositionsEnabled);
-  }
-
-  void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
-  bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
   void SetPoisoningMitigationLevel(PoisoningMitigationLevel poisoning_level) {
     poisoning_level_ = poisoning_level;
@@ -131,78 +128,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     return poisoning_level_;
   }
 
-  void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
-  bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
-
-  void MarkAsBailoutOnUninitialized() { SetFlag(kBailoutOnUninitialized); }
-  bool is_bailout_on_uninitialized() const {
-    return GetFlag(kBailoutOnUninitialized);
-  }
-
-  void MarkAsLoopPeelingEnabled() { SetFlag(kLoopPeelingEnabled); }
-  bool is_loop_peeling_enabled() const { return GetFlag(kLoopPeelingEnabled); }
-
-  bool has_untrusted_code_mitigations() const {
-    return GetFlag(kUntrustedCodeMitigations);
-  }
-
-  bool switch_jump_table_enabled() const {
-    return GetFlag(kSwitchJumpTableEnabled);
-  }
-
-  bool called_with_code_start_register() const {
-    bool enabled = GetFlag(kCalledWithCodeStartRegister);
-    return enabled;
-  }
-
-  void MarkAsPoisoningRegisterArguments() {
-    DCHECK(has_untrusted_code_mitigations());
-    SetFlag(kPoisonRegisterArguments);
-  }
-  bool is_poisoning_register_arguments() const {
-    bool enabled = GetFlag(kPoisonRegisterArguments);
-    DCHECK_IMPLIES(enabled, has_untrusted_code_mitigations());
-    DCHECK_IMPLIES(enabled, called_with_code_start_register());
-    return enabled;
-  }
-
-  void MarkAsAllocationFoldingEnabled() { SetFlag(kAllocationFoldingEnabled); }
-  bool is_allocation_folding_enabled() const {
-    return GetFlag(kAllocationFoldingEnabled);
-  }
-
-  void MarkAsAnalyzeEnvironmentLiveness() {
-    SetFlag(kAnalyzeEnvironmentLiveness);
-  }
-  bool is_analyze_environment_liveness() const {
-    return GetFlag(kAnalyzeEnvironmentLiveness);
-  }
-
-  void SetWasmRuntimeExceptionSupport() {
-    SetFlag(kWasmRuntimeExceptionSupport);
-  }
-
-  bool wasm_runtime_exception_support() {
-    return GetFlag(kWasmRuntimeExceptionSupport);
-  }
-
-  bool trace_turbo_json_enabled() const { return GetFlag(kTraceTurboJson); }
-
-  bool trace_turbo_graph_enabled() const { return GetFlag(kTraceTurboGraph); }
-
-  bool trace_turbo_allocation_enabled() const {
-    return GetFlag(kTraceTurboAllocation);
-  }
-
-  bool trace_turbo_scheduled_enabled() const {
-    return GetFlag(kTraceTurboScheduled);
-  }
-
-  bool trace_heap_broker_enabled() const { return GetFlag(kTraceHeapBroker); }
-
   // Code getters and setters.
 
-  void SetCode(Handle<Code> code) { code_ = code; }
+  void SetCode(Handle<Code> code);
 
   void SetWasmCompilationResult(std::unique_ptr<wasm::WasmCompilationResult>);
   std::unique_ptr<wasm::WasmCompilationResult> ReleaseWasmCompilationResult();
@@ -217,19 +145,34 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   JSGlobalObject global_object() const;
 
   // Accessors for the different compilation modes.
-  bool IsOptimizing() const { return code_kind() == Code::OPTIMIZED_FUNCTION; }
-  bool IsWasm() const { return code_kind() == Code::WASM_FUNCTION; }
-  bool IsNotOptimizedFunctionOrWasmFunction() const {
-    return code_kind() != Code::OPTIMIZED_FUNCTION &&
-           code_kind() != Code::WASM_FUNCTION;
+  bool IsOptimizing() const {
+    return CodeKindIsOptimizedJSFunction(code_kind());
   }
+  bool IsNativeContextIndependent() const {
+    return code_kind() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+  }
+  bool IsStub() const { return code_kind() == CodeKind::STUB; }
+  bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
+
   void SetOptimizingForOsr(BailoutId osr_offset, JavaScriptFrame* osr_frame) {
     DCHECK(IsOptimizing());
     osr_offset_ = osr_offset;
     osr_frame_ = osr_frame;
   }
 
-  void set_deferred_handles(std::unique_ptr<DeferredHandles> deferred_handles);
+  void set_persistent_handles(
+      std::unique_ptr<PersistentHandles> persistent_handles) {
+    DCHECK_NULL(ph_);
+    ph_ = std::move(persistent_handles);
+    DCHECK_NOT_NULL(ph_);
+  }
+
+  void set_canonical_handles(
+      std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
+    DCHECK_NULL(canonical_handles_);
+    canonical_handles_ = std::move(canonical_handles);
+    DCHECK_NOT_NULL(canonical_handles_);
+  }
 
   void ReopenHandlesInNewHandleScope(Isolate* isolate);
 
@@ -238,10 +181,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void RetryOptimization(BailoutReason reason);
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
-
-  bool is_disable_future_optimization() const {
-    return GetFlag(kDisableFutureOptimization);
-  }
 
   int optimization_id() const {
     DCHECK(IsOptimizing());
@@ -290,8 +229,22 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   TickCounter& tick_counter() { return tick_counter_; }
 
+  BasicBlockProfilerData* profiler_data() const { return profiler_data_; }
+  void set_profiler_data(BasicBlockProfilerData* profiler_data) {
+    profiler_data_ = profiler_data;
+  }
+
+  std::unique_ptr<PersistentHandles> DetachPersistentHandles() {
+    DCHECK_NOT_NULL(ph_);
+    return std::move(ph_);
+  }
+
+  std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles() {
+    DCHECK_NOT_NULL(canonical_handles_);
+    return std::move(canonical_handles_);
+  }
+
  private:
-  OptimizedCompilationInfo(Code::Kind code_kind, Zone* zone);
   void ConfigureFlags();
 
   void SetFlag(Flag flag) { flags_ |= flag; }
@@ -304,19 +257,20 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   PoisoningMitigationLevel poisoning_level_ =
       PoisoningMitigationLevel::kDontPoison;
 
-  Code::Kind code_kind_;
+  const CodeKind code_kind_;
   int32_t builtin_index_ = -1;
 
   // We retain a reference the bytecode array specifically to ensure it doesn't
   // get flushed while we are optimizing the code.
   Handle<BytecodeArray> bytecode_array_;
-
   Handle<SharedFunctionInfo> shared_info_;
-
   Handle<JSFunction> closure_;
 
   // The compiled code.
   Handle<Code> code_;
+
+  // Basic block profiling support.
+  BasicBlockProfilerData* profiler_data_ = nullptr;
 
   // The WebAssembly compilation result, not published in the NativeModule yet.
   std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result_;
@@ -326,15 +280,14 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // The zone from which the compilation pipeline working on this
   // OptimizedCompilationInfo allocates.
-  Zone* zone_;
-
-  std::unique_ptr<DeferredHandles> deferred_handles_;
+  Zone* const zone_;
 
   BailoutReason bailout_reason_ = BailoutReason::kNoReason;
 
   InlinedFunctionList inlined_functions_;
 
-  int optimization_id_ = -1;
+  static constexpr int kNoOptimizationId = -1;
+  const int optimization_id_;
   unsigned inlined_bytecode_size_ = 0;
 
   // The current OSR frame for specialization or {nullptr}.
@@ -344,6 +297,26 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   std::unique_ptr<char[]> trace_turbo_filename_;
 
   TickCounter tick_counter_;
+
+  // 1) PersistentHandles created via PersistentHandlesScope inside of
+  //    CompilationHandleScope
+  // 2) Owned by OptimizedCompilationInfo
+  // 3) Owned by JSHeapBroker
+  // 4) Owned by the broker's LocalHeap
+  // 5) Back to the broker for a brief moment (after tearing down the
+  //   LocalHeap as part of exiting LocalHeapScope)
+  // 6) Back to OptimizedCompilationInfo when exiting the LocalHeapScope.
+  //
+  // In normal execution it gets destroyed when PipelineData gets destroyed.
+  // There is a special case in GenerateCodeForTesting where the JSHeapBroker
+  // will not be retired in that same method. In this case, we need to re-attach
+  // the PersistentHandles container to the JSHeapBroker.
+  std::unique_ptr<PersistentHandles> ph_;
+
+  // Canonical handles follow the same path as described by the persistent
+  // handles above. The only difference is that is created in the
+  // CanonicalHandleScope(i.e step 1) is different).
+  std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
 
   DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };

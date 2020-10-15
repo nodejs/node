@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony_intl_dateformat_fractional_second_digits
+assertThrows(
+    () => (new Intl.DateTimeFormat("en", {fractionalSecondDigits: 0})),
+    RangeError,
+    "fractionalSecondDigits value is out of range.");
 
-assertEquals(
-    0,
-    (new Intl.DateTimeFormat("en", {fractionalSecondDigits: 0}))
-        .resolvedOptions().fractionalSecondDigits);
+assertThrows(
+    () => (new Intl.DateTimeFormat("en", {fractionalSecondDigits: 4})),
+    RangeError,
+    "fractionalSecondDigits value is out of range.");
 
 assertEquals(
     1,
@@ -25,27 +28,26 @@ assertEquals(
         .resolvedOptions().fractionalSecondDigits);
 
 // When timeStyle and dateStyle is not present, GetNumberOption will fallback
-// to 0 as default regardless fractionalSecondDigits is present in the option or
+// to undefined as default regardless fractionalSecondDigits is present in the option or
 // not.
 assertEquals(
-    0,
+    undefined,
     (new Intl.DateTimeFormat()).resolvedOptions().fractionalSecondDigits);
 
 assertEquals(
-    0,
+    undefined,
     (new Intl.DateTimeFormat("en", {fractionalSecondDigits: undefined}))
         .resolvedOptions().fractionalSecondDigits);
 
-// When timeStyle or dateStyle is present, the code should not read
-// fractionalSecondDigits from the option.
-assertEquals(
-    undefined,
-    (new Intl.DateTimeFormat(
-        "en", {timeStyle: "short", fractionalSecondDigits: 3}))
-        .resolvedOptions().fractionalSecondDigits);
+// When timeStyle or dateStyle is present, we should throw TypeError
+assertThrows(
+    () => (new Intl.DateTimeFormat(
+        "en", {timeStyle: "short", fractionalSecondDigits: 3})),
+    TypeError,
+    "Invalid option : timeStyle");
 
-assertEquals(
-    undefined,
-    (new Intl.DateTimeFormat(
-        "en", {dateStyle: "short", fractionalSecondDigits: 3}))
-        .resolvedOptions().fractionalSecondDigits);
+assertThrows(
+    () => (new Intl.DateTimeFormat(
+        "en", {dateStyle: "short", fractionalSecondDigits: 3})),
+    TypeError,
+    "Invalid option : dateStyle");

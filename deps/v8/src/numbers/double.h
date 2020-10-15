@@ -18,13 +18,10 @@ inline double uint64_to_double(uint64_t d64) { return bit_cast<double>(d64); }
 // Helper functions for doubles.
 class Double {
  public:
-  static constexpr uint64_t kSignMask = V8_2PART_UINT64_C(0x80000000, 00000000);
-  static constexpr uint64_t kExponentMask =
-      V8_2PART_UINT64_C(0x7FF00000, 00000000);
-  static constexpr uint64_t kSignificandMask =
-      V8_2PART_UINT64_C(0x000FFFFF, FFFFFFFF);
-  static constexpr uint64_t kHiddenBit =
-      V8_2PART_UINT64_C(0x00100000, 00000000);
+  static constexpr uint64_t kSignMask = 0x8000'0000'0000'0000;
+  static constexpr uint64_t kExponentMask = 0x7FF0'0000'0000'0000;
+  static constexpr uint64_t kSignificandMask = 0x000F'FFFF'FFFF'FFFF;
+  static constexpr uint64_t kHiddenBit = 0x0010'0000'0000'0000;
   static constexpr int kPhysicalSignificandSize =
       52;  // Excludes the hidden bit.
   static constexpr int kSignificandSize = 53;
@@ -173,7 +170,7 @@ class Double {
   static constexpr int kExponentBias = 0x3FF + kPhysicalSignificandSize;
   static constexpr int kDenormalExponent = -kExponentBias + 1;
   static constexpr int kMaxExponent = 0x7FF - kExponentBias;
-  static constexpr uint64_t kInfinity = V8_2PART_UINT64_C(0x7FF00000, 00000000);
+  static constexpr uint64_t kInfinity = 0x7FF0'0000'0000'0000;
 
   // The field d64_ is not marked as const to permit the usage of the copy
   // constructor.

@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh --allow-natives-syntax
 
-// Note that this test does not pass --experimental-wasm-anyref on purpose so
+// Note that this test does not pass --experimental-wasm-reftypes on purpose so
 // that we make sure the two flags can be controlled separately/independently.
 
 load("test/mjsunit/wasm/wasm-module-builder.js");

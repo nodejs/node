@@ -1439,7 +1439,7 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
 #endif
 }
 
-}  // end anonymous namespace
+}  // anonymous namespace
 
 // static
 void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
@@ -1664,12 +1664,27 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
   if (with_result) {
+#ifdef V8_REVERSE_JSARGS
+    if (java_script_builtin) {
+      // xmm0 is not included in the allocateable registers.
+      __ movd(xmm0, eax);
+    } else {
+      // Overwrite the hole inserted by the deoptimizer with the return value
+      // from the LAZY deopt point.
+      __ mov(
+          Operand(esp, config->num_allocatable_general_registers() *
+                               kSystemPointerSize +
+                           BuiltinContinuationFrameConstants::kFixedFrameSize),
+          eax);
+    }
+#else
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
     __ mov(Operand(esp, config->num_allocatable_general_registers() *
                                 kSystemPointerSize +
                             BuiltinContinuationFrameConstants::kFixedFrameSize),
            eax);
+#endif
   }
 
   // Replace the builtin index Smi on the stack with the start address of the
@@ -1687,6 +1702,16 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       __ SmiUntag(Register::from_code(code));
     }
   }
+#ifdef V8_REVERSE_JSARGS
+  if (with_result && java_script_builtin) {
+    // Overwrite the hole inserted by the deoptimizer with the return value from
+    // the LAZY deopt point. eax contains the arguments count, the return value
+    // from LAZY is always the last argument.
+    __ movd(Operand(esp, eax, times_system_pointer_size,
+                    BuiltinContinuationFrameConstants::kFixedFrameSize),
+            xmm0);
+  }
+#endif
   __ mov(
       ebp,
       Operand(esp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
@@ -2248,13 +2273,29 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       Label loop;
       __ add(eax, edx);
       __ PopReturnAddressTo(ecx);
+#ifdef V8_REVERSE_JSARGS
+      // TODO(victor): When we remove the arguments adaptor machinery above,
+      // we can free the scratch register and avoid this move.
+      __ movd(xmm2, ebx);  // Save root register.
+      __ Pop(ebx);         // Save new receiver.
+#endif
       __ bind(&loop);
       {
-        __ Push(Operand(scratch, edx, times_system_pointer_size,
-                        1 * kSystemPointerSize));
         __ dec(edx);
+#ifdef V8_REVERSE_JSARGS
+        // Skips old receiver.
+        __ Push(Operand(scratch, edx, times_system_pointer_size,
+                        kFPOnStackSize + kPCOnStackSize + kSystemPointerSize));
+#else
+        __ Push(Operand(scratch, edx, times_system_pointer_size,
+                        kFPOnStackSize + kPCOnStackSize));
+#endif
         __ j(not_zero, &loop);
       }
+#ifdef V8_REVERSE_JSARGS
+      __ Push(ebx);        // Push new receiver.
+      __ movd(ebx, xmm2);  // Recover root register.
+#endif
       __ PushReturnAddressFrom(ecx);
     }
   }
@@ -3248,6 +3289,11 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ pop(scratch1);
   __ pop(ecx);
   __ ret(0);
+}
+
+void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
+  // TODO(v8:10701): Implement for this platform.
+  __ Trap();
 }
 
 namespace {

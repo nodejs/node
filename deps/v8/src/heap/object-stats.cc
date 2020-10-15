@@ -426,7 +426,7 @@ class ObjectStatsCollectorImpl {
   bool CanRecordFixedArray(FixedArrayBase array);
   bool IsCowArray(FixedArrayBase array);
 
-  // Blacklist for objects that should not be recorded using
+  // Blocklist for objects that should not be recorded using
   // VirtualObjectStats and RecordSimpleVirtualObjectStats. For recording those
   // objects dispatch to the low level ObjectStats::RecordObjectStats manually.
   bool ShouldRecordObject(HeapObject object, CowMode check_cow_array);
@@ -839,7 +839,6 @@ void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject obj,
 bool ObjectStatsCollectorImpl::CanRecordFixedArray(FixedArrayBase array) {
   ReadOnlyRoots roots(heap_);
   return array != roots.empty_fixed_array() &&
-         array != roots.empty_sloppy_arguments_elements() &&
          array != roots.empty_slow_element_dictionary() &&
          array != roots.empty_property_dictionary();
 }
@@ -1021,16 +1020,13 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
 
 namespace {
 
-ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(
-    Code::Kind kind) {
+ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(CodeKind kind) {
   switch (kind) {
 #define CODE_KIND_CASE(type) \
-  case Code::type:           \
+  case CodeKind::type:       \
     return ObjectStats::type;
     CODE_KIND_LIST(CODE_KIND_CASE)
 #undef CODE_KIND_CASE
-    default:
-      UNREACHABLE();
   }
   UNREACHABLE();
 }
@@ -1050,7 +1046,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
                                    HeapObject::cast(source_position_table),
                                    ObjectStats::SOURCE_POSITION_TABLE_TYPE);
   }
-  if (code.kind() == Code::Kind::OPTIMIZED_FUNCTION) {
+  if (CodeKindIsOptimizedJSFunction(code.kind())) {
     DeoptimizationData input_data =
         DeoptimizationData::cast(code.deoptimization_data());
     if (input_data.length() > 0) {

@@ -55,8 +55,8 @@ static TestOperator kOpC1(kOpcodeC1, Operator::kNoWrite, "opc1", 1, 1);
 static TestOperator kOpC2(kOpcodeC2, Operator::kNoWrite, "opc2", 2, 1);
 
 struct MockReducer : public Reducer {
-  MOCK_CONST_METHOD0(reducer_name, const char*());
-  MOCK_METHOD1(Reduce, Reduction(Node*));
+  MOCK_METHOD(const char*, reducer_name, (), (const, override));
+  MOCK_METHOD(Reduction, Reduce, (Node*), (override));
 };
 
 
@@ -234,7 +234,7 @@ class AB2Sorter final : public Reducer {
 
 class AdvancedReducerTest : public TestWithZone {
  public:
-  AdvancedReducerTest() : graph_(zone()) {}
+  AdvancedReducerTest() : TestWithZone(kCompressGraphZone), graph_(zone()) {}
 
  protected:
   Graph* graph() { return &graph_; }
@@ -411,7 +411,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse3) {
 
 class GraphReducerTest : public TestWithZone {
  public:
-  GraphReducerTest() : graph_(zone()) {}
+  GraphReducerTest() : TestWithZone(kCompressGraphZone), graph_(zone()) {}
 
   static void SetUpTestCase() {
     TestWithZone::SetUpTestCase();

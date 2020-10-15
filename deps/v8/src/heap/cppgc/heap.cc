@@ -4,15 +4,13 @@
 
 #include "src/heap/cppgc/heap.h"
 
-#include <memory>
-
-#include "src/base/platform/platform.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/base/stack.h"
+#include "src/heap/cppgc/garbage-collector.h"
+#include "src/heap/cppgc/gc-invoker.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
-#include "src/heap/cppgc/stack.h"
-#include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc/marker.h"
+#include "src/heap/cppgc/prefinalizer-handler.h"
 
 namespace cppgc {
 
@@ -31,106 +29,99 @@ void VerifyCustomSpaces(
 
 }  // namespace
 
-std::unique_ptr<Heap> Heap::Create(cppgc::Heap::HeapOptions options) {
+std::unique_ptr<Heap> Heap::Create(std::shared_ptr<cppgc::Platform> platform,
+                                   cppgc::Heap::HeapOptions options) {
+  DCHECK(platform.get());
   VerifyCustomSpaces(options.custom_spaces);
-  return std::make_unique<internal::Heap>(options.custom_spaces.size());
+  return std::make_unique<internal::Heap>(std::move(platform),
+                                          std::move(options));
 }
 
 void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
                                       Heap::StackState stack_state) {
-  internal::Heap::From(this)->CollectGarbage({stack_state});
+  internal::Heap::From(this)->CollectGarbage(
+      {internal::GarbageCollector::Config::CollectionType::kMajor,
+       stack_state});
+}
+
+AllocationHandle& Heap::GetAllocationHandle() {
+  return internal::Heap::From(this)->object_allocator();
 }
 
 namespace internal {
 
 namespace {
 
-class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
-  friend class HeapVisitor<ObjectSizeCounter>;
+class Unmarker final : private HeapVisitor<Unmarker> {
+  friend class HeapVisitor<Unmarker>;
 
  public:
-  size_t GetSize(RawHeap* heap) {
-    Traverse(heap);
-    return accumulated_size_;
-  }
+  explicit Unmarker(RawHeap* heap) { Traverse(heap); }
 
  private:
-  static size_t ObjectSize(const HeapObjectHeader* header) {
-    const size_t size =
-        header->IsLargeObject()
-            ? static_cast<const LargePage*>(BasePage::FromPayload(header))
-                  ->PayloadSize()
-            : header->GetSize();
-    DCHECK_GE(size, sizeof(HeapObjectHeader));
-    return size - sizeof(HeapObjectHeader);
-  }
-
   bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsFree()) return true;
-    accumulated_size_ += ObjectSize(header);
+    if (header->IsMarked()) header->Unmark();
     return true;
   }
-
-  size_t accumulated_size_ = 0;
 };
+
+void CheckConfig(Heap::Config config) {
+  CHECK_WITH_MSG(
+      (config.collection_type != Heap::Config::CollectionType::kMinor) ||
+          (config.stack_state == Heap::Config::StackState::kNoHeapPointers),
+      "Minor GCs with stack is currently not supported");
+}
 
 }  // namespace
 
-// static
-cppgc::LivenessBroker LivenessBrokerFactory::Create() {
-  return cppgc::LivenessBroker();
-}
-
-Heap::Heap(size_t custom_spaces)
-    : raw_heap_(this, custom_spaces),
-      page_backend_(std::make_unique<PageBackend>(&system_allocator_)),
-      object_allocator_(&raw_heap_),
-      sweeper_(&raw_heap_),
-      stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
-      prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()) {}
+Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
+           cppgc::Heap::HeapOptions options)
+    : HeapBase(platform, options.custom_spaces.size()),
+      gc_invoker_(this, platform_.get(), options.stack_support),
+      growing_(&gc_invoker_, stats_collector_.get(),
+               options.resource_constraints) {}
 
 Heap::~Heap() {
-  NoGCScope no_gc(this);
+  NoGCScope no_gc(*this);
   // Finish already running GC if any, but don't finalize live objects.
   sweeper_.Finish();
 }
 
-void Heap::CollectGarbage(GCConfig config) {
+void Heap::CollectGarbage(Config config) {
+  CheckConfig(config);
+
   if (in_no_gc_scope()) return;
 
   epoch_++;
 
-  // TODO(chromium:1056170): Replace with proper mark-sweep algorithm.
+#if defined(CPPGC_YOUNG_GENERATION)
+  if (config.collection_type == Config::CollectionType::kMajor)
+    Unmarker unmarker(&raw_heap());
+#endif
+
   // "Marking".
-  marker_ = std::make_unique<Marker>(this);
-  marker_->StartMarking(Marker::MarkingConfig(config.stack_state));
-  marker_->FinishMarking();
+  marker_ = std::make_unique<Marker>(AsBase());
+  const Marker::MarkingConfig marking_config{
+      config.collection_type, config.stack_state, config.marking_type};
+  marker_->StartMarking(marking_config);
+  marker_->FinishMarking(marking_config);
   // "Sweeping and finalization".
   {
-    // Pre finalizers are forbidden from allocating objects
-    NoAllocationScope no_allocation_scope_(this);
+    // Pre finalizers are forbidden from allocating objects.
+    ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
     marker_->ProcessWeakness();
     prefinalizer_handler_->InvokePreFinalizers();
   }
   marker_.reset();
+  // TODO(chromium:1056170): replace build flag with dedicated flag.
+#if DEBUG
+  VerifyMarking(config.stack_state);
+#endif
   {
-    NoGCScope no_gc(this);
-    sweeper_.Start(Sweeper::Config::kAtomic);
+    NoGCScope no_gc(*this);
+    sweeper_.Start(config.sweeping_type);
   }
 }
-
-size_t Heap::ObjectPayloadSize() const {
-  return ObjectSizeCounter().GetSize(const_cast<RawHeap*>(&raw_heap()));
-}
-
-Heap::NoGCScope::NoGCScope(Heap* heap) : heap_(heap) { heap_->no_gc_scope_++; }
-
-Heap::NoGCScope::~NoGCScope() { heap_->no_gc_scope_--; }
-
-Heap::NoAllocationScope::NoAllocationScope(Heap* heap) : heap_(heap) {
-  heap_->no_allocation_scope_++;
-}
-Heap::NoAllocationScope::~NoAllocationScope() { heap_->no_allocation_scope_--; }
 
 }  // namespace internal
 }  // namespace cppgc

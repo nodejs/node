@@ -40,10 +40,9 @@ class JSFinalizationRegistry : public JSObject {
 
   class BodyDescriptor;
 
-  inline static void Register(
+  inline static void RegisterWeakCellWithUnregisterToken(
       Handle<JSFinalizationRegistry> finalization_registry,
-      Handle<JSReceiver> target, Handle<Object> holdings, Handle<Object> key,
-      Isolate* isolate);
+      Handle<WeakCell> weak_cell, Isolate* isolate);
   inline static bool Unregister(
       Handle<JSFinalizationRegistry> finalization_registry,
       Handle<JSReceiver> unregister_token, Isolate* isolate);

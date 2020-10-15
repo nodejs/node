@@ -274,6 +274,13 @@ class V8_BASE_EXPORT OS {
                                               size_t alignment,
                                               MemoryPermission access);
 
+  V8_WARN_UNUSED_RESULT static void* AllocateShared(size_t size,
+                                                    MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT static void* RemapShared(void* old_address,
+                                                 void* new_address,
+                                                 size_t size);
+
   V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
 
   V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);

@@ -13,10 +13,12 @@ per-file wasm-*=bbudge@chromium.org
 per-file wasm-*=binji@chromium.org
 per-file wasm-*=clemensb@chromium.org
 per-file wasm-*=gdeepti@chromium.org
+per-file wasm-*=jkummerow@chromium.org
 
 per-file int64-lowering.*=ahaas@chromium.org
 
 per-file simd-scalar-lowering.*=bbudge@chromium.org
 per-file simd-scalar-lowering.*=gdeepti@chromium.org
+per-file simd-scalar-lowering.*=zhin@chromium.org
 
 # COMPONENT: Blink>JavaScript>Compiler

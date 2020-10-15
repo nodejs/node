@@ -157,7 +157,7 @@ WASM_COMPILED_EXEC_TEST(Run_IndirectCallJSFunction) {
   r.CheckCallApplyViaJS(right, rc_fn.function_index(), args_right, 1);
 }
 
-void RunJSSelectTest(ExecutionTier tier, int which) {
+void RunJSSelectTest(TestExecutionTier tier, int which) {
   const int kMaxParams = 8;
   PredictableInputValues inputs(0x100);
   ValueType type = kWasmF64;
@@ -232,7 +232,7 @@ WASM_COMPILED_EXEC_TEST(Run_JSSelect_7) {
   RunJSSelectTest(execution_tier, 7);
 }
 
-void RunWASMSelectTest(ExecutionTier tier, int which) {
+void RunWASMSelectTest(TestExecutionTier tier, int which) {
   PredictableInputValues inputs(0x200);
   Isolate* isolate = CcTest::InitIsolateOnce();
   const int kMaxParams = 8;
@@ -302,7 +302,8 @@ WASM_COMPILED_EXEC_TEST(Run_WASMSelect_7) {
   RunWASMSelectTest(execution_tier, 7);
 }
 
-void RunWASMSelectAlignTest(ExecutionTier tier, int num_args, int num_params) {
+void RunWASMSelectAlignTest(TestExecutionTier tier, int num_args,
+                            int num_params) {
   PredictableInputValues inputs(0x300);
   Isolate* isolate = CcTest::InitIsolateOnce();
   const int kMaxParams = 10;
@@ -395,7 +396,8 @@ WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_10) {
   RunWASMSelectAlignTest(execution_tier, 10, 10);
 }
 
-void RunJSSelectAlignTest(ExecutionTier tier, int num_args, int num_params) {
+void RunJSSelectAlignTest(TestExecutionTier tier, int num_args,
+                          int num_params) {
   PredictableInputValues inputs(0x400);
   Isolate* isolate = CcTest::InitIsolateOnce();
   Factory* factory = isolate->factory();
@@ -516,7 +518,7 @@ WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_10) {
 // depending on the value of the third argument
 // function (a,b,c){ if(c)return a; return b; }
 
-void RunPickerTest(ExecutionTier tier, bool indirect) {
+void RunPickerTest(TestExecutionTier tier, bool indirect) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);

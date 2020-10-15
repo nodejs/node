@@ -37,7 +37,8 @@ class Log {
            FLAG_log_suspect || FLAG_ll_prof || FLAG_perf_basic_prof ||
            FLAG_perf_prof || FLAG_log_source_code || FLAG_gdbjit ||
            FLAG_log_internal_timer_events || FLAG_prof_cpp || FLAG_trace_ic ||
-           FLAG_log_function_events;
+           FLAG_log_function_events || FLAG_trace_zone_stats ||
+           FLAG_turbo_profiling_log_builtins;
   }
 
   // Frees all resources acquired in Initialize and Open... functions.

@@ -1,13 +1,12 @@
-// Copyright 2018 the V8 project authors. All rights reserved.
+// Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#ifndef V8_OBJECTS_JS_SEGMENT_ITERATOR_INL_H_
+#define V8_OBJECTS_JS_SEGMENT_ITERATOR_INL_H_
 
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_SEGMENT_ITERATOR_INL_H_
-#define V8_OBJECTS_JS_SEGMENT_ITERATOR_INL_H_
 
 #include "src/objects/js-segment-iterator.h"
 #include "src/objects/objects-inl.h"
@@ -23,11 +22,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentIterator)
 // Base segment iterator accessors.
 ACCESSORS(JSSegmentIterator, icu_break_iterator, Managed<icu::BreakIterator>,
           kIcuBreakIteratorOffset)
-ACCESSORS(JSSegmentIterator, unicode_string, Managed<icu::UnicodeString>,
-          kUnicodeStringOffset)
-
-BIT_FIELD_ACCESSORS(JSSegmentIterator, flags, is_break_type_set,
-                    JSSegmentIterator::BreakTypeSetBit)
 
 inline void JSSegmentIterator::set_granularity(
     JSSegmenter::Granularity granularity) {

@@ -130,9 +130,9 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
   static uint64_t MurmurHash3(uint64_t);
 
  private:
-  static const int64_t kMultiplier = V8_2PART_UINT64_C(0x5, deece66d);
+  static const int64_t kMultiplier = 0x5'deec'e66d;
   static const int64_t kAddend = 0xb;
-  static const int64_t kMask = V8_2PART_UINT64_C(0xffff, ffffffff);
+  static const int64_t kMask = 0xffff'ffff'ffff;
 
   int Next(int bits) V8_WARN_UNUSED_RESULT;
 

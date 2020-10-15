@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/torque/implementation-visitor.h"
+
 #include <algorithm>
+#include <iomanip>
 #include <string>
 
 #include "src/base/optional.h"
 #include "src/common/globals.h"
+#include "src/torque/constants.h"
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
-#include "src/torque/implementation-visitor.h"
 #include "src/torque/parameter-difference.h"
 #include "src/torque/server-data.h"
 #include "src/torque/type-inference.h"
@@ -78,12 +81,7 @@ void ImplementationVisitor::BeginCSAFiles() {
         UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_H_";
     header << "#ifndef " << headerDefine << "\n";
     header << "#define " << headerDefine << "\n\n";
-    header << "#include \"src/builtins/builtins-promise.h\"\n";
-    header << "#include \"src/compiler/code-assembler.h\"\n";
-    header << "#include \"src/codegen/code-stub-assembler.h\"\n";
-    header << "#include \"src/utils/utils.h\"\n";
-    header << "#include \"torque-generated/field-offsets-tq.h\"\n";
-    header << "#include \"torque-generated/csa-types-tq.h\"\n";
+    header << "#include \"src/builtins/torque-csa-header-includes.h\"\n";
     header << "\n";
 
     header << "namespace v8 {\n"
@@ -282,6 +280,8 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   GenerateMacroFunctionDeclaration(source_out(), "", macro);
   source_out() << " {\n";
   source_out() << "  compiler::CodeAssembler ca_(state_);\n";
+  source_out()
+      << "  compiler::CodeAssembler::SourcePositionScope pos_scope(&ca_);\n";
 
   Stack<std::string> lowered_parameters;
   Stack<const Type*> lowered_parameter_types;
@@ -729,8 +729,17 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
   VisitResult true_result;
   {
     StackScope true_block_scope(this);
+    VisitResult right_result = Visit(expr->right);
+    if (TryGetSourceForBitfieldExpression(expr->left) != nullptr &&
+        TryGetSourceForBitfieldExpression(expr->right) != nullptr &&
+        TryGetSourceForBitfieldExpression(expr->left)->value ==
+            TryGetSourceForBitfieldExpression(expr->right)->value) {
+      Lint(
+          "Please use & rather than && when checking multiple bitfield "
+          "values, to avoid complexity in generated code.");
+    }
     true_result = true_block_scope.Yield(
-        GenerateImplicitConvert(TypeOracle::GetBoolType(), Visit(expr->right)));
+        GenerateImplicitConvert(TypeOracle::GetBoolType(), right_result));
   }
   assembler().Goto(done_block);
 
@@ -775,16 +784,22 @@ VisitResult ImplementationVisitor::Visit(AssignmentExpression* expr) {
 }
 
 VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
-  int32_t i = static_cast<int32_t>(expr->number);
   const Type* result_type = TypeOracle::GetConstFloat64Type();
-  if (i == expr->number) {
-    if ((i >> 30) == (i >> 31)) {
-      result_type = TypeOracle::GetConstInt31Type();
-    } else {
-      result_type = TypeOracle::GetConstInt32Type();
+  if (expr->number >= std::numeric_limits<int32_t>::min() &&
+      expr->number <= std::numeric_limits<int32_t>::max()) {
+    int32_t i = static_cast<int32_t>(expr->number);
+    if (i == expr->number) {
+      if ((i >> 30) == (i >> 31)) {
+        result_type = TypeOracle::GetConstInt31Type();
+      } else {
+        result_type = TypeOracle::GetConstInt32Type();
+      }
     }
   }
-  return VisitResult{result_type, ToString(expr->number)};
+  std::stringstream str;
+  str << std::setprecision(std::numeric_limits<double>::digits10 + 1)
+      << expr->number;
+  return VisitResult{result_type, str.str()};
 }
 
 VisitResult ImplementationVisitor::Visit(AssumeTypeImpossibleExpression* expr) {
@@ -823,6 +838,17 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
 VisitResult ImplementationVisitor::Visit(LocationExpression* expr) {
   StackScope scope(this);
   return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
+}
+
+VisitResult ImplementationVisitor::Visit(FieldAccessExpression* expr) {
+  StackScope scope(this);
+  LocationReference location = GetLocationReference(expr);
+  if (location.IsBitFieldAccess()) {
+    if (auto* identifier = IdentifierExpression::DynamicCast(expr->object)) {
+      bitfield_expressions_[expr] = identifier->name;
+    }
+  }
+  return scope.Yield(GenerateFetchFromLocation(location));
 }
 
 const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
@@ -1017,7 +1043,19 @@ std::string FormatAssertSource(const std::string& str) {
 }  // namespace
 
 const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
-  bool do_check = !stmt->debug_only || GlobalContext::force_assert_statements();
+  if (stmt->kind == AssertStatement::AssertKind::kStaticAssert) {
+    std::string message =
+        "static_assert(" + stmt->source + ") at " + ToString(stmt->pos);
+    GenerateCall(QualifiedName({"", TORQUE_INTERNAL_NAMESPACE_STRING},
+                               STATIC_ASSERT_MACRO_STRING),
+                 Arguments{{Visit(stmt->expression),
+                            VisitResult(TypeOracle::GetConstexprStringType(),
+                                        StringLiteralQuote(message))},
+                           {}});
+    return TypeOracle::GetVoidType();
+  }
+  bool do_check = stmt->kind != AssertStatement::AssertKind::kAssert ||
+                  GlobalContext::force_assert_statements();
 #if defined(DEBUG)
   do_check = true;
 #endif
@@ -1343,12 +1381,18 @@ VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
   StackScope stack_scope(this);
   const ClassType* class_type = *object.type()->ClassSupertype();
   std::map<std::string, LocalValue> bindings;
+  bool before_current = true;
   for (Field f : class_type->ComputeAllFields()) {
-    if (f.index) break;
+    if (field.name_and_type.name == f.name_and_type.name) {
+      before_current = false;
+    }
     bindings.insert(
         {f.name_and_type.name,
          f.const_qualified
-             ? LocalValue{GenerateFieldReference(object, f, class_type)}
+             ? (before_current
+                    ? LocalValue{GenerateFieldReference(object, f, class_type)}
+                    : LocalValue("Array lengths may only refer to fields "
+                                 "defined earlier"))
              : LocalValue(
                    "Non-const fields cannot be used for array lengths.")});
   }
@@ -1488,8 +1532,10 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   Arguments allocate_arguments;
   allocate_arguments.parameters.push_back(layout.size);
   allocate_arguments.parameters.push_back(object_map);
+  allocate_arguments.parameters.push_back(
+      GenerateBoolConstant(expr->pretenured));
   VisitResult allocate_result = GenerateCall(
-      QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, "Allocate"),
+      QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, "AllocateFromNew"),
       allocate_arguments, {class_type}, false);
   DCHECK(allocate_result.IsOnStack());
 
@@ -1741,6 +1787,25 @@ bool ImplementationVisitor::TestLookupCallable(
                         {}, {}, true) != nullptr;
 }
 
+TypeArgumentInference ImplementationVisitor::InferSpecializationTypes(
+    GenericCallable* generic, const TypeVector& explicit_specialization_types,
+    const TypeVector& explicit_arguments) {
+  std::vector<base::Optional<const Type*>> all_arguments;
+  const ParameterList& parameters = generic->declaration()->parameters;
+  for (size_t i = 0; i < parameters.implicit_count; ++i) {
+    base::Optional<Binding<LocalValue>*> val =
+        TryLookupLocalValue(parameters.names[i]->value);
+    all_arguments.push_back(
+        val ? (*val)->GetLocationReference(*val).ReferencedType()
+            : base::nullopt);
+  }
+  for (const Type* explicit_argument : explicit_arguments) {
+    all_arguments.push_back(explicit_argument);
+  }
+  return generic->InferSpecializationTypes(explicit_specialization_types,
+                                           all_arguments);
+}
+
 template <class Container>
 Callable* ImplementationVisitor::LookupCallable(
     const QualifiedName& name, const Container& declaration_container,
@@ -1754,8 +1819,8 @@ Callable* ImplementationVisitor::LookupCallable(
   std::vector<std::pair<GenericCallable*, std::string>> inapplicable_generics;
   for (auto* declarable : declaration_container) {
     if (GenericCallable* generic = GenericCallable::DynamicCast(declarable)) {
-      TypeArgumentInference inference = generic->InferSpecializationTypes(
-          specialization_types, parameter_types);
+      TypeArgumentInference inference = InferSpecializationTypes(
+          generic, specialization_types, parameter_types);
       if (inference.HasFailed()) {
         inapplicable_generics.push_back(
             std::make_pair(generic, inference.GetFailureReason()));
@@ -1816,8 +1881,8 @@ Callable* ImplementationVisitor::LookupCallable(
 
   if (GenericCallable* generic =
           GenericCallable::DynamicCast(overloads[best])) {
-    TypeArgumentInference inference = generic->InferSpecializationTypes(
-        specialization_types, parameter_types);
+    TypeArgumentInference inference = InferSpecializationTypes(
+        generic, specialization_types, parameter_types);
     result = GetOrCreateSpecialization(
         SpecializationKey<GenericCallable>{generic, inference.GetResult()});
   } else {
@@ -2005,25 +2070,29 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
         ProjectStructField(reference.temporary(), fieldname),
         reference.temporary_description());
   }
-  if (reference.ReferencedType()->IsBitFieldStructType()) {
-    const BitFieldStructType* bitfield_struct =
-        BitFieldStructType::cast(reference.ReferencedType());
-    const BitField& field = bitfield_struct->LookupField(fieldname);
-    return LocationReference::BitFieldAccess(reference, field);
-  }
-  if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
-          reference.ReferencedType(), TypeOracle::GetSmiTaggedGeneric())) {
-    const BitFieldStructType* bitfield_struct =
-        BitFieldStructType::DynamicCast(*type_wrapped_in_smi);
-    if (bitfield_struct == nullptr) {
-      ReportError(
-          "When a value of type SmiTagged<T> is used in a field access "
-          "expression, T is expected to be a bitfield struct type. Instead, T "
-          "is ",
-          **type_wrapped_in_smi);
+  if (base::Optional<const Type*> referenced_type =
+          reference.ReferencedType()) {
+    if ((*referenced_type)->IsBitFieldStructType()) {
+      const BitFieldStructType* bitfield_struct =
+          BitFieldStructType::cast(*referenced_type);
+      const BitField& field = bitfield_struct->LookupField(fieldname);
+      return LocationReference::BitFieldAccess(reference, field);
     }
-    const BitField& field = bitfield_struct->LookupField(fieldname);
-    return LocationReference::BitFieldAccess(reference, field);
+    if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
+            (*referenced_type), TypeOracle::GetSmiTaggedGeneric())) {
+      const BitFieldStructType* bitfield_struct =
+          BitFieldStructType::DynamicCast(*type_wrapped_in_smi);
+      if (bitfield_struct == nullptr) {
+        ReportError(
+            "When a value of type SmiTagged<T> is used in a field access "
+            "expression, T is expected to be a bitfield struct type. Instead, "
+            "T "
+            "is ",
+            **type_wrapped_in_smi);
+      }
+      const BitField& field = bitfield_struct->LookupField(fieldname);
+      return LocationReference::BitFieldAccess(reference, field);
+    }
   }
   if (reference.IsHeapReference()) {
     VisitResult ref = reference.heap_reference();
@@ -2188,7 +2257,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
   } else if (reference.IsVariableAccess()) {
     return GenerateCopy(reference.variable());
   } else if (reference.IsHeapReference()) {
-    const Type* referenced_type = reference.ReferencedType();
+    const Type* referenced_type = *reference.ReferencedType();
     if (referenced_type == TypeOracle::GetFloat64OrHoleType()) {
       return GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
                                         "LoadFloat64OrHole"),
@@ -2205,9 +2274,9 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
       return VisitResult(referenced_type, result_range);
     } else {
       GenerateCopy(reference.heap_reference());
-      assembler().Emit(LoadReferenceInstruction{reference.ReferencedType()});
-      DCHECK_EQ(1, LoweredSlotCount(reference.ReferencedType()));
-      return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+      assembler().Emit(LoadReferenceInstruction{referenced_type});
+      DCHECK_EQ(1, LoweredSlotCount(referenced_type));
+      return VisitResult(referenced_type, assembler().TopRange(1));
     }
   } else if (reference.IsBitFieldAccess()) {
     // First fetch the bitfield struct, then get the bits out of it.
@@ -2215,7 +2284,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
         GenerateFetchFromLocation(reference.bit_field_struct_location());
     assembler().Emit(LoadBitFieldInstruction{bit_field_struct.type(),
                                              reference.bit_field()});
-    return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+    return VisitResult(*reference.ReferencedType(), assembler().TopRange(1));
   } else {
     if (reference.IsHeapSlice()) {
       ReportError(
@@ -2248,7 +2317,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
   } else if (reference.IsHeapSlice()) {
     ReportError("assigning a value directly to an indexed field isn't allowed");
   } else if (reference.IsHeapReference()) {
-    const Type* referenced_type = reference.ReferencedType();
+    const Type* referenced_type = *reference.ReferencedType();
     if (reference.IsConst()) {
       Error("cannot assign to const value of type ", *referenced_type).Throw();
     }
@@ -2290,7 +2359,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
     VisitResult bit_field_struct =
         GenerateFetchFromLocation(reference.bit_field_struct_location());
     VisitResult converted_value =
-        GenerateImplicitConvert(reference.ReferencedType(), assignment_value);
+        GenerateImplicitConvert(*reference.ReferencedType(), assignment_value);
     VisitResult updated_bit_field_struct =
         GenerateSetBitField(bit_field_struct.type(), reference.bit_field(),
                             bit_field_struct, converted_value);
@@ -2359,10 +2428,16 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
 void ImplementationVisitor::AddCallParameter(
     Callable* callable, VisitResult parameter, const Type* parameter_type,
     std::vector<VisitResult>* converted_arguments, StackRange* argument_range,
-    std::vector<std::string>* constexpr_arguments) {
-  VisitResult converted = GenerateImplicitConvert(parameter_type, parameter);
+    std::vector<std::string>* constexpr_arguments, bool inline_macro) {
+  VisitResult converted;
+  if ((converted_arguments->size() < callable->signature().implicit_count) &&
+      parameter.type()->IsTopType()) {
+    converted = GenerateCopy(parameter);
+  } else {
+    converted = GenerateImplicitConvert(parameter_type, parameter);
+  }
   converted_arguments->push_back(converted);
-  if (!callable->ShouldBeInlined()) {
+  if (!inline_macro) {
     if (converted.IsOnStack()) {
       argument_range->Extend(converted.stack_range());
     } else {
@@ -2370,6 +2445,29 @@ void ImplementationVisitor::AddCallParameter(
     }
   }
 }
+
+namespace {
+std::pair<std::string, std::string> GetClassInstanceTypeRange(
+    const ClassType* class_type) {
+  std::pair<std::string, std::string> result;
+  if (class_type->InstanceTypeRange()) {
+    auto instance_type_range = *class_type->InstanceTypeRange();
+    std::string instance_type_string_first =
+        "static_cast<InstanceType>(" +
+        std::to_string(instance_type_range.first) + ")";
+    std::string instance_type_string_second =
+        "static_cast<InstanceType>(" +
+        std::to_string(instance_type_range.second) + ")";
+    result =
+        std::make_pair(instance_type_string_first, instance_type_string_second);
+  } else {
+    ReportError(
+        "%Min/MaxInstanceType must take a class type that is either a string "
+        "or has a generated instance type range");
+  }
+  return result;
+}
+}  // namespace
 
 VisitResult ImplementationVisitor::GenerateCall(
     Callable* callable, base::Optional<LocationReference> this_reference,
@@ -2389,18 +2487,33 @@ VisitResult ImplementationVisitor::GenerateCall(
     }
   }
 
+  bool inline_macro = callable->ShouldBeInlined();
   std::vector<VisitResult> implicit_arguments;
   for (size_t i = 0; i < callable->signature().implicit_count; ++i) {
     std::string implicit_name = callable->signature().parameter_names[i]->value;
     base::Optional<Binding<LocalValue>*> val =
         TryLookupLocalValue(implicit_name);
-    if (!val) {
-      ReportError("implicit parameter '", implicit_name,
-                  "' required for call to '", callable->ReadableName(),
-                  "' is not defined");
+    if (val) {
+      implicit_arguments.push_back(
+          GenerateFetchFromLocation((*val)->GetLocationReference(*val)));
+    } else {
+      VisitResult unititialized = VisitResult::TopTypeResult(
+          "implicit parameter '" + implicit_name +
+              "' is not defined when invoking " + callable->ReadableName() +
+              " at " + PositionAsString(CurrentSourcePosition::Get()),
+          callable->signature().parameter_types.types[i]);
+      implicit_arguments.push_back(unititialized);
     }
-    implicit_arguments.push_back(
-        GenerateFetchFromLocation((*val)->GetLocationReference(*val)));
+    const Type* type = implicit_arguments.back().type();
+    if (const TopType* top_type = TopType::DynamicCast(type)) {
+      if (!callable->IsMacro() || callable->IsExternal()) {
+        ReportError(
+            "unititialized implicit parameters can only be passed to "
+            "Torque-defined macros: the ",
+            top_type->reason());
+      }
+      inline_macro = true;
+    }
   }
 
   std::vector<VisitResult> converted_arguments;
@@ -2412,7 +2525,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     AddCallParameter(callable, implicit_arguments[current],
                      callable->signature().parameter_types.types[current],
                      &converted_arguments, &argument_range,
-                     &constexpr_arguments);
+                     &constexpr_arguments, inline_macro);
   }
 
   if (this_reference) {
@@ -2421,7 +2534,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     // By now, the this reference should either be a variable, a temporary or
     // a Slice. In either case the fetch of the VisitResult should succeed.
     VisitResult this_value = this_reference->GetVisitResult();
-    if (method->ShouldBeInlined()) {
+    if (inline_macro) {
       if (!this_value.type()->IsSubtypeOf(method->aggregate_type())) {
         ReportError("this parameter must be a subtype of ",
                     *method->aggregate_type(), " but it is of type ",
@@ -2430,7 +2543,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     } else {
       AddCallParameter(callable, this_value, method->aggregate_type(),
                        &converted_arguments, &argument_range,
-                       &constexpr_arguments);
+                       &constexpr_arguments, inline_macro);
     }
     ++current;
   }
@@ -2440,7 +2553,7 @@ VisitResult ImplementationVisitor::GenerateCall(
                               ? TypeOracle::GetObjectType()
                               : callable->signature().types()[current++];
     AddCallParameter(callable, arg, to_type, &converted_arguments,
-                     &argument_range, &constexpr_arguments);
+                     &argument_range, &constexpr_arguments, inline_macro);
   }
 
   size_t label_count = callable->signature().labels.size();
@@ -2504,7 +2617,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       }
       result << "))";
       return VisitResult(return_type, result.str());
-    } else if (macro->ShouldBeInlined()) {
+    } else if (inline_macro) {
       std::vector<Block*> label_blocks;
       for (Binding<LocalLabel>* label : arguments.labels) {
         label_blocks.push_back(label->block);
@@ -2601,6 +2714,48 @@ VisitResult ImplementationVisitor::GenerateCall(
         Error("size of ", *type, " is not known.");
       }
       return VisitResult(return_type, size_string);
+    } else if (intrinsic->ExternalName() == "%ClassHasMapConstant") {
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%ClassHasMapConstant must take a class type parameter");
+      }
+      // If the class isn't actually used as the parameter to a TNode,
+      // then we can't rely on the class existing in C++ or being of the same
+      // type (e.g. it could be a template), so don't use the template CSA
+      // machinery for accessing the class' map.
+      if (class_type->name() != class_type->GetGeneratedTNodeTypeName()) {
+        return VisitResult(return_type, std::string("false"));
+      } else {
+        return VisitResult(
+            return_type,
+            std::string("CodeStubAssembler(state_).ClassHasMapConstant<") +
+                class_type->name() + ">()");
+      }
+    } else if (intrinsic->ExternalName() == "%MinInstanceType") {
+      if (specialization_types.size() != 1) {
+        ReportError("%MinInstanceType must take a single type parameter");
+      }
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%MinInstanceType must take a class type parameter");
+      }
+      std::pair<std::string, std::string> instance_types =
+          GetClassInstanceTypeRange(class_type);
+      return VisitResult(return_type, instance_types.first);
+    } else if (intrinsic->ExternalName() == "%MaxInstanceType") {
+      if (specialization_types.size() != 1) {
+        ReportError("%MaxInstanceType must take a single type parameter");
+      }
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%MaxInstanceType must take a class type parameter");
+      }
+      std::pair<std::string, std::string> instance_types =
+          GetClassInstanceTypeRange(class_type);
+      return VisitResult(return_type, instance_types.second);
     } else if (intrinsic->ExternalName() == "%RawConstexprCast") {
       if (intrinsic->signature().parameter_types.types.size() != 1 ||
           constexpr_arguments.size() != 1) {
@@ -2674,6 +2829,16 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
       LanguageServerData::AddDefinition(expr->callee->name->pos,
                                         callable->IdentifierPosition());
     }
+    if (expr->callee->name->value == "!" && arguments.parameters.size() == 1) {
+      PropagateBitfieldMark(expr->arguments[0], expr);
+    }
+    if (expr->callee->name->value == "==" && arguments.parameters.size() == 2) {
+      if (arguments.parameters[0].type()->IsConstexpr()) {
+        PropagateBitfieldMark(expr->arguments[1], expr);
+      } else if (arguments.parameters[1].type()->IsConstexpr()) {
+        PropagateBitfieldMark(expr->arguments[0], expr);
+      }
+    }
     return scope.Yield(
         GenerateCall(name, arguments, specialization_types, is_tailcall));
   }
@@ -2691,7 +2856,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
     target = LocationReference::Temporary(result, "this parameter");
   }
   const AggregateType* target_type =
-      AggregateType::DynamicCast(target.ReferencedType());
+      AggregateType::DynamicCast(*target.ReferencedType());
   if (!target_type) {
     ReportError("target of method call not a struct or class type");
   }
@@ -2767,8 +2932,13 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
     return scope.Yield(GenerateCopy(source));
   } else {
     std::stringstream s;
-    s << "cannot use expression of type " << *source.type()
-      << " as a value of type " << *destination_type;
+    if (const TopType* top_type = TopType::DynamicCast(source.type())) {
+      s << "undefined expression of type " << *destination_type << ": the "
+        << top_type->reason();
+    } else {
+      s << "cannot use expression of type " << *source.type()
+        << " as a value of type " << *destination_type;
+    }
     ReportError(s.str());
   }
 }
@@ -3333,6 +3503,9 @@ void ImplementationVisitor::GenerateBitFields(
                  << " = 1 << " << field.offset << ", \\\n";
         }
         header << "  }; \\\n";
+        header << "  using Flags = base::Flags<Flag>; \\\n";
+        header << "  static constexpr int kFlagCount = "
+               << type->fields().size() << "; \\\n";
       }
 
       header << "\n";
@@ -3868,6 +4041,8 @@ void EmitClassDefinitionHeadersIncludes(const std::string& basename,
   header << "#include <type_traits>\n\n";
 
   inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+  inline_header << "#include \"src/objects/js-function.h\"\n";
+  inline_header << "#include \"src/objects/js-objects.h\"\n";
   inline_header << "#include \"src/objects/js-promise.h\"\n";
   inline_header << "#include \"src/objects/js-weak-refs.h\"\n";
   inline_header << "#include \"src/objects/module.h\"\n";
@@ -4035,7 +4210,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
           structs_used_in_classes.insert(*field_as_struct);
         }
       }
-      if (type->ShouldExport()) {
+      if (type->ShouldExport() && !type->IsAbstract()) {
         factory_header << type->HandlifiedCppTypeName() << " New"
                        << type->name() << "(";
         factory_impl << type->HandlifiedCppTypeName() << " Factory::New"
@@ -4616,7 +4791,6 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     cc_contents << "#include \"src/objects/fixed-array-inl.h\"\n";
     cc_contents << "#include \"src/objects/free-space.h\"\n";
     cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
-    cc_contents << "#include \"src/objects/js-aggregate-error.h\"\n";
     cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";
     cc_contents << "#include \"src/objects/property-descriptor-object.h\"\n";
     cc_contents << "#include \"src/objects/synthetic-module.h\"\n";
@@ -4634,6 +4808,7 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
       cc_contents << "#include \"src/objects/js-relative-time-format.h\"\n";
       cc_contents << "#include \"src/objects/js-segment-iterator.h\"\n";
       cc_contents << "#include \"src/objects/js-segmenter.h\"\n";
+      cc_contents << "#include \"src/objects/js-segments.h\"\n";
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
 

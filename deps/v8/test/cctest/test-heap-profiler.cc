@@ -4075,7 +4075,7 @@ TEST(WeakReference) {
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
   i::Handle<i::Code> code =
-      i::Factory::CodeBuilder(i_isolate, desc, i::Code::STUB).Build();
+      i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::STUB).Build();
   CHECK(code->IsCode());
 
   fv->set_optimized_code_weak_or_smi(i::HeapObjectReference::Weak(*code));
@@ -4125,41 +4125,4 @@ TEST(Bug8373_2) {
   }
 
   heap_profiler->StopTrackingHeapObjects();
-}
-
-TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
-  // Check that a heap snapshot can be deleted during GC while another one
-  // is being taken.
-
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  int gc_calls = 0;
-  v8::Global<v8::Object> handle;
-
-  {
-    struct WeakData {
-      const v8::HeapSnapshot* snapshot;
-      int* gc_calls;
-      v8::Global<v8::Object>* handle;
-    };
-    WeakData* data =
-        new WeakData{heap_profiler->TakeHeapSnapshot(), &gc_calls, &handle};
-
-    v8::HandleScope scope(env->GetIsolate());
-    handle.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
-    handle.SetWeak(
-        data,
-        [](const v8::WeakCallbackInfo<WeakData>& data) {
-          std::unique_ptr<WeakData> weakdata{data.GetParameter()};
-          const_cast<v8::HeapSnapshot*>(weakdata->snapshot)->Delete();
-          ++*weakdata->gc_calls;
-          weakdata->handle->Reset();
-        },
-        v8::WeakCallbackType::kParameter);
-  }
-  CHECK_EQ(gc_calls, 0);
-
-  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
-  CHECK_EQ(gc_calls, 1);
 }

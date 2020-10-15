@@ -11,6 +11,11 @@ namespace v8 {
 namespace internal {
 
 LocalHandles::LocalHandles() { scope_.Initialize(); }
+LocalHandles::~LocalHandles() {
+  scope_.limit = nullptr;
+  RemoveUnusedBlocks();
+  DCHECK(blocks_.empty());
+}
 
 void LocalHandles::Iterate(RootVisitor* visitor) {
   for (int i = 0; i < static_cast<int>(blocks_.size()) - 1; i++) {
@@ -28,6 +33,24 @@ void LocalHandles::Iterate(RootVisitor* visitor) {
   }
 }
 
+#ifdef DEBUG
+bool LocalHandles::Contains(Address* location) {
+  // We have to search in all blocks since they have no guarantee of order.
+  for (auto it = blocks_.begin(); it != blocks_.end(); ++it) {
+    Address* lower_bound = *it;
+    // The last block is a special case because it may have less than
+    // block_size_ handles.
+    Address* upper_bound = lower_bound != blocks_.back()
+                               ? lower_bound + kHandleBlockSize
+                               : scope_.next;
+    if (lower_bound <= location && location < upper_bound) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
 Address* LocalHandles::AddBlock() {
   DCHECK_EQ(scope_.next, scope_.limit);
   Address* block = NewArray<Address>(kHandleBlockSize);
@@ -37,7 +60,7 @@ Address* LocalHandles::AddBlock() {
   return block;
 }
 
-void LocalHandles::RemoveBlocks() {
+void LocalHandles::RemoveUnusedBlocks() {
   while (!blocks_.empty()) {
     Address* block_start = blocks_.back();
     Address* block_limit = block_start + kHandleBlockSize;
@@ -48,11 +71,19 @@ void LocalHandles::RemoveBlocks() {
 
     blocks_.pop_back();
 
-    // TODO(dinfuehr): Zap handles in block
+#ifdef ENABLE_HANDLE_ZAPPING
+    ZapRange(block_start, block_limit);
+#endif
 
     DeleteArray(block_start);
   }
 }
+
+#ifdef ENABLE_HANDLE_ZAPPING
+void LocalHandles::ZapRange(Address* start, Address* end) {
+  HandleScope::ZapRange(start, end);
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

@@ -9,6 +9,7 @@
 #include "error_support.h"
 #include "find_by_first.h"
 #include "frontend_channel.h"
+#include "protocol_core.h"
 
 namespace v8_crdtp {
 // =============================================================================
@@ -321,6 +322,18 @@ std::unique_ptr<Serializable> CreateErrorResponse(
   return protocol_error;
 }
 
+std::unique_ptr<Serializable> CreateErrorResponse(
+    int call_id,
+    DispatchResponse dispatch_response,
+    const DeserializerState& state) {
+  auto protocol_error =
+      std::make_unique<ProtocolError>(std::move(dispatch_response));
+  protocol_error->SetCallId(call_id);
+  // TODO(caseq): should we plumb the call name here?
+  protocol_error->SetData(state.ErrorMessage(MakeSpan("params")));
+  return protocol_error;
+}
+
 std::unique_ptr<Serializable> CreateErrorNotification(
     DispatchResponse dispatch_response) {
   return std::make_unique<ProtocolError>(std::move(dispatch_response));
@@ -471,6 +484,21 @@ bool DomainDispatcher::MaybeReportInvalidParams(
         CreateErrorResponse(
             dispatchable.CallId(),
             DispatchResponse::InvalidParams("Invalid parameters"), &errors));
+  }
+  return true;
+}
+
+bool DomainDispatcher::MaybeReportInvalidParams(
+    const Dispatchable& dispatchable,
+    const DeserializerState& state) {
+  if (state.status().ok())
+    return false;
+  if (frontend_channel_) {
+    frontend_channel_->SendProtocolResponse(
+        dispatchable.CallId(),
+        CreateErrorResponse(
+            dispatchable.CallId(),
+            DispatchResponse::InvalidParams("Invalid parameters"), state));
   }
   return true;
 }

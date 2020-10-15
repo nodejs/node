@@ -41,19 +41,66 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+#ifdef USE_SIMULATOR
+static unsigned SimulatorFeaturesFromCommandLine() {
+  if (strcmp(FLAG_sim_arm64_optional_features, "none") == 0) {
+    return 0;
+  }
+  if (strcmp(FLAG_sim_arm64_optional_features, "all") == 0) {
+    return (1u << NUMBER_OF_CPU_FEATURES) - 1;
+  }
+  fprintf(
+      stderr,
+      "Error: unrecognised value for --sim-arm64-optional-features ('%s').\n",
+      FLAG_sim_arm64_optional_features);
+  fprintf(stderr,
+          "Supported values are:  none\n"
+          "                       all\n");
+  FATAL("sim-arm64-optional-features");
+}
+#endif  // USE_SIMULATOR
+
+static constexpr unsigned CpuFeaturesFromCompiler() {
+  unsigned features = 0;
+#if defined(__ARM_FEATURE_JCVT)
+  features |= 1u << JSCVT;
+#endif
+  return features;
+}
+
+}  // namespace
+
 // -----------------------------------------------------------------------------
 // CpuFeatures implementation.
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  // AArch64 has no configuration options, no further probing is required.
-  supported_ = 0;
-
   // Only use statically determined features for cross compile (snapshot).
-  if (cross_compile) return;
+  if (cross_compile) {
+    supported_ |= CpuFeaturesFromCompiler();
+    return;
+  }
 
   // We used to probe for coherent cache support, but on older CPUs it
   // causes crashes (crbug.com/524337), and newer CPUs don't even have
   // the feature any more.
+
+#ifdef USE_SIMULATOR
+  supported_ |= SimulatorFeaturesFromCommandLine();
+#else
+  // Probe for additional features at runtime.
+  base::CPU cpu;
+  unsigned runtime = 0;
+  if (cpu.has_jscvt()) {
+    runtime |= 1u << JSCVT;
+  }
+
+  // Use the best of the features found by CPU detection and those inferred from
+  // the build system.
+  supported_ |= CpuFeaturesFromCompiler();
+  supported_ |= runtime;
+#endif  // USE_SIMULATOR
 }
 
 void CpuFeatures::PrintTarget() {}
@@ -1115,10 +1162,10 @@ void Assembler::cls(const Register& rd, const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
 }
 
-void Assembler::pacia1716() { Emit(PACIA1716); }
-void Assembler::autia1716() { Emit(AUTIA1716); }
-void Assembler::paciasp() { Emit(PACIASP); }
-void Assembler::autiasp() { Emit(AUTIASP); }
+void Assembler::pacib1716() { Emit(PACIB1716); }
+void Assembler::autib1716() { Emit(AUTIB1716); }
+void Assembler::pacibsp() { Emit(PACIBSP); }
+void Assembler::autibsp() { Emit(AUTIBSP); }
 
 void Assembler::bti(BranchTargetIdentifier id) {
   SystemHint op;
@@ -1136,9 +1183,9 @@ void Assembler::bti(BranchTargetIdentifier id) {
       op = BTI_jc;
       break;
     case BranchTargetIdentifier::kNone:
-    case BranchTargetIdentifier::kPaciasp:
+    case BranchTargetIdentifier::kPacibsp:
       // We always want to generate a BTI instruction here, so disallow
-      // skipping its generation or generating a PACIASP instead.
+      // skipping its generation or generating a PACIBSP instead.
       UNREACHABLE();
   }
   hint(op);
@@ -2712,6 +2759,11 @@ void Assembler::fcvtxn2(const VRegister& vd, const VRegister& vn) {
   DCHECK(vd.Is4S() && vn.Is2D());
   Instr format = 1 << NEONSize_offset;
   Emit(NEON_Q | format | NEON_FCVTXN | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fjcvtzs(const Register& rd, const VRegister& vn) {
+  DCHECK(rd.IsW() && vn.Is1D());
+  Emit(FJCVTZS | Rn(vn) | Rd(rd));
 }
 
 #define NEON_FP2REGMISC_FCVT_LIST(V) \

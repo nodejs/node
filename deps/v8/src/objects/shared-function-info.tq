@@ -44,6 +44,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   class_scope_has_private_brand: bool: 1 bit;
   has_static_private_methods_or_accessors: bool: 1 bit;
+  may_have_cached_code: bool: 1 bit;
 }
 
 extern class SharedFunctionInfo extends HeapObject {
@@ -76,4 +77,14 @@ extern class UncompiledDataWithoutPreparseData extends UncompiledData {
 @generateCppClass
 extern class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
+}
+
+@export
+class OnHeapBasicBlockProfilerData extends HeapObject {
+  block_ids: ByteArray;  // Stored as 4-byte ints
+  counts: ByteArray;     // Stored as 4-byte ints
+  name: String;
+  schedule: String;
+  code: String;
+  hash: Smi;
 }

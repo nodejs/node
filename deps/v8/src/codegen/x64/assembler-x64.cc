@@ -132,168 +132,53 @@ uint32_t RelocInfo::wasm_call_tag() const {
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
-namespace {
-class OperandBuilder {
- public:
-  OperandBuilder(Register base, int32_t disp) {
-    if (base == rsp || base == r12) {
-      // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-      set_sib(times_1, rsp, base);
-    }
-
-    if (disp == 0 && base != rbp && base != r13) {
-      set_modrm(0, base);
-    } else if (is_int8(disp)) {
-      set_modrm(1, base);
-      set_disp8(disp);
-    } else {
-      set_modrm(2, base);
-      set_disp32(disp);
-    }
+Operand::Operand(Operand operand, int32_t offset) {
+  DCHECK_GE(operand.data().len, 1);
+  // Operand encodes REX ModR/M [SIB] [Disp].
+  byte modrm = operand.data().buf[0];
+  DCHECK_LT(modrm, 0xC0);  // Disallow mode 3 (register target).
+  bool has_sib = ((modrm & 0x07) == 0x04);
+  byte mode = modrm & 0xC0;
+  int disp_offset = has_sib ? 2 : 1;
+  int base_reg = (has_sib ? operand.data().buf[1] : modrm) & 0x07;
+  // Mode 0 with rbp/r13 as ModR/M or SIB base register always has a 32-bit
+  // displacement.
+  bool is_baseless = (mode == 0) && (base_reg == 0x05);  // No base or RIP base.
+  int32_t disp_value = 0;
+  if (mode == 0x80 || is_baseless) {
+    // Mode 2 or mode 0 with rbp/r13 as base: Word displacement.
+    disp_value = ReadUnalignedValue<int32_t>(
+        reinterpret_cast<Address>(&operand.data().buf[disp_offset]));
+  } else if (mode == 0x40) {
+    // Mode 1: Byte displacement.
+    disp_value = static_cast<signed char>(operand.data().buf[disp_offset]);
   }
 
-  OperandBuilder(Register base, Register index, ScaleFactor scale,
-                 int32_t disp) {
-    DCHECK(index != rsp);
-    set_sib(scale, index, base);
-    if (disp == 0 && base != rbp && base != r13) {
-      // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
-      // possibly set by set_sib.
-      set_modrm(0, rsp);
-    } else if (is_int8(disp)) {
-      set_modrm(1, rsp);
-      set_disp8(disp);
-    } else {
-      set_modrm(2, rsp);
-      set_disp32(disp);
-    }
+  // Write new operand with same registers, but with modified displacement.
+  DCHECK(offset >= 0 ? disp_value + offset > disp_value
+                     : disp_value + offset < disp_value);  // No overflow.
+  disp_value += offset;
+  data_.rex = operand.data().rex;
+  if (!is_int8(disp_value) || is_baseless) {
+    // Need 32 bits of displacement, mode 2 or mode 1 with register rbp/r13.
+    data_.buf[0] = (modrm & 0x3F) | (is_baseless ? 0x00 : 0x80);
+    data_.len = disp_offset + 4;
+    WriteUnalignedValue(reinterpret_cast<Address>(&data_.buf[disp_offset]),
+                        disp_value);
+  } else if (disp_value != 0 || (base_reg == 0x05)) {
+    // Need 8 bits of displacement.
+    data_.buf[0] = (modrm & 0x3F) | 0x40;  // Mode 1.
+    data_.len = disp_offset + 1;
+    data_.buf[disp_offset] = static_cast<byte>(disp_value);
+  } else {
+    // Need no displacement.
+    data_.buf[0] = (modrm & 0x3F);  // Mode 0.
+    data_.len = disp_offset;
   }
-
-  OperandBuilder(Register index, ScaleFactor scale, int32_t disp) {
-    DCHECK(index != rsp);
-    set_modrm(0, rsp);
-    set_sib(scale, index, rbp);
-    set_disp32(disp);
+  if (has_sib) {
+    data_.buf[1] = operand.data().buf[1];
   }
-
-  OperandBuilder(Label* label, int addend) {
-    data_.addend = addend;
-    DCHECK_NOT_NULL(label);
-    DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
-    set_modrm(0, rbp);
-    set_disp64(reinterpret_cast<intptr_t>(label));
-  }
-
-  OperandBuilder(Operand operand, int32_t offset) {
-    DCHECK_GE(operand.data().len, 1);
-    // Operand encodes REX ModR/M [SIB] [Disp].
-    byte modrm = operand.data().buf[0];
-    DCHECK_LT(modrm, 0xC0);  // Disallow mode 3 (register target).
-    bool has_sib = ((modrm & 0x07) == 0x04);
-    byte mode = modrm & 0xC0;
-    int disp_offset = has_sib ? 2 : 1;
-    int base_reg = (has_sib ? operand.data().buf[1] : modrm) & 0x07;
-    // Mode 0 with rbp/r13 as ModR/M or SIB base register always has a 32-bit
-    // displacement.
-    bool is_baseless =
-        (mode == 0) && (base_reg == 0x05);  // No base or RIP base.
-    int32_t disp_value = 0;
-    if (mode == 0x80 || is_baseless) {
-      // Mode 2 or mode 0 with rbp/r13 as base: Word displacement.
-      disp_value = ReadUnalignedValue<int32_t>(
-          reinterpret_cast<Address>(&operand.data().buf[disp_offset]));
-    } else if (mode == 0x40) {
-      // Mode 1: Byte displacement.
-      disp_value = static_cast<signed char>(operand.data().buf[disp_offset]);
-    }
-
-    // Write new operand with same registers, but with modified displacement.
-    DCHECK(offset >= 0 ? disp_value + offset > disp_value
-                       : disp_value + offset < disp_value);  // No overflow.
-    disp_value += offset;
-    data_.rex = operand.data().rex;
-    if (!is_int8(disp_value) || is_baseless) {
-      // Need 32 bits of displacement, mode 2 or mode 1 with register rbp/r13.
-      data_.buf[0] = (modrm & 0x3F) | (is_baseless ? 0x00 : 0x80);
-      data_.len = disp_offset + 4;
-      WriteUnalignedValue(reinterpret_cast<Address>(&data_.buf[disp_offset]),
-                          disp_value);
-    } else if (disp_value != 0 || (base_reg == 0x05)) {
-      // Need 8 bits of displacement.
-      data_.buf[0] = (modrm & 0x3F) | 0x40;  // Mode 1.
-      data_.len = disp_offset + 1;
-      data_.buf[disp_offset] = static_cast<byte>(disp_value);
-    } else {
-      // Need no displacement.
-      data_.buf[0] = (modrm & 0x3F);  // Mode 0.
-      data_.len = disp_offset;
-    }
-    if (has_sib) {
-      data_.buf[1] = operand.data().buf[1];
-    }
-  }
-
-  void set_modrm(int mod, Register rm_reg) {
-    DCHECK(is_uint2(mod));
-    data_.buf[0] = mod << 6 | rm_reg.low_bits();
-    // Set REX.B to the high bit of rm.code().
-    data_.rex |= rm_reg.high_bit();
-  }
-
-  void set_sib(ScaleFactor scale, Register index, Register base) {
-    DCHECK_EQ(data_.len, 1);
-    DCHECK(is_uint2(scale));
-    // Use SIB with no index register only for base rsp or r12. Otherwise we
-    // would skip the SIB byte entirely.
-    DCHECK(index != rsp || base == rsp || base == r12);
-    data_.buf[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
-    data_.rex |= index.high_bit() << 1 | base.high_bit();
-    data_.len = 2;
-  }
-
-  void set_disp8(int disp) {
-    DCHECK(is_int8(disp));
-    DCHECK(data_.len == 1 || data_.len == 2);
-    int8_t* p = reinterpret_cast<int8_t*>(&data_.buf[data_.len]);
-    *p = disp;
-    data_.len += sizeof(int8_t);
-  }
-
-  void set_disp32(int disp) {
-    DCHECK(data_.len == 1 || data_.len == 2);
-    Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
-    WriteUnalignedValue(p, disp);
-    data_.len += sizeof(int32_t);
-  }
-
-  void set_disp64(int64_t disp) {
-    DCHECK_EQ(1, data_.len);
-    Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
-    WriteUnalignedValue(p, disp);
-    data_.len += sizeof(disp);
-  }
-
-  const Operand::Data& data() const { return data_; }
-
- private:
-  Operand::Data data_;
-};
-}  // namespace
-
-Operand::Operand(Register base, int32_t disp)
-    : data_(OperandBuilder(base, disp).data()) {}
-
-Operand::Operand(Register base, Register index, ScaleFactor scale, int32_t disp)
-    : data_(OperandBuilder(base, index, scale, disp).data()) {}
-
-Operand::Operand(Register index, ScaleFactor scale, int32_t disp)
-    : data_(OperandBuilder(index, scale, disp).data()) {}
-
-Operand::Operand(Label* label, int addend)
-    : data_(OperandBuilder(label, addend).data()) {}
-
-Operand::Operand(Operand operand, int32_t offset)
-    : data_(OperandBuilder(operand, offset).data()) {}
+}
 
 bool Operand::AddressUsesRegister(Register reg) const {
   int code = reg.code();
@@ -3424,6 +3309,20 @@ void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   emit(static_cast<byte>(mode) | 0x8);
 }
 
+void Assembler::roundps(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+  DCHECK(!IsEnabled(AVX));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x08);
+  // Mask precision exception.
+  emit(static_cast<byte>(mode) | 0x8);
+}
+
+void Assembler::roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+  DCHECK(!IsEnabled(AVX));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x09);
+  // Mask precision exception.
+  emit(static_cast<byte>(mode) | 0x8);
+}
+
 void Assembler::movmskpd(Register dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -3443,8 +3342,8 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
 
 void Assembler::pmovmskb(Register dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
   emit(0x66);
+  emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xD7);
   emit_sse_operand(dst, src);

@@ -38,13 +38,11 @@ macro PromiseInit(promise: JSPromise): void {
 }
 
 macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
-  const nativeContext = LoadNativeContext(context);
-  const promiseFun = UnsafeCast<JSFunction>(
-      nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
+  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
   assert(IsFunctionWithPrototypeSlotMap(promiseFun.map));
   const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
   const promiseHeapObject = promise_internal::AllocateJSPromise(context);
-  * UnsafeConstCast(& promiseHeapObject.map) = promiseMap;
+  *UnsafeConstCast(&promiseHeapObject.map) = promiseMap;
   const promise = UnsafeCast<JSPromise>(promiseHeapObject);
   promise.properties_or_hash = kEmptyFixedArray;
   promise.elements = kEmptyFixedArray;
@@ -69,8 +67,9 @@ macro NewPromiseFulfillReactionJobTask(implicit context: Context)(
     context: handlerContext,
     handler,
     promise_or_capability: promiseOrCapability,
-    continuation_preserved_embedder_data: nativeContext
-        [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+    continuation_preserved_embedder_data:
+        *ContextSlot(
+        nativeContext, ContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX)
   };
 }
 
@@ -85,8 +84,9 @@ macro NewPromiseRejectReactionJobTask(implicit context: Context)(
     context: handlerContext,
     handler,
     promise_or_capability: promiseOrCapability,
-    continuation_preserved_embedder_data: nativeContext
-        [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+    continuation_preserved_embedder_data:
+        *ContextSlot(
+        nativeContext, ContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX)
   };
 }
 
@@ -143,8 +143,9 @@ macro NewPromiseReaction(implicit context: Context)(
     reject_handler: rejectHandler,
     fulfill_handler: fulfillHandler,
     promise_or_capability: promiseOrCapability,
-    continuation_preserved_embedder_data: nativeContext
-        [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+    continuation_preserved_embedder_data:
+        *ContextSlot(
+        nativeContext, ContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX)
   };
 }
 
@@ -208,7 +209,7 @@ macro InvokeThen<F: type>(implicit context: Context)(
       IsPromiseThenLookupChainIntact(
           nativeContext, UnsafeCast<HeapObject>(receiver).map)) {
     const then =
-        UnsafeCast<JSAny>(nativeContext[NativeContextSlot::PROMISE_THEN_INDEX]);
+        *NativeContextSlot(nativeContext, ContextSlot::PROMISE_THEN_INDEX);
     return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
   } else
     deferred {

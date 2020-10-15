@@ -6,6 +6,7 @@
 #define V8_AST_SCOPES_H_
 
 #include <numeric>
+
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
@@ -15,6 +16,7 @@
 #include "src/objects/objects.h"
 #include "src/utils/pointer-with-payload.h"
 #include "src/utils/utils.h"
+#include "src/zone/zone-hashmap.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -39,6 +41,15 @@ using UnresolvedList =
 class VariableMap : public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
+  VariableMap(const VariableMap& other, Zone* zone);
+
+  VariableMap(VariableMap&& other) V8_NOEXCEPT : ZoneHashMap(std::move(other)) {
+  }
+
+  VariableMap& operator=(VariableMap&& other) V8_NOEXCEPT {
+    static_cast<ZoneHashMap&>(*this) = std::move(other);
+    return *this;
+  }
 
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
                     VariableMode mode, VariableKind kind,
@@ -48,7 +59,9 @@ class VariableMap : public ZoneHashMap {
 
   V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
-  void Add(Zone* zone, Variable* var);
+  void Add(Variable* var);
+
+  Zone* zone() const { return allocator().zone(); }
 };
 
 class Scope;
@@ -102,6 +115,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     }
     inline explicit Snapshot(Scope* scope);
 
+    // Disallow copy and move.
+    Snapshot(const Snapshot&) = delete;
+    Snapshot(Snapshot&&) = delete;
+
     ~Snapshot() {
       // If we're still active, there was no arrow function. In that case outer
       // calls eval if it already called eval before this snapshot started, or
@@ -142,10 +159,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     Scope* top_inner_scope_;
     UnresolvedList::Iterator top_unresolved_;
     base::ThreadedList<Variable>::Iterator top_local_;
-
-    // Disallow copy and move.
-    Snapshot(const Snapshot&) = delete;
-    Snapshot(Snapshot&&) = delete;
   };
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
@@ -166,7 +179,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Assumes outer_scope_ is non-null.
   void ReplaceOuterScope(Scope* outer_scope);
 
-  Zone* zone() const { return zone_; }
+  Zone* zone() const { return variables_.zone(); }
 
   void SetMustUsePreparseData() {
     if (must_use_preparsed_scope_data_) {
@@ -697,8 +710,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   friend class DeclarationScope;
   friend class ClassScope;
   friend class ScopeTestHelper;
-
-  Zone* zone_;
+  friend Zone;
 
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or nullptr
@@ -896,11 +908,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
   bool is_being_lazily_parsed() const { return is_being_lazily_parsed_; }
 #endif
+
   void set_zone(Zone* zone) {
 #ifdef DEBUG
     needs_migration_ = true;
 #endif
-    zone_ = zone;
+    // Migrate variables_' backing store to new zone.
+    variables_ = VariableMap(variables_, zone);
   }
 
   // ---------------------------------------------------------------------------
@@ -1258,7 +1272,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   V8_INLINE RareData* EnsureRareData() {
     if (rare_data_ == nullptr) {
-      rare_data_ = new (zone_) RareData;
+      rare_data_ = zone()->New<RareData>();
     }
     return rare_data_;
   }
@@ -1439,8 +1453,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   }
   V8_INLINE RareData* EnsureRareData() {
     if (GetRareData() == nullptr) {
-      rare_data_and_is_parsing_heritage_.SetPointer(new (zone_)
-                                                        RareData(zone_));
+      rare_data_and_is_parsing_heritage_.SetPointer(
+          zone()->New<RareData>(zone()));
     }
     return GetRareData();
   }

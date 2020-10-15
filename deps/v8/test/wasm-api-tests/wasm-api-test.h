@@ -40,12 +40,13 @@ class WasmCapiTest : public ::testing::Test {
  public:
   WasmCapiTest()
       : Test(),
-        zone_(&allocator_, ZONE_NAME),
-        wire_bytes_(&zone_),
-        builder_(&zone_),
+        engine_(Engine::make()),
+        allocator_(std::make_unique<AccountingAllocator>()),
+        zone_(std::make_unique<Zone>(allocator_.get(), ZONE_NAME)),
+        wire_bytes_(zone_.get()),
+        builder_(zone_->New<WasmModuleBuilder>(zone_.get())),
         exports_(ownvec<Extern>::make()),
         wasm_i_i_sig_(1, 1, wasm_i_i_sig_types_) {
-    engine_ = Engine::make();
     store_ = Store::make(engine_.get());
     cpp_i_i_sig_ =
         FuncType::make(ownvec<ValType>::make(ValType::make(::wasm::I32)),
@@ -53,7 +54,7 @@ class WasmCapiTest : public ::testing::Test {
   }
 
   void Compile() {
-    builder_.WriteTo(&wire_bytes_);
+    builder_->WriteTo(&wire_bytes_);
     size_t size = wire_bytes_.end() - wire_bytes_.begin();
     vec<byte_t> binary = vec<byte_t>::make(
         size,
@@ -119,10 +120,13 @@ class WasmCapiTest : public ::testing::Test {
     instance_.reset();
     module_.reset();
     store_.reset();
+    builder_ = nullptr;
+    zone_.reset();
+    allocator_.reset();
     engine_.reset();
   }
 
-  WasmModuleBuilder* builder() { return &builder_; }
+  WasmModuleBuilder* builder() { return builder_; }
   Engine* engine() { return engine_.get(); }
   Store* store() { return store_.get(); }
   Module* module() { return module_.get(); }
@@ -134,11 +138,11 @@ class WasmCapiTest : public ::testing::Test {
   FuncType* cpp_i_i_sig() { return cpp_i_i_sig_.get(); }
 
  private:
-  AccountingAllocator allocator_;
-  Zone zone_;
-  ZoneBuffer wire_bytes_;
-  WasmModuleBuilder builder_;
   own<Engine> engine_;
+  own<AccountingAllocator> allocator_;
+  own<Zone> zone_;
+  ZoneBuffer wire_bytes_;
+  WasmModuleBuilder* builder_;
   own<Store> store_;
   own<Module> module_;
   own<Instance> instance_;
