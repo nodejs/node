@@ -434,7 +434,7 @@ The following signal constants are exported by `os.constants.signals`.
   <tr>
     <td><code>SIGINT</code></td>
     <td>Sent to indicate when a user wishes to interrupt a process
-    (<code>(Ctrl+C)</code>).</td>
+    (<kbd>Ctrl</kbd>+<kbd>C</kbd>).</td>
   </tr>
   <tr>
     <td><code>SIGQUIT</code></td>
