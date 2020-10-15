@@ -17,6 +17,11 @@ namespace internal {
 
 // Internal constants to avoid exposing internal types on the API surface.
 namespace api_constants {
+
+constexpr size_t kKB = 1024;
+constexpr size_t kMB = kKB * 1024;
+constexpr size_t kGB = kMB * 1024;
+
 // Offset of the uint16_t bitfield from the payload contaning the
 // in-construction bit. This is subtracted from the payload pointer to get
 // to the right bitfield.
@@ -25,16 +30,14 @@ static constexpr size_t kFullyConstructedBitFieldOffsetFromPayload =
 // Mask for in-construction bit.
 static constexpr size_t kFullyConstructedBitMask = size_t{1};
 
-// Page constants used to align pointers to page begin.
 static constexpr size_t kPageSize = size_t{1} << 17;
-static constexpr size_t kPageAlignment = kPageSize;
-static constexpr size_t kPageBaseMask = ~(kPageAlignment - 1);
-static constexpr size_t kGuardPageSize = 4096;
-
-// Offset of the Heap backref.
-static constexpr size_t kHeapOffset = 0;
 
 static constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
+
+#if defined(CPPGC_CAGED_HEAP)
+constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
+constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
+#endif
 
 }  // namespace api_constants
 

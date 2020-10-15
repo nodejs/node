@@ -907,7 +907,7 @@ WASM_EXEC_TEST(CallI64Return) {
   CHECK_EQ(0xBCD12340000000B, r.Call());
 }
 
-void TestI64Binop(ExecutionTier execution_tier, WasmOpcode opcode,
+void TestI64Binop(TestExecutionTier execution_tier, WasmOpcode opcode,
                   int64_t expected, int64_t a, int64_t b) {
   {
     WasmRunner<int64_t> r(execution_tier);
@@ -923,7 +923,7 @@ void TestI64Binop(ExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
-void TestI64Cmp(ExecutionTier execution_tier, WasmOpcode opcode,
+void TestI64Cmp(TestExecutionTier execution_tier, WasmOpcode opcode,
                 int64_t expected, int64_t a, int64_t b) {
   {
     WasmRunner<int32_t> r(execution_tier);
@@ -1482,7 +1482,7 @@ WASM_EXEC_TEST(UnalignedInt64Store) {
     for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
   } while (false)
 
-static void CompileCallIndirectMany(ExecutionTier tier, ValueType param) {
+static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
@@ -1511,7 +1511,7 @@ WASM_EXEC_TEST(Compile_Wasm_CallIndirect_Many_i64) {
   CompileCallIndirectMany(execution_tier, kWasmI64);
 }
 
-static void Run_WasmMixedCall_N(ExecutionTier execution_tier, int start) {
+static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
   const int kExpected = 6333;
   const int kElemSize = 8;
   TestSignatures sigs;

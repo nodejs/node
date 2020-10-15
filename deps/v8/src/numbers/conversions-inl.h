@@ -134,7 +134,7 @@ bool IsUint32Double(double value) {
 bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
   const double k2Pow52 = 4503599627370496.0;
   const uint32_t kValidTopBits = 0x43300000;
-  const uint64_t kBottomBitMask = V8_2PART_UINT64_C(0x00000000, FFFFFFFF);
+  const uint64_t kBottomBitMask = 0x0000'0000'FFFF'FFFF;
 
   // Add 2^52 to the double, to place valid uint32 values in the low-significant
   // bits of the exponent, by effectively setting the (implicit) top bit of the

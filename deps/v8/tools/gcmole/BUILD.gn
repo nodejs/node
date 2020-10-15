@@ -16,6 +16,7 @@ group("v8_run_gcmole") {
     "parallel.py",
     "run-gcmole.py",
     "suspects.whitelist",
+    "ignored_files",
     "test-expectations.txt",
 
     # The following contains all relevant source and build files.
@@ -37,9 +38,7 @@ group("v8_run_gcmole") {
     "$target_gen_dir/../../torque-generated/",
   ]
 
-  deps = [
-    "../../:run_torque",
-  ]
+  deps = [ "../../:run_torque" ]
 
   if (v8_gcmole) {
     # This assumes gcmole tools have been fetched by a hook

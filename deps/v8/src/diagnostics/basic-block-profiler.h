@@ -14,66 +14,83 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 
 namespace v8 {
 namespace internal {
 
+class BasicBlockProfilerData {
+ public:
+  explicit BasicBlockProfilerData(size_t n_blocks);
+  V8_EXPORT_PRIVATE BasicBlockProfilerData(
+      Handle<OnHeapBasicBlockProfilerData> js_heap_data, Isolate* isolate);
+  V8_EXPORT_PRIVATE BasicBlockProfilerData(
+      OnHeapBasicBlockProfilerData js_heap_data);
+
+  size_t n_blocks() const {
+    DCHECK_EQ(block_ids_.size(), counts_.size());
+    return block_ids_.size();
+  }
+  const uint32_t* counts() const { return &counts_[0]; }
+
+  void SetCode(const std::ostringstream& os);
+  void SetFunctionName(std::unique_ptr<char[]> name);
+  void SetSchedule(const std::ostringstream& os);
+  void SetBlockId(size_t offset, int32_t id);
+  void SetHash(int hash);
+
+  // Copy the data from this object into an equivalent object stored on the JS
+  // heap, so that it can survive snapshotting and relocation. This must
+  // happen on the main thread during finalization of the compilation.
+  Handle<OnHeapBasicBlockProfilerData> CopyToJSHeap(Isolate* isolate);
+
+  void Log(Isolate* isolate);
+
+ private:
+  friend class BasicBlockProfiler;
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const BasicBlockProfilerData& s);
+
+  V8_EXPORT_PRIVATE void ResetCounts();
+
+  // These vectors are indexed by reverse post-order block number.
+  std::vector<int32_t> block_ids_;
+  std::vector<uint32_t> counts_;
+  std::string function_name_;
+  std::string schedule_;
+  std::string code_;
+  int hash_;
+  DISALLOW_COPY_AND_ASSIGN(BasicBlockProfilerData);
+};
+
 class BasicBlockProfiler {
  public:
-  class Data {
-   public:
-    size_t n_blocks() const { return n_blocks_; }
-    const uint32_t* counts() const { return &counts_[0]; }
-
-    void SetCode(std::ostringstream* os);
-    void SetFunctionName(std::unique_ptr<char[]> name);
-    void SetSchedule(std::ostringstream* os);
-    void SetBlockRpoNumber(size_t offset, int32_t block_rpo);
-    intptr_t GetCounterAddress(size_t offset);
-
-   private:
-    friend class BasicBlockProfiler;
-    friend std::ostream& operator<<(std::ostream& os,
-                                    const BasicBlockProfiler::Data& s);
-
-    explicit Data(size_t n_blocks);
-    ~Data() = default;
-
-    V8_EXPORT_PRIVATE void ResetCounts();
-
-    const size_t n_blocks_;
-    std::vector<int32_t> block_rpo_numbers_;
-    std::vector<uint32_t> counts_;
-    std::string function_name_;
-    std::string schedule_;
-    std::string code_;
-    DISALLOW_COPY_AND_ASSIGN(Data);
-  };
-
-  using DataList = std::list<Data*>;
+  using DataList = std::list<std::unique_ptr<BasicBlockProfilerData>>;
 
   BasicBlockProfiler() = default;
-  ~BasicBlockProfiler();
+  ~BasicBlockProfiler() = default;
 
   V8_EXPORT_PRIVATE static BasicBlockProfiler* Get();
-  Data* NewData(size_t n_blocks);
-  V8_EXPORT_PRIVATE void ResetCounts();
+  BasicBlockProfilerData* NewData(size_t n_blocks);
+  V8_EXPORT_PRIVATE void ResetCounts(Isolate* isolate);
+  V8_EXPORT_PRIVATE bool HasData(Isolate* isolate);
+  V8_EXPORT_PRIVATE void Print(std::ostream& os, Isolate* isolate);
+
+  // Coverage bitmap in this context includes only on heap BasicBlockProfiler
+  // data It is used to export coverage of builtins function loaded from
+  // snapshot.
+  V8_EXPORT_PRIVATE std::vector<bool> GetCoverageBitmap(Isolate* isolate);
 
   const DataList* data_list() { return &data_list_; }
 
  private:
-  friend V8_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const BasicBlockProfiler& s);
-
   DataList data_list_;
   base::Mutex data_list_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(BasicBlockProfiler);
 };
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           const BasicBlockProfiler& s);
-std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler::Data& s);
+std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& s);
 
 }  // namespace internal
 }  // namespace v8

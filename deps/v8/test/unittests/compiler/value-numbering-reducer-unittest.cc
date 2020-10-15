@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/value-numbering-reducer.h"
+
 #include <limits>
 
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/value-numbering-reducer.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -30,7 +31,9 @@ static const TestOperator kOp1(1, Operator::kIdempotent, 1, 1);
 class ValueNumberingReducerTest : public TestWithZone {
  public:
   ValueNumberingReducerTest()
-      : graph_(zone()), reducer_(zone(), graph()->zone()) {}
+      : TestWithZone(kCompressGraphZone),
+        graph_(zone()),
+        reducer_(zone(), graph()->zone()) {}
 
  protected:
   Reduction Reduce(Node* node) { return reducer_.Reduce(node); }
@@ -77,7 +80,7 @@ TEST_F(ValueNumberingReducerTest, OperatorEqualityNotIdentity) {
   for (size_t i = 0; i < arraysize(inputs); ++i) {
     Operator::Opcode opcode = static_cast<Operator::Opcode>(kMaxInputCount + i);
     inputs[i] = graph()->NewNode(
-        new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
+        zone()->New<TestOperator>(opcode, Operator::kIdempotent, 0, 1));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
     const TestOperator op1(static_cast<Operator::Opcode>(input_count),
@@ -102,7 +105,7 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
   for (size_t i = 0; i < arraysize(inputs); ++i) {
     Operator::Opcode opcode = static_cast<Operator::Opcode>(2 + i);
     inputs[i] = graph()->NewNode(
-        new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
+        zone()->New<TestOperator>(opcode, Operator::kIdempotent, 0, 1));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
     const TestOperator op1(1, Operator::kIdempotent, input_count, 1);

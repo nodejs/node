@@ -16,12 +16,12 @@ namespace wasm {
 
 class WasmCallDescriptorTest : public TestWithZone {};
 
-TEST_F(WasmCallDescriptorTest, TestAnyRefIsGrouped) {
+TEST_F(WasmCallDescriptorTest, TestExternRefIsGrouped) {
   constexpr size_t kMaxCount = 30;
   ValueType params[kMaxCount];
 
   for (size_t i = 0; i < kMaxCount; i += 2) {
-    params[i] = kWasmAnyRef;
+    params[i] = kWasmExternRef;
     CHECK_LT(i + 1, kMaxCount);
     params[i + 1] = kWasmI32;
   }

@@ -3,18 +3,28 @@
 // found in the LICENSE file.
 
 namespace array {
+
+// Continuation for lazy deopt triggered by allocation of the result array.
+transitioning javascript builtin
+ArrayMapPreLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    callback: JSAny, thisArg: JSAny, length: JSAny, result: JSAny): JSAny {
+  const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+  const outputArray = Cast<JSReceiver>(result) otherwise unreachable;
+  const numberLength = Cast<Number>(length) otherwise unreachable;
+
+  const callbackfn = Cast<Callable>(callback)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, callback);
+  return ArrayMapLoopContinuation(
+      jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, kZero,
+      numberLength);
+}
+
 transitioning javascript builtin
 ArrayMapLoopEagerDeoptContinuation(
     js-implicit context: NativeContext, receiver: JSAny)(
     callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
     length: JSAny): JSAny {
-  // All continuation points in the optimized filter implementation are
-  // after the ToObject(O) call that ensures we are dealing with a
-  // JSReceiver.
-  //
-  // Also, this great mass of casts is necessary because the signature
-  // of Torque javascript builtins requires JSAny type for all parameters
-  // other than {context}.
   const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
   const callbackfn = Cast<Callable>(callback) otherwise unreachable;
   const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
@@ -31,17 +41,14 @@ ArrayMapLoopLazyDeoptContinuation(
     js-implicit context: NativeContext, receiver: JSAny)(
     callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
     length: JSAny, result: JSAny): JSAny {
-  // All continuation points in the optimized filter implementation are
-  // after the ToObject(O) call that ensures we are dealing with a
-  // JSReceiver.
   const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
   const callbackfn = Cast<Callable>(callback) otherwise unreachable;
   const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
   let numberK = Cast<Number>(initialK) otherwise unreachable;
   const numberLength = Cast<Number>(length) otherwise unreachable;
 
-  // This custom lazy deopt point is right after the callback. map() needs
-  // to pick up at the next step, which is setting the callback result in
+  // This custom lazy deopt point is right after the callback. The continuation
+  // needs to pick up at the next step, which is setting the callback result in
   // the output array. After incrementing k, we can glide into the loop
   // continuation builtin.
 

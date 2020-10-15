@@ -40,11 +40,8 @@ void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
   it->second.Accumulate(stats);
 }
 
-void CompilationStatistics::RecordTotalStats(size_t source_size,
-                                             const BasicStats& stats) {
+void CompilationStatistics::RecordTotalStats(const BasicStats& stats) {
   base::MutexGuard guard(&record_mutex_);
-
-  source_size += source_size;
   total_stats_.Accumulate(stats);
 }
 

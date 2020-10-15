@@ -34,6 +34,7 @@
 #include "src/base/platform/platform.h"
 #include "src/codegen/arm/assembler-arm.h"
 #include "src/codegen/arm/constants-arm.h"
+#include "src/codegen/arm/register-arm.h"
 #include "src/diagnostics/disasm.h"
 #include "src/utils/vector.h"
 
@@ -70,7 +71,9 @@ class Decoder {
   void PrintRegister(int reg);
   void PrintSRegister(int reg);
   void PrintDRegister(int reg);
-  int FormatVFPRegister(Instruction* instr, const char* format);
+  void PrintQRegister(int reg);
+  int FormatVFPRegister(Instruction* instr, const char* format,
+                        VFPRegPrecision precision);
   void PrintMovwMovt(Instruction* instr);
   int FormatVFPinstruction(Instruction* instr, const char* format);
   void PrintCondition(Instruction* instr);
@@ -112,6 +115,7 @@ class Decoder {
   void DecodeVCMP(Instruction* instr);
   void DecodeVCVTBetweenDoubleAndSingle(Instruction* instr);
   void DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr);
+  void DecodeVmovImmediate(Instruction* instr);
 
   const disasm::NameConverter& converter_;
   Vector<char> out_buffer_;
@@ -159,6 +163,11 @@ void Decoder::PrintSRegister(int reg) { Print(VFPRegisters::Name(reg, false)); }
 
 // Print the VFP D register name according to the active name converter.
 void Decoder::PrintDRegister(int reg) { Print(VFPRegisters::Name(reg, true)); }
+
+// Print the VFP Q register name according to the active name converter.
+void Decoder::PrintQRegister(int reg) {
+  Print(RegisterName(QwNeonRegister::from_code(reg)));
+}
 
 // These shift names are defined in a way to match the native disassembler
 // formatting. See for example the command "objdump -d <binary file>".
@@ -312,12 +321,8 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 
 // Handle all VFP register based formatting in this function to reduce the
 // complexity of FormatOption.
-int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
-  DCHECK((format[0] == 'S') || (format[0] == 'D'));
-
-  VFPRegPrecision precision =
-      format[0] == 'D' ? kDoublePrecision : kSinglePrecision;
-
+int Decoder::FormatVFPRegister(Instruction* instr, const char* format,
+                               VFPRegPrecision precision) {
   int retval = 2;
   int reg = -1;
   if (format[1] == 'n') {
@@ -334,9 +339,10 @@ int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
     }
 
     if (format[2] == '+') {
+      DCHECK_NE(kSimd128Precision, precision);  // Simd128 unimplemented.
       int immed8 = instr->Immed8Value();
-      if (format[0] == 'S') reg += immed8 - 1;
-      if (format[0] == 'D') reg += (immed8 / 2 - 1);
+      if (precision == kSinglePrecision) reg += immed8 - 1;
+      if (precision == kDoublePrecision) reg += (immed8 / 2 - 1);
     }
     if (format[2] == '+') retval = 3;
   } else {
@@ -345,8 +351,11 @@ int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
 
   if (precision == kSinglePrecision) {
     PrintSRegister(reg);
-  } else {
+  } else if (precision == kDoublePrecision) {
     PrintDRegister(reg);
+  } else {
+    DCHECK_EQ(kSimd128Precision, precision);
+    PrintQRegister(reg);
   }
 
   return retval;
@@ -644,9 +653,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 1;
     }
     case 'S':
-    case 'D': {
-      return FormatVFPRegister(instr, format);
-    }
+      return FormatVFPRegister(instr, format, kSinglePrecision);
+    case 'D':
+      return FormatVFPRegister(instr, format, kDoublePrecision);
+    case 'Q':
+      return FormatVFPRegister(instr, format, kSimd128Precision);
     case 'w': {  // 'w: W field of load and store instructions
       if (instr->HasW()) {
         Print("!");
@@ -1725,6 +1736,30 @@ void Decoder::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
   }
 }
 
+void Decoder::DecodeVmovImmediate(Instruction* instr) {
+  byte cmode = instr->Bits(11, 8);
+  int vd = instr->VFPDRegValue(kSimd128Precision);
+  int a = instr->Bit(24);
+  int bcd = instr->Bits(18, 16);
+  int efgh = instr->Bits(3, 0);
+  uint8_t imm = a << 7 | bcd << 4 | efgh;
+  switch (cmode) {
+    case 0: {
+      uint32_t imm32 = imm;
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "vmov.i32 q%d, %d", vd, imm32);
+      break;
+    }
+    case 0xe: {
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "vmov.i8 q%d, %d", vd, imm);
+      break;
+    }
+    default:
+      Unknown(instr);
+  }
+}
+
 // Decode Type 6 coprocessor instructions.
 // Dm = vmov(Rt, Rt2)
 // <Rt, Rt2> = vmov(Dm)
@@ -2000,21 +2035,7 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           instr->Bit(7) == 0 && instr->Bit(4) == 1) {
         // One register and a modified immediate value, see ARM DDI 0406C.d
         // A7.4.6.
-        byte cmode = instr->Bits(11, 8);
-        switch (cmode) {
-          case 0: {
-            int vd = instr->VFPDRegValue(kSimd128Precision);
-            int a = instr->Bit(24);
-            int bcd = instr->Bits(18, 16);
-            int efgh = instr->Bits(3, 0);
-            int imm64 = a << 7 | bcd << 4 | efgh;
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vmov.i32 q%d, %d", vd, imm64);
-            break;
-          }
-          default:
-            Unknown(instr);
-        }
+        DecodeVmovImmediate(instr);
       } else if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
                  (instr->Bit(4) == 1)) {
         // vmovl signed
@@ -2055,6 +2076,16 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         out_buffer_pos_ +=
             SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.s%d q%d, q%d, #%d",
                      size, Vd, Vm, shift);
+      } else if (instr->Bits(11, 8) == 0xC && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 0) {
+        // vmull.s<size> Qd, Dn, Dm
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        int size = 8 << instr->Bits(21, 20);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vmull.s%d q%d, d%d, d%d",
+                     size, Vd, Vn, Vm);
       } else {
         Unknown(instr);
       }
@@ -2264,6 +2295,42 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           out_buffer_pos_ +=
               SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
                        type, size, Vd, Vm);
+        } else if (instr->Bits(17, 16) == 0x2 && instr->Bit(10) == 1) {
+          // NEON vrintm, vrintn, vrintp, vrintz.
+          bool dp_op = instr->Bit(6) == 0;
+          int rounding_mode = instr->Bits(9, 7);
+          switch (rounding_mode) {
+            case 0:
+              if (dp_op) {
+                Format(instr, "vrintn.f32 'Dd, 'Dm");
+              } else {
+                Format(instr, "vrintn.f32 'Qd, 'Qm");
+              }
+              break;
+            case 3:
+              if (dp_op) {
+                Format(instr, "vrintz.f32 'Dd, 'Dm");
+              } else {
+                Format(instr, "vrintz.f32 'Qd, 'Qm");
+              }
+              break;
+            case 5:
+              if (dp_op) {
+                Format(instr, "vrintm.f32 'Dd, 'Dm");
+              } else {
+                Format(instr, "vrintm.f32 'Qd, 'Qm");
+              }
+              break;
+            case 7:
+              if (dp_op) {
+                Format(instr, "vrintp.f32 'Dd, 'Dm");
+              } else {
+                Format(instr, "vrintp.f32 'Qd, 'Qm");
+              }
+              break;
+            default:
+              UNIMPLEMENTED();
+          }
         } else {
           int Vd, Vm;
           if (instr->Bit(6) == 0) {
@@ -2415,6 +2482,11 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         out_buffer_pos_ +=
             SNPrintF(out_buffer_ + out_buffer_pos_, "vmull.u%d q%d, d%d, d%d",
                      size, Vd, Vn, Vm);
+      } else if (instr->Bits(21, 19) == 0 && instr->Bit(7) == 0 &&
+                 instr->Bit(4) == 1) {
+        // One register and a modified immediate value, see ARM DDI 0406C.d
+        // A7.4.6.
+        DecodeVmovImmediate(instr);
       } else {
         Unknown(instr);
       }

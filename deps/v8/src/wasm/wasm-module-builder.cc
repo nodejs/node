@@ -256,7 +256,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       has_shared_memory_(false) {}
 
 WasmFunctionBuilder* WasmModuleBuilder::AddFunction(FunctionSig* sig) {
-  functions_.push_back(new (zone_) WasmFunctionBuilder(this));
+  functions_.push_back(zone_->New<WasmFunctionBuilder>(this));
   // Add the signature if one was provided here.
   if (sig) functions_.back()->SetSignature(sig);
   return functions_.back();
@@ -376,9 +376,9 @@ void WasmModuleBuilder::AddExport(Vector<const char> name,
 }
 
 uint32_t WasmModuleBuilder::AddExportedGlobal(ValueType type, bool mutability,
-                                              const WasmInitExpr& init,
+                                              WasmInitExpr init,
                                               Vector<const char> name) {
-  uint32_t index = AddGlobal(type, mutability, init);
+  uint32_t index = AddGlobal(type, mutability, std::move(init));
   AddExport(name, kExternalGlobal, index);
   return index;
 }
@@ -395,8 +395,8 @@ void WasmModuleBuilder::ExportImportedFunction(Vector<const char> name,
 }
 
 uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool mutability,
-                                      const WasmInitExpr& init) {
-  globals_.push_back({type, mutability, init});
+                                      WasmInitExpr init) {
+  globals_.push_back({type, mutability, std::move(init)});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
@@ -414,8 +414,100 @@ void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 namespace {
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
-  if (type.has_immediate()) {
-    buffer->write_u32v(type.ref_index());
+  if (type.has_depth()) {
+    buffer->write_u32v(type.depth());
+  }
+  if (type.encoding_needs_heap_type()) {
+    buffer->write_i32v(type.heap_type().code());
+  }
+}
+
+void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
+                            ValueType type) {
+  switch (init.kind()) {
+    case WasmInitExpr::kI32Const:
+      buffer->write_u8(kExprI32Const);
+      buffer->write_i32v(init.immediate().i32_const);
+      break;
+    case WasmInitExpr::kI64Const:
+      buffer->write_u8(kExprI64Const);
+      buffer->write_i64v(init.immediate().i64_const);
+      break;
+    case WasmInitExpr::kF32Const:
+      buffer->write_u8(kExprF32Const);
+      buffer->write_f32(init.immediate().f32_const);
+      break;
+    case WasmInitExpr::kF64Const:
+      buffer->write_u8(kExprF64Const);
+      buffer->write_f64(init.immediate().f64_const);
+      break;
+    case WasmInitExpr::kS128Const:
+      buffer->write_u8(kSimdPrefix);
+      buffer->write_u8(kExprS128Const & 0xFF);
+      buffer->write(init.immediate().s128_const.data(), kSimd128Size);
+      break;
+    case WasmInitExpr::kGlobalGet:
+      buffer->write_u8(kExprGlobalGet);
+      buffer->write_u32v(init.immediate().index);
+      break;
+    case WasmInitExpr::kRefNullConst:
+      buffer->write_u8(kExprRefNull);
+      buffer->write_i32v(HeapType(init.immediate().heap_type).code());
+      break;
+    case WasmInitExpr::kRefFuncConst:
+      buffer->write_u8(kExprRefFunc);
+      buffer->write_u32v(init.immediate().index);
+      break;
+    case WasmInitExpr::kNone: {
+      // No initializer, emit a default value.
+      switch (type.kind()) {
+        case ValueType::kI32:
+          buffer->write_u8(kExprI32Const);
+          // LEB encoding of 0.
+          buffer->write_u8(0);
+          break;
+        case ValueType::kI64:
+          buffer->write_u8(kExprI64Const);
+          // LEB encoding of 0.
+          buffer->write_u8(0);
+          break;
+        case ValueType::kF32:
+          buffer->write_u8(kExprF32Const);
+          buffer->write_f32(0.f);
+          break;
+        case ValueType::kF64:
+          buffer->write_u8(kExprF64Const);
+          buffer->write_f64(0.);
+          break;
+        case ValueType::kOptRef:
+          buffer->write_u8(kExprRefNull);
+          break;
+        case ValueType::kI8:
+        case ValueType::kI16:
+        case ValueType::kStmt:
+        case ValueType::kS128:
+        case ValueType::kBottom:
+        case ValueType::kRef:
+        case ValueType::kRtt:
+          UNREACHABLE();
+      }
+      break;
+    }
+    case WasmInitExpr::kRttCanon:
+      STATIC_ASSERT((kExprRttCanon >> 8) == kGCPrefix);
+      buffer->write_u8(kGCPrefix);
+      buffer->write_u8(static_cast<uint8_t>(kExprRttCanon));
+      buffer->write_i32v(HeapType(init.immediate().heap_type).code());
+      break;
+    case WasmInitExpr::kRttSub:
+      // TODO(7748): If immediates for rtts remain in the standard, adapt this
+      // to emit them.
+      STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
+      buffer->write_u8(kGCPrefix);
+      buffer->write_u8(static_cast<uint8_t>(kExprRttSub));
+      buffer->write_i32v(HeapType(init.immediate().heap_type).code());
+      WriteGlobalInitializer(buffer, *init.operand(), kWasmBottom);
+      break;
   }
 }
 
@@ -450,8 +542,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           StructType* struct_type = type.struct_type;
           buffer->write_u8(kWasmStructTypeCode);
           buffer->write_size(struct_type->field_count());
-          for (auto field : struct_type->fields()) {
-            WriteValueType(buffer, field);
+          for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+            WriteValueType(buffer, struct_type->field(i));
+            buffer->write_u8(struct_type->mutability(i) ? 1 : 0);
           }
           break;
         }
@@ -459,6 +552,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           ArrayType* array_type = type.array_type;
           buffer->write_u8(kWasmArrayTypeCode);
           WriteValueType(buffer, array_type->element_type());
+          buffer->write_u8(array_type->mutability() ? 1 : 0);
           break;
         }
       }
@@ -537,69 +631,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     for (const WasmGlobal& global : globals_) {
       WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
-      switch (global.init.kind) {
-        case WasmInitExpr::kI32Const:
-          DCHECK_EQ(kWasmI32, global.type);
-          buffer->write_u8(kExprI32Const);
-          buffer->write_i32v(global.init.val.i32_const);
-          break;
-        case WasmInitExpr::kI64Const:
-          DCHECK_EQ(kWasmI64, global.type);
-          buffer->write_u8(kExprI64Const);
-          buffer->write_i64v(global.init.val.i64_const);
-          break;
-        case WasmInitExpr::kF32Const:
-          DCHECK_EQ(kWasmF32, global.type);
-          buffer->write_u8(kExprF32Const);
-          buffer->write_f32(global.init.val.f32_const);
-          break;
-        case WasmInitExpr::kF64Const:
-          DCHECK_EQ(kWasmF64, global.type);
-          buffer->write_u8(kExprF64Const);
-          buffer->write_f64(global.init.val.f64_const);
-          break;
-        case WasmInitExpr::kGlobalIndex:
-          buffer->write_u8(kExprGlobalGet);
-          buffer->write_u32v(global.init.val.global_index);
-          break;
-        case WasmInitExpr::kRefNullConst:
-          buffer->write_u8(kExprRefNull);
-          break;
-        case WasmInitExpr::kRefFuncConst:
-          UNIMPLEMENTED();
-          break;
-        case WasmInitExpr::kNone: {
-          // No initializer, emit a default value.
-          switch (global.type.kind()) {
-            case ValueType::kI32:
-              buffer->write_u8(kExprI32Const);
-              // LEB encoding of 0.
-              buffer->write_u8(0);
-              break;
-            case ValueType::kI64:
-              buffer->write_u8(kExprI64Const);
-              // LEB encoding of 0.
-              buffer->write_u8(0);
-              break;
-            case ValueType::kF32:
-              buffer->write_u8(kExprF32Const);
-              buffer->write_f32(0.f);
-              break;
-            case ValueType::kF64:
-              buffer->write_u8(kExprF64Const);
-              buffer->write_f64(0.);
-              break;
-            case ValueType::kOptRef:
-            case ValueType::kFuncRef:
-            case ValueType::kExnRef:
-            case ValueType::kEqRef:
-              buffer->write_u8(kExprRefNull);
-              break;
-            default:
-              UNREACHABLE();
-          }
-        }
-      }
+      WriteGlobalInitializer(buffer, global.init, global.type);
       buffer->write_u8(kExprEnd);
     }
     FixupSection(buffer, start);

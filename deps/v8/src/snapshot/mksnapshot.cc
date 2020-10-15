@@ -217,12 +217,17 @@ int main(int argc, char** argv) {
 
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
-  int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
-  if (result > 0 || (argc > 3) || i::FLAG_help) {
-    ::printf("Usage: %s --startup_src=... --startup_blob=... [extras]\n",
-             argv[0]);
-    i::FlagList::PrintHelp();
-    return !i::FLAG_help;
+  using HelpOptions = i::FlagList::HelpOptions;
+  std::string usage = "Usage: " + std::string(argv[0]) +
+                      " [--startup-src=file]" + " [--startup-blob=file]" +
+                      " [--embedded-src=file]" + " [--embedded-variant=label]" +
+                      " [--target-arch=arch]" +
+                      " [--target-os=os] [extras]\n\n";
+  int result = i::FlagList::SetFlagsFromCommandLine(
+      &argc, argv, true, HelpOptions(HelpOptions::kExit, usage.c_str()));
+  if (result > 0 || (argc > 3)) {
+    i::PrintF(stdout, "%s", usage.c_str());
+    return result;
   }
 
   i::CpuFeatures::Probe(true);

@@ -5,46 +5,56 @@
 @abstract
 @generateCppClass
 extern class TemplateInfo extends Struct {
-  tag: Object;
-  serial_number: Object;
+  tag: Smi;
+  serial_number: Smi;
   number_of_properties: Smi;
-  property_list: Object;
-  property_accessors: Object;
+  property_list: TemplateList|Undefined;
+  property_accessors: TemplateList|Undefined;
 }
 
 @generateCppClass
+@generatePrint
 extern class FunctionTemplateRareData extends Struct {
   // See DECL_RARE_ACCESSORS in FunctionTemplateInfo.
-  prototype_template: Object;
-  prototype_provider_template: Object;
-  parent_template: Object;
-  named_property_handler: Object;
-  indexed_property_handler: Object;
-  instance_template: Object;
-  instance_call_handler: Object;
-  access_check_info: Object;
-  c_function: Foreign|Smi;
-  c_signature: Foreign|Smi;
+  prototype_template: ObjectTemplateInfo|Undefined;
+  prototype_provider_template: FunctionTemplateInfo|Undefined;
+  parent_template: FunctionTemplateInfo|Undefined;
+  named_property_handler: InterceptorInfo|Undefined;
+  indexed_property_handler: InterceptorInfo|Undefined;
+  instance_template: ObjectTemplateInfo|Undefined;
+  instance_call_handler: CallHandlerInfo|Undefined;
+  access_check_info: AccessCheckInfo|Undefined;
+  c_function: Foreign|Zero;
+  c_signature: Foreign|Zero;
+}
+
+bitfield struct FunctionTemplateInfoFlags extends uint31 {
+  undetectable: bool: 1 bit;
+  needs_access_check: bool: 1 bit;
+  read_only_prototype: bool: 1 bit;
+  remove_prototype: bool: 1 bit;
+  do_not_cache: bool: 1 bit;
+  accept_any_receiver: bool: 1 bit;
 }
 
 @generateCppClass
 extern class FunctionTemplateInfo extends TemplateInfo {
   // Handler invoked when calling an instance of this FunctionTemplateInfo.
   // Either CallHandlerInfo or Undefined.
-  call_code: Object;
-  class_name: Object;
+  call_code: CallHandlerInfo|Undefined;
+  class_name: String|Undefined;
   // If the signature is a FunctionTemplateInfo it is used to check whether the
   // receiver calling the associated JSFunction is a compatible receiver, i.e.
   // it is an instance of the signature FunctionTemplateInfo or any of the
   // receiver's prototypes are.
-  signature: Object;
+  signature: FunctionTemplateInfo|Undefined;
   // If any of the setters declared by DECL_RARE_ACCESSORS are used then a
   // FunctionTemplateRareData will be stored here. Until then this contains
   // undefined.
-  rare_data: HeapObject;
-  shared_function_info: Object;
+  rare_data: FunctionTemplateRareData|Undefined;
+  shared_function_info: SharedFunctionInfo|Undefined;
   // Internal field to store a flag bitfield.
-  flag: Smi;
+  flag: SmiTagged<FunctionTemplateInfoFlags>;
   // "length" property of the final JSFunction.
   length: Smi;
   // Either the_hole or a private symbol. Used to cache the result on
@@ -53,8 +63,13 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   cached_property_name: Object;
 }
 
+bitfield struct ObjectTemplateInfoFlags extends uint31 {
+  is_immutable_prototype: bool: 1 bit;
+  embedder_field_count: int32: 29 bit;
+}
+
 @generateCppClass
 extern class ObjectTemplateInfo extends TemplateInfo {
-  constructor: Object;
-  data: Object;
+  constructor: FunctionTemplateInfo|Undefined;
+  data: SmiTagged<ObjectTemplateInfoFlags>;
 }

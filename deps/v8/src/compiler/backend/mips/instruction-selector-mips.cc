@@ -113,6 +113,14 @@ static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(1)));
 }
 
+static void VisitUniqueRRR(InstructionSelector* selector, ArchOpcode opcode,
+                           Node* node) {
+  MipsOperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseUniqueRegister(node->InputAt(0)),
+                 g.UseUniqueRegister(node->InputAt(1)));
+}
+
 void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   MipsOperandGenerator g(selector);
   selector->Emit(
@@ -401,6 +409,10 @@ void InstructionSelector::VisitStore(Node* node) {
   StoreRepresentation store_rep = StoreRepresentationOf(node->op());
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
+
+  if (FLAG_enable_unconditional_write_barriers && CanBeTaggedPointer(rep)) {
+    write_barrier_kind = kFullWriteBarrier;
+  }
 
   // TODO(mips): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
@@ -2089,6 +2101,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Abs, kMipsF64x2Abs)                             \
   V(F64x2Neg, kMipsF64x2Neg)                             \
   V(F64x2Sqrt, kMipsF64x2Sqrt)                           \
+  V(F64x2Ceil, kMipsF64x2Ceil)                           \
+  V(F64x2Floor, kMipsF64x2Floor)                         \
+  V(F64x2Trunc, kMipsF64x2Trunc)                         \
+  V(F64x2NearestInt, kMipsF64x2NearestInt)               \
   V(I64x2Neg, kMipsI64x2Neg)                             \
   V(F32x4SConvertI32x4, kMipsF32x4SConvertI32x4)         \
   V(F32x4UConvertI32x4, kMipsF32x4UConvertI32x4)         \
@@ -2097,6 +2113,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Sqrt, kMipsF32x4Sqrt)                           \
   V(F32x4RecipApprox, kMipsF32x4RecipApprox)             \
   V(F32x4RecipSqrtApprox, kMipsF32x4RecipSqrtApprox)     \
+  V(F32x4Ceil, kMipsF32x4Ceil)                           \
+  V(F32x4Floor, kMipsF32x4Floor)                         \
+  V(F32x4Trunc, kMipsF32x4Trunc)                         \
+  V(F32x4NearestInt, kMipsF32x4NearestInt)               \
   V(I32x4SConvertF32x4, kMipsI32x4SConvertF32x4)         \
   V(I32x4UConvertF32x4, kMipsI32x4UConvertF32x4)         \
   V(I32x4Neg, kMipsI32x4Neg)                             \
@@ -2111,12 +2131,12 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8UConvertI8x16High, kMipsI16x8UConvertI8x16High) \
   V(I8x16Neg, kMipsI8x16Neg)                             \
   V(S128Not, kMipsS128Not)                               \
-  V(S1x4AnyTrue, kMipsS1x4AnyTrue)                       \
-  V(S1x4AllTrue, kMipsS1x4AllTrue)                       \
-  V(S1x8AnyTrue, kMipsS1x8AnyTrue)                       \
-  V(S1x8AllTrue, kMipsS1x8AllTrue)                       \
-  V(S1x16AnyTrue, kMipsS1x16AnyTrue)                     \
-  V(S1x16AllTrue, kMipsS1x16AllTrue)
+  V(V32x4AnyTrue, kMipsV32x4AnyTrue)                     \
+  V(V32x4AllTrue, kMipsV32x4AllTrue)                     \
+  V(V16x8AnyTrue, kMipsV16x8AnyTrue)                     \
+  V(V16x8AllTrue, kMipsV16x8AllTrue)                     \
+  V(V8x16AnyTrue, kMipsV8x16AnyTrue)                     \
+  V(V8x16AllTrue, kMipsV8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl)                 \
@@ -2172,6 +2192,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GtU, kMipsI32x4GtU)                           \
   V(I32x4GeU, kMipsI32x4GeU)                           \
   V(I32x4Abs, kMipsI32x4Abs)                           \
+  V(I32x4BitMask, kMipsI32x4BitMask)                   \
   V(I16x8Add, kMipsI16x8Add)                           \
   V(I16x8AddSaturateS, kMipsI16x8AddSaturateS)         \
   V(I16x8AddSaturateU, kMipsI16x8AddSaturateU)         \
@@ -2194,6 +2215,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8UConvertI32x4, kMipsI16x8UConvertI32x4)       \
   V(I16x8RoundingAverageU, kMipsI16x8RoundingAverageU) \
   V(I16x8Abs, kMipsI16x8Abs)                           \
+  V(I16x8BitMask, kMipsI16x8BitMask)                   \
   V(I8x16Add, kMipsI8x16Add)                           \
   V(I8x16AddSaturateS, kMipsI8x16AddSaturateS)         \
   V(I8x16AddSaturateU, kMipsI8x16AddSaturateU)         \
@@ -2215,10 +2237,13 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16SConvertI16x8, kMipsI8x16SConvertI16x8)       \
   V(I8x16UConvertI16x8, kMipsI8x16UConvertI16x8)       \
   V(I8x16Abs, kMipsI8x16Abs)                           \
+  V(I8x16BitMask, kMipsI8x16BitMask)                   \
   V(S128And, kMipsS128And)                             \
   V(S128Or, kMipsS128Or)                               \
   V(S128Xor, kMipsS128Xor)                             \
   V(S128AndNot, kMipsS128AndNot)
+
+void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   MipsOperandGenerator g(this);
@@ -2368,21 +2393,23 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   Node* input1 = node->InputAt(1);
   uint8_t offset;
   MipsOperandGenerator g(this);
-  if (TryMatchConcat(shuffle, &offset)) {
+  if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
     Emit(kMipsS8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input1),
          g.UseRegister(input0), g.UseImmediate(offset));
     return;
   }
-  if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+  if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     Emit(kMipsS32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(Pack4Lanes(shuffle32x4)));
+         g.UseRegister(input1),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4)));
     return;
   }
   Emit(kMipsS8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-       g.UseRegister(input1), g.UseImmediate(Pack4Lanes(shuffle)),
-       g.UseImmediate(Pack4Lanes(shuffle + 4)),
-       g.UseImmediate(Pack4Lanes(shuffle + 8)),
-       g.UseImmediate(Pack4Lanes(shuffle + 12)));
+       g.UseRegister(input1),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
 }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) {
@@ -2404,6 +2431,22 @@ void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
 void InstructionSelector::VisitSignExtendWord16ToInt32(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsSeh, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitF32x4Pmin(Node* node) {
+  VisitUniqueRRR(this, kMipsF32x4Pmin, node);
+}
+
+void InstructionSelector::VisitF32x4Pmax(Node* node) {
+  VisitUniqueRRR(this, kMipsF32x4Pmax, node);
+}
+
+void InstructionSelector::VisitF64x2Pmin(Node* node) {
+  VisitUniqueRRR(this, kMipsF64x2Pmin, node);
+}
+
+void InstructionSelector::VisitF64x2Pmax(Node* node) {
+  VisitUniqueRRR(this, kMipsF64x2Pmax, node);
 }
 
 // static

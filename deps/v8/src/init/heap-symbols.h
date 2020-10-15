@@ -54,6 +54,7 @@
   V(_, ignorePunctuation_string, "ignorePunctuation")               \
   V(_, Invalid_Date_string, "Invalid Date")                         \
   V(_, integer_string, "integer")                                   \
+  V(_, isWordLike_string, "isWordLike")                             \
   V(_, kana_string, "kana")                                         \
   V(_, language_string, "language")                                 \
   V(_, letter_string, "letter")                                     \
@@ -88,6 +89,7 @@
   V(_, second_string, "second")                                     \
   V(_, segment_string, "segment")                                   \
   V(_, SegmentIterator_string, "Segment Iterator")                  \
+  V(_, Segments_string, "Segments")                                 \
   V(_, sensitivity_string, "sensitivity")                           \
   V(_, sep_string, "sep")                                           \
   V(_, shared_string, "shared")                                     \
@@ -243,7 +245,7 @@
   V(_, NFD_string, "NFD")                                            \
   V(_, NFKC_string, "NFKC")                                          \
   V(_, NFKD_string, "NFKD")                                          \
-  V(_, not_equal, "not-equal")                                       \
+  V(_, not_equal_string, "not-equal")                                \
   V(_, null_string, "null")                                          \
   V(_, null_to_string, "[object Null]")                              \
   V(_, Number_string, "Number")                                      \
@@ -253,7 +255,7 @@
   V(_, object_string, "object")                                      \
   V(_, object_to_string, "[object Object]")                          \
   V(_, of_string, "of")                                              \
-  V(_, ok, "ok")                                                     \
+  V(_, ok_string, "ok")                                              \
   V(_, one_string, "1")                                              \
   V(_, other_string, "other")                                        \
   V(_, ownKeys_string, "ownKeys")                                    \
@@ -305,7 +307,7 @@
   V(_, this_function_string, ".this_function")                       \
   V(_, this_string, "this")                                          \
   V(_, throw_string, "throw")                                        \
-  V(_, timed_out, "timed-out")                                       \
+  V(_, timed_out_string, "timed-out")                                \
   V(_, toJSON_string, "toJSON")                                      \
   V(_, toString_string, "toString")                                  \
   V(_, true_string, "true")                                          \
@@ -363,6 +365,7 @@
   V(_, wasm_exception_tag_symbol)                     \
   V(_, wasm_exception_values_symbol)                  \
   V(_, wasm_uncatchable_symbol)                       \
+  V(_, wasm_wrapped_object_symbol)                    \
   V(_, uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)          \
@@ -415,10 +418,12 @@
   F(HEAP_EMBEDDER_TRACING_EPILOGUE)                  \
   F(HEAP_EPILOGUE)                                   \
   F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
+  F(HEAP_EPILOGUE_SAFEPOINT)                         \
   F(HEAP_EXTERNAL_EPILOGUE)                          \
   F(HEAP_EXTERNAL_PROLOGUE)                          \
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
+  F(HEAP_PROLOGUE_SAFEPOINT)                         \
   TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_FLUSHABLE_BYTECODE)                     \
@@ -499,7 +504,8 @@
   F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
-  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)
+  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
+  F(STOP_THE_WORLD)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \
   F(BACKGROUND_ARRAY_BUFFER_FREE)                 \

@@ -10,8 +10,8 @@ namespace v8 {
 namespace internal {
 
 // Randomly generated example key for simulating only.
-const Simulator::PACKey Simulator::kPACKeyIA = {0xc31718727de20f71,
-                                                0xab9fd4e14b2fec51, 0};
+const Simulator::PACKey Simulator::kPACKeyIB = {0xeebb163b474e04c8,
+                                                0x5267ac6fc280fb7c, 1};
 
 namespace {
 

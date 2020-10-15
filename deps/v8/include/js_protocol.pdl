@@ -85,6 +85,13 @@ domain Debugger
       integer lineNumber
       integer columnNumber
 
+  # Location range within one script.
+  experimental type LocationRange extends object
+    properties
+      Runtime.ScriptId scriptId
+      ScriptPosition start
+      ScriptPosition end
+
   # JavaScript call frame. Array of call frames form the call stack.
   type CallFrame extends object
     properties
@@ -472,12 +479,17 @@ domain Debugger
       # Debugger will pause on the execution of the first async task which was scheduled
       # before next pause.
       experimental optional boolean breakOnAsyncCall
+      # The skipList specifies location ranges that should be skipped on step into.
+      experimental optional array of LocationRange skipList
 
   # Steps out of the function call.
   command stepOut
 
   # Steps over the statement.
   command stepOver
+    parameters
+      # The skipList specifies location ranges that should be skipped on step over.
+      experimental optional array of LocationRange skipList
 
   # Fired when breakpoint is resolved to an actual script and location.
   event breakpointResolved
@@ -572,6 +584,8 @@ domain Debugger
       experimental optional integer codeOffset
       # The language of the script.
       experimental optional Debugger.ScriptLanguage scriptLanguage
+      # The name the embedder supplied for this script.
+      experimental optional string embedderName
 
   # Fired when virtual machine parses script. This event is also fired for all known and uncollected
   # scripts upon enabling debugger.
@@ -613,6 +627,8 @@ domain Debugger
       experimental optional Debugger.ScriptLanguage scriptLanguage
       # If the scriptLanguage is WebASsembly, the source of debug symbols for the module.
       experimental optional Debugger.DebugSymbols debugSymbols
+      # The name the embedder supplied for this script.
+      experimental optional string embedderName
 
 experimental domain HeapProfiler
   depends on Runtime
@@ -1009,7 +1025,7 @@ domain Runtime
         f32
         f64
         v128
-        anyref
+        externref
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
@@ -1370,6 +1386,11 @@ domain Runtime
       # Note that `let` variables can only be re-declared if they originate from
       # `replMode` themselves.
       experimental optional boolean replMode
+      # The Content Security Policy (CSP) for the target might block 'unsafe-eval'
+      # which includes eval(), Function(), setTimeout() and setInterval()
+      # when called with non-callable arguments. This flag bypasses CSP for this
+      # evaluation and allows unsafe-eval. Defaults to true.
+      experimental optional boolean allowUnsafeEvalBlockedByCSP
     returns
       # Evaluation result.
       RemoteObject result

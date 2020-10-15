@@ -22,7 +22,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
     HeapObject host, HeapObject object) {
   concrete_visitor()->SynchronizePageAccess(object);
   if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
-    marking_worklists_->Push(object);
+    local_marking_worklists_->Push(object);
     if (V8_UNLIKELY(concrete_visitor()->retaining_path_mode() ==
                     TraceRetainingPathMode::kEnabled)) {
       heap_->AddRetainer(host, object);
@@ -183,7 +183,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     if (end < size) {
       // The object can be pushed back onto the marking worklist only after
       // progress bar was updated.
-      marking_worklists_->Push(object);
+      local_marking_worklists_->Push(object);
     }
   }
   return end - start;
@@ -220,7 +220,7 @@ int MarkingVisitorBase<ConcreteVisitor,
   if (size && is_embedder_tracing_enabled_) {
     // Success: The object needs to be processed for embedder references on
     // the main thread.
-    marking_worklists_->PushEmbedder(object);
+    local_marking_worklists_->PushEmbedder(object);
   }
   return size;
 }

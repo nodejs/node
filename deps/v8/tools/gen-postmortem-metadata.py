@@ -223,9 +223,6 @@ consts_misc = [
         'value': 'SimpleNumberDictionaryShape::kEntrySize' },
 
     { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
-
-    { 'name': 'class_SharedFunctionInfo__function_data__Object',
-        'value': 'SharedFunctionInfo::kFunctionDataOffset' },
 ];
 
 #
@@ -263,6 +260,7 @@ extras_accessors = [
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
+    'UncompiledData, inferred_name, String, kInferredNameOffset',
     'UncompiledData, start_position, int32_t, kStartPositionOffset',
     'UncompiledData, end_position, int32_t, kEndPositionOffset',
     'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
@@ -279,7 +277,6 @@ extras_accessors = [
     'SlicedString, offset, SMI, kOffsetOffset',
     'ThinString, actual, String, kActualOffset',
     'Symbol, name, Object, kDescriptionOffset',
-    'FixedArrayBase, length, SMI, kLengthOffset',
 ];
 
 #

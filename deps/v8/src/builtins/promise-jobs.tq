@@ -22,7 +22,7 @@ PromiseResolveThenableJob(implicit context: Context)(
   // We take the generic (slow-)path if a PromiseHook is enabled or the
   // debugger is active, to make sure we expose spec compliant behavior.
   const nativeContext = LoadNativeContext(context);
-  const promiseThen = nativeContext[NativeContextSlot::PROMISE_THEN_INDEX];
+  const promiseThen = *NativeContextSlot(ContextSlot::PROMISE_THEN_INDEX);
   const thenableMap = thenable.map;
   if (TaggedEqual(then, promiseThen) && IsJSPromiseMap(thenableMap) &&
       !IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() &&

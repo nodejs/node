@@ -12,8 +12,6 @@
 #ifndef V8_OBJECTS_OBJECTS_INL_H_
 #define V8_OBJECTS_OBJECTS_INL_H_
 
-#include "src/objects/objects.h"
-
 #include "src/base/bits.h"
 #include "src/base/memory.h"
 #include "src/builtins/builtins.h"
@@ -30,6 +28,7 @@
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
@@ -67,10 +66,6 @@ int PropertyDetails::field_width_in_words() const {
   return representation().IsDouble() ? kDoubleSize / kTaggedSize : 1;
 }
 
-DEF_GETTER(HeapObject, IsSloppyArgumentsElements, bool) {
-  return IsFixedArrayExact(isolate);
-}
-
 DEF_GETTER(HeapObject, IsClassBoilerplate, bool) {
   return IsFixedArrayExact(isolate);
 }
@@ -95,7 +90,7 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
   bool Object::Is##Type(Isolate* isolate) const {                \
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
-  bool Object::Is##Type(OffThreadIsolate* isolate) const {       \
+  bool Object::Is##Type(LocalIsolate* isolate) const {           \
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
   bool Object::Is##Type(ReadOnlyRoots roots) const {             \
@@ -107,7 +102,7 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
   bool HeapObject::Is##Type(Isolate* isolate) const {            \
     return Object::Is##Type(isolate);                            \
   }                                                              \
-  bool HeapObject::Is##Type(OffThreadIsolate* isolate) const {   \
+  bool HeapObject::Is##Type(LocalIsolate* isolate) const {       \
     return Object::Is##Type(isolate);                            \
   }                                                              \
   bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \
@@ -703,17 +698,17 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots(const Isolate* isolate) const {
 DEF_GETTER(HeapObject, map, Map) { return map_word(isolate).ToMap(); }
 
 void HeapObject::set_map(Map value) {
-  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
+  if (FLAG_verify_heap && !value.is_null()) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
-#endif
   }
+#endif
   set_map_word(MapWord::FromMap(value));
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
-    MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
+    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
   }
 #endif
 }
@@ -723,28 +718,28 @@ DEF_GETTER(HeapObject, synchronized_map, Map) {
 }
 
 void HeapObject::synchronized_set_map(Map value) {
-  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
+  if (FLAG_verify_heap && !value.is_null()) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
-#endif
   }
+#endif
   synchronized_set_map_word(MapWord::FromMap(value));
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
-    MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
+    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
   }
 #endif
 }
 
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map value) {
-  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
+  if (FLAG_verify_heap && !value.is_null()) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
-#endif
   }
+#endif
   set_map_word(MapWord::FromMap(value));
 }
 
@@ -755,7 +750,7 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
     DCHECK(!value.is_null());
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
-    MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
+    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
   }
 #endif
 }

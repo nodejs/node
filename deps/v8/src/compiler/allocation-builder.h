@@ -55,6 +55,11 @@ class AllocationBuilder final {
   inline void AllocateArray(int length, MapRef map,
                             AllocationType allocation = AllocationType::kYoung);
 
+  // Compound allocation of a SloppyArgumentsElements
+  inline void AllocateSloppyArgumentElements(
+      int length, MapRef map,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Compound store of a constant into a field.
   void Store(const FieldAccess& access, const ObjectRef& value) {
     Store(access, jsgraph()->Constant(value));

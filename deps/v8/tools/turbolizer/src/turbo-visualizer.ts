@@ -18,7 +18,7 @@ window.onload = function () {
   let sourceViews: Array<CodeView> = [];
   let selectionBroker: SelectionBroker = null;
   let sourceResolver: SourceResolver = null;
-  const resizer = new Resizer(panesUpdatedCallback, 75);
+  const resizer = new Resizer(panesUpdatedCallback, 75, 75);
   const sourceTabsContainer = document.getElementById(C.SOURCE_PANE_ID);
   const sourceTabs = new Tabs(sourceTabsContainer);
   sourceTabs.addTab("&#x2b;").classList.add("last-tab", "persistent-tab");
@@ -48,6 +48,9 @@ window.onload = function () {
       sourceViews.forEach(sv => sv.hide());
       if (multiview) multiview.hide();
       multiview = null;
+      document.getElementById("ranges").innerHTML = '';
+      document.getElementById('ranges').style.visibility = "hidden";
+      document.getElementById('show-hide-ranges').style.visibility = "hidden";
       if (disassemblyView) disassemblyView.hide();
       sourceViews = [];
       sourceResolver = new SourceResolver();

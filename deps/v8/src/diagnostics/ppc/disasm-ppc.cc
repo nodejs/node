@@ -358,6 +358,17 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 }
 
 void Decoder::DecodeExt0(Instruction* instr) {
+  // Some encodings are 5-0 bits, handle those first
+  switch (EXT0 | (instr->BitField(5, 0))) {
+    case VPERM: {
+      Format(instr, "vperm   'Dt, 'Da, 'Db, 'Dc");
+      return;
+    }
+    case VMLADDUHM: {
+      Format(instr, "vmladduhm 'Dt, 'Da, 'Db, 'Dc");
+      return;
+    }
+  }
   switch (EXT0 | (instr->BitField(10, 0))) {
     case VSPLTB: {
       Format(instr, "vspltb  'Dt, 'Db, 'UIM");
@@ -377,6 +388,74 @@ void Decoder::DecodeExt0(Instruction* instr) {
     }
     case VOR: {
       Format(instr, "vor     'Dt, 'Da, 'Db");
+      break;
+    }
+    case VXOR: {
+      Format(instr, "vxor    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VNOR: {
+      Format(instr, "vnor    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VSLO: {
+      Format(instr, "vslo    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VADDUDM: {
+      Format(instr, "vaddudm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VADDUWM: {
+      Format(instr, "vadduwm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VADDUHM: {
+      Format(instr, "vadduhm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VADDUBM: {
+      Format(instr, "vaddubm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VADDFP: {
+      Format(instr, "vaddfp    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VSUBFP: {
+      Format(instr, "vsubfp    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VSUBUDM: {
+      Format(instr, "vsubudm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VSUBUWM: {
+      Format(instr, "vsubuwm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VSUBUHM: {
+      Format(instr, "vsubuhm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VSUBUBM: {
+      Format(instr, "vsububm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VMULUWM: {
+      Format(instr, "vmuluwm    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VPKUHUM: {
+      Format(instr, "vpkuhum    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VMULEUB: {
+      Format(instr, "vmuleub    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VMULOUB: {
+      Format(instr, "vmuloub    'Dt, 'Da, 'Db");
       break;
     }
   }
@@ -555,6 +634,22 @@ void Decoder::DecodeExt1(Instruction* instr) {
 void Decoder::DecodeExt2(Instruction* instr) {
   // Some encodings are 10-1 bits, handle those first
   switch (EXT2 | (instr->BitField(10, 1))) {
+    case LVX: {
+      Format(instr, "lvx     'Dt, 'ra, 'rb");
+      return;
+    }
+    case STVX: {
+      Format(instr, "stvx    'Dt, 'ra, 'rb");
+      return;
+    }
+    case LXVD: {
+      Format(instr, "lxvd    'Dt, 'ra, 'rb");
+      return;
+    }
+    case STXVD: {
+      Format(instr, "stxvd   'Dt, 'ra, 'rb");
+      return;
+    }
     case SRWX: {
       Format(instr, "srw'.    'ra, 'rs, 'rb");
       return;
@@ -863,10 +958,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "sthux   'rs, 'ra, 'rb");
       return;
     }
-    case STVX: {
-      Format(instr, "stvx    'Dt, 'ra, 'rb");
-      return;
-    }
     case LWZX: {
       Format(instr, "lwzx    'rt, 'ra, 'rb");
       return;
@@ -909,10 +1000,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
     }
     case LWARX: {
       Format(instr, "lwarx   'rt, 'ra, 'rb");
-      return;
-    }
-    case LVX: {
-      Format(instr, "lvx   'Dt, 'ra, 'rb");
       return;
     }
 #if V8_TARGET_ARCH_PPC64
@@ -1061,6 +1148,10 @@ void Decoder::DecodeExt4(Instruction* instr) {
     }
     case FCTIWZ: {
       Format(instr, "fctiwz'. 'Dt, 'Db");
+      break;
+    }
+    case FCTIWUZ: {
+      Format(instr, "fctiwuz 'Dt, 'Db");
       break;
     }
     case FMR: {

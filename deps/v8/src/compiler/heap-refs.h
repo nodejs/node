@@ -63,6 +63,7 @@ enum class OddballType : uint8_t {
   V(NativeContext)                 \
   /* Subtypes of FixedArray */     \
   V(Context)                       \
+  V(ObjectBoilerplateDescription)  \
   V(ScopeInfo)                     \
   V(ScriptContextTable)            \
   /* Subtypes of FixedArrayBase */ \
@@ -92,7 +93,6 @@ enum class OddballType : uint8_t {
   V(JSReceiver)                    \
   V(Map)                           \
   V(Name)                          \
-  V(ObjectBoilerplateDescription)  \
   V(PropertyCell)                  \
   V(SharedFunctionInfo)            \
   V(SourceTextModule)              \
@@ -135,6 +135,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
 #undef HEAP_AS_METHOD_DECL
 
   bool IsNullOrUndefined() const;
+  bool IsTheHole() const;
 
   bool BooleanValue() const;
   Maybe<double> OddballToNumber() const;
@@ -319,7 +320,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool has_feedback_vector() const;
   bool has_initial_map() const;
   bool has_prototype() const;
-  bool IsOptimized() const;
+  bool HasAttachedOptimizedCode() const;
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();
@@ -378,6 +379,8 @@ class ContextRef : public HeapObjectRef {
   base::Optional<ObjectRef> get(
       int index, SerializationPolicy policy =
                      SerializationPolicy::kAssumeSerialized) const;
+
+  SourceTextModuleRef GetModule(SerializationPolicy policy) const;
 
   // We only serialize the ScopeInfo if certain Promise
   // builtins are called.
@@ -720,8 +723,7 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
   Address GetFirstBytecodeAddress() const;
 
   // Source position table.
-  const byte* source_positions_address() const;
-  int source_positions_size() const;
+  Handle<ByteArray> source_positions() const;
 
   // Constant pool access.
   Handle<Object> GetConstantAtIndex(int index) const;
@@ -860,6 +862,7 @@ class SourceTextModuleRef : public HeapObjectRef {
   void Serialize();
 
   base::Optional<CellRef> GetCell(int cell_index) const;
+  ObjectRef import_meta() const;
 };
 
 class TemplateObjectDescriptionRef : public HeapObjectRef {

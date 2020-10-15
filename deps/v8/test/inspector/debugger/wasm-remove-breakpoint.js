@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests remove breakpoint from wasm scripts.');
 session.setupScriptMap();
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
 
@@ -22,21 +22,6 @@ let func = builder.addFunction('wasm_A', kSig_i_i)
 
 let module_bytes = builder.toArray();
 
-function instantiate(bytes) {
-  let buffer = new ArrayBuffer(bytes.length);
-  let view = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; ++i) {
-    view[i] = bytes[i] | 0;
-  }
-
-  let module = new WebAssembly.Module(buffer);
-  // Set global variable.
-  instance = new WebAssembly.Instance(module);
-}
-
-let evalWithUrl = (code, url) => Protocol.Runtime.evaluate(
-    {'expression': code + '\n//# sourceURL=v8://test/' + url});
-
 let breakCount = 0;
 let breakpointId = 0;
 
@@ -46,7 +31,7 @@ Protocol.Debugger.onPaused(async message => {
   var frames = message.params.callFrames;
   await session.logSourceLocation(frames[0].location);
   if (breakCount == 1) {
-    InspectorTest.log('Remove breakpoint with breakpointId: ' + breakpointId);
+    InspectorTest.log('Remove breakpoint');
     await Protocol.Debugger.removeBreakpoint({breakpointId});
   }
   let action= 'resume';
@@ -63,11 +48,8 @@ function test() {
 
 (async function Test() {
   await Protocol.Debugger.enable();
-  InspectorTest.log('Installing code and global variable.');
-  await evalWithUrl('var instance;\n' + instantiate.toString(), 'setup');
   InspectorTest.log('Calling instantiate function.');
-  evalWithUrl(
-      'instantiate(' + JSON.stringify(module_bytes) + ')', 'callInstantiate');
+  WasmInspectorTest.instantiate(module_bytes);
   const scriptId = await waitForWasmScript();
   InspectorTest.log(
       'Setting breakpoint on line 3 of wasm function');
@@ -75,7 +57,6 @@ function test() {
       {'location': {'scriptId': scriptId, 'lineNumber': 0, 'columnNumber': func.body_offset + 4}});
   printFailure(msg);
   InspectorTest.logMessage(msg.result.actualLocation);
-  InspectorTest.logMessage('BreakpointId: '+ msg.result.breakpointId);
   breakpointId = msg.result.breakpointId;
   await Protocol.Runtime.evaluate({ expression: 'test()' });
   await Protocol.Runtime.evaluate({ expression: 'test()' });

@@ -43,29 +43,29 @@ bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
 bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
                                   PropertyDescriptor* desc) {
   if (!obj->IsJSObject()) return false;
-  Map map = Handle<JSObject>::cast(obj)->map();
-  if (map.instance_type() != JS_OBJECT_TYPE) return false;
-  if (map.is_access_check_needed()) return false;
-  if (map.prototype() != *isolate->initial_object_prototype()) return false;
+  Handle<Map> map(Handle<JSObject>::cast(obj)->map(), isolate);
+  if (map->instance_type() != JS_OBJECT_TYPE) return false;
+  if (map->is_access_check_needed()) return false;
+  if (map->prototype() != *isolate->initial_object_prototype()) return false;
   // During bootstrapping, the object_function_prototype_map hasn't been
   // set up yet.
   if (isolate->bootstrapper()->IsActive()) return false;
-  if (JSObject::cast(map.prototype()).map() !=
+  if (JSObject::cast(map->prototype()).map() !=
       isolate->native_context()->object_function_prototype_map()) {
     return false;
   }
   // TODO(jkummerow): support dictionary properties?
-  if (map.is_dictionary_map()) return false;
+  if (map->is_dictionary_map()) return false;
   Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map.instance_descriptors(), isolate);
-  for (InternalIndex i : map.IterateOwnDescriptors()) {
+      Handle<DescriptorArray>(map->instance_descriptors(), isolate);
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Object> value;
     if (details.location() == kField) {
       if (details.kind() == kData) {
         value = JSObject::FastPropertyAt(Handle<JSObject>::cast(obj),
                                          details.representation(),
-                                         FieldIndex::ForDescriptor(map, i));
+                                         FieldIndex::ForDescriptor(*map, i));
       } else {
         DCHECK_EQ(kAccessor, details.kind());
         // Bail out to slow path.

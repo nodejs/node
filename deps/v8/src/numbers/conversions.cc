@@ -6,10 +6,10 @@
 
 #include <limits.h>
 #include <stdarg.h>
+
 #include <cmath>
 
 #include "src/common/assert-scope.h"
-#include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/numbers/dtoa.h"
@@ -932,7 +932,7 @@ MaybeHandle<BigInt> BigIntLiteral(LocalIsolate* isolate, const char* string) {
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     MaybeHandle<BigInt> BigIntLiteral(Isolate* isolate, const char* string);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    MaybeHandle<BigInt> BigIntLiteral(OffThreadIsolate* isolate,
+    MaybeHandle<BigInt> BigIntLiteral(LocalIsolate* isolate,
                                       const char* string);
 
 const char* DoubleToCString(double v, Vector<char> buffer) {

@@ -55,6 +55,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   }
   TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   TypeOracle::Scope type_oracle;
+  CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
 
   // Two-step process of predeclaration + resolution allows to resolve type
   // declarations independent of the order they are given.

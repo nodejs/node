@@ -13,6 +13,7 @@ type BigInt extends BigIntBase;
 
 @noVerifier
 @hasSameInstanceTypeAsParent
+@doNotGenerateCast
 extern class MutableBigInt extends BigIntBase generates 'TNode<BigInt>' {
 }
 

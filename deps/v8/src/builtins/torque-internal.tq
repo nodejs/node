@@ -25,6 +25,11 @@ macro NewReference<T: type>(object: HeapObject, offset: intptr):&T {
   return %RawDownCast<&T>(
       Reference<T>{object: object, offset: offset, unsafeMarker: Unsafe {}});
 }
+macro ReferenceCast<T: type, U: type>(ref:&U):&T {
+  const ref = NewReference<T>(ref.object, ref.offset);
+  UnsafeCast<T>(*ref);
+  return ref;
+}
 }  // namespace unsafe
 
 struct Slice<T: type> {
@@ -100,7 +105,7 @@ struct SliceIterator<T: type> {
   }
 
   macro Next(): T labels NoMore {
-    return * this.NextReference() otherwise NoMore;
+    return *this.NextReference() otherwise NoMore;
   }
 
   macro NextReference():&T labels NoMore {
@@ -147,12 +152,23 @@ macro ValidAllocationSize(sizeInBytes: intptr, map: Map): bool {
 
 type UninitializedHeapObject extends HeapObject;
 
-extern macro AllocateAllowLOS(intptr): UninitializedHeapObject;
 extern macro GetInstanceTypeMap(constexpr InstanceType): Map;
+extern macro Allocate(
+    intptr, constexpr AllocationFlag): UninitializedHeapObject;
 
-macro Allocate(sizeInBytes: intptr, map: Map): UninitializedHeapObject {
+const kAllocateBaseFlags: constexpr AllocationFlag =
+    AllocationFlag::kAllowLargeObjectAllocation;
+macro AllocateFromNew(
+    sizeInBytes: intptr, map: Map, pretenured: bool): UninitializedHeapObject {
   assert(ValidAllocationSize(sizeInBytes, map));
-  return AllocateAllowLOS(sizeInBytes);
+  if (pretenured) {
+    return Allocate(
+        sizeInBytes,
+        %RawConstexprCast<constexpr AllocationFlag>(
+            kAllocateBaseFlags | AllocationFlag::kPretenured));
+  } else {
+    return Allocate(sizeInBytes, kAllocateBaseFlags);
+  }
 }
 
 macro InitializeFieldsFromIterator<T: type, Iterator: type>(
@@ -161,7 +177,7 @@ macro InitializeFieldsFromIterator<T: type, Iterator: type>(
   let originIterator = originIterator;
   while (true) {
     const ref:&T = targetIterator.NextReference() otherwise break;
-    * ref = originIterator.Next() otherwise unreachable;
+    *ref = originIterator.Next() otherwise unreachable;
   }
 }
 // Dummy implementations: do not initialize for UninitializedIterator.
@@ -176,16 +192,40 @@ extern macro StoreDoubleHole(HeapObject, intptr);
 macro LoadFloat64OrHole(r:&float64_or_hole): float64_or_hole {
   return float64_or_hole{
     is_hole: IsDoubleHole(r.object, r.offset - kHeapObjectTag),
-    value: * unsafe::NewReference<float64>(r.object, r.offset)
+    value: *unsafe::NewReference<float64>(r.object, r.offset)
   };
 }
 macro StoreFloat64OrHole(r:&float64_or_hole, value: float64_or_hole) {
   if (value.is_hole) {
     StoreDoubleHole(r.object, r.offset - kHeapObjectTag);
   } else {
-    * unsafe::NewReference<float64>(r.object, r.offset) = value.value;
+    *unsafe::NewReference<float64>(r.object, r.offset) = value.value;
   }
 }
+
+macro DownCastForTorqueClass<T : type extends HeapObject>(o: HeapObject):
+    T labels CastError {
+  const map = o.map;
+  const minInstanceType = %MinInstanceType<T>();
+  const maxInstanceType = %MaxInstanceType<T>();
+  if constexpr (minInstanceType == maxInstanceType) {
+    if constexpr (%ClassHasMapConstant<T>()) {
+      if (map != %GetClassMapConstant<T>()) goto CastError;
+    } else {
+      if (map.instance_type != minInstanceType) goto CastError;
+    }
+  } else {
+    const diff: int32 = maxInstanceType - minInstanceType;
+    const offset = Convert<int32>(Convert<uint16>(map.instance_type)) -
+        Convert<int32>(Convert<uint16>(
+            FromConstexpr<InstanceType>(minInstanceType)));
+    if (Unsigned(offset) > Unsigned(diff)) goto CastError;
+  }
+  return %RawDownCast<T>(o);
+}
+
+extern macro StaticAssert(bool, constexpr string);
+
 }  // namespace torque_internal
 
 // Indicates that an array-field should not be initialized.
@@ -197,6 +237,12 @@ struct UninitializedIterator {}
 // type assert()
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
+
+intrinsic %MinInstanceType<T: type>(): constexpr InstanceType;
+intrinsic %MaxInstanceType<T: type>(): constexpr InstanceType;
+
+intrinsic %ClassHasMapConstant<T: type>(): constexpr bool;
+intrinsic %GetClassMapConstant<T: type>(): Map;
 
 struct IteratorSequence<T: type, FirstIterator: type, SecondIterator: type> {
   macro Empty(): bool {

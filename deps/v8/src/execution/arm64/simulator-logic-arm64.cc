@@ -3342,6 +3342,65 @@ LogicVRegister Simulator::frsqrts(VectorFormat vform, LogicVRegister dst,
   return dst;
 }
 
+int32_t Simulator::FPToFixedJS(double value) {
+  // The Z-flag is set when the conversion from double precision floating-point
+  // to 32-bit integer is exact. If the source value is +/-Infinity, -0.0, NaN,
+  // outside the bounds of a 32-bit integer, or isn't an exact integer then the
+  // Z-flag is unset.
+  int Z = 1;
+  int32_t result;
+  if ((value == 0.0) || (value == kFP64PositiveInfinity) ||
+      (value == kFP64NegativeInfinity)) {
+    // +/- zero and infinity all return zero, however -0 and +/- Infinity also
+    // unset the Z-flag.
+    result = 0.0;
+    if ((value != 0.0) || std::signbit(value)) {
+      Z = 0;
+    }
+  } else if (std::isnan(value)) {
+    // NaN values unset the Z-flag and set the result to 0.
+    result = 0;
+    Z = 0;
+  } else {
+    // All other values are converted to an integer representation, rounded
+    // toward zero.
+    double int_result = std::floor(value);
+    double error = value - int_result;
+    if ((error != 0.0) && (int_result < 0.0)) {
+      int_result++;
+    }
+    // Constrain the value into the range [INT32_MIN, INT32_MAX]. We can almost
+    // write a one-liner with std::round, but the behaviour on ties is incorrect
+    // for our purposes.
+    double mod_const = static_cast<double>(UINT64_C(1) << 32);
+    double mod_error =
+        (int_result / mod_const) - std::floor(int_result / mod_const);
+    double constrained;
+    if (mod_error == 0.5) {
+      constrained = INT32_MIN;
+    } else {
+      constrained = int_result - mod_const * round(int_result / mod_const);
+    }
+    DCHECK(std::floor(constrained) == constrained);
+    DCHECK(constrained >= INT32_MIN);
+    DCHECK(constrained <= INT32_MAX);
+    // Take the bottom 32 bits of the result as a 32-bit integer.
+    result = static_cast<int32_t>(constrained);
+    if ((int_result < INT32_MIN) || (int_result > INT32_MAX) ||
+        (error != 0.0)) {
+      // If the integer result is out of range or the conversion isn't exact,
+      // take exception and unset the Z-flag.
+      FPProcessException();
+      Z = 0;
+    }
+  }
+  nzcv().SetN(0);
+  nzcv().SetZ(Z);
+  nzcv().SetC(0);
+  nzcv().SetV(0);
+  return result;
+}
+
 LogicVRegister Simulator::frsqrts(VectorFormat vform, LogicVRegister dst,
                                   const LogicVRegister& src1,
                                   const LogicVRegister& src2) {

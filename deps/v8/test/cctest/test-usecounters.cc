@@ -60,27 +60,6 @@ TEST(AssigmentExpressionLHSIsCall) {
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
 }
 
-TEST(AtomicsWakeAndAtomicsNotify) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
-  global_use_counts = use_counts;
-  i::FLAG_harmony_sharedarraybuffer = true;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
-
-  CompileRun("Atomics.wake(new Int32Array(new SharedArrayBuffer(16)), 0);");
-  CHECK_EQ(1, use_counts[v8::Isolate::kAtomicsWake]);
-  CHECK_EQ(0, use_counts[v8::Isolate::kAtomicsNotify]);
-
-  use_counts[v8::Isolate::kAtomicsWake] = 0;
-  use_counts[v8::Isolate::kAtomicsNotify] = 0;
-
-  CompileRun("Atomics.notify(new Int32Array(new SharedArrayBuffer(16)), 0);");
-  CHECK_EQ(0, use_counts[v8::Isolate::kAtomicsWake]);
-  CHECK_EQ(1, use_counts[v8::Isolate::kAtomicsNotify]);
-}
-
 TEST(RegExpMatchIsTrueishOnNonJSRegExp) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);

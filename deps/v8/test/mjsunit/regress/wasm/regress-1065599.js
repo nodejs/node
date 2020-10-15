@@ -17,7 +17,7 @@ builder.addFunction(undefined, 0 /* sig */).addBodyWithEnd([
   kSimdPrefix, kExprI16x8Splat,    // i16x8.splat
   kExprMemorySize, 0x00,           // memory.size
   kSimdPrefix, kExprI16x8ShrS,     // i16x8.shr_s
-  kSimdPrefix, kExprS1x16AnyTrue,  // s1x16.any_true
+  kSimdPrefix, kExprV8x16AnyTrue,  // v8x16.any_true
   kExprMemorySize, 0x00,           // memory.size
   kExprI32RemS,                    // i32.rem_s
   kExprEnd,                        // end @15

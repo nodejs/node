@@ -71,23 +71,6 @@ HeapObjectReference HeapObjectReference::ClearedValue(const Isolate* isolate) {
   return HeapObjectReference(raw_value);
 }
 
-// static
-HeapObjectReference HeapObjectReference::ClearedValue(
-    const OffThreadIsolate* isolate) {
-  // Construct cleared weak ref value.
-#ifdef V8_COMPRESS_POINTERS
-  // This is necessary to make pointer decompression computation also
-  // suitable for cleared weak references.
-  Address raw_value =
-      DecompressTaggedPointer(isolate, kClearedWeakHeapObjectLower32);
-#else
-  Address raw_value = kClearedWeakHeapObjectLower32;
-#endif
-  // The rest of the code will check only the lower 32-bits.
-  DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(raw_value));
-  return HeapObjectReference(raw_value);
-}
-
 template <typename THeapObjectSlot>
 void HeapObjectReference::Update(THeapObjectSlot slot, HeapObject value) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||

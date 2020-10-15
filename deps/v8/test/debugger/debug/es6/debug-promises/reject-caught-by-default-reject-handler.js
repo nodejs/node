@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --ignore-unhandled-promises
 
 // Test debug events when we only listen to uncaught exceptions and
 // there is only a default reject handler for the to-be-rejected Promise.

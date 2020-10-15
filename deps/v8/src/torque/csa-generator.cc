@@ -16,7 +16,7 @@ namespace torque {
 
 base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
     Stack<std::string> parameters) {
-  for (BottomOffset i = 0; i < parameters.AboveTop(); ++i) {
+  for (BottomOffset i = {0}; i < parameters.AboveTop(); ++i) {
     SetDefinitionVariable(DefinitionLocation::Parameter(i.offset),
                           parameters.Peek(i));
   }
@@ -27,7 +27,7 @@ base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
     out() << "  compiler::CodeAssemblerParameterizedLabel<";
     bool first = true;
     DCHECK_EQ(block->InputTypes().Size(), block->InputDefinitions().Size());
-    for (BottomOffset i = 0; i < block->InputTypes().AboveTop(); ++i) {
+    for (BottomOffset i = {0}; i < block->InputTypes().AboveTop(); ++i) {
       if (block->InputDefinitions().Peek(i).IsPhiFromBlock(block)) {
         if (!first) out() << ", ";
         out() << block->InputTypes().Peek(i)->GetGeneratedTNodeTypeName();
@@ -70,7 +70,7 @@ Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
   Stack<std::string> stack;
   std::stringstream phi_names;
 
-  for (BottomOffset i = 0; i < block->InputTypes().AboveTop(); ++i) {
+  for (BottomOffset i = {0}; i < block->InputTypes().AboveTop(); ++i) {
     const auto& def = block->InputDefinitions().Peek(i);
     stack.Push(DefinitionToVariable(def));
     if (def.IsPhiFromBlock(block)) {
@@ -274,6 +274,31 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
               << return_type->GetGeneratedTNodeTypeName() << ">";
       }
     }
+  } else if (instruction.intrinsic->ExternalName() == "%GetClassMapConstant") {
+    if (parameter_types.size() != 0) {
+      ReportError("%GetClassMapConstant must not take parameters");
+    }
+    if (instruction.specialization_types.size() != 1) {
+      ReportError(
+          "%GetClassMapConstant must take a single class as specialization "
+          "parameter");
+    }
+    const ClassType* class_type =
+        ClassType::DynamicCast(instruction.specialization_types[0]);
+    if (!class_type) {
+      ReportError("%GetClassMapConstant must take a class type parameter");
+    }
+    // If the class isn't actually used as the parameter to a TNode,
+    // then we can't rely on the class existing in C++ or being of the same
+    // type (e.g. it could be a template), so don't use the template CSA
+    // machinery for accessing the class' map.
+    std::string class_name =
+        class_type->name() != class_type->GetGeneratedTNodeTypeName()
+            ? std::string("void")
+            : class_type->name();
+
+    out() << std::string("CodeStubAssembler(state_).GetClassMapConstant<") +
+                 class_name + ">";
   } else if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
     if (parameter_types.size() != 1 || !parameter_types[0]->IsConstexpr()) {
       ReportError(
@@ -468,7 +493,7 @@ void CSAGenerator::EmitInstruction(
 
     const auto& input_definitions =
         (*instruction.return_continuation)->InputDefinitions();
-    for (BottomOffset i = 0; i < input_definitions.AboveTop(); ++i) {
+    for (BottomOffset i = {0}; i < input_definitions.AboveTop(); ++i) {
       if (input_definitions.Peek(i).IsPhiFromBlock(
               *instruction.return_continuation)) {
         out() << ", "
@@ -487,7 +512,7 @@ void CSAGenerator::EmitInstruction(
     const auto& label_definitions =
         instruction.label_blocks[l]->InputDefinitions();
 
-    BottomOffset i = 0;
+    BottomOffset i = {0};
     for (; i < stack->AboveTop(); ++i) {
       if (label_definitions.Peek(i).IsPhiFromBlock(
               instruction.label_blocks[l])) {
@@ -630,7 +655,7 @@ void CSAGenerator::PostCallableExceptionPreparation(
 
     DCHECK_EQ(stack->Size() + 1, (*catch_block)->InputDefinitions().Size());
     const auto& input_definitions = (*catch_block)->InputDefinitions();
-    for (BottomOffset i = 0; i < input_definitions.AboveTop(); ++i) {
+    for (BottomOffset i = {0}; i < input_definitions.AboveTop(); ++i) {
       if (input_definitions.Peek(i).IsPhiFromBlock(*catch_block)) {
         if (i < stack->AboveTop()) {
           out() << ", " << stack->Peek(i);
@@ -713,7 +738,7 @@ void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
   const auto& true_definitions = instruction.if_true->InputDefinitions();
   DCHECK_EQ(stack->Size(), true_definitions.Size());
   bool first = true;
-  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+  for (BottomOffset i = {0}; i < stack->AboveTop(); ++i) {
     if (true_definitions.Peek(i).IsPhiFromBlock(instruction.if_true)) {
       if (!first) out() << ", ";
       out() << stack->Peek(i);
@@ -726,7 +751,7 @@ void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
   const auto& false_definitions = instruction.if_false->InputDefinitions();
   DCHECK_EQ(stack->Size(), false_definitions.Size());
   first = true;
-  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+  for (BottomOffset i = {0}; i < stack->AboveTop(); ++i) {
     if (false_definitions.Peek(i).IsPhiFromBlock(instruction.if_false)) {
       if (!first) out() << ", ";
       out() << stack->Peek(i);
@@ -744,7 +769,7 @@ void CSAGenerator::EmitInstruction(
 
   const auto& true_definitions = instruction.if_true->InputDefinitions();
   DCHECK_EQ(stack->Size(), true_definitions.Size());
-  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+  for (BottomOffset i = {0}; i < stack->AboveTop(); ++i) {
     if (true_definitions.Peek(i).IsPhiFromBlock(instruction.if_true)) {
       out() << ", " << stack->Peek(i);
     }
@@ -756,7 +781,7 @@ void CSAGenerator::EmitInstruction(
 
   const auto& false_definitions = instruction.if_false->InputDefinitions();
   DCHECK_EQ(stack->Size(), false_definitions.Size());
-  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+  for (BottomOffset i = {0}; i < stack->AboveTop(); ++i) {
     if (false_definitions.Peek(i).IsPhiFromBlock(instruction.if_false)) {
       out() << ", " << stack->Peek(i);
     }
@@ -772,7 +797,7 @@ void CSAGenerator::EmitInstruction(const GotoInstruction& instruction,
   const auto& destination_definitions =
       instruction.destination->InputDefinitions();
   DCHECK_EQ(stack->Size(), destination_definitions.Size());
-  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+  for (BottomOffset i = {0}; i < stack->AboveTop(); ++i) {
     if (destination_definitions.Peek(i).IsPhiFromBlock(
             instruction.destination)) {
       out() << ", " << stack->Peek(i);
@@ -821,9 +846,13 @@ void CSAGenerator::EmitInstruction(const AbortInstruction& instruction,
     case AbortInstruction::Kind::kAssertionFailure: {
       std::string file = StringLiteralQuote(
           SourceFileMap::PathFromV8Root(instruction.pos.source));
-      out() << "    CodeStubAssembler(state_).FailAssert("
-            << StringLiteralQuote(instruction.message) << ", " << file << ", "
-            << instruction.pos.start.line + 1 << ");\n";
+      out() << "    {\n";
+      out() << "      auto pos_stack = ca_.GetMacroSourcePositionStack();\n";
+      out() << "      pos_stack.push_back({" << file << ", "
+            << instruction.pos.start.line + 1 << "});\n";
+      out() << "      CodeStubAssembler(state_).FailAssert("
+            << StringLiteralQuote(instruction.message) << ", pos_stack);\n";
+      out() << "    }\n";
       break;
     }
   }

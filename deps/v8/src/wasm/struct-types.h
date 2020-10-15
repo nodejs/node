@@ -18,8 +18,11 @@ namespace wasm {
 class StructType : public ZoneObject {
  public:
   StructType(uint32_t field_count, uint32_t* field_offsets,
-             const ValueType* reps)
-      : field_count_(field_count), field_offsets_(field_offsets), reps_(reps) {
+             const ValueType* reps, const bool* mutabilities)
+      : field_count_(field_count),
+        field_offsets_(field_offsets),
+        reps_(reps),
+        mutabilities_(mutabilities) {
     InitializeOffsets();
   }
 
@@ -30,15 +33,26 @@ class StructType : public ZoneObject {
     return reps_[index];
   }
 
+  bool mutability(uint32_t index) const {
+    DCHECK_LT(index, field_count_);
+    return mutabilities_[index];
+  }
+
   // Iteration support.
   base::iterator_range<const ValueType*> fields() const {
     return {reps_, reps_ + field_count_};
+  }
+  base::iterator_range<const bool*> mutabilities() const {
+    return {mutabilities_, mutabilities_ + field_count_};
   }
 
   bool operator==(const StructType& other) const {
     if (this == &other) return true;
     if (field_count() != other.field_count()) return false;
-    return std::equal(fields().begin(), fields().end(), other.fields().begin());
+    return std::equal(fields().begin(), fields().end(),
+                      other.fields().begin()) &&
+           std::equal(mutabilities().begin(), mutabilities().end(),
+                      other.mutabilities().begin());
   }
   bool operator!=(const StructType& other) const { return !(*this == other); }
 
@@ -70,17 +84,20 @@ class StructType : public ZoneObject {
         : field_count_(field_count),
           zone_(zone),
           cursor_(0),
-          buffer_(zone->NewArray<ValueType>(static_cast<int>(field_count))) {}
+          buffer_(zone->NewArray<ValueType>(static_cast<int>(field_count))),
+          mutabilities_(zone->NewArray<bool>(static_cast<int>(field_count))) {}
 
-    void AddField(ValueType type) {
+    void AddField(ValueType type, bool mutability) {
       DCHECK_LT(cursor_, field_count_);
+      mutabilities_[cursor_] = mutability;
       buffer_[cursor_++] = type;
     }
 
     StructType* Build() {
       DCHECK_EQ(cursor_, field_count_);
       uint32_t* offsets = zone_->NewArray<uint32_t>(field_count_);
-      return new (zone_) StructType(field_count_, offsets, buffer_);
+      return zone_->New<StructType>(field_count_, offsets, buffer_,
+                                    mutabilities_);
     }
 
    private:
@@ -88,25 +105,30 @@ class StructType : public ZoneObject {
     Zone* zone_;
     uint32_t cursor_;
     ValueType* buffer_;
+    bool* mutabilities_;
   };
 
  private:
   uint32_t field_count_;
   uint32_t* field_offsets_;
   const ValueType* reps_;
+  const bool* mutabilities_;
 };
 
 class ArrayType : public ZoneObject {
  public:
-  constexpr explicit ArrayType(ValueType rep) : rep_(rep) {}
+  constexpr explicit ArrayType(ValueType rep, bool mutability)
+      : rep_(rep), mutability_(mutability) {}
 
   ValueType element_type() const { return rep_; }
+  bool mutability() const { return mutability_; }
 
   bool operator==(const ArrayType& other) const { return rep_ == other.rep_; }
   bool operator!=(const ArrayType& other) const { return rep_ != other.rep_; }
 
  private:
   const ValueType rep_;
+  const bool mutability_;
 };
 
 }  // namespace wasm

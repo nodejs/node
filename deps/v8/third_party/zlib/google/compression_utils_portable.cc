@@ -5,7 +5,7 @@
  * found in the Chromium source repository LICENSE file.
  */
 
-#include "third_party/zlib/google/compression_utils_portable.h"
+#include "compression_utils_portable.h"
 
 #include <stddef.h>
 #include <stdlib.h>

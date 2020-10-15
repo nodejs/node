@@ -17,6 +17,9 @@
 - unknown
 + not unknown
 #
+# Source file:
+name/to/file.js
+#
 ### Start of configuration x64,ignition:
 
 1

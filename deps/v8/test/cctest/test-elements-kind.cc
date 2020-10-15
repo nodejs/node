@@ -27,19 +27,6 @@ namespace test_elements_kind {
 
 namespace {
 
-Handle<String> MakeString(const char* str) {
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  return factory->InternalizeUtf8String(str);
-}
-
-
-Handle<String> MakeName(const char* str, int suffix) {
-  EmbeddedVector<char, 128> buffer;
-  SNPrintF(buffer, "%s%d", str, suffix);
-  return MakeString(buffer.begin());
-}
-
 template <typename T, typename M>
 bool EQUALS(Isolate* isolate, Handle<T> left, Handle<M> right) {
   if (*left == *right) return true;
@@ -127,7 +114,7 @@ TEST(JSObjectAddingProperties) {
 
   // for the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array
-  Handle<String> name = MakeName("property", 0);
+  Handle<String> name = CcTest::MakeName("property", 0);
   JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
       .Check();
   CHECK_NE(object->map(), *previous_map);
@@ -162,7 +149,7 @@ TEST(JSObjectInObjectAddingProperties) {
   // we have reserved space for in-object properties, hence adding up to
   // |nof_inobject_properties| will not create a property store
   for (int i = 0; i < nof_inobject_properties; i++) {
-    Handle<String> name = MakeName("property", i);
+    Handle<String> name = CcTest::MakeName("property", i);
     JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
         .Check();
   }
@@ -174,7 +161,7 @@ TEST(JSObjectInObjectAddingProperties) {
   // adding one more property will not fit in the in-object properties, thus
   // creating a property store
   int index = nof_inobject_properties + 1;
-  Handle<String> name = MakeName("property", index);
+  Handle<String> name = CcTest::MakeName("property", index);
   JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
       .Check();
   CHECK_NE(object->map(), *previous_map);
@@ -205,7 +192,7 @@ TEST(JSObjectAddingElements) {
   CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 
   // Adding an indexed element initializes the elements array
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
       .Check();
   // no change in elements_kind => no map transition
@@ -217,7 +204,7 @@ TEST(JSObjectAddingElements) {
   // Adding more consecutive elements without a change in the backing store
   int non_dict_backing_store_limit = 100;
   for (int i = 1; i < non_dict_backing_store_limit; i++) {
-    name = MakeName("", i);
+    name = CcTest::MakeName("", i);
     JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
         .Check();
   }
@@ -229,7 +216,7 @@ TEST(JSObjectAddingElements) {
 
   // Adding an element at an very large index causes a change to
   // DICTIONARY_ELEMENTS
-  name = MakeString("100000000");
+  name = CcTest::MakeString("100000000");
   JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
       .Check();
   // change in elements_kind => map transition
@@ -260,7 +247,7 @@ TEST(JSArrayAddingProperties) {
 
   // for the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array
-  Handle<String> name = MakeName("property", 0);
+  Handle<String> name = CcTest::MakeName("property", 0);
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value, NONE)
       .Check();
   // No change in elements_kind but added property => new map
@@ -292,7 +279,7 @@ TEST(JSArrayAddingElements) {
   CHECK_EQ(0, Smi::ToInt(array->length()));
 
   // Adding an indexed element initializes the elements array
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value, NONE)
       .Check();
   // no change in elements_kind => no map transition
@@ -305,7 +292,7 @@ TEST(JSArrayAddingElements) {
   // Adding more consecutive elements without a change in the backing store
   int non_dict_backing_store_limit = 100;
   for (int i = 1; i < non_dict_backing_store_limit; i++) {
-    name = MakeName("", i);
+    name = CcTest::MakeName("", i);
     JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value, NONE)
         .Check();
   }
@@ -319,7 +306,7 @@ TEST(JSArrayAddingElements) {
   // Adding an element at an very large index causes a change to
   // DICTIONARY_ELEMENTS
   int index = 100000000;
-  name = MakeName("", index);
+  name = CcTest::MakeName("", index);
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value, NONE)
       .Check();
   // change in elements_kind => map transition
@@ -340,7 +327,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
 
   Handle<String> name;
   Handle<Object> value_smi(Smi::FromInt(42), isolate);
-  Handle<Object> value_string(MakeString("value"));
+  Handle<Object> value_string(CcTest::MakeString("value"));
   Handle<Object> value_double = factory->NewNumber(3.1415);
 
   Handle<JSArray> array =
@@ -350,7 +337,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
   CHECK_EQ(0, Smi::ToInt(array->length()));
 
   // `array[0] = smi_value` doesn't change the elements_kind
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_smi,
                                                     NONE)
       .Check();
@@ -360,7 +347,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
   CHECK_EQ(1, Smi::ToInt(array->length()));
 
   // `delete array[0]` does not alter length, but changes the elments_kind
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(HOLEY_SMI_ELEMENTS, array->map().elements_kind());
@@ -368,11 +355,11 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
   previous_map = handle(array->map(), isolate);
 
   // add a couple of elements again
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_smi,
                                                     NONE)
       .Check();
-  name = MakeString("1");
+  name = CcTest::MakeString("1");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_smi,
                                                     NONE)
       .Check();
@@ -381,7 +368,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
   CHECK_EQ(2, Smi::ToInt(array->length()));
 
   // Adding a string to the array changes from FAST_HOLEY_SMI to FAST_HOLEY
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_string,
                                                     NONE)
       .Check();
@@ -391,14 +378,14 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
   previous_map = handle(array->map(), isolate);
 
   // We don't transition back to FAST_SMI even if we remove the string
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_smi,
                                                     NONE)
       .Check();
   CHECK_EQ(array->map(), *previous_map);
 
   // Adding a double doesn't change the map either
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_double,
                                                     NONE)
       .Check();
@@ -414,7 +401,7 @@ TEST(JSArrayAddingElementsGeneralizingFastElements) {
 
   Handle<String> name;
   Handle<Object> value_smi(Smi::FromInt(42), isolate);
-  Handle<Object> value_string(MakeString("value"));
+  Handle<Object> value_string(CcTest::MakeString("value"));
 
   Handle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_ELEMENTS, 0, 0);
@@ -423,7 +410,7 @@ TEST(JSArrayAddingElementsGeneralizingFastElements) {
   CHECK_EQ(0, Smi::ToInt(array->length()));
 
   // `array[0] = smi_value` doesn't change the elements_kind
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_smi,
                                                     NONE)
       .Check();
@@ -433,7 +420,7 @@ TEST(JSArrayAddingElementsGeneralizingFastElements) {
   CHECK_EQ(1, Smi::ToInt(array->length()));
 
   // `delete array[0]` does not alter length, but changes the elments_kind
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, array->map().elements_kind());
@@ -441,11 +428,11 @@ TEST(JSArrayAddingElementsGeneralizingFastElements) {
   previous_map = handle(array->map(), isolate);
 
   // add a couple of elements, elements_kind stays HOLEY
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_string,
                                                     NONE)
       .Check();
-  name = MakeString("1");
+  name = CcTest::MakeString("1");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_smi,
                                                     NONE)
       .Check();
@@ -463,7 +450,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
 
   Handle<String> name;
   Handle<Object> value_smi(Smi::FromInt(42), isolate);
-  Handle<Object> value_string(MakeString("value"));
+  Handle<Object> value_string(CcTest::MakeString("value"));
   Handle<Object> value_double = factory->NewNumber(3.1415);
 
   Handle<JSArray> array =
@@ -471,7 +458,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   Handle<Map> previous_map(array->map(), isolate);
 
   // `array[0] = value_double` changes |elements_kind| to PACKED_DOUBLE_ELEMENTS
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_double,
                                                     NONE)
       .Check();
@@ -481,7 +468,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   previous_map = handle(array->map(), isolate);
 
   // `array[1] = value_smi` doesn't alter the |elements_kind|
-  name = MakeString("1");
+  name = CcTest::MakeString("1");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_smi,
                                                     NONE)
       .Check();
@@ -490,7 +477,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   CHECK_EQ(2, Smi::ToInt(array->length()));
 
   // `delete array[0]` does not alter length, but changes the elments_kind
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(HOLEY_DOUBLE_ELEMENTS, array->map().elements_kind());
@@ -498,7 +485,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   previous_map = handle(array->map(), isolate);
 
   // filling the hole `array[0] = value_smi` again doesn't transition back
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_double,
                                                     NONE)
       .Check();
@@ -507,7 +494,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   CHECK_EQ(2, Smi::ToInt(array->length()));
 
   // Adding a string to the array changes to elements_kind PACKED_ELEMENTS
-  name = MakeString("1");
+  name = CcTest::MakeString("1");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_string,
                                                     NONE)
       .Check();
@@ -517,7 +504,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   previous_map = handle(array->map(), isolate);
 
   // Adding a double doesn't change the map
-  name = MakeString("0");
+  name = CcTest::MakeString("0");
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value_double,
                                                     NONE)
       .Check();

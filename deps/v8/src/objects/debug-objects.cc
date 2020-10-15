@@ -274,10 +274,13 @@ void BreakPointInfo::SetBreakPoint(Isolate* isolate,
     break_point_info->set_break_points(*break_point);
     return;
   }
-  // If the break point object is the same as before just ignore.
-  if (break_point_info->break_points() == *break_point) return;
   // If there was one break point object before replace with array.
   if (!break_point_info->break_points().IsFixedArray()) {
+    if (IsEqual(BreakPoint::cast(break_point_info->break_points()),
+        *break_point)) {
+          return;
+    }
+
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(2);
     array->set(0, break_point_info->break_points());
     array->set(1, *break_point);

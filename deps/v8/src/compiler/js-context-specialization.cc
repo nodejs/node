@@ -25,6 +25,8 @@ Reduction JSContextSpecialization::Reduce(Node* node) {
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
+    case IrOpcode::kJSGetImportMeta:
+      return ReduceJSGetImportMeta(node);
     default:
       break;
   }
@@ -217,6 +219,62 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   return SimplifyJSStoreContext(node, jsgraph()->Constant(concrete), depth);
 }
 
+base::Optional<ContextRef> GetModuleContext(JSHeapBroker* broker, Node* node,
+                                            Maybe<OuterContext> maybe_context) {
+  size_t depth = std::numeric_limits<size_t>::max();
+  Node* context = NodeProperties::GetOuterContext(node, &depth);
+
+  auto find_context = [](ContextRef c) {
+    while (c.map().instance_type() != MODULE_CONTEXT_TYPE) {
+      size_t depth = 1;
+      c = c.previous(&depth);
+      CHECK_EQ(depth, 0);
+    }
+    return c;
+  };
+
+  switch (context->opcode()) {
+    case IrOpcode::kHeapConstant: {
+      HeapObjectRef object(broker, HeapConstantOf(context->op()));
+      if (object.IsContext()) {
+        return find_context(object.AsContext());
+      }
+      break;
+    }
+    case IrOpcode::kParameter: {
+      OuterContext outer;
+      if (maybe_context.To(&outer) && IsContextParameter(context)) {
+        return find_context(ContextRef(broker, outer.context));
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  return base::Optional<ContextRef>();
+}
+
+Reduction JSContextSpecialization::ReduceJSGetImportMeta(Node* node) {
+  base::Optional<ContextRef> maybe_context =
+      GetModuleContext(broker(), node, outer());
+  if (!maybe_context.has_value()) return NoChange();
+
+  ContextRef context = maybe_context.value();
+  SourceTextModuleRef module =
+      context.get(Context::EXTENSION_INDEX).value().AsSourceTextModule();
+  ObjectRef import_meta = module.import_meta();
+  if (import_meta.IsJSObject()) {
+    Node* import_meta_const = jsgraph()->Constant(import_meta);
+    ReplaceWithValue(node, import_meta_const);
+    return Changed(import_meta_const);
+  } else {
+    DCHECK(import_meta.IsTheHole());
+    // The import.meta object has not yet been created. Let JSGenericLowering
+    // replace the operator with a runtime call.
+    return NoChange();
+  }
+}
 
 Isolate* JSContextSpecialization::isolate() const {
   return jsgraph()->isolate();

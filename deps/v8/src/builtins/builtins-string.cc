@@ -40,14 +40,16 @@ bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
   return true;
 }
 
+static constexpr uc32 kInvalidCodePoint = static_cast<uc32>(-1);
+
 uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
   Handle<Object> value = args.at(1 + index);
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
-                                   Object::ToNumber(isolate, value), -1);
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, Object::ToNumber(isolate, value), kInvalidCodePoint);
   if (!IsValidCodePoint(isolate, value)) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidCodePoint, value));
-    return -1;
+    return kInvalidCodePoint;
   }
   return DoubleToUint32(value->Number());
 }
@@ -69,7 +71,7 @@ BUILTIN(StringFromCodePoint) {
   int index;
   for (index = 0; index < length; index++) {
     code = NextCodePoint(isolate, args, index);
-    if (code < 0) {
+    if (code == kInvalidCodePoint) {
       return ReadOnlyRoots(isolate).exception();
     }
     if (code > String::kMaxOneByteCharCode) {
@@ -99,7 +101,7 @@ BUILTIN(StringFromCodePoint) {
       break;
     }
     code = NextCodePoint(isolate, args, index);
-    if (code < 0) {
+    if (code == kInvalidCodePoint) {
       return ReadOnlyRoots(isolate).exception();
     }
   }

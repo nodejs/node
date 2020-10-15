@@ -69,7 +69,7 @@ EXCLUSIONS = [
 
 # Executables found in the build output for which no coverage is generated.
 # Exclude them from the coverage data file.
-EXE_BLACKLIST = [
+EXE_EXCLUSIONS = [
   'generate-bytecode-expectations',
   'hello-world',
   'mksnapshot',
@@ -109,7 +109,7 @@ def executables(build_dir):
     file_path = os.path.join(build_dir, f)
     if (os.path.isfile(file_path) and
         os.access(file_path, os.X_OK) and
-        f not in EXE_BLACKLIST):
+        f not in EXE_EXCLUSIONS):
       yield file_path
 
 

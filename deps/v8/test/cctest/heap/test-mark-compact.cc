@@ -52,6 +52,7 @@ namespace internal {
 namespace heap {
 
 TEST(Promotion) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   {
@@ -145,16 +146,18 @@ HEAP_TEST(MarkCompactCollector) {
   // call mark-compact when heap is empty
   CcTest::CollectGarbage(OLD_SPACE);
 
-  // keep allocating garbage in new space until it fails
-  const int arraysize = 100;
   AllocationResult allocation;
-  do {
-    allocation =
-        AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);
-  } while (!allocation.IsRetry());
-  CcTest::CollectGarbage(NEW_SPACE);
-  AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung)
-      .ToObjectChecked();
+  if (!FLAG_single_generation) {
+    // keep allocating garbage in new space until it fails
+    const int arraysize = 100;
+    do {
+      allocation =
+          AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);
+    } while (!allocation.IsRetry());
+    CcTest::CollectGarbage(NEW_SPACE);
+    AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung)
+        .ToObjectChecked();
+  }
 
   // keep allocating maps until it fails
   do {
@@ -204,6 +207,47 @@ HEAP_TEST(MarkCompactCollector) {
   }
 }
 
+HEAP_TEST(DoNotEvacuatePinnedPages) {
+  if (FLAG_never_compact || !FLAG_single_generation) return;
+
+  FLAG_always_compact = true;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  v8::HandleScope sc(CcTest::isolate());
+  Heap* heap = isolate->heap();
+
+  heap::SealCurrentObjects(heap);
+
+  auto handles = heap::CreatePadding(
+      heap, static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
+      AllocationType::kOld);
+
+  Page* page = Page::FromHeapObject(*handles.front());
+
+  CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
+  page->SetFlag(MemoryChunk::PINNED);
+
+  CcTest::CollectAllGarbage();
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
+
+  // The pinned flag should prevent the page from moving.
+  for (Handle<FixedArray> object : handles) {
+    CHECK_EQ(page, Page::FromHeapObject(*object));
+  }
+
+  page->ClearFlag(MemoryChunk::PINNED);
+
+  CcTest::CollectAllGarbage();
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
+
+  // always_compact ensures that this page is an evacuation candidate, so with
+  // the pin flag cleared compaction should now move it.
+  for (Handle<FixedArray> object : handles) {
+    CHECK_NE(page, Page::FromHeapObject(*object));
+  }
+}
 
 // TODO(1600): compaction of map space is temporary removed from GC.
 #if 0
@@ -333,8 +377,9 @@ intptr_t ShortLivingIsolate() {
   return MemoryInUse();
 }
 
-
-TEST(RegressJoinThreadsOnIsolateDeinit) {
+UNINITIALIZED_TEST(RegressJoinThreadsOnIsolateDeinit) {
+  // Memory is measured, do not allocate in background thread.
+  FLAG_stress_concurrent_allocation = false;
   intptr_t size_limit = ShortLivingIsolate() * 2;
   for (int i = 0; i < 10; i++) {
     CHECK_GT(size_limit, ShortLivingIsolate());

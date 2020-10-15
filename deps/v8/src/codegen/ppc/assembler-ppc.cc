@@ -1631,6 +1631,10 @@ void Assembler::fctiw(const DoubleRegister frt, const DoubleRegister frb) {
   emit(EXT4 | FCTIW | frt.code() * B21 | frb.code() * B11);
 }
 
+void Assembler::fctiwuz(const DoubleRegister frt, const DoubleRegister frb) {
+  emit(EXT4 | FCTIWUZ | frt.code() * B21 | frb.code() * B11);
+}
+
 void Assembler::frin(const DoubleRegister frt, const DoubleRegister frb,
                      RCBit rc) {
   emit(EXT4 | FRIN | frt.code() * B21 | frb.code() * B11 | rc);
@@ -1758,29 +1762,31 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
 }
 
 // Vector instructions
-void Assembler::mfvsrd(const Register ra, const DoubleRegister rs) {
+void Assembler::mfvsrd(const Register ra, const Simd128Register rs) {
   int SX = 1;
   emit(MFVSRD | rs.code() * B21 | ra.code() * B16 | SX);
 }
 
-void Assembler::mfvsrwz(const Register ra, const DoubleRegister rs) {
+void Assembler::mfvsrwz(const Register ra, const Simd128Register rs) {
   int SX = 1;
   emit(MFVSRWZ | rs.code() * B21 | ra.code() * B16 | SX);
 }
 
-void Assembler::mtvsrd(const DoubleRegister rt, const Register ra) {
+void Assembler::mtvsrd(const Simd128Register rt, const Register ra) {
   int TX = 1;
   emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
 }
 
-void Assembler::vor(const DoubleRegister rt, const DoubleRegister ra,
-                    const DoubleRegister rb) {
-  emit(VOR | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXVD | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
 }
 
-void Assembler::vsro(const DoubleRegister rt, const DoubleRegister ra,
-                     const DoubleRegister rb) {
-  emit(VSRO | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
+  int SX = 1;
+  emit(STXVD | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
+       SX);
 }
 
 // Pseudo instructions.

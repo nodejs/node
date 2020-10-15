@@ -18,7 +18,8 @@ namespace compiler {
 
 namespace {
 
-using Variable = CodeAssemblerVariable;
+template <class T>
+using TVariable = TypedCodeAssemblerVariable<T>;
 
 TNode<Smi> SmiTag(CodeAssembler* m, Node* value) {
   int32_t constant_value;
@@ -146,11 +147,12 @@ Handle<JSFunction> CreateSumAllArgumentsFunction(FunctionTester* ft) {
 TEST(SimpleCallJSFunction0Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  const int kContextOffset = kNumParams + 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(0);
-    Node* context = m.Parameter(kNumParams + 2);
+    Node* function = m.Parameter(1);
+    Node* context = m.Parameter(kContextOffset);
 
     Node* receiver = SmiTag(&m, m.Int32Constant(42));
 
@@ -167,12 +169,13 @@ TEST(SimpleCallJSFunction0Arg) {
 
 TEST(SimpleCallJSFunction1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 2;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  const int kNumParams = 1;
+  const int kContextOffset = kNumParams + 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(0);
-    Node* context = m.Parameter(1);
+    Node* function = m.Parameter(1);
+    Node* context = m.Parameter(kContextOffset);
 
     Node* receiver = SmiTag(&m, m.Int32Constant(42));
     Node* a = SmiTag(&m, m.Int32Constant(13));
@@ -191,11 +194,12 @@ TEST(SimpleCallJSFunction1Arg) {
 TEST(SimpleCallJSFunction2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  const int kContextOffset = kNumParams + 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(0);
-    Node* context = m.Parameter(1);
+    Node* function = m.Parameter(1);
+    Node* context = m.Parameter(kContextOffset);
 
     Node* receiver = SmiTag(&m, m.Int32Constant(42));
     Node* a = SmiTag(&m, m.Int32Constant(13));
@@ -217,10 +221,10 @@ TEST(VariableMerge1) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Variable var1(&m, MachineRepresentation::kTagged);
+  TVariable<Int32T> var1(&m);
   CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   TNode<Int32T> temp = m.Int32Constant(0);
-  var1.Bind(temp);
+  var1 = temp;
   m.Branch(m.Int32Constant(1), &l1, &l2);
   m.Bind(&l1);
   CHECK_EQ(var1.value(), temp);
@@ -236,17 +240,17 @@ TEST(VariableMerge2) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Variable var1(&m, MachineRepresentation::kTagged);
+  TVariable<Int32T> var1(&m);
   CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   TNode<Int32T> temp = m.Int32Constant(0);
-  var1.Bind(temp);
+  var1 = temp;
   m.Branch(m.Int32Constant(1), &l1, &l2);
   m.Bind(&l1);
   CHECK_EQ(var1.value(), temp);
   m.Goto(&merge);
   m.Bind(&l2);
   TNode<Int32T> temp2 = m.Int32Constant(2);
-  var1.Bind(temp2);
+  var1 = temp2;
   CHECK_EQ(var1.value(), temp2);
   m.Goto(&merge);
   m.Bind(&merge);
@@ -257,19 +261,19 @@ TEST(VariableMerge3) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Variable var1(&m, MachineRepresentation::kTagged);
-  Variable var2(&m, MachineRepresentation::kTagged);
+  TVariable<Int32T> var1(&m);
+  TVariable<Int32T> var2(&m);
   CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   TNode<Int32T> temp = m.Int32Constant(0);
-  var1.Bind(temp);
-  var2.Bind(temp);
+  var1 = temp;
+  var2 = temp;
   m.Branch(m.Int32Constant(1), &l1, &l2);
   m.Bind(&l1);
   CHECK_EQ(var1.value(), temp);
   m.Goto(&merge);
   m.Bind(&l2);
   TNode<Int32T> temp2 = m.Int32Constant(2);
-  var1.Bind(temp2);
+  var1 = temp2;
   CHECK_EQ(var1.value(), temp2);
   m.Goto(&merge);
   m.Bind(&merge);
@@ -282,10 +286,10 @@ TEST(VariableMergeBindFirst) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Variable var1(&m, MachineRepresentation::kTagged);
+  TVariable<Int32T> var1(&m);
   CodeAssemblerLabel l1(&m), l2(&m), merge(&m, &var1), end(&m);
   TNode<Int32T> temp = m.Int32Constant(0);
-  var1.Bind(temp);
+  var1 = temp;
   m.Branch(m.Int32Constant(1), &l1, &l2);
   m.Bind(&l1);
   CHECK_EQ(var1.value(), temp);
@@ -296,7 +300,7 @@ TEST(VariableMergeBindFirst) {
   m.Goto(&end);
   m.Bind(&l2);
   TNode<Int32T> temp2 = m.Int32Constant(2);
-  var1.Bind(temp2);
+  var1 = temp2;
   CHECK_EQ(var1.value(), temp2);
   m.Goto(&merge);
   m.Bind(&end);
@@ -308,12 +312,12 @@ TEST(VariableMergeSwitch) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Variable var1(&m, MachineRepresentation::kTagged);
+  TVariable<Smi> var1(&m);
   CodeAssemblerLabel l1(&m), l2(&m), default_label(&m);
   CodeAssemblerLabel* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
   TNode<Smi> temp1 = m.SmiConstant(0);
-  var1.Bind(temp1);
+  var1 = temp1;
   m.Switch(m.Int32Constant(2), &default_label, values, labels, 2);
   m.Bind(&l1);
   CHECK_EQ(temp1, var1.value());
@@ -321,11 +325,11 @@ TEST(VariableMergeSwitch) {
   m.Bind(&l2);
   CHECK_EQ(temp1, var1.value());
   TNode<Smi> temp2 = m.SmiConstant(7);
-  var1.Bind(temp2);
+  var1 = temp2;
   m.Goto(&default_label);
   m.Bind(&default_label);
-  CHECK_EQ(IrOpcode::kPhi, var1.value()->opcode());
-  CHECK_EQ(2, var1.value()->op()->ValueInputCount());
+  CHECK_EQ(IrOpcode::kPhi, (*var1.value()).opcode());
+  CHECK_EQ(2, (*var1.value()).op()->ValueInputCount());
   CHECK_EQ(temp1, NodeProperties::GetValueInput(var1.value(), 0));
   CHECK_EQ(temp2, NodeProperties::GetValueInput(var1.value(), 1));
   m.Return(temp1);
@@ -396,14 +400,14 @@ TEST(DeferredCodePhiHints) {
   m.Goto(&block1);
   m.Bind(&block1);
   {
-    Variable var_object(&m, MachineRepresentation::kTagged);
+    TVariable<Map> var_object(&m);
     CodeAssemblerLabel loop(&m, &var_object);
-    var_object.Bind(m.SmiConstant(0));
+    var_object = m.CAST(LoadMap(&m, m.SmiConstant(0)));
     m.Goto(&loop);
     m.Bind(&loop);
     {
-      Node* map = LoadMap(&m, var_object.value());
-      var_object.Bind(map);
+      TNode<Map> map = m.CAST(LoadMap(&m, var_object.value()));
+      var_object = map;
       m.Goto(&loop);
     }
   }
@@ -423,17 +427,17 @@ TEST(TestOutOfScopeVariable) {
            &block1, &block4);
   m.Bind(&block4);
   {
-    Variable var_object(&m, MachineRepresentation::kTagged);
+    TVariable<IntPtrT> var_object(&m);
     m.Branch(m.WordEqual(m.UncheckedCast<IntPtrT>(m.Parameter(0)),
                          m.IntPtrConstant(0)),
              &block2, &block3);
 
     m.Bind(&block2);
-    var_object.Bind(m.IntPtrConstant(55));
+    var_object = m.IntPtrConstant(55);
     m.Goto(&block1);
 
     m.Bind(&block3);
-    var_object.Bind(m.IntPtrConstant(66));
+    var_object = m.IntPtrConstant(66);
     m.Goto(&block1);
   }
   m.Bind(&block1);
@@ -446,7 +450,7 @@ TEST(ExceptionHandler) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeAssembler m(asm_tester.state());
 
-  CodeAssembler::TVariable<Object> var(m.SmiConstant(0), &m);
+  TVariable<Object> var(m.SmiConstant(0), &m);
   CodeAssemblerLabel exception(&m, {&var}, CodeAssemblerLabel::kDeferred);
   {
     ScopedExceptionHandler handler(&m, &exception, &var);

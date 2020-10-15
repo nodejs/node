@@ -26,8 +26,6 @@
 namespace {{namespace}} {
 {% endfor %}
 namespace {{domain.domain}} {
-
-// ------------- Forward and enum declarations.
   {% for type in domain.types %}
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
     {% if type.type == "object" %}
@@ -40,6 +38,8 @@ using {{type.id}} = Object;
 using {{type.id}} = {{protocol.resolve_type(type).type}};
     {% endif %}
   {% endfor %}
+
+// ------------- Forward and enum declarations.
   {% for type in domain.types %}
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
     {% if "enum" in type %}
@@ -71,11 +71,9 @@ namespace {{param.name | to_title_case}}Enum {
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
     {% if not (type.type == "object") or not ("properties" in type) %}{% continue %}{% endif %}
 
-class {{config.protocol.export_macro}} {{type.id}} : public Serializable{% if protocol.is_exported(domain.domain, type.id) %}, public API::{{type.id}}{% endif %}{
-    PROTOCOL_DISALLOW_COPY({{type.id}});
+class {{config.protocol.export_macro}} {{type.id}} : public ::{{config.crdtp.namespace}}::ProtocolObject<{{type.id}}>{% if protocol.is_exported(domain.domain, type.id) %},
+    public API::{{type.id}}{% endif %} {
 public:
-    static std::unique_ptr<{{type.id}}> fromValue(protocol::Value* value, ErrorSupport* errors);
-
     ~{{type.id}}() override { }
     {% for property in type.properties %}
       {% set property_type = protocol.resolve_type(property) %}
@@ -98,10 +96,6 @@ public:
       {% endif %}
     void {{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value) { {{property_field}} = {{property_type.to_rvalue % "value"}}; }
     {% endfor %}
-
-    std::unique_ptr<protocol::DictionaryValue> toValue() const;
-    void AppendSerialized(std::vector<uint8_t>* out) const override;
-    std::unique_ptr<{{type.id}}> clone() const;
 
     template<int STATE>
     class {{type.id}}Builder {
@@ -160,6 +154,8 @@ public:
     }
 
 private:
+    DECLARE_SERIALIZATION_SUPPORT();
+
     {{type.id}}()
     {
     {% for property in type.properties %}

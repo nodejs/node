@@ -50,8 +50,11 @@ LazilyGeneratedNames::LookupNameFromImportsAndExports(
     Vector<const WasmImport> import_table,
     Vector<const WasmExport> export_table) const {
   base::MutexGuard lock(&mutex_);
-  DCHECK(kind == kExternalGlobal || kind == kExternalMemory);
-  auto& names = kind == kExternalGlobal ? global_names_ : memory_names_;
+  DCHECK(kind == kExternalGlobal || kind == kExternalMemory ||
+         kind == kExternalTable);
+  auto& names = kind == kExternalGlobal
+                    ? global_names_
+                    : kind == kExternalMemory ? memory_names_ : table_names_;
   if (!names) {
     names.reset(
         new std::unordered_map<uint32_t,
@@ -134,7 +137,7 @@ void LazilyGeneratedNames::AddForTesting(int function_index,
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
     Vector<const byte> encoded_offsets)
-    : encoded_offsets_(OwnedVector<uint8_t>::Of(encoded_offsets)) {}
+    : encoded_offsets_(OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 
@@ -215,7 +218,16 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
 }
 
 WasmModule::WasmModule(std::unique_ptr<Zone> signature_zone)
-    : signature_zone(std::move(signature_zone)) {}
+    : signature_zone(std::move(signature_zone)),
+      subtyping_cache(this->signature_zone.get() == nullptr
+                          ? nullptr
+                          : new ZoneUnorderedSet<std::pair<uint32_t, uint32_t>>(
+                                this->signature_zone.get())),
+      type_equivalence_cache(
+          this->signature_zone.get() == nullptr
+              ? nullptr
+              : new ZoneUnorderedSet<std::pair<uint32_t, uint32_t>>(
+                    this->signature_zone.get())) {}
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
@@ -239,50 +251,9 @@ namespace {
 // Converts the given {type} into a string representation that can be used in
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
 Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
-  // TODO(ahaas/jkummerow): This could be as simple as:
-  // return isolate->factory()->InternalizeUtf8String(type.type_name());
-  // if we clean up all occurrences of "anyfunc" in favor of "funcref".
-  Factory* factory = isolate->factory();
-  Handle<String> string;
-  switch (type.kind()) {
-    case i::wasm::ValueType::kI32: {
-      string = factory->InternalizeUtf8String("i32");
-      break;
-    }
-    case i::wasm::ValueType::kI64: {
-      string = factory->InternalizeUtf8String("i64");
-      break;
-    }
-    case i::wasm::ValueType::kF32: {
-      string = factory->InternalizeUtf8String("f32");
-      break;
-    }
-    case i::wasm::ValueType::kF64: {
-      string = factory->InternalizeUtf8String("f64");
-      break;
-    }
-    case i::wasm::ValueType::kAnyRef: {
-      string = factory->InternalizeUtf8String("anyref");
-      break;
-    }
-    case i::wasm::ValueType::kFuncRef: {
-      string = factory->InternalizeUtf8String("anyfunc");
-      break;
-    }
-    case i::wasm::ValueType::kNullRef: {
-      string = factory->InternalizeUtf8String("nullref");
-      break;
-    }
-    case i::wasm::ValueType::kExnRef: {
-      string = factory->InternalizeUtf8String("exnref");
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-  return string;
+  return isolate->factory()->InternalizeUtf8String(
+      type == kWasmFuncRef ? CStrVector("anyfunc") : VectorOf(type.name()));
 }
-
 }  // namespace
 
 Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig) {
@@ -357,13 +328,14 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
   Factory* factory = isolate->factory();
 
   Handle<String> element;
-  if (type == kWasmFuncRef) {
-    // TODO(wasm): We should define the "anyfunc" string in one central place
-    // and then use that constant everywhere.
+  if (type.is_reference_to(HeapType::kFunc)) {
+    // TODO(wasm): We should define the "anyfunc" string in one central
+    // place and then use that constant everywhere.
     element = factory->InternalizeUtf8String("anyfunc");
   } else {
-    DCHECK(WasmFeatures::FromFlags().has_anyref() && type == kWasmAnyRef);
-    element = factory->InternalizeUtf8String("anyref");
+    DCHECK(WasmFeatures::FromFlags().has_reftypes() &&
+           type.is_reference_to(HeapType::kExtern));
+    element = factory->InternalizeUtf8String("externref");
   }
 
   Handle<JSFunction> object_function = isolate->object_function();
@@ -458,9 +430,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
       case kExternalException:
         import_kind = exception_string;
         break;
-      default:
-        UNREACHABLE();
     }
+    DCHECK(!import_kind->is_null());
 
     Handle<String> import_module =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
@@ -664,7 +635,8 @@ size_t EstimateStoredSize(const WasmModule* module) {
          VectorSize(module->exceptions) + VectorSize(module->elem_segments);
 }
 
-size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig) {
+size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig,
+                      char delimiter) {
   if (buffer.empty()) return 0;
   size_t old_size = buffer.size();
   auto append_char = [&buffer](char c) {
@@ -675,7 +647,7 @@ size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig) {
   for (wasm::ValueType t : sig->parameters()) {
     append_char(t.short_name());
   }
-  append_char(':');
+  append_char(delimiter);
   for (wasm::ValueType t : sig->returns()) {
     append_char(t.short_name());
   }

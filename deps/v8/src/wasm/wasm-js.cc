@@ -93,37 +93,48 @@ class WasmStreaming::WasmStreamingImpl {
 };
 
 WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
-    : impl_(std::move(impl)) {}
+    : impl_(std::move(impl)) {
+  TRACE_EVENT0("v8.wasm", "wasm.InitializeStreaming");
+}
 
 // The destructor is defined here because we have a unique_ptr with forward
 // declaration.
 WasmStreaming::~WasmStreaming() = default;
 
 void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
+  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "num_bytes", size);
   impl_->OnBytesReceived(bytes, size);
 }
 
-void WasmStreaming::Finish() { impl_->Finish(); }
+void WasmStreaming::Finish() {
+  TRACE_EVENT0("v8.wasm", "wasm.FinishStreaming");
+  impl_->Finish();
+}
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) {
+  TRACE_EVENT0("v8.wasm", "wasm.AbortStreaming");
   impl_->Abort(exception);
 }
 
 bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
+  TRACE_EVENT0("v8.wasm", "wasm.SetCompiledModuleBytes");
   return impl_->SetCompiledModuleBytes(bytes, size);
 }
 
 void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
+  TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.SetClient");
   impl_->SetClient(client);
 }
 
 void WasmStreaming::SetUrl(const char* url, size_t length) {
+  TRACE_EVENT0("v8.wasm", "wasm.SetUrl");
   impl_->SetUrl(internal::VectorOf(url, length));
 }
 
 // static
 std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
                                                      Local<Value> value) {
+  TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
       i::Handle<i::Managed<WasmStreaming>>::cast(Utils::OpenHandle(*value));
@@ -203,9 +214,10 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
   if (length == 0) {
     thrower->CompileError("BufferSource argument is empty");
   }
-  if (length > i::wasm::kV8MaxWasmModuleSize) {
+  size_t max_length = i::wasm::max_module_size();
+  if (length > max_length) {
     thrower->RangeError("buffer source exceeds maximum size of %zu (is %zu)",
-                        i::wasm::kV8MaxWasmModuleSize, length);
+                        max_length, length);
   }
   if (thrower->error()) return i::wasm::ModuleWireBytes(nullptr, nullptr);
   return i::wasm::ModuleWireBytes(start, start + length);
@@ -1066,16 +1078,15 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Local<v8::String> string;
     if (!value->ToString(context).ToLocal(&string)) return;
     auto enabled_features = i::wasm::WasmFeatures::FromFlags();
+    // The JS api uses 'anyfunc' instead of 'funcref'.
     if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
       type = i::wasm::kWasmFuncRef;
-    } else if (enabled_features.has_anyref() &&
-               string->StringEquals(v8_str(isolate, "anyref"))) {
-      type = i::wasm::kWasmAnyRef;
-    } else if (enabled_features.has_anyref() &&
-               string->StringEquals(v8_str(isolate, "nullref"))) {
-      type = i::wasm::kWasmNullRef;
+    } else if (enabled_features.has_reftypes() &&
+               string->StringEquals(v8_str(isolate, "externref"))) {
+      type = i::wasm::kWasmExternRef;
     } else {
-      thrower.TypeError("Descriptor property 'element' must be 'anyfunc'");
+      thrower.TypeError(
+          "Descriptor property 'element' must be a WebAssembly reference type");
       return;
     }
   }
@@ -1089,9 +1100,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
   bool has_maximum = true;
-  if (!GetOptionalIntegerProperty(
-          isolate, &thrower, context, descriptor, v8_str(isolate, "maximum"),
-          &has_maximum, &maximum, initial, i::wasm::max_table_init_entries())) {
+  if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
+                                  v8_str(isolate, "maximum"), &has_maximum,
+                                  &maximum, initial,
+                                  std::numeric_limits<uint32_t>::max())) {
     return;
   }
 
@@ -1198,18 +1210,19 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
     *type = i::wasm::kWasmI64;
   } else if (string->StringEquals(v8_str(isolate, "f64"))) {
     *type = i::wasm::kWasmF64;
-  } else if (enabled_features.has_anyref() &&
-             string->StringEquals(v8_str(isolate, "anyref"))) {
-    *type = i::wasm::kWasmAnyRef;
-  } else if (enabled_features.has_anyref() &&
+  } else if (enabled_features.has_reftypes() &&
+             string->StringEquals(v8_str(isolate, "externref"))) {
+    *type = i::wasm::kWasmExternRef;
+    // The JS api spec uses 'anyfunc' instead of 'funcref'.
+  } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     *type = i::wasm::kWasmFuncRef;
-  } else if (enabled_features.has_anyref() &&
-             string->StringEquals(v8_str(isolate, "nullref"))) {
-    *type = i::wasm::kWasmNullRef;
   } else if (enabled_features.has_eh() &&
              string->StringEquals(v8_str(isolate, "exnref"))) {
     *type = i::wasm::kWasmExnRef;
+  } else if (enabled_features.has_gc() &&
+             string->StringEquals(v8_str(isolate, "eqref"))) {
+    *type = i::wasm::kWasmEqRef;
   } else {
     // Unrecognized type.
     *type = i::wasm::kWasmStmt;
@@ -1259,8 +1272,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (!GetValueType(isolate, maybe, context, &type, enabled_features)) return;
     if (type == i::wasm::kWasmStmt) {
       thrower.TypeError(
-          "Descriptor property 'value' must be 'i32', 'i64', 'f32', or "
-          "'f64'");
+          "Descriptor property 'value' must be a WebAssembly type");
       return;
     }
   }
@@ -1327,48 +1339,48 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF64(f64_value);
       break;
     }
-    case i::wasm::ValueType::kAnyRef:
-    case i::wasm::ValueType::kExnRef: {
-      if (args.Length() < 2) {
-        // When no initial value is provided, we have to use the WebAssembly
-        // default value 'null', and not the JS default value 'undefined'.
-        global_obj->SetAnyRef(i_isolate->factory()->null_value());
-        break;
-      }
-      global_obj->SetAnyRef(Utils::OpenHandle(*value));
-      break;
-    }
-    case i::wasm::ValueType::kNullRef:
-      if (args.Length() < 2) {
-        // When no initial value is provided, we have to use the WebAssembly
-        // default value 'null', and not the JS default value 'undefined'.
-        global_obj->SetNullRef(i_isolate->factory()->null_value());
-        break;
-      }
-      if (!global_obj->SetNullRef(Utils::OpenHandle(*value))) {
-        thrower.TypeError("The value of nullref globals must be null");
-      }
-      break;
-    case i::wasm::ValueType::kFuncRef: {
-      if (args.Length() < 2) {
-        // When no initial value is provided, we have to use the WebAssembly
-        // default value 'null', and not the JS default value 'undefined'.
-        global_obj->SetFuncRef(i_isolate, i_isolate->factory()->null_value());
-        break;
-      }
-
-      if (!global_obj->SetFuncRef(i_isolate, Utils::OpenHandle(*value))) {
-        thrower.TypeError(
-            "The value of anyfunc globals must be null or an "
-            "exported function");
-      }
-      break;
-    }
     case i::wasm::ValueType::kRef:
-    case i::wasm::ValueType::kOptRef:
-    case i::wasm::ValueType::kEqRef:
-      // TODO(7748): Implement these.
+    case i::wasm::ValueType::kOptRef: {
+      switch (type.heap_representation()) {
+        case i::wasm::HeapType::kExtern:
+        case i::wasm::HeapType::kExn: {
+          if (args.Length() < 2) {
+            // When no initial value is provided, we have to use the WebAssembly
+            // default value 'null', and not the JS default value 'undefined'.
+            global_obj->SetExternRef(i_isolate->factory()->null_value());
+            break;
+          }
+          global_obj->SetExternRef(Utils::OpenHandle(*value));
+          break;
+        }
+        case i::wasm::HeapType::kFunc: {
+          if (args.Length() < 2) {
+            // When no initial value is provided, we have to use the WebAssembly
+            // default value 'null', and not the JS default value 'undefined'.
+            global_obj->SetFuncRef(i_isolate,
+                                   i_isolate->factory()->null_value());
+            break;
+          }
+
+          if (!global_obj->SetFuncRef(i_isolate, Utils::OpenHandle(*value))) {
+            thrower.TypeError(
+                "The value of funcref globals must be null or an "
+                "exported function");
+          }
+          break;
+        }
+        case i::wasm::HeapType::kEq:
+        default:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
+      }
+      break;
+    }
+    case i::wasm::ValueType::kRtt:
+      // TODO(7748): Implement.
       UNIMPLEMENTED();
+    case i::wasm::ValueType::kI8:
+    case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kStmt:
     case i::wasm::ValueType::kS128:
     case i::wasm::ValueType::kBottom:
@@ -1589,7 +1601,7 @@ void WebAssemblyTableGetLength(
       v8::Number::New(isolate, receiver->current_length()));
 }
 
-// WebAssembly.Table.grow(num) -> num
+// WebAssembly.Table.grow(num, init_value = null) -> num
 void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -1603,8 +1615,20 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  int old_size = i::WasmTableObject::Grow(i_isolate, receiver, grow_by,
-                                          i_isolate->factory()->null_value());
+  i::Handle<i::Object> init_value = i_isolate->factory()->null_value();
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  if (enabled_features.has_typed_funcref()) {
+    if (args.Length() >= 2 && !args[1]->IsUndefined()) {
+      init_value = Utils::OpenHandle(*args[1]);
+    }
+    if (!i::WasmTableObject::IsValidElement(i_isolate, receiver, init_value)) {
+      thrower.TypeError("Argument 1 must be a valid type for the table");
+      return;
+    }
+  }
+
+  int old_size =
+      i::WasmTableObject::Grow(i_isolate, receiver, grow_by, init_value);
 
   if (old_size < 0) {
     thrower.RangeError("failed to grow table by %u", grow_by);
@@ -1809,22 +1833,31 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::ValueType::kF64:
       return_value.Set(receiver->GetF64());
       break;
-    case i::wasm::ValueType::kAnyRef:
-    case i::wasm::ValueType::kFuncRef:
-    case i::wasm::ValueType::kNullRef:
-    case i::wasm::ValueType::kExnRef:
-      DCHECK_IMPLIES(receiver->type() == i::wasm::kWasmNullRef,
-                     receiver->GetRef()->IsNull());
-      return_value.Set(Utils::ToLocal(receiver->GetRef()));
+    case i::wasm::ValueType::kS128:
+      thrower.TypeError("Can't get the value of s128 WebAssembly.Global");
       break;
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef:
-    case i::wasm::ValueType::kEqRef:
-      // TODO(7748): Implement these.
-      UNIMPLEMENTED();
+      switch (receiver->type().heap_representation()) {
+        case i::wasm::HeapType::kExtern:
+        case i::wasm::HeapType::kFunc:
+        case i::wasm::HeapType::kExn:
+          return_value.Set(Utils::ToLocal(receiver->GetRef()));
+          break;
+        case i::wasm::HeapType::kEq:
+        default:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
+          break;
+      }
+      break;
+    case i::wasm::ValueType::kRtt:
+      UNIMPLEMENTED();  // TODO(7748): Implement.
+      break;
+    case i::wasm::ValueType::kI8:
+    case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:
     case i::wasm::ValueType::kStmt:
-    case i::wasm::ValueType::kS128:
       UNREACHABLE();
   }
 }
@@ -1889,32 +1922,40 @@ void WebAssemblyGlobalSetValue(
       receiver->SetF64(f64_value);
       break;
     }
-    case i::wasm::ValueType::kAnyRef:
-    case i::wasm::ValueType::kExnRef: {
-      receiver->SetAnyRef(Utils::OpenHandle(*args[0]));
+    case i::wasm::ValueType::kS128:
+      thrower.TypeError("Can't set the value of s128 WebAssembly.Global");
       break;
-    }
-    case i::wasm::ValueType::kNullRef:
-      if (!receiver->SetNullRef(Utils::OpenHandle(*args[0]))) {
-        thrower.TypeError("The value of nullref must be null");
-      }
-      break;
-    case i::wasm::ValueType::kFuncRef: {
-      if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
-        thrower.TypeError(
-            "value of an anyfunc reference must be either null or an "
-            "exported function");
-      }
-      break;
-    }
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef:
-    case i::wasm::ValueType::kEqRef:
-      // TODO(7748): Implement these.
+      switch (receiver->type().heap_representation()) {
+        case i::wasm::HeapType::kExtern:
+        case i::wasm::HeapType::kExn:
+          receiver->SetExternRef(Utils::OpenHandle(*args[0]));
+          break;
+        case i::wasm::HeapType::kFunc: {
+          if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
+            thrower.TypeError(
+                "value of an funcref reference must be either null or an "
+                "exported function");
+          }
+          break;
+        }
+
+        case i::wasm::HeapType::kEq:
+        default:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
+          break;
+      }
+      break;
+    case i::wasm::ValueType::kRtt:
+      // TODO(7748): Implement.
       UNIMPLEMENTED();
+      break;
+    case i::wasm::ValueType::kI8:
+    case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:
     case i::wasm::ValueType::kStmt:
-    case i::wasm::ValueType::kS128:
       UNREACHABLE();
   }
 }

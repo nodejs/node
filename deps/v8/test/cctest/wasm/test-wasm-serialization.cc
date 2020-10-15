@@ -37,7 +37,7 @@ class WasmSerializationTest {
   }
 
   static void BuildWireBytes(Zone* zone, ZoneBuffer* buffer) {
-    WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
+    WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
     TestSignatures sigs;
 
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
@@ -99,7 +99,7 @@ class WasmSerializationTest {
     Handle<Object> params[1] = {
         Handle<Object>(Smi::FromInt(41), CcTest::i_isolate())};
     int32_t result = testing::CallWasmFunctionForTesting(
-        CcTest::i_isolate(), instance, &thrower, kFunctionName, 1, params);
+        CcTest::i_isolate(), instance, kFunctionName, 1, params);
     CHECK_EQ(42, result);
   }
 
@@ -148,6 +148,10 @@ class WasmSerializationTest {
       // Check that the native module exists at this point.
       CHECK(weak_native_module.lock());
 
+      auto* native_module = module_object->native_module();
+      native_module->compilation_state()->WaitForTopTierFinished();
+      DCHECK(!native_module->compilation_state()->failed());
+
       v8::Local<v8::Object> v8_module_obj =
           v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
       CHECK(v8_module_obj->IsWasmModuleObject());
@@ -163,6 +167,7 @@ class WasmSerializationTest {
       wire_bytes_ = {bytes_copy, uncompiled_bytes.size()};
       // keep alive data_ until the end
       data_ = compiled_module.Serialize();
+      CHECK_LT(0, data_.size);
     }
     // Dispose of serialization isolate to destroy the reference to the
     // NativeModule, which removes it from the module cache in the wasm engine
@@ -322,6 +327,26 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
   }
   original_native_module.reset();
   from_isolate->Dispose();
+}
+
+TEST(TierDownAfterDeserialization) {
+  WasmSerializationTest test;
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Handle<WasmModuleObject> module_object;
+  CHECK(test.Deserialize().ToHandle(&module_object));
+
+  auto* native_module = module_object->native_module();
+  CHECK_EQ(1, native_module->module()->functions.size());
+  WasmCodeRefScope code_ref_scope;
+  auto* turbofan_code = native_module->GetCode(0);
+  CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
+
+  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
+
+  auto* liftoff_code = native_module->GetCode(0);
+  CHECK_EQ(ExecutionTier::kLiftoff, liftoff_code->tier());
 }
 
 }  // namespace test_wasm_serialization

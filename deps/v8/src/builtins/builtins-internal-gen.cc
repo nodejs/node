@@ -71,103 +71,6 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
                   key);
 }
 
-TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
-  TNode<IntPtrT> frame = UncheckedCast<IntPtrT>(Parameter(Descriptor::kFrame));
-  TNode<IntPtrT> length = SmiToIntPtr(Parameter(Descriptor::kLength));
-  TNode<IntPtrT> mapped_count =
-      SmiToIntPtr(Parameter(Descriptor::kMappedCount));
-
-  // Check if we can allocate in new space.
-  ElementsKind kind = PACKED_ELEMENTS;
-  int max_elements = FixedArray::GetMaxLengthForNewSpaceAllocation(kind);
-  Label if_newspace(this), if_oldspace(this, Label::kDeferred);
-  Branch(IntPtrLessThan(length, IntPtrConstant(max_elements)), &if_newspace,
-         &if_oldspace);
-
-  BIND(&if_newspace);
-  {
-    // Prefer EmptyFixedArray in case of non-positive {length} (the {length}
-    // can be negative here for rest parameters).
-    Label if_empty(this), if_notempty(this);
-    Branch(IntPtrLessThanOrEqual(length, IntPtrConstant(0)), &if_empty,
-           &if_notempty);
-
-    BIND(&if_empty);
-    Return(EmptyFixedArrayConstant());
-
-    BIND(&if_notempty);
-    {
-      // Allocate a FixedArray in new space.
-      TNode<FixedArray> result = CAST(AllocateFixedArray(kind, length));
-
-      // The elements might be used to back mapped arguments. In that case fill
-      // the mapped elements (i.e. the first {mapped_count}) with the hole, but
-      // make sure not to overshoot the {length} if some arguments are missing.
-      TNode<IntPtrT> number_of_holes = IntPtrMin(mapped_count, length);
-      TNode<Oddball> the_hole = TheHoleConstant();
-
-      // Fill the first elements up to {number_of_holes} with the hole.
-      TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
-      Label loop1(this, &var_index), done_loop1(this);
-      Goto(&loop1);
-      BIND(&loop1);
-      {
-        // Load the current {index}.
-        TNode<IntPtrT> index = var_index.value();
-
-        // Check if we are done.
-        GotoIf(IntPtrEqual(index, number_of_holes), &done_loop1);
-
-        // Store the hole into the {result}.
-        StoreFixedArrayElement(result, index, the_hole, SKIP_WRITE_BARRIER);
-
-        // Continue with next {index}.
-        var_index = IntPtrAdd(index, IntPtrConstant(1));
-        Goto(&loop1);
-      }
-      BIND(&done_loop1);
-
-      // Compute the effective {offset} into the {frame}.
-      TNode<IntPtrT> offset = IntPtrAdd(length, IntPtrConstant(1));
-
-      // Copy the parameters from {frame} (starting at {offset}) to {result}.
-      Label loop2(this, &var_index), done_loop2(this);
-      Goto(&loop2);
-      BIND(&loop2);
-      {
-        // Load the current {index}.
-        TNode<IntPtrT> index = var_index.value();
-
-        // Check if we are done.
-        GotoIf(IntPtrEqual(index, length), &done_loop2);
-
-        // Load the parameter at the given {index}.
-        TNode<Object> value = BitcastWordToTagged(
-            Load(MachineType::Pointer(), frame,
-                 TimesSystemPointerSize(IntPtrSub(offset, index))));
-
-        // Store the {value} into the {result}.
-        StoreFixedArrayElement(result, index, value, SKIP_WRITE_BARRIER);
-
-        // Continue with next {index}.
-        var_index = IntPtrAdd(index, IntPtrConstant(1));
-        Goto(&loop2);
-      }
-      BIND(&done_loop2);
-
-      Return(result);
-    }
-  }
-
-  BIND(&if_oldspace);
-  {
-    // Allocate in old space (or large object space).
-    TailCallRuntime(Runtime::kNewArgumentsElements, NoContextConstant(),
-                    BitcastWordToTagged(frame), SmiFromIntPtr(length),
-                    SmiFromIntPtr(mapped_count));
-  }
-}
-
 TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Return(receiver);
@@ -221,9 +124,9 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
   TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
-    TNode<IntPtrT> flags =
-        UncheckedCast<IntPtrT>(Load(MachineType::Pointer(), page,
-                                    IntPtrConstant(MemoryChunk::kFlagsOffset)));
+    TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
+        Load(MachineType::Pointer(), page,
+             IntPtrConstant(BasicMemoryChunk::kFlagsOffset)));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
   }
@@ -243,7 +146,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
                   TNode<IntPtrT>* mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
     TNode<IntPtrT> bitmap =
-        Load<IntPtrT>(page, IntPtrConstant(MemoryChunk::kMarkBitmapOffset));
+        IntPtrAdd(page, IntPtrConstant(MemoryChunk::kMarkingBitmapOffset));
 
     {
       // Temp variable to calculate cell offset in bitmap.
@@ -488,15 +391,12 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     BIND(&call_incremental_wb);
     {
       TNode<ExternalReference> function = ExternalConstant(
-          ExternalReference::incremental_marking_record_write_function());
-      TNode<ExternalReference> isolate_constant =
-          ExternalConstant(ExternalReference::isolate_address(isolate()));
+          ExternalReference::write_barrier_marking_from_code_function());
       TNode<Smi> fp_mode = UncheckedCast<Smi>(Parameter(Descriptor::kFPMode));
       TNode<IntPtrT> object =
           BitcastTaggedToWord(Parameter(Descriptor::kObject));
-      CallCFunction3WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT,
-                                                 ExternalReference>(
-          function, object, slot, isolate_constant, fp_mode, &exit);
+      CallCFunction2WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT>(
+          function, object, slot, fp_mode, &exit);
     }
   }
 

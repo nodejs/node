@@ -10,6 +10,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/snapshot/context-deserializer.h"
 #include "src/snapshot/context-serializer.h"
@@ -128,6 +129,17 @@ bool Snapshot::HasContextSnapshot(Isolate* isolate, size_t index) {
   return index < num_contexts;
 }
 
+bool Snapshot::VersionIsValid(const v8::StartupData* data) {
+  char version[SnapshotImpl::kVersionStringLength];
+  memset(version, 0, SnapshotImpl::kVersionStringLength);
+  CHECK_LT(
+      SnapshotImpl::kVersionStringOffset + SnapshotImpl::kVersionStringLength,
+      static_cast<uint32_t>(data->raw_size));
+  Version::GetString(Vector<char>(version, SnapshotImpl::kVersionStringLength));
+  return strncmp(version, data->data + SnapshotImpl::kVersionStringOffset,
+                 SnapshotImpl::kVersionStringLength) == 0;
+}
+
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
   RuntimeCallTimerScope rcs_timer(isolate,
@@ -239,18 +251,13 @@ void Snapshot::ClearReconstructableDataForSerialization(
       continue;  // Don't clear extensions, they cannot be recompiled.
     }
 
-    // Also, clear out feedback vectors, or any optimized code.
-    // Note that checking for fun.IsOptimized() || fun.IsInterpreted() is
-    // not sufficient because the function can have a feedback vector even
-    // if it is not compiled (e.g. when the bytecode was flushed). On the
-    // other hand, only checking for the feedback vector is not sufficient
-    // because there can be multiple functions sharing the same feedback
-    // vector. So we need all these checks.
-    if (fun.IsOptimized() || fun.IsInterpreted() ||
-        !fun.raw_feedback_cell().value().IsUndefined()) {
+    // Also, clear out feedback vectors and recompilable code.
+    if (fun.CanDiscardCompiled()) {
+      fun.set_code(*BUILTIN_CODE(isolate, CompileLazy));
+    }
+    if (!fun.raw_feedback_cell().value().IsUndefined()) {
       fun.raw_feedback_cell().set_value(
           i::ReadOnlyRoots(isolate).undefined_value());
-      fun.set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
     }
 #ifdef DEBUG
     if (clear_recompilable_data) {
@@ -301,7 +308,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     CHECK(new_native_context->IsNativeContext());
 
 #ifdef VERIFY_HEAP
-    new_isolate->heap()->Verify();
+    if (FLAG_verify_heap) new_isolate->heap()->Verify();
 #endif  // VERIFY_HEAP
   }
   new_isolate->Exit();
@@ -600,13 +607,12 @@ Vector<const byte> SnapshotImpl::ExtractContextData(const v8::StartupData* data,
 }
 
 void SnapshotImpl::CheckVersion(const v8::StartupData* data) {
-  char version[kVersionStringLength];
-  memset(version, 0, kVersionStringLength);
-  CHECK_LT(kVersionStringOffset + kVersionStringLength,
-           static_cast<uint32_t>(data->raw_size));
-  Version::GetString(Vector<char>(version, kVersionStringLength));
-  if (strncmp(version, data->data + kVersionStringOffset,
-              kVersionStringLength) != 0) {
+  if (!Snapshot::VersionIsValid(data)) {
+    char version[kVersionStringLength];
+    memset(version, 0, kVersionStringLength);
+    CHECK_LT(kVersionStringOffset + kVersionStringLength,
+             static_cast<uint32_t>(data->raw_size));
+    Version::GetString(Vector<char>(version, kVersionStringLength));
     FATAL(
         "Version mismatch between V8 binary and snapshot.\n"
         "#   V8 binary version: %.*s\n"

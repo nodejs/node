@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "src/base/platform/elapsed-timer.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/objects/contexts.h"
 #include "src/objects/map.h"
@@ -49,6 +50,7 @@ class MemoryMeasurement {
   bool IsGCTaskPending(v8::MeasureMemoryExecution execution);
   void SetGCTaskPending(v8::MeasureMemoryExecution execution);
   void SetGCTaskDone(v8::MeasureMemoryExecution execution);
+  int NextGCTaskDelayInSeconds();
 
   std::list<Request> received_;
   std::list<Request> processing_;
@@ -57,6 +59,7 @@ class MemoryMeasurement {
   bool reporting_task_pending_ = false;
   bool delayed_gc_task_pending_ = false;
   bool eager_gc_task_pending_ = false;
+  base::RandomNumberGenerator random_number_generator_;
 };
 
 // Infers the native context for some of the heap objects.

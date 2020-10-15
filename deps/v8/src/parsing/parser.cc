@@ -357,8 +357,8 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
   const Runtime::Function* function =
       Runtime::FunctionForName(name->raw_data(), name->length());
 
-  // Be more premissive when fuzzing. Intrinsics are not supported.
-  if (FLAG_allow_natives_for_fuzzing) {
+  // Be more permissive when fuzzing. Intrinsics are not supported.
+  if (FLAG_fuzzing) {
     return NewV8RuntimeFunctionForFuzzing(function, args, pos);
   }
 
@@ -392,13 +392,13 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Expression* Parser::NewV8RuntimeFunctionForFuzzing(
     const Runtime::Function* function, const ScopedPtrList<Expression>& args,
     int pos) {
-  CHECK(FLAG_allow_natives_for_fuzzing);
+  CHECK(FLAG_fuzzing);
 
-  // Intrinsics are not supported for fuzzing. Only allow whitelisted runtime
+  // Intrinsics are not supported for fuzzing. Only allow allowlisted runtime
   // functions. Also prevent later errors due to too few arguments and just
   // ignore this call.
   if (function == nullptr ||
-      !Runtime::IsWhitelistedForFuzzing(function->function_id) ||
+      !Runtime::IsAllowListedForFuzzing(function->function_id) ||
       function->nargs > args.length()) {
     return factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
@@ -423,7 +423,7 @@ Parser::Parser(ParseInfo* info)
           info->runtime_call_stats(), info->logger(), info->flags(), true),
       info_(info),
       scanner_(info->character_stream(), flags()),
-      preparser_zone_(info->zone()->allocator(), ZONE_NAME),
+      preparser_zone_(info->zone()->allocator(), "pre-parser-zone"),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
@@ -718,7 +718,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
   Handle<FixedArray> arguments = maybe_wrapped_arguments_.ToHandleChecked();
   int arguments_length = arguments->length();
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
-      new (zone) ZonePtrList<const AstRawString>(arguments_length, zone);
+      zone->New<ZonePtrList<const AstRawString>>(arguments_length, zone);
   for (int i = 0; i < arguments_length; i++) {
     const AstRawString* argument_string = ast_value_factory()->GetString(
         Handle<String>(String::cast(arguments->get(i)), isolate));
@@ -1085,7 +1085,7 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
   //   IdentifierName
   //   IdentifierName 'as' IdentifierName
   ZoneChunkList<ExportClauseData>* export_data =
-      new (zone()) ZoneChunkList<ExportClauseData>(zone());
+      zone()->New<ZoneChunkList<ExportClauseData>>(zone());
 
   Expect(Token::LBRACE);
 
@@ -1138,7 +1138,7 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
 
   Expect(Token::LBRACE);
 
-  auto result = new (zone()) ZonePtrList<const NamedImport>(1, zone());
+  auto result = zone()->New<ZonePtrList<const NamedImport>>(1, zone());
   while (peek() != Token::RBRACE) {
     const AstRawString* import_name = ParsePropertyName();
     const AstRawString* local_name = import_name;
@@ -1163,7 +1163,7 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
                            kNeedsInitialization, position());
 
     NamedImport* import =
-        new (zone()) NamedImport(import_name, local_name, location);
+        zone()->New<NamedImport>(import_name, local_name, location);
     result->Add(import, zone());
 
     if (peek() == Token::RBRACE) break;
@@ -3092,10 +3092,12 @@ void Parser::HandleSourceURLComments(LocalIsolate* isolate,
 
 template void Parser::HandleSourceURLComments(Isolate* isolate,
                                               Handle<Script> script);
-template void Parser::HandleSourceURLComments(OffThreadIsolate* isolate,
+template void Parser::HandleSourceURLComments(LocalIsolate* isolate,
                                               Handle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
+  CHECK_NOT_NULL(isolate);
+
   // Move statistics to Isolate.
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -3148,7 +3150,7 @@ void Parser::ParseOnBackground(ParseInfo* info, int start_position,
 }
 
 Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {
-  return new (zone()) TemplateLiteral(zone(), pos);
+  return zone()->New<TemplateLiteral>(zone(), pos);
 }
 
 void Parser::AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
@@ -3191,7 +3193,7 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     // Call TagFn
     ScopedPtrList<Expression> call_args(pointer_buffer());
     call_args.Add(template_object);
-    call_args.AddAll(*expressions);
+    call_args.AddAll(expressions->ToConstVector());
     return factory()->NewTaggedTemplate(tag, call_args, pos);
   }
 }

@@ -18,11 +18,10 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class DeferredHandles;
 class HandleScopeImplementer;
 class Isolate;
 class LocalHeap;
-class OffThreadIsolate;
+class LocalIsolate;
 template <typename T>
 class MaybeHandle;
 class Object;
@@ -41,7 +40,7 @@ class HandleBase {
  public:
   V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
   V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
-  V8_INLINE explicit HandleBase(Address object, OffThreadIsolate* isolate);
+  V8_INLINE explicit HandleBase(Address object, LocalIsolate* isolate);
   V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
 
   // Check if this handle refers to the exact same object as the other handle.
@@ -123,7 +122,7 @@ class Handle final : public HandleBase {
   }
 
   V8_INLINE Handle(T object, Isolate* isolate);
-  V8_INLINE Handle(T object, OffThreadIsolate* isolate);
+  V8_INLINE Handle(T object, LocalIsolate* isolate);
   V8_INLINE Handle(T object, LocalHeap* local_heap);
 
   // Allocate a new handle for the object, do not canonicalize.
@@ -199,6 +198,15 @@ class HandleScope {
   explicit inline HandleScope(Isolate* isolate);
   inline HandleScope(HandleScope&& other) V8_NOEXCEPT;
 
+  // Allow placement new.
+  void* operator new(size_t size, void* storage) {
+    return ::operator new(size, storage);
+  }
+
+  // Prevent heap allocation or illegal handle scopes.
+  void* operator new(size_t size) = delete;
+  void operator delete(void* size_t) = delete;
+
   inline ~HandleScope();
 
   inline HandleScope& operator=(HandleScope&& other) V8_NOEXCEPT;
@@ -234,10 +242,6 @@ class HandleScope {
   static const int kCheckHandleThreshold = 30 * 1024;
 
  private:
-  // Prevent heap allocation or illegal handle scopes.
-  void* operator new(size_t size);
-  void operator delete(void* size_t);
-
   Isolate* isolate_;
   Address* prev_next_;
   Address* prev_limit_;
@@ -255,10 +259,10 @@ class HandleScope {
 #endif
 
   friend class v8::HandleScope;
-  friend class DeferredHandles;
-  friend class DeferredHandleScope;
   friend class HandleScopeImplementer;
   friend class Isolate;
+  friend class LocalHandles;
+  friend class PersistentHandles;
 
   DISALLOW_COPY_AND_ASSIGN(HandleScope);
 };
@@ -267,6 +271,9 @@ class HandleScope {
 template <typename V, class AllocationPolicy>
 class IdentityMap;
 class RootIndexMap;
+class OptimizedCompilationInfo;
+
+using CanonicalHandlesMap = IdentityMap<Address*, ZoneAllocationPolicy>;
 
 // A CanonicalHandleScope does not open a new HandleScope. It changes the
 // existing HandleScope so that Handles created within are canonicalized.
@@ -275,64 +282,33 @@ class RootIndexMap;
 // the same CanonicalHandleScope, but not across nested ones.
 class V8_EXPORT_PRIVATE CanonicalHandleScope final {
  public:
-  explicit CanonicalHandleScope(Isolate* isolate);
+  // If we passed a compilation info as parameter, we created the
+  // CanonicalHandlesMap on said compilation info's zone(). If so, in the
+  // CanonicalHandleScope destructor we hand off the canonical handle map to the
+  // compilation info. The compilation info is responsible for the disposal. If
+  // we don't have a compilation info, we create a zone in this constructor. To
+  // properly dispose of said zone, we need to first free the identity_map_
+  // which is done manually even though identity_map_ is a unique_ptr.
+  explicit CanonicalHandleScope(Isolate* isolate,
+                                OptimizedCompilationInfo* info = nullptr);
   ~CanonicalHandleScope();
 
  private:
   Address* Lookup(Address object);
 
+  std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles();
+
   Isolate* isolate_;
-  Zone zone_;
+  OptimizedCompilationInfo* info_;
+  Zone* zone_;
   RootIndexMap* root_index_map_;
-  IdentityMap<Address*, ZoneAllocationPolicy>* identity_map_;
+  std::unique_ptr<CanonicalHandlesMap> identity_map_;
   // Ordinary nested handle scopes within the current one are not canonical.
   int canonical_level_;
   // We may have nested canonical scopes. Handles are canonical within each one.
   CanonicalHandleScope* prev_canonical_scope_;
 
   friend class HandleScope;
-};
-
-// A DeferredHandleScope is a HandleScope in which handles are not destroyed
-// when the DeferredHandleScope is left. Instead the DeferredHandleScope has to
-// be detached with {Detach}, and the result of {Detach} has to be destroyed
-// explicitly. A DeferredHandleScope should only be used with the following
-// design pattern:
-// 1) Open a HandleScope (not a DeferredHandleScope).
-//    HandleScope scope(isolate_);
-// 2) Create handles.
-//    Handle<Object> h1 = handle(object1, isolate);
-//    Handle<Object> h2 = handle(object2, isolate);
-// 3) Open a DeferredHandleScope.
-//    DeferredHandleScope deferred_scope(isolate);
-// 4) Reopen handles which should be in the DeferredHandleScope, e.g only h1.
-//    h1 = handle(*h1, isolate);
-// 5) Detach the DeferredHandleScope.
-//    DeferredHandles* deferred_handles = deferred_scope.Detach();
-// 6) Destroy the deferred handles.
-//    delete deferred_handles;
-//
-// Note: A DeferredHandleScope must not be opened within a DeferredHandleScope.
-class V8_EXPORT_PRIVATE DeferredHandleScope final {
- public:
-  explicit DeferredHandleScope(Isolate* isolate);
-  // The DeferredHandles object returned stores the Handles created
-  // since the creation of this DeferredHandleScope.  The Handles are
-  // alive as long as the DeferredHandles object is alive.
-  std::unique_ptr<DeferredHandles> Detach();
-  ~DeferredHandleScope();
-
- private:
-  Address* prev_limit_;
-  Address* prev_next_;
-  HandleScopeImplementer* impl_;
-
-#ifdef DEBUG
-  bool handles_detached_ = false;
-  int prev_level_;
-#endif
-
-  friend class HandleScopeImplementer;
 };
 
 // Seal off the current HandleScope so that new handles can only be created
@@ -365,16 +341,6 @@ struct HandleScopeData final {
     sealed_level = level = 0;
     canonical_scope = nullptr;
   }
-};
-
-class OffThreadHandleScope {
- public:
-  // Off-thread Handles are allocated in the parse/compile zone, and not
-  // cleared out, so the scope doesn't have to do anything
-  explicit OffThreadHandleScope(OffThreadIsolate* isolate) {}
-
-  template <typename T>
-  inline Handle<T> CloseAndEscape(Handle<T> handle_value);
 };
 
 }  // namespace internal

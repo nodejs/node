@@ -204,8 +204,8 @@ void PerfJitLogger::LogRecordedBuffer(
     MaybeHandle<SharedFunctionInfo> maybe_shared, const char* name,
     int length) {
   if (FLAG_perf_basic_prof_only_functions &&
-      (abstract_code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
-       abstract_code->kind() != AbstractCode::OPTIMIZED_FUNCTION)) {
+      (abstract_code->kind() != CodeKind::INTERPRETED_FUNCTION &&
+       abstract_code->kind() != CodeKind::OPTIMIZED_FUNCTION)) {
     return;
   }
 
@@ -222,8 +222,8 @@ void PerfJitLogger::LogRecordedBuffer(
   Handle<SharedFunctionInfo> shared;
   if (FLAG_perf_prof && !maybe_shared.ToHandle(&shared)) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
-    if (code->kind() != Code::JS_TO_WASM_FUNCTION &&
-        code->kind() != Code::WASM_TO_JS_FUNCTION) {
+    if (code->kind() != CodeKind::JS_TO_WASM_FUNCTION &&
+        code->kind() != CodeKind::WASM_TO_JS_FUNCTION) {
       LogWriteDebugInfo(code, shared);
     }
   }

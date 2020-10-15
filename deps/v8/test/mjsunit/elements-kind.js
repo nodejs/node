@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc --nostress-opt
+// Flags: --deopt-every-n-times=0
 
 var elements_kind = {
   fast_smi_only             :  'fast smi only elements',
@@ -109,11 +110,16 @@ function test_wrapper() {
   assertKind(elements_kind.fast, you);
 
   var temp = [];
-  temp[0xDECAF] = 0;
+  // If we store beyond kMaxGap (1024) we should transition to slow elements.
+  temp[1024] = 0;
   assertKind(elements_kind.dictionary, temp);
 
   var fast_double_array = new Array(0xDECAF);
-  for (var i = 0; i < 0xDECAF; i++) fast_double_array[i] = i / 2;
+  // If the gap is greater than 1024 (kMaxGap) we would transition the array
+  // to slow. So increment should be less than 1024.
+  for (var i = 0; i < 0xDECAF; i+=1023) {
+    fast_double_array[i] = i / 2;
+  }
   assertKind(elements_kind.fast_double, fast_double_array);
 
   assertKind(elements_kind.fixed_int8,    new Int8Array(007));

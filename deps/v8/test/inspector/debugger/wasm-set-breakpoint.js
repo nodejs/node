@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 const {session, contextGroup, Protocol} =
     InspectorTest.start('Tests stepping through wasm scripts.');
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 
@@ -33,23 +33,7 @@ const func_b = builder.addFunction('wasm_B', kSig_v_i)
 
 const module_bytes = builder.toArray();
 
-function instantiate(bytes) {
-  let buffer = new ArrayBuffer(bytes.length);
-  let view = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; ++i) {
-    view[i] = bytes[i] | 0;
-  }
-
-  let module = new WebAssembly.Module(buffer);
-  return new WebAssembly.Instance(module);
-}
-
 const getResult = msg => msg.result || InspectorTest.logMessage(msg);
-
-const evalWithUrl = (code, url) =>
-    Protocol.Runtime
-        .evaluate({'expression': code + '\n//# sourceURL=v8://test/' + url})
-        .then(getResult);
 
 function setBreakpoint(offset, script) {
   InspectorTest.log(
@@ -73,9 +57,7 @@ Protocol.Debugger.onPaused(pause_msg => {
   await Protocol.Debugger.enable();
   InspectorTest.log('Instantiating.');
   // Spawn asynchronously:
-  let instantiate_code = 'const instance = (' + instantiate + ')(' +
-      JSON.stringify(module_bytes) + ');';
-  evalWithUrl(instantiate_code, 'instantiate');
+  WasmInspectorTest.instantiate(module_bytes);
   InspectorTest.log(
       'Waiting for wasm script (ignoring first non-wasm script).');
   // Ignore javascript and full module wasm script, get scripts for functions.
@@ -84,7 +66,7 @@ Protocol.Debugger.onPaused(pause_msg => {
     await setBreakpoint(func_b.body_offset + offset, wasm_script);
   }
   InspectorTest.log('Calling main(4)');
-  await evalWithUrl('instance.exports.main(4)', 'runWasm');
+  await WasmInspectorTest.evalWithUrl('instance.exports.main(4)', 'runWasm');
   InspectorTest.log('exports.main returned!');
   InspectorTest.log('Finished!');
   InspectorTest.completeTest();

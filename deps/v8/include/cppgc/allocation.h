@@ -11,7 +11,6 @@
 
 #include "cppgc/custom-space.h"
 #include "cppgc/garbage-collected.h"
-#include "cppgc/heap.h"
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/gc-info.h"
 
@@ -19,6 +18,15 @@ namespace cppgc {
 
 template <typename T>
 class MakeGarbageCollectedTraitBase;
+
+namespace internal {
+class ObjectAllocator;
+}  // namespace internal
+
+/**
+ * AllocationHandle is used to allocate garbage-collected objects.
+ */
+class AllocationHandle;
 
 namespace internal {
 
@@ -36,9 +44,10 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
     atomic_mutable_bitfield->store(value, std::memory_order_release);
   }
 
-  static void* Allocate(cppgc::Heap* heap, size_t size, GCInfoIndex index);
-  static void* Allocate(cppgc::Heap* heapx, size_t size, GCInfoIndex index,
-                        CustomSpaceIndex space_inde);
+  static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
+                        GCInfoIndex index);
+  static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
+                        GCInfoIndex index, CustomSpaceIndex space_index);
 
   friend class HeapObjectHeader;
 };
@@ -58,22 +67,22 @@ class MakeGarbageCollectedTraitBase
  private:
   template <typename U, typename CustomSpace>
   struct SpacePolicy {
-    static void* Allocate(Heap* heap, size_t size) {
+    static void* Allocate(AllocationHandle& handle, size_t size) {
       // Custom space.
       static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
                     "Custom space must inherit from CustomSpaceBase.");
       return internal::MakeGarbageCollectedTraitInternal::Allocate(
-          heap, size, internal::GCInfoTrait<T>::Index(),
+          handle, size, internal::GCInfoTrait<T>::Index(),
           CustomSpace::kSpaceIndex);
     }
   };
 
   template <typename U>
   struct SpacePolicy<U, void> {
-    static void* Allocate(Heap* heap, size_t size) {
+    static void* Allocate(AllocationHandle& handle, size_t size) {
       // Default space.
       return internal::MakeGarbageCollectedTraitInternal::Allocate(
-          heap, size, internal::GCInfoTrait<T>::Index());
+          handle, size, internal::GCInfoTrait<T>::Index());
     }
   };
 
@@ -81,12 +90,14 @@ class MakeGarbageCollectedTraitBase
   /**
    * Allocates memory for an object of type T.
    *
-   * \param heap The heap to allocate this object on.
+   * \param handle AllocationHandle identifying the heap to allocate the object
+   *   on.
    * \param size The size that should be reserved for the object.
    * \returns the memory to construct an object of type T on.
    */
-  static void* Allocate(Heap* heap, size_t size) {
-    return SpacePolicy<T, typename SpaceTrait<T>::Space>::Allocate(heap, size);
+  static void* Allocate(AllocationHandle& handle, size_t size) {
+    return SpacePolicy<T, typename SpaceTrait<T>::Space>::Allocate(handle,
+                                                                   size);
   }
 
   /**
@@ -115,14 +126,15 @@ template <typename T>
 class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
  public:
   template <typename... Args>
-  static T* Call(Heap* heap, Args&&... args) {
+  static T* Call(AllocationHandle& handle, Args&&... args) {
     static_assert(internal::IsGarbageCollectedType<T>::value,
                   "T needs to be a garbage collected object");
     static_assert(
         !internal::IsGarbageCollectedMixinType<T>::value ||
             sizeof(T) <= internal::api_constants::kLargeObjectSizeThreshold,
         "GarbageCollectedMixin may not be a large object");
-    void* memory = MakeGarbageCollectedTraitBase<T>::Allocate(heap, sizeof(T));
+    void* memory =
+        MakeGarbageCollectedTraitBase<T>::Allocate(handle, sizeof(T));
     T* object = ::new (memory) T(std::forward<Args>(args)...);
     MakeGarbageCollectedTraitBase<T>::MarkObjectAsFullyConstructed(object);
     return object;
@@ -149,9 +161,9 @@ struct PostConstructionCallbackTrait {
  * \returns an instance of type T.
  */
 template <typename T, typename... Args>
-T* MakeGarbageCollected(Heap* heap, Args&&... args) {
+T* MakeGarbageCollected(AllocationHandle& handle, Args&&... args) {
   T* object =
-      MakeGarbageCollectedTrait<T>::Call(heap, std::forward<Args>(args)...);
+      MakeGarbageCollectedTrait<T>::Call(handle, std::forward<Args>(args)...);
   PostConstructionCallbackTrait<T>::Call(object);
   return object;
 }

@@ -511,7 +511,7 @@ class Step(GitRecipesMixin):
   def WaitForLGTM(self):
     print ("Please wait for an LGTM, then type \"LGTM<Return>\" to commit "
            "your change. (If you need to iterate on the patch or double check "
-           "that it's sane, do so in another shell, but remember to not "
+           "that it's sensible, do so in another shell, but remember to not "
            "change the headline of the uploaded CL.")
     answer = ""
     while answer != "LGTM":

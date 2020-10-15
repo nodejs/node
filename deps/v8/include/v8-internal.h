@@ -178,14 +178,8 @@ class Internals {
 
   // IsolateData layout guarantees.
   static const int kIsolateEmbedderDataOffset = 0;
-  static const int kExternalMemoryOffset =
-      kNumIsolateDataSlots * kApiSystemPointerSize;
-  static const int kExternalMemoryLimitOffset =
-      kExternalMemoryOffset + kApiInt64Size;
-  static const int kExternalMemoryLowSinceMarkCompactOffset =
-      kExternalMemoryLimitOffset + kApiInt64Size;
   static const int kIsolateFastCCallCallerFpOffset =
-      kExternalMemoryLowSinceMarkCompactOffset + kApiInt64Size;
+      kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerPcOffset =
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
   static const int kIsolateStackGuardOffset =

@@ -4,9 +4,9 @@
 
 // Flags: --expose-wasm
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Tests call stack in wasm scripts');
+utils.load('test/inspector/wasm-inspector-test.js');
 
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests call stack in wasm scripts');
 
 var builder = new WasmModuleBuilder();
 

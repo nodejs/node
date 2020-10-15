@@ -116,6 +116,8 @@ TEST(DisasmPoisonPolymorphicLoad) {
 TEST(DisasmPoisonMonomorphicLoadFloat64) {
 #ifdef ENABLE_DISASSEMBLER
   if (i::FLAG_always_opt || !i::FLAG_opt) return;
+  // TODO(9684): Re-enable for TurboProp if necessary.
+  if (i::FLAG_turboprop) return;
 
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_untrusted_code_mitigations = true;

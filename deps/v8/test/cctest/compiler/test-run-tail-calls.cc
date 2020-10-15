@@ -92,17 +92,17 @@ CallDescriptor* CreateDescriptorForStackArguments(Zone* zone,
         i - stack_param_count, MachineType::IntPtr()));
   }
 
-  return new (zone)
-      CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
-                     MachineType::AnyTagged(),         // target MachineType
-                     LinkageLocation::ForAnyRegister(
-                         MachineType::AnyTagged()),  // target location
-                     locations.Build(),              // location_sig
-                     stack_param_count,              // stack_parameter_count
-                     Operator::kNoProperties,        // properties
-                     kNoCalleeSaved,                 // callee-saved registers
-                     kNoCalleeSaved,                 // callee-saved fp
-                     CallDescriptor::kNoFlags);      // flags
+  return zone->New<CallDescriptor>(
+      CallDescriptor::kCallCodeObject,  // kind
+      MachineType::AnyTagged(),         // target MachineType
+      LinkageLocation::ForAnyRegister(
+          MachineType::AnyTagged()),  // target location
+      locations.Build(),              // location_sig
+      stack_param_count,              // stack_parameter_count
+      Operator::kNoProperties,        // properties
+      kNoCalleeSaved,                 // callee-saved registers
+      kNoCalleeSaved,                 // callee-saved fp
+      CallDescriptor::kNoFlags);      // flags
 }
 
 // Test a tail call from a caller with n parameters to a callee with m

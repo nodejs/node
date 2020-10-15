@@ -882,9 +882,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone())
-          OutOfLineRecordWrite(this, object, index, value, scratch0, scratch1,
-                               mode, DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, index, value,
+                                                   scratch0, scratch1, mode,
+                                                   DetermineStubCallMode());
       __ Daddu(kScratchReg, object, index);
       __ Sd(value, MemOperand(kScratchReg));
       __ CheckPageFlag(object, scratch0,
@@ -1431,7 +1431,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister dst = i.OutputSingleRegister();
       FPURegister src1 = i.InputSingleRegister(0);
       FPURegister src2 = i.InputSingleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat32Max(this, dst, src1, src2);
+      auto ool = zone()->New<OutOfLineFloat32Max>(this, dst, src1, src2);
       __ Float32Max(dst, src1, src2, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1440,7 +1440,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister dst = i.OutputDoubleRegister();
       FPURegister src1 = i.InputDoubleRegister(0);
       FPURegister src2 = i.InputDoubleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat64Max(this, dst, src1, src2);
+      auto ool = zone()->New<OutOfLineFloat64Max>(this, dst, src1, src2);
       __ Float64Max(dst, src1, src2, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1449,7 +1449,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister dst = i.OutputSingleRegister();
       FPURegister src1 = i.InputSingleRegister(0);
       FPURegister src2 = i.InputSingleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat32Min(this, dst, src1, src2);
+      auto ool = zone()->New<OutOfLineFloat32Min>(this, dst, src1, src2);
       __ Float32Min(dst, src1, src2, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1458,7 +1458,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister dst = i.OutputDoubleRegister();
       FPURegister src1 = i.InputDoubleRegister(0);
       FPURegister src2 = i.InputDoubleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat64Min(this, dst, src1, src2);
+      auto ool = zone()->New<OutOfLineFloat64Min>(this, dst, src1, src2);
       __ Float64Min(dst, src1, src2, ool->entry());
       __ bind(ool->exit());
       break;
@@ -2085,10 +2085,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Assert(eq, static_cast<AbortReason>(i.InputOperand(2).immediate()),
                 i.InputRegister(0), Operand(i.InputRegister(1)));
       break;
+    case kMips64S128Const: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      uint64_t imm1 = make_uint64(i.InputUint32(1), i.InputUint32(0));
+      uint64_t imm2 = make_uint64(i.InputUint32(3), i.InputUint32(2));
+      __ li(kScratchReg, imm1);
+      __ insert_d(dst, 0, kScratchReg);
+      __ li(kScratchReg, imm2);
+      __ insert_d(dst, 1, kScratchReg);
+      break;
+    }
     case kMips64S128Zero: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ xor_v(i.OutputSimd128Register(), i.OutputSimd128Register(),
-               i.OutputSimd128Register());
+      Simd128Register dst = i.OutputSimd128Register();
+      __ xor_v(dst, dst, dst);
+      break;
+    }
+    case kMips64S128AllOnes: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ ceq_d(dst, dst, dst);
       break;
     }
     case kMips64I32x4Splat: {
@@ -2263,6 +2280,62 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ copy_s_d(i.OutputRegister(), i.InputSimd128Register(0),
                   i.InputInt8(1));
+      break;
+    }
+    case kMips64F64x2Pmin: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      // dst = rhs < lhs ? rhs : lhs
+      __ fclt_d(dst, rhs, lhs);
+      __ bsel_v(dst, lhs, rhs);
+      break;
+    }
+    case kMips64F64x2Pmax: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      // dst = lhs < rhs ? rhs : lhs
+      __ fclt_d(dst, lhs, rhs);
+      __ bsel_v(dst, lhs, rhs);
+      break;
+    }
+    case kMips64F64x2Ceil: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToPlusInf);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F64x2Floor: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToMinusInf);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F64x2Trunc: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToZero);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F64x2NearestInt: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      // kRoundToNearest == 0
+      __ ctcmsa(MSACSR, zero_reg);
+      __ frint_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
       break;
     }
     case kMips64I64x2ReplaceLane: {
@@ -2581,6 +2654,62 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(1));
       break;
     }
+    case kMips64F32x4Pmin: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      // dst = rhs < lhs ? rhs : lhs
+      __ fclt_w(dst, rhs, lhs);
+      __ bsel_v(dst, lhs, rhs);
+      break;
+    }
+    case kMips64F32x4Pmax: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      // dst = lhs < rhs ? rhs : lhs
+      __ fclt_w(dst, lhs, rhs);
+      __ bsel_v(dst, lhs, rhs);
+      break;
+    }
+    case kMips64F32x4Ceil: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToPlusInf);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F32x4Floor: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToMinusInf);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F32x4Trunc: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToZero);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F32x4NearestInt: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      // kRoundToNearest == 0
+      __ ctcmsa(MSACSR, zero_reg);
+      __ frint_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
     case kMips64I32x4SConvertF32x4: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ ftrunc_s_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
@@ -2632,6 +2761,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
       __ asub_s_w(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   kSimd128RegZero);
+      break;
+    }
+    case kMips64I32x4BitMask: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register scratch0 = kSimd128RegZero;
+      Simd128Register scratch1 = kSimd128ScratchReg;
+      __ srli_w(scratch0, src, 31);
+      __ srli_d(scratch1, scratch0, 31);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ shf_w(scratch1, scratch0, 0x0E);
+      __ slli_d(scratch1, scratch1, 2);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ copy_u_b(dst, scratch0, 0);
       break;
     }
     case kMips64I16x8Splat: {
@@ -2820,6 +2964,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   kSimd128RegZero);
       break;
     }
+    case kMips64I16x8BitMask: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register scratch0 = kSimd128RegZero;
+      Simd128Register scratch1 = kSimd128ScratchReg;
+      __ srli_h(scratch0, src, 15);
+      __ srli_w(scratch1, scratch0, 15);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ srli_d(scratch1, scratch0, 30);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ shf_w(scratch1, scratch0, 0x0E);
+      __ slli_d(scratch1, scratch1, 4);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ copy_u_b(dst, scratch0, 0);
+      break;
+    }
     case kMips64I8x16Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fill_b(i.OutputSimd128Register(), i.InputRegister(0));
@@ -3006,6 +3167,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   kSimd128RegZero);
       break;
     }
+    case kMips64I8x16BitMask: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register scratch0 = kSimd128RegZero;
+      Simd128Register scratch1 = kSimd128ScratchReg;
+      __ srli_b(scratch0, src, 7);
+      __ srli_h(scratch1, scratch0, 7);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ srli_w(scratch1, scratch0, 14);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ srli_d(scratch1, scratch0, 28);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ shf_w(scratch1, scratch0, 0x0E);
+      __ ilvev_b(scratch0, scratch1, scratch0);
+      __ copy_u_h(dst, scratch0, 0);
+      break;
+    }
     case kMips64S128And: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ and_v(i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -3030,9 +3209,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0));
       break;
     }
-    case kMips64S1x4AnyTrue:
-    case kMips64S1x8AnyTrue:
-    case kMips64S1x16AnyTrue: {
+    case kMips64V32x4AnyTrue:
+    case kMips64V16x8AnyTrue:
+    case kMips64V8x16AnyTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_false;
@@ -3043,7 +3222,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&all_false);
       break;
     }
-    case kMips64S1x4AllTrue: {
+    case kMips64V32x4AllTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
@@ -3054,7 +3233,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&all_true);
       break;
     }
-    case kMips64S1x8AllTrue: {
+    case kMips64V16x8AllTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
@@ -3065,7 +3244,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&all_true);
       break;
     }
-    case kMips64S1x16AllTrue: {
+    case kMips64V8x16AllTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
@@ -3789,7 +3968,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // is added to the native module and copied into wasm code space.
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
-            new (gen_->zone()) ReferenceMap(gen_->zone());
+            gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
         if (FLAG_debug_code) {
           __ stop();
@@ -3799,7 +3978,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     Instruction* instr_;
     CodeGenerator* gen_;
   };
-  auto ool = new (zone()) OutOfLineTrap(this, instr);
+  auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   AssembleBranchToLabels(this, tasm(), instr, condition, tlabel, nullptr, true);
 }
@@ -4094,7 +4273,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
       __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
       // We come from WebAssembly, there are no references for the GC.
-      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       if (FLAG_debug_code) {
         __ stop();

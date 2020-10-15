@@ -200,13 +200,13 @@ class ScopeInfo : public FixedArray {
 
   bool is_script_scope() const;
 
-  // Returns true if this ScopeInfo has a black list attached containing
-  // stack allocated local variables.
-  V8_EXPORT_PRIVATE bool HasLocalsBlackList() const;
+  // Returns true if this ScopeInfo has a blocklist attached containing stack
+  // allocated local variables.
+  V8_EXPORT_PRIVATE bool HasLocalsBlockList() const;
   // Returns a list of stack-allocated locals of parent scopes.
   // Used during local debug-evalute to decide whether a context lookup
   // can continue upwards after checking this scope.
-  V8_EXPORT_PRIVATE StringSet LocalsBlackList() const;
+  V8_EXPORT_PRIVATE StringSet LocalsBlockList() const;
 
   // Returns true if this ScopeInfo was created for a scope that skips the
   // closest outer class when resolving private names.
@@ -231,12 +231,12 @@ class ScopeInfo : public FixedArray {
   static Handle<ScopeInfo> CreateForNativeContext(Isolate* isolate);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
-  // Creates a copy of a {ScopeInfo} but with the provided locals blacklist
+  // Creates a copy of a {ScopeInfo} but with the provided locals blocklist
   // attached. Does nothing if the original {ScopeInfo} already has a field
-  // for a blacklist reserved.
-  V8_EXPORT_PRIVATE static Handle<ScopeInfo> RecreateWithBlackList(
+  // for a blocklist reserved.
+  V8_EXPORT_PRIVATE static Handle<ScopeInfo> RecreateWithBlockList(
       Isolate* isolate, Handle<ScopeInfo> original,
-      Handle<StringSet> blacklist);
+      Handle<StringSet> blocklist);
 
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static ScopeInfo Empty(Isolate* isolate);
@@ -302,7 +302,7 @@ class ScopeInfo : public FixedArray {
   //    the scope belongs to a function or script.
   // 8. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 9. LocalsBlackList: List of stack allocated local variables. Used by
+  // 9. LocalsBlockList: List of stack allocated local variables. Used by
   //    debug evaluate to properly abort variable lookup when a name clashes
   //    with a stack allocated local that can't be materialized.
   // 10. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
@@ -317,7 +317,7 @@ class ScopeInfo : public FixedArray {
   int InferredFunctionNameIndex() const;
   int PositionInfoIndex() const;
   int OuterScopeInfoIndex() const;
-  V8_EXPORT_PRIVATE int LocalsBlackListIndex() const;
+  V8_EXPORT_PRIVATE int LocalsBlockListIndex() const;
   int ModuleInfoIndex() const;
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
@@ -354,7 +354,7 @@ class ScopeInfo : public FixedArray {
   friend std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);
 
   OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray);
-  FRIEND_TEST(TestWithNativeContext, RecreateScopeInfoWithLocalsBlacklistWorks);
+  FRIEND_TEST(TestWithNativeContext, RecreateScopeInfoWithLocalsBlocklistWorks);
 };
 
 std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);

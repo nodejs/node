@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/ordered-hash-table.h"
 #include "src/objects/osr-optimized-code-cache.h"
 #include "torque-generated/field-offsets-tq.h"
 // Has to be the last include (doesn't have include guards):
@@ -116,6 +117,8 @@ enum ContextLookupFlags {
   V(INITIAL_ARRAY_PROTOTYPE_INDEX, JSObject, initial_array_prototype)          \
   V(INITIAL_ERROR_PROTOTYPE_INDEX, JSObject, initial_error_prototype)          \
   V(INITIAL_GENERATOR_PROTOTYPE_INDEX, JSObject, initial_generator_prototype)  \
+  V(INITIAL_ASYNC_ITERATOR_PROTOTYPE_INDEX, JSObject,                          \
+    initial_async_iterator_prototype)                                          \
   V(INITIAL_ASYNC_GENERATOR_PROTOTYPE_INDEX, JSObject,                         \
     initial_async_generator_prototype)                                         \
   V(INITIAL_ITERATOR_PROTOTYPE_INDEX, JSObject, initial_iterator_prototype)    \
@@ -149,6 +152,7 @@ enum ContextLookupFlags {
   V(INTL_RELATIVE_TIME_FORMAT_FUNCTION_INDEX, JSFunction,                      \
     intl_relative_time_format_function)                                        \
   V(INTL_SEGMENTER_FUNCTION_INDEX, JSFunction, intl_segmenter_function)        \
+  V(INTL_SEGMENTS_MAP_INDEX, Map, intl_segments_map)                           \
   V(INTL_SEGMENT_ITERATOR_MAP_INDEX, Map, intl_segment_iterator_map)           \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX, Map,                               \
@@ -166,7 +170,6 @@ enum ContextLookupFlags {
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \
   V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
-  V(WEAK_CELL_MAP_INDEX, Map, weak_cell_map)                                   \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
@@ -201,6 +204,7 @@ enum ContextLookupFlags {
   V(PROXY_MAP_INDEX, Map, proxy_map)                                           \
   V(PROXY_REVOCABLE_RESULT_MAP_INDEX, Map, proxy_revocable_result_map)         \
   V(PROMISE_PROTOTYPE_INDEX, JSObject, promise_prototype)                      \
+  V(RECORDER_CONTEXT_ID, Object, recorder_context_id)                          \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
   V(REGEXP_LAST_MATCH_INFO_INDEX, RegExpMatchInfo, regexp_last_match_info)     \
@@ -231,6 +235,7 @@ enum ContextLookupFlags {
     slow_object_with_object_prototype_map)                                     \
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, SimpleNumberDictionary,          \
     slow_template_instantiations_cache)                                        \
+  V(ATOMICS_WAITASYNC_PROMISES, OrderedHashSet, atomics_waitasync_promises)    \
   /* Fast Path Protectors */                                                   \
   V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
@@ -309,6 +314,7 @@ enum ContextLookupFlags {
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                            \
   V(OBJECT_VALUE_OF_FUNCTION_INDEX, JSFunction, object_value_of_function)      \
   V(PROMISE_ALL_INDEX, JSFunction, promise_all)                                \
+  V(PROMISE_ANY_INDEX, JSFunction, promise_any)                                \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                            \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                      \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)              \
@@ -347,8 +353,8 @@ class ScriptContextTable : public FixedArray {
     MaybeAssignedFlag maybe_assigned_flag;
   };
 
-  inline int used() const;
-  inline void set_used(int used);
+  inline int synchronized_used() const;
+  inline void synchronized_set_used(int used);
 
   static inline Handle<Context> GetContext(Isolate* isolate,
                                            Handle<ScriptContextTable> table,
@@ -365,8 +371,8 @@ class ScriptContextTable : public FixedArray {
                                        LookupResult* result);
 
   V8_WARN_UNUSED_RESULT
-  static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
-                                           Handle<Context> script_context);
+  V8_EXPORT_PRIVATE static Handle<ScriptContextTable> Extend(
+      Handle<ScriptContextTable> table, Handle<Context> script_context);
 
   static const int kUsedSlotIndex = 0;
   static const int kFirstContextSlotIndex = 1;
@@ -436,9 +442,15 @@ class Context : public HeapObject {
   V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
+  // Setter and getter with synchronization semantics.
+  V8_INLINE Object synchronized_get(int index) const;
+  V8_INLINE Object synchronized_get(const Isolate* isolate, int index) const;
+  V8_INLINE void synchronized_set(int index, Object value);
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_CONTEXT_FIELDS)
+  static const int kScopeInfoOffset = kHeaderSize;
+  static const int kPreviousOffset = kScopeInfoOffset + kTaggedSize;
 
   // TODO(v8:8989): [torque] Support marker constants
   /* TODO(ishell): remove this fixedArray-like header size. */
@@ -447,10 +459,10 @@ class Context : public HeapObject {
   /* Header size. */                                                  \
   /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
   /* is removed in favour of offset-based access to common fields. */ \
-  static const int kTodoHeaderSize = kHeaderSize;
+  static const int kTodoHeaderSize = kPreviousOffset + kTaggedSize;
 
   // If the extension slot exists, it is the first slot after the header.
-  static const int kExtensionOffset = kHeaderSize;
+  static const int kExtensionOffset = kTodoHeaderSize;
 
   // Garbage collection support.
   V8_INLINE static constexpr int SizeFor(int length) {
@@ -508,12 +520,12 @@ class Context : public HeapObject {
 
     // These slots hold values in debug evaluate contexts.
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
-    BLACK_LIST_INDEX = MIN_CONTEXT_EXTENDED_SLOTS + 1
+    BLOCK_LIST_INDEX = MIN_CONTEXT_EXTENDED_SLOTS + 1
   };
 
   static const int kExtensionSize =
       (MIN_CONTEXT_EXTENDED_SLOTS - MIN_CONTEXT_SLOTS) * kTaggedSize;
-  static const int kExtendedHeaderSize = kHeaderSize + kExtensionSize;
+  static const int kExtendedHeaderSize = kTodoHeaderSize + kExtensionSize;
 
   // A region of native context entries containing maps for functions created
   // by Builtins::kFastNewClosure.
@@ -653,6 +665,10 @@ class NativeContext : public Context {
   // [microtask_queue]: pointer to the MicrotaskQueue object.
   DECL_GETTER(microtask_queue, MicrotaskQueue*)
   inline void set_microtask_queue(Isolate* isolate, MicrotaskQueue* queue);
+
+  inline void synchronized_set_script_context_table(
+      ScriptContextTable script_context_table);
+  inline ScriptContextTable synchronized_script_context_table() const;
 
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)

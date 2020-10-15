@@ -2828,6 +2828,11 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
+  // TODO(v8:10701): Implement for this platform.
+  __ Trap();
+}
+
 namespace {
 
 int AddressOffset(ExternalReference ref0, ExternalReference ref1) {

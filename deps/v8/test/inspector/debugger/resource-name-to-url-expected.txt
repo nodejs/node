@@ -3,6 +3,7 @@ Check script with url:
 {
     method : Debugger.scriptParsed
     params : {
+        embedderName : prefix://url
         endColumn : 16
         endLine : 0
         executionContextId : <executionContextId>
@@ -23,6 +24,7 @@ Check script with sourceURL comment:
 {
     method : Debugger.scriptParsed
     params : {
+        embedderName : prefix://url
         endColumn : 37
         endLine : 0
         executionContextId : <executionContextId>
@@ -43,6 +45,7 @@ Check script failed to parse:
 {
     method : Debugger.scriptFailedToParse
     params : {
+        embedderName : prefix://url
         endColumn : 15
         endLine : 0
         executionContextId : <executionContextId>
@@ -62,6 +65,7 @@ Check script failed to parse with sourceURL comment:
 {
     method : Debugger.scriptFailedToParse
     params : {
+        embedderName : prefix://url
         endColumn : 36
         endLine : 0
         executionContextId : <executionContextId>

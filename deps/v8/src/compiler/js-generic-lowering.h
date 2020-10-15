@@ -31,16 +31,26 @@ class JSGenericLowering final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  protected:
-#define DECLARE_LOWER(x) void Lower##x(Node* node);
+#define DECLARE_LOWER(x, ...) void Lower##x(Node* node);
   // Dispatched depending on opcode.
   JS_OP_LIST(DECLARE_LOWER)
 #undef DECLARE_LOWER
 
   // Helpers to replace existing nodes with a generic call.
-  void ReplaceWithStubCall(Node* node, Callable c, CallDescriptor::Flags flags);
-  void ReplaceWithStubCall(Node* node, Callable c, CallDescriptor::Flags flags,
-                           Operator::Properties properties);
+  void ReplaceWithBuiltinCall(Node* node, Builtins::Name builtin);
+  void ReplaceWithBuiltinCall(Node* node, Callable c,
+                              CallDescriptor::Flags flags);
+  void ReplaceWithBuiltinCall(Node* node, Callable c,
+                              CallDescriptor::Flags flags,
+                              Operator::Properties properties);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
+
+  void ReplaceUnaryOpWithBuiltinCall(Node* node,
+                                     Builtins::Name builtin_without_feedback,
+                                     Builtins::Name builtin_with_feedback);
+  void ReplaceBinaryOpWithBuiltinCall(Node* node,
+                                      Builtins::Name builtin_without_feedback,
+                                      Builtins::Name builtin_with_feedback);
 
   Zone* zone() const;
   Isolate* isolate() const;

@@ -18,22 +18,28 @@ namespace wasm {
 constexpr uint32_t kWasmMagic = 0x6d736100;
 constexpr uint32_t kWasmVersion = 0x01;
 
-// Binary encoding of local types.
+// Binary encoding of value and heap types.
 enum ValueTypeCode : uint8_t {
+  // Current wasm types
   kLocalVoid = 0x40,
   kLocalI32 = 0x7f,
   kLocalI64 = 0x7e,
   kLocalF32 = 0x7d,
   kLocalF64 = 0x7c,
+  // Simd proposal
   kLocalS128 = 0x7b,
+  // reftypes, typed-funcref, and GC proposals
+  kLocalI8 = 0x7a,
+  kLocalI16 = 0x79,
   kLocalFuncRef = 0x70,
-  kLocalAnyRef = 0x6f,
-  kLocalNullRef = 0x6e,
-  kLocalRef = 0x6d,     // GC proposal
-  kLocalOptRef = 0x6c,  // GC proposal
-  kLocalEqRef = 0x6b,   // GC proposal
-  kLocalI31Ref = 0x6a,  // GC proposal
-  kLocalRttRef = 0x69,  // GC proposal
+  kLocalExternRef = 0x6f,
+  // kLocalAny = 0x6e, // TODO(7748): Implement
+  kLocalEqRef = 0x6d,
+  kLocalOptRef = 0x6c,
+  kLocalRef = 0x6b,
+  kLocalI31Ref = 0x6a,
+  kLocalRtt = 0x69,
+  // Exception handling proposal
   kLocalExnRef = 0x68,
 };
 // Binary encoding of other types.

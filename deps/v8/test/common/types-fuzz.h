@@ -41,9 +41,7 @@ namespace compiler {
 class Types {
  public:
   Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : zone_(zone),
-        js_heap_broker_(isolate, zone, FLAG_trace_heap_broker, false),
-        rng_(rng) {
+      : zone_(zone), js_heap_broker_(isolate, zone), rng_(rng) {
 #define DECLARE_TYPE(name, value) \
   name = Type::name();            \
   types.push_back(name);

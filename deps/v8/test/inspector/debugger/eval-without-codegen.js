@@ -36,6 +36,24 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.resume();
   },
 
+  async function testEvaluateUnsafeEval() {
+    contextGroup.addScript(`inspector.setAllowCodeGenerationFromStrings(false);`);
+    await Protocol.Debugger.onceScriptParsed();
+    InspectorTest.logMessage(
+        await Protocol.Runtime.evaluate({expression: 'eval("1+1")'}));
+    InspectorTest.logMessage(
+        await Protocol.Runtime.evaluate({expression: 'new Function("return 1+1")()'}));
+  },
+
+  async function testEvaluateUnsafeEvalDisableBypass() {
+    contextGroup.addScript(`inspector.setAllowCodeGenerationFromStrings(false);`);
+    await Protocol.Debugger.onceScriptParsed();
+    InspectorTest.logMessage(
+        await Protocol.Runtime.evaluate({expression: 'eval("1+1")', allowUnsafeEvalBlockedByCSP: false}));
+    InspectorTest.logMessage(
+        await Protocol.Runtime.evaluate({expression: 'new Function("return 1+1")()', allowUnsafeEvalBlockedByCSP: false}));
+  },
+
   async function testCallFunctionOn() {
     await contextGroup.addScript(`inspector.setAllowCodeGenerationFromStrings(false);`);
     const globalObject = await Protocol.Runtime.evaluate({expression: 'this'});

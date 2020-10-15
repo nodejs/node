@@ -820,7 +820,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vsqrt(const SwVfpRegister dst, const SwVfpRegister src,
              const Condition cond = al);
 
-  // ARMv8 rounding instructions.
+  // ARMv8 rounding instructions (Scalar).
   void vrinta(const SwVfpRegister dst, const SwVfpRegister src);
   void vrinta(const DwVfpRegister dst, const DwVfpRegister src);
   void vrintn(const SwVfpRegister dst, const SwVfpRegister src);
@@ -908,6 +908,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
              DwVfpRegister src2);
   void vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
              DwVfpRegister src2);
+
+  // ARMv8 rounding instructions (NEON).
+  void vrintm(NeonDataType dt, const QwNeonRegister dst,
+              const QwNeonRegister src);
+  void vrintn(NeonDataType dt, const QwNeonRegister dst,
+              const QwNeonRegister src);
+  void vrintp(NeonDataType dt, const QwNeonRegister dst,
+              const QwNeonRegister src);
+  void vrintz(NeonDataType dt, const QwNeonRegister dst,
+              const QwNeonRegister src);
+
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
             QwNeonRegister shift);

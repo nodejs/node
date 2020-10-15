@@ -683,8 +683,9 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandIntrinsicId(
 TNode<Object> InterpreterAssembler::LoadConstantPoolEntry(TNode<WordT> index) {
   TNode<FixedArray> constant_pool = CAST(LoadObjectField(
       BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
-  return UnsafeLoadFixedArrayElement(
-      constant_pool, UncheckedCast<IntPtrT>(index), LoadSensitivity::kCritical);
+  return UnsafeLoadFixedArrayElement(constant_pool,
+                                     UncheckedCast<IntPtrT>(index), 0,
+                                     LoadSensitivity::kCritical);
 }
 
 TNode<IntPtrT> InterpreterAssembler::LoadAndUntagConstantPoolEntry(
@@ -1047,7 +1048,8 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
     Branch(condition, &ok, &interrupt_check);
 
     BIND(&interrupt_check);
-    CallRuntime(Runtime::kBytecodeBudgetInterrupt, GetContext(), function);
+    CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode, GetContext(),
+                function);
     Goto(&done);
 
     BIND(&ok);

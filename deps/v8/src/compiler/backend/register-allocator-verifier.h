@@ -154,7 +154,7 @@ class BlockAssessments : public ZoneObject {
       stale_ref_stack_slots_.erase(operand);
     }
     map_.insert(
-        std::make_pair(operand, new (zone_) FinalAssessment(virtual_register)));
+        std::make_pair(operand, zone_->New<FinalAssessment>(virtual_register)));
   }
 
   void PerformMoves(const Instruction* instruction);

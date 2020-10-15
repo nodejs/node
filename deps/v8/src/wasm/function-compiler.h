@@ -31,6 +31,7 @@ struct WasmFunction;
 
 class WasmInstructionBuffer final {
  public:
+  WasmInstructionBuffer() = delete;
   ~WasmInstructionBuffer();
   std::unique_ptr<AssemblerBuffer> CreateView();
   std::unique_ptr<uint8_t[]> ReleaseBuffer();
@@ -44,7 +45,6 @@ class WasmInstructionBuffer final {
   void operator delete(void* ptr) { ::operator delete(ptr); }
 
  private:
-  WasmInstructionBuffer() = delete;
   DISALLOW_COPY_AND_ASSIGN(WasmInstructionBuffer);
 };
 
@@ -132,6 +132,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  private:
   bool is_import_;
   const FunctionSig* sig_;
+  bool use_generic_wrapper_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 

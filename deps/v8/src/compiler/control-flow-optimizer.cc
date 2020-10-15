@@ -30,7 +30,7 @@ ControlFlowOptimizer::ControlFlowOptimizer(Graph* graph,
 void ControlFlowOptimizer::Optimize() {
   Enqueue(graph()->start());
   while (!queue_.empty()) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     Node* node = queue_.front();
     queue_.pop();
     if (node->IsDead()) continue;

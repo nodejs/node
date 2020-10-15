@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests debug command for wasm');
 session.setupScriptMap();
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
 
@@ -22,21 +22,6 @@ builder.addFunction('wasm_A', kSig_i_i)
 
 let module_bytes = builder.toArray();
 
-function instantiate(bytes) {
-  let buffer = new ArrayBuffer(bytes.length);
-  let view = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; ++i) {
-    view[i] = bytes[i] | 0;
-  }
-
-  let module = new WebAssembly.Module(buffer);
-  // Set global variable.
-  instance = new WebAssembly.Instance(module);
-}
-
-let evalWithUrl = (code, url) => Protocol.Runtime.evaluate(
-    {'expression': code + '\n//# sourceURL=v8://test/' + url});
-
 let breakCount;
 
 Protocol.Debugger.onPaused(async message => {
@@ -44,7 +29,7 @@ Protocol.Debugger.onPaused(async message => {
   InspectorTest.log("paused No " + breakCount);
   var frames = message.params.callFrames;
   await session.logSourceLocation(frames[0].location);
-  let action= 'resume';
+  let action = 'resume';
   InspectorTest.log('Debugger.' + action)
   await Protocol.Debugger[action]();
 })
@@ -62,12 +47,8 @@ function test() {
   breakCount = 0;
   breakpointId = 0;
   await Protocol.Debugger.enable();
-  InspectorTest.log('Installing code and global variable.');
-  await evalWithUrl('var instance;\n' + instantiate.toString(), 'setup');
-  InspectorTest.log('Calling instantiate function.');
-  evalWithUrl(
-      'instantiate(' + JSON.stringify(module_bytes) + ')', 'callInstantiate');
-  const scriptId = await waitForWasmScript();
+  WasmInspectorTest.instantiate(module_bytes);
+  await waitForWasmScript();
   await Protocol.Runtime.evaluate({ expression: 'test()', includeCommandLineAPI: true});
   InspectorTest.log('exports.main returned!');
   InspectorTest.log('Finished!');

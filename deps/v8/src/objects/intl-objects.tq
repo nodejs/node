@@ -14,6 +14,7 @@
 #include 'src/objects/js-relative-time-format.h'
 #include 'src/objects/js-segment-iterator.h'
 #include 'src/objects/js-segmenter.h'
+#include 'src/objects/js-segments.h'
 
 type DateTimeStyle extends int32 constexpr 'JSDateTimeFormat::DateTimeStyle';
 type HourCycle extends int32 constexpr 'JSDateTimeFormat::HourCycle';
@@ -115,15 +116,24 @@ extern class JSSegmenter extends JSObject {
   flags: SmiTagged<JSSegmenterFlags>;
 }
 
+bitfield struct JSSegmentsFlags extends uint31 {
+  granularity: JSSegmenterGranularity: 2 bit;
+}
+
+@generateCppClass
+extern class JSSegments extends JSObject {
+  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  unicode_string: Foreign;      // Managed<icu::UnicodeString>
+  flags: SmiTagged<JSSegmentsFlags>;
+}
+
 bitfield struct JSSegmentIteratorFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
-  break_type_set: bool: 1 bit;
 }
 
 @generateCppClass
 extern class JSSegmentIterator extends JSObject {
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
-  unicode_string: Foreign;      // Managed<icu::UnicodeString>
   flags: SmiTagged<JSSegmentIteratorFlags>;
 }
 

@@ -855,6 +855,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
+  stack_size_ = FLAG_sim_stack_size * KB;
   stack_ = reinterpret_cast<char*>(malloc(stack_size_));
   pc_modified_ = false;
   icount_ = 0;

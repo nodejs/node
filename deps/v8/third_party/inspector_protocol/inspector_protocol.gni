@@ -37,6 +37,7 @@ template("inspector_protocol_generate") {
       "$inspector_protocol_dir/lib/Object_cpp.template",
       "$inspector_protocol_dir/lib/Object_h.template",
       "$inspector_protocol_dir/lib/Protocol_cpp.template",
+      "$inspector_protocol_dir/lib/ValueConversions_cpp.template",
       "$inspector_protocol_dir/lib/ValueConversions_h.template",
       "$inspector_protocol_dir/lib/Values_cpp.template",
       "$inspector_protocol_dir/lib/Values_h.template",

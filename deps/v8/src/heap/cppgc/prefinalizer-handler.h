@@ -19,7 +19,7 @@ class PreFinalizerHandler final {
 
   PreFinalizerHandler();
 
-  void RegisterPrefinalizer(PreFinalizer prefinalzier);
+  void RegisterPrefinalizer(PreFinalizer pre_finalizer);
 
   void InvokePreFinalizers();
 

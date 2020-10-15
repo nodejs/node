@@ -129,6 +129,14 @@ InspectorTest.decodeBase64 = function(base64) {
   return bytes;
 }
 
+InspectorTest.trimErrorMessage = function(message) {
+  if (!message.error || !message.error.data)
+    return message;
+  message.error.data = message.error.data.replace(/at position \d+/,
+                                                  'at <some position>');
+  return message;
+}
+
 InspectorTest.ContextGroup = class {
   constructor() {
     this.id = utils.createContextGroup();

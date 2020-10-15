@@ -371,7 +371,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<JSReceiver> new_target,
                                         bool is_prototype) {
   Handle<JSFunction> constructor;
-  int serial_number = Smi::ToInt(info->serial_number());
+  int serial_number = info->serial_number();
   if (!new_target.is_null()) {
     if (IsSimpleInstantiation(isolate, *info, *new_target)) {
       constructor = Handle<JSFunction>::cast(new_target);
@@ -462,7 +462,7 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
 MaybeHandle<JSFunction> InstantiateFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<FunctionTemplateInfo> data, MaybeHandle<Name> maybe_name) {
-  int serial_number = Smi::ToInt(data->serial_number());
+  int serial_number = data->serial_number();
   if (serial_number) {
     Handle<JSObject> result;
     if (ProbeInstantiationsCache(isolate, native_context, serial_number,

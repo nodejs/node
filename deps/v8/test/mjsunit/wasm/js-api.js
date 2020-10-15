@@ -582,13 +582,13 @@ assertThrows(
 assertThrows(
     () => new Table(1), TypeError, 'WebAssembly.Module(): Argument 0 must be a table descriptor');
 assertThrows(
-    () => new Table({initial: 1, element: 1}), TypeError, /must be 'anyfunc'/);
+    () => new Table({initial: 1, element: 1}), TypeError, /must be a WebAssembly reference type/);
 assertThrows(
     () => new Table({initial: 1, element: 'any'}), TypeError,
-    /must be 'anyfunc'/);
+    /must be a WebAssembly reference type/);
 assertThrows(
     () => new Table({initial: 1, element: {valueOf() { return 'anyfunc' }}}),
-    TypeError, /must be 'anyfunc'/);
+    TypeError, /must be a WebAssembly reference type/);
 assertThrows(
     () => new Table(
         {initial: {valueOf() { throw new Error('here') }}, element: 'anyfunc'}),
@@ -609,9 +609,9 @@ assertTrue(new Table({initial: 1, element: 'anyfunc'}) instanceof Table);
 assertTrue(new Table({initial: 1.5, element: 'anyfunc'}) instanceof Table);
 assertTrue(
     new Table({initial: 1, maximum: 1.5, element: 'anyfunc'}) instanceof Table);
-assertThrows(
-    () => new Table({initial: 1, maximum: Math.pow(2, 32) - 1, element: 'anyfunc'}),
-    RangeError, /above the upper bound/);
+assertTrue(
+    new Table({initial: 1, maximum: Math.pow(2, 32) - 1, element: 'anyfunc'})
+        instanceof Table);
 
 // 'WebAssembly.Table.prototype' data property
 let tableProtoDesc = Object.getOwnPropertyDescriptor(Table, 'prototype');
@@ -941,13 +941,6 @@ assertInstantiateSuccess(
   assertTrue(module instanceof Module);
   var instance = new WebAssembly.Instance(module);
   assertTrue(instance instanceof Instance);
-})();
-
-(function TestPassBigIntInGlobalWhenNotEnabled() {
-  assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1), TypeError,
-               /Can't set the value/);
-  assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1n), TypeError,
-               /Can't set the value/);
 })();
 
 (function TestAccessorFunctions() {

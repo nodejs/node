@@ -1572,13 +1572,29 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool with_result) {
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();  // Temp register is not allocatable.
   if (with_result) {
+#ifdef V8_REVERSE_JSARGS
+    if (java_script_builtin) {
+      __ mov(scratch, r0);
+    } else {
+      // Overwrite the hole inserted by the deoptimizer with the return value
+      // from the LAZY deopt point.
+      __ str(
+          r0,
+          MemOperand(
+              sp, config->num_allocatable_general_registers() * kPointerSize +
+                      BuiltinContinuationFrameConstants::kFixedFrameSize));
+    }
+#else
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
     __ str(r0,
            MemOperand(
                sp, config->num_allocatable_general_registers() * kPointerSize +
                        BuiltinContinuationFrameConstants::kFixedFrameSize));
+#endif
   }
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
     int code = config->GetAllocatableGeneralCode(i);
@@ -1587,13 +1603,22 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       __ SmiUntag(Register::from_code(code));
     }
   }
+#ifdef V8_REVERSE_JSARGS
+  if (java_script_builtin && with_result) {
+    // Overwrite the hole inserted by the deoptimizer with the return value from
+    // the LAZY deopt point. r0 contains the arguments count, the return value
+    // from LAZY is always the last argument.
+    __ add(r0, r0, Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
+    __ str(scratch, MemOperand(sp, r0, LSL, kPointerSizeLog2));
+    // Recover arguments count.
+    __ sub(r0, r0, Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
+  }
+#endif
   __ ldr(fp, MemOperand(
                  sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
-
   // Load builtin index (stored as a Smi) and use it to get the builtin start
   // address from the builtins table.
-  UseScratchRegisterScope temps(masm);
-  Register builtin = temps.Acquire();
+  Register builtin = scratch;
   __ Pop(builtin);
   __ add(sp, sp,
          Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
@@ -2086,7 +2111,14 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     // Forward the arguments from the caller frame.
     {
       Label loop;
+#ifdef V8_REVERSE_JSARGS
+      // Skips frame pointer and old receiver.
+      __ add(r4, r4, Operand(2 * kPointerSize));
+      __ pop(r8);  // Save new receiver.
+#else
+      // Skips frame pointer.
       __ add(r4, r4, Operand(kPointerSize));
+#endif
       __ add(r0, r0, r5);
       __ bind(&loop);
       {
@@ -2095,6 +2127,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
         __ sub(r5, r5, Operand(1), SetCC);
         __ b(ne, &loop);
       }
+#ifdef V8_REVERSE_JSARGS
+      __ push(r8);  // Recover new receiver.
+#endif
     }
   }
   __ b(&stack_done);
@@ -3023,6 +3058,11 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Restore registers corrupted in this routine and return.
   __ Pop(result_reg, double_high, double_low);
   __ Ret();
+}
+
+void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
+  // TODO(v8:10701): Implement for this platform.
+  __ Trap();
 }
 
 namespace {

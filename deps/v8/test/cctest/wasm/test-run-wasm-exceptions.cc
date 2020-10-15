@@ -127,41 +127,10 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
   r.CheckCallViaJS(kResult1, 1);
 }
 
-WASM_COMPILED_EXEC_TEST(TryCatchTrapTypeError) {
-  TestSignatures sigs;
-  EXPERIMENTAL_FLAG_SCOPE(eh);
-  HandleScope scope(CcTest::InitIsolateOnce());
-  const char* source = "(function() { return 0; })";
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-          *v8::Local<v8::Function>::Cast(CompileRun(source))));
-  // Make sure to use a signature incompatible with JS below.
-  ManuallyImportedJSFunction import = {sigs.i_ll(), js_function};
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, &import);
-  constexpr uint32_t kResult0 = 23;
-  constexpr uint32_t kResult1 = 42;
-  constexpr uint32_t kJSFunc = 0;
-
-  // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_STMTS(
-                   WASM_I32V(kResult1),
-                   WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
-                           WASM_STMTS(WASM_CALL_FUNCTION(kJSFunc, WASM_I64V(7),
-                                                         WASM_I64V(9)),
-                                      WASM_DROP))),
-               WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
-
-  // Need to call through JS to allow for creation of stack traces.
-  r.CheckCallViaJS(kResult0, 0);
-  r.CheckCallViaJS(kResult1, 1);
-}
-
 namespace {
 
 void TestTrapNotCaught(byte* code, size_t code_size,
-                       ExecutionTier execution_tier) {
+                       TestExecutionTier execution_tier) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t> r(execution_tier, nullptr, "main",

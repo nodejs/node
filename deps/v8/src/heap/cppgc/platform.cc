@@ -8,18 +8,12 @@
 #include "src/heap/cppgc/gc-info-table.h"
 
 namespace cppgc {
-namespace internal {
 
-static PageAllocator* g_page_allocator;
-
-}  // namespace internal
-
-void InitializePlatform(PageAllocator* page_allocator) {
-  internal::g_page_allocator = page_allocator;
+void InitializeProcess(PageAllocator* page_allocator) {
   internal::GlobalGCInfoTable::Create(page_allocator);
 }
 
-void ShutdownPlatform() { internal::g_page_allocator = nullptr; }
+void ShutdownProcess() {}
 
 namespace internal {
 

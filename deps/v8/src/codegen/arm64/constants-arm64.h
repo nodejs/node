@@ -412,9 +412,9 @@ enum class BranchTargetIdentifier {
   // Emit a "BTI jc" instruction, which is a combination of "BTI j" and "BTI c".
   kBtiJumpCall,
 
-  // Emit a PACIASP instruction, which acts like a "BTI c" or a "BTI jc", based
-  // on the value of SCTLR_EL1.BT0.
-  kPaciasp
+  // Emit a PACIBSP instruction, which acts like a "BTI c" or a "BTI jc",
+  // based on the value of SCTLR_EL1.BT0.
+  kPacibsp
 };
 
 enum BarrierDomain {
@@ -793,10 +793,10 @@ enum SystemPAuthOp : uint32_t {
   SystemPAuthFixed = 0xD503211F,
   SystemPAuthFMask = 0xFFFFFD1F,
   SystemPAuthMask = 0xFFFFFFFF,
-  PACIA1716 = SystemPAuthFixed | 0x00000100,
-  AUTIA1716 = SystemPAuthFixed | 0x00000180,
-  PACIASP = SystemPAuthFixed | 0x00000320,
-  AUTIASP = SystemPAuthFixed | 0x000003A0
+  PACIB1716 = SystemPAuthFixed | 0x00000140,
+  AUTIB1716 = SystemPAuthFixed | 0x000001C0,
+  PACIBSP = SystemPAuthFixed | 0x00000360,
+  AUTIBSP = SystemPAuthFixed | 0x000003E0
 };
 
 // Any load or store (including pair).
@@ -1325,7 +1325,8 @@ enum FPIntegerConvertOp : uint32_t {
   FMOV_xd = FMOV_ws | SixtyFourBits | FP64,
   FMOV_dx = FMOV_sw | SixtyFourBits | FP64,
   FMOV_d1_x = FPIntegerConvertFixed | SixtyFourBits | 0x008F0000,
-  FMOV_x_d1 = FPIntegerConvertFixed | SixtyFourBits | 0x008E0000
+  FMOV_x_d1 = FPIntegerConvertFixed | SixtyFourBits | 0x008E0000,
+  FJCVTZS = FPIntegerConvertFixed | FP64 | 0x001E0000
 };
 
 // Conversion between fixed point and floating point.

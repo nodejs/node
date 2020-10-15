@@ -210,6 +210,9 @@ class V8Debugger : public v8::debug::DebugDelegate,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end) override;
 
+  bool ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
+                       int column) override;
+
   int currentContextGroupId();
   bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
 

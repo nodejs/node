@@ -88,9 +88,8 @@ class TaggedImpl {
 
   // Returns true if this tagged value is a strong pointer to a HeapObject.
   constexpr inline bool IsStrong() const {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_IMPLIES(!kCanBeWeak, !IsSmi() == HAS_STRONG_HEAP_OBJECT_TAG(ptr_));
-#endif
+    CONSTEXPR_DCHECK(kCanBeWeak ||
+                     (!IsSmi() == HAS_STRONG_HEAP_OBJECT_TAG(ptr_)));
     return kCanBeWeak ? HAS_STRONG_HEAP_OBJECT_TAG(ptr_) : !IsSmi();
   }
 

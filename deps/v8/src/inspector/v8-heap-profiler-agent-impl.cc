@@ -4,6 +4,10 @@
 
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 
+#include "include/v8-inspector.h"
+#include "include/v8-profiler.h"
+#include "include/v8-version.h"
+#include "src/base/platform/mutex.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -11,10 +15,6 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
-
-#include "include/v8-inspector.h"
-#include "include/v8-profiler.h"
-#include "include/v8-version.h"
 
 namespace v8_inspector {
 
@@ -27,7 +27,7 @@ static const char allocationTrackingEnabled[] = "allocationTrackingEnabled";
 static const char samplingHeapProfilerEnabled[] = "samplingHeapProfilerEnabled";
 static const char samplingHeapProfilerInterval[] =
     "samplingHeapProfilerInterval";
-}
+}  // namespace HeapProfilerAgentState
 
 class HeapSnapshotProgress final : public v8::ActivityControl {
  public:
@@ -143,6 +143,36 @@ class HeapStatsStream final : public v8::OutputStream {
 
 }  // namespace
 
+struct V8HeapProfilerAgentImpl::AsyncGC {
+  v8::base::Mutex m_mutex;
+  bool m_canceled = false;
+  bool m_pending = false;
+  std::vector<std::unique_ptr<CollectGarbageCallback>> m_pending_callbacks;
+};
+
+class V8HeapProfilerAgentImpl::GCTask : public v8::Task {
+ public:
+  GCTask(v8::Isolate* isolate, std::shared_ptr<AsyncGC> async_gc)
+      : m_isolate(isolate), m_async_gc(async_gc) {}
+
+  void Run() override {
+    std::shared_ptr<AsyncGC> async_gc = m_async_gc.lock();
+    if (!async_gc) return;
+    v8::base::MutexGuard lock(&async_gc->m_mutex);
+    if (async_gc->m_canceled) return;
+    v8::debug::ForceGarbageCollection(
+        m_isolate, v8::EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
+    for (auto& callback : async_gc->m_pending_callbacks) {
+      callback->sendSuccess();
+    }
+    async_gc->m_pending_callbacks.clear();
+  }
+
+ private:
+  v8::Isolate* m_isolate;
+  std::weak_ptr<AsyncGC> m_async_gc;
+};
+
 V8HeapProfilerAgentImpl::V8HeapProfilerAgentImpl(
     V8InspectorSessionImpl* session, protocol::FrontendChannel* frontendChannel,
     protocol::DictionaryValue* state)
@@ -150,9 +180,14 @@ V8HeapProfilerAgentImpl::V8HeapProfilerAgentImpl(
       m_isolate(session->inspector()->isolate()),
       m_frontend(frontendChannel),
       m_state(state),
-      m_hasTimer(false) {}
+      m_hasTimer(false),
+      m_async_gc(std::make_shared<AsyncGC>()) {}
 
-V8HeapProfilerAgentImpl::~V8HeapProfilerAgentImpl() = default;
+V8HeapProfilerAgentImpl::~V8HeapProfilerAgentImpl() {
+  v8::base::MutexGuard lock(&m_async_gc->m_mutex);
+  m_async_gc->m_canceled = true;
+  m_async_gc->m_pending_callbacks.clear();
+}
 
 void V8HeapProfilerAgentImpl::restore() {
   if (m_state->booleanProperty(HeapProfilerAgentState::heapProfilerEnabled,
@@ -171,9 +206,15 @@ void V8HeapProfilerAgentImpl::restore() {
   }
 }
 
-Response V8HeapProfilerAgentImpl::collectGarbage() {
-  m_isolate->LowMemoryNotification();
-  return Response::Success();
+void V8HeapProfilerAgentImpl::collectGarbage(
+    std::unique_ptr<CollectGarbageCallback> callback) {
+  v8::base::MutexGuard lock(&m_async_gc->m_mutex);
+  m_async_gc->m_pending_callbacks.push_back(std::move(callback));
+  if (!m_async_gc->m_pending) {
+    v8::debug::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(m_isolate)
+        ->PostNonNestableTask(std::make_unique<GCTask>(m_isolate, m_async_gc));
+  }
 }
 
 Response V8HeapProfilerAgentImpl::startTrackingHeapObjects(

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "cppgc/internal/write-barrier.h"
 #include "cppgc/source-location.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -26,8 +27,8 @@ struct DijkstraWriteBarrierPolicy {
     // Since in initializing writes the source object is always white, having no
     // barrier doesn't break the tri-color invariant.
   }
-  static void AssigningBarrier(const void*, const void*) {
-    // TODO(chromium:1056170): Add actual implementation.
+  static void AssigningBarrier(const void* slot, const void* value) {
+    WriteBarrier::MarkingBarrier(slot, value);
   }
 };
 
@@ -116,7 +117,7 @@ class BasicMember;
 struct SentinelPointer {
   template <typename T>
   operator T*() const {  // NOLINT
-    static constexpr intptr_t kSentinelValue = -1;
+    static constexpr intptr_t kSentinelValue = 1;
     return reinterpret_cast<T*>(kSentinelValue);
   }
   // Hidden friends.

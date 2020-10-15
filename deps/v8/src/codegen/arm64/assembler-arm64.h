@@ -780,21 +780,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void clz(const Register& rd, const Register& rn);
   void cls(const Register& rd, const Register& rn);
 
-  // Pointer Authentication Code for Instruction address, using key A, with
+  // Pointer Authentication Code for Instruction address, using key B, with
   // address in x17 and modifier in x16 [Armv8.3].
-  void pacia1716();
+  void pacib1716();
 
-  // Pointer Authentication Code for Instruction address, using key A, with
+  // Pointer Authentication Code for Instruction address, using key B, with
   // address in LR and modifier in SP [Armv8.3].
-  void paciasp();
+  void pacibsp();
 
-  // Authenticate Instruction address, using key A, with address in x17 and
+  // Authenticate Instruction address, using key B, with address in x17 and
   // modifier in x16 [Armv8.3].
-  void autia1716();
+  void autib1716();
 
-  // Authenticate Instruction address, using key A, with address in LR and
+  // Authenticate Instruction address, using key B, with address in LR and
   // modifier in SP [Armv8.3].
-  void autiasp();
+  void autibsp();
 
   // Memory instructions.
 
@@ -1749,6 +1749,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // FP convert to signed integer, nearest with ties to even.
   void fcvtns(const Register& rd, const VRegister& vn);
+
+  // FP JavaScript convert to signed integer, rounding toward zero [Armv8.3].
+  void fjcvtzs(const Register& rd, const VRegister& vn);
 
   // FP convert to unsigned integer, nearest with ties to even.
   void fcvtnu(const Register& rd, const VRegister& vn);

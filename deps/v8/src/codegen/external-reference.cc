@@ -11,21 +11,21 @@
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/heap/heap.h"
-#include "src/logging/counters.h"
-#include "src/numbers/hash-seed-inl.h"
-#include "src/objects/elements.h"
-#include "src/objects/ordered-hash-table.h"
-// For IncrementalMarking::RecordWriteFromCode. TODO(jkummerow): Drop.
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/simulator-base.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
+#include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/ordered-hash-table.h"
+#include "src/regexp/experimental/experimental.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
@@ -214,8 +214,8 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
     return ExternalReference(Redirect(FUNCTION_ADDR(Target), Type));       \
   }
 
-FUNCTION_REFERENCE(incremental_marking_record_write_function,
-                   IncrementalMarking::RecordWriteFromCode)
+FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
+                   WriteBarrier::MarkingFromCode)
 
 FUNCTION_REFERENCE(insert_remembered_set_function,
                    Heap::InsertIntoRememberedSetFromCode)
@@ -277,6 +277,14 @@ FUNCTION_REFERENCE(wasm_float32_to_int64, wasm::float32_to_int64_wrapper)
 FUNCTION_REFERENCE(wasm_float32_to_uint64, wasm::float32_to_uint64_wrapper)
 FUNCTION_REFERENCE(wasm_float64_to_int64, wasm::float64_to_int64_wrapper)
 FUNCTION_REFERENCE(wasm_float64_to_uint64, wasm::float64_to_uint64_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_int64_sat,
+                   wasm::float32_to_int64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_uint64_sat,
+                   wasm::float32_to_uint64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_int64_sat,
+                   wasm::float64_to_int64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_uint64_sat,
+                   wasm::float64_to_uint64_sat_wrapper)
 FUNCTION_REFERENCE(wasm_int64_div, wasm::int64_div_wrapper)
 FUNCTION_REFERENCE(wasm_int64_mod, wasm::int64_mod_wrapper)
 FUNCTION_REFERENCE(wasm_uint64_div, wasm::uint64_div_wrapper)
@@ -289,6 +297,14 @@ FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
 FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_ceil, wasm::f64x2_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_floor, wasm::f64x2_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_trunc, wasm::f64x2_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_nearest_int, wasm::f64x2_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_ceil, wasm::f32x4_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_floor, wasm::f32x4_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_trunc, wasm::f32x4_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_nearest_int, wasm::f32x4_nearest_int_wrapper)
 FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
@@ -408,6 +424,18 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
 
+ExternalReference ExternalReference::address_of_load_from_stack_count(
+    const char* function_name) {
+  return ExternalReference(
+      Isolate::load_from_stack_count_address(function_name));
+}
+
+ExternalReference ExternalReference::address_of_store_to_stack_count(
+    const char* function_name) {
+  return ExternalReference(
+      Isolate::store_to_stack_count_address(function_name));
+}
+
 ExternalReference ExternalReference::address_of_one_half() {
   return ExternalReference(
       reinterpret_cast<Address>(&double_one_half_constant));
@@ -484,12 +512,19 @@ FUNCTION_REFERENCE_WITH_ISOLATE(re_check_stack_guard_state, re_stack_check_func)
 FUNCTION_REFERENCE_WITH_ISOLATE(re_grow_stack,
                                 NativeRegExpMacroAssembler::GrowStack)
 
-FUNCTION_REFERENCE_WITH_ISOLATE(re_match_for_call_from_js,
-                                IrregexpInterpreter::MatchForCallFromJs)
+FUNCTION_REFERENCE(re_match_for_call_from_js,
+                   IrregexpInterpreter::MatchForCallFromJs)
+
+FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
+                   ExperimentalRegExp::MatchForCallFromJs)
 
 FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_uc16,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)
+    re_case_insensitive_compare_unicode,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+
+FUNCTION_REFERENCE_WITH_ISOLATE(
+    re_case_insensitive_compare_non_unicode,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
 ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
   return ExternalReference(
@@ -640,8 +675,8 @@ FUNCTION_REFERENCE(copy_fast_number_jsarray_elements_to_typed_array,
 FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
                    CopyTypedArrayElementsToTypedArray)
 FUNCTION_REFERENCE(copy_typed_array_elements_slice, CopyTypedArrayElementsSlice)
-FUNCTION_REFERENCE(try_internalize_string_function,
-                   StringTable::LookupStringIfExists_NoAllocate)
+FUNCTION_REFERENCE(try_string_to_index_or_lookup_existing,
+                   StringTable::TryStringToIndexOrLookupExisting)
 FUNCTION_REFERENCE(string_to_array_index_function, String::ToArrayIndex)
 
 static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,

@@ -194,6 +194,7 @@ TEST(WeakMapPromotionMarkCompact) {
 }
 
 TEST(WeakMapScavenge) {
+  if (i::FLAG_single_generation) return;
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();

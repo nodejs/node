@@ -19,30 +19,47 @@ class RootVisitor;
 class LocalHandles {
  public:
   LocalHandles();
+  ~LocalHandles();
 
   void Iterate(RootVisitor* visitor);
+
+#ifdef DEBUG
+  bool Contains(Address* location);
+#endif
 
  private:
   HandleScopeData scope_;
   std::vector<Address*> blocks_;
 
   V8_EXPORT_PRIVATE Address* AddBlock();
-  V8_EXPORT_PRIVATE void RemoveBlocks();
+  V8_EXPORT_PRIVATE void RemoveUnusedBlocks();
+
+#ifdef ENABLE_HANDLE_ZAPPING
+  V8_EXPORT_PRIVATE static void ZapRange(Address* start, Address* end);
+#endif
 
   friend class LocalHandleScope;
 };
 
 class LocalHandleScope {
  public:
+  explicit inline LocalHandleScope(LocalIsolate* local_isolate);
   explicit inline LocalHandleScope(LocalHeap* local_heap);
   inline ~LocalHandleScope();
+
+  template <typename T>
+  Handle<T> CloseAndEscape(Handle<T> handle_value);
 
   V8_INLINE static Address* GetHandle(LocalHeap* local_heap, Address value);
 
  private:
   // Prevent heap allocation or illegal handle scopes.
-  void* operator new(size_t size);
-  void operator delete(void* size_t);
+  void* operator new(size_t size) = delete;
+  void operator delete(void* size_t) = delete;
+
+  // Close the handle scope resetting limits to a previous state.
+  static inline void CloseScope(LocalHeap* local_heap, Address* prev_next,
+                                Address* prev_limit);
 
   LocalHeap* local_heap_;
   Address* prev_limit_;

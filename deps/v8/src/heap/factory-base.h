@@ -142,6 +142,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
+  Handle<String> InternalizeString(const Vector<const uint8_t>& string,
+                                   bool convert_encoding = false);
+  Handle<String> InternalizeString(const Vector<const uint16_t>& string,
+                                   bool convert_encoding = false);
+
+  template <class StringTableKey>
+  Handle<String> InternalizeStringWithKey(StringTableKey* key);
+
   Handle<SeqOneByteString> NewOneByteInternalizedString(
       const Vector<const uint8_t>& str, uint32_t hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
@@ -205,6 +213,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
       MaybeHandle<String> maybe_name,
       MaybeHandle<HeapObject> maybe_function_data, int maybe_builtin_index,
       FunctionKind kind = kNormalFunction);
+
+  Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
  private:
   Impl* impl() { return static_cast<Impl*>(this); }

@@ -1,0 +1,14 @@
+Tests that Liftoff does not merge opcodes while stepping
+Setting breakpoint at offset 33.
+Paused at offset 33: [0]
+Paused at offset 35: [0, 0]
+Paused at offset 36: [0, 1]
+Paused at offset 33: [-1]
+Paused at offset 35: [-1, -1]
+Paused at offset 36: [-1, 0]
+Paused at offset 38: [-1]
+Paused at offset 33: [13]
+Paused at offset 35: [13, 13]
+Paused at offset 36: [13, 0]
+Paused at offset 38: [13]
+Finished.

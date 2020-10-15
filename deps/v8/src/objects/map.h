@@ -77,6 +77,7 @@ enum InstanceType : uint16_t;
   V(WasmInstanceObject)                \
   V(WasmArray)                         \
   V(WasmStruct)                        \
+  V(WasmTypeInfo)                      \
   V(WeakCell)
 
 #define TORQUE_VISITOR_ID_LIST(V)     \
@@ -252,7 +253,7 @@ class Map : public HeapObject {
   // Bit field.
   //
   DECL_PRIMITIVE_ACCESSORS(bit_field, byte)
-  // Atomic accessors, used for whitelisting legitimate concurrent accesses.
+  // Atomic accessors, used for allowlisting legitimate concurrent accesses.
   DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
 
   // Bit positions for |bit_field|.
@@ -578,7 +579,7 @@ class Map : public HeapObject {
   // and with the Wasm type info for WebAssembly object maps.
   DECL_ACCESSORS(constructor_or_backpointer, Object)
   DECL_ACCESSORS(native_context, NativeContext)
-  DECL_ACCESSORS(wasm_type_info, Foreign)
+  DECL_ACCESSORS(wasm_type_info, WasmTypeInfo)
   DECL_GETTER(GetConstructor, Object)
   DECL_GETTER(GetFunctionTemplateInfo, FunctionTemplateInfo)
   inline void SetConstructor(Object constructor,
@@ -594,6 +595,7 @@ class Map : public HeapObject {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
+  DECL_GETTER(synchronized_instance_descriptors, DescriptorArray)
   DECL_GETTER(instance_descriptors, DescriptorArray)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
                                                 DescriptorArray descriptors,
@@ -976,7 +978,8 @@ class Map : public HeapObject {
       MaybeHandle<Object> new_value);
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
-  DECL_ACCESSORS(synchronized_instance_descriptors, DescriptorArray)
+  inline void set_synchronized_instance_descriptors(
+      DescriptorArray value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;

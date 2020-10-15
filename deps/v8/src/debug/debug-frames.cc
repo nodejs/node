@@ -6,7 +6,6 @@
 
 #include "src/builtins/accessors.h"
 #include "src/execution/frames-inl.h"
-#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {

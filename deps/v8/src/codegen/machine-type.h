@@ -188,48 +188,8 @@ class MachineType {
   constexpr static MachineType Bool() {
     return MachineType(MachineRepresentation::kBit, MachineSemantic::kBool);
   }
-  constexpr static MachineType TaggedBool() {
-    return MachineType(MachineRepresentation::kTagged, MachineSemantic::kBool);
-  }
-  constexpr static MachineType CompressedBool() {
-    return MachineType(MachineRepresentation::kCompressed,
-                       MachineSemantic::kBool);
-  }
   constexpr static MachineType None() {
     return MachineType(MachineRepresentation::kNone, MachineSemantic::kNone);
-  }
-
-  // These naked representations should eventually go away.
-  constexpr static MachineType RepWord8() {
-    return MachineType(MachineRepresentation::kWord8, MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepWord16() {
-    return MachineType(MachineRepresentation::kWord16, MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepWord32() {
-    return MachineType(MachineRepresentation::kWord32, MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepWord64() {
-    return MachineType(MachineRepresentation::kWord64, MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepFloat32() {
-    return MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepFloat64() {
-    return MachineType(MachineRepresentation::kFloat64, MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepSimd128() {
-    return MachineType(MachineRepresentation::kSimd128, MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepTagged() {
-    return MachineType(MachineRepresentation::kTagged, MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepCompressed() {
-    return MachineType(MachineRepresentation::kCompressed,
-                       MachineSemantic::kNone);
-  }
-  constexpr static MachineType RepBit() {
-    return MachineType(MachineRepresentation::kBit, MachineSemantic::kNone);
   }
 
   static MachineType TypeForRepresentation(const MachineRepresentation& rep,

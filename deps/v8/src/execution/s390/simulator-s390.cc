@@ -761,6 +761,8 @@ void Simulator::EvalTableInit() {
   V(va, VA, 0xE7F3)       /* type = VRR_C VECTOR ADD  */                       \
   V(vs, VS, 0xE7F7)       /* type = VRR_C VECTOR SUBTRACT  */                  \
   V(vml, VML, 0xE7A2)     /* type = VRR_C VECTOR MULTIPLY LOW  */              \
+  V(vme, VME, 0xE7A6)     /* type = VRR_C VECTOR MULTIPLY EVEN  */             \
+  V(vmo, VMO, 0xE7A7)     /* type = VRR_C VECTOR MULTIPLY ODD  */              \
   V(vnc, VNC, 0xE769)     /* type = VRR_C VECTOR AND WITH COMPLEMENT */        \
   V(vsum, VSUM, 0xE764)   /* type = VRR_C VECTOR SUM ACROSS WORD  */           \
   V(vsumg, VSUMG, 0xE765) /* type = VRR_C VECTOR SUM ACROSS DOUBLEWORD  */     \
@@ -785,9 +787,10 @@ void Simulator::EvalTableInit() {
   V(vlc, VLC, 0xE7DE)     /* type = VRR_A VECTOR LOAD COMPLEMENT  */           \
   V(vsel, VSEL, 0xE78D)   /* type = VRR_E VECTOR SELECT  */                    \
   V(vperm, VPERM, 0xE78C) /* type = VRR_E VECTOR PERMUTE  */                   \
-  V(vtm, VTM, 0xE7D8)     /* type = VRR_A VECTOR TEST UNDER MASK  */           \
-  V(vesl, VESL, 0xE730)   /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */        \
-  V(veslv, VESLV, 0xE770) /* type = VRR_C VECTOR ELEMENT SHIFT LEFT  */        \
+  V(vbperm, VBPERM, 0xE785) /* type = VRR_C VECTOR BIT PERMUTE   */            \
+  V(vtm, VTM, 0xE7D8)       /* type = VRR_A VECTOR TEST UNDER MASK  */         \
+  V(vesl, VESL, 0xE730)     /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */      \
+  V(veslv, VESLV, 0xE770)   /* type = VRR_C VECTOR ELEMENT SHIFT LEFT  */      \
   V(vesrl, VESRL,                                                              \
     0xE738) /* type = VRS_A VECTOR ELEMENT SHIFT RIGHT LOGICAL  */             \
   V(vesrlv, VESRLV,                                                            \
@@ -3185,6 +3188,56 @@ EVALUATE(VML) {
   return length;
 }
 
+#define VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, input_type, result_type, \
+                                      is_odd)                              \
+  size_t i = 0, j = 0, k = 0;                                              \
+  size_t lane_size = sizeof(input_type);                                   \
+  if (is_odd) {                                                            \
+    i = 1;                                                                 \
+    j = lane_size;                                                         \
+  }                                                                        \
+  for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {              \
+    input_type src0 = get_simd_register_by_lane<input_type>(r2, i);        \
+    input_type src1 = get_simd_register_by_lane<input_type>(r3, i);        \
+    set_simd_register_by_lane<result_type>(r1, k, src0 * src1);            \
+  }
+#define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd)                      \
+  switch (m4) {                                                           \
+    case 0: {                                                             \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int8_t, int16_t, is_odd)  \
+      break;                                                              \
+    }                                                                     \
+    case 1: {                                                             \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int16_t, int32_t, is_odd) \
+      break;                                                              \
+    }                                                                     \
+    case 2: {                                                             \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int32_t, int64_t, is_odd) \
+      break;                                                              \
+    }                                                                     \
+    default:                                                              \
+      UNREACHABLE();                                                      \
+  }
+EVALUATE(VME) {
+  DCHECK_OPCODE(VME);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m5);
+  USE(m6);
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, false)
+  return length;
+}
+
+EVALUATE(VMO) {
+  DCHECK_OPCODE(VMO);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m5);
+  USE(m6);
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, true)
+  return length;
+}
+#undef VECTOR_MULTIPLY_EVEN_ODD
+#undef VECTOR_MULTIPLY_EVEN_ODD_TYPE
+
 EVALUATE(VNC) {
   DCHECK(VNC);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
@@ -3702,6 +3755,34 @@ EVALUATE(VPERM) {
   return length;
 }
 
+EVALUATE(VBPERM) {
+  DCHECK_OPCODE(VBPERM);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m4);
+  USE(m5);
+  USE(m6);
+  uint16_t result_bits = 0;
+  for (int i = 0; i < kSimd128Size; i++) {
+    result_bits <<= 1;
+    uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(r3, i);
+    unsigned __int128 src_bits =
+        *(reinterpret_cast<__int128*>(get_simd_register(r2).int8));
+    if (selected_bit_index < (kSimd128Size * kBitsPerByte)) {
+      unsigned __int128 bit_value =
+          (src_bits << selected_bit_index) >> (kSimd128Size * kBitsPerByte - 1);
+      result_bits |= bit_value;
+    }
+  }
+  set_simd_register_by_lane<uint64_t>(r1, 0, 0);
+  set_simd_register_by_lane<uint64_t>(r1, 1, 0);
+  // Write back in bytes to avoid endianness problems.
+  set_simd_register_by_lane<uint8_t>(r1, 6,
+                                     static_cast<uint8_t>(result_bits >> 8));
+  set_simd_register_by_lane<uint8_t>(
+      r1, 7, static_cast<uint8_t>((result_bits << 8) >> 8));
+  return length;
+}
+
 EVALUATE(VSEL) {
   DCHECK_OPCODE(VSEL);
   DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
@@ -3977,33 +4058,35 @@ EVALUATE(VFNMS) {
 #undef VECTOR_FP_MULTIPLY_QFMS_OPERATION
 
 template <class T, class Operation>
-void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
+void VectorFPMaxMin(void* dst, void* src1, void* src2, int mode, Operation op) {
   T* dst_ptr = reinterpret_cast<T*>(dst);
   T* src1_ptr = reinterpret_cast<T*>(src1);
   T* src2_ptr = reinterpret_cast<T*>(src2);
   for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
     T src1_val = *(src1_ptr + i);
     T src2_val = *(src2_ptr + i);
-    T value = op(src1_val, src2_val);
-    // using Java's Max Min functions
-    if (isnan(src1_val) || isnan(src2_val)) {
-      value = NAN;
-    }
+    T value = op(src1_val, src2_val, mode);
     memcpy(dst_ptr + i, &value, sizeof(T));
   }
 }
 
-#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op)                           \
+#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op, std_op)                   \
   VectorFPMaxMin<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3), [](type a, type b) {    \
-                         if (signbit(b) op signbit(a))                 \
+                       &get_simd_register(r3), m6,                     \
+                       [](type a, type b, int mode) {                  \
+                         if (mode == 3) {                              \
+                           return std::std_op(a, b);                   \
+                         }                                             \
+                         if (isnan(a) || isnan(b))                     \
+                           return static_cast<type>(NAN);              \
+                         else if (signbit(b) op signbit(a))            \
                            return a;                                   \
                          else if (signbit(b) != signbit(a))            \
                            return b;                                   \
                          return (a op b) ? a : b;                      \
                        });
 
-#define VECTOR_FP_MAX_MIN(op)                                                  \
+#define VECTOR_FP_MAX_MIN(op, std_op)                                          \
   switch (m4) {                                                                \
     case 2:                                                                    \
       if (m5 == 8) {                                                           \
@@ -4012,8 +4095,7 @@ void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
         set_simd_register_by_lane<float>(r1, 0, (src1 op src2) ? src1 : src2); \
       } else {                                                                 \
         DCHECK_EQ(m5, 0);                                                      \
-        DCHECK_EQ(m6, 1);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(float, op)                                  \
+        VECTOR_FP_MAX_MIN_FOR_TYPE(float, op, std_op)                          \
       }                                                                        \
       break;                                                                   \
     case 3:                                                                    \
@@ -4024,8 +4106,7 @@ void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
                                           (src1 op src2) ? src1 : src2);       \
       } else {                                                                 \
         DCHECK_EQ(m5, 0);                                                      \
-        DCHECK_EQ(m6, 1);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(double, op)                                 \
+        VECTOR_FP_MAX_MIN_FOR_TYPE(double, op, std_op)                         \
       }                                                                        \
       break;                                                                   \
     default:                                                                   \
@@ -4037,8 +4118,7 @@ EVALUATE(VFMIN) {
   DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMIN);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  USE(m6);
-  VECTOR_FP_MAX_MIN(<)  // NOLINT
+  VECTOR_FP_MAX_MIN(<, min)  // NOLINT
   return length;
 }
 
@@ -4047,7 +4127,7 @@ EVALUATE(VFMAX) {
   DCHECK_OPCODE(VFMAX);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
-  VECTOR_FP_MAX_MIN(>)  // NOLINT
+  VECTOR_FP_MAX_MIN(>, max)  // NOLINT
   return length;
 }
 
@@ -4224,24 +4304,39 @@ EVALUATE(VFSQ) {
   return length;
 }
 
+#define ROUNDING_SWITCH(type)                                   \
+  switch (m5) {                                                 \
+    case 4:                                                     \
+      set_simd_register_by_lane<type>(r1, i, nearbyint(value)); \
+      break;                                                    \
+    case 5:                                                     \
+      set_simd_register_by_lane<type>(r1, i, trunc(value));     \
+      break;                                                    \
+    case 6:                                                     \
+      set_simd_register_by_lane<type>(r1, i, ceil(value));      \
+      break;                                                    \
+    case 7:                                                     \
+      set_simd_register_by_lane<type>(r1, i, floor(value));     \
+      break;                                                    \
+    default:                                                    \
+      UNREACHABLE();                                            \
+  }
 EVALUATE(VFI) {
   DCHECK_OPCODE(VFI);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m4);
-  USE(m5);
-  DCHECK_EQ(m5, 5);
   switch (m3) {
     case 2:
       DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
       for (int i = 0; i < 4; i++) {
         float value = get_simd_register_by_lane<float>(r2, i);
-        set_simd_register_by_lane<float>(r1, i, trunc(value));
+        ROUNDING_SWITCH(float)
       }
       break;
     case 3:
       for (int i = 0; i < 2; i++) {
         double value = get_simd_register_by_lane<double>(r2, i);
-        set_simd_register_by_lane<double>(r1, i, trunc(value));
+        ROUNDING_SWITCH(double)
       }
       break;
     default:
@@ -4249,6 +4344,7 @@ EVALUATE(VFI) {
   }
   return length;
 }
+#undef ROUNDING_SWITCH
 
 EVALUATE(DUMY) {
   DCHECK_OPCODE(DUMY);
@@ -5860,9 +5956,11 @@ EVALUATE(LLIHL) {
 }
 
 EVALUATE(LLILH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLILH);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2);
+  set_register(r1, (imm << 48) >> 32);
+  return length;
 }
 
 EVALUATE(LLILL) {

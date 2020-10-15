@@ -7,7 +7,6 @@
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/gc-info-table.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
 
 namespace cppgc {
 namespace internal {

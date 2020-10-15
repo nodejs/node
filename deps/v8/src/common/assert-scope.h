@@ -7,8 +7,11 @@
 
 #include <stdint.h>
 
+#include <memory>
+
 #include "src/base/macros.h"
 #include "src/base/optional.h"
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/utils/pointer-with-payload.h"
 
@@ -167,6 +170,28 @@ class DisallowHeapAccessIf {
 
  private:
   base::Optional<DisallowHeapAccess> maybe_disallow_;
+};
+
+// Like MutexGuard but also asserts that no heap allocation happens while
+// we're holding the mutex.
+class NoHeapAllocationMutexGuard {
+ public:
+  explicit NoHeapAllocationMutexGuard(base::Mutex* mutex)
+      : guard_(mutex), mutex_(mutex), no_gc_(new DisallowHeapAllocation()) {}
+
+  void Unlock() {
+    mutex_->Unlock();
+    no_gc_.reset();
+  }
+  void Lock() {
+    mutex_->Lock();
+    no_gc_.reset(new DisallowHeapAllocation());
+  }
+
+ private:
+  base::MutexGuard guard_;
+  base::Mutex* mutex_;
+  std::unique_ptr<DisallowHeapAllocation> no_gc_;
 };
 
 // Per-isolate assert scopes.

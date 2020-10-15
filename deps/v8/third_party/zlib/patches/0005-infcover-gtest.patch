@@ -39,7 +39,7 @@ index 2be0164..a8c51c7 100644
  #define local static
  
 +/* XXX: hacking C assert and plugging into GTest. */
-+#include "testing/gtest/include/gtest/gtest.h"
++#include "gtest.h"
 +#if defined(assert)
 +#undef assert
 +#define assert EXPECT_TRUE

@@ -38,6 +38,7 @@ int JSRegExp::CaptureCount() const {
   switch (TypeTag()) {
     case ATOM:
       return 0;
+    case EXPERIMENTAL:
     case IRREGEXP:
       return Smi::ToInt(DataAt(kIrregexpCaptureCountIndex));
     default:

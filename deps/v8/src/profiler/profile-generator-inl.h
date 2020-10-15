@@ -86,7 +86,7 @@ inline CpuProfileNode::SourceType ProfileNode::source_type() const {
     case CodeEventListener::NUMBER_OF_LOG_EVENTS:
       return CpuProfileNode::kInternal;
   }
-}  // namespace internal
+}
 
 inline Isolate* ProfileNode::isolate() const { return tree_->isolate(); }
 

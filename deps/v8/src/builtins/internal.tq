@@ -1,0 +1,44 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace internal {
+
+namespace runtime {
+extern runtime GetTemplateObject(implicit context: Context)(
+    TemplateObjectDescription, SharedFunctionInfo, Smi): JSAny;
+extern runtime BytecodeBudgetInterruptFromCode(implicit context: Context)(
+    FeedbackCell): JSAny;
+}
+
+builtin GetTemplateObject(
+    context: Context, shared: SharedFunctionInfo,
+    description: TemplateObjectDescription, slot: uintptr,
+    maybeFeedbackVector: FeedbackVector|Undefined): JSArray {
+  // TODO(jgruber): Consider merging with the GetTemplateObject bytecode
+  // handler; the current advantage of the split implementation is that the
+  // bytecode can skip most work if feedback exists.
+
+  try {
+    const vector =
+        Cast<FeedbackVector>(maybeFeedbackVector) otherwise CallRuntime;
+    return Cast<JSArray>(ic::LoadFeedbackVectorSlot(vector, slot))
+        otherwise CallRuntime;
+  } label CallRuntime deferred {
+    const result = UnsafeCast<JSArray>(runtime::GetTemplateObject(
+        description, shared, Convert<Smi>(Signed(slot))));
+    const vector =
+        Cast<FeedbackVector>(maybeFeedbackVector) otherwise return result;
+    ic::StoreFeedbackVectorSlot(vector, slot, result);
+    return result;
+  }
+}
+
+builtin BytecodeBudgetInterruptFromCode(implicit context: Context)(
+    feedbackCell: FeedbackCell): Object {
+  // The runtime call is wrapped by a builtin since the calling sequence in
+  // generated code is shorter for builtins than for runtime calls.
+  tail runtime::BytecodeBudgetInterruptFromCode(feedbackCell);
+}
+
+}  // namespace internal

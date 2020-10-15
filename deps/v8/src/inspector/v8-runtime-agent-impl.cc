@@ -237,6 +237,7 @@ void V8RuntimeAgentImpl::evaluate(
     Maybe<bool> generatePreview, Maybe<bool> userGesture,
     Maybe<bool> maybeAwaitPromise, Maybe<bool> throwOnSideEffect,
     Maybe<double> timeout, Maybe<bool> disableBreaks, Maybe<bool> maybeReplMode,
+    Maybe<bool> allowUnsafeEvalBlockedByCSP,
     std::unique_ptr<EvaluateCallback> callback) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
@@ -262,8 +263,10 @@ void V8RuntimeAgentImpl::evaluate(
 
   const bool replMode = maybeReplMode.fromMaybe(false);
 
-  // Temporarily enable allow evals for inspector.
-  scope.allowCodeGenerationFromStrings();
+  if (allowUnsafeEvalBlockedByCSP.fromMaybe(true)) {
+    // Temporarily enable allow evals for inspector.
+    scope.allowCodeGenerationFromStrings();
+  }
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
     V8InspectorImpl::EvaluateScope evaluateScope(scope);

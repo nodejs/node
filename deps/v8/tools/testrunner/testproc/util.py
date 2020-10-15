@@ -4,7 +4,49 @@
 # found in the LICENSE file.
 
 import heapq
+import os
+import platform
 import random
+import signal
+import subprocess
+
+# Base dir of the build products for Release and Debug.
+OUT_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', 'out'))
+
+
+def list_processes_linux():
+  """Returns list of tuples (pid, command) of processes running in the same out
+  directory as this checkout.
+  """
+  if platform.system() != 'Linux':
+    return []
+  try:
+    cmd = 'pgrep -fa %s' % OUT_DIR
+    output = subprocess.check_output(cmd, shell=True) or ''
+    processes = [
+      (int(line.split()[0]), line[line.index(OUT_DIR):])
+      for line in output.splitlines()
+    ]
+    # Filter strange process with name as out dir.
+    return [p for p in processes if p[1] != OUT_DIR]
+  except:
+    return []
+
+
+def kill_processes_linux():
+  """Kill stray processes on the system that started in the same out directory.
+
+  All swarming tasks share the same out directory location.
+  """
+  if platform.system() != 'Linux':
+    return
+  for pid, cmd in list_processes_linux():
+    try:
+      print('Attempting to kill %d - %s' % (pid, cmd))
+      os.kill(pid, signal.SIGKILL)
+    except:
+      pass
 
 
 class FixedSizeTopList():

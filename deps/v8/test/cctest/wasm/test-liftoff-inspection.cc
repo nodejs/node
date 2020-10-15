@@ -20,7 +20,7 @@ class LiftoffCompileEnvironment {
       : isolate_(CcTest::InitIsolateOnce()),
         handle_scope_(isolate_),
         zone_(isolate_->allocator(), ZONE_NAME),
-        module_builder_(&zone_, nullptr, ExecutionTier::kLiftoff,
+        module_builder_(&zone_, nullptr, TestExecutionTier::kLiftoff,
                         kRuntimeExceptionSupport, kNoLowerSimd) {
     // Add a table of length 1, for indirect calls.
     module_builder_.AddIndirectFunctionTable(nullptr, 1);
@@ -83,7 +83,7 @@ class LiftoffCompileEnvironment {
     if (breakpoints.empty()) {
       std::unique_ptr<DebugSideTable> debug_side_table =
           GenerateLiftoffDebugSideTable(CcTest::i_isolate()->allocator(), &env,
-                                        test_func.body);
+                                        test_func.body, 0);
       CheckTableEquals(*debug_side_table, *debug_side_table_via_compilation);
     }
 
@@ -145,8 +145,8 @@ class LiftoffCompileEnvironment {
     std::copy(return_types.begin(), return_types.end(), storage);
     std::copy(param_types.begin(), param_types.end(),
               storage + return_types.size());
-    FunctionSig* sig = new (&zone_)
-        FunctionSig{return_types.size(), param_types.size(), storage};
+    FunctionSig* sig = zone_.New<FunctionSig>(return_types.size(),
+                                              param_types.size(), storage);
     module_builder_.AddSignature(sig);
     return sig;
   }
@@ -205,7 +205,7 @@ std::ostream& operator<<(std::ostream& out, const DebugSideTableEntry& entry) {
   out << "{";
   const char* comma = "";
   for (auto& v : entry.values) {
-    out << comma << v.type.type_name() << " ";
+    out << comma << v.type.name() << " ";
     switch (v.kind) {
       case DebugSideTable::Entry::kConstant:
         out << "const:" << v.i32_const;

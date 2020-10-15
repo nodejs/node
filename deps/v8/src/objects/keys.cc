@@ -18,6 +18,7 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
 #include "src/utils/identity-map.h"
+#include "src/zone/zone-hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -949,7 +950,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     if (mode_ == KeyCollectionMode::kIncludePrototypes) {
       return Just(false);
     }
-    // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
+    // ...whereas [[OwnPropertyKeys]] shall return allowlisted properties.
     DCHECK_EQ(KeyCollectionMode::kOwnOnly, mode_);
     Handle<AccessCheckInfo> access_check_info;
     {
@@ -1067,17 +1068,19 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   // exception. Combine with step 18
   // 18. Let uncheckedResultKeys be a new List which is a copy of trapResult.
   Zone set_zone(isolate_->allocator(), ZONE_NAME);
-  ZoneAllocationPolicy alloc(&set_zone);
+
   const int kPresent = 1;
   const int kGone = 0;
-  base::TemplateHashMapImpl<Handle<Name>, int, NameComparator,
-                            ZoneAllocationPolicy>
-      unchecked_result_keys(ZoneHashMap::kDefaultHashMapCapacity,
-                            NameComparator(isolate_), alloc);
+  using ZoneHashMapImpl =
+      base::TemplateHashMapImpl<Handle<Name>, int, NameComparator,
+                                ZoneAllocationPolicy>;
+  ZoneHashMapImpl unchecked_result_keys(
+      ZoneHashMapImpl::kDefaultHashMapCapacity, NameComparator(isolate_),
+      ZoneAllocationPolicy(&set_zone));
   int unchecked_result_keys_size = 0;
   for (int i = 0; i < trap_result->length(); ++i) {
     Handle<Name> key(Name::cast(trap_result->get(i)), isolate_);
-    auto entry = unchecked_result_keys.LookupOrInsert(key, key->Hash(), alloc);
+    auto entry = unchecked_result_keys.LookupOrInsert(key, key->Hash());
     if (entry->value != kPresent) {
       entry->value = kPresent;
       unchecked_result_keys_size++;

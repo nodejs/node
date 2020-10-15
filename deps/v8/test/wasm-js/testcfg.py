@@ -15,21 +15,24 @@ META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
 proposal_flags = [{
                     'name': 'reference-types',
-                    'flags': ['--experimental-wasm-anyref',
-                              '--no-experimental-wasm-bulk-memory']
+                    'flags': ['--experimental-wasm-reftypes',
+                              '--no-experimental-wasm-bulk-memory',
+                              '--wasm-staging']
                   },
                   {
                     'name': 'bulk-memory-operations',
-                    'flags': ['--experimental-wasm-bulk-memory']
+                    'flags': ['--experimental-wasm-bulk-memory',
+                              '--wasm-staging']
                   },
                   {
                     'name': 'js-types',
                     'flags': ['--experimental-wasm-type-reflection',
-                              '--no-experimental-wasm-bulk-memory']
+                              '--wasm-staging']
                   },
                   {
-                    'name': 'JS-BigInt-integration',
-                    'flags': ['--experimental-wasm-bigint']
+                    'name': 'tail-call',
+                    'flags': ['--experimental-wasm-tail-call',
+                              '--wasm-staging']
                   },
                   ]
 
@@ -73,7 +76,9 @@ class TestCase(testcase.D8TestCase):
 
   def _get_files_params(self):
     files = [self.suite.mjsunit_js,
-             os.path.join(self.suite.root, "testharness.js")]
+             os.path.join(self.suite.root, "third_party", "testharness.js"),
+             os.path.join(self.suite.root, "testharness-additions.js"),
+             os.path.join(self.suite.root, "report.js")]
 
     source = self.get_source()
     current_dir = os.path.dirname(self._get_source_path())
@@ -98,17 +103,15 @@ class TestCase(testcase.D8TestCase):
 
       files.append(script)
 
-    files.extend([
-      self._get_source_path(),
-      os.path.join(self.suite.root, "testharness-after.js")
-    ])
+    files.extend([self._get_source_path(),
+                  os.path.join(self.suite.root, "after.js")])
     return files
 
   def _get_source_flags(self):
     for proposal in proposal_flags:
       if get_proposal_path_identifier(proposal) in self.path:
         return proposal['flags']
-    return []
+    return ['--wasm-staging']
 
   def _get_source_path(self):
     # All tests are named `path/name.any.js`

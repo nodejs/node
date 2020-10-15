@@ -160,14 +160,14 @@ expression: Promise.resolve(42)
     result : {
         internalProperties : [
             [0] : {
-                name : [[PromiseStatus]]
+                name : [[PromiseState]]
                 value : {
                     type : string
                     value : fulfilled
                 }
             }
             [1] : {
-                name : [[PromiseValue]]
+                name : [[PromiseResult]]
                 value : {
                     description : 42
                     type : number
@@ -183,14 +183,14 @@ expression: new Promise(() => undefined)
     result : {
         internalProperties : [
             [0] : {
-                name : [[PromiseStatus]]
+                name : [[PromiseState]]
                 value : {
                     type : string
                     value : pending
                 }
             }
             [1] : {
-                name : [[PromiseValue]]
+                name : [[PromiseResult]]
                 value : {
                     type : undefined
                 }
@@ -219,7 +219,7 @@ expression: gen1
                 }
             }
             [1] : {
-                name : [[GeneratorStatus]]
+                name : [[GeneratorState]]
                 value : {
                     type : string
                     value : suspended
@@ -275,7 +275,7 @@ expression: gen1.next();gen1
                 }
             }
             [1] : {
-                name : [[GeneratorStatus]]
+                name : [[GeneratorState]]
                 value : {
                     type : string
                     value : suspended
@@ -331,7 +331,7 @@ expression: gen1.next();gen1
                 }
             }
             [1] : {
-                name : [[GeneratorStatus]]
+                name : [[GeneratorState]]
                 value : {
                     type : string
                     value : closed
@@ -379,7 +379,7 @@ expression: gen2
                 }
             }
             [1] : {
-                name : [[GeneratorStatus]]
+                name : [[GeneratorState]]
                 value : {
                     type : string
                     value : suspended
@@ -435,7 +435,7 @@ expression: gen2.next();gen2
                 }
             }
             [1] : {
-                name : [[GeneratorStatus]]
+                name : [[GeneratorState]]
                 value : {
                     type : string
                     value : suspended
@@ -491,7 +491,7 @@ expression: gen2.next();gen2
                 }
             }
             [1] : {
-                name : [[GeneratorStatus]]
+                name : [[GeneratorState]]
                 value : {
                     type : string
                     value : closed

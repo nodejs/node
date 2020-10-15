@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_PROCESSED_FEEDBACK_H_
 #define V8_COMPILER_PROCESSED_FEEDBACK_H_
 
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 
 namespace v8 {
@@ -19,6 +20,7 @@ class ForInFeedback;
 class GlobalAccessFeedback;
 class InstanceOfFeedback;
 class LiteralFeedback;
+class MinimorphicLoadPropertyAccessFeedback;
 class NamedAccessFeedback;
 class RegExpLiteralFeedback;
 class TemplateObjectFeedback;
@@ -35,6 +37,7 @@ class ProcessedFeedback : public ZoneObject {
     kGlobalAccess,
     kInstanceOf,
     kLiteral,
+    kMinimorphicPropertyAccess,
     kNamedAccess,
     kRegExpLiteral,
     kTemplateObject,
@@ -52,6 +55,8 @@ class ProcessedFeedback : public ZoneObject {
   GlobalAccessFeedback const& AsGlobalAccess() const;
   InstanceOfFeedback const& AsInstanceOf() const;
   NamedAccessFeedback const& AsNamedAccess() const;
+  MinimorphicLoadPropertyAccessFeedback const& AsMinimorphicPropertyAccess()
+      const;
   LiteralFeedback const& AsLiteral() const;
   RegExpLiteralFeedback const& AsRegExpLiteral() const;
   TemplateObjectFeedback const& AsTemplateObject() const;
@@ -166,6 +171,26 @@ class NamedAccessFeedback : public ProcessedFeedback {
  private:
   NameRef const name_;
   ZoneVector<Handle<Map>> const maps_;
+};
+
+class MinimorphicLoadPropertyAccessFeedback : public ProcessedFeedback {
+ public:
+  MinimorphicLoadPropertyAccessFeedback(NameRef const& name,
+                                        FeedbackSlotKind slot_kind,
+                                        bool is_monomorphic,
+                                        Handle<Object> handler,
+                                        bool has_migration_target_maps);
+
+  NameRef const& name() const { return name_; }
+  bool is_monomorphic() const { return is_monomorphic_; }
+  Handle<Object> handler() const { return handler_; }
+  bool has_migration_target_maps() const { return has_migration_target_maps_; }
+
+ private:
+  NameRef const name_;
+  bool const is_monomorphic_;
+  Handle<Object> const handler_;
+  bool const has_migration_target_maps_;
 };
 
 class CallFeedback : public ProcessedFeedback {

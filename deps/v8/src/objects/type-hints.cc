@@ -39,6 +39,8 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
       return os << "SignedSmall";
     case CompareOperationHint::kNumber:
       return os << "Number";
+    case CompareOperationHint::kNumberOrBoolean:
+      return os << "NumberOrBoolean";
     case CompareOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
     case CompareOperationHint::kInternalizedString:

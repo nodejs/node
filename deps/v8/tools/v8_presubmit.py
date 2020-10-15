@@ -29,6 +29,7 @@
 
 
 # for py2/py3 compatibility
+from __future__ import absolute_import
 from __future__ import print_function
 
 try:
@@ -59,12 +60,16 @@ from testrunner.local import utils
 #   We now run our own header guard check in PRESUBMIT.py.
 # build/include_what_you_use: Started giving false positives for variables
 #   named "string" and "map" assuming that you needed to include STL headers.
+# runtime/references: As of May 2020 the C++ style guide suggests using
+#   references for out parameters, see
+#   https://google.github.io/styleguide/cppguide.html#Inputs_and_Outputs.
 
 LINT_RULES = """
 -build/header_guard
 -build/include_what_you_use
 -readability/fn_size
 -readability/multiline_comment
+-runtime/references
 -whitespace/comments
 """.split()
 

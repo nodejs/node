@@ -1,0 +1,55 @@
+# Copyright 2020 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../gni/v8.gni")
+
+group("gn_all") {
+  testonly = true
+
+  deps = []
+
+  if (v8_enable_google_benchmark) {
+    deps += [ ":cppgc_basic_benchmarks" ]
+  }
+}
+
+if (v8_enable_google_benchmark) {
+  v8_source_set("cppgc_benchmark_support") {
+    testonly = true
+
+    configs = [
+      "../../../..:external_config",
+      "../../../..:internal_config_base",
+      "../../../..:cppgc_base_config",
+    ]
+    sources = [
+      "../../../../test/unittests/heap/cppgc/test-platform.cc",
+      "../../../../test/unittests/heap/cppgc/test-platform.h",
+      "utils.h",
+    ]
+    deps = [
+      "../../../..:cppgc_for_testing",
+      "//third_party/google_benchmark:benchmark_main",
+    ]
+  }
+
+  v8_executable("cppgc_basic_benchmarks") {
+    testonly = true
+
+    configs = [
+      "../../../..:external_config",
+      "../../../..:internal_config_base",
+      "../../../..:cppgc_base_config",
+    ]
+    sources = [
+      "allocation_perf.cc",
+      "trace_perf.cc",
+    ]
+    deps = [
+      ":cppgc_benchmark_support",
+      "../../../..:cppgc_for_testing",
+      "//third_party/google_benchmark:benchmark_main",
+    ]
+  }
+}

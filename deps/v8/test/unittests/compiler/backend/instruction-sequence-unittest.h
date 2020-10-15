@@ -124,12 +124,15 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   };
 
   static BlockCompletion FallThrough() {
-    BlockCompletion completion = {kFallThrough, TestOperand(), 1, kNoValue};
+    BlockCompletion completion = {kFallThrough, TestOperand(kImmediate, 0), 1,
+                                  kNoValue};
     return completion;
   }
 
-  static BlockCompletion Jump(int offset) {
-    BlockCompletion completion = {kJump, TestOperand(), offset, kNoValue};
+  static BlockCompletion Jump(int offset,
+                              TestOperand operand = TestOperand(kImmediate,
+                                                                0)) {
+    BlockCompletion completion = {kJump, operand, offset, kNoValue};
     return completion;
   }
 
@@ -223,7 +226,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
 
   Instruction* EmitBranch(TestOperand input_op);
   Instruction* EmitFallThrough();
-  Instruction* EmitJump();
+  Instruction* EmitJump(TestOperand input_op);
   Instruction* NewInstruction(InstructionCode code, size_t outputs_size,
                               InstructionOperand* outputs,
                               size_t inputs_size = 0,
@@ -246,6 +249,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   InstructionOperand ConvertOutputOp(VReg vreg, TestOperand op);
   InstructionBlock* NewBlock(bool deferred = false);
   void WireBlock(size_t block_offset, int jump_offset);
+  void CalculateDominators();
 
   Instruction* Emit(InstructionCode code, size_t outputs_size = 0,
                     InstructionOperand* outputs = nullptr,

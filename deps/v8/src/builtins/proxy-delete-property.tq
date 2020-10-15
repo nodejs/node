@@ -16,7 +16,7 @@ ProxyDeleteProperty(implicit context: Context)(
   PerformStackCheck();
   // 1. Assert: IsPropertyKey(P) is true.
   assert(TaggedIsNotSmi(name));
-  assert(IsName(name));
+  assert(Is<Name>(name));
   assert(!IsPrivateSymbol(name));
 
   try {

@@ -174,8 +174,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Cmpneqpd, cmpneqpd)
   AVX_OP(Cmpnltpd, cmpnltpd)
   AVX_OP(Cmpnlepd, cmpnlepd)
-  AVX_OP(Roundss, roundss)
-  AVX_OP(Roundsd, roundsd)
   AVX_OP(Sqrtss, sqrtss)
   AVX_OP(Sqrtsd, sqrtsd)
   AVX_OP(Sqrtps, sqrtps)
@@ -204,6 +202,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Psrlw, psrlw)
   AVX_OP(Psrld, psrld)
   AVX_OP(Psrlq, psrlq)
+  AVX_OP(Pmaddwd, pmaddwd)
   AVX_OP(Paddb, paddb)
   AVX_OP(Paddw, paddw)
   AVX_OP(Paddd, paddd)
@@ -283,6 +282,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Pmovzxwd, pmovzxwd)
   AVX_OP_SSE4_1(Pmovzxdq, pmovzxdq)
   AVX_OP_SSE4_1(Pextrq, pextrq)
+  AVX_OP_SSE4_1(Roundps, roundps)
+  AVX_OP_SSE4_1(Roundpd, roundpd)
+  AVX_OP_SSE4_1(Roundss, roundss)
+  AVX_OP_SSE4_1(Roundsd, roundsd)
   AVX_OP_SSE4_2(Pcmpgtq, pcmpgtq)
 
 #undef AVX_OP
@@ -429,6 +432,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(XMMRegister dst, uint64_t src);
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
+  void Move(XMMRegister dst, uint64_t high, uint64_t low);
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
@@ -442,7 +446,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
-    DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
+    DCHECK(rmode == RelocInfo::NONE || rmode > RelocInfo::LAST_GCED_ENUM);
     movq(dst, Immediate64(ptr, rmode));
   }
 

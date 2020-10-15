@@ -1,229 +1,353 @@
 Test retrieving scope information from compiled Liftoff frames
-Installing instantiate code.
-Waiting for wasm script to be parsed.
 Calling instantiate function.
+Waiting for wasm script to be parsed.
 Got wasm script!
 Setting breakpoint on line 2 (first instruction) of third function
 {
-    columnNumber : 85
+    columnNumber : 159
     lineNumber : 0
     scriptId : <scriptId>
 }
 Paused:
-Script wasm://wasm/c4eb034a byte offset 85: Wasm opcode 0x20
+Script wasm://wasm/7f06385e byte offset 159: Wasm opcode 0x20
 Scope:
-at C (interpreted) (0:85):
+at C (interpreted) (0:159):
  - scope (module):
-   globals: "global0": 0 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
  - scope (wasm-expression-stack):
-at B (liftoff) (0:76):
+at B (liftoff) (0:150):
  - scope (module):
-   globals: "global0": 0 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
-   0: 42 (number)
-   1: 3 (number)
-at A (liftoff) (0:54):
+   0: 42 (i32)
+   1: 3 (i32)
+at A (liftoff) (0:128):
  - scope (module):
-   globals: "global0": 0 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 87: Wasm opcode 0x24
+Script wasm://wasm/7f06385e byte offset 161: Wasm opcode 0x24
 Scope:
-at C (interpreted) (0:87):
+at C (interpreted) (0:161):
  - scope (module):
-   globals: "global0": 0 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
  - scope (wasm-expression-stack):
-   0: 42 (number)
-at B (liftoff) (0:76):
+   0: 42 (i32)
+at B (liftoff) (0:150):
  - scope (module):
-   globals: "global0": 0 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
-   0: 42 (number)
-   1: 3 (number)
-at A (liftoff) (0:54):
+   0: 42 (i32)
+   1: 3 (i32)
+at A (liftoff) (0:128):
  - scope (module):
-   globals: "global0": 0 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 89: Wasm opcode 0x41
+Script wasm://wasm/7f06385e byte offset 163: Wasm opcode 0x41
 Scope:
-at C (interpreted) (0:89):
+at C (interpreted) (0:163):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
  - scope (wasm-expression-stack):
-at B (liftoff) (0:76):
+at B (liftoff) (0:150):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
-   0: 42 (number)
-   1: 3 (number)
-at A (liftoff) (0:54):
+   0: 42 (i32)
+   1: 3 (i32)
+at A (liftoff) (0:128):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 91: Wasm opcode 0x21
+Script wasm://wasm/7f06385e byte offset 165: Wasm opcode 0x21
 Scope:
-at C (interpreted) (0:91):
+at C (interpreted) (0:165):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
  - scope (wasm-expression-stack):
-   0: 47 (number)
-at B (liftoff) (0:76):
+   0: 47 (i32)
+at B (liftoff) (0:150):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
-   0: 42 (number)
-   1: 3 (number)
-at A (liftoff) (0:54):
+   0: 42 (i32)
+   1: 3 (i32)
+at A (liftoff) (0:128):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 93: Wasm opcode 0x0b
+Script wasm://wasm/7f06385e byte offset 167: Wasm opcode 0x0b
 Scope:
-at C (interpreted) (0:93):
+at C (interpreted) (0:167):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (number), "i32_local": 47 (number)
+   i32_arg: 42 (i32)
+   i32_local: 47 (i32)
  - scope (wasm-expression-stack):
-at B (liftoff) (0:76):
+at B (liftoff) (0:150):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
-   0: 42 (number)
-   1: 3 (number)
-at A (liftoff) (0:54):
+   0: 42 (i32)
+   1: 3 (i32)
+at A (liftoff) (0:128):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 78: Wasm opcode 0x1a
+Script wasm://wasm/7f06385e byte offset 152: Wasm opcode 0x1a
 Scope:
-at B (liftoff) (0:78):
+at B (liftoff) (0:152):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
-   0: 42 (number)
-   1: 3 (number)
-at A (liftoff) (0:54):
+   0: 42 (i32)
+   1: 3 (i32)
+at A (liftoff) (0:128):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 79: Wasm opcode 0x1a
+Script wasm://wasm/7f06385e byte offset 153: Wasm opcode 0x1a
 Scope:
-at B (liftoff) (0:79):
+at B (liftoff) (0:153):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
-   0: 42 (number)
-at A (liftoff) (0:54):
+   0: 42 (i32)
+at A (liftoff) (0:128):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 80: Wasm opcode 0x0b
+Script wasm://wasm/7f06385e byte offset 154: Wasm opcode 0x0b
 Scope:
-at B (liftoff) (0:80):
+at B (liftoff) (0:154):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
-at A (liftoff) (0:54):
+at A (liftoff) (0:128):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 56: Wasm opcode 0x0b
+Script wasm://wasm/7f06385e byte offset 130: Wasm opcode 0x0b
 Scope:
-at A (liftoff) (0:56):
+at A (liftoff) (0:130):
  - scope (module):
-   globals: "global0": 42 (number)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   function tables: 
+      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
+   globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (number)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-instance.exports.main(42)#
+instance.exports.main(42)
 
 Scope:
-at (anonymous) (0:25):
+at (anonymous) (1:31):
  - scope (global):
    -- skipped globals
 

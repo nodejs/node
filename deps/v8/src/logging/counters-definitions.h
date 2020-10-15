@@ -138,6 +138,7 @@ namespace internal {
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
   HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
+  HT(time_to_safepoint, V8.TimeToSafepoint, 10000, MILLISECOND)                \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
   /* TurboFan timers. */                                                       \

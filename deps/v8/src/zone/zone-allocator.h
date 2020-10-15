@@ -40,15 +40,25 @@ class ZoneAllocator {
   // ZoneVector and friends or for ParallelMove.
   ZoneAllocator() : ZoneAllocator(nullptr) { UNREACHABLE(); }
 #endif
-  explicit ZoneAllocator(Zone* zone) : zone_(zone) {}
+  explicit ZoneAllocator(Zone* zone) : zone_(zone) {
+    // If we are going to allocate compressed pointers in the zone it must
+    // support compression.
+    DCHECK_IMPLIES(is_compressed_pointer<T>::value,
+                   zone_->supports_compression());
+  }
   template <typename U>
   ZoneAllocator(const ZoneAllocator<U>& other) V8_NOEXCEPT
-      : ZoneAllocator<T>(other.zone_) {}
+      : ZoneAllocator<T>(other.zone_) {
+    // If we are going to allocate compressed pointers in the zone it must
+    // support compression.
+    DCHECK_IMPLIES(is_compressed_pointer<T>::value,
+                   zone_->supports_compression());
+  }
   template <typename U>
   friend class ZoneAllocator;
 
-  T* allocate(size_t n) { return zone_->NewArray<T>(n); }
-  void deallocate(T* p, size_t) {}  // noop for zones
+  T* allocate(size_t length) { return zone_->NewArray<T>(length); }
+  void deallocate(T* p, size_t length) { zone_->DeleteArray<T>(p, length); }
 
   size_t max_size() const {
     return std::numeric_limits<int>::max() / sizeof(T);

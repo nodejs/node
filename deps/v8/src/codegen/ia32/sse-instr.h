@@ -9,6 +9,7 @@
   V(packsswb, 66, 0F, 63)        \
   V(packssdw, 66, 0F, 6B)        \
   V(packuswb, 66, 0F, 67)        \
+  V(pmaddwd, 66, 0F, F5)         \
   V(paddb, 66, 0F, FC)           \
   V(paddw, 66, 0F, FD)           \
   V(paddd, 66, 0F, FE)           \

@@ -10,7 +10,7 @@ macro
 IsPromiseSpeciesLookupChainIntact(
     nativeContext: NativeContext, promiseMap: Map): bool {
   const promisePrototype =
-      nativeContext[NativeContextSlot::PROMISE_PROTOTYPE_INDEX];
+      *NativeContextSlot(nativeContext, ContextSlot::PROMISE_PROTOTYPE_INDEX);
   if (IsForceSlowPath()) return false;
   if (promiseMap.prototype != promisePrototype) return false;
   return !IsPromiseSpeciesProtectorCellInvalid();
@@ -27,8 +27,7 @@ PromisePrototypeThen(js-implicit context: NativeContext, receiver: JSAny)(
       receiver);
 
   // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-  const promiseFun = UnsafeCast<JSFunction>(
-      context[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
+  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
 
   // 4. Let resultCapability be ? NewPromiseCapability(C).
   let resultPromiseOrCapability: JSPromise|PromiseCapability;

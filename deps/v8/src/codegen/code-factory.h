@@ -71,6 +71,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable Call_WithFeedback(Isolate* isolate, ConvertReceiverMode mode);
   static Callable CallWithArrayLike(Isolate* isolate);
   static Callable CallWithSpread(Isolate* isolate);
   static Callable CallFunction(

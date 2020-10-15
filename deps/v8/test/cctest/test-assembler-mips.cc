@@ -64,7 +64,8 @@ TEST(MIPS0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(0xAB0, 0xC, 0, 0, 0));
   CHECK_EQ(static_cast<int32_t>(0xABC), res);
@@ -98,7 +99,8 @@ TEST(MIPS1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F1>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(50, 0, 0, 0, 0));
   CHECK_EQ(1275, res);
@@ -234,7 +236,8 @@ TEST(MIPS2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(0xAB0, 0xC, 0, 0, 0));
   CHECK_EQ(static_cast<int32_t>(0x31415926), res);
@@ -333,7 +336,8 @@ TEST(MIPS3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   // Double test values.
   t.a = 1.5e14;
@@ -434,7 +438,8 @@ TEST(MIPS4) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.a = 1.5e22;
   t.b = 2.75e11;
@@ -494,7 +499,8 @@ TEST(MIPS5) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.a = 1.5e4;
   t.b = 2.75e8;
@@ -561,7 +567,8 @@ TEST(MIPS6) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.ui = 0x11223344;
   t.si = 0x99AABBCC;
@@ -652,7 +659,8 @@ TEST(MIPS7) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.a = 1.5e14;
   t.b = 2.75e11;
@@ -747,7 +755,8 @@ TEST(MIPS8) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     t.input = 0x12345678;
     f.Call(&t, 0x0, 0, 0, 0);
@@ -791,7 +800,8 @@ TEST(MIPS9) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   USE(code);
 }
 
@@ -841,7 +851,8 @@ TEST(MIPS10) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.a = 2.147483646e+09;       // 0x7FFFFFFE -> 0xFF80000041DFFFFF as double.
   t.b_word = 0x0FF00FF0;       // 0x0FF00FF0 -> 0x as double.
@@ -967,7 +978,8 @@ TEST(MIPS11) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.reg_init = 0xAABBCCDD;
   t.mem_init = 0x11223344;
@@ -1091,7 +1103,8 @@ TEST(MIPS12) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.x = 1;
   t.y = 2;
@@ -1143,7 +1156,8 @@ TEST(MIPS13) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   t.cvt_big_in = 0xFFFFFFFF;
@@ -1262,7 +1276,8 @@ TEST(MIPS14) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   t.round_up_in = 123.51;
@@ -1365,7 +1380,8 @@ TEST(seleqz_selnez) {
     __ nop();
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     (f.Call(&test, 0, 0, 0, 0));
@@ -1478,7 +1494,8 @@ TEST(min_max) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputsa[i];
@@ -1587,7 +1604,8 @@ TEST(rint_d)  {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     for (int j = 0; j < 4; j++) {
@@ -1633,7 +1651,8 @@ TEST(sel) {
     __ nop();
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     const int test_size = 3;
@@ -1764,7 +1783,8 @@ TEST(rint_s)  {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     for (int j = 0; j < 4; j++) {
@@ -1807,7 +1827,8 @@ TEST(Cvt_d_uw) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.input = inputs[i];
@@ -1887,7 +1908,8 @@ TEST(mina_maxa) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputsa[i];
@@ -1966,7 +1988,8 @@ TEST(trunc_l) {
     Test test;
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -2045,7 +2068,8 @@ TEST(movz_movn) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -2146,7 +2170,7 @@ TEST(movt_movd) {
         CodeDesc desc;
         assm.GetCode(isolate, &desc);
         Handle<Code> code =
-            Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+            Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
         auto f = GeneratedCode<F3>::FromCode(*code);
 
         (f.Call(&test, 0, 0, 0, 0));
@@ -2230,7 +2254,8 @@ TEST(cvt_w_d) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int j = 0; j < 4; j++) {
     test.fcsr = fcsr_inputs[j];
@@ -2296,7 +2321,8 @@ TEST(trunc_w) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -2364,7 +2390,8 @@ TEST(round_w) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -2434,7 +2461,8 @@ TEST(round_l) {
     Test test;
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -2506,7 +2534,8 @@ TEST(sub) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputfs_S[i];
@@ -2584,7 +2613,8 @@ TEST(sqrt_rsqrt_recip) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   for (int i = 0; i < kTableLength; i++) {
@@ -2663,7 +2693,8 @@ TEST(neg) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_S[i];
@@ -2719,7 +2750,8 @@ TEST(mul) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputfs_S[i];
@@ -2774,7 +2806,8 @@ TEST(mov) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -2840,7 +2873,8 @@ TEST(floor_w) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -2910,7 +2944,8 @@ TEST(floor_l) {
     Test test;
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -2981,7 +3016,8 @@ TEST(ceil_w) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -3051,7 +3087,8 @@ TEST(ceil_l) {
     Test test;
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -3118,7 +3155,8 @@ TEST(jump_tables1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -3182,7 +3220,8 @@ TEST(jump_tables2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -3253,7 +3292,8 @@ TEST(jump_tables3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -3303,7 +3343,8 @@ TEST(BITSWAP) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     t.r1 = 0x781A15C3;
     t.r2 = 0x8B71FCDE;
@@ -3436,7 +3477,8 @@ TEST(class_fmt) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     t.dSignalingNan =  std::numeric_limits<double>::signaling_NaN();
@@ -3526,7 +3568,8 @@ TEST(ABS) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.a = -2.0;
   test.b = -2.0;
@@ -3618,7 +3661,8 @@ TEST(ADD_FMT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.a = 2.0;
   test.b = 3.0;
@@ -3771,7 +3815,8 @@ TEST(C_COND_FMT) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     test.dOp1 = 2.0;
     test.dOp2 = 3.0;
@@ -3970,7 +4015,8 @@ TEST(CMP_COND_FMT) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     uint64_t dTrue  = 0xFFFFFFFFFFFFFFFF;
     uint64_t dFalse = 0x0000000000000000;
@@ -4155,7 +4201,8 @@ TEST(CVT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   test.cvt_d_s_in = -0.51;
@@ -4366,7 +4413,8 @@ TEST(DIV_FMT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -4457,7 +4505,8 @@ uint32_t run_align(uint32_t rs_value, uint32_t rt_value, uint8_t bp) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -4511,7 +4560,8 @@ uint32_t run_aluipc(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
   PC = (uint32_t)code->entry();  // Set the program counter.
@@ -4563,7 +4613,8 @@ uint32_t run_auipc(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
   PC = (uint32_t)code->entry();  // Set the program counter.
@@ -4637,7 +4688,8 @@ uint32_t run_lwpc(int offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -4716,7 +4768,8 @@ uint32_t run_jic(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -4786,7 +4839,8 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -4891,7 +4945,8 @@ void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5060,7 +5115,8 @@ uint32_t run_jialc(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5107,7 +5163,8 @@ static uint32_t run_addiupc(int32_t imm19) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
   PC = (uint32_t)code->entry();  // Set the program counter.
@@ -5188,7 +5245,8 @@ int32_t run_bc(int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5268,7 +5326,8 @@ int32_t run_balc(int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5291,7 +5350,8 @@ uint32_t run_aui(uint32_t rs, uint16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5379,7 +5439,8 @@ uint32_t run_bal(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5430,11 +5491,73 @@ TEST(Trampoline) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 
   int32_t res = reinterpret_cast<int32_t>(f.Call(42, 42, 0, 0, 0));
   CHECK_EQ(0, res);
+}
+
+TEST(Trampoline_with_massive_unbound_labels) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  const int kNumSlots =
+      TurboAssembler::kMaxBranchOffset / TurboAssembler::kTrampolineSlotsSize;
+  Label labels[kNumSlots];
+
+  {
+    TurboAssembler::BlockTrampolinePoolScope block_trampoline_pool(&assm);
+    for (int i = 0; i < kNumSlots; i++) {
+      __ Branch(&labels[i]);
+    }
+  }
+
+  __ bind(&labels[0]);
+}
+
+static void DummyFunction(Object result) {}
+
+TEST(Call_with_trampoline) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  int next_buffer_check_ = FLAG_force_long_branches
+                               ? kMaxInt
+                               : TurboAssembler::kMaxBranchOffset -
+                                     TurboAssembler::kTrampolineSlotsSize * 16;
+
+  Label done;
+  __ Branch(&done);
+  next_buffer_check_ -= TurboAssembler::kTrampolineSlotsSize;
+
+  int num_nops = (next_buffer_check_ - __ pc_offset()) / kInstrSize - 1;
+  for (int i = 0; i < num_nops; i++) {
+    __ nop();
+  }
+
+  int pc_offset_before = __ pc_offset();
+  {
+    // There should be a trampoline after this Call
+    __ Call(FUNCTION_ADDR(DummyFunction), RelocInfo::RUNTIME_ENTRY);
+  }
+  int pc_offset_after = __ pc_offset();
+  int last_call_pc = __ pc_offset_for_safepoint();
+
+  // Without trampoline, the Call emits no more than 6 instructions, otherwise
+  // more than 6 instructions will be generated.
+  int num_instrs = 6;
+  // pc_offset_after records the offset after trampoline.
+  CHECK_GT(pc_offset_after - pc_offset_before, num_instrs * kInstrSize);
+  // last_call_pc records the offset before trampoline.
+  CHECK_LE(last_call_pc - pc_offset_before, num_instrs * kInstrSize);
+
+  __ bind(&done);
 }
 
 template <class T>
@@ -5495,7 +5618,8 @@ void helper_madd_msub_maddf_msubf(F func) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   const size_t kTableLength = sizeof(test_cases) / sizeof(TestCaseMaddMsub<T>);
@@ -5579,7 +5703,8 @@ uint32_t run_Subu(uint32_t imm, int32_t num_instr) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 
   uint32_t res = reinterpret_cast<uint32_t>(f.Call(0, 0, 0, 0, 0));
@@ -5682,7 +5807,8 @@ TEST(MSA_fill_copy) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5749,7 +5875,8 @@ TEST(MSA_fill_copy_2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5805,7 +5932,8 @@ TEST(MSA_fill_copy_3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5849,7 +5977,8 @@ void run_msa_insert(int32_t rs_value, int n, msa_reg_t* w) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5948,7 +6077,8 @@ TEST(MSA_move_v) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
     code->Print(std::cout);
 #endif
@@ -5992,7 +6122,8 @@ void run_msa_sldi(OperFunc GenerateOperation,
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
     code->Print(std::cout);
 #endif
@@ -6076,7 +6207,8 @@ void run_msa_ctc_cfc(uint32_t value) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -6185,7 +6317,8 @@ void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -6362,7 +6495,8 @@ uint32_t run_Ins(uint32_t imm, uint32_t source, uint16_t pos, uint16_t size) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 
   uint32_t res = reinterpret_cast<uint32_t>(f.Call(0, 0, 0, 0, 0));
@@ -6411,7 +6545,8 @@ uint32_t run_Ext(uint32_t source, uint16_t pos, uint16_t size) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 
   uint32_t res = reinterpret_cast<uint32_t>(f.Call(0, 0, 0, 0, 0));
@@ -6472,7 +6607,8 @@ void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -6891,7 +7027,8 @@ void run_msa_2r(const struct TestCaseMsa2R* input,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -7940,7 +8077,8 @@ void run_msa_vector(struct TestCaseMsaVector* input,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8027,7 +8165,8 @@ void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8499,7 +8638,8 @@ void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8576,7 +8716,8 @@ void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8654,7 +8795,8 @@ void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -9659,7 +9801,8 @@ void run_msa_3rf(const struct TestCaseMsa3RF* input,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif

@@ -5,6 +5,8 @@
 #ifndef V8_WASM_WASM_OPCODES_H_
 #define V8_WASM_WASM_OPCODES_H_
 
+#include <memory>
+
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/wasm/value-type.h"
@@ -21,24 +23,27 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
 
 // Control expressions and blocks.
-#define FOREACH_CONTROL_OPCODE(V)        \
-  V(Unreachable, 0x00, _)                \
-  V(Nop, 0x01, _)                        \
-  V(Block, 0x02, _)                      \
-  V(Loop, 0x03, _)                       \
-  V(If, 0x04, _)                         \
-  V(Else, 0x05, _)                       \
-  V(Try, 0x06, _ /* eh_prototype */)     \
-  V(Catch, 0x07, _ /* eh_prototype */)   \
-  V(Throw, 0x08, _ /* eh_prototype */)   \
-  V(Rethrow, 0x09, _ /* eh_prototype */) \
-  V(BrOnExn, 0x0a, _ /* eh prototype */) \
-  V(End, 0x0b, _)                        \
-  V(Br, 0x0c, _)                         \
-  V(BrIf, 0x0d, _)                       \
-  V(BrTable, 0x0e, _)                    \
-  V(Return, 0x0f, _)                     \
-  V(BrOnNull, 0xd4, _) /* gc prototype */
+#define FOREACH_CONTROL_OPCODE(V)                         \
+  V(Unreachable, 0x00, _)                                 \
+  V(Nop, 0x01, _)                                         \
+  V(Block, 0x02, _)                                       \
+  V(Loop, 0x03, _)                                        \
+  V(If, 0x04, _)                                          \
+  V(Else, 0x05, _)                                        \
+  V(Try, 0x06, _ /* eh_prototype */)                      \
+  V(Catch, 0x07, _ /* eh_prototype */)                    \
+  V(Throw, 0x08, _ /* eh_prototype */)                    \
+  V(Rethrow, 0x09, _ /* eh_prototype */)                  \
+  V(BrOnExn, 0x0a, _ /* eh prototype */)                  \
+  V(End, 0x0b, _)                                         \
+  V(Br, 0x0c, _)                                          \
+  V(BrIf, 0x0d, _)                                        \
+  V(BrTable, 0x0e, _)                                     \
+  V(Return, 0x0f, _)                                      \
+  V(CallRef, 0x14, _ /* typed_funcref prototype */)       \
+  V(ReturnCallRef, 0x15, _ /* typed_funcref prototype */) \
+  V(Let, 0x17, _ /* typed_funcref prototype */)           \
+  V(BrOnNull, 0xd4, _ /* gc prototype */)
 
 // Constants, locals, globals, and calls.
 #define FOREACH_MISC_OPCODE(V)   \
@@ -61,8 +66,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32Const, 0x43, _)           \
   V(F64Const, 0x44, _)           \
   V(RefNull, 0xd0, _)            \
+  V(RefIsNull, 0xd1, _)          \
   V(RefFunc, 0xd2, _)            \
-  V(RefAsNonNull, 0xd3, _)
+  V(RefAsNonNull, 0xd3, _ /* typed_funcref prototype */)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -229,9 +235,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64SExtendI16, 0xc3, l_l)     \
   V(I64SExtendI32, 0xc4, l_l)
 
-#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
-  V(RefIsNull, 0xd1, i_r)                  \
-  V(RefEq, 0xd5, i_rr)  // made-up opcode, guessing future spec (GC)
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefEq, 0xd5, i_qq)
 
 // For compatibility with Asm.js.
 // These opcodes are not spec'ed (or visible) externally; the idea is
@@ -282,6 +286,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(S32x4LoadSplat, 0xfd09, s_i)   \
   V(S64x2LoadSplat, 0xfd0a, s_i)   \
   V(S128StoreMem, 0xfd0b, v_is)
+
+#define FOREACH_SIMD_CONST_OPCODE(V) V(S128Const, 0xfd0c, _)
 
 #define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(S8x16Shuffle, 0xfd0d, s_ss)
 
@@ -343,8 +349,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(S128Select, 0xfd52, s_sss)               \
   V(I8x16Abs, 0xfd60, s_s)                   \
   V(I8x16Neg, 0xfd61, s_s)                   \
-  V(S1x16AnyTrue, 0xfd62, i_s)               \
-  V(S1x16AllTrue, 0xfd63, i_s)               \
+  V(V8x16AnyTrue, 0xfd62, i_s)               \
+  V(V8x16AllTrue, 0xfd63, i_s)               \
   V(I8x16SConvertI16x8, 0xfd65, s_ss)        \
   V(I8x16UConvertI16x8, 0xfd66, s_ss)        \
   V(I8x16Shl, 0xfd6b, s_si)                  \
@@ -363,8 +369,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I8x16RoundingAverageU, 0xfd7b, s_ss)     \
   V(I16x8Abs, 0xfd80, s_s)                   \
   V(I16x8Neg, 0xfd81, s_s)                   \
-  V(S1x8AnyTrue, 0xfd82, i_s)                \
-  V(S1x8AllTrue, 0xfd83, i_s)                \
+  V(V16x8AnyTrue, 0xfd82, i_s)               \
+  V(V16x8AllTrue, 0xfd83, i_s)               \
   V(I16x8SConvertI32x4, 0xfd85, s_ss)        \
   V(I16x8UConvertI32x4, 0xfd86, s_ss)        \
   V(I16x8SConvertI8x16Low, 0xfd87, s_s)      \
@@ -388,8 +394,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I16x8RoundingAverageU, 0xfd9b, s_ss)     \
   V(I32x4Abs, 0xfda0, s_s)                   \
   V(I32x4Neg, 0xfda1, s_s)                   \
-  V(S1x4AnyTrue, 0xfda2, i_s)                \
-  V(S1x4AllTrue, 0xfda3, i_s)                \
+  V(V32x4AnyTrue, 0xfda2, i_s)               \
+  V(V32x4AllTrue, 0xfda3, i_s)               \
   V(I32x4SConvertI16x8Low, 0xfda7, s_s)      \
   V(I32x4SConvertI16x8High, 0xfda8, s_s)     \
   V(I32x4UConvertI16x8Low, 0xfda9, s_s)      \
@@ -434,13 +440,17 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4SConvertI32x4, 0xfdfa, s_s)         \
   V(F32x4UConvertI32x4, 0xfdfb, s_s)
 
+#define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
+  V(S128LoadMem32Zero, 0xfdfc, s_i)         \
+  V(S128LoadMem64Zero, 0xfdfd, s_i)
+
 #define FOREACH_SIMD_POST_MVP_OPCODE(V) \
   V(I8x16Mul, 0xfd75, s_ss)             \
   V(I8x16BitMask, 0xfd64, i_s)          \
   V(I16x8BitMask, 0xfd84, i_s)          \
   V(I32x4BitMask, 0xfda4, i_s)          \
-  V(S1x2AnyTrue, 0xfdc2, i_s)           \
-  V(S1x2AllTrue, 0xfdc3, i_s)           \
+  V(V64x2AnyTrue, 0xfdc2, i_s)          \
+  V(V64x2AllTrue, 0xfdc3, i_s)          \
   V(I64x2Eq, 0xfdc0, s_ss)              \
   V(I64x2Ne, 0xfdc4, s_ss)              \
   V(I64x2LtS, 0xfdc5, s_ss)             \
@@ -453,21 +463,30 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64x2GeU, 0xfdd0, s_ss)             \
   V(I64x2MinS, 0xfdd6, s_ss)            \
   V(I64x2MinU, 0xfdd7, s_ss)            \
-  V(I64x2MaxS, 0xfdd8, s_ss)            \
-  V(I64x2MaxU, 0xfdd9, s_ss)            \
-  V(F32x4Qfma, 0xfdfc, s_sss)           \
-  V(F32x4Qfms, 0xfdfd, s_sss)           \
+  V(I64x2MaxS, 0xfde2, s_ss)            \
+  V(I64x2MaxU, 0xfdee, s_ss)            \
+  V(F32x4Qfma, 0xfdb4, s_sss)           \
+  V(F32x4Qfms, 0xfdd4, s_sss)           \
   V(F64x2Qfma, 0xfdfe, s_sss)           \
   V(F64x2Qfms, 0xfdff, s_sss)           \
   V(I16x8AddHoriz, 0xfdaf, s_ss)        \
   V(I32x4AddHoriz, 0xfdb0, s_ss)        \
+  V(I32x4DotI16x8S, 0xfdba, s_ss)       \
   V(F32x4AddHoriz, 0xfdb2, s_ss)        \
   V(F32x4RecipApprox, 0xfdb3, s_s)      \
-  V(F32x4RecipSqrtApprox, 0xfdba, s_s)  \
-  V(F32x4Pmin, 0xfdda, s_ss)            \
-  V(F32x4Pmax, 0xfddb, s_ss)            \
-  V(F64x2Pmin, 0xfddc, s_ss)            \
-  V(F64x2Pmax, 0xfddd, s_ss)
+  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)  \
+  V(F32x4Pmin, 0xfdea, s_ss)            \
+  V(F32x4Pmax, 0xfdeb, s_ss)            \
+  V(F32x4Ceil, 0xfdd8, s_s)             \
+  V(F32x4Floor, 0xfdd9, s_s)            \
+  V(F32x4Trunc, 0xfdda, s_s)            \
+  V(F32x4NearestInt, 0xfddb, s_s)       \
+  V(F64x2Pmin, 0xfdf6, s_ss)            \
+  V(F64x2Pmax, 0xfdf7, s_ss)            \
+  V(F64x2Ceil, 0xfddc, s_s)             \
+  V(F64x2Floor, 0xfddd, s_s)            \
+  V(F64x2Trunc, 0xfdde, s_s)            \
+  V(F64x2NearestInt, 0xfddf, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   V(I8x16ExtractLaneS, 0xfd15, _)                \
@@ -495,25 +514,28 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
-#define FOREACH_NUMERIC_OPCODE(V)                                             \
-  V(I32SConvertSatF32, 0xfc00, i_f)                                           \
-  V(I32UConvertSatF32, 0xfc01, i_f)                                           \
-  V(I32SConvertSatF64, 0xfc02, i_d)                                           \
-  V(I32UConvertSatF64, 0xfc03, i_d)                                           \
-  V(I64SConvertSatF32, 0xfc04, l_f)                                           \
-  V(I64UConvertSatF32, 0xfc05, l_f)                                           \
-  V(I64SConvertSatF64, 0xfc06, l_d)                                           \
-  V(I64UConvertSatF64, 0xfc07, l_d)                                           \
-  V(MemoryInit, 0xfc08, v_iii)                                                \
-  V(DataDrop, 0xfc09, v_v)                                                    \
-  V(MemoryCopy, 0xfc0a, v_iii)                                                \
-  V(MemoryFill, 0xfc0b, v_iii)                                                \
-  V(TableInit, 0xfc0c, v_iii)                                                 \
-  V(ElemDrop, 0xfc0d, v_v)                                                    \
-  V(TableCopy, 0xfc0e, v_iii)                                                 \
-  V(TableGrow, 0xfc0f, i_ai)                                                  \
-  V(TableSize, 0xfc10, i_v)                                                   \
-  /*TableFill is polymorph in the second parameter. It's anyref or funcref.*/ \
+#define FOREACH_NUMERIC_OPCODE(V)                         \
+  V(I32SConvertSatF32, 0xfc00, i_f)                       \
+  V(I32UConvertSatF32, 0xfc01, i_f)                       \
+  V(I32SConvertSatF64, 0xfc02, i_d)                       \
+  V(I32UConvertSatF64, 0xfc03, i_d)                       \
+  V(I64SConvertSatF32, 0xfc04, l_f)                       \
+  V(I64UConvertSatF32, 0xfc05, l_f)                       \
+  V(I64SConvertSatF64, 0xfc06, l_d)                       \
+  V(I64UConvertSatF64, 0xfc07, l_d)                       \
+  V(MemoryInit, 0xfc08, v_iii)                            \
+  V(DataDrop, 0xfc09, v_v)                                \
+  V(MemoryCopy, 0xfc0a, v_iii)                            \
+  V(MemoryFill, 0xfc0b, v_iii)                            \
+  V(TableInit, 0xfc0c, v_iii)                             \
+  V(ElemDrop, 0xfc0d, v_v)                                \
+  V(TableCopy, 0xfc0e, v_iii)                             \
+  /* TableGrow is polymorphic in the first parameter. */  \
+  /* It's whatever the table type is. */                  \
+  V(TableGrow, 0xfc0f, i_ci)                              \
+  V(TableSize, 0xfc10, i_v)                               \
+  /* TableFill is polymorphic in the second parameter. */ \
+  /* It's whatever the table type is. */                  \
   V(TableFill, 0xfc11, v_iii)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
@@ -584,18 +606,14 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64AtomicCompareExchange16U, 0xfe4d, l_ill) \
   V(I64AtomicCompareExchange32U, 0xfe4e, l_ill)
 
-// Opcode values are guesswork for now, see:
-// https://docs.google.com/document/d/1DklC3qVuOdLHSXB5UXghM_syCh-4cMinQ50ICiXnK3Q/edit
 #define FOREACH_GC_OPCODE(V)     \
-  V(StructNew, 0xfb00, _)        \
-  V(StructNewSub, 0xfb01, _)     \
+  V(StructNewWithRtt, 0xfb01, _) \
   V(StructNewDefault, 0xfb02, _) \
   V(StructGet, 0xfb03, _)        \
   V(StructGetS, 0xfb04, _)       \
   V(StructGetU, 0xfb05, _)       \
   V(StructSet, 0xfb06, _)        \
-  V(ArrayNew, 0xfb10, _)         \
-  V(ArrayNewSub, 0xfb11, _)      \
+  V(ArrayNewWithRtt, 0xfb11, _)  \
   V(ArrayNewDefault, 0xfb12, _)  \
   V(ArrayGet, 0xfb13, _)         \
   V(ArrayGetS, 0xfb14, _)        \
@@ -605,7 +623,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I31New, 0xfb20, _)           \
   V(I31GetS, 0xfb21, _)          \
   V(I31GetU, 0xfb22, _)          \
-  V(RttGet, 0xfb30, _)           \
+  V(RttCanon, 0xfb30, _)         \
   V(RttSub, 0xfb31, _)           \
   V(RefTest, 0xfb40, _)          \
   V(RefCast, 0xfb41, _)          \
@@ -629,6 +647,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
   FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
   FOREACH_SIMD_MEM_OPCODE(V)          \
+  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
+  FOREACH_SIMD_CONST_OPCODE(V)        \
   FOREACH_ATOMIC_OPCODE(V)            \
   FOREACH_ATOMIC_0_OPERAND_OPCODE(V)  \
   FOREACH_NUMERIC_OPCODE(V)           \
@@ -674,9 +694,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
-  V(i_r, kWasmI32, kWasmAnyRef)                     \
-  V(i_ai, kWasmI32, kWasmFuncRef, kWasmI32)         \
-  V(i_rr, kWasmI32, kWasmEqRef, kWasmEqRef)
+  V(i_e, kWasmI32, kWasmExternRef)                  \
+  V(i_ci, kWasmI32, kWasmFuncRef, kWasmI32)         \
+  V(i_qq, kWasmI32, kWasmEqRef, kWasmEqRef)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \
@@ -716,62 +736,145 @@ enum TrapReason {
 // A collection of opcode-related static methods.
 class V8_EXPORT_PRIVATE WasmOpcodes {
  public:
-  static const char* OpcodeName(WasmOpcode);
-  static const FunctionSig* Signature(WasmOpcode);
-  static const FunctionSig* AsmjsSignature(WasmOpcode);
-  static bool IsPrefixOpcode(WasmOpcode);
-  static bool IsControlOpcode(WasmOpcode);
-  static bool IsAnyRefOpcode(WasmOpcode);
-  static bool IsThrowingOpcode(WasmOpcode);
-  static bool IsSimdPostMvpOpcode(WasmOpcode);
+  static constexpr const char* OpcodeName(WasmOpcode);
+  static constexpr const FunctionSig* Signature(WasmOpcode);
+  static constexpr const FunctionSig* AsmjsSignature(WasmOpcode);
+  static constexpr bool IsPrefixOpcode(WasmOpcode);
+  static constexpr bool IsControlOpcode(WasmOpcode);
+  static constexpr bool IsExternRefOpcode(WasmOpcode);
+  static constexpr bool IsThrowingOpcode(WasmOpcode);
+  static constexpr bool IsSimdPostMvpOpcode(WasmOpcode);
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.
-  static bool IsUnconditionalJump(WasmOpcode);
-  static bool IsBreakable(WasmOpcode);
+  static constexpr bool IsUnconditionalJump(WasmOpcode);
+  static constexpr bool IsBreakable(WasmOpcode);
 
-  static MessageTemplate TrapReasonToMessageId(TrapReason);
-  static const char* TrapReasonMessage(TrapReason);
+  static constexpr MessageTemplate TrapReasonToMessageId(TrapReason);
+  static inline const char* TrapReasonMessage(TrapReason);
 };
 
 // Representation of an initializer expression.
-struct WasmInitExpr {
-  enum WasmInitKind {
+class WasmInitExpr {
+ public:
+  enum Operator {
     kNone,
-    kGlobalIndex,
+    kGlobalGet,
     kI32Const,
     kI64Const,
     kF32Const,
     kF64Const,
+    kS128Const,
     kRefNullConst,
     kRefFuncConst,
-  } kind;
+    kRttCanon,
+    kRttSub
+  };
 
-  union {
+  union Immediate {
     int32_t i32_const;
     int64_t i64_const;
     float f32_const;
     double f64_const;
-    uint32_t global_index;
-    uint32_t function_index;
-  } val;
+    std::array<uint8_t, kSimd128Size> s128_const;
+    uint32_t index;
+    HeapType::Representation heap_type;
+  };
 
-  WasmInitExpr() : kind(kNone) {}
-  explicit WasmInitExpr(int32_t v) : kind(kI32Const) { val.i32_const = v; }
-  explicit WasmInitExpr(int64_t v) : kind(kI64Const) { val.i64_const = v; }
-  explicit WasmInitExpr(float v) : kind(kF32Const) { val.f32_const = v; }
-  explicit WasmInitExpr(double v) : kind(kF64Const) { val.f64_const = v; }
-  WasmInitExpr(WasmInitKind kind, uint32_t index) : kind(kind) {
-    if (kind == kGlobalIndex) {
-      val.global_index = index;
-    } else if (kind == kRefFuncConst) {
-      val.function_index = index;
-    } else if (kind == kRefNullConst) {
-      // Nothing to do.
-    } else {
-      // For the other types, the other initializers should be used.
-      UNREACHABLE();
+  WasmInitExpr() : kind_(kNone) { immediate_.i32_const = 0; }
+  explicit WasmInitExpr(int32_t v) : kind_(kI32Const) {
+    immediate_.i32_const = v;
+  }
+  explicit WasmInitExpr(int64_t v) : kind_(kI64Const) {
+    immediate_.i64_const = v;
+  }
+  explicit WasmInitExpr(float v) : kind_(kF32Const) {
+    immediate_.f32_const = v;
+  }
+  explicit WasmInitExpr(double v) : kind_(kF64Const) {
+    immediate_.f64_const = v;
+  }
+  explicit WasmInitExpr(uint8_t v[kSimd128Size]) : kind_(kS128Const) {
+    memcpy(immediate_.s128_const.data(), v, kSimd128Size);
+  }
+
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInitExpr);
+
+  static WasmInitExpr GlobalGet(uint32_t index) {
+    WasmInitExpr expr;
+    expr.kind_ = kGlobalGet;
+    expr.immediate_.index = index;
+    return expr;
+  }
+
+  static WasmInitExpr RefFuncConst(uint32_t index) {
+    WasmInitExpr expr;
+    expr.kind_ = kRefFuncConst;
+    expr.immediate_.index = index;
+    return expr;
+  }
+
+  static WasmInitExpr RefNullConst(HeapType::Representation heap_type) {
+    WasmInitExpr expr;
+    expr.kind_ = kRefNullConst;
+    expr.immediate_.heap_type = heap_type;
+    return expr;
+  }
+
+  static WasmInitExpr RttCanon(HeapType::Representation heap_type) {
+    WasmInitExpr expr;
+    expr.kind_ = kRttCanon;
+    expr.immediate_.heap_type = heap_type;
+    return expr;
+  }
+
+  static WasmInitExpr RttSub(HeapType::Representation heap_type,
+                             WasmInitExpr supertype) {
+    WasmInitExpr expr;
+    expr.kind_ = kRttSub;
+    expr.immediate_.heap_type = heap_type;
+    expr.operand_ = std::make_unique<WasmInitExpr>(std::move(supertype));
+    return expr;
+  }
+
+  Immediate immediate() const { return immediate_; }
+  Operator kind() const { return kind_; }
+  WasmInitExpr* operand() const { return operand_.get(); }
+
+  bool operator==(const WasmInitExpr& other) const {
+    if (kind() != other.kind()) return false;
+    switch (kind()) {
+      case kNone:
+        return true;
+      case kGlobalGet:
+      case kRefFuncConst:
+        return immediate().index == other.immediate().index;
+      case kI32Const:
+        return immediate().i32_const == other.immediate().i32_const;
+      case kI64Const:
+        return immediate().i64_const == other.immediate().i64_const;
+      case kF32Const:
+        return immediate().f32_const == other.immediate().f32_const;
+      case kF64Const:
+        return immediate().f64_const == other.immediate().f64_const;
+      case kS128Const:
+        return immediate().s128_const == other.immediate().s128_const;
+      case kRefNullConst:
+      case kRttCanon:
+        return immediate().heap_type == other.immediate().heap_type;
+      case kRttSub:
+        return immediate().heap_type == other.immediate().heap_type &&
+               *operand() == *other.operand();
     }
   }
+
+  V8_INLINE bool operator!=(const WasmInitExpr& other) {
+    return !(*this == other);
+  }
+
+ private:
+  Immediate immediate_;
+  Operator kind_;
+  std::unique_ptr<WasmInitExpr> operand_ = nullptr;
 };
 
 }  // namespace wasm

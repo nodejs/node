@@ -228,10 +228,6 @@ void GCTracer::Start(GarbageCollector collector,
   if (start_counter_ != 1) return;
 
   previous_ = current_;
-  double start_time = heap_->MonotonicallyIncreasingTimeInMs();
-  SampleAllocation(start_time, heap_->NewSpaceAllocationCounter(),
-                   heap_->OldGenerationAllocationCounter(),
-                   heap_->EmbedderAllocationCounter());
 
   switch (collector) {
     case SCAVENGER:
@@ -252,7 +248,7 @@ void GCTracer::Start(GarbageCollector collector,
   }
 
   current_.reduce_memory = heap_->ShouldReduceMemory();
-  current_.start_time = start_time;
+  current_.start_time = heap_->MonotonicallyIncreasingTimeInMs();
   current_.start_object_size = 0;
   current_.start_memory_size = 0;
   current_.start_holes_size = 0;
@@ -281,6 +277,10 @@ void GCTracer::Start(GarbageCollector collector,
 }
 
 void GCTracer::StartInSafepoint() {
+  SampleAllocation(current_.start_time, heap_->NewSpaceAllocationCounter(),
+                   heap_->OldGenerationAllocationCounter(),
+                   heap_->EmbedderAllocationCounter());
+
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
@@ -566,6 +566,7 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
+          "stop_the_world=%.2f "
           "heap.prologue=%.2f "
           "heap.epilogue=%.2f "
           "heap.epilogue.reduce_new_space=%.2f "
@@ -609,7 +610,8 @@ void GCTracer::PrintNVP() const {
           "unmapper_chunks=%d "
           "context_disposal_rate=%.1f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::HEAP_PROLOGUE],
+          current_.reduce_memory, current_.scopes[Scope::STOP_THE_WORLD],
+          current_.scopes[Scope::HEAP_PROLOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],
           current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
@@ -657,6 +659,7 @@ void GCTracer::PrintNVP() const {
           "reduce_memory=%d "
           "minor_mc=%.2f "
           "finish_sweeping=%.2f "
+          "stop_the_world=%.2f "
           "mark=%.2f "
           "mark.seed=%.2f "
           "mark.roots=%.2f "
@@ -681,6 +684,7 @@ void GCTracer::PrintNVP() const {
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
           current_.scopes[Scope::MINOR_MC],
           current_.scopes[Scope::MINOR_MC_SWEEPING],
+          current_.scopes[Scope::STOP_THE_WORLD],
           current_.scopes[Scope::MINOR_MC_MARK],
           current_.scopes[Scope::MINOR_MC_MARK_SEED],
           current_.scopes[Scope::MINOR_MC_MARK_ROOTS],
@@ -711,6 +715,7 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
+          "stop_the_world=%.2f "
           "heap.prologue=%.2f "
           "heap.embedder_tracing_epilogue=%.2f "
           "heap.epilogue=%.2f "
@@ -805,7 +810,8 @@ void GCTracer::PrintNVP() const {
           "context_disposal_rate=%.1f "
           "compaction_speed=%.f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::HEAP_PROLOGUE],
+          current_.reduce_memory, current_.scopes[Scope::STOP_THE_WORLD],
+          current_.scopes[Scope::HEAP_PROLOGUE],
           current_.scopes[Scope::HEAP_EMBEDDER_TRACING_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],

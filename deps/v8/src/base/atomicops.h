@@ -65,6 +65,8 @@ using AtomicWord = intptr_t;
 // I.e. replace |*ptr| with |new_value| if |*ptr| used to be |old_value|.
 // Always return the value of |*ptr| before the operation.
 // Acquire, Relaxed, Release correspond to standard C++ memory orders.
+Atomic8 Relaxed_CompareAndSwap(volatile Atomic8* ptr, Atomic8 old_value,
+                               Atomic8 new_value);
 Atomic16 Relaxed_CompareAndSwap(volatile Atomic16* ptr, Atomic16 old_value,
                                 Atomic16 new_value);
 Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr, Atomic32 old_value,

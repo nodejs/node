@@ -208,7 +208,7 @@ SamplingEventsProcessor::ProcessOneSample() {
       (record1.order == last_processed_code_event_id_)) {
     TickSampleEventRecord record;
     ticks_from_vm_buffer_.Dequeue(&record);
-    generator_->RecordTickSample(record.sample);
+    generator_->SymbolizeTickSample(record.sample);
     return OneSampleProcessed;
   }
 
@@ -220,7 +220,7 @@ SamplingEventsProcessor::ProcessOneSample() {
   if (record->order != last_processed_code_event_id_) {
     return FoundSampleForNextCodeEvent;
   }
-  generator_->RecordTickSample(record->sample);
+  generator_->SymbolizeTickSample(record->sample);
   ticks_buffer_.Remove();
   return OneSampleProcessed;
 }

@@ -15,7 +15,7 @@
 namespace v8 {
 class CpuProfiler;
 class Isolate;
-}
+}  // namespace v8
 
 namespace v8_inspector {
 

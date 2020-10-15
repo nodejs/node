@@ -32,6 +32,7 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category("v8.console"),
     perfetto::Category("v8.execute"),
     perfetto::Category("v8.runtime"),
+    perfetto::Category("v8.wasm"),
     perfetto::Category::Group("devtools.timeline,v8"),
     perfetto::Category::Group("devtools.timeline,"
                               TRACE_DISABLED_BY_DEFAULT("v8.gc")),
@@ -39,7 +40,6 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.compile")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats")),
@@ -47,10 +47,11 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.turbofan")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.wasm")),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed")),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats")),
     perfetto::Category::Group("v8,devtools.timeline"),
     perfetto::Category::Group(TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","
-                              TRACE_DISABLED_BY_DEFAULT("v8.wasm")));
+                              TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed")));
 // clang-format on
 
 #endif  // defined(V8_USE_PERFETTO)

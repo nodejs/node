@@ -9,6 +9,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/execution/frames-inl.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-arguments.h"
@@ -33,15 +34,15 @@ static bool CheckSignature(ValueType return_type,
                            const FunctionSig* sig, ErrorThrower* thrower) {
   if (sig->return_count() != 1 && return_type != kWasmBottom) {
     thrower->CompileError("Invalid return type. Got none, expected %s",
-                          return_type.type_name());
+                          return_type.name().c_str());
     return false;
   }
 
   if (sig->return_count() == 1) {
     if (sig->GetReturn(0) != return_type) {
       thrower->CompileError("Invalid return type. Got %s, expected %s",
-                            sig->GetReturn(0).type_name(),
-                            return_type.type_name());
+                            sig->GetReturn(0).name().c_str(),
+                            return_type.name().c_str());
       return false;
     }
   }
@@ -56,7 +57,7 @@ static bool CheckSignature(ValueType return_type,
     if (sig->GetParam(p) != argument_type) {
       thrower->CompileError(
           "Invalid argument type for argument %zu. Got %s, expected %s", p,
-          sig->GetParam(p).type_name(), argument_type.type_name());
+          sig->GetParam(p).name().c_str(), argument_type.name().c_str());
       return false;
     }
     ++p;
@@ -122,55 +123,71 @@ class DebugEvaluatorProxy {
   }
 
   static void SbrkTrampoline(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    auto& proxy = GetProxy(args);
+    DebugEvaluatorProxy& proxy = GetProxy(args);
     uint32_t size = proxy.GetArgAsUInt32(args, 0);
 
     uint32_t result = proxy.Sbrk(size);
     args.GetReturnValue().Set(result);
   }
 
-  template <typename T>
-  void write_result(const WasmValue& result, uint32_t result_offset) {
-    wasm::ScheduledErrorThrower thrower(isolate_, "debug evaluate proxy");
-    T val = result.to<T>();
-    static_assert(static_cast<uint32_t>(sizeof(T)) == sizeof(T),
-                  "Unexpected size");
-    if (CheckRangeOutOfBounds(result_offset, sizeof(T),
-                              evaluator_->memory_size(), &thrower)) {
-      return;
-    }
-    memcpy(&evaluator_->memory_start()[result_offset], &val, sizeof(T));
-  }
-
   // void __getLocal(uint32_t local,  void* result);
   void GetLocal(uint32_t local, uint32_t result_offset) {
-    WasmValue result = LoadLocalValue(local);
+    DCHECK(frame_->is_wasm());
+    wasm::DebugInfo* debug_info =
+        WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
+    WasmValue result = debug_info->GetLocalValue(
+        local, frame_->pc(), frame_->fp(), frame_->callee_fp());
+    WriteResult(result, result_offset);
+  }
 
-    switch (result.type().kind()) {
-      case ValueType::kI32:
-        write_result<uint32_t>(result, result_offset);
-        break;
-      case ValueType::kI64:
-        write_result<int64_t>(result, result_offset);
-        break;
-      case ValueType::kF32:
-        write_result<float>(result, result_offset);
-        break;
-      case ValueType::kF64:
-        write_result<double>(result, result_offset);
-        break;
-      default:
-        UNIMPLEMENTED();
-    }
+  void GetGlobal(uint32_t global, uint32_t result_offset) {
+    DCHECK(frame_->is_wasm());
+
+    const WasmGlobal& global_variable =
+        WasmFrame::cast(frame_)->native_module()->module()->globals.at(global);
+
+    Handle<WasmInstanceObject> instance(
+        WasmFrame::cast(frame_)->wasm_instance(), isolate_);
+    WasmValue result =
+        WasmInstanceObject::GetGlobalValue(instance, global_variable);
+    WriteResult(result, result_offset);
+  }
+
+  void GetOperand(uint32_t operand, uint32_t result_offset) {
+    DCHECK(frame_->is_wasm());
+    wasm::DebugInfo* debug_info =
+        WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
+    WasmValue result = debug_info->GetStackValue(
+        operand, frame_->pc(), frame_->fp(), frame_->callee_fp());
+
+    WriteResult(result, result_offset);
   }
 
   static void GetLocalTrampoline(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
-    auto& proxy = GetProxy(args);
+    DebugEvaluatorProxy& proxy = GetProxy(args);
     uint32_t local = proxy.GetArgAsUInt32(args, 0);
     uint32_t result = proxy.GetArgAsUInt32(args, 1);
 
     proxy.GetLocal(local, result);
+  }
+
+  static void GetGlobalTrampoline(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    DebugEvaluatorProxy& proxy = GetProxy(args);
+    uint32_t global = proxy.GetArgAsUInt32(args, 0);
+    uint32_t result = proxy.GetArgAsUInt32(args, 1);
+
+    proxy.GetGlobal(global, result);
+  }
+
+  static void GetOperandTrampoline(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    DebugEvaluatorProxy& proxy = GetProxy(args);
+    uint32_t operand = proxy.GetArgAsUInt32(args, 0);
+    uint32_t result = proxy.GetArgAsUInt32(args, 1);
+
+    proxy.GetOperand(operand, result);
   }
 
   Handle<JSObject> CreateImports() {
@@ -182,6 +199,10 @@ class DebugEvaluatorProxy {
                         import_module_obj)
         .Assert();
 
+    AddImport(import_module_obj, "__getOperand",
+              DebugEvaluatorProxy::GetOperandTrampoline);
+    AddImport(import_module_obj, "__getGlobal",
+              DebugEvaluatorProxy::GetGlobalTrampoline);
     AddImport(import_module_obj, "__getLocal",
               DebugEvaluatorProxy::GetLocalTrampoline);
     AddImport(import_module_obj, "__getMemory",
@@ -198,12 +219,35 @@ class DebugEvaluatorProxy {
   }
 
  private:
-  WasmValue LoadLocalValue(uint32_t local) {
-    DCHECK(frame_->is_wasm());
-    wasm::DebugInfo* debug_info =
-        WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
-    return debug_info->GetLocalValue(local, isolate_, frame_->pc(),
-                                     frame_->fp(), frame_->callee_fp());
+  template <typename T>
+  void WriteResultImpl(const WasmValue& result, uint32_t result_offset) {
+    wasm::ScheduledErrorThrower thrower(isolate_, "debug evaluate proxy");
+    T val = result.to<T>();
+    STATIC_ASSERT(static_cast<uint32_t>(sizeof(T)) == sizeof(T));
+    if (CheckRangeOutOfBounds(result_offset, sizeof(T),
+                              evaluator_->memory_size(), &thrower)) {
+      return;
+    }
+    memcpy(&evaluator_->memory_start()[result_offset], &val, sizeof(T));
+  }
+
+  void WriteResult(const WasmValue& result, uint32_t result_offset) {
+    switch (result.type().kind()) {
+      case ValueType::kI32:
+        WriteResultImpl<uint32_t>(result, result_offset);
+        break;
+      case ValueType::kI64:
+        WriteResultImpl<int64_t>(result, result_offset);
+        break;
+      case ValueType::kF32:
+        WriteResultImpl<float>(result, result_offset);
+        break;
+      case ValueType::kF64:
+        WriteResultImpl<double>(result, result_offset);
+        break;
+      default:
+        UNIMPLEMENTED();
+    }
   }
 
   uint32_t GetArgAsUInt32(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -231,7 +275,7 @@ class DebugEvaluatorProxy {
                           v8::External::New(api_isolate, this))
             .ToLocalChecked();
 
-    auto wrapped_function = Utils::OpenHandle(*v8_function);
+    Handle<JSReceiver> wrapped_function = Utils::OpenHandle(*v8_function);
 
     Object::SetProperty(isolate_, import_module_obj,
                         V8String(isolate_, function_name), wrapped_function)
@@ -260,6 +304,16 @@ static bool VerifyEvaluatorInterface(const WasmModule* raw_module,
         // void __getMemory(uint32_t offset, uint32_t size, void* result);
         if (CheckSignature(kWasmBottom, {kWasmI32, kWasmI32, kWasmI32}, F.sig,
                            thrower)) {
+          continue;
+        }
+      } else if (field_name == "__getOperand") {
+        // void __getOperand(uint32_t local,  void* result)
+        if (CheckSignature(kWasmBottom, {kWasmI32, kWasmI32}, F.sig, thrower)) {
+          continue;
+        }
+      } else if (field_name == "__getGlobal") {
+        // void __getGlobal(uint32_t local,  void* result)
+        if (CheckSignature(kWasmBottom, {kWasmI32, kWasmI32}, F.sig, thrower)) {
           continue;
         }
       } else if (field_name == "__getLocal") {
@@ -350,10 +404,10 @@ Maybe<std::string> DebugEvaluateImpl(
   Handle<WasmExportedFunction> entry_point =
       Handle<WasmExportedFunction>::cast(entry_point_obj);
 
-  Handle<WasmDebugInfo> debug_info =
-      WasmInstanceObject::GetOrCreateDebugInfo(evaluator_instance);
+  // TODO(wasm): Cache this code.
   Handle<Code> wasm_entry =
-      WasmDebugInfo::GetCWasmEntry(debug_info, entry_point->sig());
+      compiler::CompileCWasmEntry(isolate, entry_point->sig());
+
   CWasmArgumentsPacker packer(4 /* uint32_t return value, no parameters. */);
   Execution::CallWasm(isolate, wasm_entry, entry_point->GetWasmCallTarget(),
                       evaluator_instance, packer.argv());

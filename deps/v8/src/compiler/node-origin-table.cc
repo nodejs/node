@@ -47,7 +47,7 @@ NodeOriginTable::NodeOriginTable(Graph* graph)
 
 void NodeOriginTable::AddDecorator() {
   DCHECK_NULL(decorator_);
-  decorator_ = new (graph_->zone()) Decorator(this);
+  decorator_ = graph_->zone()->New<Decorator>(this);
   graph_->AddDecorator(decorator_);
 }
 

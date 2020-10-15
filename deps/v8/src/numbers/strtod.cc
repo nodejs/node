@@ -33,7 +33,7 @@ static const int kMaxDecimalPower = 309;
 static const int kMinDecimalPower = -324;
 
 // 2^64 = 18446744073709551616
-static const uint64_t kMaxUint64 = V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF);
+static const uint64_t kMaxUint64 = 0xFFFF'FFFF'FFFF'FFFF;
 
 // clang-format off
 static const double exact_powers_of_ten[] = {
@@ -210,19 +210,19 @@ static DiyFp AdjustmentPowerOfTen(int exponent) {
   DCHECK_EQ(PowersOfTenCache::kDecimalExponentDistance, 8);
   switch (exponent) {
     case 1:
-      return DiyFp(V8_2PART_UINT64_C(0xA0000000, 00000000), -60);
+      return DiyFp(0xA000'0000'0000'0000, -60);
     case 2:
-      return DiyFp(V8_2PART_UINT64_C(0xC8000000, 00000000), -57);
+      return DiyFp(0xC800'0000'0000'0000, -57);
     case 3:
-      return DiyFp(V8_2PART_UINT64_C(0xFA000000, 00000000), -54);
+      return DiyFp(0xFA00'0000'0000'0000, -54);
     case 4:
-      return DiyFp(V8_2PART_UINT64_C(0x9C400000, 00000000), -50);
+      return DiyFp(0x9C40'0000'0000'0000, -50);
     case 5:
-      return DiyFp(V8_2PART_UINT64_C(0xC3500000, 00000000), -47);
+      return DiyFp(0xC350'0000'0000'0000, -47);
     case 6:
-      return DiyFp(V8_2PART_UINT64_C(0xF4240000, 00000000), -44);
+      return DiyFp(0xF424'0000'0000'0000, -44);
     case 7:
-      return DiyFp(V8_2PART_UINT64_C(0x98968000, 00000000), -40);
+      return DiyFp(0x9896'8000'0000'0000, -40);
     default:
       UNREACHABLE();
   }

@@ -240,7 +240,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
     if (IsDoubleElementsKind(from_kind) != IsDoubleElementsKind(to_kind)) {
       TNode<IntPtrT> capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
       GrowElementsCapacity(receiver, elements, from_kind, to_kind, capacity,
-                           capacity, INTPTR_PARAMETERS, bailout);
+                           capacity, bailout);
     }
     StoreMap(receiver, var_target_map.value());
   }

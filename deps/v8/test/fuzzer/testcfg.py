@@ -32,6 +32,8 @@ class TestLoader(testsuite.GenericTestLoader):
   def _to_relpath(self, abspath, _):
     return os.path.relpath(abspath, self.suite.root)
 
+  def _should_filter_by_name(self, _):
+    return False
 
 class TestSuite(testsuite.TestSuite):
   def _test_loader_class(self):

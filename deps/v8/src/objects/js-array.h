@@ -30,6 +30,7 @@ class JSArray : public JSObject {
   // is set to a smi. This matches the set function on FixedArray.
   inline void set_length(Smi length);
 
+  static bool MayHaveReadOnlyLength(Map js_array_map);
   static bool HasReadOnlyLength(Handle<JSArray> array);
   static bool WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index);
 

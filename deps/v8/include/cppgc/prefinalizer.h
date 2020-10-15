@@ -5,11 +5,9 @@
 #ifndef INCLUDE_CPPGC_PREFINALIZER_H_
 #define INCLUDE_CPPGC_PREFINALIZER_H_
 
-#include "cppgc/internal/accessors.h"
 #include "cppgc/internal/compiler-specific.h"
 #include "cppgc/internal/prefinalizer-handler.h"
 #include "cppgc/liveness-broker.h"
-#include "cppgc/macros.h"
 
 namespace cppgc {
 
@@ -23,7 +21,7 @@ class PrefinalizerRegistration final {
                   "USING_PRE_FINALIZER(T) must be defined.");
 
     cppgc::internal::PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
-        internal::GetHeapFromPayload(self), {self, T::InvokePreFinalizer});
+        {self, T::InvokePreFinalizer});
   }
 
   void* operator new(size_t, void* location) = delete;
@@ -32,22 +30,22 @@ class PrefinalizerRegistration final {
 
 }  // namespace internal
 
-#define CPPGC_USING_PRE_FINALIZER(Class, PreFinalizer)                      \
- public:                                                                    \
-  static bool InvokePreFinalizer(const LivenessBroker& liveness_broker,     \
-                                 void* object) {                            \
-    static_assert(internal::IsGarbageCollectedTypeV<Class>,                 \
-                  "Only garbage collected objects can have prefinalizers"); \
-    Class* self = static_cast<Class*>(object);                              \
-    if (liveness_broker.IsHeapObjectAlive(self)) return false;              \
-    self->Class::PreFinalizer();                                            \
-    return true;                                                            \
-  }                                                                         \
-                                                                            \
- private:                                                                   \
-  CPPGC_NO_UNIQUE_ADDRESS internal::PrefinalizerRegistration<Class>         \
-      prefinalizer_dummy_{this};                                            \
-  friend class internal::__thisIsHereToForceASemicolonAfterThisMacro
+#define CPPGC_USING_PRE_FINALIZER(Class, PreFinalizer)                         \
+ public:                                                                       \
+  static bool InvokePreFinalizer(const cppgc::LivenessBroker& liveness_broker, \
+                                 void* object) {                               \
+    static_assert(cppgc::internal::IsGarbageCollectedTypeV<Class>,             \
+                  "Only garbage collected objects can have prefinalizers");    \
+    Class* self = static_cast<Class*>(object);                                 \
+    if (liveness_broker.IsHeapObjectAlive(self)) return false;                 \
+    self->Class::PreFinalizer();                                               \
+    return true;                                                               \
+  }                                                                            \
+                                                                               \
+ private:                                                                      \
+  CPPGC_NO_UNIQUE_ADDRESS cppgc::internal::PrefinalizerRegistration<Class>     \
+      prefinalizer_dummy_{this};                                               \
+  static_assert(true, "Force semicolon.")
 
 }  // namespace cppgc
 

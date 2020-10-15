@@ -31,7 +31,7 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
                                 State::kReadyToExecute),
         shared_(function->shared(), isolate),
         zone_(isolate->allocator(), ZONE_NAME),
-        info_(&zone_, isolate, shared_, function),
+        info_(&zone_, isolate, shared_, function, CodeKind::OPTIMIZED_FUNCTION),
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;

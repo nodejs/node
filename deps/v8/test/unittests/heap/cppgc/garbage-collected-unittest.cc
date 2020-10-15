@@ -6,7 +6,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/type-traits.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -16,16 +16,15 @@ namespace internal {
 
 namespace {
 
-class GCed : public GarbageCollected<GCed> {};
+class GCed : public GarbageCollected<GCed> {
+ public:
+  void Trace(Visitor*) const {}
+};
 class NotGCed {};
 class Mixin : public GarbageCollectedMixin {};
-class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
-};
+class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {};
 class OtherMixin : public GarbageCollectedMixin {};
 class MergedMixins : public Mixin, public OtherMixin {
-  MERGE_GARBAGE_COLLECTED_MIXINS();
-
  public:
   void Trace(cppgc::Visitor* visitor) const override {
     Mixin::Trace(visitor);
@@ -33,8 +32,6 @@ class MergedMixins : public Mixin, public OtherMixin {
   }
 };
 class GCWithMergedMixins : public GCed, public MergedMixins {
-  USING_GARBAGE_COLLECTED_MIXIN();
-
  public:
   void Trace(cppgc::Visitor* visitor) const override {
     MergedMixins::Trace(visitor);
@@ -67,15 +64,14 @@ TEST(GarbageCollectedTest, GarbageCollectedMixinTrait) {
 }
 
 TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCurrentAddress) {
-  GCed* gced = MakeGarbageCollected<GCed>(GetHeap());
+  GCed* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCedWithMixin* gced_with_mixin =
-      MakeGarbageCollected<GCedWithMixin>(GetHeap());
-  EXPECT_EQ(gced_with_mixin, static_cast<Mixin*>(gced_with_mixin)
-                                 ->GetTraceDescriptor()
-                                 .base_object_payload);
-  EXPECT_NE(gced, static_cast<Mixin*>(gced_with_mixin)
-                      ->GetTraceDescriptor()
-                      .base_object_payload);
+      MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
+  const void* base_object_payload = TraceTrait<Mixin>::GetTraceDescriptor(
+                                        static_cast<Mixin*>(gced_with_mixin))
+                                        .base_object_payload;
+  EXPECT_EQ(gced_with_mixin, base_object_payload);
+  EXPECT_NE(gced, base_object_payload);
 }
 
 namespace {
@@ -129,13 +125,14 @@ namespace internal {
 
 TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallback) {
   EXPECT_EQ(0u, GCedWithPostConstructionCallback::cb_callcount);
-  MakeGarbageCollected<GCedWithPostConstructionCallback>(GetHeap());
+  MakeGarbageCollected<GCedWithPostConstructionCallback>(GetAllocationHandle());
   EXPECT_EQ(1u, GCedWithPostConstructionCallback::cb_callcount);
 }
 
 TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallbackForMixin) {
   EXPECT_EQ(0u, MixinWithPostConstructionCallback::cb_callcount);
-  MakeGarbageCollected<GCedWithMixinWithPostConstructionCallback>(GetHeap());
+  MakeGarbageCollected<GCedWithMixinWithPostConstructionCallback>(
+      GetAllocationHandle());
   EXPECT_EQ(1u, MixinWithPostConstructionCallback::cb_callcount);
 }
 

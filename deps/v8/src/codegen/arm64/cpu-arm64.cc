@@ -9,6 +9,10 @@
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/codegen/cpu-features.h"
 
+#if V8_OS_MACOSX
+#include <libkern/OSCacheControl.h>
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -41,6 +45,8 @@ void CpuFeatures::FlushICache(void* address, size_t length) {
 #if defined(V8_HOST_ARCH_ARM64)
 #if defined(V8_OS_WIN)
   ::FlushInstructionCache(GetCurrentProcess(), address, length);
+#elif defined(V8_OS_MACOSX)
+  sys_icache_invalidate(address, length);
 #else
   // The code below assumes user space cache operations are allowed. The goal
   // of this routine is to make sure the code generated is visible to the I

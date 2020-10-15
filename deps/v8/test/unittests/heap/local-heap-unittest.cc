@@ -16,22 +16,68 @@ using LocalHeapTest = TestWithIsolate;
 TEST_F(LocalHeapTest, Initialize) {
   Heap* heap = i_isolate()->heap();
 
+  CHECK(!heap->safepoint()->ContainsAnyLocalHeap());
+
   {
-    LocalHeap lh1(heap);
-    CHECK(heap->safepoint()->ContainsLocalHeap(&lh1));
-    LocalHeap lh2(heap);
-    CHECK(heap->safepoint()->ContainsLocalHeap(&lh2));
-
-    {
-      LocalHeap lh3(heap);
-      CHECK(heap->safepoint()->ContainsLocalHeap(&lh3));
-    }
-
-    CHECK(heap->safepoint()->ContainsLocalHeap(&lh1));
-    CHECK(heap->safepoint()->ContainsLocalHeap(&lh2));
+    LocalHeap lh(heap);
+    CHECK(heap->safepoint()->ContainsLocalHeap(&lh));
   }
 
   CHECK(!heap->safepoint()->ContainsAnyLocalHeap());
+}
+
+TEST_F(LocalHeapTest, Current) {
+  Heap* heap = i_isolate()->heap();
+
+  CHECK_NULL(LocalHeap::Current());
+
+  {
+    LocalHeap lh(heap);
+    CHECK_EQ(&lh, LocalHeap::Current());
+  }
+
+  CHECK_NULL(LocalHeap::Current());
+
+  {
+    LocalHeap lh(heap);
+    CHECK_EQ(&lh, LocalHeap::Current());
+  }
+
+  CHECK_NULL(LocalHeap::Current());
+}
+
+namespace {
+class BackgroundThread final : public v8::base::Thread {
+ public:
+  explicit BackgroundThread(Heap* heap)
+      : v8::base::Thread(base::Thread::Options("BackgroundThread")),
+        heap_(heap) {}
+
+  void Run() override {
+    CHECK_NULL(LocalHeap::Current());
+    {
+      LocalHeap lh(heap_);
+      CHECK_EQ(&lh, LocalHeap::Current());
+    }
+    CHECK_NULL(LocalHeap::Current());
+  }
+
+  Heap* heap_;
+};
+}  // anonymous namespace
+
+TEST_F(LocalHeapTest, CurrentBackground) {
+  Heap* heap = i_isolate()->heap();
+  CHECK_NULL(LocalHeap::Current());
+  {
+    LocalHeap lh(heap);
+    auto thread = std::make_unique<BackgroundThread>(heap);
+    CHECK(thread->Start());
+    CHECK_EQ(&lh, LocalHeap::Current());
+    thread->Join();
+    CHECK_EQ(&lh, LocalHeap::Current());
+  }
+  CHECK_NULL(LocalHeap::Current());
 }
 
 }  // namespace internal

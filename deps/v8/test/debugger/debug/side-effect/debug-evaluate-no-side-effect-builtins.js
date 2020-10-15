@@ -144,12 +144,13 @@ function listener(event, exec_state, event_data, data) {
 
     // Test Math functions.
     for (f of Object.getOwnPropertyNames(Math)) {
-      if (typeof Math[f] === "function") {
+      if (f !== "random" && typeof Math[f] === "function") {
         var result = exec_state.frame(0).evaluate(
                          `Math.${f}(0.5, -0.5);`, true).value();
-        if (f != "random") assertEquals(Math[f](0.5, -0.5), result);
+        assertEquals(Math[f](0.5, -0.5), result);
       }
     }
+    fail("Math.random();");
 
     // Test Number functions.
     success(new Number(0), `new Number()`);
@@ -184,7 +185,7 @@ function listener(event, exec_state, event_data, data) {
         if (f == "match") continue;
         if (f == "matchAll") continue;
         if (f == "search") continue;
-        if (f == "split" || f == "replace") {
+        if (f == "split" || f == "replace" || f == "replaceAll") {
           fail(`'abcd'.${f}(2)`);
           continue;
         }

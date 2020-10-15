@@ -215,7 +215,7 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
 }
 
 void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_no_match) {
+    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
   ReadPositionFromRegister(rdx, start_reg);  // Offset of start of capture
   ReadPositionFromRegister(rbx, start_reg + 1);  // Offset of end of capture
@@ -354,7 +354,10 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
       // linter.
       AllowExternalCallThatCantCauseGC scope(&masm_);
       ExternalReference compare =
-          ExternalReference::re_case_insensitive_compare_uc16(isolate());
+          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
+                        isolate())
+                  : ExternalReference::re_case_insensitive_compare_non_unicode(
+                        isolate());
       __ CallCFunction(compare, num_arguments);
     }
 
@@ -1002,7 +1005,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   CodeDesc code_desc;
   Isolate* isolate = this->isolate();
   masm_.GetCode(isolate, &code_desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, Code::REGEXP)
+  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
                           .set_self_reference(masm_.CodeObject())
                           .Build();
   PROFILE(isolate,

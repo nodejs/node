@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
+#include "src/utils/scoped-list.h"
 #include "src/utils/vector.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone-containers.h"
@@ -138,8 +139,8 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
     void Finalize(Zone* zone);
 
     Handle<PreparseData> CopyToHeap(Isolate* isolate, int children_length);
-    Handle<PreparseData> CopyToOffThreadHeap(OffThreadIsolate* isolate,
-                                             int children_length);
+    Handle<PreparseData> CopyToLocalHeap(LocalIsolate* isolate,
+                                         int children_length);
     inline ZonePreparseData* CopyToZone(Zone* zone, int children_length);
 
     void Reserve(size_t bytes);
@@ -208,7 +209,7 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
   friend class BuilderProducedPreparseData;
 
   Handle<PreparseData> Serialize(Isolate* isolate);
-  Handle<PreparseData> Serialize(OffThreadIsolate* isolate);
+  Handle<PreparseData> Serialize(LocalIsolate* isolate);
   ZonePreparseData* Serialize(Zone* zone);
 
   void FinalizeChildren(Zone* zone);
@@ -254,7 +255,7 @@ class ProducedPreparseData : public ZoneObject {
   // If there is data (if the Scope contains skippable inner functions), move
   // the data into the heap and return a Handle to it; otherwise return a null
   // MaybeHandle.
-  virtual Handle<PreparseData> Serialize(OffThreadIsolate* isolate) = 0;
+  virtual Handle<PreparseData> Serialize(LocalIsolate* isolate) = 0;
 
   // If there is data (if the Scope contains skippable inner functions), return
   // an off-heap ZonePreparseData representing the data; otherwise

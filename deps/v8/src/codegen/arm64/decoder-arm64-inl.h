@@ -538,7 +538,6 @@ void Decoder<V>::DecodeFP(Instruction* instr) {
                   (instr->Mask(0x20C60000) == 0x00840000) ||
                   (instr->Mask(0xA0C60000) == 0x80060000) ||
                   (instr->Mask(0xA0C60000) == 0x00860000) ||
-                  (instr->Mask(0xA0C60000) == 0x00460000) ||
                   (instr->Mask(0xA0CE0000) == 0x80860000) ||
                   (instr->Mask(0xA0CE0000) == 0x804E0000) ||
                   (instr->Mask(0xA0CE0000) == 0x000E0000) ||

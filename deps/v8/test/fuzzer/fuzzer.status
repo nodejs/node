@@ -8,6 +8,7 @@
 ['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'multi_return/*': [SKIP],
+  'wasm/*': [SKIP],
   'wasm_async/*': [SKIP],
   'wasm_code/*': [SKIP],
   'wasm_compile/*': [SKIP],

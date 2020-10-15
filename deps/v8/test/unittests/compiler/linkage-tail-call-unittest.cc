@@ -23,11 +23,13 @@ MachineType kMachineTypes[] = {
 
 class LinkageTailCall : public TestWithZone {
  protected:
+  LinkageTailCall() : TestWithZone(kCompressGraphZone) {}
+
   CallDescriptor* NewStandardCallDescriptor(LocationSignature* locations) {
     DCHECK(arraysize(kMachineTypes) >=
            locations->return_count() + locations->parameter_count());
     USE(kMachineTypes);
-    return new (zone()) CallDescriptor(
+    return zone()->New<CallDescriptor>(
         CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
         LinkageLocation::ForAnyRegister(MachineType::Pointer()),
         locations,                 // location_sig

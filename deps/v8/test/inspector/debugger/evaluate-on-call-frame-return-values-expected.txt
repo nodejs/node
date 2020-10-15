@@ -108,14 +108,14 @@ Running test: testConsoleLog
                     functionName : eval
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url :
+                    url : 
                 }
                 [1] : {
                     columnNumber : 0
-                    functionName :
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url :
+                    url : 
                 }
             ]
         }
@@ -232,7 +232,7 @@ ReleaseObject with invalid params.
 {
     error : {
         code : -32602
-        data : objectId: string value expected
+        data : Failed to deserialize params.objectId - BINDINGS: mandatory field missing at <some position>
         message : Invalid parameters
     }
     id : <messageId>
@@ -299,7 +299,7 @@ ReleaseObjectGroup with invalid params
 {
     error : {
         code : -32602
-        data : objectGroup: string value expected
+        data : Failed to deserialize params.objectGroup - BINDINGS: mandatory field missing at <some position>
         message : Invalid parameters
     }
     id : <messageId>
@@ -327,7 +327,7 @@ Running test: testCallFrameIdTypeError
 {
     error : {
         code : -32602
-        data : callFrameId: string value expected
+        data : Failed to deserialize params.callFrameId - BINDINGS: string value expected at <some position>
         message : Invalid parameters
     }
     id : <messageId>
@@ -347,7 +347,7 @@ Running test: testNullExpression
 {
     error : {
         code : -32602
-        data : expression: string value expected
+        data : Failed to deserialize params.expression - BINDINGS: string value expected at <some position>
         message : Invalid parameters
     }
     id : <messageId>

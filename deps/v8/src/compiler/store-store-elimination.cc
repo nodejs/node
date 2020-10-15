@@ -143,8 +143,7 @@ class UnobservablesSet final {
   explicit UnobservablesSet(const SetT* set) : set_(set) {}
 
   static SetT* NewSet(Zone* zone) {
-    return new (zone->New(sizeof(UnobservablesSet::SetT)))
-        UnobservablesSet::SetT(zone, kNotPresent);
+    return zone->New<UnobservablesSet::SetT>(zone, kNotPresent);
   }
 
   static void SetAdd(SetT* set, const KeyT& key) { set->Set(key, kPresent); }
@@ -154,6 +153,11 @@ class UnobservablesSet final {
 
   const SetT* set_ = nullptr;
 };
+
+// These definitions are here in order to please the linker, which in debug mode
+// sometimes requires static constants to be defined in .cc files.
+constexpr UnobservablesSet::ValueT UnobservablesSet::kNotPresent;
+constexpr UnobservablesSet::ValueT UnobservablesSet::kPresent;
 
 class RedundantStoreFinder final {
  public:
@@ -239,7 +243,7 @@ void RedundantStoreFinder::Find() {
   Visit(jsgraph()->graph()->end());
 
   while (!revisit_.empty()) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     Node* next = revisit_.top();
     revisit_.pop();
     DCHECK_LT(next->id(), in_revisit_.size());
@@ -387,7 +391,7 @@ UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
     IrOpcode::Value opcode = node->opcode();
     // List of opcodes that may end this effect chain. The opcodes are not
     // important to the soundness of this optimization; this serves as a
-    // general sanity check. Add opcodes to this list as it suits you.
+    // general check. Add opcodes to this list as it suits you.
     //
     // Everything is observable after these opcodes; return the empty set.
     DCHECK_EXTRA(

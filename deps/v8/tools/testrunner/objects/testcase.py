@@ -161,6 +161,11 @@ class TestCase(object):
             statusfile.CRASH not in self._statusfile_outcomes)
 
   @property
+  def is_fail(self):
+     return (statusfile.FAIL in self._statusfile_outcomes and
+             statusfile.PASS not in self._statusfile_outcomes)
+
+  @property
   def only_standard_variant(self):
     return statusfile.NO_VARIANTS in self._statusfile_outcomes
 

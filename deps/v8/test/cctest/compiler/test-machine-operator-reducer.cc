@@ -78,7 +78,8 @@ class ReducerTester : public HandleAndZoneScope {
   explicit ReducerTester(int num_parameters = 0,
                          MachineOperatorBuilder::Flags flags =
                              MachineOperatorBuilder::kAllOptionalOps)
-      : isolate(main_isolate()),
+      : HandleAndZoneScope(kCompressGraphZone),
+        isolate(main_isolate()),
         binop(nullptr),
         unop(nullptr),
         machine(main_zone(), MachineType::PointerRepresentation(), flags),

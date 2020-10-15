@@ -64,6 +64,49 @@ void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
       masm->isolate()->builtins()->CallFunction());
 }
 
+TF_BUILTIN(Call_ReceiverIsNullOrUndefined_WithFeedback,
+           CallOrConstructBuiltinsAssembler) {
+  TNode<Object> target = CAST(Parameter(Descriptor::kFunction));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  CollectCallFeedback(target, context, maybe_feedback_vector,
+                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  TailCallBuiltin(Builtins::kCall_ReceiverIsNullOrUndefined, context, target,
+                  argc);
+}
+
+TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_WithFeedback,
+           CallOrConstructBuiltinsAssembler) {
+  TNode<Object> target = CAST(Parameter(Descriptor::kFunction));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  CollectCallFeedback(target, context, maybe_feedback_vector,
+                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  TailCallBuiltin(Builtins::kCall_ReceiverIsNotNullOrUndefined, context, target,
+                  argc);
+}
+
+TF_BUILTIN(Call_ReceiverIsAny_WithFeedback, CallOrConstructBuiltinsAssembler) {
+  TNode<Object> target = CAST(Parameter(Descriptor::kFunction));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  CollectCallFeedback(target, context, maybe_feedback_vector,
+                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  TailCallBuiltin(Builtins::kCall_ReceiverIsAny, context, target, argc);
+}
+
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<Object> target, base::Optional<TNode<Object>> new_target,
     TNode<Object> arguments_list, TNode<Context> context) {
@@ -387,6 +430,19 @@ TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
+TF_BUILTIN(CallWithArrayLike_WithFeedback, CallOrConstructBuiltinsAssembler) {
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  base::Optional<TNode<Object>> new_target = base::nullopt;
+  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  CollectCallFeedback(target, context, maybe_feedback_vector,
+                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
+}
+
 TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
   base::Optional<TNode<Object>> new_target = base::nullopt;
@@ -394,6 +450,21 @@ TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
   TNode<Int32T> args_count =
       UncheckedCast<Int32T>(Parameter(Descriptor::kArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  CallOrConstructWithSpread(target, new_target, spread, args_count, context);
+}
+
+TF_BUILTIN(CallWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  base::Optional<TNode<Object>> new_target = base::nullopt;
+  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
+  TNode<Int32T> args_count =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  CollectCallFeedback(target, context, maybe_feedback_vector,
+                      Unsigned(ChangeInt32ToIntPtr(slot)));
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
@@ -535,7 +606,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     TNode<IntPtrT> function_template_info_flags = LoadAndUntagObjectField(
         function_template_info, FunctionTemplateInfo::kFlagOffset);
     Branch(IsSetWord(function_template_info_flags,
-                     1 << FunctionTemplateInfo::kAcceptAnyReceiver),
+                     1 << FunctionTemplateInfo::AcceptAnyReceiverBit::kShift),
            &receiver_done, &receiver_needs_access_check);
 
     BIND(&receiver_needs_access_check);

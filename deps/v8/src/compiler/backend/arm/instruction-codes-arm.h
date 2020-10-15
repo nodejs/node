@@ -144,6 +144,12 @@ namespace compiler {
   V(ArmF64x2Ne)                    \
   V(ArmF64x2Lt)                    \
   V(ArmF64x2Le)                    \
+  V(ArmF64x2Pmin)                  \
+  V(ArmF64x2Pmax)                  \
+  V(ArmF64x2Ceil)                  \
+  V(ArmF64x2Floor)                 \
+  V(ArmF64x2Trunc)                 \
+  V(ArmF64x2NearestInt)            \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \
@@ -165,6 +171,8 @@ namespace compiler {
   V(ArmF32x4Ne)                    \
   V(ArmF32x4Lt)                    \
   V(ArmF32x4Le)                    \
+  V(ArmF32x4Pmin)                  \
+  V(ArmF32x4Pmax)                  \
   V(ArmI64x2SplatI32Pair)          \
   V(ArmI64x2ReplaceLaneI32Pair)    \
   V(ArmI64x2Neg)                   \
@@ -203,6 +211,7 @@ namespace compiler {
   V(ArmI32x4GeU)                   \
   V(ArmI32x4Abs)                   \
   V(ArmI32x4BitMask)               \
+  V(ArmI32x4DotI16x8S)             \
   V(ArmI16x8Splat)                 \
   V(ArmI16x8ExtractLaneS)          \
   V(ArmI16x8ReplaceLane)           \
@@ -268,7 +277,9 @@ namespace compiler {
   V(ArmI8x16RoundingAverageU)      \
   V(ArmI8x16Abs)                   \
   V(ArmI8x16BitMask)               \
+  V(ArmS128Const)                  \
   V(ArmS128Zero)                   \
+  V(ArmS128AllOnes)                \
   V(ArmS128Dup)                    \
   V(ArmS128And)                    \
   V(ArmS128Or)                     \
@@ -304,12 +315,12 @@ namespace compiler {
   V(ArmS8x8Reverse)                \
   V(ArmS8x4Reverse)                \
   V(ArmS8x2Reverse)                \
-  V(ArmS1x4AnyTrue)                \
-  V(ArmS1x4AllTrue)                \
-  V(ArmS1x8AnyTrue)                \
-  V(ArmS1x8AllTrue)                \
-  V(ArmS1x16AnyTrue)               \
-  V(ArmS1x16AllTrue)               \
+  V(ArmV32x4AnyTrue)               \
+  V(ArmV32x4AllTrue)               \
+  V(ArmV16x8AnyTrue)               \
+  V(ArmV16x8AllTrue)               \
+  V(ArmV8x16AnyTrue)               \
+  V(ArmV8x16AllTrue)               \
   V(ArmS8x16LoadSplat)             \
   V(ArmS16x8LoadSplat)             \
   V(ArmS32x4LoadSplat)             \

@@ -35,6 +35,7 @@ enum class CompareOperationHint : uint8_t {
   kNone,
   kSignedSmall,
   kNumber,
+  kNumberOrBoolean,
   kNumberOrOddball,
   kInternalizedString,
   kString,

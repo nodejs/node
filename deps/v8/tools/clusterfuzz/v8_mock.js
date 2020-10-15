@@ -149,6 +149,20 @@ Object.defineProperty(
   Float64Array = mock(Float64Array);
 })();
 
+// Mock buffer access via DataViews because of varying NaN patterns.
+(function() {
+  const origIsNaN = isNaN;
+  const deNaNify = function(value) { return origIsNaN(value) ? 1 : value; };
+  const origSetFloat32 = DataView.prototype.setFloat32;
+  DataView.prototype.setFloat32 = function(offset, value, ...rest) {
+    origSetFloat32.call(this, offset, deNaNify(value), ...rest);
+  };
+  const origSetFloat64 = DataView.prototype.setFloat64;
+  DataView.prototype.setFloat64 = function(offset, value, ...rest) {
+    origSetFloat64.call(this, offset, deNaNify(value), ...rest);
+  };
+})();
+
 // Mock Worker.
 (function() {
   let index = 0;

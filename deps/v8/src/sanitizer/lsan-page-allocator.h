@@ -34,6 +34,11 @@ class LsanPageAllocator : public v8::PageAllocator {
   void* AllocatePages(void* address, size_t size, size_t alignment,
                       PageAllocator::Permission access) override;
 
+  std::unique_ptr<SharedMemory> AllocateSharedPages(
+      size_t size, const void* original_address) override;
+
+  bool CanAllocateSharedPages() override;
+
   bool FreePages(void* address, size_t size) override;
 
   bool ReleasePages(void* address, size_t size, size_t new_size) override;

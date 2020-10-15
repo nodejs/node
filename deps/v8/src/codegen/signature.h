@@ -89,7 +89,7 @@ class Signature : public ZoneObject {
     Signature<T>* Build() {
       DCHECK_EQ(rcursor_, return_count_);
       DCHECK_EQ(pcursor_, parameter_count_);
-      return new (zone_) Signature<T>(return_count_, parameter_count_, buffer_);
+      return zone_->New<Signature<T>>(return_count_, parameter_count_, buffer_);
     }
 
    private:

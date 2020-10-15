@@ -28,6 +28,14 @@ inline void SeqCst_MemoryFence() {
   std::atomic_thread_fence(std::memory_order_seq_cst);
 }
 
+inline Atomic8 Relaxed_CompareAndSwap(volatile Atomic8* ptr, Atomic8 old_value,
+                                      Atomic8 new_value) {
+  std::atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_relaxed, std::memory_order_relaxed);
+  return old_value;
+}
+
 inline Atomic16 Relaxed_CompareAndSwap(volatile Atomic16* ptr,
                                        Atomic16 old_value, Atomic16 new_value) {
   std::atomic_compare_exchange_strong_explicit(

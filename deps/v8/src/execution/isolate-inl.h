@@ -7,6 +7,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"

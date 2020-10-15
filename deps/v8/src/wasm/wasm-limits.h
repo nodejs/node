@@ -16,10 +16,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-// These two constants are defined in the Wasm JS API spec and as such only
+// This constant is defined in the Wasm JS API spec and as such only
 // concern JS embeddings.
-constexpr size_t kSpecMaxWasmInitialMemoryPages = 32767;
-constexpr size_t kSpecMaxWasmMaximumMemoryPages = 65536;
+constexpr size_t kSpecMaxMemoryPages = 65536;
 
 // The following limits are imposed by V8 on WebAssembly modules.
 // The limits are agreed upon with other engines for consistency.
@@ -65,6 +64,7 @@ constexpr uint64_t kWasmMaxHeapOffset =
 V8_EXPORT_PRIVATE uint32_t max_initial_mem_pages();
 V8_EXPORT_PRIVATE uint32_t max_maximum_mem_pages();
 uint32_t max_table_init_entries();
+size_t max_module_size();
 
 inline uint64_t max_mem_bytes() {
   return uint64_t{max_maximum_mem_pages()} * kWasmPageSize;

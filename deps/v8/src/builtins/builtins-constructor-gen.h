@@ -15,37 +15,38 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   explicit ConstructorBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  TNode<Context> EmitFastNewFunctionContext(TNode<ScopeInfo> scope_info,
-                                            TNode<Uint32T> slots,
-                                            TNode<Context> context,
-                                            ScopeType scope_type);
+  TNode<Context> FastNewFunctionContext(TNode<ScopeInfo> scope_info,
+                                        TNode<Uint32T> slots,
+                                        TNode<Context> context,
+                                        ScopeType scope_type);
 
-  TNode<JSRegExp> EmitCreateRegExpLiteral(
-      TNode<HeapObject> maybe_feedback_vector, TNode<TaggedIndex> slot,
-      TNode<Object> pattern, TNode<Smi> flags, TNode<Context> context);
+  TNode<JSRegExp> CreateRegExpLiteral(TNode<HeapObject> maybe_feedback_vector,
+                                      TNode<TaggedIndex> slot,
+                                      TNode<Object> pattern, TNode<Smi> flags,
+                                      TNode<Context> context);
 
-  TNode<JSArray> EmitCreateShallowArrayLiteral(
+  TNode<JSArray> CreateShallowArrayLiteral(
       TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
-      TNode<Context> context, Label* call_runtime,
-      AllocationSiteMode allocation_site_mode);
+      TNode<Context> context, AllocationSiteMode allocation_site_mode,
+      Label* call_runtime);
 
-  TNode<JSArray> EmitCreateEmptyArrayLiteral(
-      TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
-      TNode<Context> context);
+  TNode<JSArray> CreateEmptyArrayLiteral(TNode<FeedbackVector> feedback_vector,
+                                         TNode<TaggedIndex> slot,
+                                         TNode<Context> context);
 
-  TNode<HeapObject> EmitCreateShallowObjectLiteral(
+  TNode<HeapObject> CreateShallowObjectLiteral(
       TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
       Label* call_runtime);
-  TNode<JSObject> EmitCreateEmptyObjectLiteral(TNode<Context> context);
+  TNode<JSObject> CreateEmptyObjectLiteral(TNode<Context> context);
 
-  TNode<JSObject> EmitFastNewObject(TNode<Context> context,
-                                    TNode<JSFunction> target,
-                                    TNode<JSReceiver> new_target);
+  TNode<JSObject> FastNewObject(TNode<Context> context,
+                                TNode<JSFunction> target,
+                                TNode<JSReceiver> new_target);
 
-  TNode<JSObject> EmitFastNewObject(TNode<Context> context,
-                                    TNode<JSFunction> target,
-                                    TNode<JSReceiver> new_target,
-                                    Label* call_runtime);
+  TNode<JSObject> FastNewObject(TNode<Context> context,
+                                TNode<JSFunction> target,
+                                TNode<JSReceiver> new_target,
+                                Label* call_runtime);
 };
 
 }  // namespace internal

@@ -131,8 +131,7 @@ void V8InspectorImpl::unmuteExceptions(int contextGroupId) {
 
 V8ConsoleMessageStorage* V8InspectorImpl::ensureConsoleMessageStorage(
     int contextGroupId) {
-  ConsoleStorageMap::iterator storageIt =
-      m_consoleStorageMap.find(contextGroupId);
+  auto storageIt = m_consoleStorageMap.find(contextGroupId);
   if (storageIt == m_consoleStorageMap.end())
     storageIt = m_consoleStorageMap
                     .insert(std::make_pair(
@@ -144,8 +143,7 @@ V8ConsoleMessageStorage* V8InspectorImpl::ensureConsoleMessageStorage(
 }
 
 bool V8InspectorImpl::hasConsoleMessageStorage(int contextGroupId) {
-  ConsoleStorageMap::iterator storageIt =
-      m_consoleStorageMap.find(contextGroupId);
+  auto storageIt = m_consoleStorageMap.find(contextGroupId);
   return storageIt != m_consoleStorageMap.end();
 }
 
@@ -174,10 +172,10 @@ InspectedContext* V8InspectorImpl::getContext(int groupId,
                                               int contextId) const {
   if (!groupId || !contextId) return nullptr;
 
-  ContextsByGroupMap::const_iterator contextGroupIt = m_contexts.find(groupId);
+  auto contextGroupIt = m_contexts.find(groupId);
   if (contextGroupIt == m_contexts.end()) return nullptr;
 
-  ContextByIdMap::iterator contextIt = contextGroupIt->second->find(contextId);
+  auto contextIt = contextGroupIt->second->find(contextId);
   if (contextIt == contextGroupIt->second->end()) return nullptr;
 
   return contextIt->second.get();
@@ -194,10 +192,10 @@ v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
 
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   int contextId = ++m_lastContextId;
-  InspectedContext* context = new InspectedContext(this, info, contextId);
+  auto* context = new InspectedContext(this, info, contextId);
   m_contextIdToGroupIdMap[contextId] = info.contextGroupId;
 
-  ContextsByGroupMap::iterator contextIt = m_contexts.find(info.contextGroupId);
+  auto contextIt = m_contexts.find(info.contextGroupId);
   if (contextIt == m_contexts.end())
     contextIt = m_contexts
                     .insert(std::make_pair(
@@ -224,7 +222,7 @@ void V8InspectorImpl::contextDestroyed(v8::Local<v8::Context> context) {
 void V8InspectorImpl::contextCollected(int groupId, int contextId) {
   m_contextIdToGroupIdMap.erase(contextId);
 
-  ConsoleStorageMap::iterator storageIt = m_consoleStorageMap.find(groupId);
+  auto storageIt = m_consoleStorageMap.find(groupId);
   if (storageIt != m_consoleStorageMap.end())
     storageIt->second->contextDestroyed(contextId);
 
@@ -330,7 +328,7 @@ void V8InspectorImpl::allAsyncTasksCanceled() {
 
 V8Inspector::Counters::Counters(v8::Isolate* isolate) : m_isolate(isolate) {
   CHECK(m_isolate);
-  V8InspectorImpl* inspector =
+  auto* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(m_isolate));
   CHECK(inspector);
   CHECK(!inspector->m_counters);
@@ -339,7 +337,7 @@ V8Inspector::Counters::Counters(v8::Isolate* isolate) : m_isolate(isolate) {
 }
 
 V8Inspector::Counters::~Counters() {
-  V8InspectorImpl* inspector =
+  auto* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(m_isolate));
   CHECK(inspector);
   inspector->m_counters = nullptr;

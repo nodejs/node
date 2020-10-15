@@ -102,6 +102,9 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ b(ne, &exit);
   __ Jump(jump_target, RelocInfo::NONE);
 #elif V8_TARGET_ARCH_ARM64
+  UseScratchRegisterScope temps(&masm);
+  temps.Exclude(x16);
+  scratch = x16;
   __ Mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
   __ Ldr(scratch, MemOperand(scratch, 0));
   __ Tbnz(scratch, 0, &exit);

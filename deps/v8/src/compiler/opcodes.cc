@@ -16,7 +16,7 @@ namespace compiler {
 namespace {
 
 char const* const kMnemonics[] = {
-#define DECLARE_MNEMONIC(x) #x,
+#define DECLARE_MNEMONIC(x, ...) #x,
     ALL_OP_LIST(DECLARE_MNEMONIC)
 #undef DECLARE_MNEMONIC
         "UnknownOpcode"};

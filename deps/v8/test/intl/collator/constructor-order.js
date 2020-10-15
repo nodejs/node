@@ -14,17 +14,20 @@ new Intl.Collator(['en-US'], {
   get localeMatcher() {
     assertEquals(1, getCount++);
   },
-  get numeric() {
+  get collation() {
     assertEquals(2, getCount++);
   },
-  get caseFirst() {
+  get numeric() {
     assertEquals(3, getCount++);
   },
-  get sensitivity() {
+  get caseFirst() {
     assertEquals(4, getCount++);
   },
-  get ignorePunctuation() {
+  get sensitivity() {
     assertEquals(5, getCount++);
   },
+  get ignorePunctuation() {
+    assertEquals(6, getCount++);
+  },
 });
-assertEquals(6, getCount);
+assertEquals(7, getCount);

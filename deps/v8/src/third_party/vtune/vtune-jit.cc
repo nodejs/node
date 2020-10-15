@@ -151,8 +151,23 @@ static std::string GetFunctionNameFromMixedName(const char* str, int length) {
 
   start_ptr = const_cast<char*>(str + index);
 
-  while (index < length && str[index++] != ' ') {
+  // Detecting JS and WASM function names. In JitCodeEvent->name.str 
+  // JS functions name ends with a space symbol. WASM function name 
+  // ends with the latest closing parenthesis. 
+  char last_char = ' ';
+  int parenthesis_count = 0;
+  while (index < length) {
+    if (str[index] == '(') {
+      last_char = ')';
+      parenthesis_count++;
+    }
+    if (str[index] == ')') parenthesis_count--;
+    if (str[index] == last_char && parenthesis_count == 0) {
+      if (last_char == ')') count++;
+      break;
+    }
     count++;
+    index++;
   }
 
   return std::string(start_ptr, count);

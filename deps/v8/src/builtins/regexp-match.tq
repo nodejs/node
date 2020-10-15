@@ -110,7 +110,7 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
         // length is less than the maximal Smi value.
         const kMaxStringLengthFitsSmi: constexpr bool =
             kStringMaxLengthUintptr < kSmiMaxValue;
-        StaticAssert(kMaxStringLengthFitsSmi);
+        static_assert(kMaxStringLengthFitsSmi);
         assert(TaggedIsPositiveSmi(newLastIndex));
       }
 

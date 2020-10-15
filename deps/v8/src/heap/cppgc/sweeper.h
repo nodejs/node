@@ -10,20 +10,25 @@
 #include "src/base/macros.h"
 
 namespace cppgc {
+
+class Platform;
+
 namespace internal {
 
+class StatsCollector;
 class RawHeap;
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
   enum class Config { kAtomic, kIncrementalAndConcurrent };
 
-  explicit Sweeper(RawHeap*);
+  Sweeper(RawHeap*, cppgc::Platform*, StatsCollector*);
   ~Sweeper();
 
   Sweeper(const Sweeper&) = delete;
   Sweeper& operator=(const Sweeper&) = delete;
 
+  // Sweeper::Start assumes the heap holds no linear allocation buffers.
   void Start(Config);
   void Finish();
 

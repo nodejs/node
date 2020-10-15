@@ -164,15 +164,15 @@ TEST_F(WasmGdbRemoteTest, GdbRemoteUtilStringSplit) {
 
 class MockTransport : public TransportBase {
  public:
-  MOCK_METHOD0(AcceptConnection, bool());
-  MOCK_METHOD2(Read, bool(char*, int32_t));
-  MOCK_METHOD2(Write, bool(const char*, int32_t));
-  MOCK_METHOD0(IsDataAvailable, bool());
-  MOCK_CONST_METHOD0(IsDataAvailable, bool());
-  MOCK_METHOD0(Disconnect, void());
-  MOCK_METHOD0(Close, void());
-  MOCK_METHOD0(WaitForDebugStubEvent, void());
-  MOCK_METHOD0(SignalThreadEvent, bool());
+  MOCK_METHOD(bool, AcceptConnection, (), (override));
+  MOCK_METHOD(bool, Read, (char*, int32_t), (override));
+  MOCK_METHOD(bool, Write, (const char*, int32_t), (override));
+  MOCK_METHOD(bool, IsDataAvailable, (), (override));
+  MOCK_METHOD(bool, IsDataAvailable, (), (const, override));
+  MOCK_METHOD(void, Disconnect, (), (override));
+  MOCK_METHOD(void, Close, (), (override));
+  MOCK_METHOD(void, WaitForDebugStubEvent, (), (override));
+  MOCK_METHOD(bool, SignalThreadEvent, (), (override));
 };
 
 TEST_F(WasmGdbRemoteTest, GdbRemoteSessionSendPacket) {

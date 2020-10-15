@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 const {session, contextGroup, Protocol} =
     InspectorTest.start('Test scope inspection and stepping after a trap.');
 session.setupScriptMap();
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 
@@ -23,25 +23,13 @@ builder.addFunction('div', kSig_i_iii)
     ])
     .exportFunc();
 
-const module_bytes = JSON.stringify(builder.toArray());
-
-function instantiate(bytes) {
-  let buffer = new ArrayBuffer(bytes.length);
-  let view = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; ++i) {
-    view[i] = bytes[i] | 0;
-  }
-
-  let module = new WebAssembly.Module(buffer);
-  return new WebAssembly.Instance(module);
-}
+const module_bytes = builder.toArray();
 
 function getShortLocationString(location) {
   return `${location.lineNumber}:${location.columnNumber}`;
 }
 
-let actions =
-    ['stepInto', 'resume', 'stepInto', 'resume', 'stepInfo', 'resume'];
+let actions = ['stepInto', 'resume', 'stepInto', 'resume'];
 Protocol.Debugger.onPaused(async msg => {
   InspectorTest.log('Paused at:');
   for (let [nr, frame] of msg.params.callFrames.entries()) {
@@ -51,6 +39,10 @@ Protocol.Debugger.onPaused(async msg => {
   }
   InspectorTest.log('-------------');
   let action = actions.shift();
+  if (!action) {
+    InspectorTest.log('ERROR: no more expected action');
+    action = 'resume';
+  }
   InspectorTest.log(`-> ${action}`);
   Protocol.Debugger[action]();
 });
@@ -69,15 +61,13 @@ function call_div() {
   }
 }
 
-contextGroup.addScript(instantiate.toString());
 contextGroup.addScript(call_div.toString());
 
 (async function test() {
   await Protocol.Debugger.enable();
   await Protocol.Debugger.setPauseOnExceptions({state: 'all'});
   InspectorTest.log('Instantiating.');
-  await Protocol.Runtime.evaluate(
-      {'expression': `const instance = instantiate(${module_bytes});`});
+  await WasmInspectorTest.instantiate(module_bytes);
   InspectorTest.log('Calling div function.');
   await Protocol.Runtime.evaluate({'expression': 'call_div()'});
   InspectorTest.log('Finished.');
@@ -92,11 +82,7 @@ async function printLocalScope(frame) {
     let properties = await Protocol.Runtime.getProperties(
         {'objectId': scope.object.objectId});
     for (let value of properties.result.result) {
-      let msg = await Protocol.Runtime.getProperties(
-          {objectId: value.value.objectId});
-      let prop_str = p => `"${p.name}": ${p.value.value}`;
-      let value_str = msg.result.result.map(prop_str).join(', ');
-      InspectorTest.log(`   ${value.name}: ${value_str}`);
+      InspectorTest.log(`   ${value.name}: ${value.value.value}`);
     }
   }
 }

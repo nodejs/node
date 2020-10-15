@@ -20,6 +20,17 @@ let valid_locales = [
   "ja-u-co-unihan",
 ];
 
+let valid_co = [
+  ["zh", "zhuyin"],
+  ["zh", "stroke"],
+  ["ar",  "compat"],
+  ["en", "emoji"],
+  ["en", "eor"],
+  ["zh-Hant", "pinyin"],
+  ["ko", "searchjl"],
+  ["ja", "unihan"],
+];
+
 invalid_co.forEach(function(co) {
   let col = new Intl.Collator(["en-u-co-" + co]);
   assertEquals("en", col.resolvedOptions().locale);
@@ -29,5 +40,13 @@ invalid_co.forEach(function(co) {
 valid_locales.forEach(function(l) {
   let col = new Intl.Collator([l + "-fo-obar"]);
   assertEquals(l, col.resolvedOptions().locale);
+}
+);
+
+valid_co.forEach(function([locale, collation]) {
+  let col = new Intl.Collator([locale + "-u-co-" + collation]);
+  assertEquals(collation, col.resolvedOptions().collation);
+  let col2 = new Intl.Collator([locale], {collation});
+  assertEquals(collation, col2.resolvedOptions().collation);
 }
 );

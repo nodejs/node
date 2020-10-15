@@ -80,3 +80,16 @@ extern class Map extends HeapObject {
 macro LoadMapPrototypeInfo(m: Map): PrototypeInfo labels HasNoPrototypeInfo {
   return m.PrototypeInfo() otherwise HasNoPrototypeInfo;
 }
+
+// Returns true if the map corresponds to non-special fast or dictionary
+// object.
+@export
+macro IsSimpleObjectMap(map: Map): bool {
+  if (IsSpecialReceiverInstanceType(map.instance_type)) {
+    return false;
+  }
+  const bitField = map.bit_field;
+  return !bitField.has_named_interceptor & !bitField.is_access_check_needed;
+}
+
+extern macro IsSpecialReceiverInstanceType(InstanceType): bool;

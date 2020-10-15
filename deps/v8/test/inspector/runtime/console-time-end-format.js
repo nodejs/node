@@ -43,7 +43,7 @@ async function checkInterval(time, label) {
   label = label === undefined ? '\'timeEnd\'' : label;
   utils.setCurrentTimeMSForTest(0.0);
   Protocol.Runtime.evaluate({
-    expression: `console.log('js: ' + ${time} + 'ms')`
+    expression: `console.log('js: ' + ${time} + ' ms')`
   });
   await Protocol.Runtime.evaluate({expression: `console.time(${label})`});
   utils.setCurrentTimeMSForTest(time);

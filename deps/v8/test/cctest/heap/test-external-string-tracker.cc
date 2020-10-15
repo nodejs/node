@@ -130,6 +130,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
 }
 
 TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -171,6 +172,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
 }
 
 TEST(ExternalString_PromotedThinString) {
+  if (FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;

@@ -128,6 +128,7 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
   HandleScope handle_scope(hooks->isolate_);
 
   Local<Context> currentContext = hooks->isolate_->GetCurrentContext();
+  DCHECK(!currentContext.IsEmpty());
 
   if (type == PromiseHookType::kInit) {
     ++hooks->current_async_id;

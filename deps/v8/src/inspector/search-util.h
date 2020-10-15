@@ -21,6 +21,6 @@ searchInTextByLinesImpl(V8InspectorSession*, const String16& text,
                         const String16& query, bool caseSensitive,
                         bool isRegex);
 
-}  //  namespace v8_inspector
+}  // namespace v8_inspector
 
 #endif  // V8_INSPECTOR_SEARCH_UTIL_H_

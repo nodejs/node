@@ -102,6 +102,10 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               NamedAccessFeedback const& processed,
                               AccessMode access_mode, Node* key = nullptr);
+  Reduction ReduceMinimorphicPropertyAccess(
+      Node* node, Node* value,
+      MinimorphicLoadPropertyAccessFeedback const& feedback,
+      FeedbackSource const& source);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                NameRef const& name, AccessMode access_mode,
                                Node* key = nullptr);

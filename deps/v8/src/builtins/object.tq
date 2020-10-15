@@ -92,22 +92,19 @@ ObjectSetPrototypeOfDontThrow(implicit context: Context)(
 
 transitioning builtin CreateObjectWithoutProperties(implicit context: Context)(
     prototype: JSAny): JSAny {
-  const nativeContext = LoadNativeContext(context);
-
   try {
     let map: Map;
     let properties: NameDictionary|EmptyFixedArray;
     typeswitch (prototype) {
       case (Null): {
-        map = UnsafeCast<Map>(
-            nativeContext
-                [NativeContextSlot::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP]);
+        map = *NativeContextSlot(
+            ContextSlot::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP);
         properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
       }
       case (prototype: JSReceiver): {
         properties = kEmptyFixedArray;
-        const objectFunction = UnsafeCast<JSFunction>(
-            nativeContext[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
+        const objectFunction =
+            *NativeContextSlot(ContextSlot::OBJECT_FUNCTION_INDEX);
         map = UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
         if (prototype != map.prototype) {
           const prototypeInfo = prototype.map.PrototypeInfo() otherwise Runtime;

@@ -1,0 +1,52 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<style>
+@import "./index.css";
+#timelineOverview {
+  width: 100%;
+  height: 50px;
+  position: relative;
+  margin-top: -50px;
+  margin-bottom: 10px;
+  background-size: 100% 100%;
+  border: 1px var(--surface-color) solid;
+  border-width: 1px 0 1px 0;
+  overflow: hidden;
+}
+#timelineOverviewIndicator {
+  height: 100%;
+  position: absolute;
+  box-shadow: 0px 2px 20px -5px var(--surface-color) inset;
+  top: 0px;
+  cursor: ew-resize;
+}
+#timelineOverviewIndicator .leftMask,
+#timelineOverviewIndicator .rightMask {
+  background-color: rgba(200, 200, 200, 0.5);
+  width: 10000px;
+  height: 100%;
+  position: absolute;
+  top: 0px;
+}
+#timelineOverviewIndicator .leftMask {
+  right: 100%;
+}
+#timelineOverviewIndicator .rightMask {
+  left: 100%;
+}
+</style>
+<div class="panel">
+  <h2>Timeline Panel</h2>
+  <h3>Timeline</h3>
+  <div>
+    <slot></slot>
+  </div>
+  <div id="timelineOverview">
+    <div id="timelineOverviewIndicator">
+      <div class="leftMask"></div>
+      <div class="rightMask"></div>
+    </div>
+  </div>
+</div>

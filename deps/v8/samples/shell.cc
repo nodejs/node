@@ -108,21 +108,15 @@ v8::Local<v8::Context> CreateShellContext(v8::Isolate* isolate) {
   // Create a template for the global object.
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
   // Bind the global 'print' function to the C++ Print callback.
-  global->Set(v8::String::NewFromUtf8Literal(isolate, "print"),
-              v8::FunctionTemplate::New(isolate, Print));
+  global->Set(isolate, "print", v8::FunctionTemplate::New(isolate, Print));
   // Bind the global 'read' function to the C++ Read callback.
-  global->Set(v8::String::NewFromUtf8Literal(isolate, "read"),
-              v8::FunctionTemplate::New(isolate, Read));
+  global->Set(isolate, "read", v8::FunctionTemplate::New(isolate, Read));
   // Bind the global 'load' function to the C++ Load callback.
-  global->Set(v8::String::NewFromUtf8Literal(isolate, "load"),
-              v8::FunctionTemplate::New(isolate, Load));
+  global->Set(isolate, "load", v8::FunctionTemplate::New(isolate, Load));
   // Bind the 'quit' function
-  global->Set(v8::String::NewFromUtf8Literal(isolate, "quit"),
-              v8::FunctionTemplate::New(isolate, Quit));
+  global->Set(isolate, "quit", v8::FunctionTemplate::New(isolate, Quit));
   // Bind the 'version' function
-  global->Set(v8::String::NewFromUtf8Literal(isolate, "version"),
-              v8::FunctionTemplate::New(isolate, Version));
-
+  global->Set(isolate, "version", v8::FunctionTemplate::New(isolate, Version));
   return v8::Context::New(isolate, NULL, global);
 }
 

@@ -9,28 +9,34 @@ namespace proxy {
 // Proxy Revocation Functions
 // https://tc39.github.io/ecma262/#sec-proxy-revocation-functions
 transitioning javascript builtin
-ProxyRevoke(js-implicit context: NativeContext)(): Undefined {
+ProxyRevoke(js-implicit context: Context)(): Undefined {
+  const context = %RawDownCast<ProxyRevokeFunctionContext>(context);
+
   // 1. Let p be F.[[RevocableProxy]].
-  const proxyObject: Object = context[PROXY_SLOT];
+  const proxySlot:&(JSProxy | Null) =
+      ContextSlot(context, ProxyRevokeFunctionContextSlot::kProxySlot);
 
-  // 2. If p is null, return undefined
-  if (proxyObject == Null) {
-    return Undefined;
+  typeswitch (*proxySlot) {
+    case (Null): {
+      // 2. If p is null, return undefined
+      return Undefined;
+    }
+    case (proxy: JSProxy): {
+      // 3. Set F.[[RevocableProxy]] to null.
+      *proxySlot = Null;
+
+      // 4. Assert: p is a Proxy object.
+      assert(Is<JSProxy>(proxy));
+
+      // 5. Set p.[[ProxyTarget]] to null.
+      proxy.target = Null;
+
+      // 6. Set p.[[ProxyHandler]] to null.
+      proxy.handler = Null;
+
+      // 7. Return undefined.
+      return Undefined;
+    }
   }
-
-  // 3. Set F.[[RevocableProxy]] to null.
-  context[PROXY_SLOT] = Null;
-
-  // 4. Assert: p is a Proxy object.
-  const proxy: JSProxy = UnsafeCast<JSProxy>(proxyObject);
-
-  // 5. Set p.[[ProxyTarget]] to null.
-  proxy.target = Null;
-
-  // 6. Set p.[[ProxyHandler]] to null.
-  proxy.handler = Null;
-
-  // 7. Return undefined.
-  return Undefined;
 }
 }

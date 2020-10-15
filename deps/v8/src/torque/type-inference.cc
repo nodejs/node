@@ -12,7 +12,7 @@ TypeArgumentInference::TypeArgumentInference(
     const GenericParameters& type_parameters,
     const TypeVector& explicit_type_arguments,
     const std::vector<TypeExpression*>& term_parameters,
-    const TypeVector& term_argument_types)
+    const std::vector<base::Optional<const Type*>>& term_argument_types)
     : num_explicit_(explicit_type_arguments.size()),
       type_parameter_from_name_(type_parameters.size()),
       inferred_(type_parameters.size()) {
@@ -20,8 +20,8 @@ TypeArgumentInference::TypeArgumentInference(
     Fail("more explicit type arguments than expected");
     return;
   }
-  if (term_parameters.size() != term_argument_types.size()) {
-    Fail("number of term parameters does not match number of term arguments!");
+  if (term_argument_types.size() > term_parameters.size()) {
+    Fail("more arguments than expected");
     return;
   }
 
@@ -32,8 +32,9 @@ TypeArgumentInference::TypeArgumentInference(
     inferred_[i] = {explicit_type_arguments[i]};
   }
 
-  for (size_t i = 0; i < term_parameters.size(); i++) {
-    Match(term_parameters[i], term_argument_types[i]);
+  for (size_t i = 0; i < term_argument_types.size(); i++) {
+    if (term_argument_types[i])
+      Match(term_parameters[i], *term_argument_types[i]);
     if (HasFailed()) return;
   }
 

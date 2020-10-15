@@ -166,6 +166,10 @@ class BytecodeSequenceNode {
   Zone* zone_;
 };
 
+// These definitions are here in order to please the linker, which in debug mode
+// sometimes requires static constants to be defined in .cc files.
+constexpr int BytecodeSequenceNode::kDummyBytecode;
+
 class RegExpBytecodePeephole {
  public:
   RegExpBytecodePeephole(Zone* zone, size_t buffer_size,
@@ -187,7 +191,8 @@ class RegExpBytecodePeephole {
   BytecodeSequenceNode& CreateSequence(int bytecode);
   // Checks for optimization candidates at pc and emits optimized bytecode to
   // the internal buffer. Returns the length of replaced bytecodes in bytes.
-  int TryOptimizeSequence(const byte* bytecode, int start_pc);
+  int TryOptimizeSequence(const byte* bytecode, int bytecode_length,
+                          int start_pc);
   // Emits optimized bytecode to the internal buffer. start_pc points to the
   // start of the sequence in bytecode and last_node is the last
   // BytecodeSequenceNode of the matching sequence found.
@@ -280,12 +285,9 @@ BytecodeSequenceNode::BytecodeSequenceNode(int bytecode, Zone* zone)
       start_offset_(0),
       parent_(nullptr),
       children_(ZoneUnorderedMap<int, BytecodeSequenceNode*>(zone)),
-      argument_mapping_(new (zone->New(sizeof(*argument_mapping_)))
-                            ZoneVector<BytecodeArgumentMapping>(zone)),
-      argument_check_(new (zone->New(sizeof(*argument_check_)))
-                          ZoneLinkedList<BytecodeArgumentCheck>(zone)),
-      argument_ignored_(new (zone->New(sizeof(*argument_ignored_)))
-                            ZoneLinkedList<BytecodeArgument>(zone)),
+      argument_mapping_(zone->New<ZoneVector<BytecodeArgumentMapping>>(zone)),
+      argument_check_(zone->New<ZoneLinkedList<BytecodeArgumentCheck>>(zone)),
+      argument_ignored_(zone->New<ZoneLinkedList<BytecodeArgument>>(zone)),
       zone_(zone) {}
 
 BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(int bytecode) {
@@ -293,8 +295,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(int bytecode) {
 
   if (children_.find(bytecode) == children_.end()) {
     BytecodeSequenceNode* new_node =
-        new (zone()->New(sizeof(BytecodeSequenceNode)))
-            BytecodeSequenceNode(bytecode, zone());
+        zone()->New<BytecodeSequenceNode>(bytecode, zone());
     // If node is not the first in the sequence, set offsets and parent.
     if (bytecode_ != kDummyBytecode) {
       new_node->start_offset_ = start_offset_ + RegExpBytecodeLength(bytecode_);
@@ -477,7 +478,7 @@ RegExpBytecodePeephole::RegExpBytecodePeephole(
     Zone* zone, size_t buffer_size,
     const ZoneUnorderedMap<int, int>& jump_edges)
     : optimized_bytecode_buffer_(zone),
-      sequences_(new (zone->New(sizeof(*sequences_))) BytecodeSequenceNode(
+      sequences_(zone->New<BytecodeSequenceNode>(
           BytecodeSequenceNode::kDummyBytecode, zone)),
       jump_edges_(zone),
       jump_edges_mapped_(zone),
@@ -626,7 +627,7 @@ bool RegExpBytecodePeephole::OptimizeBytecode(const byte* bytecode,
   bool did_optimize = false;
 
   while (old_pc < length) {
-    int replaced_len = TryOptimizeSequence(bytecode, old_pc);
+    int replaced_len = TryOptimizeSequence(bytecode, length, old_pc);
     if (replaced_len > 0) {
       old_pc += replaced_len;
       did_optimize = true;
@@ -659,6 +660,7 @@ BytecodeSequenceNode& RegExpBytecodePeephole::CreateSequence(int bytecode) {
 }
 
 int RegExpBytecodePeephole::TryOptimizeSequence(const byte* bytecode,
+                                                int bytecode_length,
                                                 int start_pc) {
   BytecodeSequenceNode* seq_node = sequences_;
   BytecodeSequenceNode* valid_seq_end = nullptr;
@@ -667,13 +669,12 @@ int RegExpBytecodePeephole::TryOptimizeSequence(const byte* bytecode,
 
   // Check for the longest valid sequence matching any of the pre-defined
   // sequences in the Trie data structure.
-  while ((seq_node = seq_node->Find(bytecode[current_pc]))) {
-    if (!seq_node->CheckArguments(bytecode, start_pc)) {
-      break;
-    }
-    if (seq_node->IsSequence()) {
-      valid_seq_end = seq_node;
-    }
+  while (current_pc < bytecode_length) {
+    seq_node = seq_node->Find(bytecode[current_pc]);
+    if (seq_node == nullptr) break;
+    if (!seq_node->CheckArguments(bytecode, start_pc)) break;
+
+    if (seq_node->IsSequence()) valid_seq_end = seq_node;
     current_pc += RegExpBytecodeLength(bytecode[current_pc]);
   }
 

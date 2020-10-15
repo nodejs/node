@@ -125,7 +125,7 @@ CsaLoadElimination::AbstractState::KillField(Node* kill_object,
                                              MachineRepresentation kill_repr,
                                              Zone* zone) const {
   FieldInfo empty_info;
-  AbstractState* that = new (zone) AbstractState(*this);
+  AbstractState* that = zone->New<AbstractState>(*this);
   for (std::pair<Field, FieldInfo> entry : that->field_infos_) {
     Field field = entry.first;
     MachineRepresentation field_repr = entry.second.representation;
@@ -142,7 +142,7 @@ CsaLoadElimination::AbstractState const*
 CsaLoadElimination::AbstractState::AddField(Node* object, Node* offset,
                                             CsaLoadElimination::FieldInfo info,
                                             Zone* zone) const {
-  AbstractState* that = new (zone) AbstractState(*this);
+  AbstractState* that = zone->New<AbstractState>(*this);
   that->field_infos_.Set({object, offset}, info);
   return that;
 }
@@ -233,7 +233,7 @@ Reduction CsaLoadElimination::ReduceEffectPhi(Node* node) {
 
   // Make a copy of the first input's state and merge with the state
   // from other inputs.
-  AbstractState* state = new (zone()) AbstractState(*state0);
+  AbstractState* state = zone()->New<AbstractState>(*state0);
   for (int i = 1; i < input_count; ++i) {
     Node* const input = NodeProperties::GetEffectInput(node, i);
     state->Merge(node_states_.Get(input), zone());

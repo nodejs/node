@@ -53,8 +53,15 @@ uint32_t CompilationCacheShape::StringSharedHash(String source,
 
 uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
                                               Object object) {
+  // Eval: The key field contains the hash as a Number.
   if (object.IsNumber()) return static_cast<uint32_t>(object.Number());
 
+  // Code: The key field contains the SFI key.
+  if (object.IsSharedFunctionInfo()) {
+    return SharedFunctionInfo::cast(object).Hash();
+  }
+
+  // Script: See StringSharedKey::ToHandle for the encoding.
   FixedArray val = FixedArray::cast(object);
   if (val.map() == roots.fixed_cow_array_map()) {
     DCHECK_EQ(4, val.length());
@@ -66,14 +73,17 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
     int position = Smi::ToInt(val.get(3));
     return StringSharedHash(source, shared, language_mode, position);
   }
-  DCHECK_LT(2, val.length());
+
+  // RegExp: The key field (and the value field) contains the
+  // JSRegExp::data fixed array.
+  DCHECK_GE(val.length(), JSRegExp::kMinDataArrayLength);
   return RegExpHash(String::cast(val.get(JSRegExp::kSourceIndex)),
                     Smi::cast(val.get(JSRegExp::kFlagsIndex)));
 }
 
-InfoCellPair::InfoCellPair(SharedFunctionInfo shared,
+InfoCellPair::InfoCellPair(Isolate* isolate, SharedFunctionInfo shared,
                            FeedbackCell feedback_cell)
-    : is_compiled_scope_(!shared.is_null() ? shared.is_compiled_scope()
+    : is_compiled_scope_(!shared.is_null() ? shared.is_compiled_scope(isolate)
                                            : IsCompiledScope()),
       shared_(shared),
       feedback_cell_(feedback_cell) {}

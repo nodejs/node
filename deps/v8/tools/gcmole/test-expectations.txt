@@ -1,4 +1,7 @@
 
+tools/gcmole/gcmole-test.cc:27:10: warning: Possibly dead variable.
+  return obj;
+         ^
 tools/gcmole/gcmole-test.cc:45:3: warning: Possible problem with evaluation order.
   TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
   ^
@@ -20,4 +23,13 @@ tools/gcmole/gcmole-test.cc:130:14: warning: Possible problem with evaluation or
 tools/gcmole/gcmole-test.cc:151:14: warning: Possible problem with evaluation order.
   so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
              ^
-7 warnings generated.
+tools/gcmole/gcmole-test.cc:161:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:193:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:216:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+11 warnings generated.

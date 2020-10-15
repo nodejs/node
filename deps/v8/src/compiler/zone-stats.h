@@ -20,12 +20,18 @@ class V8_EXPORT_PRIVATE ZoneStats final {
  public:
   class Scope final {
    public:
-    explicit Scope(ZoneStats* zone_stats, const char* zone_name)
-        : zone_name_(zone_name), zone_stats_(zone_stats), zone_(nullptr) {}
+    explicit Scope(ZoneStats* zone_stats, const char* zone_name,
+                   bool support_zone_compression = false)
+        : zone_name_(zone_name),
+          zone_stats_(zone_stats),
+          zone_(nullptr),
+          support_zone_compression_(support_zone_compression) {}
     ~Scope() { Destroy(); }
 
     Zone* zone() {
-      if (zone_ == nullptr) zone_ = zone_stats_->NewEmptyZone(zone_name_);
+      if (zone_ == nullptr)
+        zone_ =
+            zone_stats_->NewEmptyZone(zone_name_, support_zone_compression_);
       return zone_;
     }
     void Destroy() {
@@ -39,6 +45,7 @@ class V8_EXPORT_PRIVATE ZoneStats final {
     const char* zone_name_;
     ZoneStats* const zone_stats_;
     Zone* zone_;
+    const bool support_zone_compression_;
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
@@ -73,7 +80,7 @@ class V8_EXPORT_PRIVATE ZoneStats final {
   size_t GetCurrentAllocatedBytes() const;
 
  private:
-  Zone* NewEmptyZone(const char* zone_name);
+  Zone* NewEmptyZone(const char* zone_name, bool support_zone_compression);
   void ReturnZone(Zone* zone);
 
   static const size_t kMaxUnusedSize = 3;

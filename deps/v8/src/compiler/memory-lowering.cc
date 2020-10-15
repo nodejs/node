@@ -228,7 +228,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 
       // Start a new allocation group.
       AllocationGroup* group =
-          new (zone()) AllocationGroup(value, allocation_type, size, zone());
+          zone()->New<AllocationGroup>(value, allocation_type, size, zone());
       *state_ptr =
           AllocationState::Open(group, object_size, top, effect, zone());
     }
@@ -277,7 +277,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
     if (state_ptr) {
       // Create an unfoldable allocation group.
       AllocationGroup* group =
-          new (zone()) AllocationGroup(value, allocation_type, zone());
+          zone()->New<AllocationGroup>(value, allocation_type, zone());
       *state_ptr = AllocationState::Closed(group, effect, zone());
     }
   }

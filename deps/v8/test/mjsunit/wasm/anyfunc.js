@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-anyref --expose-gc
+// Flags: --expose-wasm --experimental-wasm-reftypes --expose-gc
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -147,60 +147,36 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(null, main());
 })();
 
-(function testAssignNullRefToAnyFuncLocal() {
+(function testAssignNullToAnyFuncLocal() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_a);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kExprLocalSet, 0, kExprLocalGet, 0])
+      .addBody([kExprRefNull, kWasmAnyFunc, kExprLocalSet, 0, kExprLocalGet, 0])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
   assertEquals(null, main(main));
 })();
 
-(function testImplicitReturnNullRefAsAnyFunc() {
-  print(arguments.callee.name);
-  const builder = new WasmModuleBuilder();
-  const sig_index = builder.addType(kSig_a_v);
-  builder.addFunction('main', sig_index).addBody([kExprRefNull]).exportFunc();
-
-  const main = builder.instantiate().exports.main;
-  assertEquals(null, main());
-})();
-
-(function testExplicitReturnNullRefAsAnyFunc() {
+(function testImplicitReturnNullAsAnyFunc() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kExprReturn])
+      .addBody([kExprRefNull, kWasmAnyFunc])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
   assertEquals(null, main());
 })();
 
-(function testImplicitReturnAnyFuncAsAnyRef() {
+(function testExplicitReturnNullAsAnyFunc() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  const sig_index = builder.addType(kSig_r_v);
+  const sig_index = builder.addType(kSig_a_v);
   builder.addFunction('main', sig_index)
-      .addLocals({anyfunc_count: 1})
-      .addBody([kExprLocalGet, 0])
-      .exportFunc();
-
-  const main = builder.instantiate().exports.main;
-  assertEquals(null, main());
-})();
-
-(function testExplicitReturnAnyFuncAsAnyRef() {
-  print(arguments.callee.name);
-  const builder = new WasmModuleBuilder();
-  const sig_index = builder.addType(kSig_r_v);
-  builder.addFunction('main', sig_index)
-      .addLocals({anyfunc_count: 1})
-      .addBody([kExprLocalGet, 0, kExprReturn])
+      .addBody([kExprRefNull, kWasmAnyFunc, kExprReturn])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;

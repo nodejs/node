@@ -142,7 +142,8 @@ void SerializerAllocator::OutputStatistics() {
   PrintF("  Spaces (bytes):\n");
 
   for (int space = 0; space < kNumberOfSpaces; space++) {
-    PrintF("%16s", Heap::GetSpaceName(static_cast<AllocationSpace>(space)));
+    PrintF("%16s",
+           BaseSpace::GetSpaceName(static_cast<AllocationSpace>(space)));
   }
   PrintF("\n");
 

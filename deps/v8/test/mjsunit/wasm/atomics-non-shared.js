@@ -58,3 +58,67 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let module = new WebAssembly.Module(builder.toBuffer());
   let instance = new WebAssembly.Instance(module, {m: {memory}});
 })();
+
+(function TestWasmAtomicNotifyResult() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "memory", 0, 20);
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kAtomicPrefix,
+      kExprAtomicNotify, 0, 0])
+    .exportAs("main");
+
+  // Instantiate module, get function exports
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 1});
+  let instance = new WebAssembly.Instance(module, {m: {memory}});
+  assertEquals(0, instance.exports.main(0, 100));
+})();
+
+(function TestWasmI32AtomicWaitTraps() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "memory", 0, 20);
+  builder.addFunction("main",
+    makeSig([kWasmI32, kWasmI32, kWasmF64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kExprI64SConvertF64,
+      kAtomicPrefix,
+      kExprI32AtomicWait, 0, 0])
+      .exportAs("main");
+
+  // Instantiate module, get function exports
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 1});
+  let instance = new WebAssembly.Instance(module, {m: {memory}});
+  assertThrows(() => instance.exports.main(0, 5, 0), WebAssembly.RuntimeError);
+})();
+
+(function TestWasmI64AtomicWaitTraps() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "memory", 0, 20);
+  builder.addFunction("main",
+    makeSig([kWasmI32, kWasmI32, kWasmF64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64UConvertI32,
+      kExprLocalGet, 2,
+      kExprI64SConvertF64,
+      kAtomicPrefix,
+      kExprI64AtomicWait, 0, 0])
+      .exportAs("main");
+
+  // Instantiate module, get function exports
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 1});
+  let instance = new WebAssembly.Instance(module, {m: {memory}});
+  assertThrows(() => instance.exports.main(0, 5, 0), WebAssembly.RuntimeError);
+})();

@@ -110,7 +110,7 @@ Node* ToInt32(RawMachineAssembler* m, MachineType type, Node* a) {
     case MachineRepresentation::kWord64:
       return m->TruncateInt64ToInt32(a);
     case MachineRepresentation::kFloat32:
-      return m->TruncateFloat32ToInt32(a);
+      return m->TruncateFloat32ToInt32(a, TruncateKind::kArchitectureDefault);
     case MachineRepresentation::kFloat64:
       return m->RoundFloat64ToInt32(a);
     default:
@@ -143,10 +143,10 @@ void TestReturnMultipleValues(MachineType type) {
       Zone zone(&allocator, ZONE_NAME);
       CallDescriptor* desc =
           CreateCallDescriptor(&zone, count, param_count, type);
-      HandleAndZoneScope handles;
+      HandleAndZoneScope handles(kCompressGraphZone);
       RawMachineAssembler m(
           handles.main_isolate(),
-          new (handles.main_zone()) Graph(handles.main_zone()), desc,
+          handles.main_zone()->New<Graph>(handles.main_zone()), desc,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -163,7 +163,7 @@ void TestReturnMultipleValues(MachineType type) {
       m.Return(count, returns.get());
 
       OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                    Code::WASM_FUNCTION);
+                                    CodeKind::WASM_FUNCTION);
       Handle<Code> code = Pipeline::GenerateCodeForTesting(
                               &info, handles.main_isolate(), desc, m.graph(),
                               AssemblerOptions::Default(handles.main_isolate()),
@@ -191,7 +191,7 @@ void TestReturnMultipleValues(MachineType type) {
       byte* code_start =
           module->AddCodeForTesting(code)->instructions().begin();
 
-      RawMachineAssemblerTester<int32_t> mt(Code::Kind::JS_TO_WASM_FUNCTION);
+      RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
       call_inputs[0] = mt.PointerConstant(code_start);
@@ -253,9 +253,9 @@ void ReturnLastValue(MachineType type) {
 
     CallDescriptor* desc = CreateCallDescriptor(&zone, return_count, 0, type);
 
-    HandleAndZoneScope handles;
+    HandleAndZoneScope handles(kCompressGraphZone);
     RawMachineAssembler m(handles.main_isolate(),
-                          new (handles.main_zone()) Graph(handles.main_zone()),
+                          handles.main_zone()->New<Graph>(handles.main_zone()),
                           desc, MachineType::PointerRepresentation(),
                           InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -268,7 +268,7 @@ void ReturnLastValue(MachineType type) {
     m.Return(return_count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::WASM_FUNCTION);
+                                  CodeKind::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
                             &info, handles.main_isolate(), desc, m.graph(),
                             AssemblerOptions::Default(handles.main_isolate()),
@@ -316,9 +316,9 @@ void ReturnSumOfReturns(MachineType type) {
 
     CallDescriptor* desc = CreateCallDescriptor(&zone, return_count, 0, type);
 
-    HandleAndZoneScope handles;
+    HandleAndZoneScope handles(kCompressGraphZone);
     RawMachineAssembler m(handles.main_isolate(),
-                          new (handles.main_zone()) Graph(handles.main_zone()),
+                          handles.main_zone()->New<Graph>(handles.main_zone()),
                           desc, MachineType::PointerRepresentation(),
                           InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -331,7 +331,7 @@ void ReturnSumOfReturns(MachineType type) {
     m.Return(return_count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::WASM_FUNCTION);
+                                  CodeKind::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
                             &info, handles.main_isolate(), desc, m.graph(),
                             AssemblerOptions::Default(handles.main_isolate()),

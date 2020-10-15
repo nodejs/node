@@ -109,6 +109,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   int32_t GetImmediateOperand(int operand_index) const;
   uint32_t GetIndexOperand(int operand_index) const;
   FeedbackSlot GetSlotOperand(int operand_index) const;
+  Register GetReceiver() const;
+  Register GetParameter(int parameter_index) const;
   uint32_t GetRegisterCountOperand(int operand_index) const;
   Register GetRegisterOperand(int operand_index) const;
   int GetRegisterOperandRange(int operand_index) const;
@@ -121,6 +123,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   Handle<Object> GetConstantForIndexOperand(int operand_index,
                                             Isolate* isolate) const;
 
+  // Returns the relative offset of the branch target at the current bytecode.
+  // It is an error to call this method if the bytecode is not for a jump or
+  // conditional jump. Returns a negative offset for backward jumps.
+  int GetRelativeJumpTargetOffset() const;
   // Returns the absolute offset of the branch target at the current bytecode.
   // It is an error to call this method if the bytecode is not for a jump or
   // conditional jump.

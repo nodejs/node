@@ -492,7 +492,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
   return dest;
 }
 
-}  // Anonymous namespace
+}  // anonymous namespace
 
 MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
   Handle<String> result;

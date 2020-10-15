@@ -8,6 +8,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,21 +17,10 @@ namespace v8 {
 namespace internal {
 
 // Container for metadata stored on each prototype map.
-class PrototypeInfo : public Struct {
+class PrototypeInfo
+    : public TorqueGeneratedPrototypeInfo<PrototypeInfo, Struct> {
  public:
   static const int UNREGISTERED = -1;
-
-  // [module_namespace]: A backpointer to JSModuleNamespace from its
-  // PrototypeInfo (or undefined). This field is only used for JSModuleNamespace
-  // maps.  TODO(jkummerow): Figure out if there's a way to store the namespace
-  // pointer elsewhere to save memory.
-  DECL_ACCESSORS(module_namespace, Object)
-
-  // [prototype_users]: WeakArrayList containing weak references to maps using
-  // this prototype, or Smi(0) if uninitialized.
-  DECL_ACCESSORS(prototype_users, Object)
-
-  DECL_ACCESSORS(prototype_chain_enum_cache, Object)
 
   // [object_create_map]: A field caching the map for Object.create(prototype).
   static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
@@ -38,35 +28,18 @@ class PrototypeInfo : public Struct {
   inline Map ObjectCreateMap();
   inline bool HasObjectCreateMap();
 
-  // [registry_slot]: Slot in prototype's user registry where this user
-  // is stored. Returns UNREGISTERED if this prototype has not been registered.
-  inline int registry_slot() const;
-  inline void set_registry_slot(int slot);
-
-  // [bit_field]
-  inline int bit_field() const;
-  inline void set_bit_field(int bit_field);
-
   DECL_BOOLEAN_ACCESSORS(should_be_fast_map)
-
-  DECL_CAST(PrototypeInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(PrototypeInfo)
   DECL_VERIFIER(PrototypeInfo)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_PROTOTYPE_INFO_FIELDS)
-
   // Bit field usage.
-  static const int kShouldBeFastBit = 0;
+  DEFINE_TORQUE_GENERATED_PROTOTYPE_INFO_FLAGS()
 
   class BodyDescriptor;
 
- private:
-  DECL_ACCESSORS(object_create_map, MaybeObject)
-
-  OBJECT_CONSTRUCTORS(PrototypeInfo, Struct);
+  TQ_OBJECT_CONSTRUCTORS(PrototypeInfo)
 };
 
 // A growing array with an additional API for marking slots "empty". When adding

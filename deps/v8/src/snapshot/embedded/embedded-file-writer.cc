@@ -73,27 +73,49 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
 void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                                            const i::EmbeddedData* blob) const {
   {
-    i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_symbol;
-    i::SNPrintF(embedded_blob_symbol, "v8_%s_embedded_blob_",
+    i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_code_symbol;
+    i::SNPrintF(embedded_blob_code_symbol, "v8_%s_embedded_blob_code_",
                 embedded_variant_);
 
-    w->Comment("Pointer to the beginning of the embedded blob.");
+    w->Comment("Pointer to the beginning of the embedded blob code.");
     w->SectionData();
     w->AlignToDataAlignment();
-    w->DeclarePointerToSymbol(embedded_blob_symbol.begin(),
-                              EmbeddedBlobDataSymbol().c_str());
+    w->DeclarePointerToSymbol(embedded_blob_code_symbol.begin(),
+                              EmbeddedBlobCodeDataSymbol().c_str());
+    w->Newline();
+
+    i::EmbeddedVector<char, kTemporaryStringLength>
+        embedded_blob_metadata_symbol;
+    i::SNPrintF(embedded_blob_metadata_symbol, "v8_%s_embedded_blob_metadata_",
+                embedded_variant_);
+
+    w->Comment("Pointer to the beginning of the embedded blob metadata.");
+    w->AlignToDataAlignment();
+    w->DeclarePointerToSymbol(embedded_blob_metadata_symbol.begin(),
+                              EmbeddedBlobMetadataDataSymbol().c_str());
     w->Newline();
   }
 
   {
-    i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_size_symbol;
-    i::SNPrintF(embedded_blob_size_symbol, "v8_%s_embedded_blob_size_",
-                embedded_variant_);
+    i::EmbeddedVector<char, kTemporaryStringLength>
+        embedded_blob_code_size_symbol;
+    i::SNPrintF(embedded_blob_code_size_symbol,
+                "v8_%s_embedded_blob_code_size_", embedded_variant_);
 
-    w->Comment("The size of the embedded blob in bytes.");
+    w->Comment("The size of the embedded blob code in bytes.");
     w->SectionRoData();
     w->AlignToDataAlignment();
-    w->DeclareUint32(embedded_blob_size_symbol.begin(), blob->size());
+    w->DeclareUint32(embedded_blob_code_size_symbol.begin(), blob->code_size());
+    w->Newline();
+
+    i::EmbeddedVector<char, kTemporaryStringLength>
+        embedded_blob_metadata_size_symbol;
+    i::SNPrintF(embedded_blob_metadata_size_symbol,
+                "v8_%s_embedded_blob_metadata_size_", embedded_variant_);
+
+    w->Comment("The size of the embedded blob metadata in bytes.");
+    w->DeclareUint32(embedded_blob_metadata_size_symbol.begin(),
+                     blob->metadata_size());
     w->Newline();
   }
 
@@ -104,7 +126,7 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                 embedded_variant_);
 
     w->MaybeEmitUnwindData(unwind_info_symbol.begin(),
-                           EmbeddedBlobDataSymbol().c_str(), blob,
+                           EmbeddedBlobCodeDataSymbol().c_str(), blob,
                            reinterpret_cast<const void*>(&unwind_infos_[0]));
   }
 #endif  // V8_OS_WIN64

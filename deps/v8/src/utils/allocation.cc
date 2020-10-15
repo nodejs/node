@@ -276,5 +276,18 @@ void VirtualMemory::Free() {
                   RoundUp(region.size(), page_allocator->AllocatePageSize())));
 }
 
+void VirtualMemory::FreeReadOnly() {
+  DCHECK(IsReserved());
+  // The only difference to Free is that it doesn't call Reset which would write
+  // to the VirtualMemory object.
+  v8::PageAllocator* page_allocator = page_allocator_;
+  base::AddressRegion region = region_;
+
+  // FreePages expects size to be aligned to allocation granularity however
+  // ReleasePages may leave size at only commit granularity. Align it here.
+  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+                  RoundUp(region.size(), page_allocator->AllocatePageSize())));
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -39,7 +39,7 @@ struct NodeMatcher {
 
   bool IsComparison() const;
 
-#define DEFINE_IS_OPCODE(Opcode) \
+#define DEFINE_IS_OPCODE(Opcode, ...) \
   bool Is##Opcode() const { return opcode() == IrOpcode::k##Opcode; }
   ALL_OP_LIST(DEFINE_IS_OPCODE)
 #undef DEFINE_IS_OPCODE

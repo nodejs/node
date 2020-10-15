@@ -5,11 +5,10 @@
 #ifndef V8_PARSING_PREPARSE_DATA_IMPL_H_
 #define V8_PARSING_PREPARSE_DATA_IMPL_H_
 
-#include "src/parsing/preparse-data.h"
-
 #include <memory>
 
 #include "src/common/assert-scope.h"
+#include "src/parsing/preparse-data.h"
 
 namespace v8 {
 namespace internal {
@@ -37,8 +36,6 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
  public:
   class ByteData : public PreparseByteDataConstants {
    public:
-    ByteData() {}
-
     // Reading from the ByteData is only allowed when a ReadingScope is on the
     // stack. This ensures that we have a DisallowHeapAllocation in place
     // whenever ByteData holds a raw pointer into the heap.
@@ -202,7 +199,7 @@ class ZonePreparseData : public ZoneObject {
                                      int child_length);
 
   Handle<PreparseData> Serialize(Isolate* isolate);
-  Handle<PreparseData> Serialize(OffThreadIsolate* isolate);
+  Handle<PreparseData> Serialize(LocalIsolate* isolate);
 
   int children_length() const { return static_cast<int>(children_.size()); }
 
@@ -225,7 +222,7 @@ class ZonePreparseData : public ZoneObject {
 ZonePreparseData* PreparseDataBuilder::ByteData::CopyToZone(
     Zone* zone, int children_length) {
   DCHECK(is_finalized_);
-  return new (zone) ZonePreparseData(zone, &zone_byte_data_, children_length);
+  return zone->New<ZonePreparseData>(zone, &zone_byte_data_, children_length);
 }
 
 // Implementation of ConsumedPreparseData for PreparseData

@@ -117,6 +117,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F64x2Le:
     case kIA32F64x2Pmin:
     case kIA32F64x2Pmax:
+    case kIA32F64x2Round:
     case kIA32I64x2SplatI32Pair:
     case kIA32I64x2ReplaceLaneI32Pair:
     case kIA32I64x2Neg:
@@ -167,6 +168,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXF32x4Le:
     case kIA32F32x4Pmin:
     case kIA32F32x4Pmax:
+    case kIA32F32x4Round:
     case kIA32I32x4Splat:
     case kIA32I32x4ExtractLane:
     case kSSEI32x4ReplaceLane:
@@ -213,6 +215,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI32x4GeU:
     case kIA32I32x4Abs:
     case kIA32I32x4BitMask:
+    case kIA32I32x4DotI16x8S:
     case kIA32I16x8Splat:
     case kIA32I16x8ExtractLaneU:
     case kIA32I16x8ExtractLaneS:
@@ -319,7 +322,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16RoundingAverageU:
     case kIA32I8x16Abs:
     case kIA32I8x16BitMask:
+    case kIA32S128Const:
     case kIA32S128Zero:
+    case kIA32S128AllOnes:
     case kSSES128Not:
     case kAVXS128Not:
     case kSSES128And:
@@ -367,12 +372,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXS8x4Reverse:
     case kSSES8x2Reverse:
     case kAVXS8x2Reverse:
-    case kIA32S1x4AnyTrue:
-    case kIA32S1x4AllTrue:
-    case kIA32S1x8AnyTrue:
-    case kIA32S1x8AllTrue:
-    case kIA32S1x16AnyTrue:
-    case kIA32S1x16AllTrue:
+    case kIA32V32x4AnyTrue:
+    case kIA32V32x4AllTrue:
+    case kIA32V16x8AnyTrue:
+    case kIA32V16x8AllTrue:
+    case kIA32V8x16AnyTrue:
+    case kIA32V8x16AllTrue:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;

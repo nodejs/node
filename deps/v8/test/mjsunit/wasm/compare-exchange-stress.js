@@ -9,6 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 const kSequenceLength = 8192;
 const kNumberOfWorkers = 4;
 const kBitMask = kNumberOfWorkers - 1;
+const kMemoryAddress = 0;
 const kSequenceStartAddress = 32;
 
 function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
@@ -186,15 +187,19 @@ function testOpcode(opcode, opcodeSize) {
         shared: true
     });
     let memoryView = new Uint8Array(memory.buffer);
-    generateSequence(memoryView, kSequenceStartAddress, kSequenceLength * (opcodeSize / 8));
+    let numBytes = opcodeSize / 8;
+    generateSequence(
+        memoryView, kSequenceStartAddress, kSequenceLength * numBytes);
+
+    // Write the first element of the sequence to memory, such that the workers
+    // can start running as soon as they are spawned.
+    memoryView.copyWithin(
+        kMemoryAddress, kSequenceStartAddress,
+        kSequenceStartAddress + numBytes);
 
     let module = new WebAssembly.Module(builder.toBuffer());
-    let workers = spawnWorker(module, memory, 0, kSequenceStartAddress);
-
-    // Fire the workers off
-    for (let i = opcodeSize / 8 - 1; i >= 0; i--) {
-        memoryView[i] = memoryView[kSequenceStartAddress + i];
-    }
+    let workers =
+        spawnWorker(module, memory, kMemoryAddress, kSequenceStartAddress);
 
     waitForWorkers(workers);
 

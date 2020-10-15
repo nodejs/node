@@ -215,6 +215,12 @@ namespace compiler {
   V(S390_F64x2ExtractLane)                  \
   V(S390_F64x2Qfma)                         \
   V(S390_F64x2Qfms)                         \
+  V(S390_F64x2Pmin)                         \
+  V(S390_F64x2Pmax)                         \
+  V(S390_F64x2Ceil)                         \
+  V(S390_F64x2Floor)                        \
+  V(S390_F64x2Trunc)                        \
+  V(S390_F64x2NearestInt)                   \
   V(S390_F32x4Splat)                        \
   V(S390_F32x4ExtractLane)                  \
   V(S390_F32x4ReplaceLane)                  \
@@ -238,6 +244,12 @@ namespace compiler {
   V(S390_F32x4Max)                          \
   V(S390_F32x4Qfma)                         \
   V(S390_F32x4Qfms)                         \
+  V(S390_F32x4Pmin)                         \
+  V(S390_F32x4Pmax)                         \
+  V(S390_F32x4Ceil)                         \
+  V(S390_F32x4Floor)                        \
+  V(S390_F32x4Trunc)                        \
+  V(S390_F32x4NearestInt)                   \
   V(S390_I64x2Neg)                          \
   V(S390_I64x2Add)                          \
   V(S390_I64x2Sub)                          \
@@ -286,6 +298,8 @@ namespace compiler {
   V(S390_I32x4UConvertI16x8Low)             \
   V(S390_I32x4UConvertI16x8High)            \
   V(S390_I32x4Abs)                          \
+  V(S390_I32x4BitMask)                      \
+  V(S390_I32x4DotI16x8S)                    \
   V(S390_I16x8Splat)                        \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
@@ -320,6 +334,7 @@ namespace compiler {
   V(S390_I16x8SubSaturateU)                 \
   V(S390_I16x8RoundingAverageU)             \
   V(S390_I16x8Abs)                          \
+  V(S390_I16x8BitMask)                      \
   V(S390_I8x16Splat)                        \
   V(S390_I8x16ExtractLaneU)                 \
   V(S390_I8x16ExtractLaneS)                 \
@@ -349,20 +364,23 @@ namespace compiler {
   V(S390_I8x16SubSaturateU)                 \
   V(S390_I8x16RoundingAverageU)             \
   V(S390_I8x16Abs)                          \
+  V(S390_I8x16BitMask)                      \
   V(S390_S8x16Shuffle)                      \
   V(S390_S8x16Swizzle)                      \
-  V(S390_S1x2AnyTrue)                       \
-  V(S390_S1x4AnyTrue)                       \
-  V(S390_S1x8AnyTrue)                       \
-  V(S390_S1x16AnyTrue)                      \
-  V(S390_S1x2AllTrue)                       \
-  V(S390_S1x4AllTrue)                       \
-  V(S390_S1x8AllTrue)                       \
-  V(S390_S1x16AllTrue)                      \
+  V(S390_V64x2AnyTrue)                      \
+  V(S390_V32x4AnyTrue)                      \
+  V(S390_V16x8AnyTrue)                      \
+  V(S390_V8x16AnyTrue)                      \
+  V(S390_V64x2AllTrue)                      \
+  V(S390_V32x4AllTrue)                      \
+  V(S390_V16x8AllTrue)                      \
+  V(S390_V8x16AllTrue)                      \
   V(S390_S128And)                           \
   V(S390_S128Or)                            \
   V(S390_S128Xor)                           \
+  V(S390_S128Const)                         \
   V(S390_S128Zero)                          \
+  V(S390_S128AllOnes)                       \
   V(S390_S128Not)                           \
   V(S390_S128Select)                        \
   V(S390_S128AndNot)                        \

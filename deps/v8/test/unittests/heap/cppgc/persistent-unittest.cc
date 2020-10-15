@@ -8,9 +8,11 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/type-traits.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/visitor.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -70,6 +72,7 @@ class RootVisitor final : public VisitorBase {
  private:
   std::vector<std::pair<WeakCallback, const void*>> weak_callbacks_;
 };
+
 class PersistentTest : public testing::TestSupportingAllocationOnly {};
 
 }  // namespace
@@ -114,7 +117,7 @@ TEST_F(PersistentTest, NullStateCtor) {
 template <template <typename> class PersistentType>
 void RawCtor(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
-  GCed* gced = MakeGarbageCollected<GCed>(heap);
+  GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
   {
     PersistentType<GCed> p = gced;
     EXPECT_EQ(gced, p.Get());
@@ -139,7 +142,8 @@ template <template <typename> class PersistentType>
 void CopyCtor(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    PersistentType<GCed> p1 = MakeGarbageCollected<GCed>(heap);
+    PersistentType<GCed> p1 =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     PersistentType<GCed> p2 = p1;
     EXPECT_EQ(2u, GetRegion<PersistentType>(heap).NodesInUse());
@@ -157,7 +161,8 @@ void CopyCtor(cppgc::Heap* heap) {
   }
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    PersistentType<DerivedGCed> p1 = MakeGarbageCollected<DerivedGCed>(heap);
+    PersistentType<DerivedGCed> p1 =
+        MakeGarbageCollected<DerivedGCed>(heap->GetAllocationHandle());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     PersistentType<GCed> p2 = p1;
     EXPECT_EQ(2u, GetRegion<PersistentType>(heap).NodesInUse());
@@ -167,7 +172,8 @@ void CopyCtor(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
     static constexpr size_t kSlots = 512u;
-    const PersistentType<GCed> prototype = MakeGarbageCollected<GCed>(heap);
+    const PersistentType<GCed> prototype =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     std::vector<PersistentType<GCed>> vector;
     vector.reserve(kSlots);
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
@@ -191,7 +197,7 @@ template <template <typename> class PersistentType>
 void MoveCtor(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    GCed* gced = MakeGarbageCollected<GCed>(heap);
+    GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     PersistentType<GCed> p1 = gced;
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     PersistentType<GCed> p2 = std::move(p1);
@@ -202,7 +208,8 @@ void MoveCtor(cppgc::Heap* heap) {
   }
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    PersistentType<DerivedGCed> p1 = MakeGarbageCollected<DerivedGCed>(heap);
+    PersistentType<DerivedGCed> p1 =
+        MakeGarbageCollected<DerivedGCed>(heap->GetAllocationHandle());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     // Move ctor is not heterogeneous - fall back to copy ctor.
     PersistentType<GCed> p2 = std::move(p1);
@@ -233,7 +240,8 @@ template <template <typename> class PersistentType,
 void MemberCtor(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    MemberType<GCed> m = MakeGarbageCollected<GCed>(heap);
+    MemberType<GCed> m =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     PersistentType<GCed> p = m;
     EXPECT_EQ(m.Get(), p.Get());
     EXPECT_EQ(m, p);
@@ -256,14 +264,16 @@ template <template <typename> class PersistentType>
 void NullStateAssignemnt(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    PersistentType<GCed> p = MakeGarbageCollected<GCed>(heap);
+    PersistentType<GCed> p =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     p = nullptr;
     EXPECT_EQ(nullptr, p.Get());
     EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   }
   {
-    PersistentType<GCed> p = MakeGarbageCollected<GCed>(heap);
+    PersistentType<GCed> p =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     p = kSentinelPointer;
     EXPECT_EQ(kSentinelPointer, p);
@@ -271,7 +281,8 @@ void NullStateAssignemnt(cppgc::Heap* heap) {
     EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   }
   {
-    PersistentType<GCed> p = MakeGarbageCollected<GCed>(heap);
+    PersistentType<GCed> p =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     p = static_cast<GCed*>(0);
     EXPECT_EQ(nullptr, p.Get());
@@ -288,7 +299,7 @@ TEST_F(PersistentTest, NullStateAssignemnt) {
 template <template <typename> class PersistentType>
 void RawAssignment(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
-  GCed* gced = MakeGarbageCollected<GCed>(heap);
+  GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
   {
     PersistentType<GCed> p;
     EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
@@ -317,7 +328,8 @@ template <template <typename> class PersistentType>
 void CopyAssignment(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    PersistentType<GCed> p1 = MakeGarbageCollected<GCed>(heap);
+    PersistentType<GCed> p1 =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     PersistentType<GCed> p2;
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     p2 = p1;
@@ -327,8 +339,10 @@ void CopyAssignment(cppgc::Heap* heap) {
   }
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    PersistentType<GCed> p1 = MakeGarbageCollected<GCed>(heap);
-    PersistentType<GCed> p2 = MakeGarbageCollected<GCed>(heap);
+    PersistentType<GCed> p1 =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+    PersistentType<GCed> p2 =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_EQ(2u, GetRegion<PersistentType>(heap).NodesInUse());
     p2 = p1;
     // The old node from p2 must be dropped.
@@ -338,7 +352,8 @@ void CopyAssignment(cppgc::Heap* heap) {
   }
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    PersistentType<DerivedGCed> p1 = MakeGarbageCollected<DerivedGCed>(heap);
+    PersistentType<DerivedGCed> p1 =
+        MakeGarbageCollected<DerivedGCed>(heap->GetAllocationHandle());
     PersistentType<GCed> p2;
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     p2 = p1;
@@ -349,7 +364,8 @@ void CopyAssignment(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
     static constexpr size_t kSlots = 512u;
-    const PersistentType<GCed> prototype = MakeGarbageCollected<GCed>(heap);
+    const PersistentType<GCed> prototype =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     std::vector<PersistentType<GCed>> vector(kSlots);
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     size_t i = 0;
@@ -374,7 +390,7 @@ template <template <typename> class PersistentType>
 void MoveAssignment(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    GCed* gced = MakeGarbageCollected<GCed>(heap);
+    GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     PersistentType<GCed> p1 = gced;
     PersistentType<GCed> p2;
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
@@ -387,7 +403,8 @@ void MoveAssignment(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
     PersistentType<GCed> p1;
-    PersistentType<GCed> p2 = MakeGarbageCollected<GCed>(heap);
+    PersistentType<GCed> p2 =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     p2 = std::move(p1);
     EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
@@ -396,9 +413,10 @@ void MoveAssignment(cppgc::Heap* heap) {
   }
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    GCed* gced = MakeGarbageCollected<GCed>(heap);
+    GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     PersistentType<GCed> p1 = gced;
-    PersistentType<GCed> p2 = MakeGarbageCollected<GCed>(heap);
+    PersistentType<GCed> p2 =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_EQ(2u, GetRegion<PersistentType>(heap).NodesInUse());
     p2 = std::move(p1);
     // The old node from p2 must be dropped.
@@ -409,7 +427,8 @@ void MoveAssignment(cppgc::Heap* heap) {
   }
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    PersistentType<DerivedGCed> p1 = MakeGarbageCollected<DerivedGCed>(heap);
+    PersistentType<DerivedGCed> p1 =
+        MakeGarbageCollected<DerivedGCed>(heap->GetAllocationHandle());
     PersistentType<GCed> p2;
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
     // Move ctor is not heterogeneous - fall back to copy assignment.
@@ -432,7 +451,8 @@ template <template <typename> class PersistentType,
 void MemberAssignment(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
-    MemberType<GCed> m = MakeGarbageCollected<GCed>(heap);
+    MemberType<GCed> m =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     PersistentType<GCed> p;
     p = m;
     EXPECT_EQ(m.Get(), p.Get());
@@ -455,7 +475,8 @@ TEST_F(PersistentTest, MemberAssignment) {
 template <template <typename> class PersistentType>
 void ClearTest(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
-  PersistentType<GCed> p = MakeGarbageCollected<GCed>(heap);
+  PersistentType<GCed> p =
+      MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
   EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
   EXPECT_NE(nullptr, p.Get());
   p.Clear();
@@ -472,7 +493,7 @@ TEST_F(PersistentTest, Clear) {
 template <template <typename> class PersistentType>
 void ReleaseTest(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
-  GCed* gced = MakeGarbageCollected<GCed>(heap);
+  GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
   PersistentType<GCed> p = gced;
   EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
   EXPECT_NE(nullptr, p.Get());
@@ -494,7 +515,8 @@ void HeterogeneousConversion(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType1>(heap).NodesInUse());
   EXPECT_EQ(0u, GetRegion<PersistentType2>(heap).NodesInUse());
   {
-    PersistentType1<GCed> persistent1 = MakeGarbageCollected<GCed>(heap);
+    PersistentType1<GCed> persistent1 =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     PersistentType2<GCed> persistent2 = persistent1;
     EXPECT_EQ(persistent1.Get(), persistent2.Get());
     EXPECT_EQ(1u, GetRegion<PersistentType1>(heap).NodesInUse());
@@ -504,7 +526,7 @@ void HeterogeneousConversion(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType2>(heap).NodesInUse());
   {
     PersistentType1<DerivedGCed> persistent1 =
-        MakeGarbageCollected<DerivedGCed>(heap);
+        MakeGarbageCollected<DerivedGCed>(heap->GetAllocationHandle());
     PersistentType2<GCed> persistent2 = persistent1;
     EXPECT_EQ(persistent1.Get(), persistent2.Get());
     EXPECT_EQ(1u, GetRegion<PersistentType1>(heap).NodesInUse());
@@ -513,7 +535,8 @@ void HeterogeneousConversion(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType1>(heap).NodesInUse());
   EXPECT_EQ(0u, GetRegion<PersistentType2>(heap).NodesInUse());
   {
-    PersistentType1<GCed> persistent1 = MakeGarbageCollected<GCed>(heap);
+    PersistentType1<GCed> persistent1 =
+        MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     PersistentType2<GCed> persistent2;
     persistent2 = persistent1;
     EXPECT_EQ(persistent1.Get(), persistent2.Get());
@@ -524,7 +547,7 @@ void HeterogeneousConversion(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType2>(heap).NodesInUse());
   {
     PersistentType1<DerivedGCed> persistent1 =
-        MakeGarbageCollected<DerivedGCed>(heap);
+        MakeGarbageCollected<DerivedGCed>(heap->GetAllocationHandle());
     PersistentType2<GCed> persistent2;
     persistent2 = persistent1;
     EXPECT_EQ(persistent1.Get(), persistent2.Get());
@@ -546,7 +569,7 @@ TEST_F(PersistentTest, TraceStrong) {
   static constexpr size_t kItems = 512;
   std::vector<Persistent<GCed>> vec(kItems);
   for (auto& p : vec) {
-    p = MakeGarbageCollected<GCed>(heap);
+    p = MakeGarbageCollected<GCed>(GetAllocationHandle());
   }
   {
     GCed::trace_call_count = 0;
@@ -581,7 +604,7 @@ TEST_F(PersistentTest, TraceWeak) {
   static constexpr size_t kItems = 512;
   std::vector<WeakPersistent<GCed>> vec(kItems);
   for (auto& p : vec) {
-    p = MakeGarbageCollected<GCed>(heap);
+    p = MakeGarbageCollected<GCed>(GetAllocationHandle());
   }
   GCed::trace_call_count = 0;
   RootVisitor v;
@@ -597,9 +620,28 @@ TEST_F(PersistentTest, TraceWeak) {
   EXPECT_EQ(0u, GetRegion<WeakPersistent>(heap).NodesInUse());
 }
 
+TEST_F(PersistentTest, ClearOnHeapDestruction) {
+  Persistent<GCed> persistent;
+  WeakPersistent<GCed> weak_persistent;
+
+  // Create another heap that can be destroyed during the test.
+  auto heap = Heap::Create(GetPlatformHandle());
+  persistent = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+  weak_persistent = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+  const Persistent<GCed> persistent_sentinel(kSentinelPointer);
+  const WeakPersistent<GCed> weak_persistent_sentinel(kSentinelPointer);
+  heap.reset();
+
+  EXPECT_EQ(nullptr, persistent);
+  EXPECT_EQ(nullptr, weak_persistent);
+  // Sentinel values survive as they do not represent actual heap objects.
+  EXPECT_EQ(kSentinelPointer, persistent_sentinel);
+  EXPECT_EQ(kSentinelPointer, weak_persistent_sentinel);
+}
+
 #if CPPGC_SUPPORTS_SOURCE_LOCATION
 TEST_F(PersistentTest, LocalizedPersistent) {
-  GCed* gced = MakeGarbageCollected<GCed>(GetHeap());
+  GCed* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   {
     const auto expected_loc = SourceLocation::Current();
     LocalizedPersistent<GCed> p = gced;

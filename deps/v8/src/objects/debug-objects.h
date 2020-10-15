@@ -28,7 +28,6 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
-  using Flags = base::Flags<Flag>;
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Tests stepping through wasm scripts with source maps');
 session.setupScriptMap();
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 
@@ -36,26 +36,12 @@ builder.addCustomSection('sourceMappingURL', [3, 97, 98, 99]);
 
 var module_bytes = builder.toArray();
 
-function instantiate(bytes) {
-  var buffer = new ArrayBuffer(bytes.length);
-  var view = new Uint8Array(buffer);
-  for (var i = 0; i < bytes.length; ++i) {
-    view[i] = bytes[i] | 0;
-  }
-
-  var module = new WebAssembly.Module(buffer);
-  // Set global variable.
-  instance = new WebAssembly.Instance(module);
-}
-
 (async function test() {
   for (const action of ['stepInto', 'stepOver', 'stepOut', 'resume'])
     InspectorTest.logProtocolCommandCalls('Debugger.' + action);
 
   await Protocol.Debugger.enable();
-  InspectorTest.log('Installing code an global variable and instantiate.');
-  Protocol.Runtime.evaluate({
-    expression: `var instance;(${instantiate.toString()})(${JSON.stringify(module_bytes)})`});
+  WasmInspectorTest.instantiate(module_bytes);
   const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
 
   InspectorTest.log('Got wasm script: ' + wasmScript.url);
@@ -112,12 +98,7 @@ async function waitForPauseAndStep(stepAction) {
               returnByValue: true
             });
 
-        if (scope.type === 'local') {
-          if (value.locals)
-            InspectorTest.log(`   locals: ${JSON.stringify(value.locals)}`);
-        } else {
-          InspectorTest.log(`   ${JSON.stringify(value)}`);
-        }
+        InspectorTest.log(`   ${JSON.stringify(value)}`);
       }
     }
   }

@@ -20,32 +20,32 @@ class CodeAssemblerTester {
  public:
   // Test generating code for a stub. Assumes VoidDescriptor call interface.
   explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
-      : zone_(isolate->allocator(), ZONE_NAME),
+      : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
-        state_(isolate, &zone_, VoidDescriptor{}, Code::STUB, name,
+        state_(isolate, &zone_, VoidDescriptor{}, CodeKind::STUB, name,
                PoisoningMitigationLevel::kDontPoison) {}
 
   // Test generating code for a JS function (e.g. builtins).
   CodeAssemblerTester(Isolate* isolate, int parameter_count,
-                      Code::Kind kind = Code::BUILTIN,
+                      CodeKind kind = CodeKind::BUILTIN,
                       const char* name = "test")
-      : zone_(isolate->allocator(), ZONE_NAME),
+      : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
         state_(isolate, &zone_, parameter_count, kind, name,
                PoisoningMitigationLevel::kDontPoison) {}
 
-  CodeAssemblerTester(Isolate* isolate, Code::Kind kind,
+  CodeAssemblerTester(Isolate* isolate, CodeKind kind,
                       const char* name = "test")
-      : zone_(isolate->allocator(), ZONE_NAME),
+      : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
         state_(isolate, &zone_, 0, kind, name,
                PoisoningMitigationLevel::kDontPoison) {}
 
   CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor,
                       const char* name = "test")
-      : zone_(isolate->allocator(), ZONE_NAME),
+      : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
-        state_(isolate, &zone_, call_descriptor, Code::STUB, name,
+        state_(isolate, &zone_, call_descriptor, CodeKind::STUB, name,
                PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
 
   CodeAssemblerState* state() { return &state_; }
@@ -63,7 +63,7 @@ class CodeAssemblerTester {
     if (state_.InsideBlock()) {
       CodeAssembler(&state_).Unreachable();
     }
-    return CodeAssembler::GenerateCode(&state_, options);
+    return CodeAssembler::GenerateCode(&state_, options, nullptr);
   }
 
   Handle<Code> GenerateCodeCloseAndEscape() {

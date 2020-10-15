@@ -3906,6 +3906,7 @@ void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
+  set_last_call_pc_(pc_);
 }
 
 // Note: To call gcc-compiled C code on mips, you must call through t9.
@@ -3938,6 +3939,7 @@ void TurboAssembler::Call(Register target, Register base, int16_t offset,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
+  set_last_call_pc_(pc_);
 }
 
 void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
@@ -5427,7 +5429,7 @@ void TurboAssembler::CallCFunctionHelper(Register function_base,
 void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
   And(scratch, object, Operand(~kPageAlignmentMask));
-  lw(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  lw(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
 }

@@ -229,25 +229,17 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
 
 void EscapeAnalysisReducer::Finalize() {
   for (Node* node : arguments_elements_) {
-    int mapped_count = NewArgumentsElementsMappedCountOf(node->op());
+    const NewArgumentsElementsParameters& params =
+        NewArgumentsElementsParametersOf(node->op());
+    ArgumentsStateType type = params.arguments_type();
+    int mapped_count = type == CreateArgumentsType::kMappedArguments
+                           ? params.formal_parameter_count()
+                           : 0;
 
     Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
     if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
     Node* arguments_length = NodeProperties::GetValueInput(node, 1);
     if (arguments_length->opcode() != IrOpcode::kArgumentsLength) continue;
-
-    // If mapped arguments are specified, then their number is always equal to
-    // the number of formal parameters. This allows to use just the three-value
-    // {ArgumentsStateType} enum because the deoptimizer can reconstruct the
-    // value of {mapped_count} from the number of formal parameters.
-    DCHECK_IMPLIES(
-        mapped_count != 0,
-        mapped_count == FormalParameterCountOf(arguments_length->op()));
-    ArgumentsStateType type = IsRestLengthOf(arguments_length->op())
-                                  ? ArgumentsStateType::kRestParameter
-                                  : (mapped_count == 0)
-                                        ? ArgumentsStateType::kUnmappedArguments
-                                        : ArgumentsStateType::kMappedArguments;
 
     Node* arguments_length_state = nullptr;
     for (Edge edge : arguments_length->use_edges()) {
@@ -259,7 +251,7 @@ void EscapeAnalysisReducer::Finalize() {
         case IrOpcode::kTypedStateValues:
           if (!arguments_length_state) {
             arguments_length_state = jsgraph()->graph()->NewNode(
-                jsgraph()->common()->ArgumentsLengthState(type));
+                jsgraph()->common()->ArgumentsLengthState());
             NodeProperties::SetType(arguments_length_state,
                                     Type::OtherInternal());
           }
@@ -317,11 +309,45 @@ void EscapeAnalysisReducer::Finalize() {
         switch (load->opcode()) {
           case IrOpcode::kLoadElement: {
             Node* index = NodeProperties::GetValueInput(load, 1);
+            Node* formal_parameter_count =
+                jsgraph()->Constant(params.formal_parameter_count());
+            NodeProperties::SetType(
+                formal_parameter_count,
+                Type::Constant(params.formal_parameter_count(),
+                               jsgraph()->graph()->zone()));
+#ifdef V8_REVERSE_JSARGS
+            Node* offset_to_first_elem = jsgraph()->Constant(
+                CommonFrameConstants::kFixedSlotCountAboveFp);
+            NodeProperties::SetType(offset_to_first_elem,
+                                    TypeCache::Get()->kArgumentsLengthType);
+            Node* offset = jsgraph()->graph()->NewNode(
+                jsgraph()->simplified()->NumberAdd(), index,
+                offset_to_first_elem);
+            if (type == CreateArgumentsType::kRestParameter) {
+              // In the case of rest parameters we should skip the formal
+              // parameters.
+              NodeProperties::SetType(offset,
+                                      TypeCache::Get()->kArgumentsLengthType);
+              offset = jsgraph()->graph()->NewNode(
+                  jsgraph()->simplified()->NumberAdd(), offset,
+                  formal_parameter_count);
+            }
+#else
             // {offset} is a reverted index starting from 1. The base address is
             // adapted to allow offsets starting from 1.
             Node* offset = jsgraph()->graph()->NewNode(
                 jsgraph()->simplified()->NumberSubtract(), arguments_length,
                 index);
+            if (type == CreateArgumentsType::kRestParameter) {
+              // In the case of rest parameters we should skip the formal
+              // parameters.
+              NodeProperties::SetType(offset,
+                                      TypeCache::Get()->kArgumentsLengthType);
+              offset = jsgraph()->graph()->NewNode(
+                  jsgraph()->simplified()->NumberSubtract(), offset,
+                  formal_parameter_count);
+            }
+#endif
             NodeProperties::SetType(offset,
                                     TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);

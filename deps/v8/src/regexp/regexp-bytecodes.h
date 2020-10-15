@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_BYTECODES_H_
 #define V8_REGEXP_REGEXP_BYTECODES_H_
 
+#include "src/base/bounds.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 
@@ -27,6 +28,7 @@ STATIC_ASSERT(1 << BYTECODE_SHIFT > BYTECODE_MASK);
 
 // TODO(pthier): Argument offsets of bytecodes should be easily accessible by
 // name or at least by position.
+// TODO(jgruber): More precise types (e.g. int32/uint32 instead of value32).
 #define BYTECODE_ITERATOR(V)                                                   \
   V(BREAK, 0, 4)              /* bc8                                        */ \
   V(PUSH_CP, 1, 4)            /* bc8 pad24                                  */ \
@@ -101,12 +103,12 @@ STATIC_ASSERT(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   V(CHECK_BIT_IN_TABLE, 34, 24) /* bc8 pad24 addr32 bits128           */       \
   V(CHECK_LT, 35, 8) /* bc8 pad8 uc16 addr32                       */          \
   V(CHECK_GT, 36, 8) /* bc8 pad8 uc16 addr32                       */          \
-  V(CHECK_NOT_BACK_REF, 37, 8)                  /* bc8 reg_idx24 addr32 */     \
-  V(CHECK_NOT_BACK_REF_NO_CASE, 38, 8)          /* bc8 reg_idx24 addr32 */     \
-  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE, 39, 8)  /* UNUSED */                   \
+  V(CHECK_NOT_BACK_REF, 37, 8)         /* bc8 reg_idx24 addr32 */              \
+  V(CHECK_NOT_BACK_REF_NO_CASE, 38, 8) /* bc8 reg_idx24 addr32 */              \
+  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE, 39, 8)                                 \
   V(CHECK_NOT_BACK_REF_BACKWARD, 40, 8)         /* bc8 reg_idx24 addr32 */     \
   V(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD, 41, 8) /* bc8 reg_idx24 addr32 */     \
-  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, 42, 8) /* UNUSED */           \
+  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, 42, 8)                        \
   V(CHECK_NOT_REGS_EQUAL, 43, 12) /* bc8 regidx24 reg_idx32 addr32 */          \
   V(CHECK_REGISTER_LT, 44, 12)    /* bc8 reg_idx24 value32 addr32 */           \
   V(CHECK_REGISTER_GE, 45, 12)    /* bc8 reg_idx24 value32 addr32 */           \
@@ -229,16 +231,18 @@ static constexpr int kRegExpBytecodeLengths[] = {
 };
 
 inline constexpr int RegExpBytecodeLength(int bytecode) {
+  CONSTEXPR_DCHECK(base::IsInRange(bytecode, 0, kRegExpBytecodeCount - 1));
   return kRegExpBytecodeLengths[bytecode];
 }
 
-static const char* const kRegExpBytecodeNames[] = {
+static constexpr const char* const kRegExpBytecodeNames[] = {
 #define DECLARE_BYTECODE_NAME(name, ...) #name,
     BYTECODE_ITERATOR(DECLARE_BYTECODE_NAME)
 #undef DECLARE_BYTECODE_NAME
 };
 
-inline const char* RegExpBytecodeName(int bytecode) {
+inline constexpr const char* RegExpBytecodeName(int bytecode) {
+  CONSTEXPR_DCHECK(base::IsInRange(bytecode, 0, kRegExpBytecodeCount - 1));
   return kRegExpBytecodeNames[bytecode];
 }
 

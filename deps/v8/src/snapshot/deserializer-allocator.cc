@@ -6,9 +6,15 @@
 
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/heap/memory-chunk.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
+
+void DeserializerAllocator::Initialize(Heap* heap) {
+  heap_ = heap;
+  roots_ = ReadOnlyRoots(heap);
+}
 
 // We know the space requirements before deserialization and can
 // pre-allocate that reserved space. During deserialization, all we need
@@ -24,12 +30,13 @@ namespace internal {
 Address DeserializerAllocator::AllocateRaw(SnapshotSpace space, int size) {
   const int space_number = static_cast<int>(space);
   if (space == SnapshotSpace::kLargeObject) {
-    AlwaysAllocateScope scope(heap_);
     // Note that we currently do not support deserialization of large code
     // objects.
+    HeapObject obj;
+    AlwaysAllocateScope scope(heap_);
     OldLargeObjectSpace* lo_space = heap_->lo_space();
     AllocationResult result = lo_space->AllocateRaw(size);
-    HeapObject obj = result.ToObjectChecked();
+    obj = result.ToObjectChecked();
     deserialized_large_objects_.push_back(obj);
     return obj.address();
   } else if (space == SnapshotSpace::kMap) {
@@ -82,11 +89,10 @@ Address DeserializerAllocator::Allocate(SnapshotSpace space, int size) {
     // If one of the following assertions fails, then we are deserializing an
     // aligned object when the filler maps have not been deserialized yet.
     // We require filler maps as padding to align the object.
-    DCHECK(ReadOnlyRoots(heap_).free_space_map().IsMap());
-    DCHECK(ReadOnlyRoots(heap_).one_pointer_filler_map().IsMap());
-    DCHECK(ReadOnlyRoots(heap_).two_pointer_filler_map().IsMap());
-    obj = Heap::AlignWithFiller(ReadOnlyRoots(heap_), obj, size, reserved,
-                                next_alignment_);
+    DCHECK(roots_.free_space_map().IsMap());
+    DCHECK(roots_.one_pointer_filler_map().IsMap());
+    DCHECK(roots_.two_pointer_filler_map().IsMap());
+    obj = Heap::AlignWithFiller(roots_, obj, size, reserved, next_alignment_);
     address = obj.address();
     next_alignment_ = kWordAligned;
     return address;

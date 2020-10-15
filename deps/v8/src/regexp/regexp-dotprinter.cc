@@ -143,7 +143,7 @@ void DotPrinterImpl::VisitText(TextNode* that) {
         if (node->is_negated()) os_ << "^";
         for (int j = 0; j < node->ranges(zone)->length(); j++) {
           CharacterRange range = node->ranges(zone)->at(j);
-          os_ << AsUC16(range.from()) << "-" << AsUC16(range.to());
+          os_ << AsUC32(range.from()) << "-" << AsUC32(range.to());
         }
         os_ << "]";
         break;

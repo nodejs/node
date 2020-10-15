@@ -335,7 +335,7 @@ uc32 JsonParser<Char>::ScanUnicodeCharacter() {
   uc32 value = 0;
   for (int i = 0; i < 4; i++) {
     int digit = HexValue(NextCharacter());
-    if (V8_UNLIKELY(digit < 0)) return -1;
+    if (V8_UNLIKELY(digit < 0)) return kInvalidUnicodeCharacter;
     value = value * 16 + digit;
   }
   return value;
@@ -1173,7 +1173,7 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
 
         case EscapeKind::kUnicode: {
           uc32 value = ScanUnicodeCharacter();
-          if (value == -1) {
+          if (value == kInvalidUnicodeCharacter) {
             AllowHeapAllocation allow_before_exception;
             ReportUnexpectedCharacter(CurrentCharacter());
             return JsonString();

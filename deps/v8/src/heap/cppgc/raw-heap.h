@@ -16,7 +16,7 @@
 namespace cppgc {
 namespace internal {
 
-class Heap;
+class HeapBase;
 class BaseSpace;
 
 // RawHeap is responsible for space management.
@@ -47,7 +47,11 @@ class V8_EXPORT_PRIVATE RawHeap final {
   using iterator = Spaces::iterator;
   using const_iterator = Spaces::const_iterator;
 
-  explicit RawHeap(Heap* heap, size_t custom_spaces);
+  explicit RawHeap(HeapBase* heap, size_t custom_spaces);
+
+  RawHeap(const RawHeap&) = delete;
+  RawHeap& operator=(const RawHeap&) = delete;
+
   ~RawHeap();
 
   // Space iteration support.
@@ -77,8 +81,8 @@ class V8_EXPORT_PRIVATE RawHeap final {
     return const_cast<RawHeap&>(*this).CustomSpace(space_index);
   }
 
-  Heap* heap() { return main_heap_; }
-  const Heap* heap() const { return main_heap_; }
+  HeapBase* heap() { return main_heap_; }
+  const HeapBase* heap() const { return main_heap_; }
 
  private:
   size_t SpaceIndexForCustomSpace(CustomSpaceIndex space_index) const {
@@ -96,7 +100,7 @@ class V8_EXPORT_PRIVATE RawHeap final {
     return const_cast<RawHeap&>(*this).Space(space_index);
   }
 
-  Heap* main_heap_;
+  HeapBase* main_heap_;
   Spaces spaces_;
 };
 

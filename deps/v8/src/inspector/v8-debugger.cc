@@ -572,6 +572,27 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
   return hasAgents && allBlackboxed;
 }
 
+bool V8Debugger::ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
+                                 int column) {
+  int contextId;
+  if (!script->ContextId().To(&contextId)) return false;
+
+  bool hasAgents = false;
+  bool allShouldBeSkipped = true;
+  String16 scriptId = String16::fromInteger(script->Id());
+  m_inspector->forEachSession(
+      m_inspector->contextGroupId(contextId),
+      [&hasAgents, &allShouldBeSkipped, &scriptId, line,
+       column](V8InspectorSessionImpl* session) {
+        V8DebuggerAgentImpl* agent = session->debuggerAgent();
+        if (!agent->enabled()) return;
+        hasAgents = true;
+        const bool skip = agent->shouldBeSkipped(scriptId, line, column);
+        allShouldBeSkipped &= skip;
+      });
+  return hasAgents && allShouldBeSkipped;
+}
+
 void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
                                     int id, bool isBlackboxed) {
   // Async task events from Promises are given misaligned pointers to prevent

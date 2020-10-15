@@ -207,7 +207,7 @@ std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
 class UnitFactory {
  public:
   UnitFactory() : map_(CreateUnitMap()) {}
-  virtual ~UnitFactory() {}
+  virtual ~UnitFactory() = default;
 
   // ecma402 #sec-issanctionedsimpleunitidentifier
   icu::MeasureUnit create(const std::string& unitIdentifier) {
@@ -482,16 +482,16 @@ Handle<String> SignDisplayString(Isolate* isolate,
 }  // anonymous namespace
 
 // Return the minimum integer digits by counting the number of '0' after
-// "integer-width/+" in the skeleton.
+// "integer-width/*" in the skeleton.
 // Ex: Return 15 for skeleton as
-// “currency/TWD .00 rounding-mode-half-up integer-width/+000000000000000”
+// “currency/TWD .00 rounding-mode-half-up integer-width/*000000000000000”
 //                                                                 1
 //                                                        123456789012345
-// Return default value as 1 if there are no "integer-width/+".
+// Return default value as 1 if there are no "integer-width/*".
 int32_t JSNumberFormat::MinimumIntegerDigitsFromSkeleton(
     const icu::UnicodeString& skeleton) {
-  // count the number of 0 after "integer-width/+"
-  icu::UnicodeString search("integer-width/+");
+  // count the number of 0 after "integer-width/*"
+  icu::UnicodeString search("integer-width/*");
   int32_t index = skeleton.indexOf(search);
   if (index < 0) return 1;  // return 1 if cannot find it.
   index += search.length();
@@ -976,9 +976,15 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
                         factory->NewStringFromAsciiChecked(currency.c_str())),
           JSNumberFormat);
     }
+  } else {
+    // 7. If style is "currency" and currency is undefined, throw a TypeError
+    // exception.
+    if (style == Style::CURRENCY) {
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCurrencyCode),
+                      JSNumberFormat);
+    }
   }
-
-  // 7. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
+  // 8. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
   // "string", « "code",  "symbol", "name", "narrowSymbol" », "symbol").
   Maybe<CurrencyDisplay> maybe_currency_display =
       Intl::GetStringOption<CurrencyDisplay>(
@@ -991,7 +997,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   CurrencyDisplay currency_display = maybe_currency_display.FromJust();
 
   CurrencySign currency_sign = CurrencySign::STANDARD;
-  // 8. Let currencySign be ? GetOption(options, "currencySign", "string", «
+  // 9. Let currencySign be ? GetOption(options, "currencySign", "string", «
   // "standard",  "accounting" », "standard").
   Maybe<CurrencySign> maybe_currency_sign = Intl::GetStringOption<CurrencySign>(
       isolate, options, "currencySign", service, {"standard", "accounting"},
@@ -1000,33 +1006,44 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   MAYBE_RETURN(maybe_currency_sign, MaybeHandle<JSNumberFormat>());
   currency_sign = maybe_currency_sign.FromJust();
 
-  // 9. Let unit be ? GetOption(options, "unit", "string", undefined,
+  // 10. Let unit be ? GetOption(options, "unit", "string", undefined,
   // undefined).
   std::unique_ptr<char[]> unit_cstr;
   Maybe<bool> found_unit = Intl::GetStringOption(
       isolate, options, "unit", empty_values, service, &unit_cstr);
   MAYBE_RETURN(found_unit, MaybeHandle<JSNumberFormat>());
 
-  std::string unit;
+  std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair;
+  // 11. If unit is not undefined, then
   if (found_unit.FromJust()) {
     DCHECK_NOT_NULL(unit_cstr.get());
-    unit = unit_cstr.get();
-  }
-  // 10. If unit is not undefined, then
-  // 10.a If the result of IsWellFormedUnitIdentifier(unit) is false, throw a
-  // RangeError exception.
-  Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> maybe_wellformed_unit =
-      IsWellFormedUnitIdentifier(isolate, unit);
-  if (found_unit.FromJust() && maybe_wellformed_unit.IsNothing()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidUnit,
-                      factory->NewStringFromAsciiChecked(service),
-                      factory->NewStringFromAsciiChecked(unit.c_str())),
-        JSNumberFormat);
+    std::string unit = unit_cstr.get();
+    // 11.a If the result of IsWellFormedUnitIdentifier(unit) is false, throw a
+    // RangeError exception.
+    Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> maybe_wellformed_unit =
+        IsWellFormedUnitIdentifier(isolate, unit);
+    if (maybe_wellformed_unit.IsNothing()) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidUnit,
+                        factory->NewStringFromAsciiChecked(service),
+                        factory->NewStringFromAsciiChecked(unit.c_str())),
+          JSNumberFormat);
+    }
+    unit_pair = maybe_wellformed_unit.FromJust();
+  } else {
+    // 12. If style is "unit" and unit is undefined, throw a TypeError
+    // exception.
+    if (style == Style::UNIT) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalidUnit,
+                                   factory->NewStringFromAsciiChecked(service),
+                                   factory->empty_string()),
+                      JSNumberFormat);
+    }
   }
 
-  // 11. Let unitDisplay be ? GetOption(options, "unitDisplay", "string", «
+  // 13. Let unitDisplay be ? GetOption(options, "unitDisplay", "string", «
   // "short", "narrow", "long" »,  "short").
   Maybe<UnitDisplay> maybe_unit_display = Intl::GetStringOption<UnitDisplay>(
       isolate, options, "unitDisplay", service, {"short", "narrow", "long"},
@@ -1035,20 +1052,20 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   MAYBE_RETURN(maybe_unit_display, MaybeHandle<JSNumberFormat>());
   UnitDisplay unit_display = maybe_unit_display.FromJust();
 
-  // 12. If style is "currency", then
+  // 14. If style is "currency", then
   icu::UnicodeString currency_ustr;
   if (style == Style::CURRENCY) {
-    // 12.a. If currency is undefined, throw a TypeError exception.
+    // 14.a. If currency is undefined, throw a TypeError exception.
     if (!found_currency.FromJust()) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCurrencyCode),
                       JSNumberFormat);
     }
-    // 12.b. Let currency be the result of converting currency to upper case as
+    // 14.a. Let currency be the result of converting currency to upper case as
     //    specified in 6.1
     std::transform(currency.begin(), currency.end(), currency.begin(), toupper);
     currency_ustr = currency.c_str();
 
-    // 12.c. Set numberFormat.[[Currency]] to currency.
+    // 14.b. Set numberFormat.[[Currency]] to currency.
     if (!currency_ustr.isEmpty()) {
       Handle<String> currency_string;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, currency_string,
@@ -1058,7 +1075,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       icu_number_formatter = icu_number_formatter.unit(
           icu::CurrencyUnit(currency_ustr.getBuffer(), status));
       CHECK(U_SUCCESS(status));
-      // 12.d Set intlObj.[[CurrencyDisplay]] to currencyDisplay.
+      // 14.c Set intlObj.[[CurrencyDisplay]] to currencyDisplay.
       // The default unitWidth is SHORT in ICU and that mapped from
       // Symbol so we can skip the setting for optimization.
       if (currency_display != CurrencyDisplay::SYMBOL) {
@@ -1069,22 +1086,10 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     }
   }
 
-  // 13. If style is "unit", then
+  // 15. If style is "unit", then
   if (style == Style::UNIT) {
     // Track newer style "unit".
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kNumberFormatStyleUnit);
-
-    // 13.a If unit is undefined, throw a TypeError exception.
-    if (unit == "") {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kInvalidUnit,
-                                   factory->NewStringFromAsciiChecked(service),
-                                   factory->empty_string()),
-                      JSNumberFormat);
-    }
-
-    std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair =
-        maybe_wellformed_unit.FromJust();
 
     icu::MeasureUnit none = icu::MeasureUnit();
     // 13.b Set intlObj.[[Unit]] to unit.

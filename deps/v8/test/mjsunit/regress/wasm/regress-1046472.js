@@ -28,6 +28,7 @@ kExprEnd,   // @21
   builder.addExport('main', 0);
   assertThrows(
       () => {builder.toModule()}, WebAssembly.CompileError,
-      'WebAssembly.Module(): Compiling function #0:\"main\" failed: type ' +
-      'error in merge[0] (expected <bot>, got i32) @+57');
+      'WebAssembly.Module(): Compiling function #0:\"main\" failed: ' +
+      'inconsistent type in br_table target 1 (previous was i32, ' +
+      'this one is f32) @+60');
 })();

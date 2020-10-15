@@ -22,10 +22,9 @@ RefsMap::Entry* RefsMap::Lookup(const Address& key) const {
   return UnderlyingMap::Lookup(key, Hash(key));
 }
 
-RefsMap::Entry* RefsMap::LookupOrInsert(const Address& key, Zone* zone) {
+RefsMap::Entry* RefsMap::LookupOrInsert(const Address& key) {
   return UnderlyingMap::LookupOrInsert(key, RefsMap::Hash(key),
-                                       []() { return nullptr; },
-                                       ZoneAllocationPolicy(zone));
+                                       []() { return nullptr; });
 }
 
 uint32_t RefsMap::Hash(Address addr) { return static_cast<uint32_t>(addr); }

@@ -87,3 +87,5 @@ Running test: testArrayBufferWithBrokenUintCtor
   [[Int8Array]] own object undefined
   [[Uint8Array]] own object undefined
   __proto__ own object undefined
+Internal properties
+  [[IsDetached]] boolean false

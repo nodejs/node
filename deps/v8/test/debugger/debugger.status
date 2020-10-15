@@ -136,20 +136,18 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
-['variant == turboprop', {
+['variant == turboprop or variant == nci or variant == nci_as_highest_tier', {
   # Deopts differently than TurboFan.
   'debug/debug-optimize': [SKIP],
-}],  # variant == turboprop
+  'debug/debug-compile-optimized': [SKIP],
+}],  # variant == turboprop or variant == nci or variant == nci_as_highest_tier
 
 ##############################################################################
 # Liftoff needs to be enabled before running these tests.
 ['arch in (s390, s390x, ppc, ppc64)', {
   'regress/regress-crbug-1032042': [SKIP],
   'regress/regress-crbug-840288': [SKIP],
-  'debug/wasm/asm-debug': [SKIP],
-  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
-  'debug/wasm/debug-step-into-wasm': [SKIP],
-  'debug/wasm/frame-inspection': [SKIP],
+  'debug/wasm/*': [SKIP],
 }],
 
 ################################################################################

@@ -284,6 +284,10 @@ class V8_EXPORT_PRIVATE Token {
     return base::IsInRange(token, INIT, ASSIGN_SUB);
   }
 
+  static bool IsLogicalAssignmentOp(Value token) {
+    return base::IsInRange(token, ASSIGN_NULLISH, ASSIGN_AND);
+  }
+
   static bool IsBinaryOp(Value op) { return base::IsInRange(op, COMMA, SUB); }
 
   static bool IsCompareOp(Value op) { return base::IsInRange(op, EQ, IN); }

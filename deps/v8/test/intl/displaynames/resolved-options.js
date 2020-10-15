@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-let displayNames = new Intl.DisplayNames();
+let displayNames = new Intl.DisplayNames(undefined, {type: 'language'});
 // The default style is 'long'
 assertEquals('long', displayNames.resolvedOptions().style);
 
-// The default type is 'language'
 assertEquals('language', displayNames.resolvedOptions().type);
 
 // The default fallback is 'code'
@@ -17,12 +16,6 @@ const types = ["language", "region", "script", "currency"];
 const fallbacks = ["code", "none"];
 
 styles.forEach(function(style) {
-  assertEquals(style,
-      (new Intl.DisplayNames(['sr'], {style})).resolvedOptions().style);
-  assertEquals(types[0],
-      (new Intl.DisplayNames(['sr'], {style})).resolvedOptions().type);
-  assertEquals(fallbacks[0],
-      (new Intl.DisplayNames(['sr'], {style})).resolvedOptions().fallback);
   types.forEach(function(type) {
     assertEquals(style,
         (new Intl.DisplayNames(['sr'], {style, type})).resolvedOptions().style);

@@ -39,6 +39,8 @@ class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
     Node* LookupBoundsCheckFor(Node* node) const;
 
    private:
+    friend Zone;
+
     EffectPathChecks(Check* head, size_t size) : head_(head), size_(size) {}
 
     // We keep track of the list length so that we can find the longest

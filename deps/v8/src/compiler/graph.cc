@@ -22,8 +22,12 @@ Graph::Graph(Zone* zone)
       end_(nullptr),
       mark_max_(0),
       next_node_id_(0),
-      decorators_(zone) {}
-
+      decorators_(zone) {
+  // Nodes use compressed pointers, so zone must support pointer compression.
+  // If the check fails, ensure the zone is created with kCompressGraphZone
+  // flag.
+  CHECK_IMPLIES(kCompressGraphZone, zone->supports_compression());
+}
 
 void Graph::Decorate(Node* node) {
   for (GraphDecorator* const decorator : decorators_) {

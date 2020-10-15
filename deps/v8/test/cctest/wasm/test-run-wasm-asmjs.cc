@@ -21,13 +21,15 @@ namespace wasm {
 
 // Liftoff does not support asm.js, and is never invoked with asm.js code in
 // production. Hence test asm.js with TurboFan and Interpreter only.
-#define ASMJS_EXEC_TEST(name)                                                \
-  void RunWasm_##name(ExecutionTier execution_tier);                         \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kTurbofan); } \
-  TEST(RunWasmInterpreter_##name) {                                          \
-    RunWasm_##name(ExecutionTier::kInterpreter);                             \
-  }                                                                          \
-  void RunWasm_##name(ExecutionTier execution_tier)
+#define ASMJS_EXEC_TEST(name)                            \
+  void RunWasm_##name(TestExecutionTier execution_tier); \
+  TEST(RunWasmTurbofan_##name) {                         \
+    RunWasm_##name(TestExecutionTier::kTurbofan);        \
+  }                                                      \
+  TEST(RunWasmInterpreter_##name) {                      \
+    RunWasm_##name(TestExecutionTier::kInterpreter);     \
+  }                                                      \
+  void RunWasm_##name(TestExecutionTier execution_tier)
 
 ASMJS_EXEC_TEST(Int32AsmjsDivS) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);

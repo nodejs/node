@@ -3,5 +3,5 @@ setBreakpointByUrl error: undefined
 setBreakpoint error: {
   "code": -32602,
   "message": "Invalid parameters",
-  "data": "location: object expected"
+  "data": "Failed to deserialize params.location - BINDINGS: mandatory field missing at <some position>"
 }

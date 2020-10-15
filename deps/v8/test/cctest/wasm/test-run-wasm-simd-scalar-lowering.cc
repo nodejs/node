@@ -14,14 +14,15 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_simd {
 
-#define WASM_SIMD_TEST(name)                                     \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,               \
-                             ExecutionTier execution_tier);      \
-  TEST(RunWasm_##name##_simd_lowered) {                          \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                               \
-    RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kTurbofan); \
-  }                                                              \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
+#define WASM_SIMD_TEST(name)                                         \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,                   \
+                             TestExecutionTier execution_tier);      \
+  TEST(RunWasm_##name##_simd_lowered) {                              \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                   \
+    RunWasm_##name##_Impl(kLowerSimd, TestExecutionTier::kTurbofan); \
+  }                                                                  \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,                   \
+                             TestExecutionTier execution_tier)
 
 WASM_SIMD_TEST(I8x16ToF32x4) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);

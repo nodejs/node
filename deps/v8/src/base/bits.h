@@ -32,22 +32,27 @@ constexpr inline
   return sizeof(T) == 8 ? __builtin_popcountll(static_cast<uint64_t>(value))
                         : __builtin_popcount(static_cast<uint32_t>(value));
 #else
+  // Fall back to divide-and-conquer popcount (see "Hacker's Delight" by Henry
+  // S. Warren, Jr.), chapter 5-1.
   constexpr uint64_t mask[] = {0x5555555555555555, 0x3333333333333333,
                                0x0f0f0f0f0f0f0f0f};
-  // Start with 1 bit wide buckets of [0,1].
+  // Start with 64 buckets of 1 bits, holding values from [0,1].
   value = ((value >> 1) & mask[0]) + (value & mask[0]);
-  // Having 2 bit wide buckets of [0,2] now.
+  // Having 32 buckets of 2 bits, holding values from [0,2] now.
   value = ((value >> 2) & mask[1]) + (value & mask[1]);
-  // Having 4 bit wide buckets of [0,4] now.
-  value = (value >> 4) + value;
-  // Having 4 bit wide buckets of [0,8] now.
-  if (sizeof(T) > 1)
-    value = ((value >> (sizeof(T) > 1 ? 8 : 0)) & mask[2]) + (value & mask[2]);
-  // Having 8 bit wide buckets of [0,16] now.
+  // Having 16 buckets of 4 bits, holding values from [0,4] now.
+  value = ((value >> 4) & mask[2]) + (value & mask[2]);
+  // Having 8 buckets of 8 bits, holding values from [0,8] now.
+  // From this point on, the buckets are bigger than the number of bits
+  // required to hold the values, and the buckets are bigger the maximum
+  // result, so there's no need to mask value anymore, since there's no
+  // more risk of overflow between buckets.
+  if (sizeof(T) > 1) value = (value >> (sizeof(T) > 1 ? 8 : 0)) + value;
+  // Having 4 buckets of 16 bits, holding values from [0,16] now.
   if (sizeof(T) > 2) value = (value >> (sizeof(T) > 2 ? 16 : 0)) + value;
-  // Having 8 bit wide buckets of [0,32] now.
+  // Having 2 buckets of 32 bits, holding values from [0,32] now.
   if (sizeof(T) > 4) value = (value >> (sizeof(T) > 4 ? 32 : 0)) + value;
-  // Having 8 bit wide buckets of [0,64] now.
+  // Having 1 buckets of 64 bits, holding values from [0,64] now.
   return static_cast<unsigned>(value & 0xff);
 #endif
 }
@@ -140,9 +145,7 @@ constexpr inline bool IsPowerOfTwo(T value) {
 template <typename T,
           typename = typename std::enable_if<std::is_integral<T>::value>::type>
 inline constexpr int WhichPowerOfTwo(T value) {
-#if V8_HAS_CXX14_CONSTEXPR
-  DCHECK(IsPowerOfTwo(value));
-#endif
+  CONSTEXPR_DCHECK(IsPowerOfTwo(value));
 #if V8_HAS_BUILTIN_CTZ
   STATIC_ASSERT(sizeof(T) <= 8);
   return sizeof(T) == 8 ? __builtin_ctzll(static_cast<uint64_t>(value))

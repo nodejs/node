@@ -445,7 +445,7 @@ using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
 using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
                                                      void* arg2);
 
-// Separate for fine-grained UBSan blacklisting. Casting any given C++
+// Separate for fine-grained UBSan blocklisting. Casting any given C++
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
 // the target function can indeed be any function that's exposed via
 // the "fast C call" mechanism, we can't reconstruct its signature here.
@@ -2756,6 +2756,9 @@ void Simulator::VisitFPIntegerConvert(Instruction* instr) {
     case FCVTZU_xd:
       set_xreg(dst, FPToUInt64(dreg(src), FPZero));
       break;
+    case FJCVTZS:
+      set_wreg(dst, FPToFixedJS(dreg(src)));
+      break;
     case FMOV_ws:
       set_wreg(dst, sreg_bits(src));
       break;
@@ -3125,8 +3128,8 @@ bool Simulator::FPProcessNaNs(Instruction* instr) {
 
 // clang-format off
 #define PAUTH_SYSTEM_MODES(V)                            \
-  V(A1716, 17, xreg(16),                      kPACKeyIA) \
-  V(ASP,   30, xreg(31, Reg31IsStackPointer), kPACKeyIA)
+  V(B1716, 17, xreg(16),                      kPACKeyIB) \
+  V(BSP,   30, xreg(31, Reg31IsStackPointer), kPACKeyIB)
 // clang-format on
 
 void Simulator::VisitSystem(Instruction* instr) {
@@ -3134,7 +3137,7 @@ void Simulator::VisitSystem(Instruction* instr) {
   // range of immediates instead of indicating a different instruction. This
   // makes the decoding tricky.
   if (instr->Mask(SystemPAuthFMask) == SystemPAuthFixed) {
-    // The BType check for PACIASP happens in CheckBType().
+    // The BType check for PACIBSP happens in CheckBType().
     switch (instr->Mask(SystemPAuthMask)) {
 #define DEFINE_PAUTH_FUNCS(SUFFIX, DST, MOD, KEY)                     \
   case PACI##SUFFIX:                                                  \

@@ -32,14 +32,13 @@ class TestWithHeapWithCustomSpaces : public testing::TestWithPlatform {
     Heap::HeapOptions options;
     options.custom_spaces.emplace_back(std::make_unique<CustomSpace1>());
     options.custom_spaces.emplace_back(std::make_unique<CustomSpace2>());
-    heap_ = Heap::Create(std::move(options));
+    heap_ = Heap::Create(platform_, std::move(options));
     g_destructor_callcount = 0;
   }
 
   void PreciseGC() {
-    heap_->ForceGarbageCollectionSlow(
-        "TestWithHeapWithCustomSpaces", "Testing",
-        Heap::GCConfig::StackState::kNoHeapPointers);
+    heap_->ForceGarbageCollectionSlow("TestWithHeapWithCustomSpaces", "Testing",
+                                      cppgc::Heap::StackState::kNoHeapPointers);
   }
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }
@@ -48,18 +47,26 @@ class TestWithHeapWithCustomSpaces : public testing::TestWithPlatform {
   std::unique_ptr<cppgc::Heap> heap_;
 };
 
-class RegularGCed final : public GarbageCollected<RegularGCed> {};
+class RegularGCed final : public GarbageCollected<RegularGCed> {
+ public:
+  void Trace(Visitor*) const {}
+};
 
 class CustomGCed1 final : public GarbageCollected<CustomGCed1> {
  public:
   ~CustomGCed1() { g_destructor_callcount++; }
+  void Trace(Visitor*) const {}
 };
 class CustomGCed2 final : public GarbageCollected<CustomGCed2> {
  public:
   ~CustomGCed2() { g_destructor_callcount++; }
+  void Trace(Visitor*) const {}
 };
 
-class CustomGCedBase : public GarbageCollected<CustomGCedBase> {};
+class CustomGCedBase : public GarbageCollected<CustomGCedBase> {
+ public:
+  void Trace(Visitor*) const {}
+};
 class CustomGCedFinal1 final : public CustomGCedBase {
  public:
   ~CustomGCedFinal1() { g_destructor_callcount++; }
@@ -92,9 +99,12 @@ struct SpaceTrait<
 namespace internal {
 
 TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
-  auto* regular = MakeGarbageCollected<RegularGCed>(GetHeap());
-  auto* custom1 = MakeGarbageCollected<CustomGCed1>(GetHeap());
-  auto* custom2 = MakeGarbageCollected<CustomGCed2>(GetHeap());
+  auto* regular =
+      MakeGarbageCollected<RegularGCed>(GetHeap()->GetAllocationHandle());
+  auto* custom1 =
+      MakeGarbageCollected<CustomGCed1>(GetHeap()->GetAllocationHandle());
+  auto* custom2 =
+      MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
             NormalPage::FromPayload(custom1)->space()->index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces + 1,
@@ -105,9 +115,12 @@ TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
 
 TEST_F(TestWithHeapWithCustomSpaces,
        AllocateOnCustomSpacesSpecifiedThroughBase) {
-  auto* regular = MakeGarbageCollected<RegularGCed>(GetHeap());
-  auto* custom1 = MakeGarbageCollected<CustomGCedFinal1>(GetHeap());
-  auto* custom2 = MakeGarbageCollected<CustomGCedFinal2>(GetHeap());
+  auto* regular =
+      MakeGarbageCollected<RegularGCed>(GetHeap()->GetAllocationHandle());
+  auto* custom1 =
+      MakeGarbageCollected<CustomGCedFinal1>(GetHeap()->GetAllocationHandle());
+  auto* custom2 =
+      MakeGarbageCollected<CustomGCedFinal2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
             NormalPage::FromPayload(custom1)->space()->index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
@@ -117,10 +130,10 @@ TEST_F(TestWithHeapWithCustomSpaces,
 }
 
 TEST_F(TestWithHeapWithCustomSpaces, SweepCustomSpace) {
-  MakeGarbageCollected<CustomGCedFinal1>(GetHeap());
-  MakeGarbageCollected<CustomGCedFinal2>(GetHeap());
-  MakeGarbageCollected<CustomGCed1>(GetHeap());
-  MakeGarbageCollected<CustomGCed2>(GetHeap());
+  MakeGarbageCollected<CustomGCedFinal1>(GetHeap()->GetAllocationHandle());
+  MakeGarbageCollected<CustomGCedFinal2>(GetHeap()->GetAllocationHandle());
+  MakeGarbageCollected<CustomGCed1>(GetHeap()->GetAllocationHandle());
+  MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(0u, g_destructor_callcount);
   PreciseGC();
   EXPECT_EQ(4u, g_destructor_callcount);

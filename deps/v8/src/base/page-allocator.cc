@@ -42,6 +42,80 @@ void* PageAllocator::AllocatePages(void* hint, size_t size, size_t alignment,
                             static_cast<base::OS::MemoryPermission>(access));
 }
 
+class SharedMemoryMapping : public ::v8::PageAllocator::SharedMemoryMapping {
+ public:
+  explicit SharedMemoryMapping(PageAllocator* page_allocator, void* ptr,
+                               size_t size)
+      : page_allocator_(page_allocator), ptr_(ptr), size_(size) {}
+  ~SharedMemoryMapping() override { page_allocator_->FreePages(ptr_, size_); }
+  void* GetMemory() const override { return ptr_; }
+
+ private:
+  PageAllocator* page_allocator_;
+  void* ptr_;
+  size_t size_;
+};
+
+class SharedMemory : public ::v8::PageAllocator::SharedMemory {
+ public:
+  SharedMemory(PageAllocator* allocator, void* memory, size_t size)
+      : allocator_(allocator), ptr_(memory), size_(size) {}
+  void* GetMemory() const override { return ptr_; }
+  size_t GetSize() const override { return size_; }
+  std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping> RemapTo(
+      void* new_address) const override {
+    if (allocator_->RemapShared(ptr_, new_address, size_)) {
+      return std::make_unique<SharedMemoryMapping>(allocator_, new_address,
+                                                   size_);
+    } else {
+      return {};
+    }
+  }
+
+  ~SharedMemory() override { allocator_->FreePages(ptr_, size_); }
+
+ private:
+  PageAllocator* allocator_;
+  void* ptr_;
+  size_t size_;
+};
+
+bool PageAllocator::CanAllocateSharedPages() {
+#ifdef V8_OS_LINUX
+  return true;
+#else
+  return false;
+#endif
+}
+
+std::unique_ptr<v8::PageAllocator::SharedMemory>
+PageAllocator::AllocateSharedPages(size_t size, const void* original_address) {
+#ifdef V8_OS_LINUX
+  void* ptr =
+      base::OS::AllocateShared(size, base::OS::MemoryPermission::kReadWrite);
+  CHECK_NOT_NULL(ptr);
+  memcpy(ptr, original_address, size);
+  bool success = base::OS::SetPermissions(
+      ptr, size, base::OS::MemoryPermission::kReadWrite);
+  CHECK(success);
+
+  auto shared_memory =
+      std::make_unique<v8::base::SharedMemory>(this, ptr, size);
+  return shared_memory;
+#else
+  return {};
+#endif
+}
+
+void* PageAllocator::RemapShared(void* old_address, void* new_address,
+                                 size_t size) {
+#ifdef V8_OS_LINUX
+  return base::OS::RemapShared(old_address, new_address, size);
+#else
+  return nullptr;
+#endif
+}
+
 bool PageAllocator::FreePages(void* address, size_t size) {
   return base::OS::Free(address, size);
 }

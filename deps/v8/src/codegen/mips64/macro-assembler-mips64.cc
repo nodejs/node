@@ -4235,6 +4235,7 @@ void TurboAssembler::Call(Register target, Condition cond, Register rs,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
+  set_last_call_pc_(pc_);
 }
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
@@ -5753,7 +5754,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
   And(scratch, object, Operand(~kPageAlignmentMask));
-  Ld(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  Ld(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
 }

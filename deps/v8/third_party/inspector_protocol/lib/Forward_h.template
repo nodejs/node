@@ -21,7 +21,7 @@
 #include "{{config.crdtp.dir}}/error_support.h"
 #include "{{config.crdtp.dir}}/dispatch.h"
 #include "{{config.crdtp.dir}}/frontend_channel.h"
-#include "{{config.crdtp.dir}}/glue.h"
+#include "{{config.crdtp.dir}}/protocol_core.h"
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -42,7 +42,14 @@ class SerializedValue;
 class StringValue;
 class Value;
 
+using {{config.crdtp.namespace}}::detail::PtrMaybe;
+using {{config.crdtp.namespace}}::detail::ValueMaybe;
+
+template<typename T>
+using Maybe = {{config.crdtp.namespace}}::Maybe<T>;
+
 namespace detail {
+
 template <typename T>
 struct ArrayTypedef { typedef std::vector<std::unique_ptr<T>> type; };
 
@@ -61,32 +68,6 @@ struct ArrayTypedef<bool> { typedef std::vector<bool> type; };
 
 template <typename T>
 using Array = typename detail::ArrayTypedef<T>::type;
-
-namespace detail {
-using {{config.crdtp.namespace}}::glue::detail::PtrMaybe;
-using {{config.crdtp.namespace}}::glue::detail::ValueMaybe;
-
-template <typename T>
-struct MaybeTypedef { typedef PtrMaybe<T> type; };
-
-template <>
-struct MaybeTypedef<bool> { typedef ValueMaybe<bool> type; };
-
-template <>
-struct MaybeTypedef<int> { typedef ValueMaybe<int> type; };
-
-template <>
-struct MaybeTypedef<double> { typedef ValueMaybe<double> type; };
-
-template <>
-struct MaybeTypedef<String> { typedef ValueMaybe<String> type; };
-
-template <>
-struct MaybeTypedef<Binary> { typedef ValueMaybe<Binary> type; };
-}  // namespace detail
-
-template <typename T>
-using Maybe = typename detail::MaybeTypedef<T>::type;
 
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}

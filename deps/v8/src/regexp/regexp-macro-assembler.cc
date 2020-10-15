@@ -9,6 +9,7 @@
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/regexp/special-case.h"
 #include "src/strings/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -27,17 +28,46 @@ RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
 
 RegExpMacroAssembler::~RegExpMacroAssembler() = default;
 
-int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
-                                                     Address byte_offset2,
-                                                     size_t byte_length,
-                                                     Isolate* isolate) {
+int RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(Address byte_offset1,
+                                                           Address byte_offset2,
+                                                           size_t byte_length,
+                                                           Isolate* isolate) {
+#ifdef V8_INTL_SUPPORT
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
+  DisallowHeapAllocation no_gc;
+  DCHECK_EQ(0, byte_length % 2);
+  size_t length = byte_length / 2;
+  uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
+  uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
+
+  for (size_t i = 0; i < length; i++) {
+    UChar32 c1 = RegExpCaseFolding::Canonicalize(substring1[i]);
+    UChar32 c2 = RegExpCaseFolding::Canonicalize(substring2[i]);
+    if (c1 != c2) {
+      return 0;
+    }
+  }
+  return 1;
+#else
+  return CaseInsensitiveCompareUnicode(byte_offset1, byte_offset2, byte_length,
+                                       isolate);
+#endif
+}
+
+int RegExpMacroAssembler::CaseInsensitiveCompareUnicode(Address byte_offset1,
+                                                        Address byte_offset2,
+                                                        size_t byte_length,
+                                                        Isolate* isolate) {
+  // This function is not allowed to cause a garbage collection.
+  // A GC might move the calling generated code and invalidate the
+  // return address on the stack.
+  DisallowHeapAllocation no_gc;
   DCHECK_EQ(0, byte_length % 2);
 
 #ifdef V8_INTL_SUPPORT
-  int32_t length = (int32_t)(byte_length >> 1);
+  int32_t length = static_cast<int32_t>(byte_length >> 1);
   icu::UnicodeString uni_str_1(reinterpret_cast<const char16_t*>(byte_offset1),
                                length);
   return uni_str_1.caseCompare(reinterpret_cast<const char16_t*>(byte_offset2),
@@ -67,7 +97,6 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
   return 1;
 #endif  // V8_INTL_SUPPORT
 }
-
 
 void RegExpMacroAssembler::CheckNotInSurrogatePair(int cp_offset,
                                                    Label* on_failure) {

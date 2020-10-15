@@ -259,8 +259,61 @@ struct ValueConversions<ListValue> {
     }
 };
 
+template<typename T> struct ValueTypeConverter {
+  static std::unique_ptr<T> FromValue(const protocol::Value& value) {
+    std::vector<uint8_t> bytes;
+    value.AppendSerialized(&bytes);
+    return T::FromBinary(bytes.data(), bytes.size());
+  }
+
+  static std::unique_ptr<protocol::DictionaryValue> ToValue(const T& obj) {
+    std::vector<uint8_t> bytes;
+    obj.AppendSerialized(&bytes);
+    auto result = Value::parseBinary(bytes.data(), bytes.size());
+    return DictionaryValue::cast(std::move(result));
+  }
+};
+
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}
+
+namespace {{config.crdtp.namespace}} {
+
+template<typename T>
+struct ProtocolTypeTraits<T,
+     typename std::enable_if<std::is_base_of<{{"::".join(config.protocol.namespace)}}::Value, T>::value>::type> {
+  static void Serialize(const {{"::".join(config.protocol.namespace)}}::Value& value, std::vector<uint8_t>* bytes) {
+    value.AppendSerialized(bytes);
+  }
+};
+
+template <>
+struct ProtocolTypeTraits<std::unique_ptr<{{"::".join(config.protocol.namespace)}}::Value>> {
+  static bool Deserialize(DeserializerState* state, std::unique_ptr<{{"::".join(config.protocol.namespace)}}::Value>* value);
+  static void Serialize(const std::unique_ptr<{{"::".join(config.protocol.namespace)}}::Value>& value, std::vector<uint8_t>* bytes);
+};
+
+template <>
+struct ProtocolTypeTraits<std::unique_ptr<{{"::".join(config.protocol.namespace)}}::DictionaryValue>> {
+  static bool Deserialize(DeserializerState* state, std::unique_ptr<{{"::".join(config.protocol.namespace)}}::DictionaryValue>* value);
+  static void Serialize(const std::unique_ptr<{{"::".join(config.protocol.namespace)}}::DictionaryValue>& value, std::vector<uint8_t>* bytes);
+};
+
+// TODO(caseq): get rid of it, it's just a DictionaryValue really.
+template <>
+struct ProtocolTypeTraits<std::unique_ptr<{{"::".join(config.protocol.namespace)}}::Object>> {
+  static bool Deserialize(DeserializerState* state, std::unique_ptr<{{"::".join(config.protocol.namespace)}}::Object>* value);
+  static void Serialize(const std::unique_ptr<{{"::".join(config.protocol.namespace)}}::Object>& value, std::vector<uint8_t>* bytes);
+};
+
+template<>
+struct ProtocolTypeTraits<{{"::".join(config.protocol.namespace)}}::Object> {
+  static void Serialize(const {{"::".join(config.protocol.namespace)}}::Object& value, std::vector<uint8_t>* bytes) {
+    value.AppendSerialized(bytes);
+  }
+};
+
+}  // namespace {{config.crdtp.namespace}}
 
 #endif // !defined({{"_".join(config.protocol.namespace)}}_ValueConversions_h)

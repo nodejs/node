@@ -54,6 +54,8 @@ class RelocInfo {
     // Please note the order is important (see IsRealRelocMode, IsGCRelocMode,
     // and IsShareableRelocMode predicates below).
 
+    NONE,  // Never recorded value. Most common one, hence value 0.
+
     CODE_TARGET,
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
     COMPRESSED_EMBEDDED_OBJECT,
@@ -89,7 +91,6 @@ class RelocInfo {
 
     // Pseudo-types
     NUMBER_OF_MODES,
-    NONE,  // never recorded value
 
     LAST_CODE_TARGET_MODE = RELATIVE_CODE_TARGET,
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
@@ -123,10 +124,8 @@ class RelocInfo {
     return mode <= LAST_GCED_ENUM;
   }
   static constexpr bool IsShareableRelocMode(Mode mode) {
-    static_assert(RelocInfo::NONE >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE,
-                  "Users of this function rely on NONE being a sharable "
-                  "relocation mode.");
-    return mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE;
+    return mode == RelocInfo::NONE ||
+           mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE;
   }
   static constexpr bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
   static constexpr bool IsCodeTargetMode(Mode mode) {
@@ -328,6 +327,13 @@ class RelocInfo {
 #endif
 
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
+
+  static constexpr int AllRealModesMask() {
+    constexpr Mode kFirstUnrealRelocMode =
+        static_cast<Mode>(RelocInfo::LAST_REAL_RELOC_MODE + 1);
+    return (ModeMask(kFirstUnrealRelocMode) - 1) &
+           ~(ModeMask(RelocInfo::FIRST_REAL_RELOC_MODE) - 1);
+  }
 
   static int EmbeddedObjectModeMask() {
     return ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |

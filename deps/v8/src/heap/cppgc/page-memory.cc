@@ -5,7 +5,7 @@
 #include "src/heap/cppgc/page-memory.h"
 
 #include "src/base/macros.h"
-#include "src/heap/cppgc/page-memory-inl.h"
+#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {
@@ -61,6 +61,8 @@ MemoryRegion ReserveMemoryRegion(PageAllocator* allocator,
 
 void FreeMemoryRegion(PageAllocator* allocator,
                       const MemoryRegion& reserved_region) {
+  // Make sure pages returned to OS are unpoisoned.
+  ASAN_UNPOISON_MEMORY_REGION(reserved_region.base(), reserved_region.size());
   allocator->FreePages(reserved_region.base(), reserved_region.size());
 }
 

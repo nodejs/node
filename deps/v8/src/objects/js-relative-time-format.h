@@ -24,7 +24,7 @@
 
 namespace U_ICU_NAMESPACE {
 class RelativeDateTimeFormatter;
-}
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {

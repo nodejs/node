@@ -4,6 +4,8 @@
 
 // Flags: --expose-wasm
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 InspectorTest.log("Tests how wasm scripts are reported");
 
 let contextGroup = new InspectorTest.ContextGroup();
@@ -14,8 +16,6 @@ let sessions = [
   // See https://bugs.chromium.org/p/v8/issues/detail?id=9725.
   trackScripts(),
 ];
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Create module with given custom sections.
 function createModule(...customSections) {
@@ -59,7 +59,7 @@ const embeddedDWARFSection = {
 
 // Sample external_debug_info section set to "abc".
 const externalDWARFSection = {
-  name: '.external_debug_info',
+  name: 'external_debug_info',
   value: [3, 97, 98, 99]
 };
 

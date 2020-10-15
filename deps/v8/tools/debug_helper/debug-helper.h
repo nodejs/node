@@ -195,6 +195,8 @@ V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_ObjectPropertiesResult(
     v8::debug_helper::ObjectPropertiesResult* result);
 V8_DEBUG_HELPER_EXPORT const v8::debug_helper::ClassList*
 _v8_debug_helper_ListObjectClasses();
+V8_DEBUG_HELPER_EXPORT const char* _v8_debug_helper_BitsetName(
+    uint64_t payload);
 }
 
 namespace v8 {
@@ -227,6 +229,12 @@ inline ObjectPropertiesResultPtr GetObjectProperties(
 // Get a list of all class names deriving from v8::internal::Object.
 inline const ClassList* ListObjectClasses() {
   return _v8_debug_helper_ListObjectClasses();
+}
+
+// Return a bitset name for a v8::internal::compiler::Type with payload or null
+// if the payload is not a bitset.
+inline const char* BitsetName(uint64_t payload) {
+  return _v8_debug_helper_BitsetName(payload);
 }
 
 }  // namespace debug_helper

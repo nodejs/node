@@ -109,11 +109,13 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   // raw value.
   inline bool contains_value(Address raw_value) const;
 
-  inline const Object operator*() const;
+  inline Object operator*() const;
+  inline Object load(const Isolate* isolate) const;
   inline void store(Object value) const;
 
   inline Object Acquire_Load() const;
   inline Object Relaxed_Load() const;
+  inline Object Relaxed_Load(const Isolate* isolate) const;
   inline void Relaxed_Store(Object value) const;
   inline void Release_Store(Object value) const;
   inline Object Relaxed_CompareAndSwap(Object old, Object target) const;
@@ -143,10 +145,12 @@ class FullMaybeObjectSlot
   explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
-  inline const MaybeObject operator*() const;
+  inline MaybeObject operator*() const;
+  inline MaybeObject load(const Isolate* isolate) const;
   inline void store(MaybeObject value) const;
 
   inline MaybeObject Relaxed_Load() const;
+  inline MaybeObject Relaxed_Load(const Isolate* isolate) const;
   inline void Relaxed_Store(MaybeObject value) const;
   inline void Release_CompareAndSwap(MaybeObject old, MaybeObject target) const;
 };
@@ -168,7 +172,8 @@ class FullHeapObjectSlot : public SlotBase<FullHeapObjectSlot, Address> {
   explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
-  inline const HeapObjectReference operator*() const;
+  inline HeapObjectReference operator*() const;
+  inline HeapObjectReference load(const Isolate* isolate) const;
   inline void store(HeapObjectReference value) const;
 
   inline HeapObject ToHeapObject() const;
@@ -252,6 +257,19 @@ class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
   friend difference_type operator-(UnalignedSlot a, UnalignedSlot b) {
     return static_cast<int>(a.address() - b.address()) / sizeof(T);
   }
+};
+
+// An off-heap uncompressed object slot can be the same as an on-heap one, with
+// a few methods deleted.
+class OffHeapFullObjectSlot : public FullObjectSlot {
+ public:
+  OffHeapFullObjectSlot() : FullObjectSlot() {}
+  explicit OffHeapFullObjectSlot(const Address* ptr) : FullObjectSlot(ptr) {}
+
+  inline Object operator*() const = delete;
+
+  using FullObjectSlot::Relaxed_Load;
+  inline Object Relaxed_Load() const = delete;
 };
 
 }  // namespace internal

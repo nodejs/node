@@ -195,11 +195,8 @@ class SharedFunctionInfo : public HeapObject {
   // a Code object or a BytecodeArray.
   inline AbstractCode abstract_code();
 
-  // Tells whether or not this shared function info is interpreted.
-  //
-  // Note: function->IsInterpreted() does not necessarily return the same value
-  // as function->shared()->IsInterpreted() because the closure might have been
-  // optimized.
+  // Tells whether or not this shared function info has an attached
+  // BytecodeArray.
   inline bool IsInterpreted() const;
 
   // Set up the link between shared function info and the script. The shared
@@ -260,7 +257,8 @@ class SharedFunctionInfo : public HeapObject {
   // Returns an IsCompiledScope which reports whether the function is compiled,
   // and if compiled, will avoid the function becoming uncompiled while it is
   // held.
-  inline IsCompiledScope is_compiled_scope() const;
+  template <typename LocalIsolate>
+  inline IsCompiledScope is_compiled_scope(LocalIsolate* isolate) const;
 
   // [length]: The function length - usually the number of declared parameters.
   // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
@@ -409,6 +407,15 @@ class SharedFunctionInfo : public HeapObject {
   // private instance methdos.
   DECL_BOOLEAN_ACCESSORS(class_scope_has_private_brand)
   DECL_BOOLEAN_ACCESSORS(has_static_private_methods_or_accessors)
+
+  // True if a Code object associated with this SFI has been inserted into the
+  // compilation cache. Note that the cache entry may be removed by aging,
+  // hence the 'may'.
+  DECL_BOOLEAN_ACCESSORS(may_have_cached_code)
+
+  // Returns the cached Code object for this SFI if it exists, an empty handle
+  // otherwise.
+  MaybeHandle<Code> TryGetCachedCode(Isolate* isolate);
 
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
@@ -596,7 +603,9 @@ class SharedFunctionInfo : public HeapObject {
   // Dispatched behavior.
   DECL_PRINTER(SharedFunctionInfo)
   DECL_VERIFIER(SharedFunctionInfo)
-  void SharedFunctionInfoVerify(OffThreadIsolate* isolate);
+#ifdef VERIFY_HEAP
+  void SharedFunctionInfoVerify(LocalIsolate* isolate);
+#endif
 #ifdef OBJECT_PRINT
   void PrintSourceCode(std::ostream& os);
 #endif
@@ -646,7 +655,9 @@ class SharedFunctionInfo : public HeapObject {
   inline bool needs_home_object() const;
 
  private:
+#ifdef VERIFY_HEAP
   void SharedFunctionInfoVerify(ReadOnlyRoots roots);
+#endif
 
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
@@ -692,6 +703,8 @@ struct SourceCodeOf {
 class IsCompiledScope {
  public:
   inline IsCompiledScope(const SharedFunctionInfo shared, Isolate* isolate);
+  inline IsCompiledScope(const SharedFunctionInfo shared,
+                         LocalIsolate* isolate);
   inline IsCompiledScope() : retain_bytecode_(), is_compiled_(false) {}
 
   inline bool is_compiled() const { return is_compiled_; }

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Indicium</title>
+  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+  <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
+  <script type="module" src="index.mjs"></script>
+  <link rel="stylesheet" type="text/css" href="./index.css">
+  <script type="module" src="helper.mjs"></script>
+
+  <script src="../splaytree.js"></script>
+  <script src="../codemap.js"></script>
+  <script src="../csvparser.js"></script>
+  <script src="../consarray.js"></script>
+  <script src="../profile.js"></script>
+  <script src="../profile_view.js"></script>
+  <script src="../logreader.js"></script>
+  <script src="../arguments.js"></script>
+  <script src="../SourceMap.js"></script>
+  <style>
+    #instructions {
+      padding: 10px 10px 60px 10px;
+      margin: auto;
+    }
+
+    kbd {
+      background-color: var(--primary-color);
+      color: var(--on-primary-color);
+      border-radius: 3px;
+      border: 1px solid var(--on-primary-color);
+      display: inline-block;
+      font-size: .9em;
+      font-weight: bold;
+      padding: 0px 4px 2px 4px;
+      white-space: nowrap;
+    }
+
+    /*Simple css to style it like a toggle switch*/
+    .theme-switch-wrapper {
+      display: flex;
+      align-items: center;
+    }
+
+    .theme-switch {
+      display: inline-block;
+      height: 34px;
+      position: relative;
+      width: 60px;
+    }
+
+    .theme-switch input {
+      display: none;
+    }
+
+    .slider {
+      background-color: var(--primary-color);
+      bottom: 0;
+      cursor: pointer;
+      left: 0;
+      position: absolute;
+      right: 0;
+      top: 0;
+      transition: .4s;
+    }
+
+    .slider:before {
+      background-color: var(--surface-color);
+      bottom: 4px;
+      content: "";
+      height: 26px;
+      left: 4px;
+      position: absolute;
+      transition: .4s;
+      width: 26px;
+    }
+
+    input:checked+.slider {
+      background-color: var(--primary-color);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(26px);
+    }
+
+    .slider.round {
+      border-radius: 34px;
+    }
+
+    .slider.round:before {
+      border-radius: 50%;
+    }
+
+    #container.initial {
+      display: none;
+    }
+
+    #container.loaded {
+      display: grid;
+      align-content: center;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 800px));
+      grid-template-rows: repeat(auto-fit, minmax(400px, 800px));
+      grid-auto-flow: dense;
+    }
+
+    #container.loaded>#timeline-panel {
+      grid-column: span 2;
+      overflow: scroll;
+    }
+  </style>
+  <script type="module">
+    import { App } from './index.mjs';
+
+    globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel",
+      "#ic-panel", "#map-track", "#ic-track");
+  </script>
+</head>
+
+<body>
+  <div id="content">
+    <section id="file-reader">
+      <br></br>
+      <log-file-reader id="log-file-reader"></log-file-reader>
+      <br></br>
+    </section>
+    <div id="container" class="initial">
+      <timeline-panel id="timeline-panel">
+        <timeline-track id="map-track"></timeline-track>
+        <timeline-track id="ic-track"></timeline-track>
+      </timeline-panel>
+      <map-panel id="map-panel"></map-panel>
+      <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
+    </div>
+  </div>
+  <div class="theme-switch-wrapper">
+    <label class="theme-switch" for="checkbox">
+      <input type="checkbox" id="checkbox" />
+      <div class="slider round"></div>
+    </label>
+  </div>
+  <div id="instructions">
+    <h2>Instructions</h2>
+    <p>
+      Unified web interface for analyzing the trace information of the Maps/ICs
+    </p>
+    <ul>
+      <li> Visualize Map trees that have gathered</li>
+      <li><code> /path/to/d8 --trace-maps $FILE</code></li>
+      <li> Visualize IC events that have gathered</li>
+      <li><code> /path/to/d8 --trace_ic $FILE (your_script.js) </code></li>
+    </ul>
+    <h3>Keyboard Shortcuts</h3>
+    <dl>
+      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
+      <dd>Follow Map transition forward (first child)</dd>
+
+      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
+      <dd>Follow Map transition backwards</dd>
+
+      <dt><kbd>Arrow Up</kbd></dt>
+      <dd>Go to previous Map chunk</dd>
+
+      <dt><kbd>Arrow Down</kbd></dt>
+      <dd>Go to next Map in chunk</dd>
+
+      <dt><kbd>Arrow Left</kbd></dt>
+      <dd>Go to previous chunk</dd>
+
+      <dt><kbd>Arrow Right</kbd></dt>
+      <dd>Go to next chunk</dd>
+
+      <dt><kbd>+</kbd></dt>
+      <dd>Timeline zoom in</dd>
+
+      <dt><kbd>-</kbd></dt>
+      <dd>Timeline zoom out</dd>
+    </dl>
+  </div>
+</body>
+
+</html>

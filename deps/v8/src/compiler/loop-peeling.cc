@@ -216,7 +216,7 @@ PeeledIteration* LoopPeeler::Peel(LoopTree::Loop* loop) {
   //============================================================================
   // Construct the peeled iteration.
   //============================================================================
-  PeeledIterationImpl* iter = new (tmp_zone_) PeeledIterationImpl(tmp_zone_);
+  PeeledIterationImpl* iter = tmp_zone_->New<PeeledIterationImpl>(tmp_zone_);
   size_t estimated_peeled_size = 5 + (loop->TotalSize()) * 2;
   Peeling peeling(graph_, estimated_peeled_size, &iter->node_pairs_);
 

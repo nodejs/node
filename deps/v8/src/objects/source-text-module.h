@@ -7,6 +7,7 @@
 
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -61,7 +62,7 @@ class SourceTextModule
 
   // Get the import.meta object of [module].  If it doesn't exist yet, it is
   // created and passed to the embedder callback for initialization.
-  V8_EXPORT_PRIVATE static Handle<JSObject> GetImportMeta(
+  V8_EXPORT_PRIVATE static MaybeHandle<JSObject> GetImportMeta(
       Isolate* isolate, Handle<SourceTextModule> module);
 
   using BodyDescriptor =
@@ -91,8 +92,7 @@ class SourceTextModule
   inline void DecrementPendingAsyncDependencies();
 
   // Bits for flags.
-  static const int kAsyncBit = 0;
-  static const int kAsyncEvaluatingBit = 1;
+  DEFINE_TORQUE_GENERATED_SOURCE_TEXT_MODULE_FLAGS()
 
   // async_evaluating, top_level_capability, pending_async_dependencies, and
   // async_parent_modules are used exclusively during evaluation of async

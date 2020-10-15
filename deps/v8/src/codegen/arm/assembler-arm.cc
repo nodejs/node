@@ -2621,16 +2621,28 @@ static void DoubleAsTwoUInt32(Double d, uint32_t* lo, uint32_t* hi) {
   *hi = i >> 32;
 }
 
+static void WriteVmovIntImmEncoding(uint8_t imm, uint32_t* encoding) {
+  // Integer promotion from uint8_t to int makes these all okay.
+  *encoding = ((imm & 0x80) << (24 - 7));   // a
+  *encoding |= ((imm & 0x70) << (16 - 4));  // bcd
+  *encoding |= (imm & 0x0f);                //  efgh
+}
+
 // This checks if imm can be encoded into an immediate for vmov.
 // See Table A7-15 in ARM DDI 0406C.d.
-// Currently only supports the first row of the table.
-static bool FitsVmovImm64(uint64_t imm, uint32_t* encoding) {
+// Currently only supports the first row and op=0 && cmode=1110.
+static bool FitsVmovIntImm(uint64_t imm, uint32_t* encoding, uint8_t* cmode) {
   uint32_t lo = imm & 0xFFFFFFFF;
   uint32_t hi = imm >> 32;
-  if (lo == hi && ((lo & 0xffffff00) == 0)) {
-    *encoding = ((lo & 0x80) << (24 - 7));   // a
-    *encoding |= ((lo & 0x70) << (16 - 4));  // bcd
-    *encoding |= (lo & 0x0f);                //  efgh
+  if ((lo == hi && ((lo & 0xffffff00) == 0))) {
+    WriteVmovIntImmEncoding(imm & 0xff, encoding);
+    *cmode = 0;
+    return true;
+  } else if ((lo == hi) && ((lo & 0xffff) == (lo >> 16)) &&
+             ((lo & 0xff) == (lo >> 24))) {
+    // Check that all bytes in imm are the same.
+    WriteVmovIntImmEncoding(imm & 0xff, encoding);
+    *cmode = 0xe;
     return true;
   }
 
@@ -2639,15 +2651,17 @@ static bool FitsVmovImm64(uint64_t imm, uint32_t* encoding) {
 
 void Assembler::vmov(const QwNeonRegister dst, uint64_t imm) {
   uint32_t enc;
-  if (CpuFeatures::IsSupported(VFPv3) && FitsVmovImm64(imm, &enc)) {
+  uint8_t cmode;
+  uint8_t op = 0;
+  if (CpuFeatures::IsSupported(VFPv3) && FitsVmovIntImm(imm, &enc, &cmode)) {
     CpuFeatureScope scope(this, VFPv3);
     // Instruction details available in ARM DDI 0406C.b, A8-937.
     // 001i1(27-23) | D(22) | 000(21-19) | imm3(18-16) | Vd(15-12) | cmode(11-8)
     // | 0(7) | Q(6) | op(5) | 4(1) | imm4(3-0)
     int vd, d;
     dst.split_code(&vd, &d);
-    emit(kSpecialCondition | 0x05 * B23 | d * B22 | vd * B12 | 0x1 * B6 |
-         0x1 * B4 | enc);
+    emit(kSpecialCondition | 0x05 * B23 | d * B22 | vd * B12 | cmode * B8 |
+         0x1 * B6 | op * B5 | 0x1 * B4 | enc);
   } else {
     UNIMPLEMENTED();
   }
@@ -3892,7 +3906,18 @@ void Assembler::vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src) {
   emit(EncodeNeonVCVT(U32, dst, F32, src));
 }
 
-enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF };
+enum UnaryOp {
+  VMVN,
+  VSWP,
+  VABS,
+  VABSF,
+  VNEG,
+  VNEGF,
+  VRINTM,
+  VRINTN,
+  VRINTP,
+  VRINTZ
+};
 
 static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
                                int dst_code, int src_code) {
@@ -3919,6 +3944,18 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
     case VNEGF:
       DCHECK_EQ(Neon32, size);
       op_encoding = B16 | B10 | 0x7 * B7;
+      break;
+    case VRINTM:
+      op_encoding = B17 | 0xD * B7;
+      break;
+    case VRINTN:
+      op_encoding = B17 | 0x8 * B7;
+      break;
+    case VRINTP:
+      op_encoding = B17 | 0xF * B7;
+      break;
+    case VRINTZ:
+      op_encoding = B17 | 0xB * B7;
       break;
     default:
       UNREACHABLE();
@@ -4315,7 +4352,6 @@ void Assembler::vmull(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
   src2.split_code(&vm, &m);
   int size = NeonSz(dt);
   int u = NeonU(dt);
-  if (!u) UNIMPLEMENTED();
   emit(0xFU * B28 | B25 | u * B24 | B23 | d * B22 | size * B20 | vn * B16 |
        vd * B12 | 0xC * B8 | n * B7 | m * B5 | vm);
 }
@@ -4573,6 +4609,38 @@ void Assembler::vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
   // Dd = vpmax(Dn, Dm) SIMD integer pairwise MAX.
   // Instruction details available in ARM DDI 0406C.b, A8-986.
   emit(EncodeNeonPairwiseOp(VPMAX, dt, dst, src1, src2));
+}
+
+void Assembler::vrintm(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer towards -Infinity.
+  // See ARM DDI 0487F.b, F6-5493.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTM, NEON_Q, NeonSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vrintn(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer to Nearest.
+  // See ARM DDI 0487F.b, F6-5497.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTN, NEON_Q, NeonSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vrintp(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer towards +Infinity.
+  // See ARM DDI 0487F.b, F6-5501.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTP, NEON_Q, NeonSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vrintz(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer towards Zero.
+  // See ARM DDI 0487F.b, F6-5511.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTZ, NEON_Q, NeonSize(dt), dst.code(), src.code()));
 }
 
 void Assembler::vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,

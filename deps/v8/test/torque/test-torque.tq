@@ -6,12 +6,13 @@
 /* Test mulitline
    comment
 */
+/*multiline_without_whitespace*/
 
 namespace test {
 macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
   if constexpr (
-      (kind == ElementsKind::UINT8_ELEMENTS) ||
-      (kind == ElementsKind::UINT16_ELEMENTS)) {
+      kind == ElementsKind::UINT8_ELEMENTS ||
+      kind == ElementsKind::UINT16_ELEMENTS) {
     return true;
   } else {
     return false;
@@ -19,9 +20,8 @@ macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
 }
 
 macro ElementsKindTestHelper2(kind: constexpr ElementsKind): constexpr bool {
-  return (
-      (kind == ElementsKind::UINT8_ELEMENTS) ||
-      (kind == ElementsKind::UINT16_ELEMENTS));
+  return kind == ElementsKind::UINT8_ELEMENTS ||
+      kind == ElementsKind::UINT16_ELEMENTS;
 }
 
 macro LabelTestHelper1(): never
@@ -826,25 +826,25 @@ macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
 
 class SmiPair extends HeapObject {
   macro GetA():&Smi {
-    return & this.a;
+    return &this.a;
   }
   a: Smi;
   b: Smi;
 }
 
 macro Swap<T: type>(a:&T, b:&T) {
-  const tmp = * a;
-  * a = * b;
-  * b = tmp;
+  const tmp = *a;
+  *a = *b;
+  *b = tmp;
 }
 
 @export
 macro TestReferences() {
   const array = new SmiPair{a: 7, b: 2};
-  const ref:&Smi = & array.a;
-  * ref = 3 + * ref;
-  -- * ref;
-  Swap(& array.b, array.GetA());
+  const ref:&Smi = &array.a;
+  *ref = 3 + *ref;
+  -- *ref;
+  Swap(&array.b, array.GetA());
   check(array.a == 2);
   check(array.b == 9);
 }
@@ -857,15 +857,15 @@ macro TestSlices() {
 
   const oneTwoThree = Convert<Smi>(123);
   a.objects[0] = oneTwoThree;
-  const firstRef:&Object = & a.objects[0];
-  check(TaggedEqual(* firstRef, oneTwoThree));
+  const firstRef:&Object = &a.objects[0];
+  check(TaggedEqual(*firstRef, oneTwoThree));
 
-  const slice: torque_internal::Slice<Object> = & a.objects;
+  const slice: torque_internal::Slice<Object> = &a.objects;
   const firstRefAgain:&Object = slice.TryAtIndex(0) otherwise unreachable;
-  check(TaggedEqual(* firstRefAgain, oneTwoThree));
+  check(TaggedEqual(*firstRefAgain, oneTwoThree));
 
   const threeTwoOne = Convert<Smi>(321);
-  * firstRefAgain = threeTwoOne;
+  *firstRefAgain = threeTwoOne;
   check(TaggedEqual(a.objects[0], threeTwoOne));
 
   // *slice;             // error, not allowed
@@ -885,12 +885,12 @@ macro TestSliceEnumeration(implicit context: Context)(): Undefined {
     fixedArray.objects[i] = Convert<Smi>(i) + 3;
   }
 
-  let slice = & fixedArray.objects;
+  let slice = &fixedArray.objects;
   for (let i: intptr = 0; i < slice.length; i++) {
     let ref = slice.TryAtIndex(i) otherwise unreachable;
-    const value = UnsafeCast<Smi>(* ref);
+    const value = UnsafeCast<Smi>(*ref);
     check(value == Convert<Smi>(i) + 3);
-    * ref = value + 4;
+    *ref = value + 4;
   }
 
   let it = slice.Iterator();
@@ -908,7 +908,21 @@ macro TestSliceEnumeration(implicit context: Context)(): Undefined {
 
 @export
 macro TestStaticAssert() {
-  StaticAssert(1 + 2 == 3);
+  static_assert(1 + 2 == 3);
+
+  static_assert(Convert<uintptr>(5) < Convert<uintptr>(6));
+  static_assert(!(Convert<uintptr>(5) < Convert<uintptr>(5)));
+  static_assert(!(Convert<uintptr>(6) < Convert<uintptr>(5)));
+  static_assert(Convert<uintptr>(5) <= Convert<uintptr>(5));
+  static_assert(Convert<uintptr>(5) <= Convert<uintptr>(6));
+  static_assert(!(Convert<uintptr>(6) <= Convert<uintptr>(5)));
+
+  static_assert(Convert<intptr>(-6) < Convert<intptr>(-5));
+  static_assert(!(Convert<intptr>(-5) < Convert<intptr>(-5)));
+  static_assert(!(Convert<intptr>(-5) < Convert<intptr>(-6)));
+  static_assert(Convert<intptr>(-5) <= Convert<intptr>(-5));
+  static_assert(Convert<intptr>(-6) <= Convert<intptr>(-5));
+  static_assert(!(Convert<intptr>(-5) <= Convert<intptr>(-6)));
 }
 
 class SmiBox extends HeapObject {
@@ -926,12 +940,12 @@ macro TestLoadEliminationFixed(implicit context: Context)() {
   const v1 = box.value;
   box.unrelated = 999;
   const v2 = (box.unrelated == 0) ? box.value : box.value;
-  StaticAssert(TaggedEqual(v1, v2));
+  static_assert(TaggedEqual(v1, v2));
 
   box.value = 11;
   const v3 = box.value;
   const eleven: Smi = 11;
-  StaticAssert(TaggedEqual(v3, eleven));
+  static_assert(TaggedEqual(v3, eleven));
 }
 
 @export
@@ -942,8 +956,8 @@ macro TestLoadEliminationVariable(implicit context: Context)() {
   const u1 = a.objects[box.value + 2];
   const v2 = a.objects[box.value];
   const u2 = a.objects[box.value + 2];
-  StaticAssert(TaggedEqual(v1, v2));
-  StaticAssert(TaggedEqual(u1, u2));
+  static_assert(TaggedEqual(v1, v2));
+  static_assert(TaggedEqual(u1, u2));
 }
 
 @export
@@ -954,7 +968,7 @@ macro TestRedundantArrayElementCheck(implicit context: Context)(): Smi {
       if (a.objects[i] == TheHole) {
         return -1;
       } else {
-        StaticAssert(false);
+        static_assert(false);
       }
     }
   }
@@ -1029,9 +1043,9 @@ macro TestBranchOnBoolOptimization(implicit context: Context)(input: Smi) {
   // If the two branches get combined into one, we should be able to determine
   // the value of {box} statically.
   if (BranchAndWriteResult(input, box)) {
-    StaticAssert(box.value == 1);
+    static_assert(box.value == 1);
   } else {
-    StaticAssert(box.value == 2);
+    static_assert(box.value == 2);
   }
 }
 
@@ -1116,6 +1130,42 @@ macro TestBitFieldUintptrOps(
   check(val3.c);
   check(val3.d == 99);
   check(val3.e == 1234);
+}
+
+bitfield struct TestBitFieldStruct4 extends uint31 {
+  a: bool: 1 bit;
+  b: int32: 3 bit;
+  c: bool: 1 bit;
+}
+
+bitfield struct TestBitFieldStruct5 extends uint31 {
+  b: int32: 19 bit;
+  a: bool: 1 bit;
+  c: bool: 1 bit;
+}
+
+@export
+macro TestBitFieldMultipleFlags(a: bool, b: int32, c: bool) {
+  const f = TestBitFieldStruct4{a: a, b: b, c: c};
+  let simpleExpression = f.a & f.b == 3 & !f.c;
+  let expectedReduction = (Signed(f) & 0x1f) == Convert<int32>(1 | 3 << 1);
+  static_assert(simpleExpression == expectedReduction);
+  simpleExpression = !f.a & f.b == 4 & f.c;
+  expectedReduction = (Signed(f) & 0x1f) == Convert<int32>(4 << 1 | 1 << 4);
+  static_assert(simpleExpression == expectedReduction);
+  simpleExpression = f.b == 0 & f.c;
+  expectedReduction = (Signed(f) & 0x1e) == Convert<int32>(1 << 4);
+  static_assert(simpleExpression == expectedReduction);
+  simpleExpression = f.a & f.c;
+  expectedReduction = (Signed(f) & 0x11) == Convert<int32>(1 | 1 << 4);
+  static_assert(simpleExpression == expectedReduction);
+  const f2 = TestBitFieldStruct5{b: b, a: a, c: c};
+  simpleExpression = !f2.a & f2.b == 1234 & f2.c;
+  expectedReduction = (Signed(f2) & 0x1fffff) == Convert<int32>(1234 | 1 << 20);
+  static_assert(simpleExpression == expectedReduction);
+  simpleExpression = !f2.a & !f2.c;
+  expectedReduction = (Signed(f2) & 0x180000) == Convert<int32>(0);
+  static_assert(simpleExpression == expectedReduction);
 }
 
 @export
@@ -1228,5 +1278,66 @@ macro TestFullyGeneratedClassWithElements() {
 macro TestFullyGeneratedClassFromCpp(): ExportedSubClass {
   return new
   ExportedSubClass{a: Null, b: Null, c_field: 7, d_field: 8, e_field: 9};
+}
+
+@export
+class ExportedSubClass2 extends ExportedSubClassBase {
+  x_field: int32;
+  y_field: int32;
+  z_field: Smi;
+}
+
+@export
+macro TestGeneratedCastOperators(implicit context: Context)() {
+  const a = new
+  ExportedSubClass{a: Null, b: Null, c_field: 3, d_field: 4, e_field: 5};
+  const b = new ExportedSubClassBase{a: Undefined, b: Null};
+  const c = new
+  ExportedSubClass2{a: Null, b: Null, x_field: 3, y_field: 4, z_field: 5};
+  const aO: Object = a;
+  const bO: Object = b;
+  const cO: Object = c;
+  assert(Is<ExportedSubClassBase>(aO));
+  assert(Is<ExportedSubClass>(aO));
+  assert(!Is<ExportedSubClass2>(aO));
+  assert(Is<ExportedSubClassBase>(bO));
+  assert(!Is<ExportedSubClass>(bO));
+  assert(Is<ExportedSubClassBase>(cO));
+  assert(!Is<ExportedSubClass>(cO));
+  assert(Is<ExportedSubClass2>(cO));
+
+  const jsf: JSFunction =
+      *NativeContextSlot(ContextSlot::REGEXP_FUNCTION_INDEX);
+  assert(!Is<JSSloppyArgumentsObject>(jsf));
+
+  const parameterValues = NewFixedArray(0, ConstantIterator(TheHole));
+  const elements = NewSloppyArgumentsElements(
+      0, context, parameterValues, ConstantIterator(TheHole));
+  const fastArgs = arguments::NewJSFastAliasedArgumentsObject(
+      elements, Convert<Smi>(0), jsf);
+  assert(Is<JSArgumentsObject>(fastArgs));
+}
+
+extern runtime InYoungGeneration(implicit context: Context)(HeapObject):
+    Boolean;
+
+@export
+macro TestNewPretenured(implicit context: Context)() {
+  const obj = new (Pretenured) ExportedSubClassBase{a: Undefined, b: Null};
+  assert(Is<ExportedSubClassBase>(obj));
+  assert(InYoungGeneration(obj) == False);
+}
+
+@export
+macro TestWord8Phi() {
+  for (let i: intptr = -5; i < 5; ++i) {
+    let x: int8;
+    if (i == -1) {
+      x = -1;
+    } else {
+      x = Convert<int8>(i);
+    }
+    check(x == Convert<int8>(i));
+  }
 }
 }

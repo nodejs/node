@@ -18,6 +18,11 @@ namespace internal {
 
 namespace {
 
+// GCInfoTable::table_, the table which holds GCInfos, is maintained as a
+// contiguous array reserved upfront. Subparts of the array are (re-)committed
+// as read/write or read-only in OS pages, whose size is a power of 2. To avoid
+// having GCInfos that cross the boundaries between these subparts we force the
+// size of GCInfo to be a power of 2 as well.
 constexpr size_t kEntrySize = sizeof(GCInfo);
 static_assert(v8::base::bits::IsPowerOfTwo(kEntrySize),
               "GCInfoTable entries size must be power of "

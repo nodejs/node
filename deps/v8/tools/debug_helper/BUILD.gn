@@ -76,6 +76,7 @@ v8_component("v8_debug_helper") {
     "$target_gen_dir/../../torque-generated/class-debug-readers-tq.h",
     "$target_gen_dir/../../torque-generated/instance-types-tq.h",
     "$target_gen_dir/heap-constants-gen.cc",
+    "compiler-types.cc",
     "debug-helper-internal.cc",
     "debug-helper-internal.h",
     "debug-helper.h",

@@ -17,7 +17,7 @@ transitioning javascript builtin TypedArrayPrototypeSubArray(
       MessageTemplate::kIncompatibleMethodReceiver, methodName);
 
   // 5. Let buffer be O.[[ViewedArrayBuffer]].
-  const buffer = typed_array::GetBuffer(source);
+  const buffer = typed_array::GetTypedArrayBuffer(source);
 
   // 6. Let srcLength be O.[[ArrayLength]].
   const srcLength: uintptr = source.length;

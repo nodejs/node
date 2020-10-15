@@ -203,7 +203,7 @@ void MemoryOptimizer::Optimize() {
 }
 
 void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
-  tick_counter_->DoTick();
+  tick_counter_->TickAndMaybeEnterSafepoint();
   DCHECK(!node->IsDead());
   DCHECK_LT(0, node->op()->EffectInputCount());
   switch (node->opcode()) {

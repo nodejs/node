@@ -237,7 +237,7 @@ bool SafeStackFrameIterator::IsNoFrameBytecodeHandlerPc(Isolate* isolate,
                                                         Address pc,
                                                         Address fp) const {
   // Return false for builds with non-embedded bytecode handlers.
-  if (Isolate::CurrentEmbeddedBlob() == nullptr) return false;
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) return false;
 
   EmbeddedData d = EmbeddedData::FromBlob();
   if (pc < d.InstructionStartOfBytecodeHandlers() ||
@@ -315,6 +315,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
     // return address into the interpreter entry trampoline, then we are likely
     // in a bytecode handler with elided frame. In that case, set the PC
     // properly and make sure we do not drop the frame.
+    bool is_no_frame_bytecode_handler = false;
     if (IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
       Address* tos_location = nullptr;
       if (top_link_register_) {
@@ -326,6 +327,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
 
       if (IsInterpreterFramePc(isolate, *tos_location, &state)) {
         state.pc_address = tos_location;
+        is_no_frame_bytecode_handler = true;
         advance_frame = false;
       }
     }
@@ -338,12 +340,12 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
                   StandardFrameConstants::kContextOffset);
     Address frame_marker = fp + StandardFrameConstants::kFunctionOffset;
     if (IsValidStackAddress(frame_marker)) {
-      type = StackFrame::ComputeType(this, &state);
-      top_frame_type_ = type;
-      // We only keep the top frame if we believe it to be interpreted frame.
-      if (type != StackFrame::INTERPRETED) {
-        advance_frame = true;
+      if (is_no_frame_bytecode_handler) {
+        type = StackFrame::INTERPRETED;
+      } else {
+        type = StackFrame::ComputeType(this, &state);
       }
+      top_frame_type_ = type;
       MSAN_MEMORY_IS_INITIALIZED(
           fp + CommonFrameConstants::kContextOrFrameTypeOffset,
           kSystemPointerSize);
@@ -566,7 +568,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       Code code_obj = GetContainingCode(iterator->isolate(), pc);
       if (!code_obj.is_null()) {
         switch (code_obj.kind()) {
-          case Code::BUILTIN:
+          case CodeKind::BUILTIN:
             if (StackFrame::IsTypeMarker(marker)) break;
             if (code_obj.is_interpreter_trampoline_builtin()) {
               return INTERPRETED;
@@ -579,17 +581,18 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
               return OPTIMIZED;
             }
             return BUILTIN;
-          case Code::OPTIMIZED_FUNCTION:
+          case CodeKind::OPTIMIZED_FUNCTION:
+          case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
             return OPTIMIZED;
-          case Code::JS_TO_WASM_FUNCTION:
+          case CodeKind::JS_TO_WASM_FUNCTION:
             return JS_TO_WASM;
-          case Code::JS_TO_JS_FUNCTION:
+          case CodeKind::JS_TO_JS_FUNCTION:
             return STUB;
-          case Code::C_WASM_ENTRY:
+          case CodeKind::C_WASM_ENTRY:
             return C_WASM_ENTRY;
-          case Code::WASM_FUNCTION:
-          case Code::WASM_TO_CAPI_FUNCTION:
-          case Code::WASM_TO_JS_FUNCTION:
+          case CodeKind::WASM_FUNCTION:
+          case CodeKind::WASM_TO_CAPI_FUNCTION:
+          case CodeKind::WASM_TO_JS_FUNCTION:
             // Never appear as on-heap {Code} objects.
             UNREACHABLE();
           default:
@@ -620,8 +623,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_COMPILE_LAZY:
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
-      return candidate;
     case JS_TO_WASM:
+      return candidate;
     case OPTIMIZED:
     case INTERPRETED:
     default:
@@ -921,9 +924,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   bool has_tagged_params = false;
   uint32_t tagged_parameter_slots = 0;
   if (wasm_code != nullptr) {
-    SafepointTable table(wasm_code->instruction_start(),
-                         wasm_code->safepoint_table_offset(),
-                         wasm_code->stack_slots());
+    SafepointTable table(wasm_code);
     safepoint_entry = table.FindEntry(inner_pointer);
     stack_slots = wasm_code->stack_slots();
     has_tagged_params = wasm_code->kind() != wasm::WasmCode::kFunction &&
@@ -1078,7 +1079,7 @@ Address StubFrame::GetCallerStackPointer() const {
 int StubFrame::LookupExceptionHandlerInTable() {
   Code code = LookupCode();
   DCHECK(code.is_turbofanned());
-  DCHECK_EQ(code.kind(), Code::BUILTIN);
+  DCHECK_EQ(code.kind(), CodeKind::BUILTIN);
   HandlerTable table(code);
   int pc_offset = static_cast<int>(pc() - code.InstructionStart());
   return table.LookupReturn(pc_offset);
@@ -1109,7 +1110,7 @@ Code JavaScriptFrame::unchecked_code() const { return function().code(); }
 
 int OptimizedFrame::ComputeParametersCount() const {
   Code code = LookupCode();
-  if (code.kind() == Code::BUILTIN) {
+  if (code.kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
         Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
   } else {
@@ -1187,7 +1188,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction function,
                                              AbstractCode code, int code_offset,
                                              FILE* file,
                                              bool print_line_number) {
-  PrintF(file, "%s", function.IsOptimized() ? "*" : "~");
+  PrintF(file, "%s", CodeKindIsOptimizedJSFunction(code.kind()) ? "*" : "~");
   function.PrintName(file);
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {
@@ -1319,9 +1320,16 @@ Object JavaScriptBuiltinContinuationFrame::context() const {
 
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Object exception) {
+#ifdef V8_REVERSE_JSARGS
+  int argc = ComputeParametersCount();
+  Address exception_argument_slot =
+      fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
+      (argc - 1) * kSystemPointerSize;
+#else
   Address exception_argument_slot =
       fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
       kSystemPointerSize;  // Skip over return value slot.
+#endif
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
@@ -1341,7 +1349,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       is_constructor_(is_constructor),
       parameters_(parameters, isolate) {
   DCHECK(abstract_code.IsBytecodeArray() ||
-         Code::cast(abstract_code).kind() != Code::OPTIMIZED_FUNCTION);
+         !CodeKindIsOptimizedJSFunction(Code::cast(abstract_code).kind()));
 }
 
 void FrameSummary::EnsureSourcePositionsAvailable() {
@@ -1504,7 +1512,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code code = LookupCode();
-  if (code.kind() == Code::BUILTIN) {
+  if (code.kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -1591,8 +1599,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   // When the return pc has been replaced by a trampoline there won't be
   // a handler for this trampoline. Thus we need to use the return pc that
   // _used to be_ on the stack to get the right ExceptionHandler.
-  if (code.kind() == Code::OPTIMIZED_FUNCTION &&
-      code.marked_for_deoptimization()) {
+  if (CodeKindCanDeoptimize(code.kind()) && code.marked_for_deoptimization()) {
     SafepointTable safepoints(code);
     pc_offset = safepoints.find_return_pc(pc_offset);
   }
@@ -1613,7 +1620,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
     code = isolate()->heap()->GcSafeFindCodeForInnerPointer(pc());
   }
   DCHECK(!code.is_null());
-  DCHECK(code.kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(code.kind()));
 
   SafepointEntry safepoint_entry = code.GetSafepointEntry(pc());
   if (safepoint_entry.has_deoptimization_index()) {
@@ -1627,7 +1634,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
 #ifndef V8_REVERSE_JSARGS
 Object OptimizedFrame::receiver() const {
   Code code = LookupCode();
-  if (code.kind() == Code::BUILTIN) {
+  if (code.kind() == CodeKind::BUILTIN) {
     intptr_t argc = static_cast<int>(
         Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
     intptr_t args_size =
@@ -1649,7 +1656,7 @@ void OptimizedFrame::GetFunctions(
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code code = LookupCode();
-  if (code.kind() == Code::BUILTIN) {
+  if (code.kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 
@@ -1925,8 +1932,7 @@ int WasmFrame::LookupExceptionHandlerInTable() {
   wasm::WasmCode* code =
       isolate()->wasm_engine()->code_manager()->LookupCode(pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {
-    HandlerTable table(code->handler_table(), code->handler_table_size(),
-                       HandlerTable::kReturnAddressBasedEncoding);
+    HandlerTable table(code);
     int pc_offset = static_cast<int>(pc() - code->instruction_start());
     return table.LookupReturn(pc_offset);
   }
@@ -1951,6 +1957,35 @@ Address WasmDebugBreakFrame::GetCallerStackPointer() const {
   // WasmDebugBreak does not receive any arguments, hence the stack pointer of
   // the caller is at a fixed offset from the frame pointer.
   return fp() + WasmDebugBreakFrameConstants::kCallerSPOffset;
+}
+
+void JsToWasmFrame::Iterate(RootVisitor* v) const {
+  Code code = GetContainingCode(isolate(), pc());
+  //  GenericJSToWasmWrapper stack layout
+  //  ------+-----------------+----------------------
+  //        |  return addr    |
+  //    rbp |- - - - - - - - -| <-fp() -------------|
+  //        |      rbp        |                     |
+  //  rbp-p |- - - - - - - - -|                     |
+  //        |  frame marker   |                     | no GC scan
+  // rbp-2p | - - - - - - - - | <- spill_slot_limit |
+  //        |  signature_type |                     |
+  // rbp-3p |- - - - - - - - -|  -------------------|
+  //        |      ....       |                     |
+  //        |   spill slots   |                     | GC scan
+  //        |      ....       |<- spill_slot_base   |
+  //        |- - - - - - - - -|  -------------------|
+  if (code.is_null() || !code.is_builtin() ||
+      code.builtin_index() != Builtins::kGenericJSToWasmWrapper) {
+    // If it's not the  GenericJSToWasmWrapper, then it's the TurboFan compiled
+    // specific wrapper. So we have to call IterateCompiledFrame.
+    IterateCompiledFrame(v);
+    return;
+  }
+  FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
+  FullObjectSlot spill_slot_limit(
+      &Memory<Address>(fp() - 2 * kSystemPointerSize));
+  v->VisitRootPointers(Root::kTop, nullptr, spill_slot_base, spill_slot_limit);
 }
 
 Code WasmCompileLazyFrame::unchecked_code() const { return Code(); }

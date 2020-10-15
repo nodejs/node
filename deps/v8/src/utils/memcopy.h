@@ -187,7 +187,7 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   CopyImpl<kMinComplexMemCopy>(dst, src, num_bytes);
 }
 
-inline void MemsetInt32(int32_t* dest, int32_t value, size_t counter) {
+inline void MemsetUint32(uint32_t* dest, uint32_t value, size_t counter) {
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 #define STOS "stosl"
 #endif

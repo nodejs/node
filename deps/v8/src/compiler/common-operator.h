@@ -449,6 +449,8 @@ V8_EXPORT_PRIVATE Handle<HeapObject> HeapConstantOf(const Operator* op)
 const StringConstantBase* StringConstantBaseOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
+const char* StaticAssertSourceOf(const Operator* op);
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -459,7 +461,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
-  const Operator* StaticAssert();
+  const Operator* StaticAssert(const char* source);
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone,
                          IsSafetyCheck = IsSafetyCheck::kSafetyCheck);
@@ -526,7 +528,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types,
                                    SparseInputMask bitmask);
   const Operator* ArgumentsElementsState(ArgumentsStateType type);
-  const Operator* ArgumentsLengthState(ArgumentsStateType type);
+  const Operator* ArgumentsLengthState();
   const Operator* ObjectState(uint32_t object_id, int pointer_slots);
   const Operator* TypedObjectState(uint32_t object_id,
                                    const ZoneVector<MachineType>* types);

@@ -5,7 +5,6 @@
 #include "src/heap/cppgc/page-memory.h"
 
 #include "src/base/page-allocator.h"
-#include "src/heap/cppgc/page-memory-inl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {

@@ -14,18 +14,53 @@
 #include "cppgc/trace-trait.h"
 
 namespace cppgc {
+
 namespace internal {
+template <typename T, typename WeaknessPolicy, typename LocationPolicy,
+          typename CheckingPolicy>
+class BasicPersistent;
+class ConservativeTracingVisitor;
 class VisitorBase;
+class VisitorFactory;
+
 }  // namespace internal
 
 using WeakCallback = void (*)(const LivenessBroker&, const void*);
 
 /**
  * Visitor passed to trace methods. All managed pointers must have called the
- * visitor's trace method on them.
+ * Visitor's trace method on them.
+ *
+ * \code
+ * class Foo final : public GarbageCollected<Foo> {
+ *  public:
+ *   void Trace(Visitor* visitor) const {
+ *     visitor->Trace(foo_);
+ *     visitor->Trace(weak_foo_);
+ *   }
+ *  private:
+ *   Member<Foo> foo_;
+ *   WeakMember<Foo> weak_foo_;
+ * };
+ * \endcode
  */
 class Visitor {
  public:
+  class Key {
+   private:
+    Key() = default;
+    friend class internal::VisitorFactory;
+  };
+
+  explicit Visitor(Key) {}
+
+  virtual ~Visitor() = default;
+
+  /**
+   * Trace method for Member.
+   *
+   * \param member Member reference retaining an object.
+   */
   template <typename T>
   void Trace(const Member<T>& member) {
     const T* value = member.GetRawAtomic();
@@ -33,11 +68,16 @@ class Visitor {
     Trace(value);
   }
 
+  /**
+   * Trace method for WeakMember.
+   *
+   * \param weak_member WeakMember reference weakly retaining an object.
+   */
   template <typename T>
   void Trace(const WeakMember<T>& weak_member) {
-    static_assert(sizeof(T), "T must be fully defined");
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
     static_assert(internal::IsGarbageCollectedType<T>::value,
-                  "T must be GarabgeCollected or GarbageCollectedMixin type");
+                  "T must be GarbageCollected or GarbageCollectedMixin type");
 
     const T* value = weak_member.GetRawAtomic();
 
@@ -52,41 +92,42 @@ class Visitor {
               &HandleWeak<WeakMember<T>>, &weak_member);
   }
 
-  template <typename Persistent,
-            std::enable_if_t<Persistent::IsStrongPersistent::value>* = nullptr>
-  void TraceRoot(const Persistent& p, const SourceLocation& loc) {
-    using PointeeType = typename Persistent::PointeeType;
-    static_assert(sizeof(PointeeType),
-                  "Persistent's pointee type must be fully defined");
-    static_assert(internal::IsGarbageCollectedType<PointeeType>::value,
-                  "Persisent's pointee type must be GarabgeCollected or "
-                  "GarbageCollectedMixin");
-    if (!p.Get()) {
-      return;
-    }
-    VisitRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()));
+  /**
+   * Trace method for inlined objects that are not allocated themselves but
+   * otherwise follow managed heap layout and have a Trace() method.
+   *
+   * \param object reference of the inlined object.
+   */
+  template <typename T>
+  void Trace(const T& object) {
+#if V8_ENABLE_CHECKS
+    // This object is embedded in potentially multiple nested objects. The
+    // outermost object must not be in construction as such objects are (a) not
+    // processed immediately, and (b) only processed conservatively if not
+    // otherwise possible.
+    CheckObjectNotInConstruction(&object);
+#endif  // V8_ENABLE_CHECKS
+    TraceTrait<T>::Trace(this, &object);
   }
 
-  template <
-      typename WeakPersistent,
-      std::enable_if_t<!WeakPersistent::IsStrongPersistent::value>* = nullptr>
-  void TraceRoot(const WeakPersistent& p, const SourceLocation& loc) {
-    using PointeeType = typename WeakPersistent::PointeeType;
-    static_assert(sizeof(PointeeType),
-                  "Persistent's pointee type must be fully defined");
-    static_assert(internal::IsGarbageCollectedType<PointeeType>::value,
-                  "Persisent's pointee type must be GarabgeCollected or "
-                  "GarbageCollectedMixin");
-    VisitWeakRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
-                  &HandleWeak<WeakPersistent>, &p);
-  }
-
+  /**
+   * Registers a weak callback method on the object of type T. See
+   * LivenessBroker for an usage example.
+   *
+   * \param object of type T specifying a weak callback method.
+   */
   template <typename T, void (T::*method)(const LivenessBroker&)>
-  void RegisterWeakCallbackMethod(const T* obj) {
-    RegisterWeakCallback(&WeakCallbackMethodDelegate<T, method>, obj);
+  void RegisterWeakCallbackMethod(const T* object) {
+    RegisterWeakCallback(&WeakCallbackMethodDelegate<T, method>, object);
   }
 
-  virtual void RegisterWeakCallback(WeakCallback, const void*) {}
+  /**
+   * Registers a weak callback that is invoked during garbage collection.
+   *
+   * \param callback to be invoked.
+   * \param data custom data that is passed to the callback.
+   */
+  virtual void RegisterWeakCallback(WeakCallback callback, const void* data) {}
 
  protected:
   virtual void Visit(const void* self, TraceDescriptor) {}
@@ -108,28 +149,62 @@ class Visitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
+    // Sentinel values are preserved for weak pointers.
+    if (*weak == kSentinelPointer) return;
     const auto* raw = weak->Get();
-    if (raw && !info.IsHeapObjectAlive(raw)) {
-      // Object is passed down through the marker as const. Alternatives are
-      // - non-const Trace method;
-      // - mutable pointer in MemberBase;
-      const_cast<PointerType*>(weak)->Clear();
+    if (!info.IsHeapObjectAlive(raw)) {
+      weak->ClearFromGC();
     }
   }
 
-  Visitor() = default;
+  template <typename Persistent,
+            std::enable_if_t<Persistent::IsStrongPersistent::value>* = nullptr>
+  void TraceRoot(const Persistent& p, const SourceLocation& loc) {
+    using PointeeType = typename Persistent::PointeeType;
+    static_assert(sizeof(PointeeType),
+                  "Persistent's pointee type must be fully defined");
+    static_assert(internal::IsGarbageCollectedType<PointeeType>::value,
+                  "Persistent's pointee type must be GarbageCollected or "
+                  "GarbageCollectedMixin");
+    if (!p.Get()) {
+      return;
+    }
+    VisitRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()));
+  }
+
+  template <
+      typename WeakPersistent,
+      std::enable_if_t<!WeakPersistent::IsStrongPersistent::value>* = nullptr>
+  void TraceRoot(const WeakPersistent& p, const SourceLocation& loc) {
+    using PointeeType = typename WeakPersistent::PointeeType;
+    static_assert(sizeof(PointeeType),
+                  "Persistent's pointee type must be fully defined");
+    static_assert(internal::IsGarbageCollectedType<PointeeType>::value,
+                  "Persistent's pointee type must be GarbageCollected or "
+                  "GarbageCollectedMixin");
+    VisitWeakRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
+                  &HandleWeak<WeakPersistent>, &p);
+  }
 
   template <typename T>
   void Trace(const T* t) {
-    static_assert(sizeof(T), "T must be fully defined");
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
     static_assert(internal::IsGarbageCollectedType<T>::value,
-                  "T must be GarabgeCollected or GarbageCollectedMixin type");
+                  "T must be GarbageCollected or GarbageCollectedMixin type");
     if (!t) {
       return;
     }
     Visit(t, TraceTrait<T>::GetTraceDescriptor(t));
   }
 
+#if V8_ENABLE_CHECKS
+  V8_EXPORT void CheckObjectNotInConstruction(const void* address);
+#endif  // V8_ENABLE_CHECKS
+
+  template <typename T, typename WeaknessPolicy, typename LocationPolicy,
+            typename CheckingPolicy>
+  friend class internal::BasicPersistent;
+  friend class internal::ConservativeTracingVisitor;
   friend class internal::VisitorBase;
 };
 

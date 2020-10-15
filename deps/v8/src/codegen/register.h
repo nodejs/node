@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_REGISTER_H_
 #define V8_CODEGEN_REGISTER_H_
 
+#include "src/base/bounds.h"
 #include "src/codegen/reglist.h"
 
 namespace v8 {
@@ -32,10 +33,7 @@ class RegisterBase {
   static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
 
   static constexpr SubType from_code(int code) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_LE(0, code);
-    DCHECK_GT(kNumRegisters, code);
-#endif
+    CONSTEXPR_DCHECK(base::IsInRange(code, 0, kNumRegisters - 1));
     return SubType{code};
   }
 
@@ -47,9 +45,7 @@ class RegisterBase {
   constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
   constexpr int code() const {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(is_valid());
-#endif
+    CONSTEXPR_DCHECK(is_valid());
     return reg_code_;
   }
 

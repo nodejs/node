@@ -2,20 +2,56 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+type CompilationType extends int32 constexpr 'Script::CompilationType';
+type CompilationState extends int32 constexpr 'Script::CompilationState';
+
+bitfield struct ScriptFlags extends uint31 {
+  compilation_type: CompilationType: 1 bit;
+  compilation_state: CompilationState: 1 bit;
+  is_repl_mode: bool: 1 bit;
+  origin_options: int32: 4 bit;
+}
+
+@generateCppClass
 extern class Script extends Struct {
-  source: Object;
+  // [source]: the script source.
+  source: String|Undefined;
+
+  // [name]: the script name.
   name: Object;
+
+  // [line_offset]: script line offset in resource from where it was extracted.
   line_offset: Smi;
+
+  // [column_offset]: script column offset in resource from where it was
+  // extracted.
   column_offset: Smi;
-  context: Object;
+
+  // [context_data]: context data for the context this script was compiled in.
+  context_data: Smi|Undefined|Symbol;
+
   script_type: Smi;
-  line_ends: Object;
+
+  // [line_ends]: FixedArray of line ends positions.
+  line_ends: FixedArray|Undefined;
+
+  // [id]: the script id.
   id: Smi;
-  eval_from_shared_or_wrapped_arguments: Object;
+
+  eval_from_shared_or_wrapped_arguments: SharedFunctionInfo|FixedArray|
+      Undefined;
   eval_from_position: Smi|Foreign;  // Smi or Managed<wasm::NativeModule>
-  shared_function_infos: Object;
-  flags: Smi;
-  source_url: Object;
+  shared_function_infos: WeakFixedArray|WeakArrayList;
+
+  // [flags]: Holds an exciting bitfield.
+  flags: SmiTagged<ScriptFlags>;
+
+  // [source_url]: sourceURL from magic comment
+  source_url: String|Undefined;
+
+  // [source_mapping_url]: sourceMappingURL magic comment
   source_mapping_url: Object;
-  host_defined_options: Object;
+
+  // [host_defined_options]: Options defined by the embedder.
+  host_defined_options: FixedArray;
 }

@@ -44,7 +44,7 @@ kExprI32Const, 0x83, 0x01,  // i32.const
 kSimdPrefix, kExprI32x4Splat,  // i32x4.splat
 kSimdPrefix, kExprI32x4Eq,  // i32x4.eq
 kSimdPrefix, kExprI32x4Eq,  // i32x4.eq
-kSimdPrefix, kExprS1x16AnyTrue,  // s1x16.any_true
+kSimdPrefix, kExprV8x16AnyTrue,  // v8x16.any_true
 kExprEnd,  // end @64
 ]);
 builder.addExport('main', 0);

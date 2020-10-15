@@ -41,6 +41,7 @@ class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
   friend class Factory;
   friend class SerializerDeserializer;
   friend class StartupSerializer;
+  friend class WasmTypeInfo;
 
   inline void set_foreign_address(Isolate* isolate, Address value);
 

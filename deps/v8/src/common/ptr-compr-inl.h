@@ -8,7 +8,6 @@
 #include "include/v8-internal.h"
 #include "src/common/ptr-compr.h"
 #include "src/execution/isolate.h"
-#include "src/execution/off-thread-isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -29,15 +28,6 @@ V8_INLINE Address GetIsolateRoot(Address on_heap_addr) {
 }
 
 V8_INLINE Address GetIsolateRoot(const Isolate* isolate) {
-  Address isolate_root = isolate->isolate_root();
-#ifdef V8_COMPRESS_POINTERS
-  isolate_root = reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
-      reinterpret_cast<void*>(isolate_root), kPtrComprIsolateRootAlignment));
-#endif
-  return isolate_root;
-}
-
-V8_INLINE Address GetIsolateRoot(const OffThreadIsolate* isolate) {
   Address isolate_root = isolate->isolate_root();
 #ifdef V8_COMPRESS_POINTERS
   isolate_root = reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
@@ -79,6 +69,10 @@ STATIC_ASSERT(kPtrComprIsolateRootAlignment ==
 #else
 
 V8_INLINE Tagged_t CompressTagged(Address tagged) { UNREACHABLE(); }
+
+V8_INLINE Address GetIsolateRoot(Address on_heap_addr) { UNREACHABLE(); }
+
+V8_INLINE Address GetIsolateRoot(const Isolate* isolate) { UNREACHABLE(); }
 
 V8_INLINE Address DecompressTaggedSigned(Tagged_t raw_value) { UNREACHABLE(); }
 

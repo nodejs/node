@@ -9,7 +9,7 @@
 #include "include/cppgc/internal/logging.h"
 #include "src/base/bits.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
@@ -68,12 +68,17 @@ void FreeList::Add(FreeList::Block block) {
   if (block.size < sizeof(Entry)) {
     // Create wasted entry. This can happen when an almost emptied linear
     // allocation buffer is returned to the freelist.
+    // This could be SET_MEMORY_ACCESSIBLE. Since there's no payload, the next
+    // operating overwrites the memory completely, and we can thus avoid
+    // zeroing it out.
+    ASAN_UNPOISON_MEMORY_REGION(block.address, sizeof(HeapObjectHeader));
     new (block.address) HeapObjectHeader(size, kFreeListGCInfoIndex);
     return;
   }
 
-  // Make sure the freelist header is writable.
-  SET_MEMORY_ACCESIBLE(block.address, sizeof(Entry));
+  // Make sure the freelist header is writable. SET_MEMORY_ACCESSIBLE is not
+  // needed as we write the whole payload of Entry.
+  ASAN_UNPOISON_MEMORY_REGION(block.address, sizeof(Entry));
   Entry* entry = new (block.address) Entry(size);
   const size_t index = BucketIndexForSize(static_cast<uint32_t>(size));
   entry->Link(&free_list_heads_[index]);

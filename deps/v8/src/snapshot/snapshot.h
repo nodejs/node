@@ -91,6 +91,7 @@ class Snapshot : public AllStatic {
   static bool EmbedsScript(Isolate* isolate);
   V8_EXPORT_PRIVATE static bool VerifyChecksum(const v8::StartupData* data);
   static bool ExtractRehashability(const v8::StartupData* data);
+  static bool VersionIsValid(const v8::StartupData* data);
 
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();

@@ -99,7 +99,7 @@ void AsmJsScanner::Next() {
         preceded_by_newline_ = true;
         break;
 
-      case kEndOfInput:
+      case kEndOfInputU:
         token_ = kEndOfInput;
         return;
 
@@ -354,7 +354,7 @@ bool AsmJsScanner::ConsumeCComment() {
     if (ch == '\n') {
       preceded_by_newline_ = true;
     }
-    if (ch == kEndOfInput) {
+    if (ch == kEndOfInputU) {
       return false;
     }
   }
@@ -367,7 +367,7 @@ void AsmJsScanner::ConsumeCPPComment() {
       preceded_by_newline_ = true;
       return;
     }
-    if (ch == kEndOfInput) {
+    if (ch == kEndOfInputU) {
       return;
     }
   }
@@ -377,7 +377,7 @@ void AsmJsScanner::ConsumeString(uc32 quote) {
   // Only string allowed is 'use asm' / "use asm".
   const char* expected = "use asm";
   for (; *expected != '\0'; ++expected) {
-    if (stream_->Advance() != *expected) {
+    if (stream_->Advance() != static_cast<uc32>(*expected)) {
       token_ = kParseError;
       return;
     }

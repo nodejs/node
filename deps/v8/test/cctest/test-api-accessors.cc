@@ -276,7 +276,7 @@ TEST(RedeclareAccessor) {
   CHECK(try_catch.HasCaught());
 }
 
-// Accessors can be whitelisted as side-effect-free via SetAccessor.
+// Accessors can be allowlisted as side-effect-free via SetAccessor.
 TEST(AccessorSetHasNoSideEffect) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -302,7 +302,7 @@ TEST(AccessorSetHasNoSideEffect) {
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
-  // Check that setter is not whitelisted.
+  // Check that setter is not allowlisted.
   v8::TryCatch try_catch(isolate);
   CHECK(v8::debug::EvaluateGlobal(
             isolate, v8_str("obj.foo = 1"),
@@ -317,7 +317,7 @@ TEST(AccessorSetHasNoSideEffect) {
   CHECK_EQ(0, set_accessor_call_count);
 }
 
-// Set accessors can be whitelisted as side-effect-free via SetAccessor.
+// Set accessors can be allowlisted as side-effect-free via SetAccessor.
 TEST(SetAccessorSetSideEffectReceiverCheck1) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -383,7 +383,7 @@ TEST(SetAccessorSetSideEffectReceiverCheck2) {
   CHECK_EQ(1, set_accessor_call_count);
 }
 
-// Accessors can be whitelisted as side-effect-free via SetNativeDataProperty.
+// Accessors can be allowlisted as side-effect-free via SetNativeDataProperty.
 TEST(AccessorSetNativeDataPropertyHasNoSideEffect) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -408,7 +408,7 @@ TEST(AccessorSetNativeDataPropertyHasNoSideEffect) {
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
-  // Check that setter is not whitelisted.
+  // Check that setter is not allowlisted.
   v8::TryCatch try_catch(isolate);
   CHECK(v8::debug::EvaluateGlobal(
             isolate, v8_str("obj.foo = 1"),
@@ -422,7 +422,7 @@ TEST(AccessorSetNativeDataPropertyHasNoSideEffect) {
                   .FromJust());
 }
 
-// Accessors can be whitelisted as side-effect-free via SetLazyDataProperty.
+// Accessors can be allowlisted as side-effect-free via SetLazyDataProperty.
 TEST(AccessorSetLazyDataPropertyHasNoSideEffect) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -447,7 +447,7 @@ TEST(AccessorSetLazyDataPropertyHasNoSideEffect) {
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
-  // Check that setter is not whitelisted.
+  // Check that setter is not allowlisted.
   v8::TryCatch try_catch(isolate);
   CHECK(v8::debug::EvaluateGlobal(
             isolate, v8_str("obj.foo = 1"),
@@ -484,7 +484,7 @@ TEST(ObjectTemplateSetAccessorHasNoSideEffect) {
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
-  // Check that setter is not whitelisted.
+  // Check that setter is not allowlisted.
   v8::TryCatch try_catch(isolate);
   CHECK(v8::debug::EvaluateGlobal(
             isolate, v8_str("obj.foo2 = 1"),
@@ -521,7 +521,7 @@ TEST(ObjectTemplateSetNativePropertyHasNoSideEffect) {
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
-  // Check that setter is not whitelisted.
+  // Check that setter is not allowlisted.
   v8::TryCatch try_catch(isolate);
   CHECK(v8::debug::EvaluateGlobal(
             isolate, v8_str("obj.foo2 = 1"),
@@ -557,7 +557,7 @@ TEST(ObjectTemplateSetLazyPropertyHasNoSideEffect) {
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
-  // Check that setter is not whitelisted.
+  // Check that setter is not allowlisted.
   v8::TryCatch try_catch(isolate);
   CHECK(v8::debug::EvaluateGlobal(
             isolate, v8_str("obj.foo2 = 1"),

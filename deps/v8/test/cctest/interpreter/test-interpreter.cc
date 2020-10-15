@@ -2087,7 +2087,6 @@ TEST(InterpreterMixedComparisons) {
                 LoadStringAndAddSpace(&builder, &ast_factory, rhs_cstr,
                                       string_add_slot);
               }
-              break;
             } else {
               CHECK_EQ(which_side, kLhsIsString);
               // Comparison with String on the lhs and HeapNumber on the rhs.
@@ -2121,9 +2120,19 @@ TEST(InterpreterMixedComparisons) {
             if (tester.HasFeedbackMetadata()) {
               MaybeObject feedback = callable.vector().Get(slot);
               CHECK(feedback->IsSmi());
-              // Comparison with a number and string collects kAny feedback.
-              CHECK_EQ(CompareOperationFeedback::kAny,
-                       feedback->ToSmi().value());
+              if (kComparisonTypes[c] == Token::Value::EQ) {
+                // For sloppy equality, we have more precise feedback.
+                CHECK_EQ(
+                    CompareOperationFeedback::kNumber |
+                        (string_type == kInternalizedStringConstant
+                             ? CompareOperationFeedback::kInternalizedString
+                             : CompareOperationFeedback::kString),
+                    feedback->ToSmi().value());
+              } else {
+                // Comparison with a number and string collects kAny feedback.
+                CHECK_EQ(CompareOperationFeedback::kAny,
+                         feedback->ToSmi().value());
+              }
             }
           }
         }

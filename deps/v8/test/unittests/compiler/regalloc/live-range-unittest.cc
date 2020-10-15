@@ -48,7 +48,7 @@ class TestRangeBuilder {
 
   TopLevelLiveRange* Build() {
     TopLevelLiveRange* range =
-        new (zone_) TopLevelLiveRange(id_, MachineRepresentation::kTagged);
+        zone_->New<TopLevelLiveRange>(id_, MachineRepresentation::kTagged);
     // Traverse the provided interval specifications backwards, because that is
     // what LiveRange expects.
     for (int i = static_cast<int>(pairs_.size()) - 1; i >= 0; --i) {
@@ -60,7 +60,7 @@ class TestRangeBuilder {
     }
     for (int pos : uses_) {
       UsePosition* use_position =
-          new (zone_) UsePosition(LifetimePosition::FromInt(pos), nullptr,
+          zone_->New<UsePosition>(LifetimePosition::FromInt(pos), nullptr,
                                   nullptr, UsePositionHintType::kNone);
       range->AddUsePosition(use_position, FLAG_trace_turbo_alloc);
     }
@@ -88,8 +88,8 @@ class LiveRangeUnitTest : public TestWithZone {
   TopLevelLiveRange* Splinter(TopLevelLiveRange* top, int start, int end,
                               int new_id = 0) {
     if (top->splinter() == nullptr) {
-      TopLevelLiveRange* ret = new (zone())
-          TopLevelLiveRange(new_id, MachineRepresentation::kTagged);
+      TopLevelLiveRange* ret = zone()->New<TopLevelLiveRange>(
+          new_id, MachineRepresentation::kTagged);
       top->SetSplinter(ret);
     }
     top->Splinter(LifetimePosition::FromInt(start),
@@ -128,7 +128,7 @@ class LiveRangeUnitTest : public TestWithZone {
 TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
-      new (zone()) TopLevelLiveRange(1, MachineRepresentation::kTagged);
+      zone()->New<TopLevelLiveRange>(1, MachineRepresentation::kTagged);
   V8_ASSERT_DEBUG_DEATH(range->AddUseInterval(LifetimePosition::FromInt(0),
                                               LifetimePosition::FromInt(0),
                                               zone(), FLAG_trace_turbo_alloc),
@@ -465,7 +465,7 @@ TEST_F(LiveRangeUnitTest, IDGeneration) {
   EXPECT_EQ(0, vreg->relative_id());
 
   TopLevelLiveRange* splinter =
-      new (zone()) TopLevelLiveRange(101, MachineRepresentation::kTagged);
+      zone()->New<TopLevelLiveRange>(101, MachineRepresentation::kTagged);
   vreg->SetSplinter(splinter);
   vreg->Splinter(LifetimePosition::FromInt(4), LifetimePosition::FromInt(12),
                  zone());

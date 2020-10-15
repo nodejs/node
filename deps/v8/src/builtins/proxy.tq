@@ -23,4 +23,11 @@ const kProxyGet: constexpr int31
     generates 'JSProxy::AccessKind::kGet';
 const kProxySet: constexpr int31
     generates 'JSProxy::AccessKind::kSet';
+
+type ProxyRevokeFunctionContext extends FunctionContext;
+extern enum ProxyRevokeFunctionContextSlot extends intptr
+constexpr 'ProxiesCodeStubAssembler::ProxyRevokeFunctionContextSlot' {
+  kProxySlot: Slot<ProxyRevokeFunctionContext, JSProxy|Null>,
+  kProxyContextLength
+}
 }

@@ -8,11 +8,26 @@
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
 
 class LocalHeap;
+
+class StressConcurrentAllocatorTask : public CancelableTask {
+ public:
+  explicit StressConcurrentAllocatorTask(Isolate* isolate)
+      : CancelableTask(isolate), isolate_(isolate) {}
+
+  void RunInternal() override;
+
+  // Schedules task on background thread
+  static void Schedule(Isolate* isolate);
+
+ private:
+  Isolate* isolate_;
+};
 
 // Concurrent allocator for allocation from background threads/tasks.
 // Allocations are served from a TLAB if possible.
@@ -27,21 +42,26 @@ class ConcurrentAllocator {
         space_(space),
         lab_(LocalAllocationBuffer::InvalidBuffer()) {}
 
-  inline AllocationResult Allocate(int object_size,
-                                   AllocationAlignment alignment,
-                                   AllocationOrigin origin);
-
-  inline Address AllocateOrFail(int object_size, AllocationAlignment alignment,
-                                AllocationOrigin origin);
+  inline AllocationResult AllocateRaw(int object_size,
+                                      AllocationAlignment alignment,
+                                      AllocationOrigin origin);
 
   void FreeLinearAllocationArea();
   void MakeLinearAllocationAreaIterable();
+  void MarkLinearAllocationAreaBlack();
+  void UnmarkLinearAllocationArea();
 
  private:
-  inline bool EnsureLab(AllocationOrigin origin);
+  V8_EXPORT_PRIVATE AllocationResult AllocateInLabSlow(
+      int object_size, AllocationAlignment alignment, AllocationOrigin origin);
+  bool EnsureLab(AllocationOrigin origin);
+
   inline AllocationResult AllocateInLab(int object_size,
                                         AllocationAlignment alignment,
                                         AllocationOrigin origin);
+
+  V8_EXPORT_PRIVATE AllocationResult AllocateOutsideLab(
+      int object_size, AllocationAlignment alignment, AllocationOrigin origin);
 
   V8_EXPORT_PRIVATE Address PerformCollectionAndAllocateAgain(
       int object_size, AllocationAlignment alignment, AllocationOrigin origin);

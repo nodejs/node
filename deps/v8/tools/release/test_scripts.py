@@ -558,9 +558,11 @@ deps = {
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
     json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
     TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
+    chrome_dir = TEST_CONFIG["CHROMIUM"]
     self.Expect([
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
       Cmd("git describe --tags last_roll_hsh", "3.22.4"),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git rev-list --max-age=395200 --tags",
@@ -597,6 +599,7 @@ deps = {
     expectations = [
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
       Cmd("git describe --tags last_roll_hsh", "3.22.3.1"),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git rev-list --max-age=395200 --tags",

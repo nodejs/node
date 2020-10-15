@@ -4,22 +4,10 @@
 
 // Flags: --expose-wasm --wasm-expose-debug-eval
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 const {session, contextGroup, Protocol} =
     InspectorTest.start('Tests wasm debug-evaluate');
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
-
-function instantiate(bytes) {
-  let buffer = new ArrayBuffer(bytes.length);
-  let view = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; ++i) {
-    view[i] = bytes[i] | 0;
-  }
-
-  let module = new WebAssembly.Module(buffer);
-  return new WebAssembly.Instance(module);
-}
-contextGroup.addScript(instantiate.toString());
 
 function printFailure(message) {
   if (!message.result) {
@@ -54,9 +42,7 @@ async function runTest(testName, breakLine, debuggeeBytes, snippetBytes) {
         handleDebuggerPaused.bind(null, snippetBytes));
     InspectorTest.log('Test: ' + testName);
     const scriptListener = getWasmScript();
-    const module = JSON.stringify(debuggeeBytes);
-    await Protocol.Runtime.evaluate(
-        {'expression': `const instance = instantiate(${module})`});
+    await WasmInspectorTest.instantiate(debuggeeBytes);
     const script = await scriptListener;
     const msg = await Protocol.Debugger.setBreakpoint({
       'location': {

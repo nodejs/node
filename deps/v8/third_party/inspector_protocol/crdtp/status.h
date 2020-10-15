@@ -5,6 +5,7 @@
 #ifndef V8_CRDTP_STATUS_H_
 #define V8_CRDTP_STATUS_H_
 
+#include <cassert>
 #include <cstddef>
 #include <limits>
 #include <string>
@@ -103,6 +104,35 @@ struct Status {
   // includes the position.
   std::string ToASCIIString() const;
 };
+
+template <typename T>
+class StatusOr {
+ public:
+  explicit StatusOr(const T& value) : value_(value) {}
+  explicit StatusOr(T&& value) : value_(std::move(value)) {}
+  explicit StatusOr(const Status& status) : status_(status) {}
+
+  bool ok() const { return status_.ok(); }
+  T& operator*() & {
+    assert(ok());
+    return value_;
+  }
+  const T& operator*() const& { return value(); }
+  T&& operator*() && { return value(); }
+  const Status& status() const { return status_; }
+
+  T& value() & { return *this; }
+  T&& value() && {
+    assert(ok());
+    return std::move(value_);
+  }
+  const T& value() const& { return *this; }
+
+ private:
+  Status status_;
+  T value_;
+};
+
 }  // namespace v8_crdtp
 
 #endif  // V8_CRDTP_STATUS_H_

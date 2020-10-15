@@ -92,9 +92,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 
   static constexpr CPURegister Create(int code, int size, RegisterType type) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(IsValid(code, size, type));
-#endif
+    CONSTEXPR_DCHECK(IsValid(code, size, type));
     return CPURegister{code, size, type};
   }
 
@@ -304,9 +302,7 @@ class VRegister : public CPURegister {
   }
 
   static constexpr VRegister Create(int code, int size, int lane_count = 1) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(IsValidLaneCount(lane_count));
-#endif
+    CONSTEXPR_DCHECK(IsValidLaneCount(lane_count));
     return VRegister(CPURegister::Create(code, size, CPURegister::kVRegister),
                      lane_count);
   }
@@ -523,8 +519,6 @@ using Simd128Register = VRegister;
 // Lists of registers.
 class V8_EXPORT_PRIVATE CPURegList {
  public:
-  CPURegList() = default;
-
   template <typename... CPURegisters>
   explicit CPURegList(CPURegister reg0, CPURegisters... regs)
       : list_(CPURegister::ListOf(reg0, regs...)),

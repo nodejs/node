@@ -57,7 +57,6 @@ void JSArrayBuffer::SetBackingStoreRefForSerialization(uint32_t ref) {
 }
 
 ArrayBufferExtension* JSArrayBuffer::extension() const {
-  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
 #if V8_COMPRESS_POINTERS
     // With pointer compression the extension-field might not be
     // pointer-aligned. However on ARM64 this field needs to be aligned to
@@ -81,13 +80,9 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
 #else
     return base::AsAtomicPointer::Acquire_Load(extension_location());
 #endif
-  } else {
-    return nullptr;
-  }
 }
 
 void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
-  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
 #if V8_COMPRESS_POINTERS
     if (extension != nullptr) {
       uintptr_t address = reinterpret_cast<uintptr_t>(extension);
@@ -103,10 +98,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 #else
     base::AsAtomicPointer::Release_Store(extension_location(), extension);
 #endif
-    MarkingBarrierForArrayBufferExtension(*this, extension);
-  } else {
-    CHECK_EQ(extension, nullptr);
-  }
+    WriteBarrier::Marking(*this, extension);
 }
 
 ArrayBufferExtension** JSArrayBuffer::extension_location() const {

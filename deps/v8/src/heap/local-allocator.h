@@ -7,6 +7,8 @@
 
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/heap/new-spaces.h"
+#include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
@@ -34,11 +36,7 @@ class EvacuationAllocator {
     // Give back remaining LAB space if this EvacuationAllocator's new space LAB
     // sits right next to new space allocation top.
     const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
-    const Address top = new_space_->top();
-    if (info.limit() != kNullAddress && info.limit() == top) {
-      DCHECK_NE(info.top(), kNullAddress);
-      *new_space_->allocation_top_address() = info.top();
-    }
+    new_space_->MaybeFreeUnusedLab(info);
   }
 
   inline AllocationResult Allocate(AllocationSpace space, int object_size,

@@ -10,6 +10,7 @@
 #include "src/objects/string.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
+#include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -76,9 +77,8 @@ class Interval {
   int to_;
 };
 
-
-// Represents code units in the range from from_ to to_, both ends are
-// inclusive.
+// Represents code points (with values up to 0x10FFFF) in the range from from_
+// to to_, both ends are inclusive.
 class CharacterRange {
  public:
   CharacterRange() : from_(0), to_(0) {}
@@ -106,7 +106,7 @@ class CharacterRange {
   static inline ZoneList<CharacterRange>* List(Zone* zone,
                                                CharacterRange range) {
     ZoneList<CharacterRange>* list =
-        new (zone) ZoneList<CharacterRange>(1, zone);
+        zone->New<ZoneList<CharacterRange>>(1, zone);
     list->Add(range, zone);
     return list;
   }

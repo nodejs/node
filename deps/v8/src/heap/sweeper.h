@@ -47,7 +47,7 @@ class Sweeper {
   // after exiting this scope.
   class FilterSweepingPagesScope final {
    public:
-    explicit FilterSweepingPagesScope(
+    FilterSweepingPagesScope(
         Sweeper* sweeper, const PauseOrCompleteScope& pause_or_complete_scope);
     ~FilterSweepingPagesScope();
 
@@ -106,7 +106,12 @@ class Sweeper {
   void StartSweeping();
   V8_EXPORT_PRIVATE void StartSweeperTasks();
   void EnsureCompleted();
+  void DrainSweepingWorklists();
+  void DrainSweepingWorklistForSpace(AllocationSpace space);
   bool AreSweeperTasksRunning();
+
+  // Support concurrent sweepers from main thread
+  void SupportConcurrentSweeping();
 
   Page* GetSweptPageSafe(PagedSpace* space);
 

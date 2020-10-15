@@ -25,7 +25,7 @@ class RootVisitor;
 enum class InterpreterPushArgsMode : unsigned;
 namespace compiler {
 class CodeAssemblerState;
-}
+}  // namespace compiler
 
 template <typename T>
 static constexpr T FirstFromVarArgs(T x, ...) noexcept {

@@ -1318,7 +1318,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   // The code below is made a lot easier because the calling code already sets
   // up actual and expected registers according to the contract.
-  // ARM has some sanity checks as per below, considering add them for PPC
+  // ARM has some checks as per below, considering add them for PPC
   // DCHECK_EQ(actual_parameter_count, r3);
   // DCHECK_EQ(expected_parameter_count, r5);
 
@@ -2099,7 +2099,7 @@ void TurboAssembler::CheckPageFlag(
     int mask, Condition cc, Label* condition_met) {
   DCHECK(cc == ne || cc == eq);
   ClearRightImm(scratch, object, Operand(kPageSizeBits));
-  LoadP(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  LoadP(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
 
   mov(r0, Operand(mask));
   and_(r0, scratch, r0, SetRC);
@@ -2828,6 +2828,24 @@ void TurboAssembler::LoadSingleU(DoubleRegister dst, const MemOperand& mem,
   }
 }
 
+void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
+                                 Register ScratchReg,
+                                 Simd128Register ScratchDoubleReg) {
+  // lvx needs the stack to be 16 byte aligned.
+  // We first use lxvd/stxvd to copy the content on an aligned address. lxvd
+  // itself reverses the lanes so it cannot be used as is.
+  lxvd(ScratchDoubleReg, mem);
+  mr(ScratchReg, sp);
+  ClearRightImm(
+      sp, sp,
+      Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+  addi(sp, sp, Operand(-16));
+  stxvd(kScratchDoubleReg, MemOperand(r0, sp));
+  // Load it with correct lane ordering.
+  lvx(dst, MemOperand(r0, sp));
+  mr(sp, ScratchReg);
+}
+
 void TurboAssembler::StoreDouble(DoubleRegister src, const MemOperand& mem,
                                  Register scratch) {
   Register base = mem.ra();
@@ -2878,6 +2896,23 @@ void TurboAssembler::StoreSingleU(DoubleRegister src, const MemOperand& mem,
   } else {
     stfsu(src, mem);
   }
+}
+
+void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem,
+                                  Register ScratchReg,
+                                  Simd128Register ScratchDoubleReg) {
+  // stvx needs the stack to be 16 byte aligned.
+  // We use lxvd/stxvd to store the content on an aligned address. stxvd
+  // itself reverses the lanes so it cannot be used as is.
+  mr(ScratchReg, sp);
+  ClearRightImm(
+      sp, sp,
+      Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+  addi(sp, sp, Operand(-16));
+  stvx(src, MemOperand(r0, sp));
+  lxvd(ScratchDoubleReg, MemOperand(r0, sp));
+  mr(sp, ScratchReg);
+  stxvd(ScratchDoubleReg, mem);
 }
 
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
@@ -3004,6 +3039,53 @@ void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
   LoadDouble(scratch_1, dst, r0);
   StoreDouble(scratch_0, dst, r0);
   StoreDouble(scratch_1, src, r0);
+}
+
+void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
+                                 Simd128Register scratch) {
+  if (src == dst) return;
+  vor(scratch, src, src);
+  vor(src, dst, dst);
+  vor(dst, scratch, scratch);
+}
+
+void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
+                                 Simd128Register scratch) {
+  DCHECK(!AreAliased(src, scratch));
+  // push d0, to be used as scratch
+  addi(sp, sp, Operand(-kSimd128Size));
+  StoreSimd128(d0, MemOperand(r0, sp), r0, scratch);
+  mov(ip, Operand(dst.offset()));
+  LoadSimd128(d0, MemOperand(dst.ra(), ip), r0, scratch);
+  StoreSimd128(src, MemOperand(dst.ra(), ip), r0, scratch);
+  vor(src, d0, d0);
+  // restore d0
+  LoadSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  addi(sp, sp, Operand(kSimd128Size));
+}
+
+void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
+                                 Simd128Register scratch) {
+  // push d0 and d1, to be used as scratch
+  addi(sp, sp, Operand(2 * -kSimd128Size));
+  StoreSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  li(ip, Operand(kSimd128Size));
+  StoreSimd128(d1, MemOperand(ip, sp), r0, scratch);
+
+  mov(ip, Operand(src.offset()));
+  LoadSimd128(d0, MemOperand(src.ra(), ip), r0, scratch);
+  mov(ip, Operand(dst.offset()));
+  LoadSimd128(d1, MemOperand(dst.ra(), ip), r0, scratch);
+
+  StoreSimd128(d0, MemOperand(dst.ra(), ip), r0, scratch);
+  mov(ip, Operand(src.offset()));
+  StoreSimd128(d1, MemOperand(src.ra(), ip), r0, scratch);
+
+  // restore d0 and d1
+  LoadSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  li(ip, Operand(kSimd128Size));
+  LoadSimd128(d1, MemOperand(ip, sp), r0, scratch);
+  addi(sp, sp, Operand(2 * kSimd128Size));
 }
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {

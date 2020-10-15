@@ -66,7 +66,7 @@ const {Protocol} = InspectorTest.start(
     async function testReleaseObjectInvalid() {
       const releaseObjectResult = await Protocol.Runtime.releaseObject({});
       InspectorTest.log('ReleaseObject with invalid params.');
-      InspectorTest.logMessage(releaseObjectResult);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(releaseObjectResult));
     },
     async function testObjectGroups() {
       await Protocol.Runtime.evaluate({ expression: 'var a = {x:3};', callFrameId });
@@ -89,7 +89,7 @@ const {Protocol} = InspectorTest.start(
     async function testReleaseObjectGroupInvalid() {
       const releaseObjectGroupResult = await Protocol.Runtime.releaseObjectGroup({});
       InspectorTest.log('ReleaseObjectGroup with invalid params');
-      InspectorTest.logMessage(releaseObjectGroupResult);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(releaseObjectGroupResult));
     },
     async function testEvaluateSyntaxError() {
       const result = await Protocol.Debugger.evaluateOnCallFrame({ expression: `[]]`, callFrameId });
@@ -101,7 +101,7 @@ const {Protocol} = InspectorTest.start(
     },
     async function testCallFrameIdTypeError() {
       const result = await Protocol.Debugger.evaluateOnCallFrame({ expression: `console.log(42)`, callFrameId: {} });
-      InspectorTest.logMessage(result);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(result));
     },
     async function testCallFrameIdInvalidInput() {
       InspectorTest.log('Testing evaluateOnCallFrame with non-existent callFrameId');
@@ -115,7 +115,7 @@ const {Protocol} = InspectorTest.start(
 
   async function evalAndLog(expression, callFrameId, returnByValue) {
     const result = await Protocol.Debugger.evaluateOnCallFrame({ expression, callFrameId, returnByValue });
-    InspectorTest.logMessage(result);
+    InspectorTest.logMessage(InspectorTest.trimErrorMessage(result));
   }
 
   // Helper function that calls a function on all objects with ids in objectIds, then returns

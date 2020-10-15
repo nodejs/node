@@ -13,7 +13,7 @@
 namespace v8 {
 namespace debug {
 struct LiveEditResult;
-}
+}  // namespace debug
 namespace internal {
 
 class Script;

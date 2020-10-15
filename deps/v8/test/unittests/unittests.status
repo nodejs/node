@@ -28,12 +28,17 @@
 ['system == windows and asan', {
   # BUG(893437).
   'Torque*': [SKIP],
+
+  # Hangs on asan.
+  'PageMemoryRegionDeathTest*': [SKIP],
 }],  # system == windows and asan
 
 ['system == windows and arch == x64 and mode == release', {
   # BUG(992783).
   'Torque.ConditionalFields': [SKIP],
   'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
+  # BUG(10658).
+  'GCStackTest.IteratePointersFindsParameterNesting8': [SKIP],
 }],  # system == windows and arch == x64 and mode == release
 
 ['tsan == True', {

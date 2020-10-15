@@ -217,10 +217,8 @@ RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
     return ReadOnlyRoots(isolate).undefined_value();
   Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   if (isolate->debug()->is_active()) isolate->PushPromise(promise);
-  if (promise->IsJSPromise()) {
-    isolate->RunPromiseHook(PromiseHookType::kBefore, promise,
-                            isolate->factory()->undefined_value());
-  }
+  isolate->RunPromiseHook(PromiseHookType::kBefore, promise,
+                          isolate->factory()->undefined_value());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -232,10 +230,8 @@ RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
     return ReadOnlyRoots(isolate).undefined_value();
   Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   if (isolate->debug()->is_active()) isolate->PopPromise();
-  if (promise->IsJSPromise()) {
-    isolate->RunPromiseHook(PromiseHookType::kAfter, promise,
-                            isolate->factory()->undefined_value());
-  }
+  isolate->RunPromiseHook(PromiseHookType::kAfter, promise,
+                          isolate->factory()->undefined_value());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -376,7 +376,7 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
   RpoNumber current_block_id = block->rpo_number();
 
   BlockAssessments* ret =
-      new (zone()) BlockAssessments(zone(), spill_slot_delta());
+      zone()->New<BlockAssessments>(zone(), spill_slot_delta());
   if (block->PredecessorCount() == 0) {
     // TODO(mtrofin): the following check should hold, however, in certain
     // unit tests it is invalidated by the last block. Investigate and
@@ -407,7 +407,7 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
         InstructionOperand operand = pair.first;
         if (ret->map().find(operand) == ret->map().end()) {
           ret->map().insert(std::make_pair(
-              operand, new (zone()) PendingAssessment(zone(), block, operand)));
+              operand, zone()->New<PendingAssessment>(zone(), block, operand)));
         }
       }
 
@@ -472,7 +472,7 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
         auto todo_iter = outstanding_assessments_.find(pred);
         DelayedAssessments* set = nullptr;
         if (todo_iter == outstanding_assessments_.end()) {
-          set = new (zone()) DelayedAssessments(zone());
+          set = zone()->New<DelayedAssessments>(zone());
           outstanding_assessments_.insert(std::make_pair(pred, set));
         } else {
           set = todo_iter->second;

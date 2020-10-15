@@ -15,6 +15,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted_memory.h"
 #include "{{config.crdtp.dir}}/serializable.h"
+#include "{{config.crdtp.dir}}/protocol_core.h"
 
 {% if config.lib.export_header %}
 #include "{{config.lib.export_header}}"
@@ -22,6 +23,10 @@
 
 namespace base {
 class Value;
+}
+
+namespace {{config.crdtp.namespace}} {
+class DeserializerState;
 }
 
 {% for namespace in config.protocol.namespace %}
@@ -46,6 +51,9 @@ class {{config.lib.export_macro}} StringUtil {
   }
   static const uint16_t* CharactersUTF16(const String& s) { return nullptr; }
   static size_t CharacterCount(const String& s) { return s.size(); }
+
+  static bool ReadString({{config.crdtp.namespace}}::DeserializerState* state, String* str);
+  static void WriteString(const String& str, std::vector<uint8_t>* bytes);
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.
@@ -80,5 +88,25 @@ std::unique_ptr<base::Value> toBaseValue(Value* value, int depth);
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}
+
+namespace {{config.crdtp.namespace}} {
+
+template <>
+struct ProtocolTypeTraits<{{"::".join(config.protocol.namespace)}}::String> {
+  static bool Deserialize(DeserializerState* state, {{"::".join(config.protocol.namespace)}}::String* value) {
+    return {{"::".join(config.protocol.namespace)}}::StringUtil::ReadString(state, value);
+  }
+  static void Serialize(const {{"::".join(config.protocol.namespace)}}::String& value, std::vector<uint8_t>* bytes) {
+    {{"::".join(config.protocol.namespace)}}::StringUtil::WriteString(value, bytes);
+  }
+};
+
+template <>
+struct ProtocolTypeTraits<{{"::".join(config.protocol.namespace)}}::Binary> {
+  static bool Deserialize(DeserializerState* state, {{"::".join(config.protocol.namespace)}}::Binary* value);
+  static void Serialize(const {{"::".join(config.protocol.namespace)}}::Binary& value, std::vector<uint8_t>* bytes);
+};
+
+}  // {{config.crdtp.namespace}}
 
 #endif // !defined({{"_".join(config.protocol.namespace)}}_BASE_STRING_ADAPTER_H)

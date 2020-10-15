@@ -24,12 +24,12 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
  public:
   template <typename... ParamMachTypes>
   explicit RawMachineAssemblerTester(ParamMachTypes... p)
-      : HandleAndZoneScope(),
+      : HandleAndZoneScope(kCompressGraphZone),
         CallHelper<ReturnType>(
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            main_isolate(), new (main_zone()) Graph(main_zone()),
+            main_isolate(), main_zone()->template New<Graph>(main_zone()),
             Linkage::GetSimplifiedCDescriptor(
                 main_zone(),
                 CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
@@ -40,13 +40,13 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             InstructionSelector::AlignmentRequirements()) {}
 
   template <typename... ParamMachTypes>
-  RawMachineAssemblerTester(Code::Kind kind, ParamMachTypes... p)
-      : HandleAndZoneScope(),
+  RawMachineAssemblerTester(CodeKind kind, ParamMachTypes... p)
+      : HandleAndZoneScope(kCompressGraphZone),
         CallHelper<ReturnType>(
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            main_isolate(), new (main_zone()) Graph(main_zone()),
+            main_isolate(), main_zone()->template New<Graph>(main_zone()),
             Linkage::GetSimplifiedCDescriptor(
                 main_zone(),
                 CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
@@ -91,7 +91,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   }
 
  private:
-  Code::Kind kind_ = Code::Kind::STUB;
+  CodeKind kind_ = CodeKind::STUB;
   MaybeHandle<Code> code_;
 };
 

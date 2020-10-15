@@ -3331,6 +3331,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int64_t frt_val;
       int64_t kMinVal = kMinInt;
       int64_t kMaxVal = kMaxInt;
+      bool invalid_convert = false;
 
       if (std::isnan(frb_val)) {
         frt_val = kMinVal;
@@ -3360,13 +3361,60 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         }
         if (frb_val < kMinVal) {
           frt_val = kMinVal;
+          invalid_convert = true;
         } else if (frb_val > kMaxVal) {
           frt_val = kMaxVal;
+          invalid_convert = true;
         } else {
           frt_val = (int64_t)frb_val;
         }
       }
       set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
+      return;
+    }
+    case FCTIWU:
+    case FCTIWUZ: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double frb_val = get_double_from_d_register(frb);
+      int mode = (opcode == FCTIWUZ)
+                     ? kRoundToZero
+                     : (fp_condition_reg_ & kFPRoundingModeMask);
+      uint64_t frt_val;
+      uint64_t kMinVal = 0;
+      uint64_t kMaxVal = kMinVal - 1;
+      bool invalid_convert = false;
+
+      if (std::isnan(frb_val)) {
+        frt_val = kMinVal;
+      } else {
+        switch (mode) {
+          case kRoundToZero:
+            frb_val = std::trunc(frb_val);
+            break;
+          case kRoundToPlusInf:
+            frb_val = std::ceil(frb_val);
+            break;
+          case kRoundToMinusInf:
+            frb_val = std::floor(frb_val);
+            break;
+          default:
+            UNIMPLEMENTED();  // Not used by V8.
+            break;
+        }
+        if (frb_val < kMinVal) {
+          frt_val = kMinVal;
+          invalid_convert = true;
+        } else if (frb_val > kMaxVal) {
+          frt_val = kMaxVal;
+          invalid_convert = true;
+        } else {
+          frt_val = (uint64_t)frb_val;
+        }
+      }
+      set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
     case FNEG: {
