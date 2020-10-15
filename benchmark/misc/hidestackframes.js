@@ -2,10 +2,6 @@
 
 const common = require('../common.js');
 
-/* there should be no significant performance differences
- * between the hideStackFrames version and the direct
- * call version
- */
 const bench = common.createBenchmark(main, {
   type: ['hide-stackframes-throw', 'direct-call-throw',
          'hide-stackframes-noerr', 'direct-call-noerr'],
