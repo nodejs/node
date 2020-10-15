@@ -499,7 +499,8 @@ MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
   if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
     BignumPointer bn(ASN1_INTEGER_to_BN(serial_number, nullptr));
     if (bn) {
-      OpenSSLBuffer buf(BN_bn2hex(bn.get()));
+      char* data = BN_bn2hex(bn.get());
+      ByteSource buf = ByteSource::Allocated(data, strlen(data));
       if (buf)
         return OneByteString(env->isolate(), buf.get());
     }
