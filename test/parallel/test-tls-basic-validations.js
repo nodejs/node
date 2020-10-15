@@ -30,7 +30,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'Pass phrase must be a string'
+    message: /The "options\.passphrase" property must be of type string/
   });
 
 assert.throws(
@@ -38,7 +38,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'Pass phrase must be a string'
+    message: /The "options\.passphrase" property must be of type string/
   });
 
 assert.throws(
@@ -46,7 +46,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'ECDH curve name must be a string'
+    message: /The "options\.ecdhCurve" property must be of type string/
   });
 
 assert.throws(
@@ -64,7 +64,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'Session timeout must be a 32-bit integer'
+    message: /The "options\.sessionTimeout" property must be of type number/
   });
 
 assert.throws(
@@ -72,11 +72,13 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'Ticket keys must be a buffer'
+    message: /The "options\.ticketKeys" property must be an instance of/
   });
 
-assert.throws(() => tls.createServer({ ticketKeys: Buffer.alloc(0) }),
-              /TypeError: Ticket keys length must be 48 bytes/);
+assert.throws(() => tls.createServer({ ticketKeys: Buffer.alloc(0) }), {
+  code: 'ERR_INVALID_ARG_VALUE',
+  message: /The property 'options\.ticketKeys' must be exactly 48 bytes/
+});
 
 assert.throws(
   () => tls.createSecurePair({}),
