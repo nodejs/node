@@ -85,16 +85,18 @@ void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(pkey.ToBuffer().FromMaybe(Local<Value>()));
 }
 
-OpenSSLBuffer ExportChallenge(const ArrayBufferOrViewContents<char>& input) {
+ByteSource ExportChallenge(const ArrayBufferOrViewContents<char>& input) {
   NetscapeSPKIPointer sp(
       NETSCAPE_SPKI_b64_decode(input.data(), input.size()));
   if (!sp)
-    return nullptr;
+    return ByteSource();
 
-  unsigned char* buf = nullptr;
-  ASN1_STRING_to_UTF8(&buf, sp->spkac->challenge);
+  char* buf = nullptr;
+  ASN1_STRING_to_UTF8(
+    reinterpret_cast<unsigned char**>(&buf),
+    sp->spkac->challenge);
 
-  return OpenSSLBuffer(reinterpret_cast<char*>(buf));
+  return ByteSource::Allocated(buf, strlen(buf));
 }
 
 void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
@@ -107,12 +109,12 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   if (UNLIKELY(!input.CheckSizeInt32()))
     return THROW_ERR_OUT_OF_RANGE(env, "spkac is too large");
 
-  OpenSSLBuffer cert = ExportChallenge(input);
+  ByteSource cert = ExportChallenge(input);
   if (!cert)
     return args.GetReturnValue().SetEmptyString();
 
   Local<Value> outString =
-      Encode(env->isolate(), cert.get(), strlen(cert.get()), BUFFER);
+      Encode(env->isolate(), cert.get(), cert.size(), BUFFER);
 
   args.GetReturnValue().Set(outString);
 }

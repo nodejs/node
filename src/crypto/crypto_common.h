@@ -13,11 +13,6 @@
 
 namespace node {
 namespace crypto {
-// OPENSSL_free is a macro, so we need a wrapper function.
-struct OpenSSLBufferDeleter {
-  void operator()(char* pointer) const { OPENSSL_free(pointer); }
-};
-using OpenSSLBuffer = std::unique_ptr<char[], OpenSSLBufferDeleter>;
 
 struct StackOfX509Deleter {
   void operator()(STACK_OF(X509)* p) const { sk_X509_pop_free(p, X509_free); }
