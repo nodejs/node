@@ -224,13 +224,14 @@ function testFtruncate(cb) {
 }
 
 {
-  const file6 = path.resolve(tmp, 'truncate-file-6.txt');
-  fs.writeFileSync(file6, 'Hi');
-  const fd = fs.openSync(file6, 'r+');
-  process.on('beforeExit', () => fs.closeSync(fd));
-  fs.ftruncate(fd, -1, common.mustSucceed(() => {
-    assert(fs.readFileSync(file6).equals(Buffer.from('')));
-  }));
+  assert.throws(
+    () => fs.ftruncate(fd, -1),
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      name: /(TypeError|RangeError)/,
+      message: 'The argument \'len\' is invalid. Received -1'
+    }
+  );
 }
 
 {
