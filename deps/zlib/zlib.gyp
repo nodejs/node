@@ -122,7 +122,7 @@
                     ['OS=="linux"', {
                       'defines': [ 'ARMV8_OS_LINUX' ],
                     }],
-                    ['OS="win"', {
+                    ['OS=="win"', {
                       'defines': [ 'ARMV8_OS_WINDOWS' ],
                     }],
                     ['OS!="android" and OS!="win" and llvm_version=="0.0"', {
