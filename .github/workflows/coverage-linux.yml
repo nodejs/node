@@ -1,0 +1,41 @@
+# TODO(bcoe): add similar job for Windows coverage.
+name: coverage-linux
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+env:
+  PYTHON_VERSION: 3.9
+  FLAKY_TESTS: dontcare
+
+jobs:
+  # TODO(bcoe): add support for C++ coverage.
+  coverage-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
+      # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
+      # The cause is most likely coverage's use of the inspector.
+      - name: Test
+        run: NODE_V8_COVERAGE=coverage/tmp make run-ci -j2 V=1 TEST_CI_ARGS="-p dots" || exit 0
+      - name: Report
+        run: npx c8 report --check-coverage
+      - name: Output file count
+        run: ls -l coverage/tmp/ | wc -l
+      - name: Clean tmp
+        run: rm -rf coverage/tmp
+      - name: Upload
+        uses: codecov/codecov-action@v1
+        with:
+          directory: ./coverage
