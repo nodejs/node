@@ -702,7 +702,7 @@ function requireNoPackageJSONAbove() {
   let lastPackage = null;
   while (possiblePackage !== lastPackage) {
     if (fs.existsSync(possiblePackage)) {
-      throw new Error(
+      assert.fail(
         'This test shouldn\'t load properties from a package.json above ' +
         `its file location. Found package.json at ${possiblePackage}.`);
     }
