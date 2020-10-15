@@ -138,5 +138,24 @@ TEST_F(SafepointTest, StopRunningThreads) {
   CHECK_EQ(safepoint_count, kRuns * kSafepoints);
 }
 
+TEST_F(SafepointTest, SkipLocalHeapOfThisThread) {
+  Heap* heap = i_isolate()->heap();
+  FLAG_local_heaps = true;
+  LocalHeap local_heap(heap);
+  {
+    SafepointScope scope(heap);
+    local_heap.Safepoint();
+  }
+  {
+    ParkedScope parked_scope(&local_heap);
+    SafepointScope scope(heap);
+    local_heap.Safepoint();
+  }
+  {
+    SafepointScope scope(heap);
+    local_heap.Safepoint();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -9,12 +9,12 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/page-memory-inl.h"
 #include "src/heap/cppgc/page-memory.h"
+#include "src/heap/cppgc/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,7 +41,13 @@ class SweeperTest : public testing::TestWithHeap {
   SweeperTest() { g_destructor_callcount = 0; }
 
   void Sweep() {
-    Sweeper& sweeper = Heap::From(GetHeap())->sweeper();
+    Heap* heap = Heap::From(GetHeap());
+    ResetLinearAllocationBuffers();
+    Sweeper& sweeper = heap->sweeper();
+    // Pretend do finish marking as StatsCollector verifies that Notify*
+    // methods are called in the right order.
+    heap->stats_collector()->NotifyMarkingStarted();
+    heap->stats_collector()->NotifyMarkingCompleted(0);
     sweeper.Start(Sweeper::Config::kAtomic);
     sweeper.Finish();
   }
@@ -60,7 +66,7 @@ TEST_F(SweeperTest, SweepUnmarkedNormalObject) {
   constexpr size_t kObjectSize = 8;
   using Type = GCed<kObjectSize>;
 
-  MakeGarbageCollected<Type>(GetHeap());
+  MakeGarbageCollected<Type>(GetAllocationHandle());
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -73,7 +79,7 @@ TEST_F(SweeperTest, DontSweepMarkedNormalObject) {
   constexpr size_t kObjectSize = 8;
   using Type = GCed<kObjectSize>;
 
-  auto* object = MakeGarbageCollected<Type>(GetHeap());
+  auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   MarkObject(object);
   BasePage* page = BasePage::FromPayload(object);
   BaseSpace* space = page->space();
@@ -92,7 +98,7 @@ TEST_F(SweeperTest, SweepUnmarkedLargeObject) {
   constexpr size_t kObjectSize = kLargeObjectSizeThreshold * 2;
   using Type = GCed<kObjectSize>;
 
-  auto* object = MakeGarbageCollected<Type>(GetHeap());
+  auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   BasePage* page = BasePage::FromPayload(object);
   BaseSpace* space = page->space();
 
@@ -110,7 +116,7 @@ TEST_F(SweeperTest, DontSweepMarkedLargeObject) {
   constexpr size_t kObjectSize = kLargeObjectSizeThreshold * 2;
   using Type = GCed<kObjectSize>;
 
-  auto* object = MakeGarbageCollected<Type>(GetHeap());
+  auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   MarkObject(object);
   BasePage* page = BasePage::FromPayload(object);
   BaseSpace* space = page->space();
@@ -132,7 +138,7 @@ TEST_F(SweeperTest, SweepMultipleObjectsOnPage) {
       NormalPage::PayloadSize() / (sizeof(Type) + sizeof(HeapObjectHeader));
 
   for (size_t i = 0; i < kNumberOfObjects; ++i) {
-    MakeGarbageCollected<Type>(GetHeap());
+    MakeGarbageCollected<Type>(GetAllocationHandle());
   }
 
   EXPECT_EQ(0u, g_destructor_callcount);
@@ -143,11 +149,12 @@ TEST_F(SweeperTest, SweepMultipleObjectsOnPage) {
 }
 
 TEST_F(SweeperTest, SweepObjectsOnAllArenas) {
-  MakeGarbageCollected<GCed<1>>(GetHeap());
-  MakeGarbageCollected<GCed<32>>(GetHeap());
-  MakeGarbageCollected<GCed<64>>(GetHeap());
-  MakeGarbageCollected<GCed<128>>(GetHeap());
-  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+  MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
+  MakeGarbageCollected<GCed<32>>(GetAllocationHandle());
+  MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
+  MakeGarbageCollected<GCed<128>>(GetAllocationHandle());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+      GetAllocationHandle());
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -157,9 +164,12 @@ TEST_F(SweeperTest, SweepObjectsOnAllArenas) {
 }
 
 TEST_F(SweeperTest, SweepMultiplePagesInSingleSpace) {
-  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
-  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
-  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+      GetAllocationHandle());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+      GetAllocationHandle());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+      GetAllocationHandle());
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -172,10 +182,10 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
   constexpr size_t kObjectSize = 32;
   using Type = GCed<kObjectSize>;
 
-  auto* object1 = MakeGarbageCollected<Type>(GetHeap());
-  auto* object2 = MakeGarbageCollected<Type>(GetHeap());
-  auto* object3 = MakeGarbageCollected<Type>(GetHeap());
-  auto* object4 = MakeGarbageCollected<Type>(GetHeap());
+  auto* object1 = MakeGarbageCollected<Type>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<Type>(GetAllocationHandle());
+  auto* object3 = MakeGarbageCollected<Type>(GetAllocationHandle());
+  auto* object4 = MakeGarbageCollected<Type>(GetAllocationHandle());
 
   MarkObject(object1);
   MarkObject(object4);
@@ -189,8 +199,8 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
   const BasePage* page = BasePage::FromPayload(object2);
   const FreeList& freelist = NormalPageSpace::From(page->space())->free_list();
 
-  const FreeList::Block coalesced_block = {object2_start,
-                                           object3_end - object2_start};
+  const FreeList::Block coalesced_block = {
+      object2_start, static_cast<size_t>(object3_end - object2_start)};
 
   EXPECT_EQ(0u, g_destructor_callcount);
   EXPECT_FALSE(freelist.Contains(coalesced_block));
@@ -209,8 +219,10 @@ class GCInDestructor final : public GarbageCollected<GCInDestructor> {
   ~GCInDestructor() {
     // Instead of directly calling GC, allocations should be supported here as
     // well.
-    heap_->CollectGarbage(internal::Heap::GCConfig::Default());
+    heap_->CollectGarbage(
+        internal::GarbageCollector::Config::ConservativeAtomicConfig());
   }
+  void Trace(Visitor*) const {}
 
  private:
   Heap* heap_;
@@ -221,9 +233,35 @@ class GCInDestructor final : public GarbageCollected<GCInDestructor> {
 TEST_F(SweeperTest, SweepDoesNotTriggerRecursiveGC) {
   auto* internal_heap = internal::Heap::From(GetHeap());
   size_t saved_epoch = internal_heap->epoch();
-  MakeGarbageCollected<GCInDestructor>(GetHeap(), internal_heap);
+  MakeGarbageCollected<GCInDestructor>(GetAllocationHandle(), internal_heap);
   PreciseGC();
   EXPECT_EQ(saved_epoch + 1, internal_heap->epoch());
+}
+
+TEST_F(SweeperTest, UnmarkObjects) {
+  auto* normal_object = MakeGarbageCollected<GCed<32>>(GetAllocationHandle());
+  auto* large_object =
+      MakeGarbageCollected<GCed<kLargeObjectSizeThreshold * 2>>(
+          GetAllocationHandle());
+
+  auto& normal_object_header = HeapObjectHeader::FromPayload(normal_object);
+  auto& large_object_header = HeapObjectHeader::FromPayload(large_object);
+
+  normal_object_header.TryMarkAtomic();
+  large_object_header.TryMarkAtomic();
+
+  EXPECT_TRUE(normal_object_header.IsMarked());
+  EXPECT_TRUE(large_object_header.IsMarked());
+
+  Sweep();
+
+#if !defined(CPPGC_YOUNG_GENERATION)
+  EXPECT_FALSE(normal_object_header.IsMarked());
+  EXPECT_FALSE(large_object_header.IsMarked());
+#else
+  EXPECT_TRUE(normal_object_header.IsMarked());
+  EXPECT_TRUE(large_object_header.IsMarked());
+#endif
 }
 
 }  // namespace internal

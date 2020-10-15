@@ -17,7 +17,7 @@ namespace v8 {
 // Forward declarations.
 namespace base {
 class BoundedPageAllocator;
-}
+}  // namespace base
 
 namespace internal {
 

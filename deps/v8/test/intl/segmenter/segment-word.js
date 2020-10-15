@@ -23,7 +23,22 @@ for (const text of [
     "九州北部の一部が暴風域に入りました(日直予報士 2018年10月06日) - 日本気象協会 tenki.jp",  // Japanese
     "법원 “다스 지분 처분권·수익권 모두 MB가 보유”", // Korean
     ]) {
-  const iter = seg.segment(text);
-  assertEquals(undefined, iter.breakType);
-  assertEquals(0, iter.index);
+  const segments = seg.segment(text);
+  let results = [];
+  var pos = -1;
+  for (let s of segments) {
+    assertEquals(["segment", "index", "input", "isWordLike"], Object.keys(s));
+    assertEquals(typeof s.isWordLike, "boolean");
+    assertEquals(typeof s.index, "number");
+    assertEquals(typeof s.segment, "string");
+    assertEquals(typeof s.input, "string");
+    assertEquals(text, s.input);
+    assertEquals(text.substring(s.index, s.index + s.segment.length),
+        s.segment);
+    assertTrue(pos < s.index);
+    pos = s.index;
+    results.push(s.segment);
+  }
+  assertTrue(pos < text.length);
+  assertEquals(text, results.join(""));
 }

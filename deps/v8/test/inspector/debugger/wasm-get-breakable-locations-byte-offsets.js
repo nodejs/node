@@ -4,9 +4,9 @@
 
 // Flags: --expose-wasm
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Tests breakable locations in wasm');
+utils.load('test/inspector/wasm-inspector-test.js');
 
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests breakable locations in wasm');
 
 var builder = new WasmModuleBuilder();
 
@@ -32,36 +32,17 @@ builder.addFunction('main', kSig_v_i)
 
 var module_bytes = builder.toArray();
 
-function testFunction(bytes) {
-  var buffer = new ArrayBuffer(bytes.length);
-  var view = new Uint8Array(buffer);
-  for (var i = 0; i < bytes.length; i++) {
-    view[i] = bytes[i] | 0;
-  }
-
-  var module = new WebAssembly.Module(buffer);
-  // Set global variable.
-  instance = new WebAssembly.Instance(module);
-}
-
-var evalWithUrl = (code, url) => Protocol.Runtime.evaluate(
-    {'expression': code + '\n//# sourceURL=v8://test/' + url});
-
-var setupCode = testFunction.toString() + ';\nvar module_bytes = ' +
-    JSON.stringify(module_bytes) + ';\nvar instance;';
-
 Protocol.Debugger.enable();
 Protocol.Debugger.onScriptParsed(handleScriptParsed);
 
 async function runTest() {
   InspectorTest.log('Running testFunction...');
-  await evalWithUrl(setupCode, 'setup');
-  await evalWithUrl('testFunction(module_bytes)', 'runTestFunction');
+  await WasmInspectorTest.instantiate(module_bytes);
   await getBreakableLocationsForAllWasmScripts();
   await setAllBreakableLocations();
   InspectorTest.log('Running wasm code...');
   // Begin executing code:
-  var promise = evalWithUrl('instance.exports.main(1)', 'runWasm');
+  var promise = WasmInspectorTest.evalWithUrl('instance.exports.main(1)', 'runWasm');
   await waitForAllPauses();
   // Code should now complete
   await promise;

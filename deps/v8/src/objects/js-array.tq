@@ -2,10 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+extern enum IterationKind extends uint31
+constexpr 'IterationKind' { kKeys, kValues, kEntries }
+
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
   next_index: Number;
-  kind: Smi;
+  kind: SmiTagged<IterationKind>;
+}
+
+// Perform CreateArrayIterator (ES #sec-createarrayiterator).
+@export
+macro CreateArrayIterator(implicit context: NativeContext)(
+    array: JSReceiver, kind: constexpr IterationKind): JSArrayIterator {
+  return new JSArrayIterator{
+    map: *NativeContextSlot(ContextSlot::INITIAL_ARRAY_ITERATOR_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    iterated_object: array,
+    next_index: 0,
+    kind: SmiTag<IterationKind>(kind)
+  };
 }
 
 extern class JSArray extends JSObject {

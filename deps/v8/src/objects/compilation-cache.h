@@ -38,12 +38,14 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;
+  static const bool kMatchNeedsHoleCheck = true;
 };
 
 class InfoCellPair {
  public:
-  InfoCellPair() {}
-  inline InfoCellPair(SharedFunctionInfo shared, FeedbackCell feedback_cell);
+  InfoCellPair() = default;
+  inline InfoCellPair(Isolate* isolate, SharedFunctionInfo shared,
+                      FeedbackCell feedback_cell);
 
   FeedbackCell feedback_cell() const {
     DCHECK(is_compiled_scope_.is_compiled());
@@ -72,17 +74,22 @@ class InfoCellPair {
 
 EXTERN_DECLARE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 
-// This cache is used in two different variants. For regexp caching, it simply
-// maps identifying info of the regexp to the cached regexp object. Scripts and
-// eval code only gets cached after a second probe for the code object. To do
-// so, on first "put" only a hash identifying the source is entered into the
-// cache, mapping it to a lifetime count of the hash. On each call to Age all
-// such lifetimes get reduced, and removed once they reach zero. If a second put
-// is called while such a hash is live in the cache, the hash gets replaced by
-// an actual cache entry. Age also removes stale live entries from the cache.
-// Such entries are identified by SharedFunctionInfos pointing to either the
-// recompilation stub, or to "old" code. This avoids memory leaks due to
-// premature caching of scripts and eval strings that are never needed later.
+// This cache is used in multiple different variants.
+//
+// For regexp caching, it simply maps identifying info of the regexp
+// to the cached regexp object.
+//
+// Scripts and eval code only gets cached after a second probe for the
+// code object. To do so, on first "put" only a hash identifying the
+// source is entered into the cache, mapping it to a lifetime count of
+// the hash. On each call to Age all such lifetimes get reduced, and
+// removed once they reach zero. If a second put is called while such
+// a hash is live in the cache, the hash gets replaced by an actual
+// cache entry. Age also removes stale live entries from the cache.
+// Such entries are identified by SharedFunctionInfos pointing to
+// either the recompilation stub, or to "old" code. This avoids memory
+// leaks due to premature caching of scripts and eval strings that are
+// never needed later.
 class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
@@ -96,6 +103,8 @@ class CompilationCacheTable
                                  Handle<Context> native_context,
                                  LanguageMode language_mode, int position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
+  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> key);
+
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<Context> native_context, LanguageMode language_mode,
@@ -108,6 +117,9 @@ class CompilationCacheTable
   static Handle<CompilationCacheTable> PutRegExp(
       Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
+  static Handle<CompilationCacheTable> PutCode(
+      Isolate* isolate, Handle<CompilationCacheTable> cache,
+      Handle<SharedFunctionInfo> key, Handle<Code> value);
   void Remove(Object value);
   void Age();
   static const int kHashGenerations = 10;

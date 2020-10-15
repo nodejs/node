@@ -67,8 +67,14 @@ char* StrNDup(const char* str, int n);
 // and free. Used as the default policy for lists.
 class FreeStoreAllocationPolicy {
  public:
-  V8_INLINE void* New(size_t size) { return Malloced::operator new(size); }
-  V8_INLINE static void Delete(void* p) { Malloced::operator delete(p); }
+  template <typename T, typename TypeTag = T[]>
+  V8_INLINE T* NewArray(size_t length) {
+    return static_cast<T*>(Malloced::operator new(length * sizeof(T)));
+  }
+  template <typename T, typename TypeTag = T[]>
+  V8_INLINE void DeleteArray(T* p, size_t length) {
+    Malloced::operator delete(p);
+  }
 };
 
 // Performs a malloc, with retry logic on failure. Returns nullptr on failure.
@@ -226,6 +232,10 @@ class VirtualMemory final {
 
   // Frees all memory.
   V8_EXPORT_PRIVATE void Free();
+
+  // As with Free but does not write to the VirtualMemory object itself so it
+  // can be called on a VirtualMemory that is itself not writable.
+  V8_EXPORT_PRIVATE void FreeReadOnly();
 
   bool InVM(Address address, size_t size) {
     return region_.contains(address, size);

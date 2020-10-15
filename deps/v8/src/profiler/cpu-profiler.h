@@ -19,7 +19,7 @@
 namespace v8 {
 namespace sampler {
 class Sampler;
-}
+}  // namespace sampler
 namespace internal {
 
 // Forward declarations.
@@ -156,7 +156,7 @@ class ProfilerCodeObserver;
 class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
                                                   public CodeEventObserver {
  public:
-  virtual ~ProfilerEventsProcessor();
+  ~ProfilerEventsProcessor() override;
 
   void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
 

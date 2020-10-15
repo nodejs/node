@@ -39,6 +39,15 @@ class WasmFeatures : public base::EnumSet<WasmFeature> {
   FOREACH_WASM_FEATURE(DECL_FEATURE_GETTER)
 #undef DECL_FEATURE_GETTER
 
+  static constexpr const char* name_for_feature(WasmFeature feature) {
+    switch (feature) {
+#define NAME(feat, ...)              \
+  case WasmFeature::kFeature_##feat: \
+    return #feat;
+      FOREACH_WASM_FEATURE(NAME)
+    }
+#undef NAME
+  }
   static inline constexpr WasmFeatures All();
   static inline constexpr WasmFeatures None();
   static inline constexpr WasmFeatures ForAsmjs();

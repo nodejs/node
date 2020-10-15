@@ -26,5 +26,28 @@ RUNTIME_FUNCTION(Runtime_ShrinkFinalizationRegistryUnregisterTokenMap) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(
+    Runtime_JSFinalizationRegistryRegisterWeakCellWithUnregisterToken) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFinalizationRegistry, finalization_registry, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WeakCell, weak_cell, 1);
+
+  JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
+      finalization_registry, weak_cell, isolate);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_JSWeakRefAddToKeptObjects) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+
+  isolate->heap()->KeepDuringJob(object);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

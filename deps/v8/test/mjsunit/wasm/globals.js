@@ -119,7 +119,7 @@ TestExported(kWasmF64, 87347.66666, 87347.66666);
 
   var instance = builder.instantiate();
   assertTrue(instance.exports.foo instanceof WebAssembly.Global);
-  assertThrows(() => {instance.exports.foo.value}, TypeError);
+  assertEquals(instance.exports.foo.value, 1234n);
 })();
 
 function TestImportedExported(type, val, expected) {

@@ -721,11 +721,11 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* TruncateFloat64ToUint32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToUint32(), a);
   }
-  Node* TruncateFloat32ToInt32(Node* a) {
-    return AddNode(machine()->TruncateFloat32ToInt32(), a);
+  Node* TruncateFloat32ToInt32(Node* a, TruncateKind kind) {
+    return AddNode(machine()->TruncateFloat32ToInt32(kind), a);
   }
-  Node* TruncateFloat32ToUint32(Node* a) {
-    return AddNode(machine()->TruncateFloat32ToUint32(), a);
+  Node* TruncateFloat32ToUint32(Node* a, TruncateKind kind) {
+    return AddNode(machine()->TruncateFloat32ToUint32(kind), a);
   }
   Node* TryTruncateFloat32ToInt64(Node* a) {
     return AddNode(machine()->TryTruncateFloat32ToInt64(), a);
@@ -967,7 +967,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void DebugBreak();
   void Unreachable();
   void Comment(const std::string& msg);
-  void StaticAssert(Node* value);
+  void StaticAssert(Node* value, const char* source);
 
 #if DEBUG
   void Bind(RawMachineLabel* label, AssemblerDebugInfo info);
@@ -1011,7 +1011,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(op, sizeof...(args) + 1, buffer);
   }
 
-  void SetSourcePosition(const char* file, int line);
+  void SetCurrentExternalSourcePosition(FileAndLine file_and_line);
+  FileAndLine GetCurrentExternalSourcePosition() const;
   SourcePositionTable* source_positions() { return source_positions_; }
 
  private:

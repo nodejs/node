@@ -1353,6 +1353,12 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   }
 }
 
+void TurboAssembler::Move(XMMRegister dst, uint64_t high, uint64_t low) {
+  Move(dst, low);
+  movq(kScratchRegister, high);
+  Pinsrq(dst, kScratchRegister, int8_t{1});
+}
+
 // ----------------------------------------------------------------------------
 
 void MacroAssembler::Absps(XMMRegister dst) {
@@ -2756,10 +2762,10 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
     andq(scratch, object);
   }
   if (mask < (1 << kBitsPerByte)) {
-    testb(Operand(scratch, MemoryChunk::kFlagsOffset),
+    testb(Operand(scratch, BasicMemoryChunk::kFlagsOffset),
           Immediate(static_cast<uint8_t>(mask)));
   } else {
-    testl(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(mask));
+    testl(Operand(scratch, BasicMemoryChunk::kFlagsOffset), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }

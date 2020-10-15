@@ -11,16 +11,18 @@
 #include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/string-set-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data.h"
 #include "src/zone/zone-list-inl.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -34,8 +36,15 @@ namespace internal {
 //       use. Because a Variable holding a handle with the same location exists
 //       this is ensured.
 
+static_assert(sizeof(VariableMap) == (sizeof(void*) + 2 * sizeof(uint32_t) +
+                                      sizeof(ZoneAllocationPolicy)),
+              "Empty base optimization didn't kick in for VariableMap");
+
 VariableMap::VariableMap(Zone* zone)
     : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
+
+VariableMap::VariableMap(const VariableMap& other, Zone* zone)
+    : ZoneHashMap(other, ZoneAllocationPolicy(zone)) {}
 
 Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                const AstRawString* name, VariableMode mode,
@@ -43,18 +52,18 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                InitializationFlag initialization_flag,
                                MaybeAssignedFlag maybe_assigned_flag,
                                IsStaticFlag is_static_flag, bool* was_added) {
+  DCHECK_EQ(zone, allocator().zone());
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
-  Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
-                                  ZoneAllocationPolicy(zone));
+  Entry* p = ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
+                                         name->Hash());
   *was_added = p->value == nullptr;
   if (*was_added) {
     // The variable has not been declared yet -> insert it.
     DCHECK_EQ(name, p->key);
     Variable* variable =
-        new (zone) Variable(scope, name, mode, kind, initialization_flag,
+        zone->New<Variable>(scope, name, mode, kind, initialization_flag,
                             maybe_assigned_flag, is_static_flag);
     p->value = variable;
   }
@@ -66,11 +75,10 @@ void VariableMap::Remove(Variable* var) {
   ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->Hash());
 }
 
-void VariableMap::Add(Zone* zone, Variable* var) {
+void VariableMap::Add(Variable* var) {
   const AstRawString* name = var->raw_name();
-  Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
-                                  ZoneAllocationPolicy(zone));
+  Entry* p = ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
+                                         name->Hash());
   DCHECK_NULL(p->value);
   DCHECK_EQ(name, p->key);
   p->value = var;
@@ -90,18 +98,12 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 // Implementation of Scope
 
 Scope::Scope(Zone* zone)
-    : zone_(zone),
-      outer_scope_(nullptr),
-      variables_(zone),
-      scope_type_(SCRIPT_SCOPE) {
+    : outer_scope_(nullptr), variables_(zone), scope_type_(SCRIPT_SCOPE) {
   SetDefaults();
 }
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
-    : zone_(zone),
-      outer_scope_(outer_scope),
-      variables_(zone),
-      scope_type_(scope_type) {
+    : outer_scope_(outer_scope), variables_(zone), scope_type_(scope_type) {
   DCHECK_NE(SCRIPT_SCOPE, scope_type);
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
@@ -138,8 +140,8 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
 ModuleScope::ModuleScope(DeclarationScope* script_scope,
                          AstValueFactory* avfactory)
     : DeclarationScope(avfactory->zone(), script_scope, MODULE_SCOPE, kModule),
-      module_descriptor_(new (avfactory->zone())
-                             SourceTextModuleDescriptor(avfactory->zone())) {
+      module_descriptor_(avfactory->zone()->New<SourceTextModuleDescriptor>(
+          avfactory->zone())) {
   set_language_mode(LanguageMode::kStrict);
   DeclareThis(avfactory);
 }
@@ -192,8 +194,7 @@ ClassScope::ClassScope(Isolate* isolate, Zone* zone,
 }
 
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
-    : zone_(zone),
-      outer_scope_(nullptr),
+    : outer_scope_(nullptr),
       variables_(zone),
       scope_info_(scope_info),
       scope_type_(scope_type) {
@@ -226,8 +227,7 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
              MaybeAssignedFlag maybe_assigned, Handle<ScopeInfo> scope_info)
-    : zone_(zone),
-      outer_scope_(nullptr),
+    : outer_scope_(nullptr),
       variables_(zone),
       scope_info_(scope_info),
       scope_type_(CATCH_SCOPE) {
@@ -357,13 +357,13 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   while (!scope_info.is_null()) {
     if (scope_info.scope_type() == WITH_SCOPE) {
       if (scope_info.IsDebugEvaluateScope()) {
-        outer_scope = new (zone)
-            DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info, isolate));
+        outer_scope = zone->New<DeclarationScope>(zone, FUNCTION_SCOPE,
+                                                  handle(scope_info, isolate));
         outer_scope->set_is_debug_evaluate_scope();
       } else {
         // For scope analysis, debug-evaluate is equivalent to a with scope.
         outer_scope =
-            new (zone) Scope(zone, WITH_SCOPE, handle(scope_info, isolate));
+            zone->New<Scope>(zone, WITH_SCOPE, handle(scope_info, isolate));
       }
 
     } else if (scope_info.scope_type() == SCRIPT_SCOPE) {
@@ -377,28 +377,28 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       DCHECK(!scope_info.HasOuterScopeInfo());
       break;
     } else if (scope_info.scope_type() == FUNCTION_SCOPE) {
-      outer_scope = new (zone)
-          DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info, isolate));
+      outer_scope = zone->New<DeclarationScope>(zone, FUNCTION_SCOPE,
+                                                handle(scope_info, isolate));
       if (scope_info.IsAsmModule()) {
         outer_scope->AsDeclarationScope()->set_is_asm_module();
       }
     } else if (scope_info.scope_type() == EVAL_SCOPE) {
-      outer_scope = new (zone)
-          DeclarationScope(zone, EVAL_SCOPE, handle(scope_info, isolate));
+      outer_scope = zone->New<DeclarationScope>(zone, EVAL_SCOPE,
+                                                handle(scope_info, isolate));
     } else if (scope_info.scope_type() == CLASS_SCOPE) {
-      outer_scope = new (zone) ClassScope(isolate, zone, ast_value_factory,
+      outer_scope = zone->New<ClassScope>(isolate, zone, ast_value_factory,
                                           handle(scope_info, isolate));
     } else if (scope_info.scope_type() == BLOCK_SCOPE) {
       if (scope_info.is_declaration_scope()) {
-        outer_scope = new (zone)
-            DeclarationScope(zone, BLOCK_SCOPE, handle(scope_info, isolate));
+        outer_scope = zone->New<DeclarationScope>(zone, BLOCK_SCOPE,
+                                                  handle(scope_info, isolate));
       } else {
         outer_scope =
-            new (zone) Scope(zone, BLOCK_SCOPE, handle(scope_info, isolate));
+            zone->New<Scope>(zone, BLOCK_SCOPE, handle(scope_info, isolate));
       }
     } else if (scope_info.scope_type() == MODULE_SCOPE) {
-      outer_scope = new (zone)
-          ModuleScope(isolate, handle(scope_info, isolate), ast_value_factory);
+      outer_scope = zone->New<ModuleScope>(isolate, handle(scope_info, isolate),
+                                           ast_value_factory);
     } else {
       DCHECK_EQ(scope_info.scope_type(), CATCH_SCOPE);
       DCHECK_EQ(scope_info.ContextLocalCount(), 1);
@@ -407,9 +407,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       String name = scope_info.ContextLocalName(0);
       MaybeAssignedFlag maybe_assigned =
           scope_info.ContextLocalMaybeAssignedFlag(0);
-      outer_scope = new (zone)
-          Scope(zone, ast_value_factory->GetString(handle(name, isolate)),
-                maybe_assigned, handle(scope_info, isolate));
+      outer_scope = zone->New<Scope>(
+          zone, ast_value_factory->GetString(handle(name, isolate)),
+          maybe_assigned, handle(scope_info, isolate));
     }
     if (deserialization_mode == DeserializationMode::kScopesOnly) {
       outer_scope->scope_info_ = Handle<ScopeInfo>::null();
@@ -621,12 +621,12 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
 
   bool derived_constructor = IsDerivedConstructor(function_kind_);
 
-  receiver_ = new (zone())
-      Variable(this, ast_value_factory->this_string(),
-               derived_constructor ? VariableMode::kConst : VariableMode::kVar,
-               THIS_VARIABLE,
-               derived_constructor ? kNeedsInitialization : kCreatedInitialized,
-               kNotAssigned);
+  receiver_ = zone()->New<Variable>(
+      this, ast_value_factory->this_string(),
+      derived_constructor ? VariableMode::kConst : VariableMode::kVar,
+      THIS_VARIABLE,
+      derived_constructor ? kNeedsInitialization : kCreatedInitialized,
+      kNotAssigned);
 }
 
 void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
@@ -677,12 +677,12 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name,
   DCHECK_NULL(cache->variables_.Lookup(name));
   VariableKind kind = is_sloppy(language_mode()) ? SLOPPY_FUNCTION_NAME_VARIABLE
                                                  : NORMAL_VARIABLE;
-  function_ = new (zone())
-      Variable(this, name, VariableMode::kConst, kind, kCreatedInitialized);
+  function_ = zone()->New<Variable>(this, name, VariableMode::kConst, kind,
+                                    kCreatedInitialized);
   if (sloppy_eval_can_extend_vars()) {
     cache->NonLocal(name, VariableMode::kDynamic);
   } else {
-    cache->variables_.Add(zone(), function_);
+    cache->variables_.Add(function_);
   }
   return function_;
 }
@@ -1131,7 +1131,7 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
 Variable* Scope::NewTemporary(const AstRawString* name,
                               MaybeAssignedFlag maybe_assigned) {
   DeclarationScope* scope = GetClosureScope();
-  Variable* var = new (zone()) Variable(scope, name, VariableMode::kTemporary,
+  Variable* var = zone()->New<Variable>(scope, name, VariableMode::kTemporary,
                                         NORMAL_VARIABLE, kCreatedInitialized);
   scope->AddLocal(var);
   if (maybe_assigned == kMaybeAssigned) var->SetMaybeAssigned();
@@ -1514,7 +1514,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   DCHECK(is_function_scope());
 
   // Reset all non-trivial members.
-  params_.Clear();
+  params_.DropAndClear();
   decls_.Clear();
   locals_.Clear();
   inner_scope_ = nullptr;
@@ -1524,21 +1524,22 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   has_rest_ = false;
   function_ = nullptr;
 
-  DCHECK_NE(zone_, ast_value_factory->zone());
-  zone_->ReleaseMemory();
+  DCHECK_NE(zone(), ast_value_factory->zone());
+  // Make sure this scope and zone aren't used for allocation anymore.
+  {
+    // Get the zone, while variables_ is still valid
+    Zone* zone = this->zone();
+    variables_.Invalidate();
+    zone->ReleaseMemory();
+  }
 
   if (aborted) {
     // Prepare scope for use in the outer zone.
-    zone_ = ast_value_factory->zone();
-    variables_.Reset(ZoneAllocationPolicy(zone_));
+    variables_ = VariableMap(ast_value_factory->zone());
     if (!IsArrowFunction(function_kind_)) {
       has_simple_parameters_ = true;
       DeclareDefaultFunctionVariables(ast_value_factory);
     }
-  } else {
-    // Make sure this scope isn't used for allocation anymore.
-    zone_ = nullptr;
-    variables_.Invalidate();
   }
 
 #ifdef DEBUG
@@ -2476,8 +2477,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
     AllocateScopeInfosRecursively<Isolate>(Isolate* isolate,
                                            MaybeHandle<ScopeInfo> outer_scope);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
-    AllocateScopeInfosRecursively<OffThreadIsolate>(
-        OffThreadIsolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
+    AllocateScopeInfosRecursively<LocalIsolate>(
+        LocalIsolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
 
 void DeclarationScope::RecalcPrivateNameContextChain() {
   // The outermost scope in a class heritage expression is marked to skip the
@@ -2556,10 +2557,10 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
   }
 }
 
-template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos<Isolate>(
+template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
     ParseInfo* info, Isolate* isolate);
-template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos<
-    OffThreadIsolate>(ParseInfo* info, OffThreadIsolate* isolate);
+template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
+    ParseInfo* info, LocalIsolate* isolate);
 
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;

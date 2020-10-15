@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/x64/register-x64.h"
 #if V8_TARGET_ARCH_X64
 
 #include "src/api/api-arguments.h"
@@ -25,6 +26,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -1634,6 +1636,20 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
   if (with_result) {
+#ifdef V8_REVERSE_JSARGS
+    if (java_script_builtin) {
+      // kScratchRegister is not included in the allocateable registers.
+      __ movq(kScratchRegister, rax);
+    } else {
+      // Overwrite the hole inserted by the deoptimizer with the return value
+      // from the LAZY deopt point.
+      __ movq(
+          Operand(rsp, config->num_allocatable_general_registers() *
+                               kSystemPointerSize +
+                           BuiltinContinuationFrameConstants::kFixedFrameSize),
+          rax);
+    }
+#else
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
     __ movq(
@@ -1641,6 +1657,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                              kSystemPointerSize +
                          BuiltinContinuationFrameConstants::kFixedFrameSize),
         rax);
+#endif
   }
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
     int code = config->GetAllocatableGeneralCode(i);
@@ -1649,6 +1666,16 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       __ SmiUntag(Register::from_code(code));
     }
   }
+#ifdef V8_REVERSE_JSARGS
+  if (with_result && java_script_builtin) {
+    // Overwrite the hole inserted by the deoptimizer with the return value from
+    // the LAZY deopt point. rax contains the arguments count, the return value
+    // from LAZY is always the last argument.
+    __ movq(Operand(rsp, rax, times_system_pointer_size,
+                    BuiltinContinuationFrameConstants::kFixedFrameSize),
+            kScratchRegister);
+  }
+#endif
   __ movq(
       rbp,
       Operand(rsp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
@@ -2352,13 +2379,27 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       Label loop;
       __ addl(rax, r8);
       __ PopReturnAddressTo(rcx);
+#ifdef V8_REVERSE_JSARGS
+      // The new receiver is already on the stack. Save it to push it later.
+      __ Pop(kScratchRegister);
+#endif
       __ bind(&loop);
       {
         __ decl(r8);
+#ifdef V8_REVERSE_JSARGS
+        // Skips the old receiver.
+        __ Push(Operand(rbx, r8, times_system_pointer_size,
+                        kFPOnStackSize + kPCOnStackSize + kSystemPointerSize));
+#else
         __ Push(Operand(rbx, r8, times_system_pointer_size,
                         kFPOnStackSize + kPCOnStackSize));
+#endif
         __ j(not_zero, &loop);
       }
+#ifdef V8_REVERSE_JSARGS
+      // Recover the new receiver.
+      __ Push(kScratchRegister);
+#endif
       __ PushReturnAddressFrom(rcx);
     }
   }
@@ -3157,6 +3198,141 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ popq(scratch1);
   __ popq(rcx);
   __ ret(0);
+}
+
+void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
+  // Set up the stackframe.
+  __ EnterFrame(StackFrame::JS_TO_WASM);
+
+  Register closure = rdi;
+  Register shared_function_info = rbx;
+  __ LoadAnyTaggedField(
+      shared_function_info,
+      MemOperand(
+          closure,
+          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  closure = no_reg;
+
+  Register function_data = shared_function_info;
+  __ LoadAnyTaggedField(
+      function_data,
+      MemOperand(shared_function_info,
+                 SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag));
+  shared_function_info = no_reg;
+
+  Register wasm_instance = rsi;
+  __ LoadAnyTaggedField(
+      wasm_instance,
+      MemOperand(function_data,
+                 WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
+
+  // Int signature_type gives the number of int32 params (can be only 0 or 1).
+  Register signature_type = r9;
+  __ SmiUntagField(
+      signature_type,
+      MemOperand(function_data, WasmExportedFunctionData::kSignatureTypeOffset -
+                                    kHeapObjectTag));
+
+  __ cmpl(signature_type, Immediate(0));
+
+  // In 0 param case jump through parameter handling.
+  Label params_done;
+  __ j(equal, &params_done);
+
+  // Param handling.
+  Register param = rax;
+  const int firstParamOffset = 16;
+  __ movq(param, MemOperand(rbp, firstParamOffset));
+
+  Label not_smi;
+  __ JumpIfNotSmi(param, &not_smi);
+
+  // Change from smi to int32.
+  __ SmiUntag(param);
+
+  __ bind(&params_done);
+
+  // Set thread_in_wasm_flag.
+  Register thread_in_wasm_flag_addr = rdx;
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
+
+  Register jump_table_start = thread_in_wasm_flag_addr;
+  __ movq(jump_table_start,
+          MemOperand(wasm_instance,
+                     wasm::ObjectAccess::ToTagged(
+                         WasmInstanceObject::kJumpTableStartOffset)));
+  thread_in_wasm_flag_addr = no_reg;
+
+  Register jump_table_offset = function_data;
+  __ DecompressTaggedSigned(
+      jump_table_offset,
+      MemOperand(
+          function_data,
+          WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag));
+
+  // Change from smi to integer.
+  __ SmiUntag(jump_table_offset);
+
+  Register function_entry = jump_table_offset;
+  __ addq(function_entry, jump_table_start);
+  jump_table_offset = no_reg;
+  jump_table_start = no_reg;
+
+  __ pushq(signature_type);
+
+  __ call(function_entry);
+  function_entry = no_reg;
+
+  __ popq(signature_type);
+
+  // Unset thread_in_wasm_flag.
+  thread_in_wasm_flag_addr = r8;
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
+
+  Register return_reg = rax;
+  __ LoadRoot(return_reg, RootIndex::kUndefinedValue);
+
+  // Deconstrunct the stack frame.
+  __ LeaveFrame(StackFrame::JS_TO_WASM);
+
+  __ cmpl(signature_type, Immediate(0));
+
+  Label ret_0_param;
+  __ j(equal, &ret_0_param);
+
+  __ ret(16);
+
+  __ bind(&ret_0_param);
+  __ ret(8);
+
+  // Handle the conversion to int32 when the param is not a smi.
+  __ bind(&not_smi);
+
+  // The order of pushes is important. We want the heap objects, that should be
+  // scanned by GC, to be on the top of the stack.
+  __ pushq(signature_type);
+  __ pushq(wasm_instance);
+  __ pushq(function_data);
+  __ LoadAnyTaggedField(
+      rsi,
+      MemOperand(wasm_instance, wasm::ObjectAccess::ToTagged(
+                                    WasmInstanceObject::kNativeContextOffset)));
+  // We had to prepare the parameters for the Call:
+  // put the value into rax, and the context to rsi.
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedNonSmiToInt32),
+          RelocInfo::CODE_TARGET);
+
+  __ popq(function_data);
+  __ popq(wasm_instance);
+  __ popq(signature_type);
+
+  __ jmp(&params_done);
 }
 
 namespace {

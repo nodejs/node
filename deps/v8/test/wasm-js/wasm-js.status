@@ -5,14 +5,26 @@
 [
 
 [ALWAYS, {
+  # TODO(v8:10556): Remove sub-typing in the reference-types implementation
+  'constructor/instantiate': [FAIL],
+  'instance/constructor': [FAIL],
+  'proposals/js-types/constructor/instantiate': [FAIL],
+  'proposals/js-types/global/constructor': [FAIL],
+  'proposals/js-types/global/value-get-set': [FAIL],
+  'proposals/js-types/instance/constructor': [FAIL],
+
+  'prototypes': [FAIL],
+
+  # Outdated proposals, will work after rebasing.
+  'proposals/reference-types/global/value-get-set': [FAIL],
+  'proposals/reference-types/global/constructor': [FAIL],
+  'proposals/bulk-memory-operations/global/value-get-set': [FAIL],
+  'proposals/bulk-memory-operations/global/constructor': [FAIL],
+
   # These are slow, and not useful to run for the proposals:
   'proposals/reference-types/limits': [SKIP],
   'proposals/bulk-memory-operations/limits': [SKIP],
-  'proposals/JS-BigInt-integration/limits': [SKIP],
   'proposals/js-types/limits': [SKIP],
-  # TODO(v8:9673): Enable these spec tests once they exist, and the out-dated
-  # tests have been removed.
-  'proposals/JS-BigInt-integration/module/params-long': [FAIL],
   # TODO(wasm): Update memory limit.
   'limits': [FAIL],
 }], # ALWAYS

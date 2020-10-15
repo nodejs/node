@@ -19,11 +19,14 @@ class TestTransitionsAccessor : public TransitionsAccessor {
       : TransitionsAccessor(isolate, map) {}
 
   // Expose internals for tests.
+  bool IsUninitializedEncoding() { return encoding() == kUninitialized; }
   bool IsWeakRefEncoding() { return encoding() == kWeakRef; }
 
   bool IsFullTransitionArrayEncoding() {
     return encoding() == kFullTransitionArray;
   }
+
+  int Capacity() { return TransitionsAccessor::Capacity(); }
 };
 
 }  // namespace internal

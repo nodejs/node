@@ -17,7 +17,7 @@ assertEquals("zh-TW-u-ca-chinese", new Intl.Locale("zh-TW-u-ca-chinese").minimiz
 assertEquals("zh-Hant-HK-u-ca-chinese", new Intl.Locale("zh-HK-u-ca-chinese").maximize().toString());
 assertEquals("zh-HK-u-ca-chinese", new Intl.Locale("zh-HK-u-ca-chinese").minimize().toString());
 assertEquals("zh-Hant-TW-u-ca-chinese", new Intl.Locale("zh-Hant-u-ca-chinese").maximize().toString());
-assertEquals("zh-Hant-u-ca-chinese", new Intl.Locale("zh-Hant-u-ca-chinese").minimize().toString());
+assertEquals("zh-TW-u-ca-chinese", new Intl.Locale("zh-Hant-u-ca-chinese").minimize().toString());
 assertEquals("zh-Hans-CN-u-ca-chinese", new Intl.Locale("zh-Hans-u-ca-chinese").maximize().toString());
 assertEquals("zh-u-ca-chinese", new Intl.Locale("zh-Hans-u-ca-chinese").minimize().toString());
 assertEquals("zh-Hant-CN-u-ca-chinese", new Intl.Locale("zh-Hant-CN-u-ca-chinese").maximize().toString());

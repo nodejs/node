@@ -11,10 +11,13 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+// This struct is just a type tag for Zone::NewArray<T>(size_t) call.
+struct LocalDeclEncoderBuffer {};
+
 void LocalDeclEncoder::Prepend(Zone* zone, const byte** start,
                                const byte** end) const {
   size_t size = (*end - *start);
-  byte* buffer = reinterpret_cast<byte*>(zone->New(Size() + size));
+  byte* buffer = zone->NewArray<byte, LocalDeclEncoderBuffer>(Size() + size);
   size_t pos = Emit(buffer);
   if (size > 0) {
     memcpy(buffer + pos, *start, size);
@@ -28,11 +31,17 @@ size_t LocalDeclEncoder::Emit(byte* buffer) const {
   byte* pos = buffer;
   LEBHelper::write_u32v(&pos, static_cast<uint32_t>(local_decls.size()));
   for (auto& local_decl : local_decls) {
-    LEBHelper::write_u32v(&pos, local_decl.first);
-    *pos = local_decl.second.value_type_code();
+    uint32_t locals_count = local_decl.first;
+    ValueType locals_type = local_decl.second;
+    LEBHelper::write_u32v(&pos, locals_count);
+    *pos = locals_type.value_type_code();
     ++pos;
-    if (local_decl.second.has_immediate()) {
-      LEBHelper::write_u32v(&pos, local_decl.second.ref_index());
+    if (locals_type.has_depth()) {
+      *pos = locals_type.depth();
+      ++pos;
+    }
+    if (locals_type.encoding_needs_heap_type()) {
+      LEBHelper::write_i32v(&pos, locals_type.heap_type().code());
     }
   }
   DCHECK_EQ(Size(), pos - buffer);
@@ -56,11 +65,12 @@ uint32_t LocalDeclEncoder::AddLocals(uint32_t count, ValueType type) {
 size_t LocalDeclEncoder::Size() const {
   size_t size = LEBHelper::sizeof_u32v(local_decls.size());
   for (auto p : local_decls) {
-    size +=
-        LEBHelper::sizeof_u32v(p.first) +  // number of locals
-        1 +                                // Opcode
-        (p.second.has_immediate() ? LEBHelper::sizeof_u32v(p.second.ref_index())
-                                  : 0);  // immediate
+    size += LEBHelper::sizeof_u32v(p.first) +  // number of locals
+            1 +                                // Opcode
+            (p.second.has_depth() ? 1 : 0) +   // Inheritance depth
+            (p.second.encoding_needs_heap_type()
+                 ? LEBHelper::sizeof_i32v(p.second.heap_type().code())
+                 : 0);  // ref. index
   }
   return size;
 }

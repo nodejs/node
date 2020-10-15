@@ -74,7 +74,6 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSCreateClosure: {
       CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
       SharedFunctionInfoRef(broker(), p.shared_info());
-      FeedbackCellRef(broker(), p.feedback_cell());
       HeapObjectRef(broker(), p.code());
       break;
     }
@@ -82,6 +81,50 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       FeedbackParameter const& p = FeedbackParameterOf(node->op());
       if (p.feedback().IsValid()) {
         broker()->ProcessFeedbackForArrayOrObjectLiteral(p.feedback());
+      }
+      break;
+    }
+    /* Unary ops. */
+    case IrOpcode::kJSBitwiseNot:
+    case IrOpcode::kJSDecrement:
+    case IrOpcode::kJSIncrement:
+    case IrOpcode::kJSNegate: {
+      FeedbackParameter const& p = FeedbackParameterOf(node->op());
+      if (p.feedback().IsValid()) {
+        // Unary ops are treated as binary ops with respect to feedback.
+        broker()->ProcessFeedbackForBinaryOperation(p.feedback());
+      }
+      break;
+    }
+    /* Binary ops. */
+    case IrOpcode::kJSAdd:
+    case IrOpcode::kJSSubtract:
+    case IrOpcode::kJSMultiply:
+    case IrOpcode::kJSDivide:
+    case IrOpcode::kJSModulus:
+    case IrOpcode::kJSExponentiate:
+    case IrOpcode::kJSBitwiseOr:
+    case IrOpcode::kJSBitwiseXor:
+    case IrOpcode::kJSBitwiseAnd:
+    case IrOpcode::kJSShiftLeft:
+    case IrOpcode::kJSShiftRight:
+    case IrOpcode::kJSShiftRightLogical: {
+      FeedbackParameter const& p = FeedbackParameterOf(node->op());
+      if (p.feedback().IsValid()) {
+        broker()->ProcessFeedbackForBinaryOperation(p.feedback());
+      }
+      break;
+    }
+    /* Compare ops. */
+    case IrOpcode::kJSEqual:
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kJSStrictEqual: {
+      FeedbackParameter const& p = FeedbackParameterOf(node->op());
+      if (p.feedback().IsValid()) {
+        broker()->ProcessFeedbackForCompareOperation(p.feedback());
       }
       break;
     }

@@ -60,15 +60,15 @@ class SigUnmaskStack {
     pthread_sigmask(SIG_UNBLOCK, &sigs, &old_mask_);
   }
 
-  ~SigUnmaskStack() { pthread_sigmask(SIG_SETMASK, &old_mask_, nullptr); }
-
- private:
-  sigset_t old_mask_;
-
   // We'd normally use DISALLOW_COPY_AND_ASSIGN, but we're avoiding a dependency
   // on base/macros.h
   SigUnmaskStack(const SigUnmaskStack&) = delete;
   void operator=(const SigUnmaskStack&) = delete;
+
+  ~SigUnmaskStack() { pthread_sigmask(SIG_SETMASK, &old_mask_, nullptr); }
+
+ private:
+  sigset_t old_mask_;
 };
 
 bool TryHandleSignal(int signum, siginfo_t* info, void* context) {

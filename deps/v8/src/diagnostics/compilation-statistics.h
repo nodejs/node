@@ -48,7 +48,7 @@ class CompilationStatistics final : public Malloced {
   void RecordPhaseKindStats(const char* phase_kind_name,
                             const BasicStats& stats);
 
-  void RecordTotalStats(size_t source_size, const BasicStats& stats);
+  void RecordTotalStats(const BasicStats& stats);
 
  private:
   class TotalStats : public BasicStats {

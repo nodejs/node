@@ -260,7 +260,7 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   if (!effect_phi) return nullptr;
 
   Node* incr = arith->InputAt(1);
-  return new (zone()) InductionVariable(phi, effect_phi, arith, incr, initial,
+  return zone()->New<InductionVariable>(phi, effect_phi, arith, incr, initial,
                                         zone(), arithmeticType);
 }
 

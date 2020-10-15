@@ -16,8 +16,8 @@
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/control-flow-builders.h"
+#include "src/logging/local-logger.h"
 #include "src/logging/log.h"
-#include "src/logging/off-thread-logger.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
@@ -1005,9 +1005,9 @@ class AccessorTable
         zone_(zone) {}
 
   Accessors<PropertyT>* LookupOrInsert(Literal* key) {
-    auto it = this->find(key, true, ZoneAllocationPolicy(zone_));
+    auto it = this->find(key, true);
     if (it->second == nullptr) {
-      it->second = new (zone_) Accessors<PropertyT>();
+      it->second = zone_->New<Accessors<PropertyT>>();
       ordered_accessors_.push_back({key, it->second});
     }
     return it->second;
@@ -1052,8 +1052,8 @@ BytecodeGenerator::BytecodeGenerator(
       closure_scope_(info->scope()),
       current_scope_(info->scope()),
       eager_inner_literals_(eager_inner_literals),
-      feedback_slot_cache_(new (zone()) FeedbackSlotCache(zone())),
-      top_level_builder_(new (zone()) TopLevelDeclarationsBuilder()),
+      feedback_slot_cache_(zone()->New<FeedbackSlotCache>(zone())),
+      top_level_builder_(zone()->New<TopLevelDeclarationsBuilder>()),
       block_coverage_builder_(nullptr),
       function_literals_(0, zone()),
       native_function_literals_(0, zone()),
@@ -1074,8 +1074,8 @@ BytecodeGenerator::BytecodeGenerator(
       catch_prediction_(HandlerTable::UNCAUGHT) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
   if (info->has_source_range_map()) {
-    block_coverage_builder_ = new (zone())
-        BlockCoverageBuilder(zone(), builder(), info->source_range_map());
+    block_coverage_builder_ = zone()->New<BlockCoverageBuilder>(
+        zone(), builder(), info->source_range_map());
   }
 }
 
@@ -1090,10 +1090,10 @@ struct NullContextScopeHelper<Isolate> {
 };
 
 template <>
-struct NullContextScopeHelper<OffThreadIsolate> {
+struct NullContextScopeHelper<LocalIsolate> {
   class DummyNullContextScope {
    public:
-    explicit DummyNullContextScope(OffThreadIsolate*) {}
+    explicit DummyNullContextScope(LocalIsolate*) {}
   };
   using Type = DummyNullContextScope;
 };
@@ -1139,7 +1139,7 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
 template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     Isolate* isolate, Handle<Script> script);
 template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
-    OffThreadIsolate* isolate, Handle<Script> script);
+    LocalIsolate* isolate, Handle<Script> script);
 
 template <typename LocalIsolate>
 Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
@@ -1165,7 +1165,7 @@ Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
 template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
     Isolate* isolate);
 template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
-    OffThreadIsolate* isolate);
+    LocalIsolate* isolate);
 
 #ifdef DEBUG
 int BytecodeGenerator::CheckBytecodeMatches(BytecodeArray bytecode) {
@@ -1258,7 +1258,7 @@ void BytecodeGenerator::AllocateDeferredConstants(LocalIsolate* isolate,
 template void BytecodeGenerator::AllocateDeferredConstants(
     Isolate* isolate, Handle<Script> script);
 template void BytecodeGenerator::AllocateDeferredConstants(
-    OffThreadIsolate* isolate, Handle<Script> script);
+    LocalIsolate* isolate, Handle<Script> script);
 
 namespace {
 bool NeedsContextInitialization(DeclarationScope* scope) {
@@ -2913,8 +2913,8 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
   Register array = register_allocator()->NewRegister();
   SharedFeedbackSlot element_slot(feedback_spec(),
                                   FeedbackSlotKind::kStoreInArrayLiteral);
-  ZonePtrList<Expression>::iterator current = elements->begin();
-  ZonePtrList<Expression>::iterator end = elements->end();
+  ZonePtrList<Expression>::const_iterator current = elements->begin();
+  ZonePtrList<Expression>::const_iterator end = elements->end();
   bool is_empty = elements->is_empty();
 
   if (!is_empty && (*current)->IsSpread()) {
@@ -2976,7 +2976,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     // index, into the initial array (the remaining elements will be inserted
     // below).
     DCHECK_EQ(current, elements->begin());
-    ZonePtrList<Expression>::iterator first_spread_or_end =
+    ZonePtrList<Expression>::const_iterator first_spread_or_end =
         expr->first_spread_index() >= 0 ? current + expr->first_spread_index()
                                         : end;
     int array_index = 0;
@@ -4886,7 +4886,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       break;
     }
     case Call::NAMED_OPTIONAL_CHAIN_PROPERTY_CALL:
-    case Call::KEYED_OPTIONAL_CHAIN_PROPERTY_CALL: {
+    case Call::KEYED_OPTIONAL_CHAIN_PROPERTY_CALL:
+    case Call::PRIVATE_OPTIONAL_CHAIN_CALL: {
       OptionalChain* chain = callee_expr->AsOptionalChain();
       Property* property = chain->expression()->AsProperty();
       BuildOptionalChain([&]() {

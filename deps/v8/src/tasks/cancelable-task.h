@@ -32,6 +32,7 @@ enum class TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
 class V8_EXPORT_PRIVATE CancelableTaskManager {
  public:
   using Id = uint64_t;
+  static constexpr Id kInvalidTaskId = 0;
 
   CancelableTaskManager();
 
@@ -68,8 +69,6 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   bool canceled() const { return canceled_; }
 
  private:
-  static constexpr Id kInvalidTaskId = 0;
-
   // Only called by {Cancelable} destructor. The task is done with executing,
   // but needs to be removed.
   void RemoveFinishedTask(Id id);

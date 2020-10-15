@@ -597,6 +597,28 @@ void TurboAssembler::Cvttsd2ui(Register dst, Operand src, XMMRegister tmp) {
   add(dst, Immediate(0x80000000));
 }
 
+void TurboAssembler::Roundps(XMMRegister dst, XMMRegister src,
+                             RoundingMode mode) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vroundps(dst, src, mode);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    roundps(dst, src, mode);
+  }
+}
+
+void TurboAssembler::Roundpd(XMMRegister dst, XMMRegister src,
+                             RoundingMode mode) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vroundpd(dst, src, mode);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    roundpd(dst, src, mode);
+  }
+}
+
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   DCHECK_GE(63, shift);
   if (shift >= 32) {
@@ -2045,9 +2067,9 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
     and_(scratch, object);
   }
   if (mask < (1 << kBitsPerByte)) {
-    test_b(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(mask));
+    test_b(Operand(scratch, BasicMemoryChunk::kFlagsOffset), Immediate(mask));
   } else {
-    test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(mask));
+    test(Operand(scratch, BasicMemoryChunk::kFlagsOffset), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }

@@ -8,12 +8,14 @@ Protocol.Debugger.setBreakpointByUrl({ url: "http://example.com", lineNumber: 10
 
 function didSetBreakpointByUrlBeforeEnable(message)
 {
-  InspectorTest.log("setBreakpointByUrl error: " + JSON.stringify(message.error, null, 2));
+  InspectorTest.log("setBreakpointByUrl error: " + JSON.stringify(
+      InspectorTest.trimErrorMessage(message).error, null, 2));
   Protocol.Debugger.setBreakpoint().then(didSetBreakpointBeforeEnable);
 }
 
 function didSetBreakpointBeforeEnable(message)
 {
-  InspectorTest.log("setBreakpoint error: " + JSON.stringify(message.error, null, 2));
+  InspectorTest.log("setBreakpoint error: " + JSON.stringify(
+      InspectorTest.trimErrorMessage(message).error, null, 2));
   InspectorTest.completeTest();
 }

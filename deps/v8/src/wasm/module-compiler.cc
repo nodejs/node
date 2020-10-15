@@ -18,6 +18,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/logging/counters.h"
+#include "src/logging/metrics.h"
 #include "src/objects/property-descriptor.h"
 #include "src/tasks/task-utils.h"
 #include "src/tracing/trace-event.h"
@@ -406,6 +407,39 @@ class CompilationUnitQueues {
   }
 };
 
+// {JobHandle} is not thread safe in general (at least both the
+// {DefaultJobHandle} and chromium's {base::JobHandle} are not). Hence, protect
+// concurrent accesses via a mutex.
+class ThreadSafeJobHandle {
+ public:
+  explicit ThreadSafeJobHandle(std::shared_ptr<JobHandle> job_handle)
+      : job_handle_(std::move(job_handle)) {}
+
+  void NotifyConcurrencyIncrease() {
+    base::MutexGuard guard(&mutex_);
+    job_handle_->NotifyConcurrencyIncrease();
+  }
+
+  void Join() {
+    base::MutexGuard guard(&mutex_);
+    job_handle_->Join();
+  }
+
+  void Cancel() {
+    base::MutexGuard guard(&mutex_);
+    job_handle_->Cancel();
+  }
+
+  bool IsRunning() const {
+    base::MutexGuard guard(&mutex_);
+    return job_handle_->IsRunning();
+  }
+
+ private:
+  mutable base::Mutex mutex_;
+  std::shared_ptr<JobHandle> job_handle_;
+};
+
 // The {CompilationStateImpl} keeps track of the compilation state of the
 // owning NativeModule, i.e. which functions are left to be compiled.
 // It contains a task manager to allow parallel and asynchronous background
@@ -416,14 +450,18 @@ class CompilationStateImpl {
   CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
                        std::shared_ptr<Counters> async_counters);
 
-  // Cancel all background compilation and wait for all tasks to finish. Call
-  // this before destructing this object.
-  void AbortCompilation();
+  // Cancel all background compilation, without waiting for compile tasks to
+  // finish.
+  void CancelCompilation();
 
   // Initialize compilation progress. Set compilation tiers to expect for
   // baseline and top tier compilation. Must be set before {AddCompilationUnits}
   // is invoked which triggers background compilation.
   void InitializeCompilationProgress(bool lazy_module, int num_wrappers);
+
+  // Initialize the compilation progress after deserialization. This is needed
+  // for recompilation (e.g. for tier down) to work later.
+  void InitializeCompilationProgressAfterDeserialization();
 
   // Initialize recompilation of the whole module: Setup compilation progress
   // for recompilation and add the respective compilation units. The callback is
@@ -456,12 +494,18 @@ class CompilationStateImpl {
   void OnFinishedUnits(Vector<WasmCode*>);
   void OnFinishedJSToWasmWrapperUnits(int num);
 
-  void OnBackgroundTaskStopped(int task_id, const WasmFeatures& detected);
-  void UpdateDetectedFeatures(const WasmFeatures& detected);
+  int GetFreeCompileTaskId();
+  void OnCompilationStopped(int task_id, const WasmFeatures& detected);
   void PublishDetectedFeatures(Isolate*);
-  void RestartBackgroundTasks();
+  // Ensure that a compilation job is running, and increase its concurrency if
+  // needed.
+  void ScheduleCompileJobForNewUnits(int new_units);
+
+  size_t NumOutstandingCompilations() const;
 
   void SetError();
+
+  void WaitForBaselineFinished();
 
   bool failed() const {
     return compile_failed_.load(std::memory_order_relaxed);
@@ -498,34 +542,6 @@ class CompilationStateImpl {
     return wire_bytes_storage_;
   }
 
-  const std::shared_ptr<BackgroundCompileToken>& background_compile_token()
-      const {
-    return background_compile_token_;
-  }
-
-  double GetCompilationDeadline(double now) {
-    // Execute for at least 50ms. Try to distribute deadlines of different tasks
-    // such that every 5ms one task stops. No task should execute longer than
-    // 200ms though.
-    constexpr double kMinLimit = 50. / base::Time::kMillisecondsPerSecond;
-    constexpr double kMaxLimit = 200. / base::Time::kMillisecondsPerSecond;
-    constexpr double kGapBetweenTasks = 5. / base::Time::kMillisecondsPerSecond;
-    double min_deadline = now + kMinLimit;
-    double max_deadline = now + kMaxLimit;
-    double next_deadline =
-        next_compilation_deadline_.load(std::memory_order_relaxed);
-    while (true) {
-      double deadline =
-          std::max(min_deadline, std::min(max_deadline, next_deadline));
-      if (next_compilation_deadline_.compare_exchange_weak(
-              next_deadline, deadline + kGapBetweenTasks,
-              std::memory_order_relaxed)) {
-        return deadline;
-      }
-      // Otherwise, retry with the updated {next_deadline}.
-    }
-  }
-
  private:
   // Trigger callbacks according to the internal counters below
   // (outstanding_...), plus the given events.
@@ -541,16 +557,13 @@ class CompilationStateImpl {
   // using relaxed semantics.
   std::atomic<bool> compile_failed_{false};
 
-  const int max_background_tasks_ = 0;
+  // The atomic counter is shared with the compilation job. It's increased if
+  // more units are added, and decreased when the queue drops to zero.
+  std::shared_ptr<std::atomic<int>> current_compile_concurrency_ =
+      std::make_shared<std::atomic<int>>(0);
+  const int max_compile_concurrency_ = 0;
 
   CompilationUnitQueues compilation_unit_queues_;
-
-  // Each compilation task executes until a certain deadline. The
-  // {CompilationStateImpl} orchestrates the deadlines such that they are
-  // evenly distributed and not all tasks stop at the same time. This removes
-  // contention during publishing of compilation results and also gives other
-  // tasks a fair chance to utilize the worker threads on a regular basis.
-  std::atomic<double> next_compilation_deadline_{0};
 
   // Index of the next wrapper to compile in {js_to_wasm_wrapper_units_}.
   std::atomic<int> js_to_wasm_wrapper_id_{0};
@@ -566,8 +579,10 @@ class CompilationStateImpl {
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
 
-  // Set of unused task ids; <= {max_background_tasks_} many.
+  // Set of unused task ids; <= {max_compile_concurrency_} many.
   std::vector<int> available_task_ids_;
+
+  std::shared_ptr<ThreadSafeJobHandle> current_compile_job_;
 
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
@@ -627,18 +642,26 @@ void BackgroundCompileToken::PublishCode(
     NativeModule* native_module, Vector<std::unique_ptr<WasmCode>> code) {
   WasmCodeRefScope code_ref_scope;
   std::vector<WasmCode*> published_code = native_module->PublishCode(code);
-  native_module->engine()->LogCode(VectorOf(published_code));
+  // Defer logging code in case wire bytes were not fully received yet.
+  if (native_module->HasWireBytes()) {
+    native_module->engine()->LogCode(VectorOf(published_code));
+  }
 
   Impl(native_module->compilation_state())
       ->OnFinishedUnits(VectorOf(published_code));
 }
 
 void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
-  if (detected.has_threads()) {
-    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmThreadOpcodes);
-  }
-  if (detected.has_simd()) {
-    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSimdOpcodes);
+  using Feature = v8::Isolate::UseCounterFeature;
+  constexpr static std::pair<WasmFeature, Feature> kUseCounters[] = {
+      {kFeature_reftypes, Feature::kWasmRefTypes},
+      {kFeature_bulk_memory, Feature::kWasmBulkMemory},
+      {kFeature_mv, Feature::kWasmMultiValue},
+      {kFeature_simd, Feature::kWasmSimdOpcodes},
+      {kFeature_threads, Feature::kWasmThreadOpcodes}};
+
+  for (auto& feature : kUseCounters) {
+    if (detected.contains(feature.first)) isolate->CountUsage(feature.second);
   }
 }
 
@@ -649,7 +672,7 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
 
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
-void CompilationState::AbortCompilation() { Impl(this)->AbortCompilation(); }
+void CompilationState::CancelCompilation() { Impl(this)->CancelCompilation(); }
 
 void CompilationState::SetError() { Impl(this)->SetError(); }
 
@@ -665,6 +688,26 @@ std::shared_ptr<WireBytesStorage> CompilationState::GetWireBytesStorage()
 
 void CompilationState::AddCallback(CompilationState::callback_t callback) {
   return Impl(this)->AddCallback(std::move(callback));
+}
+
+void CompilationState::WaitForBaselineFinished() {
+  Impl(this)->WaitForBaselineFinished();
+}
+
+void CompilationState::WaitForTopTierFinished() {
+  // TODO(clemensb): Contribute to compilation while waiting.
+  auto top_tier_finished_semaphore = std::make_shared<base::Semaphore>(0);
+  AddCallback([top_tier_finished_semaphore](CompilationEvent event) {
+    if (event == CompilationEvent::kFailedCompilation ||
+        event == CompilationEvent::kFinishedTopTierCompilation) {
+      top_tier_finished_semaphore->Signal();
+    }
+  });
+  top_tier_finished_semaphore->Wait();
+}
+
+void CompilationState::InitializeAfterDeserialization() {
+  Impl(this)->InitializeCompilationProgressAfterDeserialization();
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
@@ -774,8 +817,7 @@ ExecutionTierPair GetRequestedExecutionTiers(
       }
 
       // Correct top tier if necessary.
-      static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
-                        ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
+      static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                     "Assume an order on execution tiers");
       if (result.baseline_tier > result.top_tier) {
         result.top_tier = result.baseline_tier;
@@ -802,6 +844,9 @@ class CompilationUnitBuilder {
     ExecutionTierPair tiers = GetRequestedExecutionTiers(
         native_module_->module(), compilation_state()->compile_mode(),
         native_module_->enabled_features(), func_index);
+    // Compile everything for non-debugging initially. If needed, we will tier
+    // down when the module is fully compiled. Synchronization would be pretty
+    // difficult otherwise.
     baseline_units_.emplace_back(func_index, tiers.baseline_tier, kNoDebugging);
     if (tiers.baseline_tier != tiers.top_tier) {
       tiering_units_.emplace_back(func_index, tiers.top_tier, kNoDebugging);
@@ -1002,6 +1047,15 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   return true;
 }
 
+void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
+                   int func_index) {
+  CompilationStateImpl* compilation_state =
+      Impl(native_module->compilation_state());
+  WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
+                                   kNoDebugging};
+  compilation_state->AddTopTierCompilationUnit(tiering_unit);
+}
+
 namespace {
 
 void RecordStats(const Code code, Counters* counters) {
@@ -1009,107 +1063,94 @@ void RecordStats(const Code code, Counters* counters) {
   counters->wasm_reloc_size()->Increment(code.relocation_info().length());
 }
 
-constexpr int kMainThreadTaskId = -1;
+enum CompilationExecutionResult : int8_t { kNoMoreUnits, kYield };
 
-bool ExecuteJSToWasmWrapperCompilationUnits(
-    const std::shared_ptr<BackgroundCompileToken>& token) {
+CompilationExecutionResult ExecuteJSToWasmWrapperCompilationUnits(
+    const std::shared_ptr<BackgroundCompileToken>& token,
+    JobDelegate* delegate) {
   std::shared_ptr<JSToWasmWrapperCompilationUnit> wrapper_unit = nullptr;
   int num_processed_wrappers = 0;
-  do {
-    // TODO(thibaudm): Reschedule the compilation task if it takes too long, so
-    // that the background thread is not blocked.
-    {
-      BackgroundCompileScope compile_scope(token);
-      if (compile_scope.cancelled()) return false;
-      wrapper_unit = compile_scope.compilation_state()
-                         ->GetNextJSToWasmWrapperCompilationUnit();
-    }
-    if (wrapper_unit) {
-      wrapper_unit->Execute();
-      ++num_processed_wrappers;
-    }
-  } while (wrapper_unit);
-  if (num_processed_wrappers > 0) {
+
+  {
     BackgroundCompileScope compile_scope(token);
-    if (compile_scope.cancelled()) return false;
-    compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits(
-        num_processed_wrappers);
+    if (compile_scope.cancelled()) return kNoMoreUnits;
+    wrapper_unit = compile_scope.compilation_state()
+                       ->GetNextJSToWasmWrapperCompilationUnit();
+    if (!wrapper_unit) return kNoMoreUnits;
   }
-  return true;
+
+  while (true) {
+    wrapper_unit->Execute();
+    ++num_processed_wrappers;
+    bool yield = delegate && delegate->ShouldYield();
+    BackgroundCompileScope compile_scope(token);
+    if (compile_scope.cancelled()) return kNoMoreUnits;
+    if (yield ||
+        !(wrapper_unit = compile_scope.compilation_state()
+                             ->GetNextJSToWasmWrapperCompilationUnit())) {
+      compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits(
+          num_processed_wrappers);
+      return yield ? kYield : kNoMoreUnits;
+    }
+  }
 }
 
-bool NeedsDeterministicCompile() { return FLAG_single_threaded; }
-
-// Run by the main thread and background tasks to take part in compilation.
-// Returns whether any units were executed.
-bool ExecuteCompilationUnits(
+// Run by the {BackgroundCompileJob} (on any thread).
+CompilationExecutionResult ExecuteCompilationUnits(
     const std::shared_ptr<BackgroundCompileToken>& token, Counters* counters,
-    int task_id, CompileBaselineOnly baseline_only) {
-  TRACE_COMPILE("Compiling (task %d)...\n", task_id);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ExecuteCompilationUnits");
+    JobDelegate* delegate, CompileBaselineOnly baseline_only) {
+  TRACE_EVENT0("v8.wasm", "wasm.ExecuteCompilationUnits");
 
   // Execute JS to Wasm wrapper units first, so that they are ready to be
   // finalized by the main thread when the kFinishedBaselineCompilation event is
   // triggered.
-  if (!ExecuteJSToWasmWrapperCompilationUnits(token)) {
-    return false;
+  if (ExecuteJSToWasmWrapperCompilationUnits(token, delegate) == kYield) {
+    return kYield;
   }
-
-  const bool is_foreground = task_id == kMainThreadTaskId;
-  // The main thread uses task id 0, which might collide with one of the
-  // background tasks. This is fine, as it will only cause some contention on
-  // the one queue, but work otherwise.
-  if (is_foreground) task_id = 0;
-
-  Platform* platform = V8::GetCurrentPlatform();
-  double compilation_start = platform->MonotonicallyIncreasingTime();
 
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
-  double deadline = 0;
-  const bool deterministic = NeedsDeterministicCompile();
   base::Optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
-  WasmEngine* wasm_engine = nullptr;
+  WasmEngine* wasm_engine;
+  int task_id;
   base::Optional<WasmCompilationUnit> unit;
+
   WasmFeatures detected_features = WasmFeatures::None();
 
-  auto stop = [is_foreground, task_id,
-               &detected_features](BackgroundCompileScope& compile_scope) {
-    if (is_foreground) {
-      compile_scope.compilation_state()->UpdateDetectedFeatures(
-          detected_features);
-    } else {
-      compile_scope.compilation_state()->OnBackgroundTaskStopped(
-          task_id, detected_features);
-    }
+  auto stop = [&detected_features,
+               &task_id](BackgroundCompileScope& compile_scope) {
+    compile_scope.compilation_state()->OnCompilationStopped(task_id,
+                                                            detected_features);
   };
 
   // Preparation (synchronized): Initialize the fields above and get the first
   // compilation unit.
   {
     BackgroundCompileScope compile_scope(token);
-    if (compile_scope.cancelled()) return false;
+    if (compile_scope.cancelled()) return kNoMoreUnits;
     auto* compilation_state = compile_scope.compilation_state();
-    deadline = compilation_state->GetCompilationDeadline(compilation_start);
     env.emplace(compile_scope.native_module()->CreateCompilationEnv());
     wire_bytes = compilation_state->GetWireBytesStorage();
     module = compile_scope.native_module()->shared_module();
     wasm_engine = compile_scope.native_module()->engine();
+    task_id = compilation_state->GetFreeCompileTaskId();
     unit = compilation_state->GetNextCompilationUnit(task_id, baseline_only);
     if (!unit) {
       stop(compile_scope);
-      return false;
+      return kNoMoreUnits;
     }
   }
+  TRACE_COMPILE("ExecuteCompilationUnits (task id %d)\n", task_id);
 
   std::vector<WasmCompilationResult> results_to_publish;
 
   auto publish_results = [&results_to_publish](
                              BackgroundCompileScope* compile_scope) {
-    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "PublishResults",
-                 "num_results", results_to_publish.size());
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.PublishCompilationResults", "num_results",
+                 results_to_publish.size());
     if (results_to_publish.empty()) return;
     std::vector<std::unique_ptr<WasmCode>> unpublished_code =
         compile_scope->native_module()->AddCompiledCode(
@@ -1127,8 +1168,9 @@ bool ExecuteCompilationUnits(
       if (func_index < num_imported_functions) {
         const FunctionSig* sig =
             native_module->module()->functions[func_index].sig;
-        WasmImportWrapperCache::CacheKey key(compiler::kDefaultImportCallKind,
-                                             sig);
+        WasmImportWrapperCache::CacheKey key(
+            compiler::kDefaultImportCallKind, sig,
+            static_cast<int>(sig->parameter_count()));
         // If two imported functions have the same key, only one of them should
         // have been added as a compilation unit. So it is always the first time
         // we compile a wrapper for this key here.
@@ -1148,10 +1190,12 @@ bool ExecuteCompilationUnits(
         wasm_engine, &env.value(), wire_bytes, counters, &detected_features);
     results_to_publish.emplace_back(std::move(result));
 
+    bool yield = delegate && delegate->ShouldYield();
+
     // (synchronized): Publish the compilation result and get the next unit.
     {
       BackgroundCompileScope compile_scope(token);
-      if (compile_scope.cancelled()) return true;
+      if (compile_scope.cancelled()) return kNoMoreUnits;
       if (!results_to_publish.back().succeeded()) {
         // Compile error.
         compile_scope.compilation_state()->SetError();
@@ -1161,22 +1205,19 @@ bool ExecuteCompilationUnits(
       }
 
       // Get next unit.
-      if (deterministic || deadline < platform->MonotonicallyIncreasingTime()) {
-        unit = {};
-      } else {
-        unit = compile_scope.compilation_state()->GetNextCompilationUnit(
-            task_id, baseline_only);
-      }
-
-      if (!unit) {
+      if (yield ||
+          !(unit = compile_scope.compilation_state()->GetNextCompilationUnit(
+                task_id, baseline_only))) {
         publish_results(&compile_scope);
         stop(compile_scope);
-        return true;
-      } else if (unit->tier() == ExecutionTier::kTurbofan) {
-        // Before executing a TurboFan unit, ensure to publish all previous
-        // units. If we compiled Liftoff before, we need to publish them anyway
-        // to ensure fast completion of baseline compilation, if we compiled
-        // TurboFan before, we publish to reduce peak memory consumption.
+        return yield ? kYield : kNoMoreUnits;
+      }
+
+      // Before executing a TurboFan unit, ensure to publish all previous
+      // units. If we compiled Liftoff before, we need to publish them anyway
+      // to ensure fast completion of baseline compilation, if we compiled
+      // TurboFan before, we publish to reduce peak memory consumption.
+      if (unit->tier() == ExecutionTier::kTurbofan) {
         publish_results(&compile_scope);
       }
     }
@@ -1185,7 +1226,7 @@ bool ExecuteCompilationUnits(
   DCHECK(compilation_failed);
   USE(compilation_failed);
   token->Cancel();
-  return true;
+  return kNoMoreUnits;
 }
 
 using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
@@ -1223,7 +1264,9 @@ int AddImportWrapperUnits(NativeModule* native_module,
     if (!IsJSCompatibleSignature(sig, native_module->enabled_features())) {
       continue;
     }
-    WasmImportWrapperCache::CacheKey key(compiler::kDefaultImportCallKind, sig);
+    WasmImportWrapperCache::CacheKey key(
+        compiler::kDefaultImportCallKind, sig,
+        static_cast<int>(sig->parameter_count()));
     auto it = keys.insert(key);
     if (it.second) {
       // Ensure that all keys exist in the cache, so that we can populate the
@@ -1290,17 +1333,25 @@ bool MayCompriseLazyFunctions(const WasmModule* module,
 class CompilationTimeCallback {
  public:
   enum CompileMode { kSynchronous, kAsync, kStreaming };
-  explicit CompilationTimeCallback(std::shared_ptr<Counters> async_counters,
-                                   CompileMode compile_mode)
+  explicit CompilationTimeCallback(
+      std::shared_ptr<Counters> async_counters,
+      std::shared_ptr<metrics::Recorder> metrics_recorder,
+      v8::metrics::Recorder::ContextId context_id,
+      std::weak_ptr<NativeModule> native_module, CompileMode compile_mode)
       : start_time_(base::TimeTicks::Now()),
         async_counters_(std::move(async_counters)),
+        metrics_recorder_(std::move(metrics_recorder)),
+        context_id_(context_id),
+        native_module_(std::move(native_module)),
         compile_mode_(compile_mode) {}
 
   void operator()(CompilationEvent event) {
     DCHECK(base::TimeTicks::IsHighResolution());
+    std::shared_ptr<NativeModule> native_module = native_module_.lock();
+    if (!native_module) return;
+    auto now = base::TimeTicks::Now();
+    auto duration = now - start_time_;
     if (event == CompilationEvent::kFinishedBaselineCompilation) {
-      auto now = base::TimeTicks::Now();
-      auto duration = now - start_time_;
       // Reset {start_time_} to measure tier-up time.
       start_time_ = now;
       if (compile_mode_ != kSynchronous) {
@@ -1310,23 +1361,60 @@ class CompilationTimeCallback {
                 : async_counters_->wasm_streaming_compile_wasm_module_time();
         histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
       }
+
+      v8::metrics::WasmModuleCompiled event{
+          (compile_mode_ != kSynchronous),         // async
+          (compile_mode_ == kStreaming),           // streamed
+          false,                                   // cached
+          false,                                   // deserialized
+          FLAG_wasm_lazy_compilation,              // lazy
+          true,                                    // success
+          native_module->generated_code_size(),    // code_size_in_bytes
+          native_module->liftoff_bailout_count(),  // liftoff_bailout_count
+          duration.InMicroseconds()                // wall_clock_time_in_us
+      };
+      metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
     if (event == CompilationEvent::kFinishedTopTierCompilation) {
-      auto duration = base::TimeTicks::Now() - start_time_;
       TimedHistogram* histogram = async_counters_->wasm_tier_up_module_time();
       histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
+
+      v8::metrics::WasmModuleTieredUp event{
+          FLAG_wasm_lazy_compilation,            // lazy
+          native_module->generated_code_size(),  // code_size_in_bytes
+          duration.InMicroseconds()              // wall_clock_time_in_us
+      };
+      metrics_recorder_->DelayMainThreadEvent(event, context_id_);
+    }
+    if (event == CompilationEvent::kFailedCompilation) {
+      v8::metrics::WasmModuleCompiled event{
+          (compile_mode_ != kSynchronous),         // async
+          (compile_mode_ == kStreaming),           // streamed
+          false,                                   // cached
+          false,                                   // deserialized
+          FLAG_wasm_lazy_compilation,              // lazy
+          false,                                   // success
+          native_module->generated_code_size(),    // code_size_in_bytes
+          native_module->liftoff_bailout_count(),  // liftoff_bailout_count
+          duration.InMicroseconds()                // wall_clock_time_in_us
+      };
+      metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
   }
 
  private:
   base::TimeTicks start_time_;
   const std::shared_ptr<Counters> async_counters_;
+  std::shared_ptr<metrics::Recorder> metrics_recorder_;
+  v8::metrics::Recorder::ContextId context_id_;
+  std::weak_ptr<NativeModule> native_module_;
   const CompileMode compile_mode_;
 };
 
-void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
-                         const WasmModule* wasm_module,
-                         NativeModule* native_module) {
+void CompileNativeModule(Isolate* isolate,
+                         v8::metrics::Recorder::ContextId context_id,
+                         ErrorThrower* thrower, const WasmModule* wasm_module,
+                         std::shared_ptr<NativeModule> native_module) {
   CHECK(!FLAG_jitless);
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const bool lazy_module = IsLazyModule(wasm_module);
@@ -1336,7 +1424,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     // Validate wasm modules for lazy compilation if requested. Never validate
     // asm.js modules as these are valid by construction (additionally a CHECK
     // will catch this during lazy compilation).
-    ValidateSequentially(wasm_module, native_module, isolate->counters(),
+    ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower, lazy_module,
                          kOnlyLazyFunctions);
     // On error: Return and leave the module in an unexecutable state.
@@ -1345,71 +1433,74 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
 
   DCHECK_GE(kMaxInt, native_module->module()->num_declared_functions);
 
-  // Install a callback to notify us once background compilation finished, or
-  // compilation failed.
-  auto baseline_finished_semaphore = std::make_shared<base::Semaphore>(0);
   // The callback captures a shared ptr to the semaphore.
   auto* compilation_state = Impl(native_module->compilation_state());
-  compilation_state->AddCallback(
-      [baseline_finished_semaphore](CompilationEvent event) {
-        if (event == CompilationEvent::kFinishedBaselineCompilation ||
-            event == CompilationEvent::kFailedCompilation) {
-          baseline_finished_semaphore->Signal();
-        }
-      });
   if (base::TimeTicks::IsHighResolution()) {
     compilation_state->AddCallback(CompilationTimeCallback{
-        isolate->async_counters(), CompilationTimeCallback::kSynchronous});
+        isolate->async_counters(), isolate->metrics_recorder(), context_id,
+        native_module, CompilationTimeCallback::kSynchronous});
   }
 
   // Initialize the compilation units and kick off background compile tasks.
-  InitializeCompilationUnits(isolate, native_module);
+  InitializeCompilationUnits(isolate, native_module.get());
 
-  // If tiering is disabled, the main thread can execute any unit (all of them
-  // are part of initial compilation). Otherwise, just execute baseline units.
-  bool is_tiering = compilation_state->compile_mode() == CompileMode::kTiering;
-  auto baseline_only = is_tiering ? kBaselineOnly : kBaselineOrTopTier;
-  // The main threads contributes to the compilation.
-  while (ExecuteCompilationUnits(compilation_state->background_compile_token(),
-                                 isolate->counters(), kMainThreadTaskId,
-                                 baseline_only)) {
-    // Continue executing compilation units.
-  }
-
-  // Now wait until baseline compilation finished.
-  baseline_finished_semaphore->Wait();
+  compilation_state->WaitForBaselineFinished();
 
   compilation_state->PublishDetectedFeatures(isolate);
 
   if (compilation_state->failed()) {
     DCHECK_IMPLIES(lazy_module, !FLAG_wasm_lazy_validation);
-    ValidateSequentially(wasm_module, native_module, isolate->counters(),
+    ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower, lazy_module);
     CHECK(thrower->error());
   }
 }
 
 // The runnable task that performs compilations in the background.
-class BackgroundCompileTask : public CancelableTask {
+class BackgroundCompileJob : public JobTask {
  public:
-  explicit BackgroundCompileTask(CancelableTaskManager* manager,
-                                 std::shared_ptr<BackgroundCompileToken> token,
-                                 std::shared_ptr<Counters> async_counters,
-                                 int task_id)
-      : CancelableTask(manager),
-        token_(std::move(token)),
+  explicit BackgroundCompileJob(
+      std::shared_ptr<BackgroundCompileToken> token,
+      std::shared_ptr<Counters> async_counters,
+      std::shared_ptr<std::atomic<int>> current_concurrency,
+      int max_concurrency)
+      : token_(std::move(token)),
         async_counters_(std::move(async_counters)),
-        task_id_(task_id) {}
+        current_concurrency_(std::move(current_concurrency)),
+        max_concurrency_(max_concurrency) {}
 
-  void RunInternal() override {
-    ExecuteCompilationUnits(token_, async_counters_.get(), task_id_,
-                            kBaselineOrTopTier);
+  void Run(JobDelegate* delegate) override {
+    if (ExecuteCompilationUnits(token_, async_counters_.get(), delegate,
+                                kBaselineOrTopTier) == kYield) {
+      return;
+    }
+    // Otherwise we didn't find any more units to execute. Reduce the available
+    // concurrency to zero, but then check whether any more units were added in
+    // the meantime, and increase back if necessary.
+    current_concurrency_->store(0);
+    {
+      BackgroundCompileScope scope(token_);
+      if (scope.cancelled()) return;
+      size_t outstanding_units =
+          scope.compilation_state()->NumOutstandingCompilations();
+      if (outstanding_units == 0) return;
+      // On a race between this thread and the thread which scheduled the units,
+      // this might increase concurrency more than needed, which is fine. It
+      // will be reduced again when the first task finds no more work to do.
+      scope.compilation_state()->ScheduleCompileJobForNewUnits(
+          static_cast<int>(outstanding_units));
+    }
+  }
+
+  size_t GetMaxConcurrency() const override {
+    return std::min(max_concurrency_, current_concurrency_->load());
   }
 
  private:
   const std::shared_ptr<BackgroundCompileToken> token_;
   const std::shared_ptr<Counters> async_counters_;
-  const int task_id_;
+  const std::shared_ptr<std::atomic<int>> current_concurrency_;
+  const int max_concurrency_;
 };
 
 }  // namespace
@@ -1419,9 +1510,15 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out) {
   const WasmModule* wasm_module = module.get();
+  OwnedVector<uint8_t> wire_bytes_copy =
+      OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
+  // Prefer {wire_bytes_copy} to {wire_bytes.module_bytes()} for the temporary
+  // cache key. When we eventually install the module in the cache, the wire
+  // bytes of the temporary key and the new key have the same base pointer and
+  // we can skip the full bytes comparison.
   std::shared_ptr<NativeModule> native_module =
       isolate->wasm_engine()->MaybeGetNativeModule(
-          wasm_module->origin, wire_bytes.module_bytes(), isolate);
+          wasm_module->origin, wire_bytes_copy.as_vector(), isolate);
   if (native_module) {
     // TODO(thibaudm): Look into sharing export wrappers.
     CompileJsToWasmWrappers(isolate, wasm_module, export_wrappers_out);
@@ -1435,8 +1532,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   if (wasm_module->has_shared_memory) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
-  OwnedVector<uint8_t> wire_bytes_copy =
-      OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
   // Create a new {NativeModule} first.
   const bool uses_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
@@ -1447,7 +1542,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       isolate, enabled, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
 
-  CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
+  v8::metrics::Recorder::ContextId context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
+  CompileNativeModule(isolate, context_id, thrower, wasm_module, native_module);
   bool cache_hit = !isolate->wasm_engine()->UpdateNativeModuleCache(
       thrower->error(), &native_module, isolate);
   if (thrower->error()) return {};
@@ -1481,20 +1578,10 @@ void RecompileNativeModule(NativeModule* native_module,
         }
       });
 
-  // We only wait for tier down. Tier up can happen in the background.
-  if (tiering_state == kTieredDown) {
-    // The main thread contributes to the compilation.
-    constexpr Counters* kNoCounters = nullptr;
-    while (ExecuteCompilationUnits(
-        compilation_state->background_compile_token(), kNoCounters,
-        kMainThreadTaskId, kBaselineOnly)) {
-      // Continue executing compilation units.
-    }
-
-    // Now wait until baseline recompilation finished.
-    recompilation_finished_semaphore->Wait();
-    DCHECK(!compilation_state->failed());
-  }
+  // Now wait until all compilation units finished.
+  // TODO(clemensb): Contribute to compilation while waiting.
+  recompilation_finished_semaphore->Wait();
+  DCHECK(!compilation_state->failed());
 }
 
 AsyncCompileJob::AsyncCompileJob(
@@ -1510,7 +1597,9 @@ AsyncCompileJob::AsyncCompileJob(
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
       resolver_(std::move(resolver)) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "new AsyncCompileJob");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.AsyncCompileJob");
+  CHECK(FLAG_wasm_async_compilation);
   CHECK(!FLAG_jitless);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
@@ -1518,10 +1607,12 @@ AsyncCompileJob::AsyncCompileJob(
   native_context_ =
       isolate->global_handles()->Create(context->native_context());
   DCHECK(native_context_->IsNativeContext());
+  context_id_ = isolate->GetOrRegisterRecorderContextId(native_context_);
 }
 
 void AsyncCompileJob::Start() {
-  DoAsync<DecodeModule>(isolate_->counters());  // --
+  DoAsync<DecodeModule>(isolate_->counters(),
+                        isolate_->metrics_recorder());  // --
 }
 
 void AsyncCompileJob::Abort() {
@@ -1536,7 +1627,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
                                    std::shared_ptr<Counters> counters,
                                    AccountingAllocator* allocator);
 
-  ~AsyncStreamingProcessor();
+  ~AsyncStreamingProcessor() override;
 
   bool ProcessModuleHeader(Vector<const uint8_t> bytes,
                            uint32_t offset) override;
@@ -1586,8 +1677,9 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
   DCHECK_NULL(stream_);
-  stream_.reset(new StreamingDecoder(std::make_unique<AsyncStreamingProcessor>(
-      this, isolate_->async_counters(), isolate_->allocator())));
+  stream_ = StreamingDecoder::CreateAsyncStreamingDecoder(
+      std::make_unique<AsyncStreamingProcessor>(
+          this, isolate_->async_counters(), isolate_->allocator()));
   return stream_;
 }
 
@@ -1597,7 +1689,7 @@ AsyncCompileJob::~AsyncCompileJob() {
   // If the runtime objects were not created yet, then initial compilation did
   // not finish yet. In this case we can abort compilation.
   if (native_module_ && module_object_.is_null()) {
-    Impl(native_module_->compilation_state())->AbortCompilation();
+    Impl(native_module_->compilation_state())->CancelCompilation();
   }
   // Tell the streaming decoder that the AsyncCompileJob is not available
   // anymore.
@@ -1656,8 +1748,8 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
 void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "AsyncCompileJob::FinishCompile");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.FinishAsyncCompile");
   bool is_after_deserialization = !module_object_.is_null();
   auto compilation_state = Impl(native_module_->compilation_state());
   if (!is_after_deserialization) {
@@ -1673,6 +1765,21 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
     int duration_usecs = static_cast<int>(duration.InMicroseconds());
     isolate_->counters()->wasm_streaming_finish_wasm_module_time()->AddSample(
         duration_usecs);
+
+    if (is_after_cache_hit || is_after_deserialization) {
+      v8::metrics::WasmModuleCompiled event{
+          true,                                     // async
+          true,                                     // streamed
+          is_after_cache_hit,                       // cached
+          is_after_deserialization,                 // deserialized
+          wasm_lazy_compilation_,                   // lazy
+          !compilation_state->failed(),             // success
+          native_module_->generated_code_size(),    // code_size_in_bytes
+          native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
+          duration.InMicroseconds()                 // wall_clock_time_in_us
+      };
+      isolate_->metrics_recorder()->DelayMainThreadEvent(event, context_id_);
+    }
   }
 
   DCHECK(!isolate_->context().is_null());
@@ -1689,7 +1796,8 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
   {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "Debug::OnAfterCompile");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.Debug.OnAfterCompile");
     isolate_->debug()->OnAfterCompile(script);
   }
 
@@ -1736,8 +1844,8 @@ void AsyncCompileJob::AsyncCompileFailed() {
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "CompilationResultResolver::OnCompilationSucceeded");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.OnCompilationSucceeded");
   resolver_->OnCompilationSucceeded(result);
 }
 
@@ -1771,8 +1879,11 @@ class AsyncCompileJob::CompilationStateCallback {
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
+          // Don't update {job_->native_module_} to avoid data races with other
+          // compilation threads. Use a copy of the shared pointer instead.
+          std::shared_ptr<NativeModule> native_module = job_->native_module_;
           job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-              true, &job_->native_module_, job_->isolate_);
+              true, &native_module, job_->isolate_);
           job_->DoSync<CompileFailed>();
         }
         break;
@@ -1781,8 +1892,6 @@ class AsyncCompileJob::CompilationStateCallback {
         // {kFinishedTopTierCompilation}, hence don't remember this in
         // {last_event_}.
         return;
-      default:
-        UNREACHABLE();
     }
 #ifdef DEBUG
     last_event_ = event;
@@ -1924,7 +2033,9 @@ void AsyncCompileJob::NextStep(Args&&... args) {
 //==========================================================================
 class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
  public:
-  explicit DecodeModule(Counters* counters) : counters_(counters) {}
+  explicit DecodeModule(Counters* counters,
+                        std::shared_ptr<metrics::Recorder> metrics_recorder)
+      : counters_(counters), metrics_recorder_(std::move(metrics_recorder)) {}
 
   void RunInBackground(AsyncCompileJob* job) override {
     ModuleResult result;
@@ -1933,13 +2044,13 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       DisallowHeapAllocation no_allocation;
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-                   "AsyncCompileJob::DecodeModule");
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                   "wasm.DecodeModule");
       auto enabled_features = job->enabled_features_;
-      result = DecodeWasmModule(enabled_features, job->wire_bytes_.start(),
-                                job->wire_bytes_.end(), false, kWasmOrigin,
-                                counters_,
-                                job->isolate()->wasm_engine()->allocator());
+      result = DecodeWasmModule(
+          enabled_features, job->wire_bytes_.start(), job->wire_bytes_.end(),
+          false, kWasmOrigin, counters_, metrics_recorder_, job->context_id(),
+          DecodingMethod::kAsync, job->isolate()->wasm_engine()->allocator());
 
       // Validate lazy functions here if requested.
       if (!FLAG_wasm_lazy_validation && result.ok()) {
@@ -1991,6 +2102,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
 
  private:
   Counters* const counters_;
+  std::shared_ptr<metrics::Recorder> metrics_recorder_;
 };
 
 //==========================================================================
@@ -2051,7 +2163,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                               ? CompilationTimeCallback::kAsync
                               : CompilationTimeCallback::kStreaming;
       compilation_state->AddCallback(CompilationTimeCallback{
-          job->isolate_->async_counters(), compile_mode});
+          job->isolate_->async_counters(), job->isolate_->metrics_recorder(),
+          job->context_id_, job->native_module_, compile_mode});
     }
 
     if (start_compilation_) {
@@ -2163,7 +2276,7 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationStateImpl as well.
   if (job_->native_module_) {
-    Impl(job_->native_module_->compilation_state())->AbortCompilation();
+    Impl(job_->native_module_->compilation_state())->CancelCompilation();
 
     job_->DoSync<AsyncCompileJob::DecodeFail,
                  AsyncCompileJob::kUseExistingForegroundTask>(error);
@@ -2181,8 +2294,9 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
 bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
   TRACE_STREAMING("Process module header...\n");
-  decoder_.StartDecoding(job_->isolate()->counters(),
-                         job_->isolate()->wasm_engine()->allocator());
+  decoder_.StartDecoding(
+      job_->isolate()->counters(), job_->isolate()->metrics_recorder(),
+      job_->context_id(), job_->isolate()->wasm_engine()->allocator());
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
@@ -2404,9 +2518,17 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   } else {
     job_->native_module_->SetWireBytes(
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()});
+    job_->native_module_->LogWasmCodes(job_->isolate_);
   }
   const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   DCHECK_IMPLIES(!has_code_section, needs_finish);
+  // We might need to recompile the module for debugging, if the debugger was
+  // enabled while streaming compilation was running. Since handling this while
+  // compiling via streaming is tricky, we just tier down now, before publishing
+  // the module.
+  if (job_->native_module_->IsTieredDown()) {
+    job_->native_module_->RecompileForTiering();
+  }
   if (needs_finish) {
     const bool failed = job_->native_module_->compilation_state()->failed();
     if (!cache_hit) {
@@ -2434,6 +2556,7 @@ void AsyncStreamingProcessor::OnAbort() {
 
 bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
                                           Vector<const uint8_t> wire_bytes) {
+  TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
   // DeserializeNativeModule and FinishCompile assume that they are executed in
   // a HandleScope, and that a context is set on the isolate.
   HandleScope scope(job_->isolate_);
@@ -2452,8 +2575,9 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
   return true;
 }
 
-int GetMaxBackgroundTasks() {
-  if (NeedsDeterministicCompile()) return 0;
+// TODO(wasm): Try to avoid the {NumberOfWorkerThreads} calls, grow queues
+// dynamically instead.
+int GetMaxCompileConcurrency() {
   int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
   return std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
 }
@@ -2469,17 +2593,19 @@ CompilationStateImpl::CompilationStateImpl(
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       async_counters_(std::move(async_counters)),
-      max_background_tasks_(std::max(GetMaxBackgroundTasks(), 1)),
-      compilation_unit_queues_(max_background_tasks_),
-      available_task_ids_(max_background_tasks_) {
-  for (int i = 0; i < max_background_tasks_; ++i) {
+      max_compile_concurrency_(std::max(GetMaxCompileConcurrency(), 1)),
+      // Add one to the allowed number of parallel tasks, because the foreground
+      // task sometimes also contributes.
+      compilation_unit_queues_(max_compile_concurrency_ + 1),
+      available_task_ids_(max_compile_concurrency_ + 1) {
+  for (int i = 0; i <= max_compile_concurrency_; ++i) {
     // Ids are popped on task creation, so reverse this list. This ensures that
     // the first background task gets id 0.
-    available_task_ids_[i] = max_background_tasks_ - 1 - i;
+    available_task_ids_[i] = max_compile_concurrency_ - i;
   }
 }
 
-void CompilationStateImpl::AbortCompilation() {
+void CompilationStateImpl::CancelCompilation() {
   background_compile_token_->Cancel();
   // No more callbacks after abort.
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
@@ -2547,18 +2673,19 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
 
   // Trigger callbacks if module needs no baseline or top tier compilation. This
   // can be the case for an empty or fully lazy module.
-  if (outstanding_baseline_units_ == 0) {
-    for (auto& callback : callbacks_) {
-      callback(CompilationEvent::kFinishedBaselineCompilation);
-    }
-    if (outstanding_top_tier_functions_ == 0) {
-      for (auto& callback : callbacks_) {
-        callback(CompilationEvent::kFinishedTopTierCompilation);
-      }
-      // Clear the callbacks because no more events will be delivered.
-      callbacks_.clear();
-    }
-  }
+  TriggerCallbacks();
+}
+
+void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization() {
+  auto* module = native_module_->module();
+  base::MutexGuard guard(&callbacks_mutex_);
+  DCHECK(compilation_progress_.empty());
+  constexpr uint8_t kProgressAfterDeserialization =
+      RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
+      RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
+      ReachedTierField::encode(ExecutionTier::kTurbofan);
+  compilation_progress_.assign(module->num_declared_functions,
+                               kProgressAfterDeserialization);
 }
 
 void CompilationStateImpl::InitializeRecompilation(
@@ -2569,36 +2696,54 @@ void CompilationStateImpl::InitializeRecompilation(
   // Generate necessary compilation units on the fly.
   CompilationUnitBuilder builder(native_module_);
 
+  // Information about compilation progress is shared between this class and the
+  // NativeModule. Before updating information here, consult the NativeModule to
+  // find all functions that need recompilation.
+  // Since the current tiering state is updated on the NativeModule before
+  // triggering recompilation, it's OK if the information is slightly outdated.
+  // If we compile functions twice, the NativeModule will ignore all redundant
+  // code (or code compiled for the wrong tier).
+  std::vector<int> recompile_function_indexes =
+      native_module_->FindFunctionsToRecompile(new_tiering_state);
+
   {
     base::MutexGuard guard(&callbacks_mutex_);
 
-    // Restart recompilation if another recompilation is already happening.
-    outstanding_recompilation_functions_ = 0;
-    // If compilation hasn't started yet then code would be kept as tiered-down
-    // and don't need to recompile.
+    callbacks_.emplace_back(std::move(recompilation_finished_callback));
+    tiering_state_ = new_tiering_state;
+
+    // If compilation progress is not initialized yet, then compilation didn't
+    // start yet, and new code will be kept tiered-down from the start. For
+    // streaming compilation, there is a special path to tier down later, when
+    // the module is complete. In any case, we don't need to recompile here.
     if (compilation_progress_.size() > 0) {
       const WasmModule* module = native_module_->module();
+      DCHECK_EQ(module->num_declared_functions, compilation_progress_.size());
+      DCHECK_GE(module->num_declared_functions,
+                recompile_function_indexes.size());
+      outstanding_recompilation_functions_ =
+          static_cast<int>(recompile_function_indexes.size());
+      // Restart recompilation if another recompilation is already happening.
+      for (auto& progress : compilation_progress_) {
+        progress = MissingRecompilationField::update(progress, false);
+      }
+      auto new_tier = new_tiering_state == kTieredDown
+                          ? ExecutionTier::kLiftoff
+                          : ExecutionTier::kTurbofan;
       int imported = module->num_imported_functions;
-      int declared = module->num_declared_functions;
-      outstanding_recompilation_functions_ = declared;
-      DCHECK_EQ(declared, compilation_progress_.size());
-      for (int slot_index = 0; slot_index < declared; ++slot_index) {
-        compilation_progress_[slot_index] = MissingRecompilationField::update(
-            compilation_progress_[slot_index], true);
-        builder.AddRecompilationUnit(imported + slot_index,
-                                     new_tiering_state == kTieredDown
-                                         ? ExecutionTier::kLiftoff
-                                         : ExecutionTier::kTurbofan);
+      for (int function_index : recompile_function_indexes) {
+        DCHECK_LE(imported, function_index);
+        int slot_index = function_index - imported;
+        auto& progress = compilation_progress_[slot_index];
+        progress = MissingRecompilationField::update(progress, true);
+        builder.AddRecompilationUnit(function_index, new_tier);
       }
     }
 
-    // Trigger callback if module needs no recompilation. Add to the list of
-    // callbacks (to be called later) otherwise.
+    // Trigger callback if module needs no recompilation.
     if (outstanding_recompilation_functions_ == 0) {
-      recompilation_finished_callback(CompilationEvent::kFinishedRecompilation);
-    } else {
-      callbacks_.emplace_back(std::move(recompilation_finished_callback));
-      tiering_state_ = new_tiering_state;
+      TriggerCallbacks(base::EnumSet<CompilationEvent>(
+          {CompilationEvent::kFinishedRecompilation}));
     }
   }
 
@@ -2636,7 +2781,9 @@ void CompilationStateImpl::AddCompilationUnits(
                                    js_to_wasm_wrapper_units.begin(),
                                    js_to_wasm_wrapper_units.end());
 
-  RestartBackgroundTasks();
+  size_t total_units = baseline_units.size() + top_tier_units.size() +
+                       js_to_wasm_wrapper_units.size();
+  ScheduleCompileJobForNewUnits(static_cast<int>(total_units));
 }
 
 void CompilationStateImpl::AddTopTierCompilationUnit(WasmCompilationUnit unit) {
@@ -2661,8 +2808,9 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking
   // because many such wrapper are allocated in sequence below.
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FinalizeJSToWasmWrappers",
-               "num_wrappers", js_to_wasm_wrapper_units_.size());
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.FinalizeJSToWasmWrappers", "num_wrappers",
+               js_to_wasm_wrapper_units_.size());
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     Handle<Code> code = unit->Finalize(isolate);
@@ -2680,8 +2828,8 @@ CompilationStateImpl::GetNextCompilationUnit(
 }
 
 void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "OnFinishedUnits",
-               "num_units", code_vector.size());
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.OnFinishedUnits", "num_units", code_vector.size());
 
   base::MutexGuard guard(&callbacks_mutex_);
 
@@ -2696,8 +2844,7 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
 
   // Assume an order of execution tiers that represents the quality of their
   // generated code.
-  static_assert(ExecutionTier::kNone < ExecutionTier::kInterpreter &&
-                    ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
+  static_assert(ExecutionTier::kNone < ExecutionTier::kLiftoff &&
                     ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                 "Assume an order on execution tiers");
 
@@ -2794,6 +2941,12 @@ void CompilationStateImpl::TriggerCallbacks(
     }
   }
 
+  if (compile_failed_.load(std::memory_order_relaxed)) {
+    // *Only* trigger the "failed" event.
+    triggered_events =
+        base::EnumSet<CompilationEvent>({CompilationEvent::kFailedCompilation});
+  }
+
   if (triggered_events.empty()) return;
 
   // Don't trigger past events again.
@@ -2803,14 +2956,16 @@ void CompilationStateImpl::TriggerCallbacks(
       triggered_events - CompilationEvent::kFinishedRecompilation;
 
   for (auto event :
-       {std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
-                       "BaselineFinished"),
+       {std::make_pair(CompilationEvent::kFailedCompilation,
+                       "wasm.CompilationFailed"),
+        std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
+                       "wasm.BaselineFinished"),
         std::make_pair(CompilationEvent::kFinishedTopTierCompilation,
-                       "TopTierFinished"),
+                       "wasm.TopTierFinished"),
         std::make_pair(CompilationEvent::kFinishedRecompilation,
-                       "RecompilationFinished")}) {
+                       "wasm.RecompilationFinished")}) {
     if (!triggered_events.contains(event.first)) continue;
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), event.second);
+    TRACE_EVENT0("v8.wasm", event.second);
     for (auto& callback : callbacks_) {
       callback(event.first);
     }
@@ -2824,26 +2979,26 @@ void CompilationStateImpl::TriggerCallbacks(
   }
 }
 
-void CompilationStateImpl::OnBackgroundTaskStopped(
-    int task_id, const WasmFeatures& detected) {
-  {
-    base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(0, std::count(available_task_ids_.begin(),
-                            available_task_ids_.end(), task_id));
-    DCHECK_GT(max_background_tasks_, available_task_ids_.size());
-    available_task_ids_.push_back(task_id);
-    detected_features_.Add(detected);
+int CompilationStateImpl::GetFreeCompileTaskId() {
+  base::MutexGuard guard(&mutex_);
+  if (V8_UNLIKELY(available_task_ids_.empty())) {
+    FATAL(
+        "The platform is running the compile job with more concurrency than "
+        "returned by {GetMaxConcurrency()}.");
   }
-
-  // The background task could have stopped while we were adding new units, or
-  // because it reached its deadline. In both cases we need to restart tasks to
-  // avoid a potential deadlock.
-  RestartBackgroundTasks();
+  int id = available_task_ids_.back();
+  available_task_ids_.pop_back();
+  return id;
 }
 
-void CompilationStateImpl::UpdateDetectedFeatures(
-    const WasmFeatures& detected) {
+void CompilationStateImpl::OnCompilationStopped(int task_id,
+                                                const WasmFeatures& detected) {
+  DCHECK_GE(max_compile_concurrency_, task_id);
   base::MutexGuard guard(&mutex_);
+  DCHECK_EQ(0, std::count(available_task_ids_.begin(),
+                          available_task_ids_.end(), task_id));
+  available_task_ids_.push_back(task_id);
+  DCHECK_GE(max_compile_concurrency_ + 1, available_task_ids_.size());
   detected_features_.Add(detected);
 }
 
@@ -2855,46 +3010,48 @@ void CompilationStateImpl::PublishDetectedFeatures(Isolate* isolate) {
   UpdateFeatureUseCounts(isolate, detected_features_);
 }
 
-void CompilationStateImpl::RestartBackgroundTasks() {
-  // Create new tasks, but only spawn them after releasing the mutex, because
-  // some platforms (e.g. the predictable platform) might execute tasks right
-  // away.
-  std::vector<std::unique_ptr<Task>> new_tasks;
-  {
-    base::MutexGuard guard(&mutex_);
-    // Explicit fast path (quite common): If no more task ids are available
-    // (i.e. {max_background_tasks_} tasks are already running), spawn nothing.
-    if (available_task_ids_.empty()) return;
-    // No need to restart tasks if compilation already failed.
-    if (failed()) return;
-
-    size_t max_num_restart = compilation_unit_queues_.GetTotalSize();
-    if (js_to_wasm_wrapper_id_ <
-        static_cast<int>(js_to_wasm_wrapper_units_.size())) {
-      max_num_restart +=
-          js_to_wasm_wrapper_units_.size() - js_to_wasm_wrapper_id_;
-    }
-
-    while (!available_task_ids_.empty() && max_num_restart-- > 0) {
-      int task_id = available_task_ids_.back();
-      available_task_ids_.pop_back();
-      new_tasks.emplace_back(
-          native_module_->engine()
-              ->NewBackgroundCompileTask<BackgroundCompileTask>(
-                  background_compile_token_, async_counters_, task_id));
-    }
+void CompilationStateImpl::ScheduleCompileJobForNewUnits(int new_units) {
+  // Increase the {current_compile_concurrency_} counter and remember the old
+  // value to check whether it increased towards {max_compile_concurrency_}.
+  // In that case, we need to notify the compile job about the increased
+  // concurrency.
+  DCHECK_LT(0, new_units);
+  int old_units = current_compile_concurrency_->load();
+  while (!current_compile_concurrency_->compare_exchange_weak(
+      old_units, old_units + new_units)) {
+    // Retry with updated {old_units}.
   }
+  bool concurrency_increased = old_units < max_compile_concurrency_;
 
-  if (baseline_compilation_finished() && recompilation_finished()) {
-    for (auto& task : new_tasks) {
-      V8::GetCurrentPlatform()->CallLowPriorityTaskOnWorkerThread(
-          std::move(task));
+  base::MutexGuard guard(&mutex_);
+  if (current_compile_job_ && current_compile_job_->IsRunning()) {
+    if (concurrency_increased) {
+      current_compile_job_->NotifyConcurrencyIncrease();
     }
-  } else {
-    for (auto& task : new_tasks) {
-      V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
-    }
+    return;
   }
+  if (failed()) return;
+
+  std::unique_ptr<JobTask> new_compile_job =
+      std::make_unique<BackgroundCompileJob>(
+          background_compile_token_, async_counters_,
+          current_compile_concurrency_, max_compile_concurrency_);
+  // TODO(wasm): Lower priority for TurboFan-only jobs.
+  std::shared_ptr<JobHandle> handle = V8::GetCurrentPlatform()->PostJob(
+      TaskPriority::kUserVisible, std::move(new_compile_job));
+  native_module_->engine()->ShepherdCompileJobHandle(handle);
+  current_compile_job_ =
+      std::make_unique<ThreadSafeJobHandle>(std::move(handle));
+}
+
+size_t CompilationStateImpl::NumOutstandingCompilations() const {
+  size_t next_wrapper = js_to_wasm_wrapper_id_.load(std::memory_order_relaxed);
+  size_t outstanding_wrappers =
+      next_wrapper >= js_to_wasm_wrapper_units_.size()
+          ? 0
+          : js_to_wasm_wrapper_units_.size() - next_wrapper;
+  size_t outstanding_functions = compilation_unit_queues_.GetTotalSize();
+  return outstanding_wrappers + outstanding_functions;
 }
 
 void CompilationStateImpl::SetError() {
@@ -2905,11 +3062,26 @@ void CompilationStateImpl::SetError() {
   }
 
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
-  for (auto& callback : callbacks_) {
-    callback(CompilationEvent::kFailedCompilation);
-  }
-  // No more callbacks after an error.
-  callbacks_.clear();
+  TriggerCallbacks();
+}
+
+void CompilationStateImpl::WaitForBaselineFinished() {
+  auto baseline_finished_semaphore = std::make_shared<base::Semaphore>(0);
+  AddCallback([baseline_finished_semaphore](CompilationEvent event) {
+    if (event == CompilationEvent::kFinishedBaselineCompilation ||
+        event == CompilationEvent::kFailedCompilation) {
+      baseline_finished_semaphore->Signal();
+    }
+  });
+
+  // Execute baseline compilation units, as long as there are any available.
+  constexpr JobDelegate* kNoDelegate = nullptr;
+  ExecuteCompilationUnits(background_compile_token_, async_counters_.get(),
+                          kNoDelegate, kBaselineOnly);
+
+  // Now wait until baseline compilation finished (other threads might still be
+  // running baseline units).
+  baseline_finished_semaphore->Wait();
 }
 
 namespace {
@@ -2920,25 +3092,35 @@ using JSToWasmWrapperUnitMap =
                        std::unique_ptr<JSToWasmWrapperCompilationUnit>,
                        base::hash<JSToWasmWrapperKey>>;
 
-class CompileJSToWasmWrapperTask final : public CancelableTask {
+class CompileJSToWasmWrapperJob final : public JobTask {
  public:
-  CompileJSToWasmWrapperTask(CancelableTaskManager* task_manager,
-                             JSToWasmWrapperQueue* queue,
-                             JSToWasmWrapperUnitMap* compilation_units)
-      : CancelableTask(task_manager),
-        queue_(queue),
-        compilation_units_(compilation_units) {}
+  CompileJSToWasmWrapperJob(JSToWasmWrapperQueue* queue,
+                            JSToWasmWrapperUnitMap* compilation_units,
+                            size_t max_concurrency)
+      : queue_(queue),
+        compilation_units_(compilation_units),
+        max_concurrency_(max_concurrency),
+        outstanding_units_(queue->size()) {}
 
-  void RunInternal() override {
+  void Run(JobDelegate* delegate) override {
     while (base::Optional<JSToWasmWrapperKey> key = queue_->pop()) {
       JSToWasmWrapperCompilationUnit* unit = (*compilation_units_)[*key].get();
       unit->Execute();
+      outstanding_units_.fetch_sub(1, std::memory_order_relaxed);
+      if (delegate->ShouldYield()) return;
     }
+  }
+
+  size_t GetMaxConcurrency() const override {
+    return std::min(max_concurrency_,
+                    outstanding_units_.load(std::memory_order_relaxed));
   }
 
  private:
   JSToWasmWrapperQueue* const queue_;
   JSToWasmWrapperUnitMap* const compilation_units_;
+  const size_t max_concurrency_;
+  std::atomic<size_t> outstanding_units_;
 };
 }  // namespace
 
@@ -2964,21 +3146,17 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     }
   }
 
-  // Execute compilation jobs in the background.
-  CancelableTaskManager task_manager;
-  const int max_background_tasks = GetMaxBackgroundTasks();
-  for (int i = 0; i < max_background_tasks; ++i) {
-    auto task = std::make_unique<CompileJSToWasmWrapperTask>(
-        &task_manager, &queue, &compilation_units);
-    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
-  }
+  // Execute wrapper compilation in the background.
+  int flag_value = FLAG_wasm_num_compilation_tasks;
+  size_t max_concurrency = flag_value < 1 ? std::numeric_limits<size_t>::max()
+                                          : static_cast<size_t>(flag_value);
+  auto job = std::make_unique<CompileJSToWasmWrapperJob>(
+      &queue, &compilation_units, max_concurrency);
+  auto job_handle = V8::GetCurrentPlatform()->PostJob(
+      TaskPriority::kUserVisible, std::move(job));
 
-  // Work in the main thread too.
-  while (base::Optional<JSToWasmWrapperKey> key = queue.pop()) {
-    JSToWasmWrapperCompilationUnit* unit = compilation_units[*key].get();
-    unit->Execute();
-  }
-  task_manager.CancelAndWait();
+  // Wait for completion, while contributing to the work.
+  job_handle->Join();
 
   // Finalize compilation jobs in the main thread.
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
@@ -2998,18 +3176,19 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 WasmCode* CompileImportWrapper(
     WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
+    int expected_arity,
     WasmImportWrapperCache::ModificationScope* cache_scope) {
   // Entry should exist, so that we don't insert a new one and invalidate
   // other threads' iterators/references, but it should not have been compiled
   // yet.
-  WasmImportWrapperCache::CacheKey key(kind, sig);
+  WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity);
   DCHECK_NULL((*cache_scope)[key]);
   bool source_positions = is_asmjs_module(native_module->module());
   // Keep the {WasmCode} alive until we explicitly call {IncRef}.
   WasmCodeRefScope code_ref_scope;
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      wasm_engine, &env, kind, sig, source_positions);
+      wasm_engine, &env, kind, sig, source_positions, expected_arity);
   std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
       result.func_index, result.code_desc, result.frame_slot_count,
       result.tagged_parameter_slots,

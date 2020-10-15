@@ -26,7 +26,7 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
   static void SetUpDefaultMicrotaskQueue(Isolate* isolate);
   static std::unique_ptr<MicrotaskQueue> New(Isolate* isolate);
 
-  ~MicrotaskQueue();
+  ~MicrotaskQueue() override;
 
   // Uses raw Address values because it's called via ExternalReference.
   // {raw_microtask} is a tagged Microtask pointer.

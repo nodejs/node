@@ -48,7 +48,7 @@ NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 # Flags known to misbehave when combining arbitrary mjsunit tests. Can also
 # be compiled regular expressions.
-COMBINE_TESTS_FLAGS_BLACKLIST = [
+MISBEHAVING_COMBINED_TESTS_FLAGS= [
   '--check-handle-count',
   '--enable-tracing',
   re.compile('--experimental.*'),
@@ -206,7 +206,7 @@ class CombinedTest(testcase.D8TestCase):
     """In addition to standard set of shell flags it appends:
       --disable-abortjs: %AbortJS can abort the test even inside
         trycatch-wrapper, so we disable it.
-      --es-staging: We blacklist all harmony flags due to false positives,
+      --es-staging: We skip all harmony flags due to false positives,
           but always pass the staging flag to cover the mature features.
       --omit-quit: Calling quit() in JS would otherwise early terminate.
       --quiet-load: suppress any stdout from load() function used by
@@ -247,8 +247,8 @@ class CombinedTest(testcase.D8TestCase):
       elif flag1.startswith('-'):
         yield flag1
 
-  def _is_flag_blacklisted(self, flag):
-    for item in COMBINE_TESTS_FLAGS_BLACKLIST:
+  def _is_flag_blocked(self, flag):
+    for item in MISBEHAVING_COMBINED_TESTS_FLAGS:
       if isinstance(item, basestring):
         if item == flag:
           return True
@@ -267,7 +267,7 @@ class CombinedTest(testcase.D8TestCase):
     unique_flags = OrderedDict((flag, True) for flag in merged_flags).keys()
     return [
       flag for flag in unique_flags
-      if not self._is_flag_blacklisted(flag)
+      if not self._is_flag_blocked(flag)
     ]
 
   def _get_source_flags(self):

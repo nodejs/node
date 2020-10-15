@@ -275,6 +275,13 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
   return std::unique_ptr<BackingStore>(result);
 }
 
+// Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
+// We don't lower the official max_maximum_mem_pages() limit because that
+// would be observable upon instantiation; this way the effective limit
+// on 32-bit platforms is defined by the allocator.
+constexpr size_t kPlatformMaxPages =
+    std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
+
 void BackingStore::SetAllocatorFromIsolate(Isolate* isolate) {
   if (auto allocator_shared = isolate->array_buffer_allocator_shared()) {
     holds_shared_ptr_to_allocator_ = true;
@@ -320,6 +327,9 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
 
   size_t engine_max_pages = wasm::max_maximum_mem_pages();
   maximum_pages = std::min(engine_max_pages, maximum_pages);
+  // If the platform doesn't support so many pages, attempting to allocate
+  // is guaranteed to fail, so we don't even try.
+  if (maximum_pages > kPlatformMaxPages) return {};
   CHECK_LE(maximum_pages,
            std::numeric_limits<size_t>::max() / wasm::kWasmPageSize);
   size_t byte_capacity = maximum_pages * wasm::kWasmPageSize;
@@ -417,21 +427,24 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
 
   // Enforce engine limitation on the maximum number of pages.
   if (initial_pages > wasm::kV8MaxWasmMemoryPages) return nullptr;
-
-  // Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
-  // We don't lower the official max_maximum_mem_pages() limit because that
-  // would be observable upon instantiation; this way the effective limit
-  // on 32-bit platforms is defined by the allocator.
-  constexpr size_t kPlatformMax =
-      std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
-  if (initial_pages > kPlatformMax) return nullptr;
+  if (initial_pages > kPlatformMaxPages) return nullptr;
 
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);
-  if (!backing_store && maximum_pages > initial_pages) {
-    // If reserving {maximum_pages} failed, try with maximum = initial.
+  if (maximum_pages == initial_pages) {
+    // If initial pages, and maximum are equal, nothing more to do return early.
+    return backing_store;
+  }
+
+  // Retry with smaller maximum pages at each retry.
+  const int kAllocationTries = 3;
+  auto delta = (maximum_pages - initial_pages) / (kAllocationTries + 1);
+  size_t sizes[] = {maximum_pages - delta, maximum_pages - 2 * delta,
+                    maximum_pages - 3 * delta, initial_pages};
+
+  for (size_t i = 0; i < arraysize(sizes) && !backing_store; i++) {
     backing_store =
-        TryAllocateWasmMemory(isolate, initial_pages, initial_pages, shared);
+        TryAllocateWasmMemory(isolate, initial_pages, sizes[i], shared);
   }
   return backing_store;
 }
@@ -646,7 +659,7 @@ SharedWasmMemoryData* BackingStore::get_shared_wasm_memory_data() {
 namespace {
 // Implementation details of GlobalBackingStoreRegistry.
 struct GlobalBackingStoreRegistryImpl {
-  GlobalBackingStoreRegistryImpl() {}
+  GlobalBackingStoreRegistryImpl() = default;
   base::Mutex mutex_;
   std::unordered_map<const void*, std::weak_ptr<BackingStore>> map_;
 };

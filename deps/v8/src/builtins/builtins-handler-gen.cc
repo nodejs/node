@@ -9,6 +9,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/objects/objects-inl.h"
+#include "torque-generated/exported-macros-assembler-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -78,37 +79,11 @@ TNode<Object> HandlerBuiltinsAssembler::EmitKeyedSloppyArguments(
     TNode<JSObject> receiver, TNode<Object> tagged_key,
     base::Optional<TNode<Object>> value, Label* bailout,
     ArgumentsAccessMode access_mode) {
-  // Mapped arguments are actual arguments. Unmapped arguments are values added
-  // to the arguments object after it was created for the call. Mapped arguments
-  // are stored in the context at indexes given by elements[key + 2]. Unmapped
-  // arguments are stored as regular indexed properties in the arguments array,
-  // held at elements[1]. See NewSloppyArguments() in runtime.cc for a detailed
-  // look at argument object construction.
-  //
-  // The sloppy arguments elements array has a special format:
-  //
-  // 0: context
-  // 1: unmapped arguments array
-  // 2: mapped_index0,
-  // 3: mapped_index1,
-  // ...
-  //
-  // length is 2 + min(number_of_actual_arguments, number_of_formal_arguments).
-  // If key + 2 >= elements.length then attempt to look in the unmapped
-  // arguments array (given by elements[1]) and return the value at key, missing
-  // to the runtime if the unmapped arguments array is not a fixed array or if
-  // key >= unmapped_arguments_array.length.
-  //
-  // Otherwise, t = elements[key + 2]. If t is the hole, then look up the value
-  // in the unmapped arguments array, as described above. Otherwise, t is a Smi
-  // index into the context array given at elements[0]. Return the value at
-  // context[t].
-
   GotoIfNot(TaggedIsSmi(tagged_key), bailout);
   TNode<IntPtrT> key = SmiUntag(CAST(tagged_key));
   GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
 
-  TNode<FixedArray> elements = CAST(LoadElements(receiver));
+  TNode<SloppyArgumentsElements> elements = CAST(LoadElements(receiver));
   TNode<IntPtrT> elements_length = LoadAndUntagFixedArrayBaseLength(elements);
 
   TVARIABLE(Object, var_result);
@@ -119,20 +94,18 @@ TNode<Object> HandlerBuiltinsAssembler::EmitKeyedSloppyArguments(
            access_mode == ArgumentsAccessMode::kHas);
   }
   Label if_mapped(this), if_unmapped(this), end(this, &var_result);
-  TNode<IntPtrT> intptr_two = IntPtrConstant(2);
-  TNode<IntPtrT> adjusted_length = IntPtrSub(elements_length, intptr_two);
 
-  GotoIf(UintPtrGreaterThanOrEqual(key, adjusted_length), &if_unmapped);
+  GotoIf(UintPtrGreaterThanOrEqual(key, elements_length), &if_unmapped);
 
   TNode<Object> mapped_index =
-      LoadFixedArrayElement(elements, IntPtrAdd(key, intptr_two));
+      LoadSloppyArgumentsElementsMappedEntries(elements, key);
   Branch(TaggedEqual(mapped_index, TheHoleConstant()), &if_unmapped,
          &if_mapped);
 
   BIND(&if_mapped);
   {
     TNode<IntPtrT> mapped_index_intptr = SmiUntag(CAST(mapped_index));
-    TNode<Context> the_context = CAST(LoadFixedArrayElement(elements, 0));
+    TNode<Context> the_context = LoadSloppyArgumentsElementsContext(elements);
     if (access_mode == ArgumentsAccessMode::kLoad) {
       TNode<Object> result =
           LoadContextElement(the_context, mapped_index_intptr);
@@ -151,7 +124,7 @@ TNode<Object> HandlerBuiltinsAssembler::EmitKeyedSloppyArguments(
   BIND(&if_unmapped);
   {
     TNode<HeapObject> backing_store_ho =
-        CAST(LoadFixedArrayElement(elements, 1));
+        LoadSloppyArgumentsElementsArguments(elements);
     GotoIf(TaggedNotEqual(LoadMap(backing_store_ho), FixedArrayMapConstant()),
            bailout);
     TNode<FixedArray> backing_store = CAST(backing_store_ho);

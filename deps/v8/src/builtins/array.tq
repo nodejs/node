@@ -71,7 +71,7 @@ macro EnsureArrayLengthWritable(implicit context: Context)(map: Map):
   // guaranteed to stay the first property.
   const descriptors: DescriptorArray = map.instance_descriptors;
   const descriptor:&DescriptorEntry =
-      & descriptors.descriptors[kLengthDescriptorIndex];
+      &descriptors.descriptors[kLengthDescriptorIndex];
   assert(TaggedEqual(descriptor->key, LengthStringConstant()));
   const details: Smi = UnsafeCast<Smi>(descriptor->details);
   if ((details & kAttributesReadOnlyMask) != 0) {

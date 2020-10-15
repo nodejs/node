@@ -49,7 +49,7 @@ const mkCall = (constr_exp, propCall) => {
   return `(${arrowFunction})();`;
 }
 
-for ([type, constr_exp, blacklist] of types) {
+for ([type, constr_exp, blocklist] of types) {
   const proto = type.prototype || type;
   for (const f of Object.getOwnPropertyNames(proto)) {
     const d = Object.getOwnPropertyDescriptor(proto, f);

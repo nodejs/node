@@ -155,27 +155,6 @@ function import_error(index, module, func, msg) {
   assertTraps(kTrapUnreachable, () => b.instantiate());
 })();
 
-(function TestConversionError() {
-  print(arguments.callee.name);
-  let b = builder();
-  b.addImport('foo', 'bar', kSig_v_l);
-  let buffer = b.addFunction('run', kSig_v_v)
-                   .addBody([kExprI64Const, 0, kExprCallFunction, 0])
-                   .exportFunc()
-                   .end()
-                   .toBuffer();
-  assertConversionError(
-      buffer, {foo: {bar: (l) => {}}}, kTrapMsgs[kTrapTypeError]);
-
-  buffer = builder()
-               .addFunction('run', kSig_l_v)
-               .addBody([kExprI64Const, 0])
-               .exportFunc()
-               .end()
-               .toBuffer();
-  assertConversionError(buffer, {}, kTrapMsgs[kTrapTypeError]);
-})();
-
 (function InternalDebugTrace() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();

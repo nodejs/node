@@ -280,8 +280,8 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
 
  private:
   size_t MeasureCode(const WasmCode*) const;
-  void WriteHeader(Writer* writer);
-  void WriteCode(const WasmCode*, Writer* writer);
+  void WriteHeader(Writer*);
+  bool WriteCode(const WasmCode*, Writer*);
 
   const NativeModule* const native_module_;
   Vector<WasmCode* const> code_table_;
@@ -301,6 +301,9 @@ NativeModuleSerializer::NativeModuleSerializer(
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   if (code == nullptr) return sizeof(bool);
   DCHECK_EQ(WasmCode::kFunction, code->kind());
+  if (FLAG_wasm_lazy_compilation && code->tier() != ExecutionTier::kTurbofan) {
+    return sizeof(bool);
+  }
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->protected_instructions_data().size();
@@ -322,13 +325,23 @@ void NativeModuleSerializer::WriteHeader(Writer* writer) {
   writer->Write(native_module_->num_imported_functions());
 }
 
-void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
+bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
+  DCHECK_IMPLIES(!FLAG_wasm_lazy_compilation, code != nullptr);
   if (code == nullptr) {
     writer->Write(false);
-    return;
+    return true;
+  }
+  DCHECK_EQ(WasmCode::kFunction, code->kind());
+  // Only serialize TurboFan code, as Liftoff code can contain breakpoints or
+  // non-relocatable constants.
+  if (code->tier() != ExecutionTier::kTurbofan) {
+    if (FLAG_wasm_lazy_compilation) {
+      writer->Write(false);
+      return true;
+    }
+    return false;
   }
   writer->Write(true);
-  DCHECK_EQ(WasmCode::kFunction, code->kind());
   // Write the size of the entire code section, followed by the code header.
   writer->Write(code->constant_pool_offset());
   writer->Write(code->safepoint_table_offset());
@@ -415,6 +428,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   if (code_start != serialized_code_start) {
     memcpy(serialized_code_start, code_start, code_size);
   }
+  return true;
 }
 
 bool NativeModuleSerializer::Write(Writer* writer) {
@@ -424,7 +438,7 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   WriteHeader(writer);
 
   for (WasmCode* code : code_table_) {
-    WriteCode(code, writer);
+    if (!WriteCode(code, writer)) return false;
   }
   return true;
 }
@@ -460,7 +474,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
  private:
   bool ReadHeader(Reader* reader);
-  bool ReadCode(int fn_index, Reader* reader);
+  void ReadCode(int fn_index, Reader* reader);
 
   NativeModule* const native_module_;
   bool read_called_;
@@ -480,7 +494,7 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
   WasmCodeRefScope wasm_code_ref_scope;
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
-    if (!ReadCode(i, reader)) return false;
+    ReadCode(i, reader);
   }
   return reader->current_size() == 0;
 }
@@ -492,13 +506,13 @@ bool NativeModuleDeserializer::ReadHeader(Reader* reader) {
          imports == native_module_->num_imported_functions();
 }
 
-bool NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
+void NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
   bool has_code = reader->Read<bool>();
   if (!has_code) {
     DCHECK(FLAG_wasm_lazy_compilation ||
            native_module_->enabled_features().has_compilation_hints());
     native_module_->UseLazyStub(fn_index);
-    return true;
+    return;
   }
   int constant_pool_offset = reader->Read<int>();
   int safepoint_table_offset = reader->Read<int>();
@@ -579,8 +593,6 @@ bool NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
   // Finally, flush the icache for that code.
   FlushInstructionCache(code->instructions().begin(),
                         code->instructions().size());
-
-  return true;
 }
 
 bool IsSupportedVersion(Vector<const byte> header) {
@@ -604,9 +616,11 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, wire_bytes.start(), wire_bytes.end(), false,
-      i::wasm::kWasmOrigin, isolate->counters(), wasm_engine->allocator());
+      i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
+      DecodingMethod::kDeserialize, wasm_engine->allocator());
   if (decode_result.failed()) return {};
-  std::shared_ptr<WasmModule> module = std::move(decode_result.value());
+  std::shared_ptr<WasmModule> module = std::move(decode_result).value();
   CHECK_NOT_NULL(module);
 
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
@@ -624,6 +638,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     NativeModuleDeserializer deserializer(shared_native_module.get());
     Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
+    shared_native_module->compilation_state()->InitializeAfterDeserialization();
     wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
     if (error) return {};
   }

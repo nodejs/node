@@ -189,7 +189,7 @@ void TestGuardedDeadVarAnalysisNotOnStack(Isolate* isolate) {
 void TestGuardedDeadVarAnalysisNested(JSObject raw_obj, Isolate* isolate) {
   CauseGCRaw(raw_obj, isolate);
 
-  // Shouldn't cause warning.
+  // Should cause warning.
   raw_obj.Print();
 }
 
@@ -198,6 +198,9 @@ void TestGuardedDeadVarAnalysisCaller(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
 
   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
+
+  // Shouldn't cause warning.
+  raw_obj.Print();
 }
 
 JSObject GuardedAllocation(Isolate* isolate) {

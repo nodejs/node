@@ -13,6 +13,9 @@
 #include "src/wasm/wasm-tier.h"
 
 namespace v8 {
+
+class JobHandle;
+
 namespace internal {
 
 class Counters;
@@ -98,27 +101,34 @@ enum class CompilationEvent : uint8_t {
 
 // The implementation of {CompilationState} lives in module-compiler.cc.
 // This is the PIMPL interface to that private class.
-class CompilationState {
+class V8_EXPORT_PRIVATE CompilationState {
  public:
   using callback_t = std::function<void(CompilationEvent)>;
 
   ~CompilationState();
 
-  void AbortCompilation();
+  void CancelCompilation();
 
   void SetError();
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 
-  V8_EXPORT_PRIVATE std::shared_ptr<WireBytesStorage> GetWireBytesStorage()
-      const;
+  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const;
 
   void AddCallback(callback_t);
 
+  void InitializeAfterDeserialization();
+
+  // Wait until baseline compilation finished, or compilation failed.
+  void WaitForBaselineFinished();
+
+  // Wait until top tier compilation finished, or compilation failed.
+  void WaitForTopTierFinished();
+
   bool failed() const;
-  V8_EXPORT_PRIVATE bool baseline_compilation_finished() const;
-  V8_EXPORT_PRIVATE bool top_tier_compilation_finished() const;
-  V8_EXPORT_PRIVATE bool recompilation_finished() const;
+  bool baseline_compilation_finished() const;
+  bool top_tier_compilation_finished() const;
+  bool recompilation_finished() const;
 
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.

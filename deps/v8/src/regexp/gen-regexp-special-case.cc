@@ -55,8 +55,9 @@ void PrintSpecial(std::ofstream& out) {
   CHECK(U_SUCCESS(status));
 
   // Iterate through all chars in BMP except surrogates.
-  for (UChar32 i = 0; i < kNonBmpStart; i++) {
-    if (i >= kSurrogateStart && i <= kSurrogateEnd) {
+  for (UChar32 i = 0; i < static_cast<UChar32>(kNonBmpStart); i++) {
+    if (i >= static_cast<UChar32>(kSurrogateStart) &&
+        i <= static_cast<UChar32>(kSurrogateEnd)) {
       continue;  // Ignore surrogate range
     }
     current.set(i, i);

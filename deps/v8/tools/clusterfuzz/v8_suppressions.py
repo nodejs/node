@@ -40,31 +40,23 @@ MAX_LINE_LENGTH = 512
 # For ignoring lines before carets and to ignore caret positions.
 CARET_RE = re.compile(r'^\s*\^\s*$')
 
-# Ignore by original source files. Map from bug->list of relative file paths in
-# V8, e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
-# be suppressed if one of the files below was used to mutate the test.
+# Ignore by original source files. Map from bug->list of relative file paths,
+# e.g. 'v8/test/mjsunit/d8-performance-now.js'. A test will be suppressed if
+# one of the files below was used to mutate the test.
 IGNORE_SOURCES = {
 }
 
-# Ignore by test case pattern. Map from config->bug->regexp. Config '' is used
-# to match all configurations. Otherwise use either a compiler configuration,
-# e.g. ignition or validate_asm or an architecture, e.g. x64 or ia32.
+# Ignore by test case pattern. Map from bug->regexp.
 # Bug is preferred to be a crbug.com/XYZ, but can be any short distinguishable
 # label.
 # Regular expressions are assumed to be compiled. We use regexp.search.
 IGNORE_TEST_CASES = {
 }
 
-# Ignore by output pattern. Map from config->bug->regexp. See IGNORE_TEST_CASES
-# on how to specify config keys.
-# Bug is preferred to be a crbug.com/XYZ, but can be any short distinguishable
-# label.
-# Regular expressions are assumed to be compiled. We use regexp.search.
+# Ignore by output pattern. Map from bug->regexp like above.
 IGNORE_OUTPUT = {
-  '': {
-    'crbug.com/689877':
-        re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
-  },
+  'crbug.com/689877':
+      re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
 }
 
 # Lines matching any of the following regular expressions will be ignored
@@ -73,26 +65,6 @@ IGNORE_OUTPUT = {
 ALLOWED_LINE_DIFFS = [
   # Ignore caret position in stack traces.
   r'^\s*\^\s*$',
-
-  # Ignore some stack trace headers as messages might not match.
-  r'^(.*)TypeError: .* is not a function$',
-  r'^(.*)TypeError: .* is not a constructor$',
-  r'^(.*)TypeError: (.*) is not .*$',
-  r'^(.*):\d+: TypeError: Message suppressed for fuzzers.*$',
-  r'^(.*)ReferenceError: .* is not defined$',
-  r'^(.*):\d+: ReferenceError: .* is not defined$',
-
-  # These are rarely needed. It includes some cases above.
-  r'^\w*Error: .* is not .*$',
-  r'^(.*) \w*Error: .* is not .*$',
-  r'^(.*):\d+: \w*Error: .* is not .*$',
-
-  # Some test cases just print the message.
-  r'^.* is not a function(.*)$',
-  r'^(.*) is not a .*$',
-
-  # crbug.com/680064. This subsumes one of the above expressions.
-  r'^(.*)TypeError: .* function$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
@@ -236,33 +208,12 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
   return None, source
 
 
-def get_suppression(arch1, config1, arch2, config2, skip=False):
-  return V8Suppression(arch1, config1, arch2, config2, skip)
+def get_suppression(skip=False):
+  return V8Suppression(skip)
 
 
-class Suppression(object):
-  def diff(self, output1, output2):
-    return None
-
-  def ignore_by_metadata(self, metadata):
-    return None
-
-  def ignore_by_content(self, testcase):
-    return None
-
-  def ignore_by_output1(self, output):
-    return None
-
-  def ignore_by_output2(self, output):
-    return None
-
-
-class V8Suppression(Suppression):
-  def __init__(self, arch1, config1, arch2, config2, skip):
-    self.arch1 = arch1
-    self.config1 = config1
-    self.arch2 = arch2
-    self.config2 = config2
+class V8Suppression(object):
+  def __init__(self, skip):
     if skip:
       self.allowed_line_diffs = []
       self.ignore_output = {}
@@ -297,10 +248,9 @@ class V8Suppression(Suppression):
       # Search the whole test case if preamble can't be found. E.g. older
       # already minimized test cases might have dropped the delimiter line.
       content = testcase
-    for key in ['', self.arch1, self.arch2, self.config1, self.config2]:
-      for bug, exp in IGNORE_TEST_CASES.get(key, {}).items():
-        if exp.search(content):
-          return bug
+    for bug, exp in IGNORE_TEST_CASES.items():
+      if exp.search(content):
+        return bug
     return None
 
   def ignore_by_metadata(self, metadata):
@@ -310,20 +260,13 @@ class V8Suppression(Suppression):
           return bug
     return None
 
-  def ignore_by_output1(self, output):
-    return self.ignore_by_output(output, self.arch1, self.config1)
-
-  def ignore_by_output2(self, output):
-    return self.ignore_by_output(output, self.arch2, self.config2)
-
-  def ignore_by_output(self, output, arch, config):
+  def ignore_by_output(self, output):
     def check(mapping):
       for bug, exp in mapping.items():
         if exp.search(output):
           return bug
       return None
-    for key in ['', arch, config]:
-      bug = check(self.ignore_output.get(key, {}))
-      if bug:
-        return bug
+    bug = check(self.ignore_output)
+    if bug:
+      return bug
     return None

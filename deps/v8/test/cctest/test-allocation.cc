@@ -99,8 +99,9 @@ TEST(AccountingAllocatorOOM) {
   AllocationPlatform platform;
   v8::internal::AccountingAllocator allocator;
   CHECK(!platform.oom_callback_called);
+  const bool support_compression = false;
   v8::internal::Segment* result =
-      allocator.AllocateSegment(GetHugeMemoryAmount());
+      allocator.AllocateSegment(GetHugeMemoryAmount(), support_compression);
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
@@ -110,12 +111,13 @@ TEST(AccountingAllocatorCurrentAndMax) {
   v8::internal::AccountingAllocator allocator;
   static constexpr size_t kAllocationSizes[] = {51, 231, 27};
   std::vector<v8::internal::Segment*> segments;
+  const bool support_compression = false;
   CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
   CHECK_EQ(0, allocator.GetMaxMemoryUsage());
   size_t expected_current = 0;
   size_t expected_max = 0;
   for (size_t size : kAllocationSizes) {
-    segments.push_back(allocator.AllocateSegment(size));
+    segments.push_back(allocator.AllocateSegment(size, support_compression));
     CHECK_NOT_NULL(segments.back());
     CHECK_EQ(size, segments.back()->total_size());
     expected_current += size;
@@ -125,7 +127,7 @@ TEST(AccountingAllocatorCurrentAndMax) {
   }
   for (auto* segment : segments) {
     expected_current -= segment->total_size();
-    allocator.ReturnSegment(segment);
+    allocator.ReturnSegment(segment, support_compression);
     CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
   }
   CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());

@@ -10,7 +10,7 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_atomics {
 
-void RunU32BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
+void RunU32BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
                  Uint32BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
@@ -39,7 +39,7 @@ void RunU32BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
 OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
-void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
+void RunU16BinOp(TestExecutionTier tier, WasmOpcode wasm_op,
                  Uint16BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(tier);
@@ -68,7 +68,7 @@ void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
 OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
-void RunU8BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
+void RunU8BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
                 Uint8BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
@@ -330,7 +330,7 @@ WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
   CHECK_EQ(1, r.Call());
 }
 
-void RunNoEffectTest(ExecutionTier execution_tier, WasmOpcode wasm_op) {
+void RunNoEffectTest(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
   WasmRunner<uint32_t> r(execution_tier);

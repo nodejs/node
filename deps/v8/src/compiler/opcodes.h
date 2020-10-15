@@ -85,29 +85,30 @@
   V(StaticAssert)
 
 // Opcodes for JavaScript operators.
-#define JS_COMPARE_BINOP_LIST(V) \
-  V(JSEqual)                     \
-  V(JSStrictEqual)               \
-  V(JSLessThan)                  \
-  V(JSGreaterThan)               \
-  V(JSLessThanOrEqual)           \
-  V(JSGreaterThanOrEqual)
+// Arguments are JSName (the name with a 'JS' prefix), and Name.
+#define JS_COMPARE_BINOP_LIST(V)        \
+  V(JSEqual, Equal)                     \
+  V(JSStrictEqual, StrictEqual)         \
+  V(JSLessThan, LessThan)               \
+  V(JSGreaterThan, GreaterThan)         \
+  V(JSLessThanOrEqual, LessThanOrEqual) \
+  V(JSGreaterThanOrEqual, GreaterThanOrEqual)
 
 #define JS_BITWISE_BINOP_LIST(V) \
-  V(JSBitwiseOr)                 \
-  V(JSBitwiseXor)                \
-  V(JSBitwiseAnd)                \
-  V(JSShiftLeft)                 \
-  V(JSShiftRight)                \
-  V(JSShiftRightLogical)
+  V(JSBitwiseOr, BitwiseOr)      \
+  V(JSBitwiseXor, BitwiseXor)    \
+  V(JSBitwiseAnd, BitwiseAnd)    \
+  V(JSShiftLeft, ShiftLeft)      \
+  V(JSShiftRight, ShiftRight)    \
+  V(JSShiftRightLogical, ShiftRightLogical)
 
 #define JS_ARITH_BINOP_LIST(V) \
-  V(JSAdd)                     \
-  V(JSSubtract)                \
-  V(JSMultiply)                \
-  V(JSDivide)                  \
-  V(JSModulus)                 \
-  V(JSExponentiate)
+  V(JSAdd, Add)                \
+  V(JSSubtract, Subtract)      \
+  V(JSMultiply, Multiply)      \
+  V(JSDivide, Divide)          \
+  V(JSModulus, Modulus)        \
+  V(JSExponentiate, Exponentiate)
 
 #define JS_SIMPLE_BINOP_LIST(V) \
   JS_COMPARE_BINOP_LIST(V)      \
@@ -127,12 +128,18 @@
   V(JSToString)                    \
   V(JSParseInt)
 
+#define JS_BITWISE_UNOP_LIST(V) \
+  V(JSBitwiseNot, BitwiseNot)   \
+  V(JSNegate, Negate)
+
+#define JS_ARITH_UNOP_LIST(V) \
+  V(JSDecrement, Decrement)   \
+  V(JSIncrement, Increment)
+
 #define JS_SIMPLE_UNOP_LIST(V) \
-  JS_CONVERSION_UNOP_LIST(V)   \
-  V(JSBitwiseNot)              \
-  V(JSDecrement)               \
-  V(JSIncrement)               \
-  V(JSNegate)
+  JS_ARITH_UNOP_LIST(V)        \
+  JS_BITWISE_UNOP_LIST(V)      \
+  JS_CONVERSION_UNOP_LIST(V)
 
 #define JS_CREATE_OP_LIST(V)     \
   V(JSCloneObject)               \
@@ -210,6 +217,7 @@
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \
   V(JSStoreModule)                     \
+  V(JSGetImportMeta)                   \
   V(JSGeneratorStore)                  \
   V(JSGeneratorRestoreContinuation)    \
   V(JSGeneratorRestoreContext)         \
@@ -381,103 +389,106 @@
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 
 #define SIMPLIFIED_OTHER_OP_LIST(V)     \
-  V(PlainPrimitiveToNumber)             \
-  V(PlainPrimitiveToWord32)             \
-  V(PlainPrimitiveToFloat64)            \
+  V(Allocate)                           \
+  V(AllocateRaw)                        \
+  V(ArgumentsFrame)                     \
+  V(ArgumentsLength)                    \
+  V(AssertType)                         \
   V(BooleanNot)                         \
-  V(StringConcat)                       \
-  V(StringToNumber)                     \
-  V(StringCharCodeAt)                   \
-  V(StringCodePointAt)                  \
-  V(StringFromSingleCharCode)           \
-  V(StringFromSingleCodePoint)          \
-  V(StringFromCodePointAt)              \
-  V(StringIndexOf)                      \
-  V(StringLength)                       \
-  V(StringToLowerCaseIntl)              \
-  V(StringToUpperCaseIntl)              \
-  V(StringSubstring)                    \
   V(CheckBounds)                        \
-  V(CheckIf)                            \
-  V(CheckMaps)                          \
-  V(CheckNumber)                        \
-  V(CheckInternalizedString)            \
-  V(CheckReceiver)                      \
-  V(CheckReceiverOrNullOrUndefined)     \
-  V(CheckString)                        \
-  V(CheckSymbol)                        \
-  V(CheckSmi)                           \
-  V(CheckHeapObject)                    \
-  V(CheckFloat64Hole)                   \
   V(CheckClosure)                       \
-  V(CheckNotTaggedHole)                 \
   V(CheckEqualsInternalizedString)      \
   V(CheckEqualsSymbol)                  \
+  V(CheckFloat64Hole)                   \
+  V(CheckHeapObject)                    \
+  V(CheckIf)                            \
+  V(CheckInternalizedString)            \
+  V(CheckMaps)                          \
+  V(CheckNotTaggedHole)                 \
+  V(CheckNumber)                        \
+  V(CheckReceiver)                      \
+  V(CheckReceiverOrNullOrUndefined)     \
+  V(CheckSmi)                           \
+  V(CheckString)                        \
+  V(CheckSymbol)                        \
   V(CompareMaps)                        \
   V(ConvertReceiver)                    \
   V(ConvertTaggedHoleToUndefined)       \
-  V(TypeOf)                             \
-  V(Allocate)                           \
-  V(AllocateRaw)                        \
-  V(LoadFieldByIndex)                   \
-  V(LoadField)                          \
-  V(LoadElement)                        \
-  V(LoadMessage)                        \
-  V(LoadTypedElement)                   \
-  V(LoadFromObject)                     \
+  V(DateNow)                            \
+  V(DelayedStringConstant)              \
+  V(DynamicCheckMaps)                   \
+  V(EnsureWritableFastElements)         \
+  V(FastApiCall)                        \
+  V(FindOrderedHashMapEntry)            \
+  V(FindOrderedHashMapEntryForInt32Key) \
   V(LoadDataViewElement)                \
+  V(LoadElement)                        \
+  V(LoadField)                          \
+  V(LoadFieldByIndex)                   \
+  V(LoadFromObject)                     \
+  V(LoadMessage)                        \
   V(LoadStackArgument)                  \
-  V(StoreField)                         \
-  V(StoreElement)                       \
-  V(StoreMessage)                       \
-  V(StoreTypedElement)                  \
-  V(StoreToObject)                      \
-  V(StoreDataViewElement)               \
-  V(StoreSignedSmallElement)            \
-  V(TransitionAndStoreElement)          \
-  V(TransitionAndStoreNumberElement)    \
-  V(TransitionAndStoreNonNumberElement) \
-  V(ToBoolean)                          \
-  V(NumberIsFloat64Hole)                \
+  V(LoadTypedElement)                   \
+  V(MaybeGrowFastElements)              \
+  V(NewArgumentsElements)               \
+  V(NewConsString)                      \
+  V(NewDoubleElements)                  \
+  V(NewSmiOrObjectElements)             \
   V(NumberIsFinite)                     \
-  V(ObjectIsFiniteNumber)               \
+  V(NumberIsFloat64Hole)                \
   V(NumberIsInteger)                    \
-  V(ObjectIsSafeInteger)                \
+  V(NumberIsMinusZero)                  \
+  V(NumberIsNaN)                        \
   V(NumberIsSafeInteger)                \
-  V(ObjectIsInteger)                    \
   V(ObjectIsArrayBufferView)            \
   V(ObjectIsBigInt)                     \
   V(ObjectIsCallable)                   \
   V(ObjectIsConstructor)                \
   V(ObjectIsDetectableCallable)         \
+  V(ObjectIsFiniteNumber)               \
+  V(ObjectIsInteger)                    \
   V(ObjectIsMinusZero)                  \
-  V(NumberIsMinusZero)                  \
   V(ObjectIsNaN)                        \
-  V(NumberIsNaN)                        \
   V(ObjectIsNonCallable)                \
   V(ObjectIsNumber)                     \
   V(ObjectIsReceiver)                   \
+  V(ObjectIsSafeInteger)                \
   V(ObjectIsSmi)                        \
   V(ObjectIsString)                     \
   V(ObjectIsSymbol)                     \
   V(ObjectIsUndetectable)               \
-  V(ArgumentsFrame)                     \
-  V(ArgumentsLength)                    \
-  V(NewDoubleElements)                  \
-  V(NewSmiOrObjectElements)             \
-  V(NewArgumentsElements)               \
-  V(NewConsString)                      \
-  V(DelayedStringConstant)              \
-  V(EnsureWritableFastElements)         \
-  V(MaybeGrowFastElements)              \
-  V(TransitionElementsKind)             \
-  V(FindOrderedHashMapEntry)            \
-  V(FindOrderedHashMapEntryForInt32Key) \
+  V(PlainPrimitiveToFloat64)            \
+  V(PlainPrimitiveToNumber)             \
+  V(PlainPrimitiveToWord32)             \
   V(PoisonIndex)                        \
+  V(RestLength)                         \
   V(RuntimeAbort)                       \
-  V(AssertType)                         \
-  V(DateNow)                            \
-  V(FastApiCall)
+  V(StoreDataViewElement)               \
+  V(StoreElement)                       \
+  V(StoreField)                         \
+  V(StoreMessage)                       \
+  V(StoreSignedSmallElement)            \
+  V(StoreToObject)                      \
+  V(StoreTypedElement)                  \
+  V(StringCharCodeAt)                   \
+  V(StringCodePointAt)                  \
+  V(StringConcat)                       \
+  V(StringFromCodePointAt)              \
+  V(StringFromSingleCharCode)           \
+  V(StringFromSingleCodePoint)          \
+  V(StringIndexOf)                      \
+  V(StringLength)                       \
+  V(StringSubstring)                    \
+  V(StringToLowerCaseIntl)              \
+  V(StringToNumber)                     \
+  V(StringToUpperCaseIntl)              \
+  V(ToBoolean)                          \
+  V(TransitionAndStoreElement)          \
+  V(TransitionAndStoreNonNumberElement) \
+  V(TransitionAndStoreNumberElement)    \
+  V(TransitionElementsKind)             \
+  V(TypeOf)                             \
+  V(UpdateInterruptBudget)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   V(SpeculativeBigIntAdd)                           \
@@ -765,6 +776,10 @@
   V(F64x2Qfms)                  \
   V(F64x2Pmin)                  \
   V(F64x2Pmax)                  \
+  V(F64x2Ceil)                  \
+  V(F64x2Floor)                 \
+  V(F64x2Trunc)                 \
+  V(F64x2NearestInt)            \
   V(F32x4Splat)                 \
   V(F32x4ExtractLane)           \
   V(F32x4ReplaceLane)           \
@@ -792,6 +807,10 @@
   V(F32x4Qfms)                  \
   V(F32x4Pmin)                  \
   V(F32x4Pmax)                  \
+  V(F32x4Ceil)                  \
+  V(F32x4Floor)                 \
+  V(F32x4Trunc)                 \
+  V(F32x4NearestInt)            \
   V(I64x2Splat)                 \
   V(I64x2SplatI32Pair)          \
   V(I64x2ExtractLane)           \
@@ -847,6 +866,7 @@
   V(I32x4GeU)                   \
   V(I32x4Abs)                   \
   V(I32x4BitMask)               \
+  V(I32x4DotI16x8S)             \
   V(I16x8Splat)                 \
   V(I16x8ExtractLaneU)          \
   V(I16x8ExtractLaneS)          \
@@ -923,6 +943,7 @@
   V(S128Load)                   \
   V(S128Store)                  \
   V(S128Zero)                   \
+  V(S128Const)                  \
   V(S128Not)                    \
   V(S128And)                    \
   V(S128Or)                     \
@@ -931,14 +952,14 @@
   V(S128AndNot)                 \
   V(S8x16Swizzle)               \
   V(S8x16Shuffle)               \
-  V(S1x2AnyTrue)                \
-  V(S1x2AllTrue)                \
-  V(S1x4AnyTrue)                \
-  V(S1x4AllTrue)                \
-  V(S1x8AnyTrue)                \
-  V(S1x8AllTrue)                \
-  V(S1x16AnyTrue)               \
-  V(S1x16AllTrue)               \
+  V(V64x2AnyTrue)               \
+  V(V64x2AllTrue)               \
+  V(V32x4AnyTrue)               \
+  V(V32x4AllTrue)               \
+  V(V16x8AnyTrue)               \
+  V(V16x8AllTrue)               \
+  V(V8x16AnyTrue)               \
+  V(V8x16AllTrue)               \
   V(LoadTransform)
 
 #define VALUE_OP_LIST(V)  \
@@ -962,12 +983,12 @@ namespace compiler {
 class V8_EXPORT_PRIVATE IrOpcode {
  public:
   enum Value {
-#define DECLARE_OPCODE(x) k##x,
+#define DECLARE_OPCODE(x, ...) k##x,
     ALL_OP_LIST(DECLARE_OPCODE)
 #undef DECLARE_OPCODE
-    kLast = -1
-#define COUNT_OPCODE(x) +1
-            ALL_OP_LIST(COUNT_OPCODE)
+        kLast = -1
+#define COUNT_OPCODE(...) +1
+                ALL_OP_LIST(COUNT_OPCODE)
 #undef COUNT_OPCODE
   };
 
@@ -991,7 +1012,16 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode for constant operator.
   static bool IsConstantOpcode(Value value) {
-    return kInt32Constant <= value && value <= kRelocatableInt64Constant;
+#define CASE(Name) \
+  case k##Name:    \
+    return true;
+    switch (value) {
+      CONSTANT_OP_LIST(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+    UNREACHABLE();
   }
 
   static bool IsPhiOpcode(Value value) {
@@ -1006,8 +1036,9 @@ class V8_EXPORT_PRIVATE IrOpcode {
     return kIfTrue <= value && value <= kIfDefault;
   }
 
-  // Returns true if opcode terminates control flow in a graph (i.e. respective
-  // nodes are expected to have control uses by the graphs {End} node only).
+  // Returns true if opcode terminates control flow in a graph (i.e.
+  // respective nodes are expected to have control uses by the graphs {End}
+  // node only).
   static bool IsGraphTerminator(Value value) {
     return value == kDeoptimize || value == kReturn || value == kTailCall ||
            value == kTerminate || value == kThrow;
@@ -1020,9 +1051,18 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode for comparison operator.
   static bool IsComparisonOpcode(Value value) {
-    return (kJSEqual <= value && value <= kJSGreaterThanOrEqual) ||
-           (kNumberEqual <= value && value <= kStringLessThanOrEqual) ||
-           (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return true;
+    switch (value) {
+      JS_COMPARE_BINOP_LIST(CASE);
+      SIMPLIFIED_COMPARE_BINOP_LIST(CASE);
+      MACHINE_COMPARE_BINOP_LIST(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+    UNREACHABLE();
   }
 
   static bool IsContextChainExtendingOpcode(Value value) {

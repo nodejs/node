@@ -707,6 +707,30 @@ THREADED_TEST(BackingStore_Shared) {
             ->IsShared());
 }
 
+THREADED_TEST(ArrayBuffer_NewBackingStore_NullData) {
+  // This test creates a BackingStore with nullptr as data. The test then
+  // creates an ArrayBuffer and a TypedArray from this BackingStore. Writing
+  // into that TypedArray at index 0 is expected to be a no-op, reading from
+  // that TypedArray at index 0 should result in the default value '0'.
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(nullptr, 0,
+                                       v8::BackingStore::EmptyDeleter, nullptr);
+  v8::Local<v8::ArrayBuffer> buffer =
+      v8::ArrayBuffer::New(isolate, std::move(backing_store));
+
+  CHECK(env->Global()->Set(env.local(), v8_str("buffer"), buffer).FromJust());
+
+  v8::Local<v8::Value> result =
+      CompileRunChecked(isolate,
+                        "const view = new Int32Array(buffer);"
+                        "view[0] = 14;"
+                        "view[0];");
+  CHECK_EQ(0, result->Int32Value(env.local()).FromJust());
+}
+
 class DummyAllocator final : public v8::ArrayBuffer::Allocator {
  public:
   DummyAllocator() : allocator_(NewDefaultAllocator()) {}

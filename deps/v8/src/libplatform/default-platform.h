@@ -66,6 +66,8 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   StackTracePrinter GetStackTracePrinter() override;
   v8::PageAllocator* GetPageAllocator() override;
 
+  void NotifyIsolateShutdown(Isolate* isolate);
+
  private:
   base::Mutex lock_;
   const int thread_pool_size_;

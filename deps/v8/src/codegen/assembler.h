@@ -78,10 +78,16 @@ class JumpOptimizationInfo {
  public:
   bool is_collecting() const { return stage_ == kCollection; }
   bool is_optimizing() const { return stage_ == kOptimization; }
-  void set_optimizing() { stage_ = kOptimization; }
+  void set_optimizing() {
+    DCHECK(is_optimizable());
+    stage_ = kOptimization;
+  }
 
   bool is_optimizable() const { return optimizable_; }
-  void set_optimizable() { optimizable_ = true; }
+  void set_optimizable() {
+    DCHECK(is_collecting());
+    optimizable_ = true;
+  }
 
   // Used to verify the instruction sequence is always the same in two stages.
   size_t hash_code() const { return hash_code_; }
@@ -250,6 +256,15 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   static void QuietNaN(HeapObject nan) {}
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
+
+  int pc_offset_for_safepoint() {
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
+    // Mips needs it's own implementation to avoid trampoline's influence.
+    UNREACHABLE();
+#else
+    return pc_offset();
+#endif
+  }
 
   byte* buffer_start() const { return buffer_->start(); }
   int buffer_size() const { return buffer_->size(); }

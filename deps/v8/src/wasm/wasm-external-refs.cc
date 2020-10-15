@@ -230,6 +230,82 @@ int32_t float64_to_uint64_wrapper(Address data) {
   return 0;
 }
 
+void float32_to_int64_sat_wrapper(Address data) {
+  float input = ReadUnalignedValue<float>(data);
+  // We use "<" here to check the upper bound because of rounding problems: With
+  // "<=" some inputs would be considered within int64 range which are actually
+  // not within int64 range.
+  if (input < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
+      input >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
+    WriteUnalignedValue<int64_t>(data, static_cast<int64_t>(input));
+    return;
+  }
+  if (std::isnan(input)) {
+    WriteUnalignedValue<int64_t>(data, 0);
+    return;
+  }
+  if (input < 0.0) {
+    WriteUnalignedValue<int64_t>(data, std::numeric_limits<int64_t>::min());
+    return;
+  }
+  WriteUnalignedValue<int64_t>(data, std::numeric_limits<int64_t>::max());
+}
+
+void float32_to_uint64_sat_wrapper(Address data) {
+  float input = ReadUnalignedValue<float>(data);
+  // We use "<" here to check the upper bound because of rounding problems: With
+  // "<=" some inputs would be considered within uint64 range which are actually
+  // not within uint64 range.
+  if (input < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
+      input >= 0.0) {
+    WriteUnalignedValue<uint64_t>(data, static_cast<uint64_t>(input));
+    return;
+  }
+  if (input >= std::numeric_limits<uint64_t>::max()) {
+    WriteUnalignedValue<uint64_t>(data, std::numeric_limits<uint64_t>::max());
+    return;
+  }
+  WriteUnalignedValue<uint64_t>(data, 0);
+}
+
+void float64_to_int64_sat_wrapper(Address data) {
+  double input = ReadUnalignedValue<double>(data);
+  // We use "<" here to check the upper bound because of rounding problems: With
+  // "<=" some inputs would be considered within int64 range which are actually
+  // not within int64 range.
+  if (input < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
+      input >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+    WriteUnalignedValue<int64_t>(data, static_cast<int64_t>(input));
+    return;
+  }
+  if (std::isnan(input)) {
+    WriteUnalignedValue<int64_t>(data, 0);
+    return;
+  }
+  if (input < 0.0) {
+    WriteUnalignedValue<int64_t>(data, std::numeric_limits<int64_t>::min());
+    return;
+  }
+  WriteUnalignedValue<int64_t>(data, std::numeric_limits<int64_t>::max());
+}
+
+void float64_to_uint64_sat_wrapper(Address data) {
+  double input = ReadUnalignedValue<double>(data);
+  // We use "<" here to check the upper bound because of rounding problems: With
+  // "<=" some inputs would be considered within int64 range which are actually
+  // not within int64 range.
+  if (input < static_cast<double>(std::numeric_limits<uint64_t>::max()) &&
+      input >= 0.0) {
+    WriteUnalignedValue<uint64_t>(data, static_cast<uint64_t>(input));
+    return;
+  }
+  if (input >= std::numeric_limits<uint64_t>::max()) {
+    WriteUnalignedValue<uint64_t>(data, std::numeric_limits<uint64_t>::max());
+    return;
+  }
+  WriteUnalignedValue<uint64_t>(data, 0);
+}
+
 int32_t int64_div_wrapper(Address data) {
   int64_t dividend = ReadUnalignedValue<int64_t>(data);
   int64_t divisor = ReadUnalignedValue<int64_t>(data + sizeof(dividend));
@@ -325,6 +401,48 @@ void float64_pow_wrapper(Address data) {
   WriteUnalignedValue<double>(data, base::ieee754::pow(x, y));
 }
 
+template <typename T, T (*float_round_op)(T)>
+void simd_float_round_wrapper(Address data) {
+  constexpr int n = kSimd128Size / sizeof(T);
+  for (int i = 0; i < n; i++) {
+    WriteUnalignedValue<T>(
+        data + (i * sizeof(T)),
+        float_round_op(ReadUnalignedValue<T>(data + (i * sizeof(T)))));
+  }
+}
+
+void f64x2_ceil_wrapper(Address data) {
+  simd_float_round_wrapper<double, &ceil>(data);
+}
+
+void f64x2_floor_wrapper(Address data) {
+  simd_float_round_wrapper<double, &floor>(data);
+}
+
+void f64x2_trunc_wrapper(Address data) {
+  simd_float_round_wrapper<double, &trunc>(data);
+}
+
+void f64x2_nearest_int_wrapper(Address data) {
+  simd_float_round_wrapper<double, &nearbyint>(data);
+}
+
+void f32x4_ceil_wrapper(Address data) {
+  simd_float_round_wrapper<float, &ceilf>(data);
+}
+
+void f32x4_floor_wrapper(Address data) {
+  simd_float_round_wrapper<float, &floorf>(data);
+}
+
+void f32x4_trunc_wrapper(Address data) {
+  simd_float_round_wrapper<float, &truncf>(data);
+}
+
+void f32x4_nearest_int_wrapper(Address data) {
+  simd_float_round_wrapper<float, &nearbyintf>(data);
+}
+
 namespace {
 class ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When
@@ -402,13 +520,13 @@ int32_t memory_init_wrapper(Address data) {
   uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t src = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t seg_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
-  size_t mem_size = instance.memory_size();
-  if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
+  uint64_t mem_size = instance.memory_size();
+  if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
-  size_t seg_size = instance.data_segment_sizes()[seg_index];
-  if (!base::IsInBounds(src, size, seg_size)) return kOutOfBounds;
+  uint32_t seg_size = instance.data_segment_sizes()[seg_index];
+  if (!base::IsInBounds<uint32_t>(src, size, seg_size)) return kOutOfBounds;
 
   byte* seg_start =
       reinterpret_cast<byte*>(instance.data_segment_starts()[seg_index]);
@@ -427,11 +545,11 @@ int32_t memory_copy_wrapper(Address data) {
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
   uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t src = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
-  size_t mem_size = instance.memory_size();
-  if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
-  if (!base::IsInBounds(src, size, mem_size)) return kOutOfBounds;
+  uint64_t mem_size = instance.memory_size();
+  if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
+  if (!base::IsInBounds<uint64_t>(src, size, mem_size)) return kOutOfBounds;
 
   // Use std::memmove, because the ranges can overlap.
   std::memmove(EffectiveAddress(instance, dst), EffectiveAddress(instance, src),
@@ -452,10 +570,10 @@ int32_t memory_fill_wrapper(Address data) {
   uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint8_t value =
       static_cast<uint8_t>(ReadAndIncrementOffset<uint32_t>(data, &offset));
-  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
-  size_t mem_size = instance.memory_size();
-  if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
+  uint64_t mem_size = instance.memory_size();
+  if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   std::memset(EffectiveAddress(instance, dst), value, size);
   return kSuccess;

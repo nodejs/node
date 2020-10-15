@@ -58,49 +58,6 @@ class JSStrictArgumentsObject : public JSArgumentsObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);
 };
 
-// Helper class to access FAST_ and SLOW_SLOPPY_ARGUMENTS_ELEMENTS
-//
-// +---+-----------------------+
-// | 0 | Context  context      |
-// +---------------------------+
-// | 1 | FixedArray arguments  +----+ HOLEY_ELEMENTS
-// +---------------------------+    v-----+-----------+
-// | 2 | Object param_1_map    |    |  0  | the_hole  |
-// |...| ...                   |    | ... | ...       |
-// |n+1| Object param_n_map    |    | n-1 | the_hole  |
-// +---------------------------+    |  n  | element_1 |
-//                                  | ... | ...       |
-//                                  |n+m-1| element_m |
-//                                  +-----------------+
-//
-// Parameter maps give the index into the provided context. If a map entry is
-// the_hole it means that the given entry has been deleted from the arguments
-// object.
-// The arguments backing store kind depends on the ElementsKind of the outer
-// JSArgumentsObject:
-// - FAST_SLOPPY_ARGUMENTS_ELEMENTS: HOLEY_ELEMENTS
-// - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
-class SloppyArgumentsElements : public FixedArray {
- public:
-  static const int kContextIndex = 0;
-  static const int kArgumentsIndex = 1;
-  static const uint32_t kParameterMapStart = 2;
-
-  DECL_GETTER(context, Context)
-  DECL_GETTER(arguments, FixedArray)
-  inline void set_arguments(FixedArray arguments);
-  inline uint32_t parameter_map_length();
-  inline Object get_mapped_entry(uint32_t entry);
-  inline void set_mapped_entry(uint32_t entry, Object object);
-
-  DECL_CAST(SloppyArgumentsElements)
-#ifdef VERIFY_HEAP
-  void SloppyArgumentsElementsVerify(Isolate* isolate, JSObject holder);
-#endif
-
-  OBJECT_CONSTRUCTORS(SloppyArgumentsElements, FixedArray);
-};
-
 // Representation of a slow alias as part of a sloppy arguments objects.
 // For fast aliases (if HasSloppyArgumentsElements()):
 // - the parameter map contains an index into the context

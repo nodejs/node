@@ -234,8 +234,8 @@ TEST_F(DecompressionOptimizerTest, TypedStateValues) {
   Node* index = Parameter(Type::UnsignedSmall(), 1);
   const int number_of_inputs = 2;
   const ZoneVector<MachineType>* types_for_state_values =
-      new (graph()->zone()->New(sizeof(ZoneVector<MachineType>)))
-          ZoneVector<MachineType>(number_of_inputs, graph()->zone());
+      graph()->zone()->New<ZoneVector<MachineType>>(number_of_inputs,
+                                                    graph()->zone());
   SparseInputMask dense = SparseInputMask::Dense();
 
   // Test for both AnyTagged and TaggedPointer.

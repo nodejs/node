@@ -46,14 +46,10 @@ class DetectLastRoll(Step):
     self['json_output']['monitoring_state'] = 'detect_last_roll'
     self["last_roll"] = self._options.last_roll
     if not self["last_roll"]:
-      # Interpret the DEPS file to retrieve the v8 revision.
-      # TODO(machenbach): This should be part or the setdep api of
-      # depot_tools.
-      Var = lambda var: '%s'
-      exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
+      # Get last-rolled v8 revision from Chromium's DEPS file.
+      self["last_roll"] = self.Command(
+          "gclient", "getdep -r src/v8", cwd=self._options.chromium).strip()
 
-      # The revision rolled last.
-      self["last_roll"] = vars['v8_revision']
     self["last_version"] = self.GetVersionTag(self["last_roll"])
     assert self["last_version"], "The last rolled v8 revision is not tagged."
 

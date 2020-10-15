@@ -25,6 +25,10 @@ namespace v8 {
 
 class D8Console;
 
+namespace internal {
+class CancelableTaskManager;
+}  // namespace internal
+
 // A single counter in a counter collection.
 class Counter {
  public:
@@ -158,14 +162,14 @@ class SerializationDataQueue {
   std::vector<std::unique_ptr<SerializationData>> data_;
 };
 
-class Worker {
+class Worker : public std::enable_shared_from_this<Worker> {
  public:
   explicit Worker(const char* script);
   ~Worker();
 
-  // Post a message to the worker's incoming message queue. The worker will
-  // take ownership of the SerializationData.
-  // This function should only be called by the thread that created the Worker.
+  // Post a message to the worker. The worker will take ownership of the
+  // SerializationData. This function should only be called by the thread that
+  // created the Worker.
   void PostMessage(std::unique_ptr<SerializationData> data);
   // Synchronously retrieve messages from the worker's outgoing message queue.
   // If there is no message in the queue, block until a message is available.
@@ -179,12 +183,18 @@ class Worker {
   void Terminate();
   // Terminate and join the thread.
   // This function can be called by any thread.
-  void WaitForThread();
+  void TerminateAndWaitForThread();
 
   // Start running the given worker in another thread.
   static bool StartWorkerThread(std::shared_ptr<Worker> worker);
 
  private:
+  friend class ProcessMessageTask;
+  friend class TerminateTask;
+
+  void ProcessMessage(std::unique_ptr<SerializationData> data);
+  void ProcessMessages();
+
   class WorkerThread : public base::Thread {
    public:
     explicit WorkerThread(std::shared_ptr<Worker> worker)
@@ -200,13 +210,25 @@ class Worker {
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  base::Semaphore in_semaphore_;
-  base::Semaphore out_semaphore_;
-  SerializationDataQueue in_queue_;
+  base::Semaphore out_semaphore_{0};
   SerializationDataQueue out_queue_;
-  base::Thread* thread_;
+  base::Thread* thread_ = nullptr;
   char* script_;
-  base::Atomic32 running_;
+  std::atomic<bool> running_;
+  // For signalling that the worker has started.
+  base::Semaphore started_semaphore_{0};
+
+  // For posting tasks to the worker
+  std::shared_ptr<TaskRunner> task_runner_;
+  i::CancelableTaskManager* task_manager_;
+
+  // Protects reading / writing task_runner_. (The TaskRunner itself doesn't
+  // need locking, but accessing the Worker's data member does.)
+  base::Mutex worker_mutex_;
+
+  // Only accessed by the worker thread.
+  Isolate* isolate_ = nullptr;
+  v8::Persistent<v8::Context> context_;
 };
 
 class PerIsolateData {
@@ -234,6 +256,12 @@ class PerIsolateData {
 
   AsyncHooks* GetAsyncHooks() { return async_hooks_wrapper_; }
 
+  void RemoveUnhandledPromise(Local<Promise> promise);
+  void AddUnhandledPromise(Local<Promise> promise, Local<Message> message,
+                           Local<Value> exception);
+  int HandleUnhandledPromiseRejections();
+  size_t GetUnhandledPromiseCount();
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -245,6 +273,8 @@ class PerIsolateData {
   Global<Value> realm_shared_;
   std::queue<Global<Function>> set_timeout_callbacks_;
   std::queue<Global<Context>> set_timeout_contexts_;
+  std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
+      unhandled_promises_;
   AsyncHooks* async_hooks_wrapper_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -262,16 +292,19 @@ class ShellOptions {
 
   ~ShellOptions() { delete[] isolate_sources; }
 
+  bool fuzzilli_coverage_statistics = false;
+  bool fuzzilli_enable_builtins_coverage = true;
   bool send_idle_notification = false;
   bool invoke_weak_callbacks = false;
   bool omit_quit = false;
-  bool wait_for_wasm = true;
+  bool wait_for_background_tasks = true;
   bool stress_opt = false;
   int stress_runs = 1;
   bool stress_snapshot = false;
   bool interactive_shell = false;
   bool test_shell = false;
   bool expected_to_throw = false;
+  bool ignore_unhandled_promises = false;
   bool mock_arraybuffer_allocator = false;
   size_t mock_arraybuffer_allocator_limit = 0;
   bool multi_mapped_mock_allocator = false;
@@ -280,6 +313,7 @@ class ShellOptions {
   v8::ScriptCompiler::CompileOptions compile_options =
       v8::ScriptCompiler::kNoCompileOptions;
   CodeCacheOptions code_cache_options = CodeCacheOptions::kNoProduceCache;
+  bool streaming_compile = false;
   SourceGroup* isolate_sources = nullptr;
   const char* icu_data_file = nullptr;
   const char* icu_locale = nullptr;
@@ -330,6 +364,11 @@ class Shell : public i::AllStatic {
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
   static bool CompleteMessageLoop(Isolate* isolate);
+
+  static bool HandleUnhandledPromiseRejections(Isolate* isolate);
+
+  static void PostForegroundTask(Isolate* isolate, std::unique_ptr<Task> task);
+  static void PostBlockingBackgroundTask(std::unique_ptr<Task> task);
 
   static std::unique_ptr<SerializationData> SerializeValue(
       Isolate* isolate, Local<Value> value, Local<Value> transfer);
@@ -390,6 +429,8 @@ class Shell : public i::AllStatic {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WorkerTerminateAndWait(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //
@@ -434,6 +475,10 @@ class Shell : public i::AllStatic {
                                              Local<Module> module,
                                              Local<Object> meta);
 
+#ifdef V8_FUZZILLI
+  static void Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif  // V8_FUZZILLI
+
   // Data is of type DynamicImportData*. We use void* here to be able
   // to conform with MicrotaskCallback interface and enqueue this
   // function in the microtask queue.
@@ -446,6 +491,8 @@ class Shell : public i::AllStatic {
   static ArrayBuffer::Allocator* array_buffer_allocator;
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
+  static void NotifyStartStreamingTask(Isolate* isolate);
+  static void NotifyFinishStreamingTask(Isolate* isolate);
 
   static char* ReadCharsFromTcpPort(const char* name, int* size_out);
 
@@ -461,6 +508,8 @@ class Shell : public i::AllStatic {
 
   static void Initialize(Isolate* isolate, D8Console* console,
                          bool isOnMainThread = true);
+
+  static void PromiseRejectCallback(v8::PromiseRejectMessage reject_message);
 
  private:
   static Global<Context> evaluation_context_;
@@ -506,10 +555,12 @@ class Shell : public i::AllStatic {
   // the isolate_status_ needs to be concurrency-safe.
   static base::LazyMutex isolate_status_lock_;
   static std::map<Isolate*, bool> isolate_status_;
+  static std::map<Isolate*, int> isolate_running_streaming_tasks_;
 
   static base::LazyMutex cached_code_mutex_;
   static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
       cached_code_map_;
+  static std::atomic<int> unhandled_promise_rejections_;
 };
 
 }  // namespace v8

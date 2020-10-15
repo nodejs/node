@@ -14,6 +14,53 @@
 #include {{format_include(config.imported.package, domain.domain)}}
 {% endif %}
 
+#ifndef {{"_".join(config.protocol.namespace)}}_imported_imported_h
+
+namespace {{config.crdtp.namespace}} {
+
+template <typename T>
+struct ProtocolTypeTraits<
+    std::unique_ptr<T>,
+    typename std::enable_if<
+        std::is_base_of<{{"::".join(config.imported.namespace)}}::Exported, T>::value>::type> {
+  static bool Deserialize(DeserializerState* state, std::unique_ptr<T>* value) {
+    if (state->tokenizer()->TokenTag() != cbor::CBORTokenTag::ENVELOPE) {
+      state->RegisterError(Error::CBOR_INVALID_ENVELOPE);
+      return false;
+    }
+    span<uint8_t> env = state->tokenizer()->GetEnvelope();
+    auto res = T::fromBinary(env.data(), env.size());
+    if (!res) {
+      // TODO(caseq): properly plumb an error rather than returning a bogus code.
+      state->RegisterError(Error::MESSAGE_MUST_BE_AN_OBJECT);
+      return false;
+    }
+    *value = std::move(res);
+    return true;
+  }
+  static void Serialize(const std::unique_ptr<T>& value, std::vector<uint8_t>* bytes) {
+    // Use virtual method, so that outgoing protocol objects could be retained
+    // by a pointer to ProtocolObject.
+    value->AppendSerialized(bytes);
+  }
+};
+
+template <typename T>
+struct ProtocolTypeTraits<
+    T,
+    typename std::enable_if<
+        std::is_base_of<{{"::".join(config.imported.namespace)}}::Exported, T>::value>::type> {
+  static void Serialize(const T& value, std::vector<uint8_t>* bytes) {
+    // Use virtual method, so that outgoing protocol objects could be retained
+    // by a pointer to ProtocolObject.
+    value.AppendSerialized(bytes);
+  }
+};
+
+}  // namespace {{config.crdtp.namespace}}
+
+#endif  // {{"_".join(config.protocol.namespace)}}_imported_imported_h
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}

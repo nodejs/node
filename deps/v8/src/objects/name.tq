@@ -5,8 +5,16 @@
 @abstract
 @generateCppClass
 extern class Name extends PrimitiveHeapObject {
-  hash_field: uint32;
+  hash_field: NameHash;
 }
+
+bitfield struct NameHash extends uint32 {
+  hash_not_computed: bool: 1 bit;
+  is_not_integer_index_mask: bool: 1 bit;
+  array_index_value: uint32: 24 bit;
+  array_index_length: uint32: 6 bit;
+}
+
 // This is the same as Name, but with the information that there are no other
 // kinds of names.
 type AnyName = PrivateSymbol|PublicSymbol|String;
@@ -29,5 +37,53 @@ extern class Symbol extends Name {
 type PublicSymbol extends Symbol;
 type PrivateSymbol extends Symbol;
 
-const kNameEmptyHashField:
-    constexpr uint32 generates 'Name::kEmptyHashField';
+const kNameEmptyHashField: NameHash = NameHash{
+  hash_not_computed: true,
+  is_not_integer_index_mask: true,
+  array_index_value: 0,
+  array_index_length: 0
+};
+
+const kMaxCachedArrayIndexLength: constexpr uint32
+    generates 'Name::kMaxCachedArrayIndexLength';
+const kMaxArrayIndexSize: constexpr uint32
+    generates 'Name::kMaxArrayIndexSize';
+const kNofHashBitFields: constexpr int31
+    generates 'Name::kNofHashBitFields';
+const kArrayIndexValueBits: constexpr int31
+    generates 'Name::kArrayIndexValueBits';
+const kDoesNotContainCachedArrayIndexMask: constexpr uint32
+    generates 'Name::kDoesNotContainCachedArrayIndexMask';
+const kIsNotIntegerIndexMask: constexpr uint32
+    generates 'Name::kIsNotIntegerIndexMask';
+
+macro ContainsCachedArrayIndex(hash: uint32): bool {
+  return (hash & kDoesNotContainCachedArrayIndexMask) == 0;
+}
+
+const kArrayIndexValueBitsShift: uint32 = kNofHashBitFields;
+const kArrayIndexLengthBitsShift: uint32 =
+    kNofHashBitFields + kArrayIndexValueBits;
+
+macro TenToThe(exponent: uint32): uint32 {
+  assert(exponent <= 9);
+  let answer: int32 = 1;
+  for (let i: int32 = 0; i < Signed(exponent); i++) {
+    answer = answer * 10;
+  }
+  return Unsigned(answer);
+}
+
+macro MakeArrayIndexHash(value: uint32, length: uint32): NameHash {
+  // This is in sync with StringHasher::MakeArrayIndexHash.
+  assert(length <= kMaxArrayIndexSize);
+  const one: uint32 = 1;
+  assert(TenToThe(kMaxCachedArrayIndexLength) < (one << kArrayIndexValueBits));
+  let hash: uint32 = value;
+  hash = (hash << kArrayIndexValueBitsShift) |
+      (length << kArrayIndexLengthBitsShift);
+  assert((hash & kIsNotIntegerIndexMask) == 0);
+  assert(
+      (length <= kMaxCachedArrayIndexLength) == ContainsCachedArrayIndex(hash));
+  return %RawDownCast<NameHash>(hash);
+}

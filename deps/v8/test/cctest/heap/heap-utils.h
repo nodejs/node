@@ -77,6 +77,16 @@ bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   return i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
+bool InCorrectGeneration(HeapObject object);
+
+template <typename GlobalOrPersistent>
+bool InCorrectGeneration(v8::Isolate* isolate,
+                         const GlobalOrPersistent& global) {
+  v8::HandleScope scope(isolate);
+  auto tmp = global.Get(isolate);
+  return InCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

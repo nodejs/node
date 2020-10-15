@@ -16,6 +16,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/wasm/simd-shuffle.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -439,6 +440,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Gets the effect level of {node}.
   int GetEffectLevel(Node* node) const;
 
+  // Gets the effect level of {node}, appropriately adjusted based on
+  // continuation flags if the node is a branch.
+  int GetEffectLevel(Node* node, FlagsContinuation* cont) const;
+
   int GetVirtualRegister(const Node* node);
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
@@ -453,36 +458,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   const ZoneVector<std::pair<int, int>>& instr_origins() const {
     return instr_origins_;
-  }
-
-  // Expose these SIMD helper functions for testing.
-  static void CanonicalizeShuffleForTesting(bool inputs_equal, uint8_t* shuffle,
-                                            bool* needs_swap,
-                                            bool* is_swizzle) {
-    CanonicalizeShuffle(inputs_equal, shuffle, needs_swap, is_swizzle);
-  }
-
-  static bool TryMatchIdentityForTesting(const uint8_t* shuffle) {
-    return TryMatchIdentity(shuffle);
-  }
-  template <int LANES>
-  static bool TryMatchDupForTesting(const uint8_t* shuffle, int* index) {
-    return TryMatchDup<LANES>(shuffle, index);
-  }
-  static bool TryMatch32x4ShuffleForTesting(const uint8_t* shuffle,
-                                            uint8_t* shuffle32x4) {
-    return TryMatch32x4Shuffle(shuffle, shuffle32x4);
-  }
-  static bool TryMatch16x8ShuffleForTesting(const uint8_t* shuffle,
-                                            uint8_t* shuffle16x8) {
-    return TryMatch16x8Shuffle(shuffle, shuffle16x8);
-  }
-  static bool TryMatchConcatForTesting(const uint8_t* shuffle,
-                                       uint8_t* offset) {
-    return TryMatchConcat(shuffle, offset);
-  }
-  static bool TryMatchBlendForTesting(const uint8_t* shuffle) {
-    return TryMatchBlend(shuffle);
   }
 
  private:
@@ -657,14 +632,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
 
-  // Converts a shuffle into canonical form, meaning that the first lane index
-  // is in the range [0 .. 15]. Set |inputs_equal| true if this is an explicit
-  // swizzle. Returns canonicalized |shuffle|, |needs_swap|, and |is_swizzle|.
-  // If |needs_swap| is true, inputs must be swapped. If |is_swizzle| is true,
-  // the second input can be ignored.
-  static void CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
-                                  bool* needs_swap, bool* is_swizzle);
-
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
   void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
@@ -672,60 +639,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
   void SwapShuffleInputs(Node* node);
-
-  // Tries to match an 8x16 byte shuffle to the identity shuffle, which is
-  // [0 1 ... 15]. This should be called after canonicalizing the shuffle, so
-  // the second identity shuffle, [16 17 .. 31] is converted to the first one.
-  static bool TryMatchIdentity(const uint8_t* shuffle);
-
-  // Tries to match a byte shuffle to a scalar splat operation. Returns the
-  // index of the lane if successful.
-  template <int LANES>
-  static bool TryMatchDup(const uint8_t* shuffle, int* index) {
-    const int kBytesPerLane = kSimd128Size / LANES;
-    // Get the first lane's worth of bytes and check that indices start at a
-    // lane boundary and are consecutive.
-    uint8_t lane0[kBytesPerLane];
-    lane0[0] = shuffle[0];
-    if (lane0[0] % kBytesPerLane != 0) return false;
-    for (int i = 1; i < kBytesPerLane; ++i) {
-      lane0[i] = shuffle[i];
-      if (lane0[i] != lane0[0] + i) return false;
-    }
-    // Now check that the other lanes are identical to lane0.
-    for (int i = 1; i < LANES; ++i) {
-      for (int j = 0; j < kBytesPerLane; ++j) {
-        if (lane0[j] != shuffle[i * kBytesPerLane + j]) return false;
-      }
-    }
-    *index = lane0[0] / kBytesPerLane;
-    return true;
-  }
-
-  // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If
-  // successful, it writes the 32x4 shuffle word indices. E.g.
-  // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15] == [0 2 1 3]
-  static bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4);
-
-  // Tries to match an 8x16 byte shuffle to an equivalent 16x8 shuffle. If
-  // successful, it writes the 16x8 shuffle word indices. E.g.
-  // [0 1 8 9 2 3 10 11 4 5 12 13 6 7 14 15] == [0 4 1 5 2 6 3 7]
-  static bool TryMatch16x8Shuffle(const uint8_t* shuffle, uint8_t* shuffle16x8);
-
-  // Tries to match a byte shuffle to a concatenate operation, formed by taking
-  // 16 bytes from the 32 byte concatenation of the inputs.  If successful, it
-  // writes the byte offset. E.g. [4 5 6 7 .. 16 17 18 19] concatenates both
-  // source vectors with offset 4. The shuffle should be canonicalized.
-  static bool TryMatchConcat(const uint8_t* shuffle, uint8_t* offset);
-
-  // Tries to match a byte shuffle to a blend operation, which is a shuffle
-  // where no lanes change position. E.g. [0 9 2 11 .. 14 31] interleaves the
-  // even lanes of the first source with the odd lanes of the second.  The
-  // shuffle should be canonicalized.
-  static bool TryMatchBlend(const uint8_t* shuffle);
-
-  // Packs 4 bytes of shuffle into a 32 bit immediate.
-  static int32_t Pack4Lanes(const uint8_t* shuffle);
 
   // ===========================================================================
 

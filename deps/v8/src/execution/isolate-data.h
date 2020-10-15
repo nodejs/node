@@ -123,9 +123,6 @@ class IsolateData final {
   // beginning of IsolateData.
 #define FIELDS(V)                                                             \
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize) \
-  V(kExternalMemoryOffset, kInt64Size)                                        \
-  V(kExternalMemoryLlimitOffset, kInt64Size)                                  \
-  V(kExternalMemoryLowSinceMarkCompactOffset, kInt64Size)                     \
   V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
   V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
   V(kStackGuardOffset, StackGuard::kSizeInBytes)                              \
@@ -149,17 +146,6 @@ class IsolateData final {
   // The layout consitency is verified in Isolate::CheckIsolateLayout() using
   // runtime checks.
   void* embedder_data_[Internals::kNumIsolateDataSlots] = {};
-
-  // TODO(ishell): Move these external memory counters back to Heap once the
-  // Node JS bot issue is solved.
-  // The amount of external memory registered through the API.
-  int64_t external_memory_ = 0;
-
-  // The limit when to trigger memory pressure from the API.
-  int64_t external_memory_limit_ = kExternalAllocationSoftLimit;
-
-  // Caches the amount of external memory registered at the last MC.
-  int64_t external_memory_low_since_mark_compact_ = 0;
 
   // Stores the state of the caller for TurboAssembler::CallCFunction so that
   // the sampling CPU profiler can iterate the stack during such calls. These
@@ -224,13 +210,6 @@ void IsolateData::AssertPredictableLayout() {
   STATIC_ASSERT(offsetof(IsolateData, thread_local_top_) ==
                 kThreadLocalTopOffset);
   STATIC_ASSERT(offsetof(IsolateData, builtins_) == kBuiltinsTableOffset);
-  STATIC_ASSERT(offsetof(IsolateData, external_memory_) ==
-                kExternalMemoryOffset);
-  STATIC_ASSERT(offsetof(IsolateData, external_memory_limit_) ==
-                kExternalMemoryLlimitOffset);
-  STATIC_ASSERT(
-      offsetof(IsolateData, external_memory_low_since_mark_compact_) ==
-      kExternalMemoryLowSinceMarkCompactOffset);
   STATIC_ASSERT(offsetof(IsolateData, fast_c_call_caller_fp_) ==
                 kFastCCallCallerFPOffset);
   STATIC_ASSERT(offsetof(IsolateData, fast_c_call_caller_pc_) ==

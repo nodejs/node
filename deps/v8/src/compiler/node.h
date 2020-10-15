@@ -6,6 +6,7 @@
 #define V8_COMPILER_NODE_H_
 
 #include "src/common/globals.h"
+#include "src/compiler/graph-zone-traits.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
@@ -76,7 +77,7 @@ class V8_EXPORT_PRIVATE Node final {
   void ReplaceInput(int index, Node* new_to) {
     CHECK_LE(0, index);
     CHECK_LT(index, InputCount());
-    Node** input_ptr = GetInputPtr(index);
+    ZoneNodePtr* input_ptr = GetInputPtr(index);
     Node* old_to = *input_ptr;
     if (old_to != new_to) {
       Use* use = GetUsePtr(index);
@@ -89,9 +90,12 @@ class V8_EXPORT_PRIVATE Node final {
   void AppendInput(Zone* zone, Node* new_to);
   void InsertInput(Zone* zone, int index, Node* new_to);
   void InsertInputs(Zone* zone, int index, int count);
-  void RemoveInput(int index);
+  // Returns the removed input.
+  Node* RemoveInput(int index);
   void NullAllInputs();
   void TrimInputCount(int new_input_count);
+  // Can trim, extend by appending new inputs, or do nothing.
+  void EnsureInputCount(Zone* zone, int new_input_count);
 
   int UseCount() const;
   void ReplaceUses(Node* replace_to);
@@ -149,35 +153,43 @@ class V8_EXPORT_PRIVATE Node final {
   void Print(std::ostream&, int depth = 1) const;
 
  private:
+  template <typename NodePtrT>
+  inline static Node* NewImpl(Zone* zone, NodeId id, const Operator* op,
+                              int input_count, NodePtrT const* inputs,
+                              bool has_extensible_inputs);
+
   struct Use;
+  using ZoneUsePtr = GraphZoneTraits::Ptr<Use>;
+
   // Out of line storage for inputs when the number of inputs overflowed the
   // capacity of the inline-allocated space.
   struct OutOfLineInputs {
-    Node* node_;
+    ZoneNodePtr node_;
     int count_;
     int capacity_;
 
     // Inputs are allocated right behind the OutOfLineInputs instance.
-    inline Node** inputs();
+    inline ZoneNodePtr* inputs();
 
     static OutOfLineInputs* New(Zone* zone, int capacity);
-    void ExtractFrom(Use* use_ptr, Node** input_ptr, int count);
+    void ExtractFrom(Use* use_ptr, ZoneNodePtr* input_ptr, int count);
   };
+  using ZoneOutOfLineInputsPtr = GraphZoneTraits::Ptr<OutOfLineInputs>;
 
   // A link in the use chain for a node. Every input {i} to a node {n} has an
   // associated {Use} which is linked into the use chain of the {i} node.
   struct Use {
-    Use* next;
-    Use* prev;
+    ZoneUsePtr next;
+    ZoneUsePtr prev;
     uint32_t bit_field_;
 
     int input_index() const { return InputIndexField::decode(bit_field_); }
     bool is_inline_use() const { return InlineField::decode(bit_field_); }
-    Node** input_ptr() {
+    ZoneNodePtr* input_ptr() {
       int index = input_index();
       Use* start = this + 1 + index;
-      Node** inputs = is_inline_use()
-                          ? reinterpret_cast<Node*>(start)->inline_inputs()
+      ZoneNodePtr* inputs =
+          is_inline_use() ? reinterpret_cast<Node*>(start)->inline_inputs()
                           : reinterpret_cast<OutOfLineInputs*>(start)->inputs();
       return &inputs[index];
     }
@@ -227,21 +239,21 @@ class V8_EXPORT_PRIVATE Node final {
 
   inline Address inputs_location() const;
 
-  Node** inline_inputs() const {
-    return reinterpret_cast<Node**>(inputs_location());
+  ZoneNodePtr* inline_inputs() const {
+    return reinterpret_cast<ZoneNodePtr*>(inputs_location());
   }
   OutOfLineInputs* outline_inputs() const {
-    return *reinterpret_cast<OutOfLineInputs**>(inputs_location());
+    return *reinterpret_cast<ZoneOutOfLineInputsPtr*>(inputs_location());
   }
   void set_outline_inputs(OutOfLineInputs* outline) {
-    *reinterpret_cast<OutOfLineInputs**>(inputs_location()) = outline;
+    *reinterpret_cast<ZoneOutOfLineInputsPtr*>(inputs_location()) = outline;
   }
 
-  Node* const* GetInputPtrConst(int input_index) const {
+  ZoneNodePtr const* GetInputPtrConst(int input_index) const {
     return has_inline_inputs() ? &(inline_inputs()[input_index])
                                : &(outline_inputs()->inputs()[input_index]);
   }
-  Node** GetInputPtr(int input_index) {
+  ZoneNodePtr* GetInputPtr(int input_index) {
     return has_inline_inputs() ? &(inline_inputs()[input_index])
                                : &(outline_inputs()->inputs()[input_index]);
   }
@@ -283,7 +295,7 @@ class V8_EXPORT_PRIVATE Node final {
   Type type_;
   Mark mark_;
   uint32_t bit_field_;
-  Use* first_use_;
+  ZoneUsePtr first_use_;
 
   friend class Edge;
   friend class NodeMarkerBase;
@@ -296,13 +308,83 @@ Address Node::inputs_location() const {
   return reinterpret_cast<Address>(this) + sizeof(Node);
 }
 
-Node** Node::OutOfLineInputs::inputs() {
-  return reinterpret_cast<Node**>(reinterpret_cast<Address>(this) +
-                                  sizeof(Node::OutOfLineInputs));
+ZoneNodePtr* Node::OutOfLineInputs::inputs() {
+  return reinterpret_cast<ZoneNodePtr*>(reinterpret_cast<Address>(this) +
+                                        sizeof(Node::OutOfLineInputs));
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& n);
 
+// Base class for node wrappers.
+class NodeWrapper {
+ public:
+  explicit constexpr NodeWrapper(Node* node) : node_(node) {}
+  operator Node*() const { return node_; }
+  Node* operator->() const { return node_; }
+
+ protected:
+  Node* node() const { return node_; }
+  void set_node(Node* node) {
+    DCHECK_NOT_NULL(node);
+    node_ = node;
+  }
+
+ private:
+  Node* node_;
+};
+
+// Wrapper classes for special node/edge types (effect, control, frame states).
+
+class Effect : public NodeWrapper {
+ public:
+  explicit constexpr Effect(Node* node) : NodeWrapper(node) {
+    // TODO(jgruber): Remove the End special case.
+    SLOW_DCHECK(node == nullptr || node->op()->opcode() == IrOpcode::kEnd ||
+                node->op()->EffectOutputCount() > 0);
+  }
+
+  // Support the common `Node* x = effect = ...` pattern.
+  Node* operator=(Node* value) {
+    DCHECK_GT(value->op()->EffectOutputCount(), 0);
+    set_node(value);
+    return value;
+  }
+};
+
+class Control : public NodeWrapper {
+ public:
+  explicit constexpr Control(Node* node) : NodeWrapper(node) {
+    // TODO(jgruber): Remove the End special case.
+    SLOW_DCHECK(node == nullptr || node->opcode() == IrOpcode::kEnd ||
+                node->op()->ControlOutputCount() > 0);
+  }
+
+  // Support the common `Node* x = control = ...` pattern.
+  Node* operator=(Node* value) {
+    DCHECK_GT(value->op()->ControlOutputCount(), 0);
+    set_node(value);
+    return value;
+  }
+};
+
+class FrameState : public NodeWrapper {
+ public:
+  explicit constexpr FrameState(Node* node) : NodeWrapper(node) {
+    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
+    // test, among others).
+    SLOW_DCHECK(node->opcode() == IrOpcode::kFrameState ||
+                node->opcode() == IrOpcode::kStart);
+  }
+
+  // Duplicating here from frame-states.h for ease of access and to keep
+  // header include-balls small. Equality of the two constants is
+  // static-asserted elsewhere.
+  static constexpr int kFrameStateOuterStateInput = 5;
+
+  FrameState outer_frame_state() const {
+    return FrameState{node()->InputAt(kFrameStateOuterStateInput)};
+  }
+};
 
 // Typedefs to shorten commonly used Node containers.
 using NodeDeque = ZoneDeque<Node*>;
@@ -323,11 +405,11 @@ class Node::InputEdges final {
 
   inline value_type operator[](int index) const;
 
-  InputEdges(Node** input_root, Use* use_root, int count)
+  InputEdges(ZoneNodePtr* input_root, Use* use_root, int count)
       : input_root_(input_root), use_root_(use_root), count_(count) {}
 
  private:
-  Node** input_root_;
+  ZoneNodePtr* input_root_;
   Use* use_root_;
   int count_;
 };
@@ -345,11 +427,11 @@ class V8_EXPORT_PRIVATE Node::Inputs final {
 
   inline value_type operator[](int index) const;
 
-  explicit Inputs(Node* const* input_root, int count)
+  explicit Inputs(ZoneNodePtr const* input_root, int count)
       : input_root_(input_root), count_(count) {}
 
  private:
-  Node* const* input_root_;
+  ZoneNodePtr const* input_root_;
   int count_;
 };
 
@@ -383,14 +465,15 @@ class Edge final {
   friend class Node::InputEdges;
   friend class Node::InputEdges::iterator;
 
-  Edge(Node::Use* use, Node** input_ptr) : use_(use), input_ptr_(input_ptr) {
+  Edge(Node::Use* use, ZoneNodePtr* input_ptr)
+      : use_(use), input_ptr_(input_ptr) {
     DCHECK_NOT_NULL(use);
     DCHECK_NOT_NULL(input_ptr);
     DCHECK_EQ(input_ptr, use->input_ptr());
   }
 
   Node::Use* use_;
-  Node** input_ptr_;
+  ZoneNodePtr* input_ptr_;
 };
 
 bool Node::IsDead() const {
@@ -457,11 +540,11 @@ class Node::InputEdges::iterator final {
  private:
   friend class Node;
 
-  explicit iterator(Use* use, Node** input_ptr)
+  explicit iterator(Use* use, ZoneNodePtr* input_ptr)
       : use_(use), input_ptr_(input_ptr) {}
 
   Use* use_;
-  Node** input_ptr_;
+  ZoneNodePtr* input_ptr_;
 };
 
 
@@ -515,9 +598,10 @@ class Node::Inputs::const_iterator final {
  private:
   friend class Node::Inputs;
 
-  explicit const_iterator(Node* const* input_ptr) : input_ptr_(input_ptr) {}
+  explicit const_iterator(ZoneNodePtr const* input_ptr)
+      : input_ptr_(input_ptr) {}
 
-  Node* const* input_ptr_;
+  ZoneNodePtr const* input_ptr_;
 };
 
 
@@ -545,7 +629,7 @@ class Node::UseEdges::iterator final {
   iterator& operator++() {
     DCHECK_NOT_NULL(current_);
     current_ = next_;
-    next_ = current_ ? current_->next : nullptr;
+    next_ = current_ ? static_cast<Node::Use*>(current_->next) : nullptr;
     return *this;
   }
   iterator operator++(int);
@@ -556,7 +640,7 @@ class Node::UseEdges::iterator final {
   iterator() : current_(nullptr), next_(nullptr) {}
   explicit iterator(Node* node)
       : current_(node->first_use_),
-        next_(current_ ? current_->next : nullptr) {}
+        next_(current_ ? static_cast<Node::Use*>(current_->next) : nullptr) {}
 
   Node::Use* current_;
   Node::Use* next_;

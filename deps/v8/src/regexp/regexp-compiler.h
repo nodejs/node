@@ -96,8 +96,8 @@ class QuickCheckDetails {
   void set_cannot_match() { cannot_match_ = true; }
   struct Position {
     Position() : mask(0), value(0), determines_perfectly(false) {}
-    uc16 mask;
-    uc16 value;
+    uc32 mask;
+    uc32 value;
     bool determines_perfectly;
   };
   int characters() { return characters_; }

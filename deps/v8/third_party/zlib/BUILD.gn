@@ -18,6 +18,15 @@ config("zlib_config") {
 
 config("zlib_internal_config") {
   defines = [ "ZLIB_IMPLEMENTATION" ]
+
+  if (!is_debug) {
+    # Build code using -O3, see: crbug.com/1084371.
+    configs = [ "//build/config/compiler:optimize_speed" ]
+  }
+  if (is_debug || use_libfuzzer) {
+    # Enable zlib's asserts in debug and fuzzer builds.
+    defines += [ "ZLIB_DEBUG" ]
+  }
 }
 
 use_arm_neon_optimizations = false
@@ -67,12 +76,6 @@ source_set("zlib_adler32_simd") {
       "adler32_simd.c",
       "adler32_simd.h",
     ]
-
-    if (!is_debug) {
-      # Use optimize_speed (-O3) to output the _smallest_ code.
-      configs -= [ "//build/config/compiler:default_optimization" ]
-      configs += [ "//build/config/compiler:optimize_speed" ]
-    }
   }
 
   configs += [ ":zlib_internal_config" ]
@@ -91,6 +94,8 @@ if (use_arm_neon_optimizations) {
         defines += [ "ARMV8_OS_ANDROID" ]
       } else if (is_linux || is_chromeos) {
         defines += [ "ARMV8_OS_LINUX" ]
+      } else if (is_mac) {
+        defines += [ "ARMV8_OS_MACOS" ]
       } else if (is_fuchsia) {
         defines += [ "ARMV8_OS_FUCHSIA" ]
       } else if (is_win) {
@@ -117,11 +122,6 @@ if (use_arm_neon_optimizations) {
         "crc32_simd.c",
         "crc32_simd.h",
       ]
-
-      if (!is_debug) {
-        configs -= [ "//build/config/compiler:default_optimization" ]
-        configs += [ "//build/config/compiler:optimize_speed" ]
-      }
     }
 
     configs += [ ":zlib_internal_config" ]
@@ -160,13 +160,6 @@ source_set("zlib_inflate_chunk_simd") {
       "contrib/optimizations/inffast_chunk.h",
       "contrib/optimizations/inflate.c",
     ]
-
-    if (use_arm_neon_optimizations && !is_debug) {
-      # Here we trade better performance on newer/bigger ARMv8 cores
-      # for less perf on ARMv7, per crbug.com/772870#c40
-      configs -= [ "//build/config/compiler:default_optimization" ]
-      configs += [ "//build/config/compiler:optimize_speed" ]
-    }
   }
 
   configs += [ ":zlib_internal_config" ]
@@ -369,7 +362,7 @@ static_library("minizip") {
     ]
   }
 
-  if (is_mac || is_ios || is_android || is_nacl) {
+  if (is_apple || is_android || is_nacl) {
     # Mac, Android and the BSDs don't have fopen64, ftello64, or fseeko64. We
     # use fopen, ftell, and fseek instead on these systems.
     defines = [ "USE_FILE32API" ]
@@ -392,7 +385,6 @@ executable("zlib_bench") {
   include_dirs = [ "." ]
 
   sources = [ "contrib/bench/zlib_bench.cc" ]
-
   if (!is_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_speed" ]
@@ -420,6 +412,12 @@ if (build_with_chromium) {
       ":zlib",
       "//testing/gtest",
       "//testing/gtest:gtest_main",
+    ]
+
+    include_dirs = [
+      "//third_party/googletest/src/googletest/include/gtest",
+      ".",
+      "google",
     ]
   }
 }

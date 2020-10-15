@@ -590,8 +590,7 @@ class Simulator : public SimulatorBase {
   uint32_t MSACSR_;
 
   // Simulator support.
-  // Allocate 1MB for stack.
-  static const size_t stack_size_ = 1 * 1024 * 1024;
+  size_t stack_size_;
   char* stack_;
   bool pc_modified_;
   uint64_t icount_;

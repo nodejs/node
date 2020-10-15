@@ -56,7 +56,7 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
   void DisableIteration();
 
   virtual void** NewPointerArray(size_t length) = 0;
-  virtual void DeleteArray(void* array) = 0;
+  virtual void DeletePointerArray(void** array, size_t length) = 0;
 
  private:
   // Internal implementation should not be called directly by subclasses.
@@ -180,10 +180,18 @@ class IdentityMap : public IdentityMapBase {
   };
 
  protected:
+  // This struct is just a type tag for Zone::NewArray<T>(size_t) call.
+  struct Buffer {};
+
+  // TODO(ishell): consider removing virtual methods in favor of combining
+  // IdentityMapBase and IdentityMap into one class. This would also save
+  // space when sizeof(V) is less than sizeof(void*).
   void** NewPointerArray(size_t length) override {
-    return static_cast<void**>(allocator_.New(sizeof(void*) * length));
+    return allocator_.template NewArray<void*, Buffer>(length);
   }
-  void DeleteArray(void* array) override { allocator_.Delete(array); }
+  void DeletePointerArray(void** array, size_t length) override {
+    allocator_.template DeleteArray<void*, Buffer>(array, length);
+  }
 
  private:
   AllocationPolicy allocator_;

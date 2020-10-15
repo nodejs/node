@@ -192,7 +192,7 @@ void JSV8BreakIterator::AdoptText(
     Handle<String> text) {
   icu::BreakIterator* break_iterator =
       break_iterator_holder->break_iterator().raw();
-  CHECK_NOT_NULL(break_iterator);
+  DCHECK_NOT_NULL(break_iterator);
   Handle<Managed<icu::UnicodeString>> unicode_string =
       Intl::SetTextToBreakIterator(isolate, text, break_iterator);
   break_iterator_holder->set_unicode_string(*unicode_string);

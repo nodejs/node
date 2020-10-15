@@ -37,16 +37,21 @@ static NodeVector::iterator FindInsertionPoint(BasicBlock* block) {
   return i;
 }
 
+static const Operator* IntPtrConstant(CommonOperatorBuilder* common,
+                                      intptr_t value) {
+  return kSystemPointerSize == 8
+             ? common->Int64Constant(value)
+             : common->Int32Constant(static_cast<int32_t>(value));
+}
 
 // TODO(dcarney): need to mark code as non-serializable.
 static const Operator* PointerConstant(CommonOperatorBuilder* common,
-                                       intptr_t ptr) {
-  return kSystemPointerSize == 8
-             ? common->Int64Constant(ptr)
-             : common->Int32Constant(static_cast<int32_t>(ptr));
+                                       const void* ptr) {
+  intptr_t ptr_as_int = reinterpret_cast<intptr_t>(ptr);
+  return IntPtrConstant(common, ptr_as_int);
 }
 
-BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
+BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
     OptimizedCompilationInfo* info, Graph* graph, Schedule* schedule,
     Isolate* isolate) {
   // Basic block profiling disables concurrent compilation, so handle deref is
@@ -54,41 +59,70 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   AllowHandleDereference allow_handle_dereference;
   // Skip the exit block in profiles, since the register allocator can't handle
   // it and entry into it means falling off the end of the function anyway.
-  size_t n_blocks = static_cast<size_t>(schedule->RpoBlockCount()) - 1;
-  BasicBlockProfiler::Data* data = BasicBlockProfiler::Get()->NewData(n_blocks);
+  size_t n_blocks = schedule->RpoBlockCount() - 1;
+  BasicBlockProfilerData* data = BasicBlockProfiler::Get()->NewData(n_blocks);
   // Set the function name.
   data->SetFunctionName(info->GetDebugName());
   // Capture the schedule string before instrumentation.
-  {
+  if (FLAG_turbo_profiling_verbose) {
     std::ostringstream os;
     os << *schedule;
-    data->SetSchedule(&os);
+    data->SetSchedule(os);
   }
+  // Check whether we should write counts to a JS heap object or to the
+  // BasicBlockProfilerData directly. The JS heap object is only used for
+  // builtins.
+  bool on_heap_counters = isolate && isolate->IsGeneratingEmbeddedBuiltins();
   // Add the increment instructions to the start of every block.
   CommonOperatorBuilder common(graph->zone());
-  Node* zero = graph->NewNode(common.Int32Constant(0));
-  Node* one = graph->NewNode(common.Int32Constant(1));
   MachineOperatorBuilder machine(graph->zone());
+  Node* counters_array = nullptr;
+  if (on_heap_counters) {
+    // Allocation is disallowed here, so rather than referring to an actual
+    // counters array, create a reference to a special marker object. This
+    // object will get fixed up later in the constants table (see
+    // PatchBasicBlockCountersReference). An important and subtle point: we
+    // cannot use the root handle basic_block_counters_marker_handle() and must
+    // create a new separate handle. Otherwise
+    // TurboAssemblerBase::IndirectLoadConstant would helpfully emit a
+    // root-relative load rather than putting this value in the constants table
+    // where we expect it to be for patching.
+    counters_array = graph->NewNode(common.HeapConstant(Handle<HeapObject>::New(
+        ReadOnlyRoots(isolate).basic_block_counters_marker(), isolate)));
+  } else {
+    counters_array = graph->NewNode(PointerConstant(&common, data->counts()));
+  }
+  Node* one = graph->NewNode(common.Int32Constant(1));
   BasicBlockVector* blocks = schedule->rpo_order();
   size_t block_number = 0;
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
        ++it, ++block_number) {
     BasicBlock* block = (*it);
-    data->SetBlockRpoNumber(block_number, block->rpo_number());
-    // TODO(dcarney): wire effect and control deps for load and store.
+    // Iteration is already in reverse post-order.
+    DCHECK_EQ(block->rpo_number(), block_number);
+    data->SetBlockId(block_number, block->id().ToInt());
+    // It is unnecessary to wire effect and control deps for load and store
+    // since this happens after scheduling.
     // Construct increment operation.
-    Node* base = graph->NewNode(
-        PointerConstant(&common, data->GetCounterAddress(block_number)));
-    Node* load = graph->NewNode(machine.Load(MachineType::Uint32()), base, zero,
-                                graph->start(), graph->start());
+    int offset_to_counter_value = static_cast<int>(block_number) * kInt32Size;
+    if (on_heap_counters) {
+      offset_to_counter_value += ByteArray::kHeaderSize - kHeapObjectTag;
+    }
+    Node* offset_to_counter =
+        graph->NewNode(IntPtrConstant(&common, offset_to_counter_value));
+    Node* load =
+        graph->NewNode(machine.Load(MachineType::Uint32()), counters_array,
+                       offset_to_counter, graph->start(), graph->start());
     Node* inc = graph->NewNode(machine.Int32Add(), load, one);
-    Node* store =
-        graph->NewNode(machine.Store(StoreRepresentation(
-                           MachineRepresentation::kWord32, kNoWriteBarrier)),
-                       base, zero, inc, graph->start(), graph->start());
+    Node* store = graph->NewNode(
+        machine.Store(StoreRepresentation(MachineRepresentation::kWord32,
+                                          kNoWriteBarrier)),
+        counters_array, offset_to_counter, inc, graph->start(), graph->start());
     // Insert the new nodes.
     static const int kArraySize = 6;
-    Node* to_insert[kArraySize] = {zero, one, base, load, inc, store};
+    Node* to_insert[kArraySize] = {counters_array, one, offset_to_counter,
+                                   load,           inc, store};
+    // The first two Nodes are constant across all blocks.
     int insertion_start = block_number == 0 ? 0 : 2;
     NodeVector::iterator insertion_point = FindInsertionPoint(block);
     block->InsertNodes(insertion_point, &to_insert[insertion_start],

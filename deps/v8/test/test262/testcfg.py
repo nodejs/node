@@ -47,7 +47,6 @@ FEATURE_FLAGS = {
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
   'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
-  'Intl.DateTimeFormat-fractionalSecondDigits': '--harmony-intl-dateformat-fractional-second-digits',
   'String.prototype.replaceAll': '--harmony_string_replaceall',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
@@ -65,6 +64,7 @@ FEATURE_FLAGS = {
   'AggregateError': '--harmony-promise-any',
   'logical-assignment-operators': '--harmony-logical-assignment',
   'Promise.any': '--harmony-promise-any',
+  'Atomics.waitAsync': '--harmony-atomics-waitasync',
 }
 
 SKIPPED_FEATURES = set([])
@@ -218,6 +218,7 @@ class TestCase(testcase.D8TestCase):
 
   def _get_suite_flags(self):
     return (
+        ["--ignore-unhandled-promises"] +
         (["--throws"] if "negative" in self.test_record else []) +
         (["--allow-natives-syntax"]
          if "detachArrayBuffer.js" in self.test_record.get("includes", [])

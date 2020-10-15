@@ -114,12 +114,15 @@ function RunWorkerPingTest(config) {
       if (msg.thing) {
         thing = msg.thing;
       } else if (msg.error) {
+        print('Error in worker:', msg.error);
         worker.terminate();
         throw msg.error;
       }
     }
   }
+  print('Terminating workers.');
   for (let worker of workers) {
     worker.terminate();
   }
+  print('Workers terminated.');
 }

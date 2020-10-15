@@ -10,20 +10,49 @@
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
+#include "src/common/globals.h"
+#include "src/heap/allocation-stats.h"
+#include "src/heap/base-space.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/spaces.h"
 
 namespace v8 {
 namespace internal {
 
+class ReadOnlyDeserializer;
+class MemoryAllocator;
 class ReadOnlyHeap;
 
-class ReadOnlyPage : public Page {
+class ReadOnlyPage : public BasicMemoryChunk {
  public:
   // Clears any pointers in the header that point out of the page that would
   // otherwise make the header non-relocatable.
   void MakeHeaderRelocatable();
+
+  size_t ShrinkToHighWaterMark();
+
+  // Returns the address for a given offset in this page.
+  Address OffsetToAddress(size_t offset) const {
+    Address address_in_page = address() + offset;
+    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_BOOL) {
+      // Pointer compression with share ReadOnlyPages means that the area_start
+      // and area_end cannot be defined since they are stored within the pages
+      // which can be mapped at multiple memory addresses.
+      DCHECK_LT(offset, size());
+    } else {
+      DCHECK_GE(address_in_page, area_start());
+      DCHECK_LT(address_in_page, area_end());
+    }
+    return address_in_page;
+  }
+
+  // Returns the start area of the page without using area_start() which cannot
+  // return the correct result when the page is remapped multiple times.
+  Address GetAreaStart() const {
+    return address() +
+           MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
+  }
 
  private:
   friend class ReadOnlySpace;
@@ -33,9 +62,32 @@ class ReadOnlyPage : public Page {
 // Artifacts used to construct a new SharedReadOnlySpace
 class ReadOnlyArtifacts {
  public:
-  ~ReadOnlyArtifacts();
+  virtual ~ReadOnlyArtifacts() = default;
+
+  // Initialize the ReadOnlyArtifacts from an Isolate that has just been created
+  // either by serialization or by creating the objects directly.
+  virtual void Initialize(Isolate* isolate, std::vector<ReadOnlyPage*>&& pages,
+                          const AllocationStats& stats) = 0;
+
+  // This replaces the ReadOnlySpace in the given Heap with a newly constructed
+  // SharedReadOnlySpace that has pages created from the ReadOnlyArtifacts. This
+  // is only called for the first Isolate, where the ReadOnlySpace is created
+  // during the bootstrap process.
+
+  virtual void ReinstallReadOnlySpace(Isolate* isolate) = 0;
+  // Creates a ReadOnlyHeap for a specific Isolate. This will be populated with
+  // a SharedReadOnlySpace object that points to the Isolate's heap. Should only
+  // be used when the read-only heap memory is shared with or without pointer
+  // compression. This is called for all subsequent Isolates created after the
+  // first one.
+  virtual ReadOnlyHeap* GetReadOnlyHeapForIsolate(Isolate* isolate) = 0;
+
+  virtual void VerifyHeapAndSpaceRelationships(Isolate* isolate) = 0;
+
+  std::vector<ReadOnlyPage*>& pages() { return pages_; }
 
   void set_accounting_stats(const AllocationStats& stats) { stats_ = stats; }
+  const AllocationStats& accounting_stats() const { return stats_; }
 
   void set_shared_read_only_space(
       std::unique_ptr<SharedReadOnlySpace> shared_space) {
@@ -45,78 +97,199 @@ class ReadOnlyArtifacts {
     return shared_read_only_space_.get();
   }
 
-  heap::List<MemoryChunk>& pages() { return pages_; }
-  void TransferPages(heap::List<MemoryChunk>&& pages) {
-    pages_ = std::move(pages);
-  }
-
-  const AllocationStats& accounting_stats() const { return stats_; }
-
   void set_read_only_heap(std::unique_ptr<ReadOnlyHeap> read_only_heap);
-  ReadOnlyHeap* read_only_heap() { return read_only_heap_.get(); }
+  ReadOnlyHeap* read_only_heap() const { return read_only_heap_.get(); }
 
- private:
-  heap::List<MemoryChunk> pages_;
+  void InitializeChecksum(ReadOnlyDeserializer* des);
+  void VerifyChecksum(ReadOnlyDeserializer* des, bool read_only_heap_created);
+
+ protected:
+  ReadOnlyArtifacts() = default;
+
+  std::vector<ReadOnlyPage*> pages_;
   AllocationStats stats_;
   std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;
+#ifdef DEBUG
+  // The checksum of the blob the read-only heap was deserialized from, if
+  // any.
+  base::Optional<uint32_t> read_only_blob_checksum_;
+#endif  // DEBUG
+};
+
+// -----------------------------------------------------------------------------
+// Artifacts used to construct a new SharedReadOnlySpace when pointer
+// compression is disabled and so there is a single ReadOnlySpace with one set
+// of pages shared between all Isolates.
+class SingleCopyReadOnlyArtifacts : public ReadOnlyArtifacts {
+ public:
+  ~SingleCopyReadOnlyArtifacts() override;
+
+  ReadOnlyHeap* GetReadOnlyHeapForIsolate(Isolate* isolate) override;
+  void Initialize(Isolate* isolate, std::vector<ReadOnlyPage*>&& pages,
+                  const AllocationStats& stats) override;
+  void ReinstallReadOnlySpace(Isolate* isolate) override;
+  void VerifyHeapAndSpaceRelationships(Isolate* isolate) override;
+};
+
+// -----------------------------------------------------------------------------
+// Artifacts used to construct a new SharedReadOnlySpace when pointer
+// compression is enabled and so there is a ReadOnlySpace for each Isolate with
+// with its own set of pages mapped from the canonical set stored here.
+class PointerCompressedReadOnlyArtifacts : public ReadOnlyArtifacts {
+ public:
+  ReadOnlyHeap* GetReadOnlyHeapForIsolate(Isolate* isolate) override;
+  void Initialize(Isolate* isolate, std::vector<ReadOnlyPage*>&& pages,
+                  const AllocationStats& stats) override;
+  void ReinstallReadOnlySpace(Isolate* isolate) override;
+  void VerifyHeapAndSpaceRelationships(Isolate* isolate) override;
+
+ private:
+  SharedReadOnlySpace* CreateReadOnlySpace(Isolate* isolate);
+  Tagged_t OffsetForPage(size_t index) const { return page_offsets_[index]; }
+  void InitializeRootsIn(Isolate* isolate);
+  void InitializeRootsFrom(Isolate* isolate);
+
+  std::unique_ptr<v8::PageAllocator::SharedMemoryMapping> RemapPageTo(
+      size_t i, Address new_address, ReadOnlyPage*& new_page);
+
+  static constexpr size_t kReadOnlyRootsCount =
+      static_cast<size_t>(RootIndex::kReadOnlyRootsCount);
+
+  Address read_only_roots_[kReadOnlyRootsCount];
+  std::vector<Tagged_t> page_offsets_;
+  std::vector<std::unique_ptr<PageAllocator::SharedMemory>> shared_memory_;
 };
 
 // -----------------------------------------------------------------------------
 // Read Only space for all Immortal Immovable and Immutable objects
-class ReadOnlySpace : public PagedSpace {
+class ReadOnlySpace : public BaseSpace {
  public:
-  explicit ReadOnlySpace(Heap* heap);
+  V8_EXPORT_PRIVATE explicit ReadOnlySpace(Heap* heap);
 
-  // Detach the pages and them to artifacts for using in creating a
-  // SharedReadOnlySpace.
+  // Detach the pages and add them to artifacts for using in creating a
+  // SharedReadOnlySpace. Since the current space no longer has any pages, it
+  // should be replaced straight after this in its Heap.
   void DetachPagesAndAddToArtifacts(
       std::shared_ptr<ReadOnlyArtifacts> artifacts);
 
-  ~ReadOnlySpace() override { Unseal(); }
+  V8_EXPORT_PRIVATE ~ReadOnlySpace() override;
+  V8_EXPORT_PRIVATE virtual void TearDown(MemoryAllocator* memory_allocator);
+
+  bool IsDetached() const { return heap_ == nullptr; }
 
   bool writable() const { return !is_marked_read_only_; }
 
   bool Contains(Address a) = delete;
   bool Contains(Object o) = delete;
 
+  V8_EXPORT_PRIVATE
+  AllocationResult AllocateRaw(int size_in_bytes,
+                               AllocationAlignment alignment);
+
   V8_EXPORT_PRIVATE void ClearStringPaddingIfNeeded();
 
-  enum class SealMode { kDetachFromHeapAndForget, kDoNotDetachFromHeap };
+  enum class SealMode {
+    kDetachFromHeap,
+    kDetachFromHeapAndUnregisterMemory,
+    kDoNotDetachFromHeap
+  };
 
   // Seal the space by marking it read-only, optionally detaching it
   // from the heap and forgetting it for memory bookkeeping purposes (e.g.
   // prevent space's memory from registering as leaked).
-  void Seal(SealMode ro_mode);
+  V8_EXPORT_PRIVATE void Seal(SealMode ro_mode);
 
   // During boot the free_space_map is created, and afterwards we may need
-  // to write it into the free list nodes that were already created.
-  void RepairFreeListsAfterDeserialization();
+  // to write it into the free space nodes that were already created.
+  void RepairFreeSpacesAfterDeserialization();
 
-  size_t Available() override { return 0; }
+  size_t Size() override { return accounting_stats_.Size(); }
+  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() override;
+
+  const std::vector<ReadOnlyPage*>& pages() const { return pages_; }
+  Address top() const { return top_; }
+  Address limit() const { return limit_; }
+  size_t Capacity() const { return capacity_; }
+
+  bool ContainsSlow(Address addr);
+  V8_EXPORT_PRIVATE void ShrinkPages();
+#ifdef VERIFY_HEAP
+  void Verify(Isolate* isolate);
+#ifdef DEBUG
+  void VerifyCounters(Heap* heap);
+#endif  // DEBUG
+#endif  // VERIFY_HEAP
+
+  // Return size of allocatable area on a page in this space.
+  int AreaSize() const { return static_cast<int>(area_size_); }
+
+  ReadOnlyPage* InitializePage(BasicMemoryChunk* chunk);
+
+  Address FirstPageAddress() const { return pages_.front()->address(); }
 
  protected:
+  friend class SingleCopyReadOnlyArtifacts;
+
   void SetPermissionsForPages(MemoryAllocator* memory_allocator,
                               PageAllocator::Permission access);
 
   bool is_marked_read_only_ = false;
 
+  // Accounting information for this space.
+  AllocationStats accounting_stats_;
+
+  std::vector<ReadOnlyPage*> pages_;
+
+  Address top_;
+  Address limit_;
+
  private:
-  // Unseal the space after is has been sealed, by making it writable.
-  // TODO(v8:7464): Only possible if the space hasn't been detached.
+  // Unseal the space after it has been sealed, by making it writable.
   void Unseal();
 
-  //
-  // String padding must be cleared just before serialization and therefore the
-  // string padding in the space will already have been cleared if the space was
-  // deserialized.
+  void DetachFromHeap() { heap_ = nullptr; }
+
+  AllocationResult AllocateRawUnaligned(int size_in_bytes);
+  AllocationResult AllocateRawAligned(int size_in_bytes,
+                                      AllocationAlignment alignment);
+
+  HeapObject TryAllocateLinearlyAligned(int size_in_bytes,
+                                        AllocationAlignment alignment);
+  void EnsureSpaceForAllocation(int size_in_bytes);
+  void FreeLinearAllocationArea();
+
+  // String padding must be cleared just before serialization and therefore
+  // the string padding in the space will already have been cleared if the
+  // space was deserialized.
   bool is_string_padding_cleared_;
+
+  size_t capacity_;
+  const size_t area_size_;
 };
 
 class SharedReadOnlySpace : public ReadOnlySpace {
  public:
-  SharedReadOnlySpace(Heap* heap, std::shared_ptr<ReadOnlyArtifacts> artifacts);
-  ~SharedReadOnlySpace() override;
+  explicit SharedReadOnlySpace(Heap* heap) : ReadOnlySpace(heap) {
+    is_marked_read_only_ = true;
+  }
+
+  SharedReadOnlySpace(Heap* heap,
+                      PointerCompressedReadOnlyArtifacts* artifacts);
+  SharedReadOnlySpace(
+      Heap* heap, std::vector<ReadOnlyPage*>&& new_pages,
+      std::vector<std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping>>&&
+          mappings,
+      AllocationStats&& new_stats);
+  SharedReadOnlySpace(Heap* heap, SingleCopyReadOnlyArtifacts* artifacts);
+  SharedReadOnlySpace(const SharedReadOnlySpace&) = delete;
+
+  void TearDown(MemoryAllocator* memory_allocator) override;
+
+  // Holds any shared memory mapping that must be freed when the space is
+  // deallocated.
+  std::vector<std::unique_ptr<v8::PageAllocator::SharedMemoryMapping>>
+      shared_memory_mappings_;
 };
 
 }  // namespace internal

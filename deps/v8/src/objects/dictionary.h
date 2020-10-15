@@ -112,13 +112,12 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
-  static inline Handle<Object> AsHandle(OffThreadIsolate* isolate,
+  static inline Handle<Object> AsHandle(LocalIsolate* isolate,
                                         Handle<Name> key);
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
-  static const bool kNeedsHoleCheck = false;
+  static const bool kMatchNeedsHoleCheck = false;
 };
 
 template <typename Derived, typename Shape>
@@ -189,6 +188,8 @@ EXTERN_DECLARE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
 class V8_EXPORT_PRIVATE NameDictionary
     : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(NameDictionary)
 
   static const int kEntryValueIndex = 1;
@@ -211,6 +212,7 @@ class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kEntrySize = 1;  // Overrides NameDictionaryShape::kEntrySize
+  static const bool kMatchNeedsHoleCheck = true;
 
   template <typename Dictionary>
   static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);
@@ -220,9 +222,6 @@ class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
                                   PropertyDetails value);
 
   static inline Object Unwrap(Object key);
-  static inline bool IsKey(ReadOnlyRoots roots, Object k);
-  static inline bool IsLive(ReadOnlyRoots roots, Object key);
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 };
 
 EXTERN_DECLARE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
@@ -230,6 +229,8 @@ EXTERN_DECLARE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 class V8_EXPORT_PRIVATE GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(GlobalDictionary)
 
   inline Object ValueAt(InternalIndex entry);
@@ -238,6 +239,7 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   inline PropertyCell CellAt(const Isolate* isolate, InternalIndex entry);
   inline void SetEntry(InternalIndex entry, Object key, Object value,
                        PropertyDetails details);
+  inline void ClearEntry(InternalIndex entry);
   inline Name NameAt(InternalIndex entry);
   inline Name NameAt(const Isolate* isolate, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Object value);
@@ -251,19 +253,18 @@ class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
-  static inline Handle<Object> AsHandle(OffThreadIsolate* isolate,
-                                        uint32_t key);
+  static inline Handle<Object> AsHandle(LocalIsolate* isolate, uint32_t key);
 
   static inline uint32_t Hash(ReadOnlyRoots roots, uint32_t key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+
+  static const bool kMatchNeedsHoleCheck = true;
 };
 
 class NumberDictionaryShape : public NumberDictionaryBaseShape {
  public:
   static const int kPrefixSize = 1;
   static const int kEntrySize = 3;
-
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 };
 
 class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
@@ -283,8 +284,6 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
                                   PropertyDetails value) {
     UNREACHABLE();
   }
-
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 };
 
 EXTERN_DECLARE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
@@ -293,6 +292,8 @@ EXTERN_DECLARE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 class SimpleNumberDictionary
     : public Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary>
@@ -313,6 +314,8 @@ EXTERN_DECLARE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 class NumberDictionary
     : public Dictionary<NumberDictionary, NumberDictionaryShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(NumberDictionary)
   DECL_PRINTER(NumberDictionary)
 

@@ -71,78 +71,80 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     // For compatibility with console scripts:
     print = console.log;
 
-    class CustomIcProcessor extends IcProcessor {
-      constructor() {
-        super();
-        this.entries = [];
-      }
-
-      functionName(pc) {
-        let entry = this.profile_.findEntry(pc);
-        return this.formatName(entry);
-      }
-
-      processPropertyIC(type, pc, line, column, old_state, new_state, map, key,
-          modifier, slow_reason) {
-        let fnName = this.functionName(pc);
-        this.entries.push(new Entry(type, fnName, line, column, key,
-          old_state, new_state, map, slow_reason));
-
-      }
-    };
-
-
-    class Entry {
-      constructor(type, fn_file, line, column, key, oldState, newState,
-          map, reason, additional) {
-        this.type = type;
-        this.category = "other";
-        if (this.type.indexOf("Store") !== -1) {
-          this.category = "Store";
-        } else if (this.type.indexOf("Load") !== -1) {
-          this.category = "Load";
-        }
-        let parts = fn_file.split(" ");
-        this.functionName = parts[0];
-        this.file = parts[1];
-        let position = line + ":" + column;
-        this.filePosition = this.file + ":" + position;
-        this.oldState = oldState;
-        this.newState = newState;
-        this.state = this.oldState + " → " + this.newState;
-        this.key = key;
-        this.map = map.toString(16);
-        this.reason = reason;
-        this.additional = additional;
-      }
-
-      parseMapProperties(parts, offset) {
-        let next = parts[++offset];
-        if (!next.startsWith('dict')) return offset;
-        this.propertiesMode =
-          next.substr(5) == "0" ? "fast" : "slow";
-        this.numberOfOwnProperties = parts[++offset].substr(4);
-        next = parts[++offset];
-        this.instanceType = next.substr(5, next.length - 6);
-        return offset;
-      }
-
-      parsePositionAndFile(parts, start) {
-        // find the position of 'at' in the parts array.
-        let offset = start;
-        for (let i = start + 1; i < parts.length; i++) {
-          offset++;
-          if (parts[i] == 'at') break;
-        }
-        if (parts[offset] !== 'at') return -1;
-        this.position = parts.slice(start, offset).join(' ');
-        offset += 1;
-        this.isNative = parts[offset] == "native"
-        offset += this.isNative ? 1 : 0;
-        this.file = parts[offset];
-        return offset;
-      }
+  class CustomIcProcessor extends IcProcessor {
+    constructor() {
+      super();
+      this.entries = [];
     }
+
+    functionName(pc) {
+      let entry = this.profile_.findEntry(pc);
+      return this.formatName(entry);
+    }
+
+    processPropertyIC(
+        type, pc, time, line, column, old_state, new_state, map, key, modifier,
+        slow_reason) {
+      let fnName = this.functionName(pc);
+      this.entries.push(new Entry(
+          type, fnName, time, line, column, key, old_state, new_state, map,
+          slow_reason));
+    }
+  };
+
+
+  class Entry {
+  constructor(
+      type, fn_file, time, line, column, key, oldState, newState, map, reason,
+      additional) {
+    this.time = time;
+    this.type = type;
+    this.category = 'other';
+    if (this.type.indexOf('Store') !== -1) {
+      this.category = 'Store';
+    } else if (this.type.indexOf('Load') !== -1) {
+      this.category = 'Load';
+    }
+    let parts = fn_file.split(' ');
+    this.functionName = parts[0];
+    this.file = parts[1];
+    let position = line + ':' + column;
+    this.filePosition = this.file + ':' + position;
+    this.oldState = oldState;
+    this.newState = newState;
+    this.state = this.oldState + ' → ' + this.newState;
+    this.key = key;
+    this.map = map.toString(16);
+    this.reason = reason;
+    this.additional = additional;
+  }
+
+  parseMapProperties(parts, offset) {
+    let next = parts[++offset];
+    if (!next.startsWith('dict')) return offset;
+    this.propertiesMode = next.substr(5) == '0' ? 'fast' : 'slow';
+    this.numberOfOwnProperties = parts[++offset].substr(4);
+    next = parts[++offset];
+    this.instanceType = next.substr(5, next.length - 6);
+    return offset;
+  }
+
+  parsePositionAndFile(parts, start) {
+    // find the position of 'at' in the parts array.
+    let offset = start;
+    for (let i = start + 1; i < parts.length; i++) {
+      offset++;
+      if (parts[i] == 'at') break;
+    }
+    if (parts[offset] !== 'at') return -1;
+    this.position = parts.slice(start, offset).join(' ');
+    offset += 1;
+    this.isNative = parts[offset] == 'native'
+    offset += this.isNative ? 1 : 0;
+    this.file = parts[offset];
+    return offset;
+  }
+}
 
     function loadFile() {
       let files = document.getElementById("uploadInput").files;
@@ -339,6 +341,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function initGroupKeySelect() {
       let select = document.getElementById("group-key");
+      select.options.length = 0;
       for (let i in properties) {
         let option = document.createElement("option");
         option.text = properties[i];

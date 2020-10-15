@@ -377,6 +377,7 @@ class ActionNode : public SeqRegExpNode {
       : SeqRegExpNode(on_success), action_type_(action_type) {}
   ActionType action_type_;
   friend class DotPrinterImpl;
+  friend Zone;
 };
 
 class TextNode : public SeqRegExpNode {
@@ -387,7 +388,7 @@ class TextNode : public SeqRegExpNode {
   TextNode(RegExpCharacterClass* that, bool read_backward,
            RegExpNode* on_success)
       : SeqRegExpNode(on_success),
-        elms_(new (zone()) ZoneList<TextElement>(1, zone())),
+        elms_(zone()->New<ZoneList<TextElement>>(1, zone())),
         read_backward_(read_backward) {
     elms_->Add(TextElement::CharClass(that), zone());
   }
@@ -449,19 +450,19 @@ class AssertionNode : public SeqRegExpNode {
     AFTER_NEWLINE
   };
   static AssertionNode* AtEnd(RegExpNode* on_success) {
-    return new (on_success->zone()) AssertionNode(AT_END, on_success);
+    return on_success->zone()->New<AssertionNode>(AT_END, on_success);
   }
   static AssertionNode* AtStart(RegExpNode* on_success) {
-    return new (on_success->zone()) AssertionNode(AT_START, on_success);
+    return on_success->zone()->New<AssertionNode>(AT_START, on_success);
   }
   static AssertionNode* AtBoundary(RegExpNode* on_success) {
-    return new (on_success->zone()) AssertionNode(AT_BOUNDARY, on_success);
+    return on_success->zone()->New<AssertionNode>(AT_BOUNDARY, on_success);
   }
   static AssertionNode* AtNonBoundary(RegExpNode* on_success) {
-    return new (on_success->zone()) AssertionNode(AT_NON_BOUNDARY, on_success);
+    return on_success->zone()->New<AssertionNode>(AT_NON_BOUNDARY, on_success);
   }
   static AssertionNode* AfterNewline(RegExpNode* on_success) {
-    return new (on_success->zone()) AssertionNode(AFTER_NEWLINE, on_success);
+    return on_success->zone()->New<AssertionNode>(AFTER_NEWLINE, on_success);
   }
   void Accept(NodeVisitor* visitor) override;
   void Emit(RegExpCompiler* compiler, Trace* trace) override;
@@ -473,6 +474,8 @@ class AssertionNode : public SeqRegExpNode {
   AssertionType assertion_type() { return assertion_type_; }
 
  private:
+  friend Zone;
+
   void EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace);
   enum IfPrevious { kIsNonWord, kIsWord };
   void BacktrackIfPrevious(RegExpCompiler* compiler, Trace* trace,
@@ -586,8 +589,8 @@ class ChoiceNode : public RegExpNode {
  public:
   explicit ChoiceNode(int expected_size, Zone* zone)
       : RegExpNode(zone),
-        alternatives_(new (zone)
-                          ZoneList<GuardedAlternative>(expected_size, zone)),
+        alternatives_(
+            zone->New<ZoneList<GuardedAlternative>>(expected_size, zone)),
         not_at_start_(false),
         being_calculated_(false) {}
   void Accept(NodeVisitor* visitor) override;

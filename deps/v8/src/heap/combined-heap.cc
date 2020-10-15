@@ -10,7 +10,8 @@ namespace internal {
 
 CombinedHeapObjectIterator::CombinedHeapObjectIterator(
     Heap* heap, HeapObjectIterator::HeapObjectsFiltering filtering)
-    : heap_iterator_(heap, filtering),
+    : safepoint_scope_(heap),
+      heap_iterator_(heap, filtering),
       ro_heap_iterator_(heap->isolate()->read_only_heap()) {}
 
 HeapObject CombinedHeapObjectIterator::Next() {

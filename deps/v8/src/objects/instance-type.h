@@ -154,7 +154,7 @@ enum InstanceType : uint16_t {
 };
 
 // This constant is defined outside of the InstanceType enum because the
-// string instance types are sparce and there's no such a string instance type.
+// string instance types are sparse and there's no such string instance type.
 // But it's still useful for range checks to have such a value.
 constexpr InstanceType LAST_STRING_TYPE =
     static_cast<InstanceType>(FIRST_NONSTRING_TYPE - 1);
@@ -242,6 +242,49 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
 
 #undef IS_TYPE_FUNCTION_DECL
 }  // namespace InstanceTypeChecker
+
+// This list must contain only maps that are shared by all objects of their
+// instance type.
+#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                       \
+  V(_, AccessorInfoMap, accessor_info_map, AccessorInfo)                    \
+  V(_, AccessorPairMap, accessor_pair_map, AccessorPair)                    \
+  V(_, AllocationMementoMap, allocation_memento_map, AllocationMemento)     \
+  V(_, ArrayBoilerplateDescriptionMap, array_boilerplate_description_map,   \
+    ArrayBoilerplateDescription)                                            \
+  V(_, BreakPointMap, break_point_map, BreakPoint)                          \
+  V(_, BreakPointInfoMap, break_point_info_map, BreakPointInfo)             \
+  V(_, CachedTemplateObjectMap, cached_template_object_map,                 \
+    CachedTemplateObject)                                                   \
+  V(_, CellMap, cell_map, Cell)                                             \
+  V(_, WeakCellMap, weak_cell_map, WeakCell)                                \
+  V(_, CodeMap, code_map, Code)                                             \
+  V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                    \
+  V(_, DebugInfoMap, debug_info_map, DebugInfo)                             \
+  V(_, FeedbackVectorMap, feedback_vector_map, FeedbackVector)              \
+  V(_, FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArray)       \
+  V(_, FunctionTemplateInfoMap, function_template_info_map,                 \
+    FunctionTemplateInfo)                                                   \
+  V(_, HeapNumberMap, heap_number_map, HeapNumber)                          \
+  V(_, MetaMap, meta_map, Map)                                              \
+  V(_, PreparseDataMap, preparse_data_map, PreparseData)                    \
+  V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                 \
+  V(_, SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfo) \
+  V(_, SmallOrderedHashSetMap, small_ordered_hash_set_map,                  \
+    SmallOrderedHashSet)                                                    \
+  V(_, SmallOrderedHashMapMap, small_ordered_hash_map_map,                  \
+    SmallOrderedHashMap)                                                    \
+  V(_, SmallOrderedNameDictionaryMap, small_ordered_name_dictionary_map,    \
+    SmallOrderedNameDictionary)                                             \
+  V(_, SymbolMap, symbol_map, Symbol)                                       \
+  V(_, TransitionArrayMap, transition_array_map, TransitionArray)           \
+  V(_, Tuple2Map, tuple2_map, Tuple2)                                       \
+  V(_, UncompiledDataWithoutPreparseDataMap,                                \
+    uncompiled_data_without_preparse_data_map,                              \
+    UncompiledDataWithoutPreparseData)                                      \
+  V(_, UncompiledDataWithPreparseDataMap,                                   \
+    uncompiled_data_with_preparse_data_map, UncompiledDataWithPreparseData) \
+  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)             \
+  TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
 }  // namespace internal
 }  // namespace v8

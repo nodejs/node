@@ -48,11 +48,6 @@ void EphemeronKeyBarrierDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-const Register FastNewFunctionContextDescriptor::ScopeInfoRegister() {
-  return rdi;
-}
-const Register FastNewFunctionContextDescriptor::SlotsRegister() { return rax; }
-
 const Register LoadDescriptor::ReceiverRegister() { return rdx; }
 const Register LoadDescriptor::NameRegister() { return rcx; }
 const Register LoadDescriptor::SlotRegister() { return rax; }
@@ -129,11 +124,31 @@ void CallWithSpreadDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallWithSpread_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // rax : number of arguments (on the stack, not including receiver)
+  // rdi : the target to call
+  // rbx : the object to spread
+  // rdx : the feedback slot
+  Register registers[] = {rdi, rax, rbx, rdx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void CallWithArrayLikeDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // rdi : the target to call
   // rbx : the arguments list
   Register registers[] = {rdi, rbx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void CallWithArrayLike_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // rdi : the target to call
+  // rbx : the arguments list
+  // rdx : the feedback slot
+  // rax : the feedback vector
+  Register registers[] = {rdi, rbx, rdx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -168,12 +183,32 @@ void ConstructWithSpreadDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void ConstructWithSpread_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // rax : number of arguments (on the stack, not including receiver)
+  // rdi : the target to call
+  // rdx : the new target
+  // rbx : the feedback slot
+  Register registers[] = {rdi, rdx, rax, rbx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void ConstructWithArrayLikeDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // rdi : the target to call
   // rdx : the new target
   // rbx : the arguments list
   Register registers[] = {rdi, rdx, rbx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructWithArrayLike_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // rdi : the target to call
+  // rdx : the new target
+  // rbx : the arguments list
+  // rax : the feedback slot
+  Register registers[] = {rdi, rdx, rbx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -191,11 +226,6 @@ void AbortDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  data->InitializePlatformSpecific(0, nullptr);
 }
 
 void CompareDescriptor::InitializePlatformSpecific(
@@ -289,7 +319,7 @@ void BinaryOp_WithFeedbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdx,   // kLeft
                           rax,   // kRight
-                          rdi,   // Slot
+                          rdi,   // kSlot
                           rbx};  // kMaybeFeedbackVector
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
@@ -307,7 +337,7 @@ void Compare_WithFeedbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdx,   // kLeft
                           rax,   // kRight
-                          rdi,   // Slot
+                          rdi,   // kSlot
                           rbx};  // kMaybeFeedbackVector
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

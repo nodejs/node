@@ -12,7 +12,7 @@ namespace internal {
 // static
 constexpr size_t RawHeap::kNumberOfRegularSpaces;
 
-RawHeap::RawHeap(Heap* heap, size_t custom_spaces) : main_heap_(heap) {
+RawHeap::RawHeap(HeapBase* heap, size_t custom_spaces) : main_heap_(heap) {
   size_t i = 0;
   for (; i < static_cast<size_t>(RegularSpaceType::kLarge); ++i) {
     spaces_.push_back(std::make_unique<NormalPageSpace>(this, i));

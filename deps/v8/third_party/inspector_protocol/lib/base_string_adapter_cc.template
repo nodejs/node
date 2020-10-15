@@ -16,6 +16,13 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "{{config.crdtp.dir}}/cbor.h"
+#include "{{config.crdtp.dir}}/protocol_core.h"
+
+using namespace {{config.crdtp.namespace}};
+
+using {{"::".join(config.protocol.namespace)}}::Binary;
+using {{"::".join(config.protocol.namespace)}}::String;
+using {{"::".join(config.protocol.namespace)}}::StringUtil;
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -138,6 +145,28 @@ String StringUtil::fromUTF16LE(const uint16_t* data, size_t length) {
   return utf8;
 }
 
+bool StringUtil::ReadString(DeserializerState* state, String* value) {
+  auto* tokenizer = state->tokenizer();
+  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING8) {
+    const auto str = tokenizer->GetString8();
+    *value = StringUtil::fromUTF8(str.data(), str.size());
+    return true;
+  }
+  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING16) {
+    const auto str = tokenizer->GetString16WireRep();
+    *value = StringUtil::fromUTF16LE(reinterpret_cast<const uint16_t*>(str.data()), str.size() / 2);
+    return true;
+  }
+  state->RegisterError(Error::BINDINGS_STRING_VALUE_EXPECTED);
+  return false;
+}
+
+void StringUtil::WriteString(const String& str, std::vector<uint8_t>* bytes) {
+  cbor::EncodeString8(span<uint8_t>(StringUtil::CharactersUTF8(str),
+                                    StringUtil::CharacterCount(str)),
+                      bytes);
+}
+
 Binary::Binary() : bytes_(new base::RefCountedBytes) {}
 Binary::Binary(const Binary& binary) : bytes_(binary.bytes_) {}
 Binary::Binary(scoped_refptr<base::RefCountedMemory> bytes) : bytes_(bytes) {}
@@ -190,3 +219,31 @@ Binary Binary::fromSpan(const uint8_t* data, size_t size) {
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}
+
+namespace {{config.crdtp.namespace}} {
+
+// static
+bool ProtocolTypeTraits<Binary>::Deserialize(DeserializerState* state, Binary* value) {
+  auto* tokenizer = state->tokenizer();
+  if (tokenizer->TokenTag() == cbor::CBORTokenTag::BINARY) {
+    const span<uint8_t> bin = tokenizer->GetBinary();
+    *value = Binary::fromSpan(bin.data(), bin.size());
+    return true;
+  }
+  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING8) {
+    const auto str_span = tokenizer->GetString8();
+    String str = StringUtil::fromUTF8(str_span.data(), str_span.size());
+    bool success = false;
+    *value = Binary::fromBase64(str, &success);
+    return success;
+  }
+  state->RegisterError(Error::BINDINGS_BINARY_VALUE_EXPECTED);
+  return false;
+}
+
+// static
+void ProtocolTypeTraits<Binary>::Serialize(const Binary& value, std::vector<uint8_t>* bytes) {
+  value.AppendSerialized(bytes);
+}
+
+}  // namespace {{config.crdtp.namespace}}

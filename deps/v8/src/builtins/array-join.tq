@@ -296,7 +296,7 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;
-          next = ToString(context, obj);
+          next = string::ToString(context, obj);
         }
       }
     }
@@ -414,17 +414,18 @@ const kMinJoinStackSize:
     constexpr int31 generates 'JSArray::kMinJoinStackSize';
 macro LoadJoinStack(implicit context: Context)(): FixedArray
     labels IfUninitialized {
-  const nativeContext: NativeContext = LoadNativeContext(context);
-  const stack: HeapObject = UnsafeCast<HeapObject>(
-      nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
-  if (stack == Undefined) goto IfUninitialized;
-  assert(IsFixedArray(stack));
-  return UnsafeCast<FixedArray>(stack);
+  typeswitch (*NativeContextSlot(ContextSlot::ARRAY_JOIN_STACK_INDEX)) {
+    case (Undefined): {
+      goto IfUninitialized;
+    }
+    case (stack: FixedArray): {
+      return stack;
+    }
+  }
 }
 
 macro SetJoinStack(implicit context: Context)(stack: FixedArray): void {
-  const nativeContext: NativeContext = LoadNativeContext(context);
-  nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX] = stack;
+  *NativeContextSlot(ContextSlot::ARRAY_JOIN_STACK_INDEX) = stack;
 }
 
 // Adds a receiver to the stack. The FixedArray will automatically grow to

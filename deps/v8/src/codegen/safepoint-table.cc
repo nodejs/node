@@ -10,26 +10,29 @@
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
 #include "src/utils/ostreams.h"
+#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
 
+SafepointTable::SafepointTable(Code code)
+    : SafepointTable(code.InstructionStart(), code.SafepointTableAddress(),
+                     code.stack_slots(), true) {}
+
+SafepointTable::SafepointTable(const wasm::WasmCode* code)
+    : SafepointTable(code->instruction_start(),
+                     code->instruction_start() + code->safepoint_table_offset(),
+                     code->stack_slots(), false) {}
+
 SafepointTable::SafepointTable(Address instruction_start,
-                               size_t safepoint_table_offset,
+                               Address safepoint_table_address,
                                uint32_t stack_slots, bool has_deopt)
     : instruction_start_(instruction_start),
       stack_slots_(stack_slots),
-      has_deopt_(has_deopt) {
-  Address header = instruction_start_ + safepoint_table_offset;
-  length_ = Memory<uint32_t>(header + kLengthOffset);
-  entry_size_ = Memory<uint32_t>(header + kEntrySizeOffset);
-  pc_and_deoptimization_indexes_ = header + kHeaderSize;
-  entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
-}
-
-SafepointTable::SafepointTable(Code code)
-    : SafepointTable(code.InstructionStart(), code.safepoint_table_offset(),
-                     code.stack_slots(), true) {}
+      has_deopt_(has_deopt),
+      safepoint_table_address_(safepoint_table_address),
+      length_(ReadLength(safepoint_table_address)),
+      entry_size_(ReadEntrySize(safepoint_table_address)) {}
 
 unsigned SafepointTable::find_return_pc(unsigned pc_offset) {
   for (unsigned i = 0; i < length(); i++) {
@@ -40,7 +43,6 @@ unsigned SafepointTable::find_return_pc(unsigned pc_offset) {
     }
   }
   UNREACHABLE();
-  return 0;
 }
 
 SafepointEntry SafepointTable::FindEntry(Address pc) const {
@@ -60,7 +62,6 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
     }
   }
   UNREACHABLE();
-  return SafepointEntry();
 }
 
 void SafepointTable::PrintEntry(unsigned index,
@@ -90,7 +91,7 @@ void SafepointTable::PrintBits(std::ostream& os,  // NOLINT
 Safepoint SafepointTableBuilder::DefineSafepoint(
     Assembler* assembler, Safepoint::DeoptMode deopt_mode) {
   deoptimization_info_.push_back(
-      DeoptimizationInfo(zone_, assembler->pc_offset()));
+      DeoptimizationInfo(zone_, assembler->pc_offset_for_safepoint()));
   DeoptimizationInfo& new_info = deoptimization_info_.back();
   return Safepoint(new_info.indexes);
 }

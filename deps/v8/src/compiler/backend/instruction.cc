@@ -4,6 +4,7 @@
 
 #include "src/compiler/backend/instruction.h"
 
+#include <cstddef>
 #include <iomanip>
 
 #include "src/codegen/interface-descriptors.h"
@@ -169,6 +170,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
     }
+    case InstructionOperand::PENDING:
+      return os << "[pending: " << PendingOperand::cast(op).next() << "]";
     case InstructionOperand::ALLOCATED: {
       LocationOperand allocated = LocationOperand::cast(op);
       if (op.IsStackSlot()) {
@@ -296,6 +299,9 @@ Instruction::Instruction(InstructionCode opcode)
       block_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
+
+  // PendingOperands are required to be 8 byte aligned.
+  STATIC_ASSERT(offsetof(Instruction, operands_) % 8 == 0);
 }
 
 Instruction::Instruction(InstructionCode opcode, size_t output_count,
@@ -577,7 +583,8 @@ void PhiInstruction::RenameInput(size_t offset, int virtual_register) {
 
 InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
                                    RpoNumber loop_header, RpoNumber loop_end,
-                                   bool deferred, bool handler)
+                                   RpoNumber dominator, bool deferred,
+                                   bool handler)
     : successors_(zone),
       predecessors_(zone),
       phis_(zone),
@@ -585,6 +592,7 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       rpo_number_(rpo_number),
       loop_header_(loop_header),
       loop_end_(loop_end),
+      dominator_(dominator),
       deferred_(deferred),
       handler_(handler) {}
 
@@ -611,9 +619,9 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const BasicBlock* block) {
   bool is_handler =
       !block->empty() && block->front()->opcode() == IrOpcode::kIfException;
-  InstructionBlock* instr_block = new (zone)
-      InstructionBlock(zone, GetRpo(block), GetRpo(block->loop_header()),
-                       GetLoopEndRpo(block), block->deferred(), is_handler);
+  InstructionBlock* instr_block = zone->New<InstructionBlock>(
+      zone, GetRpo(block), GetRpo(block->loop_header()), GetLoopEndRpo(block),
+      GetRpo(block->dominator()), block->deferred(), is_handler);
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (BasicBlock* successor : block->successors()) {
@@ -863,7 +871,7 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
   instructions_.push_back(instr);
   if (instr->NeedsReferenceMap()) {
     DCHECK_NULL(instr->reference_map());
-    ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+    ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
     reference_map->set_instruction_position(index);
     instr->set_reference_map(reference_map);
     reference_maps_.push_back(reference_map);

@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/free-list.h"
 
 namespace cppgc {
@@ -53,6 +54,7 @@ class V8_EXPORT_PRIVATE BaseSpace {
  private:
   RawHeap* heap_;
   Pages pages_;
+  v8::base::Mutex pages_mutex_;
   const size_t index_;
   const PageType type_;
 };
@@ -91,9 +93,6 @@ class V8_EXPORT_PRIVATE NormalPageSpace final : public BaseSpace {
   }
 
   NormalPageSpace(RawHeap* heap, size_t index);
-
-  void AddToFreeList(void*, size_t);
-  void ResetLinearAllocationBuffer();
 
   LinearAllocationBuffer& linear_allocation_buffer() { return current_lab_; }
   const LinearAllocationBuffer& linear_allocation_buffer() const {

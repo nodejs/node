@@ -45,7 +45,6 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-class OffThreadIsolate;
 
 class AstRawString final : public ZoneObject {
  public:
@@ -59,8 +58,8 @@ class AstRawString final : public ZoneObject {
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const;
 
-  void Internalize(Isolate* isolate);
-  void Internalize(OffThreadIsolate* isolate);
+  template <typename LocalIsolate>
+  void Internalize(LocalIsolate* isolate);
 
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
@@ -83,6 +82,7 @@ class AstRawString final : public ZoneObject {
   friend class AstRawStringInternalizationKey;
   friend class AstStringConstants;
   friend class AstValueFactory;
+  friend Zone;
 
   // Members accessed only by the AstValueFactory & related classes:
   static bool Compare(void* a, void* b);
@@ -126,6 +126,11 @@ class AstRawString final : public ZoneObject {
 #endif
 };
 
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void AstRawString::Internalize(Isolate* isolate);
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void AstRawString::Internalize(LocalIsolate* isolate);
+
 class AstConsString final : public ZoneObject {
  public:
   AstConsString* AddString(Zone* zone, const AstRawString* s) {
@@ -133,8 +138,7 @@ class AstConsString final : public ZoneObject {
     if (!IsEmpty()) {
       // We're putting the new string to the head of the list, meaning
       // the string segments will be in reverse order.
-      Segment* tmp = new (zone->New(sizeof(Segment))) Segment;
-      *tmp = segment_;
+      Segment* tmp = zone->New<Segment>(segment_);
       segment_.next = tmp;
     }
     segment_.string = s;
@@ -163,6 +167,7 @@ class AstConsString final : public ZoneObject {
 
  private:
   friend class AstValueFactory;
+  friend Zone;
 
   AstConsString() : string_(), segment_({nullptr, nullptr}) {}
 
@@ -380,7 +385,7 @@ extern template EXPORT_TEMPLATE_DECLARE(
 
 extern template EXPORT_TEMPLATE_DECLARE(
     V8_EXPORT_PRIVATE) void AstValueFactory::
-    Internalize<OffThreadIsolate>(OffThreadIsolate* isolate);
+    Internalize<LocalIsolate>(LocalIsolate* isolate);
 
 }  // namespace internal
 }  // namespace v8

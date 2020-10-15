@@ -7,8 +7,20 @@
 #include <algorithm>
 #include <numeric>
 
+#include "include/cppgc/persistent.h"
+
 namespace cppgc {
 namespace internal {
+
+PersistentRegion::~PersistentRegion() {
+  for (auto& slots : nodes_) {
+    for (auto& node : *slots) {
+      if (node.IsUsed()) {
+        static_cast<PersistentBase*>(node.owner())->ClearFromGC();
+      }
+    }
+  }
+}
 
 size_t PersistentRegion::NodesInUse() const {
   return std::accumulate(

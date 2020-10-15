@@ -119,8 +119,8 @@ class ZoneChunkList : public ZoneObject {
   };
 
   Chunk* NewChunk(const uint32_t capacity) {
-    Chunk* chunk =
-        new (zone_->New(sizeof(Chunk) + capacity * sizeof(T))) Chunk();
+    void* memory = zone_->Allocate<Chunk>(sizeof(Chunk) + capacity * sizeof(T));
+    Chunk* chunk = new (memory) Chunk();
     chunk->capacity_ = capacity;
     return chunk;
   }

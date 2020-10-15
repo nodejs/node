@@ -14,7 +14,7 @@
 #include "src/execution/frames.h"
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/string-table.h"
+#include "src/objects/string-set.h"
 
 namespace v8 {
 namespace internal {
@@ -84,7 +84,7 @@ class DebugEvaluate : public AllStatic {
     struct ContextChainElement {
       Handle<Context> wrapped_context;
       Handle<JSObject> materialized_object;
-      Handle<StringSet> blacklist;
+      Handle<StringSet> blocklist;
     };
 
     Handle<Context> evaluation_context_;

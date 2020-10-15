@@ -34,12 +34,12 @@ void CpuTraceMarkExtension::Mark(
 #if defined(__i386__) && defined(__pic__)
   __asm__ __volatile__("push %%ebx; cpuid; pop %%ebx"
                        : "=a"(magic_dummy)
-                       : "a"(0x4711 | ((unsigned)(param) << 16))
+                       : "a"(0x4711 | (param << 16))
                        : "ecx", "edx");
 #else
   __asm__ __volatile__("cpuid"
                        : "=a"(magic_dummy)
-                       : "a"(0x4711 | ((unsigned)(param) << 16))
+                       : "a"(0x4711 | (param << 16))
                        : "ecx", "edx", "ebx");
 #endif  // defined(__i386__) && defined(__pic__)
 

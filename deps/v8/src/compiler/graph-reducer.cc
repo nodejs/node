@@ -85,7 +85,7 @@ Reduction GraphReducer::Reduce(Node* const node) {
   auto skip = reducers_.end();
   for (auto i = reducers_.begin(); i != reducers_.end();) {
     if (i != skip) {
-      tick_counter_->DoTick();
+      tick_counter_->TickAndMaybeEnterSafepoint();
       Reduction reduction = (*i)->Reduce(node);
       if (!reduction.Changed()) {
         // No change from this reducer.

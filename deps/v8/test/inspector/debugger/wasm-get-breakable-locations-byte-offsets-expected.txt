@@ -1,8 +1,7 @@
 Tests breakable locations in wasm
 Running testFunction...
-Script nr 0 parsed. URL: v8://test/setup
-Script nr 1 parsed. URL: v8://test/runTestFunction
-Script nr 2 parsed. URL: wasm://wasm/354ada0e
+Script nr 0 parsed. URL: v8://test/instantiate
+Script nr 1 parsed. URL: wasm://wasm/354ada0e
 This is a wasm script (nr 0).
 Querying breakable locations for all wasm scripts now...
 Requesting all breakable locations in wasm script 0
@@ -53,7 +52,7 @@ Setting at wasm://wasm/354ada0e:0:58
 Success!
 Running wasm code...
 Missing breakpoints: 10
-Script nr 3 parsed. URL: v8://test/runWasm
+Script nr 2 parsed. URL: v8://test/runWasm
 Stopped at wasm://wasm/354ada0e:0:48
 Missing breakpoints: 9
 Stopped at wasm://wasm/354ada0e:0:50

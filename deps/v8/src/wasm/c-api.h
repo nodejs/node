@@ -43,7 +43,7 @@ class StoreImpl {
  private:
   friend own<Store> Store::make(Engine*);
 
-  StoreImpl() {}
+  StoreImpl() = default;
 
   v8::Isolate::CreateParams create_params_;
   v8::Isolate* isolate_ = nullptr;

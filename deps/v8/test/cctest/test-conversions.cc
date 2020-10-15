@@ -357,12 +357,12 @@ TEST(BitField64) {
   uint64_t x;
 
   // Test most significant bits.
-  x = V8_2PART_UINT64_C(0xE0000000, 00000000);
+  x = 0xE000'0000'0000'0000;
   CHECK(x == UpperBits::encode(7));
   CHECK_EQ(7, UpperBits::decode(x));
 
   // Test the 32/64-bit boundary bits.
-  x = V8_2PART_UINT64_C(0x00000001, 80000000);
+  x = 0x0000'0001'8000'0000;
   CHECK(x == MiddleBits::encode(3));
   CHECK_EQ(3, MiddleBits::decode(x));
 }

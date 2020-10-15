@@ -20,7 +20,7 @@ namespace compiler {
 
 class Node;
 
-}
+}  // namespace compiler
 
 struct UntaggedT {};
 
@@ -191,6 +191,11 @@ constexpr bool IsMachineRepresentationOf(MachineRepresentation r) {
 }
 
 template <class T>
+constexpr MachineRepresentation PhiMachineRepresentationOf =
+    std::is_base_of<Word32T, T>::value ? MachineRepresentation::kWord32
+                                       : MachineRepresentationOf<T>::value;
+
+template <class T>
 struct is_valid_type_tag {
   static const bool value = std::is_base_of<Object, T>::value ||
                             std::is_base_of<UntaggedT, T>::value ||
@@ -355,7 +360,7 @@ class TNode {
     return *this;
   }
 
-  bool is_null() { return node_ == nullptr; }
+  bool is_null() const { return node_ == nullptr; }
 
   operator compiler::Node*() const { return node_; }
 

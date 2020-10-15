@@ -373,21 +373,21 @@ void CompilationDependencies::RecordDependency(
 MapRef CompilationDependencies::DependOnInitialMap(
     const JSFunctionRef& function) {
   MapRef map = function.initial_map();
-  RecordDependency(new (zone_) InitialMapDependency(function, map));
+  RecordDependency(zone_->New<InitialMapDependency>(function, map));
   return map;
 }
 
 ObjectRef CompilationDependencies::DependOnPrototypeProperty(
     const JSFunctionRef& function) {
   ObjectRef prototype = function.prototype();
-  RecordDependency(new (zone_)
-                       PrototypePropertyDependency(function, prototype));
+  RecordDependency(
+      zone_->New<PrototypePropertyDependency>(function, prototype));
   return prototype;
 }
 
 void CompilationDependencies::DependOnStableMap(const MapRef& map) {
   if (map.CanTransition()) {
-    RecordDependency(new (zone_) StableMapDependency(map));
+    RecordDependency(zone_->New<StableMapDependency>(map));
   } else {
     DCHECK(map.is_stable());
   }
@@ -400,7 +400,7 @@ void CompilationDependencies::DependOnTransition(const MapRef& target_map) {
 AllocationType CompilationDependencies::DependOnPretenureMode(
     const AllocationSiteRef& site) {
   AllocationType allocation = site.GetAllocationType();
-  RecordDependency(new (zone_) PretenureModeDependency(site, allocation));
+  RecordDependency(zone_->New<PretenureModeDependency>(site, allocation));
   return allocation;
 }
 
@@ -423,7 +423,7 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   }
 
   DCHECK_EQ(constness, PropertyConstness::kConst);
-  RecordDependency(new (zone_) FieldConstnessDependency(owner, descriptor));
+  RecordDependency(zone_->New<FieldConstnessDependency>(owner, descriptor));
   return PropertyConstness::kConst;
 }
 
@@ -441,12 +441,12 @@ void CompilationDependencies::DependOnGlobalProperty(
     const PropertyCellRef& cell) {
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();
-  RecordDependency(new (zone_) GlobalPropertyDependency(cell, type, read_only));
+  RecordDependency(zone_->New<GlobalPropertyDependency>(cell, type, read_only));
 }
 
 bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
   if (cell.value().AsSmi() != Protectors::kProtectorValid) return false;
-  RecordDependency(new (zone_) ProtectorDependency(cell));
+  RecordDependency(zone_->New<ProtectorDependency>(cell));
   return true;
 }
 
@@ -493,7 +493,7 @@ void CompilationDependencies::DependOnElementsKind(
                           ? site.boilerplate().value().GetElementsKind()
                           : site.GetElementsKind();
   if (AllocationSite::ShouldTrack(kind)) {
-    RecordDependency(new (zone_) ElementsKindDependency(site, kind));
+    RecordDependency(zone_->New<ElementsKindDependency>(site, kind));
   }
 }
 
@@ -505,6 +505,12 @@ bool CompilationDependencies::AreValid() const {
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {
+  // Dependencies are context-dependent. In the future it may be possible to
+  // restore them in the consumer native context, but for now they are
+  // disabled.
+  CHECK_IMPLIES(broker_->is_native_context_independent(),
+                dependencies_.empty());
+
   for (auto dep : dependencies_) {
     if (!dep->IsValid()) {
       dependencies_.clear();
@@ -613,7 +619,7 @@ CompilationDependencies::DependOnInitialMapInstanceSizePrediction(
   // Currently, we always install the prediction dependency. If this turns out
   // to be too expensive, we can only install the dependency if slack
   // tracking is active.
-  RecordDependency(new (zone_) InitialMapInstanceSizePredictionDependency(
+  RecordDependency(zone_->New<InitialMapInstanceSizePredictionDependency>(
       function, instance_size));
   DCHECK_LE(instance_size, function.initial_map().instance_size());
   return SlackTrackingPrediction(initial_map, instance_size);
@@ -623,7 +629,7 @@ CompilationDependency const*
 CompilationDependencies::TransitionDependencyOffTheRecord(
     const MapRef& target_map) const {
   if (target_map.CanBeDeprecated()) {
-    return new (zone_) TransitionDependency(target_map);
+    return zone_->New<TransitionDependency>(target_map);
   } else {
     DCHECK(!target_map.is_deprecated());
     return nullptr;
@@ -637,7 +643,7 @@ CompilationDependencies::FieldRepresentationDependencyOffTheRecord(
   PropertyDetails details = owner.GetPropertyDetails(descriptor);
   DCHECK(details.representation().Equals(
       map.GetPropertyDetails(descriptor).representation()));
-  return new (zone_) FieldRepresentationDependency(owner, descriptor,
+  return zone_->New<FieldRepresentationDependency>(owner, descriptor,
                                                    details.representation());
 }
 
@@ -647,7 +653,7 @@ CompilationDependencies::FieldTypeDependencyOffTheRecord(
   MapRef owner = map.FindFieldOwner(descriptor);
   ObjectRef type = owner.GetFieldType(descriptor);
   DCHECK(type.equals(map.GetFieldType(descriptor)));
-  return new (zone_) FieldTypeDependency(owner, descriptor, type);
+  return zone_->New<FieldTypeDependency>(owner, descriptor, type);
 }
 
 }  // namespace compiler

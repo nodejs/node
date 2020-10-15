@@ -71,10 +71,19 @@ ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
       return F32;
     case i::wasm::ValueType::kF64:
       return F64;
-    case i::wasm::ValueType::kFuncRef:
-      return FUNCREF;
-    case i::wasm::ValueType::kAnyRef:
-      return ANYREF;
+    case i::wasm::ValueType::kRef:
+    case i::wasm::ValueType::kOptRef:
+      switch (v8_valtype.heap_representation()) {
+        case i::wasm::HeapType::kFunc:
+          return FUNCREF;
+        case i::wasm::HeapType::kExtern:
+          // TODO(7748): Rename this to EXTERNREF if/when third-party API
+          // changes.
+          return ANYREF;
+        default:
+          // TODO(wasm+): support new value types
+          UNREACHABLE();
+      }
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();
@@ -94,7 +103,7 @@ i::wasm::ValueType WasmValKindToV8(ValKind kind) {
     case FUNCREF:
       return i::wasm::kWasmFuncRef;
     case ANYREF:
-      return i::wasm::kWasmAnyRef;
+      return i::wasm::kWasmExternRef;
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();
@@ -201,8 +210,6 @@ auto seal(const typename implement<C>::type* x) -> const C* {
 // Configuration
 
 struct ConfigImpl {
-  ConfigImpl() {}
-  ~ConfigImpl() {}
 };
 
 template <>
@@ -249,7 +256,7 @@ void Engine::operator delete(void* p) { ::operator delete(p); }
 
 auto Engine::make(own<Config>&& config) -> own<Engine> {
   i::FLAG_expose_gc = true;
-  i::FLAG_experimental_wasm_anyref = true;
+  i::FLAG_experimental_wasm_reftypes = true;
   i::FLAG_experimental_wasm_bigint = true;
   i::FLAG_experimental_wasm_mv = true;
   auto engine = new (std::nothrow) EngineImpl;
@@ -372,10 +379,10 @@ ValTypeImpl* valtype_i32 = new ValTypeImpl(I32);
 ValTypeImpl* valtype_i64 = new ValTypeImpl(I64);
 ValTypeImpl* valtype_f32 = new ValTypeImpl(F32);
 ValTypeImpl* valtype_f64 = new ValTypeImpl(F64);
-ValTypeImpl* valtype_anyref = new ValTypeImpl(ANYREF);
+ValTypeImpl* valtype_externref = new ValTypeImpl(ANYREF);
 ValTypeImpl* valtype_funcref = new ValTypeImpl(FUNCREF);
 
-ValType::~ValType() {}
+ValType::~ValType() = default;
 
 void ValType::operator delete(void*) {}
 
@@ -395,7 +402,7 @@ own<ValType> ValType::make(ValKind k) {
       valtype = valtype_f64;
       break;
     case ANYREF:
-      valtype = valtype_anyref;
+      valtype = valtype_externref;
       break;
     case FUNCREF:
       valtype = valtype_funcref;
@@ -417,7 +424,7 @@ struct ExternTypeImpl {
   ExternKind kind;
 
   explicit ExternTypeImpl(ExternKind kind) : kind(kind) {}
-  virtual ~ExternTypeImpl() {}
+  virtual ~ExternTypeImpl() = default;
 };
 
 template <>
@@ -455,8 +462,6 @@ struct FuncTypeImpl : ExternTypeImpl {
       : ExternTypeImpl(EXTERN_FUNC),
         params(std::move(params)),
         results(std::move(results)) {}
-
-  ~FuncTypeImpl() {}
 };
 
 template <>
@@ -464,7 +469,7 @@ struct implement<FuncType> {
   using type = FuncTypeImpl;
 };
 
-FuncType::~FuncType() {}
+FuncType::~FuncType() = default;
 
 auto FuncType::make(ownvec<ValType>&& params, ownvec<ValType>&& results)
     -> own<FuncType> {
@@ -510,7 +515,7 @@ struct GlobalTypeImpl : ExternTypeImpl {
         content(std::move(content)),
         mutability(mutability) {}
 
-  ~GlobalTypeImpl() {}
+  ~GlobalTypeImpl() override = default;
 };
 
 template <>
@@ -518,7 +523,7 @@ struct implement<GlobalType> {
   using type = GlobalTypeImpl;
 };
 
-GlobalType::~GlobalType() {}
+GlobalType::~GlobalType() = default;
 
 auto GlobalType::make(own<ValType>&& content, Mutability mutability)
     -> own<GlobalType> {
@@ -563,7 +568,7 @@ struct TableTypeImpl : ExternTypeImpl {
         element(std::move(element)),
         limits(limits) {}
 
-  ~TableTypeImpl() {}
+  ~TableTypeImpl() override = default;
 };
 
 template <>
@@ -571,7 +576,7 @@ struct implement<TableType> {
   using type = TableTypeImpl;
 };
 
-TableType::~TableType() {}
+TableType::~TableType() = default;
 
 auto TableType::make(own<ValType>&& element, Limits limits) -> own<TableType> {
   return element ? own<TableType>(seal<TableType>(
@@ -609,7 +614,7 @@ struct MemoryTypeImpl : ExternTypeImpl {
   explicit MemoryTypeImpl(Limits limits)
       : ExternTypeImpl(EXTERN_MEMORY), limits(limits) {}
 
-  ~MemoryTypeImpl() {}
+  ~MemoryTypeImpl() override = default;
 };
 
 template <>
@@ -617,7 +622,7 @@ struct implement<MemoryType> {
   using type = MemoryTypeImpl;
 };
 
-MemoryType::~MemoryType() {}
+MemoryType::~MemoryType() = default;
 
 auto MemoryType::make(Limits limits) -> own<MemoryType> {
   return own<MemoryType>(
@@ -655,8 +660,6 @@ struct ImportTypeImpl {
       : module(std::move(module)),
         name(std::move(name)),
         type(std::move(type)) {}
-
-  ~ImportTypeImpl() {}
 };
 
 template <>
@@ -697,8 +700,6 @@ struct ExportTypeImpl {
   ExportTypeImpl(Name& name,             // NOLINT(runtime/references)
                  own<ExternType>& type)  // NOLINT(runtime/references)
       : name(std::move(name)), type(std::move(type)) {}
-
-  ~ExportTypeImpl() {}
 };
 
 template <>
@@ -767,7 +768,7 @@ class RefImpl {
   }
 
  private:
-  RefImpl() {}
+  RefImpl() = default;
 
   i::Address* location() const {
     return reinterpret_cast<i::Address*>(val_.address());
@@ -813,8 +814,6 @@ struct FrameImpl {
         func_offset(func_offset),
         module_offset(module_offset) {}
 
-  ~FrameImpl() {}
-
   own<Instance> instance;
   uint32_t func_index;
   size_t func_offset;
@@ -854,7 +853,7 @@ struct implement<Trap> {
   using type = RefImpl<Trap, i::JSReceiver>;
 };
 
-Trap::~Trap() {}
+Trap::~Trap() = default;
 
 auto Trap::copy() const -> own<Trap> { return impl(this)->copy(); }
 
@@ -941,7 +940,7 @@ struct implement<Foreign> {
   using type = RefImpl<Foreign, i::JSReceiver>;
 };
 
-Foreign::~Foreign() {}
+Foreign::~Foreign() = default;
 
 auto Foreign::copy() const -> own<Foreign> { return impl(this)->copy(); }
 
@@ -962,7 +961,7 @@ struct implement<Module> {
   using type = RefImpl<Module, i::WasmModuleObject>;
 };
 
-Module::~Module() {}
+Module::~Module() = default;
 
 auto Module::copy() const -> own<Module> { return impl(this)->copy(); }
 
@@ -1036,6 +1035,8 @@ auto Module::serialize() const -> vec<byte_t> {
       impl(this)->v8_object()->native_module();
   i::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   size_t binary_size = wire_bytes.size();
+  // We can only serialize after top-tier compilation (TurboFan) finished.
+  native_module->compilation_state()->WaitForTopTierFinished();
   i::wasm::WasmSerializer serializer(native_module);
   size_t serial_size = serializer.GetSerializedNativeModuleSize();
   size_t size_size = i::wasm::LEBHelper::sizeof_u64v(binary_size);
@@ -1106,7 +1107,7 @@ struct implement<Extern> {
   using type = RefImpl<Extern, i::JSReceiver>;
 };
 
-Extern::~Extern() {}
+Extern::~Extern() = default;
 
 auto Extern::copy() const -> own<Extern> { return impl(this)->copy(); }
 
@@ -1177,7 +1178,7 @@ struct implement<Func> {
   using type = RefImpl<Func, i::JSFunction>;
 };
 
-Func::~Func() {}
+Func::~Func() = default;
 
 auto Func::copy() const -> own<Func> { return impl(this)->copy(); }
 
@@ -1384,7 +1385,7 @@ void PrepareFunctionData(i::Isolate* isolate,
   if (!function_data->c_wrapper_code().IsSmi()) return;
   // Compile wrapper code.
   i::Handle<i::Code> wrapper_code =
-      i::compiler::CompileCWasmEntry(isolate, sig).ToHandleChecked();
+      i::compiler::CompileCWasmEntry(isolate, sig);
   function_data->set_c_wrapper_code(*wrapper_code);
   // Compute packed args size.
   function_data->set_packed_args_size(
@@ -1414,17 +1415,21 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
       case i::wasm::ValueType::kF64:
         packer->Push(args[i].f64());
         break;
-      case i::wasm::ValueType::kAnyRef:
-      case i::wasm::ValueType::kFuncRef:
-      case i::wasm::ValueType::kNullRef:
+      case i::wasm::ValueType::kRef:
+      case i::wasm::ValueType::kOptRef:
+        // TODO(7748): Make sure this works for all heap types.
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
-      case i::wasm::ValueType::kExnRef:
-        // TODO(jkummerow): Implement these.
+      case i::wasm::ValueType::kRtt:
+      case i::wasm::ValueType::kS128:
+        // TODO(7748): Implement.
         UNIMPLEMENTED();
+      case i::wasm::ValueType::kI8:
+      case i::wasm::ValueType::kI16:
+      case i::wasm::ValueType::kStmt:
+      case i::wasm::ValueType::kBottom:
+        UNREACHABLE();
         break;
-      default:
-        UNIMPLEMENTED();
     }
   }
 }
@@ -1447,21 +1452,24 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
       case i::wasm::ValueType::kF64:
         results[i] = Val(packer->Pop<double>());
         break;
-      case i::wasm::ValueType::kAnyRef:
-      case i::wasm::ValueType::kFuncRef:
-      case i::wasm::ValueType::kNullRef: {
+      case i::wasm::ValueType::kRef:
+      case i::wasm::ValueType::kOptRef: {
+        // TODO(7748): Make sure this works for all heap types.
         i::Address raw = packer->Pop<i::Address>();
         i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
-        DCHECK_IMPLIES(type == i::wasm::kWasmNullRef, obj->IsNull());
         results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
-      case i::wasm::ValueType::kExnRef:
-        // TODO(jkummerow): Implement these.
+      case i::wasm::ValueType::kRtt:
+      case i::wasm::ValueType::kS128:
+        // TODO(7748): Implement.
         UNIMPLEMENTED();
+      case i::wasm::ValueType::kI8:
+      case i::wasm::ValueType::kI16:
+      case i::wasm::ValueType::kStmt:
+      case i::wasm::ValueType::kBottom:
+        UNREACHABLE();
         break;
-      default:
-        UNIMPLEMENTED();
     }
   }
 }
@@ -1662,7 +1670,7 @@ struct implement<Global> {
   using type = RefImpl<Global, i::WasmGlobalObject>;
 };
 
-Global::~Global() {}
+Global::~Global() = default;
 
 auto Global::copy() const -> own<Global> { return impl(this)->copy(); }
 
@@ -1707,14 +1715,21 @@ auto Global::get() const -> Val {
       return Val(v8_global->GetF32());
     case i::wasm::ValueType::kF64:
       return Val(v8_global->GetF64());
-    case i::wasm::ValueType::kAnyRef:
-    case i::wasm::ValueType::kFuncRef: {
+    case i::wasm::ValueType::kRef:
+    case i::wasm::ValueType::kOptRef: {
+      // TODO(7748): Make sure this works for all heap types.
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
       return Val(V8RefValueToWasm(store, v8_global->GetRef()));
     }
-    default:
-      // TODO(wasm+): support new value types
+    case i::wasm::ValueType::kRtt:
+    case i::wasm::ValueType::kS128:
+      // TODO(7748): Implement these.
+      UNIMPLEMENTED();
+    case i::wasm::ValueType::kI8:
+    case i::wasm::ValueType::kI16:
+    case i::wasm::ValueType::kStmt:
+    case i::wasm::ValueType::kBottom:
       UNREACHABLE();
   }
 }
@@ -1731,7 +1746,7 @@ void Global::set(const Val& val) {
     case F64:
       return v8_global->SetF64(val.f64());
     case ANYREF:
-      return v8_global->SetAnyRef(
+      return v8_global->SetExternRef(
           WasmRefToV8(impl(this)->store()->i_isolate(), val.ref()));
     case FUNCREF: {
       i::Isolate* isolate = impl(this)->store()->i_isolate();
@@ -1754,7 +1769,7 @@ struct implement<Table> {
   using type = RefImpl<Table, i::WasmTableObject>;
 };
 
-Table::~Table() {}
+Table::~Table() = default;
 
 auto Table::copy() const -> own<Table> { return impl(this)->copy(); }
 
@@ -1772,8 +1787,8 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       break;
     case ANYREF:
       // See Engine::make().
-      DCHECK(i::wasm::WasmFeatures::FromFlags().has_anyref());
-      i_type = i::wasm::kWasmAnyRef;
+      DCHECK(i::wasm::WasmFeatures::FromFlags().has_reftypes());
+      i_type = i::wasm::kWasmExternRef;
       break;
     default:
       UNREACHABLE();
@@ -1815,11 +1830,11 @@ auto Table::type() const -> own<TableType> {
   uint32_t max;
   if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
   ValKind kind;
-  switch (table->type().kind()) {
-    case i::wasm::ValueType::kFuncRef:
+  switch (table->type().heap_representation()) {
+    case i::wasm::HeapType::kFunc:
       kind = FUNCREF;
       break;
-    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::HeapType::kExtern:
       kind = ANYREF;
       break;
     default:
@@ -1873,7 +1888,7 @@ struct implement<Memory> {
   using type = RefImpl<Memory, i::WasmMemoryObject>;
 };
 
-Memory::~Memory() {}
+Memory::~Memory() = default;
 
 auto Memory::copy() const -> own<Memory> { return impl(this)->copy(); }
 
@@ -1886,11 +1901,11 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory> {
   uint32_t minimum = limits.min;
   // The max_initial_mem_pages limit is only spec'ed for JS embeddings,
   // so we'll directly use the maximum pages limit here.
-  if (minimum > i::wasm::kSpecMaxWasmMaximumMemoryPages) return nullptr;
+  if (minimum > i::wasm::kSpecMaxMemoryPages) return nullptr;
   uint32_t maximum = limits.max;
   if (maximum != Limits(0).max) {
     if (maximum < minimum) return nullptr;
-    if (maximum > i::wasm::kSpecMaxWasmMaximumMemoryPages) return nullptr;
+    if (maximum > i::wasm::kSpecMaxMemoryPages) return nullptr;
   }
   // TODO(wasm+): Support shared memory.
   i::SharedFlag shared = i::SharedFlag::kNotShared;
@@ -1941,7 +1956,7 @@ struct implement<Instance> {
   using type = RefImpl<Instance, i::WasmInstanceObject>;
 };
 
-Instance::~Instance() {}
+Instance::~Instance() = default;
 
 auto Instance::copy() const -> own<Instance> { return impl(this)->copy(); }
 
