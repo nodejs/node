@@ -1,3 +1,21 @@
+v7.1.1 2020-10-15
+=================
+
+This release restores the location of shared library builds to the pre-v7
+location. In v7.0.0 until this release, shared library outputs were placed
+in a lib.target subdirectory inside the build/{Release,Debug} directory for
+builds using `make` (Linux, etc.). This is inconsistent with macOS (Xcode)
+behavior and previous node-gyp behavior so has been reverted.
+We consider this a bug-fix rather than semver-major change.
+
+* [[`18bf2d1d38`](https://github.com/nodejs/node-gyp/commit/18bf2d1d38)] - **deps**: update deps to match npm@7 (Rod Vagg) [#2240](https://github.com/nodejs/node-gyp/pull/2240)
+* [[`ee6a837cb7`](https://github.com/nodejs/node-gyp/commit/ee6a837cb7)] - **gyp**: update gyp to 0.6.1 (Rod Vagg) [#2238](https://github.com/nodejs/node-gyp/pull/2238)
+* [[`3e7f8ccafc`](https://github.com/nodejs/node-gyp/commit/3e7f8ccafc)] - **lib**: better log message when ps fails (Martin Midtgaard) [#2229](https://github.com/nodejs/node-gyp/pull/2229)
+* [[`7fb314339f`](https://github.com/nodejs/node-gyp/commit/7fb314339f)] - **test**: GitHub Actions: Test on Python 3.9 (Christian Clauss) [#2230](https://github.com/nodejs/node-gyp/pull/2230)
+* [[`754996b9ec`](https://github.com/nodejs/node-gyp/commit/754996b9ec)] - **doc**: replace status badges with new Actions badge (Rod Vagg) [#2218](https://github.com/nodejs/node-gyp/pull/2218)
+* [[`2317dc400c`](https://github.com/nodejs/node-gyp/commit/2317dc400c)] - **ci**: switch to GitHub Actions (Shelley Vohr) [#2210](https://github.com/nodejs/node-gyp/pull/2210)
+* [[`2cca9b74f7`](https://github.com/nodejs/node-gyp/commit/2cca9b74f7)] - **doc**: drop the --production flag for installing windows-build-tools (DeeDeeG) [#2206](https://github.com/nodejs/node-gyp/pull/2206)
+
 v7.1.0 2020-08-12
 =================
 

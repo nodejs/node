@@ -1,3 +1,67 @@
+## 7.0.2 (2020-10-16)
+
+### DOCUMENTATION
+
+* [`9476734b7`](https://github.com/npm/cli/commit/9476734b7d5fa6df80ad17ad277a6bee9a16235c)
+  [#1967](https://github.com/npm/cli/pull/1967)
+  add mention to workspaces prepare lifecycle
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### BUG FIXES
+
+* [`5cf71c689`](https://github.com/npm/cli/commit/5cf71c689bcfcd423405e59d05b7cc5704cb4c02)
+  [#1971](https://github.com/npm/cli/pull/1971)
+  owner rm at local pkg not work
+  ([@ShangguanQuail](https://github.com/ShangguanQuail))
+
+### DEPENDENCIES
+
+* [`722b7ae63`](https://github.com/npm/cli/commit/722b7ae63da8b386fe188066dc2dae0121d9353b)
+  [#1974](https://github.com/npm/cli/pull/1974)
+  patch node-gyp
+  ([@targos](https://github.com/MylesBorins))
+* [`4ae825c01`](https://github.com/npm/cli/commit/4ae825c01c7ca3031361f9df72594a190c6ed1e4)
+  [#1976](https://github.com/npm/cli/pull/1976)
+  patch node-gyp
+  ([@MylesBorins](https://github.com/MylesBorins))
+* [`181eabf13`](https://github.com/npm/cli/commit/181eabf132c823af086380368de73d2f42e5aac1)
+  `@npmcli/arborist@1.0.3`
+    * fix workspaces `prepare` lifecycle scripts
+    * fix peer deps overchecks resulting in ERESOLVE
+* [`6cc115409`](https://github.com/npm/cli/commit/6cc115409b7eb2df8e11db6232ee3d00e4316a7d)
+  `init-package-json@2.0.1`
+* [`dbf9d6d1f`](https://github.com/npm/cli/commit/dbf9d6d1f060ea43b700409306574396a798127d)
+  `libnpmpublish@3.0.2`
+
+## 7.0.1 (2020-10-15)
+
+### DOCUMENTATION
+
+* [`03fca6a3b`](https://github.com/npm/cli/commit/03fca6a3b227f71562863bec7a1de1732bd719f1)
+  Adds docs on workspaces, explaining its basic concept and how to use it.
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### BUG FIXES
+
+* [`2ccb63659`](https://github.com/npm/cli/commit/2ccb63659f9a757201658d5d019099b492d04a5b)
+  [#1951](https://github.com/npm/cli/issues/1951)
+  [#1956](https://github.com/npm/cli/pull/1956)
+  Handle errors from audit endpoint appropriately
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`120e62736`](https://github.com/npm/cli/commit/120e6273604f15a2ce55668dfb2c23d06bf1e06c)
+  `node-gyp@7.1.1`
+* [`6560b8d95`](https://github.com/npm/cli/commit/6560b8d952a613cefbd900186aa38df53bc201d1)
+  `@npmcli/arborist@1.0.2`
+    * do not drop scope information when fetching scoped package tarballs
+    * fix cycles/ordering resolution when peer deps require nesting
+* [`282a1e008`](https://github.com/npm/cli/commit/282a1e00820b9abfb3465d044b30b2cade107909)
+  `npm-user-validate@1.0.1`
+* [`b259edcb4`](https://github.com/npm/cli/commit/b259edcb4bac37e6f26d56af5f6666afbda8c126)
+  `hosted-git-info@3.0.7`
+
 ## v7.0.0 (2020-10-12)
 
 ### BUG FIXES

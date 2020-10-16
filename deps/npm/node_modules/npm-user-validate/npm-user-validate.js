@@ -11,6 +11,7 @@ var requirements = exports.requirements = {
   },
   password: {},
   email: {
+    length: 'Email length must be less then or equal to 254 characters long',
     valid: 'Email must be an email address'
   }
 }
@@ -45,7 +46,10 @@ function username (un) {
 }
 
 function email (em) {
-  if (!em.match(/^.+@.+\..+$/)) {
+  if (em.length > 254) {
+    return new Error(requirements.email.length)
+  }
+  if (!em.match(/^[^@]+@.+\..+$/)) {
     return new Error(requirements.email.valid)
   }
 

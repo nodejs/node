@@ -34,7 +34,6 @@ package has a package-lock, or an npm shrinkwrap file, or a yarn lock file, the
 installation of dependencies will be driven by that, respecting the following
 order of precedence:
 
-* `node_modules/.package-lock.json`
 * `npm-shrinkwrap.json`
 * `package-lock.json`
 * `yarn.lock`
@@ -495,3 +494,4 @@ specific folder structures that npm creates.
 * [npm uninstall](/cli-commands/uninstall)
 * [npm shrinkwrap](/cli-commands/shrinkwrap)
 * [package.json](/configuring-npm/package-json)
+* [workspaces](/using-npm/workspaces)

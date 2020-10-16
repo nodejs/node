@@ -100,7 +100,7 @@ The advantage of doing these things at `prepublish` time is that they can be don
 Also triggers
 
 * `prepublish` (when on local)
-* `prepare` (when on local)
+* `prepare` (when on local or workspaces)
 
 #### [`npm start`](/cli-commands/start)
 
