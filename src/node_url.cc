@@ -1461,13 +1461,11 @@ void URL::Parse(const char* input,
                 ((buffer == "file:") &&
                  ((url->flags & URL_FLAGS_HAS_USERNAME) ||
                   (url->flags & URL_FLAGS_HAS_PASSWORD) ||
-                  (url->port != -1)))) {
+                  (url->port != -1))) ||
+                  (url->scheme == "file:" && url->host.empty())) {
               url->flags |= URL_FLAGS_TERMINATED;
               return;
             }
-
-            // File scheme && (host == empty or null) check left to JS-land
-            // as it can be done before even entering C++ binding.
           }
 
           url->scheme = std::move(buffer);
@@ -1855,13 +1853,14 @@ void URL::Parse(const char* input,
         break;
       case kFile:
         url->scheme = "file:";
+        url->host.clear();
+        url->flags |= URL_FLAGS_HAS_HOST;
         if (ch == '/' || ch == '\\') {
           state = kFileSlash;
         } else if (has_base && base->scheme == "file:") {
           switch (ch) {
             case kEOL:
               if (base->flags & URL_FLAGS_HAS_HOST) {
-                url->flags |= URL_FLAGS_HAS_HOST;
                 url->host = base->host;
               }
               if (base->flags & URL_FLAGS_HAS_PATH) {
@@ -1875,7 +1874,6 @@ void URL::Parse(const char* input,
               break;
             case '?':
               if (base->flags & URL_FLAGS_HAS_HOST) {
-                url->flags |= URL_FLAGS_HAS_HOST;
                 url->host = base->host;
               }
               if (base->flags & URL_FLAGS_HAS_PATH) {
@@ -1888,7 +1886,6 @@ void URL::Parse(const char* input,
               break;
             case '#':
               if (base->flags & URL_FLAGS_HAS_HOST) {
-                url->flags |= URL_FLAGS_HAS_HOST;
                 url->host = base->host;
               }
               if (base->flags & URL_FLAGS_HAS_PATH) {
@@ -1906,7 +1903,6 @@ void URL::Parse(const char* input,
             default:
               url->query.clear();
               if (base->flags & URL_FLAGS_HAS_HOST) {
-                url->flags |= URL_FLAGS_HAS_HOST;
                 url->host = base->host;
               }
               if (base->flags & URL_FLAGS_HAS_PATH) {
