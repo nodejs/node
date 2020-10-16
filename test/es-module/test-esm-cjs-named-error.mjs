@@ -14,6 +14,21 @@ const errTemplate = (specifier, name, namedImports, defaultName) =>
 const expectedMultiLine = errTemplate('./fail.cjs', 'comeOn',
                                       '{ comeOn, everybody }');
 
+const expectedLongMultiLine = errTemplate('./fail.cjs', 'comeOn',
+                                          '{\n' +
+                                          '  comeOn,\n' +
+                                          '  one,\n' +
+                                          '  two,\n' +
+                                          '  three,\n' +
+                                          '  four,\n' +
+                                          '  five,\n' +
+                                          '  six,\n' +
+                                          '  seven,\n' +
+                                          '  eight,\n' +
+                                          '  nine,\n' +
+                                          '  ten\n' +
+                                          '}');
+
 const expectedRelative = errTemplate('./fail.cjs', 'comeOn', '{ comeOn }');
 
 const expectedRenamed = errTemplate('./fail.cjs', 'comeOn',
@@ -61,7 +76,14 @@ rejects(async () => {
 }, {
   name: 'SyntaxError',
   message: expectedMultiLine,
-}, 'should correctly format named imports across multiple lines');
+}, 'should correctly format named multi-line imports');
+
+rejects(async () => {
+  await import(`${fixtureBase}/long-multi-line.mjs`);
+}, {
+  name: 'SyntaxError',
+  message: expectedLongMultiLine,
+}, 'should correctly format named very long multi-line imports');
 
 rejects(async () => {
   await import(`${fixtureBase}/json-hack.mjs`);
