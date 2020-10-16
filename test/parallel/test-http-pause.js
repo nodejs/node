@@ -49,7 +49,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(0, () => {
   const req = http.request({
-    port: this.address().port,
+    port: server.address().port,
     path: '/',
     method: 'POST'
   }, (res) => {
