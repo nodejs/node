@@ -3,6 +3,7 @@
 <!-- introduced_in=REPLACEME -->
 <!-- type=misc -->
 
+> Stability: 1 - Experimental
 _[Corepack][]_ is an experimental tool shipped with Node.js to help with
 managing versions of your package managers. It exposes binary proxies for
 [Yarn][] and [pnpm][] that, when called, locate the package managers configured
