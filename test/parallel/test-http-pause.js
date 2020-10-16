@@ -51,7 +51,7 @@ server.listen(0, function() {
   // Anonymous function rather than arrow function to test `this` value.
   assert.strictEqual(this, server);
   const req = http.request({
-    port: server.address().port,
+    port: this.address().port,
     path: '/',
     method: 'POST'
   }, (res) => {
