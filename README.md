@@ -574,6 +574,8 @@ maintaining the Node.js project.
 
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
 **Pooja Durgad** &lt;Pooja.D.P@ibm.com&gt;
+* [SimonFinney](https://github.com/SimonFinney) -
+**Simon Finney** &lt;hello@simonfinney.dev&gt;
 
 ### Release Keys
 
