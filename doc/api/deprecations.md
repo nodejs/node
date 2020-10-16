@@ -2663,12 +2663,12 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 ### DEP0147: `fs.rmdir(path, { recursive: true })`
 <!-- YAML
 changes:
-  - version: v14.14.0
-    pr-url: https://github.com/nodejs/node/pull/35579
-    description: Documentation-only deprecation.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/35562
     description: Runtime deprecation.
+  - version: v14.14.0
+    pr-url: https://github.com/nodejs/node/pull/35579
+    description: Documentation-only deprecation.
 -->
 
 Type: Runtime
