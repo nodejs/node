@@ -6091,7 +6091,7 @@
     "base": "about:blank",
     "failure": true
   },
-  "# Additional file URL tetsts for (https://github.com/whatwg/url/issues/405)",
+  "# Additional file URL tests for (https://github.com/whatwg/url/issues/405)",
   {
     "input": "file://localhost//a//../..//foo",
     "base": "about:blank",
@@ -6215,6 +6215,35 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "search": "",
+    "hash": ""
+  },
+  "File URL tests for https://github.com/whatwg/url/issues/549",
+  {
+    "input": "file:.//p",
+    "base": "about:blank",
+    "href": "file:////p",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "//p",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file:/.//p",
+    "base": "about:blank",
+    "href": "file:////p",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "//p",
     "search": "",
     "hash": ""
   },
