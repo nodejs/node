@@ -29,6 +29,7 @@
 
 extern int deflate_read_buf OF((z_streamp strm, Bytef *buf, unsigned size));
 
+#pragma GCC target ("sse2")
 #include <immintrin.h>
 
 void fill_window_sse(deflate_state *s)
