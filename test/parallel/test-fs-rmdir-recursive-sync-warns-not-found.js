@@ -7,7 +7,7 @@ const path = require('path');
 tmpdir.refresh();
 
 {
-  // Should warn when trying to delete a file
+  // Should warn when trying to delete a nonexistent path
   common.expectWarning(
     'DeprecationWarning',
     'In future versions of Node.js, fs.rmdir(path, { recursive: true }) ' +
@@ -15,7 +15,5 @@ tmpdir.refresh();
     '{ recursive: true, force: true }) instead',
     'DEP0147'
   );
-  const filePath = path.join(tmpdir.path, 'rmdir-recursive.txt');
-  fs.writeFileSync(filePath, '');
-  fs.rmdir(filePath, { recursive: true }, common.mustSucceed());
+  fs.rmdirSync(path.join(tmpdir.path, 'noexist.txt'), { recursive: true });
 }
