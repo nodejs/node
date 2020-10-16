@@ -694,6 +694,7 @@ class Http2Session : public AsyncWrap,
   // The JavaScript API
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Consume(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Receive(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Destroy(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Settings(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Request(const v8::FunctionCallbackInfo<v8::Value>& args);
