@@ -90,7 +90,7 @@ def Define(d, flavor):
     """Takes a preprocessor define and returns a -D parameter that's ninja- and
   shell-escaped."""
     if flavor == "win":
-        # cl.exe replaces literal # characters with = in preprocesor definitions for
+        # cl.exe replaces literal # characters with = in preprocessor definitions for
         # some reason. Octal-encode to work around that.
         d = d.replace("#", "\\%03o" % ord("#"))
     return QuoteShellArgument(ninja_syntax.escape("-D" + d), flavor)
@@ -781,9 +781,10 @@ class NinjaWriter(object):
                     rule.get("process_outputs_as_mac_bundle_resources", False)
                 ):
                     extra_mac_bundle_resources += outputs
-                    # Note: This is n_resources * n_outputs_in_rule.  Put to-be-removed
-                    # items in a set and remove them all in a single pass if this becomes
-                    # a performance issue.
+                    # Note: This is n_resources * n_outputs_in_rule.
+                    # Put to-be-removed items in a set and
+                    # remove them all in a single pass
+                    # if this becomes a performance issue.
                     if was_mac_bundle_resource:
                         mac_bundle_resources.remove(source)
 
@@ -816,7 +817,7 @@ class NinjaWriter(object):
 
                 outputs = [self.GypPathToNinja(o, env) for o in outputs]
                 if self.flavor == "win":
-                    # WriteNewNinjaRule uses unique_name for creating an rsp file on win.
+                    # WriteNewNinjaRule uses unique_name to create a rsp file on win.
                     extra_bindings.append(
                         ("unique_name", hashlib.md5(outputs[0]).hexdigest())
                     )
@@ -853,11 +854,12 @@ class NinjaWriter(object):
                 outputs += self.ninja.build(dst, "copy", src, order_only=prebuild)
                 if self.is_mac_bundle:
                     # gyp has mac_bundle_resources to copy things into a bundle's
-                    # Resources folder, but there's no built-in way to copy files to other
-                    # places in the bundle. Hence, some targets use copies for this. Check
-                    # if this file is copied into the current bundle, and if so add it to
-                    # the bundle depends so that dependent targets get rebuilt if the copy
-                    # input changes.
+                    # Resources folder, but there's no built-in way to copy files
+                    # to other places in the bundle.
+                    # Hence, some targets use copies for this.
+                    # Check if this file is copied into the current bundle,
+                    # and if so add it to the bundle depends so
+                    # that dependent targets get rebuilt if the copy input changes.
                     if dst.startswith(
                         self.xcode_settings.GetBundleContentsFolderPath()
                     ):
@@ -1513,8 +1515,8 @@ class NinjaWriter(object):
             if self.flavor != "win":
                 link_file_list = output
                 if self.is_mac_bundle:
-                    # 'Dependency Framework.framework/Versions/A/Dependency Framework' ->
-                    # 'Dependency Framework.framework.rsp'
+                    # 'Dependency Framework.framework/Versions/A/Dependency Framework'
+                    # -> 'Dependency Framework.framework.rsp'
                     link_file_list = self.xcode_settings.GetWrapperName()
                 if arch:
                     link_file_list += "." + arch
@@ -1628,7 +1630,8 @@ class NinjaWriter(object):
                             variables=variables,
                         )
                         inputs.append(output)
-                    # TODO: It's not clear if libtool_flags should be passed to the alink
+                    # TODO: It's not clear if
+                    # libtool_flags should be passed to the alink
                     # call that combines single-arch .a files into a fat .a file.
                     self.AppendPostbuildVariable(
                         variables, spec, self.target.binary, self.target.binary
@@ -2535,9 +2538,10 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             "solink",
             description="SOLINK $lib",
             restat=True,
-            command=mtime_preserving_solink_base % {"suffix": "@$link_file_list"},
+            command=mtime_preserving_solink_base % {"suffix": "@$link_file_list"},  # noqa: E501
             rspfile="$link_file_list",
-            rspfile_content="-Wl,--whole-archive $in $solibs -Wl,--no-whole-archive $libs",
+            rspfile_content=("-Wl,--whole-archive $in $solibs -Wl,"
+                             "--no-whole-archive $libs"),
             pool="link_pool",
         )
         master_ninja.rule(

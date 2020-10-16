@@ -557,7 +557,7 @@ class AndroidMkWriter(object):
     These are source files necessary to build the current target.
     We need to handle shared_intermediate directory source files as
     a special case by copying them to the intermediate directory and
-    treating them as a genereated sources. Otherwise the Android build
+    treating them as a generated sources. Otherwise the Android build
     rules won't pick them up.
 
     Args:

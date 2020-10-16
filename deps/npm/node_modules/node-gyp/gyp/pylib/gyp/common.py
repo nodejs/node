@@ -352,10 +352,14 @@ def WriteOnDiff(filename):
         """Wrapper around file which only covers the target if it differs."""
 
         def __init__(self):
-            # On Cygwin remove the "dir" argument because `C:` prefixed paths are treated as relative,
-            # consequently ending up with current dir "/cygdrive/c/..." being prefixed to those, which was
-            # obviously a non-existent path, for example: "/cygdrive/c/<some folder>/C:\<my win style abs path>".
-            # See https://docs.python.org/2/library/tempfile.html#tempfile.mkstemp for more details
+            # On Cygwin remove the "dir" argument
+            # `C:` prefixed paths are treated as relative,
+            # consequently ending up with current dir "/cygdrive/c/..."
+            # being prefixed to those, which was
+            # obviously a non-existent path,
+            # for example: "/cygdrive/c/<some folder>/C:\<my win style abs path>".
+            # For more details see:
+            # https://docs.python.org/2/library/tempfile.html#tempfile.mkstemp
             base_temp_dir = "" if IsCygwin() else os.path.dirname(filename)
             # Pick temporary file.
             tmp_fd, self.tmp_path = tempfile.mkstemp(
@@ -391,13 +395,15 @@ def WriteOnDiff(filename):
                     # one.
                     os.unlink(self.tmp_path)
                 else:
-                    # The new file is different from the old one, or there is no old one.
+                    # The new file is different from the old one,
+                    # or there is no old one.
                     # Rename the new file to the permanent name.
                     #
                     # tempfile.mkstemp uses an overly restrictive mode, resulting in a
                     # file that can only be read by the owner, regardless of the umask.
-                    # There's no reason to not respect the umask here, which means that
-                    # an extra hoop is required to fetch it and reset the new file's mode.
+                    # There's no reason to not respect the umask here,
+                    # which means that an extra hoop is required
+                    # to fetch it and reset the new file's mode.
                     #
                     # No way to get the umask without setting a new one?  Set a safe one
                     # and then set it back to the old value.
@@ -406,8 +412,8 @@ def WriteOnDiff(filename):
                     os.chmod(self.tmp_path, 0o666 & ~umask)
                     if sys.platform == "win32" and os.path.exists(filename):
                         # NOTE: on windows (but not cygwin) rename will not replace an
-                        # existing file, so it must be preceded with a remove. Sadly there
-                        # is no way to make the switch atomic.
+                        # existing file, so it must be preceded with a remove.
+                        # Sadly there is no way to make the switch atomic.
                         os.remove(filename)
                     os.rename(self.tmp_path, filename)
             except Exception:

@@ -886,6 +886,31 @@ probably matter for the purposes of publishing.
 See [`config`](/using-npm/config) to see the list of config options that can be
 overridden.
 
+### workspaces
+
+The optional `workspaces` field is an array of file patterns that describes
+locations within the local file system that the install client should look up
+to find each [workspace](/using-npm/workspaces) that needs to be symlinked to
+the top level `node_modules` folder.
+
+It can describe either the direct paths of the folders to be used as
+workspaces or it can define globs that will resolve to these same folders.
+
+In the following example, all folders located inside the folder `./packages`
+will be treated as workspaces as long as they have valid `package.json` files
+inside them:
+
+```json
+{
+  "name": "workspace-example",
+  "workspaces": [
+    "./packages/*"
+  ]
+}
+```
+
+See [`workspaces`](/using-npm/workspaces) for more examples.
+
 ### DEFAULT VALUES
 
 npm will default some values based on package contents.
@@ -910,6 +935,7 @@ npm will default some values based on package contents.
 ### SEE ALSO
 
 * [semver](/using-npm/semver)
+* [workspaces](/using-npm/workspaces)
 * [npm init](/cli-commands/init)
 * [npm version](/cli-commands/version)
 * [npm config](/cli-commands/config)

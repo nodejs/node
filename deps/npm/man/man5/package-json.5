@@ -975,6 +975,32 @@ probably matter for the purposes of publishing\.
 .P
 See npm help \fBconfig\fP to see the list of config options that can be
 overridden\.
+.SS workspaces
+.P
+The optional \fBworkspaces\fP field is an array of file patterns that describes
+locations within the local file system that the install client should look up
+to find each npm help workspace that needs to be symlinked to
+the top level \fBnode_modules\fP folder\.
+.P
+It can describe either the direct paths of the folders to be used as
+workspaces or it can define globs that will resolve to these same folders\.
+.P
+In the following example, all folders located inside the folder \fB\|\./packages\fP
+will be treated as workspaces as long as they have valid \fBpackage\.json\fP files
+inside them:
+.P
+.RS 2
+.nf
+{
+  "name": "workspace\-example",
+  "workspaces": [
+    "\./packages/*"
+  ]
+}
+.fi
+.RE
+.P
+See npm help \fBworkspaces\fP for more examples\.
 .SS DEFAULT VALUES
 .P
 npm will default some values based on package contents\.
@@ -999,6 +1025,8 @@ ignored\.
 .RS 0
 .IP \(bu 2
 npm help semver
+.IP \(bu 2
+npm help workspaces
 .IP \(bu 2
 npm help init
 .IP \(bu 2

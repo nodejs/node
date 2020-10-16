@@ -3,6 +3,7 @@ const auditReport = require('npm-audit-report')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const reifyOutput = require('./utils/reify-output.js')
+const auditError = require('./utils/audit-error.js')
 
 const audit = async args => {
   const arb = new Arborist({
@@ -15,6 +16,8 @@ const audit = async args => {
   if (fix) {
     reifyOutput(arb)
   } else {
+    // will throw if there's an error, because this is an audit command
+    auditError(arb.auditReport)
     const reporter = npm.flatOptions.json ? 'json' : 'detail'
     const result = auditReport(arb.auditReport, {
       ...npm.flatOptions,

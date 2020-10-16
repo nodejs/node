@@ -161,7 +161,7 @@ def CleanupVcproj(node):
         AbsoluteNode(sub_node)
         CleanupVcproj(sub_node)
 
-    # Normalize the node, and remove all extranous whitespaces.
+    # Normalize the node, and remove all extraneous whitespaces.
     for sub_node in node.childNodes:
         if sub_node.nodeType == Node.TEXT_NODE:
             sub_node.data = sub_node.data.replace("\r", "")

@@ -30,7 +30,6 @@ import gyp
 import gyp.common
 import gyp.xcode_emulation
 from gyp.common import GetEnvironFallback
-from gyp.common import GypError
 
 import hashlib
 
@@ -177,7 +176,7 @@ cmd_solink = $(LINK.$(TOOLSET)) -o $@ -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -o $@ -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -Wl,--start-group $(filter-out FORCE_DO_CMD, $^) -Wl,--end-group $(LIBS)
-"""
+"""  # noqa: E501
 
 LINK_COMMANDS_MAC = """\
 quiet_cmd_alink = LIBTOOL-STATIC $@
@@ -191,7 +190,7 @@ cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o 
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -bundle $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
-"""
+"""  # noqa: E501
 
 LINK_COMMANDS_ANDROID = """\
 quiet_cmd_alink = AR($(TOOLSET)) $@
@@ -218,7 +217,7 @@ quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ -Wl,--start-group $(filter-out FORCE_DO_CMD, $^) -Wl,--end-group $(LIBS)
 quiet_cmd_solink_module_host = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module_host = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
-"""
+"""  # noqa: E501
 
 
 LINK_COMMANDS_AIX = """\
@@ -236,7 +235,7 @@ cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o 
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
-"""
+"""  # noqa: E501
 
 
 LINK_COMMANDS_OS390 = """\
@@ -254,8 +253,7 @@ cmd_solink = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS) -Wl,DLL
-
-"""
+"""  # noqa: E501
 
 
 # Header of toplevel Makefile.
@@ -404,7 +402,7 @@ quiet_cmd_copy = COPY $@
 cmd_copy = ln -f "$<" "$@" 2>/dev/null || (rm -rf "$@" && cp %(copy_archive_args)s "$<" "$@")
 
 %(link_commands)s
-"""
+"""  # noqa: E501
     r"""
 # Define an escape_quotes function to escape single quotes.
 # This allows us to handle quotes properly as long as we always use
@@ -503,7 +501,7 @@ endef
 .PHONY: FORCE_DO_CMD
 FORCE_DO_CMD:
 
-"""
+"""  # noqa: E501
 )
 
 SHARED_HEADER_MAC_COMMANDS = """
@@ -534,7 +532,7 @@ cmd_mac_package_framework = ./gyp-mac-tool package-framework "$@" $(4)
 
 quiet_cmd_infoplist = INFOPLIST $@
 cmd_infoplist = $(CC.$(TOOLSET)) -E -P -Wno-trigraphs -x c $(INFOPLIST_DEFINES) "$<" -o "$@"
-"""
+"""  # noqa: E501
 
 
 def WriteRootHeaderSuffixRules(writer):
@@ -670,43 +668,6 @@ def QuoteSpaces(s, quote=r"\ "):
 def SourceifyAndQuoteSpaces(path):
     """Convert a path to its source directory form and quote spaces."""
     return QuoteSpaces(Sourceify(path))
-
-
-# TODO: Avoid code duplication with _ValidateSourcesForMSVSProject in msvs.py.
-def _ValidateSourcesForOSX(spec, all_sources):
-    """Makes sure if duplicate basenames are not specified in the source list.
-
-  Arguments:
-    spec: The target dictionary containing the properties of the target.
-  """
-    if spec.get("type", None) != "static_library":
-        return
-
-    basenames = {}
-    for source in all_sources:
-        name, ext = os.path.splitext(source)
-        is_compiled_file = ext in [".c", ".cc", ".cpp", ".cxx", ".m", ".mm", ".s", ".S"]
-        if not is_compiled_file:
-            continue
-        basename = os.path.basename(name)  # Don't include extension.
-        basenames.setdefault(basename, []).append(source)
-
-    error = ""
-    for basename, files in basenames.items():
-        if len(files) > 1:
-            error += "  %s: %s\n" % (basename, " ".join(files))
-
-    if error:
-        print(
-            (
-                "static library %s has several files with the same basename:\n"
-                % spec["target_name"]
-            )
-            + error
-            + "libtool on OS X will generate"
-            + " warnings for them."
-        )
-        raise GypError("Duplicate basenames in sources section, see list above")
 
 
 # Map from qualified target to path to output.
@@ -867,10 +828,6 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         # Sources.
         all_sources = spec.get("sources", []) + extra_sources
         if all_sources:
-            if self.flavor == "mac":
-                # libtool on OS X generates warnings for duplicate basenames in the same
-                # target.
-                _ValidateSourcesForOSX(spec, all_sources)
             self.WriteSources(
                 configs,
                 deps,
@@ -1342,7 +1299,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             )
 
             if self.flavor == "mac":
-                cflags = self.xcode_settings.GetCflags(configname, arch=config.get('xcode_configuration_platform'))
+                cflags = self.xcode_settings.GetCflags(
+                    configname,
+                    arch=config.get('xcode_configuration_platform')
+                )
                 cflags_c = self.xcode_settings.GetCflagsC(configname)
                 cflags_cc = self.xcode_settings.GetCflagsCC(configname)
                 cflags_objc = self.xcode_settings.GetCflagsObjC(configname)
@@ -1659,12 +1619,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                     ldflags = config.get("ldflags", [])
                     # Compute an rpath for this output if needed.
                     if any(dep.endswith(".so") or ".so." in dep for dep in deps):
-                        # We want to get the literal string "$ORIGIN" into the link command,
-                        # so we need lots of escaping.
-                        ldflags.append(r"-Wl,-rpath=\$$ORIGIN/lib.%s/" % self.toolset)
-                        ldflags.append(
-                            r"-Wl,-rpath-link=\$(builddir)/lib.%s/" % self.toolset
-                        )
+                        # We want to get the literal string "$ORIGIN"
+                        # into the link command, so we need lots of escaping.
+                        ldflags.append(r"-Wl,-rpath=\$$ORIGIN/")
+                        ldflags.append(r"-Wl,-rpath-link=\$(builddir)/")
                 library_dirs = config.get("library_dirs", [])
                 ldflags += [("-L%s" % library_dir) for library_dir in library_dirs]
                 self.WriteList(ldflags, "LDFLAGS_%s" % configname)
@@ -2212,14 +2170,16 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
     def _InstallableTargetInstallPath(self):
         """Returns the location of the final output for an installable target."""
+        # Functionality removed for all platforms to match Xcode and hoist
+        # shared libraries into PRODUCT_DIR for users:
         # Xcode puts shared_library results into PRODUCT_DIR, and some gyp files
         # rely on this. Emulate this behavior for mac.
-        if self.type == "shared_library" and (
-            self.flavor != "mac" or self.toolset != "target"
-        ):
-            # Install all shared libs into a common directory (per toolset) for
-            # convenient access with LD_LIBRARY_PATH.
-            return "$(builddir)/lib.%s/%s" % (self.toolset, self.alias)
+        # if self.type == "shared_library" and (
+        #     self.flavor != "mac" or self.toolset != "target"
+        # ):
+        #    # Install all shared libs into a common directory (per toolset) for
+        #    # convenient access with LD_LIBRARY_PATH.
+        #    return "$(builddir)/lib.%s/%s" % (self.toolset, self.alias)
         return "$(builddir)/" + self.alias
 
 

@@ -16,6 +16,7 @@ const { depth } = require('treeverse')
 const ms = require('ms')
 const auditReport = require('npm-audit-report')
 const { readTree: getFundingInfo } = require('libnpmfund')
+const auditError = require('./audit-error.js')
 
 // TODO: output JSON if flatOptions.json is true
 const reifyOutput = arb => {
@@ -24,13 +25,18 @@ const reifyOutput = arb => {
     return
   }
 
-  const { diff, auditReport, actualTree } = arb
+  const { diff, actualTree } = arb
+
+  // note: fails and crashes if we're running audit fix and there was an error
+  // which is a good thing, because there's no point printing all this other
+  // stuff in that case!
+  const auditReport = auditError(arb.auditReport) ? null : arb.auditReport
 
   const summary = {
     added: 0,
     removed: 0,
     changed: 0,
-    audited: auditReport ? actualTree.inventory.size : 0,
+    audited: auditReport && !auditReport.error ? actualTree.inventory.size : 0,
     funding: 0
   }
 
@@ -64,15 +70,15 @@ const reifyOutput = arb => {
   }
 
   if (npm.flatOptions.json) {
-    if (arb.auditReport) {
-      summary.audit = npm.command === 'audit' ? arb.auditReport
-        : arb.auditReport.toJSON().metadata
+    if (auditReport) {
+      summary.audit = npm.command === 'audit' ? auditReport
+        : auditReport.toJSON().metadata
     }
     output(JSON.stringify(summary, 0, 2))
   } else {
     packagesChangedMessage(summary)
     packagesFundingMessage(summary)
-    printAuditReport(arb)
+    printAuditReport(auditReport)
   }
 }
 
@@ -80,16 +86,15 @@ const reifyOutput = arb => {
 // at the end if there's still stuff, because it's silly for `npm audit`
 // to tell you to run `npm audit` for details.  otherwise, use the summary
 // report.  if we get here, we know it's not quiet or json.
-const printAuditReport = arb => {
-  if (!arb.auditReport) {
+const printAuditReport = report => {
+  if (!report) {
     return
   }
-
   const reporter = npm.command !== 'audit' ? 'install' : 'detail'
   const defaultAuditLevel = npm.command !== 'audit' ? 'none' : 'low'
   const auditLevel = npm.flatOptions.auditLevel || defaultAuditLevel
 
-  const res = auditReport(arb.auditReport, {
+  const res = auditReport(report, {
     reporter,
     ...npm.flatOptions,
     auditLevel

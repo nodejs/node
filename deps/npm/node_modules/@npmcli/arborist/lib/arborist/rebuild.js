@@ -16,6 +16,8 @@ const {
 const boolEnv = b => b ? '1' : ''
 const sortNodes = (a, b) => (a.depth - b.depth) || a.path.localeCompare(b.path)
 
+const _build = Symbol('build')
+const _resetQueues = Symbol('resetQueues')
 const _rebuildBundle = Symbol('rebuildBundle')
 const _ignoreScripts = Symbol('ignoreScripts')
 const _binLinks = Symbol('binLinks')
@@ -51,12 +53,7 @@ module.exports = cls => class Builder extends cls {
     this[_ignoreScripts] = !!ignoreScripts
     this[_scriptShell] = scriptShell
     this[_rebuildBundle] = !!rebuildBundle
-    this[_queues] = {
-      preinstall: [],
-      install: [],
-      postinstall: [],
-      bin: [],
-    }
+    this[_resetQueues]()
     this[_oldMeta] = null
   }
 
@@ -75,19 +72,62 @@ module.exports = cls => class Builder extends cls {
     if (!nodes)
       nodes = (await this.loadActual()).inventory.values()
 
+    // separates links nodes so that it can run
+    // prepare scripts and link bins in the expected order
     process.emit('time', 'build')
+    const depNodes = new Set()
+    const linkNodes = new Set()
+    for (const node of nodes) {
+      // we skip the target nodes to that workspace in order to make sure
+      // we only run lifecycle scripts / place bin links once per workspace
+      if (node.isLink)
+        linkNodes.add(node)
+      else
+        depNodes.add(node)
+    }
+
+    await this[_build](depNodes, {})
+
+    if (linkNodes.size) {
+      this[_resetQueues]()
+      await this[_build](linkNodes, { type: 'links' })
+    }
+
+    process.emit('timeEnd', 'build')
+  }
+
+  [_resetQueues] () {
+    this[_queues] = {
+      preinstall: [],
+      install: [],
+      postinstall: [],
+      prepare: [],
+      bin: [],
+    }
+  }
+
+  async [_build] (nodes, { type = 'deps' }) {
+    process.emit('time', `build:${type}`)
 
     await this[_buildQueues](nodes)
     if (!this[_ignoreScripts])
       await this[_runScripts]('preinstall')
-    if (this[_binLinks])
+    if (this[_binLinks] && type !== 'links')
       await this[_linkAllBins]()
     if (!this[_ignoreScripts]) {
       await this[_runScripts]('install')
       await this[_runScripts]('postinstall')
     }
 
-    process.emit('timeEnd', 'build')
+    // links should also run prepare scripts and only link bins after that
+    if (type === 'links') {
+      await this[_runScripts]('prepare')
+
+      if (this[_binLinks])
+        await this[_linkAllBins]()
+    }
+
+    process.emit('timeEnd', `build:${type}`)
   }
 
   async [_buildQueues] (nodes) {
@@ -121,8 +161,8 @@ module.exports = cls => class Builder extends cls {
 
     for (const node of queue) {
       const { package: { bin, scripts = {} } } = node
-      const { preinstall, install, postinstall } = scripts
-      const tests = { bin, preinstall, install, postinstall }
+      const { preinstall, install, postinstall, prepare } = scripts
+      const tests = { bin, preinstall, install, postinstall, prepare }
       for (const [key, has] of Object.entries(tests)) {
         if (has)
           this[_queues][key].push(node)
@@ -156,8 +196,8 @@ module.exports = cls => class Builder extends cls {
     const { package: pkg, hasInstallScript } = node
     const { gypfile, bin, scripts = {} } = pkg
 
-    const { preinstall, install, postinstall } = scripts
-    const anyScript = preinstall || install || postinstall
+    const { preinstall, install, postinstall, prepare } = scripts
+    const anyScript = preinstall || install || postinstall || prepare
     if (!refreshed && !anyScript && (hasInstallScript || this[_oldMeta])) {
       // we either have an old metadata (and thus might have scripts)
       // or we have an indication that there's install scripts (but
@@ -183,7 +223,7 @@ module.exports = cls => class Builder extends cls {
       !preinstall &&
       await isNodeGypPackage(node.path)
 
-    if (bin || preinstall || install || postinstall || isGyp) {
+    if (bin || preinstall || install || postinstall || prepare || isGyp) {
       if (bin)
         await this[_checkBins](node)
       if (isGyp) {
@@ -212,7 +252,7 @@ module.exports = cls => class Builder extends cls {
         devOptional,
         package: pkg,
         location,
-      } = node
+      } = node.target || node
 
       // skip any that we know we'll be deleting
       if (this[_trashList].has(path))

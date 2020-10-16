@@ -151,7 +151,7 @@ function rm (user, pkg, opts) {
   if (!pkg) {
     return readLocalPkg().then(pkg => {
       if (!pkg) { UsageError() }
-      return add(user, pkg, opts)
+      return rm(user, pkg, opts)
     })
   }
   log.verbose('owner rm', '%s from %s', user, pkg)

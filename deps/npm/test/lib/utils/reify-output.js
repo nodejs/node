@@ -77,6 +77,13 @@ t.test('single package', (t) => {
   )
 
   reifyOutput({
+    // a report with an error is the same as no report at all, if
+    // the command is not 'audit'
+    auditReport: {
+      error: {
+        message: 'no audit for youuuuu'
+      }
+    },
     actualTree: {
       name: 'foo',
       package: {
