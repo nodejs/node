@@ -47,7 +47,9 @@ const server = http.createServer((req, res) => {
   }, 100);
 });
 
-server.listen(0, () => {
+server.listen(0, function() {
+  // Anonymous function rather than arrow function to test `this` value.
+  assert.strictEqual(this, server);
   const req = http.request({
     port: server.address().port,
     path: '/',
