@@ -200,10 +200,6 @@ function trough() {
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
-function commonjsRequire () {
-	throw new Error('Dynamic requires are not currently supported by @rollup/plugin-commonjs');
-}
-
 function unwrapExports (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
@@ -214,6 +210,10 @@ function createCommonjsModule(fn, module) {
 
 function getCjsExportFromNamespace (n) {
 	return n && n['default'] || n;
+}
+
+function commonjsRequire () {
+	throw new Error('Dynamic requires are not currently supported by @rollup/plugin-commonjs');
 }
 
 function isNothing(subject) {
@@ -1405,7 +1405,8 @@ try {
   var _require$1 = commonjsRequire;
   esprima = _require$1('esprima');
 } catch (_) {
-  /*global window */
+  /* eslint-disable no-redeclare */
+  /* global window */
   if (typeof window !== 'undefined') esprima = window.esprima;
 }
 
@@ -2886,12 +2887,18 @@ function composeNode(state, parentIndent, nodeContext, allowToSeek, allowCompact
 
   if (state.tag !== null && state.tag !== '!') {
     if (state.tag === '?') {
+      // Implicit resolving is not allowed for non-scalar types, and '?'
+      // non-specific tag is only automatically assigned to plain scalars.
+      //
+      // We only need to check kind conformity in case user explicitly assigns '?'
+      // tag, for example like this: "!<?> [0]"
+      //
+      if (state.result !== null && state.kind !== 'scalar') {
+        throwError(state, 'unacceptable node kind for !<?> tag; it should be "scalar", not "' + state.kind + '"');
+      }
+
       for (typeIndex = 0, typeQuantity = state.implicitTypes.length; typeIndex < typeQuantity; typeIndex += 1) {
         type = state.implicitTypes[typeIndex];
-
-        // Implicit resolving is not allowed for non-scalar types, and '?'
-        // non-specific tag is only assigned to plain scalars. So, it isn't
-        // needed to check for 'kind' conformity.
 
         if (type.resolve(state.result)) { // `state.result` updated in resolver if matched
           state.result = type.construct(state.result);
@@ -3056,6 +3063,13 @@ function loadDocuments(input, options) {
 
   var state = new State(input, options);
 
+  var nullpos = input.indexOf('\0');
+
+  if (nullpos !== -1) {
+    state.position = nullpos;
+    throwError(state, 'null byte is not allowed in input');
+  }
+
   // Use 0 as string terminator. That significantly simplifies bounds check.
   state.input += '\0';
 
@@ -3073,13 +3087,18 @@ function loadDocuments(input, options) {
 
 
 function loadAll(input, iterator, options) {
-  var documents = loadDocuments(input, options), index, length;
+  if (iterator !== null && typeof iterator === 'object' && typeof options === 'undefined') {
+    options = iterator;
+    iterator = null;
+  }
+
+  var documents = loadDocuments(input, options);
 
   if (typeof iterator !== 'function') {
     return documents;
   }
 
-  for (index = 0, length = documents.length; index < length; index += 1) {
+  for (var index = 0, length = documents.length; index < length; index += 1) {
     iterator(documents[index]);
   }
 }
@@ -3098,12 +3117,13 @@ function load(input, options) {
 }
 
 
-function safeLoadAll(input, output, options) {
-  if (typeof output === 'function') {
-    loadAll(input, output, common.extend({ schema: default_safe }, options));
-  } else {
-    return loadAll(input, common.extend({ schema: default_safe }, options));
+function safeLoadAll(input, iterator, options) {
+  if (typeof iterator === 'object' && iterator !== null && typeof options === 'undefined') {
+    options = iterator;
+    iterator = null;
   }
+
+  return loadAll(input, iterator, common.extend({ schema: default_safe }, options));
 }
 
 
@@ -3136,6 +3156,7 @@ var _hasOwnProperty$3 = Object.prototype.hasOwnProperty;
 
 var CHAR_TAB                  = 0x09; /* Tab */
 var CHAR_LINE_FEED            = 0x0A; /* LF */
+var CHAR_CARRIAGE_RETURN      = 0x0D; /* CR */
 var CHAR_SPACE                = 0x20; /* Space */
 var CHAR_EXCLAMATION          = 0x21; /* ! */
 var CHAR_DOUBLE_QUOTE         = 0x22; /* " */
@@ -3147,6 +3168,7 @@ var CHAR_ASTERISK             = 0x2A; /* * */
 var CHAR_COMMA                = 0x2C; /* , */
 var CHAR_MINUS                = 0x2D; /* - */
 var CHAR_COLON                = 0x3A; /* : */
+var CHAR_EQUALS               = 0x3D; /* = */
 var CHAR_GREATER_THAN         = 0x3E; /* > */
 var CHAR_QUESTION             = 0x3F; /* ? */
 var CHAR_COMMERCIAL_AT        = 0x40; /* @ */
@@ -3312,8 +3334,23 @@ function isPrintable(c) {
       ||  (0x10000 <= c && c <= 0x10FFFF);
 }
 
+// [34] ns-char ::= nb-char - s-white
+// [27] nb-char ::= c-printable - b-char - c-byte-order-mark
+// [26] b-char  ::= b-line-feed | b-carriage-return
+// [24] b-line-feed       ::=     #xA    /* LF */
+// [25] b-carriage-return ::=     #xD    /* CR */
+// [3]  c-byte-order-mark ::=     #xFEFF
+function isNsChar(c) {
+  return isPrintable(c) && !isWhitespace(c)
+    // byte-order-mark
+    && c !== 0xFEFF
+    // b-char
+    && c !== CHAR_CARRIAGE_RETURN
+    && c !== CHAR_LINE_FEED;
+}
+
 // Simplified test for values allowed after the first character in plain style.
-function isPlainSafe(c) {
+function isPlainSafe(c, prev) {
   // Uses a subset of nb-char - c-flow-indicator - ":" - "#"
   // where nb-char ::= c-printable - b-char - c-byte-order-mark.
   return isPrintable(c) && c !== 0xFEFF
@@ -3324,8 +3361,9 @@ function isPlainSafe(c) {
     && c !== CHAR_LEFT_CURLY_BRACKET
     && c !== CHAR_RIGHT_CURLY_BRACKET
     // - ":" - "#"
+    // /* An ns-char preceding */ "#"
     && c !== CHAR_COLON
-    && c !== CHAR_SHARP;
+    && ((c !== CHAR_SHARP) || (prev && isNsChar(prev)));
 }
 
 // Simplified test for values allowed as the first character in plain style.
@@ -3344,12 +3382,13 @@ function isPlainSafeFirst(c) {
     && c !== CHAR_RIGHT_SQUARE_BRACKET
     && c !== CHAR_LEFT_CURLY_BRACKET
     && c !== CHAR_RIGHT_CURLY_BRACKET
-    // | “#” | “&” | “*” | “!” | “|” | “>” | “'” | “"”
+    // | “#” | “&” | “*” | “!” | “|” | “=” | “>” | “'” | “"”
     && c !== CHAR_SHARP
     && c !== CHAR_AMPERSAND
     && c !== CHAR_ASTERISK
     && c !== CHAR_EXCLAMATION
     && c !== CHAR_VERTICAL_LINE
+    && c !== CHAR_EQUALS
     && c !== CHAR_GREATER_THAN
     && c !== CHAR_SINGLE_QUOTE
     && c !== CHAR_DOUBLE_QUOTE
@@ -3380,7 +3419,7 @@ var STYLE_PLAIN   = 1,
 //    STYLE_FOLDED => a line > lineWidth and can be folded (and lineWidth != -1).
 function chooseScalarStyle(string, singleLineOnly, indentPerLevel, lineWidth, testAmbiguousType) {
   var i;
-  var char;
+  var char, prev_char;
   var hasLineBreak = false;
   var hasFoldableLine = false; // only checked if shouldTrackWidth
   var shouldTrackWidth = lineWidth !== -1;
@@ -3396,7 +3435,8 @@ function chooseScalarStyle(string, singleLineOnly, indentPerLevel, lineWidth, te
       if (!isPrintable(char)) {
         return STYLE_DOUBLE;
       }
-      plain = plain && isPlainSafe(char);
+      prev_char = i > 0 ? string.charCodeAt(i - 1) : null;
+      plain = plain && isPlainSafe(char, prev_char);
     }
   } else {
     // Case: block styles permitted.
@@ -3415,7 +3455,8 @@ function chooseScalarStyle(string, singleLineOnly, indentPerLevel, lineWidth, te
       } else if (!isPrintable(char)) {
         return STYLE_DOUBLE;
       }
-      plain = plain && isPlainSafe(char);
+      prev_char = i > 0 ? string.charCodeAt(i - 1) : null;
+      plain = plain && isPlainSafe(char, prev_char);
     }
     // in case the end is missing a \n
     hasFoldableLine = hasFoldableLine || (shouldTrackWidth &&
@@ -3672,9 +3713,11 @@ function writeFlowMapping(state, level, object) {
       pairBuffer;
 
   for (index = 0, length = objectKeyList.length; index < length; index += 1) {
-    pairBuffer = state.condenseFlow ? '"' : '';
 
+    pairBuffer = '';
     if (index !== 0) pairBuffer += ', ';
+
+    if (state.condenseFlow) pairBuffer += '"';
 
     objectKey = objectKeyList[index];
     objectValue = object[objectKey];
@@ -4160,42 +4203,125 @@ errorEx.line = function (str, def) {
 
 var errorEx_1 = errorEx;
 
-var jsonParseBetterErrors = parseJson;
-function parseJson (txt, reviver, context) {
+const hexify = char => {
+  const h = char.charCodeAt(0).toString(16).toUpperCase();
+  return '0x' + (h.length % 2 ? '0' : '') + h
+};
+
+const parseError = (e, txt, context) => {
+  if (!txt) {
+    return {
+      message: e.message + ' while parsing empty string',
+      position: 0,
+    }
+  }
+  const badToken = e.message.match(/^Unexpected token (.) .*position\s+(\d+)/i);
+  const errIdx = badToken ? +badToken[2]
+    : e.message.match(/^Unexpected end of JSON.*/i) ? txt.length - 1
+    : null;
+
+  const msg = badToken ? e.message.replace(/^Unexpected token ./, `Unexpected token ${
+      JSON.stringify(badToken[1])
+    } (${hexify(badToken[1])})`)
+    : e.message;
+
+  if (errIdx !== null && errIdx !== undefined) {
+    const start = errIdx <= context ? 0
+      : errIdx - context;
+
+    const end = errIdx + context >= txt.length ? txt.length
+      : errIdx + context;
+
+    const slice = (start === 0 ? '' : '...') +
+      txt.slice(start, end) +
+      (end === txt.length ? '' : '...');
+
+    const near = txt === slice ? '' : 'near ';
+
+    return {
+      message: msg + ` while parsing ${near}${JSON.stringify(slice)}`,
+      position: errIdx,
+    }
+  } else {
+    return {
+      message: msg + ` while parsing '${txt.slice(0, context * 2)}'`,
+      position: 0,
+    }
+  }
+};
+
+class JSONParseError extends SyntaxError {
+  constructor (er, txt, context, caller) {
+    context = context || 20;
+    const metadata = parseError(er, txt, context);
+    super(metadata.message);
+    Object.assign(this, metadata);
+    this.code = 'EJSONPARSE';
+    this.systemError = er;
+    Error.captureStackTrace(this, caller || this.constructor);
+  }
+  get name () { return this.constructor.name }
+  set name (n) {}
+  get [Symbol.toStringTag] () { return this.constructor.name }
+}
+
+const kIndent = Symbol.for('indent');
+const kNewline = Symbol.for('newline');
+// only respect indentation if we got a line break, otherwise squash it
+// things other than objects and arrays aren't indented, so ignore those
+// Important: in both of these regexps, the $1 capture group is the newline
+// or undefined, and the $2 capture group is the indent, or undefined.
+const formatRE = /^\s*[{\[]((?:\r?\n)+)([\s\t]*)/;
+const emptyRE = /^(?:\{\}|\[\])((?:\r?\n)+)?$/;
+
+const parseJson = (txt, reviver, context) => {
+  const parseText = stripBOM(txt);
   context = context || 20;
   try {
-    return JSON.parse(txt, reviver)
+    // get the indentation so that we can save it back nicely
+    // if the file starts with {" then we have an indent of '', ie, none
+    // otherwise, pick the indentation of the next line after the first \n
+    // If the pattern doesn't match, then it means no indentation.
+    // JSON.stringify ignores symbols, so this is reasonably safe.
+    // if the string is '{}' or '[]', then use the default 2-space indent.
+    const [, newline = '\n', indent = '  '] = parseText.match(emptyRE) ||
+      parseText.match(formatRE) ||
+      [, '', ''];
+
+    const result = JSON.parse(parseText, reviver);
+    if (result && typeof result === 'object') {
+      result[kNewline] = newline;
+      result[kIndent] = indent;
+    }
+    return result
   } catch (e) {
-    if (typeof txt !== 'string') {
+    if (typeof txt !== 'string' && !Buffer.isBuffer(txt)) {
       const isEmptyArray = Array.isArray(txt) && txt.length === 0;
-      const errorMessage = 'Cannot parse ' +
-      (isEmptyArray ? 'an empty array' : String(txt));
-      throw new TypeError(errorMessage)
+      throw Object.assign(new TypeError(
+        `Cannot parse ${isEmptyArray ? 'an empty array' : String(txt)}`
+      ), {
+        code: 'EJSONPARSE',
+        systemError: e,
+      })
     }
-    const syntaxErr = e.message.match(/^Unexpected token.*position\s+(\d+)/i);
-    const errIdx = syntaxErr
-    ? +syntaxErr[1]
-    : e.message.match(/^Unexpected end of JSON.*/i)
-    ? txt.length - 1
-    : null;
-    if (errIdx != null) {
-      const start = errIdx <= context
-      ? 0
-      : errIdx - context;
-      const end = errIdx + context >= txt.length
-      ? txt.length
-      : errIdx + context;
-      e.message += ` while parsing near '${
-        start === 0 ? '' : '...'
-      }${txt.slice(start, end)}${
-        end === txt.length ? '' : '...'
-      }'`;
-    } else {
-      e.message += ` while parsing '${txt.slice(0, context * 2)}'`;
-    }
-    throw e
+
+    throw new JSONParseError(e, parseText, context, parseJson)
   }
-}
+};
+
+// Remove byte order marker. This catches EF BB BF (the UTF-8 BOM)
+// because the buffer-to-string conversion in `fs.readFileSync()`
+// translates it to FEFF, the UTF-16 BOM.
+const stripBOM = txt => String(txt).replace(/^\uFEFF/, '');
+
+var jsonParseEvenBetterErrors = parseJson;
+parseJson.JSONParseError = JSONParseError;
+
+parseJson.noExceptions = (txt, reviver) => {
+  try {
+    return JSON.parse(stripBOM(txt), reviver)
+  } catch (e) {}
+};
 
 var LF = '\n';
 var CR = '\r';
@@ -4474,6 +4600,14 @@ Object.defineProperty(exports, "isKeyword", {
 });
 
 unwrapExports(lib);
+var lib_1 = lib.isIdentifierName;
+var lib_2 = lib.isIdentifierChar;
+var lib_3 = lib.isIdentifierStart;
+var lib_4 = lib.isReservedWord;
+var lib_5 = lib.isStrictBindOnlyReservedWord;
+var lib_6 = lib.isStrictBindReservedWord;
+var lib_7 = lib.isStrictReservedWord;
+var lib_8 = lib.isKeyword;
 
 var matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;
 
@@ -6465,8 +6599,8 @@ function highlight(code, options = {}) {
 });
 
 unwrapExports(lib$1);
-var lib_1 = lib$1.shouldHighlight;
-var lib_2 = lib$1.getChalk;
+var lib_1$1 = lib$1.shouldHighlight;
+var lib_2$1 = lib$1.getChalk;
 
 var lib$2 = createCommonjsModule(function (module, exports) {
 
@@ -6499,7 +6633,7 @@ function getMarkerLines(loc, source, opts) {
     column: 0,
     line: -1
   }, loc.start);
-  const endLoc = Object.assign({}, startLoc, {}, loc.end);
+  const endLoc = Object.assign({}, startLoc, loc.end);
   const {
     linesAbove = 2,
     linesBelow = 3
@@ -6638,7 +6772,7 @@ function _default(rawLines, lineNumber, colNumber, opts = {}) {
 });
 
 unwrapExports(lib$2);
-var lib_1$1 = lib$2.codeFrameColumns;
+var lib_1$2 = lib$2.codeFrameColumns;
 
 var require$$0 = getCjsExportFromNamespace(dist);
 
@@ -6660,12 +6794,12 @@ var parseJson$1 = (string, reviver, filename) => {
 		try {
 			return JSON.parse(string, reviver);
 		} catch (error) {
-			jsonParseBetterErrors(string, reviver);
+			jsonParseEvenBetterErrors(string, reviver);
 			throw error;
 		}
 	} catch (error) {
 		error.message = error.message.replace(/\n/g, '');
-		const indexMatch = error.message.match(/in JSON at position (\d+) while parsing near/);
+		const indexMatch = error.message.match(/in JSON at position (\d+) while parsing/);
 
 		const jsonError = new JSONError(error);
 		if (filename) {
@@ -6971,13 +7105,11 @@ function setup(env) {
 		debug.namespace = namespace;
 		debug.enabled = createDebug.enabled(namespace);
 		debug.useColors = createDebug.useColors();
-		debug.color = selectColor(namespace);
+		debug.color = createDebug.selectColor(namespace);
 		debug.destroy = destroy;
 		debug.extend = extend;
-		// Debug.formatArgs = formatArgs;
-		// debug.rawLog = rawLog;
 
-		// env-specific initialization logic for debug instances
+		// Env-specific initialization logic for debug instances
 		if (typeof createDebug.init === 'function') {
 			createDebug.init(debug);
 		}
@@ -7126,7 +7258,6 @@ var browser = createCommonjsModule(function (module, exports) {
  * This is the web browser implementation of `debug()`.
  */
 
-exports.log = log;
 exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
@@ -7292,18 +7423,14 @@ function formatArgs(args) {
 }
 
 /**
- * Invokes `console.log()` when available.
- * No-op when `console.log` is not a "function".
+ * Invokes `console.debug()` when available.
+ * No-op when `console.debug` is not a "function".
+ * If `console.debug` is not available, falls back
+ * to `console.log`.
  *
  * @api public
  */
-function log(...args) {
-	// This hackery is required for IE8/9, where
-	// the `console.log` function doesn't have 'apply'
-	return typeof console === 'object' &&
-		console.log &&
-		console.log(...args);
-}
+exports.log = console.debug || console.log || (() => {});
 
 /**
  * Save `namespaces`.
@@ -7385,13 +7512,13 @@ formatters.j = function (v) {
 	}
 };
 });
-var browser_1 = browser.log;
-var browser_2 = browser.formatArgs;
-var browser_3 = browser.save;
-var browser_4 = browser.load;
-var browser_5 = browser.useColors;
-var browser_6 = browser.storage;
-var browser_7 = browser.colors;
+var browser_1 = browser.formatArgs;
+var browser_2 = browser.save;
+var browser_3 = browser.load;
+var browser_4 = browser.useColors;
+var browser_5 = browser.storage;
+var browser_6 = browser.colors;
+var browser_7 = browser.log;
 
 var hasFlag$1 = (flag, argv = process.argv) => {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
@@ -7478,7 +7605,7 @@ function supportsColor$1(haveStream, streamIsTTY) {
 	}
 
 	if ('CI' in env$1) {
-		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI'].some(sign => sign in env$1) || env$1.CI_NAME === 'codeship') {
+		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE'].some(sign => sign in env$1) || env$1.CI_NAME === 'codeship') {
 			return 1;
 		}
 
@@ -7487,10 +7614,6 @@ function supportsColor$1(haveStream, streamIsTTY) {
 
 	if ('TEAMCITY_VERSION' in env$1) {
 		return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env$1.TEAMCITY_VERSION) ? 1 : 0;
-	}
-
-	if ('GITHUB_ACTIONS' in env$1) {
-		return 1;
 	}
 
 	if (env$1.COLORTERM === 'truecolor') {
@@ -8078,8 +8201,8 @@ const pTry = (fn, ...arguments_) => new Promise(resolve => {
 
 var pTry_1 = pTry;
 // TODO: remove this in the next major version
-var default_1 = pTry;
-pTry_1.default = default_1;
+var _default = pTry;
+pTry_1.default = _default;
 
 const pLimit = concurrency => {
 	if (!((Number.isInteger(concurrency) || concurrency === Infinity) && concurrency > 0)) {
@@ -8134,8 +8257,8 @@ const pLimit = concurrency => {
 };
 
 var pLimit_1 = pLimit;
-var default_1$1 = pLimit;
-pLimit_1.default = default_1$1;
+var _default$1 = pLimit;
+pLimit_1.default = _default$1;
 
 class EndError extends Error {
 	constructor(value) {
@@ -9323,6 +9446,9 @@ function makeArray (subject) {
     : [subject]
 }
 
+const EMPTY = '';
+const SPACE = ' ';
+const ESCAPE = '\\';
 const REGEX_TEST_BLANK_LINE = /^\s+$/;
 const REGEX_REPLACE_LEADING_EXCAPED_EXCLAMATION = /^\\!/;
 const REGEX_REPLACE_LEADING_EXCAPED_HASH = /^\\#/;
@@ -9353,8 +9479,14 @@ const sanitizeRange = range => range.replace(
     ? match
     // Invalid range (out of order) which is ok for gitignore rules but
     //   fatal for JavaScript regular expression, so eliminate it.
-    : ''
+    : EMPTY
 );
+
+// See fixtures #59
+const cleanRangeBackSlash = slashes => {
+  const {length} = slashes;
+  return slashes.slice(0, length - length % 2)
+};
 
 // > If the pattern ends with a slash,
 // > it is removed for the purpose of the following description,
@@ -9376,14 +9508,14 @@ const REPLACERS = [
     // (a \ ) -> (a  )
     /\\?\s+$/,
     match => match.indexOf('\\') === 0
-      ? ' '
-      : ''
+      ? SPACE
+      : EMPTY
   ],
 
   // replace (\ ) with ' '
   [
     /\\\s/g,
-    () => ' '
+    () => SPACE
   ],
 
   // Escape metacharacters
@@ -9404,17 +9536,8 @@ const REPLACERS = [
   // > - the opening curly brace {,
   // > These special characters are often called "metacharacters".
   [
-    /[\\^$.|*+(){]/g,
+    /[\\$.|*+(){^]/g,
     match => `\\${match}`
-  ],
-
-  [
-    // > [abc] matches any character inside the brackets
-    // >    (in this case a, b, or c);
-    /\[([^\]/]*)($|\])/g,
-    (match, p1, p2) => p2 === ']'
-      ? `[${sanitizeRange(p1)}]`
-      : `\\${match}`
   ],
 
   [
@@ -9450,31 +9573,6 @@ const REPLACERS = [
 
     // '**/foo' <-> 'foo'
     () => '^(?:.*\\/)?'
-  ],
-
-  // ending
-  [
-    // 'js' will not match 'js.'
-    // 'ab' will not match 'abc'
-    /(?:[^*])$/,
-
-    // WTF!
-    // https://git-scm.com/docs/gitignore
-    // changes in [2.22.1](https://git-scm.com/docs/gitignore/2.22.1)
-    // which re-fixes #24, #38
-
-    // > If there is a separator at the end of the pattern then the pattern
-    // > will only match directories, otherwise the pattern can match both
-    // > files and directories.
-
-    // 'js*' will not match 'a.js'
-    // 'js/' will not match 'a.js'
-    // 'js' will match 'a.js' and 'a.js/'
-    match => /\/$/.test(match)
-      // foo/ will not match 'foo'
-      ? `${match}$`
-      // foo matches 'foo' and 'foo/'
-      : `${match}(?=$|\\/$)`
   ],
 
   // starting
@@ -9545,13 +9643,73 @@ const REPLACERS = [
     (_, p1) => `${p1}[^\\/]*`
   ],
 
+  [
+    // unescape, revert step 3 except for back slash
+    // For example, if a user escape a '\\*',
+    // after step 3, the result will be '\\\\\\*'
+    /\\\\\\(?=[$.|*+(){^])/g,
+    () => ESCAPE
+  ],
+
+  [
+    // '\\\\' -> '\\'
+    /\\\\/g,
+    () => ESCAPE
+  ],
+
+  [
+    // > The range notation, e.g. [a-zA-Z],
+    // > can be used to match one of the characters in a range.
+
+    // `\` is escaped by step 3
+    /(\\)?\[([^\]/]*?)(\\*)($|\])/g,
+    (match, leadEscape, range, endEscape, close) => leadEscape === ESCAPE
+      // '\\[bar]' -> '\\\\[bar\\]'
+      ? `\\[${range}${cleanRangeBackSlash(endEscape)}${close}`
+      : close === ']'
+        ? endEscape.length % 2 === 0
+          // A normal case, and it is a range notation
+          // '[bar]'
+          // '[bar\\\\]'
+          ? `[${sanitizeRange(range)}${endEscape}]`
+          // Invalid range notaton
+          // '[bar\\]' -> '[bar\\\\]'
+          : '[]'
+        : '[]'
+  ],
+
+  // ending
+  [
+    // 'js' will not match 'js.'
+    // 'ab' will not match 'abc'
+    /(?:[^*])$/,
+
+    // WTF!
+    // https://git-scm.com/docs/gitignore
+    // changes in [2.22.1](https://git-scm.com/docs/gitignore/2.22.1)
+    // which re-fixes #24, #38
+
+    // > If there is a separator at the end of the pattern then the pattern
+    // > will only match directories, otherwise the pattern can match both
+    // > files and directories.
+
+    // 'js*' will not match 'a.js'
+    // 'js/' will not match 'a.js'
+    // 'js' will match 'a.js' and 'a.js/'
+    match => /\/$/.test(match)
+      // foo/ will not match 'foo'
+      ? `${match}$`
+      // foo matches 'foo' and 'foo/'
+      : `${match}(?=$|\\/$)`
+  ],
+
   // trailing wildcard
   [
     /(\^|\\\/)?\\\*$/,
     (_, p1) => {
       const prefix = p1
         // '\^':
-        // '/*' does not match ''
+        // '/*' does not match EMPTY
         // '/*' does not match everything
 
         // '\\\/':
@@ -9565,12 +9723,6 @@ const REPLACERS = [
       return `${prefix}(?=$|\\/$)`
     }
   ],
-
-  [
-    // unescape
-    /\\\\\\/g,
-    () => '\\'
-  ]
 ];
 
 // A simple cache, because an ignore rule only has only one certain meaning
@@ -9663,7 +9815,7 @@ const checkPath = (path, originalPath, doThrow) => {
     )
   }
 
-  // We don't know if we should ignore '', so throw
+  // We don't know if we should ignore EMPTY, so throw
   if (!path) {
     return doThrow(`path must not be empty`, TypeError)
   }
@@ -16066,8 +16218,8 @@ const isFullwidthCodePoint = codePoint => {
 };
 
 var isFullwidthCodePoint_1 = isFullwidthCodePoint;
-var default_1$2 = isFullwidthCodePoint;
-isFullwidthCodePoint_1.default = default_1$2;
+var _default$2 = isFullwidthCodePoint;
+isFullwidthCodePoint_1.default = _default$2;
 
 var emojiRegex = function () {
   // https://mths.be/emoji
@@ -16111,8 +16263,8 @@ const stringWidth = string => {
 
 var stringWidth_1 = stringWidth;
 // TODO: remove this in the next major version
-var default_1$3 = stringWidth;
-stringWidth_1.default = default_1$3;
+var _default$3 = stringWidth;
+stringWidth_1.default = _default$3;
 
 /*!
  * repeat-string <https://github.com/jonschlinkert/repeat-string>
@@ -20724,13 +20876,20 @@ class ReaddirpStream extends Readable {
       return 'directory';
     }
     if (stats && stats.isSymbolicLink()) {
+      const full = entry.fullPath;
       try {
-        const entryRealPath = await realpath$2(entry.fullPath);
+        const entryRealPath = await realpath$2(full);
         const entryRealPathStats = await lstat(entryRealPath);
         if (entryRealPathStats.isFile()) {
           return 'file';
         }
         if (entryRealPathStats.isDirectory()) {
+          const len = entryRealPath.length;
+          if (full.startsWith(entryRealPath) && full.substr(len, 1) === path$1.sep) {
+            return this._onError(new Error(
+              `Circular symlink detected: "${full}" points to "${entryRealPath}"`
+            ));
+          }
           return 'directory';
         }
       } catch (error) {
@@ -22452,6 +22611,7 @@ var binaryExtensions = [
 	"alz",
 	"ape",
 	"apk",
+	"appimage",
 	"ar",
 	"arj",
 	"asf",
@@ -22508,6 +22668,7 @@ var binaryExtensions = [
 	"fh",
 	"fla",
 	"flac",
+	"flatpak",
 	"fli",
 	"flv",
 	"fpx",
@@ -22612,6 +22773,7 @@ var binaryExtensions = [
 	"rlc",
 	"rmf",
 	"rmvb",
+	"rpm",
 	"rtf",
 	"rz",
 	"s3m",
@@ -22619,6 +22781,7 @@ var binaryExtensions = [
 	"scpt",
 	"sgi",
 	"shar",
+	"snap",
 	"sil",
 	"sketch",
 	"slk",
@@ -22746,6 +22909,7 @@ exports.DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
 exports.REPLACER_RE = /^\.[/\\]/;
 
 exports.SLASH = '/';
+exports.SLASH_SLASH = '//';
 exports.BRACE_START = '{';
 exports.BANG = '!';
 exports.ONE_DOT = '.';
@@ -22764,6 +22928,7 @@ exports.IDENTITY_FN = val => val;
 
 exports.isWindows = platform === 'win32';
 exports.isMacos = platform === 'darwin';
+exports.isLinux = platform === 'linux';
 });
 var constants_1 = constants$2.EV_ALL;
 var constants_2 = constants$2.EV_READY;
@@ -22797,28 +22962,31 @@ var constants_29 = constants$2.SLASH_OR_BACK_SLASH_RE;
 var constants_30 = constants$2.DOT_RE;
 var constants_31 = constants$2.REPLACER_RE;
 var constants_32 = constants$2.SLASH;
-var constants_33 = constants$2.BRACE_START;
-var constants_34 = constants$2.BANG;
-var constants_35 = constants$2.ONE_DOT;
-var constants_36 = constants$2.TWO_DOTS;
-var constants_37 = constants$2.STAR;
-var constants_38 = constants$2.GLOBSTAR;
-var constants_39 = constants$2.ROOT_GLOBSTAR;
-var constants_40 = constants$2.SLASH_GLOBSTAR;
-var constants_41 = constants$2.DIR_SUFFIX;
-var constants_42 = constants$2.ANYMATCH_OPTS;
-var constants_43 = constants$2.STRING_TYPE;
-var constants_44 = constants$2.FUNCTION_TYPE;
-var constants_45 = constants$2.EMPTY_STR;
-var constants_46 = constants$2.EMPTY_FN;
-var constants_47 = constants$2.IDENTITY_FN;
-var constants_48 = constants$2.isWindows;
-var constants_49 = constants$2.isMacos;
+var constants_33 = constants$2.SLASH_SLASH;
+var constants_34 = constants$2.BRACE_START;
+var constants_35 = constants$2.BANG;
+var constants_36 = constants$2.ONE_DOT;
+var constants_37 = constants$2.TWO_DOTS;
+var constants_38 = constants$2.STAR;
+var constants_39 = constants$2.GLOBSTAR;
+var constants_40 = constants$2.ROOT_GLOBSTAR;
+var constants_41 = constants$2.SLASH_GLOBSTAR;
+var constants_42 = constants$2.DIR_SUFFIX;
+var constants_43 = constants$2.ANYMATCH_OPTS;
+var constants_44 = constants$2.STRING_TYPE;
+var constants_45 = constants$2.FUNCTION_TYPE;
+var constants_46 = constants$2.EMPTY_STR;
+var constants_47 = constants$2.EMPTY_FN;
+var constants_48 = constants$2.IDENTITY_FN;
+var constants_49 = constants$2.isWindows;
+var constants_50 = constants$2.isMacos;
+var constants_51 = constants$2.isLinux;
 
 const { promisify: promisify$1 } = util$2;
 
 const {
   isWindows: isWindows$1,
+  isLinux,
   EMPTY_FN,
   EMPTY_STR,
   KEY_LISTENERS,
@@ -23169,8 +23337,7 @@ _handleFile(file, stats, initialAdd) {
   // if the file is already being watched, do nothing
   if (parent.has(basename)) return;
 
-  // kick off the watcher
-  const closer = this._watchWithNodeFs(file, async (path, newStats) => {
+  const listener = async (path, newStats) => {
     if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file, 5)) return;
     if (!newStats || newStats.mtimeMs === 0) {
       try {
@@ -23182,12 +23349,18 @@ _handleFile(file, stats, initialAdd) {
         if (!at || at <= mt || mt !== prevStats.mtimeMs) {
           this.fsw._emit(EV_CHANGE, file, newStats);
         }
-        prevStats = newStats;
+        if (isLinux && prevStats.ino !== newStats.ino) {
+          this.fsw._closeFile(path);
+          prevStats = newStats;
+          this.fsw._addPathCloser(path, this._watchWithNodeFs(file, listener));
+        } else {
+          prevStats = newStats;
+        }
       } catch (error) {
         // Fix issues where mtime is null but file is still present
         this.fsw._remove(dirname, basename);
       }
-    // add is about to be emitted if file not already tracked in parent
+      // add is about to be emitted if file not already tracked in parent
     } else if (parent.has(basename)) {
       // Check that change event was not fired because of changed only accessTime.
       const at = newStats.atimeMs;
@@ -23197,7 +23370,9 @@ _handleFile(file, stats, initialAdd) {
       }
       prevStats = newStats;
     }
-  });
+  };
+  // kick off the watcher
+  const closer = this._watchWithNodeFs(file, listener);
 
   // emit an add event if we're supposed to
   if (!(initialAdd && this.fsw.options.ignoreInitial) && this.fsw._isntIgnored(file)) {
@@ -23550,7 +23725,7 @@ const createFSEventsInstance = (path, callback) => {
  * @param {Function} rawEmitter - passes data to listeners of the 'raw' event
  * @returns {Function} closer
  */
-function setFSEventsListener(path, realPath, listener, rawEmitter, fsw) {
+function setFSEventsListener(path, realPath, listener, rawEmitter) {
   let watchPath = path$1.extname(path) ? path$1.dirname(path) : path;
   const parentPath = path$1.dirname(watchPath);
   let cont = FSEventsWatchers.get(watchPath);
@@ -23593,7 +23768,7 @@ function setFSEventsListener(path, realPath, listener, rawEmitter, fsw) {
       listeners: new Set([filteredListener]),
       rawEmitter,
       watcher: createFSEventsInstance(watchPath, (fullPath, flags) => {
-        if (fsw.closed) return;
+        if (!cont.listeners.size) return;
         const info = fsevents.getInfo(fullPath, flags);
         cont.listeners.forEach(list => {
           list(fullPath, flags, info);
@@ -23688,7 +23863,6 @@ addOrChange(path, fullPath, realPath, parent, watchedDir, item, info, opts) {
 async checkExists(path, fullPath, realPath, parent, watchedDir, item, info, opts) {
   try {
     const stats = await stat$4(path);
-    if (this.fsw.closed) return;
     if (this.fsw.closed) return;
     if (sameTypes(info, stats)) {
       this.addOrChange(path, fullPath, realPath, parent, watchedDir, item, info, opts);
@@ -23800,8 +23974,7 @@ _watchWithFsEvents(watchPath, realPath, transform, globFilter) {
     watchPath,
     realPath,
     watchCallback,
-    this.fsw._emitRaw,
-    this.fsw
+    this.fsw._emitRaw
   );
 
   this.fsw._emitReady();
@@ -24007,6 +24180,7 @@ const {
   REPLACER_RE,
 
   SLASH: SLASH$1,
+  SLASH_SLASH,
   BRACE_START: BRACE_START$1,
   BANG: BANG$1,
   ONE_DOT,
@@ -24069,10 +24243,19 @@ const unifyPaths = (paths_) => {
   return paths.map(normalizePathToUnix);
 };
 
+// If SLASH_SLASH occurs at the beginning of path, it is not replaced
+//     because "//StoragePC/DrivePool/Movies" is a valid network path
 const toUnix = (string) => {
   let str = string.replace(BACK_SLASH_RE, SLASH$1);
+  let prepend = false;
+  if (str.startsWith(SLASH_SLASH)) {
+    prepend = true;
+  }
   while (str.match(DOUBLE_SLASH_RE)) {
     str = str.replace(DOUBLE_SLASH_RE, SLASH$1);
+  }
+  if (prepend) {
+    str = SLASH$1 + str;
   }
   return str;
 };
@@ -24849,16 +25032,24 @@ _remove(directory, item, isDirectory) {
 }
 
 /**
- *
+ * Closes all watchers for a path
  * @param {Path} path
  */
 _closePath(path) {
+  this._closeFile(path);
+  const dir = path$1.dirname(path);
+  this._getWatchedDir(dir).remove(path$1.basename(path));
+}
+
+/**
+ * Closes only file-specific watchers
+ * @param {Path} path
+ */
+_closeFile(path) {
   const closers = this._closers.get(path);
   if (!closers) return;
   closers.forEach(closer => closer());
   this._closers.delete(path);
-  const dir = path$1.dirname(path);
-  this._getWatchedDir(dir).remove(path$1.basename(path));
 }
 
 /**
@@ -25077,12 +25268,12 @@ const camelCase = (input, options) => {
 
 var camelcase = camelCase;
 // TODO: Remove this for the next major release
-var default_1$4 = camelCase;
-camelcase.default = default_1$4;
+var _default$4 = camelCase;
+camelcase.default = _default$4;
 
 var minimist = function (args, opts) {
     if (!opts) opts = {};
-
+    
     var flags = { bools : {}, strings : {}, unknownFn: null };
 
     if (typeof opts['unknown'] === 'function') {
@@ -25096,7 +25287,7 @@ var minimist = function (args, opts) {
           flags.bools[key] = true;
       });
     }
-
+    
     var aliases = {};
     Object.keys(opts.alias || {}).forEach(function (key) {
         aliases[key] = [].concat(opts.alias[key]);
@@ -25115,12 +25306,12 @@ var minimist = function (args, opts) {
      });
 
     var defaults = opts['default'] || {};
-
+    
     var argv = { _ : [] };
     Object.keys(flags.bools).forEach(function (key) {
         setArg(key, defaults[key] === undefined ? false : defaults[key]);
     });
-
+    
     var notFlags = [];
 
     if (args.indexOf('--') !== -1) {
@@ -25142,7 +25333,7 @@ var minimist = function (args, opts) {
             ? Number(val) : val
         ;
         setKey(argv, key.split('.'), value);
-
+        
         (aliases[key] || []).forEach(function (x) {
             setKey(argv, x.split('.'), value);
         });
@@ -25175,7 +25366,7 @@ var minimist = function (args, opts) {
             o[key] = [ o[key], value ];
         }
     }
-
+    
     function aliasIsBoolean(key) {
       return aliases[key].some(function (x) {
           return flags.bools[x];
@@ -25184,7 +25375,7 @@ var minimist = function (args, opts) {
 
     for (var i = 0; i < args.length; i++) {
         var arg = args[i];
-
+        
         if (/^--.+=/.test(arg)) {
             // Using [\s\S] instead of . because js doesn't support the
             // 'dotall' regex modifier. See:
@@ -25221,29 +25412,29 @@ var minimist = function (args, opts) {
         }
         else if (/^-[^-]+/.test(arg)) {
             var letters = arg.slice(1,-1).split('');
-
+            
             var broken = false;
             for (var j = 0; j < letters.length; j++) {
                 var next = arg.slice(j+2);
-
+                
                 if (next === '-') {
                     setArg(letters[j], next, arg);
                     continue;
                 }
-
+                
                 if (/[A-Za-z]/.test(letters[j]) && /=/.test(next)) {
                     setArg(letters[j], next.split('=')[1], arg);
                     broken = true;
                     break;
                 }
-
+                
                 if (/[A-Za-z]/.test(letters[j])
                 && /-?\d+(\.\d*)?(e-?\d+)?$/.test(next)) {
                     setArg(letters[j], next, arg);
                     broken = true;
                     break;
                 }
-
+                
                 if (letters[j+1] && letters[j+1].match(/\W/)) {
                     setArg(letters[j], arg.slice(j+2), arg);
                     broken = true;
@@ -25253,7 +25444,7 @@ var minimist = function (args, opts) {
                     setArg(letters[j], flags.strings[letters[j]] ? '' : true, arg);
                 }
             }
-
+            
             var key = arg.slice(-1)[0];
             if (!broken && key !== '-') {
                 if (args[i+1] && !/^(-|--)[^-]/.test(args[i+1])
@@ -25283,17 +25474,17 @@ var minimist = function (args, opts) {
             }
         }
     }
-
+    
     Object.keys(defaults).forEach(function (key) {
         if (!hasKey(argv, key.split('.'))) {
             setKey(argv, key.split('.'), defaults[key]);
-
+            
             (aliases[key] || []).forEach(function (x) {
                 setKey(argv, x.split('.'), defaults[key]);
             });
         }
     });
-
+    
     if (opts['--']) {
         argv['--'] = new Array();
         notFlags.forEach(function(key) {
@@ -26845,6 +27036,11 @@ var schema$1 = [
 		value: "<globs>"
 	},
 	{
+		long: "silently-ignore",
+		description: "do not fail when given ignored files",
+		type: "boolean"
+	},
+	{
 		long: "tree-in",
 		description: "specify input as syntax tree",
 		type: "boolean"
@@ -26966,6 +27162,7 @@ function options(flags, configuration) {
     ignorePath: config.ignorePath,
     ignorePathResolveFrom: config.ignorePathResolveFrom,
     ignorePatterns: commaSeparated(config.ignorePattern),
+    silentlyIgnore: config.silentlyIgnore,
     detectIgnore: config.ignore,
     pluginPrefix: configuration.pluginPrefix,
     plugins: plugins(config.use),
@@ -28009,20 +28206,22 @@ var vfileLocation = factory$2;
 
 function factory$2(file) {
   var contents = indices(String(file));
+  var toPoint = offsetToPointFactory(contents);
 
   return {
-    toPosition: offsetToPositionFactory(contents),
-    toOffset: positionToOffsetFactory(contents)
+    toPoint: toPoint,
+    toPosition: toPoint,
+    toOffset: pointToOffsetFactory(contents)
   }
 }
 
-// Factory to get the line and column-based `position` for `offset` in the bound
+// Factory to get the line and column-based `point` for `offset` in the bound
 // indices.
-function offsetToPositionFactory(indices) {
-  return offsetToPosition
+function offsetToPointFactory(indices) {
+  return offsetToPoint
 
-  // Get the line and column-based `position` for `offset` in the bound indices.
-  function offsetToPosition(offset) {
+  // Get the line and column-based `point` for `offset` in the bound indices.
+  function offsetToPoint(offset) {
     var index = -1;
     var length = indices.length;
 
@@ -28044,16 +28243,16 @@ function offsetToPositionFactory(indices) {
   }
 }
 
-// Factory to get the `offset` for a line and column-based `position` in the
+// Factory to get the `offset` for a line and column-based `point` in the
 // bound indices.
-function positionToOffsetFactory(indices) {
-  return positionToOffset
+function pointToOffsetFactory(indices) {
+  return pointToOffset
 
-  // Get the `offset` for a line and column-based `position` in the bound
+  // Get the `offset` for a line and column-based `point` in the bound
   // indices.
-  function positionToOffset(position) {
-    var line = position && position.line;
-    var column = position && position.column;
+  function pointToOffset(point) {
+    var line = point && point.line;
+    var column = point && point.column;
 
     if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
       return (indices[line - 2] || 0) + column - 1 || 0
@@ -36278,7 +36477,13 @@ function ok$1() {
   return true
 }
 
+var color_1 = color$1;
+function color$1(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
 var unistUtilVisitParents = visitParents;
+
 
 
 
@@ -36293,7 +36498,7 @@ visitParents.EXIT = EXIT;
 function visitParents(tree, test, visitor, reverse) {
   var is;
 
-  if (typeof test === 'function' && typeof visitor !== 'function') {
+  if (func(test) && !func(visitor)) {
     reverse = visitor;
     visitor = test;
     test = null;
@@ -36301,38 +36506,57 @@ function visitParents(tree, test, visitor, reverse) {
 
   is = convert_1(test);
 
-  one(tree, null, []);
+  one(tree, null, [])();
 
-  // Visit a single node.
-  function one(node, index, parents) {
-    var result = [];
-    var subresult;
+  function one(child, index, parents) {
+    var value = object(child) ? child : {};
+    var name;
 
-    if (!test || is(node, index, parents[parents.length - 1] || null)) {
-      result = toResult(visitor(node, parents));
+    if (string(value.type)) {
+      name = string(value.tagName)
+        ? value.tagName
+        : string(value.name)
+        ? value.name
+        : undefined;
 
-      if (result[0] === EXIT) {
+      node.displayName =
+        'node (' + color_1(value.type + (name ? '<' + name + '>' : '')) + ')';
+    }
+
+    return node
+
+    function node() {
+      var result = [];
+      var subresult;
+
+      if (!test || is(child, index, parents[parents.length - 1] || null)) {
+        result = toResult(visitor(child, parents));
+
+        if (result[0] === EXIT) {
+          return result
+        }
+      }
+
+      if (!child.children || result[0] === SKIP) {
         return result
       }
-    }
 
-    if (node.children && result[0] !== SKIP) {
-      subresult = toResult(all(node.children, parents.concat(node)));
+      subresult = toResult(children(child.children, parents.concat(child)));
       return subresult[0] === EXIT ? subresult : result
     }
-
-    return result
   }
 
   // Visit children in `parent`.
-  function all(children, parents) {
+  function children(children, parents) {
     var min = -1;
     var step = reverse ? -1 : 1;
     var index = (reverse ? children.length : min) + step;
+    var child;
     var result;
 
     while (index > min && index < children.length) {
-      result = one(children[index], index, parents);
+      child = children[index];
+      result = one(child, index, parents)();
 
       if (result[0] === EXIT) {
         return result
@@ -36344,7 +36568,7 @@ function visitParents(tree, test, visitor, reverse) {
 }
 
 function toResult(value) {
-  if (value !== null && typeof value === 'object' && 'length' in value) {
+  if (object(value) && 'length' in value) {
     return value
   }
 
@@ -36353,6 +36577,18 @@ function toResult(value) {
   }
 
   return [value]
+}
+
+function func(d) {
+  return typeof d === 'function'
+}
+
+function string(d) {
+  return typeof d === 'string'
+}
+
+function object(d) {
+  return typeof d === 'object' && d !== null
 }
 
 var unistUtilVisit = visit;
@@ -40498,6 +40734,7 @@ var defaults$3 = {
   tablePipeAlign: true,
   stringLength: stringLength,
   incrementListMarker: true,
+  tightDefinitions: false,
   fences: false,
   fence: '`',
   bullet: '-',
@@ -42040,6 +42277,7 @@ function block$1(node) {
   var options = self.options;
   var fences = options.fences;
   var gap = options.commonmark ? comment$1 : triple;
+  var definitionGap = options.tightDefinitions ? lineFeed$j : blank$1;
   var values = [];
   var children = node.children;
   var length = children.length;
@@ -42066,6 +42304,11 @@ function block$1(node) {
           (child.type === 'code' && !child.lang && !fences))
       ) {
         values.push(gap);
+      } else if (
+        previous.type === 'definition' &&
+        child.type === 'definition'
+      ) {
+        values.push(definitionGap);
       } else {
         values.push(blank$1);
       }
@@ -43325,35 +43568,30 @@ function stringify$6(options) {
 
 var remark = unified_1().use(remarkParse).use(remarkStringify).freeze();
 
-const _args = [
-	[
-		"remark@12.0.0",
-		"/Users/bytedance/Documents/code/github/node/tools/node-lint-md-cli-rollup"
-	]
-];
-const _from = "remark@12.0.0";
-const _id = "remark@12.0.0";
+const _from = "remark@^12.0.0";
+const _id = "remark@12.0.1";
 const _inBundle = false;
-const _integrity = "sha512-oX4lMIS0csgk8AEbzY0h2jdR0ngiCHOpwwpxjmRa5TqAkeknY+tkhjRJGZqnCmvyuWh55/0SW5WY3R3nn3PH9A==";
+const _integrity = "sha512-gS7HDonkdIaHmmP/+shCPejCEEW+liMp/t/QwmF0Xt47Rpuhl32lLtDV1uKWvGoq+kxr5jSgg5oAIpGuyULjUw==";
 const _location = "/remark";
 const _phantomChildren = {
 };
 const _requested = {
-	type: "version",
+	type: "range",
 	registry: true,
-	raw: "remark@12.0.0",
+	raw: "remark@^12.0.0",
 	name: "remark",
 	escapedName: "remark",
-	rawSpec: "12.0.0",
+	rawSpec: "^12.0.0",
 	saveSpec: null,
-	fetchSpec: "12.0.0"
+	fetchSpec: "^12.0.0"
 };
 const _requiredBy = [
 	"/"
 ];
-const _resolved = "https://registry.npmjs.org/remark/-/remark-12.0.0.tgz";
-const _spec = "12.0.0";
-const _where = "/Users/bytedance/Documents/code/github/node/tools/node-lint-md-cli-rollup";
+const _resolved = "https://registry.npmjs.org/remark/-/remark-12.0.1.tgz";
+const _shasum = "f1ddf68db7be71ca2bad0a33cd3678b86b9c709f";
+const _spec = "remark@^12.0.0";
+const _where = "/Users/trott/io.js/tools/node-lint-md-cli-rollup";
 const author = {
 	name: "Titus Wormer",
 	email: "tituswormer@gmail.com",
@@ -43362,6 +43600,7 @@ const author = {
 const bugs = {
 	url: "https://github.com/remarkjs/remark/issues"
 };
+const bundleDependencies = false;
 const contributors = [
 	{
 		name: "Titus Wormer",
@@ -43374,6 +43613,7 @@ const dependencies = {
 	"remark-stringify": "^8.0.0",
 	unified: "^9.0.0"
 };
+const deprecated$1 = false;
 const description = "Markdown processor powered by plugins part of the unified collective";
 const files = [
 	"index.js",
@@ -43403,16 +43643,15 @@ const license = "MIT";
 const name$1 = "remark";
 const repository = {
 	type: "git",
-	url: "https://github.com/remarkjs/remark/tree/master/packages/remark"
+	url: "https://github.com/remarkjs/remark/tree/main/packages/remark"
 };
 const scripts = {
 	test: "tape test.js"
 };
 const types = "types/index.d.ts";
-const version$1 = "12.0.0";
+const version$1 = "12.0.1";
 const xo = false;
 var _package = {
-	_args: _args,
 	_from: _from,
 	_id: _id,
 	_inBundle: _inBundle,
@@ -43422,12 +43661,15 @@ var _package = {
 	_requested: _requested,
 	_requiredBy: _requiredBy,
 	_resolved: _resolved,
+	_shasum: _shasum,
 	_spec: _spec,
 	_where: _where,
 	author: author,
 	bugs: bugs,
+	bundleDependencies: bundleDependencies,
 	contributors: contributors,
 	dependencies: dependencies,
+	deprecated: deprecated$1,
 	description: description,
 	files: files,
 	funding: funding,
@@ -43444,7 +43686,6 @@ var _package = {
 
 var _package$1 = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  _args: _args,
   _from: _from,
   _id: _id,
   _inBundle: _inBundle,
@@ -43454,12 +43695,15 @@ var _package$1 = /*#__PURE__*/Object.freeze({
   _requested: _requested,
   _requiredBy: _requiredBy,
   _resolved: _resolved,
+  _shasum: _shasum,
   _spec: _spec,
   _where: _where,
   author: author,
   bugs: bugs,
+  bundleDependencies: bundleDependencies,
   contributors: contributors,
   dependencies: dependencies,
+  deprecated: deprecated$1,
   description: description,
   files: files,
   funding: funding,
@@ -43489,7 +43733,7 @@ const dependencies$1 = {
 	"markdown-extensions": "^1.1.1",
 	remark: "^12.0.0",
 	"remark-lint": "^7.0.0",
-	"remark-preset-lint-node": "^1.16.0",
+	"remark-preset-lint-node": "^1.17.1",
 	"unified-args": "^8.0.0"
 };
 const main = "dist/index.js";
@@ -43518,270 +43762,6 @@ var _package$3 = /*#__PURE__*/Object.freeze({
   scripts: scripts$1,
   'default': _package$2
 });
-
-var vfileLocation$1 = factory$7;
-
-function factory$7(file) {
-  var contents = indices$1(String(file));
-
-  return {
-    toPosition: offsetToPositionFactory$1(contents),
-    toOffset: positionToOffsetFactory$1(contents)
-  }
-}
-
-// Factory to get the line and column-based `position` for `offset` in the bound
-// indices.
-function offsetToPositionFactory$1(indices) {
-  return offsetToPosition
-
-  // Get the line and column-based `position` for `offset` in the bound indices.
-  function offsetToPosition(offset) {
-    var index = -1;
-    var length = indices.length;
-
-    if (offset < 0) {
-      return {}
-    }
-
-    while (++index < length) {
-      if (indices[index] > offset) {
-        return {
-          line: index + 1,
-          column: offset - (indices[index - 1] || 0) + 1,
-          offset: offset
-        }
-      }
-    }
-
-    return {}
-  }
-}
-
-// Factory to get the `offset` for a line and column-based `position` in the
-// bound indices.
-function positionToOffsetFactory$1(indices) {
-  return positionToOffset
-
-  // Get the `offset` for a line and column-based `position` in the bound
-  // indices.
-  function positionToOffset(position) {
-    var line = position && position.line;
-    var column = position && position.column;
-
-    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
-      return (indices[line - 2] || 0) + column - 1 || 0
-    }
-
-    return -1
-  }
-}
-
-// Get indices of line-breaks in `value`.
-function indices$1(value) {
-  var result = [];
-  var index = value.indexOf('\n');
-
-  while (index !== -1) {
-    result.push(index + 1);
-    index = value.indexOf('\n', index + 1);
-  }
-
-  result.push(value.length + 1);
-
-  return result
-}
-
-var convert_1$1 = convert$4;
-
-function convert$4(test) {
-  if (typeof test === 'string') {
-    return typeFactory$1(test)
-  }
-
-  if (test === null || test === undefined) {
-    return ok$2
-  }
-
-  if (typeof test === 'object') {
-    return ('length' in test ? anyFactory$1 : matchesFactory$1)(test)
-  }
-
-  if (typeof test === 'function') {
-    return test
-  }
-
-  throw new Error('Expected function, string, or object as test')
-}
-
-function convertAll$1(tests) {
-  var results = [];
-  var length = tests.length;
-  var index = -1;
-
-  while (++index < length) {
-    results[index] = convert$4(tests[index]);
-  }
-
-  return results
-}
-
-// Utility assert each property in `test` is represented in `node`, and each
-// values are strictly equal.
-function matchesFactory$1(test) {
-  return matches
-
-  function matches(node) {
-    var key;
-
-    for (key in test) {
-      if (node[key] !== test[key]) {
-        return false
-      }
-    }
-
-    return true
-  }
-}
-
-function anyFactory$1(tests) {
-  var checks = convertAll$1(tests);
-  var length = checks.length;
-
-  return matches
-
-  function matches() {
-    var index = -1;
-
-    while (++index < length) {
-      if (checks[index].apply(this, arguments)) {
-        return true
-      }
-    }
-
-    return false
-  }
-}
-
-// Utility to convert a string into a function which checks a given node’s type
-// for said string.
-function typeFactory$1(test) {
-  return type
-
-  function type(node) {
-    return Boolean(node && node.type === test)
-  }
-}
-
-// Utility to return true.
-function ok$2() {
-  return true
-}
-
-var unistUtilVisitParents$1 = visitParents$1;
-
-
-
-var CONTINUE$2 = true;
-var SKIP$2 = 'skip';
-var EXIT$2 = false;
-
-visitParents$1.CONTINUE = CONTINUE$2;
-visitParents$1.SKIP = SKIP$2;
-visitParents$1.EXIT = EXIT$2;
-
-function visitParents$1(tree, test, visitor, reverse) {
-  var is;
-
-  if (typeof test === 'function' && typeof visitor !== 'function') {
-    reverse = visitor;
-    visitor = test;
-    test = null;
-  }
-
-  is = convert_1$1(test);
-
-  one(tree, null, []);
-
-  // Visit a single node.
-  function one(node, index, parents) {
-    var result = [];
-    var subresult;
-
-    if (!test || is(node, index, parents[parents.length - 1] || null)) {
-      result = toResult$1(visitor(node, parents));
-
-      if (result[0] === EXIT$2) {
-        return result
-      }
-    }
-
-    if (node.children && result[0] !== SKIP$2) {
-      subresult = toResult$1(all(node.children, parents.concat(node)));
-      return subresult[0] === EXIT$2 ? subresult : result
-    }
-
-    return result
-  }
-
-  // Visit children in `parent`.
-  function all(children, parents) {
-    var min = -1;
-    var step = reverse ? -1 : 1;
-    var index = (reverse ? children.length : min) + step;
-    var result;
-
-    while (index > min && index < children.length) {
-      result = one(children[index], index, parents);
-
-      if (result[0] === EXIT$2) {
-        return result
-      }
-
-      index = typeof result[1] === 'number' ? result[1] : index + step;
-    }
-  }
-}
-
-function toResult$1(value) {
-  if (value !== null && typeof value === 'object' && 'length' in value) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$2, value]
-  }
-
-  return [value]
-}
-
-var unistUtilVisit$1 = visit$1;
-
-
-
-var CONTINUE$3 = unistUtilVisitParents$1.CONTINUE;
-var SKIP$3 = unistUtilVisitParents$1.SKIP;
-var EXIT$3 = unistUtilVisitParents$1.EXIT;
-
-visit$1.CONTINUE = CONTINUE$3;
-visit$1.SKIP = SKIP$3;
-visit$1.EXIT = EXIT$3;
-
-function visit$1(tree, test, visitor, reverse) {
-  if (typeof test === 'function' && typeof visitor !== 'function') {
-    reverse = visitor;
-    visitor = test;
-    test = null;
-  }
-
-  unistUtilVisitParents$1(tree, test, overload, reverse);
-
-  function overload(node, parents) {
-    var parent = parents[parents.length - 1];
-    var index = parent ? parent.children.indexOf(node) : null;
-    return visitor(node, index, parent)
-  }
-}
 
 var unifiedMessageControl = messageControl;
 
@@ -43813,13 +43793,13 @@ function messageControl(options) {
   return transformer
 
   function transformer(tree, file) {
-    var toOffset = vfileLocation$1(file).toOffset;
+    var toOffset = vfileLocation(file).toOffset;
     var initial = !reset;
     var gaps = detectGaps(tree, file);
     var scope = {};
     var globals = [];
 
-    unistUtilVisit$1(tree, test, visitor);
+    unistUtilVisit(tree, test, visitor);
 
     file.messages = file.messages.filter(filter);
 
@@ -44016,7 +43996,7 @@ function detectGaps(tree, file) {
   var gaps = [];
 
   // Find all gaps.
-  unistUtilVisit$1(tree, one);
+  unistUtilVisit(tree, one);
 
   // Get the end of the document.
   // This detects if the last node was the last node.
@@ -44131,7 +44111,7 @@ function parameters(value) {
 
   return rest.replace(whiteSpaceExpression, '') ? null : attributes
 
-  /* eslint-disable max-params */
+  // eslint-disable-next-line max-params
   function replacer($0, $1, $2, $3, $4) {
     var result = $2 || $3 || $4 || '';
 
@@ -44170,6 +44150,19 @@ function lint() {
 }
 
 function lintMessageControl() {
+  return remarkMessageControl({name: 'lint', source: 'remark-lint'})
+}
+
+var remarkLint$1 = lint$1;
+
+// `remark-lint`.
+// This adds support for ignoring stuff from messages (`<!--lint ignore-->`).
+// All rules are in their own packages and presets.
+function lint$1() {
+  this.use(lintMessageControl$1);
+}
+
+function lintMessageControl$1() {
   return remarkMessageControl({name: 'lint', source: 'remark-lint'})
 }
 
@@ -44612,9 +44605,9 @@ function promise(value) {
   return value && 'function' == typeof value.then;
 }
 
-var unifiedLintRule = factory$8;
+var unifiedLintRule = factory$7;
 
-function factory$8(id, rule) {
+function factory$7(id, rule) {
   var parts = id.split(':');
   var source = parts[0];
   var ruleId = parts[1];
@@ -45237,8 +45230,8 @@ var pluralize = createCommonjsModule(function (module, exports) {
 });
 });
 
-var start$1 = factory$9('start');
-var end = factory$9('end');
+var start$1 = factory$8('start');
+var end = factory$8('end');
 
 var unistUtilPosition = position$1;
 
@@ -45249,7 +45242,7 @@ function position$1(node) {
   return {start: start$1(node), end: end(node)}
 }
 
-function factory$9(type) {
+function factory$8(type) {
   point.displayName = type;
 
   return point
@@ -45908,7 +45901,7 @@ function noUnusedDefinitions(tree, file) {
 }
 
 var plugins$1 = [
-  remarkLint,
+  remarkLint$1,
   // Unix compatibility.
   remarkLintFinalNewline,
   // Rendering across vendors differs greatly if using other styles.
@@ -46000,7 +45993,6 @@ var types$1 = {true: 'checked', false: 'unchecked'};
 
 function checkboxCharacterStyle(tree, file, option) {
   var contents = String(file);
-  var location = vfileLocation(file);
   var preferred = typeof option === 'object' ? option : {};
 
   if (preferred.unchecked && unchecked[preferred.unchecked] !== true) {
@@ -46023,11 +46015,9 @@ function checkboxCharacterStyle(tree, file, option) {
 
   function visitor(node) {
     var type;
-    var initial;
-    var final;
+    var point;
     var value;
     var style;
-    var character;
     var reason;
 
     // Exit early for items without checkbox.
@@ -46036,19 +46026,28 @@ function checkboxCharacterStyle(tree, file, option) {
     }
 
     type = types$1[node.checked];
-    initial = start$8(node).offset;
-    final = (node.children.length === 0 ? end$4(node) : start$8(node.children[0]))
-      .offset;
 
-    // For a checkbox to be parsed, it must be followed by a whitespace.
-    value = contents.slice(initial, final).replace(/\s+$/, '').slice(0, -1);
+    /* istanbul ignore next - a list item cannot be checked and empty, according
+     * to GFM, but theoretically it makes sense to get the end if that were
+     * possible. */
+    point = node.children.length === 0 ? end$4(node) : start$8(node.children[0]);
+    // Move back to before `] `.
+    point.offset -= 2;
+    point.column -= 2;
 
-    // The checkbox character is behind a square bracket.
-    character = value.charAt(value.length - 1);
+    // Assume we start with a checkbox, because well, `checked` is set.
+    value = /\[([\t Xx])]/.exec(
+      contents.slice(point.offset - 2, point.offset + 1)
+    );
+
+    /* istanbul ignore if - failsafe to make sure we don‘t crash if there
+     * actually isn’t a checkbox. */
+    if (!value) return
+
     style = preferred[type];
 
     if (style) {
-      if (character !== style) {
+      if (value[1] !== style) {
         reason =
           type.charAt(0).toUpperCase() +
           type.slice(1) +
@@ -46056,13 +46055,10 @@ function checkboxCharacterStyle(tree, file, option) {
           style +
           '` as a marker';
 
-        file.message(reason, {
-          start: location.toPosition(initial + value.length - 1),
-          end: location.toPosition(initial + value.length)
-        });
+        file.message(reason, point);
       }
     } else {
-      preferred[type] = character;
+      preferred[type] = value[1];
     }
   }
 }
@@ -46087,28 +46083,36 @@ function checkboxContentIndent(tree, file) {
     var initial;
     var final;
     var value;
+    var point;
 
     // Exit early for items without checkbox.
     if (typeof node.checked !== 'boolean' || unistUtilGenerated(node)) {
       return
     }
 
-    initial = start$9(node).offset;
-    /* istanbul ignore next - hard to test, couldn’t find a case. */
-    final = (node.children.length === 0 ? end$5(node) : start$9(node.children[0]))
-      .offset;
+    /* istanbul ignore next - a list item cannot be checked and empty, according
+     * to GFM, but theoretically it makes sense to get the end if that were
+     * possible. */
+    point = node.children.length === 0 ? end$5(node) : start$9(node.children[0]);
 
-    while (/[^\S\n]/.test(contents.charAt(final))) {
-      final++;
-    }
+    // Assume we start with a checkbox, because well, `checked` is set.
+    value = /\[([\t xX])]/.exec(
+      contents.slice(point.offset - 4, point.offset + 1)
+    );
 
-    // For a checkbox to be parsed, it must be followed by a whitespace.
-    value = contents.slice(initial, final);
-    value = value.slice(value.indexOf(']') + 1);
+    /* istanbul ignore if - failsafe to make sure we don‘t crash if there
+     * actually isn’t a checkbox. */
+    if (!value) return
 
-    if (value.length !== 1) {
+    // Move past checkbox.
+    initial = point.offset;
+    final = initial;
+
+    while (/[\t ]/.test(contents.charAt(final))) final++;
+
+    if (final - initial > 0) {
       file.message(reason$9, {
-        start: location.toPosition(final - value.length + 1),
+        start: location.toPosition(initial),
         end: location.toPosition(final)
       });
     }
@@ -46308,8 +46312,8 @@ function finalDefinition(tree, file) {
   function visitor(node) {
     var line = start$c(node).line;
 
-    // Ignore generated nodes.
-    if (node.type === 'root' || unistUtilGenerated(node)) {
+    // Ignore generated and HTML comment nodes.
+    if (node.type === 'root' || unistUtilGenerated(node) || (node.type === 'html' && /^\s*<!--/.test(node.value))) {
       return
     }
 
@@ -46402,7 +46406,11 @@ function maximumLineLength(tree, file, option) {
   var lineLength;
 
   // Note: JSX is from MDX: <https://github.com/mdx-js/specification>.
-  unistUtilVisit(tree, ['heading', 'table', 'code', 'definition', 'html', 'jsx'], ignore);
+  unistUtilVisit(
+    tree,
+    ['heading', 'table', 'code', 'definition', 'html', 'jsx', 'yaml', 'toml'],
+    ignore
+  );
   unistUtilVisit(tree, ['link', 'image', 'inlineCode'], inline);
 
   // Iterate over every line, and warn for violating lines.
@@ -46417,16 +46425,16 @@ function maximumLineLength(tree, file, option) {
     }
   }
 
-  // Finally, whitelist some inline spans, but only if they occur at or after
+  // Finally, allow some inline spans, but only if they occur at or after
   // the wrap.
   // However, when they do, and there’s whitespace after it, they are not
-  // whitelisted.
+  // allowed.
   function inline(node, pos, parent) {
     var next = parent.children[pos + 1];
     var initial;
     var final;
 
-    /* istanbul ignore if - Nothing to whitelist when generated. */
+    /* istanbul ignore if - Nothing to allow when generated. */
     if (unistUtilGenerated(node)) {
       return
     }
@@ -46434,12 +46442,12 @@ function maximumLineLength(tree, file, option) {
     initial = start$d(node);
     final = end$8(node);
 
-    // No whitelisting when starting after the border, or ending before it.
+    // Not allowing when starting after the border, or ending before it.
     if (initial.column > preferred || final.column < preferred) {
       return
     }
 
-    // No whitelisting when there’s whitespace after the link.
+    // Not allowing when there’s whitespace after the link.
     if (
       next &&
       start$d(next).line === initial.line &&
@@ -46448,18 +46456,18 @@ function maximumLineLength(tree, file, option) {
       return
     }
 
-    whitelist(initial.line - 1, final.line);
+    allowList(initial.line - 1, final.line);
   }
 
   function ignore(node) {
     /* istanbul ignore else - Hard to test, as we only run this case on `position: true` */
     if (!unistUtilGenerated(node)) {
-      whitelist(start$d(node).line - 1, end$8(node).line);
+      allowList(start$d(node).line - 1, end$8(node).line);
     }
   }
 
-  // Whitelist from `initial` to `final`, zero-based.
-  function whitelist(initial, final) {
+  // Allowlist from `initial` to `final`, zero-based.
+  function allowList(initial, final) {
     while (initial < final) {
       lines[initial++] = '';
     }
@@ -46522,17 +46530,9 @@ function noConsecutiveBlankLines(tree, file) {
 
   function visitChild(child, index, all) {
     var previous = all[index - 1];
-    var max = 2;
 
     if (previous && !unistUtilGenerated(previous) && !unistUtilGenerated(child)) {
-      if (
-        (previous.type === 'list' && child.type === 'list') ||
-        (child.type === 'code' && previous.type === 'list' && !child.lang)
-      ) {
-        max++;
-      }
-
-      compare(unistUtilPosition.end(previous), unistUtilPosition.start(child), max);
+      compare(unistUtilPosition.end(previous), unistUtilPosition.start(child), 2);
     }
   }
 }
@@ -46578,43 +46578,23 @@ var remarkLintNoHeadingIndent = unifiedLintRule('remark-lint:no-heading-indent',
 var start$e = unistUtilPosition.start;
 
 function noHeadingIndent(tree, file) {
-  var contents = String(file);
-  var length = contents.length;
-
   unistUtilVisit(tree, 'heading', visitor);
 
-  function visitor(node) {
-    var initial;
-    var begin;
-    var index;
-    var character;
+  function visitor(node, _, parent) {
     var diff;
 
-    if (unistUtilGenerated(node)) {
+    // Note: it’s rather complex to detect what the expected indent is in block
+    // quotes and lists, so let’s only do directly in root for now.
+    if (unistUtilGenerated(node) || (parent && parent.type !== 'root')) {
       return
     }
 
-    initial = start$e(node);
-    begin = initial.offset;
-    index = begin - 1;
-
-    while (++index < length) {
-      character = contents.charAt(index);
-
-      if (character !== ' ' && character !== '\t') {
-        break
-      }
-    }
-
-    diff = index - begin;
+    diff = start$e(node).column - 1;
 
     if (diff) {
       file.message(
         'Remove ' + diff + ' ' + pluralize('space', diff) + ' before this heading',
-        {
-          line: initial.line,
-          column: initial.column + diff
-        }
+        start$e(node)
       );
     }
   }
@@ -46771,6 +46751,808 @@ function noTrailingSpaces(ast, file) {
     }
   }
 }
+
+// Note: this is the semver.org version of the spec that it implements
+// Not necessarily the package version of this code.
+const SEMVER_SPEC_VERSION = '2.0.0';
+
+const MAX_LENGTH$2 = 256;
+const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER ||
+  /* istanbul ignore next */ 9007199254740991;
+
+// Max safe segment length for coercion.
+const MAX_SAFE_COMPONENT_LENGTH = 16;
+
+var constants$3 = {
+  SEMVER_SPEC_VERSION,
+  MAX_LENGTH: MAX_LENGTH$2,
+  MAX_SAFE_INTEGER,
+  MAX_SAFE_COMPONENT_LENGTH
+};
+
+const debug$b = (
+  typeof process === 'object' &&
+  process.env &&
+  process.env.NODE_DEBUG &&
+  /\bsemver\b/i.test(process.env.NODE_DEBUG)
+) ? (...args) => console.error('SEMVER', ...args)
+  : () => {};
+
+var debug_1 = debug$b;
+
+var re_1 = createCommonjsModule(function (module, exports) {
+const { MAX_SAFE_COMPONENT_LENGTH } = constants$3;
+
+exports = module.exports = {};
+
+// The actual regexps go on exports.re
+const re = exports.re = [];
+const src = exports.src = [];
+const t = exports.t = {};
+let R = 0;
+
+const createToken = (name, value, isGlobal) => {
+  const index = R++;
+  debug_1(index, value);
+  t[name] = index;
+  src[index] = value;
+  re[index] = new RegExp(value, isGlobal ? 'g' : undefined);
+};
+
+// The following Regular Expressions can be used for tokenizing,
+// validating, and parsing SemVer version strings.
+
+// ## Numeric Identifier
+// A single `0`, or a non-zero digit followed by zero or more digits.
+
+createToken('NUMERICIDENTIFIER', '0|[1-9]\\d*');
+createToken('NUMERICIDENTIFIERLOOSE', '[0-9]+');
+
+// ## Non-numeric Identifier
+// Zero or more digits, followed by a letter or hyphen, and then zero or
+// more letters, digits, or hyphens.
+
+createToken('NONNUMERICIDENTIFIER', '\\d*[a-zA-Z-][a-zA-Z0-9-]*');
+
+// ## Main Version
+// Three dot-separated numeric identifiers.
+
+createToken('MAINVERSION', `(${src[t.NUMERICIDENTIFIER]})\\.` +
+                   `(${src[t.NUMERICIDENTIFIER]})\\.` +
+                   `(${src[t.NUMERICIDENTIFIER]})`);
+
+createToken('MAINVERSIONLOOSE', `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
+                        `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
+                        `(${src[t.NUMERICIDENTIFIERLOOSE]})`);
+
+// ## Pre-release Version Identifier
+// A numeric identifier, or a non-numeric identifier.
+
+createToken('PRERELEASEIDENTIFIER', `(?:${src[t.NUMERICIDENTIFIER]
+}|${src[t.NONNUMERICIDENTIFIER]})`);
+
+createToken('PRERELEASEIDENTIFIERLOOSE', `(?:${src[t.NUMERICIDENTIFIERLOOSE]
+}|${src[t.NONNUMERICIDENTIFIER]})`);
+
+// ## Pre-release Version
+// Hyphen, followed by one or more dot-separated pre-release version
+// identifiers.
+
+createToken('PRERELEASE', `(?:-(${src[t.PRERELEASEIDENTIFIER]
+}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
+
+createToken('PRERELEASELOOSE', `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]
+}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
+
+// ## Build Metadata Identifier
+// Any combination of digits, letters, or hyphens.
+
+createToken('BUILDIDENTIFIER', '[0-9A-Za-z-]+');
+
+// ## Build Metadata
+// Plus sign, followed by one or more period-separated build metadata
+// identifiers.
+
+createToken('BUILD', `(?:\\+(${src[t.BUILDIDENTIFIER]
+}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
+
+// ## Full Version String
+// A main version, followed optionally by a pre-release version and
+// build metadata.
+
+// Note that the only major, minor, patch, and pre-release sections of
+// the version string are capturing groups.  The build metadata is not a
+// capturing group, because it should not ever be used in version
+// comparison.
+
+createToken('FULLPLAIN', `v?${src[t.MAINVERSION]
+}${src[t.PRERELEASE]}?${
+  src[t.BUILD]}?`);
+
+createToken('FULL', `^${src[t.FULLPLAIN]}$`);
+
+// like full, but allows v1.2.3 and =1.2.3, which people do sometimes.
+// also, 1.0.0alpha1 (prerelease without the hyphen) which is pretty
+// common in the npm registry.
+createToken('LOOSEPLAIN', `[v=\\s]*${src[t.MAINVERSIONLOOSE]
+}${src[t.PRERELEASELOOSE]}?${
+  src[t.BUILD]}?`);
+
+createToken('LOOSE', `^${src[t.LOOSEPLAIN]}$`);
+
+createToken('GTLT', '((?:<|>)?=?)');
+
+// Something like "2.*" or "1.2.x".
+// Note that "x.x" is a valid xRange identifer, meaning "any version"
+// Only the first item is strictly required.
+createToken('XRANGEIDENTIFIERLOOSE', `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
+createToken('XRANGEIDENTIFIER', `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
+
+createToken('XRANGEPLAIN', `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})` +
+                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
+                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
+                   `(?:${src[t.PRERELEASE]})?${
+                     src[t.BUILD]}?` +
+                   `)?)?`);
+
+createToken('XRANGEPLAINLOOSE', `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+                        `(?:${src[t.PRERELEASELOOSE]})?${
+                          src[t.BUILD]}?` +
+                        `)?)?`);
+
+createToken('XRANGE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
+createToken('XRANGELOOSE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
+
+// Coercion.
+// Extract anything that could conceivably be a part of a valid semver
+createToken('COERCE', `${'(^|[^\\d])' +
+              '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +
+              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+              `(?:$|[^\\d])`);
+createToken('COERCERTL', src[t.COERCE], true);
+
+// Tilde ranges.
+// Meaning is "reasonably at or greater than"
+createToken('LONETILDE', '(?:~>?)');
+
+createToken('TILDETRIM', `(\\s*)${src[t.LONETILDE]}\\s+`, true);
+exports.tildeTrimReplace = '$1~';
+
+createToken('TILDE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
+createToken('TILDELOOSE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
+
+// Caret ranges.
+// Meaning is "at least and backwards compatible with"
+createToken('LONECARET', '(?:\\^)');
+
+createToken('CARETTRIM', `(\\s*)${src[t.LONECARET]}\\s+`, true);
+exports.caretTrimReplace = '$1^';
+
+createToken('CARET', `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
+createToken('CARETLOOSE', `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
+
+// A simple gt/lt/eq thing, or just "" to indicate "any version"
+createToken('COMPARATORLOOSE', `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
+createToken('COMPARATOR', `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
+
+// An expression to strip any whitespace between the gtlt and the thing
+// it modifies, so that `> 1.2.3` ==> `>1.2.3`
+createToken('COMPARATORTRIM', `(\\s*)${src[t.GTLT]
+}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
+exports.comparatorTrimReplace = '$1$2$3';
+
+// Something like `1.2.3 - 1.2.4`
+// Note that these all use the loose form, because they'll be
+// checked against either the strict or loose comparator form
+// later.
+createToken('HYPHENRANGE', `^\\s*(${src[t.XRANGEPLAIN]})` +
+                   `\\s+-\\s+` +
+                   `(${src[t.XRANGEPLAIN]})` +
+                   `\\s*$`);
+
+createToken('HYPHENRANGELOOSE', `^\\s*(${src[t.XRANGEPLAINLOOSE]})` +
+                        `\\s+-\\s+` +
+                        `(${src[t.XRANGEPLAINLOOSE]})` +
+                        `\\s*$`);
+
+// Star ranges basically just allow anything at all.
+createToken('STAR', '(<|>)?=?\\s*\\*');
+// >=0.0.0 is like a star
+createToken('GTE0', '^\\s*>=\\s*0\.0\.0\\s*$');
+createToken('GTE0PRE', '^\\s*>=\\s*0\.0\.0-0\\s*$');
+});
+var re_2 = re_1.re;
+var re_3 = re_1.src;
+var re_4 = re_1.t;
+var re_5 = re_1.tildeTrimReplace;
+var re_6 = re_1.caretTrimReplace;
+var re_7 = re_1.comparatorTrimReplace;
+
+const numeric$1 = /^[0-9]+$/;
+const compareIdentifiers = (a, b) => {
+  const anum = numeric$1.test(a);
+  const bnum = numeric$1.test(b);
+
+  if (anum && bnum) {
+    a = +a;
+    b = +b;
+  }
+
+  return a === b ? 0
+    : (anum && !bnum) ? -1
+    : (bnum && !anum) ? 1
+    : a < b ? -1
+    : 1
+};
+
+const rcompareIdentifiers = (a, b) => compareIdentifiers(b, a);
+
+var identifiers = {
+  compareIdentifiers,
+  rcompareIdentifiers
+};
+
+const { MAX_LENGTH: MAX_LENGTH$3, MAX_SAFE_INTEGER: MAX_SAFE_INTEGER$1 } = constants$3;
+const { re: re$4, t } = re_1;
+
+const { compareIdentifiers: compareIdentifiers$1 } = identifiers;
+class SemVer {
+  constructor (version, options) {
+    if (!options || typeof options !== 'object') {
+      options = {
+        loose: !!options,
+        includePrerelease: false
+      };
+    }
+    if (version instanceof SemVer) {
+      if (version.loose === !!options.loose &&
+          version.includePrerelease === !!options.includePrerelease) {
+        return version
+      } else {
+        version = version.version;
+      }
+    } else if (typeof version !== 'string') {
+      throw new TypeError(`Invalid Version: ${version}`)
+    }
+
+    if (version.length > MAX_LENGTH$3) {
+      throw new TypeError(
+        `version is longer than ${MAX_LENGTH$3} characters`
+      )
+    }
+
+    debug_1('SemVer', version, options);
+    this.options = options;
+    this.loose = !!options.loose;
+    // this isn't actually relevant for versions, but keep it so that we
+    // don't run into trouble passing this.options around.
+    this.includePrerelease = !!options.includePrerelease;
+
+    const m = version.trim().match(options.loose ? re$4[t.LOOSE] : re$4[t.FULL]);
+
+    if (!m) {
+      throw new TypeError(`Invalid Version: ${version}`)
+    }
+
+    this.raw = version;
+
+    // these are actually numbers
+    this.major = +m[1];
+    this.minor = +m[2];
+    this.patch = +m[3];
+
+    if (this.major > MAX_SAFE_INTEGER$1 || this.major < 0) {
+      throw new TypeError('Invalid major version')
+    }
+
+    if (this.minor > MAX_SAFE_INTEGER$1 || this.minor < 0) {
+      throw new TypeError('Invalid minor version')
+    }
+
+    if (this.patch > MAX_SAFE_INTEGER$1 || this.patch < 0) {
+      throw new TypeError('Invalid patch version')
+    }
+
+    // numberify any prerelease numeric ids
+    if (!m[4]) {
+      this.prerelease = [];
+    } else {
+      this.prerelease = m[4].split('.').map((id) => {
+        if (/^[0-9]+$/.test(id)) {
+          const num = +id;
+          if (num >= 0 && num < MAX_SAFE_INTEGER$1) {
+            return num
+          }
+        }
+        return id
+      });
+    }
+
+    this.build = m[5] ? m[5].split('.') : [];
+    this.format();
+  }
+
+  format () {
+    this.version = `${this.major}.${this.minor}.${this.patch}`;
+    if (this.prerelease.length) {
+      this.version += `-${this.prerelease.join('.')}`;
+    }
+    return this.version
+  }
+
+  toString () {
+    return this.version
+  }
+
+  compare (other) {
+    debug_1('SemVer.compare', this.version, this.options, other);
+    if (!(other instanceof SemVer)) {
+      if (typeof other === 'string' && other === this.version) {
+        return 0
+      }
+      other = new SemVer(other, this.options);
+    }
+
+    if (other.version === this.version) {
+      return 0
+    }
+
+    return this.compareMain(other) || this.comparePre(other)
+  }
+
+  compareMain (other) {
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
+    }
+
+    return (
+      compareIdentifiers$1(this.major, other.major) ||
+      compareIdentifiers$1(this.minor, other.minor) ||
+      compareIdentifiers$1(this.patch, other.patch)
+    )
+  }
+
+  comparePre (other) {
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
+    }
+
+    // NOT having a prerelease is > having one
+    if (this.prerelease.length && !other.prerelease.length) {
+      return -1
+    } else if (!this.prerelease.length && other.prerelease.length) {
+      return 1
+    } else if (!this.prerelease.length && !other.prerelease.length) {
+      return 0
+    }
+
+    let i = 0;
+    do {
+      const a = this.prerelease[i];
+      const b = other.prerelease[i];
+      debug_1('prerelease compare', i, a, b);
+      if (a === undefined && b === undefined) {
+        return 0
+      } else if (b === undefined) {
+        return 1
+      } else if (a === undefined) {
+        return -1
+      } else if (a === b) {
+        continue
+      } else {
+        return compareIdentifiers$1(a, b)
+      }
+    } while (++i)
+  }
+
+  compareBuild (other) {
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
+    }
+
+    let i = 0;
+    do {
+      const a = this.build[i];
+      const b = other.build[i];
+      debug_1('prerelease compare', i, a, b);
+      if (a === undefined && b === undefined) {
+        return 0
+      } else if (b === undefined) {
+        return 1
+      } else if (a === undefined) {
+        return -1
+      } else if (a === b) {
+        continue
+      } else {
+        return compareIdentifiers$1(a, b)
+      }
+    } while (++i)
+  }
+
+  // preminor will bump the version up to the next minor release, and immediately
+  // down to pre-release. premajor and prepatch work the same way.
+  inc (release, identifier) {
+    switch (release) {
+      case 'premajor':
+        this.prerelease.length = 0;
+        this.patch = 0;
+        this.minor = 0;
+        this.major++;
+        this.inc('pre', identifier);
+        break
+      case 'preminor':
+        this.prerelease.length = 0;
+        this.patch = 0;
+        this.minor++;
+        this.inc('pre', identifier);
+        break
+      case 'prepatch':
+        // If this is already a prerelease, it will bump to the next version
+        // drop any prereleases that might already exist, since they are not
+        // relevant at this point.
+        this.prerelease.length = 0;
+        this.inc('patch', identifier);
+        this.inc('pre', identifier);
+        break
+      // If the input is a non-prerelease version, this acts the same as
+      // prepatch.
+      case 'prerelease':
+        if (this.prerelease.length === 0) {
+          this.inc('patch', identifier);
+        }
+        this.inc('pre', identifier);
+        break
+
+      case 'major':
+        // If this is a pre-major version, bump up to the same major version.
+        // Otherwise increment major.
+        // 1.0.0-5 bumps to 1.0.0
+        // 1.1.0 bumps to 2.0.0
+        if (
+          this.minor !== 0 ||
+          this.patch !== 0 ||
+          this.prerelease.length === 0
+        ) {
+          this.major++;
+        }
+        this.minor = 0;
+        this.patch = 0;
+        this.prerelease = [];
+        break
+      case 'minor':
+        // If this is a pre-minor version, bump up to the same minor version.
+        // Otherwise increment minor.
+        // 1.2.0-5 bumps to 1.2.0
+        // 1.2.1 bumps to 1.3.0
+        if (this.patch !== 0 || this.prerelease.length === 0) {
+          this.minor++;
+        }
+        this.patch = 0;
+        this.prerelease = [];
+        break
+      case 'patch':
+        // If this is not a pre-release version, it will increment the patch.
+        // If it is a pre-release it will bump up to the same patch version.
+        // 1.2.0-5 patches to 1.2.0
+        // 1.2.0 patches to 1.2.1
+        if (this.prerelease.length === 0) {
+          this.patch++;
+        }
+        this.prerelease = [];
+        break
+      // This probably shouldn't be used publicly.
+      // 1.0.0 'pre' would become 1.0.0-0 which is the wrong direction.
+      case 'pre':
+        if (this.prerelease.length === 0) {
+          this.prerelease = [0];
+        } else {
+          let i = this.prerelease.length;
+          while (--i >= 0) {
+            if (typeof this.prerelease[i] === 'number') {
+              this.prerelease[i]++;
+              i = -2;
+            }
+          }
+          if (i === -1) {
+            // didn't increment anything
+            this.prerelease.push(0);
+          }
+        }
+        if (identifier) {
+          // 1.2.0-beta.1 bumps to 1.2.0-beta.2,
+          // 1.2.0-beta.fooblz or 1.2.0-beta bumps to 1.2.0-beta.0
+          if (this.prerelease[0] === identifier) {
+            if (isNaN(this.prerelease[1])) {
+              this.prerelease = [identifier, 0];
+            }
+          } else {
+            this.prerelease = [identifier, 0];
+          }
+        }
+        break
+
+      default:
+        throw new Error(`invalid increment argument: ${release}`)
+    }
+    this.format();
+    this.raw = this.version;
+    return this
+  }
+}
+
+var semver = SemVer;
+
+const {MAX_LENGTH: MAX_LENGTH$4} = constants$3;
+const { re: re$5, t: t$1 } = re_1;
+
+
+const parse$b = (version, options) => {
+  if (!options || typeof options !== 'object') {
+    options = {
+      loose: !!options,
+      includePrerelease: false
+    };
+  }
+
+  if (version instanceof semver) {
+    return version
+  }
+
+  if (typeof version !== 'string') {
+    return null
+  }
+
+  if (version.length > MAX_LENGTH$4) {
+    return null
+  }
+
+  const r = options.loose ? re$5[t$1.LOOSE] : re$5[t$1.FULL];
+  if (!r.test(version)) {
+    return null
+  }
+
+  try {
+    return new semver(version, options)
+  } catch (er) {
+    return null
+  }
+};
+
+var parse_1$4 = parse$b;
+
+const compare$2 = (a, b, loose) =>
+  new semver(a, loose).compare(new semver(b, loose));
+
+var compare_1 = compare$2;
+
+const lt$3 = (a, b, loose) => compare_1(a, b, loose) < 0;
+var lt_1 = lt$3;
+
+const allowedKeys = [
+  "added",
+  "napiVersion",
+  "deprecated",
+  "removed",
+  "changes",
+];
+const changesExpectedKeys = ["version", "pr-url", "description"];
+const VERSION_PLACEHOLDER = "REPLACEME";
+const MAX_SAFE_SEMVER_VERSION = parse_1$4(
+  Array.from({ length: 3 }, () => Number.MAX_SAFE_INTEGER).join(".")
+);
+const validVersionNumberRegex = /^v\d+\.\d+\.\d+$/;
+const prUrlRegex = new RegExp("^https://github.com/nodejs/node/pull/\\d+$");
+const privatePRUrl = "https://github.com/nodejs-private/node-private/pull/";
+
+const kContainsIllegalKey = Symbol("illegal key");
+const kWrongKeyOrder = Symbol("Wrong key order");
+function unorderedKeys(meta) {
+  const keys = Object.keys(meta);
+  let previousKeyIndex = -1;
+  for (const key of keys) {
+    const keyIndex = allowedKeys.indexOf(key);
+    if (keyIndex <= previousKeyIndex) {
+      return keyIndex === -1 ? kContainsIllegalKey : kWrongKeyOrder;
+    }
+    previousKeyIndex = keyIndex;
+  }
+}
+
+function containsInvalidVersionNumber(version) {
+  if (Array.isArray(version)) {
+    return version.some(containsInvalidVersionNumber);
+  }
+
+  return (
+    version !== undefined &&
+    version !== VERSION_PLACEHOLDER &&
+    !validVersionNumberRegex.test(version)
+  );
+}
+const getValidSemver = (version) =>
+  version === VERSION_PLACEHOLDER ? MAX_SAFE_SEMVER_VERSION : version;
+function areVersionsUnordered(versions) {
+  if (!Array.isArray(versions)) return false;
+
+  for (let index = 1; index < versions.length; index++) {
+    if (
+      lt_1(
+        getValidSemver(versions[index - 1]),
+        getValidSemver(versions[index])
+      )
+    ) {
+      return true;
+    }
+  }
+}
+
+function invalidChangesKeys(change) {
+  const keys = Object.keys(change);
+  const { length } = keys;
+  if (length !== changesExpectedKeys.length) return true;
+  for (let index = 0; index < length; index++) {
+    if (keys[index] !== changesExpectedKeys[index]) return true;
+  }
+}
+function validateSecurityChange(file, node, change, index) {
+  if ("commit" in change) {
+    if (typeof change.commit !== "string" || isNaN(`0x${change.commit}`)) {
+      file.message(
+        `changes[${index}]: Ill-formed security change commit ID`,
+        node
+      );
+    }
+
+    if (Object.keys(change)[1] === "commit") {
+      change = { ...change };
+      delete change.commit;
+    }
+  }
+  if (invalidChangesKeys(change)) {
+    const securityChangeExpectedKeys = [...changesExpectedKeys];
+    securityChangeExpectedKeys[0] += "[, commit]";
+    file.message(
+      `changes[${index}]: Invalid keys. Expected keys are: ` +
+        securityChangeExpectedKeys.join(", "),
+      node
+    );
+  }
+}
+function validateChanges(file, node, changes) {
+  if (!Array.isArray(changes))
+    return file.message("`changes` must be a YAML list", node);
+
+  const changesVersions = [];
+  for (let index = 0; index < changes.length; index++) {
+    const change = changes[index];
+
+    const isAncient =
+      typeof change.version === "string" && change.version.startsWith("v0.");
+    const isSecurityChange =
+      !isAncient &&
+      typeof change["pr-url"] === "string" &&
+      change["pr-url"].startsWith(privatePRUrl);
+
+    if (isSecurityChange) {
+      validateSecurityChange(file, node, change, index);
+    } else if (!isAncient && invalidChangesKeys(change)) {
+      file.message(
+        `changes[${index}]: Invalid keys. Expected keys are: ` +
+          changesExpectedKeys.join(", "),
+        node
+      );
+    }
+
+    if (containsInvalidVersionNumber(change.version)) {
+      file.message(
+        `changes[${index}]: version(s) must respect the pattern \`vx.x.x\` ` +
+          `or use the placeholder \`${VERSION_PLACEHOLDER}\``,
+        node
+      );
+    } else if (areVersionsUnordered(change.version)) {
+      file.message(`changes[${index}]: list of versions is not in order`, node);
+    }
+
+    if (!isAncient && !isSecurityChange && !prUrlRegex.test(change["pr-url"])) {
+      file.message(
+        `changes[${index}]: PR-URL does not match the expected pattern`,
+        node
+      );
+    }
+
+    if (typeof change.description !== "string" || !change.description.length) {
+      file.message(
+        `changes[${index}]: must contain a non-empty description`,
+        node
+      );
+    } else if (!change.description.endsWith(".")) {
+      file.message(
+        `changes[${index}]: description must end with a period`,
+        node
+      );
+    }
+
+    changesVersions.push(
+      Array.isArray(change.version) ? change.version[0] : change.version
+    );
+  }
+
+  if (areVersionsUnordered(changesVersions)) {
+    file.message("Items in `changes` list are not in order", node);
+  }
+}
+
+function validateMeta(node, file, meta) {
+  switch (unorderedKeys(meta)) {
+    case kContainsIllegalKey:
+      file.message(
+        "YAML dictionary contains illegal keys. Accepted values are: " +
+          allowedKeys.join(", "),
+        node
+      );
+      break;
+
+    case kWrongKeyOrder:
+      file.message(
+        "YAML dictionary keys should be respect this order: " +
+          allowedKeys.join(", "),
+        node
+      );
+      break;
+  }
+
+  if (containsInvalidVersionNumber(meta.added)) {
+    file.message(
+      "Invalid `added` value: version(s) must respect the pattern `vx.x.x` " +
+        `or use the placeholder \`${VERSION_PLACEHOLDER}\``,
+      node
+    );
+  } else if (areVersionsUnordered(meta.added)) {
+    file.message("Versions in `added` list are not in order", node);
+  }
+
+  if (containsInvalidVersionNumber(meta.deprecated)) {
+    file.message(
+      "Invalid `deprecated` value: version(s) must respect the pattern `vx.x.x` " +
+        `or use the placeholder \`${VERSION_PLACEHOLDER}\``,
+      node
+    );
+  } else if (areVersionsUnordered(meta.deprecated)) {
+    file.message("Versions in `deprecated` list are not in order", node);
+  }
+
+  if (containsInvalidVersionNumber(meta.removed)) {
+    file.message(
+      "Invalid `removed` value: version(s) must respect the pattern `vx.x.x` " +
+        `or use the placeholder \`${VERSION_PLACEHOLDER}\``,
+      node
+    );
+  } else if (areVersionsUnordered(meta.removed)) {
+    file.message("Versions in `removed` list are not in order", node);
+  }
+
+  if ("changes" in meta) {
+    validateChanges(file, node, meta.changes);
+  }
+}
+
+function validateYAMLComments(tree, file) {
+  unistUtilVisit(tree, "html", function visitor(node) {
+    if (!node.value.startsWith("<!-- YAML\n")) return;
+    try {
+      const meta = jsYaml$1.safeLoad("#" + node.value.slice(0, -"-->".length));
+
+      validateMeta(node, file, meta);
+    } catch (e) {
+      file.message(e, node);
+    }
+  });
+}
+
+var remarkLintNodejsYamlComments = unifiedLintRule("remark-lint:nodejs-yaml-comments", validateYAMLComments);
 
 var escapeStringRegexp$1 = string => {
 	if (typeof string !== 'string') {
@@ -47229,6 +48011,7 @@ var plugins$2 = [
   remarkLintNoTableIndentation,
   remarkLintNoTabs,
   remarkLintNoTrailingSpaces,
+  remarkLintNodejsYamlComments,
   [
     remarkLintProhibitedStrings,
     [
