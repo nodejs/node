@@ -6,7 +6,6 @@ const path = require('path');
 
 tmpdir.refresh();
 
-
 {
   // Should warn when trying to delete a nonexistent path
   common.expectWarning(

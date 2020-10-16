@@ -17,5 +17,5 @@ tmpdir.refresh();
   );
   const filePath = path.join(tmpdir.path, 'rmdir-recursive.txt');
   fs.writeFileSync(filePath, '');
-  fs.rmdir(filePath, { recursive: true }, common.mustSucceed());
+  fs.rmdirSync(filePath, { recursive: true });
 }
