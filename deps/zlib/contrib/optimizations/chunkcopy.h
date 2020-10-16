@@ -29,6 +29,7 @@
 #include <arm_neon.h>
 typedef uint8x16_t z_vec128i_t;
 #elif defined(INFLATE_CHUNK_SIMD_SSE2)
+#pragma GCC target ("sse2")
 #include <emmintrin.h>
 typedef __m128i z_vec128i_t;
 #else
