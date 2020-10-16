@@ -1829,6 +1829,33 @@ void Http2Session::Consume(Local<Object> stream_obj) {
   Debug(this, "i/o stream consumed");
 }
 
+// Allow injecting of data from JS
+// This is used when the socket has already some data received
+// before our listener was attached
+// https://github.com/nodejs/node/issues/35475
+void Http2Session::Receive(const FunctionCallbackInfo<Value>& args) {
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  CHECK(args[0]->IsObject());
+
+  ArrayBufferViewContents<char> buffer(args[0]);
+  const char* data = buffer.data();
+  size_t len = buffer.length();
+  Debug(session, "Receiving %zu bytes injected from JS", len);
+
+  // Copy given buffer
+  while (len > 0) {
+    uv_buf_t buf = session->OnStreamAlloc(len);
+    size_t copy = buf.len > len ? len : buf.len;
+    memcpy(buf.base, data, copy);
+    buf.len = copy;
+    session->OnStreamRead(copy, buf);
+
+    data += copy;
+    len -= copy;
+  }
+}
+
 Http2Stream* Http2Stream::New(Http2Session* session,
                               int32_t id,
                               nghttp2_headers_category category,
@@ -3054,6 +3081,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(session, "altsvc", Http2Session::AltSvc);
   env->SetProtoMethod(session, "ping", Http2Session::Ping);
   env->SetProtoMethod(session, "consume", Http2Session::Consume);
+  env->SetProtoMethod(session, "receive", Http2Session::Receive);
   env->SetProtoMethod(session, "destroy", Http2Session::Destroy);
   env->SetProtoMethod(session, "goaway", Http2Session::Goaway);
   env->SetProtoMethod(session, "settings", Http2Session::Settings);
