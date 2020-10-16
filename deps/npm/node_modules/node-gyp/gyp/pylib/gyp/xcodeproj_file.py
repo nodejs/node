@@ -515,7 +515,7 @@ class XCObject(object):
         return None
 
     def _EncodeComment(self, comment):
-        """Encodes a comment to be placed in the project file output, mimicing
+        """Encodes a comment to be placed in the project file output, mimicking
     Xcode behavior.
     """
 
@@ -543,7 +543,7 @@ class XCObject(object):
         return self._encode_transforms[ord(char)]
 
     def _EncodeString(self, value):
-        """Encodes a string to be placed in the project file output, mimicing
+        """Encodes a string to be placed in the project file output, mimicking
     Xcode behavior.
     """
 
@@ -586,7 +586,7 @@ class XCObject(object):
 
     def _XCPrintableValue(self, tabs, value, flatten_list=False):
         """Returns a representation of value that may be printed in a project file,
-    mimicing Xcode's behavior.
+    mimicking Xcode's behavior.
 
     _XCPrintableValue can handle str and int values, XCObjects (which are
     made printable by returning their id property), and list and dict objects
@@ -831,8 +831,8 @@ class XCObject(object):
                     self._properties[property] = value
                 elif isinstance(value, list):
                     if is_strong:
-                        # If is_strong is True, each element is an XCObject, so it's safe
-                        # to call Copy.
+                        # If is_strong is True, each element is an XCObject,
+                        # so it's safe to call Copy.
                         self._properties[property] = []
                         for item in value:
                             self._properties[property].append(item.Copy())
@@ -2132,9 +2132,10 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
                     # to the target. Xcode uses the dstSubfolderSpec value set here
                     # to determine the full path.
                     #
-                    # An alternative of xcode_emulation.py setting the values to absolute
-                    # paths when exporting these variables has been ruled out because
-                    # then the values would be different depending on the build tool.
+                    # An alternative of xcode_emulation.py setting the values to
+                    # absolute paths when exporting these variables has been
+                    # ruled out because then the values would be different
+                    # depending on the build tool.
                     #
                     # Another alternative is to invent new names for the variables used
                     # to match to the subfolder indices in the second table. .gyp files
@@ -2146,7 +2147,8 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
                     # Requiring prepending BUILT_PRODUCTS_DIR has been chosen because
                     # this same way could be used to specify destinations in .gyp files
                     # that pre-date this addition to GYP. However they would only work
-                    # with the Xcode generator. The previous version of xcode_emulation.py
+                    # with the Xcode generator.
+                    # The previous version of xcode_emulation.py
                     # does not export these variables. Such files will get the benefit
                     # of the Xcode UI showing the proper destination name simply by
                     # regenerating the projects with this version of GYP.
