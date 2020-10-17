@@ -9,7 +9,7 @@
   "reporter": [
     "html",
     "text",
-    "lcov"
+    "cobertura"
   ],
   "lines": 95,
   "branches": "93",

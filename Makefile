@@ -294,6 +294,7 @@ v8:
 .PHONY: jstest
 jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addon tests and JS tests
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
+		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
 		$(JS_SUITES) \
 		$(NATIVE_SUITES)
