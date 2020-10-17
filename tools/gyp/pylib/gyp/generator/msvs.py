@@ -2177,7 +2177,12 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
 
 def _GenerateMSBuildFiltersFile(
-    filters_path, source_files, rule_dependencies, extension_to_rule_name, platforms
+    filters_path,
+    source_files,
+    rule_dependencies,
+    extension_to_rule_name,
+    platforms,
+    toolset,
 ):
     """Generate the filters file.
 
@@ -2197,6 +2202,7 @@ def _GenerateMSBuildFiltersFile(
         rule_dependencies,
         extension_to_rule_name,
         platforms,
+        toolset,
         filter_group,
         source_group,
     )
@@ -2222,6 +2228,7 @@ def _AppendFiltersForMSBuild(
     rule_dependencies,
     extension_to_rule_name,
     platforms,
+    toolset,
     filter_group,
     source_group,
 ):
@@ -2257,13 +2264,14 @@ def _AppendFiltersForMSBuild(
                 rule_dependencies,
                 extension_to_rule_name,
                 platforms,
+                toolset,
                 filter_group,
                 source_group,
             )
         else:
             # It's a source.  Create a source entry.
             _, element = _MapFileToMsBuildSourceType(
-                source, rule_dependencies, extension_to_rule_name, platforms
+                source, rule_dependencies, extension_to_rule_name, platforms, toolset
             )
             source_entry = [element, {"Include": source}]
             # Specify the filter it is part of, if any.
@@ -2273,7 +2281,7 @@ def _AppendFiltersForMSBuild(
 
 
 def _MapFileToMsBuildSourceType(
-    source, rule_dependencies, extension_to_rule_name, platforms
+    source, rule_dependencies, extension_to_rule_name, platforms, toolset
 ):
     """Returns the group and element type of the source file.
 
@@ -2301,9 +2309,8 @@ def _MapFileToMsBuildSourceType(
     elif ext in [".s", ".asm"]:
         group = "masm"
         element = "MASM"
-        for platform in platforms:
-            if platform.lower() in ["arm", "arm64"]:
-                element = "MARMASM"
+        if "arm64" in platforms and toolset == "target":
+            element = "MARMASM"
     elif ext == ".idl":
         group = "midl"
         element = "Midl"
@@ -3613,14 +3620,16 @@ def _AddSources2(
                     rule_dependencies,
                     extension_to_rule_name,
                     _GetUniquePlatforms(spec),
+                    spec["toolset"],
                 )
-                if group == "compile":
-                    # Always add an <ObjectFileName> value to support duplicate
-                    # source file basenames.
+                if group == "compile" and not os.path.isabs(source):
+                    # Add an <ObjectFileName> value to support duplicate source
+                    # file basenames, except for absolute paths to avoid paths
+                    # with more than 260 characters.
                     file_name = os.path.splitext(source)[0] + ".obj"
-                    if (file_name.startswith("..\\")):
+                    if file_name.startswith("..\\"):
                         file_name = re.sub(r"^(\.\.\\)+", "", file_name)
-                    elif (file_name.startswith("$(")):
+                    elif file_name.startswith("$("):
                         file_name = re.sub(r"^\$\([^)]+\)\\", "", file_name)
                     detail.append(["ObjectFileName", "$(IntDir)\\" + file_name])
                 grouped_sources[group].append([element, {"Include": source}] + detail)
@@ -3728,6 +3737,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags, spec):
         rule_dependencies,
         extension_to_rule_name,
         platforms,
+        toolset,
     )
     missing_sources = _VerifySourcesExist(sources, project_dir)
 

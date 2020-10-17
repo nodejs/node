@@ -6,7 +6,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Clone node-gyp
+      - name: Clone gyp-next
         uses: actions/checkout@v2
         with:
           path: gyp-next
