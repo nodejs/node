@@ -1136,7 +1136,7 @@ int Http2Session::OnNghttpError(nghttp2_session* handle,
   // Unfortunately, this is currently the only way for us to know if
   // the session errored because the peer is not an http2 peer.
   Http2Session* session = static_cast<Http2Session*>(user_data);
-  Debug(session, "Error '%.*s'", len, message);
+  Debug(session, "Error '%s'", message);
   if (strncmp(message, BAD_PEER_MESSAGE, len) == 0) {
     Environment* env = session->env();
     Isolate* isolate = env->isolate();
