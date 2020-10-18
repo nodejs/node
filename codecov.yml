@@ -3,6 +3,8 @@ comment:
   layout: "diff, files"
   # Don't post if no changes in coverage:
   require_changes: true
-notify:
-  # Wait for all coverage builds:
-  after_n_builds: 2
+
+codecov:
+  notify:
+    # Wait for all coverage builds:
+    after_n_builds: 2
