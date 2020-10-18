@@ -1106,7 +1106,6 @@
           'ENABLE_DISASSEMBLER',
           'V8_ENABLE_CHECKS',
           'OBJECT_PRINT',
-          'VERIFY_HEAP',
           'DEBUG',
           'V8_TRACE_MAPS',
           'V8_ENABLE_ALLOCATION_TIMEOUT',
