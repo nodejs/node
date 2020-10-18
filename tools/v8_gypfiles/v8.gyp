@@ -53,6 +53,7 @@
       "<(V8_ROOT)/src/builtins/function.tq",
       "<(V8_ROOT)/src/builtins/growable-fixed-array.tq",
       "<(V8_ROOT)/src/builtins/ic-callable.tq",
+      "<(V8_ROOT)/src/builtins/ic-dynamic-map-checks.tq",
       "<(V8_ROOT)/src/builtins/ic.tq",
       "<(V8_ROOT)/src/builtins/internal-coverage.tq",
       "<(V8_ROOT)/src/builtins/internal.tq",
@@ -257,6 +258,8 @@
             '<(torque_output_root)/torque-generated/internal-class-definitions-inl.h',
             '<(torque_output_root)/torque-generated/exported-class-definitions.h',
             '<(torque_output_root)/torque-generated/exported-class-definitions-inl.h',
+            '<(torque_output_root)/torque-generated/runtime-macros.cc',
+            '<(torque_output_root)/torque-generated/runtime-macros.h',
             '<@(torque_outputs)',
           ],
           'action': [
@@ -333,6 +336,7 @@
           '<(torque_output_root)/torque-generated/class-verifiers.h',
           '<(torque_output_root)/torque-generated/factory.cc',
           '<(torque_output_root)/torque-generated/objects-printer.cc',
+          '<(torque_output_root)/torque-generated/runtime-macros.cc',
         ],
         'include_dirs': [
           '<(torque_output_root)',
