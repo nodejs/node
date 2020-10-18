@@ -21,7 +21,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
         run: npx envinfo
-      - name: Clone gcovr
+      - name: Clone gcovr reporter
         run: git clone -b 3.4 --depth=1 --single-branch https://github.com/gcovr/gcovr.git
       - name: Clone patch for gcovr
         run: git clone --depth=1 --single-branch https://github.com/nodejs/build.git
@@ -35,11 +35,8 @@ jobs:
         run: NODE_V8_COVERAGE=coverage/tmp make run-ci -j2 V=1 TEST_CI_ARGS="-p dots" || exit 0
       - name: Report js
         run: npx c8 report --check-coverage
-      - name: Report gcov
-        run: cd out && ../gcovr/scripts/gcovr \
-          --gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v \
-          -r Release/obj.target --xml -o ../coverage/coverage.xml \
-          --gcov-executable=gcov
+      - name: Report C++
+        run: cd out && ../gcovr/scripts/gcovr --gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v -r Release/obj.target --xml -o ../coverage/coverage.xml --gcov-executable=gcov
       - name: Output file count
         run: ls -l coverage/tmp/ | wc -l
       - name: Clean tmp
