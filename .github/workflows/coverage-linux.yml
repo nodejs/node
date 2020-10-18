@@ -21,6 +21,12 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
         run: npx envinfo
+      - name: Clone gcovr
+        run: git clone -b 3.4 --depth=1 --single-branch https://github.com/gcovr/gcovr.git
+      - name: Clone patch for gcovr
+        run: git clone --depth=1 --single-branch https://github.com/nodejs/build.git
+      - name: Patch gcovr
+        run: cd gcovr && patch -N -p1 < ../build/jenkins/scripts/coverage/gcovr-patches-3.4.diff
       - name: Build
         run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn --coverage"
       # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
