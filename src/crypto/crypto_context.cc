@@ -187,7 +187,9 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                        issuer);
 }
 
-static X509_STORE* NewRootCertStore() {
+}  // namespace
+
+X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
   static Mutex root_certs_vector_mutex;
   Mutex::ScopedLock lock(root_certs_vector_mutex);
@@ -228,7 +230,6 @@ static X509_STORE* NewRootCertStore() {
 
   return store;
 }
-}  // namespace
 
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
