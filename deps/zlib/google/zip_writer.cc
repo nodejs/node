@@ -5,6 +5,7 @@
 #include "third_party/zlib/google/zip_writer.h"
 
 #include "base/files/file.h"
+#include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "third_party/zlib/google/zip_internal.h"
 
