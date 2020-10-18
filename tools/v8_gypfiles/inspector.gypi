@@ -73,6 +73,8 @@
       '<(V8_ROOT)/src/inspector/v8-debugger.h',
       '<(V8_ROOT)/src/inspector/v8-debugger-agent-impl.cc',
       '<(V8_ROOT)/src/inspector/v8-debugger-agent-impl.h',
+      '<(V8_ROOT)/src/inspector/v8-debugger-id.cc',
+      '<(V8_ROOT)/src/inspector/v8-debugger-id.h',
       '<(V8_ROOT)/src/inspector/v8-debugger-script.cc',
       '<(V8_ROOT)/src/inspector/v8-debugger-script.h',
       '<(V8_ROOT)/src/inspector/v8-heap-profiler-agent-impl.cc',
