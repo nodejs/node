@@ -1211,13 +1211,13 @@ tools/.mdlintstamp: $(LINT_MD_FILES)
 
 .PHONY: lint-md
 # Lints the markdown documents maintained by us in the codebase.
-lint-md: | tools/.mdlintstamp
+lint-md: lint-js-doc | tools/.mdlintstamp
 
 
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
-	--report-unused-disable-directives --ext=.js,.mjs,.md $(LINT_JS_TARGETS)
+	--report-unused-disable-directives --ext=$(EXTENSIONS) $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix
@@ -1225,9 +1225,12 @@ lint-js-fix:
 	@$(call available-node,$(run-lint-js-fix))
 
 .PHONY: lint-js
+.PHONY: lint-js-doc
 # Note that on the CI `lint-js-ci` is run instead.
 # Lints the JavaScript code with eslint.
-lint-js:
+lint-js: EXTENSIONS=.js,.mjs,.md
+lint-js-doc: EXTENSIONS=.md
+lint-js lint-js-doc:
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping $@ (no crypto)"; \
 	else \
