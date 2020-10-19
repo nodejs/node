@@ -351,7 +351,7 @@ can be compared to determine what objects are being allocated during the
 time consecutive snapshots are taken. It's not guaranteed that Node.js will
 write exactly `max_count` snapshots to disk, but it will try
 its best to generate at least one and up to `max_count` snapshots before the
-Node.js instance runs out of memory.
+Node.js instance runs out of memory when `max_count` is greater than `0`.
 
 Generating V8 snapshots takes time and memory (both memory managed by the
 V8 heap and native memory outside the V8 heap). The bigger the heap is,
