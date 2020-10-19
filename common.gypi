@@ -495,8 +495,7 @@
           ['_type!="static_library"', {
             'xcode_settings': {
               'OTHER_LDFLAGS': [
-                '-Wl,-no_pie',
-                '-Wl,-search_paths_first',
+                '-Wl,-search_paths_first'
               ],
             },
           }],
