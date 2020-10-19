@@ -577,7 +577,7 @@ added: v0.11.15
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/34962
-    description: Exposed as `require('path/win32')`
+    description: Exposed as `require('path/win32')`.
 -->
 
 * {Object}
