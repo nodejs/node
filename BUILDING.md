@@ -24,6 +24,7 @@ file a new issue.
     * [Unix prerequisites](#unix-prerequisites)
     * [macOS prerequisites](#macos-prerequisites)
     * [Building Node.js](#building-nodejs-1)
+    * [Installing Node.js](#installing-nodejs)
     * [Running Tests](#running-tests)
     * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
@@ -299,6 +300,14 @@ project's root directory.
 $ sudo ./tools/macos-firewall.sh
 ```
 
+#### Installing Node.js
+
+To install this version of Node.js into a system directory:
+
+```bash
+[sudo] make install
+```
+
 #### Running Tests
 
 To verify the build:
@@ -456,12 +465,6 @@ To test if Node.js was built correctly:
 
 ```bash
 ./node -e "console.log('Hello from Node.js ' + process.version)"
-```
-
-To install this version of Node.js into a system directory:
-
-```bash
-[sudo] make install
 ```
 
 #### Building a debug build
