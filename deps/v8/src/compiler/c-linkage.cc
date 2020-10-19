@@ -139,7 +139,7 @@ namespace {
 #endif
 }  // namespace
 
-#ifdef V8_TARGET_OS_WIN
+#if defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
 // As defined in
 // https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention?view=vs-2019#parameter-passing,
 // Windows calling convention doesn't differentiate between GP and FP params
@@ -176,11 +176,12 @@ void BuildParameterLocations(const MachineSignature* msig,
     }
   }
 }
-#else  // V8_TARGET_OS_WIN
+#else  // defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
 // As defined in https://www.agner.org/optimize/calling_conventions.pdf,
 // Section 7, Linux and Mac place parameters in consecutive registers,
 // differentiating between GP and FP params. That's why we maintain two
-// separate counters here.
+// separate counters here. This also applies to Arm systems following
+// the AAPCS and Windows on Arm.
 void BuildParameterLocations(const MachineSignature* msig,
                              size_t kFPParamRegisterCount,
                              size_t kParamRegisterCount,
@@ -216,7 +217,7 @@ void BuildParameterLocations(const MachineSignature* msig,
     }
   }
 }
-#endif  // V8_TARGET_OS_WIN
+#endif  // defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
 
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
