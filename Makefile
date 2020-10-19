@@ -648,8 +648,7 @@ test-with-async-hooks:
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 # Related CI job: node-test-commit-v8-linux
 test-v8: v8  ## Runs the V8 test suite on deps/v8.
-	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
-				--mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) \
+	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) $(V8_TEST_OPTIONS) \
 				mjsunit cctest debugger inspector message preparser \
 				$(TAP_V8)
 	$(info Testing hash seed)
