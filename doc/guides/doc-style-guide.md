@@ -16,7 +16,7 @@ this guide.
 * Documents should be word-wrapped at 80 characters.
 * `.editorconfig` describes the preferred formatting.
   * A [plugin][] is available for some editors to apply these rules.
-* Check changes to documentation with `make lint-md`.
+* Check changes to documentation with `make test-doc -j` or `vcbuild test-doc`.
 * [Use US spelling][].
 * [Use serial commas][].
 * Avoid first-person pronouns (_I_, _we_).
