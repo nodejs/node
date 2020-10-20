@@ -71,6 +71,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
   std::vector<std::string> prefixes = {
 #if !HAVE_OPENSSL
     "internal/crypto/",
+    "internal/debugger/",
 #endif  // !HAVE_OPENSSL
 
     "internal/bootstrap/",
