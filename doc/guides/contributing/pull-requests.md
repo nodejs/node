@@ -35,6 +35,7 @@ so that you can make the actual changes. This is where we will start.
   * [CI Testing](#ci-testing)
   * [Waiting Until the Pull Request Gets Landed](#waiting-until-the-pull-request-gets-landed)
   * [Check Out the Collaborator Guide](#check-out-the-collaborator-guide)
+  * [Appendix: Subsystems](#appendix-subsystems)
 
 ## Dependencies
 
@@ -171,9 +172,9 @@ A good commit message should describe what changed and why.
      less, and no more than 72 characters)
    * be entirely in lowercase with the exception of proper nouns, acronyms, and
    the words that refer to code, like function/variable names
-   * be prefixed with the name of the changed subsystem and start with an
-   imperative verb. Check the output of `git log --oneline files/you/changed` to
-   find out what subsystems your changes touch.
+   * be prefixed with the name of the changed [subsystem](#appendix-subsystems)
+   and start with an imperative verb. Check the output of `git log --oneline
+   files/you/changed` to find out what subsystems your changes touch.
 
    Examples:
    * `net: add localAddress and localPort to Socket`
@@ -602,6 +603,17 @@ widely used, so don't be discouraged!
 
 If you want to know more about the code review and the landing process, see the
 [Collaborator Guide][].
+
+### Appendix: Subsystems
+
+* `lib/*.js` (`assert`, `buffer`, etc.)
+* `build`
+* `doc`
+* `lib / src`
+* `test`
+* `tools`
+
+More than one subsystem may be valid for any particular issue or pull request.
 
 [Building guide]: ../../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
