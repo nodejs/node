@@ -2,17 +2,6 @@
 
 ## Labels
 
-### Subsystems
-
-* `lib/*.js` (`assert`, `buffer`, etc.)
-* `build`
-* `doc`
-* `lib / src`
-* `test`
-* `tools`
-
-More than one subsystem may be valid for any particular issue or pull request.
-
 ### General
 
 * `confirmed-bug`: Bugs you have verified
