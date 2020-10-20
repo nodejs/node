@@ -69,7 +69,7 @@ const runScript = async (args) => {
     path,
     args,
     scriptShell,
-    stdio: log.level === 'silent' ? 'pipe' : 'inherit',
+    stdio: 'inherit',
     stdioString: true,
     pkg
   }

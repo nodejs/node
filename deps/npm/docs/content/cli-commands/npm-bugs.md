@@ -6,9 +6,10 @@ description: Bugs for a package in a web browser maybe
 
 # npm-bugs(1)
 
-## Bugs for a package in a web browser maybe
+## Report bugs for a package in a web browser
 
 ### Synopsis
+
 ```bash
 npm bugs [<pkgname> [<pkgname> ...]]
 
@@ -17,10 +18,10 @@ aliases: issues
 
 ### Description
 
-This command tries to guess at the likely location of a package's
-bug tracker URL, and then tries to open it using the `--browser`
-config param. If no package name is provided, it will search for
-a `package.json` in the current folder and use the `name` property.
+This command tries to guess at the likely location of a package's bug
+tracker URL, and then tries to open it using the `--browser` config param.
+If no package name is provided, it will search for a `package.json` in the
+current folder and use the `name` property.
 
 ### Configuration
 
@@ -42,7 +43,6 @@ Set to `true` to use default system URL opener.
 * Type: url
 
 The base URL of the npm package registry.
-
 
 ### See Also
 
