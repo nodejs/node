@@ -2,9 +2,19 @@ name: coverage-windows
 
 on:
   pull_request:
+    paths-ignore:
+      - 'doc/**'
+      - 'deps/**'
+      - 'benchmark/**'
+      - 'tools/**'
   push:
     branches:
       - master
+    paths-ignore:
+      - 'doc/**'
+      - 'deps/**'
+      - 'benchmark/**'
+      - 'tools/**'
 
 env:
   PYTHON_VERSION: 3.9
@@ -24,7 +34,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat experimental-quic
+        run: ./vcbuild.bat
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test
