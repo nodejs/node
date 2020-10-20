@@ -423,12 +423,13 @@ MaybeLocal<Object> New(Environment* env,
                      True(env->isolate())).IsNothing()) {
     return Local<Object>();
   }
-  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
+  MaybeLocal<Uint8Array> maybe_ui = Buffer::New(env, ab, 0, length);
 
-  if (ui.IsEmpty())
+  Local<Uint8Array> ui;
+  if (!maybe_ui.ToLocal(&ui))
     return MaybeLocal<Object>();
 
-  return scope.Escape(ui.ToLocalChecked());
+  return scope.Escape(ui);
 }
 
 // Warning: This function needs `data` to be allocated with malloc() and not
