@@ -1,6 +1,6 @@
-#include <stdlib.h>
 #include <node.h>
 #include <v8.h>
+#include <stdlib.h>
 
 #ifdef _AIX
 // AIX allows over-allocation, and will SIGKILL when the allocated pages are

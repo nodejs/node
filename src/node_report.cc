@@ -12,8 +12,8 @@
 #ifdef _WIN32
 #include <Windows.h>
 #else  // !_WIN32
-#include <sys/resource.h>
 #include <cxxabi.h>
+#include <sys/resource.h>
 #include <dlfcn.h>
 #endif
 
