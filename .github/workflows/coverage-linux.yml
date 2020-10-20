@@ -42,7 +42,7 @@ jobs:
       - name: Report js
         run: npx c8 report --check-coverage
       - name: Report C++
-        run: cd out && gcovr --gcov-exclude='.*\b(deps|usr|out|obj|cctest|embedding)\b' -v -r Release/obj.target --xml -o ../coverage/coverage.xml --filter='' --root=$(node -e "console.info(path.resolve(process.cwd(), '../'))")
+        run: cd out && gcovr --gcov-exclude='.*\b(deps|usr|out|obj|cctest|embedding)\b' -v -r Release/obj.target --xml -o ../coverage/coverage.xml --root=$(cd ../; pwd)
       - name: Output file count
         run: ls -l coverage/tmp/ | wc -l
       # Clean temporary output from gcov and c8, so that it's not uploaded:
