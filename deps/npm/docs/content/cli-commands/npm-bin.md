@@ -9,6 +9,7 @@ description: Display npm bin folder
 ## Display npm bin folder
 
 ### Synopsis
+
 ```bash
 npm bin [-g|--global]
 ```

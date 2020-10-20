@@ -488,7 +488,7 @@ const ls = async (args) => {
   )
 
   // if filtering items, should exit with error code on no results
-  if (!tree[_include] && args.length) {
+  if (result && !result[_include] && args.length) {
     process.exitCode = 1
   }
 

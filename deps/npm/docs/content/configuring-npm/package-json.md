@@ -58,7 +58,7 @@ Changes to the package should come along with changes to the version. If you don
 plan to publish your package, the name and version fields are optional.
 
 Version must be parseable by
-[node-semver](https://github.com/isaacs/node-semver), which is bundled
+[node-semver](https://github.com/npm/node-semver), which is bundled
 with npm as a dependency.  (`npm install semver` to use it yourself.)
 
 More on version numbers and ranges at [semver](/using-npm/semver).

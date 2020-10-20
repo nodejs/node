@@ -1,5 +1,5 @@
 {
-  "version": "7.0.2",
+  "version": "7.0.3",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -81,7 +81,7 @@
     "mkdirp": "^1.0.4",
     "mkdirp-infer-owner": "^2.0.0",
     "ms": "^2.1.2",
-    "node-gyp": "^7.1.1",
+    "node-gyp": "^7.1.2",
     "nopt": "^5.0.0",
     "normalize-package-data": "^3.0.0",
     "npm-audit-report": "^2.1.4",
