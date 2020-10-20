@@ -1,6 +1,6 @@
-#include <assert.h>
 #include <node.h>
 #include <uv.h>
+#include <assert.h>
 
 void MustNotCall(void* arg, void(*cb)(void*), void* cbarg) {
   assert(0);

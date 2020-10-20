@@ -1,7 +1,7 @@
 #include <node.h>
 #include <node_buffer.h>
-#include <assert.h>
 #include <zlib.h>
+#include <assert.h>
 
 namespace {
 
