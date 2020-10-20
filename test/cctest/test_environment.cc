@@ -344,6 +344,17 @@ TEST_F(EnvironmentTest, SetImmediateCleanup) {
   EXPECT_EQ(called_unref, 0);
 }
 
+/*
+ * When Address Sanitizer (asan) is enabled (--enable-asan) and gcc is used as
+ * the compiler, asan will generate an error about a type/size mismatch of
+ * v8::BackingStore and v8::internal::BackingStore when deleting. The following
+ * function is used to ignore this error.
+ * Ref: https://github.com/nodejs/node/issues/35669
+ */
+extern "C" const char* __asan_default_options() {
+  return "new_delete_type_mismatch=0";
+}
+
 static char hello[] = "hello";
 
 TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
