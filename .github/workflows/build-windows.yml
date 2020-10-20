@@ -29,3 +29,18 @@ jobs:
         run: npx envinfo
       - name: Build
         run: ./vcbuild.bat
+
+  build-windows-arm64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install deps
+        run: choco install nasm
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: ./vcbuild.bat arm64
