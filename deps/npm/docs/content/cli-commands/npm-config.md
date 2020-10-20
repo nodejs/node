@@ -9,6 +9,7 @@ description: Manage the npm configuration files
 ## Manage the npm configuration files
 
 ### Synopsis
+
 ```bash
 npm config set <key> <value> [-g|--global]
 npm config get <key>
@@ -26,10 +27,11 @@ aliases: c
 npm gets its config settings from the command line, environment
 variables, `npmrc` files, and in some cases, the `package.json` file.
 
-See [npmrc](/configuring-npm/npmrc) for more information about the npmrc files.
+See [npmrc](/configuring-npm/npmrc) for more information about the npmrc
+files.
 
-See [config](/using-npm/config) for a more thorough discussion of the mechanisms
-involved.
+See [config(7)](/using-npm/config) for a more thorough explanation of the
+mechanisms involved, and a full list of config options available.
 
 The `npm config` command can be used to update and edit the contents
 of the user and global npmrc files.
@@ -39,14 +41,17 @@ of the user and global npmrc files.
 Config supports the following sub-commands:
 
 #### set
+
 ```bash
 npm config set key value
 ```
+
 Sets the config key to the value.
 
 If value is omitted, then it sets it to "true".
 
 #### get
+
 ```bash
 npm config get key
 ```
@@ -54,6 +59,7 @@ npm config get key
 Echo the config value to stdout.
 
 #### list
+
 ```bash
 npm config list
 ```
@@ -62,6 +68,7 @@ Show all the config settings. Use `-l` to also show defaults. Use `--json`
 to show the settings in json format.
 
 #### delete
+
 ```bash
 npm config delete key
 ```
@@ -69,6 +76,7 @@ npm config delete key
 Deletes the key from all configuration files.
 
 #### edit
+
 ```bash
 npm config edit
 ```

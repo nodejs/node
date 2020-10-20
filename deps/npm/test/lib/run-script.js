@@ -284,13 +284,13 @@ t.test('run silent', async t => {
     t.match(RUN_SCRIPTS, [
       {
         event: 'preenv',
-        stdio: 'pipe'
+        stdio: 'inherit'
       },
       {
         path: npm.localPrefix,
         args: [],
         scriptShell: undefined,
-        stdio: 'pipe',
+        stdio: 'inherit',
         stdioString: true,
         pkg: { name: 'x', version: '1.2.3', _id: 'x@1.2.3', scripts: {
           env: 'env'
@@ -299,7 +299,7 @@ t.test('run silent', async t => {
       },
       {
         event: 'postenv',
-        stdio: 'pipe'
+        stdio: 'inherit'
       }
     ])
   })

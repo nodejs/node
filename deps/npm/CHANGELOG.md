@@ -1,3 +1,42 @@
+## 7.0.3 (2020-10-20)
+
+### BUG FIXES
+
+* [`ce4724a38`](https://github.com/npm/cli/commit/ce4724a3835ded9a4a29d8d67323f925461155e5)
+  [#1986](https://github.com/npm/cli/pull/1986)
+  check `result` when determining exit code of `ls <filter>`
+  ([@G-Rath](https://github.com/G-Rath))
+* [`00d926f8d`](https://github.com/npm/cli/commit/00d926f8d884872d08d9a0cd73aa9cace2acb91b)
+  [#1987](https://github.com/npm/cli/pull/1987)
+  don't suppress run output when `--silent` is passed
+  ([@G-Rath](https://github.com/G-Rath))
+* [`043da2347`](https://github.com/npm/cli/commit/043da234745f36d55742e827314837dead5807ab)
+  improve cache clear error message
+  ([@isaacs](https://github.com/isaacs))
+
+### DOCUMENTATION
+
+* [`a57f5c466`](https://github.com/npm/cli/commit/a57f5c466ceae59575ef05bb7941cce8752d8c58)
+  update docs for: access, adduser, audit, bin, bugs, build, cache, ci,
+  completion, config and dedupe
+  ([@isaacs](https://github.com/isaacs))
+* [`5b88b72b9`](https://github.com/npm/cli/commit/5b88b72b9821f7114cc4e475bbf52726a1674e52)
+  remove the long-gone bundle command
+  ([@isaacs](https://github.com/isaacs))
+* [`ae09aa5c1`](https://github.com/npm/cli/commit/ae09aa5c1cd150727b05ccfaeaba8d45e5697e50)
+  [#1993](https://github.com/npm/cli/pull/1993)
+  document --save-peer as a common option to npm install
+  ([@JakeChampion](https://github.com/JakeChampion))
+* [`c9993e6b1`](https://github.com/npm/cli/commit/c9993e6b1c2918699c2d125bf9b966f44f5d3ebe)
+  [#1982](https://github.com/npm/cli/pull/1982)
+  fix url links for init-package-json/node-semver
+  ([@takenspc](https://github.com/takenspc))
+
+### DEPENDENCIES
+
+* [`5d9df8395`](https://github.com/npm/cli/commit/5d9df83958d3d5e6d8acad2ebabfbe5f3fd23c13)
+  `node-gyp@7.1.2`
+
 ## 7.0.2 (2020-10-16)
 
 ### DOCUMENTATION

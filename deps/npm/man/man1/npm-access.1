@@ -76,11 +76,12 @@ of a team or directly as an owner\.
 
 .RE
 .P
-If you have two\-factor authentication enabled then you'll have to pass in an
-otp with \fB\-\-otp\fP when making access changes\.
+If you have two\-factor authentication enabled then you'll be prompted to
+provide an otp token, or may use the \fB\-\-otp=\.\.\.\fP option to specify it on
+the command line\.
 .P
-If your account is not paid, then attempts to publish scoped packages will fail
-with an HTTP 402 status code (logically enough), unless you use
+If your account is not paid, then attempts to publish scoped packages will
+fail with an HTTP 402 status code (logically enough), unless you use
 \fB\-\-access=public\fP\|\.
 .P
 Management of teams and team memberships is done with the \fBnpm team\fP command\.

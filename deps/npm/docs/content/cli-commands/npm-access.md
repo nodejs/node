@@ -75,11 +75,12 @@ You must have privileges to set the access of a package:
 * You have been given read-write privileges for a package, either as a member
   of a team or directly as an owner.
 
-If you have two-factor authentication enabled then you'll have to pass in an
-otp with `--otp` when making access changes.
+If you have two-factor authentication enabled then you'll be prompted to
+provide an otp token, or may use the `--otp=...` option to specify it on
+the command line.
 
-If your account is not paid, then attempts to publish scoped packages will fail
-with an HTTP 402 status code (logically enough), unless you use
+If your account is not paid, then attempts to publish scoped packages will
+fail with an HTTP 402 status code (logically enough), unless you use
 `--access=public`.
 
 Management of teams and team memberships is done with the `npm team` command.

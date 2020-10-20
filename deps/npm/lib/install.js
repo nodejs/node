@@ -83,7 +83,7 @@ const usage = usageUtil(
   '\nnpm install <tarball url>' +
   '\nnpm install <git:// url>' +
   '\nnpm install <github username>/<github project>',
-  '[--save-prod|--save-dev|--save-optional] [--save-exact] [--no-save]'
+  '[--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]'
 )
 
 const completion = async (opts, cb) => {

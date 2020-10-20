@@ -9,6 +9,7 @@ description: Reduce duplication
 ## Reduce duplication
 
 ### Synopsis
+
 ```bash
 npm dedupe
 npm ddp
@@ -54,8 +55,6 @@ already, then it will be left untouched, but the other duplicates will
 be deleted.
 
 Arguments are ignored. Dedupe always acts on the entire tree.
-
-Modules
 
 Note that this operation transforms the dependency tree, but will never
 result in new modules being installed.

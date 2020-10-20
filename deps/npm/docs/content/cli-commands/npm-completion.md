@@ -9,6 +9,7 @@ description: Tab Completion for npm
 ## Tab Completion for npm
 
 ### Synopsis
+
 ```bash
 source <(npm completion)
 ```

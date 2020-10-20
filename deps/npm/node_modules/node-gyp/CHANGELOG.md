@@ -1,3 +1,9 @@
+v7.1.2 2020-10-17
+=================
+
+* [[`096e3aded5`](https://github.com/nodejs/node-gyp/commit/096e3aded5)] - **gyp**: update gyp to 0.6.2 (Myles Borins) [#2241](https://github.com/nodejs/node-gyp/pull/2241)
+* [[`54f97cd243`](https://github.com/nodejs/node-gyp/commit/54f97cd243)] - **doc**: add cmd to reset `xcode-select` to initial state (Valera Rozuvan) [#2235](https://github.com/nodejs/node-gyp/pull/2235)
+
 v7.1.1 2020-10-15
 =================
 

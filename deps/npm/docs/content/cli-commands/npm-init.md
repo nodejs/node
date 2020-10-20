@@ -68,7 +68,7 @@ will create a scoped package.
 
 ### See Also
 
-* <https://github.com/isaacs/init-package-json>
+* <https://github.com/npm/init-package-json>
 * [package.json](/configuring-npm/package-json)
 * [npm version](/cli-commands/version)
 * [npm scope](/using-npm/scope)
