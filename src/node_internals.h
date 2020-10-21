@@ -363,6 +363,10 @@ class DiagnosticFilename {
   std::string filename_;
 };
 
+namespace heap {
+bool WriteSnapshot(v8::Isolate* isolate, const char* filename);
+}
+
 class TraceEventScope {
  public:
   TraceEventScope(const char* category,
