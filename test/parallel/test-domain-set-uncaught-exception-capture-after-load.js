@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { pathToFileURL } = require('url');
 
 (function foobar() {
   require('domain');
@@ -20,7 +21,7 @@ assert.throws(
     assert(err.stack.includes('-'.repeat(40)),
            `expected ${err.stack} to contain dashes`);
 
-    const location = `at foobar (${__filename}:`;
+    const location = `at foobar (${pathToFileURL(__filename)}:`;
     assert(err.stack.includes(location),
            `expected ${err.stack} to contain ${location}`);
     return true;
