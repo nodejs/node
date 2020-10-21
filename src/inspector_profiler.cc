@@ -394,22 +394,6 @@ static void EndStartedProfilers(Environment* env) {
   }
 }
 
-std::string GetCwd(Environment* env) {
-  char cwd[PATH_MAX_BYTES];
-  size_t size = PATH_MAX_BYTES;
-  const int err = uv_cwd(cwd, &size);
-
-  if (err == 0) {
-    CHECK_GT(size, 0);
-    return cwd;
-  }
-
-  // This can fail if the cwd is deleted. In that case, fall back to
-  // exec_path.
-  const std::string& exec_path = env->exec_path();
-  return exec_path.substr(0, exec_path.find_last_of(kPathSeparator));
-}
-
 void StartProfilers(Environment* env) {
   AtExit(env, [](void* env) {
     EndStartedProfilers(static_cast<Environment*>(env));
@@ -427,7 +411,7 @@ void StartProfilers(Environment* env) {
   if (env->options()->cpu_prof) {
     const std::string& dir = env->options()->cpu_prof_dir;
     env->set_cpu_prof_interval(env->options()->cpu_prof_interval);
-    env->set_cpu_prof_dir(dir.empty() ? GetCwd(env) : dir);
+    env->set_cpu_prof_dir(dir.empty() ? env->GetCwd() : dir);
     if (env->options()->cpu_prof_name.empty()) {
       DiagnosticFilename filename(env, "CPU", "cpuprofile");
       env->set_cpu_prof_name(*filename);
@@ -442,7 +426,7 @@ void StartProfilers(Environment* env) {
   if (env->options()->heap_prof) {
     const std::string& dir = env->options()->heap_prof_dir;
     env->set_heap_prof_interval(env->options()->heap_prof_interval);
-    env->set_heap_prof_dir(dir.empty() ? GetCwd(env) : dir);
+    env->set_heap_prof_dir(dir.empty() ? env->GetCwd() : dir);
     if (env->options()->heap_prof_name.empty()) {
       DiagnosticFilename filename(env, "Heap", "heapprofile");
       env->set_heap_prof_name(*filename);

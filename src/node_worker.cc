@@ -159,6 +159,9 @@ class WorkerThreadData {
     Isolate::Initialize(isolate, params);
     SetIsolateUpForNode(isolate);
 
+    // Be sure it's called before Environment::InitializeDiagnostics()
+    // so that this callback stays when the callback of
+    // --heapsnapshot-near-heap-limit gets is popped.
     isolate->AddNearHeapLimitCallback(Worker::NearHeapLimit, w);
 
     {
@@ -177,6 +180,8 @@ class WorkerThreadData {
       if (w_->per_isolate_opts_)
         isolate_data_->set_options(std::move(w_->per_isolate_opts_));
       isolate_data_->set_worker_context(w_);
+      isolate_data_->max_young_gen_size =
+          params.constraints.max_young_generation_size_in_bytes();
     }
 
     Mutex::ScopedLock lock(w_->mutex_);

@@ -597,6 +597,7 @@ class IsolateData : public MemoryRetainer {
 #undef VP
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
+  size_t max_young_gen_size = 1;
   std::unordered_map<const char*, v8::Eternal<v8::String>> static_str_map;
 
   inline v8::Isolate* isolate() const;
@@ -961,6 +962,9 @@ class Environment : public MemoryRetainer {
   void VerifyNoStrongBaseObjects();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
+
+  std::string GetCwd();
+
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
   // the ownership if transferred into the Environment.
@@ -1319,6 +1323,9 @@ class Environment : public MemoryRetainer {
   inline void RemoveCleanupHook(void (*fn)(void*), void* arg);
   void RunCleanup();
 
+  static size_t NearHeapLimitCallback(void* data,
+                                      size_t current_heap_limit,
+                                      size_t initial_heap_limit);
   static void BuildEmbedderGraph(v8::Isolate* isolate,
                                  v8::EmbedderGraph* graph,
                                  void* data);
@@ -1436,6 +1443,9 @@ class Environment : public MemoryRetainer {
   std::vector<std::string> exec_argv_;
   std::vector<std::string> argv_;
   std::string exec_path_;
+
+  bool is_processing_heap_limit_callback_ = false;
+  int64_t heap_limit_snapshot_taken_ = 0;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;
