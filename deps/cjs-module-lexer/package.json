@@ -1,6 +1,6 @@
 {
   "name": "cjs-module-lexer",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Lexes CommonJS modules, returning their named exports metadata",
   "main": "lexer.js",
   "exports": {
@@ -14,8 +14,8 @@
     "bench": "node --expose-gc bench/index.mjs",
     "build": "node build.js && babel dist/lexer.mjs | terser -o dist/lexer.js",
     "build-wasm": "make lib/lexer.wasm && node build.js",
-    "prepublishOnly": "make optimize && npm run build",
-    "footprint": "make optimize && npm run build && cat dist/lexer.js | gzip -9f | wc -c"
+    "prepublishOnly": "make && npm run build",
+    "footprint": "npm run build && cat dist/lexer.js | gzip -9f | wc -c"
   },
   "author": "Guy Bedford",
   "license": "MIT",
