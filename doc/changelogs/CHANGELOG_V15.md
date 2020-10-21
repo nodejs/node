@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#15.0.1">15.0.1</a><br/>
 <a href="#15.0.0">15.0.0</a><br/>
 </td>
 </tr>
@@ -31,6 +32,29 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="15.0.1"></a>
+## 2020-10-21, Version 15.0.1 (Current), @BethGriggs
+
+### Notable changes
+
+* **crypto**: fix regression on randomFillSync (James M Snell) [#35723](https://github.com/nodejs/node/pull/35723)
+  * This fixes issue https://github.com/nodejs/node/issues/35722.
+* **deps**: upgrade npm to 7.0.3 (Ruy Adorno) [#35724](https://github.com/nodejs/node/pull/35724)
+* **doc**: add release key for Danielle Adams (Danielle Adams) [#35545](https://github.com/nodejs/node/pull/35545)
+
+### Commits
+
+* [[`c509485c19`](https://github.com/nodejs/node/commit/c509485c19)] - **build**: use make functions instead of echo (Antoine du Hamel) [#35707](https://github.com/nodejs/node/pull/35707)
+* [[`f5acc2d030`](https://github.com/nodejs/node/commit/f5acc2d030)] - **crypto**: fix regression on randomFillSync (James M Snell) [#35723](https://github.com/nodejs/node/pull/35723)
+* [[`595c8df48d`](https://github.com/nodejs/node/commit/595c8df48d)] - **deps**: upgrade npm to 7.0.3 (Ruy Adorno) [#35724](https://github.com/nodejs/node/pull/35724)
+* [[`69e7f20f2d`](https://github.com/nodejs/node/commit/69e7f20f2d)] - **deps**: V8: set correct V8 version patch number (Michaël Zasso) [#35732](https://github.com/nodejs/node/pull/35732)
+* [[`b78294dc00`](https://github.com/nodejs/node/commit/b78294dc00)] - **doc**: use kbd element in readline doc (Rich Trott) [#35698](https://github.com/nodejs/node/pull/35698)
+* [[`1efa87082b`](https://github.com/nodejs/node/commit/1efa87082b)] - **doc**: add release key for Danielle Adams (Danielle Adams) [#35545](https://github.com/nodejs/node/pull/35545)
+* [[`6e91d644e3`](https://github.com/nodejs/node/commit/6e91d644e3)] - **doc**: use kbd element in os doc (Rich Trott) [#35656](https://github.com/nodejs/node/pull/35656)
+* [[`5a48a7b6f8`](https://github.com/nodejs/node/commit/5a48a7b6f8)] - **doc**: add a statement in the documentation. (Pooja D.P) [#35585](https://github.com/nodejs/node/pull/35585)
+* [[`6a7a61be7c`](https://github.com/nodejs/node/commit/6a7a61be7c)] - **src**: mark/pop OpenSSL errors in NewRootCertStore (Daniel Bevenius) [#35514](https://github.com/nodejs/node/pull/35514)
+* [[`d54edece99`](https://github.com/nodejs/node/commit/d54edece99)] - **test**: refactor test-crypto-pbkdf2 (Tobias Nießen) [#35693](https://github.com/nodejs/node/pull/35693)
 
 <a id="15.0.0"></a>
 ## 2020-10-20, Version 15.0.0 (Current), @BethGriggs
