@@ -834,12 +834,12 @@ The following fields in `package.json` files are used in Node.js:
 
 * [`"name"`][] - Relevant when using named imports within a package. Also used
   by package managers as the name of the package.
+* [`"main"`][] - The default module when loading the package, if exports is not
+  specified, and in versions of Node.js prior to the introduction of exports.
 * [`"type"`][] - The package type determining whether to load `.js` files as
   CommonJS or ES modules.
 * [`"exports"`][] - Package exports and conditional exports. When present,
   limits which submodules can be loaded from within the package.
-* [`"main"`][] - The default module when loading the package, if exports is not
-  specified, and in versions of Node.js prior to the introduction of exports.
 * [`"imports"`][] - Package imports, for use by modules within the package
   itself.
 
@@ -871,6 +871,30 @@ _npm_ registry requires a name that satisfies
 The `"name"` field can be used in addition to the [`"exports"`][] field to
 [self-reference][] a package using its name.
 
+### `"main"`
+<!-- YAML
+added: v0.4.0
+-->
+
+* Type: {string}
+
+```json
+{
+  "main": "./main.js"
+}
+```
+
+The `"main"` field defines the script that is used when the [package directory
+is loaded via `require()`](modules.md#modules_folders_as_modules). Its value
+is a path.
+
+```js
+require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
+```
+
+When a package has an [`"exports"`][] field, this will take precedence over the
+`"main"` field when importing the package by name.
+
 ### `"type"`
 <!-- YAML
 added: v12.0.0
@@ -881,6 +905,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/29866
     description: Unflag `--experimental-modules`.
 -->
+
+> Stability: 1 - Experimental
 
 * Type: {string}
 
@@ -948,6 +974,8 @@ changes:
     description: Implement conditional exports.
 -->
 
+> Stability: 1 - Experimental
+
 * Type: {Object} | {string} | {string[]}
 
 ```json
@@ -968,30 +996,6 @@ referenced via `require` or via `import`.
 
 All paths defined in the `"exports"` must be relative file URLs starting with
 `./`.
-
-### `"main"`
-<!-- YAML
-added: v0.4.0
--->
-
-* Type: {string}
-
-```json
-{
-  "main": "./main.js"
-}
-```
-
-The `"main"` field defines the script that is used when the [package directory
-is loaded via `require()`](modules.md#modules_folders_as_modules). Its value
-is interpreted as a path.
-
-```js
-require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
-```
-
-When a package has an [`"exports"`][] field, this will take precedence over the
-`"main"` field when importing the package by name.
 
 ### `"imports"`
 <!-- YAML
