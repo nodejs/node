@@ -10,7 +10,6 @@ let openTokenDepth,
   nextBraceIsClass,
   starExportMap,
   lastStarExportSpecifier,
-  lastExportsAssignSpecifier,
   _exports,
   reexports;
 
@@ -26,7 +25,6 @@ function resetState () {
   nextBraceIsClass = false;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
-  lastExportsAssignSpecifier = null;
 
   _exports = new Set();
   reexports = new Set();
@@ -49,8 +47,6 @@ module.exports = function parseCJS (source, name = '@') {
     e.loc = pos;
     throw e;
   }
-  if (lastExportsAssignSpecifier)
-    reexports.add(lastExportsAssignSpecifier);
   const result = { exports: [..._exports], reexports: [...reexports] };
   resetState();
   return result;
@@ -330,8 +326,8 @@ function tryParseObjectDefineOrKeys (keys) {
         if (ch !== 123/*{*/) break;
         pos++;
         ch = commentWhitespace();
-        if (ch !== 105/*i*/ || !source.startsWith('f ', pos + 1)) break;
-        pos += 3;
+        if (ch !== 105/*i*/ || source.charCodeAt(pos + 1) !== 102/*f*/) break;
+        pos += 2;
         ch = commentWhitespace();
         if (ch !== 40/*(*/) break;
         pos++;
@@ -397,6 +393,61 @@ function tryParseObjectDefineOrKeys (keys) {
           ch = commentWhitespace();
         }
         else break;
+
+        // `if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
+        if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
+          pos += 2;
+          ch = commentWhitespace();
+          if (ch !== 40/*(*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (!source.startsWith(it_id, pos)) break;
+          pos += it_id.length;
+          ch = commentWhitespace();
+          if (ch !== 105/*i*/ || !source.startsWith('n ', pos + 1)) break;
+          pos += 3;
+          ch = commentWhitespace();
+          if (!readExportsOrModuleDotExports(ch)) break;
+          ch = commentWhitespace();
+          if (ch !== 38/*&*/ || source.charCodeAt(pos + 1) !== 38/*&*/) break;
+          pos += 2;
+          ch = commentWhitespace();
+          if (!readExportsOrModuleDotExports(ch)) break;
+          ch = commentWhitespace();
+          if (ch !== 91/*[*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (!source.startsWith(it_id, pos)) break;
+          pos += it_id.length;
+          ch = commentWhitespace();
+          if (ch !== 93/*]*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 61/*=*/ || !source.startsWith('==', pos + 1)) break;
+          pos += 3;
+          ch = commentWhitespace();
+          if (!source.startsWith(id, pos)) break;
+          pos += id.length;
+          ch = commentWhitespace();
+          if (ch !== 91/*[*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (!source.startsWith(it_id, pos)) break;
+          pos += it_id.length;
+          ch = commentWhitespace();
+          if (ch !== 93/*]*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 41/*)*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+          pos += 6;
+          ch = commentWhitespace();
+          if (ch === 59/*;*/)
+            pos++;
+          ch = commentWhitespace();
+        }
 
         // EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] =` IDENTIFIER$1 `[` IDENTIFIER$2 `]`
         if (readExportsOrModuleDotExports(ch)) {
@@ -622,6 +673,8 @@ function tryParseExportsDotAssign (assign) {
     // module.exports =
     case 61/*=*/: {
       if (assign) {
+        if (reexports.size)
+          reexports = new Set();
         pos++;
         ch = commentWhitespace();
         // { ... }
@@ -641,9 +694,9 @@ function tryParseExportsDotAssign (assign) {
 
 function tryParseRequire (requireType) {
   // require('...')
+  const revertPos = pos;
   if (source.startsWith('equire', pos + 1)) {
     pos += 7;
-    const revertPos = pos - 1;
     let ch = commentWhitespace();
     if (ch === 40/*(*/) {
       pos++;
@@ -656,7 +709,7 @@ function tryParseRequire (requireType) {
         if (ch === 41/*)*/) {
           switch (requireType) {
             case ExportAssign:
-              lastExportsAssignSpecifier = source.slice(reexportStart, reexportEnd);
+              reexports.add(source.slice(reexportStart, reexportEnd));
               return true;
             case ExportStar:
               reexports.add(source.slice(reexportStart, reexportEnd));
@@ -674,7 +727,7 @@ function tryParseRequire (requireType) {
         if (ch === 41/*)*/) {
           switch (requireType) {
             case ExportAssign:
-              lastExportsAssignSpecifier = source.slice(reexportStart, reexportEnd);
+              reexports.add(source.slice(reexportStart, reexportEnd));
               return true;
             case ExportStar:
               reexports.add(source.slice(reexportStart, reexportEnd));
@@ -710,6 +763,17 @@ function tryParseLiteralExports () {
         ch = source.charCodeAt(pos);
       }
       addExport(source.slice(startPos, endPos));
+    }
+    else if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
+      pos += 3;
+      if (source.charCodeAt(pos) === 114/*r*/ && tryParseRequire(ExportAssign)) {
+        pos++;
+      }
+      else if (!identifier()) {
+        pos = revertPos;
+        return;
+      }
+      ch = commentWhitespace();
     }
     else if (ch === 39/*'*/ || ch === 34/*"*/) {
       const startPos = ++pos;
