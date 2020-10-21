@@ -108,6 +108,8 @@ NodeMainInstance::NodeMainInstance(
     // complete.
     SetIsolateErrorHandlers(isolate_, s);
   }
+  isolate_data_->max_young_gen_size =
+      params->constraints.max_young_generation_size_in_bytes();
 }
 
 void NodeMainInstance::Dispose() {

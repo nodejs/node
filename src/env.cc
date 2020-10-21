@@ -3,6 +3,7 @@
 #include "async_wrap.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
+#include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
@@ -24,6 +25,7 @@
 #include <cinttypes>
 #include <cstdio>
 #include <iostream>
+#include <limits>
 #include <memory>
 
 namespace node {
@@ -478,6 +480,11 @@ Environment::~Environment() {
 
   // FreeEnvironment() should have set this.
   CHECK(is_stopping());
+
+  if (options_->heap_snapshot_near_heap_limit > heap_limit_snapshot_taken_) {
+    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                          0);
+  }
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
@@ -1402,6 +1409,25 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   CHECK_EQ(ctx_from_snapshot, ctx);
 }
 
+uint64_t GuessMemoryAvailableToTheProcess() {
+  uint64_t free_in_system = uv_get_free_memory();
+  size_t allowed = uv_get_constrained_memory();
+  if (allowed == 0) {
+    return free_in_system;
+  }
+  size_t rss;
+  int err = uv_resident_set_memory(&rss);
+  if (err) {
+    return free_in_system;
+  }
+  if (allowed < rss) {
+    // Something is probably wrong. Fallback to the free memory.
+    return free_in_system;
+  }
+  // There may still be room for swap, but we will just leave it here.
+  return allowed - rss;
+}
+
 void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      EmbedderGraph* graph,
                                      void* data) {
@@ -1412,6 +1438,126 @@ void Environment::BuildEmbedderGraph(Isolate* isolate,
     if (obj->IsDoneInitializing())
       tracker.Track(obj);
   });
+}
+
+size_t Environment::NearHeapLimitCallback(void* data,
+                                          size_t current_heap_limit,
+                                          size_t initial_heap_limit) {
+  Environment* env = static_cast<Environment*>(data);
+
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "Invoked NearHeapLimitCallback, processing=%d, "
+        "current_limit=%" PRIu64 ", "
+        "initial_limit=%" PRIu64 "\n",
+        env->is_processing_heap_limit_callback_,
+        static_cast<uint64_t>(current_heap_limit),
+        static_cast<uint64_t>(initial_heap_limit));
+
+  size_t max_young_gen_size = env->isolate_data()->max_young_gen_size;
+  size_t young_gen_size = 0;
+  size_t old_gen_size = 0;
+
+  v8::HeapSpaceStatistics stats;
+  size_t num_heap_spaces = env->isolate()->NumberOfHeapSpaces();
+  for (size_t i = 0; i < num_heap_spaces; ++i) {
+    env->isolate()->GetHeapSpaceStatistics(&stats, i);
+    if (strcmp(stats.space_name(), "new_space") == 0 ||
+        strcmp(stats.space_name(), "new_large_object_space") == 0) {
+      young_gen_size += stats.space_used_size();
+    } else {
+      old_gen_size += stats.space_used_size();
+    }
+  }
+
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "max_young_gen_size=%" PRIu64 ", "
+        "young_gen_size=%" PRIu64 ", "
+        "old_gen_size=%" PRIu64 ", "
+        "total_size=%" PRIu64 "\n",
+        static_cast<uint64_t>(max_young_gen_size),
+        static_cast<uint64_t>(young_gen_size),
+        static_cast<uint64_t>(old_gen_size),
+        static_cast<uint64_t>(young_gen_size + old_gen_size));
+
+  uint64_t available = GuessMemoryAvailableToTheProcess();
+  // TODO(joyeecheung): get a better estimate about the native memory
+  // usage into the overhead, e.g. based on the count of objects.
+  uint64_t estimated_overhead = max_young_gen_size;
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "Estimated available memory=%" PRIu64 ", "
+        "estimated overhead=%" PRIu64 "\n",
+        static_cast<uint64_t>(available),
+        static_cast<uint64_t>(estimated_overhead));
+
+  // This might be hit when the snapshot is being taken in another
+  // NearHeapLimitCallback invocation.
+  // When taking the snapshot, objects in the young generation may be
+  // promoted to the old generation, result in increased heap usage,
+  // but it should be no more than the young generation size.
+  // Ideally, this should be as small as possible - the heap limit
+  // can only be restored when the heap usage falls down below the
+  // new limit, so in a heap with unbounded growth the isolate
+  // may eventually crash with this new limit - effectively raising
+  // the heap limit to the new one.
+  if (env->is_processing_heap_limit_callback_) {
+    size_t new_limit = initial_heap_limit + max_young_gen_size;
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "Not generating snapshots in nested callback. "
+          "new_limit=%" PRIu64 "\n",
+          static_cast<uint64_t>(new_limit));
+    return new_limit;
+  }
+
+  // Estimate whether the snapshot is going to use up all the memory
+  // available to the process. If so, just give up to prevent the system
+  // from killing the process for a system OOM.
+  if (estimated_overhead > available) {
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "Not generating snapshots because it's too risky.\n");
+    env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
+                                                initial_heap_limit);
+    return current_heap_limit;
+  }
+
+  // Take the snapshot synchronously.
+  env->is_processing_heap_limit_callback_ = true;
+
+  std::string dir = env->options()->diagnostic_dir;
+  if (dir.empty()) {
+    dir = env->GetCwd();
+  }
+  DiagnosticFilename name(env, "Heap", "heapsnapshot");
+  std::string filename = dir + kPathSeparator + (*name);
+
+  Debug(env, DebugCategory::DIAGNOSTICS, "Start generating %s...\n", *name);
+
+  // Remove the callback first in case it's triggered when generating
+  // the snapshot.
+  env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
+                                              initial_heap_limit);
+
+  heap::WriteSnapshot(env->isolate(), filename.c_str());
+  env->heap_limit_snapshot_taken_ += 1;
+
+  // Don't take more snapshots than the number specified by
+  // --heapsnapshot-near-heap-limit.
+  if (env->heap_limit_snapshot_taken_ <
+      env->options_->heap_snapshot_near_heap_limit) {
+    env->isolate()->AddNearHeapLimitCallback(NearHeapLimitCallback, env);
+  }
+
+  FPrintF(stderr, "Wrote snapshot to %s\n", filename.c_str());
+  // Tell V8 to reset the heap limit once the heap usage falls down to
+  // 95% of the initial limit.
+  env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);
+
+  env->is_processing_heap_limit_callback_ = false;
+  return initial_heap_limit;
 }
 
 inline size_t Environment::SelfSize() const {
