@@ -252,8 +252,6 @@ absolute subpath of the package such as
 
 ### Subpath exports
 
-> Stability: 1 - Experimental
-
 When using the [`"exports"`][] field, custom subpaths can be defined along
 with the main entry point by treating the main entry point as the
 `"."` subpath:
@@ -283,8 +281,6 @@ import submodule from 'es-module-package/private-module.js';
 ```
 
 ### Subpath imports
-
-> Stability: 1 - Experimental
 
 In addition to the [`"exports"`][] field, it is possible to define internal
 package import maps that only apply to import specifiers from within the package
@@ -371,8 +367,6 @@ targets, this expansion is dependent on only the files of the package itself.
 
 ### Exports sugar
 
-> Stability: 1 - Experimental
-
 If the `"."` export is the only export, the [`"exports"`][] field provides sugar
 for this case being the direct [`"exports"`][] field value.
 
@@ -396,8 +390,6 @@ can be written:
 ```
 
 ### Conditional exports
-
-> Stability: 1 - Experimental
 
 Conditional exports provide a way to map to different paths depending on
 certain conditions. They are supported for both CommonJS and ES module imports.
@@ -476,8 +468,6 @@ order to support packages with conditional exports. For this reason, using
 `"node"` and `"browser"` condition branches.
 
 ### Nested conditions
-
-> Stability: 1 - Experimental
 
 In addition to direct mappings, Node.js also supports nested condition objects.
 
@@ -906,8 +896,6 @@ changes:
     description: Unflag `--experimental-modules`.
 -->
 
-> Stability: 1 - Experimental
-
 * Type: {string}
 
 The `"type"` field defines the module format that Node.js uses for all
@@ -974,8 +962,6 @@ changes:
     description: Implement conditional exports.
 -->
 
-> Stability: 1 - Experimental
-
 * Type: {Object} | {string} | {string[]}
 
 ```json
@@ -1001,8 +987,6 @@ All paths defined in the `"exports"` must be relative file URLs starting with
 <!-- YAML
 added: v14.6.0
 -->
-
-> Stability: 1 - Experimental
 
 * Type: {Object}
 
