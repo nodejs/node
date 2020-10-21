@@ -485,7 +485,7 @@ void PlatformEmbeddedFileWriterWin::Comment(const char* string) {
 
 void PlatformEmbeddedFileWriterWin::DeclareLabel(const char* name) {
   if (target_arch_ == EmbeddedTargetArch::kArm64) {
-    fprintf(fp_, "%s%s\t", SYMBOL_PREFIX, name);
+    fprintf(fp_, "%s%s\n", SYMBOL_PREFIX, name);
 
   } else {
     fprintf(fp_, "%s%s LABEL %s\n", SYMBOL_PREFIX, name,
