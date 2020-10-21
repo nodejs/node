@@ -118,6 +118,10 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
                       "used, not both");
   }
 
+  if (heap_snapshot_near_heap_limit < 0) {
+    errors->push_back("--heap-snapshot-near-heap-limit must not be negative");
+  }
+
 #if HAVE_INSPECTOR
   if (!cpu_prof) {
     if (!cpu_prof_name.empty()) {
@@ -340,6 +344,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--heapsnapshot-signal",
             "Generate heap snapshot on specified signal",
             &EnvironmentOptions::heap_snapshot_signal,
+            kAllowedInEnvironment);
+  AddOption("--heapsnapshot-near-heap-limit",
+            "Generate heap snapshots whenever V8 is approaching "
+            "the heap limit. No more than the specified number of "
+            "heap snapshots will be generated.",
+            &EnvironmentOptions::heap_snapshot_near_heap_limit,
             kAllowedInEnvironment);
   AddOption("--http-parser", "", NoOp{}, kAllowedInEnvironment);
   AddOption("--insecure-http-parser",
