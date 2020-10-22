@@ -1357,6 +1357,9 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35753
+    description: Added `onread` option.
   - version: v14.1.0
     pr-url: https://github.com/nodejs/node/pull/32786
     description: The `highWaterMark` option is accepted now.
@@ -1468,6 +1471,10 @@ changes:
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
     `tls.createSecureContext()`.
+  * `onread` {Object} If the `socket` option is missing, incoming data is
+    stored in a single `buffer` and passed to the supplied `callback` when
+    data arrives on the socket, otherwise the option is ignored. See the
+    `onread` option of [`net.Socket`][] for details.
   * ...: [`tls.createSecureContext()`][] options that are used if the
     `secureContext` option is missing, otherwise they are ignored.
   * ...: Any [`socket.connect()`][] option not already listed.
