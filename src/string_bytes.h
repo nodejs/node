@@ -26,14 +26,7 @@
 
 // Decodes a v8::Local<v8::String> or Buffer to a raw char*
 
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-#endif
 #include "v8.h"
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 #include "env-inl.h"
 
 #include <string>
