@@ -3,7 +3,7 @@
 Select a Node.js version below to view the changelog history:
 
 * [Node.js 14](doc/changelogs/CHANGELOG_V14.md) **Current**
-* [Node.js 13](doc/changelogs/CHANGELOG_V13.md) **Current**
+* [Node.js 13](doc/changelogs/CHANGELOG_V13.md) End-of-Life
 * [Node.js 12](doc/changelogs/CHANGELOG_V12.md) **Long Term Support**
 * [Node.js 11](doc/changelogs/CHANGELOG_V11.md) End-of-Life
 * [Node.js 10](doc/changelogs/CHANGELOG_V10.md) Long Term Support
@@ -25,7 +25,6 @@ release.
 <table>
 <tr>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V14.md">14</a><sup>Current</sup></th>
-  <th title="Current"><a href="doc/changelogs/CHANGELOG_V13.md">13</a><sup>Current</sup></th>
   <th title="LTS Until 2022-04"><a href="doc/changelogs/CHANGELOG_V12.md">12</a><sup>LTS</sup></th>
   <th title="LTS Until 2021-04"><a href="doc/changelogs/CHANGELOG_V10.md">10</a><sup>LTS</sup></th>
 </tr>

@@ -9,7 +9,7 @@
 <th>Current</th>
 </tr>
 <tr>
-<td>
+<td valign="top">
 <a href="#14.14.0">14.14.0</a><br/>
 <a href="#14.13.0">14.13.0</a><br/>
 <a href="#14.12.0">14.12.0</a><br/>
