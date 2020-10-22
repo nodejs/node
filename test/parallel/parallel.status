@@ -17,6 +17,8 @@ test-finalization-group-regular-gc: SKIP
 test-finalization-group: SKIP
 # Skip flaky test
 test-code-cache: SKIP
+# .js tools have been deprecated (migrated to modules)
+test-tick-processor-arguments: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
