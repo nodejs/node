@@ -369,6 +369,45 @@ treating the right hand side target pattern as a `**` glob against the list of
 files within the package. Because `node_modules` paths are forbidden in exports
 targets, this expansion is dependent on only the files of the package itself.
 
+### Subpath folder mappings
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35746
+    description: Runtime deprecation.
+  - version: v14.13.0
+    pr-url: https://github.com/nodejs/node/pull/34718
+    description: Documentation-only deprecation.
+-->
+
+> Stability: 0 - Deprecated: Use subpath patterns instead.
+
+Before subpath patterns were supported, a trailing `"/"` suffix was used to
+support folder mappings:
+
+```json
+{
+  "exports": {
+    "./features/": "./features/"
+  }
+}
+```
+
+_This feature will be removed in a future release._
+
+Instead, use direct [subpath patterns][]:
+
+```json
+{
+  "exports": {
+    "./features/*": "./features/*.js"
+  }
+}
+```
+
+The benefit of patterns over folder exports is that packages can always be
+imported by consumers without subpath file extensions being necessary.
+
 ### Exports sugar
 
 > Stability: 1 - Experimental

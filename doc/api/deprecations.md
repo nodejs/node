@@ -2690,26 +2690,9 @@ changes:
 
 Type: Runtime (supports [`--pending-deprecation`][])
 
-Prior to [subpath patterns][] support, it was possible to define folder mappings
-in the [subpath exports][] or [subpath imports][] fields using a trailing `"/"`:
-
-```json
-{
-  "exports": {
-    "./features/": "./features/"
-  }
-}
-```
-
-This usage is deprecated for using direct [subpath patterns][]:
-
-```json
-{
-  "exports": {
-    "./features/*": "./features/*.js"
-  }
-}
-```
+Prior to [subpath patterns][] support, it was possible to define
+[folder mappings][] in the [subpath exports][] or [subpath imports][] fields
+using a trailing `"/"`.
 
 Without `--pending-deprecation`, runtime warnings occur only for exports
 resolutions not in `node_modules`. This means there will not be deprecation
