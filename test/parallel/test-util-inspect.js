@@ -623,6 +623,18 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   );
 }
 
+// Test for property descriptors on null/empty object
+{
+  function prototype() {}
+  prototype.prototype = null;
+  const obj = {};
+  obj.constructor = prototype;
+  assert.strictEqual(
+    util.inspect(obj, false),
+    'prototype { constructor: [Function: prototype] }'
+  );
+}
+
 // Exceptions should print the error message, not '{}'.
 {
   [
