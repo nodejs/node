@@ -1,0 +1,11 @@
+{
+  "name": "self",
+  "type": "module",
+  "exports": {
+    ".": "./main.js",
+    "./": "./"
+  },
+  "imports": {
+    "#self/": "./"
+  }
+}
