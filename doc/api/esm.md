@@ -13,6 +13,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/34558
     description: Unflag Top-Level Await.
   - version:
+    - v14.0.0
+    - v13.14.0
+    pr-url: https://github.com/nodejs/node/pull/31974
+    description: Remove experimental modules warning.
+  - version:
     - v13.2.0
     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29866
