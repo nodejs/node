@@ -2677,6 +2677,28 @@ In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
 if `path` does not exist or is a file.
 Use `fs.rm(path, { recursive: true, force: true })` instead.
 
+### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35746
+    description: Runtime deprecation.
+  - version: v14.13.0
+    pr-url: https://github.com/nodejs/node/pull/34718
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime (supports [`--pending-deprecation`][])
+
+Prior to [subpath patterns][] support, it was possible to define
+[subpath folder mappings][] in the [subpath exports][] or
+[subpath imports][] fields using a trailing `"/"`.
+
+Without `--pending-deprecation`, runtime warnings occur only for exports
+resolutions not in `node_modules`. This means there will not be deprecation
+warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
+runtime warning results no matter where the `"exports"` usage occurs.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -2801,3 +2823,7 @@ Use `fs.rm(path, { recursive: true, force: true })` instead.
 [from_string_encoding]: buffer.md#buffer_static_method_buffer_from_string_encoding
 [legacy `urlObject`]: url.md#url_legacy_urlobject
 [static methods of `crypto.Certificate()`]: crypto.md#crypto_class_certificate
+[subpath exports]: #packages_subpath_exports
+[subpath folder mappings]: #packages_subpath_folder_mappings
+[subpath imports]: #packages_subpath_imports
+[subpath patterns]: #packages_subpath_patterns
