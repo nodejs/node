@@ -2691,8 +2691,8 @@ changes:
 Type: Runtime (supports [`--pending-deprecation`][])
 
 Prior to [subpath patterns][] support, it was possible to define
-[folder mappings][] in the [subpath exports][] or [subpath imports][] fields
-using a trailing `"/"`.
+[subpath folder mappings][] in the [subpath exports][] or
+[subpath imports][] fields using a trailing `"/"`.
 
 Without `--pending-deprecation`, runtime warnings occur only for exports
 resolutions not in `node_modules`. This means there will not be deprecation
@@ -2824,5 +2824,6 @@ runtime warning results no matter where the `"exports"` usage occurs.
 [legacy `urlObject`]: url.md#url_legacy_urlobject
 [static methods of `crypto.Certificate()`]: crypto.md#crypto_class_certificate
 [subpath exports]: #packages_subpath_exports
+[subpath folder mappings]: #packages_subpath_folder_mappings
 [subpath imports]: #packages_subpath_imports
 [subpath patterns]: #packages_subpath_patterns
