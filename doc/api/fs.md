@@ -60,7 +60,7 @@ Promise-based operations return a `Promise` that is resolved when the
 asynchronous operation is complete.
 
 ```js
-const fs = require('fs/promises');
+const fs = require('fs').promises;
 
 (async function(path) {
   try {
@@ -106,7 +106,7 @@ fs.rename('/tmp/hello', '/tmp/world', (err) => {
 Or, use the promise-based API:
 
 ```js
-const fs = require('fs/promises');
+const fs = require('fs').promises;
 
 (async function(from, to) {
   try {
