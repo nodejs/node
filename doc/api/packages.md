@@ -365,6 +365,45 @@ treating the right hand side target pattern as a `**` glob against the list of
 files within the package. Because `node_modules` paths are forbidden in exports
 targets, this expansion is dependent on only the files of the package itself.
 
+### Subpath folder mappings
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35746
+    description: Runtime deprecation.
+  - version: v14.13.0
+    pr-url: https://github.com/nodejs/node/pull/34718
+    description: Documentation-only deprecation.
+-->
+
+> Stability: 0 - Deprecated: Use subpath patterns instead.
+
+Before subpath patterns were supported, a trailing `"/"` suffix was used to
+support folder mappings:
+
+```json
+{
+  "exports": {
+    "./features/": "./features/"
+  }
+}
+```
+
+_This feature will be removed in a future release._
+
+Instead, use direct [subpath patterns][]:
+
+```json
+{
+  "exports": {
+    "./features/*": "./features/*.js"
+  }
+}
+```
+
+The benefit of patterns over folder exports is that packages can always be
+imported by consumers without subpath file extensions being necessary.
+
 ### Exports sugar
 
 If the `"."` export is the only export, the [`"exports"`][] field provides sugar
@@ -1028,5 +1067,6 @@ This field defines [subpath imports][] for the current package.
 [self-reference]: #packages_self_referencing_a_package_using_its_name
 [subpath exports]: #packages_subpath_exports
 [subpath imports]: #packages_subpath_imports
+[subpath patterns]: #packages_subpath_patterns
 [the full specifier path]: esm.md#esm_mandatory_file_extensions
 [the dual CommonJS/ES module packages section]: #packages_dual_commonjs_es_module_packages
