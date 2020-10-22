@@ -9,6 +9,9 @@ changes:
     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/35249
     description: Support for detection of CommonJS named exports.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31974
+    description: Remove experimental modules warning.
   - version:
     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29866
