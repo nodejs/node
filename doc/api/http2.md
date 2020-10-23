@@ -1888,9 +1888,9 @@ added: REPLACEME
 
 Used to update the server with the provided settings.
 
-Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values
+Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values.
 
-Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument
+Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 
 ### Class: `Http2SecureServer`
 <!-- YAML
@@ -2080,9 +2080,9 @@ added: REPLACEME
 
 Used to update the server with the provided settings.
 
-Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values
+Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values.
 
-Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument
+Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 
 ### `http2.createServer(options[, onRequestHandler])`
 <!-- YAML
