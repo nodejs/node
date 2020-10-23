@@ -5565,7 +5565,7 @@ that represent files will be deleted. The permissive behavior of the
 `recursive` option is deprecated, `ENOTDIR` and `ENOENT` will be thrown in
 the future.
 
-## `fsPromises.rm(path[, options])`
+### `fsPromises.rm(path[, options])`
 <!-- YAML
 added: v14.14.0
 -->
