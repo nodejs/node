@@ -28,14 +28,7 @@
 #include "env-inl.h"
 #include "util.h"
 
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-#endif
 #include "v8.h"
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
 namespace node {
 
