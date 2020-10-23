@@ -19,8 +19,10 @@ if (common.isWindows) {
 {
   const ac = new AbortController();
   const signal = ac.signal;
-  assert.rejects(execPromisifed(pwdcommand, { cwd: dir, signal }), /AbortError/);
+  const promise = execPromisifed(pwdcommand, { cwd: dir, signal });
+  assert.rejects(promise, /AbortError/);
   ac.abort();
+  assert.strictEqual(promise.child.killed, true);
 }
 
 {
@@ -45,5 +47,8 @@ if (common.isWindows) {
 {
   const ac = new AbortController();
   const signal = (ac.abort(), ac.signal);
-  assert.rejects(execPromisifed(pwdcommand, { cwd: dir, signal }), /AbortError/);
+  const promise = execPromisifed(pwdcommand, { cwd: dir, signal });
+
+  assert.rejects(promise, /AbortError/);
+  assert.strictEqual(promise.child, undefined);
 }
