@@ -200,8 +200,7 @@ coverage-clean:
 	$(RM) -r node_modules
 	$(RM) -r gcovr build
 	$(RM) -r coverage/tmp
-	$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f -delete
-	$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcno" -type f -delete
+	$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) -type f -delete
 
 .PHONY: coverage
 # Build and test with code coverage reporting.  Leave the lib directory

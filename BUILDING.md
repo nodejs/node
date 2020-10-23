@@ -392,7 +392,7 @@ A detailed coverage report will be written to `coverage/index.html` for
 JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage.
 
 If you only want to run the JavaScript tests then you do not need to run
-the first command `./configure --coverage`. You can run `make coverage-run-js`,
+the first command (`./configure --coverage`). Run `make coverage-run-js`,
 to execute JavaScript tests independently of the C++ test suite:
 
 ```text
