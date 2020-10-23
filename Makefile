@@ -201,7 +201,7 @@ coverage-clean:
 	$(RM) -r gcovr build
 	$(RM) -r coverage/tmp
 	$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
-		-exec $(RM) {} \;
+		-type f -exec $(RM) {} \;
 
 .PHONY: coverage
 # Build and test with code coverage reporting.  Leave the lib directory
