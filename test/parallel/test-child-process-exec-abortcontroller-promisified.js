@@ -62,3 +62,9 @@ if (common.isWindows) {
              'instance of AbortSignal. Received function signal'
   });
 }
+
+{
+  const ac = new AbortController();
+  const signal = (ac.abort(), ac.signal);
+  assert.rejects(execPromisifed(pwdcommand, { cwd: dir, signal }), /AbortError/);
+}
