@@ -30,7 +30,7 @@ console.log('hello world');
 console.log('hello %s', 'world');
 // Prints: hello world, to stdout
 console.error(new Error('Whoops, something bad happened'));
-// Prints: custom message and stack trace to stderr
+// Prints error message and stack trace to stderr:
 //   Error: Whoops, something bad happened
 //     at [eval]:5:15
 //     at Script.runInThisContext (node:vm:132:18)
