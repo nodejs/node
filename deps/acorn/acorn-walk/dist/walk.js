@@ -2,7 +2,7 @@
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
   (global = global || self, factory((global.acorn = global.acorn || {}, global.acorn.walk = {})));
-}(this, function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
   // AST walker module for Mozilla Parser API compatible trees
 
@@ -200,7 +200,7 @@
   };
   base.Statement = skipThrough;
   base.EmptyStatement = ignore;
-  base.ExpressionStatement = base.ParenthesizedExpression =
+  base.ExpressionStatement = base.ParenthesizedExpression = base.ChainExpression =
     function (node, st, c) { return c(node.expression, st, "Expression"); };
   base.IfStatement = function (node, st, c) {
     c(node.test, st, "Expression");
@@ -405,6 +405,8 @@
     if (node.source) { c(node.source, st, "Expression"); }
   };
   base.ExportAllDeclaration = function (node, st, c) {
+    if (node.exported)
+      { c(node.exported, st); }
     c(node.source, st, "Expression");
   };
   base.ImportDeclaration = function (node, st, c) {
@@ -458,4 +460,4 @@
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));

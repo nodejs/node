@@ -252,7 +252,6 @@
       'deps/acorn/acorn/dist/acorn.js',
       'deps/acorn/acorn-walk/dist/walk.js',
       'deps/acorn-plugins/acorn-class-fields/index.js',
-      'deps/acorn-plugins/acorn-numeric-separator/index.js',
       'deps/acorn-plugins/acorn-private-class-elements/index.js',
       'deps/acorn-plugins/acorn-private-methods/index.js',
       'deps/acorn-plugins/acorn-static-class-features/index.js',
