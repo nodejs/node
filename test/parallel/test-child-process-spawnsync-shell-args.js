@@ -13,7 +13,7 @@ const run = (shell, command, args, ok = mkay) => {
   });
   [stdout, stderr] = [stdout, stderr].map((i) => i.toString());
   ok(!error && !stderr, [error, status, stderr, stdout].join(' ||| '));
-  return common.isWindows ? stdout.replace(/\r/g, '') : stdout;
+  return common.isWindows ? stdout.replaceAll('\r', '') : stdout;
 };
 
 // find bash
