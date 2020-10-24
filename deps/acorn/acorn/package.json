@@ -5,7 +5,11 @@
   "main": "dist/acorn.js",
   "types": "dist/acorn.d.ts",
   "module": "dist/acorn.mjs",
-  "version": "7.1.1",
+  "exports": {
+    "import": "./dist/acorn.mjs",
+    "require": "./dist/acorn.js"
+  },
+  "version": "8.0.4",
   "engines": {"node": ">=0.4.0"},
   "maintainers": [
     {
