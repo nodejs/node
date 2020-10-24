@@ -32,14 +32,14 @@ npm install
 ## Interface
 
 **parse**`(input, options)` is the main interface to the library. The
-`input` parameter is a string, `options` can be undefined or an object
-setting some of the options listed below. The return value will be an
-abstract syntax tree object as specified by the [ESTree
+`input` parameter is a string, `options` must be an object setting
+some of the options listed below. The return value will be an abstract
+syntax tree object as specified by the [ESTree
 spec](https://github.com/estree/estree).
 
 ```javascript
 let acorn = require("acorn");
-console.log(acorn.parse("1 + 1"));
+console.log(acorn.parse("1 + 1", {ecmaVersion: 2020}));
 ```
 
 When encountering a syntax error, the parser will raise a
@@ -48,18 +48,19 @@ have a `pos` property that indicates the string offset at which the
 error occurred, and a `loc` object that contains a `{line, column}`
 object referring to that same position.
 
-Options can be provided by passing a second argument, which should be
-an object containing any of these fields:
+Options are provided by in a second argument, which should be an
+object containing any of these fields (only `ecmaVersion` is
+required):
 
 - **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
-  either 3, 5, 6 (2015), 7 (2016), 8 (2017), 9 (2018), 10 (2019) or 11
-  (2020, partial support). This influences support for strict mode,
-  the set of reserved words, and support for new syntax features.
-  Default is 10.
+  either 3, 5, 6 (or 2015), 7 (2016), 8 (2017), 9 (2018), 10 (2019),
+  11 (2020), or 12 (2021, partial support), or `"latest"` (the latest
+  the library supports). This influences support for strict mode, the
+  set of reserved words, and support for new syntax features.
 
   **NOTE**: Only 'stage 4' (finalized) ECMAScript features are being
-  implemented by Acorn. Other proposed new features can be implemented
-  through plugins.
+  implemented by Acorn. Other proposed new features must be
+  implemented through plugins.
 
 - **sourceType**: Indicate the mode the code should be parsed in. Can be
   either `"script"` or `"module"`. This influences global strict mode
@@ -224,7 +225,7 @@ you can use its static `extend` method.
 var acorn = require("acorn");
 var jsx = require("acorn-jsx");
 var JSXParser = acorn.Parser.extend(jsx());
-JSXParser.parse("foo(<bar/>)");
+JSXParser.parse("foo(<bar/>)", {ecmaVersion: 2020});
 ```
 
 The `extend` method takes any number of plugin values, and returns a
@@ -266,5 +267,4 @@ Plugins for ECMAScript proposals:
  - [`acorn-stage3`](https://github.com/acornjs/acorn-stage3): Parse most stage 3 proposals, bundling:
    - [`acorn-class-fields`](https://github.com/acornjs/acorn-class-fields): Parse [class fields proposal](https://github.com/tc39/proposal-class-fields)
    - [`acorn-import-meta`](https://github.com/acornjs/acorn-import-meta): Parse [import.meta proposal](https://github.com/tc39/proposal-import-meta)
-   - [`acorn-numeric-separator`](https://github.com/acornjs/acorn-numeric-separator): Parse [numeric separator proposal](https://github.com/tc39/proposal-numeric-separator)
    - [`acorn-private-methods`](https://github.com/acornjs/acorn-private-methods): parse [private methods, getters and setters proposal](https://github.com/tc39/proposal-private-methods)n
