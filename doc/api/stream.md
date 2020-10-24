@@ -2316,7 +2316,7 @@ class ReadStream extends Readable {
     this.fd = null;
   }
   _construct(callback) {
-    fs.open(this.filename, (fd, err) => {
+    fs.open(this.filename, (err, fd) => {
       if (err) {
         callback(err);
       } else {
