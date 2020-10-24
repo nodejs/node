@@ -5,7 +5,11 @@
   "main": "dist/walk.js",
   "types": "dist/walk.d.ts",
   "module": "dist/walk.mjs",
-  "version": "7.1.1",
+  "exports": {
+    "import": "./dist/walk.mjs",
+    "require": "./dist/walk.js"
+  },
+  "version": "8.0.0",
   "engines": {"node": ">=0.4.0"},
   "maintainers": [
     {
