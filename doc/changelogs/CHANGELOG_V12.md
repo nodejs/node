@@ -947,7 +947,7 @@ occur in any future release.” Users should be cautious when using the feature
 in production environments.
 
 Unlike Node.js 14, using ESM will still emit a runtime experimental warning,
-either when a module is used a the application's entrypoint or the first time
+either when a module is used at the application's entrypoint or the first time
 dynamic `import()` is called.
 
 Please keep in mind that the implementation of ESM in Node.js differs from the
