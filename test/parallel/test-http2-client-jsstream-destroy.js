@@ -46,9 +46,9 @@ server.listen(0, common.mustCall(function() {
     });
     const req = client.request();
 
-    setTimeout(() => socket.destroy(), 200);
-    setTimeout(() => client.close(), 400);
-    setTimeout(() => server.close(), 600);
+    setTimeout(() => socket.destroy(), common.platformTimeout(100));
+    setTimeout(() => client.close(), common.platformTimeout(200));
+    setTimeout(() => server.close(), common.platformTimeout(300));
 
     req.on('close', common.mustCall(() => { }));
   });
