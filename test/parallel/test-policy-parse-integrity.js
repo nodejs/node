@@ -44,7 +44,8 @@ const packageFilepath = path.join(tmpdirPath, 'package.json');
 const packageURL = pathToFileURL(packageFilepath);
 const packageBody = '{"main": "dep.js"}';
 
-function test({ shouldFail, integrity }) {
+function test({ shouldFail, integrity, manifest = {} }) {
+  manifest.resources = {};
   const resources = {
     [packageURL]: {
       body: packageBody,
@@ -54,9 +55,6 @@ function test({ shouldFail, integrity }) {
       body: depBody,
       integrity
     }
-  };
-  const manifest = {
-    resources: {},
   };
   for (const [url, { body, integrity }] of Object.entries(resources)) {
     manifest.resources[url] = {
@@ -95,4 +93,18 @@ test({
     'sha256',
     depBody
   )}`,
+});
+test({
+  shouldFail: true,
+  integrity: `sha256-${hash('sha256', 'file:///')}`,
+  manifest: {
+    onerror: 'exit'
+  }
+});
+test({
+  shouldFail: false,
+  integrity: `sha256-${hash('sha256', 'file:///')}`,
+  manifest: {
+    onerror: 'log'
+  }
 });
