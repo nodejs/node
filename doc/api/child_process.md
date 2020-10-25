@@ -1717,6 +1717,8 @@ A very common, alternative command-line parsing method is the Cygwin/MSYS2
 [`build_argv`][]. It uses always-on globbing based on the POSIX glob(3),
 with special provisions for dos-like paths. You may escape it as:
 
+<!-- FIXME: Trim this section as soon as the new Cygwin parser is up.
+     I know it's my PR and I've been sloppy there too... -->
 ```js
 function quoteCygwinArg(arg, mayBePath = true) {
   // Cygwin escapes the backslashes on paths to handle the Windows verbatim
@@ -1768,7 +1770,12 @@ or [`child_process.fork()`][].
 [Advanced serialization]: #child_process_advanced_serialization
 [Default Windows shell]: #child_process_default_windows_shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[`build_argv`]: https://github.com/mirror/newlib-cygwin/blob/b39cd00/winsup/cygwin/dcrt0.cc#L292
 [Shell requirements]: #child_process_shell_requirements
+[ongoing, cross-platform issue]: https://github.com/PowerShell/PowerShell/issues/1995
+[`options.detached`]: #child_process_options_detached
+[POSIX single-quotes]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_02_02
+[Parsing C++ Command-Line Arguments]: https://docs.microsoft.com/en-us/cpp/cpp/parsing-cpp-command-line-arguments
 [`'disconnect'`]: process.md#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
@@ -1786,7 +1793,6 @@ or [`child_process.fork()`][].
 [`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
 [`net.Server`]: net.md#net_class_net_server
 [`net.Socket`]: net.md#net_class_net_socket
-[`options.detached`]: #child_process_options_detached
 [`process.disconnect()`]: process.md#process_process_disconnect
 [`process.env`]: process.md#process_process_env
 [`process.execPath`]: process.md#process_process_execpath
@@ -1800,14 +1806,7 @@ or [`child_process.fork()`][].
 [`subprocess.stdin`]: #child_process_subprocess_stdin
 [`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
-[`util.promisify()`]: util.html#util_util_promisify_original
-[Default Windows Shell]: #child_process_default_windows_shell
-[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
-[Shell Requirements]: #child_process_shell_requirements
-[POSIX single-quotes]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_02_02
-[Parsing C++ Command-Line Arguments]: https://docs.microsoft.com/en-us/cpp/cpp/parsing-cpp-command-line-arguments
+[`util.promisify()`]: util.md#util_util_promisify_original
 [Windows Command Line]: #child_process_windows_command_line
-[ongoing, cross-platform issue]: https://github.com/PowerShell/PowerShell/issues/1995
-[`build_argv`]: https://github.com/mirror/newlib-cygwin/blob/b39cd00/winsup/cygwin/dcrt0.cc#L292
 [synchronous counterparts]: #child_process_synchronous_process_creation
 [v8.serdes]: v8.md#v8_serialization_api
