@@ -26,6 +26,12 @@ const encodings = [
     invalid: [255]
   },
   {
+    name: 'ISO-2022-JP',
+    value: [65, 66, 67, 0x1B, 65, 66, 67],
+    expected: "ABC\u{fffd}ABC",
+    invalid: [0x0E]
+  },
+  {
     name: 'ISO-8859-14',
     value: [100, 240, 114],
     expected: "d\u{0175}r",
