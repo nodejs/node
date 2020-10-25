@@ -282,9 +282,12 @@ module.exports = {
                                 description: settings.description
                             },
                             fix(fixer) {
-                                if (quoteOption === "backtick" && astUtils.hasOctalEscapeSequence(rawVal)) {
+                                if (quoteOption === "backtick" && astUtils.hasOctalOrNonOctalDecimalEscapeSequence(rawVal)) {
 
-                                    // An octal escape sequence in a template literal would produce syntax error, even in non-strict mode.
+                                    /*
+                                     * An octal or non-octal decimal escape sequence in a template literal would
+                                     * produce syntax error, even in non-strict mode.
+                                     */
                                     return null;
                                 }
 
