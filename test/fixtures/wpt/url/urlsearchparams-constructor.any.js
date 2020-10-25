@@ -200,6 +200,8 @@ test(function() {
   { "input": {"+": "%C2"}, "output": [["+", "%C2"]], "name": "object with +" },
   { "input": {c: "x", a: "?"}, "output": [["c", "x"], ["a", "?"]], "name": "object with two keys" },
   { "input": [["c", "x"], ["a", "?"]], "output": [["c", "x"], ["a", "?"]], "name": "array with two keys" },
+  { "input": {"\uD835x": "1", "xx": "2", "\uD83Dx": "3"}, "output": [["\uFFFDx", "3"], ["xx", "2"]], "name": "2 unpaired surrogates (no trailing)" },
+  { "input": {"x\uDC53": "1", "x\uDC5C": "2", "x\uDC65": "3"}, "output": [["x\uFFFD", "3"]], "name": "3 unpaired surrogates (no leading)" },
   { "input": {"a\0b": "42", "c\uD83D": "23", "d\u1234": "foo"}, "output": [["a\0b", "42"], ["c\uFFFD", "23"], ["d\u1234", "foo"]], "name": "object with NULL, non-ASCII, and surrogate keys" }
 ].forEach((val) => {
     test(() => {
