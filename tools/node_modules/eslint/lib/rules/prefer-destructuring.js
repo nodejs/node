@@ -5,6 +5,18 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const PRECEDENCE_OF_ASSIGNMENT_EXPR = astUtils.getPrecedence({ type: "AssignmentExpression" });
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -185,9 +197,15 @@ module.exports = {
                 return null;
             }
 
+            let objectText = sourceCode.getText(rightNode.object);
+
+            if (astUtils.getPrecedence(rightNode.object) < PRECEDENCE_OF_ASSIGNMENT_EXPR) {
+                objectText = `(${objectText})`;
+            }
+
             return fixer.replaceText(
                 node,
-                `{${rightNode.property.name}} = ${sourceCode.getText(rightNode.object)}`
+                `{${rightNode.property.name}} = ${objectText}`
             );
         }
 

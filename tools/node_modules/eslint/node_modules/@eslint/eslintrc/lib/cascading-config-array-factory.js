@@ -36,9 +36,10 @@ const debug = require("debug")("eslintrc:cascading-config-array-factory");
 //------------------------------------------------------------------------------
 
 // Define types for VSCode IntelliSense.
-/** @typedef {import("../shared/types").ConfigData} ConfigData */
-/** @typedef {import("../shared/types").Parser} Parser */
-/** @typedef {import("../shared/types").Plugin} Plugin */
+/** @typedef {import("./shared/types").ConfigData} ConfigData */
+/** @typedef {import("./shared/types").Parser} Parser */
+/** @typedef {import("./shared/types").Plugin} Plugin */
+/** @typedef {import("./shared/types").Rule} Rule */
 /** @typedef {ReturnType<ConfigArrayFactory["create"]>} ConfigArray */
 
 /**
@@ -51,6 +52,11 @@ const debug = require("debug")("eslintrc:cascading-config-array-factory");
  * @property {string[]} [rulePaths] The value of `--rulesdir` option.
  * @property {string} [specificConfigPath] The value of `--config` option.
  * @property {boolean} [useEslintrc] if `false` then it doesn't load config files.
+ * @property {Function} loadRules The function to use to load rules.
+ * @property {Map<string,Rule>} builtInRules The rules that are built in to ESLint.
+ * @property {Object} [resolver=ModuleResolver] The module resolver object.
+ * @property {string} eslintAllPath The path to the definitions for eslint:all.
+ * @property {string} eslintRecommendedPath The path to the definitions for eslint:recommended.
  */
 
 /**
@@ -67,6 +73,11 @@ const debug = require("debug")("eslintrc:cascading-config-array-factory");
  * @property {string[]|null} rulePaths The value of `--rulesdir` option. This is used to reset `baseConfigArray`.
  * @property {string|null} specificConfigPath The value of `--config` option. This is used to reset `cliConfigArray`.
  * @property {boolean} useEslintrc if `false` then it doesn't load config files.
+ * @property {Function} loadRules The function to use to load rules.
+ * @property {Map<string,Rule>} builtInRules The rules that are built in to ESLint.
+ * @property {Object} [resolver=ModuleResolver] The module resolver object.
+ * @property {string} eslintAllPath The path to the definitions for eslint:all.
+ * @property {string} eslintRecommendedPath The path to the definitions for eslint:recommended.
  */
 
 /** @type {WeakMap<CascadingConfigArrayFactory, CascadingConfigArrayFactoryInternalSlots>} */
@@ -205,14 +216,18 @@ class CascadingConfigArrayFactory {
         useEslintrc = true,
         builtInRules = new Map(),
         loadRules,
-        resolver
+        resolver,
+        eslintRecommendedPath,
+        eslintAllPath
     } = {}) {
         const configArrayFactory = new ConfigArrayFactory({
             additionalPluginPool,
             cwd,
             resolvePluginsRelativeTo,
             builtInRules,
-            resolver
+            resolver,
+            eslintRecommendedPath,
+            eslintAllPath
         });
 
         internalSlotsMap.set(this, {

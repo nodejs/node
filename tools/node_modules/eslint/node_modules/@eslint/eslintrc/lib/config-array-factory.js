@@ -58,8 +58,6 @@ const debug = require("debug")("eslintrc:config-array-factory");
 // Helpers
 //------------------------------------------------------------------------------
 
-const eslintRecommendedPath = path.resolve(__dirname, "../../eslint/conf/eslint-recommended.js");
-const eslintAllPath = path.resolve(__dirname, "../../eslint/conf/eslint-all.js");
 const configFilenames = [
     ".eslintrc.js",
     ".eslintrc.cjs",
@@ -71,10 +69,11 @@ const configFilenames = [
 ];
 
 // Define types for VSCode IntelliSense.
-/** @typedef {import("../shared/types").ConfigData} ConfigData */
-/** @typedef {import("../shared/types").OverrideConfigData} OverrideConfigData */
-/** @typedef {import("../shared/types").Parser} Parser */
-/** @typedef {import("../shared/types").Plugin} Plugin */
+/** @typedef {import("./shared/types").ConfigData} ConfigData */
+/** @typedef {import("./shared/types").OverrideConfigData} OverrideConfigData */
+/** @typedef {import("./shared/types").Parser} Parser */
+/** @typedef {import("./shared/types").Plugin} Plugin */
+/** @typedef {import("./shared/types").Rule} Rule */
 /** @typedef {import("./config-array/config-dependency").DependentParser} DependentParser */
 /** @typedef {import("./config-array/config-dependency").DependentPlugin} DependentPlugin */
 /** @typedef {ConfigArray[0]} ConfigArrayElement */
@@ -84,6 +83,10 @@ const configFilenames = [
  * @property {Map<string,Plugin>} [additionalPluginPool] The map for additional plugins.
  * @property {string} [cwd] The path to the current working directory.
  * @property {string} [resolvePluginsRelativeTo] A path to the directory that plugins should be resolved from. Defaults to `cwd`.
+ * @property {Map<string,Rule>} builtInRules The rules that are built in to ESLint.
+ * @property {Object} [resolver=ModuleResolver] The module resolver object.
+ * @property {string} eslintAllPath The path to the definitions for eslint:all.
+ * @property {string} eslintRecommendedPath The path to the definitions for eslint:recommended.
  */
 
 /**
@@ -91,6 +94,10 @@ const configFilenames = [
  * @property {Map<string,Plugin>} additionalPluginPool The map for additional plugins.
  * @property {string} cwd The path to the current working directory.
  * @property {string | undefined} resolvePluginsRelativeTo An absolute path the the directory that plugins should be resolved from.
+ * @property {Map<string,Rule>} builtInRules The rules that are built in to ESLint.
+ * @property {Object} [resolver=ModuleResolver] The module resolver object.
+ * @property {string} eslintAllPath The path to the definitions for eslint:all.
+ * @property {string} eslintRecommendedPath The path to the definitions for eslint:recommended.
  */
 
 /**
@@ -414,7 +421,9 @@ class ConfigArrayFactory {
         cwd = process.cwd(),
         resolvePluginsRelativeTo,
         builtInRules,
-        resolver = ModuleResolver
+        resolver = ModuleResolver,
+        eslintAllPath,
+        eslintRecommendedPath
     } = {}) {
         internalSlotsMap.set(this, {
             additionalPluginPool,
@@ -423,7 +432,9 @@ class ConfigArrayFactory {
                 resolvePluginsRelativeTo &&
                 path.resolve(cwd, resolvePluginsRelativeTo),
             builtInRules,
-            resolver
+            resolver,
+            eslintAllPath,
+            eslintRecommendedPath
         });
     }
 
@@ -781,6 +792,8 @@ class ConfigArrayFactory {
      * @private
      */
     _loadExtendedBuiltInConfig(extendName, ctx) {
+        const { eslintAllPath, eslintRecommendedPath } = internalSlotsMap.get(this);
+
         if (extendName === "eslint:recommended") {
             return this._loadConfigData({
                 ...ctx,

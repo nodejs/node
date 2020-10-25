@@ -19,14 +19,29 @@ const fs = require("fs");
 const path = require("path");
 const defaultOptions = require("../../conf/default-cli-options");
 const pkg = require("../../package.json");
-const ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops");
-const naming = require("@eslint/eslintrc/lib/shared/naming");
-const ModuleResolver = require("../shared/relative-module-resolver");
+
+
+const {
+    Legacy: {
+        ConfigOps,
+        naming,
+        CascadingConfigArrayFactory,
+        IgnorePattern,
+        getUsedExtractedConfigs
+    }
+} = require("@eslint/eslintrc");
+
+/*
+ * For some reason, ModuleResolver must be included via filepath instead of by
+ * API exports in order to work properly. That's why this is separated out onto
+ * its own require() statement.
+ */
+const ModuleResolver = require("@eslint/eslintrc/lib/shared/relative-module-resolver");
+const { FileEnumerator } = require("./file-enumerator");
+
 const { Linter } = require("../linter");
 const builtInRules = require("../rules");
-const { CascadingConfigArrayFactory } = require("./cascading-config-array-factory");
-const { IgnorePattern, getUsedExtractedConfigs } = require("./config-array");
-const { FileEnumerator } = require("./file-enumerator");
+const loadRules = require("./load-rules");
 const hash = require("./hash");
 const LintResultCache = require("./lint-result-cache");
 
@@ -559,7 +574,11 @@ class CLIEngine {
             resolvePluginsRelativeTo: options.resolvePluginsRelativeTo,
             rulePaths: options.rulePaths,
             specificConfigPath: options.configFile,
-            useEslintrc: options.useEslintrc
+            useEslintrc: options.useEslintrc,
+            builtInRules,
+            loadRules,
+            eslintRecommendedPath: path.resolve(__dirname, "../../conf/eslint-recommended.js"),
+            eslintAllPath: path.resolve(__dirname, "../../conf/eslint-all.js")
         });
         const fileEnumerator = new FileEnumerator({
             configArrayFactory,
