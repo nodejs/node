@@ -12,8 +12,16 @@
    }, "iso-2022-jp encoder: " + desc)
  }
 
- encode("s", "s", "very basic")
- encode("\u00A5\u203Es\\\uFF90\u4F69", "%1B(J\\~s%1B(B\\%1B$B%_PP%1B(B", "basics")
- encode("\x0E\x0F\x1Bx", "%0E%0F%1Bx", "SO/SI ESC")
+ encode("s", "s", "very basic");
+ encode("\u00A5\u203Es\\\uFF90\u4F69", "%1B(J\\~s%1B(B\\%1B$B%_PP%1B(B", "basics");
+ encode("\uFF61", "%1B$B!%23%1B(B", "Katakana");
+ encode("\u0393", "%1B$B&%23%1B(B", "jis0208");
+ encode("\x0E\x0F\x1Bx", "%26%2365533%3B%26%2365533%3B%26%2365533%3Bx", "SO/SI ESC");
+ encode("\u203E\x0E\x0F\x1Bx", "%1B(J~%26%2365533%3B%26%2365533%3B%26%2365533%3Bx%1B(B", "Roman SO/SI ESC");
+ encode("\uFF61\x0E\x0F\x1Bx", "%1B$B!%23%1B(B%26%2365533%3B%26%2365533%3B%26%2365533%3Bx", "Katakana SO/SI ESC");
+ encode("\u0393\x0E\x0F\x1Bx", "%1B$B&%23%1B(B%26%2365533%3B%26%2365533%3B%26%2365533%3Bx", "jis0208 SO/SI ESC");
  encode("\uFFFD", "%26%2365533%3B", "U+FFFD");
+ encode("\u203E\uFFFD", "%1B(J~%26%2365533%3B%1B(B", "Roman U+FFFD");
+ encode("\uFF61\uFFFD", "%1B$B!%23%1B(B%26%2365533%3B", "Katakana U+FFFD");
+ encode("\u0393\uFFFD", "%1B$B&%23%1B(B%26%2365533%3B", "jis0208 U+FFFD");
 </script>
