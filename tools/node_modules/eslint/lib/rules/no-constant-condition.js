@@ -9,9 +9,6 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-const EQUALITY_OPERATORS = ["===", "!==", "==", "!="];
-const RELATIONAL_OPERATORS = [">", "<", ">=", "<=", "in", "instanceof"];
-
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -56,6 +53,35 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
+        /**
+         * Returns literal's value converted to the Boolean type
+         * @param {ASTNode} node any `Literal` node
+         * @returns {boolean | null} `true` when node is truthy, `false` when node is falsy,
+         *  `null` when it cannot be determined.
+         */
+        function getBooleanValue(node) {
+            if (node.value === null) {
+
+                /*
+                 * it might be a null literal or bigint/regex literal in unsupported environments .
+                 * https://github.com/estree/estree/blob/14df8a024956ea289bd55b9c2226a1d5b8a473ee/es5.md#regexpliteral
+                 * https://github.com/estree/estree/blob/14df8a024956ea289bd55b9c2226a1d5b8a473ee/es2020.md#bigintliteral
+                 */
+
+                if (node.raw === "null") {
+                    return false;
+                }
+
+                // regex is always truthy
+                if (typeof node.regex === "object") {
+                    return true;
+                }
+
+                return null;
+            }
+
+            return !!node.value;
+        }
 
         /**
          * Checks if a branch node of LogicalExpression short circuits the whole condition
@@ -66,15 +92,23 @@ module.exports = {
         function isLogicalIdentity(node, operator) {
             switch (node.type) {
                 case "Literal":
-                    return (operator === "||" && node.value === true) ||
-                           (operator === "&&" && node.value === false);
+                    return (operator === "||" && getBooleanValue(node) === true) ||
+                           (operator === "&&" && getBooleanValue(node) === false);
 
                 case "UnaryExpression":
                     return (operator === "&&" && node.operator === "void");
 
                 case "LogicalExpression":
-                    return isLogicalIdentity(node.left, node.operator) ||
-                             isLogicalIdentity(node.right, node.operator);
+
+                    /*
+                     * handles `a && false || b`
+                     * `false` is an identity element of `&&` but not `||`
+                     */
+                    return operator === node.operator &&
+                             (
+                                 isLogicalIdentity(node.left, node.operator) ||
+                                 isLogicalIdentity(node.right, node.operator)
+                             );
 
                 // no default
             }
@@ -129,21 +163,9 @@ module.exports = {
                     const isLeftConstant = isConstant(node.left, inBooleanPosition);
                     const isRightConstant = isConstant(node.right, inBooleanPosition);
                     const isLeftShortCircuit = (isLeftConstant && isLogicalIdentity(node.left, node.operator));
-                    const isRightShortCircuit = (isRightConstant && isLogicalIdentity(node.right, node.operator));
+                    const isRightShortCircuit = (inBooleanPosition && isRightConstant && isLogicalIdentity(node.right, node.operator));
 
                     return (isLeftConstant && isRightConstant) ||
-                        (
-
-                            // in the case of an "OR", we need to know if the right constant value is truthy
-                            node.operator === "||" &&
-                            isRightConstant &&
-                            node.right.value &&
-                            (
-                                !node.parent ||
-                                node.parent.type !== "BinaryExpression" ||
-                                !(EQUALITY_OPERATORS.includes(node.parent.operator) || RELATIONAL_OPERATORS.includes(node.parent.operator))
-                            )
-                        ) ||
                         isLeftShortCircuit ||
                         isRightShortCircuit;
                 }
