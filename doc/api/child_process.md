@@ -1649,8 +1649,11 @@ should understand the `/d /s /c` switches and command-line parsing should be
 compatible.
 
 ### Shell Escaping
+<!-- YAML
+added: REPLACEME
+-->
 
-`shellEscape` is an option introduced in Node.js 1X.Y.Z. It is intended to
+`shellEscape` is an option intended to
 improve the safety of shell command-line by unifying the behavior of `args[]`
 with regard to metacharacters with the `shell: false` case. All metacharacters
 and shell-specific scripting should be placed in `command` instead. To preserve
@@ -1720,17 +1723,16 @@ function quoteCygwinArg(arg, mayBePath = true) {
   // passing-in of them.
   // (There is a Cygwin bug in here about " never being escapable on these
   // paths：https://cygwin.com/ml/cygwin/2019-10/msg00033.html)
-  const isPath = mayBePath ?
-    !!(/^\\\\[a-z][^\\]+\\|^[a-z]:/i.exec(arg)) :
-    /^[a-z]:/i.exec(arg);
+  const regex = mayBePath ? /^\\\\[a-z][^\\]+\\|^[a-z]:/i : /^[a-z]:/i;
+  const isPath = regex.test(arg);
   if (!isPath) {
-    arg = arg.replace(/[\\]/g, '\\\\');
-    if (/^\\\\[a-z][^\\]+\\/i.exec(arg))
+    arg = arg.replaceAll('\\', '\\\\');
+    if (/^\\\\[a-z][^\\]+\\/i.test(arg))
       // If Cygwin sees this as an SMB network path...
       // Chop off the first \\ (it seems to not eat up the a in \a)
       arg = arg.substring(2);
   }
-  return `"${arg.replace(/"/g, '""')}"`;
+  return `"${arg.replaceAll('"', '""')}"`;
 }
 
 // For shell (set { shellEscape: false } for spawn):
