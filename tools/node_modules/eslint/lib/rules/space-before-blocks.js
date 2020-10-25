@@ -5,7 +5,30 @@
 
 "use strict";
 
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
 const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Checks whether the given node represents the body of a function.
+ * @param {ASTNode} node the node to check.
+ * @returns {boolean} `true` if the node is function body.
+ */
+function isFunctionBody(node) {
+    const parent = node.parent;
+
+    return (
+        node.type === "BlockStatement" &&
+        astUtils.isFunction(parent) &&
+        parent.body === node
+    );
+}
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -82,13 +105,16 @@ module.exports = {
         }
 
         /**
-         * Checks whether or not a given token is an arrow operator (=>) or a keyword
-         * in order to avoid to conflict with `arrow-spacing` and `keyword-spacing`.
-         * @param {Token} token A token to check.
-         * @returns {boolean} `true` if the token is an arrow operator.
+         * Checks whether the spacing before the given block is already controlled by another rule:
+         * - `arrow-spacing` checks spaces after `=>`.
+         * - `keyword-spacing` checks spaces after keywords in certain contexts.
+         * @param {Token} precedingToken first token before the block.
+         * @param {ASTNode|Token} node `BlockStatement` node or `{` token of a `SwitchStatement` node.
+         * @returns {boolean} `true` if requiring or disallowing spaces before the given block could produce conflicts with other rules.
          */
-        function isConflicted(token) {
-            return (token.type === "Punctuator" && token.value === "=>") || token.type === "Keyword";
+        function isConflicted(precedingToken, node) {
+            return astUtils.isArrowToken(precedingToken) ||
+                astUtils.isKeywordToken(precedingToken) && !isFunctionBody(node);
         }
 
         /**
@@ -99,13 +125,12 @@ module.exports = {
         function checkPrecedingSpace(node) {
             const precedingToken = sourceCode.getTokenBefore(node);
 
-            if (precedingToken && !isConflicted(precedingToken) && astUtils.isTokenOnSameLine(precedingToken, node)) {
+            if (precedingToken && !isConflicted(precedingToken, node) && astUtils.isTokenOnSameLine(precedingToken, node)) {
                 const hasSpace = sourceCode.isSpaceBetweenTokens(precedingToken, node);
-                const parent = context.getAncestors().pop();
                 let requireSpace;
                 let requireNoSpace;
 
-                if (parent.type === "FunctionExpression" || parent.type === "FunctionDeclaration") {
+                if (isFunctionBody(node)) {
                     requireSpace = alwaysFunctions;
                     requireNoSpace = neverFunctions;
                 } else if (node.type === "ClassBody") {

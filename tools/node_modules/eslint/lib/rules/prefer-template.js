@@ -39,33 +39,25 @@ function getTopConcatBinaryExpression(node) {
 }
 
 /**
- * Determines whether a given node is a octal escape sequence
+ * Checks whether or not a node contains a string literal with an octal or non-octal decimal escape sequence
  * @param {ASTNode} node A node to check
- * @returns {boolean} `true` if the node is an octal escape sequence
+ * @returns {boolean} `true` if at least one string literal within the node contains
+ * an octal or non-octal decimal escape sequence
  */
-function isOctalEscapeSequence(node) {
-
-    // No need to check TemplateLiterals – would throw error with octal escape
-    const isStringLiteral = node.type === "Literal" && typeof node.value === "string";
-
-    if (!isStringLiteral) {
-        return false;
-    }
-
-    return astUtils.hasOctalEscapeSequence(node.raw);
-}
-
-/**
- * Checks whether or not a node contains a octal escape sequence
- * @param {ASTNode} node A node to check
- * @returns {boolean} `true` if the node contains an octal escape sequence
- */
-function hasOctalEscapeSequence(node) {
+function hasOctalOrNonOctalDecimalEscapeSequence(node) {
     if (isConcatenation(node)) {
-        return hasOctalEscapeSequence(node.left) || hasOctalEscapeSequence(node.right);
+        return (
+            hasOctalOrNonOctalDecimalEscapeSequence(node.left) ||
+            hasOctalOrNonOctalDecimalEscapeSequence(node.right)
+        );
     }
 
-    return isOctalEscapeSequence(node);
+    // No need to check TemplateLiterals – would throw parsing error
+    if (node.type === "Literal" && typeof node.value === "string") {
+        return astUtils.hasOctalOrNonOctalDecimalEscapeSequence(node.raw);
+    }
+
+    return false;
 }
 
 /**
@@ -237,7 +229,7 @@ module.exports = {
         function fixNonStringBinaryExpression(fixer, node) {
             const topBinaryExpr = getTopConcatBinaryExpression(node.parent);
 
-            if (hasOctalEscapeSequence(topBinaryExpr)) {
+            if (hasOctalOrNonOctalDecimalEscapeSequence(topBinaryExpr)) {
                 return null;
             }
 

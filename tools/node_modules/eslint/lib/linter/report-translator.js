@@ -196,15 +196,19 @@ function mapSuggestions(descriptor, sourceCode, messages) {
         return [];
     }
 
-    return descriptor.suggest.map(suggestInfo => {
-        const computedDesc = suggestInfo.desc || messages[suggestInfo.messageId];
+    return descriptor.suggest
+        .map(suggestInfo => {
+            const computedDesc = suggestInfo.desc || messages[suggestInfo.messageId];
 
-        return {
-            ...suggestInfo,
-            desc: interpolate(computedDesc, suggestInfo.data),
-            fix: normalizeFixes(suggestInfo, sourceCode)
-        };
-    });
+            return {
+                ...suggestInfo,
+                desc: interpolate(computedDesc, suggestInfo.data),
+                fix: normalizeFixes(suggestInfo, sourceCode)
+            };
+        })
+
+        // Remove suggestions that didn't provide a fix
+        .filter(({ fix }) => fix);
 }
 
 /**

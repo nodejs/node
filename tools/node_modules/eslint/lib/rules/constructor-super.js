@@ -79,6 +79,17 @@ function isPossibleConstructor(node) {
             return false;
 
         case "LogicalExpression":
+
+            /*
+             * If the && operator short-circuits, the left side was falsy and therefore not a constructor, and if
+             * it doesn't short-circuit, it takes the value from the right side, so the right side must always be a
+             * possible constructor. A future improvement could verify that the left side could be truthy by
+             * excluding falsy literals.
+             */
+            if (node.operator === "&&") {
+                return isPossibleConstructor(node.right);
+            }
+
             return (
                 isPossibleConstructor(node.left) ||
                 isPossibleConstructor(node.right)
