@@ -342,8 +342,11 @@ void CipherBase::Init(const char* cipher_type,
                       unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
   MarkPopErrorOnReturn mark_pop_error_on_return;
-
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (EVP_default_properties_is_fips_enabled(nullptr)) {
+#else
   if (FIPS_mode()) {
+#endif
     return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env(),
         "crypto.createCipher() is not supported in FIPS mode.");
   }
@@ -527,7 +530,13 @@ bool CipherBase::InitAuthenticated(
     }
 
     // TODO(tniessen) Support CCM decryption in FIPS mode
+
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher &&
+        EVP_default_properties_is_fips_enabled(nullptr)) {
+#else
     if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher && FIPS_mode()) {
+#endif
       THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env(),
           "CCM encryption not supported in FIPS mode");
       return false;

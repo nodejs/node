@@ -583,7 +583,8 @@ assert.throws(
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
 {
-  const dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
+  const size = common.hasFipsCrypto || common.hasOpenSSL3 ? 1024 : 256;
+  const dh1 = crypto.createDiffieHellman(size);
   const p1 = dh1.getPrime('buffer');
   const dh2 = crypto.createDiffieHellman(p1, 'base64');
   const key1 = dh1.generateKeys();

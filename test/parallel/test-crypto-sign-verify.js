@@ -44,7 +44,9 @@ const keySize = 2048;
       `-----BEGIN RSA PRIVATE KEY-----
       AAAAAAAAAAAA
       -----END RSA PRIVATE KEY-----`);
-  }, { message: 'bye, bye, library' });
+  }, { message: common.hasOpenSSL3 ?
+    'Failed to read private key' :
+    'bye, bye, library' });
 
   delete Object.prototype.library;
 
@@ -63,7 +65,9 @@ const keySize = 2048;
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, { message: 'bye, bye, error stack' });
+  }, { message: common.hasOpenSSL3 ?
+    'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
+    'bye, bye, error stack' });
 
   delete Object.prototype.opensslErrorStack;
 }
@@ -339,7 +343,10 @@ assert.throws(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, {
+  }, common.hasOpenSSL3 ? {
+    code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
+    message: /illegal or unsupported padding mode/,
+  } : {
     code: 'ERR_OSSL_RSA_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
     opensslErrorStack: [

@@ -53,9 +53,12 @@ server.listen(0, common.mustCall(() => {
 
     server.setSecureContext(credentialOptions[1]);
     firstResponse.write('request-');
+    const errorMessageRegex = common.hasOpenSSL3 ?
+      /^Error: self-signed certificate$/ :
+      /^Error: self signed certificate$/;
     await assert.rejects(async () => {
       await makeRequest(port, 3);
-    }, /^Error: self signed certificate$/);
+    }, errorMessageRegex);
 
     server.setSecureContext(credentialOptions[0]);
     assert.strictEqual(await makeRequest(port, 4), 'success');
@@ -64,7 +67,7 @@ server.listen(0, common.mustCall(() => {
     firstResponse.end('fun!');
     await assert.rejects(async () => {
       await makeRequest(port, 5);
-    }, /^Error: self signed certificate$/);
+    }, errorMessageRegex);
 
     assert.strictEqual(await firstRequest, 'multi-request-success-fun!');
     server.close();

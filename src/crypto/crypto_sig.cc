@@ -28,8 +28,13 @@ namespace crypto {
 namespace {
 bool ValidateDSAParameters(EVP_PKEY* key) {
   /* Validate DSA2 parameters from FIPS 186-4 */
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (EVP_default_properties_is_fips_enabled(nullptr) &&
+      EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
+#else
   if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
-    DSA* dsa = EVP_PKEY_get0_DSA(key);
+#endif
+    const DSA* dsa = EVP_PKEY_get0_DSA(key);
     const BIGNUM* p;
     DSA_get0_pqg(dsa, &p, nullptr, nullptr);
     size_t L = BN_num_bits(p);
@@ -103,11 +108,11 @@ unsigned int GetBytesOfRS(const ManagedEVPPKey& pkey) {
   int bits, base_id = EVP_PKEY_base_id(pkey.get());
 
   if (base_id == EVP_PKEY_DSA) {
-    DSA* dsa_key = EVP_PKEY_get0_DSA(pkey.get());
+    const DSA* dsa_key = EVP_PKEY_get0_DSA(pkey.get());
     // Both r and s are computed mod q, so their width is limited by that of q.
     bits = BN_num_bits(DSA_get0_q(dsa_key));
   } else if (base_id == EVP_PKEY_EC) {
-    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey.get());
+    const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey.get());
     const EC_GROUP* ec_group = EC_KEY_get0_group(ec_key);
     bits = EC_GROUP_order_bits(ec_group);
   } else {
@@ -873,7 +878,7 @@ bool SignTraits::DeriveBits(
     case SignConfiguration::kSign: {
       size_t len;
       unsigned char* data = nullptr;
-      if (IsOneShot(params.key->GetAsymmetricKey())) {
+      if (IsOneShot(m_pkey)) {
         EVP_DigestSign(
             context.get(),
             nullptr,
@@ -905,10 +910,7 @@ bool SignTraits::DeriveBits(
           return false;
 
         if (UseP1363Encoding(m_pkey, params.dsa_encoding)) {
-          *out = ConvertSignatureToP1363(
-              env,
-              params.key->GetAsymmetricKey(),
-              buf);
+          *out = ConvertSignatureToP1363(env, m_pkey, buf);
         } else {
           buf.Resize(len);
           *out = std::move(buf);

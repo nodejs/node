@@ -138,7 +138,7 @@ Maybe<bool> GetDsaKeyDetail(
   int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_DSA);
 
-  DSA* dsa = EVP_PKEY_get0_DSA(m_pkey.get());
+  const DSA* dsa = EVP_PKEY_get0_DSA(m_pkey.get());
   CHECK_NOT_NULL(dsa);
 
   DSA_get0_pqg(dsa, &p, &q, nullptr);

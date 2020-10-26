@@ -8,7 +8,8 @@ const crypto = require('crypto');
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
-const dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
+const size = common.hasFipsCrypto || common.hasOpenSSL3 ? 1024 : 256;
+const dh1 = crypto.createDiffieHellman(size);
 const p1 = dh1.getPrime('buffer');
 const dh2 = crypto.createDiffieHellman(p1, 'buffer');
 let key1 = dh1.generateKeys();
@@ -38,11 +39,19 @@ assert.throws(() => crypto.createDiffieHellman('abcdef', 13.37), {
 });
 
 for (const bits of [-1, 0, 1]) {
-  assert.throws(() => crypto.createDiffieHellman(bits), {
-    code: 'ERR_OSSL_BN_BITS_TOO_SMALL',
-    name: 'Error',
-    message: /bits too small/,
-  });
+  if (common.hasOpenSSL3) {
+    assert.throws(() => crypto.createDiffieHellman(bits), {
+      code: 'ERR_OSSL_DH_MODULUS_TOO_SMALL',
+      name: 'Error',
+      message: /modulus too small/,
+    });
+  } else {
+    assert.throws(() => crypto.createDiffieHellman(bits), {
+      code: 'ERR_OSSL_BN_BITS_TOO_SMALL',
+      name: 'Error',
+      message: /bits too small/,
+    });
+  }
 }
 
 // Through a fluke of history, g=0 defaults to DH_GENERATOR (2).
@@ -143,13 +152,23 @@ const secret4 = dh4.computeSecret(key2, 'hex', 'base64');
 
 assert.strictEqual(secret1, secret4);
 
-const wrongBlockLength = {
-  message: 'error:0606506D:digital envelope' +
-    ' routines:EVP_DecryptFinal_ex:wrong final block length',
-  code: 'ERR_OSSL_EVP_WRONG_FINAL_BLOCK_LENGTH',
-  library: 'digital envelope routines',
-  reason: 'wrong final block length'
-};
+let wrongBlockLength;
+if (common.hasOpenSSL3) {
+  wrongBlockLength = {
+    message: 'error:1C80006B:Provider routines::wrong final block length',
+    code: 'ERR_OSSL_WRONG_FINAL_BLOCK_LENGTH',
+    library: 'Provider routines',
+    reason: 'wrong final block length'
+  };
+} else {
+  wrongBlockLength = {
+    message: 'error:0606506D:digital envelope' +
+      ' routines:EVP_DecryptFinal_ex:wrong final block length',
+    code: 'ERR_OSSL_EVP_WRONG_FINAL_BLOCK_LENGTH',
+    library: 'digital envelope routines',
+    reason: 'wrong final block length'
+  };
+}
 
 // Run this one twice to make sure that the dh3 clears its error properly
 {
@@ -168,7 +187,9 @@ const wrongBlockLength = {
 
 assert.throws(() => {
   dh3.computeSecret('');
-}, { message: 'Supplied key is too small' });
+}, { message: common.hasOpenSSL3 ?
+  'error:02800066:Diffie-Hellman routines::invalid public key' :
+  'Supplied key is too small' });
 
 // Create a shared using a DH group.
 const alice = crypto.createDiffieHellmanGroup('modp5');

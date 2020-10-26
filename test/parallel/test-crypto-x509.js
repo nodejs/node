@@ -46,9 +46,10 @@ OU=Node.js
 CN=ca1
 emailAddress=ry@tinyclouds.org`;
 
-const infoAccessCheck = `OCSP - URI:http://ocsp.nodejs.org/
-CA Issuers - URI:http://ca.nodejs.org/ca.cert
-`;
+let infoAccessCheck = `OCSP - URI:http://ocsp.nodejs.org/
+CA Issuers - URI:http://ca.nodejs.org/ca.cert`;
+if (!common.hasOpenSSL3)
+  infoAccessCheck += '\n';
 
 const der = Buffer.from(
   '308202d830820241a003020102020900ecc9b856270da9a830' +
@@ -207,8 +208,11 @@ const der = Buffer.from(
       'CN=ca1\n' +
       'emailAddress=ry@tinyclouds.org',
     infoAccess:
-      'OCSP - URI:http://ocsp.nodejs.org/\n' +
-      'CA Issuers - URI:http://ca.nodejs.org/ca.cert\n',
+      common.hasOpenSSL3 ?
+        'OCSP - URI:http://ocsp.nodejs.org/\n' +
+        'CA Issuers - URI:http://ca.nodejs.org/ca.cert' :
+        'OCSP - URI:http://ocsp.nodejs.org/\n' +
+        'CA Issuers - URI:http://ca.nodejs.org/ca.cert\n',
     modulus: 'EF5440701637E28ABB038E5641F828D834C342A9D25EDBB86A2BF' +
              '6FBD809CB8E037A98B71708E001242E4DEB54C6164885F599DD87' +
              'A23215745955BE20417E33C4D0D1B80C9DA3DE419A2607195D2FB' +

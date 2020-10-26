@@ -13,7 +13,8 @@ const { SSL_OP_NO_TICKET } = require('crypto').constants;
 const options = {
   key: readKey('agent1-key.pem'),
   cert: readKey('agent1-cert.pem'),
-  secureOptions: SSL_OP_NO_TICKET
+  secureOptions: SSL_OP_NO_TICKET,
+  ciphers: 'RSA@SECLEVEL=0'
 };
 
 // Create TLS1.2 server
