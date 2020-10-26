@@ -254,7 +254,7 @@ forwards.
 
 Duplicated history entires will be skipped.
 
-Entries are accepted as soon as any button is pressed that doesn't correspond
+Entries are accepted as soon as any key is pressed that doesn't correspond
 with the reverse search. Cancelling is possible by pressing <kbd>Esc</kbd> or
 <kbd>Ctrl</kbd>+<kbd>C</kbd>.
 
@@ -285,10 +285,9 @@ repl.start({ prompt: '> ', eval: myEval });
 
 #### Recoverable errors
 
-As a user is typing input into the REPL prompt, pressing **Enter** will
-send the current line of input to the `eval` function. In order to support
-multi-line input, the eval function can return an instance of `repl.Recoverable`
-to the provided callback function:
+At the REPL prompt, pressing <kbd>Enter</kbd> sends the current line of input to
+the `eval` function. In order to support multi-line input, the `eval` function
+can return an instance of `repl.Recoverable` to the provided callback function:
 
 ```js
 function myEval(cmd, context, filename, callback) {
