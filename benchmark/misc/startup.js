@@ -7,7 +7,11 @@ let Worker;  // Lazy loaded in main
 
 const bench = common.createBenchmark(main, {
   dur: [1],
-  script: ['benchmark/fixtures/require-cachable', 'test/fixtures/semicolon'],
+  script: [
+    'benchmark/fixtures/require-builtins',
+    'benchmark/fixtures/require-cachable',
+    'test/fixtures/semicolon',
+  ],
   mode: ['process', 'worker']
 }, {
   flags: ['--expose-internals']
