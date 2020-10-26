@@ -4,24 +4,24 @@ const child_process = require('child_process');
 const http_benchmarkers = require('./_http-benchmarkers.js');
 
 class Benchmark {
-  // Used to make sure a benchmark only start a timer once
-  #started = false;
-
-  // Indicate that the benchmark ended
-  #ended = false;
-
-  // Holds process.hrtime value
-  #time = [0, 0];
-
-  // Use the file name as the name of the benchmark
-  name = require.main.filename.slice(__dirname.length + 1);
-
-  // Execution arguments i.e. flags used to run the jobs
-  flags = process.env.NODE_BENCHMARK_FLAGS ?
-    process.env.NODE_BENCHMARK_FLAGS.split(/\s+/) :
-    [];
-
   constructor(fn, configs, options = {}) {
+    // Used to make sure a benchmark only start a timer once
+    this._started = false;
+
+    // Indicate that the benchmark ended
+    this._ended = false;
+
+    // Holds process.hrtime value
+    this._time = [0, 0];
+
+    // Use the file name as the name of the benchmark
+    this.name = require.main.filename.slice(__dirname.length + 1);
+
+    // Execution arguments i.e. flags used to run the jobs
+    this.flags = process.env.NODE_BENCHMARK_FLAGS ?
+      process.env.NODE_BENCHMARK_FLAGS.split(/\s+/) :
+      [];
+
     // Parse job-specific configuration from the command line arguments
     const argv = process.argv.slice(2);
     const parsed_args = this._parseArgs(argv, configs, options);
@@ -214,21 +214,21 @@ class Benchmark {
   }
 
   start() {
-    if (this.#started) {
+    if (this._started) {
       throw new Error('Called start more than once in a single benchmark');
     }
-    this.#started = true;
-    this.#time = process.hrtime();
+    this._started = true;
+    this._time = process.hrtime();
   }
 
   end(operations) {
     // Get elapsed time now and do error checking later for accuracy.
-    const elapsed = process.hrtime(this.#time);
+    const elapsed = process.hrtime(this._time);
 
-    if (!this.#started) {
+    if (!this._started) {
       throw new Error('called end without start');
     }
-    if (this.#ended) {
+    if (this._ended) {
       throw new Error('called end multiple times');
     }
     if (typeof operations !== 'number') {
@@ -244,7 +244,7 @@ class Benchmark {
       elapsed[1] = 1;
     }
 
-    this.#ended = true;
+    this._ended = true;
     const time = elapsed[0] + elapsed[1] / 1e9;
     const rate = operations / time;
     this.report(rate, elapsed);
