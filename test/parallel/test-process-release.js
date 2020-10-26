@@ -19,6 +19,8 @@ if (versionParts[0] === '4' && versionParts[1] >= 2) {
   assert.strictEqual(process.release.lts, 'Dubnium');
 } else if (versionParts[0] === '12' && versionParts[1] >= 13) {
   assert.strictEqual(process.release.lts, 'Erbium');
+} else if (versionParts[0] === '14' && versionParts[1] >= 15) {
+  assert.strictEqual(process.release.lts, 'Fermium');
 } else {
   assert.strictEqual(process.release.lts, undefined);
 }
