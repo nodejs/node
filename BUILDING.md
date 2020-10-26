@@ -399,7 +399,7 @@ to execute JavaScript tests independently of the C++ test suite:
 $ make coverage-run-js
 ```
 
-If you are updating tests and want to collect coverrage for a single test file
+If you are updating tests and want to collect coverage for a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
 ```text
