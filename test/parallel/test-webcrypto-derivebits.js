@@ -102,7 +102,7 @@ const { internalBinding } = require('internal/test/binding');
 }
 
 // Test Scrypt bit derivation
-if (typeof internalBinding('crypto').scrypt === 'function') {
+if (typeof internalBinding('crypto').ScryptJob === 'function') {
   async function test(pass, salt, length, expected) {
     const ec = new TextEncoder();
     const key = await subtle.importKey(
@@ -111,7 +111,7 @@ if (typeof internalBinding('crypto').scrypt === 'function') {
       { name: 'NODE-SCRYPT' },
       false, ['deriveBits']);
     const secret = await subtle.deriveBits({
-      name: 'SCRYPT',
+      name: 'NODE-SCRYPT',
       salt: ec.encode(salt),
     }, key, length);
     assert.strictEqual(Buffer.from(secret).toString('hex'), expected);

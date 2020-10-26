@@ -122,7 +122,7 @@ const { internalBinding } = require('internal/test/binding');
 }
 
 // Test Scrypt bit derivation
-if (typeof internalBinding('crypto').scrypt === 'function') {
+if (typeof internalBinding('crypto').ScryptJob === 'function') {
   async function test(pass, salt, expected) {
     const ec = new TextEncoder();
     const key = await subtle.importKey(
@@ -144,7 +144,7 @@ if (typeof internalBinding('crypto').scrypt === 'function') {
   }
 
   const kTests = [
-    ['hello', 'there', 10, 'SHA-256',
+    ['hello', 'there',
      '30ddda6feabaac788eb81cc38f496cd5d9a165d320c537ea05331fe720db1061']
   ];
 
