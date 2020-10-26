@@ -429,7 +429,7 @@ The V8 JavaScript engine has been updated to V8 8.6 (V8 8.4 is the latest availa
 * [[`7ecb285842`](https://github.com/nodejs/node/commit/7ecb285842)] - **src**: make code cache test work with snapshots (Joyee Cheung) [#32984](https://github.com/nodejs/node/pull/32984)
 * [[`1faf6f459f`](https://github.com/nodejs/node/commit/1faf6f459f)] - **src**: snapshot Environment upon instantiation (Joyee Cheung) [#32984](https://github.com/nodejs/node/pull/32984)
 * [[`ef9964f4c1`](https://github.com/nodejs/node/commit/ef9964f4c1)] - **src**: add an ExternalReferenceRegistry class (Joyee Cheung) [#32984](https://github.com/nodejs/node/pull/32984)
-* [[`404302fff5`](https://github.com/nodejs/node/commit/404302fff5)] - **src**: split the main context initialization from Environemnt ctor (Joyee Cheung) [#32984](https://github.com/nodejs/node/pull/32984)
+* [[`404302fff5`](https://github.com/nodejs/node/commit/404302fff5)] - **src**: split the main context initialization from Environment ctor (Joyee Cheung) [#32984](https://github.com/nodejs/node/pull/32984)
 * [[`874460a1d1`](https://github.com/nodejs/node/commit/874460a1d1)] - **src**: refactor TimerWrap lifetime management (Anna Henningsen) [#34252](https://github.com/nodejs/node/pull/34252)
 * [[`e2f9dc6e5a`](https://github.com/nodejs/node/commit/e2f9dc6e5a)] - **src**: remove user\_data from TimerWrap (Anna Henningsen) [#34252](https://github.com/nodejs/node/pull/34252)
 * [[`e19a251824`](https://github.com/nodejs/node/commit/e19a251824)] - **src**: replace InspectorTimer with TimerWrap utility (James M Snell) [#34186](https://github.com/nodejs/node/pull/34186)
