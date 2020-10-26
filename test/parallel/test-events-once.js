@@ -166,6 +166,27 @@ async function onceWithEventTargetError() {
   strictEqual(Reflect.has(et.events, 'error'), false);
 }
 
+async function assumesEventEmitterIfOnIsAFunction() {
+  const ee = new EventEmitter();
+  ee.addEventListener = () => {};
+
+  const expected = new Error('kaboom');
+  let err;
+  process.nextTick(() => {
+    ee.emit('error', expected);
+  });
+
+  try {
+    await once(ee, 'myevent');
+  } catch (_e) {
+    err = _e;
+  }
+
+  strictEqual(err, expected);
+  strictEqual(ee.listenerCount('error'), 0);
+  strictEqual(ee.listenerCount('myevent'), 0);
+}
+
 Promise.all([
   onceAnEvent(),
   onceAnEventWithTwoArgs(),
@@ -175,4 +196,5 @@ Promise.all([
   onceWithEventTarget(),
   onceWithEventTargetTwoArgs(),
   onceWithEventTargetError(),
+  assumesEventEmitterIfOnIsAFunction(),
 ]).then(common.mustCall());
