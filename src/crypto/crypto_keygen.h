@@ -235,6 +235,9 @@ struct KeyPairGenConfig final : public MemoryRetainer {
   AlgorithmParams params;
 
   KeyPairGenConfig() = default;
+  ~KeyPairGenConfig() {
+    Mutex::ScopedLock priv_lock(*key.mutex());
+  }
 
   explicit KeyPairGenConfig(KeyPairGenConfig&& other) noexcept
       : public_key_encoding(other.public_key_encoding),

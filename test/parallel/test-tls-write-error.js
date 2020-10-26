@@ -16,7 +16,8 @@ const server_cert = fixtures.readKey('agent1-cert.pem');
 
 const opts = {
   key: server_key,
-  cert: server_cert
+  cert: server_cert,
+  ciphers: 'ALL@SECLEVEL=0'
 };
 
 const server = https.createServer(opts, (req, res) => {
