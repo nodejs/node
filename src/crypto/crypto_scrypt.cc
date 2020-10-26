@@ -28,6 +28,7 @@ ScryptConfig::ScryptConfig(ScryptConfig&& other) noexcept
     N(other.N),
     r(other.r),
     p(other.p),
+    maxmem(other.maxmem),
     length(other.length) {}
 
 ScryptConfig& ScryptConfig::operator=(ScryptConfig&& other) noexcept {
@@ -127,7 +128,7 @@ bool ScryptTraits::DeriveBits(
   ByteSource buf = ByteSource::Allocated(data, params.length);
   unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
 
-  // Botht the pass and salt may be zero-length at this point
+  // Both the pass and salt may be zero-length at this point
 
   if (!EVP_PBE_scrypt(
           params.pass.get(),
