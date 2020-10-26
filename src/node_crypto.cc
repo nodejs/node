@@ -58,13 +58,16 @@ void Initialize(Local<Object> target,
   PBKDF2Job::Initialize(env, target);
   Random::Initialize(env, target);
   RSAAlg::Initialize(env, target);
-  ScryptJob::Initialize(env, target);
   SecureContext::Initialize(env, target);
   Sign::Initialize(env, target);
   SPKAC::Initialize(env, target);
   Timing::Initialize(env, target);
   Util::Initialize(env, target);
   Verify::Initialize(env, target);
+
+#ifndef OPENSSL_NO_SCRYPT
+  ScryptJob::Initialize(env, target);
+#endif
 }
 
 }  // namespace crypto
