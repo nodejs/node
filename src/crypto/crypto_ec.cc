@@ -463,19 +463,22 @@ bool ECDHBitsTraits::DeriveBits(
 
   char* data = nullptr;
   size_t len = 0;
+  ManagedEVPPKey m_privkey = params.private_->GetAsymmetricKey();
+  ManagedEVPPKey m_pubkey = params.public_->GetAsymmetricKey();
 
   switch (params.id_) {
     case EVP_PKEY_X25519:
       // Fall through
     case EVP_PKEY_X448: {
-      EVPKeyCtxPointer ctx(
-          EVP_PKEY_CTX_new(
-              params.private_->GetAsymmetricKey().get(),
-              nullptr));
+      EVPKeyCtxPointer ctx = nullptr;
+      {
+        ctx.reset(EVP_PKEY_CTX_new(m_privkey.get(), nullptr));
+      }
+      Mutex::ScopedLock pub_lock(*m_pubkey.mutex());
       if (EVP_PKEY_derive_init(ctx.get()) <= 0 ||
           EVP_PKEY_derive_set_peer(
               ctx.get(),
-              params.public_->GetAsymmetricKey().get()) <= 0 ||
+              m_pubkey.get()) <= 0 ||
           EVP_PKEY_derive(ctx.get(), nullptr, &len) <= 0) {
         return false;
       }
@@ -492,10 +495,14 @@ bool ECDHBitsTraits::DeriveBits(
       break;
     }
     default: {
-      const EC_KEY* private_key =
-          EVP_PKEY_get0_EC_KEY(params.private_->GetAsymmetricKey().get());
-      const EC_KEY* public_key =
-          EVP_PKEY_get0_EC_KEY(params.public_->GetAsymmetricKey().get());
+      const EC_KEY* private_key;
+      {
+        Mutex::ScopedLock priv_lock(*m_privkey.mutex());
+        private_key = EVP_PKEY_get0_EC_KEY(m_privkey.get());
+      }
+
+      Mutex::ScopedLock pub_lock(*m_pubkey.mutex());
+      const EC_KEY* public_key = EVP_PKEY_get0_EC_KEY(m_pubkey.get());
 
       const EC_GROUP* group = EC_KEY_get0_group(private_key);
       if (group == nullptr)
@@ -607,7 +614,7 @@ WebCryptoKeyExportStatus EC_Raw_Export(
   CHECK(m_pkey);
   Mutex::ScopedLock lock(*m_pkey.mutex());
 
-  EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
+  const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
 
   unsigned char* data;
   size_t len = 0;
@@ -627,10 +634,10 @@ WebCryptoKeyExportStatus EC_Raw_Export(
     }
     CHECK_NOT_NULL(fn);
     // Get the size of the raw key data
-    if (fn(key_data->GetAsymmetricKey().get(), nullptr, &len) == 0)
+    if (fn(m_pkey.get(), nullptr, &len) == 0)
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
     data = MallocOpenSSL<unsigned char>(len);
-    if (fn(key_data->GetAsymmetricKey().get(), data, &len) == 0)
+    if (fn(m_pkey.get(), data, &len) == 0)
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
   } else {
     if (key_data->GetKeyType() != kKeyTypePublic)
@@ -696,7 +703,7 @@ Maybe<bool> ExportJWKEcKey(
   Mutex::ScopedLock lock(*m_pkey.mutex());
   CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
-  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
+  const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
   CHECK_NOT_NULL(ec);
 
   const EC_POINT* pub = EC_KEY_get0_public_key(ec);
@@ -751,6 +758,7 @@ Maybe<bool> ExportJWKEdKey(
     std::shared_ptr<KeyObjectData> key,
     Local<Object> target) {
   ManagedEVPPKey pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*pkey.mutex());
 
   const char* curve = nullptr;
   switch (EVP_PKEY_id(pkey.get())) {
@@ -902,7 +910,7 @@ Maybe<bool> GetEcKeyDetail(
   Mutex::ScopedLock lock(*m_pkey.mutex());
   CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
-  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
+  const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
   CHECK_NOT_NULL(ec);
 
   const EC_GROUP* group = EC_KEY_get0_group(ec);
@@ -919,8 +927,8 @@ Maybe<bool> GetEcKeyDetail(
 // implementation here is a adapted from Chromium's impl here:
 // https://github.com/chromium/chromium/blob/7af6cfd/components/webcrypto/algorithms/ecdsa.cc
 
-size_t GroupOrderSize(ManagedEVPPKey key) {
-  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(key.get());
+size_t GroupOrderSize(const ManagedEVPPKey& key) {
+  const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(key.get());
   CHECK_NOT_NULL(ec);
   const EC_GROUP* group = EC_KEY_get0_group(ec);
   BignumPointer order(BN_new());

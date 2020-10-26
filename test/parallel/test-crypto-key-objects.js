@@ -292,7 +292,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   // This should not cause a crash: https://github.com/nodejs/node/issues/25247
   assert.throws(() => {
     createPrivateKey({ key: '' });
-  }, {
+  }, common.hasOpenSSL3 ? {
+    message: 'Failed to read private key',
+  } : {
     message: 'error:0909006C:PEM routines:get_name:no start line',
     code: 'ERR_OSSL_PEM_NO_START_LINE',
     reason: 'no start line',
@@ -500,7 +502,10 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 
 {
   // Reading an encrypted key without a passphrase should fail.
-  assert.throws(() => createPrivateKey(privateDsa), {
+  assert.throws(() => createPrivateKey(privateDsa), common.hasOpenSSL3 ? {
+    name: 'Error',
+    message: 'Failed to read private key',
+  } : {
     name: 'TypeError',
     code: 'ERR_MISSING_PASSPHRASE',
     message: 'Passphrase required for encrypted key'
@@ -512,7 +517,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     key: privateDsa,
     format: 'pem',
     passphrase: Buffer.alloc(1025, 'a')
-  }), {
+  }), common.hasOpenSSL3 ? { name: 'Error' } : {
     code: 'ERR_OSSL_PEM_BAD_PASSWORD_READ',
     name: 'Error'
   });
@@ -524,7 +529,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     format: 'pem',
     passphrase: Buffer.alloc(1024, 'a')
   }), {
-    message: /bad decrypt/
+    message: common.hasOpenSSL3 ?
+      'Failed to read private key' :
+      /bad decrypt/
   });
 
   const publicKey = createPublicKey(publicDsa);

@@ -35,7 +35,13 @@ assert(/^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
 assert(/^\d+$/.test(process.versions.modules));
 
 if (common.hasCrypto) {
-  assert(/^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/.test(process.versions.openssl));
+  const versionRegex = common.hasOpenSSL3 ?
+    // The following also matches a development version of OpenSSL 3.x which
+    // can be in the format '3.0.0-alpha4-dev'. This can be handy when building
+    // and linking against the main development branch of OpenSSL.
+    /^\d+\.\d+\.\d+(-[-a-z0-9]+)?$/ :
+    /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
+  assert(versionRegex.test(process.versions.openssl));
 }
 
 for (let i = 0; i < expected_keys.length; i++) {
