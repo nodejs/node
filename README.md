@@ -390,8 +390,6 @@ For information about the governance of the Node.js project, see
 **Ricky Zhou** &lt;0x19951125@gmail.com&gt; (he/him)
 * [ronag](https://github.com/ronag) -
 **Robert Nagy** &lt;ronagy@icloud.com&gt;
-* [ronkorving](https://github.com/ronkorving) -
-**Ron Korving** &lt;ron@ronkorving.nl&gt;
 * [rubys](https://github.com/rubys) -
 **Sam Ruby** &lt;rubys@intertwingly.net&gt;
 * [ruyadorno](https://github.com/ruyadorno) -
@@ -541,6 +539,8 @@ For information about the governance of the Node.js project, see
 **Robert Kowalski** &lt;rok@kowalski.gd&gt;
 * [romankl](https://github.com/romankl) -
 **Roman Klauke** &lt;romaaan.git@gmail.com&gt;
+* [ronkorving](https://github.com/ronkorving) -
+**Ron Korving** &lt;ron@ronkorving.nl&gt;
 * [RReverser](https://github.com/RReverser) -
 **Ingvar Stepanyan** &lt;me@rreverser.com&gt;
 * [sam-github](https://github.com/sam-github) -
