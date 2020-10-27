@@ -9,6 +9,9 @@ on:
     # ./doc/guides/commit-queue.md
     - cron: "*/5 * * * *"
 
+env:
+  NODE_VERSION: 14.x
+
 jobs:
   startCI:
     if: github.repository == 'nodejs/node'
@@ -20,7 +23,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v2-beta
         with:
-          node-version: '12'
+          node-version: ${{ env.NODE_VERSION }}
       - name: Install node-core-utils
         run: npm install -g node-core-utils
 
