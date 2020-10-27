@@ -255,7 +255,8 @@ class CascadingConfigArrayFactory {
             ignorePath,
             rulePaths,
             specificConfigPath,
-            useEslintrc
+            useEslintrc,
+            builtInRules
         });
     }
 
@@ -438,7 +439,8 @@ class CascadingConfigArrayFactory {
             cliConfigArray,
             configArrayFactory,
             finalizeCache,
-            useEslintrc
+            useEslintrc,
+            builtInRules
         } = internalSlotsMap.get(this);
 
         let finalConfigArray = finalizeCache.get(configArray);
@@ -484,7 +486,7 @@ class CascadingConfigArrayFactory {
 
             // Validate rule settings and environments.
             const validator = new ConfigValidator({
-                builtInRules: configArrayFactory.builtInRules
+                builtInRules
             });
 
             validator.validateConfigArray(finalConfigArray);
