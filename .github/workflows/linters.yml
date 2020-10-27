@@ -10,7 +10,7 @@ on:
 
 env:
   PYTHON_VERSION: 3.9
-  NODE_VERSION: 10.x
+  NODE_VERSION: 14.x
 
 jobs:
   lint-addon-docs:
