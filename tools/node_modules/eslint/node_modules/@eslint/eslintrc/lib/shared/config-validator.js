@@ -265,7 +265,7 @@ module.exports = class ConfigValidator {
      * @returns {void}
      */
     validateConfigSchema(config, source = null) {
-        validateSchema = this.validateSchema || ajv.compile(configSchema);
+        validateSchema = validateSchema || ajv.compile(configSchema);
 
         if (!validateSchema(config)) {
             throw new Error(`ESLint configuration in ${source} is invalid:\n${this.formatErrors(validateSchema.errors)}`);
