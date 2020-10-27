@@ -140,7 +140,7 @@ inherit from its global `Object` class. Objects passed to the
 and inherit from its global `Object` class.
 
 However, the created `MessagePort` will no longer inherit from
-[`EventEmitter`][], and only [`port.onmessage()`][] can be used to receive
+[`EventTarget`][], and only [`port.onmessage()`][] can be used to receive
 events using it.
 
 ## `worker.parentPort`
@@ -295,17 +295,22 @@ port2.postMessage({ foo: 'bar' });
 ## Class: `MessagePort`
 <!-- YAML
 added: v10.5.0
+changes:
+  - version:
+    - v14.7.0
+    pr-url: https://github.com/nodejs/node/pull/34057
+    description: This class now inherits from `EventTarget` rather than
+                 from `EventEmitter`.
 -->
 
-* Extends: {EventEmitter}
+* Extends: {EventTarget}
 
 Instances of the `worker.MessagePort` class represent one end of an
 asynchronous, two-way communications channel. It can be used to transfer
 structured data, memory regions and other `MessagePort`s between different
 [`Worker`][]s.
 
-With the exception of `MessagePort`s being [`EventEmitter`][]s rather
-than [`EventTarget`][]s, this implementation matches [browser `MessagePort`][]s.
+This implementation matches [browser `MessagePort`][]s.
 
 ### Event: `'close'`
 <!-- YAML
@@ -909,7 +914,6 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`Buffer`]: buffer.md
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#errors_err_missing_message_port_in_transfer_list
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#ERR_WORKER_NOT_RUNNING
-[`EventEmitter`]: events.md
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`FileHandle`]: fs.md#fs_class_filehandle
 [`KeyObject`]: crypto.md#crypto_class_keyobject
