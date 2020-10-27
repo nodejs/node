@@ -105,10 +105,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
   assert.strictEqual(typeof publicKey, 'string');
   assert(pkcs1PubExp.test(publicKey));
-  assertApproximateSize(publicKey, 162);
+  assertApproximateSize(publicKey, common.hasOpenSSL3 ? 426 : 162);
   assert.strictEqual(typeof privateKey, 'string');
   assert(pkcs8Exp.test(privateKey));
-  assertApproximateSize(privateKey, 512);
+  assertApproximateSize(privateKey, common.hasOpenSSL3 ? 1704 : 512);
 
   testEncryptDecrypt(publicKey, privateKey);
   testSignVerify(publicKey, privateKey);
@@ -179,11 +179,11 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }, common.mustSucceed((publicKeyDER, privateKey) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, 74);
+    assertApproximateSize(publicKeyDER, common.hasOpenSSL3 ? 270 : 74);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1PrivExp.test(privateKey));
-    assertApproximateSize(privateKey, 512);
+    assertApproximateSize(privateKey, common.hasOpenSSL3 ? 1675 : 512);
 
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
     testEncryptDecrypt(publicKey, privateKey);
@@ -203,7 +203,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }, common.mustSucceed((publicKeyDER, privateKey) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, 74);
+    assertApproximateSize(publicKeyDER, common.hasOpenSSL3 ? 270 : 74);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1EncExp('AES-256-CBC').test(privateKey));
@@ -212,7 +212,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
     const expectedError = common.hasOpenSSL3 ? {
       name: 'Error',
-      code: 'ERR_OSSL_OSSL_STORE_UI_PROCESS_INTERRUPTED_OR_CANCELLED',
       message: 'Failed to read private key'
     } : {
       name: 'TypeError',
@@ -239,7 +238,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }, common.mustSucceed((publicKeyDER, privateKeyDER) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, 74);
+    assertApproximateSize(publicKeyDER, common.hasOpenSSL3 ? 270 : 74);
 
     assert(Buffer.isBuffer(privateKeyDER));
 
@@ -280,7 +279,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }, common.mustSucceed((publicKeyDER, privateKeyDER) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, 74);
+    assertApproximateSize(publicKeyDER, common.hasOpenSSL3 ? 270 : 74);
 
     assert(Buffer.isBuffer(privateKeyDER));
 
@@ -475,11 +474,14 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert(sec1EncExp('AES-128-CBC').test(privateKey));
 
     // Since the private key is encrypted, signing shouldn't work anymore.
-    assert.throws(() => testSignVerify(publicKey, privateKey), {
-      name: 'TypeError',
-      code: 'ERR_MISSING_PASSPHRASE',
-      message: 'Passphrase required for encrypted key'
-    });
+    assert.throws(() => testSignVerify(publicKey, privateKey),
+                  common.hasOpenSSL3 ? {
+                    message: 'Failed to read private key'
+                  } : {
+                    name: 'TypeError',
+                    code: 'ERR_MISSING_PASSPHRASE',
+                    message: 'Passphrase required for encrypted key'
+                  });
 
     testSignVerify(publicKey, { key: privateKey, passphrase: 'secret' });
   }));
@@ -505,11 +507,14 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert(sec1EncExp('AES-128-CBC').test(privateKey));
 
     // Since the private key is encrypted, signing shouldn't work anymore.
-    assert.throws(() => testSignVerify(publicKey, privateKey), {
-      name: 'TypeError',
-      code: 'ERR_MISSING_PASSPHRASE',
-      message: 'Passphrase required for encrypted key'
-    });
+    assert.throws(() => testSignVerify(publicKey, privateKey),
+                  common.hasOpenSSL3 ? {
+                    message: 'Failed to read private key'
+                  } : {
+                    name: 'TypeError',
+                    code: 'ERR_MISSING_PASSPHRASE',
+                    message: 'Passphrase required for encrypted key'
+                  });
 
     testSignVerify(publicKey, { key: privateKey, passphrase: 'secret' });
   }));
@@ -538,11 +543,14 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert(pkcs8EncExp.test(privateKey));
 
     // Since the private key is encrypted, signing shouldn't work anymore.
-    assert.throws(() => testSignVerify(publicKey, privateKey), {
-      name: 'TypeError',
-      code: 'ERR_MISSING_PASSPHRASE',
-      message: 'Passphrase required for encrypted key'
-    });
+    assert.throws(() => testSignVerify(publicKey, privateKey),
+                  common.hasOpenSSL3 ? {
+                    message: 'Failed to read private key'
+                  } : {
+                    name: 'TypeError',
+                    code: 'ERR_MISSING_PASSPHRASE',
+                    message: 'Passphrase required for encrypted key'
+                  });
 
     testSignVerify(publicKey, {
       key: privateKey,
@@ -572,11 +580,14 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert(pkcs8EncExp.test(privateKey));
 
     // Since the private key is encrypted, signing shouldn't work anymore.
-    assert.throws(() => testSignVerify(publicKey, privateKey), {
-      name: 'TypeError',
-      code: 'ERR_MISSING_PASSPHRASE',
-      message: 'Passphrase required for encrypted key'
-    });
+    assert.throws(() => testSignVerify(publicKey, privateKey),
+                  common.hasOpenSSL3 ? {
+                    message: 'Failed to read private key'
+                  } : {
+                    name: 'TypeError',
+                    code: 'ERR_MISSING_PASSPHRASE',
+                    message: 'Passphrase required for encrypted key'
+                  });
 
     testSignVerify(publicKey, {
       key: privateKey,
@@ -625,11 +636,11 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     const { publicKey, privateKey } = keys;
     assert.strictEqual(typeof publicKey, 'string');
     assert(pkcs1PubExp.test(publicKey));
-    assertApproximateSize(publicKey, 180);
+    assertApproximateSize(publicKey, common.hasOpenSSL3 ? 426 : 180);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1PrivExp.test(privateKey));
-    assertApproximateSize(privateKey, 512);
+    assertApproximateSize(privateKey, common.hasOpenSSL3 ? 1675 : 512);
 
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);
