@@ -213,7 +213,11 @@ class FileEnumerator {
      */
     constructor({
         cwd = process.cwd(),
-        configArrayFactory = new CascadingConfigArrayFactory({ cwd }),
+        configArrayFactory = new CascadingConfigArrayFactory({
+            cwd,
+            eslintRecommendedPath: path.resolve(__dirname, "../../conf/eslint-recommended.js"),
+            eslintAllPath: path.resolve(__dirname, "../../conf/eslint-all.js")
+        }),
         extensions = null,
         globInputPaths = true,
         errorOnUnmatchedPattern = true,
