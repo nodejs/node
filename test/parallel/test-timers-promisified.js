@@ -105,6 +105,12 @@ process.on('multipleResolves', common.mustNotCall());
       })).then(common.mustCall());
 
   Promise.all(
+    [1, '', Infinity, null, {}].map(
+      (ref) => assert.rejects(setImmediate(10, { ref })), {
+        code: 'ERR_INVALID_ARG_TYPE'
+      })).then(common.mustCall());
+
+  Promise.all(
     [1, '', false, Infinity].map(
       (i) => assert.rejects(setTimeout(10, null, i)), {
         code: 'ERR_INVALID_ARG_TYPE'
