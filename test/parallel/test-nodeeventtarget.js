@@ -11,6 +11,7 @@ const {
   deepStrictEqual,
   ok,
   strictEqual,
+  throws,
 } = require('assert');
 
 const { on } = require('events');
@@ -144,6 +145,27 @@ const { on } = require('events');
   target.setMaxListeners(1);
   target.on('foo', () => {});
   target.on('foo', () => {});
+}
+{
+  // Test NodeEventTarget emit
+  const emitter = new NodeEventTarget();
+  emitter.addEventListener('foo', common.mustCall((e) => {
+    strictEqual(e.type, 'foo');
+    strictEqual(e.detail, 'bar');
+    ok(e instanceof Event);
+  }), { once: true });
+  emitter.once('foo', common.mustCall((e, droppedAdditionalArgument) => {
+    strictEqual(e, 'bar');
+    strictEqual(droppedAdditionalArgument, undefined);
+  }));
+  emitter.emit('foo', 'bar', 'baz');
+}
+{
+  // Test NodeEventTarget emit unsupported usage
+  const emitter = new NodeEventTarget();
+  throws(() => {
+    emitter.emit();
+  }, /ERR_INVALID_ARG_TYPE/);
 }
 
 (async () => {
