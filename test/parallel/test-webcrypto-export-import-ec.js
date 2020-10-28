@@ -8,10 +8,11 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const { subtle } = require('crypto').webcrypto;
 
-const curves = ['P-384', 'P-521'];
+const curves = ['P-256', 'P-384', 'P-521'];
 
 const keyData = {
   'P-521': {
+    jwsAlg: 'ES512',
     spki: Buffer.from(
       '30819b301006072a8648ce3d020106052b8104002303818600040156f479f8df' +
       '1e20a7ffc04ce420c3e154ae251996bee42f034b84d41b743f34e45f311b813a' +
@@ -40,6 +41,7 @@ const keyData = {
     }
   },
   'P-384': {
+    jwsAlg: 'ES384',
     spki: Buffer.from(
       '3076301006072a8648ce3d020106052b8104002203620004219c14d66617b36e' +
       'c6d8856b385b73a74d344fd8ae75ef046435dda54e3b44bd5fbdebd1d08dd69e' +
@@ -58,6 +60,26 @@ const keyData = {
       x: 'IZwU1mYXs27G2IVrOFtzp000T9iude8EZDXdpU47RL1fvevR0I3Wni19wdwhjLQ1',
       y: 'vSgTjMd4M3qEL2vWGyQOdCSfJGZ8KlgQp2v8KOAzX4imUB3sAZdtqFr7AIactqzo',
       d: 'RTe1mQeE08LSLpao-S-hqkku6HPldqQVguFEGDyYiNEOa560ztSyzEAS5KxeqEBz'
+    }
+  },
+  'P-256': {
+    jwsAlg: 'ES256',
+    spki: Buffer.from(
+      '3059301306072a8648ce3d020106082a8648ce3d03010703420004d6e8328a95' +
+      'fe29afcdc30977b9251efbb219022807f6b14bb34695b6b4bdb93ee6684548a4' +
+      'ad13c49d00433c45315e8274f3540f58f5d79ef7a1b184f4c21d17', 'hex'),
+    pkcs8: Buffer.from(
+      '308187020100301306072a8648ce3d020106082a8648ce3d030107046d306b02' +
+      '010104202bc2eda265e46866efa8f8f99da993175b6c85c246e15dceaed7e307' +
+      '0f13fbf8a14403420004d6e8328a95fe29afcdc30977b9251efbb219022807f6' +
+      'b14bb34695b6b4bdb93ee6684548a4ad13c49d00433c45315e8274f3540f58f5' +
+      'd79ef7a1b184f4c21d17', 'hex'),
+    jwk: {
+      kty: 'EC',
+      crv: 'P-256',
+      x: '1ugyipX-Ka_Nwwl3uSUe-7IZAigH9rFLs0aVtrS9uT4',
+      y: '5mhFSKStE8SdAEM8RTFegnTzVA9Y9dee96GxhPTCHRc',
+      d: 'K8LtomXkaGbvqPj5namTF1tshcJG4V3OrtfjBw8T-_g'
     }
   },
 };
@@ -166,6 +188,26 @@ async function testImportJwk(
     subtle.importKey(
       'jwk',
       jwk,
+      { name, namedCurve },
+      extractable,
+      privateUsages),
+    subtle.importKey(
+      'jwk',
+      {
+        alg: name === 'ECDSA' ? keyData[namedCurve].jwsAlg : 'ECDH-ES',
+        kty: jwk.kty,
+        crv: jwk.crv,
+        x: jwk.x,
+        y: jwk.y,
+      },
+      { name, namedCurve },
+      extractable, publicUsages),
+    subtle.importKey(
+      'jwk',
+      {
+        ...jwk,
+        alg: name === 'ECDSA' ? keyData[namedCurve].jwsAlg : 'ECDH-ES',
+      },
       { name, namedCurve },
       extractable,
       privateUsages)
