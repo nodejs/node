@@ -16,7 +16,18 @@ const { MessageChannel, MessagePort } = require('worker_threads');
     port2.close(common.mustCall());
   }));
 }
-
+{
+  // Test emitting non-message events on a port
+  const { port2 } = new MessageChannel();
+  port2.addEventListener('foo', common.mustCall((received) => {
+    assert.strictEqual(received.type, 'foo');
+    assert.strictEqual(received.detail, 'bar');
+  }));
+  port2.on('foo', common.mustCall((received) => {
+    assert.strictEqual(received, 'bar');
+  }));
+  port2.emit('foo', 'bar');
+}
 {
   const { port1, port2 } = new MessageChannel();
 
