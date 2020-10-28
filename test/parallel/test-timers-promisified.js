@@ -15,10 +15,12 @@ const timerPromises = require('timers/promises');
 
 const setTimeout = promisify(timers.setTimeout);
 const setImmediate = promisify(timers.setImmediate);
+const setInterval = promisify(timers.setInterval);
 const exec = promisify(child_process.exec);
 
 assert.strictEqual(setTimeout, timerPromises.setTimeout);
 assert.strictEqual(setImmediate, timerPromises.setImmediate);
+assert.strictEqual(setInterval, timerPromises.setInterval);
 
 process.on('multipleResolves', common.mustNotCall());
 
@@ -51,6 +53,50 @@ process.on('multipleResolves', common.mustNotCall());
 }
 
 {
+  const iterable = setInterval(1, 'foobar');
+  const iterator = iterable[Symbol.asyncIterator]();
+  const promise = iterator.next();
+  promise
+    .then(common.mustCall((result) => {
+      assert.ok(!result.done);
+      assert.strictEqual(result.value, 'foobar');
+      return iterator.return();
+    }))
+    .then(common.mustCall());
+}
+
+{
+  const iterable = setInterval(1);
+  const iterator = iterable[Symbol.asyncIterator]();
+  const promise = iterator.next();
+  promise
+    .then(common.mustCall((result) => {
+      assert.ok(!result.done);
+      assert.strictEqual(result.value, undefined);
+      return iterator.return();
+    }))
+    .then(common.mustCall());
+}
+
+{
+  const iterable = setInterval(1, 'foobar');
+  const iterator = iterable[Symbol.asyncIterator]();
+  const promise = iterator.next();
+  promise
+    .then(common.mustCall((result) => {
+      assert.ok(!result.done);
+      assert.strictEqual(result.value, 'foobar');
+      return iterator.next();
+    }))
+    .then(common.mustCall((result) => {
+      assert.ok(!result.done);
+      assert.strictEqual(result.value, 'foobar');
+      return iterator.return();
+    }))
+    .then(common.mustCall());
+}
+
+{
   const ac = new AbortController();
   const signal = ac.signal;
   assert.rejects(setTimeout(10, undefined, { signal }), /AbortError/);
@@ -76,6 +122,33 @@ process.on('multipleResolves', common.mustNotCall());
   const signal = ac.signal;
   ac.abort(); // Abort in advance
   assert.rejects(setImmediate(10, { signal }), /AbortError/);
+}
+
+{
+  const ac = new AbortController();
+  const signal = ac.signal;
+  ac.abort(); // Abort in advance
+
+  const iterable = setInterval(1, undefined, { signal });
+  const iterator = iterable[Symbol.asyncIterator]();
+
+  assert.rejects(iterator.next(), /AbortError/);
+}
+
+{
+  const ac = new AbortController();
+  const signal = ac.signal;
+
+  const iterable = setInterval(100, undefined, { signal });
+  const iterator = iterable[Symbol.asyncIterator]();
+
+  // This promise should take 100 seconds to resolve, so now aborting it should
+  // mean we abort early
+  const promise = iterator.next();
+
+  ac.abort(); // Abort in after we have a next promise
+
+  assert.rejects(promise, /AbortError/);
 }
 
 {
@@ -148,6 +221,10 @@ process.on('multipleResolves', common.mustNotCall());
       (ref) => assert.rejects(setTimeout(10, null, { ref })), {
         code: 'ERR_INVALID_ARG_TYPE'
       })).then(common.mustCall());
+
+  [1, '', Infinity, null, {}].forEach((ref) => {
+    assert.throws(() => setInterval(10, undefined, { ref }));
+  });
 }
 
 {
@@ -160,8 +237,52 @@ process.on('multipleResolves', common.mustNotCall());
 
 {
   exec(`${process.execPath} -pe "const assert = require('assert');` +
-       'require(\'timers/promises\').setImmediate(null, { ref: false }).' +
-       'then(assert.fail)"').then(common.mustCall(({ stderr }) => {
+    'require(\'timers/promises\').setImmediate(null, { ref: false }).' +
+    'then(assert.fail)"').then(common.mustCall(({ stderr }) => {
     assert.strictEqual(stderr, '');
   }));
+}
+
+{
+  exec(`${process.execPath} -pe "const assert = require('assert');` +
+    'const interval = require(\'timers/promises\')' +
+    '.setInterval(1000, null, { ref: false });' +
+    'interval[Symbol.asyncIterator]().next()' +
+    '.then(assert.fail)"').then(common.mustCall(({ stderr }) => {
+    assert.strictEqual(stderr, '');
+  }));
+}
+
+{
+  const ac = new AbortController();
+  const input = 'foobar';
+  const signal = ac.signal;
+
+  const mainInterval = 5;
+  const loopInterval = mainInterval * 1.5;
+
+  const interval = setInterval(mainInterval, input, { signal });
+
+  async function runInterval(fn) {
+    const times = [];
+    for await (const value of interval) {
+      const index = times.length;
+      times[index] = [Date.now()];
+      assert.strictEqual(value, input);
+      await fn();
+      times[index] = [...times[index], Date.now()];
+    }
+  }
+
+  const noopLoop = runInterval(() => {});
+  const timeoutLoop = runInterval(() => setTimeout(loopInterval));
+
+  // Let it loop 5 times, then abort before the next
+  setTimeout(Math.floor(loopInterval * 5.5)).then(common.mustCall(() => {
+    ac.abort();
+  }));
+
+  assert.rejects(noopLoop, /AbortError/);
+  assert.rejects(timeoutLoop, /AbortError/);
+
 }
