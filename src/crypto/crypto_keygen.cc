@@ -84,7 +84,7 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(
   CHECK_LE(params->length, INT_MAX);
   params->out = MallocOpenSSL<char>(params->length);
   EntropySource(reinterpret_cast<unsigned char*>(params->out), params->length);
-  return KeyGenJobStatus::ERR_OK;
+  return KeyGenJobStatus::OK;
 }
 
 Maybe<bool> SecretKeyGenTraits::EncodeKey(
