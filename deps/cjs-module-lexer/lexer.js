@@ -278,7 +278,9 @@ function tryParseObjectDefineOrKeys (keys) {
             const exportPos = ++pos;
             if (identifier() && source.charCodeAt(pos) === ch) {
               // revert for "("
-              addExport(source.slice(exportPos, pos));
+              const expt = source.slice(exportPos, pos);
+              if (expt === '__esModule')
+                addExport(expt);
             }
           }
         }
