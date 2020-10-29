@@ -19,8 +19,8 @@ void Initialize(Environment* env, v8::Local<v8::Object> target);
 }  // namespace Keygen
 
 enum class KeyGenJobStatus {
-  ERR_OK,
-  ERR_FAILED
+  OK,
+  FAILED
 };
 
 // A Base CryptoJob for generating secret keys or key pairs.
@@ -77,11 +77,11 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
 
     switch (KeyGenTraits::DoKeyGen(AsyncWrap::env(), params)) {
-      case KeyGenJobStatus::ERR_OK:
-        status_ = KeyGenJobStatus::ERR_OK;
+      case KeyGenJobStatus::OK:
+        status_ = KeyGenJobStatus::OK;
         // Success!
         break;
-      case KeyGenJobStatus::ERR_FAILED: {
+      case KeyGenJobStatus::FAILED: {
         CryptoErrorVector* errors = CryptoJob<KeyGenTraits>::errors();
         errors->Capture();
         if (errors->empty())
@@ -96,7 +96,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     Environment* env = AsyncWrap::env();
     CryptoErrorVector* errors = CryptoJob<KeyGenTraits>::errors();
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
-    if (status_ == KeyGenJobStatus::ERR_OK &&
+    if (status_ == KeyGenJobStatus::OK &&
         LIKELY(!KeyGenTraits::EncodeKey(env, params, result).IsNothing())) {
       *err = Undefined(env->isolate());
       return v8::Just(true);
@@ -112,7 +112,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
   SET_SELF_SIZE(KeyGenJob);
 
  private:
-  KeyGenJobStatus status_ = KeyGenJobStatus::ERR_FAILED;
+  KeyGenJobStatus status_ = KeyGenJobStatus::FAILED;
 };
 
 // A Base KeyGenTraits for Key Pair generation algorithms.
@@ -162,15 +162,15 @@ struct KeyPairGenTraits final {
       AdditionalParameters* params) {
     EVPKeyCtxPointer ctx = KeyPairAlgorithmTraits::Setup(params);
     if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0)
-      return KeyGenJobStatus::ERR_FAILED;
+      return KeyGenJobStatus::FAILED;
 
     // Generate the key
     EVP_PKEY* pkey = nullptr;
     if (!EVP_PKEY_keygen(ctx.get(), &pkey))
-      return KeyGenJobStatus::ERR_FAILED;
+      return KeyGenJobStatus::FAILED;
 
     params->key = ManagedEVPPKey(EVPKeyPointer(pkey));
-    return KeyGenJobStatus::ERR_OK;
+    return KeyGenJobStatus::OK;
   }
 
   static v8::Maybe<bool> EncodeKey(
