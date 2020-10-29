@@ -128,9 +128,9 @@ enum WebCryptoCipherMode {
 };
 
 enum class WebCryptoCipherStatus {
-  ERR_OK,
-  ERR_INVALID_KEY_TYPE,
-  ERR_FAILED
+  OK,
+  INVALID_KEY_TYPE,
+  FAILED
 };
 
 // CipherJob is a base implementation class for implementations of
@@ -222,13 +222,13 @@ class CipherJob final : public CryptoJob<CipherTraits> {
                 *CryptoJob<CipherTraits>::params(),
                 in_,
                 &out_)) {
-      case WebCryptoCipherStatus::ERR_OK:
+      case WebCryptoCipherStatus::OK:
         // Success!
         break;
-      case WebCryptoCipherStatus::ERR_INVALID_KEY_TYPE:
+      case WebCryptoCipherStatus::INVALID_KEY_TYPE:
         // Fall through
         // TODO(@jasnell): Separate error for this
-      case WebCryptoCipherStatus::ERR_FAILED: {
+      case WebCryptoCipherStatus::FAILED: {
         CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
         errors->Capture();
         if (errors->empty())

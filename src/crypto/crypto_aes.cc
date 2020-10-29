@@ -31,7 +31,7 @@ namespace {
 // Implements general AES encryption and decryption for CBC
 // The key_data must be a secret key.
 // On success, this function sets out to a new AllocatedBuffer
-// instance containing the results and returns WebCryptoCipherStatus::ERR_OK.
+// instance containing the results and returns WebCryptoCipherStatus::OK.
 WebCryptoCipherStatus AES_Cipher(
     Environment* env,
     KeyObjectData* key_data,
@@ -59,7 +59,7 @@ WebCryptoCipherStatus AES_Cipher(
           nullptr,
           encrypt)) {
     // Cipher init failed
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
 
   if (mode == EVP_CIPH_GCM_MODE && !EVP_CIPHER_CTX_ctrl(
@@ -67,7 +67,7 @@ WebCryptoCipherStatus AES_Cipher(
         EVP_CTRL_AEAD_SET_IVLEN,
         params.iv.size(),
         nullptr)) {
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
 
   if (!EVP_CIPHER_CTX_set_key_length(
@@ -80,7 +80,7 @@ WebCryptoCipherStatus AES_Cipher(
           reinterpret_cast<const unsigned char*>(key_data->GetSymmetricKey()),
           params.iv.data<unsigned char>(),
           encrypt)) {
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
 
   size_t tag_len = 0;
@@ -95,7 +95,7 @@ WebCryptoCipherStatus AES_Cipher(
                 EVP_CTRL_AEAD_SET_TAG,
                 params.tag.size(),
                 const_cast<char*>(params.tag.get()))) {
-          return WebCryptoCipherStatus::ERR_FAILED;
+          return WebCryptoCipherStatus::FAILED;
         }
         break;
       case kWebCryptoCipherEncrypt:
@@ -123,7 +123,7 @@ WebCryptoCipherStatus AES_Cipher(
             &out_len,
             params.additional_data.data<unsigned char>(),
             params.additional_data.size())) {
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
 
   char* data = MallocOpenSSL<char>(buf_len);
@@ -136,7 +136,7 @@ WebCryptoCipherStatus AES_Cipher(
           &out_len,
           in.data<unsigned char>(),
           in.size())) {
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
 
   total += out_len;
@@ -144,7 +144,7 @@ WebCryptoCipherStatus AES_Cipher(
   ptr += out_len;
   out_len = EVP_CIPHER_CTX_block_size(ctx.get());
   if (!EVP_CipherFinal_ex(ctx.get(), ptr, &out_len)) {
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
   total += out_len;
 
@@ -153,7 +153,7 @@ WebCryptoCipherStatus AES_Cipher(
   if (cipher_mode == kWebCryptoCipherEncrypt && mode == EVP_CIPH_GCM_MODE) {
     data += out_len;
     if (!EVP_CIPHER_CTX_ctrl(ctx.get(), EVP_CTRL_AEAD_GET_TAG, tag_len, ptr))
-      return WebCryptoCipherStatus::ERR_FAILED;
+      return WebCryptoCipherStatus::FAILED;
     total += tag_len;
   }
 
@@ -161,7 +161,7 @@ WebCryptoCipherStatus AES_Cipher(
   buf.Resize(total);
   *out = std::move(buf);
 
-  return WebCryptoCipherStatus::ERR_OK;
+  return WebCryptoCipherStatus::OK;
 }
 
 // The AES_CTR implementation here takes it's inspiration from the chromium
@@ -232,7 +232,7 @@ WebCryptoCipherStatus AES_CTR_Cipher2(
           counter,
           encrypt)) {
     // Cipher init failed
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
 
   int out_len = 0;
@@ -243,17 +243,17 @@ WebCryptoCipherStatus AES_CTR_Cipher2(
           &out_len,
           in.data<unsigned char>(),
           in.size())) {
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
 
   if (!EVP_CipherFinal_ex(ctx.get(), out + out_len, &final_len))
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
 
   out_len += final_len;
   if (static_cast<unsigned>(out_len) != in.size())
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
 
-  return WebCryptoCipherStatus::ERR_OK;
+  return WebCryptoCipherStatus::OK;
 }
 
 WebCryptoCipherStatus AES_CTR_Cipher(
@@ -265,25 +265,25 @@ WebCryptoCipherStatus AES_CTR_Cipher(
     ByteSource* out) {
   BignumPointer num_counters(BN_new());
   if (!BN_lshift(num_counters.get(), BN_value_one(), params.length))
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
 
   BignumPointer current_counter = GetCounter(params);
 
   BignumPointer num_output(BN_new());
 
   if (!BN_set_word(num_output.get(), CeilDiv(in.size(), kAesBlockSize)))
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
 
   // Just like in chromium's implementation, if the counter will
   // be incremented more than there are counter values, we fail.
   if (BN_cmp(num_output.get(), num_counters.get()) > 0)
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
 
   BignumPointer remaining_until_reset(BN_new());
   if (!BN_sub(remaining_until_reset.get(),
               num_counters.get(),
               current_counter.get())) {
-    return WebCryptoCipherStatus::ERR_FAILED;
+    return WebCryptoCipherStatus::FAILED;
   }
 
   // Output size is identical to the input size
@@ -302,7 +302,7 @@ WebCryptoCipherStatus AES_CTR_Cipher(
         in,
         params.iv.data<unsigned char>(),
         ptr);
-    if (status == WebCryptoCipherStatus::ERR_OK)
+    if (status == WebCryptoCipherStatus::OK)
       *out = std::move(buf);
     return status;
   }
@@ -319,7 +319,7 @@ WebCryptoCipherStatus AES_CTR_Cipher(
       params.iv.data<unsigned char>(),
       ptr);
 
-  if (status != WebCryptoCipherStatus::ERR_OK)
+  if (status != WebCryptoCipherStatus::OK)
     return status;
 
   // Wrap the counter around to zero
@@ -336,7 +336,7 @@ WebCryptoCipherStatus AES_CTR_Cipher(
       new_counter_block.data(),
       ptr + input_size_part1);
 
-  if (status == WebCryptoCipherStatus::ERR_OK)
+  if (status == WebCryptoCipherStatus::OK)
     *out = std::move(buf);
 
   return status;
