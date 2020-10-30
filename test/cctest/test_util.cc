@@ -138,27 +138,27 @@ static void MaybeStackBufferBasic() {
   size_t old_length;
   size_t old_capacity;
 
-  /* Default constructor */
+  // Default constructor.
   EXPECT_EQ(0U, buf.length());
   EXPECT_FALSE(buf.IsAllocated());
   EXPECT_GT(buf.capacity(), buf.length());
 
-  /* SetLength() expansion */
+  // SetLength() expansion.
   buf.SetLength(buf.capacity());
   EXPECT_EQ(buf.capacity(), buf.length());
   EXPECT_FALSE(buf.IsAllocated());
 
-  /* Means of accessing raw buffer */
+  // Means of accessing raw buffer.
   EXPECT_EQ(buf.out(), *buf);
   EXPECT_EQ(&buf[0], *buf);
 
-  /* Basic I/O */
+  // Basic I/O.
   for (size_t i = 0; i < buf.length(); i++)
     buf[i] = static_cast<T>(i);
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
-  /* SetLengthAndZeroTerminate() */
+  // SetLengthAndZeroTerminate().
   buf.SetLengthAndZeroTerminate(buf.capacity() - 1);
   EXPECT_EQ(buf.capacity() - 1, buf.length());
   for (size_t i = 0; i < buf.length(); i++)
@@ -166,7 +166,7 @@ static void MaybeStackBufferBasic() {
   buf.SetLength(buf.capacity());
   EXPECT_EQ(0, buf[buf.length() - 1]);
 
-  /* Initial Realloc */
+  // Initial Realloc.
   old_length = buf.length() - 1;
   old_capacity = buf.capacity();
   buf.AllocateSufficientStorage(buf.capacity() * 2);
@@ -176,7 +176,7 @@ static void MaybeStackBufferBasic() {
     EXPECT_EQ(static_cast<T>(i), buf[i]);
   EXPECT_EQ(0, buf[old_length]);
 
-  /* SetLength() reduction and expansion */
+  // SetLength() reduction and expansion.
   for (size_t i = 0; i < buf.length(); i++)
     buf[i] = static_cast<T>(i);
   buf.SetLength(10);
@@ -186,7 +186,7 @@ static void MaybeStackBufferBasic() {
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
-  /* Subsequent Realloc */
+  // Subsequent Realloc.
   old_length = buf.length();
   old_capacity = buf.capacity();
   buf.AllocateSufficientStorage(old_capacity * 1.5);
@@ -196,13 +196,13 @@ static void MaybeStackBufferBasic() {
   for (size_t i = 0; i < old_length; i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
-  /* Basic I/O on Realloc'd buffer */
+  // Basic I/O on Realloc'd buffer.
   for (size_t i = 0; i < buf.length(); i++)
     buf[i] = static_cast<T>(i);
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
-  /* Release() */
+  // Release().
   T* rawbuf = buf.out();
   buf.Release();
   EXPECT_EQ(0U, buf.length());
@@ -215,7 +215,7 @@ TEST(UtilTest, MaybeStackBuffer) {
   MaybeStackBufferBasic<uint8_t>();
   MaybeStackBufferBasic<uint16_t>();
 
-  // Constructor with size parameter
+  // Constructor with size parameter.
   {
     MaybeStackBuffer<unsigned char> buf(100);
     EXPECT_EQ(100U, buf.length());
@@ -239,7 +239,7 @@ TEST(UtilTest, MaybeStackBuffer) {
       EXPECT_EQ(static_cast<unsigned char>(i), bigbuf[i]);
   }
 
-  // Invalidated buffer
+  // Invalidated buffer.
   {
     MaybeStackBuffer<char> buf;
     buf.Invalidate();
