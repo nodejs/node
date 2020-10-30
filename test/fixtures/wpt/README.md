@@ -19,6 +19,7 @@ Last update:
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/264f12bc7b/html/webappapis/timers
 - hr-time: https://github.com/web-platform-tests/wpt/tree/a5d1774ecf/hr-time
 - common: https://github.com/web-platform-tests/wpt/tree/4dacb6e2ff/common
+- dom/abort: https://github.com/web-platform-tests/wpt/tree/7caa3de747/dom/abort
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
