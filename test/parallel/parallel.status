@@ -5,6 +5,7 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+test-http2-respond-file-error-pipe-offset: PASS,FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/20750
