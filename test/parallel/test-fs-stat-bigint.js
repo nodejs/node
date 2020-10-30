@@ -122,21 +122,31 @@ if (!common.isWindows) {
   fs.closeSync(fd);
 }
 
-const runSyncFailureTest = (func, arg, error) => {
-  assert.throws(() => func(arg), error);
-  assert.strictEqual(func(arg, { throws: false }), undefined);
-};
-
 {
-  runSyncFailureTest(fs.statSync, 'does_not_exist', { code: 'ENOENT' });
+  assert.throws(
+    () => fs.statSync('does_not_exist'),
+    { code: 'ENOENT' });
+  assert.strictEqual(
+    fs.statSync('does_not_exist', { throwIfNoEntry: false }),
+    undefined);
 }
 
 {
-  runSyncFailureTest(fs.lstatSync, 'does_not_exist', { code: 'ENOENT' });
+  assert.throws(
+    () => fs.lstatSync('does_not_exist'),
+    { code: 'ENOENT' });
+  assert.strictEqual(
+    fs.lstatSync('does_not_exist', { throwIfNoEntry: false }),
+    undefined);
 }
 
 {
-  runSyncFailureTest(fs.fstatSync, 9999, { code: 'EBADF' });
+  assert.throws(
+    () => fs.fstatSync(9999),
+    { code: 'EBADF' });
+  assert.throws(
+    () => fs.fstatSync(9999, { throwIfNoEntry: false }),
+    { code: 'EBADF' });
 }
 
 const runCallbackTest = (func, arg, done) => {

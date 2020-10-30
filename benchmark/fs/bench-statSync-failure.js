@@ -16,7 +16,7 @@ function main({ n, statSyncType }) {
   bench.start();
   for (let i = 0; i < n; i++) {
     if (statSyncType === 'noThrow') {
-      fs.statSync(arg, { throws: false });
+      fs.statSync(arg, { throwIfNoEntry: false });
     } else {
       try {
         fs.statSync(arg);
