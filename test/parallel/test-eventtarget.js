@@ -479,3 +479,9 @@ let asyncTest = Promise.resolve();
     throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
   });
 }
+{
+  const eventTarget = new EventTarget();
+  const event = new Event('foo');
+  eventTarget.dispatchEvent(event);
+  strictEqual(event.target, eventTarget);
+}
