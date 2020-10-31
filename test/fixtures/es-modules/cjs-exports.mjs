@@ -3,7 +3,7 @@ import { strictEqual, deepEqual } from 'assert';
 import m, { π } from './exports-cases.js';
 import * as ns from './exports-cases.js';
 
-deepEqual(Object.keys(ns), ['default', 'isObject', 'π']);
+deepEqual(Object.keys(ns), ['default', 'isObject', 'z', 'π']);
 strictEqual(π, 'yes');
 strictEqual(typeof m.isObject, 'undefined');
 strictEqual(m.π, 'yes');
@@ -18,7 +18,7 @@ strictEqual(typeof m2, 'object');
 strictEqual(m2.default, 'the default');
 strictEqual(ns2.__esModule, true);
 strictEqual(ns2.name, 'name');
-deepEqual(Object.keys(ns2), ['__esModule', 'case2', 'default', 'name']);
+deepEqual(Object.keys(ns2), ['__esModule', 'case2', 'default', 'name', 'pi']);
 
 import m3, { __esModule as __esModule3, name as name3 } from './exports-cases3.js';
 import * as ns3 from './exports-cases3.js';
