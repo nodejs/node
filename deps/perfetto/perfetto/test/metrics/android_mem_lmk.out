@@ -1,0 +1,8 @@
+android_lmk {
+  total_count: 1
+    by_oom_score {
+    oom_score_adj: 900
+    count: 1
+  }
+  oom_victim_count: 0
+}

@@ -1,0 +1,18 @@
+name: gk20a_mmu_fault
+ID: 467
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 fault_hi;	offset:8;	size:4;	signed:0;
+	field:u32 fault_lo;	offset:12;	size:4;	signed:0;
+	field:u32 fault_info;	offset:16;	size:4;	signed:0;
+	field:u32 instance;	offset:20;	size:4;	signed:0;
+	field:u32 engine_id;	offset:24;	size:4;	signed:0;
+	field:const char * engine;	offset:32;	size:8;	signed:0;
+	field:const char * client;	offset:40;	size:8;	signed:0;
+	field:const char * fault_type;	offset:48;	size:8;	signed:0;
+
+print fmt: "fault=0x%x,%08x info=0x%x instance=0x%x engine_id=%d engine=%s client=%s type=%s", REC->fault_hi, REC->fault_lo, REC->fault_info, REC->instance, REC->engine_id, REC->engine, REC->client, REC->fault_type

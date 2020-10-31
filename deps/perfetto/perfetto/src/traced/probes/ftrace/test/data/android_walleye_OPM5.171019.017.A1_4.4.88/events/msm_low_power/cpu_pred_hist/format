@@ -1,0 +1,14 @@
+name: cpu_pred_hist
+ID: 707
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int idx;	offset:8;	size:4;	signed:1;
+	field:u32 resi;	offset:12;	size:4;	signed:0;
+	field:u32 sample;	offset:16;	size:4;	signed:0;
+	field:u32 tmr;	offset:20;	size:4;	signed:0;
+
+print fmt: "idx:%d resi:%u sample:%u tmr:%u", REC->idx, REC->resi, REC->sample, REC->tmr

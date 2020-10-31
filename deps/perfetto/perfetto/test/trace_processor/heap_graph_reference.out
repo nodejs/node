@@ -1,0 +1,4 @@
+"id","type","reference_set_id","owner_id","owned_id","field_name","field_type_name","deobfuscated_field_name"
+0,"heap_graph_reference",0,0,1,"FactoryProducerDelegateImplActor.foo","[NULL]","[NULL]"
+1,"heap_graph_reference",0,0,1,"a.b","[NULL]","Other.deobfuscatedA"
+2,"heap_graph_reference",2,3,0,"a.a","int","DeobfuscatedA.deobfuscatedA"

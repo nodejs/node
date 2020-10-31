@@ -1,0 +1,76 @@
+packet {
+  clock_snapshot {
+    clocks: {
+      clock_id: 6 # BOOTTIME
+      timestamp: 0
+    }
+    clocks: {
+      clock_id: 4 # MONOTONIC_COARSE
+      timestamp: 0
+    }
+  }
+}
+
+packet {
+  previous_packet_dropped: true
+  incremental_state_cleared: true
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  interned_data {
+    mappings {
+      iid: 1
+    }
+    frames {
+      iid: 1
+      mapping_id: 1
+      rel_pc: 0x123
+    }
+    callstacks {
+      iid: 1
+      frame_ids: 1
+    }
+  }
+}
+
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  profile_packet {
+    index: 0
+    continued: false
+    process_dumps {
+      samples {
+        callstack_id: 1
+        self_allocated: 1
+        alloc_count: 1
+        self_freed: 1
+        free_count: 1
+      }
+    }
+  }
+}
+
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 1
+  interned_data {
+    callstacks {
+      iid: 2
+      frame_ids: 1
+    }
+  }
+  profile_packet {
+    index: 1
+    continued: false
+    process_dumps {
+      timestamp: 1
+      samples {
+        callstack_id: 2
+        self_allocated: 1
+        alloc_count: 1
+        self_freed: 1
+        free_count: 1
+      }
+    }
+  }
+}

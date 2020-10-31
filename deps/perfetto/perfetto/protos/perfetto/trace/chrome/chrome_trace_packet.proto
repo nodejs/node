@@ -1,0 +1,66 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Use proto3 syntax as an optimization. The difference is that proto2 stores
+// unknown fields seen while decoding in an internal buffer (std::string) while
+// proto3 completely drops them. Since during validation we only need to check
+// for the presence of the trusted fields below, we can use proto3 as a way to
+// speed up this process.
+//
+// See https://developers.google.com/protocol-buffers/docs/proto3#unknowns and
+// https://android-review.googlesource.com/c/platform/external/perfetto/+/
+// 591673#17 for details.
+syntax = "proto3";
+
+import "protos/perfetto/common/trace_stats.proto";
+import "protos/perfetto/config/trace_config.proto";
+import "protos/perfetto/trace/chrome/chrome_trace_event.proto";
+import "protos/perfetto/trace/clock_snapshot.proto";
+import "protos/perfetto/trace/interned_data/interned_data.proto";
+import "protos/perfetto/trace/profiling/profile_packet.proto";
+import "protos/perfetto/trace/profiling/profile_common.proto";
+import "protos/perfetto/trace/track_event/process_descriptor.proto";
+import "protos/perfetto/trace/track_event/thread_descriptor.proto";
+import "protos/perfetto/trace/track_event/track_event.proto";
+
+package perfetto.protos;
+
+// This proto contains only the TracePacket fields that Chrome needs.
+// Note that the field ids here must be kept in sync with TracePacket.
+// This protobuf is here to avoid bloating the Chrome binary with symbols
+// for all possible trace protos.
+// TODO(b/78898755): Try using weak bindings instead of a separate proto.
+message ChromeTracePacket {
+  ChromeEventBundle chrome_events = 5;
+
+  ClockSnapshot clock_snapshot = 6;
+  TrackEvent track_event = 11;
+  ProcessDescriptor process_descriptor = 43;
+  ThreadDescriptor thread_descriptor = 44;
+  StreamingProfilePacket streaming_profile_packet = 54;
+  ProfiledFrameSymbols profiled_frame_symbols = 55;
+
+  // The original trace config.
+  TraceConfig trace_config = 33;
+  TraceStats trace_stats = 35;
+
+  uint32 trusted_packet_sequence_id = 10;
+
+  InternedData interned_data = 12;
+
+  bool incremental_state_cleared = 41;
+  bool previous_packet_dropped = 42;
+}

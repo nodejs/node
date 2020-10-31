@@ -1,0 +1,66 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message ProcessStatsConfig {
+  enum Quirks {
+    QUIRKS_UNSPECIFIED = 0;
+
+    // This has been deprecated and ignored as per 2018-05-01. Full scan at
+    // startup is now disabled by default and can be re-enabled using the
+    // |scan_all_processes_on_start| arg.
+    DISABLE_INITIAL_DUMP = 1 [deprecated = true];
+
+    DISABLE_ON_DEMAND = 2;
+  }
+
+  repeated Quirks quirks = 1;
+
+  // If enabled all processes will be scanned and dumped when the trace starts.
+  optional bool scan_all_processes_on_start = 2;
+
+  // If enabled thread names are also recoded (this is redundant if sched_switch
+  // is enabled).
+  optional bool record_thread_names = 3;
+
+  // If > 0 samples counters (see process_stats.proto) from
+  // /proc/pid/status and oom_score_adj every X ms.
+  // This is required to be > 100ms to avoid excessive CPU usage.
+  // TODO(primiano): add CPU cost for change this value.
+  optional uint32 proc_stats_poll_ms = 4;
+
+  // If empty samples stats for all processes. If non empty samples stats only
+  // for processes matching the given string in their argv0 (i.e. the first
+  // entry of /proc/pid/cmdline).
+  // TODO(primiano): implement this feature.
+  // repeated string proc_stats_filter = 5;
+
+  // This is required to be either = 0 or a multiple of |proc_stats_poll_ms|
+  // (default: |proc_stats_poll_ms|). If = 0, will be set to
+  // |proc_stats_poll_ms|. Non-multiples will be rounded down to the nearest
+  // multiple.
+  optional uint32 proc_stats_cache_ttl_ms = 6;
+
+  // Whether to record /proc/tid/time_in_state.
+  optional bool record_thread_time_in_state = 7;
+
+  // Size of the cache for thread time_in_state cpu freq values.
+  // If not specificed, the default is used.
+  optional uint32 thread_time_in_state_cache_size = 8;
+}

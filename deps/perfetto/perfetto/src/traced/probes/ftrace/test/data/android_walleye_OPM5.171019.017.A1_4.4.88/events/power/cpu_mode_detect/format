@@ -1,0 +1,21 @@
+name: cpu_mode_detect
+ID: 149
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 cpu;	offset:8;	size:4;	signed:0;
+	field:u32 max_load;	offset:12;	size:4;	signed:0;
+	field:u32 single_enter_cycle_cnt;	offset:16;	size:4;	signed:0;
+	field:u32 single_exit_cycle_cnt;	offset:20;	size:4;	signed:0;
+	field:u32 total_load;	offset:24;	size:4;	signed:0;
+	field:u32 multi_enter_cycle_cnt;	offset:28;	size:4;	signed:0;
+	field:u32 multi_exit_cycle_cnt;	offset:32;	size:4;	signed:0;
+	field:u32 perf_cl_peak_enter_cycle_cnt;	offset:36;	size:4;	signed:0;
+	field:u32 perf_cl_peak_exit_cycle_cnt;	offset:40;	size:4;	signed:0;
+	field:u32 mode;	offset:44;	size:4;	signed:0;
+	field:u32 cpu_cnt;	offset:48;	size:4;	signed:0;
+
+print fmt: "%u:%4u:%4u:%4u:%4u:%4u:%4u:%4u:%4u:%4u:%u", (unsigned int)REC->cpu, (unsigned int)REC->max_load, (unsigned int)REC->single_enter_cycle_cnt, (unsigned int)REC->single_exit_cycle_cnt, (unsigned int)REC->total_load, (unsigned int)REC->multi_enter_cycle_cnt, (unsigned int)REC->multi_exit_cycle_cnt, (unsigned int)REC->perf_cl_peak_enter_cycle_cnt, (unsigned int)REC->perf_cl_peak_exit_cycle_cnt, (unsigned int)REC->mode, (unsigned int)REC->cpu_cnt

@@ -1,0 +1,13 @@
+name: ext4_discard_blocks
+ID: 291
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:__u64 blk;	offset:16;	size:8;	signed:0;
+	field:__u64 count;	offset:24;	size:8;	signed:0;
+
+print fmt: "dev %d,%d blk %llu count %llu", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), REC->blk, REC->count

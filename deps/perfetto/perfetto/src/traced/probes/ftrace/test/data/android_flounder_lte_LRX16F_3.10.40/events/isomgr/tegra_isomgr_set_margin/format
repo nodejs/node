@@ -1,0 +1,14 @@
+name: tegra_isomgr_set_margin
+ID: 555
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:enum tegra_iso_client client;	offset:8;	size:4;	signed:0;
+	field:u32 bw;	offset:12;	size:4;	signed:0;
+	field:bool wait;	offset:16;	size:1;	signed:0;
+	field:char * msg;	offset:24;	size:8;	signed:0;
+
+print fmt: "client=%d, bw=%dKB, wait=%d %s", REC->client, REC->bw, REC->wait, REC->msg

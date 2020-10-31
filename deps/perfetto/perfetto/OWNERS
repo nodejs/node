@@ -1,0 +1,23 @@
+hjd@google.com
+primiano@google.com
+skyostil@google.com
+lalitm@google.com
+fmayer@google.com
+taylori@google.com
+rsavitski@google.com
+ilkos@google.com
+
+# For Chrome-related reviews.
+oysteine@google.com
+eseckler@google.com
+nuskos@google.com
+khokhlov@google.com
+ssid@google.com
+
+# chromium.org aliases for DEPS on third_party/perfetto.
+eseckler@chromium.org
+nuskos@chromium.org
+skyostil@chromium.org
+
+# TEAM: tracing@chromium.org
+# COMPONENT: Speed>Tracing

@@ -1,0 +1,10 @@
+perfetto for Debian
+------------------
+
+Perfetto is a performance instrumentation and logging framework for POSIX
+platforms. See https://android.googlesource.com/platform/external/perfetto/.
+
+
+
+ -- Sami Kyostila <skyostil@google.com>  Mon, 15 Jan 2018 23:23:25 +0000
+

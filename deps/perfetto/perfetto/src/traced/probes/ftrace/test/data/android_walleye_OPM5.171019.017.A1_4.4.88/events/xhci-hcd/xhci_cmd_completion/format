@@ -1,0 +1,16 @@
+name: xhci_cmd_completion
+ID: 623
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:void * va;	offset:8;	size:8;	signed:0;
+	field:u64 dma;	offset:16;	size:8;	signed:0;
+	field:u32 status;	offset:24;	size:4;	signed:0;
+	field:u32 flags;	offset:28;	size:4;	signed:0;
+	field:__data_loc u8[] trb;	offset:32;	size:4;	signed:0;
+
+print fmt: "
+trb_dma=@%llx, trb_va=@%pK, status=%08x, flags=%08x", (unsigned long long) REC->dma, REC->va, REC->status, REC->flags

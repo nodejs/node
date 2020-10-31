@@ -1,0 +1,294 @@
+# Sequence 1 defaults to track for "t1".
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 1
+    parent_uuid: 10
+    thread {
+      pid: 5
+      tid: 1
+      thread_name: "t1"
+    }
+  }
+  trace_packet_defaults {
+    track_event_defaults {
+      track_uuid: 1
+    }
+  }
+}
+# Sequence 2 defaults to track for "t2".
+packet {
+  trusted_packet_sequence_id: 2
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 2
+    parent_uuid: 10
+    thread {
+      pid: 5
+      tid: 2
+      thread_name: "t2"
+    }
+  }
+  trace_packet_defaults {
+    track_event_defaults {
+      track_uuid: 2
+    }
+  }
+}
+# Both thread tracks are nested underneath this process track.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  track_descriptor {
+    uuid: 10
+    process {
+      pid: 5
+      process_name: "p1"
+    }
+  }
+}
+# And we have an async track underneath the process too.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  track_descriptor {
+    uuid: 11
+    parent_uuid: 10
+    name: "async"
+  }
+}
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 100
+  track_descriptor {
+    uuid: 12
+    parent_uuid: 10
+    name: "async2"
+  }
+}
+packet {
+  trusted_packet_sequence_id: 2
+  timestamp: 200
+  track_descriptor {
+    uuid: 12
+    parent_uuid: 10
+    name: "async2"
+  }
+}
+
+# Should appear on default track "t1".
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 1000
+  track_event {
+    categories: "cat"
+    name: "event1_on_t1"
+    type: 3
+  }
+}
+# Should appear on default track "t2".
+packet {
+  trusted_packet_sequence_id: 2
+  timestamp: 2000
+  track_event {
+    categories: "cat"
+    name: "event1_on_t2"
+    type: 3
+  }
+}
+# Should appear on overridden track "t2".
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 3000
+  track_event {
+    track_uuid: 2
+    categories: "cat"
+    name: "event2_on_t2"
+    type: 3
+  }
+}
+# Should appear on process track.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 4000
+  track_event {
+    track_uuid: 10
+    categories: "cat"
+    name: "event1_on_p1"
+    type: 3
+  }
+}
+# Should appear on async track.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 5000
+  track_event {
+    track_uuid: 11
+    categories: "cat"
+    name: "event1_on_async"
+    type: 3
+  }
+}
+# Event for the "async2" track starting on one thread and ending on another.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 5100
+  track_event {
+    track_uuid: 12
+    categories: "cat"
+    name: "event1_on_async2"
+    type: 1
+  }
+}
+packet {
+  trusted_packet_sequence_id: 2
+  timestamp: 5200
+  track_event {
+    track_uuid: 12
+    categories: "cat"
+    name: "event1_on_async2"
+    type: 2
+  }
+}
+
+# If we later see another track descriptor for tid 1, but with a different uuid,
+# we should detect tid reuse and start a new thread.
+packet {
+  trusted_packet_sequence_id: 3
+  timestamp: 10000
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 3
+    parent_uuid: 10
+    thread {
+      pid: 5
+      tid: 1
+      thread_name: "t3"
+    }
+  }
+}
+# Should appear on t3.
+packet {
+  trusted_packet_sequence_id: 3
+  timestamp: 11000
+  track_event {
+    track_uuid: 3
+    categories: "cat"
+    name: "event1_on_t3"
+    type: 3
+  }
+}
+
+# If we later see another track descriptor for pid 5, but with a different uuid,
+# we should detect pid reuse and start a new process.
+packet {
+  trusted_packet_sequence_id: 4
+  timestamp: 20000
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 20
+    process {
+      pid: 5
+      process_name: "p2"
+    }
+  }
+}
+# Should appear on p2.
+packet {
+  trusted_packet_sequence_id: 4
+  timestamp: 21000
+  track_event {
+    track_uuid: 20
+    categories: "cat"
+    name: "event1_on_p2"
+    type: 3
+  }
+}
+# Another thread t4 in the new process.
+packet {
+  trusted_packet_sequence_id: 4
+  timestamp: 22000
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 21
+    parent_uuid: 20
+    thread {
+      pid: 5
+      tid: 4
+      thread_name: "t4"
+    }
+  }
+}
+# Should appear on t4.
+packet {
+  trusted_packet_sequence_id: 4
+  timestamp: 22000
+  track_event {
+    track_uuid: 21
+    categories: "cat"
+    name: "event1_on_t4"
+    type: 3
+  }
+}
+
+# Another packet for a thread track in the old process, badly sorted.
+packet {
+  trusted_packet_sequence_id: 2
+  timestamp: 6000
+  track_event {
+    track_uuid: 1
+    categories: "cat"
+    name: "event3_on_t1"
+    type: 3
+  }
+}
+
+# Override the track to the default descriptor track for an event with a
+# TrackEvent type. Should appear on the default descriptor track instead of
+# "t1".
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 30000
+  track_event {
+    track_uuid: 0
+    categories: "cat"
+    name: "event1_on_t1"
+    type: 3
+  }
+}
+
+# But a legacy event without TrackEvent type falls back to legacy tracks (based
+# on ThreadDescriptor / async IDs / legacy instant scopes). This instant event
+# should appear on the process track "p2".
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 31000
+  track_event {
+    track_uuid: 0
+    categories: "cat"
+    name: "event2_on_p2"
+    legacy_event {
+      phase: 73               # 'I'
+      instant_event_scope: 2  # Process scope
+    }
+  }
+}
+
+# And pid/tid overrides take effect even for TrackEvent type events.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 32000
+  track_event {
+    track_uuid: 0
+    categories: "cat"
+    name: "event2_on_t4"
+    type: 3
+    legacy_event {
+      pid_override: 5
+      tid_override: 4
+    }
+  }
+}

@@ -1,0 +1,23 @@
+[MESSAGES CONTROL]
+
+disable=
+  bad-indentation,
+  missing-docstring,
+  import-error,
+  no-name-in-module,
+  unused-argument,
+  invalid-name,
+  too-few-public-methods,
+
+[REPORTS]
+reports=no
+
+[VARIABLES]
+dummy-variables-rgx=_$|unused_
+
+[FORMAT]
+indent-string='  '
+
+# We suppress long line check for lines that contain only the URL (with or
+# without quote).
+ignore-long-lines=^\s*'?https?://\S+'?$

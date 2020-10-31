@@ -1,0 +1,47 @@
+# Copyright (C) 2020 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../../gn/test.gni")
+
+source_set("initial_display_state") {
+  public_deps = [ "../../../tracing/core" ]
+  deps = [
+    "..:data_source",
+    "../../../../gn:default_deps",
+    "../../../../include/perfetto/ext/traced",
+    "../../../../protos/perfetto/config/android:zero",
+    "../../../../protos/perfetto/trace:zero",
+    "../../../../protos/perfetto/trace/android:zero",
+    "../../../base",
+    "../common",
+  ]
+  sources = [
+    "initial_display_state_data_source.cc",
+    "initial_display_state_data_source.h",
+  ]
+}
+
+perfetto_unittest_source_set("unittests") {
+  testonly = true
+  deps = [
+    ":initial_display_state",
+    "../../../../gn:default_deps",
+    "../../../../gn:gtest_and_gmock",
+    "../../../../protos/perfetto/trace/android:cpp",
+    "../../../../src/base:test_support",
+    "../../../../src/tracing/test:test_support",
+    "../common:test_support",
+  ]
+  sources = [ "initial_display_state_data_source_unittest.cc" ]
+}

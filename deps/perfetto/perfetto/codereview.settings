@@ -1,0 +1,4 @@
+# For depot_tools / git cl upload workflow.
+GERRIT_HOST: True
+CODE_REVIEW_SERVER: https://android-review.googlesource.com
+PROJECT: platform/external/perfetto

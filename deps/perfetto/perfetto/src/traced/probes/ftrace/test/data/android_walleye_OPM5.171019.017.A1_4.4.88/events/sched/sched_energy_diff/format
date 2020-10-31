@@ -1,0 +1,23 @@
+name: sched_energy_diff
+ID: 76
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char comm[16];	offset:8;	size:16;	signed:0;
+	field:pid_t pid;	offset:24;	size:4;	signed:1;
+	field:int scpu;	offset:28;	size:4;	signed:1;
+	field:int dcpu;	offset:32;	size:4;	signed:1;
+	field:int udelta;	offset:36;	size:4;	signed:1;
+	field:int nrgb;	offset:40;	size:4;	signed:1;
+	field:int nrga;	offset:44;	size:4;	signed:1;
+	field:int nrgd;	offset:48;	size:4;	signed:1;
+	field:int capb;	offset:52;	size:4;	signed:1;
+	field:int capa;	offset:56;	size:4;	signed:1;
+	field:int capd;	offset:60;	size:4;	signed:1;
+	field:int nrgn;	offset:64;	size:4;	signed:1;
+	field:int nrgp;	offset:68;	size:4;	signed:1;
+
+print fmt: "pid=%d comm=%s src_cpu=%d dst_cpu=%d usage_delta=%d nrg_before=%d nrg_after=%d nrg_diff=%d cap_before=%d cap_after=%d cap_delta=%d nrg_delta=%d nrg_payoff=%d", REC->pid, REC->comm, REC->scpu, REC->dcpu, REC->udelta, REC->nrgb, REC->nrga, REC->nrgd, REC->capb, REC->capa, REC->capd, REC->nrgn, REC->nrgp

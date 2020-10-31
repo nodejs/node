@@ -1,0 +1,15 @@
+name: cfg80211_ibss_joined
+ID: 926
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char name[16];	offset:8;	size:16;	signed:0;
+	field:int ifindex;	offset:24;	size:4;	signed:1;
+	field:u8 bssid[6];	offset:28;	size:6;	signed:0;
+	field:enum nl80211_band band;	offset:36;	size:4;	signed:0;
+	field:u16 center_freq;	offset:40;	size:2;	signed:0;
+
+print fmt: "netdev:%s(%d), bssid: %pM, band: %d, freq: %u", REC->name, REC->ifindex, (REC->bssid), REC->band, REC->center_freq

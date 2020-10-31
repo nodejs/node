@@ -1,0 +1,15 @@
+name: snd_soc_dapm_walk_done
+ID: 428
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:12;	size:4;	signed:0;
+	field:int power_checks;	offset:16;	size:4;	signed:1;
+	field:int path_checks;	offset:20;	size:4;	signed:1;
+	field:int neighbour_checks;	offset:24;	size:4;	signed:1;
+
+print fmt: "%s: checks %d power, %d path, %d neighbour", __get_str(name), (int)REC->power_checks, (int)REC->path_checks, (int)REC->neighbour_checks

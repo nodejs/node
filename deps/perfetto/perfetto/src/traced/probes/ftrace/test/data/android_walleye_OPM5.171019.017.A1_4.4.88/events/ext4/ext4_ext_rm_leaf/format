@@ -1,0 +1,17 @@
+name: ext4_ext_rm_leaf
+ID: 355
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:long long partial;	offset:24;	size:8;	signed:1;
+	field:ext4_lblk_t start;	offset:32;	size:4;	signed:0;
+	field:ext4_lblk_t ee_lblk;	offset:36;	size:4;	signed:0;
+	field:ext4_fsblk_t ee_pblk;	offset:40;	size:8;	signed:0;
+	field:short ee_len;	offset:48;	size:2;	signed:1;
+
+print fmt: "dev %d,%d ino %lu start_lblk %u last_extent [%u(%llu), %u]partial_cluster %lld", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, (unsigned) REC->start, (unsigned) REC->ee_lblk, (unsigned long long) REC->ee_pblk, (unsigned short) REC->ee_len, (long long) REC->partial

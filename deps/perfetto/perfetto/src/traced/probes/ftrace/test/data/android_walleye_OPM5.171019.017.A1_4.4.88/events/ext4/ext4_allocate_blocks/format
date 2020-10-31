@@ -1,0 +1,21 @@
+name: ext4_allocate_blocks
+ID: 307
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:__u64 block;	offset:24;	size:8;	signed:0;
+	field:unsigned int len;	offset:32;	size:4;	signed:0;
+	field:__u32 logical;	offset:36;	size:4;	signed:0;
+	field:__u32 lleft;	offset:40;	size:4;	signed:0;
+	field:__u32 lright;	offset:44;	size:4;	signed:0;
+	field:__u64 goal;	offset:48;	size:8;	signed:0;
+	field:__u64 pleft;	offset:56;	size:8;	signed:0;
+	field:__u64 pright;	offset:64;	size:8;	signed:0;
+	field:unsigned int flags;	offset:72;	size:4;	signed:0;
+
+print fmt: "dev %d,%d ino %lu flags %s len %u block %llu lblk %u goal %llu lleft %u lright %u pleft %llu pright %llu", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, __print_flags(REC->flags, "|", { 0x0001, "HINT_MERGE" }, { 0x0002, "HINT_RESV" }, { 0x0004, "HINT_MDATA" }, { 0x0008, "HINT_FIRST" }, { 0x0010, "HINT_BEST" }, { 0x0020, "HINT_DATA" }, { 0x0040, "HINT_NOPREALLOC" }, { 0x0080, "HINT_GRP_ALLOC" }, { 0x0100, "HINT_GOAL_ONLY" }, { 0x0200, "HINT_TRY_GOAL" }, { 0x0400, "DELALLOC_RESV" }, { 0x0800, "STREAM_ALLOC" }, { 0x1000, "USE_ROOT_BLKS" }, { 0x2000, "USE_RESV" }), REC->len, REC->block, REC->logical, REC->goal, REC->lleft, REC->lright, REC->pleft, REC->pright

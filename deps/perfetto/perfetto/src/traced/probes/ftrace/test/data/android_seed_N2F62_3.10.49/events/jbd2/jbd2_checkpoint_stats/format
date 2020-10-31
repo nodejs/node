@@ -1,0 +1,16 @@
+name: jbd2_checkpoint_stats
+ID: 325
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:unsigned long tid;	offset:12;	size:4;	signed:0;
+	field:unsigned long chp_time;	offset:16;	size:4;	signed:0;
+	field:__u32 forced_to_close;	offset:20;	size:4;	signed:0;
+	field:__u32 written;	offset:24;	size:4;	signed:0;
+	field:__u32 dropped;	offset:28;	size:4;	signed:0;
+
+print fmt: "dev %d,%d tid %lu chp_time %u forced_to_close %u written %u dropped %u", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), REC->tid, jiffies_to_msecs(REC->chp_time), REC->forced_to_close, REC->written, REC->dropped

@@ -1,0 +1,180 @@
+#!/usr/bin/env python
+
+# Copyright (C) 2020 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+import time
+
+NULL = open(os.devnull)
+
+PACKAGES_LIST_CFG = '''data_sources {
+  config {
+    name: "android.packages_list"
+  }
+}
+'''
+
+CFG_IDENT = '      '
+CFG = '''buffers {{
+  size_kb: 100024
+  fill_policy: RING_BUFFER
+}}
+
+data_sources {{
+  config {{
+    name: "android.java_hprof"
+    java_hprof_config {{
+{target_cfg}
+{continuous_dump_config}
+    }}
+  }}
+}}
+
+duration_ms: 20000
+'''
+
+CONTINUOUS_DUMP = """
+      continuous_dump_config {{
+        dump_phase_ms: 0
+        dump_interval_ms: {dump_interval}
+      }}
+"""
+
+PERFETTO_CMD = ('CFG=\'{cfg}\'; echo ${{CFG}} | '
+                'perfetto --txt -c - -o '
+                '/data/misc/perfetto-traces/java-profile-{user} -d')
+
+def main(argv):
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      "-o",
+      "--output",
+      help="Filename to save profile to.",
+      metavar="FILE",
+      default=None)
+  parser.add_argument(
+      "-p",
+      "--pid",
+      help="Comma-separated list of PIDs to "
+      "profile.",
+      metavar="PIDS")
+  parser.add_argument(
+      "-n",
+      "--name",
+      help="Comma-separated list of process "
+      "names to profile.",
+      metavar="NAMES")
+  parser.add_argument(
+      "-c",
+      "--continuous-dump",
+      help="Dump interval in ms. 0 to disable continuous dump.",
+      type=int,
+      default=0)
+  parser.add_argument(
+      "--no-versions",
+      action="store_true",
+      help="Do not get version information about APKs.")
+  parser.add_argument(
+      "--dump-smaps",
+      action="store_true",
+      help="Get information about /proc/$PID/smaps of target.")
+  parser.add_argument(
+      "--print-config",
+      action="store_true",
+      help="Print config instead of running. For debugging.")
+
+  args = parser.parse_args()
+
+  fail = False
+  if args.pid is None and args.name is None:
+    print("FATAL: Neither PID nor NAME given.", file=sys.stderr)
+    fail = True
+
+  target_cfg = ""
+  if args.pid:
+    for pid in args.pid.split(','):
+      try:
+        pid = int(pid)
+      except ValueError:
+        print("FATAL: invalid PID %s" % pid, file=sys.stderr)
+        fail = True
+      target_cfg += '{}pid: {}\n'.format(CFG_IDENT, pid)
+  if args.name:
+    for name in args.name.split(','):
+      target_cfg += '{}process_cmdline: "{}"\n'.format(CFG_IDENT, name)
+  if args.dump_smaps:
+    target_cfg += '{}dump_smaps: true\n'.format(CFG_IDENT)
+
+  if fail:
+    parser.print_help()
+    return 1
+
+  output_file = args.output
+  if output_file is None:
+    fd, name = tempfile.mkstemp('profile')
+    os.close(fd)
+    output_file = name
+
+  continuous_dump_cfg = ""
+  if args.continuous_dump:
+    continuous_dump_cfg = CONTINUOUS_DUMP.format(
+        dump_interval=args.continuous_dump)
+  cfg = CFG.format(
+      target_cfg=target_cfg,
+      continuous_dump_config=continuous_dump_cfg)
+  if not args.no_versions:
+    cfg += PACKAGES_LIST_CFG
+
+  if args.print_config:
+    print(cfg)
+    return 0
+
+  user = subprocess.check_output(['adb', 'shell', 'whoami']).strip()
+  perfetto_pid = subprocess.check_output(
+      ['adb', 'exec-out',
+       PERFETTO_CMD.format(cfg=cfg, user=user)]).strip()
+  try:
+    int(perfetto_pid.strip())
+  except ValueError:
+    print("Failed to invoke perfetto: {}".format(perfetto_pid), file=sys.stderr)
+    return 1
+
+  print("Dumping Java Heap.")
+  exists = True
+
+  # Wait for perfetto cmd to return.
+  while exists:
+    exists = subprocess.call(
+        ['adb', 'shell', '[ -d /proc/{} ]'.format(perfetto_pid)]) == 0
+    time.sleep(1)
+
+  subprocess.check_call(
+    ['adb', 'pull', '/data/misc/perfetto-traces/java-profile-{}'.format(user),
+     output_file], stdout=NULL)
+
+  print("Wrote profile to {}".format(output_file))
+  print("This can be viewed using https://ui.perfetto.dev.")
+
+
+if __name__ == '__main__':
+  sys.exit(main(sys.argv))

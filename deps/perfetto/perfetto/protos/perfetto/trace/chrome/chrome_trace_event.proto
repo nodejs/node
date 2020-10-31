@@ -1,0 +1,122 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+package perfetto.protos;
+
+message ChromeTracedValue {
+  enum NestedType {
+    DICT = 0;
+    ARRAY = 1;
+  }
+  optional NestedType nested_type = 1;
+
+  repeated string dict_keys = 2;
+  repeated ChromeTracedValue dict_values = 3;
+  repeated ChromeTracedValue array_values = 4;
+  optional int32 int_value = 5;
+  optional double double_value = 6;
+  optional bool bool_value = 7;
+  optional string string_value = 8;
+}
+
+message ChromeStringTableEntry {
+  optional string value = 1;
+  optional int32 index = 2;
+}
+
+// Deprecated, use TrackEvent protos instead.
+message ChromeTraceEvent {
+  message Arg {
+    optional string name = 1;
+
+    oneof value {
+      bool bool_value = 2;
+      uint64 uint_value = 3;
+      int64 int_value = 4;
+      double double_value = 5;
+      string string_value = 6;
+      // Pointers are stored in a separate type as the JSON output treats them
+      // differently from other uint64 values.
+      uint64 pointer_value = 7;
+      string json_value = 8;
+      ChromeTracedValue traced_value = 10;
+    }
+
+    // Takes precedence over |name| if set,
+    // and is an index into |string_table|.
+    optional uint32 name_index = 9;
+  }
+
+  optional string name = 1;
+  optional int64 timestamp = 2;
+  optional int32 phase = 3;
+  optional int32 thread_id = 4;
+  optional int64 duration = 5;
+  optional int64 thread_duration = 6;
+  optional string scope = 7;
+  optional uint64 id = 8;
+  optional uint32 flags = 9;
+  optional string category_group_name = 10;
+  optional int32 process_id = 11;
+  optional int64 thread_timestamp = 12;
+  optional uint64 bind_id = 13;
+
+  repeated Arg args = 14;
+
+  // Takes precedence over respectively |name| and
+  // |category_group_name_index| if set,
+  // and are indices into |string_table|.
+  optional uint32 name_index = 15;
+  optional uint32 category_group_name_index = 16;
+}
+
+message ChromeMetadata {
+  optional string name = 1;
+
+  oneof value {
+    string string_value = 2;
+    bool bool_value = 3;
+    int64 int_value = 4;
+    string json_value = 5;
+  }
+}
+
+// Subtraces produced in legacy json format by Chrome tracing agents not yet
+// updated to support the new binary format, e.g. ETW and CrOS ARC.
+// TODO(eseckler): Update these agents to become perfetto producers.
+message ChromeLegacyJsonTrace {
+  enum TraceType {
+    USER_TRACE = 0;
+    SYSTEM_TRACE = 1;  // Deprecated.
+  }
+  optional TraceType type = 1;
+  optional string data = 2;
+}
+
+message ChromeEventBundle {
+  // Deprecated, use TrackEvent protos instead.
+  repeated ChromeTraceEvent trace_events = 1 [deprecated = true];
+  repeated ChromeMetadata metadata = 2;
+  // ftrace output from CrOS and Cast system tracing agents.
+  // TODO(eseckler): Replace system traces with native perfetto service.
+  repeated string legacy_ftrace_output = 4;
+  repeated ChromeLegacyJsonTrace legacy_json_trace = 5;
+
+  // Contents of a string table that's valid for
+  // the whole ChromeEventBundle entry.
+  repeated ChromeStringTableEntry string_table = 3 [deprecated = true];
+}

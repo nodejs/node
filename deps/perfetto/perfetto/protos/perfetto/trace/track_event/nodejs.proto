@@ -1,0 +1,52 @@
+syntax = "proto2";
+
+package perfetto.protos;
+
+message AsyncWrapInfo {
+  optional uint64 executionAsyncId = 1;
+  optional uint64 triggerAsyncId = 2;
+}
+
+message NodeProcessMetadata {
+  message Version {
+    required string component = 1;
+    required string version = 2;
+  }
+  enum Endianness {
+    LE = 1;
+    BE = 2;
+  }
+  optional string title = 1;
+  optional string version = 2;
+  optional string arch = 3;
+  optional string platform = 4;
+  optional string release = 5;
+  optional string lts = 6;
+  optional Endianness endianness = 7;
+  repeated string args = 8;
+  repeated string exec_args = 9;
+  repeated Version versions = 10;
+}
+
+message EventLoopDelay {
+  message Percentile {
+    required double percentile = 1;
+    required double value = 2;
+  }
+
+  required int64 min = 1;
+  required int64 max = 2;
+  required int64 mean = 3;
+  required int64 stddev = 4;
+  required uint64 idle_time = 5;
+  repeated Percentile percentiles = 6;
+}
+
+enum NodePerformanceMilestone {
+  ENVIRONMENT = 1;
+  NODE_START = 2;
+  V8_START = 3;
+  LOOP_START = 4;
+  LOOP_EXIT = 5;
+  BOOTSTRAP_COMPLETE = 6;
+}

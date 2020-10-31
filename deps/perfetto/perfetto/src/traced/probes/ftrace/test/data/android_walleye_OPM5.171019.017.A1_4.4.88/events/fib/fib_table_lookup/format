@@ -1,0 +1,18 @@
+name: fib_table_lookup
+ID: 797
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 tb_id;	offset:8;	size:4;	signed:0;
+	field:int oif;	offset:12;	size:4;	signed:1;
+	field:int iif;	offset:16;	size:4;	signed:1;
+	field:__u8 tos;	offset:20;	size:1;	signed:0;
+	field:__u8 scope;	offset:21;	size:1;	signed:0;
+	field:__u8 flags;	offset:22;	size:1;	signed:0;
+	field:__u8 src[4];	offset:23;	size:4;	signed:0;
+	field:__u8 dst[4];	offset:27;	size:4;	signed:0;
+
+print fmt: "table %u oif %d iif %d src %pI4 dst %pI4 tos %d scope %d flags %x", REC->tb_id, REC->oif, REC->iif, REC->src, REC->dst, REC->tos, REC->scope, REC->flags

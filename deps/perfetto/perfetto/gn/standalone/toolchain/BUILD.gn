@@ -1,0 +1,263 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//gn/perfetto.gni")
+import("//gn/standalone/android.gni")
+import("//gn/standalone/wasm.gni")
+import("llvm.gni")
+
+# This file is evaluated once, within the context of the default toolchain,
+# which is the target toolchain.
+# Note: This means that is_android=true even on a mac when cross-compiling for
+# Android.
+assert(current_os == target_os && current_cpu == target_cpu,
+       "Assumptions on current_xxx in this file have been violated")
+
+declare_args() {
+  cc_wrapper = ""
+}
+
+# First of all determine the host toolchain. The user can override this by:
+# 1. setting ar/cc/cxx vars in args.gn.
+# 2. setting is_system_compiler=true in args.gn and the env vars AR/CC/CXX.
+#    This is used by OSSFuzz.
+declare_args() {
+  sysroot = ""
+  gcc_toolchain = ""
+  ar = "ar"
+  if (is_linux_host) {
+    linker = "gold"
+  } else {
+    linker = ""
+  }
+
+  if (is_system_compiler) {
+    ar = "\$AR"
+    cc = "\$CC"
+    cxx = "\$CXX"
+  } else if (is_clang) {
+    if (is_linux_host) {
+      cc = linux_clang_bin
+      cxx = linux_clangxx_bin
+      linker = linux_clang_linker
+    } else {
+      cc = "clang"
+      cxx = "clang++"
+      linker = ""
+    }
+  } else {  # GCC
+    cc = "gcc"
+    cxx = "g++"
+  }
+}
+
+# Then determine the target toolchain.
+
+declare_args() {
+  target_sysroot = sysroot
+  target_gcc_toolchain = ""
+  if (!is_cross_compiling) {
+    target_triplet = ""
+  } else if (target_os == "mac" && target_cpu == "x64") {
+    target_triplet = "x86_64-apple-darwin"
+  } else if (target_os == "mac" && target_cpu == "x86") {
+    target_triplet = "i686-apple-darwin"
+  } else if (target_os == "linux" && target_cpu == "arm64") {
+    target_triplet = "aarch64-linux-gnu"
+  } else if (target_os == "linux" && target_cpu == "x64") {
+    target_triplet = "x86_64-linux-gnu"
+  } else if (target_os == "linux" && target_cpu == "x86") {
+    target_triplet = "i686-linux-gnu"
+  } else if (target_os == "android" && target_cpu == "arm64") {
+    target_triplet = "aarch64-linux-android"
+  } else if (target_os == "android" && target_cpu == "arm") {
+    target_triplet = "arm-linux-androideabi"
+  } else if (target_os == "android" && target_cpu == "x86") {
+    target_triplet = "i686-linux-android"
+  } else if (target_os == "android" && target_cpu == "x64") {
+    target_triplet = "x86_64-linux-android"
+  } else {
+    assert(false,
+           "Unsupported cross-compilation for ${target_os}-${target_cpu}")
+  }
+}
+
+declare_args() {
+  if (!is_cross_compiling || is_perfetto_build_generator) {
+    target_ar = ar
+    target_cc = cc
+    target_cxx = cxx
+    target_linker = linker
+  } else {
+    target_ar = "ar"
+    if (is_linux || is_android) {
+      target_linker = "gold"
+    } else {
+      target_linker = ""
+    }
+    if (is_android) {
+      target_ar = "$android_toolchain_root/bin/$android_abi_target-ar"
+      target_cc = "$android_llvm_dir/bin/clang"
+      target_cxx = "$android_llvm_dir/bin/clang++"
+    } else {
+      assert(target_triplet != "",
+             "target_triplet must be non-empty when cross-compiling")
+      if (is_clang) {
+        target_cc = "${linux_clang_bin} --target=${target_triplet}"
+        target_cxx = "${linux_clangxx_bin} --target=${target_triplet}"
+        target_linker = "${linux_clang_linker} --target=${target_triplet}"
+      } else {  # GCC
+        target_ar = "${target_triplet}-ar"
+        target_cc = "${target_triplet}-gcc"
+        target_cxx = "${target_triplet}-g++"
+      }
+    }
+  }
+}
+
+template("gcc_like_toolchain") {
+  toolchain(target_name) {
+    ar = invoker.ar
+    cc = invoker.cc
+    cxx = invoker.cxx
+    lib_switch = "-l"
+    lib_dir_switch = "-L"
+    ld_arg = ""
+    if (defined(invoker.linker) && invoker.linker != "") {
+      _invoker_linker = invoker.linker
+      ld_arg = "-fuse-ld=$_invoker_linker"
+    }
+    if (defined(invoker.sysroot) && invoker.sysroot != "") {
+      _invoker_sysroot = invoker.sysroot
+      cc = "$cc --sysroot=$_invoker_sysroot"
+      cxx = "$cxx --sysroot=$_invoker_sysroot"
+    }
+    if (defined(invoker.gcc_toolchain) && invoker.gcc_toolchain != "") {
+      assert(is_clang, "gcc_toolchain can be used only when using clang")
+      _invoker_gcc_toolchain = invoker.gcc_toolchain
+      ld_arg = "$ld_arg --gcc-toolchain=$_invoker_gcc_toolchain"
+    }
+
+    tool("cc") {
+      depfile = "{{output}}.d"
+      command = "$cc_wrapper $cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} ${extra_cflags} -c {{source}} -o {{output}}"
+      depsformat = "gcc"
+      outputs =
+          [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
+      description = "compile {{source}}"
+    }
+
+    tool("cxx") {
+      depfile = "{{output}}.d"
+      command = "$cc_wrapper $cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}  ${extra_cflags} ${extra_cxxflags} -c {{source}} -o {{output}}"
+      depsformat = "gcc"
+      outputs =
+          [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
+      description = "compile {{source}}"
+    }
+
+    tool("asm") {
+      depfile = "{{output}}.d"
+      command = "$cc_wrapper $cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{asmflags}} -c {{source}} -o {{output}}"
+      depsformat = "gcc"
+      outputs =
+          [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
+      description = "assemble {{source}}"
+    }
+
+    tool("alink") {
+      rspfile = "{{output}}.rsp"
+      if (is_mac && ar != "suppress_unused_ar_variable_warning") {
+        rspfile_content = "{{inputs_newline}}"
+        command = "rm -f {{output}} && libtool -static {{arflags}} -o {{output}} -filelist $rspfile"
+      } else {
+        rspfile_content = "{{inputs}}"
+        command = "rm -f {{output}} && $ar rcsD {{output}} @$rspfile"
+      }
+      outputs =
+          [ "{{root_out_dir}}/{{target_output_name}}{{output_extension}}" ]
+      default_output_extension = ".a"
+      output_prefix = "lib"
+      description = "link {{output}}"
+    }
+
+    tool("solink") {
+      soname = "{{target_output_name}}{{output_extension}}"
+
+      rpath = "-Wl,-soname,$soname"
+      if (is_mac) {
+        rpath = "-Wl,-install_name,@rpath/$soname"
+      }
+
+      command = "$cc_wrapper $cxx $ld_arg -shared {{ldflags}} ${extra_ldflags} {{inputs}} {{solibs}} {{libs}} $rpath -o {{output}}"
+      outputs = [ "{{root_out_dir}}/$soname" ]
+      output_prefix = "lib"
+      default_output_extension = ".so"
+      description = "link {{output}}"
+    }
+
+    tool("link") {
+      command = "$cc_wrapper $cxx $ld_arg {{ldflags}} ${extra_ldflags} {{inputs}} {{solibs}} {{libs}} -o {{output}}"
+      outputs =
+          [ "{{root_out_dir}}/{{target_output_name}}{{output_extension}}" ]
+      description = "link {{output}}"
+    }
+
+    tool("stamp") {
+      command = "touch {{output}}"
+      description = "stamp {{output}}"
+    }
+
+    tool("copy") {
+      command = "cp -af {{source}} {{output}}"
+      description = "COPY {{source}} {{output}}"
+    }
+
+    toolchain_args = {
+      current_cpu = invoker.cpu
+      current_os = invoker.os
+    }
+  }
+}
+
+gcc_like_toolchain("gcc_like") {
+  cpu = current_cpu
+  os = current_os
+  ar = target_ar
+  cc = target_cc
+  cxx = target_cxx
+  linker = target_linker
+  sysroot = target_sysroot
+  gcc_toolchain = target_gcc_toolchain
+}
+
+gcc_like_toolchain("gcc_like_host") {
+  cpu = host_cpu
+  os = host_os
+  ar = ar
+  cc = cc
+  cxx = cxx
+  linker = linker
+  sysroot = sysroot
+  gcc_toolchain = gcc_toolchain
+}
+
+gcc_like_toolchain("wasm") {
+  # emsdk_dir and em_config are defined in wasm.gni.
+  cpu = host_cpu
+  os = host_os
+  ar = "$emsdk_dir/emscripten/emar --em-config $em_config"
+  cc = "$emsdk_dir/emscripten/emcc --em-config $em_config"
+  cxx = "$emsdk_dir/emscripten/em++ --em-config $em_config"
+}

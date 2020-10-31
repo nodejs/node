@@ -1,0 +1,17 @@
+name: cache_hwmon_meas
+ID: 142
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:unsigned long high_mrps;	offset:16;	size:8;	signed:0;
+	field:unsigned long med_mrps;	offset:24;	size:8;	signed:0;
+	field:unsigned long low_mrps;	offset:32;	size:8;	signed:0;
+	field:unsigned long total_mrps;	offset:40;	size:8;	signed:0;
+	field:unsigned int busy_percent;	offset:48;	size:4;	signed:0;
+	field:unsigned int us;	offset:52;	size:4;	signed:0;
+
+print fmt: "dev=%s H=%lu M=%lu L=%lu T=%lu busy_pct=%u period=%u", __get_str(name), REC->high_mrps, REC->med_mrps, REC->low_mrps, REC->total_mrps, REC->busy_percent, REC->us

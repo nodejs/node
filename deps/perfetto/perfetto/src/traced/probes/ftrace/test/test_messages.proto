@@ -1,0 +1,35 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+message FakeFtraceEvent {
+  optional uint32 common_field = 1;
+  optional uint32 common_pid = 2;
+  oneof event { FakeAllFieldsFtraceEvent all_fields = 42; }
+}
+
+message FakeAllFieldsFtraceEvent {
+  optional uint32 field_uint32 = 1;
+  optional int32 field_pid = 2;
+  optional uint64 field_dev_32 = 3;
+  optional uint64 field_inode_32 = 4;
+  optional uint64 field_dev_64 = 5;
+  optional uint64 field_inode_64 = 6;
+  optional string field_char_16 = 500;
+  optional string field_char = 501;
+  optional string field_data_loc = 502;
+}

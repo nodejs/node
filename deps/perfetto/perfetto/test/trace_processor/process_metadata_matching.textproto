@@ -1,0 +1,48 @@
+packet {
+  process_tree {
+    processes {
+      pid: 1
+      ppid: 0
+      cmdline: "init"
+      uid: 0
+    }
+    processes {
+      pid: 2
+      ppid: 1
+      cmdline: "system_server"
+      uid: 1000
+    }
+    processes {
+      pid: 3
+      ppid: 1
+      cmdline: "com.google.android.gms"
+      uid: 10100
+    }
+    processes {
+      pid: 4
+      ppid: 1
+      cmdline: "com.google.android.gms.persistent"
+      uid: 10100
+    }
+    processes {
+      pid: 5
+      ppid: 1
+      cmdline: "com.google.android.gms"
+      uid: 1010100
+    }
+  }
+}
+packet {
+  packages_list {
+    packages {
+      name: "com.google.android.gms"
+      uid: 10100
+      version_code: 1234
+    }
+    packages {
+      name: "com.google.android.gsf"
+      uid: 10100
+      version_code: 1
+    }
+  }
+}

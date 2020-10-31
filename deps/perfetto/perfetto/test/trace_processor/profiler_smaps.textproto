@@ -1,0 +1,35 @@
+packet {
+  process_tree {
+    processes {
+      pid: 1
+      ppid: 0
+      cmdline: "init"
+      uid: 0
+    }
+    processes {
+      pid: 2
+      ppid: 1
+      cmdline: "system_server"
+      uid: 1000
+    }
+  }
+}
+packet {
+  trusted_packet_sequence_id: 999
+  timestamp: 10
+  smaps_packet {
+    pid: 2
+    entries {
+      path: "/system/lib64/libc.so"
+      size_kb: 20
+      private_dirty_kb: 4
+      swap_kb: 4
+    }
+    entries {
+      path: "[anon: libc_malloc]"
+      size_kb: 30
+      private_dirty_kb: 10
+      swap_kb: 10
+    }
+  }
+}

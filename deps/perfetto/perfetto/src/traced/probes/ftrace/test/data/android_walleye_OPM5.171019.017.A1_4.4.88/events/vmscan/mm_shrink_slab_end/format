@@ -1,0 +1,17 @@
+name: mm_shrink_slab_end
+ID: 174
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct shrinker * shr;	offset:8;	size:8;	signed:0;
+	field:int nid;	offset:16;	size:4;	signed:1;
+	field:void * shrink;	offset:24;	size:8;	signed:0;
+	field:long unused_scan;	offset:32;	size:8;	signed:1;
+	field:long new_scan;	offset:40;	size:8;	signed:1;
+	field:int retval;	offset:48;	size:4;	signed:1;
+	field:long total_scan;	offset:56;	size:8;	signed:1;
+
+print fmt: "%pF %p: nid: %d unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d", REC->shrink, REC->shr, REC->nid, REC->unused_scan, REC->new_scan, REC->total_scan, REC->retval

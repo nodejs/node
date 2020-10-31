@@ -1,0 +1,16 @@
+name: memlat_dev_update
+ID: 145
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:unsigned int dev_id;	offset:12;	size:4;	signed:0;
+	field:unsigned long inst;	offset:16;	size:8;	signed:0;
+	field:unsigned long mem;	offset:24;	size:8;	signed:0;
+	field:unsigned long freq;	offset:32;	size:8;	signed:0;
+	field:unsigned long vote;	offset:40;	size:8;	signed:0;
+
+print fmt: "dev: %s, id=%u, inst=%lu, mem=%lu, freq=%lu, vote=%lu", __get_str(name), REC->dev_id, REC->inst, REC->mem, REC->freq, REC->vote

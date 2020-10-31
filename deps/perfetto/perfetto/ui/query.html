@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+  <title>Perfetto - Query</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"/>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    #root {
+      margin: 0 auto;
+      max-width: 1200px;
+    }
+
+    input[type=text] {
+      font-size: 150%;
+      width: 100%;
+    }
+
+    .query-list {
+    }
+
+    .query {
+      margin: 2rem 0;
+      border-left: 10px grey;
+      display: grid;
+      grid-template: "text    time"
+                     "content content";
+    }
+
+    .query-content {
+      grid-area: content;
+    }
+
+    .query-content:empty {
+      background: grey;
+    }
+
+    .query-text {
+      grid-area: text;
+      font-family: monospace;
+    }
+
+    .query-time{
+      grid-area: time;
+    }
+
+    table {
+      width: 100%;
+      margin-left: -1rem;
+    }
+
+    tr {
+    }
+
+    tr:hover {
+      background-color: #0000000a;
+    }
+
+    th {
+      font-weight: normal;
+      font-style: italic;
+    }
+
+    td {
+      padding: 0.25rem 0.25rem;
+    }
+
+    tr > td:first-child {
+      padding-left: 1rem;
+    }
+
+    tr > td:last-child {
+      padding-right: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="/query_bundle.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+name: smbus_result
+ID: 631
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int adapter_nr;	offset:8;	size:4;	signed:1;
+	field:__u16 addr;	offset:12;	size:2;	signed:0;
+	field:__u16 flags;	offset:14;	size:2;	signed:0;
+	field:__u8 read_write;	offset:16;	size:1;	signed:0;
+	field:__u8 command;	offset:17;	size:1;	signed:0;
+	field:__s16 res;	offset:18;	size:2;	signed:1;
+	field:__u32 protocol;	offset:20;	size:4;	signed:0;
+
+print fmt: "i2c-%d a=%03x f=%04x c=%x %s %s res=%d", REC->adapter_nr, REC->addr, REC->flags, REC->command, __print_symbolic(REC->protocol, { 0, "QUICK" }, { 1, "BYTE" }, { 2, "BYTE_DATA" }, { 3, "WORD_DATA" }, { 4, "PROC_CALL" }, { 5, "BLOCK_DATA" }, { 6, "I2C_BLOCK_BROKEN" }, { 7, "BLOCK_PROC_CALL" }, { 8, "I2C_BLOCK_DATA" }), REC->read_write == 0 ? "wr" : "rd", REC->res

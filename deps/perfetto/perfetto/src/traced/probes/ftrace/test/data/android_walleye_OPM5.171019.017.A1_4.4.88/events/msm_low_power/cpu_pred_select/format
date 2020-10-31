@@ -1,0 +1,13 @@
+name: cpu_pred_select
+ID: 706
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 predtype;	offset:8;	size:4;	signed:0;
+	field:u64 predicted;	offset:16;	size:8;	signed:0;
+	field:u32 tmr_time;	offset:24;	size:4;	signed:0;
+
+print fmt: "pred:%u time:%lu tmr_time:%u", REC->predtype, (unsigned long)REC->predicted, REC->tmr_time

@@ -1,0 +1,25 @@
+name: display_mode
+ID: 412
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:bool enabled;	offset:8;	size:1;	signed:0;
+	field:u8 dev_id;	offset:9;	size:1;	signed:0;
+	field:unsigned long pclk;	offset:16;	size:8;	signed:0;
+	field:unsigned short h_active;	offset:24;	size:2;	signed:0;
+	field:unsigned short v_active;	offset:26;	size:2;	signed:0;
+	field:unsigned short h_front_porch;	offset:28;	size:2;	signed:0;
+	field:unsigned short v_front_porch;	offset:30;	size:2;	signed:0;
+	field:unsigned short h_back_porch;	offset:32;	size:2;	signed:0;
+	field:unsigned short v_back_porch;	offset:34;	size:2;	signed:0;
+	field:unsigned short h_ref_to_sync;	offset:36;	size:2;	signed:0;
+	field:unsigned short v_ref_to_sync;	offset:38;	size:2;	signed:0;
+	field:unsigned short h_sync_width;	offset:40;	size:2;	signed:0;
+	field:unsigned short v_sync_width;	offset:42;	size:2;	signed:0;
+	field:bool stereo_mode;	offset:44;	size:1;	signed:0;
+
+print fmt: "dc%u enabled=%d ref_to_sync: H=%d V=%d sync_width: H=%d V=%d back_porch: H=%d V=%d active: H=%d V=%d front_porch: H=%d V=%d pclk=%ld stereo mode=%d
+", REC->dev_id, REC->enabled, REC->h_ref_to_sync, REC->v_ref_to_sync, REC->h_sync_width, REC->v_sync_width, REC->h_back_porch, REC->v_back_porch, REC->h_active, REC->v_active, REC->h_front_porch, REC->v_front_porch, REC->pclk, REC->stereo_mode

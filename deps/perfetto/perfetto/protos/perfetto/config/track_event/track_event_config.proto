@@ -1,0 +1,59 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message TrackEventConfig {
+  // The following fields define the set of enabled trace categories. Each list
+  // item is a glob.
+  //
+  // To determine if category is enabled, it is checked against the filters in
+  // the following order:
+  //
+  //   1. Exact matches in enabled categories.
+  //   2. Exact matches in enabled tags.
+  //   3. Exact matches in disabled categories.
+  //   4. Exact matches in disabled tags.
+  //   5. Pattern matches in enabled categories.
+  //   6. Pattern matches in enabled tags.
+  //   7. Pattern matches in disabled categories.
+  //   8. Pattern matches in disabled tags.
+  //
+  // If none of the steps produced a match, the category is enabled by default.
+  //
+  // Examples:
+  //
+  //  - To enable all non-slow/debug categories:
+  //
+  //       No configuration needed, happens by default.
+  //
+  //  - To enable a specific category:
+  //
+  //       disabled_categories = ["*"]
+  //       enabled_categories = ["my_category"]
+  //
+  //  - To enable only categories with a specific tag:
+  //
+  //       disabled_tags = ["*"]
+  //       enabled_tags = ["my_tag"]
+  //
+  repeated string disabled_categories = 1;  // Default: []
+  repeated string enabled_categories = 2;   // Default: []
+  repeated string disabled_tags = 3;  // Default: [“slow”, “debug”]
+  repeated string enabled_tags = 4;   // Default: []
+}

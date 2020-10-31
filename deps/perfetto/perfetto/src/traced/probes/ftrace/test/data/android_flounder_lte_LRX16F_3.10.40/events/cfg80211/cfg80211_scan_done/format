@@ -1,0 +1,17 @@
+name: cfg80211_scan_done
+ID: 600
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 n_channels;	offset:8;	size:4;	signed:0;
+	field:__data_loc u8[] ie;	offset:12;	size:4;	signed:0;
+	field:u32 rates[IEEE80211_NUM_BANDS];	offset:16;	size:12;	signed:0;
+	field:u32 wdev_id;	offset:28;	size:4;	signed:0;
+	field:u8 wiphy_mac[6];	offset:32;	size:6;	signed:0;
+	field:bool no_cck;	offset:38;	size:1;	signed:0;
+	field:bool aborted;	offset:39;	size:1;	signed:0;
+
+print fmt: "aborted: %s", (REC->aborted) ? "true" : "false"

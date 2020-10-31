@@ -1,0 +1,56 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Configuration for go/heapprofd.
+message JavaHprofConfig {
+  // If dump_interval_ms != 0, the following configuration is used.
+  message ContinuousDumpConfig {
+    // ms to wait before first continuous dump.
+    // A dump is always created at the beginning of the trace.
+    optional uint32 dump_phase_ms = 1;
+    // ms to wait between following dumps.
+    optional uint32 dump_interval_ms = 2;
+  }
+
+  // This input is normalized in the following way: if it contains slashes,
+  // everything up to the last slash is discarded. If it contains "@",
+  // everything after the first @ is discared.
+  // E.g. /system/bin/surfaceflinger@1.0 normalizes to surfaceflinger.
+  // This transformation is also applied to the processes' command lines when
+  // matching.
+  repeated string process_cmdline = 1;
+
+  // For watermark based triggering or local debugging.
+  repeated uint64 pid = 2;
+
+  // Dump at a predefined interval.
+  optional ContinuousDumpConfig continuous_dump_config = 3;
+
+  // Do not profile processes whose anon RSS + swap < given value.
+  optional uint32 min_anonymous_memory_kb = 4;
+
+  // Include the process' /proc/self/smaps.
+  // This only shows maps that:
+  // * start with /system
+  // * start with /vendor
+  // * start with /data/app
+  // * contain "extracted in memory from Y", where Y matches any of the above
+  optional bool dump_smaps = 5;
+}

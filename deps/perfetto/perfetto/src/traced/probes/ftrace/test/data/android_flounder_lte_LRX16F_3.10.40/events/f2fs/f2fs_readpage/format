@@ -1,0 +1,15 @@
+name: f2fs_readpage
+ID: 312
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:unsigned long index;	offset:24;	size:8;	signed:0;
+	field:sector_t blkaddr;	offset:32;	size:8;	signed:0;
+	field:int type;	offset:40;	size:4;	signed:1;
+
+print fmt: "dev = (%d,%d), ino = %lu, page_index = 0x%lx, blkaddr = 0x%llx, bio_type = %s", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long)REC->ino, (unsigned long)REC->index, (unsigned long long)REC->blkaddr, __print_symbolic(REC->type, { 0, "READ" }, { (1 << __REQ_RAHEAD), "READAHEAD" }, { (0 | (1 << __REQ_SYNC)), "READ_SYNC" }, { (1 << __REQ_WRITE), "WRITE" }, { ((1 << __REQ_WRITE) | (1 << __REQ_SYNC) | (1 << __REQ_NOIDLE)), "WRITE_SYNC" }, { ((1 << __REQ_WRITE) | (1 << __REQ_SYNC) | (1 << __REQ_NOIDLE) | (1 << __REQ_FLUSH)), "WRITE_FLUSH" }, { ((1 << __REQ_WRITE) | (1 << __REQ_SYNC) | (1 << __REQ_NOIDLE) | (1 << __REQ_FUA)), "WRITE_FUA" })

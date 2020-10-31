@@ -1,0 +1,43 @@
+android_startup {
+  startup {
+    startup_id: 1
+    package_name: "com.google.android.calendar"
+    process_name: "com.google.android.calendar"
+    process: {
+      name: "com.google.android.calendar"
+    }
+    zygote_new_process: true
+    to_first_frame {
+      dur_ns: 108
+      main_thread_by_task_state {
+        running_dur_ns: 0
+        runnable_dur_ns: 0
+        uninterruptible_sleep_dur_ns: 0
+        interruptible_sleep_dur_ns: 0
+      }
+      other_processes_spawned_count: 0
+      time_activity_manager {
+        dur_ns: 8
+        dur_ms: 8e-06
+      }
+      time_bind_application {
+        dur_ns: 10
+        dur_ms: 1e-05
+      }
+      time_before_start_process {
+        dur_ns: 18
+        dur_ms: 1.8e-05
+      }
+      time_during_start_process {
+        dur_ns: 35
+        dur_ms: 3.5e-05
+      }
+      dur_ms: 0.000108
+      to_bind_application {
+        dur_ns: 83
+        dur_ms: 8.3e-05
+      }
+    }
+    activity_hosting_process_count: 1
+  }
+}

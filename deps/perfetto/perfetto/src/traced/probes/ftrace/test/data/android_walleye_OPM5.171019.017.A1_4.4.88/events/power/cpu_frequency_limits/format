@@ -1,0 +1,13 @@
+name: cpu_frequency_limits
+ID: 117
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 min_freq;	offset:8;	size:4;	signed:0;
+	field:u32 max_freq;	offset:12;	size:4;	signed:0;
+	field:u32 cpu_id;	offset:16;	size:4;	signed:0;
+
+print fmt: "min=%lu max=%lu cpu_id=%lu", (unsigned long)REC->min_freq, (unsigned long)REC->max_freq, (unsigned long)REC->cpu_id

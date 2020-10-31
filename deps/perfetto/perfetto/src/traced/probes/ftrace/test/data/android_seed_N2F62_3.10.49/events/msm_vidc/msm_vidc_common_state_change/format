@@ -1,0 +1,13 @@
+name: msm_vidc_common_state_change
+ID: 488
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:void * instp;	offset:8;	size:4;	signed:0;
+	field:int old_state;	offset:12;	size:4;	signed:1;
+	field:int new_state;	offset:16;	size:4;	signed:1;
+
+print fmt: "Moved inst: %p from 0x%x to 0x%x", REC->instp, REC->old_state, REC->new_state

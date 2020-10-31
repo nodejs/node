@@ -1,0 +1,303 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//gn/perfetto_check_build_deps.gni")
+import("//gn/standalone/android.gni")
+import("//gn/standalone/sanitizers/sanitizers.gni")
+import("//gn/standalone/wasm.gni")
+
+# These warnings have been introduced with the newest version of clang (only in
+# the hermetic build) and are enabled just with -Werror.
+# TODO(primiano): we should look into Wimplicit-int-float-conversion. Seems
+# failing mostly in tests though.
+hermetic_clang_suppressions = [
+  "-Wno-c99-designator",
+  "-Wno-implicit-int-float-conversion",
+]
+
+config("extra_warnings") {
+  cflags = [
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+  ]
+
+  # Disable variadic macro warning as we make extensive use of them in trace
+  # processor and client API.
+  if (is_clang) {
+    cflags += [ "-Wno-gnu-zero-variadic-macro-arguments" ]
+  }
+
+  # Disable Weverything on fuzzers to avoid breakages when new versions of clang
+  # are rolled into OSS-fuzz.
+  if (is_clang && !is_fuzzer) {
+    cflags += [
+      "-Weverything",
+      "-Wno-c++98-compat-pedantic",
+      "-Wno-c++98-compat",
+      "-Wno-disabled-macro-expansion",
+      "-Wno-gnu-include-next",
+      "-Wno-gnu-statement-expression",
+      "-Wno-padded",
+      "-Wno-reserved-id-macro",
+      "-Wno-unknown-sanitizers",
+    ]
+  }
+
+  if (!is_clang) {
+    # Use return std::move(...) for compatibility with old compilers.
+    cflags += [ "-Wno-redundant-move" ]
+  }
+}
+
+config("no_exceptions") {
+  cflags_cc = [ "-fno-exceptions" ]
+}
+
+config("no_rtti") {
+  cflags_cc = [ "-fno-rtti" ]
+}
+
+config("c++11") {
+  cflags_cc = [ "-std=c++11" ]
+}
+
+# This is needed to compile libunwindstack.
+config("c++17") {
+  cflags_cc = [ "-std=c++17" ]
+}
+
+config("visibility_hidden") {
+  cflags = [ "-fvisibility=hidden" ]
+}
+
+config("default") {
+  asmflags = []
+  cflags = []
+  cflags_c = []
+  cflags_cc = []
+  defines = []
+  ldflags = []
+  libs = []
+
+  cflags += [
+    "-fstrict-aliasing",
+    "-fstack-protector",
+    "-fPIC",
+    "-g",
+    "-Wformat",
+  ]
+
+  if (!is_fuzzer) {
+    cflags += [ "-Werror" ]
+  }
+
+  if (is_clang) {
+    cflags += [
+      # Color compiler output, see https://github.com/ninja-build/ninja/wiki/FAQ
+      "-fcolor-diagnostics",
+      "-fdiagnostics-show-template-tree",
+    ]
+  }
+
+  if (is_hermetic_clang && is_linux && !is_wasm) {
+    cflags += hermetic_clang_suppressions
+  } else {
+    not_needed([ "hermetic_clang_suppressions" ])
+  }
+
+  if (is_lto) {
+    cflags += [ "-flto=full" ]
+    ldflags += [ "-flto=full" ]
+  }
+
+  if (current_cpu == "arm") {
+    cflags += [
+      "-march=armv7-a",
+      "-mfpu=neon",
+      "-mthumb",
+    ]
+  } else if (current_cpu == "x86") {
+    asmflags += [ "-m32" ]
+    cflags += [
+      "-m32",
+      "-msse2",
+      "-mfpmath=sse",
+    ]
+    ldflags += [
+      "-m32",
+      "-lgcc",
+    ]
+  } else if (current_cpu == "arm64") {
+    cflags += [ "-fno-omit-frame-pointer" ]
+  }
+
+  if (is_linux) {
+    libs += [
+      "pthread",
+      "rt",
+    ]
+  }
+
+  if (is_debug) {
+    libs += [ "dl" ]
+  }
+
+  if (is_android) {
+    asmflags += [ "--target=$android_abi_target" ]
+    cflags += [
+      "--sysroot=$android_compile_sysroot",
+      "-isystem$android_compile_sysroot/$android_compile_sysroot_subdir",
+      "-isystem$android_compile_sysroot",
+      "-DANDROID",
+      "-D__ANDROID_API__=${android_api_level}",
+      "--target=$android_abi_target",
+    ]
+    cflags_cc += [
+      "-I$android_ndk_root/sources/cxx-stl/llvm-libc++/include",
+      "-I$android_ndk_root/sources/android/support/include",
+      "-I$android_ndk_root/sources/cxx-stl/llvm-libc++abi/include",
+
+      # This is needed for NDK libc++. Using -isystem instead of -I above
+      # results in build breakage related to cmath.h.
+      "-Wno-format-nonliteral",
+    ]
+    ldflags += [
+      "-Wl,-z,nocopyreloc",
+      "-gcc-toolchain",
+      "$android_toolchain_root",
+      "--sysroot=$android_ndk_root/$android_link_sysroot_subdir",
+      "--target=$android_abi_target",
+      "-Wl,--exclude-libs,libunwind.a",
+      "-Wl,--exclude-libs,libgcc.a",
+      "-Wl,--exclude-libs,libc++_static.a",
+      "-Wl,--build-id",
+      "-Wl,--no-undefined",
+      "-Wl,-z,noexecstack",
+      "-Wl,-z,relro",
+      "-Wl,-z,now",
+      "-Wl,--warn-shared-textrel",
+      "-Wl,--fatal-warnings",
+    ]
+    lib_dirs = [
+      "$android_ndk_root/sources/cxx-stl/llvm-libc++/libs/$android_app_abi",
+    ]
+    libs += [
+      "gcc",
+      "c++_static",
+      "c++abi",
+    ]
+
+    if (current_cpu == "arm") {
+      # New NDKs don't have libandroid_support for arm64.
+      libs += [ "android_support" ]
+    }
+  }
+}
+
+config("debug_symbols") {
+  cflags = [ "-O0" ]
+  if (is_android || is_linux) {
+    cflags += [ "-funwind-tables" ]
+  }
+}
+
+config("release") {
+  cflags = [
+    "-fdata-sections",
+    "-ffunction-sections",
+  ]
+  if (is_android) {
+    cflags += [ "-O2" ]
+  } else if (is_fuzzer) {
+    cflags += [ "-O1" ]
+  } else {
+    cflags += [ "-O3" ]
+  }
+  if (is_mac) {
+    ldflags = [ "-dead_strip" ]
+  } else {
+    ldflags = [
+      "-Wl,--gc-sections",
+      "-Wl,--icf=all",
+      "-Wl,-O1",
+    ]
+  }
+  defines = [ "NDEBUG" ]
+}
+
+config("shared_library") {
+  if (is_android || is_linux) {
+    ldflags = [ "-fPIC" ]
+  }
+}
+
+config("executable") {
+  ldflags = []
+
+  # Android will refuse to run executables if they aren't position independent.
+  # Instead on Linux there isn't any need and they break ASan (goo.gl/paFR6K).
+  if (is_android || is_linux) {
+    asmflags = [ "-fPIE" ]
+    cflags = [ "-fPIE" ]
+    ldflags += [ "-pie" ]
+  }
+
+  # -rpath stores the path to the linked shared libraries into the binary, so
+  # that they can be launched without passing any LD_LIBRARY_PATH. It's
+  # supported only by Linux, not Android. But concretely we need this only when
+  # use_custom_libcxx=true && custom_libcxx_is_static=false, which happens only
+  # on Linux right now.
+  if (is_linux) {
+    ldflags += [
+      "-Wl,-rpath=\$ORIGIN/.",
+      "-Wl,-rpath-link=.",
+    ]
+  }
+}
+
+# This config is only added to certain leaf target types (see BUILDCONFIG.gn).
+# This allows us to remove the config (and thus the dependency) on a per-target
+# basis. If the config was applied to source_sets, then they would unavoidably
+# carry the dependency onto liblog to the final target.
+config("android_liblog") {
+  if (is_android) {
+    libs = [ "log" ]
+  }
+}
+
+config("gen_include_path") {
+  include_dirs = [ root_gen_dir ]
+}
+
+# This action generates a perfetto_version.gen.h which contains the git SHA1
+# of HEAD. The file can be included from C/C++ sources and exposes a
+# PERFETTO_GET_GIT_REVISION() macro that contains the git revision.
+action("gen_git_revision") {
+  script = "gen_git_revision.py"
+  generated_header = "${root_gen_dir}/perfetto_version.gen.h"
+  args = [ rebase_path(generated_header, root_build_dir) ]
+  inputs = []
+  outputs = [ generated_header ]
+  public_configs = [ ":gen_include_path" ]
+}
+
+# Checks that tools/install-build-deps has been run since it last changed.
+perfetto_check_build_deps("check_build_deps") {
+  args = []
+}
+
+perfetto_check_build_deps("check_build_deps_android") {
+  args = [ "--android" ]
+}

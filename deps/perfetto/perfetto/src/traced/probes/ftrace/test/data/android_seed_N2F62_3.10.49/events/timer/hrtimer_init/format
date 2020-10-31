@@ -1,0 +1,13 @@
+name: hrtimer_init
+ID: 39
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:void * hrtimer;	offset:8;	size:4;	signed:0;
+	field:clockid_t clockid;	offset:12;	size:4;	signed:1;
+	field:enum hrtimer_mode mode;	offset:16;	size:4;	signed:0;
+
+print fmt: "hrtimer=%p clockid=%s mode=%s", REC->hrtimer, REC->clockid == 0 ? "CLOCK_REALTIME" : "CLOCK_MONOTONIC", REC->mode == HRTIMER_MODE_ABS ? "HRTIMER_MODE_ABS" : "HRTIMER_MODE_REL"

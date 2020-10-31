@@ -1,0 +1,20 @@
+name: scsi_dispatch_cmd_start
+ID: 468
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int host_no;	offset:8;	size:4;	signed:0;
+	field:unsigned int channel;	offset:12;	size:4;	signed:0;
+	field:unsigned int id;	offset:16;	size:4;	signed:0;
+	field:unsigned int lun;	offset:20;	size:4;	signed:0;
+	field:unsigned int opcode;	offset:24;	size:4;	signed:0;
+	field:unsigned int cmd_len;	offset:28;	size:4;	signed:0;
+	field:unsigned int data_sglen;	offset:32;	size:4;	signed:0;
+	field:unsigned int prot_sglen;	offset:36;	size:4;	signed:0;
+	field:unsigned char prot_op;	offset:40;	size:1;	signed:0;
+	field:__data_loc unsigned char[] cmnd;	offset:44;	size:4;	signed:0;
+
+print fmt: "host_no=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u prot_op=%s cmnd=(%s %s raw=%s)", REC->host_no, REC->channel, REC->id, REC->lun, REC->data_sglen, REC->prot_sglen, __print_symbolic(REC->prot_op, { SCSI_PROT_NORMAL, "SCSI_PROT_NORMAL" }, { SCSI_PROT_READ_INSERT, "SCSI_PROT_READ_INSERT" }, { SCSI_PROT_WRITE_STRIP, "SCSI_PROT_WRITE_STRIP" }, { SCSI_PROT_READ_STRIP, "SCSI_PROT_READ_STRIP" }, { SCSI_PROT_WRITE_INSERT, "SCSI_PROT_WRITE_INSERT" }, { SCSI_PROT_READ_PASS, "SCSI_PROT_READ_PASS" }, { SCSI_PROT_WRITE_PASS, "SCSI_PROT_WRITE_PASS" }), __print_symbolic(REC->opcode, { 0x00, "TEST_UNIT_READY" }, { 0x01, "REZERO_UNIT" }, { 0x03, "REQUEST_SENSE" }, { 0x04, "FORMAT_UNIT" }, { 0x05, "READ_BLOCK_LIMITS" }, { 0x07, "REASSIGN_BLOCKS" }, { 0x07, "INITIALIZE_ELEMENT_STATUS" }, { 0x08, "READ_6" }, { 0x0a, "WRITE_6" }, { 0x0b, "SEEK_6" }, { 0x0f, "READ_REVERSE" }, { 0x10, "WRITE_FILEMARKS" }, { 0x11, "SPACE" }, { 0x12, "INQUIRY" }, { 0x14, "RECOVER_BUFFERED_DATA" }, { 0x15, "MODE_SELECT" }, { 0x16, "RESERVE" }, { 0x17, "RELEASE" }, { 0x18, "COPY" }, { 0x19, "ERASE" }, { 0x1a, "MODE_SENSE" }, { 0x1b, "START_STOP" }, { 0x1c, "RECEIVE_DIAGNOSTIC" }, { 0x1d, "SEND_DIAGNOSTIC" }, { 0x1e, "ALLOW_MEDIUM_REMOVAL" }, { 0x24, "SET_WINDOW" }, { 0x25, "READ_CAPACITY" }, { 0x28, "READ_10" }, { 0x2a, "WRITE_10" }, { 0x2b, "SEEK_10" }, { 0x2b, "POSITION_TO_ELEMENT" }, { 0x2e, "WRITE_VERIFY" }, { 0x2f, "VERIFY" }, { 0x30, "SEARCH_HIGH" }, { 0x31, "SEARCH_EQUAL" }, { 0x32, "SEARCH_LOW" }, { 0x33, "SET_LIMITS" }, { 0x34, "PRE_FETCH" }, { 0x34, "READ_POSITION" }, { 0x35, "SYNCHRONIZE_CACHE" }, { 0x36, "LOCK_UNLOCK_CACHE" }, { 0x37, "READ_DEFECT_DATA" }, { 0x38, "MEDIUM_SCAN" }, { 0x39, "COMPARE" }, { 0x3a, "COPY_VERIFY" }, { 0x3b, "WRITE_BUFFER" }, { 0x3c, "READ_BUFFER" }, { 0x3d, "UPDATE_BLOCK" }, { 0x3e, "READ_LONG" }, { 0x3f, "WRITE_LONG" }, { 0x40, "CHANGE_DEFINITION" }, { 0x41, "WRITE_SAME" }, { 0x42, "UNMAP" }, { 0x43, "READ_TOC" }, { 0x4c, "LOG_SELECT" }, { 0x4d, "LOG_SENSE" }, { 0x53, "XDWRITEREAD_10" }, { 0x55, "MODE_SELECT_10" }, { 0x56, "RESERVE_10" }, { 0x57, "RELEASE_10" }, { 0x5a, "MODE_SENSE_10" }, { 0x5e, "PERSISTENT_RESERVE_IN" }, { 0x5f, "PERSISTENT_RESERVE_OUT" }, { 0x7f, "VARIABLE_LENGTH_CMD" }, { 0xa0, "REPORT_LUNS" }, { 0xa3, "MAINTENANCE_IN" }, { 0xa4, "MAINTENANCE_OUT" }, { 0xa5, "MOVE_MEDIUM" }, { 0xa6, "EXCHANGE_MEDIUM" }, { 0xa8, "READ_12" }, { 0xaa, "WRITE_12" }, { 0xae, "WRITE_VERIFY_12" }, { 0xb0, "SEARCH_HIGH_12" }, { 0xb1, "SEARCH_EQUAL_12" }, { 0xb2, "SEARCH_LOW_12" }, { 0xb8, "READ_ELEMENT_STATUS" }, { 0xb6, "SEND_VOLUME_TAG" }, { 0xea, "WRITE_LONG_2" }, { 0x88, "READ_16" }, { 0x8a, "WRITE_16" }, { 0x8f, "VERIFY_16" }, { 0x93, "WRITE_SAME_16" }, { 0x9e, "SERVICE_ACTION_IN" }, { 0x10, "SAI_READ_CAPACITY_16" }, { 0x12, "SAI_GET_LBA_STATUS" }, { 0x0a, "MI_REPORT_TARGET_PGS" }, { 0x0a, "MO_SET_TARGET_PGS" }, { 0x09, "READ_32" }, { 0x0b, "WRITE_32" }, { 0x0d, "WRITE_SAME_32" }, { 0x85, "ATA_16" }, { 0xa1, "ATA_12" }), scsi_trace_parse_cdb(p, __get_dynamic_array(cmnd), REC->cmd_len), __print_hex(__get_dynamic_array(cmnd), REC->cmd_len)

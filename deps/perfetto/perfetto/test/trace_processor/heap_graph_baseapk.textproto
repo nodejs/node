@@ -1,0 +1,155 @@
+packet {
+  process_tree {
+    processes {
+      pid: 1
+      ppid: 0
+      cmdline: "init"
+      uid: 0
+    }
+    processes {
+      pid: 2
+      ppid: 1
+      cmdline: "system_server"
+      uid: 1000
+    }
+  }
+}
+packet {
+  timestamp: 1
+  process_stats {
+    processes {
+      pid: 2
+      rss_anon_kb: 1000
+      vm_swap_kb: 0
+      oom_score_adj: 0
+    }
+  }
+}
+packet {
+  timestamp: 10
+  process_stats {
+    processes {
+      pid: 2
+      rss_anon_kb: 1000
+      vm_swap_kb: 3000
+      oom_score_adj: 0
+    }
+  }
+}
+packet {
+  trusted_packet_sequence_id: 999
+  timestamp: 10
+  heap_graph {
+    pid: 2
+    roots {
+      root_type: ROOT_JAVA_FRAME
+      object_ids: 0x01
+      object_ids: 0x05
+    }
+    objects {
+      id: 0x01
+      type_id: 1
+      self_size: 64
+      reference_field_id: 1
+      reference_object_id: 0x02
+      reference_field_id: 3
+      reference_object_id: 0x02
+    }
+    objects {
+      id: 0x02
+      type_id: 2
+      self_size: 32
+    }
+    objects {
+      id: 0x03
+      type_id: 2
+      self_size: 128
+    }
+    objects {
+      id: 0x04
+      type_id: 3
+      self_size: 256
+      reference_field_id: 2
+      reference_object_id: 0x01
+    }
+    objects {
+      id: 0x05
+      type_id: 4
+      self_size: 256
+    }
+    objects {
+      id: 0x06
+      type_id: 5
+      self_size: 256
+    }
+    continued: true
+    index: 0
+  }
+}
+packet {
+  trusted_packet_sequence_id: 999
+  timestamp: 10
+  heap_graph {
+    pid: 2
+    location_names {
+      iid: 1
+      str: "base.apk!classes.dex"
+    }
+    types {
+      id: 1
+      class_name: "FactoryProducerDelegateImplActor"
+      location_id: 1
+    }
+    types {
+      id: 2
+      class_name: "Foo"
+      location_id: 1
+    }
+    types {
+      id: 3
+      class_name: "a"
+      location_id: 1
+    }
+    types {
+      id: 4
+      class_name: "a[]"
+      location_id: 1
+    }
+    types {
+      id: 5
+      class_name: "java.lang.Class<a[]>"
+      location_id: 1
+    }
+    field_names {
+      iid: 1
+      str: "FactoryProducerDelegateImplActor.foo"
+    }
+    field_names {
+      iid: 2
+      str: "int a.a"
+    }
+    field_names {
+      iid: 3
+      str: "a.b"
+    }
+    continued: false
+    index: 1
+  }
+}
+packet {
+  deobfuscation_mapping {
+    package_name: "invalid.test.android"
+    obfuscated_classes {
+      obfuscated_name: "a"
+      deobfuscated_name: "DeobfuscatedA"
+      obfuscated_members {
+        obfuscated_name: "a"
+        deobfuscated_name: "deobfuscatedA"
+      }
+      obfuscated_members {
+        obfuscated_name: "b"
+        deobfuscated_name: "Other.deobfuscatedA"
+      }
+    }
+  }
+}

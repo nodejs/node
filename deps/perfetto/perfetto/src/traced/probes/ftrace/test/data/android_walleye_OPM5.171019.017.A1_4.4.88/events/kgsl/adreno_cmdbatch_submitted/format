@@ -1,0 +1,22 @@
+name: adreno_cmdbatch_submitted
+ID: 519
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int id;	offset:8;	size:4;	signed:0;
+	field:unsigned int timestamp;	offset:12;	size:4;	signed:0;
+	field:int inflight;	offset:16;	size:4;	signed:1;
+	field:unsigned int flags;	offset:20;	size:4;	signed:0;
+	field:uint64_t ticks;	offset:24;	size:8;	signed:0;
+	field:unsigned long secs;	offset:32;	size:8;	signed:0;
+	field:unsigned long usecs;	offset:40;	size:8;	signed:0;
+	field:int prio;	offset:48;	size:4;	signed:1;
+	field:int rb_id;	offset:52;	size:4;	signed:1;
+	field:unsigned int rptr;	offset:56;	size:4;	signed:0;
+	field:unsigned int wptr;	offset:60;	size:4;	signed:0;
+	field:int q_inflight;	offset:64;	size:4;	signed:1;
+
+print fmt: "ctx=%u ctx_prio=%d ts=%u inflight=%d flags=%s ticks=%lld time=%lu.%0lu rb_id=%d r/w=%x/%x, q_inflight=%d", REC->id, REC->prio, REC->timestamp, REC->inflight, REC->flags ? __print_flags(REC->flags, "|", { 0x00000002, "MARKER" }, { 0x00000008, "CTX_SWITCH" }, { 0x00000400, "SYNC" }, { 0x00000100, "EOF" }, { 0x00000800, "PWR_CONSTRAINT" }, { 0x00000004, "IB_LIST" }) : "none", REC->ticks, REC->secs, REC->usecs, REC->rb_id, REC->rptr, REC->wptr, REC->q_inflight

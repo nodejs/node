@@ -1,0 +1,27 @@
+name: cfg80211_new_sta
+ID: 913
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char name[16];	offset:8;	size:16;	signed:0;
+	field:int ifindex;	offset:24;	size:4;	signed:1;
+	field:u8 mac_addr[6];	offset:28;	size:6;	signed:0;
+	field:int generation;	offset:36;	size:4;	signed:1;
+	field:u32 connected_time;	offset:40;	size:4;	signed:0;
+	field:u32 inactive_time;	offset:44;	size:4;	signed:0;
+	field:u32 rx_bytes;	offset:48;	size:4;	signed:0;
+	field:u32 tx_bytes;	offset:52;	size:4;	signed:0;
+	field:u32 rx_packets;	offset:56;	size:4;	signed:0;
+	field:u32 tx_packets;	offset:60;	size:4;	signed:0;
+	field:u32 tx_retries;	offset:64;	size:4;	signed:0;
+	field:u32 tx_failed;	offset:68;	size:4;	signed:0;
+	field:u32 rx_dropped_misc;	offset:72;	size:4;	signed:0;
+	field:u32 beacon_loss_count;	offset:76;	size:4;	signed:0;
+	field:u16 llid;	offset:80;	size:2;	signed:0;
+	field:u16 plid;	offset:82;	size:2;	signed:0;
+	field:u8 plink_state;	offset:84;	size:1;	signed:0;
+
+print fmt: "netdev:%s(%d), %pM", REC->name, REC->ifindex, (REC->mac_addr)

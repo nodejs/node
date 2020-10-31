@@ -1,0 +1,33 @@
+{
+    "cmake_variants" : [
+        {"name": "generator",
+         "generators": [
+            {"generator": [
+                "Visual Studio 7 .NET 2003",
+                "Visual Studio 9 2008",
+                "Visual Studio 9 2008 Win64",
+                "Visual Studio 10",
+                "Visual Studio 10 Win64",
+                "Visual Studio 11",
+                "Visual Studio 11 Win64"
+                ]
+            },
+            {"generator": ["MinGW Makefiles"],
+             "env_prepend": [{"path": "c:/wut/prg/MinGW/bin"}]
+            }
+         ]
+        },
+        {"name": "shared_dll",
+         "variables": [
+            ["BUILD_SHARED_LIBS=true"],
+            ["BUILD_SHARED_LIBS=false"]
+          ]
+        },
+        {"name": "build_type",
+         "build_types": [
+            "debug",
+            "release"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+name: cpufreq_sched_update_capacity
+ID: 84
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int cpu;	offset:8;	size:4;	signed:1;
+	field:bool request;	offset:12;	size:1;	signed:0;
+	field:unsigned long cfs;	offset:16;	size:8;	signed:0;
+	field:unsigned long rt;	offset:24;	size:8;	signed:0;
+	field:unsigned long dl;	offset:32;	size:8;	signed:0;
+	field:unsigned long total;	offset:40;	size:8;	signed:0;
+	field:unsigned long new_total;	offset:48;	size:8;	signed:0;
+
+print fmt: "cpu=%d set_cap=%d cfs=%ld rt=%ld dl=%ld old_tot=%ld new_tot=%ld", REC->cpu, REC->request, REC->cfs, REC->rt, REC->dl, REC->total, REC->new_total

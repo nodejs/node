@@ -1,0 +1,16 @@
+name: signal_deliver
+ID: 49
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:int sig;	offset:12;	size:4;	signed:1;
+	field:int errno;	offset:16;	size:4;	signed:1;
+	field:int code;	offset:20;	size:4;	signed:1;
+	field:unsigned long sa_handler;	offset:24;	size:4;	signed:0;
+	field:unsigned long sa_flags;	offset:28;	size:4;	signed:0;
+
+print fmt: "sig=%d errno=%d code=%d sa_handler=%lx sa_flags=%lx", REC->sig, REC->errno, REC->code, REC->sa_handler, REC->sa_flags

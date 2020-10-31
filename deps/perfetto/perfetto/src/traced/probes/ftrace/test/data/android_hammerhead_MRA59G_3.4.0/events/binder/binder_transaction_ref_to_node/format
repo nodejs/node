@@ -1,0 +1,16 @@
+name: binder_transaction_ref_to_node
+ID: 412
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:int debug_id;	offset:12;	size:4;	signed:1;
+	field:int ref_debug_id;	offset:16;	size:4;	signed:1;
+	field:uint32_t ref_desc;	offset:20;	size:4;	signed:0;
+	field:int node_debug_id;	offset:24;	size:4;	signed:1;
+	field:void * node_ptr;	offset:28;	size:4;	signed:0;
+
+print fmt: "transaction=%d node=%d src_ref=%d src_desc=%d ==> dest_ptr=0x%p", REC->debug_id, REC->node_debug_id, REC->ref_debug_id, REC->ref_desc, REC->node_ptr

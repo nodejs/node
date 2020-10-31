@@ -1,0 +1,18 @@
+name: writeback_start
+ID: 180
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char name[32];	offset:8;	size:32;	signed:0;
+	field:long nr_pages;	offset:40;	size:4;	signed:1;
+	field:dev_t sb_dev;	offset:44;	size:4;	signed:0;
+	field:int sync_mode;	offset:48;	size:4;	signed:1;
+	field:int for_kupdate;	offset:52;	size:4;	signed:1;
+	field:int range_cyclic;	offset:56;	size:4;	signed:1;
+	field:int for_background;	offset:60;	size:4;	signed:1;
+	field:int reason;	offset:64;	size:4;	signed:1;
+
+print fmt: "bdi %s: sb_dev %d:%d nr_pages=%ld sync_mode=%d kupdate=%d range_cyclic=%d background=%d reason=%s", REC->name, ((unsigned int) ((REC->sb_dev) >> 20)), ((unsigned int) ((REC->sb_dev) & ((1U << 20) - 1))), REC->nr_pages, REC->sync_mode, REC->for_kupdate, REC->range_cyclic, REC->for_background, __print_symbolic(REC->reason, {WB_REASON_BACKGROUND, "background"}, {WB_REASON_TRY_TO_FREE_PAGES, "try_to_free_pages"}, {WB_REASON_SYNC, "sync"}, {WB_REASON_PERIODIC, "periodic"}, {WB_REASON_LAPTOP_TIMER, "laptop_timer"}, {WB_REASON_FREE_MORE_MEM, "free_more_memory"}, {WB_REASON_FS_FREE_SPACE, "fs_free_space"}, {WB_REASON_FORKER_THREAD, "forker_thread"})

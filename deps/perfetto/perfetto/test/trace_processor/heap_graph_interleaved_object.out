@@ -1,0 +1,6 @@
+"id","type","upid","graph_sample_ts","object_id","self_size","retained_size","unique_retained_size","reference_set_id","reachable","type_name","deobfuscated_type_name","root_type"
+0,"heap_graph_object",3,10,1,64,-1,-1,0,1,"FactoryProducerDelegateImplActor","[NULL]","ROOT_JAVA_FRAME"
+1,"heap_graph_object",2,10,1,64,-1,-1,0,1,"FactoryProducerDelegateImplActor","[NULL]","ROOT_JAVA_FRAME"
+2,"heap_graph_object",2,10,2,32,-1,-1,1,1,"Foo","[NULL]","[NULL]"
+3,"heap_graph_object",2,10,3,128,-1,-1,1,0,"Foo","[NULL]","[NULL]"
+4,"heap_graph_object",2,10,4,256,-1,-1,1,0,"a","DeobfuscatedA","[NULL]"

@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -e
+
+DIR=$(mktemp -d out/perfetto.XXXXXX)
+
+function cleanup {
+  rm -rf "$DIR"
+  echo "Deleted temp working directory $DIR"
+}
+
+#trap cleanup EXIT
+
+function is_mac {
+  ! test -d /proc
+  return $?
+}
+
+tools/gn gen $DIR --args='is_clang=true is_debug=false'
+tools/ninja -C $DIR trace_to_text
+
+if which shasum; then
+  NEW_SHA=$(shasum $DIR/trace_to_text | cut -f1 -d' ') # Mac OS
+else
+  NEW_SHA=$(sha1sum $DIR/trace_to_text | cut -f1 -d' ') # Linux
+fi
+
+if is_mac; then
+  platform=mac
+else
+  platform=linux
+fi
+
+name=trace_to_text-$platform-$NEW_SHA
+
+gsutil cp $DIR/trace_to_text gs://perfetto/$name
+gsutil cp $DIR/trace_to_text gs://chromium-telemetry/binary_dependencies/$name
+gsutil acl ch -u AllUsers:R gs://perfetto/$name
+gsutil acl ch -u AllUsers:R gs://chromium-telemetry/binary_dependencies/$name
+
+echo 'Now run the following command to update tools/traceconv:'
+echo "sed \"s/'$platform': '[^']*',/'$platform': '$NEW_SHA',/\" --in-place tools/traceconv"
+

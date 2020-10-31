@@ -1,0 +1,18 @@
+name: kgsl_mem_free
+ID: 345
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:unsigned int gpuaddr;	offset:12;	size:4;	signed:0;
+	field:unsigned int size;	offset:16;	size:4;	signed:0;
+	field:int type;	offset:20;	size:4;	signed:1;
+	field:int fd;	offset:24;	size:4;	signed:1;
+	field:unsigned int tgid;	offset:28;	size:4;	signed:0;
+	field:char usage[16];	offset:32;	size:16;	signed:0;
+	field:unsigned int id;	offset:48;	size:4;	signed:0;
+
+print fmt: "gpuaddr=0x%08x size=%u type=%d tgid=%u usage=%s id=%u", REC->gpuaddr, REC->size, REC->type, REC->tgid, REC->usage, REC->id

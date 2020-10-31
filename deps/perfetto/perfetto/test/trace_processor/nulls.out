@@ -1,0 +1,8 @@
+
+
+"primary_key","int_nulls","string_nulls","double_nulls","start_int_nulls","start_string_nulls","start_double_nulls","all_nulls"
+1,1,"test",2.000000,"[NULL]","[NULL]","[NULL]","[NULL]"
+2,2,"[NULL]","[NULL]","[NULL]","test","[NULL]","[NULL]"
+3,1,"other","[NULL]","[NULL]","[NULL]","[NULL]","[NULL]"
+4,4,"[NULL]","[NULL]","[NULL]","[NULL]",1.000000,"[NULL]"
+5,"[NULL]","test",1.000000,1,"[NULL]","[NULL]","[NULL]"

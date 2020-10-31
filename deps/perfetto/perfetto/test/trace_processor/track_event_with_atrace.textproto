@@ -1,0 +1,103 @@
+# Sequence 1 defaults to track for "t1".
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 1
+    thread {
+      pid: 5
+      tid: 1
+      thread_name: "t1"
+    }
+  }
+  trace_packet_defaults {
+    track_event_defaults {
+      track_uuid: 1
+    }
+  }
+}
+
+# Track event with category.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 10000
+  track_event {
+    track_uuid: 0
+    categories: "cat"
+    name: "event1"
+    legacy_event {
+      phase: 66  # 'B'
+    }
+  }
+}
+
+# End track event without category.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 11000
+  track_event {
+    track_uuid: 0
+    legacy_event {
+      phase: 69  # 'E'
+    }
+  }
+}
+
+# Another track event.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 20000
+  track_event {
+    track_uuid: 0
+    categories: "cat"
+    name: "event2"
+    legacy_event {
+      phase: 66  # 'B'
+    }
+  }
+}
+
+# atrace event on the same track
+packet {
+  ftrace_events {
+    cpu: 1
+    event {
+      timestamp: 21000
+      pid: 1
+      print {
+        ip: 1
+        buf: "B|5|atrace\n"
+      }
+    }
+  }
+}
+
+# End track event.  Packet is out of order, but shouldn't crash because
+# category is specified.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 28000
+  track_event {
+    track_uuid: 0
+    categories: "cat"
+    legacy_event {
+      phase: 69  # 'E'
+    }
+  }
+}
+
+# End atrace event
+packet {
+  ftrace_events {
+    cpu: 1
+    event {
+      timestamp: 29000
+      pid: 1
+      print {
+        ip: 1
+        buf: "E|5\n"
+      }
+    }
+  }
+}

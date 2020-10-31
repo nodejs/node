@@ -1,0 +1,14 @@
+name: kgsl_register_event
+ID: 334
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:unsigned int id;	offset:12;	size:4;	signed:0;
+	field:unsigned int timestamp;	offset:16;	size:4;	signed:0;
+	field:void * func;	offset:20;	size:4;	signed:0;
+
+print fmt: "ctx=%u ts=%u cb=%pF", REC->id, REC->timestamp, REC->func

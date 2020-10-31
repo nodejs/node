@@ -1,0 +1,28 @@
+name: rot_entry_commit
+ID: 660
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 ss_id;	offset:8;	size:4;	signed:0;
+	field:u32 sq_id;	offset:12;	size:4;	signed:0;
+	field:u32 pr_id;	offset:16;	size:4;	signed:0;
+	field:u32 flags;	offset:20;	size:4;	signed:0;
+	field:u32 src_fmt;	offset:24;	size:4;	signed:0;
+	field:u16 src_bw;	offset:28;	size:2;	signed:0;
+	field:u16 src_bh;	offset:30;	size:2;	signed:0;
+	field:u16 src_x;	offset:32;	size:2;	signed:0;
+	field:u16 src_y;	offset:34;	size:2;	signed:0;
+	field:u16 src_w;	offset:36;	size:2;	signed:0;
+	field:u16 src_h;	offset:38;	size:2;	signed:0;
+	field:u32 dst_fmt;	offset:40;	size:4;	signed:0;
+	field:u16 dst_bw;	offset:44;	size:2;	signed:0;
+	field:u16 dst_bh;	offset:46;	size:2;	signed:0;
+	field:u16 dst_x;	offset:48;	size:2;	signed:0;
+	field:u16 dst_y;	offset:50;	size:2;	signed:0;
+	field:u16 dst_w;	offset:52;	size:2;	signed:0;
+	field:u16 dst_h;	offset:54;	size:2;	signed:0;
+
+print fmt: "%d.%d|%d|%x|%x|%u,%u|%u,%u,%u,%u|%x|%u,%u|%u,%u,%u,%u|", REC->ss_id, REC->sq_id, REC->pr_id, REC->flags, REC->src_fmt, REC->src_bw, REC->src_bh, REC->src_x, REC->src_y, REC->src_w, REC->src_h, REC->dst_fmt, REC->dst_bw, REC->dst_bh, REC->dst_x, REC->dst_y, REC->dst_w, REC->dst_h

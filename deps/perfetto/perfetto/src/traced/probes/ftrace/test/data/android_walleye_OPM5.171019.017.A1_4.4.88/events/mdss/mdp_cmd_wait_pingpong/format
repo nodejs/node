@@ -1,0 +1,12 @@
+name: mdp_cmd_wait_pingpong
+ID: 427
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 ctl_num;	offset:8;	size:4;	signed:0;
+	field:int kickoff_cnt;	offset:12;	size:4;	signed:1;
+
+print fmt: "pingpong ctl=%d cnt=%d", REC->ctl_num, REC->kickoff_cnt

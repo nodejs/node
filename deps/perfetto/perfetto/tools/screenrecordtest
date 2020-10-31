@@ -1,0 +1,46 @@
+#!/bin/bash
+# Rough script for screenrecord and trace
+# ./screenrecordtest [time limit in seconds - 180 seconds maximum]
+# Runs screenrecord along with a perfetto trace
+
+set -e
+
+time=$1
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 SECONDS_TO_RECORD"
+    exit 1
+fi
+timems=`expr $time \* 1000`
+adb shell screenrecord --time-limit $time "/sdcard/tracescr.mp4" & SCRN=$!
+
+adb shell perfetto \
+  -c - --txt \
+  -o /data/misc/perfetto-traces/trace \
+<<<"
+
+buffers: {
+    size_kb: 8960
+    fill_policy: DISCARD
+}
+buffers: {
+    size_kb: 1280
+    fill_policy: DISCARD
+}
+data_sources: {
+    config {
+        name: \"linux.sys_stats\"
+        sys_stats_config {
+            stat_period_ms: 1000
+            stat_counters: STAT_CPU_TIMES
+            stat_counters: STAT_FORK_COUNT
+        }
+    }
+}
+duration_ms: $timems
+
+"
+
+wait $SCRN
+
+adb pull "/sdcard/tracescr.mp4"
+adb pull "/data/misc/perfetto-traces/trace"

@@ -1,0 +1,17 @@
+name: cfg80211_get_bss
+ID: 936
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:enum nl80211_band band;	offset:40;	size:4;	signed:0;
+	field:u16 center_freq;	offset:44;	size:2;	signed:0;
+	field:u8 bssid[6];	offset:46;	size:6;	signed:0;
+	field:__data_loc u8[] ssid;	offset:52;	size:4;	signed:0;
+	field:enum ieee80211_bss_type bss_type;	offset:56;	size:4;	signed:0;
+	field:enum ieee80211_privacy privacy;	offset:60;	size:4;	signed:0;
+
+print fmt: "%s, band: %d, freq: %u, %pM, buf: %#.2x, bss_type: %d, privacy: %d", REC->wiphy_name, REC->band, REC->center_freq, (REC->bssid), ((u8 *)__get_dynamic_array(ssid))[0], REC->bss_type, REC->privacy

@@ -1,0 +1,87 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Defines properties of a counter track, e.g. for built-in counters (thread
+// time, instruction count, ..) or user-specified counters (e.g. memory usage of
+// a specific app component).
+//
+// Counter tracks only support TYPE_COUNTER track events, which specify new
+// values for the counter. For counters that require per-slice values, counter
+// values can instead be provided in a more efficient encoding via TrackEvent's
+// |extra_counter_track_uuids| and |extra_counter_values| fields. However,
+// slice-type events cannot be emitted onto a counter track.
+//
+// Values for counters that are only emitted on a single packet sequence can
+// optionally be delta-encoded, see |is_incremental|.
+//
+// Next id: 6.
+message CounterDescriptor {
+  // Built-in counters, usually with special meaning in the client library,
+  // trace processor, legacy JSON format, or UI. Trace processor will infer a
+  // track name from the enum value if none is provided in TrackDescriptor.
+  enum BuiltinCounterType {
+    COUNTER_UNSPECIFIED = 0;
+
+    // Thread-scoped counters. The thread's track should be specified via
+    // |parent_uuid| in the TrackDescriptor for such a counter.
+    COUNTER_THREAD_TIME_NS = 1;            // implies UNIT_TIME_NS.
+    COUNTER_THREAD_INSTRUCTION_COUNT = 2;  // implies UNIT_COUNT.
+  }
+
+  // Type of the values for the counters - to supply lower granularity units,
+  // see also |unit_multiplier|.
+  enum Unit {
+    UNIT_UNSPECIFIED = 0;
+    UNIT_TIME_NS = 1;
+    UNIT_COUNT = 2;
+    UNIT_SIZE_BYTES = 3;
+    // TODO(eseckler): Support more units as necessary.
+  }
+
+  // For built-in counters (e.g. thread time). Custom user-specified counters
+  // (e.g. those emitted by TRACE_COUNTER macros of the client library)
+  // shouldn't set this, and instead provide a counter name via TrackDescriptor.
+  optional BuiltinCounterType type = 1;
+
+  // Names of categories of the counter (usually for user-specified counters).
+  // In the client library, categories are a way to turn groups of individual
+  // counters (or events) on or off.
+  repeated string categories = 2;
+
+  // Type of the counter's values. Built-in counters imply a value for this
+  // field.
+  optional Unit unit = 3;
+
+  // Multiplication factor of this counter's values, e.g. to supply
+  // COUNTER_THREAD_TIME_NS timestamps in microseconds instead.
+  optional int64 unit_multiplier = 4;
+
+  // Whether values for this counter are provided as delta values. Only
+  // supported for counters that are emitted on a single packet-sequence (e.g.
+  // thread time). Counter values in subsequent packets on the current packet
+  // sequence will be interpreted as delta values from the sequence's most
+  // recent value for the counter. When incremental state is cleared, the
+  // counter value is considered to be reset to 0. Thus, the first value after
+  // incremental state is cleared is effectively an absolute value.
+  optional bool is_incremental = 5;
+
+  // TODO(eseckler): Support arguments describing the counter (?).
+  // repeated DebugAnnotation debug_annotations;
+}

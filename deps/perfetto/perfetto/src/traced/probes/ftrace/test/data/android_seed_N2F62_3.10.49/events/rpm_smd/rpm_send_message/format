@@ -1,0 +1,16 @@
+name: rpm_send_message
+ID: 373
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 irq;	offset:8;	size:4;	signed:0;
+	field:u32 set;	offset:12;	size:4;	signed:0;
+	field:u32 rsc_type;	offset:16;	size:4;	signed:0;
+	field:u32 rsc_id;	offset:20;	size:4;	signed:0;
+	field:u32 msg_id;	offset:24;	size:4;	signed:0;
+	field:char name[5];	offset:28;	size:5;	signed:0;
+
+print fmt: "ctx:%s set:%s rsc_type:0x%08x(%s), rsc_id:0x%08x, id:%d", REC->irq ? "noslp" : "sleep", REC->set ? "slp" : "act", REC->rsc_type, REC->name, REC->rsc_id, REC->msg_id

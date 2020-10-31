@@ -1,0 +1,26 @@
+{
+   /* C-style comment
+
+    C-style-2 comment */
+   "c-test" : {
+      "a" : 1,
+      /* Internal comment c-style */
+      "b" : 2
+   },
+   // C++-style comment
+   "cpp-test" : {
+      // Multiline comment cpp-style
+      // Second line
+      "c" : 3,
+      // Comment before double
+      "d" : 4.1,
+      // Comment before string
+      "e" : "e-string",
+      // Comment before true
+      "f" : true,
+      // Comment before false
+      "g" : false,
+      // Comment before null
+      "h" : null
+   }
+}

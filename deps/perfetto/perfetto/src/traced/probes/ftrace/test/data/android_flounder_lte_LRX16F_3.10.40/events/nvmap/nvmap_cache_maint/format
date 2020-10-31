@@ -1,0 +1,16 @@
+name: nvmap_cache_maint
+ID: 447
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct nvmap_client * client;	offset:8;	size:8;	signed:0;
+	field:struct nvmap_handle * h;	offset:16;	size:8;	signed:0;
+	field:ulong start;	offset:24;	size:8;	signed:0;
+	field:ulong end;	offset:32;	size:8;	signed:0;
+	field:u32 op;	offset:40;	size:4;	signed:0;
+	field:size_t size;	offset:48;	size:8;	signed:0;
+
+print fmt: "client=%p, h=%p, start=0x%lx, end=0x%lx, op=%d, size=%zu", REC->client, REC->h, REC->start, REC->end, REC->op, REC->size

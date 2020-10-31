@@ -1,0 +1,15 @@
+name: rdev_remain_on_channel
+ID: 653
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:u32 id;	offset:40;	size:4;	signed:0;
+	field:enum ieee80211_band band;	offset:44;	size:4;	signed:0;
+	field:u16 center_freq;	offset:48;	size:2;	signed:0;
+	field:unsigned int duration;	offset:52;	size:4;	signed:0;
+
+print fmt: "%s, wdev(%u), band: %d, freq: %u, duration: %u", REC->wiphy_name, (REC->id), REC->band, REC->center_freq, REC->duration

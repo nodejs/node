@@ -1,0 +1,72 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Details about a legacy Chrome IPC message that is either sent by the event.
+// TODO(eseckler): Also use this message on the receiving side?
+message ChromeLegacyIpc {
+  enum MessageClass {
+    CLASS_UNSPECIFIED = 0;
+    CLASS_AUTOMATION = 1;
+    CLASS_FRAME = 2;
+    CLASS_PAGE = 3;
+    CLASS_VIEW = 4;
+    CLASS_WIDGET = 5;
+    CLASS_INPUT = 6;
+    CLASS_TEST = 7;
+    CLASS_WORKER = 8;
+    CLASS_NACL = 9;
+    CLASS_GPU_CHANNEL = 10;
+    CLASS_MEDIA = 11;
+    CLASS_PPAPI = 12;
+    CLASS_CHROME = 13;
+    CLASS_DRAG = 14;
+    CLASS_PRINT = 15;
+    CLASS_EXTENSION = 16;
+    CLASS_TEXT_INPUT_CLIENT = 17;
+    CLASS_BLINK_TEST = 18;
+    CLASS_ACCESSIBILITY = 19;
+    CLASS_PRERENDER = 20;
+    CLASS_CHROMOTING = 21;
+    CLASS_BROWSER_PLUGIN = 22;
+    CLASS_ANDROID_WEB_VIEW = 23;
+    CLASS_NACL_HOST = 24;
+    CLASS_ENCRYPTED_MEDIA = 25;
+    CLASS_CAST = 26;
+    CLASS_GIN_JAVA_BRIDGE = 27;
+    CLASS_CHROME_UTILITY_PRINTING = 28;
+    CLASS_OZONE_GPU = 29;
+    CLASS_WEB_TEST = 30;
+    CLASS_NETWORK_HINTS = 31;
+    CLASS_EXTENSIONS_GUEST_VIEW = 32;
+    CLASS_GUEST_VIEW = 33;
+    CLASS_MEDIA_PLAYER_DELEGATE = 34;
+    CLASS_EXTENSION_WORKER = 35;
+    CLASS_SUBRESOURCE_FILTER = 36;
+    CLASS_UNFREEZABLE_FRAME = 37;
+  }
+
+  // Corresponds to the message class type defined in Chrome's IPCMessageStart
+  // enum, e.g. FrameMsgStart,
+  optional MessageClass message_class = 1;
+
+  // Line number of the message definition. See Chrome's IPC_MESSAGE_ID and
+  // IPC_MESSAGE_START macros.
+  optional uint32 message_line = 2;
+}

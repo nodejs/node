@@ -1,0 +1,26 @@
+name: mdp_sspp_change
+ID: 411
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 num;	offset:8;	size:4;	signed:0;
+	field:u32 play_cnt;	offset:12;	size:4;	signed:0;
+	field:u32 mixer;	offset:16;	size:4;	signed:0;
+	field:u32 stage;	offset:20;	size:4;	signed:0;
+	field:u32 flags;	offset:24;	size:4;	signed:0;
+	field:u32 format;	offset:28;	size:4;	signed:0;
+	field:u16 img_w;	offset:32;	size:2;	signed:0;
+	field:u16 img_h;	offset:34;	size:2;	signed:0;
+	field:u16 src_x;	offset:36;	size:2;	signed:0;
+	field:u16 src_y;	offset:38;	size:2;	signed:0;
+	field:u16 src_w;	offset:40;	size:2;	signed:0;
+	field:u16 src_h;	offset:42;	size:2;	signed:0;
+	field:u16 dst_x;	offset:44;	size:2;	signed:0;
+	field:u16 dst_y;	offset:46;	size:2;	signed:0;
+	field:u16 dst_w;	offset:48;	size:2;	signed:0;
+	field:u16 dst_h;	offset:50;	size:2;	signed:0;
+
+print fmt: "pnum=%d mixer=%d play_cnt=%d flags=0x%x stage=%d format=%d img=%dx%d src=[%d,%d,%d,%d] dst=[%d,%d,%d,%d]", REC->num, REC->mixer, REC->play_cnt, REC->flags, REC->stage, REC->format, REC->img_w, REC->img_h, REC->src_x, REC->src_y, REC->src_w, REC->src_h, REC->dst_x, REC->dst_y, REC->dst_w, REC->dst_h

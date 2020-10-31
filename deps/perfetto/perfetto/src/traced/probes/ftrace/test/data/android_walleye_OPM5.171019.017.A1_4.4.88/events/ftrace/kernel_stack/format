@@ -1,0 +1,12 @@
+name: kernel_stack
+ID: 4
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int size;	offset:8;	size:4;	signed:1;
+	field:unsigned long caller;	offset:16;	size:0;	signed:0;
+
+print fmt: "\t=> (" "%016lx" ")\n\t=> (" "%016lx" ")\n\t=> (" "%016lx" ")\n" "\t=> (" "%016lx" ")\n\t=> (" "%016lx" ")\n\t=> (" "%016lx" ")\n" "\t=> (" "%016lx" ")\n\t=> (" "%016lx" ")\n", REC->caller[0], REC->caller[1], REC->caller[2], REC->caller[3], REC->caller[4], REC->caller[5], REC->caller[6], REC->caller[7]

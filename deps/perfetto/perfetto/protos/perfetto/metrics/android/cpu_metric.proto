@@ -1,0 +1,78 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message AndroidCpuMetric {
+  // Next id: 6
+  message Metrics {
+    // CPU megacycles (i.e. cycles divided by 1e6).
+    optional int64 mcycles = 1;
+
+    // Total time the thread was running for this breakdown in
+    // nanoseconds.
+    optional int64 runtime_ns = 2;
+
+    // Min/max/average CPU frequency weighted by the time the CPU was
+    // running at each frequency in this breakdown.
+    optional int64 min_freq_khz = 3;
+    optional int64 max_freq_khz = 4;
+    optional int64 avg_freq_khz = 5;
+  }
+
+  // Next id: 7
+  message CoreData {
+    optional uint32 id = 1;
+    optional Metrics metrics = 6;
+
+    reserved 2 to 5;
+  }
+
+  // Next id: 3
+  message CoreTypeData {
+    optional string type = 1;
+    optional Metrics metrics = 2;
+  }
+
+  // Next id: 7
+  message Thread {
+    optional string name = 1;
+    optional Metrics metrics = 4;
+
+    // Breakdowns of above metrics.
+    repeated CoreData core = 2;
+    repeated CoreTypeData core_type = 5;
+
+    reserved 3;
+  }
+
+  // Next id: 8
+  message Process {
+    optional string name = 1;
+    optional Metrics metrics = 4;
+
+    // Breakdowns of above metrics.
+    repeated Thread threads = 6;
+    repeated CoreData core = 7;
+    repeated CoreTypeData core_type = 5;
+
+    reserved 3;
+  }
+
+  repeated Process process_info = 1;
+}

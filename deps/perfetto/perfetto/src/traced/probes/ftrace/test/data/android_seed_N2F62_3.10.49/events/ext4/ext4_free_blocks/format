@@ -1,0 +1,16 @@
+name: ext4_free_blocks
+ID: 282
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:12;	size:4;	signed:0;
+	field:__u64 block;	offset:16;	size:8;	signed:0;
+	field:unsigned long count;	offset:24;	size:4;	signed:0;
+	field:int flags;	offset:28;	size:4;	signed:1;
+	field:__u16 mode;	offset:32;	size:2;	signed:0;
+
+print fmt: "dev %d,%d ino %lu mode 0%o block %llu count %lu flags %d", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->mode, REC->block, REC->count, REC->flags

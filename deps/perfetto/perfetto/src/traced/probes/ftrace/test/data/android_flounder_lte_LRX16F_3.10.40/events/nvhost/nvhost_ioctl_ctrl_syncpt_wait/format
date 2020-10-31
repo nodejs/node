@@ -1,0 +1,15 @@
+name: nvhost_ioctl_ctrl_syncpt_wait
+ID: 377
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 id;	offset:8;	size:4;	signed:0;
+	field:u32 threshold;	offset:12;	size:4;	signed:0;
+	field:s32 timeout;	offset:16;	size:4;	signed:1;
+	field:u32 value;	offset:20;	size:4;	signed:0;
+	field:int err;	offset:24;	size:4;	signed:1;
+
+print fmt: "id=%u, threshold=%u, timeout=%d, value=%u, err=%d", REC->id, REC->threshold, REC->timeout, REC->value, REC->err

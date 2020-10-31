@@ -1,0 +1,37 @@
+name: rdev_return_int_mesh_config
+ID: 685
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:u16 dot11MeshRetryTimeout;	offset:40;	size:2;	signed:0;
+	field:u16 dot11MeshConfirmTimeout;	offset:42;	size:2;	signed:0;
+	field:u16 dot11MeshHoldingTimeout;	offset:44;	size:2;	signed:0;
+	field:u16 dot11MeshMaxPeerLinks;	offset:46;	size:2;	signed:0;
+	field:u8 dot11MeshMaxRetries;	offset:48;	size:1;	signed:0;
+	field:u8 dot11MeshTTL;	offset:49;	size:1;	signed:0;
+	field:u8 element_ttl;	offset:50;	size:1;	signed:0;
+	field:bool auto_open_plinks;	offset:51;	size:1;	signed:0;
+	field:u32 dot11MeshNbrOffsetMaxNeighbor;	offset:52;	size:4;	signed:0;
+	field:u8 dot11MeshHWMPmaxPREQretries;	offset:56;	size:1;	signed:0;
+	field:u32 path_refresh_time;	offset:60;	size:4;	signed:0;
+	field:u32 dot11MeshHWMPactivePathTimeout;	offset:64;	size:4;	signed:0;
+	field:u16 min_discovery_timeout;	offset:68;	size:2;	signed:0;
+	field:u16 dot11MeshHWMPpreqMinInterval;	offset:70;	size:2;	signed:0;
+	field:u16 dot11MeshHWMPperrMinInterval;	offset:72;	size:2;	signed:0;
+	field:u16 dot11MeshHWMPnetDiameterTraversalTime;	offset:74;	size:2;	signed:0;
+	field:u8 dot11MeshHWMPRootMode;	offset:76;	size:1;	signed:0;
+	field:u16 dot11MeshHWMPRannInterval;	offset:78;	size:2;	signed:0;
+	field:bool dot11MeshGateAnnouncementProtocol;	offset:80;	size:1;	signed:0;
+	field:bool dot11MeshForwarding;	offset:81;	size:1;	signed:0;
+	field:s32 rssi_threshold;	offset:84;	size:4;	signed:1;
+	field:u16 ht_opmode;	offset:88;	size:2;	signed:0;
+	field:u32 dot11MeshHWMPactivePathToRootTimeout;	offset:92;	size:4;	signed:0;
+	field:u16 dot11MeshHWMProotInterval;	offset:96;	size:2;	signed:0;
+	field:u16 dot11MeshHWMPconfirmationInterval;	offset:98;	size:2;	signed:0;
+	field:int ret;	offset:100;	size:4;	signed:1;
+
+print fmt: "%s, returned: %d", REC->wiphy_name, REC->ret

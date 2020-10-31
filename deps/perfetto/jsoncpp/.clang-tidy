@@ -1,0 +1,11 @@
+---
+Checks:          'google-readability-casting,modernize-deprecated-headers,modernize-loop-convert,modernize-use-auto,modernize-use-default-member-init,modernize-use-using,readability-else-after-return,readability-redundant-member-init,readability-redundant-string-cstr'
+WarningsAsErrors: ''
+HeaderFilterRegex: ''
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+CheckOptions:    
+  - key:             modernize-use-using.IgnoreMacros
+    value:           '0'
+...
+

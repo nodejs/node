@@ -1,0 +1,17 @@
+name: binder_transaction
+ID: 754
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int debug_id;	offset:8;	size:4;	signed:1;
+	field:int target_node;	offset:12;	size:4;	signed:1;
+	field:int to_proc;	offset:16;	size:4;	signed:1;
+	field:int to_thread;	offset:20;	size:4;	signed:1;
+	field:int reply;	offset:24;	size:4;	signed:1;
+	field:unsigned int code;	offset:28;	size:4;	signed:0;
+	field:unsigned int flags;	offset:32;	size:4;	signed:0;
+
+print fmt: "transaction=%d dest_node=%d dest_proc=%d dest_thread=%d reply=%d flags=0x%x code=0x%x", REC->debug_id, REC->target_node, REC->to_proc, REC->to_thread, REC->reply, REC->flags, REC->code

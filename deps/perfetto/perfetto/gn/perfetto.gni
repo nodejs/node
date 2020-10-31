@@ -1,0 +1,294 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build_overrides/build.gni")
+import("wasm_vars.gni")
+
+# Summary of our typical build configurations:
+
+# 1. Standalone builds
+#    build_with_chromium = false
+#    is_perfetto_build_generator = false
+#    perfetto_build_standalone = true
+#    perfetto_build_with_android = false
+#    perfetto_build_with_embedder = false
+
+# 2. Android tree builds
+#    build_with_chromium = false
+#    is_perfetto_build_generator = true
+#    perfetto_build_standalone = false
+#    perfetto_build_with_android = true
+#    perfetto_build_with_embedder = false
+
+# 3. Chromium tree builds
+#    build_with_chromium = true
+#    is_perfetto_build_generator = false
+#    perfetto_build_standalone = false
+#    perfetto_build_with_android = false
+#    perfetto_build_with_embedder = true
+
+# 4. Builds in other embedder trees (e.g. V8 standalone)
+#    build_with_chromium = false
+#    is_perfetto_build_generator = false
+#    perfetto_build_standalone = false
+#    perfetto_build_with_android = false
+#    perfetto_build_with_embedder = true
+
+# 5. Amalgamated sources (Client library)
+#    build_with_chromium = false
+#    is_perfetto_build_generator = true
+#    perfetto_build_standalone = false
+#    perfetto_build_with_android = false
+#    perfetto_build_with_embedder = true
+
+# +----------------------------------------------------------------------------+
+# | Toolchain / environment related configuration                              |
+# +----------------------------------------------------------------------------+
+# This section contains a bunch of variables that are related with the toolchain
+# and the build environment. Only tools/gen_xxx should customize them.
+
+# Note that |build_with_chromium| is a global convention used by several
+# projects, set outside of our control.
+
+# Chromium sets this to true in its //build_overrides/build.gni.
+if (!defined(build_with_chromium)) {
+  build_with_chromium = false
+}
+
+if (!defined(is_nacl)) {
+  is_nacl = false
+}
+
+declare_args() {
+  # The Android blueprint file generator set this to true (as well as
+  # is_perfetto_build_generator). This is just about being built in the
+  # Android tree (AOSP and internal) and is NOT related with the target OS.
+  # In standalone Android builds and Chromium Android builds, this is false.
+  perfetto_build_with_android = false
+
+  # All the tools/gen_* scripts set this to true. This is mainly used to locate
+  # .gni files from //gn rather than //build.
+  is_perfetto_build_generator = false
+
+  # This is for override via `gn args` (e.g. for tools/gen_xxx). Embedders
+  # based on GN (e.g. v8) should NOT set this and instead directly sets
+  # perfetto_build_with_embedder=true in their GN files.
+  is_perfetto_embedder = false
+}
+
+# This can be overridden by embedders (e.g. v8) in their .gn(i) files. This must
+# be different from the GN args flag (is_perfetto_embedder) because of the way
+# GN works.
+if (!defined(perfetto_build_with_embedder)) {
+  perfetto_build_with_embedder = build_with_chromium || is_perfetto_embedder
+}
+
+perfetto_build_standalone =
+    !perfetto_build_with_android && !build_with_chromium &&
+    !perfetto_build_with_embedder
+
+# Only relevant for GN builds. Sets the path where perfetto lives. This is //
+# for standalone builds and //third_party/perfetto/ in embedders. The embedder
+# can ovverride it in its GN files.
+if (perfetto_build_standalone || is_perfetto_build_generator) {
+  perfetto_root_path = "//"
+  import("//gn/standalone/android.gni")  # For android_api_level
+  import("//gn/standalone/sanitizers/vars.gni")  # For is_fuzzer
+} else if (!defined(perfetto_root_path)) {
+  perfetto_root_path = "//third_party/perfetto/"
+  import("//build/config/android/config.gni")  # For android_api_level
+}
+
+# Whether the ftrace producer and the service should be started
+# by the integration test or assumed to be running.
+# If we're building in the Android tree, we expect that the testing infra
+# will start the binaries in the system image before the tests are run.
+# In all other cases (i.e. when true), a temporary in-process instance will be
+# brought up by our own integrationtest harness.
+start_daemons_for_testing = !perfetto_build_with_android
+
+# +----------------------------------------------------------------------------+
+# | Tunable build variables for embedders                                      |
+# +----------------------------------------------------------------------------+
+# The variables in this section allow embedders to enable/disable features
+# at the build-system level. This allows to opt-in into the various services
+# and tools.
+
+perfetto_force_dlog_default = ""
+if (build_with_chromium) {
+  perfetto_force_dlog_default = "off"
+}
+
+declare_args() {
+  # Platform-wide tracing executables (traced, traced_probes, perfetto_cmd).
+  enable_perfetto_platform_services =
+      perfetto_build_standalone || perfetto_build_with_android
+
+  # Allow the embedder to use the IPC layer. In turn this allows to use the
+  # system backend in the client library.
+  # This includes building things that rely on POSIX sockets, this places
+  # limitations on the supported operating systems.
+  enable_perfetto_ipc = !is_win && !is_fuchsia && !is_nacl &&
+                        (perfetto_build_standalone ||
+                         perfetto_build_with_android || build_with_chromium)
+
+  # Makes the heap profiling daemon target reachable. It works only on Android,
+  # but is built on Linux as well for test/compiler coverage.
+  # On Android, it requires API level 26 due to libunwindstack.
+  enable_perfetto_heapprofd =
+      perfetto_build_with_android ||
+      (perfetto_build_standalone && is_clang &&
+       (is_linux || (is_android && android_api_level >= 26)))
+
+  # Build the perf event profiler (traced_perf).
+  # TODO(b/144281346): under development.
+  # TODO(rsavitski): figure out how to make the android-core dependencies build
+  # under gcc (_Atomic and other issues).
+  enable_perfetto_traced_perf =
+      perfetto_build_with_android ||
+      (perfetto_build_standalone && is_clang && is_linux)
+
+  # The Trace Processor: offline analytical engine to process traces and compute
+  # metrics using a SQL engine.
+  if (!defined(enable_perfetto_trace_processor)) {
+    enable_perfetto_trace_processor =
+        perfetto_build_standalone || build_with_chromium ||
+        is_perfetto_build_generator
+  }
+
+  # Enables base::Watchdog. Is supported only on Linux-based platforms.
+  # gn/BUILD.gn further restricts this to OS_LINUX || OS_ANDROID when generating
+  # the perfetto_build_flags.h header.
+  enable_perfetto_watchdog =
+      perfetto_build_with_android || perfetto_build_standalone
+
+  # Misc host executable under tools/.
+  enable_perfetto_tools =
+      perfetto_build_standalone || perfetto_build_with_android
+
+  enable_perfetto_unittests = perfetto_build_standalone ||
+                              build_with_chromium || perfetto_build_with_android
+
+  enable_perfetto_integration_tests =
+      perfetto_build_standalone || perfetto_build_with_android
+
+  enable_perfetto_benchmarks = perfetto_build_standalone
+
+  enable_perfetto_fuzzers =
+      perfetto_build_standalone && defined(is_fuzzer) && is_fuzzer
+
+  # Enables the gen_git_revision tool that generates a .h that contains a macro
+  # with the current git revision. Works only in standalone GN checkouts.
+  # If disabled, the version string will be "unknown".
+  enable_perfetto_version_gen =
+      perfetto_build_standalone && !is_perfetto_build_generator
+
+  # Only for local development. When true the binaries (perfetto, traced, ...)
+  # are monolithic and don't use a common shared library. This is mainly to
+  # avoid LD_LIBRARY_PATH dances when testing locally.
+  monolithic_binaries = false
+
+  # Whether DLOG should be enabled on debug builds (""), all builds ("on"), or
+  # none ("off"). We disable it by default for embedders to avoid spamming their
+  # console.
+  perfetto_force_dlog = perfetto_force_dlog_default
+}
+
+declare_args() {
+  # Whether info-level logging is enabled.
+  perfetto_verbose_logs_enabled =
+      !build_with_chromium || perfetto_force_dlog == "on"
+
+  # Enables the SQL query layer of trace processor.
+  enable_perfetto_trace_processor_sqlite =
+      enable_perfetto_trace_processor &&
+      (build_with_chromium || !perfetto_build_with_embedder)
+
+  # Enables the optional SQLite percentile module.
+  enable_perfetto_trace_processor_percentile =
+      enable_perfetto_trace_processor && perfetto_build_standalone
+
+  # Enables the REPL interactive prompt in the trace processor.
+  enable_perfetto_trace_processor_linenoise =
+      perfetto_build_standalone && enable_perfetto_trace_processor &&
+      (is_linux || is_android || is_mac)
+
+  # Enables JSON support in the trace processor. Required for JSON trace import
+  # and export.
+  enable_perfetto_trace_processor_json =
+      enable_perfetto_trace_processor && !perfetto_build_with_android
+
+  # Enables httpd RPC support in the trace processor.
+  # Further per-OS conditionals are applied in gn/BUILD.gn.
+  enable_perfetto_trace_processor_httpd =
+      enable_perfetto_trace_processor && perfetto_build_standalone
+
+  # Enables Zlib support. This is used both by the "perfetto" cmdline client
+  # (for compressing traces) and by trace processor (for compressed traces).
+  enable_perfetto_zlib =
+      enable_perfetto_trace_processor || enable_perfetto_platform_services
+}
+
+declare_args() {
+  # Enables the trace_to_text tool.
+  enable_perfetto_tools_trace_to_text =
+      enable_perfetto_tools && enable_perfetto_trace_processor_sqlite
+
+  # Allows to build the UI (TypeScript/ HTML / WASM)
+  enable_perfetto_ui =
+      perfetto_build_standalone && enable_perfetto_trace_processor_sqlite
+
+  # Skip buildtools dependency checks (needed for ChromeOS).
+  skip_buildtools_check = false
+
+  # Used by CrOS system builds. Uses the system version of protobuf
+  # from /usr/include instead of the hermetic one.
+  perfetto_use_system_protobuf = false
+}
+
+# +---------------------------------------------------------------------------+
+# | Cross-checks                                                              |
+# +---------------------------------------------------------------------------+
+
+# Exactly one between build_with_android, build_standalone and
+# build_with_embedder must be true.
+assert(perfetto_build_standalone || perfetto_build_with_android ||
+       perfetto_build_with_embedder)
+assert(!(perfetto_build_with_android && perfetto_build_standalone))
+assert(!(perfetto_build_with_embedder && perfetto_build_standalone))
+assert(!(perfetto_build_with_android && perfetto_build_with_embedder))
+
+# If |build_with_chromium| is true then also |perfetto_build_with_embedder|
+# must be true
+assert(!build_with_chromium || perfetto_build_with_embedder)
+
+# If |perfetto_build_with_android| is true then also
+# |is_perfetto_build_generator| must be true.
+assert(!perfetto_build_with_android || is_perfetto_build_generator)
+
+# The IPC layer based on UNIX sockets can't be built on Win.
+assert(!enable_perfetto_ipc || !is_win)
+
+# We should never end up in a state where is_perfetto_embedder=true but
+# perfetto_build_with_embedder=false.
+assert(!is_perfetto_embedder || perfetto_build_with_embedder)
+
+# The monolithic binaries is not supported when building in the Android tree.
+assert(!monolithic_binaries || !perfetto_build_with_android)
+
+# Watchdog must be on in Android builds.
+assert(enable_perfetto_watchdog || !perfetto_build_with_android)
+
+assert(perfetto_force_dlog == "" || perfetto_force_dlog == "on" ||
+       perfetto_force_dlog == "off")

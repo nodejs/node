@@ -1,0 +1,33 @@
+* Development workflow
+  * [Contributing](contributing.md)
+  * [Build instructions](build-instructions.md)
+  * [Running tests](testing.md)
+* Instrumenting and tracing
+  * [App instrumentation](app-instrumentation.md)
+  * [Recording traces](recording-traces.md)
+* On-device tracer
+  * [Running Perfetto](running.md)
+  * [Capturing long traces](long-traces.md)
+  * [Advanced trace config](trace-config.md)
+  * [Running in detached mode](detached-mode.md)
+  * [Native Heap Profiling](heapprofd.md)
+  * [Java Heap Profiling](java-hprof.md)
+* Offline trace processing
+  * [Trace processor](trace-processor.md)
+  * [Trace analysis](analysis.md)
+  * [Trace-based metrics](metrics.md)
+  * [Trace conversion](traceconv.md)
+  * [Clock synchronization](clock-sync.md)
+* Architectural docs
+  * [Key concepts](architecture.md)
+  * [Life of a tracing session](life-of-a-tracing-session.md)
+  * [Ftrace interop](ftrace.md)
+  * [Performance benchmarks](benchmarks.md)
+  * [Trace format](trace-format.md)
+  * [Multi-layer tracing](multi-layer-tracing.md)
+  * [Security model](security-model.md)
+  * [Embedding Perfetto](embedder-guide.md)
+  * [ProtoZero internals](protozero.md)
+  * [IPC internals](ipc.md)
+  * [heapprofd Design](heapprofd-design.md)
+  * [heapprofd Design: Wire Protocol](heapprofd-wire-protocol.md)

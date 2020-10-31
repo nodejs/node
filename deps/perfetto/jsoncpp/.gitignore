@@ -1,0 +1,53 @@
+/build/
+/build-*/
+*.pyc
+*.swp
+*.actual
+*.actual-rewrite
+*.process-output
+*.rewrite
+/bin/
+/libs/
+/doc/doxyfile
+/dist/
+
+# MSVC project files:
+*.sln
+*.vcxproj
+*.filters
+*.user
+*.sdf
+*.opensdf
+*.suo
+
+# MSVC build files:
+*.lib
+*.obj
+*.tlog/
+*.pdb
+
+# CMake-generated files:
+CMakeFiles/
+*.cmake
+/pkg-config/jsoncpp.pc
+jsoncpp_lib_static.dir/
+
+# In case someone runs cmake in the root-dir:
+/CMakeCache.txt
+/Makefile
+/include/Makefile
+/src/Makefile
+/src/jsontestrunner/Makefile
+/src/jsontestrunner/jsontestrunner_exe
+/src/lib_json/Makefile
+/src/test_lib_json/Makefile
+/src/test_lib_json/jsoncpp_test
+*.a
+
+# eclipse project files
+.project
+.cproject
+/.settings/
+
+# DS_Store
+.DS_Store

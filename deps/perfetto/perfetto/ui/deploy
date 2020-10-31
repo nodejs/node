@@ -1,0 +1,122 @@
+#!/bin/bash
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -e
+
+function echo_and_do {
+  echo $@
+  $@
+}
+
+PROJECT_ROOT="$(cd -P ${BASH_SOURCE[0]%/*}/..; pwd)"
+OUT_DIR="$PROJECT_ROOT/out/ui-deploy.tmp"
+UI_DIST_DIR="$OUT_DIR/ui-dist"
+
+CLEAN_OUT_DIR=true
+DEPLOY_PROD=false
+DEPLOY_STAGING=false
+DEBUG_BUILD=true
+
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+      --no-clean)
+      CLEAN_OUT_DIR=false
+      shift
+      ;;
+      --prod)
+      DEPLOY_PROD=true
+      DEBUG_BUILD=false
+      shift
+      ;;
+      --staging)
+      DEPLOY_STAGING=true
+      shift
+      ;;
+      --release)
+      DEBUG_BUILD=false
+      shift
+      ;;
+      -h|--help)
+      echo "Usage: $0 [--no-clean] [--prod] [--staging]"
+      echo "    --no-clean  Don't remove $OUT_DIR"
+      echo "    --prod      Deploy prod version (implies --release)"
+      echo "    --staging   Deploy staging version"
+      echo "    --release   Do a release build"
+      echo "    -h|--help   Display this message"
+      exit 0
+      shift
+      ;;
+  esac
+done
+
+if [ "$CLEAN_OUT_DIR" = true ]; then
+  echo_and_do rm -rf "$OUT_DIR"
+fi
+echo_and_do mkdir -p "$UI_DIST_DIR"
+
+if [ "$DEBUG_BUILD" = true ]; then
+  echo_and_do "$PROJECT_ROOT/tools/gn" gen "$OUT_DIR" --args="is_debug=true"
+else
+  echo_and_do "$PROJECT_ROOT/tools/gn" gen "$OUT_DIR" --args="is_debug=false"
+fi
+
+echo_and_do "$PROJECT_ROOT/tools/ninja" -C "$OUT_DIR" ui
+
+echo "Writing $UI_DIST_DIR/app.yaml"
+cat<<EOF > "$UI_DIST_DIR/app.yaml"
+runtime: python27
+api_version: 1
+threadsafe: yes
+instance_class: B1
+default_expiration: "1m"
+manual_scaling:
+  instances: 1
+handlers:
+- url: /
+  static_files: static/index.html
+  upload: static/index.html
+  secure: always
+  redirect_http_response_code: 301
+- url: /(.*[.]wasm)
+  static_files: static/\1
+  upload: static/(.*[.]wasm)
+  mime_type: application/wasm
+- url: /assets/(.*)
+  static_files: static/assets/\1
+  upload: static/assets/(.*)
+- url: /(.*)
+  static_files: static/\1
+  upload: static/(.*)
+EOF
+
+echo_and_do ln -fs ../ui $UI_DIST_DIR/static
+
+(
+  echo_and_do cd "$UI_DIST_DIR";
+  if [ "$DEPLOY_PROD" = true ]; then
+    echo_and_do gcloud app deploy app.yaml --project perfetto-ui -v prod
+  elif [ "$DEPLOY_STAGING" = true ]; then
+    echo_and_do gcloud app deploy app.yaml --project perfetto-ui \
+        -v staging --no-promote --stop-previous-version
+  else
+    echo_and_do gcloud app deploy app.yaml --project perfetto-ui \
+        -v $USER --no-promote --stop-previous-version
+  fi
+)
+
+if [ "$CLEAN_OUT_DIR" = true ]; then
+  echo_and_do rm -rf "$OUT_DIR"
+fi

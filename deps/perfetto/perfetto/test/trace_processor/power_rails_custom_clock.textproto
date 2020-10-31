@@ -1,0 +1,57 @@
+packet {
+  clock_snapshot {
+    clocks {
+      clock_id: 6
+      timestamp: 101000002
+    }
+    clocks {
+      clock_id: 128
+      timestamp: 2
+    }
+  }
+  timestamp: 101000002
+}
+packet {
+  power_rails {
+    rail_descriptor {
+      index: 4
+      rail_name: "test_rail"
+      subsys_name: "test_subsys"
+      sampling_rate: 1023
+    }
+  }
+}
+packet {
+  timestamp: 3000000
+  power_rails {
+    energy_data {
+      index: 4
+      energy: 333
+    }
+  }
+  timestamp_clock_id: 128
+}
+packet {
+  timestamp: 5000000
+  power_rails {
+    energy_data {
+      index: 4
+      energy: 666
+    }
+  }
+  timestamp_clock_id: 128
+}
+packet {
+  power_rails {
+    energy_data {
+      index: 4
+      timestamp_ms: 106
+      energy: 999
+    }
+    energy_data {
+      index: 4
+      timestamp_ms: 109
+      energy: 0
+    }
+  }
+}

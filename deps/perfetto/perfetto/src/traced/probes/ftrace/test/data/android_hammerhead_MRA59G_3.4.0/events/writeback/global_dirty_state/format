@@ -1,0 +1,19 @@
+name: global_dirty_state
+ID: 151
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:unsigned long nr_dirty;	offset:12;	size:4;	signed:0;
+	field:unsigned long nr_writeback;	offset:16;	size:4;	signed:0;
+	field:unsigned long nr_unstable;	offset:20;	size:4;	signed:0;
+	field:unsigned long background_thresh;	offset:24;	size:4;	signed:0;
+	field:unsigned long dirty_thresh;	offset:28;	size:4;	signed:0;
+	field:unsigned long dirty_limit;	offset:32;	size:4;	signed:0;
+	field:unsigned long nr_dirtied;	offset:36;	size:4;	signed:0;
+	field:unsigned long nr_written;	offset:40;	size:4;	signed:0;
+
+print fmt: "dirty=%lu writeback=%lu unstable=%lu bg_thresh=%lu thresh=%lu limit=%lu dirtied=%lu written=%lu", REC->nr_dirty, REC->nr_writeback, REC->nr_unstable, REC->background_thresh, REC->dirty_thresh, REC->dirty_limit, REC->nr_dirtied, REC->nr_written

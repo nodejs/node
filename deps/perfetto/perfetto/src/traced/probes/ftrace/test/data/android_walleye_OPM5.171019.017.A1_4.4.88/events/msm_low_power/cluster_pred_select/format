@@ -1,0 +1,16 @@
+name: cluster_pred_select
+ID: 712
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:const char * name;	offset:8;	size:8;	signed:0;
+	field:int index;	offset:16;	size:4;	signed:1;
+	field:u32 sleep_us;	offset:20;	size:4;	signed:0;
+	field:u32 latency;	offset:24;	size:4;	signed:0;
+	field:int pred;	offset:28;	size:4;	signed:1;
+	field:u32 pred_us;	offset:32;	size:4;	signed:0;
+
+print fmt: "name:%s idx:%d sleep_time:%u latency:%u pred:%d pred_us:%u", REC->name, REC->index, REC->sleep_us, REC->latency, REC->pred, REC->pred_us

@@ -1,0 +1,42 @@
+# Copyright (C) 2020 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../../gn/perfetto.gni")
+
+assert(enable_perfetto_ipc)
+
+# Posix specialization of the tracing library for Linux / Android / Mac.
+# Provides an IPC transport over a UNIX socket for the service interface.
+source_set("service") {
+  public_deps = [
+    "../../../../include/perfetto/ext/tracing/core",
+    "../../../../include/perfetto/ext/tracing/ipc",
+  ]
+  sources = [
+    "consumer_ipc_service.cc",
+    "consumer_ipc_service.h",
+    "producer_ipc_service.cc",
+    "producer_ipc_service.h",
+    "service_ipc_host_impl.cc",
+    "service_ipc_host_impl.h",
+  ]
+  deps = [
+    "..:common",
+    "../../../../gn:default_deps",
+    "../../../../protos/perfetto/ipc",
+    "../../../base",
+    "../../../ipc:host",
+    "../../core:service",
+  ]
+}

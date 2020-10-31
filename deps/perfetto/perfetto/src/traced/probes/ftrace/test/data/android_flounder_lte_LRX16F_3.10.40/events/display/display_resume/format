@@ -1,0 +1,17 @@
+name: display_resume
+ID: 423
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:bool enabled;	offset:8;	size:1;	signed:0;
+	field:u8 dev_id;	offset:9;	size:1;	signed:0;
+	field:int bw_rate;	offset:12;	size:4;	signed:1;
+	field:int new_bw_rate;	offset:16;	size:4;	signed:1;
+	field:int underflows_a;	offset:20;	size:4;	signed:1;
+	field:int underflows_b;	offset:24;	size:4;	signed:1;
+	field:int underflows_c;	offset:28;	size:4;	signed:1;
+
+print fmt: "dc%u enabled=%d bw_rate=%d new_bw_rate=%d underflows=%d/%d/%d", REC->dev_id, REC->enabled, REC->bw_rate, REC->new_bw_rate, REC->underflows_a, REC->underflows_b, REC->underflows_c

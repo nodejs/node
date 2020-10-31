@@ -1,0 +1,164 @@
+/**
+\mainpage
+\section _intro Introduction
+
+<a HREF="http://www.json.org/">JSON (JavaScript Object Notation)</a>
+ is a lightweight data-interchange format.
+
+Here is an example of JSON data:
+\verbatim
+{
+    "encoding" : "UTF-8",
+    "plug-ins" : [
+        "python",
+        "c++",
+        "ruby"
+        ],
+    "indent" : { "length" : 3, "use_space": true }
+}
+\endverbatim
+<b>JsonCpp</b> supports comments as <i>meta-data</i>:
+\code
+// Configuration options
+{
+    // Default encoding for text
+    "encoding" : "UTF-8",
+
+    // Plug-ins loaded at start-up
+    "plug-ins" : [
+        "python",
+        "c++",  // trailing comment
+        "ruby"
+        ],
+
+    // Tab indent size
+    // (multi-line comment)
+    "indent" : { /*embedded comment*/ "length" : 3, "use_space": true }
+}
+\endcode
+
+\section _features Features
+- read and write JSON document
+- attach C++ style comments to element during parsing
+- rewrite JSON document preserving original comments
+
+Notes: Comments used to be supported in JSON but were removed for
+portability (C like comments are not supported in Python). Since
+comments are useful in configuration/input file, this feature was
+preserved.
+
+\section _example Code example
+
+\code
+Json::Value root;   // 'root' will contain the root value after parsing.
+std::cin >> root;
+
+// You can also read into a particular sub-value.
+std::cin >> root["subtree"];
+
+// Get the value of the member of root named 'encoding',
+// and return 'UTF-8' if there is no such member.
+std::string encoding = root.get("encoding", "UTF-8" ).asString();
+
+// Get the value of the member of root named 'plug-ins'; return a 'null' value if
+// there is no such member.
+const Json::Value plugins = root["plug-ins"];
+
+// Iterate over the sequence elements.
+for ( int index = 0; index < plugins.size(); ++index )
+   loadPlugIn( plugins[index].asString() );
+
+// Try other datatypes. Some are auto-convertible to others.
+foo::setIndentLength( root["indent"].get("length", 3).asInt() );
+foo::setIndentUseSpace( root["indent"].get("use_space", true).asBool() );
+
+// Since Json::Value has an implicit constructor for all value types, it is not
+// necessary to explicitly construct the Json::Value object.
+root["encoding"] = foo::getCurrentEncoding();
+root["indent"]["length"] = foo::getCurrentIndentLength();
+root["indent"]["use_space"] = foo::getCurrentIndentUseSpace();
+
+// If you like the defaults, you can insert directly into a stream.
+std::cout << root;
+// Of course, you can write to `std::ostringstream` if you prefer.
+
+// If desired, remember to add a linefeed and flush.
+std::cout << std::endl;
+\endcode
+
+\section _advanced Advanced usage
+
+Configure *builders* to create *readers* and *writers*. For
+configuration, we use our own `Json::Value` (rather than
+standard setters/getters) so that we can add
+features without losing binary-compatibility.
+
+\code
+// For convenience, use `writeString()` with a specialized builder.
+Json::StreamWriterBuilder wbuilder;
+wbuilder["indentation"] = "\t";
+std::string document = Json::writeString(wbuilder, root);
+
+// Here, using a specialized Builder, we discard comments and
+// record errors as we parse.
+Json::CharReaderBuilder rbuilder;
+rbuilder["collectComments"] = false;
+std::string errs;
+bool ok = Json::parseFromStream(rbuilder, std::cin, &root, &errs);
+\endcode
+
+Yes, compile-time configuration-checking would be helpful,
+but `Json::Value` lets you
+write and read the builder configuration, which is better! In other words,
+you can configure your JSON parser using JSON.
+
+CharReaders and StreamWriters are not thread-safe, but they are re-usable.
+\code
+Json::CharReaderBuilder rbuilder;
+cfg >> rbuilder.settings_;
+std::unique_ptr<Json::CharReader> const reader(rbuilder.newCharReader());
+reader->parse(start, stop, &value1, &errs);
+// ...
+reader->parse(start, stop, &value2, &errs);
+// etc.
+\endcode
+
+\section _pbuild Build instructions
+The build instructions are located in the file
+<a HREF="https://github.com/open-source-parsers/jsoncpp/blob/master/README.md">README.md</a> in the top-directory of the project.
+
+The latest version of the source is available in the project's GitHub repository:
+<a HREF="https://github.com/open-source-parsers/jsoncpp/">
+jsoncpp</a>
+
+\section _news What's New?
+The description of latest changes can be found in
+<a HREF="https://github.com/open-source-parsers/jsoncpp/wiki/NEWS">
+  the NEWS wiki
+</a>.
+
+\section _rlinks Related links
+- <a HREF="http://www.json.org/">JSON</a> Specification and alternate language implementations.
+- <a HREF="http://www.yaml.org/">YAML</a> A data format designed for human readability.
+- <a HREF="http://www.cl.cam.ac.uk/~mgk25/unicode.html">UTF-8 and Unicode FAQ</a>.
+
+\section _plinks Old project links
+- <a href="https://sourceforge.net/projects/jsoncpp/">https://sourceforge.net/projects/jsoncpp/</a>
+- <a href="http://jsoncpp.sourceforge.net">http://jsoncpp.sourceforge.net</a>
+- <a href="http://sourceforge.net/projects/jsoncpp/files/">http://sourceforge.net/projects/jsoncpp/files/</a>
+- <a href="http://jsoncpp.svn.sourceforge.net/svnroot/jsoncpp/trunk/">http://jsoncpp.svn.sourceforge.net/svnroot/jsoncpp/trunk/</a>
+- <a href="http://jsoncpp.sourceforge.net/old.html">http://jsoncpp.sourceforge.net/old.html</a>
+
+\section _license License
+See file <a href="https://github.com/open-source-parsers/jsoncpp/blob/master/LICENSE"><code>LICENSE</code></a> in the top-directory of the project.
+
+Basically JsonCpp is licensed under MIT license, or public domain if desired
+and recognized in your jurisdiction.
+
+\author Baptiste Lepilleur <blep@users.sourceforge.net> (originator)
+\author Christopher Dunn <cdunn2001@gmail.com> (primary maintainer)
+\version \include version
+We make strong guarantees about binary-compatibility, consistent with
+<a href="http://apr.apache.org/versioning.html">the Apache versioning scheme</a>.
+\sa version.h
+*/

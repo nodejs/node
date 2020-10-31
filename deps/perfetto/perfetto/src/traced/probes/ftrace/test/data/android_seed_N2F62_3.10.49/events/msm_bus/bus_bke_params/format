@@ -1,0 +1,15 @@
+name: bus_bke_params
+ID: 556
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 gc;	offset:8;	size:4;	signed:0;
+	field:u32 gp;	offset:12;	size:4;	signed:0;
+	field:u32 thl;	offset:16;	size:4;	signed:0;
+	field:u32 thm;	offset:20;	size:4;	signed:0;
+	field:u32 thh;	offset:24;	size:4;	signed:0;
+
+print fmt: "GC:0x%x GP:0x%x THL:0x%x THM:0x%x THH:0x%x", REC->gc, REC->gp, REC->thl, REC->thm, REC->thh

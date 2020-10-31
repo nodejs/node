@@ -1,0 +1,18 @@
+name: nvmap_alloc_handle
+ID: 450
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct nvmap_client * client;	offset:8;	size:8;	signed:0;
+	field:struct nvmap_handle * handle;	offset:16;	size:8;	signed:0;
+	field:size_t size;	offset:24;	size:8;	signed:0;
+	field:u32 heap_mask;	offset:32;	size:4;	signed:0;
+	field:u32 align;	offset:36;	size:4;	signed:0;
+	field:u32 flags;	offset:40;	size:4;	signed:0;
+	field:u64 total;	offset:48;	size:8;	signed:0;
+	field:u64 alloc;	offset:56;	size:8;	signed:0;
+
+print fmt: "client=%p, id=0x%p, size=%zu, heap_mask=0x%x, align=%d, flags=0x%x, total=%llu, alloc=%llu", REC->client, REC->handle, REC->size, REC->heap_mask, REC->align, REC->flags, (unsigned long long)REC->total, (unsigned long long)REC->alloc

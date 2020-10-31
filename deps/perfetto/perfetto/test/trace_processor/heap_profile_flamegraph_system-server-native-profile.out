@@ -1,0 +1,11 @@
+"id","type","depth","name","map_name","count","cumulative_count","size","cumulative_size","alloc_count","cumulative_alloc_count","alloc_size","cumulative_alloc_size","parent_id"
+0,"experimental_flamegraph_nodes",0,"__start_thread","/apex/com.android.runtime/lib64/bionic/libc.so",0,8,0,84848,0,210,0,1084996,"[NULL]"
+1,"experimental_flamegraph_nodes",1,"_ZL15__pthread_startPv","/apex/com.android.runtime/lib64/bionic/libc.so",0,8,0,84848,0,210,0,1084996,0
+2,"experimental_flamegraph_nodes",2,"_ZN7android14AndroidRuntime15javaThreadShellEPv","/system/lib64/libandroid_runtime.so",0,5,0,27704,0,77,0,348050,1
+3,"experimental_flamegraph_nodes",3,"_ZN7android6Thread11_threadLoopEPv","/system/lib64/libutils.so",0,5,0,27704,0,77,0,348050,2
+4,"experimental_flamegraph_nodes",4,"_ZN7android10PoolThread10threadLoopEv","/system/lib64/libbinder.so",0,1,0,4096,0,64,0,279182,3
+5,"experimental_flamegraph_nodes",5,"_ZN7android14IPCThreadState14joinThreadPoolEb","/system/lib64/libbinder.so",0,1,0,4096,0,64,0,279182,4
+6,"experimental_flamegraph_nodes",6,"_ZN7android14IPCThreadState20getAndExecuteCommandEv","/system/lib64/libbinder.so",0,1,0,4096,0,64,0,279182,5
+7,"experimental_flamegraph_nodes",7,"_ZN7android14IPCThreadState14executeCommandEi","/system/lib64/libbinder.so",0,1,0,4096,0,64,0,279182,6
+8,"experimental_flamegraph_nodes",8,"_ZN7android7BBinder8transactEjRKNS_6ParcelEPS1_j","/system/lib64/libbinder.so",0,1,0,4096,0,64,0,279182,7
+9,"experimental_flamegraph_nodes",9,"_ZN11JavaBBinder10onTransactEjRKN7android6ParcelEPS1_j","/system/lib64/libandroid_runtime.so",0,0,0,0,0,60,0,262730,8

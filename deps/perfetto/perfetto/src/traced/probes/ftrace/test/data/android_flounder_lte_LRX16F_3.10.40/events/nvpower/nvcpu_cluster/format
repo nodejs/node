@@ -1,0 +1,13 @@
+name: nvcpu_cluster
+ID: 549
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u64 state;	offset:8;	size:8;	signed:0;
+	field:u32 start;	offset:16;	size:4;	signed:0;
+	field:u32 target;	offset:20;	size:4;	signed:0;
+
+print fmt: "state=%lu, start=0x%08lx, target=0x%08lx", (unsigned long)REC->state, (unsigned long)REC->start, (unsigned long)REC->target

@@ -1,0 +1,46 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message InodeFileConfig {
+  message MountPointMappingEntry {
+    optional string mountpoint = 1;
+    repeated string scan_roots = 2;
+  }
+
+  // How long to pause between batches.
+  optional uint32 scan_interval_ms = 1;
+
+  // How long to wait before the first scan in order to accumulate inodes.
+  optional uint32 scan_delay_ms = 2;
+
+  // How many inodes to scan in one batch.
+  optional uint32 scan_batch_size = 3;
+
+  // Do not scan for inodes not found in the static map.
+  optional bool do_not_scan = 4;
+
+  // If non-empty, only scan inodes corresponding to block devices named in
+  // this list.
+  repeated string scan_mount_points = 5;
+
+  // When encountering an inode belonging to a block device corresponding
+  // to one of the mount points in this map, scan its scan_roots instead.
+  repeated MountPointMappingEntry mount_point_mapping = 6;
+}

@@ -1,0 +1,161 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Statistics for the internals of the tracing service.
+//
+// Next id: 11.
+message TraceStats {
+  // From TraceBuffer::Stats.
+  //
+  // Next id: 20.
+  message BufferStats {
+    // Size of the circular buffer in bytes.
+    optional uint64 buffer_size = 12;
+
+    // Num. bytes written into the circular buffer, including chunk headers.
+    optional uint64 bytes_written = 1;
+
+    // Num. bytes overwritten before they have been read (i.e. loss of data).
+    optional uint64 bytes_overwritten = 13;
+
+    // Total size of chunks that were fully read from the circular buffer by the
+    // consumer. This may not be equal to |bytes_written| either in the middle
+    // of tracing, or if |chunks_overwritten| is non-zero. Note that this is the
+    // size of the chunks read from the buffer, including chunk headers, which
+    // will be different from the total size of packets returned to the
+    // consumer.
+    //
+    // The current utilization of the trace buffer (mid-tracing) can be obtained
+    // by subtracting |bytes_read| and |bytes_overwritten| from |bytes_written|,
+    // adding the difference of |padding_bytes_written| and
+    // |padding_bytes_cleared|, and comparing this sum to the |buffer_size|.
+    // Note that this represents the total size of buffered data in the buffer,
+    // yet this data may be spread non-contiguously through the buffer and may
+    // be overridden before the utilization reaches 100%.
+    optional uint64 bytes_read = 14;
+
+    // Num. bytes that were allocated as padding between chunks in the circular
+    // buffer.
+    optional uint64 padding_bytes_written = 15;
+
+    // Num. of padding bytes that were removed from the circular buffer when
+    // they were overwritten.
+    //
+    // The difference between |padding_bytes_written| and
+    // |padding_bytes_cleared| denotes the total size of padding currently
+    // present in the buffer.
+    optional uint64 padding_bytes_cleared = 16;
+
+    // Num. chunks (!= packets) written into the buffer.
+    optional uint64 chunks_written = 2;
+
+    // Num. chunks (!= packets) rewritten into the buffer. This means we rewrote
+    // the same chunk with additional packets appended to the end.
+    optional uint64 chunks_rewritten = 10;
+
+    // Num. chunks overwritten before they have been read (i.e. loss of data).
+    optional uint64 chunks_overwritten = 3;
+
+    // Num. chunks discarded (i.e. loss of data). Can be > 0 only when a buffer
+    // is configured with FillPolicy == DISCARD.
+    optional uint64 chunks_discarded = 18;
+
+    // Num. chunks (!= packets) that were fully read from the circular buffer by
+    // the consumer. This may not be equal to |chunks_written| either in the
+    // middle of tracing, or if |chunks_overwritten| is non-zero.
+    optional uint64 chunks_read = 17;
+
+    // Num. chunks that were committed out of order.
+    optional uint64 chunks_committed_out_of_order = 11;
+
+    // Num. times the ring buffer wrapped around.
+    optional uint64 write_wrap_count = 4;
+
+    // Num. out-of-band (OOB) patches that succeeded.
+    optional uint64 patches_succeeded = 5;
+
+    // Num. OOB patches that failed (e.g., the chunk to patch was gone).
+    optional uint64 patches_failed = 6;
+
+    // Num. readaheads (for large multi-chunk packet reads) that ended up in a
+    // successful packet read.
+    optional uint64 readaheads_succeeded = 7;
+
+    // Num. readaheads aborted because of missing chunks in the sequence stream.
+    // Note that a small number > 0 is totally expected: occasionally, when
+    // issuing a read, the very last packet in a sequence might be incomplete
+    // (because the producer is still writing it while we read). The read will
+    // stop at that point, for that sequence, increasing this counter.
+    optional uint64 readaheads_failed = 8;
+
+    // Num. of violations of the SharedMemoryABI found while writing or reading
+    // the buffer. This is an indication of either a bug in the producer(s) or
+    // malicious producer(s).
+    optional uint64 abi_violations = 9;
+
+    // The fields below have been introduced in Android R.
+
+    // Num. of times the service detected packet loss on a trace writer
+    // sequence. This is usually caused by exhaustion of available chunks in the
+    // writer process's SMB. Note that this relies on the client's TraceWriter
+    // indicating this loss to the service -- packets lost for other reasons are
+    // not reflected in this stat.
+    optional uint64 trace_writer_packet_loss = 19;
+  }
+
+  // Stats for the TraceBuffer(s) of the current trace session.
+  repeated BufferStats buffer_stats = 1;
+
+  // Num. producers connected (whether they are involved in the current tracing
+  // session or not).
+  optional uint32 producers_connected = 2;
+
+  // Num. producers ever seen for all trace sessions since startup (it's a good
+  // proxy for inferring num. producers crashed / killed).
+  optional uint64 producers_seen = 3;
+
+  // Num. data sources registered for all trace sessions.
+  optional uint32 data_sources_registered = 4;
+
+  // Num. data sources ever seen for all trace sessions since startup.
+  optional uint64 data_sources_seen = 5;
+
+  // Num. concurrently active tracing sessions.
+  optional uint32 tracing_sessions = 6;
+
+  // Num. buffers for all tracing session (not just the current one). This will
+  // be >= buffer_stats.size(), because the latter is only about the current
+  // session.
+  optional uint32 total_buffers = 7;
+
+  // The fields below have been introduced in Android Q.
+
+  // Num. chunks that were discarded by the service before attempting to commit
+  // them to a buffer, e.g. because the producer specified an invalid buffer ID.
+  optional uint64 chunks_discarded = 8;
+
+  // Num. patches that were discarded by the service before attempting to apply
+  // them to a buffer, e.g. because the producer specified an invalid buffer ID.
+  optional uint64 patches_discarded = 9;
+
+  // Packets that failed validation of the TrustedPacket. If this is > 0, there
+  // is a bug in the producer.
+  optional uint64 invalid_packets = 10;
+}

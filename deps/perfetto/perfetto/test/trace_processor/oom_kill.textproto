@@ -1,0 +1,25 @@
+packet {
+  process_tree {
+    processes {
+      pid: 1000
+      ppid: 1
+      cmdline: "com.google.android.gm"
+    }
+    threads {
+      tid: 1001
+      tgid: 1000
+    }
+  }
+}
+packet {
+  ftrace_events {
+    cpu: 4
+    event {
+      timestamp: 1234
+      pid: 4321
+      mark_victim {
+        pid: 1001
+      }
+    }
+  }
+}

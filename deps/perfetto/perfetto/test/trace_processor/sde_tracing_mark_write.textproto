@@ -1,0 +1,23 @@
+packet {
+  ftrace_events {
+    cpu: 0
+    event {
+      timestamp: 100
+      pid: 403
+      sde_tracing_mark_write {
+        pid: 403
+        trace_name: "test_event"
+        trace_begin: 1
+      }
+    }
+    event {
+      timestamp: 101
+      pid: 403
+      sde_tracing_mark_write {
+        pid: 403
+        trace_name: "test_event"
+        trace_begin: 0
+      }
+    }
+  }
+}

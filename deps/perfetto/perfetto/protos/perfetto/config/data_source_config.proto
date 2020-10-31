@@ -1,0 +1,132 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+import "protos/perfetto/config/android/android_log_config.proto";
+import "protos/perfetto/config/android/android_polled_state_config.proto";
+import "protos/perfetto/config/android/packages_list_config.proto";
+import "protos/perfetto/config/chrome/chrome_config.proto";
+import "protos/perfetto/config/ftrace/ftrace_config.proto";
+import "protos/perfetto/config/gpu/gpu_counter_config.proto";
+import "protos/perfetto/config/gpu/vulkan_memory_config.proto";
+import "protos/perfetto/config/inode_file/inode_file_config.proto";
+import "protos/perfetto/config/power/android_power_config.proto";
+import "protos/perfetto/config/process_stats/process_stats_config.proto";
+import "protos/perfetto/config/profiling/heapprofd_config.proto";
+import "protos/perfetto/config/profiling/java_hprof_config.proto";
+import "protos/perfetto/config/profiling/perf_event_config.proto";
+import "protos/perfetto/config/sys_stats/sys_stats_config.proto";
+import "protos/perfetto/config/test_config.proto";
+import "protos/perfetto/config/track_event/track_event_config.proto";
+
+// The configuration that is passed to each data source when starting tracing.
+message DataSourceConfig {
+  // Data source unique name, e.g., "linux.ftrace". This must match
+  // the name passed by the data source when it registers (see
+  // RegisterDataSource()).
+  optional string name = 1;
+
+  // The index of the logging buffer where TracePacket(s) will be stored.
+  // This field doesn't make a major difference for the Producer(s). The final
+  // logging buffers, in fact, are completely owned by the Service. We just ask
+  // the Producer to copy this number into the chunk headers it emits, so that
+  // the Service can quickly identify the buffer where to move the chunks into
+  // without expensive lookups on its fastpath.
+  optional uint32 target_buffer = 2;
+
+  // Set by the service to indicate the duration of the trace.
+  // DO NOT SET in consumer as this will be overridden by the service.
+  optional uint32 trace_duration_ms = 3;
+
+  // Set by the service to indicate how long it waits after StopDataSource.
+  // DO NOT SET in consumer as this will be overridden by the service.
+  optional uint32 stop_timeout_ms = 7;
+
+  // Set by the service to indicate whether this tracing session has extra
+  // guardrails.
+  // DO NOT SET in consumer as this will be overridden by the service.
+  optional bool enable_extra_guardrails = 6;
+
+  // Set by the service to indicate which tracing session the data source
+  // belongs to. The intended use case for this is checking if two data sources,
+  // one of which produces metadata for the other one, belong to the same trace
+  // session and hence should be linked together.
+  // This field was introduced in Aug 2018 after Android P.
+  optional uint64 tracing_session_id = 4;
+
+  // Keeep the lower IDs (up to 99) for fields that are *not* specific to
+  // data-sources and needs to be processed by the traced daemon.
+
+  // All data source config fields must be marked as [lazy=true]. This prevents
+  // the proto-to-cpp generator from recursing into those when generating the
+  // cpp classes and polluting tracing/core with data-source-specific classes.
+  // Instead they are treated as opaque strings containing raw proto bytes.
+
+  // Data source name: linux.ftrace
+  optional FtraceConfig ftrace_config = 100 [lazy = true];
+  // Data source name: linux.inode_file_map
+  optional InodeFileConfig inode_file_config = 102 [lazy = true];
+  // Data source name: linux.process_stats
+  optional ProcessStatsConfig process_stats_config = 103 [lazy = true];
+  // Data source name: linux.sys_stats
+  optional SysStatsConfig sys_stats_config = 104 [lazy = true];
+  // Data source name: android.heapprofd
+  // Introduced in Android 10.
+  optional HeapprofdConfig heapprofd_config = 105 [lazy = true];
+  // Data source name: android.java_hprof
+  // Introduced in Android 11.
+  optional JavaHprofConfig java_hprof_config = 110 [lazy = true];
+  // Data source name: android.power
+  optional AndroidPowerConfig android_power_config = 106 [lazy = true];
+  // Data source name: android.log
+  optional AndroidLogConfig android_log_config = 107 [lazy = true];
+  // TODO(fmayer): Add data source name for this.
+  optional GpuCounterConfig gpu_counter_config = 108 [lazy = true];
+  // Data source name: android.packages_list
+  optional PackagesListConfig packages_list_config = 109 [lazy = true];
+  // Data source name: linux.perf
+  optional PerfEventConfig perf_event_config = 111 [lazy = true];
+  // Data source name: vulkan.memory_tracker
+  optional VulkanMemoryConfig vulkan_memory_config = 112 [lazy = true];
+  // Data source name: track_event
+  optional TrackEventConfig track_event_config = 113 [lazy = true];
+  // Data source name: android.polled_state
+  optional AndroidPolledStateConfig android_polled_state_config = 114
+      [lazy = true];
+
+  // Chrome is special as it doesn't use the perfetto IPC layer. We want to
+  // avoid proto serialization and de-serialization there because that would
+  // just add extra hops on top of the Mojo ser/des. Instead we auto-generate a
+  // C++ class for it so it can pass around plain C++ objets.
+  optional ChromeConfig chrome_config = 101;
+
+  // This is a fallback mechanism to send a free-form text config to the
+  // producer. In theory this should never be needed. All the code that
+  // is part of the platform (i.e. traced service) is supposed to *not* truncate
+  // the trace config proto and propagate unknown fields. However, if anything
+  // in the pipeline (client or backend) ends up breaking this forward compat
+  // plan, this field will become the escape hatch to allow future data sources
+  // to get some meaningful configuration.
+  optional string legacy_config = 1000;
+
+  // This field is only used for testing.
+  optional TestConfig for_testing = 1001;
+
+  reserved 268435455;  // Was |for_testing|. Caused more problems then found.
+}

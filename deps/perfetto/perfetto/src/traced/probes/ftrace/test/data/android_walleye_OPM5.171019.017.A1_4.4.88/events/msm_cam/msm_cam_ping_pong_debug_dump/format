@@ -1,0 +1,23 @@
+name: msm_cam_ping_pong_debug_dump
+ID: 644
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int curr_vfe_id;	offset:8;	size:4;	signed:0;
+	field:unsigned int curr_irq_status0;	offset:12;	size:4;	signed:0;
+	field:unsigned int curr_irq_status1;	offset:16;	size:4;	signed:0;
+	field:unsigned int curr_ping_pong_status;	offset:20;	size:4;	signed:0;
+	field:unsigned int othr_vfe_id;	offset:24;	size:4;	signed:0;
+	field:unsigned int othr_irq_status0;	offset:28;	size:4;	signed:0;
+	field:unsigned int othr_irq_status1;	offset:32;	size:4;	signed:0;
+	field:unsigned int othr_ping_pong_status;	offset:36;	size:4;	signed:0;
+	field:long othr_tv_sec;	offset:40;	size:8;	signed:1;
+	field:long othr_tv_usec;	offset:48;	size:8;	signed:1;
+	field:unsigned int core_id;	offset:56;	size:4;	signed:0;
+
+print fmt: "vfe_id %d, irq_st0 0x%x, irq_st1 0x%x, pi_po_st 0x%x
+other vfe_id %d, irq_st0 0x%x, irq_st1 0x%x
+pi_po_st 0x%x, time %ld:%ld core %d", REC->curr_vfe_id, REC->curr_irq_status0, REC->curr_irq_status1, REC->curr_ping_pong_status, REC->othr_vfe_id, REC->othr_irq_status0, REC->othr_irq_status1, REC->othr_ping_pong_status, REC->othr_tv_sec, REC->othr_tv_usec, REC->core_id

@@ -1,0 +1,17 @@
+name: perf_cl_peak_exit_timer_start
+ID: 153
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int cpu;	offset:8;	size:4;	signed:0;
+	field:unsigned int perf_cl_peak_enter_cycles;	offset:12;	size:4;	signed:0;
+	field:unsigned int perf_cl_peak_enter_cycle_cnt;	offset:16;	size:4;	signed:0;
+	field:unsigned int perf_cl_peak_exit_cycles;	offset:20;	size:4;	signed:0;
+	field:unsigned int perf_cl_peak_exit_cycle_cnt;	offset:24;	size:4;	signed:0;
+	field:unsigned int timer_rate;	offset:28;	size:4;	signed:0;
+	field:unsigned int mode;	offset:32;	size:4;	signed:0;
+
+print fmt: "%u:%4u:%4u:%4u:%4u:%4u:%4u", (unsigned int) REC->cpu, (unsigned int) REC->perf_cl_peak_enter_cycles, (unsigned int) REC->perf_cl_peak_enter_cycle_cnt, (unsigned int) REC->perf_cl_peak_exit_cycles, (unsigned int) REC->perf_cl_peak_exit_cycle_cnt, (unsigned int) REC->timer_rate, (unsigned int) REC->mode

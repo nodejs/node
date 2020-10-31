@@ -1,0 +1,4 @@
+android_lmk {
+  total_count: 0
+  oom_victim_count: 1
+}

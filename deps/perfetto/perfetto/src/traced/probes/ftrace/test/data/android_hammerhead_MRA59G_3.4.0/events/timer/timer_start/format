@@ -1,0 +1,16 @@
+name: timer_start
+ID: 47
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:void * timer;	offset:12;	size:4;	signed:0;
+	field:void * function;	offset:16;	size:4;	signed:0;
+	field:unsigned long expires;	offset:20;	size:4;	signed:0;
+	field:unsigned long now;	offset:24;	size:4;	signed:0;
+	field:char deferrable;	offset:28;	size:1;	signed:0;
+
+print fmt: "timer=%p function=%pf expires=%lu [timeout=%ld] defer=%c", REC->timer, REC->function, REC->expires, (long)REC->expires - REC->now, REC->deferrable

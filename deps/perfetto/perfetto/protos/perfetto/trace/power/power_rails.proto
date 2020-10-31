@@ -1,0 +1,51 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+package perfetto.protos;
+
+message PowerRails {
+
+  message RailDescriptor {
+    // Index corresponding to the rail
+    optional uint32 index = 1;
+
+    // Name of the rail
+    optional string rail_name = 2;
+
+    // Name of the subsystem to which this rail belongs
+    optional string subsys_name = 3;
+
+    // Hardware sampling rate (Hz).
+    optional uint32 sampling_rate = 4;
+  }
+
+  // This is only emitted at the beginning of the trace.
+  repeated RailDescriptor rail_descriptor = 1;
+
+  message EnergyData {
+    // Index corresponding to RailDescriptor.index
+    optional uint32 index = 1;
+
+    // Time since device boot(CLOCK_BOOTTIME) in milli-seconds.
+    optional uint64 timestamp_ms = 2;
+
+    // Accumulated energy since device boot in microwatt-seconds (uWs).
+    optional uint64 energy = 3;
+  }
+
+  repeated EnergyData energy_data = 2;
+}

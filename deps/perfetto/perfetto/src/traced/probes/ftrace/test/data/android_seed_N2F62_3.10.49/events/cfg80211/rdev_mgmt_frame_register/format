@@ -1,0 +1,14 @@
+name: rdev_mgmt_frame_register
+ID: 666
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:u32 id;	offset:40;	size:4;	signed:0;
+	field:u16 frame_type;	offset:44;	size:2;	signed:0;
+	field:bool reg;	offset:46;	size:1;	signed:0;
+
+print fmt: "%s, wdev(%u), frame_type: 0x%.2x, reg: %s ", REC->wiphy_name, (REC->id), REC->frame_type, REC->reg ? "true" : "false"

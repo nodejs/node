@@ -1,0 +1,142 @@
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../gn/perfetto.gni")
+import("../../gn/proto_library.gni")
+import("../../gn/test.gni")
+
+# The command line client for Perfetto. Allows to configure / start / stop
+# tracing, acting as a Consumer.
+executable("perfetto") {
+  deps = [
+    ":perfetto_cmd",
+    "../../gn:default_deps",
+  ]
+  sources = [ "main.cc" ]
+}
+
+# Tool to finalize long running traces.
+# This connects to traced as a producer and sends the triggers passed on the
+# commandline. This is a subset of what the perfetto binary can do but we
+# need a separate binary for programs that cannot (for good reason) use the
+# additional functionality (for example starting traces via consumer socket)
+# due to selinux rules.
+executable("trigger_perfetto") {
+  deps = [
+    ":trigger_perfetto_cmd",
+    "../../gn:default_deps",
+  ]
+  sources = [ "trigger_perfetto_main.cc" ]
+}
+
+source_set("perfetto_atoms") {
+  sources = [ "perfetto_atoms.h" ]
+}
+
+# Contains all the implementation but not the main() entry point. This target
+# is shared both by the executable and tests.
+source_set("perfetto_cmd") {
+  public_deps = [
+    ":protos",
+    "../../include/perfetto/ext/traced",
+  ]
+  deps = [
+    ":perfetto_atoms",
+    ":trigger_producer",
+    "../../gn:default_deps",
+    "../../protos/perfetto/common:cpp",
+    "../../protos/perfetto/config:cpp",
+    "../../protos/perfetto/config/ftrace:cpp",
+    "../android_internal:lazy_library_loader",
+    "../base",
+    "../protozero",
+    "../tracing/ipc/consumer",
+  ]
+  if (enable_perfetto_zlib) {
+    deps += [ "../../gn:zlib" ]
+  }
+  sources = [
+    "config.cc",
+    "config.h",
+    "packet_writer.cc",
+    "packet_writer.h",
+    "pbtxt_to_pb.cc",
+    "pbtxt_to_pb.h",
+    "perfetto_cmd.cc",
+    "perfetto_cmd.h",
+    "perfetto_config.descriptor.h",
+    "rate_limiter.cc",
+    "rate_limiter.h",
+  ]
+  if (is_android) {
+    sources += [ "perfetto_cmd_android.cc" ]
+  }
+}
+
+source_set("trigger_perfetto_cmd") {
+  public_deps = [
+    ":protos",
+    "../../include/perfetto/ext/traced",
+  ]
+  deps = [
+    ":trigger_producer",
+    "../../gn:default_deps",
+    "../base",
+    "../tracing/ipc/producer",
+  ]
+  sources = [ "trigger_perfetto.cc" ]
+}
+
+source_set("trigger_producer") {
+  sources = [
+    "trigger_producer.cc",
+    "trigger_producer.h",
+  ]
+  deps = [
+    "../../gn:default_deps",
+    "../base",
+    "../tracing/ipc/producer",
+  ]
+}
+
+perfetto_proto_library("protos") {
+  proto_generators = [ "cpp" ]
+  sources = [ "perfetto_cmd_state.proto" ]
+  proto_path = perfetto_root_path
+}
+
+perfetto_unittest_source_set("unittests") {
+  testonly = true
+  public_deps = []
+  deps = [
+    ":perfetto_cmd",
+    "../../gn:default_deps",
+    "../../gn:gtest_and_gmock",
+    "../../include/perfetto/base",
+    "../../include/perfetto/ext/base",
+    "../../protos/perfetto/config:cpp",
+    "../../protos/perfetto/config/ftrace:cpp",
+    "../../protos/perfetto/trace:cpp",
+    "../tracing/core",
+  ]
+  if (enable_perfetto_zlib) {
+    deps += [ "../../gn:zlib" ]
+  }
+  sources = [
+    "config_unittest.cc",
+    "packet_writer_unittest.cc",
+    "pbtxt_to_pb_unittest.cc",
+    "rate_limiter_unittest.cc",
+  ]
+}

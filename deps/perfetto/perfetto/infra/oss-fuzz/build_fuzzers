@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -euo pipefail
+
+$SRC/perfetto/tools/install-build-deps
+
+mkdir -p $WORK/build
+
+GN_ARGS="is_clang=true is_debug=false is_fuzzer=true use_libfuzzer=false \
+link_fuzzer=\"-lFuzzingEngine\" is_asan=true is_hermetic_clang=false \
+use_custom_libcxx=false \
+extra_cflags=\"$CFLAGS -Wno-implicit-int-float-conversion\" \
+extra_cxxflags=\"$CXXFLAGS\" extra_ldflags=\"$CXXFLAGS\" \
+is_system_compiler=true"
+
+OUTDIR=$WORK/build
+$SRC/perfetto/tools/gn gen "$OUTDIR" --args="${GN_ARGS}" --check
+
+$SRC/perfetto/tools/ninja -C $WORK/build fuzzers -v
+cp $WORK/build/*fuzzer $OUT
+mkdir -p $OUT/src/traced/probes/ftrace/test/data
+cp -a $SRC/perfetto/src/traced/probes/ftrace/test/data/synthetic \
+  $OUT/src/traced/probes/ftrace/test/data

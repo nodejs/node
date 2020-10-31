@@ -1,0 +1,28 @@
+name: v4l2_qbuf
+ID: 637
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int minor;	offset:8;	size:4;	signed:1;
+	field:u32 index;	offset:12;	size:4;	signed:0;
+	field:u32 type;	offset:16;	size:4;	signed:0;
+	field:u32 bytesused;	offset:20;	size:4;	signed:0;
+	field:u32 flags;	offset:24;	size:4;	signed:0;
+	field:u32 field;	offset:28;	size:4;	signed:0;
+	field:s64 timestamp;	offset:32;	size:8;	signed:1;
+	field:u32 timecode_type;	offset:40;	size:4;	signed:0;
+	field:u32 timecode_flags;	offset:44;	size:4;	signed:0;
+	field:u8 timecode_frames;	offset:48;	size:1;	signed:0;
+	field:u8 timecode_seconds;	offset:49;	size:1;	signed:0;
+	field:u8 timecode_minutes;	offset:50;	size:1;	signed:0;
+	field:u8 timecode_hours;	offset:51;	size:1;	signed:0;
+	field:u8 timecode_userbits0;	offset:52;	size:1;	signed:0;
+	field:u8 timecode_userbits1;	offset:53;	size:1;	signed:0;
+	field:u8 timecode_userbits2;	offset:54;	size:1;	signed:0;
+	field:u8 timecode_userbits3;	offset:55;	size:1;	signed:0;
+	field:u32 sequence;	offset:56;	size:4;	signed:0;
+
+print fmt: "minor = %d, index = %u, type = %s, bytesused = %u, flags = %s, field = %s, timestamp = %llu, timecode = { type = %s, flags = %s, frames = %u, seconds = %u, minutes = %u, hours = %u, userbits = { %u %u %u %u } }, sequence = %u", REC->minor, REC->index, __print_symbolic(REC->type, {1, "VIDEO_CAPTURE"}, {2, "VIDEO_OUTPUT"}, {3, "VIDEO_OVERLAY"}, {4, "VBI_CAPTURE"}, {5, "VBI_OUTPUT"}, {6, "SLICED_VBI_CAPTURE"}, {7, "SLICED_VBI_OUTPUT"}, {8, "VIDEO_OUTPUT_OVERLAY"}, {9, "VIDEO_CAPTURE_MPLANE"}, {10, "VIDEO_OUTPUT_MPLANE"}, {11, "SDR_CAPTURE"}, {12, "SDR_OUTPUT"}, {128, "PRIVATE"}), REC->bytesused, __print_flags(REC->flags, "|", { 0x00000001, "MAPPED" }, { 0x00000002, "QUEUED" }, { 0x00000004, "DONE" }, { 0x00000008, "KEYFRAME" }, { 0x00000010, "PFRAME" }, { 0x00000020, "BFRAME" }, { 0x00000040, "ERROR" }, { 0x00000100, "TIMECODE" }, { 0x00000400, "PREPARED" }, { 0x00000800, "NO_CACHE_INVALIDATE" }, { 0x00001000, "NO_CACHE_CLEAN" }, { 0x0000e000, "TIMESTAMP_MASK" }, { 0x00000000, "TIMESTAMP_UNKNOWN" }, { 0x00002000, "TIMESTAMP_MONOTONIC" }, { 0x00004000, "TIMESTAMP_COPY" }, { 0x00100000, "LAST" }), __print_symbolic(REC->field, {0, "ANY"}, {1, "NONE"}, {2, "TOP"}, {3, "BOTTOM"}, {4, "INTERLACED"}, {5, "SEQ_TB"}, {6, "SEQ_BT"}, {7, "ALTERNATE"}, {8, "INTERLACED_TB"}, {9, "INTERLACED_BT"}), REC->timestamp, __print_symbolic(REC->timecode_type, { 1, "24FPS" }, { 2, "25FPS" }, { 3, "30FPS" }, { 4, "50FPS" }, { 5, "60FPS" }), __print_flags(REC->timecode_flags, "|", { 0x0001, "DROPFRAME" }, { 0x0002, "COLORFRAME" }, { 0x0000, "USERBITS_USERDEFINED" }, { 0x0008, "USERBITS_8BITCHARS" }), REC->timecode_frames, REC->timecode_seconds, REC->timecode_minutes, REC->timecode_hours, REC->timecode_userbits0, REC->timecode_userbits1, REC->timecode_userbits2, REC->timecode_userbits3, REC->sequence

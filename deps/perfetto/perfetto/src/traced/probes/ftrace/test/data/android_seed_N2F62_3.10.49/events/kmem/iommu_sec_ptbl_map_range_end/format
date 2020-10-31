@@ -1,0 +1,15 @@
+name: iommu_sec_ptbl_map_range_end
+ID: 118
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int sec_id;	offset:8;	size:4;	signed:1;
+	field:int num;	offset:12;	size:4;	signed:1;
+	field:unsigned long va;	offset:16;	size:4;	signed:0;
+	field:unsigned int pa;	offset:20;	size:4;	signed:0;
+	field:size_t len;	offset:24;	size:4;	signed:0;
+
+print fmt: "sec_id=%d num=%d va=%lx pa=%u len=%zu", REC->sec_id, REC->num, REC->va, REC->pa, REC->len

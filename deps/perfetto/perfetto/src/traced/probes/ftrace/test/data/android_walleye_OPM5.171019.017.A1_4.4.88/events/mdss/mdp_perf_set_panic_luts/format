@@ -1,0 +1,15 @@
+name: mdp_perf_set_panic_luts
+ID: 413
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 pnum;	offset:8;	size:4;	signed:0;
+	field:u32 fmt;	offset:12;	size:4;	signed:0;
+	field:u32 mode;	offset:16;	size:4;	signed:0;
+	field:u32 panic_lut;	offset:20;	size:4;	signed:0;
+	field:u32 robust_lut;	offset:24;	size:4;	signed:0;
+
+print fmt: "pnum=%d fmt=%d mode=%d luts[0x%x, 0x%x]", REC->pnum, REC->fmt, REC->mode, REC->panic_lut, REC->robust_lut

@@ -1,0 +1,166 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build_overrides/build.gni")
+import("../../gn/perfetto.gni")
+import("../../gn/test.gni")
+import("../../gn/wasm.gni")
+
+enable_stack_trace = is_debug && perfetto_build_standalone && !is_wasm
+
+source_set("base") {
+  deps = [ "../../gn:default_deps" ]
+  public_deps = [
+    "../../include/perfetto/base",
+    "../../include/perfetto/ext/base",
+  ]
+  sources = [
+    "file_utils.cc",
+    "logging.cc",
+    "metatrace.cc",
+    "paged_memory.cc",
+    "string_splitter.cc",
+    "string_utils.cc",
+    "string_view.cc",
+    "subprocess.cc",
+    "thread_checker.cc",
+    "time.cc",
+    "uuid.cc",
+    "virtual_destructors.cc",
+    "waitable_event.cc",
+    "watchdog_posix.cc",
+  ]
+
+  # TODO(brucedawson): Enable these for Windows when possible.
+  if (!is_win) {
+    sources += [
+      "event_fd.cc",
+      "pipe.cc",
+      "temp_file.cc",
+      "thread_task_runner.cc",
+      "unix_task_runner.cc",
+    ]
+  }
+
+  if (enable_stack_trace) {
+    deps += [ ":debug_crash_stack_trace" ]
+  }
+}
+
+if (enable_stack_trace) {
+  source_set("debug_crash_stack_trace") {
+    sources = [ "debug_crash_stack_trace.cc" ]
+    deps = [
+      "../../gn:default_deps",
+      "../../include/perfetto/ext/base",
+      "../../include/perfetto/ext/base",
+    ]
+    if (is_linux || is_android) {
+      deps += [ "../../gn:libbacktrace" ]
+    }
+    cflags = [ "-Wno-deprecated" ]
+  }
+}
+
+if (enable_perfetto_ipc) {
+  # This cannot be in :base as it does not build on WASM.
+  source_set("unix_socket") {
+    deps = [
+      "../../gn:default_deps",
+      "../../include/perfetto/ext/base",
+      "../../include/perfetto/ext/base",
+    ]
+    sources = [ "unix_socket.cc" ]
+  }
+}
+
+source_set("test_support") {
+  testonly = true
+  deps = [
+    ":base",
+    "../../gn:default_deps",
+  ]
+  sources = [
+    "test/utils.cc",
+    "test/utils.h",
+    "test/vm_test_utils.cc",
+    "test/vm_test_utils.h",
+  ]
+
+  # The Perfetto task runner is not used on Windows.
+  if (!is_win) {
+    sources += [
+      "test/test_task_runner.cc",
+      "test/test_task_runner.h",
+    ]
+  }
+}
+
+perfetto_unittest_source_set("unittests") {
+  testonly = true
+  deps = [
+    ":base",
+    ":test_support",
+    "../../gn:default_deps",
+    "../../gn:gtest_and_gmock",
+  ]
+
+  sources = [
+    "circular_queue_unittest.cc",
+    "flat_set_unittest.cc",
+    "no_destructor_unittest.cc",
+    "optional_unittest.cc",
+    "paged_memory_unittest.cc",
+    "scoped_file_unittest.cc",
+    "string_splitter_unittest.cc",
+    "string_utils_unittest.cc",
+    "string_view_unittest.cc",
+    "string_writer_unittest.cc",
+    "subprocess_unittest.cc",
+    "time_unittest.cc",
+    "uuid_unittest.cc",
+    "weak_ptr_unittest.cc",
+  ]
+
+  # TODO: Enable these for Windows when possible.
+  if (!is_win) {
+    sources += [
+      "metatrace_unittest.cc",
+      "task_runner_unittest.cc",
+      "temp_file_unittest.cc",
+      "thread_checker_unittest.cc",
+      "thread_task_runner_unittest.cc",
+      "utils_unittest.cc",
+    ]
+  }
+  if (perfetto_build_standalone || perfetto_build_with_android) {
+    # This causes some problems on the chromium waterfall.
+    sources += [ "unix_socket_unittest.cc" ]
+    if (is_linux || is_android) {
+      sources += [ "watchdog_unittest.cc" ]
+    }
+  }
+}
+
+if (enable_perfetto_benchmarks) {
+  source_set("benchmarks") {
+    testonly = true
+    deps = [
+      ":base",
+      "../../gn:benchmark",
+      "../../gn:default_deps",
+    ]
+    sources = [ "flat_set_benchmark.cc" ]
+  }
+}

@@ -1,0 +1,26 @@
+name: rdev_return_int_station_info
+ID: 697
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:int ret;	offset:40;	size:4;	signed:1;
+	field:int generation;	offset:44;	size:4;	signed:1;
+	field:u32 connected_time;	offset:48;	size:4;	signed:0;
+	field:u32 inactive_time;	offset:52;	size:4;	signed:0;
+	field:u32 rx_bytes;	offset:56;	size:4;	signed:0;
+	field:u32 tx_bytes;	offset:60;	size:4;	signed:0;
+	field:u32 rx_packets;	offset:64;	size:4;	signed:0;
+	field:u32 tx_packets;	offset:68;	size:4;	signed:0;
+	field:u32 tx_retries;	offset:72;	size:4;	signed:0;
+	field:u32 tx_failed;	offset:76;	size:4;	signed:0;
+	field:u32 rx_dropped_misc;	offset:80;	size:4;	signed:0;
+	field:u32 beacon_loss_count;	offset:84;	size:4;	signed:0;
+	field:u16 llid;	offset:88;	size:2;	signed:0;
+	field:u16 plid;	offset:90;	size:2;	signed:0;
+	field:u8 plink_state;	offset:92;	size:1;	signed:0;
+
+print fmt: "%s, returned %d", REC->wiphy_name, REC->ret

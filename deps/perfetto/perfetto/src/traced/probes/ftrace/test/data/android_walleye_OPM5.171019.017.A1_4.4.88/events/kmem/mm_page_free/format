@@ -1,0 +1,12 @@
+name: mm_page_free
+ID: 185
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned long pfn;	offset:8;	size:8;	signed:0;
+	field:unsigned int order;	offset:16;	size:4;	signed:0;
+
+print fmt: "page=%p pfn=%lu order=%d", (((struct page *)((((0xffffffffffffffffUL) - ((1UL) << ((39) - 1)) + 1) - (1UL << ((12 - 3) * (4 - (4 - 3)) + 3)) - (((((1UL << ((39) - 12)) * sizeof(struct page))) + ((typeof(((1UL << ((39) - 12)) * sizeof(struct page))))(((1UL << ((12 - 3) * (4 - (4 - 3)) + 3)))) - 1)) & ~((typeof(((1UL << ((39) - 12)) * sizeof(struct page))))(((1UL << ((12 - 3) * (4 - (4 - 3)) + 3)))) - 1)) - 0x00010000) + 0x00010000) - ((memstart_addr >> 12) & (~((1UL << (30 - 12))-1)))) + (REC->pfn)), REC->pfn, REC->order

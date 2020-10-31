@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This file should do the same thing when being invoked in any of these ways:
+# ./trace_processor
+# python trace_processor
+# bash trace_processor
+# cat ./trace_processor | bash
+# cat ./trace_processor | python -
+
+BASH_FALLBACK = """ "
+exec python - "$@" <<'#'EOF
+#"""
+
+import hashlib
+import os
+import sys
+import tempfile
+import urllib
+
+TRACE_PROCESSOR_SHELL_SHAS = {
+    'linux': '7532ce79b260993018fdd515fdf99d3151ce48d4',
+    'mac': 'ed29b0eefe4f209504c18400b844cb00b4bc323b',
+}
+TRACE_PROCESSOR_SHELL_PATH = tempfile.gettempdir()
+TRACE_PROCESSOR_SHELL_BASE_URL = ('https://storage.googleapis.com/perfetto/')
+
+
+def check_hash(file_name, sha_value):
+  with open(file_name, 'rb') as fd:
+    file_hash = hashlib.sha1(fd.read()).hexdigest()
+    return file_hash == sha_value
+
+
+def load_trace_processor_shell(platform):
+  sha_value = TRACE_PROCESSOR_SHELL_SHAS[platform]
+  file_name = 'trace_processor_shell-' + platform + '-' + sha_value
+  local_file = os.path.join(TRACE_PROCESSOR_SHELL_PATH, file_name)
+
+  if os.path.exists(local_file):
+    if not check_hash(local_file, sha_value):
+      os.remove(local_file)
+    else:
+      return local_file
+
+  url = TRACE_PROCESSOR_SHELL_BASE_URL + file_name
+  urllib.urlretrieve(url, local_file)
+  if not check_hash(local_file, sha_value):
+    os.remove(local_file)
+    raise ValueError("Invalid signature.")
+  os.chmod(local_file, 0o755)
+  return local_file
+
+
+def main(argv):
+  platform = None
+  if sys.platform.startswith('linux'):
+    platform = 'linux'
+  elif sys.platform.startswith('darwin'):
+    platform = 'mac'
+  else:
+    print("Invalid platform: {}".format(sys.platform))
+    return 1
+
+  trace_processor_shell_binary = load_trace_processor_shell(platform)
+  os.execv(trace_processor_shell_binary,
+           [trace_processor_shell_binary] + argv[1:])
+
+
+if __name__ == '__main__':
+  sys.exit(main(sys.argv))
+
+#EOF

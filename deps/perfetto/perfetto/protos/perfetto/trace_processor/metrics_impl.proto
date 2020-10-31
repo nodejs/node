@@ -1,0 +1,62 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// The wrapping result of any metric builder function in trace processor. This
+// is an internal implementation detail of trace processor so should not be
+// relied on.
+message ProtoBuilderResult {
+  // Whether the result is a singular proto builder result or the result of
+  // a repeated field builder.
+  optional bool is_repeated = 1;
+  oneof result {
+    SingleBuilderResult single = 2;
+    RepeatedBuilderResult repeated = 3;
+  }
+}
+
+// The result of a repeated field function for a metric proto in trace
+// processor. This is an internal implementation detail of trace processor so
+// should not be relied on.
+message RepeatedBuilderResult {
+  message Value {
+    oneof data {
+      int64 int_value = 1;
+      string string_value = 2;
+      double double_value = 3;
+      bytes bytes_value = 4;
+    }
+  }
+  repeated Value value = 1;
+}
+
+// The result of a builder function for a metric proto in trace processor. This
+// is an internal implementation detail of trace processor so should not be
+// relied on.
+message SingleBuilderResult {
+  // The type of the result. The possible values are given by
+  // FieldDescriptorProto::Type.
+  optional uint32 type = 1;
+
+  // The type name of the result if the result is a message or enum type.
+  optional string type_name = 2;
+
+  // The raw proto bytes of a message.
+  optional bytes protobuf = 3;
+}

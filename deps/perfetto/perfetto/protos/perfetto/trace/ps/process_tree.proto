@@ -1,0 +1,68 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+package perfetto.protos;
+
+message ProcessTree {
+  // Representation of a thread.
+  message Thread {
+    // The thread id (as per gettid())
+    optional int32 tid = 1;
+
+    // Thread group id (i.e. the PID of the process, == TID of the main thread)
+    optional int32 tgid = 3;
+
+    // The name of the thread.
+    optional string name = 2;
+  }
+
+  // Representation of a process.
+  message Process {
+    // The UNIX process ID, aka thread group ID (as per getpid()).
+    optional int32 pid = 1;
+
+    // The parent process ID, as per getppid().
+    optional int32 ppid = 2;
+
+    // The command line for the process, as per /proc/pid/cmdline.
+    // If it is a kernel thread there will only be one cmdline field
+    // and it will contain /proc/pid/comm.
+    repeated string cmdline = 3;
+
+    // No longer used as of Apr 2018, when the dedicated |threads| field was
+    // introduced in ProcessTree.
+    repeated Thread threads_deprecated = 4 [deprecated = true];
+
+    // The uid for the process, as per /proc/pid/status.
+    optional int32 uid = 5;
+  }
+
+  // List of processes and threads in the client. These lists are incremental
+  // and not exhaustive. A process and its threads might show up separately in
+  // different ProcessTree messages. A thread might event not show up at all, if
+  // no sched_switch activity was detected, for instance:
+  // #0 { processes: [{pid: 10, ...}], threads: [{pid: 11, tgid: 10}] }
+  // #1 { threads: [{pid: 12, tgid: 10}] }
+  // #2 { processes: [{pid: 20, ...}], threads: [{pid: 13, tgid: 10}] }
+  repeated Process processes = 1;
+  repeated Thread threads = 2;
+
+  // The time at which we finish collecting this process tree;
+  // the top-level packet timestamp is the time at which
+  // we begin collection.
+  optional uint64 collection_end_timestamp = 3;
+}

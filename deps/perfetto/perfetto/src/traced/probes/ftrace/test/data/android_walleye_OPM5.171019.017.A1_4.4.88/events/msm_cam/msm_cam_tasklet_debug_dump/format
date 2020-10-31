@@ -1,0 +1,18 @@
+name: msm_cam_tasklet_debug_dump
+ID: 643
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int vfe_id;	offset:8;	size:4;	signed:0;
+	field:unsigned int core_id;	offset:12;	size:4;	signed:0;
+	field:unsigned int irq_status0;	offset:16;	size:4;	signed:0;
+	field:unsigned int irq_status1;	offset:20;	size:4;	signed:0;
+	field:unsigned int ping_pong_status;	offset:24;	size:4;	signed:0;
+	field:long tv_sec;	offset:32;	size:8;	signed:1;
+	field:long tv_usec;	offset:40;	size:8;	signed:1;
+
+print fmt: "vfe_id %d, core %d, irq_st0 0x%x, irq_st1 0x%x
+pi_po_st 0x%x, time %ld:%ld", REC->vfe_id, REC->core_id, REC->irq_status0, REC->irq_status1, REC->ping_pong_status, REC->tv_sec, REC->tv_usec

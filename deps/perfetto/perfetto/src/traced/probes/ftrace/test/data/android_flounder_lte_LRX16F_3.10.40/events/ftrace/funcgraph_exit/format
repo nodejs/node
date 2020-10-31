@@ -1,0 +1,15 @@
+name: funcgraph_exit
+ID: 10
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned long func;	offset:8;	size:8;	signed:0;
+	field:unsigned long long calltime;	offset:16;	size:8;	signed:0;
+	field:unsigned long long rettime;	offset:24;	size:8;	signed:0;
+	field:unsigned long overrun;	offset:32;	size:8;	signed:0;
+	field:int depth;	offset:40;	size:4;	signed:1;
+
+print fmt: "<-- %lx (%d) (start: %llx  end: %llx) over: %d", REC->func, REC->depth, REC->calltime, REC->rettime, REC->depth

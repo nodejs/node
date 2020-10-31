@@ -1,0 +1,245 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+import "protos/perfetto/common/observable_events.proto";
+import "protos/perfetto/common/tracing_service_state.proto";
+import "protos/perfetto/common/tracing_service_capabilities.proto";
+import "protos/perfetto/common/trace_stats.proto";
+import "protos/perfetto/config/trace_config.proto";
+
+package perfetto.protos;
+
+// IPC interface definition for the consumer port of the tracing service.
+service ConsumerPort {
+  // Creates the ring buffers that will be used for the tracing session.
+  // TODO(primiano): not implemented yet. EnableTracing will implicitly create
+  // the required buffer. This is to allow Enabling/Disabling tracing with
+  // different configs without losing the contents of the buffers for the
+  // previous tracing session.
+  // rpc CreateBuffers(CreateBuffersRequest) returns (CreateBuffersResponse) {}
+
+  // Enables tracing for one or more data sources. At least one buffer must have
+  // been previously created. The EnableTracingResponse is sent when tracing is
+  // disabled (either explicitly or because of the |duration_ms| expired).
+  // If |deferred_start| == true in the passed TraceConfig, all the tracing
+  // harness is brought up (creating buffers and data sources) without actually
+  // starting the data sources. Data sources will be started upon an explicit
+  // StartTracing() call.
+  // Note that |deferred_start| and StartTracing() have been introduced only
+  // in Android Q and are not supported in Android P.
+  rpc EnableTracing(EnableTracingRequest) returns (EnableTracingResponse) {}
+
+  // Disables tracing for one or more data sources.
+  rpc DisableTracing(DisableTracingRequest) returns (DisableTracingResponse) {}
+
+  // Streams back the contents of one or more buffers. One call is enough to
+  // drain all the buffers. The response consists in a sequence of
+  // ReadBufferResponse messages (hence the "stream" in the return type), each
+  // carrying one or more TracePacket(s). An EOF flag is attached to the last
+  // ReadBufferResponse through the |has_more| == false field.
+  rpc ReadBuffers(ReadBuffersRequest) returns (stream ReadBuffersResponse) {}
+
+  // Destroys the buffers previously created. Note: all buffers are destroyed
+  // implicitly if the Consumer disconnects.
+  rpc FreeBuffers(FreeBuffersRequest) returns (FreeBuffersResponse) {}
+
+  // Asks the service to request to all data sources involved in the tracing
+  // session to commit their data into the trace buffer. The FlushResponse is
+  // sent only:
+  // - After the data has been committed (in which case FlushResponse succeeds)
+  // or
+  // - After FlushRequest.timeout_ms milliseconds (in which case the
+  //   FlushResponse is rejected and fails).
+  rpc Flush(FlushRequest) returns (FlushResponse) {}
+
+  // ----------------------------------------------------
+  // All methods below have been introduced in Android Q.
+  // ----------------------------------------------------
+
+  // Starts tracing. Only valid if EnableTracing() was called setting
+  // deferred_start = true in the TraceConfig passed to EnableTracing().
+  rpc StartTracing(StartTracingRequest) returns (StartTracingResponse) {}
+
+  // Changes the configuration for a running tracing session; only possible
+  // for a subset of configuration options.
+  rpc ChangeTraceConfig(ChangeTraceConfigRequest)
+      returns (ChangeTraceConfigResponse) {}
+
+  // Allows the consumer to detach from the session. The session will keep
+  // running even if the consumer disconnects and the consumer will not receive
+  // any further IPC until reattached.
+  rpc Detach(DetachRequest) returns (DetachResponse) {}
+
+  // Allows the consumer to re-attach to a previously detached session. The
+  // consumer will start receiving IPC notification for that session.
+  // The session will be terminated if the consumer closes the IPC channel, as
+  // in the standard non-detached case.
+  rpc Attach(AttachRequest) returns (AttachResponse) {}
+
+  // Allows the consumer to obtain statistics about the current tracing session,
+  // such as buffer usage stats. Intended for debugging or UI use.
+  rpc GetTraceStats(GetTraceStatsRequest) returns (GetTraceStatsResponse) {}
+
+  // Allows the consumer to observe certain state changes, such as data source
+  // instances starting to record.
+  rpc ObserveEvents(ObserveEventsRequest)
+      returns (stream ObserveEventsResponse) {}
+
+  // ----------------------------------------------------
+  // All methods below have been introduced in Android R.
+  // ----------------------------------------------------
+
+  // Allows to obtain the list of data sources connected and their descriptors.
+  rpc QueryServiceState(QueryServiceStateRequest)
+      returns (stream QueryServiceStateResponse) {}
+
+  // Obtains a list of features supported by the service. This is to deal with
+  // backward/forward compatibility and feature detection.
+  rpc QueryCapabilities(QueryCapabilitiesRequest)
+      returns (QueryCapabilitiesResponse) {}
+}
+
+// Arguments for rpc EnableTracing().
+message EnableTracingRequest {
+  optional protos.TraceConfig trace_config = 1;
+
+  // Introduced in Android Q. This is used for re-attaching to the end-of-trace
+  // EnableTracingResponse notification after a Detach+Attach request.
+  // When this flag is set the |trace_config| is ignored and no method is called
+  // on the tracing service.
+  optional bool attach_notification_only = 2;
+}
+
+message EnableTracingResponse {
+  oneof state { bool disabled = 1; }
+}
+
+// Arguments for rpc StartTracing().
+message StartTracingRequest {}
+
+message StartTracingResponse {}
+
+// Arguments for rpc ChangeTraceConfig().
+message ChangeTraceConfigRequest {
+  optional protos.TraceConfig trace_config = 1;
+}
+
+message ChangeTraceConfigResponse {}
+
+// Arguments for rpc DisableTracing().
+message DisableTracingRequest {
+  // TODO: not supported yet, selectively disable only some data sources.
+  // repeated string data_source_name;
+}
+
+message DisableTracingResponse {}
+
+// Arguments for rpc ReadBuffers().
+message ReadBuffersRequest {
+  // The |id|s of the buffer, as passed to CreateBuffers().
+  // TODO: repeated uint32 buffer_ids = 1;
+}
+
+message ReadBuffersResponse {
+  // TODO: uint32 buffer_id = 1;
+
+  // Each streaming reply returns one or more slices for one or more trace
+  // packets, or even just a portion of it (if it's too big to fit within one
+  // IPC). The returned slices are ordered and contiguous: packets' slices are
+  // not interleaved and slices are sent only once all slices for a packet are
+  // available (i.e. the consumer will never see any gap).
+  message Slice {
+    optional bytes data = 1;
+
+    // When true, this is the last slice for the packet. A ReadBufferResponse
+    // might have no slices marked as |last_slice_for_packet|==true, in the case
+    // of a very large packet that gets chunked into several IPCs (in which case
+    // only the last IPC for the packet will have this flag set).
+    optional bool last_slice_for_packet = 2;
+  }
+  repeated Slice slices = 2;
+}
+
+// Arguments for rpc FreeBuffers().
+message FreeBuffersRequest {
+  // The |id|s of the buffer, as passed to CreateBuffers().
+  repeated uint32 buffer_ids = 1;
+}
+
+message FreeBuffersResponse {}
+
+// Arguments for rpc Flush().
+message FlushRequest {
+  optional uint32 timeout_ms = 1;
+}
+
+message FlushResponse {}
+
+// Arguments for rpc Detach
+message DetachRequest {
+  optional string key = 1;
+}
+
+message DetachResponse {}
+
+// Arguments for rpc Attach.
+message AttachRequest {
+  optional string key = 1;
+}
+
+message AttachResponse {
+  optional protos.TraceConfig trace_config = 1;
+}
+
+// Arguments for rpc GetTraceStats.
+
+message GetTraceStatsRequest {}
+
+message GetTraceStatsResponse {
+  optional TraceStats trace_stats = 1;
+}
+
+// Arguments for rpc ObserveEvents.
+
+// To stop observing events of a certain type, send a request with the remaining
+// types. To stop observing completely, send an empty request.
+message ObserveEventsRequest {
+  repeated ObservableEvents.Type events_to_observe = 1;
+}
+
+message ObserveEventsResponse {
+  optional ObservableEvents events = 1;
+}
+
+// Arguments for rpc QueryServiceState.
+message QueryServiceStateRequest {}
+
+message QueryServiceStateResponse {
+  // In order to avoid hitting IPC message size limitations, the service will
+  // return >1 replies for each query, chunking the TracingServiceState. The
+  // receiver is expected to merge replies together and parse that when the
+  // last reply is received (i.e. when IPC's |has_more| == false).
+  optional TracingServiceState service_state = 1;
+}
+
+// Arguments for rpc QueryCapabilities.
+message QueryCapabilitiesRequest {}
+
+message QueryCapabilitiesResponse {
+  optional TracingServiceCapabilities capabilities = 1;
+}

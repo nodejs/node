@@ -1,0 +1,117 @@
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../gn/fuzzer.gni")
+import("../../../gn/perfetto.gni")
+import("../../../gn/test.gni")
+
+perfetto_unittest_source_set("test_support") {
+  testonly = true
+  public_deps = [ "../core:test_support" ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../gn:gtest_and_gmock",
+    "../../../protos/perfetto/trace:cpp",
+    "../../../protos/perfetto/trace:zero",
+    "../../../protos/perfetto/trace/ftrace:cpp",
+    "../../base",
+    "../../base:test_support",
+    "../core",
+    "../core:service",
+    "../core:test_support",
+  ]
+  sources = [
+    "aligned_buffer_test.cc",
+    "aligned_buffer_test.h",
+    "fake_packet.cc",
+    "fake_packet.h",
+    "test_shared_memory.cc",
+    "test_shared_memory.h",
+  ]
+
+  # These tests rely on test_task_runner.h which
+  # has no Windows implementation.
+  if (!is_win) {
+    sources += [
+      "fake_producer_endpoint.h",
+      "mock_consumer.cc",
+      "mock_consumer.h",
+      "mock_producer.cc",
+      "mock_producer.h",
+    ]
+  }
+}
+
+if (enable_perfetto_ipc) {
+  perfetto_unittest_source_set("tracing_integration_test") {
+    testonly = true
+    deps = [
+      ":test_support",
+      "../../../gn:default_deps",
+      "../../../gn:gtest_and_gmock",
+      "../../base",
+      "../../base:test_support",
+      "../core:service",
+      "../ipc/consumer",
+      "../ipc/producer",
+      "../ipc/service",
+    ]
+    sources = [ "tracing_integration_test.cc" ]
+  }
+}
+
+if (enable_perfetto_integration_tests) {
+  source_set("client_api_integrationtests") {
+    testonly = true
+    deps = [
+      ":api_test_support",
+      "../:client_api",
+      "../:platform_posix",
+      "../../../:libperfetto_client_experimental",
+      "../../../gn:default_deps",
+      "../../../gn:gtest_and_gmock",
+      "../../../include/perfetto/tracing/core",
+      "../../../protos/perfetto/common:cpp",
+      "../../../protos/perfetto/config/track_event:cpp",
+      "../../../protos/perfetto/trace:cpp",
+      "../../../protos/perfetto/trace:zero",
+      "../../../protos/perfetto/trace/interned_data:cpp",
+      "../../../protos/perfetto/trace/interned_data:zero",
+      "../../../protos/perfetto/trace/profiling:cpp",
+      "../../../protos/perfetto/trace/track_event:cpp",
+      "../../base",
+    ]
+    sources = [
+      "api_integrationtest.cc",
+      "tracing_module.cc",
+      "tracing_module.h",
+      "tracing_module2.cc",
+      "tracing_module_categories.h",
+    ]
+  }
+}
+
+# api_test_support needs to be self-contained and not leak any other perfetto
+# deps. See comment in api_test_support.h
+source_set("api_test_support") {
+  testonly = true
+  deps = [
+    "../../../gn:default_deps",
+    "../../base",
+  ]
+  sources = [
+    "api_test_support.cc",
+    "api_test_support.h",
+  ]
+}

@@ -1,0 +1,11 @@
+name: xhci_dbg_ring_expansion
+ID: 621
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] msg;	offset:8;	size:4;	signed:0;
+
+print fmt: "%s", __get_str(msg)

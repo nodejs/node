@@ -1,0 +1,15 @@
+name: print_skb_gso
+ID: 781
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:void * skbaddr;	offset:8;	size:8;	signed:0;
+	field:int len;	offset:16;	size:4;	signed:1;
+	field:int data_len;	offset:20;	size:4;	signed:1;
+	field:__be16 src;	offset:24;	size:2;	signed:0;
+	field:__be16 dest;	offset:26;	size:2;	signed:0;
+
+print fmt: "GSO: skbaddr=%pK, len=%d, data_len=%d, src=%u, dest=%u", REC->skbaddr, REC->len, REC->data_len, (__builtin_constant_p((__u16)(( __u16)(__be16)(REC->src))) ? ((__u16)( (((__u16)(( __u16)(__be16)(REC->src)) & (__u16)0x00ffU) << 8) | (((__u16)(( __u16)(__be16)(REC->src)) & (__u16)0xff00U) >> 8))) : __fswab16(( __u16)(__be16)(REC->src))), (__builtin_constant_p((__u16)(( __u16)(__be16)(REC->dest))) ? ((__u16)( (((__u16)(( __u16)(__be16)(REC->dest)) & (__u16)0x00ffU) << 8) | (((__u16)(( __u16)(__be16)(REC->dest)) & (__u16)0xff00U) >> 8))) : __fswab16(( __u16)(__be16)(REC->dest)))

@@ -1,0 +1,63 @@
+build_config_dir_ = "include/perfetto/base/build_configs/bazel"
+
+# Deliberately NOT a perfetto_cc_library, to avoid cyclic deps.
+# This is pulled as a default dep by all targets.
+cc_library(
+    name = "build_config_hdr",
+    hdrs = [build_config_dir_ + "/perfetto_build_flags.h"],
+    includes = [build_config_dir_],
+)
+
+perfetto_cc_library(
+    name = "cc_merged_sql_metrics",
+    hdrs = ["src/trace_processor/metrics/sql_metrics.h"],
+)
+
+perfetto_py_binary(
+    name = "gen_merged_sql_metrics_py",
+    srcs = [
+        "tools/gen_merged_sql_metrics.py",
+    ],
+    main = "tools/gen_merged_sql_metrics.py",
+    python_version = "PY2",
+)
+
+perfetto_java_proto_library(
+    name = "protos_perfetto_metrics_java",
+    deps = [
+        ":protos_perfetto_metrics_protos",
+    ],
+)
+
+perfetto_java_proto_library(
+    name = "protos_perfetto_metrics_android_java",
+    deps = [
+        ":protos_perfetto_metrics_android_protos",
+    ],
+)
+
+perfetto_java_proto_library(
+    name = "protos_perfetto_trace_merged_trace_java",
+    deps = [
+        ":protos_perfetto_trace_merged_trace_protos",
+    ],
+)
+
+perfetto_java_proto_library(
+    name = "protos_perfetto_config_merged_config_java",
+    deps = [
+        ":protos_perfetto_config_merged_config_protos",
+    ],
+)
+
+perfetto_gensignature_internal_only(
+    name = "trace_processor_sig",
+    srcs = [
+        ":trace_processor_shell",
+        ":trace_to_text",
+    ],
+    tags = [
+        "__TRACE_PROCESSOR_SIG_TAG1",
+        "__TRACE_PROCESSOR_SIG_TAG2",
+    ],
+)

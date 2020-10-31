@@ -1,0 +1,75 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message IPCFrame {
+  // Client -> Host.
+  message BindService { optional string service_name = 1; }
+
+  // Host -> Client.
+  message BindServiceReply {
+    message MethodInfo {
+      optional uint32 id = 1;
+      optional string name = 2;
+    }
+    optional bool success = 1;
+    optional uint32 service_id = 2;
+    repeated MethodInfo methods = 3;
+  }
+
+  // Client -> Host.
+  message InvokeMethod {
+    optional uint32 service_id = 1;  // BindServiceReply.id.
+    optional uint32 method_id = 2;   // BindServiceReply.method.id.
+    optional bytes args_proto = 3;   // Proto-encoded request argument.
+
+    // When true the client specifies that a reply is not needed. The use case
+    // is a method with an empty, where the client doesn't care about the
+    // success/failure of the method invocation and rather prefers avoiding the
+    // IPC roundtrip + context switch associated with the reply.
+    optional bool drop_reply = 4;
+  }
+
+  // Host -> Client.
+  message InvokeMethodReply {
+    optional bool success = 1;
+    optional bool has_more = 2;      // only for streaming RPCs.
+    optional bytes reply_proto = 3;  // proto-encoded response value.
+  }
+
+  // Host -> Client.
+  message RequestError { optional string error = 1; }
+
+  // The client is expected to send requests with monotonically increasing
+  // request_id. The host will match the request_id sent from the client.
+  // In the case of a Streaming response (has_more = true) the host will send
+  // several InvokeMethodReply with the same request_id.
+  optional uint64 request_id = 2;
+
+  oneof msg {
+    BindService msg_bind_service = 3;
+    BindServiceReply msg_bind_service_reply = 4;
+    InvokeMethod msg_invoke_method = 5;
+    InvokeMethodReply msg_invoke_method_reply = 6;
+    RequestError msg_request_error = 7;
+  }
+
+  // Used only in unittests to generate a parsable message of arbitrary size.
+  repeated bytes data_for_testing = 1;
+};

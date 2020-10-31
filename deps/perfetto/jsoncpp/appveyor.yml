@@ -1,0 +1,32 @@
+clone_folder: c:\projects\jsoncpp
+
+environment:
+  matrix:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      CMAKE_GENERATOR: Visual Studio 14 2015
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      CMAKE_GENERATOR: Visual Studio 14 2015 Win64
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+      CMAKE_GENERATOR: Visual Studio 15 2017
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+      CMAKE_GENERATOR: Visual Studio 15 2017 Win64
+
+build_script:
+  - cmake --version
+  - cd c:\projects\jsoncpp
+  - cmake -G "%CMAKE_GENERATOR%" -DCMAKE_INSTALL_PREFIX:PATH=%CD:\=/%/install -DBUILD_SHARED_LIBS:BOOL=ON .
+  # Use ctest to make a dashboard build:
+  # - ctest -D Experimental(Start|Update|Configure|Build|Test|Coverage|MemCheck|Submit)
+  # NOTE: Testing on window is not yet finished:
+  # - ctest -C Release -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
+  - ctest -C Release -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalSubmit
+  # Final step is to verify that installation succeeds
+  - cmake --build . --config Release --target install
+
+deploy:
+    provider: GitHub
+    auth_token:
+        secure: K2Tp1q8pIZ7rs0Ot24ZMWuwr12Ev6Tc6QkhMjGQxoQG3ng1pXtgPasiJ45IDXGdg
+    on:
+        branch: master
+        appveyor_repo_tag: true

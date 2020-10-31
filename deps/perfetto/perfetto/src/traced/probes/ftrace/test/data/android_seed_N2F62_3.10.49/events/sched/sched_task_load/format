@@ -1,0 +1,20 @@
+name: sched_task_load
+ID: 76
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char comm[16];	offset:8;	size:16;	signed:0;
+	field:pid_t pid;	offset:24;	size:4;	signed:1;
+	field:unsigned int sum;	offset:28;	size:4;	signed:0;
+	field:unsigned int sum_scaled;	offset:32;	size:4;	signed:0;
+	field:unsigned int period;	offset:36;	size:4;	signed:0;
+	field:unsigned int demand;	offset:40;	size:4;	signed:0;
+	field:int small_task;	offset:44;	size:4;	signed:1;
+	field:int boost;	offset:48;	size:4;	signed:1;
+	field:int reason;	offset:52;	size:4;	signed:1;
+	field:int sync;	offset:56;	size:4;	signed:1;
+
+print fmt: "%d (%s): sum=%u, sum_scaled=%u, period=%u demand=%u small=%d boost=%d reason=%d sync=%d", REC->pid, REC->comm, REC->sum, REC->sum_scaled, REC->period, REC->demand, REC->small_task, REC->boost, REC->reason, REC->sync

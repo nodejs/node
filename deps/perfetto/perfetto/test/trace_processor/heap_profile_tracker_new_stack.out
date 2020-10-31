@@ -1,0 +1,5 @@
+"id","type","ts","upid","callsite_id","count","size"
+0,"heap_profile_allocation",0,0,0,1,1
+1,"heap_profile_allocation",0,0,0,-1,-1
+2,"heap_profile_allocation",1,0,0,1,1
+3,"heap_profile_allocation",1,0,0,-1,-1

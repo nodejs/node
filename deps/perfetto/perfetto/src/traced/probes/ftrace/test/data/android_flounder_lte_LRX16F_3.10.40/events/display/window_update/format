@@ -1,0 +1,21 @@
+name: window_update
+ID: 411
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:bool enabled;	offset:8;	size:1;	signed:0;
+	field:u8 dev_id;	offset:9;	size:1;	signed:0;
+	field:u32 win_fmt;	offset:12;	size:4;	signed:0;
+	field:unsigned short win_x;	offset:16;	size:2;	signed:0;
+	field:unsigned short win_y;	offset:18;	size:2;	signed:0;
+	field:unsigned short win_w;	offset:20;	size:2;	signed:0;
+	field:unsigned short win_h;	offset:22;	size:2;	signed:0;
+	field:unsigned short win_out_x;	offset:24;	size:2;	signed:0;
+	field:unsigned short win_out_y;	offset:26;	size:2;	signed:0;
+	field:unsigned short win_out_w;	offset:28;	size:2;	signed:0;
+	field:unsigned short win_out_h;	offset:30;	size:2;	signed:0;
+
+print fmt: "dc%u enabled=%d fmt=%#x in=[x:%u y:%u w:%u h:%u] out=[x:%u y:%u w:%u h:%u] ", REC->dev_id, REC->enabled, REC->win_fmt, REC->win_x, REC->win_y, REC->win_w, REC->win_h, REC->win_out_x, REC->win_out_y, REC->win_out_w, REC->win_out_h

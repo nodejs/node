@@ -1,0 +1,20 @@
+name: f2fs_get_victim
+ID: 310
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:int type;	offset:12;	size:4;	signed:1;
+	field:int gc_type;	offset:16;	size:4;	signed:1;
+	field:int alloc_mode;	offset:20;	size:4;	signed:1;
+	field:int gc_mode;	offset:24;	size:4;	signed:1;
+	field:unsigned int victim;	offset:28;	size:4;	signed:0;
+	field:unsigned int ofs_unit;	offset:32;	size:4;	signed:0;
+	field:unsigned int pre_victim;	offset:36;	size:4;	signed:0;
+	field:unsigned int prefree;	offset:40;	size:4;	signed:0;
+	field:unsigned int free;	offset:44;	size:4;	signed:0;
+
+print fmt: "dev = (%d,%d), type = %s, policy = (%s, %s, %s), victim = %u ofs_unit = %u, pre_victim_secno = %d, prefree = %u, free = %u", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), __print_symbolic(REC->type, { CURSEG_HOT_DATA, "Hot DATA" }, { CURSEG_WARM_DATA, "Warm DATA" }, { CURSEG_COLD_DATA, "Cold DATA" }, { CURSEG_HOT_NODE, "Hot NODE" }, { CURSEG_WARM_NODE, "Warm NODE" }, { CURSEG_COLD_NODE, "Cold NODE" }, { NO_CHECK_TYPE, "No TYPE" }), __print_symbolic(REC->gc_type, { FG_GC, "Foreground GC" }, { BG_GC, "Background GC" }), __print_symbolic(REC->alloc_mode, { LFS, "LFS-mode" }, { SSR, "SSR-mode" }), __print_symbolic(REC->gc_mode, { GC_GREEDY, "Greedy" }, { GC_CB, "Cost-Benefit" }), REC->victim, REC->ofs_unit, (int)REC->pre_victim, REC->prefree, REC->free

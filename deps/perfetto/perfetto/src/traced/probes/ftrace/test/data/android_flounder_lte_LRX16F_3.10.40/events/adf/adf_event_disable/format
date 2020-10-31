@@ -1,0 +1,13 @@
+name: adf_event_disable
+ID: 356
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:enum adf_event_type type;	offset:12;	size:4;	signed:0;
+	field:char type_str[32];	offset:16;	size:32;	signed:0;
+
+print fmt: "obj=%s type=%u (%s)", __get_str(name), REC->type, REC->type_str

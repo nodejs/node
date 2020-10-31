@@ -1,0 +1,19 @@
+name: rdev_change_beacon
+ID: 713
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:__data_loc u8[] head;	offset:60;	size:4;	signed:0;
+	field:__data_loc u8[] tail;	offset:64;	size:4;	signed:0;
+	field:__data_loc u8[] beacon_ies;	offset:68;	size:4;	signed:0;
+	field:__data_loc u8[] proberesp_ies;	offset:72;	size:4;	signed:0;
+	field:__data_loc u8[] assocresp_ies;	offset:76;	size:4;	signed:0;
+	field:__data_loc u8[] probe_resp;	offset:80;	size:4;	signed:0;
+
+print fmt: "%s, netdev:%s(%d)", REC->wiphy_name, REC->name, REC->ifindex

@@ -1,0 +1,14 @@
+name: scm_call_start
+ID: 436
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u64 x0;	offset:8;	size:8;	signed:0;
+	field:u32 arginfo;	offset:16;	size:4;	signed:0;
+	field:u64 args[10];	offset:24;	size:80;	signed:0;
+	field:u64 x5;	offset:104;	size:8;	signed:0;
+
+print fmt: "func id=%#llx (args: %#x, %#llx, %#llx, %#llx, %#llx)", REC->x0, REC->arginfo, REC->args[0], REC->args[1], REC->args[2], REC->x5

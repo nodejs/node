@@ -1,0 +1,13 @@
+name: mdp_misr_crc
+ID: 422
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 block_id;	offset:8;	size:4;	signed:0;
+	field:u32 vsync_cnt;	offset:12;	size:4;	signed:0;
+	field:u32 crc;	offset:16;	size:4;	signed:0;
+
+print fmt: "block_id:%d vsync_cnt:%d crc:0x%08x", REC->block_id, REC->vsync_cnt, REC->crc

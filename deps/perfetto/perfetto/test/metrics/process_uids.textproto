@@ -1,0 +1,24 @@
+packet {
+  process_tree {
+    processes {
+      pid: 1
+      ppid: 0
+      cmdline: "init"
+      uid: 0
+    }
+    processes {
+      pid: 2
+      ppid: 1
+      cmdline: "com.google.android.gm:process"
+      uid: 10001
+    }
+  }
+}
+packet {
+  packages_list {
+    packages {
+      name: "com.google.android.gm"
+      uid: 10001
+    }
+  }
+}

@@ -1,0 +1,15 @@
+name: ufshcd_system_resume
+ID: 579
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:s64 usecs;	offset:8;	size:8;	signed:1;
+	field:int err;	offset:16;	size:4;	signed:1;
+	field:__data_loc char[] dev_name;	offset:20;	size:4;	signed:0;
+	field:int dev_state;	offset:24;	size:4;	signed:1;
+	field:int link_state;	offset:28;	size:4;	signed:1;
+
+print fmt: "%s: took %lld usecs, dev_state: %s, link_state: %s, err %d", __get_str(dev_name), REC->usecs, __print_symbolic(REC->dev_state, { UFS_ACTIVE_PWR_MODE, "ACTIVE" }, { UFS_SLEEP_PWR_MODE, "SLEEP" }, { UFS_POWERDOWN_PWR_MODE, "POWERDOWN" }), __print_symbolic(REC->link_state, { UIC_LINK_OFF_STATE, "LINK_OFF" }, { UIC_LINK_ACTIVE_STATE, "LINK_ACTIVE" }, { UIC_LINK_HIBERN8_STATE, "LINK_HIBERN8" }), REC->err

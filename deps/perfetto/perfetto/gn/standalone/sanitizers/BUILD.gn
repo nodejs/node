@@ -1,0 +1,126 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//gn/standalone/sanitizers/sanitizers.gni")
+
+# Link dependencies for sanitizers for executables.
+group("deps") {
+  visibility = [ "*" ]
+  if (using_sanitizer) {
+    public_configs = [ ":sanitizers_ldflags" ]
+    if (is_android && sanitizer_lib != "" && !sanitizer_lib_dir_is_static) {
+      deps = [ ":copy_sanitizer_lib" ]
+    }
+  }
+}
+
+if (is_android && sanitizer_lib != "" && !sanitizer_lib_dir_is_static) {
+  copy("copy_sanitizer_lib") {
+    sources = [ "${sanitizer_lib_dir}/lib${sanitizer_lib}.so" ]
+    outputs = [ "${root_out_dir}/sanitizer_libs/lib${sanitizer_lib}.so" ]
+  }
+}
+
+config("sanitizers_cflags") {
+  cflags = []
+  defines = []
+  if (using_sanitizer) {
+    blacklist_path_ = rebase_path("blacklist.txt", root_build_dir)
+    cflags += [
+      "-fno-omit-frame-pointer",
+      "-fsanitize-blacklist=$blacklist_path_",
+    ]
+  }
+
+  if (is_asan) {
+    cflags += [ "-fsanitize=address" ]
+    defines += [ "ADDRESS_SANITIZER" ]
+  }
+  if (is_lsan) {
+    cflags += [ "-fsanitize=leak" ]
+    defines += [ "LEAK_SANITIZER" ]
+  }
+  if (is_tsan) {
+    cflags += [ "-fsanitize=thread" ]
+    defines += [
+      "THREAD_SANITIZER",
+      "DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1",
+    ]
+  }
+  if (is_msan) {
+    cflags += [
+      "-fsanitize=memory",
+      "-fsanitize-memory-track-origins=2",
+    ]
+    defines += [ "MEMORY_SANITIZER" ]
+  }
+  if (is_ubsan) {
+    cflags += [
+      "-fsanitize=bounds",
+      "-fsanitize=float-divide-by-zero",
+      "-fsanitize=integer-divide-by-zero",
+      "-fsanitize=null",
+      "-fsanitize=object-size",
+      "-fsanitize=return",
+      "-fsanitize=returns-nonnull-attribute",
+      "-fsanitize=shift-exponent",
+      "-fsanitize=signed-integer-overflow",
+      "-fsanitize=unreachable",
+      "-fsanitize=vla-bound",
+    ]
+    defines += [ "UNDEFINED_SANITIZER" ]
+  }
+  if (is_fuzzer) {
+    # FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION is also defined by oss-fuzz,
+    # so using the same name.
+    defines += [ "FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION" ]
+    cflags += [ "-fsanitize=fuzzer-no-link" ]
+    if (is_asan) {
+      cflags += [
+        "-mllvm",
+        "-asan-use-private-alias",
+      ]
+    }
+  }
+}
+
+config("sanitizer_options_link_helper") {
+  if (is_mac) {
+    ldflags = [ "-Wl,-U,_sanitizer_options_link_helper" ]
+  }
+}
+
+config("sanitizers_ldflags") {
+  visibility = [ ":deps" ]
+  ldflags = []
+  if (is_asan) {
+    ldflags += [ "-fsanitize=address" ]
+  }
+  if (is_lsan) {
+    # This is not a copy/paste mistake. The LSan runtime library has
+    # moved into asan. So in order to make LSan work one has to build
+    # .cc files with -fsanitize=leak but link with -fsanitize=address.
+    ldflags += [ "-fsanitize=address" ]
+  }
+  if (is_tsan) {
+    ldflags += [ "-fsanitize=thread" ]
+  }
+  if (is_msan) {
+    ldflags += [ "-fsanitize=memory" ]
+  }
+  if (is_ubsan) {
+    ldflags += [ "-fsanitize=undefined" ]
+  }
+  configs = [ ":sanitizer_options_link_helper" ]
+}

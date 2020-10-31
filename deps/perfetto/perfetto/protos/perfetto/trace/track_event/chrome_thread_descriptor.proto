@@ -1,0 +1,56 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Describes a Chrome thread's attributes. Emitted as part of a TrackDescriptor,
+// usually by the thread's trace writer. Must be paired with a ThreadDescriptor
+// in the same TrackDescriptor.
+//
+// Next id: 3.
+message ChromeThreadDescriptor {
+  enum ThreadType {
+    THREAD_UNSPECIFIED = 0;
+
+    THREAD_MAIN = 1;
+    THREAD_IO = 2;
+
+    // Scheduler:
+    THREAD_POOL_BG_WORKER = 3;
+    THREAD_POOL_FG_WORKER = 4;
+    THREAD_POOL_BG_BLOCKING = 6;
+    THREAD_POOL_FG_BLOCKING = 5;
+    THREAD_POOL_SERVICE = 7;
+
+    // Compositor:
+    THREAD_COMPOSITOR = 8;
+    THREAD_VIZ_COMPOSITOR = 9;
+    THREAD_COMPOSITOR_WORKER = 10;
+
+    // Renderer:
+    THREAD_SERVICE_WORKER = 11;
+
+    // Tracing related threads:
+    THREAD_MEMORY_INFRA = 50;
+    THREAD_SAMPLING_PROFILER = 51;
+  };
+  optional ThreadType thread_type = 1;
+
+  // To support old UI. New UI should determine default sorting by thread_type.
+  optional int32 legacy_sort_index = 2;
+}

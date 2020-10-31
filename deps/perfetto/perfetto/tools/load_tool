@@ -1,0 +1,254 @@
+#!/usr/bin/env python
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import argparse
+import logging
+import os
+import sys
+import subprocess
+import tempfile
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ADB_PATH = os.path.join(ROOT_DIR, 'buildtools/android_sdk/platform-tools/adb')
+
+TEMPLATED_PERFETTO_CFG = '''
+buffers {{
+  size_kb: 65536
+  fill_policy: RING_BUFFER
+}}
+data_sources {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 0
+    ftrace_config {{
+      ftrace_events: "sched_switch"
+      buffer_size_kb: {buffer_size_kb}
+      drain_period_ms: {drain_period_ms}
+    }}
+  }}
+}}
+duration_ms: 15000
+'''
+
+PERFETTO_PER_CPU_BUFFER_SIZE_KB_PARAMS = [
+    128,
+    256,
+    512,
+    1 * 1024,  # 1 MB
+    2 * 1024,  # 2 MB
+    4 * 1024,  # 4 MB
+]
+
+PERFETTO_DRAIN_RATE_MS_PARAMS = [
+    100,
+    240,
+    500,
+    1 * 1000,  # 1s
+    2 * 1000,  # 2s
+    5 * 1000,  # 5s
+]
+
+BUSY_THREADS_NUM_THREADS_PARAMS = [
+    8,
+    32,
+    128,
+]
+
+BUSY_THREADS_DUTY_CYCLE_PARAMS = [
+    10,
+    100,
+]
+
+BUSY_THREADS_PERIOD_US_PARAMS = [
+    500,
+    1 * 1000,  # 1 ms
+    10 * 1000,  # 10 ms
+]
+
+TRACE_PROCESSOR_QUERY = """
+SELECT
+  a.value as num_sched,
+  b.value as num_overrun
+FROM (
+  SELECT COUNT(*) as value
+  FROM sched
+) as a, (
+  SELECT SUM(value) as value
+  FROM stats
+  WHERE name = 'ftrace_cpu_overrun_end'
+) as b
+"""
+
+
+def AdbArgs(*args):
+  cmd = [ADB_PATH] + list([str(x) for x in args])
+  logging.debug('> adb ' + ' '.join([str(x) for x in args]))
+  return cmd
+
+
+def AdbCall(*args):
+  return subprocess.check_output(AdbArgs(*args)).decode('utf-8').rstrip()
+
+
+def SingleTraceRun(out_dir, prio_name, buffer_size_kb, drain_rate_ms,
+                   num_threads, duty_cycle, period_us):
+  busy_threads_args = AdbArgs('shell', '/data/local/tmp/busy_threads',
+                              '--threads={}'.format(num_threads),
+                              '--duty_cycle={}'.format(duty_cycle),
+                              '--period_us={}'.format(period_us))
+  perfetto_args = AdbArgs('shell', 'perfetto', '--txt', '-c', '-', '-o', '-')
+
+  # Create a file object to read the trace into.
+  with tempfile.NamedTemporaryFile() as trace_file:
+    logging.info(
+        "Starting trace with parameters ({}, {}, {}, {}, {}, {})".format(
+            prio_name, buffer_size_kb, drain_rate_ms, num_threads, duty_cycle,
+            period_us))
+
+    # Start the busy threads running.
+    busy_threads_handle = subprocess.Popen(busy_threads_args)
+
+    # Start the Perfetto trace.
+    perfetto_handle = subprocess.Popen(
+        perfetto_args, stdin=subprocess.PIPE, stdout=trace_file)
+
+    # Create the config with the parameters
+    config = TEMPLATED_PERFETTO_CFG.format(
+        buffer_size_kb=buffer_size_kb, drain_period_ms=drain_rate_ms)
+
+    # Send the config to the Perfetto binary and wait for response.
+    perfetto_handle.stdin.write(config.encode())
+    perfetto_handle.stdin.close()
+    perfetto_ret = perfetto_handle.wait()
+
+    # Stop busy threads from running.
+    busy_threads_handle.terminate()
+
+    # Return any errors from Perfetto.
+    if perfetto_ret:
+      raise subprocess.CalledProcessError(
+          cmd=perfetto_args, returncode=perfetto_ret)
+
+    # TODO(lalitm): allow trace processor to take the query file from stdin
+    # to prevent this hack from being required.
+    with tempfile.NamedTemporaryFile() as trace_query_file:
+      trace_query_file.file.write(TRACE_PROCESSOR_QUERY.encode())
+      trace_query_file.file.flush()
+
+      # Run the trace processor on the config.
+      tp_path = os.path.join(out_dir, 'trace_processor_shell')
+      tp_out = subprocess.check_output(
+          [tp_path, '-q', trace_query_file.name, trace_file.name])
+
+      # Get the CSV output from trace processor (stripping the header).
+      [num_sched, num_overrun] = str(tp_out).split('\n')[1].split(',')
+
+    # Print the row to stdout.
+    sys.stdout.write('"{}",{},{},{},{},{},{},{}\n'.format(
+        prio_name, buffer_size_kb, drain_rate_ms, num_threads, duty_cycle,
+        period_us, num_sched, num_overrun))
+
+
+def SinglePriorityRun(out_dir, prio_name):
+  for buffer_size_kb in PERFETTO_PER_CPU_BUFFER_SIZE_KB_PARAMS:
+    for drain_rate_ms in PERFETTO_DRAIN_RATE_MS_PARAMS:
+      for num_threads in BUSY_THREADS_NUM_THREADS_PARAMS:
+        for duty_cycle in BUSY_THREADS_DUTY_CYCLE_PARAMS:
+          for period_us in BUSY_THREADS_PERIOD_US_PARAMS:
+            SingleTraceRun(out_dir, prio_name, buffer_size_kb, drain_rate_ms,
+                           num_threads, duty_cycle, period_us)
+
+
+def CycleTracedAndProbes():
+  AdbCall('shell', 'stop', 'traced')
+  AdbCall('shell', 'stop', 'traced_probes')
+  AdbCall('shell', 'start', 'traced')
+  AdbCall('shell', 'start', 'traced_probes')
+  AdbCall('shell', 'sleep', '5')
+  traced_pid = AdbCall('shell', 'pidof', 'traced')
+  probes_pid = AdbCall('shell', 'pidof', 'traced_probes')
+  assert (traced_pid is not None and probes_pid is not None)
+  return (traced_pid, probes_pid)
+
+
+def Main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('linux_out_dir', help='out/android/')
+  parser.add_argument('android_out_dir', help='out/android/')
+  args = parser.parse_args()
+
+  # Root ourselves on the device.
+  logging.info('Waiting for device and rooting ...')
+  AdbCall('wait-for-device')
+  AdbCall('root')
+  AdbCall('wait-for-device')
+
+  # Push busy threads to device
+  busy_threads_path = os.path.join(args.android_out_dir, 'busy_threads')
+  AdbCall('shell', 'rm', '-rf', '/data/local/tmp/perfetto_load_test')
+  AdbCall('shell', 'mkdir', '/data/local/tmp/perfetto_load_test')
+  AdbCall('push', busy_threads_path, '/data/local/tmp/perfetto_load_test/')
+
+  # Stop and start traced and traced_probes
+  (traced_pid, probes_pid) = CycleTracedAndProbes()
+
+  # Print the header for csv.
+  sys.stdout.write('"{}","{}","{}","{}","{}","{}","{}","{}"\n'.format(
+      'prio_name', 'buffer_size_kb', 'drain_rate_ms', 'num_threads',
+      'duty_cycle', 'period_us', 'num_sched', 'num_overrun'))
+
+  # First, do a single run in all configurations without changing prio.
+  SinglePriorityRun(args.linux_out_dir, 'Default')
+
+  # Stop and start traced and traced_probes
+  (traced_pid, probes_pid) = CycleTracedAndProbes()
+
+  # Setup the nice values and check them.
+  AdbCall('shell', 'renice', '-n', '-19', '-p', traced_pid)
+  AdbCall('shell', 'renice', '-n', '-19', '-p', probes_pid)
+  logging.debug(AdbCall('shell', 'cat', '/proc/{}/stat'.format(traced_pid)))
+  logging.debug(AdbCall('shell', 'cat', '/proc/{}/stat'.format(probes_pid)))
+
+  # Do the run.
+  SinglePriorityRun(args.linux_out_dir, '-19 Nice')
+
+  # Stop and start traced and traced_probes
+  (traced_pid, probes_pid) = CycleTracedAndProbes()
+
+  # Then do a run with FIFO scheduling for traced and traced_probes.
+  AdbCall('shell', 'chrt', '-f', '-p', traced_pid, '99')
+  AdbCall('shell', 'chrt', '-f', '-p', probes_pid, '99')
+  logging.debug(AdbCall('shell', 'chrt', '-p', traced_pid))
+  logging.debug(AdbCall('shell', 'chrt', '-p', probes_pid))
+
+  # Do the run.
+  SinglePriorityRun(args.linux_out_dir, 'FIFO')
+
+  # Stop and start traced and traced_probes
+  (traced_pid, probes_pid) = CycleTracedAndProbes()
+
+  # Cleanup any pushed files, priorities etc.
+  logging.info("Cleaning up test")
+  AdbCall('shell', 'rm', '-rf', '/data/local/tmp/perfetto_load_test')
+  logging.debug(AdbCall('shell', 'cat', '/proc/{}/stat'.format(traced_pid)))
+  logging.debug(AdbCall('shell', 'cat', '/proc/{}/stat'.format(probes_pid)))
+  AdbCall('unroot')
+
+  return 0
+
+
+if __name__ == '__main__':
+  logging.basicConfig(level=logging.INFO)
+  sys.exit(Main())

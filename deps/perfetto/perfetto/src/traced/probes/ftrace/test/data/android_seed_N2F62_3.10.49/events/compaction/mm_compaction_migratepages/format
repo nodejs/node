@@ -1,0 +1,12 @@
+name: mm_compaction_migratepages
+ID: 157
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned long nr_migrated;	offset:8;	size:4;	signed:0;
+	field:unsigned long nr_failed;	offset:12;	size:4;	signed:0;
+
+print fmt: "nr_migrated=%lu nr_failed=%lu", REC->nr_migrated, REC->nr_failed

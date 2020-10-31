@@ -1,0 +1,45 @@
+packet {
+  clock_snapshot {
+    clocks: {
+      clock_id: 6 # BOOTTIME
+      timestamp: 0
+    }
+    clocks: {
+      clock_id: 4 # MONOTONIC_COARSE
+      timestamp: 0
+    }
+  }
+}
+
+packet {
+  previous_packet_dropped: true
+  incremental_state_cleared: true
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  interned_data {
+    callstacks {
+      iid: 1
+    }
+  }
+}
+
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  profile_packet {
+    index: 0
+    continued: false
+    process_dumps {
+      samples {
+        callstack_id: 1
+        self_allocated: 1
+        alloc_count: 1
+      }
+      samples {
+        callstack_id: 1
+        self_allocated: 1
+        alloc_count: 1
+      }
+    }
+  }
+}

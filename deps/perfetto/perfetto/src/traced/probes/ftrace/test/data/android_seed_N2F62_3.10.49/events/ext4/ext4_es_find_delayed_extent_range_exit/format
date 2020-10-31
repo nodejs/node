@@ -1,0 +1,16 @@
+name: ext4_es_find_delayed_extent_range_exit
+ID: 230
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:12;	size:4;	signed:0;
+	field:ext4_lblk_t lblk;	offset:16;	size:4;	signed:0;
+	field:ext4_lblk_t len;	offset:20;	size:4;	signed:0;
+	field:ext4_fsblk_t pblk;	offset:24;	size:8;	signed:0;
+	field:unsigned long long status;	offset:32;	size:8;	signed:0;
+
+print fmt: "dev %d,%d ino %lu es [%u/%u) mapped %llu status %llx", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->lblk, REC->len, REC->pblk, REC->status

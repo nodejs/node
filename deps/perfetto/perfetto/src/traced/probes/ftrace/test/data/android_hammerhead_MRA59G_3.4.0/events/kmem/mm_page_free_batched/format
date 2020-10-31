@@ -1,0 +1,13 @@
+name: mm_page_free_batched
+ID: 134
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:struct page * page;	offset:12;	size:4;	signed:0;
+	field:int cold;	offset:16;	size:4;	signed:1;
+
+print fmt: "page=%p pfn=%lu order=0 cold=%d", REC->page, ((unsigned long)((REC->page) - mem_map) + ((0x00000000UL) >> 12)), REC->cold

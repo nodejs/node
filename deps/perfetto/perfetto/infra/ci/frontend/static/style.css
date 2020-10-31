@@ -1,0 +1,359 @@
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 13px;
+    font-weight: 300;
+    padding: 0;
+    margin: 0;
+    height: 100%;
+}
+
+body {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 50px 1fr;
+    overflow: hidden;
+    background: #eff1f5;
+    font-family: 'Source Sans Pro', sans-serif;
+}
+
+header {
+    background: #2b3643;
+    color: #eee;
+    height: 50px;
+    line-height: 50px;
+    width: 100%;
+    display: grid;
+    grid-template-rows: 1fr;
+    grid-template-columns: fit-content(250px) 1fr;
+}
+
+h1 {
+    font-size: 20px;
+    font-weight: 100;
+    padding-left: 20px;
+    height: 50px;
+    margin: 0;
+    text-transform: uppercase;
+    background-image: url('/static/icon.png');
+    background-repeat: no-repeat;
+    background-size: 30px;
+    background-position: 10px;
+    padding-left: 50px;
+}
+
+h1 span {
+    color: #db3f41;
+    font-weight: 500;
+}
+
+header>nav {
+    margin: auto 10px auto auto;
+}
+
+header>nav>div {
+    width: 80px;
+    box-sizing: border-box;
+    height: 50px;
+    line-height: 50px;
+    font-weight: 300;
+    float: left;
+    text-align: center;
+    font-size: 16px;
+    color: #ccc;
+    vertical-align: middle;
+    padding: 0;
+    letter-spacing: 0.5px;
+    border-left: 0.5px solid rgba(255, 255, 255, 0.2);
+    border-right: 0.5px solid rgba(255, 255, 255, 0.2);
+    text-transform: uppercase;
+}
+
+header>nav>div.logs {
+    position: relative;
+    z-index: 20;
+    background: #2b3643;
+    overflow: hidden;
+    transition: max-height 0.2s ease;
+    height: auto;
+    max-height: 50px;
+}
+
+header>nav>div.logs:hover {
+    max-height: 500px;
+}
+
+header>nav>div.logs div {
+    font-size: 10px;
+    text-align: left;
+    height: 20px;
+    line-height: 20px;
+    margin: 10px;
+}
+
+header>nav>div.active {
+    border-bottom: 4px solid #39aa56;
+}
+
+header>nav>div:hover {
+    color: #fff;
+}
+
+header a, header a:hover  {
+    color: inherit;
+    text-decoration: none;
+}
+
+header>nav>div:first-child {
+    border-left: 0;
+}
+
+header>nav>div:last-child {
+    border-right: 0;
+}
+
+.term-container {
+    position: relative;
+    background: #000;
+    border-top: 3px solid #39aa56;
+    box-sizing: content-box;
+    padding: 5px 0px 5px 20px;
+}
+
+main { overflow: scroll; }
+
+.term-container.maximized {
+    position: absolute;
+    height: calc(100% - 50px);
+    top: 50px;
+    max-height: initial;
+}
+
+input[type=text].term-search {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.1);
+    font-weight: 100;
+    font-size: 12px;
+    border-radius: 2px;
+    width: 150px;
+    height: 20px;
+    line-height: 20px;
+    right: 5px;
+    top: 5px;
+    z-index: 10;
+    outline: none;
+    color: #000;
+    border: 0px solid #aaa;
+    padding: 5px 10px;
+    transition: color ease 0.2s, background-color ease 0.2s
+}
+
+input[type=text].term-search:focus {
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+}
+
+.term-info > div {
+    margin: 5px;
+}
+
+#cls {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 4fr 1fr;
+    overflow: hidden;
+}
+
+.table-scrolling-container {
+    overflow: scroll;
+}
+
+.table-scrolling-container footer {
+    font-size: 14px;
+    text-align: center;
+    color: #666;
+}
+
+.main-table {
+    width: calc(100% - 40px);
+    background: #fff;
+    margin: 20px;
+    box-shadow: 0 0 20px #aaa;
+}
+
+
+.main-table td.warning {
+    background: #333;
+    color: #fff;
+    text-align: center;
+}
+
+.main-table tbody td:first-child {
+    padding-left: 20px;
+}
+
+.main-table thead {
+    color: #111;
+    font-size: 14px;
+    font-weight: 300;
+}
+
+.main-table thead tr:nth-child(n+3) td {
+    font-size: 10px;
+}
+
+.main-table thead tr:nth-child(4) td {
+    width: 20px;
+}
+
+.main-table thead td {
+    font-family: 'Source Sans Pro', sans-serif;
+    text-transform: uppercase;
+    color: #888;
+    padding: 2px 5px;
+    text-align: center;
+    background: #73b672;
+    color: #fff;
+}
+
+a {
+    color: black;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.main-table tbody td {
+    border-bottom: 1px solid #eee;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+}
+
+.main-table tbody td.job {
+    text-align: center;
+}
+
+.main-table tbody td.job i {
+    font-size: 16px;
+}
+
+.main-table tbody td.job .status {
+    margin-left: 5px;
+}
+
+.main-table tbody td.job .COMPLETED {
+    color: #39aa56;
+}
+
+.main-table tbody td.job .STARTED {
+    color: #607d8b;
+}
+
+.main-table tbody td.job .FAILED {
+    color: #db4545;
+}
+
+.main-table tbody td.job .CANCELLED {
+    color: #ffa000;
+}
+
+.main-table tbody td.job .INTERRUPTED {
+    color: #ffa000;
+}
+
+.main-table tbody td.job .TIMED_OUT {
+    color: #db4545;
+}
+
+.main-table tbody td.job .UNKNOWN {
+    color: #607d8b;
+}
+
+.main-table tbody td.align-left {
+    text-align: left
+}
+
+.main-table tbody td.header {
+    background: #dcedc8;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    position: relative;
+}
+
+
+.main-table tbody tr {
+    height: 25px;
+    line-height: 25px;
+    font-size: 13px;
+    font-weight: 300;
+}
+
+.main-table tbody tr.nested td:first-child, .main-table tbody tr.nested a {
+    color: #999;
+}
+
+.main-table .expand {
+    position: absolute;
+    left: -5px;
+    font-size: 30px;
+    line-height: 25px;
+    color: #454e5a;
+    transition: transform ease 0.2s;
+    cursor: pointer;
+    user-select: none;
+}
+
+
+.main-table .expand.expanded {
+    transform: rotate(90deg);
+}
+
+.main-table tbody tr.MERGED td:not(.job),
+.main-table tbody tr.MERGED td:not(.job) a {
+    color: #BBB;
+}
+
+
+.main-table tbody tr:nth-child(2n+1) {
+    background: #fafafa;
+}
+
+
+.main-table tbody tr:hover {
+    background: #e1ebf1 !important;
+}
+
+.main-table tbody tr.selected  {
+    background: #dcedc8;
+}
+
+.main-table tbody .ps {
+    margin-left: 5px;
+    color: #43a047;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 400px;
+    grid-gap: 20px;
+    margin: 20px;
+}
+
+.stats-grid  > * {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #fff;
+}

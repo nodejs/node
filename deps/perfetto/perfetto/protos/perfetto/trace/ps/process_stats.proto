@@ -1,0 +1,70 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+package perfetto.protos;
+
+// Per-process periodically sampled stats. These samples are wrapped in a
+// dedicated message (as opposite to be fields in process_tree.proto) because
+// they are dumped at a different rate than cmdline and thread list.
+// Note: not all of these stats will be present in every ProcessStats message
+// and sometimes processes may be missing . This is because counters are
+// cached to reduce emission of counters which do not change.
+message ProcessStats {
+  // Per-thread periodically sampled stats.
+  // Note: not all of these stats will be present in every message. See the note
+  // for ProcessStats.
+  message Thread {
+    optional int32 tid = 1;
+
+    // Pairs of frequency (represented as an index to CpuInfo frequencies) and
+    // time at that frequency (represented as a number of ticks, see SystemInfo
+    // for the HZ (ticks / second) value to convert this to time).
+    // Read from /proc/tid/time_in_state.
+    repeated uint32 cpu_freq_indices = 2;
+    repeated uint64 cpu_freq_ticks = 3;
+  }
+
+  message Process {
+    optional int32 pid = 1;
+
+    // See /proc/[pid]/status in `man 5 proc` for a description of these fields.
+    optional uint64 vm_size_kb = 2;
+    optional uint64 vm_rss_kb = 3;
+    optional uint64 rss_anon_kb = 4;
+    optional uint64 rss_file_kb = 5;
+    optional uint64 rss_shmem_kb = 6;
+    optional uint64 vm_swap_kb = 7;
+    optional uint64 vm_locked_kb = 8;
+    optional uint64 vm_hwm_kb = 9;
+    // When adding a new field remember to update kProcMemCounterSize in
+    // the trace processor.
+
+    optional int64 oom_score_adj = 10;
+
+    repeated Thread threads = 11;
+  }
+  repeated Process processes = 1;
+
+  // The time at which we finish collecting this batch of samples;
+  // the top-level packet timestamp is the time at which
+  // we begin collection.
+  // TODO(dancol): analysis might be improved by
+  // time-bracketing each sample as well as the whole
+  // ProcessStats, but doing that is probably gated on
+  // a vdso for CLOCK_BOOTTIME.
+  optional uint64 collection_end_timestamp = 2;
+}

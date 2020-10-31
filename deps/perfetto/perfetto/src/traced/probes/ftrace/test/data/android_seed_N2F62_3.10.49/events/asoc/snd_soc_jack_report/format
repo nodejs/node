@@ -1,0 +1,13 @@
+name: snd_soc_jack_report
+ID: 565
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:int mask;	offset:12;	size:4;	signed:1;
+	field:int val;	offset:16;	size:4;	signed:1;
+
+print fmt: "jack=%s %x/%x", __get_str(name), (int)REC->val, (int)REC->mask

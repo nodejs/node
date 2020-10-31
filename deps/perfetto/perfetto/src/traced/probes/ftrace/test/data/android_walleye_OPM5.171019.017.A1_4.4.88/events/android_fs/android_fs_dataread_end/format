@@ -1,0 +1,13 @@
+name: android_fs_dataread_end
+ID: 268
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:ino_t ino;	offset:8;	size:8;	signed:0;
+	field:loff_t offset;	offset:16;	size:8;	signed:1;
+	field:int bytes;	offset:24;	size:4;	signed:1;
+
+print fmt: "ino %lu, offset %llu, bytes %d", (unsigned long) REC->ino, REC->offset, REC->bytes

@@ -1,0 +1,15 @@
+name: xfer_secondary_pool
+ID: 462
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:const char * pool_name;	offset:8;	size:8;	signed:0;
+	field:int xfer_bits;	offset:16;	size:4;	signed:1;
+	field:int request_bits;	offset:20;	size:4;	signed:1;
+	field:int pool_entropy;	offset:24;	size:4;	signed:1;
+	field:int input_entropy;	offset:28;	size:4;	signed:1;
+
+print fmt: "pool %s xfer_bits %d request_bits %d pool_entropy %d input_entropy %d", REC->pool_name, REC->xfer_bits, REC->request_bits, REC->pool_entropy, REC->input_entropy

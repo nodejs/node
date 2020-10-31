@@ -1,0 +1,97 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+import "protos/perfetto/metrics/metrics.proto";
+
+// This file defines the schema for {,un}marshalling arguments and return values
+// when interfacing to the trace processor binary interface.
+
+// The Trace Processor can be used in three modes:
+// 1. Fully native from C++ or directly using trace_processor_shell.
+//    In this case, this file isn't really relevant because no binary
+//    marshalling is involved. Look at include/trace_processor/trace_processor.h
+//    for the public C++ API definition.
+// 2. Using WASM within the HTML ui. In this case these messages are used to
+//    {,un}marshall calls made through the JS<>WASM interop in
+//    src/trace_processor/rpc/wasm_bridge.cc .
+// 3. Using the HTTP+RPC interface, by running trace_processor_shell -D.
+//    In this case these messages are used to {,un}marshall HTTP requests and
+//    response made through src/trace_processor/rpc/httpd.cc .
+
+// Input for the /raw_query endpoint.
+message RawQueryArgs {
+  optional string sql_query = 1;
+
+  // Wall time when the query was queued. Used only for query stats.
+  optional uint64 time_queued_ns = 2;
+}
+
+// Output for the /raw_query endpoint.
+message RawQueryResult {
+  message ColumnDesc {
+    optional string name = 1;
+    enum Type {
+      UNKNOWN = 0;
+      LONG = 1;
+      DOUBLE = 2;
+      STRING = 3;
+    }
+    optional Type type = 2;
+  }
+  message ColumnValues {
+    // Only one of this field will be filled for each column (according to the
+    // corresponding descriptor) and that one will have precisely |num_records|
+    // elements.
+    repeated int64 long_values = 1;
+    repeated double double_values = 2;
+    repeated string string_values = 3;
+
+    // This will be set to true or false depending on whether the data at the
+    // given index is NULL.
+    repeated bool is_nulls = 4;
+  }
+  repeated ColumnDesc column_descriptors = 1;
+  optional uint64 num_records = 2;
+  repeated ColumnValues columns = 3;
+  optional string error = 4;
+  optional uint64 execution_time_ns = 5;
+}
+
+// Input for the /status endpoint.
+message StatusArgs {}
+
+// Output for the /status endpoint.
+message StatusResult {
+  // If present and not empty, a trace is already loaded already. This happens
+  // when using the HTTP+RPC mode nad passing a trace file to the shell, via
+  // trace_processor_shell -D trace_file.pftrace .
+  optional string loaded_trace_name = 1;
+}
+
+// Input for the /compute_metric endpoint.
+message ComputeMetricArgs {
+  repeated string metric_names = 1;
+}
+
+// Output for the /compute_metric endpoint.
+message ComputeMetricResult {
+  optional perfetto.protos.TraceMetrics metrics = 1;
+  optional string error = 2;
+}

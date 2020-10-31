@@ -1,0 +1,22 @@
+name: rdev_return_int_survey_info
+ID: 876
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:enum nl80211_band band;	offset:40;	size:4;	signed:0;
+	field:u16 center_freq;	offset:44;	size:2;	signed:0;
+	field:int ret;	offset:48;	size:4;	signed:1;
+	field:u64 time;	offset:56;	size:8;	signed:0;
+	field:u64 time_busy;	offset:64;	size:8;	signed:0;
+	field:u64 time_ext_busy;	offset:72;	size:8;	signed:0;
+	field:u64 time_rx;	offset:80;	size:8;	signed:0;
+	field:u64 time_tx;	offset:88;	size:8;	signed:0;
+	field:u64 time_scan;	offset:96;	size:8;	signed:0;
+	field:u32 filled;	offset:104;	size:4;	signed:0;
+	field:s8 noise;	offset:108;	size:1;	signed:1;
+
+print fmt: "%s, returned: %d, band: %d, freq: %u, channel time: %llu, channel time busy: %llu, channel time extension busy: %llu, channel time rx: %llu, channel time tx: %llu, scan time: %llu, filled: %u, noise: %d", REC->wiphy_name, REC->ret, REC->band, REC->center_freq, REC->time, REC->time_busy, REC->time_ext_busy, REC->time_rx, REC->time_tx, REC->time_scan, REC->filled, REC->noise

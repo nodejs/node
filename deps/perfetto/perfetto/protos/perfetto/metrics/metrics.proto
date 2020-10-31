@@ -1,0 +1,128 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+import "protos/perfetto/metrics/android/batt_metric.proto";
+import "protos/perfetto/metrics/android/cpu_metric.proto";
+import "protos/perfetto/metrics/android/mem_metric.proto";
+import "protos/perfetto/metrics/android/mem_unagg_metric.proto";
+import "protos/perfetto/metrics/android/ion_metric.proto";
+import "protos/perfetto/metrics/android/lmk_metric.proto";
+import "protos/perfetto/metrics/android/lmk_reason_metric.proto";
+import "protos/perfetto/metrics/android/powrails_metric.proto";
+import "protos/perfetto/metrics/android/startup_metric.proto";
+import "protos/perfetto/metrics/android/heap_profile_callsites.proto";
+import "protos/perfetto/metrics/android/hwui_metric.proto";
+import "protos/perfetto/metrics/android/package_list.proto";
+import "protos/perfetto/metrics/android/unmapped_java_symbols.proto";
+import "protos/perfetto/metrics/android/unsymbolized_frames.proto";
+import "protos/perfetto/metrics/android/java_heap_histogram.proto";
+import "protos/perfetto/metrics/android/java_heap_stats.proto";
+import "protos/perfetto/metrics/android/display_metrics.proto";
+import "protos/perfetto/metrics/android/task_names.proto";
+import "protos/perfetto/metrics/android/thread_time_in_state_metric.proto";
+
+// Trace processor metadata
+message TraceMetadata {
+  message Entry {
+    optional string name = 1;
+    optional uint32 idx = 2;
+    optional int64 value = 3;
+  }
+
+  repeated Entry error_stats_entry = 1;
+  optional int64 trace_duration_ns = 2;
+  optional string trace_uuid = 3;
+  optional string android_build_fingerprint = 4;
+  optional int64 statsd_triggering_subscription_id = 5;
+  optional int64 trace_size_bytes = 6;
+  repeated string trace_trigger = 7;
+}
+
+// Root message for all Perfetto-based metrics.
+//
+// Next id: 25
+message TraceMetrics {
+  reserved 4, 10, 13, 14;
+
+  // Battery counters metric on Android.
+  optional AndroidBatteryMetric android_batt = 5;
+
+  // CPU usage per trace, process and thread.
+  optional AndroidCpuMetric android_cpu = 6;
+
+  // Memory metrics on Android (owned by the Android Telemetry team).
+  optional AndroidMemoryMetric android_mem = 1;
+
+  // Memory metrics on Android in unaggregated form. (owned by the Android
+  // Telemetry team).
+  // Note: this generates a lot of data so should not be requested unless it
+  // is clear that this data is necessary.
+  optional AndroidMemoryUnaggregatedMetric android_mem_unagg = 11;
+
+  // Package list.
+  optional AndroidPackageList android_package_list = 12;
+
+  // ion buffer memory metrics.
+  optional AndroidIonMetric android_ion = 9;
+
+  // Statistics about low memory kills.
+  optional AndroidLmkMetric android_lmk = 8;
+
+  // Power Rails metrics on Android.
+  optional AndroidPowerRails android_powrails = 7;
+
+  // Startup metrics on Android (owned by the Android Telemetry team).
+  optional AndroidStartupMetric android_startup = 2;
+
+  // Heap profiler callsite statistics.
+  optional HeapProfileCallsites heap_profile_callsites = 16;
+
+  // Trace metadata (applicable to all traces).
+  optional TraceMetadata trace_metadata = 3;
+
+  // Returns stack frames missing symbols.
+  optional UnsymbolizedFrames unsymbolized_frames = 15;
+
+  // If the trace contains a heap graph, output allocation statistics.
+  optional JavaHeapStats java_heap_stats = 17;
+
+  // If the trace contains a heap graph, output histogram.
+  optional JavaHeapHistogram java_heap_histogram = 21;
+
+  // Metrics used to find potential culprits of low-memory kills.
+  optional AndroidLmkReasonMetric android_lmk_reason = 18;
+
+  // Java type names that have no deobfuscation mappings.
+  optional UnmappedJavaSymbols unmapped_java_symbols = 19;
+
+  optional AndroidHwuiMetric android_hwui_metric = 20;
+
+  optional AndroidDisplayMetrics display_metrics = 22;
+
+  optional AndroidTaskNames android_task_names = 23;
+
+  optional AndroidThreadTimeInStateMetric android_thread_time_in_state = 24;
+
+  // Demo extensions.
+  extensions 450 to 499;
+
+  // Vendor extensions.
+  extensions 500 to 1000;
+}

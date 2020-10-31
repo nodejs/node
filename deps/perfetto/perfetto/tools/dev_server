@@ -1,0 +1,172 @@
+#!/usr/bin/env python
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import print_function
+import sys
+import os
+import time
+import argparse
+import socket
+import subprocess
+import threading
+
+try:
+  import socketserver
+  from http.server import SimpleHTTPRequestHandler
+except ImportError:
+  import SocketServer as socketserver
+  import SimpleHTTPServer
+  SimpleHTTPRequestHandler = SimpleHTTPServer.SimpleHTTPRequestHandler
+
+
+class TCPServer(socketserver.TCPServer):
+
+  def server_bind(self):
+    self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    self.socket.bind(self.server_address)
+
+
+class Server(object):
+
+  def __init__(self, port, directory, rebuilder):
+    self.port = port
+    self.directory = directory
+    self.rebuilder = rebuilder
+    self.lock = threading.Lock()
+
+  def serve(self):
+    this = self
+
+    class Handler(SimpleHTTPRequestHandler):
+
+      def __init__(self, *args, **kwargs):
+        SimpleHTTPRequestHandler.__init__(self, *args, **kwargs)
+
+      def translate_path(self, path):
+        path = SimpleHTTPRequestHandler.translate_path(self, path)
+        relpath = os.path.relpath(path, os.getcwd())
+        fullpath = os.path.join(this.directory, relpath)
+        return fullpath
+
+      def do_GET(self):
+        try:
+          with this.lock:
+            this.rebuilder.rebuild_if_needed()
+        except RebuildFailed as e:
+          self.send_response(200)
+          self.send_header("Content-type", "text/html")
+          self.end_headers()
+          self.wfile.write("<pre>")
+          self.wfile.write(e.stdout_and_stderr)
+          return
+        return SimpleHTTPRequestHandler.do_GET(self)
+
+    print('Starting server at http://localhost:{}'.format(self.port))
+    httpd = TCPServer(('', self.port), Handler)
+    try:
+      httpd.serve_forever()
+    except KeyboardInterrupt:
+      httpd.shutdown()
+    httpd.server_close()
+
+
+class RebuildFailed(Exception):
+
+  def __init__(self, stdout_and_stderr):
+    self.stdout_and_stderr = stdout_and_stderr
+
+
+class Rebuilder(object):
+
+  def __init__(self, command, ignored_paths):
+    self.command = command
+    self.ignored_paths = ignored_paths
+    self.last_disk_state = None
+    self.abs_ignored_paths = [os.path.abspath(p) for p in self.ignored_paths]
+
+  def rebuild_if_needed(self):
+    if self.last_disk_state == self.last_modified_time():
+      return
+    stdout_and_stderr, success = self.rebuild()
+    if not success:
+      message = b"Failed to build! Command output:\n\n" + stdout_and_stderr
+      raise RebuildFailed(message)
+    self.last_disk_state = self.last_modified_time()
+
+  def last_modified_time(self):
+    start_time = time.time()
+    max_mtime = 0
+    for dirpath, dirnames, filenames in os.walk(
+        os.path.abspath('.'), topdown=True):
+      dirnames[:] = [
+          n for n in dirnames
+          if not self.should_ignore_path(os.path.join(dirpath, n))
+      ]
+      for filename in filenames:
+        path = os.path.join(dirpath, filename)
+        if self.should_ignore_path(path):
+          continue
+        mtime = os.stat(path).st_mtime
+        max_mtime = max(max_mtime, mtime)
+    print(' scanned in {:.03f}s'.format(time.time() - start_time).rjust(
+        80, '='))
+    return max_mtime
+
+  def should_ignore_path(self, path):
+    return path in self.abs_ignored_paths
+
+  def rebuild(self):
+    print('Running command: {}'.format(self.command))
+    print(' begin build'.rjust(80, '='))
+    start_time = time.time()
+    status = 0
+    try:
+      stdout_and_stderr = subprocess.check_output(
+          self.command, shell=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+      status = e.returncode
+      stdout_and_stderr = e.output
+    print(stdout_and_stderr.decode('utf8'))
+    print(' built in {:.03f}s'.format(time.time() - start_time).rjust(80, '='))
+    return stdout_and_stderr, status == 0
+
+
+def main(argv):
+  parser = argparse.ArgumentParser(description='HTTP server for UI development')
+  parser.add_argument(
+      '-p',
+      '--port',
+      help='port number (default: 3000)',
+      type=int,
+      default=3000)
+  parser.add_argument(
+      '-i', '--ignore', default=[], action='append', help='Ignore this path')
+  parser.add_argument(
+      '-s',
+      '--serve',
+      default=os.getcwd(),
+      help='Serve this directory (default: current directory)')
+  parser.add_argument('command', default='', nargs='?', help='Command to run')
+
+  args = parser.parse_args(argv)
+
+  rebuilder = Rebuilder(args.command, args.ignore)
+  server = Server(args.port, args.serve, rebuilder)
+  server.serve()
+  return 0
+
+
+if __name__ == '__main__':
+  sys.exit(main(sys.argv[1:]))

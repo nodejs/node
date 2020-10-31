@@ -1,0 +1,20 @@
+name: walt_update_history
+ID: 80
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char comm[16];	offset:8;	size:16;	signed:0;
+	field:pid_t pid;	offset:24;	size:4;	signed:1;
+	field:unsigned int runtime;	offset:28;	size:4;	signed:0;
+	field:int samples;	offset:32;	size:4;	signed:1;
+	field:int evt;	offset:36;	size:4;	signed:1;
+	field:u64 demand;	offset:40;	size:8;	signed:0;
+	field:unsigned int walt_avg;	offset:48;	size:4;	signed:0;
+	field:unsigned int pelt_avg;	offset:52;	size:4;	signed:0;
+	field:u32 hist[5];	offset:56;	size:20;	signed:0;
+	field:int cpu;	offset:76;	size:4;	signed:1;
+
+print fmt: "%d (%s): runtime %u samples %d event %d demand %llu walt %u pelt %u (hist: %u %u %u %u %u) cpu %d", REC->pid, REC->comm, REC->runtime, REC->samples, REC->evt, REC->demand, REC->walt_avg, REC->pelt_avg, REC->hist[0], REC->hist[1], REC->hist[2], REC->hist[3], REC->hist[4], REC->cpu

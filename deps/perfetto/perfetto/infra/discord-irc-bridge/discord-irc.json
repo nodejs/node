@@ -1,0 +1,23 @@
+[
+  {
+    "server": "irc.freenode.org",
+    "autoSendCommands": [
+    ],
+    "channelMapping": {
+      "629013441096450058": "#perfetto-dev"
+    },
+    "ircOptions": {
+      "port": "6697",
+      "secure": true
+    },
+    "ircNickColor": false,
+    "ircPreventMention": true,
+    "commandCharacters": [],
+    "ignoreUsers": {
+      "irc": [],
+      "discord": []
+    },
+    "webhooks": {
+    }
+  }
+]

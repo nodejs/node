@@ -1,0 +1,68 @@
+heap_profile_callsites {
+  instance_stats {
+    pid: 2
+    process_name: "system_server"
+    process {
+      name: "system_server"
+      uid: 1000
+    }
+    callsites {
+      hash: -2067767828047084124
+      parent_hash: 3061552492032359760
+
+      frame {
+        name: "symbolized f3"
+        mapping_name: "/liblib.so"
+      }
+      self_allocs {
+        total_count: 2
+        total_bytes: 2000
+        delta_count: 1
+        delta_bytes: 1000
+      }
+      child_allocs {
+        total_count: 2
+        total_bytes: 2000
+        delta_count: 1
+        delta_bytes: 1000
+      }
+    }
+    callsites {
+      hash: 3061552492032359760
+      parent_hash: 6947621464292123521
+
+      frame {
+        name: "symbolized f2"
+        mapping_name: "/liblib.so"
+      }
+      self_allocs {
+        total_count: 10
+        total_bytes: 100
+        delta_count: 9
+        delta_bytes: 90
+      }
+      child_allocs {
+        total_count: 12
+        total_bytes: 2100
+        delta_count: 10
+        delta_bytes: 1090
+      }
+    }
+    callsites {
+      hash: 6947621464292123521
+      parent_hash: -1
+      frame {
+        name: "f1"
+        mapping_name: "/liblib.so"
+      }
+      child_allocs {
+        total_count: 12
+        total_bytes: 2100
+        delta_count: 10
+        delta_bytes: 1090
+      }
+    }
+    profile_delta_bytes: 1090
+    profile_total_bytes: 2100
+  }
+}

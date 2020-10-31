@@ -1,0 +1,4 @@
+	field: u64 timestamp;	offset:0;	size:8;	signed:0;
+	field: local_t commit;	offset:8;	size:4;	signed:1;
+	field: int overwrite;	offset:8;	size:1;	signed:1;
+	field: char data;	offset:12;	size:4084;	signed:0;

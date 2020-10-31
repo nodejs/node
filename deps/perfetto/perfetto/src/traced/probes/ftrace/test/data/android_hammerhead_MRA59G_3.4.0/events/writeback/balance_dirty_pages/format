@@ -1,0 +1,25 @@
+name: balance_dirty_pages
+ID: 149
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:char bdi[32];	offset:12;	size:32;	signed:0;
+	field:unsigned long limit;	offset:44;	size:4;	signed:0;
+	field:unsigned long setpoint;	offset:48;	size:4;	signed:0;
+	field:unsigned long dirty;	offset:52;	size:4;	signed:0;
+	field:unsigned long bdi_setpoint;	offset:56;	size:4;	signed:0;
+	field:unsigned long bdi_dirty;	offset:60;	size:4;	signed:0;
+	field:unsigned long dirty_ratelimit;	offset:64;	size:4;	signed:0;
+	field:unsigned long task_ratelimit;	offset:68;	size:4;	signed:0;
+	field:unsigned int dirtied;	offset:72;	size:4;	signed:0;
+	field:unsigned int dirtied_pause;	offset:76;	size:4;	signed:0;
+	field:unsigned long paused;	offset:80;	size:4;	signed:0;
+	field:long pause;	offset:84;	size:4;	signed:1;
+	field:unsigned long period;	offset:88;	size:4;	signed:0;
+	field:long think;	offset:92;	size:4;	signed:1;
+
+print fmt: "bdi %s: limit=%lu setpoint=%lu dirty=%lu bdi_setpoint=%lu bdi_dirty=%lu dirty_ratelimit=%lu task_ratelimit=%lu dirtied=%u dirtied_pause=%u paused=%lu pause=%ld period=%lu think=%ld", REC->bdi, REC->limit, REC->setpoint, REC->dirty, REC->bdi_setpoint, REC->bdi_dirty, REC->dirty_ratelimit, REC->task_ratelimit, REC->dirtied, REC->dirtied_pause, REC->paused, REC->pause, REC->period, REC->think

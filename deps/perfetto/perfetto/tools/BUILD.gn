@@ -1,0 +1,80 @@
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../gn/perfetto.gni")
+
+# Prevent that this file is accidentally included in embedder builds.
+assert(enable_perfetto_tools)
+
+# Lists all tools. The root "all" target depends on this.
+group("tools") {
+  testonly = true
+  deps = [
+    ":copy_protoc",
+    ":idle_alloc",
+    "compact_reencode",
+    "ftrace_proto_gen",
+    "protoprofile",
+  ]
+  if (is_linux || is_android) {
+    deps += [
+      "busy_threads",
+      "cpu_utilization",
+      "dump_ftrace_stats",
+      "skippy",
+    ]
+  }
+  if (enable_perfetto_tools_trace_to_text) {
+    deps += [
+      "trace_to_text",
+      "trace_to_text:trace_to_text_lite",
+    ]
+  }
+}
+
+if (is_linux && enable_perfetto_heapprofd) {
+  executable("profiling_sample_distribution") {
+    sources = [ "profiling_sample_distribution.cc" ]
+    deps = [
+      "../gn:default_deps",
+      "../src/base",
+      "../src/profiling/memory:client",
+    ]
+  }
+}
+
+executable("idle_alloc") {
+  deps = [ "../gn:default_deps" ]
+  sources = [ "idle_alloc.cc" ]
+}
+
+# The protoc binary can end up in out/protoc or out/gcc_like_host/protoc
+# depending on whether this is a pure-host build vs a host+target (i.e. android)
+# build. This rule ensures that in both cases we end up with a host binary in
+# out/protoc, so tools can consistently refer to that one location.
+protoc_target = "../gn:protoc($host_toolchain)"
+if (current_toolchain != host_toolchain) {
+  copy("copy_protoc") {
+    testonly = true
+    deps = [ protoc_target ]
+    host_out_dir = get_label_info(protoc_target, "root_out_dir")
+    sources = [ "$host_out_dir/protoc" ]
+    outputs = [ "$root_build_dir/protoc" ]
+  }
+} else {
+  # Nothing to do, in this case protoc is already built in the root out dir.
+  group("copy_protoc") {
+    public_deps = [ protoc_target ]
+  }
+}

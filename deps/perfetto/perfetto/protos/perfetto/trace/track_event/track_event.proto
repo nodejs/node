@@ -1,0 +1,340 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+import "protos/perfetto/trace/track_event/debug_annotation.proto";
+import "protos/perfetto/trace/track_event/log_message.proto";
+import "protos/perfetto/trace/track_event/task_execution.proto";
+import "protos/perfetto/trace/track_event/chrome_compositor_scheduler_state.proto";
+import "protos/perfetto/trace/track_event/chrome_histogram_sample.proto";
+import "protos/perfetto/trace/track_event/chrome_keyed_service.proto";
+import "protos/perfetto/trace/track_event/chrome_latency_info.proto";
+import "protos/perfetto/trace/track_event/chrome_legacy_ipc.proto";
+import "protos/perfetto/trace/track_event/chrome_user_event.proto";
+
+import "protos/perfetto/trace/track_event/nodejs.proto";
+
+package perfetto.protos;
+
+// NOTE: Full TrackEvent support in the client lib and chrome is WIP, thus these
+// protos are still subject to change. Don't depend on them staying as they are.
+
+// Trace events emitted by client instrumentation library (TRACE_EVENT macros),
+// which describe activity on a track, such as a thread or asynchronous event
+// track. The track is specified using separate TrackDescriptor messages and
+// referred to via the track's UUID.
+//
+// A simple TrackEvent packet specifies a timestamp, category, name and type:
+//   trace_packet {
+//     timestamp: 1000
+//     track_event {
+//       categories: ["my_cat"]
+//       name: "my_event"
+//       type: TYPE_INSTANT
+//      }
+//    }
+//
+// To associate an event with a custom track (e.g. a thread), the track is
+// defined in a separate packet and referred to from the TrackEvent by its UUID:
+//   trace_packet {
+//     track_descriptor {
+//       track_uuid: 1234
+//       name: "my_track"
+//
+//       // Optionally, associate the track with a thread.
+//       thread_descriptor {
+//         pid: 10
+//         tid: 10
+//         ..
+//       }
+//     }
+//   }
+//
+// A pair of TYPE_SLICE_BEGIN and _END events form a slice on the track:
+//   trace_packet {
+//     timestamp: 1200
+//     track_event {
+//       track_uuid: 1234
+//       categories: ["my_cat"]
+//       name: "my_slice"
+//       type: TYPE_SLICE_BEGIN
+//     }
+//   }
+//   trace_packet {
+//     timestamp: 1400
+//     track_event {
+//       track_uuid: 1234
+//       type: TYPE_SLICE_END
+//     }
+//   }
+//
+// TrackEvents also support optimizations to reduce data repetition and encoded
+// data size, e.g. through data interning (names, categories, ...) and delta
+// encoding of timestamps/counters. For details, see the InternedData message.
+// Further, default values for attributes of events on the same sequence (e.g.
+// their default track association) can be emitted as part of a
+// TrackEventDefaults message.
+//
+// Next reserved id: 13 (up to 15). Next id: 32.
+message TrackEvent {
+  // Names of categories of the event. In the client library, categories are a
+  // way to turn groups of individual events on or off.
+  repeated uint64 category_iids = 3;  // interned EventCategoryName.
+  repeated string categories = 22;    // non-interned variant.
+
+  // Optional name of the event for its display in trace viewer. May be left
+  // unspecified for events with typed arguments.
+  //
+  // Note that metrics should not rely on event names, as they are prone to
+  // changing. Instead, they should use typed arguments to identify the events
+  // they are interested in.
+  oneof name_field {
+    uint64 name_iid = 10;  // interned EventName.
+    string name = 23;      // non-interned variant.
+  }
+
+  // TODO(eseckler): Support using binary symbols for category/event names.
+
+  // Type of the TrackEvent (required if |phase| in LegacyEvent is not set).
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+
+    // Slice events are events that have a begin and end timestamp, i.e. a
+    // duration. They can be nested similar to a callstack: If, on the same
+    // track, event B begins after event A, but before A ends, B is a child
+    // event of A and will be drawn as a nested event underneath A in the UI.
+    // Note that child events should always end before their parents (e.g. B
+    // before A).
+    //
+    // Each slice event is formed by a pair of BEGIN + END events. The END event
+    // does not need to repeat any TrackEvent fields it has in common with its
+    // corresponding BEGIN event. Arguments and debug annotations of the BEGIN +
+    // END pair will be merged during trace import.
+    //
+    // Note that we deliberately chose not to support COMPLETE events (which
+    // would specify a duration directly) since clients would need to delay
+    // writing them until the slice is completed, which can result in reordered
+    // events in the trace and loss of unfinished events at the end of a trace.
+    TYPE_SLICE_BEGIN = 1;
+    TYPE_SLICE_END = 2;
+
+    // Instant events are nestable events without duration. They can be children
+    // of slice events on the same track.
+    TYPE_INSTANT = 3;
+
+    // Event that provides a value for a counter track. |track_uuid| should
+    // refer to a counter track and |counter_value| set to the new value. Note
+    // that most other TrackEvent fields (e.g. categories, name, ..) are not
+    // supported for TYPE_COUNTER events. See also CounterDescriptor.
+    TYPE_COUNTER = 4;
+  }
+  optional Type type = 9;
+
+  // Identifies the track of the event. The default value may be overridden
+  // using TrackEventDefaults, e.g., to specify the track of the TraceWriter's
+  // sequence (in most cases sequence = one thread). If no value is specified
+  // here or in TrackEventDefaults, the TrackEvent will be associated with an
+  // implicit trace-global track (uuid 0). See TrackDescriptor::uuid.
+  optional uint64 track_uuid = 11;
+
+  // A new value for a counter track. |track_uuid| should refer to a track with
+  // a CounterDescriptor, and |type| should be TYPE_COUNTER. For a more
+  // efficient encoding of counter values that are sampled at the beginning/end
+  // of a slice, see |extra_counter_values| and |extra_counter_track_uuids|.
+  // Counter values can optionally be encoded in as delta values (positive or
+  // negative) on each packet sequence (see CounterIncrementalBase).
+  optional int64 counter_value = 30;
+
+  // To encode counter values more efficiently, we support attaching additional
+  // counter values to a TrackEvent of any type. All values will share the same
+  // timestamp specified in the TracePacket. The value at
+  // extra_counter_values[N] is for the counter track referenced by
+  // extra_counter_track_uuids[N].
+  //
+  // |extra_counter_track_uuids| may also be set via TrackEventDefaults. There
+  // should always be equal or more uuids than values. It is valid to set more
+  // uuids (e.g. via defaults) than values. If uuids are specified in
+  // TrackEventDefaults and a TrackEvent, the TrackEvent uuids override the
+  // default uuid list.
+  //
+  // For example, this allows snapshotting the thread time clock at each
+  // thread-track BEGIN and END event to capture the cpu time delta of a slice.
+  repeated uint64 extra_counter_track_uuids = 31;
+  repeated int64 extra_counter_values = 12;
+
+  // TODO(eseckler): Add flow event support.
+
+  // ---------------------------------------------------------------------------
+  // TrackEvent arguments:
+  // ---------------------------------------------------------------------------
+
+  // Unstable key/value annotations shown in the trace viewer but not intended
+  // for metrics use.
+  repeated DebugAnnotation debug_annotations = 4;
+
+  // Typed event arguments:
+  optional TaskExecution task_execution = 5;
+  optional LogMessage log_message = 21;
+  optional ChromeCompositorSchedulerState cc_scheduler_state = 24;
+  optional ChromeUserEvent chrome_user_event = 25;
+  optional ChromeKeyedService chrome_keyed_service = 26;
+  optional ChromeLegacyIpc chrome_legacy_ipc = 27;
+  optional ChromeHistogramSample chrome_histogram_sample = 28;
+  optional ChromeLatencyInfo chrome_latency_info = 29;
+  // New argument types go here :)
+
+  optional AsyncWrapInfo async_wrap_info = 1000;
+  optional NodeProcessMetadata node_process_metadata = 1001;
+  optional NodePerformanceMilestone node_performance_milestone = 1002;
+  optional EventLoopDelay event_loop_delay = 1003;
+
+  // ---------------------------------------------------------------------------
+  // Deprecated / legacy event fields, which will be removed in the future:
+  // ---------------------------------------------------------------------------
+
+  // Deprecated. Use the |timestamp| and |timestamp_clock_id| fields in
+  // TracePacket instead.
+  //
+  // Timestamp in microseconds (usually CLOCK_MONOTONIC).
+  oneof timestamp {
+    // Delta timestamp value since the last TrackEvent or ThreadDescriptor. To
+    // calculate the absolute timestamp value, sum up all delta values of the
+    // preceding TrackEvents since the last ThreadDescriptor and add the sum to
+    // the |reference_timestamp| in ThreadDescriptor. This value should always
+    // be positive.
+    int64 timestamp_delta_us = 1;
+    // Absolute value (e.g. a manually specified timestamp in the macro).
+    // This is a one-off value that does not affect delta timestamp computation
+    // in subsequent TrackEvents.
+    int64 timestamp_absolute_us = 16;
+  }
+
+  // Deprecated. Use |extra_counter_values| and |extra_counter_track_uuids| to
+  // encode thread time instead.
+  //
+  // CPU time for the current thread (e.g., CLOCK_THREAD_CPUTIME_ID) in
+  // microseconds.
+  oneof thread_time {
+    // Delta timestamp value since the last TrackEvent or ThreadDescriptor. To
+    // calculate the absolute timestamp value, sum up all delta values of the
+    // preceding TrackEvents since the last ThreadDescriptor and add the sum to
+    // the |reference_timestamp| in ThreadDescriptor. This value should always
+    // be positive.
+    int64 thread_time_delta_us = 2;
+    // This is a one-off absolute value that does not affect delta timestamp
+    // computation in subsequent TrackEvents.
+    int64 thread_time_absolute_us = 17;
+  }
+
+  // Deprecated. Use |extra_counter_values| and |extra_counter_track_uuids| to
+  // encode thread instruction count instead.
+  //
+  // Value of the instruction counter for the current thread.
+  oneof thread_instruction_count {
+    // Same encoding as |thread_time| field above.
+    int64 thread_instruction_count_delta = 8;
+    int64 thread_instruction_count_absolute = 20;
+  }
+
+  // Apart from {category, time, thread time, tid, pid}, other legacy trace
+  // event attributes are initially simply proxied for conversion to a JSON
+  // trace. We intend to gradually transition these attributes to similar native
+  // features in TrackEvent (e.g. async + flow events), or deprecate them
+  // without replacement where transition is unsuitable.
+  //
+  // Next reserved id: 16 (up to 16).
+  // Next id: 20.
+  message LegacyEvent {
+    // Deprecated, use TrackEvent::name(_iid) instead.
+    optional uint64 name_iid = 1;  // interned EventName.
+    optional int32 phase = 2;
+    optional int64 duration_us = 3;
+    optional int64 thread_duration_us = 4;
+
+    // Elapsed retired instruction count during the event.
+    optional int64 thread_instruction_delta = 15;
+
+    reserved 5;  // used to be |flags|.
+
+    oneof id {
+      uint64 unscoped_id = 6;
+      uint64 local_id = 10;
+      uint64 global_id = 11;
+    }
+    // Additional optional scope for |id|.
+    optional string id_scope = 7;
+
+    // Consider the thread timestamps for async BEGIN/END event pairs as valid.
+    optional bool use_async_tts = 9;
+
+    // Idenfifies a flow. Flow events with the same bind_id are connected.
+    optional uint64 bind_id = 8;
+    // Use the enclosing slice as binding point for a flow end event instead of
+    // the next slice. Flow start/step events always bind to the enclosing
+    // slice.
+    optional bool bind_to_enclosing = 12;
+
+    enum FlowDirection {
+      FLOW_UNSPECIFIED = 0;
+      FLOW_IN = 1;
+      FLOW_OUT = 2;
+      FLOW_INOUT = 3;
+    }
+    optional FlowDirection flow_direction = 13;
+
+    enum InstantEventScope {
+      SCOPE_UNSPECIFIED = 0;
+      SCOPE_GLOBAL = 1;
+      SCOPE_PROCESS = 2;
+      SCOPE_THREAD = 3;
+    }
+    optional InstantEventScope instant_event_scope = 14;
+
+    // Override the pid/tid if the writer needs to emit events on behalf of
+    // another process/thread. This should be the exception. Normally, the
+    // pid+tid from ThreadDescriptor is used.
+    optional int32 pid_override = 18;
+    optional int32 tid_override = 19;
+  }
+
+  optional LegacyEvent legacy_event = 6;
+}
+
+// Default values for fields of all TrackEvents on the same packet sequence.
+// Should be emitted as part of TracePacketDefaults whenever incremental state
+// is cleared. It's defined here because field IDs should match those of the
+// corresponding fields in TrackEvent.
+message TrackEventDefaults {
+  optional uint64 track_uuid = 11;
+  repeated uint64 extra_counter_track_uuids = 31;
+
+  // TODO(eseckler): Support default values for more TrackEvent fields.
+}
+
+// --------------------
+// Interned data types:
+// --------------------
+
+message EventCategory {
+  optional uint64 iid = 1;
+  optional string name = 2;
+}
+
+message EventName {
+  optional uint64 iid = 1;
+  optional string name = 2;
+}

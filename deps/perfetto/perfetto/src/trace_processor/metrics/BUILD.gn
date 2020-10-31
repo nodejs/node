@@ -1,0 +1,108 @@
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../gn/perfetto.gni")
+import("../../../gn/test.gni")
+
+sql_files = [
+  "trace_metadata.sql",
+  "android/android_batt.sql",
+  "android/android_cpu.sql",
+  "android/android_cpu_agg.sql",
+  "android/android_mem.sql",
+  "android/android_mem_unagg.sql",
+  "android/android_ion.sql",
+  "android/android_lmk_reason.sql",
+  "android/android_lmk.sql",
+  "android/android_powrails.sql",
+  "android/android_startup_launches.sql",
+  "android/android_task_state.sql",
+  "android/android_startup.sql",
+  "android/android_package_list.sql",
+  "android/android_task_names.sql",
+  "android/android_thread_time_in_state.sql",
+  "android/cpu_info.sql",
+  "android/display_metrics.sql",
+  "android/heap_profile_callsites.sql",
+  "android/hsc_startups.sql",
+  "android/android_hwui_metric.sql",
+  "android/java_heap_histogram.sql",
+  "android/java_heap_stats.sql",
+  "android/process_unagg_mem_view.sql",
+  "android/process_mem.sql",
+  "android/process_metadata.sql",
+  "android/process_oom_score.sql",
+  "android/mem_stats_priority_breakdown.sql",
+  "android/span_view_stats.sql",
+  "android/upid_span_view.sql",
+  "android/unmapped_java_symbols.sql",
+  "android/unsymbolized_frames.sql",
+  "chrome/chrome_processes.sql",
+]
+
+config("gen_config") {
+  include_dirs = [ "${root_gen_dir}/${perfetto_root_path}" ]
+}
+
+action("gen_merged_sql_metrics") {
+  script = "../../../tools/gen_merged_sql_metrics.py"
+  generated_header = "${target_gen_dir}/sql_metrics.h"
+  args = rebase_path(sql_files, root_build_dir) + [
+           "--cpp_out",
+           rebase_path(generated_header, root_build_dir),
+         ]
+  inputs = sql_files
+  outputs = [ generated_header ]
+  public_configs = [ ":gen_config" ]
+}
+
+if (enable_perfetto_trace_processor_sqlite) {
+  source_set("lib") {
+    sources = [
+      "custom_options.descriptor.h",
+      "metrics.cc",
+      "metrics.descriptor.h",
+      "metrics.h",
+    ]
+    deps = [
+      "../../../gn:default_deps",
+      "../../../gn:sqlite",
+      "../../../include/perfetto/trace_processor",
+      "../../../protos/perfetto/common:zero",
+      "../../../protos/perfetto/metrics:zero",
+      "../../../protos/perfetto/metrics/android:zero",
+      "../../../protos/perfetto/trace_processor:metrics_impl_zero",
+      "../../base",
+      "../../protozero:protozero",
+      "../sqlite",
+    ]
+    public_deps = [
+      ":gen_merged_sql_metrics",
+      "../util:descriptors",
+    ]
+  }
+
+  perfetto_unittest_source_set("unittests") {
+    testonly = true
+    sources = [ "metrics_unittest.cc" ]
+    deps = [
+      ":lib",
+      "..:lib",
+      "../../../gn:default_deps",
+      "../../../gn:gtest_and_gmock",
+      "../../../gn:sqlite",
+      "../../../protos/perfetto/common:zero",
+    ]
+  }
+}

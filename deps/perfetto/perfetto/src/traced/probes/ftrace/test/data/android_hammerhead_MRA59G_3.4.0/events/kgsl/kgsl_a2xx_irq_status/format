@@ -1,0 +1,14 @@
+name: kgsl_a2xx_irq_status
+ID: 376
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:__data_loc char[] device_name;	offset:12;	size:4;	signed:0;
+	field:unsigned int master_status;	offset:16;	size:4;	signed:0;
+	field:unsigned int status;	offset:20;	size:4;	signed:0;
+
+print fmt: "d_name=%s master=%s status=%s", __get_str(device_name), REC->master_status ? __print_flags(REC->master_status, "|", { 0x00000020L, "MH" }, { 0x04000000L, "SQ" }, { 0x40000000L, "CP" }, { 0x80000000L, "RBBM" }) : "None", REC->status ? __print_flags(REC->status, "|", { 0x00080000L, "SW" }, { 0x00800000L, "T0_PACKET_IN_IB" }, { 0x01000000L, "OPCODE_ERROR" }, { 0x02000000L, "PROTECTED_MODE_ERROR" }, { 0x04000000L, "RESERVED_BIT_ERROR" }, { 0x08000000L, "IB_ERROR" }, { 0x20000000L, "IB2" }, { 0x40000000L, "IB1" }, { 0x80000000L, "RB" }) : "None"

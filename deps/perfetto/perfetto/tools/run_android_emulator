@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import argparse
+import os
+import shutil
+import sys
+
+
+def Main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--verbose', '-v', action='store_true')
+  parser.add_argument('--pid', help='(optional) save pid into given file')
+  args = parser.parse_args()
+
+  root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+  if sys.platform.startswith('linux'):
+    emulator_root = os.path.join(root_dir, 'buildtools', 'emulator',
+                                 'linux-x86_64')
+    emulator_path = os.path.join(emulator_root, 'qemu', 'linux-x86_64')
+  else:
+    emulator_root = os.path.join(root_dir, 'buildtools', 'emulator',
+                                 'darwin-x86_64')
+    emulator_path = os.path.join(emulator_root, 'qemu', 'darwin-x86_64')
+
+  aosp_path = os.path.join(root_dir, 'buildtools', 'aosp-arm')
+
+  env = {
+      # The CI env doesn't set this and causes the emulator to fallback in
+      # 32-bit mode with a "Cannot decide host bitness because $SHELL" error.
+      'SHELL': '/bin/bash',
+      'LD_LIBRARY_PATH': os.path.join(emulator_root, 'lib64', 'qt', 'lib'),
+      'DYLD_LIBRARY_PATH': os.path.join(emulator_root, 'lib64', 'qt', 'lib'),
+  }
+  emulator_bin = os.path.join(emulator_path, 'qemu-system-armel')
+  emulator_args = [
+      '-no-window', '-no-snapshot', '-gpu', 'off', '-no-accel', '-sysdir',
+      aosp_path, '-system',
+      os.path.join(aosp_path, 'system-qemu.img'), '-kernel',
+      os.path.join(aosp_path, 'kernel-ranchu'), '-ramdisk',
+      os.path.join(aosp_path, 'ramdisk.img'), '-vendor',
+      os.path.join(aosp_path, 'vendor-qemu.img'), '-data',
+      os.path.join(aosp_path, 'userdata-qemu.img')
+  ]
+  print '\n'.join('='.join(x) for x in env.items())
+  print ' '.join([emulator_bin] + emulator_args)
+  if args.pid:
+    with open(args.pid, 'w') as f:
+      f.write(str(os.getpid()))
+  os.execve(emulator_bin, [emulator_bin] + emulator_args, env)
+
+
+if __name__ == '__main__':
+  sys.exit(Main())

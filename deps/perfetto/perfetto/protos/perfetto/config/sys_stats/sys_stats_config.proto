@@ -1,0 +1,60 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+import "protos/perfetto/common/sys_stats_counters.proto";
+
+// This file defines the configuration for the Linux /proc poller data source,
+// which injects counters in the trace.
+// Counters that are needed in the trace must be explicitly listed in the
+// *_counters fields. This is to avoid spamming the trace with all counters
+// at all times.
+// The sampling rate is configurable. All polling rates (*_period_ms) need
+// to be integer multiples of each other.
+// OK:     [10ms, 10ms, 10ms],  [10ms, 20ms, 10ms],  [10ms, 20ms, 60ms]
+// Not OK: [10ms, 10ms, 11ms],  [10ms, 15ms, 20ms]
+message SysStatsConfig {
+  // Polls /proc/meminfo every X ms, if non-zero.
+  // This is required to be > 10ms to avoid excessive CPU usage.
+  // Cost: 0.3 ms [read] + 0.07 ms [parse + trace injection]
+  optional uint32 meminfo_period_ms = 1;
+
+  // If empty all known counters are reported. Otherwise, only the counters
+  // specified below are reported.
+  repeated MeminfoCounters meminfo_counters = 2;
+
+  // Polls /proc/vmstat every X ms, if non-zero.
+  // This is required to be > 10ms to avoid excessive CPU usage.
+  // Cost: 0.2 ms [read] + 0.3 ms [parse + trace injection]
+  optional uint32 vmstat_period_ms = 3;
+  repeated VmstatCounters vmstat_counters = 4;
+
+  // Pols /proc/stat every X ms, if non-zero.
+  // This is required to be > 10ms to avoid excessive CPU usage.
+  // Cost: 4.1 ms [read] + 1.9 ms [parse + trace injection]
+  optional uint32 stat_period_ms = 5;
+  enum StatCounters {
+    STAT_UNSPECIFIED = 0;
+    STAT_CPU_TIMES = 1;
+    STAT_IRQ_COUNTS = 2;
+    STAT_SOFTIRQ_COUNTS = 3;
+    STAT_FORK_COUNT = 4;
+  }
+  repeated StatCounters stat_counters = 6;
+}

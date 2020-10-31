@@ -1,0 +1,8 @@
+{
+  "name": "custom_utils",
+  "browser": {
+    "./index.js": "./index-browser.js"
+  },
+  "description": "Utils functions. The reason why this module has been created is that 'TextDecoder' and 'TextEncoder' are accessible under the global namespace in the browser, and under the 'util' module in nodejs. Since the tests are running under nodejs, thanks to the 'browser' entry in this package.json, the correct file will be used.",
+  "version": "0.0.1"
+}

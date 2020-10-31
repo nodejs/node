@@ -1,0 +1,26 @@
+packet {
+  ftrace_events {
+    cpu: 3
+    event {
+      timestamp: 74289018336
+      pid: 4064
+      print {
+        ip: 18446743562018522420
+        buf: "S|1204|launching: com.android.chrome|0\n"
+      }
+    }
+  }
+}
+packet {
+  ftrace_events {
+    cpu: 2
+    event {
+      timestamp: 74662603008
+      pid: 1257
+      print {
+        ip: 18446743562018522420
+        buf: "F|1204|launching: com.android.chrome|0\n"
+      }
+    }
+  }
+}

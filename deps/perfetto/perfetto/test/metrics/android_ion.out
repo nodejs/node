@@ -1,0 +1,16 @@
+android_ion {
+  buffer {
+    name: "adsp"
+    avg_size_bytes: 1000.0
+    min_size_bytes: 1000.0
+    max_size_bytes: 1100.0
+    total_alloc_size_bytes: 1100.0
+  }
+  buffer {
+    name: "system"
+    avg_size_bytes: 1497.48743719
+    min_size_bytes: 1000.0
+    max_size_bytes: 2000.0
+    total_alloc_size_bytes: 2000.0
+  }
+}

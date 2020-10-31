@@ -1,0 +1,168 @@
+#!/usr/bin/env python
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import print_function
+import argparse
+import distutils
+import errno
+import grp
+import os
+import readline
+import sys
+import shutil
+import subprocess
+from pipes import quote
+from subprocess import check_call
+
+try:
+  from shutil import which as find_executable
+except AttributeError:
+  from distutils.spawn import find_executable
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(os.path.join(REPO_ROOT, 'infra', 'ci'))
+from config import JOB_CONFIGS, SANDBOX_IMG
+
+try:
+  input = raw_input
+except NameError:
+  pass
+
+
+def user_in_docker_group():
+  try:
+    group = grp.getgrnam('docker')
+  except KeyError:
+    return False
+  else:
+    return group.gr_gid in os.getgroups()
+
+
+def decision(question='Would you like to continue', confirm=True, default='n'):
+  default = default.lower().strip()
+  yes = default in {'y', 'yes'}
+  no = default in {'n', 'no'}
+  default = 'y' if yes else 'n'
+  prompt = '%s? [%s/%s]: ' % (question, 'Y' if yes else 'y', 'N' if no else 'n')
+  if not confirm:
+    print('%sy' % prompt)
+    return
+  while True:
+    choice = input(prompt).lower().strip()
+    if not choice:
+      choice = default
+    if choice in {'y', 'yes'}:
+      return
+    elif choice in {'n', 'no'}:
+      sys.exit(3)
+
+
+def main():
+  parser = argparse.ArgumentParser(
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  parser.add_argument('config', choices=JOB_CONFIGS.keys())
+  parser.add_argument(
+      '--runner',
+      help='The container runner executable to use',
+      choices=('podman', 'docker'),
+      default='podman' if find_executable('podman') else 'docker')
+  parser.add_argument(
+      '--build',
+      action='store_true',
+      help='Will perform a build of sandbox image')
+  group = parser.add_mutually_exclusive_group()
+  group.add_argument(
+      '--confirm',
+      action='store_true',
+      default=True,
+      help='User confirmation of decision prompts')
+  group.add_argument(
+      '--no-confirm',
+      dest='confirm',
+      action='store_false',
+      help='Forces confirmation of decision prompts')
+  args = parser.parse_args()
+
+  # Check that the directory is clean.
+  git_cmd = ['git', '-C', REPO_ROOT, 'status', '--porcelain']
+  modified_files = subprocess.check_output(git_cmd).decode()
+  if modified_files:
+    print('The current Git repo has modified/untracked files.')
+    print('The sandboxed VM will fetch the HEAD of your current git repo.')
+    print('This is probably not the state you want to be in.')
+    print('I suggest you stop, commit and then re-run this script')
+    print('Modified files:\n' + modified_files)
+    decision('Do you know what you are doing', confirm=args.confirm)
+
+  if args.build:
+    print('')
+    print('About to build %r locally with %r' % (args.image, args.runner))
+    decision(confirm=args.confirm)
+    check_call(('make', '-C', os.path.join(REPO_ROOT, 'infra',
+                                           'ci'),
+                'BUILDER=%s' % args.runner, 'build-sandbox'))
+
+  env = {
+      'PERFETTO_TEST_GIT_REF': 'file:///ci/source',
+  }
+  env.update(JOB_CONFIGS[args.config])
+
+  workdir = os.path.join(REPO_ROOT, 'out', 'tmp.ci')
+  cmd = []
+  if args.runner == 'docker' and not user_in_docker_group():
+    cmd += ['sudo', '--']
+  cmd += [
+      args.runner, 'run', '-it', '--name', 'perfetto_ci', '--cap-add',
+      'SYS_PTRACE', '--rm', '--volume',
+      '%s:/ci/ramdisk' % workdir, '--tmpfs', '/tmp:exec',
+      '--volume=%s:/ci/source:ro' % REPO_ROOT
+  ]
+  for kv in env.items():
+    cmd += ['--env', '%s=%s' % kv]
+  cmd += [SANDBOX_IMG]
+  cmd += [
+      'bash', '-c',
+      'cd /ci/ramdisk; bash /ci/init.sh || sudo -u perfetto -EH bash -i'
+  ]
+
+  print(
+      'About to run\n',
+      ' '.join('\n  ' + c if c.startswith('--') or c == 'bash' else quote(c)
+               for c in cmd))
+  print('')
+  print('The VM will have read-only acess to: %s, mounted as /ci/source' %
+        REPO_ROOT)
+  print('The VM workdir /ci/ramdisk will be mounted into: %s' % workdir)
+  print('The contents of %s will be deleted before starting the VM' % workdir)
+  decision(confirm=args.confirm)
+
+  try:
+    shutil.rmtree(workdir)
+  except EnvironmentError as e:
+    if e.errno == errno.ENOENT:
+      pass
+    elif e.errno == errno.EACCES:
+      print('')
+      print('Removing previous volume %r' % workdir)
+      check_call(('sudo', 'rm', '-r', quote(workdir)))
+    else:
+      raise
+
+  os.makedirs(workdir)
+  os.execvp(cmd[0], cmd)
+
+
+if __name__ == '__main__':
+  sys.exit(main())

@@ -1,0 +1,374 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("perfetto.gni")
+import("proto_library.gni")
+
+if (perfetto_root_path == "//") {
+  import("//gn/standalone/sanitizers/vars.gni")
+} else {
+  import("//build/config/sanitizers/sanitizers.gni")
+}
+
+# Genereates a header files that contains a macro definition for each build flag
+# that is required by the codebase. This is to avoid sprinkling cflags all over
+# the places, which is very fragile especially for our codebase that needs to
+# deal with several build systems.
+# The way this works is the following:
+# - This rule generates a header that contains a bunch of lines like:
+#   #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ANDROID_BUILD()
+# - The generated header is included by base/build_config.h
+# - Source files in the codebase #include base/build_config and use the
+#   pattern #if PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD)
+buildflag_gen_dir_ = "$root_gen_dir/$perfetto_root_path/build_config"
+action("gen_buildflags") {
+  script = "write_buildflag_header.py"
+  gen_header_path = "$buildflag_gen_dir_/perfetto_build_flags.h"
+
+  perfetto_component_build = false
+  if (defined(is_component_build) && is_component_build) {
+    perfetto_component_build = true
+  }
+  perfetto_force_dlog_on = perfetto_force_dlog == "on"
+  perfetto_force_dlog_off = perfetto_force_dlog == "off"
+
+  # We can't just use (is_linux || is_android) in perfetto.gni because that
+  # doesn't work in Android Mac host builds. We lose the GN notion of OS once
+  # we run the tools/gen_xxx generators.
+  if (enable_perfetto_watchdog) {
+    perfetto_watchdog = "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_ANDROID() || " +
+                        "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_LINUX()"
+  } else {
+    perfetto_watchdog = "0"
+  }
+  if (enable_perfetto_tools) {
+    perfetto_local_symbolizer = "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_LINUX()"
+  } else {
+    perfetto_local_symbolizer = "0"
+  }
+  if (enable_perfetto_trace_processor_httpd) {
+    perfetto_tp_httpd = "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_ANDROID() || " +
+                        "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_LINUX() || " +
+                        "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_MACOSX()"
+  } else {
+    perfetto_tp_httpd = "0"
+  }
+
+  response_file_contents = [
+    "--flags",  # Keep this marker first.
+    "PERFETTO_ANDROID_BUILD=$perfetto_build_with_android",
+    "PERFETTO_CHROMIUM_BUILD=$build_with_chromium",
+    "PERFETTO_STANDALONE_BUILD=$perfetto_build_standalone",
+    "PERFETTO_START_DAEMONS=$start_daemons_for_testing",
+    "PERFETTO_IPC=$enable_perfetto_ipc",
+    "PERFETTO_WATCHDOG=$perfetto_watchdog",
+    "PERFETTO_COMPONENT_BUILD=$perfetto_component_build",
+    "PERFETTO_FORCE_DLOG_ON=$perfetto_force_dlog_on",
+    "PERFETTO_FORCE_DLOG_OFF=$perfetto_force_dlog_off",
+    "PERFETTO_VERBOSE_LOGS=$perfetto_verbose_logs_enabled",
+    "PERFETTO_VERSION_GEN=$enable_perfetto_version_gen",
+    "PERFETTO_TP_PERCENTILE=$enable_perfetto_trace_processor_percentile",
+    "PERFETTO_TP_LINENOISE=$enable_perfetto_trace_processor_linenoise",
+    "PERFETTO_TP_HTTPD=$perfetto_tp_httpd",
+    "PERFETTO_TP_JSON=$enable_perfetto_trace_processor_json",
+    "PERFETTO_LOCAL_SYMBOLIZER=$perfetto_local_symbolizer",
+    "PERFETTO_ZLIB=$enable_perfetto_zlib",
+  ]
+
+  rel_out_path = rebase_path(gen_header_path, "$root_build_dir")
+  args = [
+    "--out",
+    rel_out_path,
+    "--rsp",
+    "{{response_file_name}}",
+  ]
+
+  outputs = [ gen_header_path ]
+}
+
+# All targets should depend on this target to inherit the right flags and
+# include directories.
+group("default_deps") {
+  public_configs = [ ":default_config" ]
+  deps = [ ":gen_buildflags" ]
+  if (perfetto_build_standalone) {
+    public_deps = [
+      "//gn/standalone:check_build_deps",
+      "//gn/standalone/libc++:deps",
+      "//gn/standalone/sanitizers:deps",
+    ]
+    if (is_android) {
+      public_deps += [ "//gn/standalone:check_build_deps_android" ]
+    }
+  }
+}
+
+# The config that all targets in the perfetto codebase inherit by virtue of
+# having explicit deps on //gn:default_deps. This config is NOT propagated up to
+# embedders that depend on perfetto (e.g. chrome). :public_config (see below) is
+# used for that.
+config("default_config") {
+  configs = [ ":public_config" ]
+  defines = [ "PERFETTO_IMPLEMENTATION" ]
+  include_dirs = [ ".." ]
+
+  if (build_with_chromium && is_android) {
+    # Included for __android_log_print
+    libs = [ "log" ]
+  }
+}
+
+# This config is propagated to embedders via libperfetto. It's also included in
+# the default_config above.
+config("public_config") {
+  include_dirs = [
+    "../include",
+
+    # For perfetto_build_flags.h
+    buildflag_gen_dir_,
+
+    # For generated files (proto libraries etc). We add the directory here
+    # because we stop propagation of the configs for individual proto libraries
+    # to avoid duplicate include directory command line flags in compiler
+    # invocations, see proto_library.gni, crbug.com/1043279, crbug.com/gn/142.
+    "$root_gen_dir/$perfetto_root_path",
+  ]
+}
+
+config("asan_instrumentation") {
+  if (use_sanitizer_configs_without_instrumentation) {
+    defines = [ "ADDRESS_SANITIZER_WITHOUT_INSTRUMENTATION" ]
+  }
+}
+
+if (perfetto_root_path != "//") {
+  config("gtest_and_gmock_embedder_config") {
+    include_dirs = [
+      "//testing/gtest/include",
+      "//testing/gmock/include",
+    ]
+  }
+}
+
+group("gtest_and_gmock") {
+  testonly = true
+
+  if (perfetto_root_path == "//") {
+    public_deps = [
+      "//buildtools:gmock",
+      "//buildtools:gtest",
+    ]
+  } else {
+    public_configs = [ ":gtest_and_gmock_embedder_config" ]
+    public_deps = [
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
+
+group("gtest_main") {
+  testonly = true
+
+  if (perfetto_root_path == "//") {
+    public_deps = [ "//buildtools:gtest_main" ]
+  } else if (build_with_chromium) {
+    public_deps = [ "//base/test:run_all_unittests" ]
+  } else {
+    public_deps = [ "//testing/gtest:gtest_main" ]
+  }
+}
+
+# Full protobuf is just for host tools .No binary shipped on device should
+# depend on this.
+whitelisted_protobuf_full_deps = [
+  "../src/ipc/protoc_plugin:*",
+  "../src/protozero/protoc_plugin:*",
+  "../src/trace_processor:trace_processor_shell",
+  "../tools/*",
+]
+
+group("protoc") {
+  public_deps = [ "${perfetto_protobuf_target_prefix}:protoc($host_toolchain)" ]
+}
+
+config("system_protoc") {
+  libs = [ "protoc" ]  # This will link against libprotoc.so
+}
+
+config("system_protobuf") {
+  libs = [ "protobuf" ]  # This will link against libprotobuf.so
+}
+
+# protoc compiler library, it's used for building protoc plugins and by
+# trace_processor_shell to dynamically load .proto files for metrics.
+group("protoc_lib") {
+  visibility = whitelisted_protobuf_full_deps
+  if (current_toolchain == host_toolchain) {
+    if (perfetto_use_system_protobuf) {
+      public_configs = [
+        ":system_protobuf",
+        ":system_protoc",
+        ":protobuf_gen_config",
+      ]
+    } else {
+      public_deps = [ "${perfetto_protobuf_target_prefix}:protoc_lib" ]
+    }
+  }
+}
+
+group("protobuf_full") {
+  visibility = whitelisted_protobuf_full_deps
+  if (current_toolchain == host_toolchain) {
+    if (perfetto_use_system_protobuf) {
+      public_configs = [ ":system_protobuf" ]
+    } else {
+      public_deps = [ "${perfetto_protobuf_target_prefix}:protobuf_full" ]
+    }
+  }
+}
+
+group("protobuf_lite") {
+  if (perfetto_use_system_protobuf) {
+    public_configs = [ ":system_protobuf" ]
+  } else {
+    public_deps = [ "${perfetto_protobuf_target_prefix}:protobuf_lite" ]
+  }
+}
+
+# This config is applied to the .pb.{cc,h} generated by proto_library(). This
+# config is propagated up to the source sets that depend on generated proto
+# headers and proto libraries. Therefore this should stay as lean and clean as
+# possible in terms of -W-no* suppressions. Thankfully the autogenerated .pb.h
+# headers violate less warnings than the libprotobuf_* library itself.
+# This config is defined here (as opposed to //buildtools/BUILD.gn) so that when
+# perfetto_use_system_protobuf=true, the right compiler flags are passed.
+config("protobuf_gen_config") {
+  visibility = [ "*" ]  # This is injected by standalone/proto_library.gni
+  defines = [
+    "GOOGLE_PROTOBUF_NO_RTTI",
+    "GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER",
+  ]
+  cflags = [
+    "-Wno-unknown-warning-option",
+    "-Wno-deprecated",
+    "-Wno-undef",
+    "-Wno-zero-as-null-pointer-constant",
+  ]
+
+  if (!perfetto_use_system_protobuf) {
+    cflags += [
+      # Using -isystem instead of include_dirs (-I), so we don't need to
+      # suppress warnings coming from libprotobuf headers. Doing so would mask
+      # warnings in our own code.
+      "-isystem",
+      rebase_path("../buildtools/protobuf/src", root_build_dir),
+    ]
+  }
+}
+
+# The Google C++ Benchmark library.
+# Only available in standalone builds.
+if (enable_perfetto_benchmarks) {
+  group("benchmark") {
+    testonly = true
+    public_deps = [ "//buildtools:benchmark" ]
+  }
+}
+
+# Libbacktrace, used for printing stack traces from crash handler, only in
+# standalone debug builds.
+if (perfetto_build_standalone && (is_linux || is_android)) {
+  group("libbacktrace") {
+    public_deps = [ "//buildtools:libbacktrace" ]
+  }
+}
+
+if (enable_perfetto_trace_processor_sqlite) {
+  group("sqlite") {
+    if (perfetto_root_path == "//") {
+      public_deps = [ "//buildtools:sqlite" ]
+    } else {
+      if (build_with_chromium) {
+        public_deps = [ "//third_party/sqlite:sqlite_dev" ]
+      } else {
+        public_deps = [ "//third_party/sqlite:sqlite" ]
+      }
+      public_configs = [ ":sqlite_third_party_include_path" ]
+    }
+  }
+}
+
+config("sqlite_third_party_include_path") {
+  if (build_with_chromium) {
+    include_dirs = [ "//third_party/sqlite/dev" ]
+  } else {
+    include_dirs = [ "//third_party/sqlite" ]
+  }
+}
+
+if (enable_perfetto_trace_processor_json) {
+  group("jsoncpp") {
+    if (perfetto_root_path == "//") {
+      public_configs = [ "//buildtools:jsoncpp_config" ]
+      public_deps = [ "//buildtools:jsoncpp" ]
+    } else {
+      public_deps = [ "//third_party/jsoncpp:jsoncpp" ]
+    }
+  }
+}
+
+if (enable_perfetto_trace_processor_linenoise) {
+  # Used by the trace_processor_shell for REPL history.
+  # Only available in standalone builds.
+  group("linenoise") {
+    public_deps = [ "//buildtools:linenoise" ]
+  }
+}  # if (enable_perfetto_trace_processor_linenoise)
+
+# Only used by src/profiling in standalone and android builds.
+if (enable_perfetto_heapprofd || enable_perfetto_traced_perf) {
+  group("libunwindstack") {
+    public_configs = [ "//buildtools:libunwindstack_config" ]
+    public_deps = [ "//buildtools:libunwindstack" ]
+  }
+}
+
+# Used by src/profiling/perf for perf_regs.h.
+if (enable_perfetto_traced_perf) {
+  group("bionic_kernel_uapi_headers") {
+    public_configs = [ "//buildtools:bionic_kernel_uapi_headers" ]
+  }
+}
+
+# Zlib is used both by trace_processor and by perfetto_cmd.
+if (enable_perfetto_zlib) {
+  group("zlib") {
+    if (perfetto_root_path == "//") {
+      public_configs = [ "//buildtools:zlib_config" ]
+      public_deps = [ "//buildtools:zlib" ]
+    } else {
+      public_configs = [ "//third_party/zlib:zlib_config" ]
+      public_deps = [ "//third_party/zlib" ]
+    }
+  }
+}
+
+# Used by fuzzers.
+if (enable_perfetto_fuzzers && use_libfuzzer) {
+  group("libfuzzer") {
+    assert(perfetto_root_path == "//")
+    public_deps = [ "//buildtools:libfuzzer" ]
+  }
+}

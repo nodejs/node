@@ -1,0 +1,5 @@
+"track","process","thread","thread_process","ts","dur","category","name","arg_set_id"
+"[NULL]","[NULL]","t1","p1",1000,100,"cat","event1_on_t1",0
+"[NULL]","[NULL]","t1","p1",2000,200,"cat","event2_on_t1",0
+"[NULL]","[NULL]","t1","p1",4000,0,"cat","event3_on_t1",0
+"[NULL]","[NULL]","t4","p1",4000,100,"cat","event1_on_t3",0

@@ -1,0 +1,169 @@
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build_overrides/build.gni")
+import("../gn/fuzzer.gni")
+import("../gn/perfetto.gni")
+
+source_set("end_to_end_integrationtests") {
+  testonly = true
+  deps = [
+    ":test_helper",
+    "../gn:default_deps",
+    "../gn:gtest_and_gmock",
+    "../include/perfetto/ext/ipc",
+    "../include/perfetto/ext/traced",
+    "../include/perfetto/protozero",
+    "../protos/perfetto/config:cpp",
+    "../protos/perfetto/config:zero",
+    "../protos/perfetto/config/power:zero",
+    "../protos/perfetto/trace:cpp",
+    "../protos/perfetto/trace:zero",
+    "../protos/perfetto/trace/ftrace:cpp",
+    "../protos/perfetto/trace/power:cpp",
+    "../src/base:base",
+    "../src/base:test_support",
+    "../src/traced/probes/ftrace",
+  ]
+
+  # These binaries are requires by the cmdline tests, which invoke perfetto
+  # and trigger_perfetto via Subprocess.
+  data_deps = [
+    "../src/perfetto_cmd:perfetto",
+    "../src/perfetto_cmd:trigger_perfetto",
+  ]
+
+  sources = [ "end_to_end_integrationtest.cc" ]
+  if (start_daemons_for_testing) {
+    cflags = [ "-DPERFETTO_START_DAEMONS_FOR_TESTING" ]
+
+    # In CTS mode we use /syste/bin/perfetto for the cmdline tests and the
+    # perfetto_cmd is not required. Outside of CTS mode, instead, we need to
+    # build the cmdline code as part of the test executable.
+    deps += [
+      "../src/perfetto_cmd",
+      "../src/perfetto_cmd:trigger_perfetto_cmd",
+    ]
+  }
+}
+
+executable("client_api_example") {
+  sources = [ "client_api_example.cc" ]
+  deps = [
+    "..:libperfetto_client_experimental",
+    "../gn:default_deps",
+    "../include/perfetto/tracing",
+    "../protos/perfetto/config/gpu:zero",
+    "../protos/perfetto/trace:zero",
+    "../protos/perfetto/trace/gpu:zero",
+  ]
+}
+
+perfetto_fuzzer_test("end_to_end_shared_memory_fuzzer") {
+  sources = [ "end_to_end_shared_memory_fuzzer.cc" ]
+  testonly = true
+  deps = [
+    ":test_helper",
+    "../gn:default_deps",
+    "../protos/perfetto/trace:zero",
+    "../src/base:test_support",
+    "../src/protozero",
+    "../src/tracing/core",
+    "../src/tracing/ipc/producer",
+    "../src/tracing/ipc/service",
+  ]
+}
+
+perfetto_fuzzer_test("producer_socket_fuzzer") {
+  sources = [ "producer_socket_fuzzer.cc" ]
+  testonly = true
+  deps = [
+    ":test_helper",
+    "../gn:default_deps",
+    "../protos/perfetto/trace:zero",
+    "../src/base:test_support",
+  ]
+}
+
+source_set("test_helper") {
+  testonly = true
+  public_deps = [
+    "../protos/perfetto/trace:cpp",
+    "../src/tracing/ipc/consumer",
+    "../src/tracing/ipc/producer",
+    "../src/tracing/ipc/service",
+  ]
+  deps = [
+    "../gn:default_deps",
+    "../include/perfetto/ext/traced",
+    "../protos/perfetto/config:cpp",
+    "../protos/perfetto/trace:zero",
+    "../src/base:test_support",
+    "../src/traced/probes:probes_src",
+    "../src/tracing/ipc:common",
+  ]
+  sources = [
+    "fake_producer.cc",
+    "fake_producer.h",
+    "test_helper.cc",
+    "test_helper.h",
+  ]
+  if (start_daemons_for_testing) {
+    cflags = [ "-DPERFETTO_START_DAEMONS_FOR_TESTING" ]
+  }
+}
+
+if (enable_perfetto_benchmarks) {
+  source_set("end_to_end_benchmarks") {
+    testonly = true
+    deps = [
+      ":test_helper",
+      "../gn:benchmark",
+      "../gn:default_deps",
+      "../gn:gtest_and_gmock",
+      "../include/perfetto/ext/traced",
+      "../protos/perfetto/config:cpp",
+      "../protos/perfetto/trace:cpp",
+      "../protos/perfetto/trace:zero",
+      "../src/base:test_support",
+    ]
+    sources = [ "end_to_end_benchmark.cc" ]
+    if (start_daemons_for_testing) {
+      cflags = [ "-DPERFETTO_START_DAEMONS_FOR_TESTING" ]
+    }
+  }
+
+  source_set("benchmark_main") {
+    testonly = true
+    deps = [
+      "../gn:benchmark",
+      "../gn:default_deps",
+    ]
+    sources = [ "benchmark_main.cc" ]
+  }
+}  # if (enable_perfetto_benchmarks)
+
+if (perfetto_build_with_android || (is_android && perfetto_build_standalone)) {
+  # This is used only in-tree builds. It's built in standalone builds just to
+  # get build coverage.
+  static_library("perfetto_gtest_logcat_printer") {
+    testonly = true
+    complete_static_lib = true
+    sources = [ "gtest_logcat_printer.cc" ]
+    deps = [
+      "../gn:default_deps",
+      "../gn:gtest_and_gmock",
+    ]
+  }
+}

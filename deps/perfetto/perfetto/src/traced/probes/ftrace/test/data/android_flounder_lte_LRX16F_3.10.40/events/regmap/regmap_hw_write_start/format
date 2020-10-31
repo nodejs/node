@@ -1,0 +1,13 @@
+name: regmap_hw_write_start
+ID: 488
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:unsigned int reg;	offset:12;	size:4;	signed:0;
+	field:int count;	offset:16;	size:4;	signed:1;
+
+print fmt: "%s reg=%x count=%d", __get_str(name), (unsigned int)REC->reg, (int)REC->count

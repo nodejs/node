@@ -1,0 +1,4 @@
+// Out of 64-bit integer range, switch to double in all modes. Length the same
+// as ULONG_MAX in base 10 and digit less than ULONG_MAX's last digit in order
+// to catch a bug in the parsing code.
+19000000000000000001

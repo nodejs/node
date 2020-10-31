@@ -1,0 +1,16 @@
+name: bus_noc_set_qos_mode
+ID: 555
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:long base;	offset:8;	size:4;	signed:1;
+	field:uint32_t qos_off;	offset:12;	size:4;	signed:0;
+	field:uint32_t mport;	offset:16;	size:4;	signed:0;
+	field:uint32_t qos_delta;	offset:20;	size:4;	signed:0;
+	field:uint8_t mode;	offset:24;	size:1;	signed:0;
+	field:uint8_t perm_mode;	offset:25;	size:1;	signed:0;
+
+print fmt: "base:%ld q_off:%d mport:%d q_delta:%d mode:%d perm_mode:%d", REC->base, REC->qos_off, REC->mport, REC->qos_delta, (uint32_t)REC->mode, (uint32_t)REC->perm_mode

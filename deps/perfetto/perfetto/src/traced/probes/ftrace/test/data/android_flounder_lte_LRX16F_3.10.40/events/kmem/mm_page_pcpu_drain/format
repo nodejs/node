@@ -1,0 +1,13 @@
+name: mm_page_pcpu_drain
+ID: 111
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct page * page;	offset:8;	size:8;	signed:0;
+	field:unsigned int order;	offset:16;	size:4;	signed:0;
+	field:int migratetype;	offset:20;	size:4;	signed:1;
+
+print fmt: "page=%p pfn=%lu order=%d migratetype=%d", REC->page, (unsigned long)((REC->page) - ((struct page *)((((0xffffffffffffffffUL) << ((39) - 1)) - (0x400000000UL) - 0x00010000) + 0x00010000))), REC->order, REC->migratetype

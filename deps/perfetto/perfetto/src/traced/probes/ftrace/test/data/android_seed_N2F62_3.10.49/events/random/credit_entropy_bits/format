@@ -1,0 +1,15 @@
+name: credit_entropy_bits
+ID: 385
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:const char * pool_name;	offset:8;	size:4;	signed:0;
+	field:int bits;	offset:12;	size:4;	signed:1;
+	field:int entropy_count;	offset:16;	size:4;	signed:1;
+	field:int entropy_total;	offset:20;	size:4;	signed:1;
+	field:unsigned long IP;	offset:24;	size:4;	signed:0;
+
+print fmt: "%s pool: bits %d entropy_count %d entropy_total %d caller %pF", REC->pool_name, REC->bits, REC->entropy_count, REC->entropy_total, (void *)REC->IP

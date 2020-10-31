@@ -1,0 +1,13 @@
+name: dev_pm_qos_remove_request
+ID: 139
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:enum dev_pm_qos_req_type type;	offset:12;	size:4;	signed:0;
+	field:s32 new_value;	offset:16;	size:4;	signed:1;
+
+print fmt: "device=%s type=%s new_value=%d", __get_str(name), __print_symbolic(REC->type, { DEV_PM_QOS_RESUME_LATENCY, "DEV_PM_QOS_RESUME_LATENCY" }, { DEV_PM_QOS_FLAGS, "DEV_PM_QOS_FLAGS" }), REC->new_value

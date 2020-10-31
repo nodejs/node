@@ -1,0 +1,13 @@
+name: mmc_resume_host
+ID: 516
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:s64 usecs;	offset:8;	size:8;	signed:1;
+	field:int err;	offset:16;	size:4;	signed:1;
+	field:__data_loc char[] dev_name;	offset:20;	size:4;	signed:0;
+
+print fmt: "took %lld usecs, %s err %d", REC->usecs, __get_str(dev_name), REC->err

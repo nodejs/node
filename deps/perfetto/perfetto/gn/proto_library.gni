@@ -1,0 +1,271 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("perfetto.gni")
+
+# This gni file defines rules for proto generation. There are various types of
+# proto targets that can be defined in our codebase:
+# "lite" targets: these use the standard libprotobuf library. They are used
+#     mainly for tests and readback.
+# "zero" targets: these use the protozero library and its protoc plugin. They
+#     are used pretty much everywhere.
+# "descriptor" targets: they are used to generate a proto-encoded reflection
+#     descriptor that describes the schema of the proto using protobuf itself.
+# All these targets can be generated using the perfetto_proto_library rule. It
+# wraps the instantiation of several proto targets using a convenience template.
+#
+# For instance:
+# perfetto_proto_library("xxx_@TYPE@") {
+#   proto_generators = [ "lite", "zero" ]  # lite+zero is the default value.
+#   sources = [ "one.proto", "two.proto" ]
+#   deps = [ "dep:@TYPE@" ]
+# }
+#
+# Is the equivalent of:
+# proto_library("xxx_lite")     { sources = [...], deps = [ "dep:lite"] }
+# protozero_library("xxx_zero") { sources = [...], deps = [ "dep:zero"] }
+
+# Load the protobuf's proto_library() definition.
+if (!defined(perfetto_protobuf_target_prefix)) {
+  if (perfetto_root_path == "//") {
+    perfetto_protobuf_target_prefix = "//buildtools"
+  } else {
+    perfetto_protobuf_target_prefix = "//third_party/protobuf"
+  }
+}
+if (!defined(perfetto_protobuf_gni)) {
+  if (perfetto_root_path == "//") {
+    perfetto_protobuf_gni = "//gn/standalone/proto_library.gni"
+  } else {
+    perfetto_protobuf_gni = "//third_party/protobuf/proto_library.gni"
+  }
+}
+import(perfetto_protobuf_gni)
+
+# Equivalent to proto_library (generation of .h/.cc from .proto files) but
+# enables also generation using the protozero plugin.
+# The generated files will have the .pbzero.{cc,h} suffix, as opposed to the
+# .pb.{cc,h} of the official proto library.
+# DO NOT use this target directly, use perfetto_proto_library() below.
+template("protozero_library") {
+  proto_library(target_name) {
+    perfetto_root_path = invoker.perfetto_root_path
+
+    generate_cc = false
+    generate_python = false
+    generator_plugin_label =
+        perfetto_root_path + "src/protozero/protoc_plugin:protozero_plugin"
+    generator_plugin_suffix = ".pbzero"
+    if (build_with_chromium) {
+      component_build_force_source_set = true
+    }
+
+    if (defined(invoker.deps)) {
+      deps = invoker.deps
+    } else {
+      deps = []
+    }
+
+    deps += [ perfetto_root_path + "src/protozero" ]
+
+    forward_variables_from(invoker,
+                           [
+                             "defines",
+                             "generator_plugin_options",
+                             "include_dirs",
+                             "proto_in_dir",
+                             "proto_out_dir",
+                             "sources",
+                             "testonly",
+                             "visibility",
+                             "generate_descriptor",
+                             "propagate_imports_configs",
+                           ])
+  }
+}
+
+# This template generates .gen.cc/h files from .proto files. The generated
+# sources are actual C++ classes that can be moved and copied around, very
+# similar to the libprotobuf generated ones API-wise, but use protozero under
+# the hoods, without any zero-copy benefit though.
+# They are mainly used for the perfetto IPC layer and tests.
+template("protozero_cpp_library") {
+  proto_library(target_name) {
+    perfetto_root_path = invoker.perfetto_root_path
+
+    generate_cc = false
+    generate_python = false
+    generator_plugin_label =
+        perfetto_root_path + "src/protozero/protoc_plugin:cppgen_plugin"
+    generator_plugin_suffix = ".gen"
+    if (build_with_chromium) {
+      component_build_force_source_set = true
+    }
+
+    deps = [
+      "$perfetto_root_path/gn:default_deps",
+      "$perfetto_root_path/include/perfetto/base",
+      "$perfetto_root_path/src/protozero",
+    ]
+
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+
+    forward_variables_from(invoker,
+                           [
+                             "defines",
+                             "generator_plugin_options",
+                             "include_dirs",
+                             "proto_in_dir",
+                             "proto_out_dir",
+                             "sources",
+                             "testonly",
+                             "visibility",
+                             "generate_descriptor",
+                             "propagate_imports_configs",
+                           ])
+  }
+}
+
+# Generates .ipc.{h,cc} stubs for IPC services defined in .proto files.
+template("ipc_library") {
+  proto_library(target_name) {
+    perfetto_root_path = invoker.perfetto_root_path
+    generate_cc = false
+    generate_python = false
+    generator_plugin_label =
+        "$perfetto_root_path/src/ipc/protoc_plugin:ipc_plugin"
+    generator_plugin_suffix = ".ipc"
+    deps = [
+      "$perfetto_root_path/gn:default_deps",
+      "$perfetto_root_path/src/ipc:common",
+    ]
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+    forward_variables_from(invoker,
+                           [
+                             "defines",
+                             "extra_configs",
+                             "include_dirs",
+                             "proto_in_dir",
+                             "proto_out_dir",
+                             "generator_plugin_options",
+                             "sources",
+                             "testonly",
+                             "visibility",
+                             "propagate_imports_configs",
+                           ])
+  }
+}
+
+# The template used everywhere in the codebase.
+template("perfetto_proto_library") {
+  if (defined(invoker.proto_generators)) {
+    proto_generators = invoker.proto_generators
+  } else {
+    proto_generators = [
+      "zero",
+      "lite",
+      "cpp",
+    ]
+  }
+
+  # proto imports and C++ #includes are relative to this path.
+  if (defined(invoker.proto_path)) {
+    proto_path = invoker.proto_path
+  } else {
+    proto_path = perfetto_root_path
+  }
+
+  vars_to_forward = [
+    "sources",
+    "visibility",
+    "testonly",
+  ]
+  expansion_token = "@TYPE@"
+
+  # gn:public_config propagates the gen dir as include directory. We
+  # disable the proto_library's public_config to avoid duplicate include
+  # directory command line flags (crbug.com/1043279, crbug.com/gn/142).
+  propagate_imports_configs_ = false
+
+  foreach(gen_type, proto_generators) {
+    target_name_ = string_replace(target_name, expansion_token, gen_type)
+
+    # Translate deps from xxx:@TYPE@ to xxx:lite/zero.
+    deps_ = []
+    if (defined(invoker.deps)) {
+      foreach(dep, invoker.deps) {
+        deps_ += [ string_replace(dep, expansion_token, gen_type) ]
+      }
+    }
+
+    if (gen_type == "zero") {
+      protozero_library(target_name_) {
+        proto_in_dir = proto_path
+        proto_out_dir = proto_path
+        generator_plugin_options = "wrapper_namespace=pbzero"
+        deps = deps_
+        propagate_imports_configs = propagate_imports_configs_
+        forward_variables_from(invoker, vars_to_forward)
+      }
+    } else if (gen_type == "cpp") {
+      protozero_cpp_library(target_name_) {
+        proto_in_dir = proto_path
+        proto_out_dir = proto_path
+        generator_plugin_options = "wrapper_namespace=gen"
+        deps = deps_
+        propagate_imports_configs = propagate_imports_configs_
+        forward_variables_from(invoker, vars_to_forward)
+      }
+    } else if (gen_type == "ipc") {
+      cpp_target_name_ = string_replace(target_name, expansion_token, "cpp")
+      ipc_library(target_name_) {
+        proto_in_dir = proto_path
+        proto_out_dir = proto_path
+        generator_plugin_options = "wrapper_namespace=gen"
+        deps = deps_ + [ ":$cpp_target_name_" ]
+        propagate_imports_configs = propagate_imports_configs_
+        forward_variables_from(invoker, vars_to_forward)
+      }
+    } else if (gen_type == "lite") {
+      proto_library(target_name_) {
+        proto_in_dir = proto_path
+        proto_out_dir = proto_path
+        generate_python = false
+        deps = deps_
+        cc_generator_options = "lite=true:"
+        propagate_imports_configs = propagate_imports_configs_
+        forward_variables_from(invoker, vars_to_forward)
+      }
+    } else if (gen_type == "descriptor") {
+      proto_library(target_name_) {
+        proto_in_dir = proto_path
+        proto_out_dir = proto_path
+        generate_python = false
+        generate_cc = false
+        generate_descriptor = invoker.generate_descriptor
+        deps = deps_
+        forward_variables_from(invoker, vars_to_forward)
+      }
+
+      # Not needed for descriptor proto_library target.
+      not_needed([ "propagate_imports_configs_" ])
+    } else {
+      assert(false, "Invalid 'proto_generators' value.")
+    }
+  }
+}

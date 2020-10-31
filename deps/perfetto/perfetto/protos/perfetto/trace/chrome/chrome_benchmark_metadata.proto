@@ -1,0 +1,50 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+package perfetto.protos;
+
+// This message is not intended to be written by the chrome on the device.
+// It's emitted on the host by the telemetry benchmark infrastructure (it's a
+// part of the trace that's written by the telemetry tracing agent).
+message ChromeBenchmarkMetadata {
+  // Time when the benchmark execution started (host unixtime in microseconds).
+  optional int64 benchmark_start_time_us = 1;
+
+  // Time when this particular story was run (host unixtime in microseconds).
+  optional int64 story_run_time_us = 2;
+
+  // Name of benchmark.
+  optional string benchmark_name = 3;
+
+  // Description of benchmark.
+  optional string benchmark_description = 4;
+
+  // Optional label.
+  optional string label = 5;
+
+  // Name of story.
+  optional string story_name = 6;
+
+  // List of story tags.
+  repeated string story_tags = 7;
+
+  // Index of the story run (>0 if the same story was run several times).
+  optional int32 story_run_index = 8;
+
+  // Whether this run failed.
+  optional bool had_failures = 9;
+}

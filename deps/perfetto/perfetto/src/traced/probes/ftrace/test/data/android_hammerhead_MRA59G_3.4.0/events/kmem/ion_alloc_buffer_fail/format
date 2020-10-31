@@ -1,0 +1,17 @@
+name: ion_alloc_buffer_fail
+ID: 126
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:const char * client_name;	offset:12;	size:4;	signed:0;
+	field:const char * heap_name;	offset:16;	size:4;	signed:0;
+	field:size_t len;	offset:20;	size:4;	signed:0;
+	field:unsigned int mask;	offset:24;	size:4;	signed:0;
+	field:unsigned int flags;	offset:28;	size:4;	signed:0;
+	field:long error;	offset:32;	size:4;	signed:1;
+
+print fmt: "client_name=%s heap_name=%s len=%zu mask=0x%x flags=0x%x error=%ld", REC->client_name, REC->heap_name, REC->len, REC->mask, REC->flags, REC->error

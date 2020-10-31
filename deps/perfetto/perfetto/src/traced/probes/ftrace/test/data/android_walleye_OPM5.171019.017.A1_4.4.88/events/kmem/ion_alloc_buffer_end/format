@@ -1,0 +1,15 @@
+name: ion_alloc_buffer_end
+ID: 192
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char client_name[64];	offset:8;	size:64;	signed:0;
+	field:const char * heap_name;	offset:72;	size:8;	signed:0;
+	field:size_t len;	offset:80;	size:8;	signed:0;
+	field:unsigned int mask;	offset:88;	size:4;	signed:0;
+	field:unsigned int flags;	offset:92;	size:4;	signed:0;
+
+print fmt: "client_name=%s heap_name=%s len=%zu mask=0x%x flags=0x%x", REC->client_name, REC->heap_name, REC->len, REC->mask, REC->flags

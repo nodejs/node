@@ -1,0 +1,54 @@
+#
+# AFL dictionary for JSON
+# -----------------------
+#
+# Just the very basics.
+#
+# Inspired by a dictionary by Jakub Wilk <jwilk@jwilk.net>
+#
+# https://github.com/rc0r/afl-fuzz/blob/master/dictionaries/json.dict
+#
+
+"0"
+",0"
+":0"
+"0:"
+"-1.2e+3"
+
+"true"
+"false"
+"null"
+
+"\"\""
+",\"\""
+":\"\""
+"\"\":"
+
+"{}"
+",{}"
+":{}"
+"{\"\":0}"
+"{{}}"
+
+"[]"
+",[]"
+":[]"
+"[0]"
+"[[]]"
+
+"''"
+"\\"
+"\\b"
+"\\f"
+"\\n"
+"\\r"
+"\\t"
+"\\u0000"
+"\\x00"
+"\\0"
+"\\uD800\\uDC00"
+"\\uDBFF\\uDFFF"
+
+"\"\":0"
+"//"
+"/**/"

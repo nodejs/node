@@ -1,0 +1,20 @@
+name: drv_ampdu_action
+ID: 776
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char sta_addr[6];	offset:40;	size:6;	signed:0;
+	field:u32 action;	offset:48;	size:4;	signed:0;
+	field:u16 tid;	offset:52;	size:2;	signed:0;
+	field:u16 ssn;	offset:54;	size:2;	signed:0;
+	field:u8 buf_size;	offset:56;	size:1;	signed:0;
+	field:enum nl80211_iftype vif_type;	offset:60;	size:4;	signed:0;
+	field:void * sdata;	offset:64;	size:8;	signed:0;
+	field:bool p2p;	offset:72;	size:1;	signed:0;
+	field:__data_loc char[] vif_name;	offset:76;	size:4;	signed:0;
+
+print fmt: "%s vif:%s(%d%s) sta:%pM action:%d tid:%d buf:%d", REC->wiphy_name, __get_str(vif_name), REC->vif_type, REC->p2p ? "/p2p" : "", REC->sta_addr, REC->action, REC->tid, REC->buf_size

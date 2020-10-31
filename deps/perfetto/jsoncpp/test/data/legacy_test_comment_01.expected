@@ -1,0 +1,10 @@
+.={}
+// Comment for array
+.test=[]
+// Comment within array
+.test[0]={}
+.test[0].a="aaa"
+.test[1]={}
+.test[1].b="bbb"
+.test[2]={}
+.test[2].c="ccc"

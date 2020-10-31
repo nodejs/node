@@ -1,0 +1,66 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../gn/test.gni")
+
+# The unprivileged trace daemon that listens for Producer and Consumer
+# connections, handles the coordination of the tracing sessions and owns the
+# log buffers.
+executable("traced") {
+  deps = [
+    # Both traced and traced_probes depend on "libprefetto" instead of directly
+    # on lib. This is to reduce binary size on android builds. All the code is
+    # built into libperfetto and the executables are just tiny shells that call
+    # into the xxx_main() defined in the library.
+    "../../../:libperfetto",
+    "../../../gn:default_deps",
+    "../../../include/perfetto/ext/traced",
+  ]
+  sources = [ "main.cc" ]
+  assert_no_deps = [ "//gn:protobuf_lite" ]
+}
+
+# Contains all the implementation but not the main() entry point. This target
+# is shared both by the executable and tests.
+source_set("service") {
+  public_deps = [ "../../../include/perfetto/ext/traced" ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../base",
+    "../../tracing/core",
+    "../../tracing/core:service",
+    "../../tracing/ipc/service",
+  ]
+  if (enable_perfetto_version_gen) {
+    deps += [ "//gn/standalone:gen_git_revision" ]
+  }
+  sources = [
+    "builtin_producer.cc",
+    "builtin_producer.h",
+    "service.cc",
+  ]
+}
+
+perfetto_unittest_source_set("unittests") {
+  testonly = true
+  deps = [
+    ":service",
+    "../../../gn:default_deps",
+    "../../../gn:gtest_and_gmock",
+    "../../base",
+    "../../base:test_support",
+    "../../tracing/core",
+  ]
+  sources = [ "builtin_producer_unittest.cc" ]
+}

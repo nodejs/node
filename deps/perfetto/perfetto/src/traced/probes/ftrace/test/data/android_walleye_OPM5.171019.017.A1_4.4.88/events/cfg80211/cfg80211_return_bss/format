@@ -1,0 +1,13 @@
+name: cfg80211_return_bss
+ID: 938
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u8 bssid[6];	offset:8;	size:6;	signed:0;
+	field:enum nl80211_band band;	offset:16;	size:4;	signed:0;
+	field:u16 center_freq;	offset:20;	size:2;	signed:0;
+
+print fmt: "%pM, band: %d, freq: %u", (REC->bssid), REC->band, REC->center_freq

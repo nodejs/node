@@ -1,0 +1,16 @@
+name: ice40_urb_done
+ID: 474
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int result;	offset:8;	size:4;	signed:1;
+	field:u16 epnum;	offset:12;	size:2;	signed:0;
+	field:u8 dir;	offset:14;	size:1;	signed:0;
+	field:u8 type;	offset:15;	size:1;	signed:0;
+	field:u32 len;	offset:16;	size:4;	signed:0;
+	field:u32 actual;	offset:20;	size:4;	signed:0;
+
+print fmt: "URB_LOG: C: ep %d %s %s len %d actual %d result %d", REC->epnum, REC->dir ? "In" : "Out", REC->type ? "Bulk" : "ctrl", REC->len, REC->actual, REC->result

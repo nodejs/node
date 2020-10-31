@@ -1,0 +1,67 @@
+# Copyright (C) 2020 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../gn/perfetto.gni")
+
+source_set("util") {
+  sources = [ "status_macros.h" ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/trace_processor:basic_types",
+  ]
+}
+
+source_set("protozero_to_text") {
+  sources = [
+    "protozero_to_text.cc",
+    "protozero_to_text.h",
+  ]
+  deps = [
+    ":descriptors",
+    "..:track_event_descriptor",
+    "../../../gn:default_deps",
+    "../../../protos/perfetto/common:zero",
+    "../../../protos/perfetto/trace/track_event:zero",
+    "../../base",
+    "../../protozero",
+  ]
+}
+
+source_set("descriptors") {
+  sources = [
+    "descriptors.cc",
+    "descriptors.h",
+  ]
+  deps = [
+    "..:track_event_descriptor",
+    "../../../gn:default_deps",
+    "../../../include/perfetto/trace_processor",
+    "../../../protos/perfetto/common:zero",
+    "../../base",
+    "../../protozero",
+  ]
+}
+
+source_set("unittests") {
+  sources = [ "protozero_to_text_unittests.cc" ]
+  testonly = true
+  deps = [
+    ":protozero_to_text",
+    "..:track_event_descriptor",
+    "../../../gn:default_deps",
+    "../../../gn:gtest_and_gmock",
+    "../../../protos/perfetto/trace/track_event:zero",
+    "../../protozero",
+  ]
+}

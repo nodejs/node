@@ -1,0 +1,27 @@
+name: net_dev_start_xmit
+ID: 783
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:u16 queue_mapping;	offset:12;	size:2;	signed:0;
+	field:const void * skbaddr;	offset:16;	size:8;	signed:0;
+	field:bool vlan_tagged;	offset:24;	size:1;	signed:0;
+	field:u16 vlan_proto;	offset:26;	size:2;	signed:0;
+	field:u16 vlan_tci;	offset:28;	size:2;	signed:0;
+	field:u16 protocol;	offset:30;	size:2;	signed:0;
+	field:u8 ip_summed;	offset:32;	size:1;	signed:0;
+	field:unsigned int len;	offset:36;	size:4;	signed:0;
+	field:unsigned int data_len;	offset:40;	size:4;	signed:0;
+	field:int network_offset;	offset:44;	size:4;	signed:1;
+	field:bool transport_offset_valid;	offset:48;	size:1;	signed:0;
+	field:int transport_offset;	offset:52;	size:4;	signed:1;
+	field:u8 tx_flags;	offset:56;	size:1;	signed:0;
+	field:u16 gso_size;	offset:58;	size:2;	signed:0;
+	field:u16 gso_segs;	offset:60;	size:2;	signed:0;
+	field:u16 gso_type;	offset:62;	size:2;	signed:0;
+
+print fmt: "dev=%s queue_mapping=%u skbaddr=%pK vlan_tagged=%d vlan_proto=0x%04x vlan_tci=0x%04x protocol=0x%04x ip_summed=%d len=%u data_len=%u network_offset=%d transport_offset_valid=%d transport_offset=%d tx_flags=%d gso_size=%d gso_segs=%d gso_type=%#x", __get_str(name), REC->queue_mapping, REC->skbaddr, REC->vlan_tagged, REC->vlan_proto, REC->vlan_tci, REC->protocol, REC->ip_summed, REC->len, REC->data_len, REC->network_offset, REC->transport_offset_valid, REC->transport_offset, REC->tx_flags, REC->gso_size, REC->gso_segs, REC->gso_type

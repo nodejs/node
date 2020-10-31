@@ -1,0 +1,72 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Per-CPU stats for the ftrace data source gathered from the kernel from
+// /sys/kernel/debug/tracing/per_cpu/cpuX/stats.
+message FtraceCpuStats {
+  // CPU index.
+  optional uint64 cpu = 1;
+
+  // Number of entries still in the kernel buffer. Ideally this should be close
+  // to zero, as events are consumed regularly and moved into the userspace
+  // buffers (or file).
+  optional uint64 entries = 2;
+
+  // Number of events lost in kernel buffers due to overwriting of old events
+  // before userspace had a chance to drain them.
+  optional uint64 overrun = 3;
+
+  // This should always be zero. If not the buffer size is way too small or
+  // something went wrong with the tracer.
+  optional uint64 commit_overrun = 4;
+
+  // Bytes actually read (not overwritten).
+  optional uint64 bytes_read = 5;
+
+  // The timestamp for the oldest event still in the ring buffer.
+  optional double oldest_event_ts = 6;
+
+  // The current timestamp.
+  optional double now_ts = 7;
+
+  // If the kernel buffer has overwrite mode disabled, this will show the number
+  // of new events that were lost because the buffer was full. This is similar
+  // to |overrun| but only for the overwrite=false case.
+  optional uint64 dropped_events = 8;
+
+  // The number of events read.
+  optional uint64 read_events = 9;
+}
+
+// Ftrace stats for all CPUs.
+message FtraceStats {
+  enum Phase {
+    UNSPECIFIED = 0;
+    START_OF_TRACE = 1;
+    END_OF_TRACE = 2;
+  }
+
+  // Tells when stats were sampled. There should be one sample at the beginning
+  // of the trace and one sample at the end.
+  optional Phase phase = 1;
+
+  // Per-CPU stats (one entry for each CPU).
+  repeated FtraceCpuStats cpu_stats = 2;
+}

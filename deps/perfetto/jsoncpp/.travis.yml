@@ -1,0 +1,71 @@
+# Build matrix / environment variables are explained on:
+# http://about.travis-ci.org/docs/user/build-configuration/
+# This file can be validated on: http://www.yamllint.com/
+# Or using the Ruby based travel command line tool:
+# gem install travis --no-rdoc --no-ri
+# travis lint .travis.yml
+language: cpp
+sudo: false
+addons:
+  homebrew:
+    packages:
+    - clang-format
+    - meson
+    - ninja
+    update: false # do not update homebrew by default
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - llvm-toolchain-xenial-8
+    packages:
+    - clang-format-8
+    - clang-8
+    - valgrind
+matrix:
+  allow_failures:
+    - os: osx
+  include:
+    - name: Mac clang meson static release testing
+      os: osx
+      osx_image: xcode11
+      compiler: clang
+      env:
+         CXX="clang++"
+         CC="clang"
+         LIB_TYPE=static
+         BUILD_TYPE=release
+      script: ./.travis_scripts/meson_builder.sh
+    - name: Linux xenial clang meson static release testing
+      os: linux
+      dist: xenial
+      compiler: clang
+      env:
+         CXX="clang++"
+         CC="clang"
+         LIB_TYPE=static
+         BUILD_TYPE=release
+      # before_install and install steps only needed for linux meson builds
+      before_install:
+          - source ./.travis_scripts/travis.before_install.${TRAVIS_OS_NAME}.sh
+      install:
+           - source ./.travis_scripts/travis.install.${TRAVIS_OS_NAME}.sh
+      script: ./.travis_scripts/meson_builder.sh
+    - name: Linux xenial gcc cmake coverage
+      os: linux
+      dist: xenial
+      compiler: gcc
+      env:
+        CXX=g++
+        CC=gcc
+        DO_Coverage=ON
+        BUILD_TOOL="Unix Makefiles"
+        BUILD_TYPE=Debug
+        LIB_TYPE=shared
+        DESTDIR=/tmp/cmake_json_cpp
+      before_install:
+          - pip install --user cpp-coveralls
+      script: ./.travis_scripts/cmake_builder.sh
+      after_success:
+          - coveralls --include src/lib_json --include include
+notifications:
+  email: false

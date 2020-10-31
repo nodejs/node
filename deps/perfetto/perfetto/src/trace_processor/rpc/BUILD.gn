@@ -1,0 +1,67 @@
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../gn/perfetto.gni")
+import("../../../gn/wasm.gni")
+
+# Prevent that this file is accidentally included in embedder builds.
+assert(enable_perfetto_trace_processor)
+
+# This source_set is used both by WASM (for the function-call-based query
+# interface) and by the :httpd module for the HTTP interface.
+source_set("rpc") {
+  sources = [
+    "rpc.cc",
+    "rpc.h",
+  ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/trace_processor",
+    "../../../protos/perfetto/metrics:zero",
+    "../../../protos/perfetto/trace_processor:zero",
+    "../../base",
+    "../../protozero",
+  ]
+}
+
+if (enable_perfetto_trace_processor_httpd) {
+  source_set("httpd") {
+    sources = [
+      "httpd.cc",
+      "httpd.h",
+    ]
+    deps = [
+      ":rpc",
+      "../../../gn:default_deps",
+      "../../../include/perfetto/trace_processor",
+      "../../../protos/perfetto/metrics:zero",
+      "../../../protos/perfetto/trace_processor:zero",
+      "../../base",
+      "../../base:unix_socket",
+      "../../protozero",
+    ]
+  }
+}
+
+if (enable_perfetto_ui && is_wasm) {
+  source_set("wasm_bridge") {
+    sources = [ "wasm_bridge.cc" ]
+    deps = [
+      ":rpc",
+      "../../../gn:default_deps",
+      "../../../include/perfetto/trace_processor",
+      "../../base",
+    ]
+  }
+}

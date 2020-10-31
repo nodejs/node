@@ -1,0 +1,17 @@
+name: drv_add_chanctx
+ID: 757
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:u32 control_freq;	offset:40;	size:4;	signed:0;
+	field:u32 chan_width;	offset:44;	size:4;	signed:0;
+	field:u32 center_freq1;	offset:48;	size:4;	signed:0;
+	field:u32 center_freq2;	offset:52;	size:4;	signed:0;
+	field:u8 rx_chains_static;	offset:56;	size:1;	signed:0;
+	field:u8 rx_chains_dynamic;	offset:57;	size:1;	signed:0;
+
+print fmt: "%s control:%d MHz width:%d center: %d/%d MHz chains:%d/%d", REC->wiphy_name, REC->control_freq, REC->chan_width, REC->center_freq1, REC->center_freq2, REC->rx_chains_static, REC->rx_chains_dynamic

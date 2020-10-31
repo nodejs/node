@@ -1,0 +1,14 @@
+name: rdev_return_int_tx_rx
+ID: 659
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:int ret;	offset:40;	size:4;	signed:1;
+	field:u32 tx;	offset:44;	size:4;	signed:0;
+	field:u32 rx;	offset:48;	size:4;	signed:0;
+
+print fmt: "%s, returned %d, tx: %u, rx: %u", REC->wiphy_name, REC->ret, REC->tx, REC->rx

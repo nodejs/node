@@ -1,0 +1,16 @@
+name: sched_tune_filter
+ID: 77
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int nrg_delta;	offset:8;	size:4;	signed:1;
+	field:int cap_delta;	offset:12;	size:4;	signed:1;
+	field:int nrg_gain;	offset:16;	size:4;	signed:1;
+	field:int cap_gain;	offset:20;	size:4;	signed:1;
+	field:int payoff;	offset:24;	size:4;	signed:1;
+	field:int region;	offset:28;	size:4;	signed:1;
+
+print fmt: "nrg_delta=%d cap_delta=%d nrg_gain=%d cap_gain=%d payoff=%d region=%d", REC->nrg_delta, REC->cap_delta, REC->nrg_gain, REC->cap_gain, REC->payoff, REC->region

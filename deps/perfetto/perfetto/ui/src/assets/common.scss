@@ -1,0 +1,605 @@
+// Copyright (C) 2018 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+:root {
+    --sidebar-width: 256px;
+    --topbar-height: 48px;
+    --monospace-font: 'Roboto Mono', monospace;
+    --track-shell-width: 250px;
+    --track-border-color: #00000025;
+    --anim-easing: cubic-bezier(0.4, 0.0, 0.2, 1)
+
+}
+
+@mixin transition($time:0.1s) {
+    transition: opacity $time ease,
+                color $time ease,
+                background-color $time ease,
+                border-color $time ease,
+                width $time ease,
+                height $time ease,
+                max-width $time ease,
+                max-height $time ease,
+                margin $time ease,
+                transform $time ease,
+                box-shadow $time ease,
+                border-radius $time ease;
+}
+
+@mixin material-icon($content) {
+    direction: ltr;
+    display: inline-block;
+    font-family: 'Material Icons';
+    font-size: 24px;
+    font-style: normal;
+    font-weight: normal;
+    letter-spacing: normal;
+    line-height: 1;
+    text-transform: none;
+    white-space: nowrap;
+    word-wrap: normal;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    content: $content;
+}
+
+
+@mixin track_shell_title() {
+  // line-height is deliberately 1px larger than font-size. Roboto seems to
+  // overflow on the bottom on "g"s otherwise.
+  font-size: 14px;
+  line-height: 15px;
+  max-height: 30px;
+  overflow: hidden;
+  text-align: left;
+  overflow-wrap: break-word;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: 300;
+  letter-spacing: -0.25px;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: none;
+    touch-action: none;
+}
+
+html {
+    font-family: Roboto, verdana, sans-serif;
+    height: 100%;
+    width: 100%;
+}
+
+html,
+body,
+body>main {
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    user-select: none;
+    overscroll-behavior: none;
+}
+
+h1,
+h2,
+h3 {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    padding: 0;
+    margin: 0;
+}
+table {
+    user-select: text;
+}
+
+body>main {
+    display: grid;
+    grid-template-areas:
+      "sidebar topbar"
+      "sidebar alerts"
+      "sidebar page";
+    grid-template-rows: auto auto 1fr;
+    grid-template-columns: auto 1fr;
+    color: #121212;
+    overflow: hidden;
+}
+
+button {
+  background: none;
+  color: inherit;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  outline: inherit;
+}
+
+button.close {
+  font-family: var(--monospace-font);
+}
+
+.full-page-loading-screen {
+    position: absolute;
+    background: #3e4a5a;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: row;
+    background-image: url('assets/logo-3d.png');
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.page {
+    grid-area: page;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.split-panel {
+  flex: 1;
+  display: flex;
+  flex-flow: row;
+  position: relative;
+  overflow: hidden;
+}
+
+.video-panel {
+  position: relative;
+  background-color: #262f3c;
+}
+
+.video-panel-setting {
+  position: sticky;
+  word-wrap: break-word;
+  font-weight: 400;
+  font-size: 15px;
+  font-family: 'Raleway', sans-serif;
+  line-height: 1.5;
+  padding: 10px 10px 0px 10px;
+  width: 320px;
+  color: #fff
+}
+
+.video-panel-message {
+  position: sticky;
+  word-wrap: break-word;
+  font-weight: 400;
+  font-size: 12px;
+  font-family: 'Raleway', sans-serif;
+  line-height: 1.5;
+  padding: 10px 10px 10px 10px;
+  width: 320px;
+  border-bottom: 1px solid #404854;
+  color: #b4b7ba;
+}
+
+.alerts {
+  * {
+    user-select: text;
+  }
+  grid-area: alerts;
+  background-color: #f2f2f2;
+  >div {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.25px;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    button {
+      width: 24px;
+      height: 24px;
+    }
+
+  }
+}
+
+.home-page {
+    text-align: center;
+    padding-top: 20vh;
+    align-items: center;
+}
+
+.home-page .logo {
+    width: var(--track-shell-width);
+}
+
+.home-page-title {
+    font-size: 60px;
+    margin: 25px;
+    text-align: center;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 100;
+    color: #333;
+}
+
+.query-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    border: 0;
+    thead td {
+        background-color: hsl(214, 22%, 90%);
+        color: #262f3c;
+        text-align: center;
+        padding: 1px 3px;
+        border-style: solid;
+        border-color: #fff;
+        border-right-width: 1px;
+        border-left-width: 1px;
+    }
+    tbody tr {
+        @include transition();
+        background-color: hsl(214, 22%, 100%);
+        font-family: var(--monospace-font);
+        &:nth-child(even) {
+            background-color: hsl(214, 22%, 95%);
+        }
+        td:first-child {
+            padding-left: 5px;
+        }
+        td:last-child {
+            padding-right: 5px;
+        }
+        &:hover {
+            background-color: hsl(214, 22%, 90%);
+        }
+        &[clickable] {
+          cursor: pointer;
+        }
+    }
+}
+
+.query-error {
+    padding: 20px 10px;
+    color: hsl(-10, 50%, 50%);
+    font-family: 'Roboto Condensed', sans-serif;
+    font-weight: 300;
+}
+
+.page header {
+    background-color: hsl(213, 22%, 82%);
+    color: hsl(213, 22%, 20%);
+    font-family: 'Roboto Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    padding: 4px 10px;
+    vertical-align: middle;
+    border-color: hsl(213, 22%, 75%);
+    border-style: solid;
+    border-width: 1px 0;
+    .code {
+        font-family: var(--monospace-font);
+        font-size: 12px;
+        margin-left: 10px;
+        color: hsl(213, 22%, 40%);
+    }
+}
+
+.track {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 1fr 0;
+
+    &::after {
+      display: block;
+      content: '';
+      grid-column: 1 / span 2;
+      border-top: 1px solid var(--track-border-color);
+      margin-top: -1px;
+      z-index: 2;
+    }
+
+    .track-shell {
+        @include transition();
+        padding-left: 10px;
+        display: grid;
+        cursor: grab;
+        grid-template-areas: "title buttons";
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        width: var(--track-shell-width);
+        background: #fff;
+        border-right: 1px solid #c7d0db;
+
+        &.drag {
+          background-color: #eee;
+          box-shadow: 0 4px 12px -4px #999 inset;
+        }
+        &.drop-before {
+          box-shadow: 0 4px 2px -1px hsl(213, 40%, 50%) inset;
+        }
+        &.drop-after {
+          box-shadow: 0 -4px 2px -1px hsl(213, 40%, 50%) inset;
+        }
+
+        &.selected {
+          background-color: #ebeef9;
+        }
+
+        h1 {
+            grid-area: title;
+            color: hsl(213, 22%, 30%);
+            @include track_shell_title();
+        }
+        .track-buttons {
+          grid-area: buttons;
+          // This is necessary to center the buttons - but shouldn't be?
+          height: 18px;
+        }
+        .track-button {
+          @include transition();
+          color: rgb(60, 86, 136);
+          cursor: pointer;
+          width: 22px;
+          font-size: 18px;
+          opacity: 0;
+        }
+
+        .track-button.show {
+          opacity: 1;
+        }
+
+        &:hover .track-button{
+          opacity: 1;
+        }
+        &.flash {
+          background-color: #ffe263;
+        }
+    }
+}
+
+.scrolling-panel-container {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  will-change: transform;  // Force layer creation.
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "space";
+}
+
+.details-panel-container {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  // TODO(taylori): This causes the sticky header to flicker when scrolling.
+  // Is will-change necessary in the details panel?
+  // will-change: transform;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "space";
+}
+
+.pinned-panel-container {
+  position: relative;
+  // Override top level overflow: hidden so height of this flex item can be
+  // its content height.
+  overflow: visible;
+  box-shadow: 1px 3px 15px rgba(23, 32, 44, 0.3);
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "space";
+}
+
+// In the scrolling case, since the canvas is overdrawn and continuously
+// repositioned, we need the canvas to be in a div with overflow hidden and
+// height equaling the total height of the content to prevent scrolling
+// height from growing.
+.scroll-limiter {
+  position: relative;
+  grid-area: space;
+  overflow: hidden;
+}
+
+canvas.main-canvas {
+  z-index: -1;
+}
+
+.panels {
+  grid-area: space;
+}
+
+.panel {
+  position: relative;  // Otherwise canvas covers panel dom.
+}
+
+.pan-and-zoom-content {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-flow: column nowrap;
+}
+
+.overview-timeline {
+  height: 100px;
+}
+
+.time-axis-panel {
+  height: 12px;
+}
+
+.tickbar {
+  height: 5px;
+}
+
+.notes-panel {
+  height: 20px;
+}
+
+header.overview {
+  display: flex;
+  align-content: center;
+
+  span.code {
+    user-select: text;
+    flex-grow: 1;
+  }
+}
+
+.query-error {
+  user-select: text;
+}
+
+button.query-ctrl {
+  background: #262f3c;
+  color: white;
+  border-radius: 10px;
+  font-size: 10px;
+  height: 18px;
+  line-height: 18px;
+  min-width: 7em;
+  margin: auto 0 auto 1rem;
+}
+
+.debug-panel-border {
+  position: absolute;
+  top: 0px;
+  height: 100%;
+  width: 100%;
+  border: 1px solid rgba(69, 187, 73, 0.5);
+  pointer-events: none;
+}
+
+.perf-stats {
+  --stroke-color: hsl(217, 39%, 94%);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 600px;
+  color: var(--stroke-color);
+  font-family: monospace;
+  padding: 10px 24px;
+  z-index: 100;
+  background-color: rgba(27, 28, 29, 0.90);
+  button {
+    text-decoration: underline;
+    color: hsl(45, 100%, 48%);
+    &:hover {
+      color: hsl(6, 70%, 53%);
+    }
+  }
+  .close-button {
+    position: absolute;
+    right: 20px;
+    top: 10px;
+    width: 20px;
+    height: 20px;
+    color: var(--stroke-color)
+  }
+  & > section {
+    padding: 5px;
+    border-bottom: 1px solid var(--stroke-color);
+  }
+  div {
+    margin: 2px 0px;
+  }
+  table, td, th {
+    border: 1px solid var(--stroke-color);
+    text-align: center;
+    padding: 4px;
+    margin: 4px 0px;
+  }
+  table {
+    border-collapse: collapse;
+  }
+}
+
+.track-group-panel {
+  --collapsed-background: hsla(190, 49%, 97%, 1);
+  --collapsed-transparent: hsla(190, 49%, 97%, 0);
+  --expanded-background: hsl(215, 22%, 19%);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr;
+  transition: background-color .4s, color .4s;
+  height: 40px;
+  &::after {
+    display: block;
+    content: '';
+    grid-column: 1 / span 2;
+    border-top: 1px solid var(--track-border-color);
+    margin-top: -1px;
+  }
+  &[collapsed=true] {
+    background-color: var(--collapsed-background-transparent);
+    .shell {
+      border-right: 1px solid #c7d0db;
+      background-color: var(--collapsed-background);
+    }
+    .track-button {
+      color: rgb(60, 86, 136);
+    };
+  }
+  &[collapsed=false] {
+    background-color: var(--expanded-background);
+    color: white;
+    font-weight: bold;
+    .shell.flash {
+      color: #121212;
+    }
+    .track-button {
+      color: white;
+    }
+  }
+  .shell {
+    padding: 4px 4px;
+    display: grid;
+    grid-template-areas: "fold-button title check";
+    grid-template-columns: 28px 1fr 20px;
+    align-items: center;
+    line-height: 1;
+    width: var(--track-shell-width);
+    transition: background-color .4s;
+    h1 {
+      grid-area: title;
+      @include track_shell_title();
+    }
+    .fold-button {
+      grid-area: fold-button;
+    }
+    .track-button {
+      font-size: 20px;
+    }
+    &:hover {
+      cursor: pointer;
+      .fold-button {
+        color: hsl(45, 100%, 48%);
+      }
+    }
+    &.flash {
+      background-color: #ffe263;
+    }
+    &.selected {
+      background-color: #ebeef9;
+    }
+  }
+}
+
+.time-selection-panel {
+  height: 10px;
+}

@@ -1,0 +1,14 @@
+name: binder_update_page_range
+ID: 530
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int proc;	offset:8;	size:4;	signed:1;
+	field:bool allocate;	offset:12;	size:1;	signed:0;
+	field:size_t offset;	offset:16;	size:4;	signed:0;
+	field:size_t size;	offset:20;	size:4;	signed:0;
+
+print fmt: "proc=%d allocate=%d offset=%zu size=%zu", REC->proc, REC->allocate, REC->offset, REC->size

@@ -1,0 +1,101 @@
+packet {
+  system_info {
+    hz: 100
+  }
+}
+packet {
+  timestamp: 2
+  process_stats {
+    processes {
+      pid: 5
+      threads {
+        tid: 5
+        cpu_freq_indices: 1
+        cpu_freq_ticks: 1
+        cpu_freq_indices: 2
+        cpu_freq_ticks: 1
+      }
+    }
+  }
+}
+packet {
+  timestamp: 3
+  process_stats {
+    processes {
+      pid: 5
+      threads {
+        tid: 5
+        cpu_freq_indices: 1
+        cpu_freq_ticks: 2
+        cpu_freq_indices: 2
+        cpu_freq_ticks: 1
+      }
+      threads {
+        tid: 7
+        cpu_freq_indices: 5
+        cpu_freq_ticks: 1
+      }
+    }
+    processes {
+      pid: 11
+      threads {
+        tid: 11
+        cpu_freq_indices: 6
+        cpu_freq_ticks: 1
+      }
+      threads {
+        tid: 12
+        cpu_freq_indices: 6
+        cpu_freq_ticks: 1
+      }
+    }
+  }
+}
+packet {
+  timestamp: 4
+  process_stats {
+    processes {
+      pid: 5
+      threads {
+        tid: 5
+        # cpu_freq_indices: 1 was skipped because it did not change.
+        cpu_freq_indices: 2
+        cpu_freq_ticks: 2
+      }
+    }
+    processes {
+      pid: 11
+      threads {
+        tid: 11
+        cpu_freq_indices: 6
+        cpu_freq_ticks: 2
+      }
+      threads {
+        tid: 12
+        cpu_freq_indices: 6
+        cpu_freq_ticks: 2
+      }
+    }
+  }
+}
+packet {
+  timestamp: 1
+  cpu_info {
+    cpus {
+      frequencies: 100
+      frequencies: 200
+    }
+    cpus {
+      frequencies: 100
+      frequencies: 200
+    }
+    cpus {
+      frequencies: 1000
+      frequencies: 2000
+    }
+    cpus {
+      frequencies: 1000
+      frequencies: 2000
+    }
+  }
+}

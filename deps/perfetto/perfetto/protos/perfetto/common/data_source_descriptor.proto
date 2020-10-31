@@ -1,0 +1,49 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+import "protos/perfetto/common/gpu_counter_descriptor.proto";
+import "protos/perfetto/common/track_event_descriptor.proto";
+
+// This message is sent from Producer(s) to the tracing Service when registering
+// to advertise their capabilities. It describes the structure of tracing
+// protos that will be produced by the data source and the supported filters.
+message DataSourceDescriptor {
+  optional string name = 1;  // e.g., "linux.ftrace", "chromium.tracing"
+
+  // When true the data source is expected to ack the stop request through the
+  // NotifyDataSourceStopped() IPC. This field has been introduced after
+  // Android P in Jul 2018 and is not supported on older versions.
+  optional bool will_notify_on_stop = 2;
+
+  // When true the data source is expected to ack the start request through the
+  // NotifyDataSourceStarted() IPC. This field has been introduced after
+  // Android P in March 2019 and is not supported on older versions.
+  optional bool will_notify_on_start = 3;
+
+  // If true, opt into receiving the ClearIncrementalState() IPC. This should be
+  // set if the data source writes packets that refer to previous trace
+  // contents, and knows how to stop referring to the already-emitted data.
+  optional bool handles_incremental_state_clear = 4;
+
+  // Optional specification about available GPU counters.
+  optional GpuCounterDescriptor gpu_counter_descriptor = 5 [lazy = true];
+
+  optional TrackEventDescriptor track_event_descriptor = 6 [lazy = true];
+}

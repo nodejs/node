@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This tool checks for layering violations in the include/ directory.
+# It checks that:
+# - public includes don't end up depending on non-public /ext/ includes.
+# - public includes don't end up depending on private src/ headers.
+# - We use consistently <angle brackets> for other libraries.
+
+import os
+import re
+import subprocess
+import sys
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def main():
+  errors = 0
+  include_root = os.path.join(ROOT_DIR, 'include')
+  for root, _, files in os.walk(include_root):
+    for fname in files:
+      fpath = os.path.join(root, fname)
+      rel_path = os.path.relpath(fpath, ROOT_DIR)
+      if not os.path.isfile(fpath):
+        continue
+      if fpath.endswith('.cc'):
+        sys.stderr.write('.cc files not allowed in includes/ : ' + rel_path +
+                         '\n')
+        errors += 1
+        continue
+      if fpath.endswith('.h'):
+        with open(fpath) as f:
+          lines = f.readlines()
+        for line in lines:
+          if '// no-include-violation-check' in line:
+            continue
+          m = re.findall(r'^#include "(.*\.h)"', line)
+          if not m:
+            continue
+          incl = m[0]
+
+          # Allow only #include "perfetto/..." or "protos/..." but not "src/".
+          if not (incl.startswith('perfetto/') or incl.startswith('protos/')):
+            sys.stderr.write(
+                ('Public header %s is trying to include %s which is outside ' +
+                 'of include/. If you are trying to include a library use ' +
+                 ' <angle brackets> instead\n') % (rel_path, incl))
+            errors += 1
+            continue
+
+          # Ignore lines marked with nogncheck.
+          if '// nogncheck' in line:
+            continue
+
+          # Public (non-/ext/) headers cannot include /ext/ headers.
+          if (not rel_path.startswith('include/perfetto/ext/') and
+              incl.startswith('perfetto/ext/')):
+            sys.stderr.write(('Public header %s cannot include the non-public' +
+                              '/ext/ header %s.\n') % (rel_path, incl))
+            errors += 1
+            continue
+
+  return 0 if errors == 0 else 1
+
+
+if __name__ == '__main__':
+  sys.exit(main())

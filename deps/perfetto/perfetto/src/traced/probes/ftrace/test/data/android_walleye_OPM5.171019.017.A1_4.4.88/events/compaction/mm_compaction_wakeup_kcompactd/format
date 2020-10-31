@@ -1,0 +1,13 @@
+name: mm_compaction_wakeup_kcompactd
+ID: 230
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int nid;	offset:8;	size:4;	signed:1;
+	field:int order;	offset:12;	size:4;	signed:1;
+	field:enum zone_type classzone_idx;	offset:16;	size:4;	signed:0;
+
+print fmt: "nid=%d order=%d classzone_idx=%-8s", REC->nid, REC->order, __print_symbolic(REC->classzone_idx, {0, "DMA"}, {1, "Normal"}, {2, "Movable"})

@@ -1,0 +1,93 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// All the information that cannot be sent within a VulkanMemoryEvent message,
+// are sent as annotations to the main memory event. One example is the
+// properties of the object that consumes the allocated memory, for example, a
+// buffer or an image.
+// key_iid and string_iid are both interned strings. Original string value is
+// stored in vulkan_memory_keys from
+// protos/perfetto/trace/interned_data/interned_data.proto.
+message VulkanMemoryEventAnnotation {
+  optional uint64 key_iid = 1;
+  oneof value {
+    int64 int_value = 2;
+    double double_value = 3;
+    uint64 string_iid = 4;
+  }
+}
+
+// Each VulkanMemoryEvent encompasses information regarding one single function
+// call that results in reserving, binding or freeing host or GPU memory. There
+// is a special message type, ANNOTATIONS, which is used to communicate
+// information that are not directly related to a memory event, nonetheless are
+// essential to understand the memory usage. An example is the size and memory
+// types of the memory heaps.
+//
+// Next reserved id: 10 (up to 15).
+// Next id: 21.
+message VulkanMemoryEvent {
+  enum Source {
+    SOURCE_UNSPECIFIED = 0;
+    SOURCE_DRIVER = 1;
+    SOURCE_DEVICE = 2;
+    SOURCE_DEVICE_MEMORY = 3;
+    SOURCE_BUFFER = 4;
+    SOURCE_IMAGE = 5;
+  }
+
+  enum Operation {
+    OP_UNSPECIFIED = 0;
+    OP_CREATE = 1;         // alloc, create
+    OP_DESTROY = 2;        // free, destroy (non-bound)
+    OP_BIND = 3;           // bind buffer and image
+    OP_DESTROY_BOUND = 4;  // destroy (bound)
+    OP_ANNOTATIONS = 5;    // only annotations
+  }
+
+  enum AllocationScope {
+    SCOPE_UNSPECIFIED = 0;
+    SCOPE_COMMAND = 1;
+    SCOPE_OBJECT = 2;
+    SCOPE_CACHE = 3;
+    SCOPE_DEVICE = 4;
+    SCOPE_INSTANCE = 5;
+  }
+
+  optional Source source = 1;
+  optional Operation operation = 2;
+  optional int64 timestamp = 3;
+  optional uint32 pid = 4;
+  optional fixed64 memory_address = 5;
+  optional uint64 memory_size = 6;
+  // Interned string. Original string value is stored in function_names from
+  // protos/perfetto/trace/interned_data/interned_data.proto.
+  optional uint64 caller_iid = 7;
+  optional AllocationScope allocation_scope = 8;
+  // Extra related information, e.g., create configs, etc.
+  repeated VulkanMemoryEventAnnotation annotations = 9;
+
+  // Field IDs used for device memory (low sampling rate)
+  optional fixed64 device = 16;
+  optional fixed64 device_memory = 17;
+  optional uint32 memory_type = 18;
+  optional uint32 heap = 19;
+  optional fixed64 object_handle = 20;
+}

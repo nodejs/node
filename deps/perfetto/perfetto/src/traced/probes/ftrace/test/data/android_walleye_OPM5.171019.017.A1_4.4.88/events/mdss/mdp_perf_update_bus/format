@@ -1,0 +1,13 @@
+name: mdp_perf_update_bus
+ID: 420
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int client;	offset:8;	size:4;	signed:1;
+	field:u64 ab_quota;	offset:16;	size:8;	signed:0;
+	field:u64 ib_quota;	offset:24;	size:8;	signed:0;
+
+print fmt: "Request client:%d ab=%llu ib=%llu", REC->client, REC->ab_quota, REC->ib_quota

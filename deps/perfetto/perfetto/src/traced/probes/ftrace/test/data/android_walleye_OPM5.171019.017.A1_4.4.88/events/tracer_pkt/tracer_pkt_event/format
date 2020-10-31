@@ -1,0 +1,14 @@
+name: tracer_pkt_event
+ID: 438
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:uint32_t id;	offset:8;	size:4;	signed:0;
+	field:uint32_t cc1;	offset:12;	size:4;	signed:0;
+	field:uint32_t cc2;	offset:16;	size:4;	signed:0;
+	field:uint32_t cc3;	offset:20;	size:4;	signed:0;
+
+print fmt: "CC - 0x%08x:0x%08x:0x%08x, ID - %d", REC->cc1, REC->cc2, REC->cc3, REC->id

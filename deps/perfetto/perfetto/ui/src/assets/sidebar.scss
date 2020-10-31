@@ -1,0 +1,246 @@
+// Copyright (C) 2018 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+.sidebar {
+    --sidebar-padding-bottom: 40px;
+    --sidebar-timing: 0.15s;
+    grid-area: sidebar;
+    z-index: 4;
+    background-color: #262f3c;
+    overflow: hidden;
+    width: var(--sidebar-width);
+    display: flex;
+    flex-direction: column;
+    transition: margin-left var(--anim-easing) var(--sidebar-timing),
+                visibility linear var(--sidebar-timing);
+    >* {
+        border-bottom: 1px solid #404854;
+    }
+    input[type=file] { display:none; }
+    >header {
+        font-family: 'Raleway', sans-serif;
+        height: var(--topbar-height);
+        line-height: var(--topbar-height);
+        vertical-align: middle;
+        padding: 0 20px;
+        color: #fff;
+        font-weight: 400;
+        font-size: 24px;
+        letter-spacing: 0.5px;
+        overflow: visible;
+        .brand {
+          height: 40px;
+          margin-top: 4px;
+        }
+    }
+    .sidebar-button {
+      position: absolute;
+      z-index: 5;
+      background-color: #262f3c;
+      height: var(--topbar-height);
+      left: calc(var(--sidebar-width) - 50px);
+      padding-top: 3px;
+      border-radius: 0 5px 5px 0;
+      border-bottom: inherit;
+      visibility: visible;  // So stays visible when the sidebar is hidden.
+      transition: left var(--anim-easing) var(--sidebar-timing);
+      width: 48px;
+      overflow: hidden;
+      >button {
+        vertical-align: middle;
+      }
+    }
+    &.hide-sidebar {
+      visibility: hidden;
+      margin-left: calc(var(--sidebar-width) * -1);
+      .sidebar-button {
+        left: 0;
+      }
+    }
+    .sidebar-scroll {
+      overflow-y: auto;
+      flex: 1;
+      &::-webkit-scrollbar {
+        width: 0.5em;
+      }
+      &::-webkit-scrollbar-track {
+        background-color: #19212b;
+        border-radius: 2px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: #b4b7ba6e;
+        border-radius: 2px;
+      }
+      >.sidebar-scroll-container {
+        position: relative;
+        min-height: 100%;
+        padding-bottom: var(--sidebar-padding-bottom);
+
+        >section {
+            @include transition();
+            padding: 20px 0;
+            max-height: 80px;
+            .section-header {
+                cursor: pointer;
+                >h1,
+                >h2 {
+                    font-family: 'Raleway', sans-serif;
+                    letter-spacing: 0.25px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    margin: 0 24px;
+                }
+                >h1 {
+                    color: #fff;
+                    font-size: 15px;
+                    font-weight: 500;
+                }
+                >h2 {
+                    @include transition();
+                    color: rgba(255, 255, 255, 0.5);
+                    font-size: 12px;
+                    margin-top: 8px;
+                    font-weight: 400;
+                }
+            }
+            &:hover {
+                background-color: #373f4b;
+            }
+            &.expanded {
+                background-color: #19212b;
+                max-height: unset;
+                .section-header h2 {
+                    opacity: 0;
+                }
+                .section-content {
+                    pointer-events: inherit;
+                    opacity: 1;
+                }
+            }
+        }
+
+        .section-content {
+            pointer-events: none;
+            @include transition();
+            opacity: 0;
+            color: #b4b7ba;
+            a {
+                color: #b4b7ba;
+            }
+            ul {
+                list-style-type: none;
+                margin: 0;
+                padding: 0;
+            }
+            li {
+                @include transition();
+                a {
+                    line-height: 24px;
+                    font-size: 14px;
+                    font-weight: 400;
+                    font-family: 'Raleway', sans-serif;
+                    letter-spacing: 0.5px;
+                    padding: 5px 24px;
+                    text-decoration: none;
+                    display: block;
+                    &[disabled] {
+                      text-decoration: line-through;
+                    }
+                }
+                .material-icons {
+                    margin-right: 10px;
+                }
+                &:hover {
+                    background-color: #373f4b;
+                }
+                .trace-file-name {
+                  white-space: break-spaces;
+                  font-family: 'Roboto Condensed', sans-serif;
+                  word-break: break-all;
+                  user-select: text;
+                  font-weight: 300;
+                  letter-spacing: 0;
+                  margin-top: -10px;
+                  color: #fff;
+                }
+            }
+        }
+      }
+    }
+
+    .sidebar-footer {
+      position: absolute;
+      bottom: 0;
+      padding: 2px 10px;
+      display: grid;
+      height: - var(--sidebar-padding-bottom);
+      grid-template-columns: repeat(4, min-content);
+      grid-gap: 10px;
+
+      > button {
+        color: hsl(217, 39%, 94%);
+        i {
+          font-size: 24px;
+        }
+
+        &:hover {
+          color: hsl(45, 100%, 48%);
+        }
+      }
+
+      > .dbg-info-square {
+        width: 24px;
+        height: 22px;
+        line-height: 22px;
+        margin: 1px 0;
+        background: #12161b;
+        color: #4e71b3;
+        border-radius: 5px;
+        font-size: 12px;
+        text-align: center;
+        &.green {
+          background: #7aca75;
+          color: #12161b;
+        }
+        &.amber {
+          background: #FFC107;
+          color: #333;
+        }
+        &.red {
+          background: #d32f2f;
+          color: #fff;
+        }
+        > div {
+          font-size: 10px;
+          line-height: 11px;
+        }
+      }
+    }
+}
+
+.keycap {
+  background-color: #fafbfc;
+  border: 1px solid #d1d5da;
+  border-bottom-color: #c6cbd1;
+  border-radius: 3px;
+  box-shadow: inset 0 -1px 0 #c6cbd1;
+  color: #444d56;
+  display: inline-block;
+  font-family: var(--monospace-font);
+  vertical-align: middle;
+
+  line-height: 20px;
+  padding: 3px 7px;
+}

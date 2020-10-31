@@ -1,0 +1,19 @@
+name: ext4_da_update_reserve_space
+ID: 318
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:__u64 i_blocks;	offset:24;	size:8;	signed:0;
+	field:int used_blocks;	offset:32;	size:4;	signed:1;
+	field:int reserved_data_blocks;	offset:36;	size:4;	signed:1;
+	field:int reserved_meta_blocks;	offset:40;	size:4;	signed:1;
+	field:int allocated_meta_blocks;	offset:44;	size:4;	signed:1;
+	field:int quota_claim;	offset:48;	size:4;	signed:1;
+	field:__u16 mode;	offset:52;	size:2;	signed:0;
+
+print fmt: "dev %d,%d ino %lu mode 0%o i_blocks %llu used_blocks %d reserved_data_blocks %d reserved_meta_blocks %d allocated_meta_blocks %d quota_claim %d", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->mode, REC->i_blocks, REC->used_blocks, REC->reserved_data_blocks, REC->reserved_meta_blocks, REC->allocated_meta_blocks, REC->quota_claim

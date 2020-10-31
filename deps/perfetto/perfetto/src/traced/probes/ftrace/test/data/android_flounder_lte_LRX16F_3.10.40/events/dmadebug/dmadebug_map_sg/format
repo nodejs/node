@@ -1,0 +1,15 @@
+name: dmadebug_map_sg
+ID: 17
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct device * dev;	offset:8;	size:8;	signed:0;
+	field:__data_loc char[] name;	offset:16;	size:4;	signed:0;
+	field:dma_addr_t dma_addr;	offset:24;	size:8;	signed:0;
+	field:size_t size;	offset:32;	size:8;	signed:0;
+	field:struct page * page;	offset:40;	size:8;	signed:0;
+
+print fmt: "device=%s, iova=%llx, size=%d phys=%llx platformdata=%s", __get_str(name), (unsigned long long)REC->dma_addr, REC->size, (unsigned long long)(((phys_addr_t)((unsigned long)((REC->page) - ((struct page *)((((0xffffffffffffffffUL) << ((39) - 1)) - (0x400000000UL) - 0x00010000) + 0x00010000)))) << 12)), debug_dma_platformdata(REC->dev)

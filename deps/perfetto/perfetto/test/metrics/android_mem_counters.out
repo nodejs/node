@@ -1,0 +1,3157 @@
+android_mem {
+  process_metrics {
+    process_name: "/system/bin/adbd"
+    total_counters {
+      anon_rss {
+        min: 2523136
+        max: 2523136
+        avg: 2523136
+      }
+      file_rss {
+        min: 2392064
+        max: 2392064
+        avg: 2392064
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 2523136
+        max: 2523136
+        avg: 2523136
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/apexd"
+    total_counters {
+      anon_rss {
+        min: 884736
+        max: 884736
+        avg: 884736
+      }
+      file_rss {
+        min: 2101248
+        max: 2101248
+        avg: 2101248
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 884736
+        max: 884736
+        avg: 884736
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/audioserver"
+    total_counters {
+      anon_rss {
+        min: 3989504
+        max: 3989504
+        avg: 3989504
+      }
+      file_rss {
+        min: 9334784
+        max: 9334784
+        avg: 9334784
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 3989504
+        max: 3989504
+        avg: 3989504
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/cameraserver"
+    total_counters {
+      anon_rss {
+        min: 2052096
+        max: 2191360
+        avg: 2075342.7950470024
+      }
+      file_rss {
+        min: 6197248
+        max: 6594560
+        avg: 6277623.7430821592
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 2052096
+        max: 2191360
+        avg: 2075342.7950470024
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/drmserver"
+    total_counters {
+      anon_rss {
+        min: 1552384
+        max: 1552384
+        avg: 1552384
+      }
+      file_rss {
+        min: 4943872
+        max: 4943872
+        avg: 4943872
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1552384
+        max: 1552384
+        avg: 1552384
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/folio_daemon"
+    total_counters {
+      anon_rss {
+        min: 3444736
+        max: 3444736
+        avg: 3444736
+      }
+      file_rss {
+        min: 8974336
+        max: 8974336
+        avg: 8974336
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 3444736
+        max: 3444736
+        avg: 3444736
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/gatekeeperd"
+    total_counters {
+      anon_rss {
+        min: 1134592
+        max: 1134592
+        avg: 1134592
+      }
+      file_rss {
+        min: 2863104
+        max: 2863104
+        avg: 2863104
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1134592
+        max: 1134592
+        avg: 1134592
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/gpuservice"
+    total_counters {
+      anon_rss {
+        min: 1146880
+        max: 1146880
+        avg: 1146880
+      }
+      file_rss {
+        min: 2678784
+        max: 2678784
+        avg: 2678784
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1146880
+        max: 1146880
+        avg: 1146880
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/healthd"
+    total_counters {
+      anon_rss {
+        min: 794624
+        max: 794624
+        avg: 794624
+      }
+      file_rss {
+        min: 2117632
+        max: 2117632
+        avg: 2117632
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 794624
+        max: 794624
+        avg: 794624
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/hw/android.hidl.allocator@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 770048
+        max: 770048
+        avg: 770048
+      }
+      file_rss {
+        min: 1875968
+        max: 1875968
+        avg: 1875968
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 770048
+        max: 770048
+        avg: 770048
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/hw/android.system.suspend@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 868352
+        max: 868352
+        avg: 868352
+      }
+      file_rss {
+        min: 2994176
+        max: 2994176
+        avg: 2994176
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 868352
+        max: 868352
+        avg: 868352
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/hwservicemanager"
+    total_counters {
+      anon_rss {
+        min: 1314816
+        max: 1417216
+        avg: 1334151.2064734141
+      }
+      file_rss {
+        min: 2895872
+        max: 2940928
+        avg: 2905098.926868665
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1314816
+        max: 1417216
+        avg: 1334151.2064734141
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/incidentd"
+    total_counters {
+      anon_rss {
+        min: 974848
+        max: 974848
+        avg: 974848
+      }
+      file_rss {
+        min: 2359296
+        max: 2359296
+        avg: 2359296
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 974848
+        max: 974848
+        avg: 974848
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/init"
+    total_counters {
+      anon_rss {
+        min: 1355776
+        max: 2281472
+        avg: 1686186.6666666667
+      }
+      file_rss {
+        min: 2297856
+        max: 3047424
+        avg: 2681514.6666666665
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1355776
+        max: 2281472
+        avg: 1686186.6666666667
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/installd"
+    total_counters {
+      anon_rss {
+        min: 1699840
+        max: 1699840
+        avg: 1699840
+      }
+      file_rss {
+        min: 2519040
+        max: 2519040
+        avg: 2519040
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1699840
+        max: 1699840
+        avg: 1699840
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/iorapd"
+    total_counters {
+      anon_rss {
+        min: 749568
+        max: 749568
+        avg: 749568
+      }
+      file_rss {
+        min: 1724416
+        max: 1724416
+        avg: 1724416
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 749568
+        max: 749568
+        avg: 749568
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/ip6tables-restore"
+    total_counters {
+      anon_rss {
+        min: 897024
+        max: 897024
+        avg: 897024
+      }
+      file_rss {
+        min: 1445888
+        max: 1445888
+        avg: 1445888
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 897024
+        max: 897024
+        avg: 897024
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/iptables-restore"
+    total_counters {
+      anon_rss {
+        min: 901120
+        max: 901120
+        avg: 901120
+      }
+      file_rss {
+        min: 1429504
+        max: 1429504
+        avg: 1429504
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 901120
+        max: 901120
+        avg: 901120
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/keystore"
+    total_counters {
+      anon_rss {
+        min: 1302528
+        max: 1302528
+        avg: 1302528
+      }
+      file_rss {
+        min: 3624960
+        max: 3624960
+        avg: 3624960
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1302528
+        max: 1302528
+        avg: 1302528
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/lmkd"
+    total_counters {
+      anon_rss {
+        min: 569344
+        max: 569344
+        avg: 569344
+      }
+      file_rss {
+        min: 1130496
+        max: 1130496
+        avg: 1130496
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 569344
+        max: 569344
+        avg: 569344
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/logd"
+    total_counters {
+      anon_rss {
+        min: 7372800
+        max: 7553024
+        avg: 7448831.74711258
+      }
+      file_rss {
+        min: 1527808
+        max: 1527808
+        avg: 1527808
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 7372800
+        max: 7553024
+        avg: 7448831.74711258
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/mediadrmserver"
+    total_counters {
+      anon_rss {
+        min: 823296
+        max: 823296
+        avg: 823296
+      }
+      file_rss {
+        min: 2424832
+        max: 2424832
+        avg: 2424832
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 823296
+        max: 823296
+        avg: 823296
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/mediaserver"
+    total_counters {
+      anon_rss {
+        min: 3031040
+        max: 3248128
+        avg: 3093219.997135757
+      }
+      file_rss {
+        min: 9068544
+        max: 9179136
+        avg: 9086542.591674462
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 3031040
+        max: 3248128
+        avg: 3093219.997135757
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/netd"
+    total_counters {
+      anon_rss {
+        min: 1515520
+        max: 1515520
+        avg: 1515520
+      }
+      file_rss {
+        min: 3424256
+        max: 3424256
+        avg: 3424256
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1515520
+        max: 1515520
+        avg: 1515520
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/perfprofd"
+    total_counters {
+      anon_rss {
+        min: 1691648
+        max: 1691648
+        avg: 1691648
+      }
+      file_rss {
+        min: 3538944
+        max: 3538944
+        avg: 3538944
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1691648
+        max: 1691648
+        avg: 1691648
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/servicemanager"
+    total_counters {
+      anon_rss {
+        min: 888832
+        max: 888832
+        avg: 888832
+      }
+      file_rss {
+        min: 1548288
+        max: 1548288
+        avg: 1548288
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 888832
+        max: 888832
+        avg: 888832
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/statsd"
+    total_counters {
+      anon_rss {
+        min: 1196032
+        max: 1196032
+        avg: 1196032
+      }
+      file_rss {
+        min: 3047424
+        max: 3047424
+        avg: 3047424
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1196032
+        max: 1196032
+        avg: 1196032
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/storaged"
+    total_counters {
+      anon_rss {
+        min: 1069056
+        max: 1069056
+        avg: 1069056
+      }
+      file_rss {
+        min: 2637824
+        max: 2637824
+        avg: 2637824
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1069056
+        max: 1069056
+        avg: 1069056
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/surfaceflinger"
+    total_counters {
+      anon_rss {
+        min: 8888320
+        max: 9207808
+        avg: 9034572.8459068146
+      }
+      file_rss {
+        min: 16490496
+        max: 16498688
+        avg: 16492131.200899113
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 8888320
+        max: 9207808
+        avg: 9034572.8459068146
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/thermalserviced"
+    total_counters {
+      anon_rss {
+        min: 901120
+        max: 901120
+        avg: 901120
+      }
+      file_rss {
+        min: 2269184
+        max: 2269184
+        avg: 2269184
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 901120
+        max: 901120
+        avg: 901120
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/tombstoned"
+    total_counters {
+      anon_rss {
+        min: 552960
+        max: 552960
+        avg: 552960
+      }
+      file_rss {
+        min: 1138688
+        max: 1138688
+        avg: 1138688
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 552960
+        max: 552960
+        avg: 552960
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/traced"
+    total_counters {
+      anon_rss {
+        min: 937984
+        max: 7172096
+        avg: 2960290.8411428952
+      }
+      file_rss {
+        min: 1740800
+        max: 1744896
+        avg: 1743446.0249764551
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 937984
+        max: 7172096
+        avg: 2960290.8411428952
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/traced_probes"
+    total_counters {
+      anon_rss {
+        min: 929792
+        max: 1056768
+        avg: 992675.73074393929
+      }
+      file_rss {
+        min: 1863680
+        max: 1863680
+        avg: 1863680
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 929792
+        max: 1056768
+        avg: 992675.73074393929
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/ueventd"
+    total_counters {
+      anon_rss {
+        min: 1437696
+        max: 1437696
+        avg: 1437696
+      }
+      file_rss {
+        min: 2740224
+        max: 2740224
+        avg: 2740224
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1437696
+        max: 1437696
+        avg: 1437696
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/update_engine"
+    total_counters {
+      anon_rss {
+        min: 1421312
+        max: 1421312
+        avg: 1421312
+      }
+      file_rss {
+        min: 4141056
+        max: 4141056
+        avg: 4141056
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1421312
+        max: 1421312
+        avg: 1421312
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/vold"
+    total_counters {
+      anon_rss {
+        min: 1830912
+        max: 1830912
+        avg: 1830912
+      }
+      file_rss {
+        min: 3612672
+        max: 3612672
+        avg: 3612672
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1830912
+        max: 1830912
+        avg: 1830912
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/system/bin/wificond"
+    total_counters {
+      anon_rss {
+        min: 1167360
+        max: 1224704
+        avg: 1201049.4439232084
+      }
+      file_rss {
+        min: 2777088
+        max: 2777088
+        avg: 2777088
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1167360
+        max: 1224704
+        avg: 1201049.4439232084
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/adsprpcd"
+    total_counters {
+      anon_rss {
+        min: 745472
+        max: 745472
+        avg: 745472
+      }
+      file_rss {
+        min: 1507328
+        max: 1507328
+        avg: 1507328
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 745472
+        max: 745472
+        avg: 745472
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/chre"
+    total_counters {
+      anon_rss {
+        min: 1929216
+        max: 1929216
+        avg: 1929216
+      }
+      file_rss {
+        min: 1703936
+        max: 1703936
+        avg: 1703936
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1929216
+        max: 1929216
+        avg: 1929216
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/cnd"
+    total_counters {
+      anon_rss {
+        min: 1552384
+        max: 1552384
+        avg: 1552384
+      }
+      file_rss {
+        min: 3313664
+        max: 3313664
+        avg: 3313664
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1552384
+        max: 1552384
+        avg: 1552384
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/cnss-daemon"
+    total_counters {
+      anon_rss {
+        min: 1363968
+        max: 1363968
+        avg: 1363968
+      }
+      file_rss {
+        min: 2265088
+        max: 2265088
+        avg: 2265088
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1363968
+        max: 1363968
+        avg: 1363968
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/esed"
+    total_counters {
+      anon_rss {
+        min: 921600
+        max: 921600
+        avg: 921600
+      }
+      file_rss {
+        min: 2301952
+        max: 2301952
+        avg: 2301952
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 921600
+        max: 921600
+        avg: 921600
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.audio@2.0-service"
+    total_counters {
+      anon_rss {
+        min: 7827456
+        max: 7835648
+        avg: 7828961.4625952831
+      }
+      file_rss {
+        min: 5828608
+        max: 5853184
+        avg: 5833124.38778585
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 7827456
+        max: 7835648
+        avg: 7828961.4625952831
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.biometrics.fingerprint@2.1-service.fpc"
+    total_counters {
+      anon_rss {
+        min: 987136
+        max: 987136
+        avg: 987136
+      }
+      file_rss {
+        min: 2682880
+        max: 2682880
+        avg: 2682880
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 987136
+        max: 987136
+        avg: 987136
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.bluetooth@1.0-service-qti"
+    total_counters {
+      anon_rss {
+        min: 1134592
+        max: 1134592
+        avg: 1134592
+      }
+      file_rss {
+        min: 2670592
+        max: 2670592
+        avg: 2670592
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1134592
+        max: 1134592
+        avg: 1134592
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.boot@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 933888
+        max: 933888
+        avg: 933888
+      }
+      file_rss {
+        min: 2416640
+        max: 2416640
+        avg: 2416640
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 933888
+        max: 933888
+        avg: 933888
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.camera.provider@2.4-service"
+    total_counters {
+      anon_rss {
+        min: 19959808
+        max: 30146560
+        avg: 20339380.697334375
+      }
+      file_rss {
+        min: 19906560
+        max: 20475904
+        avg: 19984240.090238161
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 19959808
+        max: 30146560
+        avg: 20339380.697334375
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.cas@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 753664
+        max: 753664
+        avg: 753664
+      }
+      file_rss {
+        min: 2359296
+        max: 2359296
+        avg: 2359296
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 753664
+        max: 753664
+        avg: 753664
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.configstore@1.1-service"
+    total_counters {
+      anon_rss {
+        min: 954368
+        max: 954368
+        avg: 954368
+      }
+      file_rss {
+        min: 2400256
+        max: 2400256
+        avg: 2400256
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 954368
+        max: 954368
+        avg: 954368
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.contexthub@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 925696
+        max: 925696
+        avg: 925696
+      }
+      file_rss {
+        min: 2424832
+        max: 2424832
+        avg: 2424832
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 925696
+        max: 925696
+        avg: 925696
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.drm@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 884736
+        max: 884736
+        avg: 884736
+      }
+      file_rss {
+        min: 2772992
+        max: 2772992
+        avg: 2772992
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 884736
+        max: 884736
+        avg: 884736
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.drm@1.1-service.clearkey"
+    total_counters {
+      anon_rss {
+        min: 1056768
+        max: 1056768
+        avg: 1056768
+      }
+      file_rss {
+        min: 2912256
+        max: 2912256
+        avg: 2912256
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1056768
+        max: 1056768
+        avg: 1056768
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.drm@1.1-service.widevine"
+    total_counters {
+      anon_rss {
+        min: 901120
+        max: 901120
+        avg: 901120
+      }
+      file_rss {
+        min: 3371008
+        max: 3371008
+        avg: 3371008
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 901120
+        max: 901120
+        avg: 901120
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.dumpstate@1.0-service.wahoo"
+    total_counters {
+      anon_rss {
+        min: 856064
+        max: 856064
+        avg: 856064
+      }
+      file_rss {
+        min: 2285568
+        max: 2285568
+        avg: 2285568
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 856064
+        max: 856064
+        avg: 856064
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.gatekeeper@1.0-service-qti"
+    total_counters {
+      anon_rss {
+        min: 978944
+        max: 978944
+        avg: 978944
+      }
+      file_rss {
+        min: 2523136
+        max: 2523136
+        avg: 2523136
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 978944
+        max: 978944
+        avg: 978944
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.gnss@1.0-service-qti"
+    total_counters {
+      anon_rss {
+        min: 2297856
+        max: 2297856
+        avg: 2297856
+      }
+      file_rss {
+        min: 4608000
+        max: 4608000
+        avg: 4608000
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 2297856
+        max: 2297856
+        avg: 2297856
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.graphics.allocator@2.0-service"
+    total_counters {
+      anon_rss {
+        min: 1036288
+        max: 1036288
+        avg: 1036288
+      }
+      file_rss {
+        min: 2646016
+        max: 2646016
+        avg: 2646016
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1036288
+        max: 1036288
+        avg: 1036288
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.graphics.composer@2.1-service"
+    total_counters {
+      anon_rss {
+        min: 7061504
+        max: 7127040
+        avg: 7093193.651419105
+      }
+      file_rss {
+        min: 6201344
+        max: 6209536
+        avg: 6206722.4514569445
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 7061504
+        max: 7127040
+        avg: 7093193.651419105
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.health@2.0-service.wahoo"
+    total_counters {
+      anon_rss {
+        min: 884736
+        max: 884736
+        avg: 884736
+      }
+      file_rss {
+        min: 2453504
+        max: 2453504
+        avg: 2453504
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 884736
+        max: 884736
+        avg: 884736
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.keymaster@3.0-service-qti"
+    total_counters {
+      anon_rss {
+        min: 1024000
+        max: 1024000
+        avg: 1024000
+      }
+      file_rss {
+        min: 2637824
+        max: 2637824
+        avg: 2637824
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1024000
+        max: 1024000
+        avg: 1024000
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.light@2.0-service"
+    total_counters {
+      anon_rss {
+        min: 880640
+        max: 880640
+        avg: 880640
+      }
+      file_rss {
+        min: 2248704
+        max: 2248704
+        avg: 2248704
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 880640
+        max: 880640
+        avg: 880640
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.memtrack@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 868352
+        max: 868352
+        avg: 868352
+      }
+      file_rss {
+        min: 2347008
+        max: 2347008
+        avg: 2347008
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 868352
+        max: 868352
+        avg: 868352
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.nfc@1.1-service"
+    total_counters {
+      anon_rss {
+        min: 1064960
+        max: 1064960
+        avg: 1064960
+      }
+      file_rss {
+        min: 2842624
+        max: 2842624
+        avg: 2842624
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1064960
+        max: 1064960
+        avg: 1064960
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.oemlock@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 868352
+        max: 868352
+        avg: 868352
+      }
+      file_rss {
+        min: 2273280
+        max: 2273280
+        avg: 2273280
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 868352
+        max: 868352
+        avg: 868352
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.power@1.2-service.wahoo-libperfmgr"
+    total_counters {
+      anon_rss {
+        min: 1007616
+        max: 1007616
+        avg: 1007616
+      }
+      file_rss {
+        min: 2568192
+        max: 2568192
+        avg: 2568192
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1007616
+        max: 1007616
+        avg: 1007616
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.sensors@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 1605632
+        max: 1605632
+        avg: 1605632
+      }
+      file_rss {
+        min: 4190208
+        max: 4190208
+        avg: 4190208
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1605632
+        max: 1605632
+        avg: 1605632
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.usb@1.1-service.wahoo"
+    total_counters {
+      anon_rss {
+        min: 1064960
+        max: 1064960
+        avg: 1064960
+      }
+      file_rss {
+        min: 2486272
+        max: 2486272
+        avg: 2486272
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1064960
+        max: 1064960
+        avg: 1064960
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.vibrator@1.2-service.wahoo"
+    total_counters {
+      anon_rss {
+        min: 925696
+        max: 925696
+        avg: 925696
+      }
+      file_rss {
+        min: 2416640
+        max: 2416640
+        avg: 2416640
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 925696
+        max: 925696
+        avg: 925696
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.vr@1.0-service.wahoo"
+    total_counters {
+      anon_rss {
+        min: 856064
+        max: 856064
+        avg: 856064
+      }
+      file_rss {
+        min: 2265088
+        max: 2265088
+        avg: 2265088
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 856064
+        max: 856064
+        avg: 856064
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/android.hardware.wifi@1.0-service"
+    total_counters {
+      anon_rss {
+        min: 4300800
+        max: 4362240
+        avg: 4333974.416470373
+      }
+      file_rss {
+        min: 3801088
+        max: 3801088
+        avg: 3801088
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 4300800
+        max: 4362240
+        avg: 4333974.416470373
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/rild"
+    total_counters {
+      anon_rss {
+        min: 4169728
+        max: 4169728
+        avg: 4169728
+      }
+      file_rss {
+        min: 14327808
+        max: 14327808
+        avg: 14327808
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 4169728
+        max: 4169728
+        avg: 4169728
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/hw/wpa_supplicant"
+    total_counters {
+      anon_rss {
+        min: 1421312
+        max: 1425408
+        avg: 1422839.3064999864
+      }
+      file_rss {
+        min: 4632576
+        max: 4632576
+        avg: 4632576
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1421312
+        max: 1425408
+        avg: 1422839.3064999864
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/imsdatadaemon"
+    total_counters {
+      anon_rss {
+        min: 1683456
+        max: 1683456
+        avg: 1683456
+      }
+      file_rss {
+        min: 2973696
+        max: 2973696
+        avg: 2973696
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1683456
+        max: 1683456
+        avg: 1683456
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/imsqmidaemon"
+    total_counters {
+      anon_rss {
+        min: 901120
+        max: 901120
+        avg: 901120
+      }
+      file_rss {
+        min: 1757184
+        max: 1757184
+        avg: 1757184
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 901120
+        max: 901120
+        avg: 901120
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/ipacm"
+    total_counters {
+      anon_rss {
+        min: 1089536
+        max: 1089536
+        avg: 1089536
+      }
+      file_rss {
+        min: 3125248
+        max: 3125248
+        avg: 3125248
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1089536
+        max: 1089536
+        avg: 1089536
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/loc_launcher"
+    total_counters {
+      anon_rss {
+        min: 741376
+        max: 741376
+        avg: 741376
+      }
+      file_rss {
+        min: 1617920
+        max: 1617920
+        avg: 1617920
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 741376
+        max: 741376
+        avg: 741376
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/msm_irqbalance"
+    total_counters {
+      anon_rss {
+        min: 761856
+        max: 761856
+        avg: 761856
+      }
+      file_rss {
+        min: 1630208
+        max: 1630208
+        avg: 1630208
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 761856
+        max: 761856
+        avg: 761856
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/netmgrd"
+    total_counters {
+      anon_rss {
+        min: 3330048
+        max: 3330048
+        avg: 3330048
+      }
+      file_rss {
+        min: 4530176
+        max: 4530176
+        avg: 4530176
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 3330048
+        max: 3330048
+        avg: 3330048
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/oemlock-bridge"
+    total_counters {
+      anon_rss {
+        min: 659456
+        max: 659456
+        avg: 659456
+      }
+      file_rss {
+        min: 1441792
+        max: 1441792
+        avg: 1441792
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 659456
+        max: 659456
+        avg: 659456
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/pd-mapper"
+    total_counters {
+      anon_rss {
+        min: 884736
+        max: 884736
+        avg: 884736
+      }
+      file_rss {
+        min: 1736704
+        max: 1736704
+        avg: 1736704
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 884736
+        max: 884736
+        avg: 884736
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/pm-proxy"
+    total_counters {
+      anon_rss {
+        min: 778240
+        max: 778240
+        avg: 778240
+      }
+      file_rss {
+        min: 1798144
+        max: 1798144
+        avg: 1798144
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 778240
+        max: 778240
+        avg: 778240
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/pm-service"
+    total_counters {
+      anon_rss {
+        min: 966656
+        max: 966656
+        avg: 966656
+      }
+      file_rss {
+        min: 2080768
+        max: 2080768
+        avg: 2080768
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 966656
+        max: 966656
+        avg: 966656
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/port-bridge"
+    total_counters {
+      anon_rss {
+        min: 696320
+        max: 696320
+        avg: 696320
+      }
+      file_rss {
+        min: 1470464
+        max: 1470464
+        avg: 1470464
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 696320
+        max: 696320
+        avg: 696320
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/qseecomd"
+    total_counters {
+      anon_rss {
+        min: 729088
+        max: 815104
+        avg: 772096
+      }
+      file_rss {
+        min: 749568
+        max: 1642496
+        avg: 1196032
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 729088
+        max: 815104
+        avg: 772096
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/qti"
+    total_counters {
+      anon_rss {
+        min: 1069056
+        max: 1069056
+        avg: 1069056
+      }
+      file_rss {
+        min: 1925120
+        max: 1925120
+        avg: 1925120
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1069056
+        max: 1069056
+        avg: 1069056
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/rmt_storage"
+    total_counters {
+      anon_rss {
+        min: 794624
+        max: 794624
+        avg: 794624
+      }
+      file_rss {
+        min: 1634304
+        max: 1634304
+        avg: 1634304
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 794624
+        max: 794624
+        avg: 794624
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/sensors.qcom"
+    total_counters {
+      anon_rss {
+        min: 868352
+        max: 872448
+        avg: 871437.0053584798
+      }
+      file_rss {
+        min: 1986560
+        max: 1986560
+        avg: 1986560
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 868352
+        max: 872448
+        avg: 871437.0053584798
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/subsystem_ramdump"
+    total_counters {
+      anon_rss {
+        min: 663552
+        max: 663552
+        avg: 663552
+      }
+      file_rss {
+        min: 1441792
+        max: 1441792
+        avg: 1441792
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 663552
+        max: 663552
+        avg: 663552
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/tftp_server"
+    total_counters {
+      anon_rss {
+        min: 565248
+        max: 565248
+        avg: 565248
+      }
+      file_rss {
+        min: 1703936
+        max: 1703936
+        avg: 1703936
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 565248
+        max: 565248
+        avg: 565248
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/thermal-engine"
+    total_counters {
+      anon_rss {
+        min: 1912832
+        max: 1912832
+        avg: 1912832
+      }
+      file_rss {
+        min: 2813952
+        max: 2813952
+        avg: 2813952
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1912832
+        max: 1912832
+        avg: 1912832
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/time_daemon"
+    total_counters {
+      anon_rss {
+        min: 1130496
+        max: 1130496
+        avg: 1130496
+      }
+      file_rss {
+        min: 1802240
+        max: 1802240
+        avg: 1802240
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1130496
+        max: 1130496
+        avg: 1130496
+      }
+    }
+  }
+  process_metrics {
+    process_name: "/vendor/bin/vndservicemanager"
+    total_counters {
+      anon_rss {
+        min: 749568
+        max: 749568
+        avg: 749568
+      }
+      file_rss {
+        min: 1716224
+        max: 1716224
+        avg: 1716224
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 749568
+        max: 749568
+        avg: 749568
+      }
+    }
+  }
+  process_metrics {
+    process_name: "android.ext.services"
+    total_counters {
+      anon_rss {
+        min: 30580736
+        max: 30580736
+        avg: 30580736
+      }
+      file_rss {
+        min: 24633344
+        max: 24633344
+        avg: 24633344
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30580736
+        max: 30580736
+        avg: 30580736
+      }
+    }
+  }
+  process_metrics {
+    process_name: "android.process.acore"
+    total_counters {
+      anon_rss {
+        min: 32718848
+        max: 32796672
+        avg: 32765771.09452733
+      }
+      file_rss {
+        min: 31182848
+        max: 31232000
+        avg: 31213957.855388246
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 32718848
+        max: 32796672
+        avg: 32765771.09452733
+      }
+      java_heap {
+        min: 1374208
+        max: 1427456
+        avg: 1419596.8920014114
+      }
+    }
+  }
+  process_metrics {
+    process_name: "android.process.media"
+    total_counters {
+      anon_rss {
+        min: 30797824
+        max: 31100928
+        avg: 30828073.014492534
+      }
+      file_rss {
+        min: 27017216
+        max: 27131904
+        avg: 27028661.573051229
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30797824
+        max: 31100928
+        avg: 30828073.014492534
+      }
+      java_heap {
+        min: 1193984
+        max: 1193984
+        avg: 1193984
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.calculator2"
+    total_counters {
+      anon_rss {
+        min: 30457856
+        max: 38170624
+        avg: 37379428.70679906
+      }
+      file_rss {
+        min: 15327232
+        max: 46215168
+        avg: 44927669.371485837
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30457856
+        max: 38170624
+        avg: 37379428.70679906
+      }
+      java_heap {
+        min: 1499136
+        max: 4316160
+        avg: 2972808.7655181894
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.calendar"
+    total_counters {
+      anon_rss {
+        min: 30556160
+        max: 30556160
+        avg: 30556160
+      }
+      file_rss {
+        min: 25948160
+        max: 25948160
+        avg: 25948160
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30556160
+        max: 30556160
+        avg: 30556160
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.camera2"
+    total_counters {
+      anon_rss {
+        min: 32026624
+        max: 43556864
+        avg: 37778954.5579197
+      }
+      file_rss {
+        min: 27398144
+        max: 42573824
+        avg: 35737674.626115516
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 32026624
+        max: 43556864
+        avg: 37778954.5579197
+      }
+      java_heap {
+        min: 3152896
+        max: 7367680
+        avg: 5624331.5376309063
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.deskclock"
+    total_counters {
+      anon_rss {
+        min: 30760960
+        max: 30760960
+        avg: 30760960
+      }
+      file_rss {
+        min: 26918912
+        max: 26918912
+        avg: 26918912
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30760960
+        max: 30760960
+        avg: 30760960
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.dialer"
+    total_counters {
+      anon_rss {
+        min: 30515200
+        max: 30515200
+        avg: 30515200
+      }
+      file_rss {
+        min: 26562560
+        max: 26562560
+        avg: 26562560
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30515200
+        max: 30515200
+        avg: 30515200
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.inputmethod.latin"
+    total_counters {
+      anon_rss {
+        min: 32301056
+        max: 32333824
+        avg: 32312115.023602
+      }
+      file_rss {
+        min: 32784384
+        max: 32784384
+        avg: 32784384
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 32301056
+        max: 32333824
+        avg: 32312115.023602
+      }
+      java_heap {
+        min: 1345536
+        max: 1395712
+        avg: 1378703.0378377116
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.keychain"
+    total_counters {
+      anon_rss {
+        min: 29995008
+        max: 29995008
+        avg: 29995008
+      }
+      file_rss {
+        min: 20553728
+        max: 20553728
+        avg: 20553728
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 29995008
+        max: 29995008
+        avg: 29995008
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.launcher3"
+    total_counters {
+      anon_rss {
+        min: 50225152
+        max: 51023872
+        avg: 50602448.04672049
+      }
+      file_rss {
+        min: 61640704
+        max: 65015808
+        avg: 63338514.4484315
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 50225152
+        max: 51023872
+        avg: 50602448.04672049
+      }
+      java_heap {
+        min: 2658304
+        max: 3159040
+        avg: 2933014.4999347096
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.messaging"
+    total_counters {
+      anon_rss {
+        min: 33431552
+        max: 39768064
+        avg: 38817213.791344121
+      }
+      file_rss {
+        min: 31301632
+        max: 50712576
+        avg: 50276775.478137366
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 33431552
+        max: 39768064
+        avg: 38817213.791344121
+      }
+      java_heap {
+        min: 1519616
+        max: 4826112
+        avg: 2558538.0852529262
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.nfc"
+    total_counters {
+      anon_rss {
+        min: 33431552
+        max: 33431552
+        avg: 33431552
+      }
+      file_rss {
+        min: 32583680
+        max: 32583680
+        avg: 32583680
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 33431552
+        max: 33431552
+        avg: 33431552
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.packageinstaller"
+    total_counters {
+      anon_rss {
+        min: 34000896
+        max: 36679680
+        avg: 36364002.255620666
+      }
+      file_rss {
+        min: 47640576
+        max: 56872960
+        avg: 55784981.963561147
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 34000896
+        max: 36679680
+        avg: 36364002.255620666
+      }
+      java_heap {
+        min: 3202048
+        max: 4088832
+        avg: 4043650.9270121339
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.phone"
+    total_counters {
+      anon_rss {
+        min: 34975744
+        max: 35635200
+        avg: 35418527.859008193
+      }
+      file_rss {
+        min: 41607168
+        max: 41644032
+        avg: 41631930.862992339
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 34975744
+        max: 35635200
+        avg: 35418527.859008193
+      }
+      java_heap {
+        min: 3026944
+        max: 3207168
+        avg: 3204534.0849129637
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.printspooler"
+    total_counters {
+      anon_rss {
+        min: 30093312
+        max: 30093312
+        avg: 30093312
+      }
+      file_rss {
+        min: 22540288
+        max: 22540288
+        avg: 22540288
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30093312
+        max: 30093312
+        avg: 30093312
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.providers.calendar"
+    total_counters {
+      anon_rss {
+        min: 30814208
+        max: 30814208
+        avg: 30814208
+      }
+      file_rss {
+        min: 27041792
+        max: 27041792
+        avg: 27041792
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30814208
+        max: 30814208
+        avg: 30814208
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.se"
+    total_counters {
+      anon_rss {
+        min: 30208000
+        max: 30208000
+        avg: 30208000
+      }
+      file_rss {
+        min: 20955136
+        max: 20955136
+        avg: 20955136
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30208000
+        max: 30208000
+        avg: 30208000
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.settings"
+    total_counters {
+      anon_rss {
+        min: 34762752
+        max: 34762752
+        avg: 34762752
+      }
+      file_rss {
+        min: 43851776
+        max: 43851776
+        avg: 43851776
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 34762752
+        max: 34762752
+        avg: 34762752
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.smspush"
+    total_counters {
+      anon_rss {
+        min: 30130176
+        max: 30130176
+        avg: 30130176
+      }
+      file_rss {
+        min: 20025344
+        max: 20025344
+        avg: 20025344
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30130176
+        max: 30130176
+        avg: 30130176
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.android.systemui"
+    total_counters {
+      anon_rss {
+        min: 66408448
+        max: 71012352
+        avg: 68351542.715876162
+      }
+      file_rss {
+        min: 84123648
+        max: 84856832
+        avg: 84582561.858931765
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 66408448
+        max: 71012352
+        avg: 68351542.715876162
+      }
+      java_heap {
+        min: 6224896
+        max: 10747904
+        avg: 6949136.10971856
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.qualcomm.qti.telephonyservice"
+    total_counters {
+      anon_rss {
+        min: 30720000
+        max: 30720000
+        avg: 30720000
+      }
+      file_rss {
+        min: 23228416
+        max: 23228416
+        avg: 23228416
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30720000
+        max: 30720000
+        avg: 30720000
+      }
+    }
+  }
+  process_metrics {
+    process_name: "lowi-server"
+    total_counters {
+      anon_rss {
+        min: 1445888
+        max: 1449984
+        avg: 1447415.3064999864
+      }
+      file_rss {
+        min: 2252800
+        max: 2252800
+        avg: 2252800
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1445888
+        max: 1449984
+        avg: 1447415.3064999864
+      }
+    }
+  }
+  process_metrics {
+    process_name: "media.codec"
+    total_counters {
+      anon_rss {
+        min: 5189632
+        max: 5210112
+        avg: 5206347.9833998242
+      }
+      file_rss {
+        min: 15314944
+        max: 15314944
+        avg: 15314944
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 5189632
+        max: 5210112
+        avg: 5206347.9833998242
+      }
+    }
+  }
+  process_metrics {
+    process_name: "media.extractor"
+    total_counters {
+      anon_rss {
+        min: 4214784
+        max: 4296704
+        avg: 4225535.91987478
+      }
+      file_rss {
+        min: 7778304
+        max: 7778304
+        avg: 7778304
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 4214784
+        max: 4296704
+        avg: 4225535.91987478
+      }
+    }
+  }
+  process_metrics {
+    process_name: "media.metrics"
+    total_counters {
+      anon_rss {
+        min: 2465792
+        max: 2465792
+        avg: 2465792
+      }
+      file_rss {
+        min: 5373952
+        max: 5373952
+        avg: 5373952
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 2465792
+        max: 2465792
+        avg: 2465792
+      }
+    }
+  }
+  process_metrics {
+    process_name: "perfetto"
+    total_counters {
+      anon_rss {
+        min: 3489792
+        max: 3489792
+        avg: 3489792
+      }
+      file_rss {
+        min: 9125888
+        max: 9125888
+        avg: 9125888
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 3489792
+        max: 3489792
+        avg: 3489792
+      }
+    }
+  }
+  process_metrics {
+    process_name: "system_server"
+    total_counters {
+      anon_rss {
+        min: 57307136
+        max: 82853888
+        avg: 68519057.186817423
+      }
+      file_rss {
+        min: 215744512
+        max: 225366016
+        avg: 221489764.25049949
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 57307136
+        max: 82853888
+        avg: 68519057.186817423
+      }
+      java_heap {
+        min: 8163328
+        max: 14021632
+        avg: 11450919.918936323
+      }
+    }
+  }
+  process_metrics {
+    process_name: "webview_zygote"
+    total_counters {
+      anon_rss {
+        min: 23068672
+        max: 23068672
+        avg: 23068672
+      }
+      file_rss {
+        min: 10244096
+        max: 10244096
+        avg: 10244096
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 23068672
+        max: 23068672
+        avg: 23068672
+      }
+    }
+  }
+  process_metrics {
+    process_name: "xtra-daemon"
+    total_counters {
+      anon_rss {
+        min: 1748992
+        max: 1748992
+        avg: 1748992
+      }
+      file_rss {
+        min: 3473408
+        max: 3473408
+        avg: 3473408
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 1748992
+        max: 1748992
+        avg: 1748992
+      }
+    }
+  }
+  process_metrics {
+    process_name: "zygote"
+    total_counters {
+      anon_rss {
+        min: 22667264
+        max: 22667264
+        avg: 22667264
+      }
+      file_rss {
+        min: 53350400
+        max: 53350400
+        avg: 53350400
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 22667264
+        max: 22667264
+        avg: 22667264
+      }
+    }
+  }
+  process_metrics {
+    process_name: "zygote64"
+    total_counters {
+      anon_rss {
+        min: 30040064
+        max: 30109696
+        avg: 30068614.768896315
+      }
+      file_rss {
+        min: 56365056
+        max: 56365056
+        avg: 56365056
+      }
+      swap {
+        min: 0
+        max: 0
+        avg: 0
+      }
+      anon_and_swap {
+        min: 30040064
+        max: 30109696
+        avg: 30068614.768896315
+      }
+    }
+  }
+}

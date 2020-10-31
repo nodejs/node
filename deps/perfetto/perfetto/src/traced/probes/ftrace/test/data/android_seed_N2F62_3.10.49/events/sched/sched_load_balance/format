@@ -1,0 +1,19 @@
+name: sched_load_balance
+ID: 65
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int cpu;	offset:8;	size:4;	signed:1;
+	field:enum cpu_idle_type idle;	offset:12;	size:4;	signed:0;
+	field:int balance;	offset:16;	size:4;	signed:1;
+	field:unsigned long group_mask;	offset:20;	size:4;	signed:0;
+	field:int busiest_nr_running;	offset:24;	size:4;	signed:1;
+	field:unsigned long imbalance;	offset:28;	size:4;	signed:0;
+	field:unsigned int env_flags;	offset:32;	size:4;	signed:0;
+	field:int ld_moved;	offset:36;	size:4;	signed:1;
+	field:unsigned int balance_interval;	offset:40;	size:4;	signed:0;
+
+print fmt: "cpu=%d state=%s balance=%d group=%#lx busy_nr=%d imbalance=%ld flags=%#x ld_moved=%d bal_int=%d", REC->cpu, REC->idle == CPU_IDLE ? "idle" : (REC->idle == CPU_NEWLY_IDLE ? "newly_idle" : "busy"), REC->balance, REC->group_mask, REC->busiest_nr_running, REC->imbalance, REC->env_flags, REC->ld_moved, REC->balance_interval

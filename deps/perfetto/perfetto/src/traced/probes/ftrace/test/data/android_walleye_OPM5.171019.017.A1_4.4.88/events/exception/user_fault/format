@@ -1,0 +1,13 @@
+name: user_fault
+ID: 26
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] task_name;	offset:8;	size:4;	signed:0;
+	field:unsigned long addr;	offset:16;	size:8;	signed:0;
+	field:unsigned int fsr;	offset:24;	size:4;	signed:0;
+
+print fmt: "task_name:%s addr:%lu, fsr:%u", __get_str(task_name), REC->addr, REC->fsr

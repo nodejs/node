@@ -1,0 +1,29 @@
+name: netif_rx_ni_entry
+ID: 792
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:unsigned int napi_id;	offset:12;	size:4;	signed:0;
+	field:u16 queue_mapping;	offset:16;	size:2;	signed:0;
+	field:const void * skbaddr;	offset:24;	size:8;	signed:0;
+	field:bool vlan_tagged;	offset:32;	size:1;	signed:0;
+	field:u16 vlan_proto;	offset:34;	size:2;	signed:0;
+	field:u16 vlan_tci;	offset:36;	size:2;	signed:0;
+	field:u16 protocol;	offset:38;	size:2;	signed:0;
+	field:u8 ip_summed;	offset:40;	size:1;	signed:0;
+	field:u32 hash;	offset:44;	size:4;	signed:0;
+	field:bool l4_hash;	offset:48;	size:1;	signed:0;
+	field:unsigned int len;	offset:52;	size:4;	signed:0;
+	field:unsigned int data_len;	offset:56;	size:4;	signed:0;
+	field:unsigned int truesize;	offset:60;	size:4;	signed:0;
+	field:bool mac_header_valid;	offset:64;	size:1;	signed:0;
+	field:int mac_header;	offset:68;	size:4;	signed:1;
+	field:unsigned char nr_frags;	offset:72;	size:1;	signed:0;
+	field:u16 gso_size;	offset:74;	size:2;	signed:0;
+	field:u16 gso_type;	offset:76;	size:2;	signed:0;
+
+print fmt: "dev=%s napi_id=%#x queue_mapping=%u skbaddr=%pK vlan_tagged=%d vlan_proto=0x%04x vlan_tci=0x%04x protocol=0x%04x ip_summed=%d hash=0x%08x l4_hash=%d len=%u data_len=%u truesize=%u mac_header_valid=%d mac_header=%d nr_frags=%d gso_size=%d gso_type=%#x", __get_str(name), REC->napi_id, REC->queue_mapping, REC->skbaddr, REC->vlan_tagged, REC->vlan_proto, REC->vlan_tci, REC->protocol, REC->ip_summed, REC->hash, REC->l4_hash, REC->len, REC->data_len, REC->truesize, REC->mac_header_valid, REC->mac_header, REC->nr_frags, REC->gso_size, REC->gso_type

@@ -1,0 +1,14 @@
+name: thermal_power_cpu_limit
+ID: 682
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc unsigned long[] cpumask;	offset:8;	size:4;	signed:0;
+	field:unsigned int freq;	offset:12;	size:4;	signed:0;
+	field:unsigned long cdev_state;	offset:16;	size:8;	signed:0;
+	field:u32 power;	offset:24;	size:4;	signed:0;
+
+print fmt: "cpus=%s freq=%u cdev_state=%lu power=%u", __get_bitmask(cpumask), REC->freq, REC->cdev_state, REC->power

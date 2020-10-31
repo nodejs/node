@@ -1,0 +1,94 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+import "protos/perfetto/trace/track_event/debug_annotation.proto";
+import "protos/perfetto/trace/track_event/log_message.proto";
+import "protos/perfetto/trace/track_event/track_event.proto";
+import "protos/perfetto/trace/track_event/source_location.proto";
+import "protos/perfetto/trace/profiling/profile_common.proto";
+
+package perfetto.protos;
+
+// ------------------------------ DATA INTERNING: ------------------------------
+// Interning indexes are built up gradually by adding the entries contained in
+// each TracePacket of the same packet sequence (packets emitted by the same
+// producer and TraceWriter, see |trusted_packet_sequence_id|). Thus, packets
+// can only refer to interned data from other packets in the same sequence.
+//
+// The writer will emit new entries when it encounters new internable values
+// that aren't yet in the index. Data in current and subsequent TracePackets can
+// then refer to the entry by its position (interning ID, abbreviated "iid") in
+// its index. An interning ID with value 0 is considered invalid (not set).
+//
+// Because of the incremental build-up, the interning index will miss data when
+// TracePackets are lost, e.g. because a chunk was overridden in the central
+// ring buffer. To avoid invalidation of the whole trace in such a case, the
+// index is periodically reset (see SEQ_INCREMENTAL_STATE_CLEARED).
+// When packet loss occurs, the reader will only lose interning data up to the
+// next reset.
+// -----------------------------------------------------------------------------
+
+// Message that contains new entries for the interning indices of a packet
+// sequence.
+//
+// The writer will usually emit new entries in the same TracePacket that first
+// refers to them (since the last reset of interning state). They may also be
+// emitted proactively in advance of referring to them in later packets.
+//
+// Next reserved id: 8 (up to 15).
+// Next id: 23.
+message InternedData {
+  // TODO(eseckler): Replace iid fields inside interned messages with
+  // map<iid, message> type fields in InternedData.
+
+  // Each field's message type needs to specify an |iid| field, which is the ID
+  // of the entry in the field's interning index. Each field constructs its own
+  // index, thus interning IDs are scoped to the tracing session and field
+  // (usually as a counter for efficient var-int encoding). It is illegal to
+  // override entries in an index (using the same iid for two different values)
+  // within the same tracing session, even after a reset of the emitted
+  // interning state.
+  repeated EventCategory event_categories = 1;
+  repeated EventName event_names = 2;
+  repeated DebugAnnotationName debug_annotation_names = 3;
+  repeated SourceLocation source_locations = 4;
+  repeated LogMessageBody log_message_body = 20;
+
+  // Note: field IDs up to 15 should be used for frequent data only.
+
+  // Build IDs of exectuable files.
+  repeated InternedString build_ids = 16;
+  // Paths to executable files.
+  repeated InternedString mapping_paths = 17;
+  // Paths to source files.
+  repeated InternedString source_paths = 18;
+  // Names of functions used in frames below.
+  repeated InternedString function_names = 5;
+  // Symbols that were added to this trace after the fact.
+  repeated ProfiledFrameSymbols profiled_frame_symbols = 21;
+
+  // Executable files mapped into processes.
+  repeated Mapping mappings = 19;
+  // Frames of callstacks of a program.
+  repeated Frame frames = 6;
+  // A callstack of a program.
+  repeated Callstack callstacks = 7;
+
+  // Additional Vulkan information sent in a VulkanMemoryEvent message
+  repeated InternedString vulkan_memory_keys = 22;
+}

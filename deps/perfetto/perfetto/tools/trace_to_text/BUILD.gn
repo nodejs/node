@@ -1,0 +1,159 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../gn/perfetto.gni")
+import("../../gn/perfetto_host_executable.gni")
+import("../../gn/wasm.gni")
+
+perfetto_host_executable("trace_to_text") {
+  testonly = true
+  deps = [
+    ":full",
+    "../../gn:default_deps",
+  ]
+}
+
+# This is just to check that we can build a version of trace_to_text against
+# libprotobuf-lite. This configuration is only used by WASM. Unfortunately,
+# however, the WASM linker is very permissive and failures show up only when
+# loading the executable in the browser.
+perfetto_host_executable("trace_to_text_lite") {
+  testonly = true
+  deps = [
+    ":lite",
+    "../../gn:default_deps",
+  ]
+}
+
+source_set("utils") {
+  deps = [
+    "../../gn:default_deps",
+    "../../include/perfetto/profiling:deobfuscator",
+    "../../include/perfetto/protozero",
+    "../../include/perfetto/trace_processor",
+    "../../protos/perfetto/trace:zero",
+    "../../protos/perfetto/trace/interned_data:zero",
+    "../../protos/perfetto/trace/profiling:zero",
+    "../../src/profiling:deobfuscator",
+    "../../src/profiling/symbolizer",
+    "../../src/profiling/symbolizer:symbolize_database",
+  ]
+  public_deps = [
+    "../../include/perfetto/ext/base",
+    "../../include/perfetto/profiling:deobfuscator",
+  ]
+  if (enable_perfetto_zlib) {
+    public_deps += [ "../../gn:zlib" ]
+  }
+  sources = [
+    "utils.cc",
+    "utils.h",
+  ]
+}
+
+source_set("pprofbuilder") {
+  public_deps = [ "../../include/perfetto/profiling:pprof_builder" ]
+  deps = [
+    ":utils",
+    "../../gn:default_deps",
+    "../../include/perfetto/base",
+    "../../include/perfetto/protozero",
+    "../../include/perfetto/trace_processor",
+    "../../protos/perfetto/trace:zero",
+    "../../protos/perfetto/trace/profiling:zero",
+    "../../protos/third_party/pprof:zero",
+    "../../src/profiling/symbolizer",
+    "../../src/profiling/symbolizer:symbolize_database",
+  ]
+  sources = [ "pprof_builder.cc" ]
+}
+
+# Exposed in bazel builds.
+static_library("libpprofbuilder") {
+  complete_static_lib = true
+  deps = [ ":pprofbuilder" ]
+}
+
+# The core source files that are used both by the "full" version (the host
+# executable) and by the "lite" version (the WASM module for the UI).
+source_set("common") {
+  deps = [
+    ":pprofbuilder",
+    ":utils",
+    "../../gn:default_deps",
+    "../../include/perfetto/base",
+    "../../include/perfetto/ext/traced:sys_stats_counters",
+    "../../include/perfetto/profiling:deobfuscator",
+    "../../include/perfetto/protozero",
+    "../../protos/perfetto/trace:zero",
+    "../../src/profiling/symbolizer",
+    "../../src/profiling/symbolizer:symbolize_database",
+    "../../src/trace_processor:lib",
+  ]
+  sources = [
+    "deobfuscate_profile.cc",
+    "deobfuscate_profile.h",
+    "main.cc",
+    "symbolize_profile.cc",
+    "symbolize_profile.h",
+    "trace_to_json.cc",
+    "trace_to_json.h",
+    "trace_to_profile.cc",
+    "trace_to_profile.h",
+    "trace_to_systrace.cc",
+    "trace_to_systrace.h",
+    "trace_to_text.h",
+  ]
+  if (enable_perfetto_version_gen) {
+    deps += [ "//gn/standalone:gen_git_revision" ]
+  }
+}
+
+# Lite target for the WASM UI. Doesn't have any dependency on libprotobuf-full.
+source_set("lite") {
+  deps = [
+    ":common",
+    "../../gn:default_deps",
+    "../../include/perfetto/base",
+  ]
+  sources = [ "lite_fallbacks.cc" ]
+}
+
+# Full target for the host. Depends on libprotobuf-full.
+source_set("full") {
+  testonly = true
+  deps = [
+    ":common",
+    ":utils",
+    "../../gn:default_deps",
+    "../../gn:protobuf_full",
+    "../../protos/perfetto/trace:zero",
+  ]
+  if (enable_perfetto_zlib) {
+    deps += [ "../../gn:zlib" ]
+  }
+  sources = [
+    "proto_full_utils.cc",
+    "proto_full_utils.h",
+    "trace_to_text.cc",
+  ]
+}
+
+wasm_lib("trace_to_text_wasm") {
+  name = "trace_to_text"
+  deps = [
+    ":lite",
+    "../../gn:default_deps",
+  ]
+}

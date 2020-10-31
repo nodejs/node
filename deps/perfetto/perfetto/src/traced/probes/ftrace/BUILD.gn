@@ -1,0 +1,182 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../../gn/fuzzer.gni")
+import("../../../../gn/perfetto.gni")
+import("../../../../gn/proto_library.gni")
+import("../../../../gn/test.gni")
+
+# For use_libfuzzer.
+if (perfetto_root_path == "//") {
+  import("//gn/standalone/sanitizers/vars.gni")
+} else {
+  import("//build/config/sanitizers/sanitizers.gni")
+}
+
+source_set("test_support") {
+  testonly = true
+  deps = [
+    ":ftrace",
+    "../../../../gn:default_deps",
+    "../../../base:test_support",
+    "../../../protozero",
+  ]
+  public_deps = [ "../../../protozero" ]
+
+  sources = [
+    "test/cpu_reader_support.cc",
+    "test/cpu_reader_support.h",
+  ]
+}
+
+perfetto_unittest_source_set("unittests") {
+  testonly = true
+  deps = [
+    ":format_parser",
+    ":ftrace",
+    ":test_messages_cpp",
+    ":test_messages_lite",
+    ":test_messages_zero",
+    ":test_support",
+    "../../../../gn:default_deps",
+    "../../../../gn:gtest_and_gmock",
+    "../../../../protos/perfetto/trace:cpp",
+    "../../../../protos/perfetto/trace/ftrace:cpp",
+    "../../../../protos/perfetto/trace/ftrace:zero",
+    "../../../base:test_support",
+    "../../../tracing/test:test_support",
+  ]
+  sources = [
+    "cpu_reader_unittest.cc",
+    "cpu_stats_parser_unittest.cc",
+    "discover_vendor_tracepoints_unittest.cc",
+    "event_info_unittest.cc",
+    "format_parser_unittest.cc",
+    "ftrace_config_muxer_unittest.cc",
+    "ftrace_config_unittest.cc",
+    "ftrace_controller_unittest.cc",
+    "ftrace_procfs_unittest.cc",
+    "proto_translation_table_unittest.cc",
+  ]
+}
+
+perfetto_proto_library("test_messages_@TYPE@") {
+  proto_generators = [
+    "cpp",
+    "lite",
+    "zero",
+  ]
+  sources = [ "test/test_messages.proto" ]
+  proto_path = perfetto_root_path
+}
+
+# These tests require access to a real ftrace implementation and must
+# run with sudo.
+source_set("integrationtests") {
+  testonly = true
+  deps = [
+    ":ftrace",
+    ":test_support",
+    "../../../../gn:default_deps",
+    "../../../../gn:gtest_and_gmock",
+    "../../../base",
+    "../../../tracing/core",
+  ]
+  sources = [ "ftrace_procfs_integrationtest.cc" ]
+}
+
+source_set("ftrace") {
+  public_deps = [
+    "../../../../protos/perfetto/config/ftrace:cpp",
+    "../../../../protos/perfetto/trace/ftrace:zero",
+    "../../../tracing/core",
+  ]
+  deps = [
+    ":format_parser",
+    "..:data_source",
+    "../../../../gn:default_deps",
+    "../../../../include/perfetto/ext/traced",
+    "../../../../protos/perfetto/trace:zero",
+    "../../../android_internal:lazy_library_loader",
+    "../../../base",
+    "../../../protozero",
+  ]
+  sources = [
+    "atrace_hal_wrapper.cc",
+    "atrace_hal_wrapper.h",
+    "atrace_wrapper.cc",
+    "atrace_wrapper.h",
+    "compact_sched.cc",
+    "compact_sched.h",
+    "cpu_reader.cc",
+    "cpu_reader.h",
+    "cpu_stats_parser.cc",
+    "cpu_stats_parser.h",
+    "discover_vendor_tracepoints.cc",
+    "discover_vendor_tracepoints.h",
+    "event_info.cc",
+    "event_info.h",
+    "event_info_constants.cc",
+    "event_info_constants.h",
+    "ftrace_config_muxer.cc",
+    "ftrace_config_muxer.h",
+    "ftrace_config_utils.cc",
+    "ftrace_config_utils.h",
+    "ftrace_controller.cc",
+    "ftrace_controller.h",
+    "ftrace_data_source.cc",
+    "ftrace_data_source.h",
+    "ftrace_metadata.h",
+    "ftrace_procfs.cc",
+    "ftrace_procfs.h",
+    "ftrace_stats.cc",
+    "ftrace_stats.h",
+    "proto_translation_table.cc",
+    "proto_translation_table.h",
+  ]
+}
+
+source_set("format_parser") {
+  deps = [
+    "../../../../gn:default_deps",
+    "../../../base",
+  ]
+  sources = [
+    "format_parser.cc",
+    "format_parser.h",
+  ]
+}
+
+if (enable_perfetto_benchmarks) {
+  source_set("benchmarks") {
+    testonly = true
+    deps = [
+      ":ftrace",
+      ":test_support",
+      "../../../../gn:benchmark",
+      "../../../../gn:default_deps",
+    ]
+    sources = [ "cpu_reader_benchmark.cc" ]
+  }
+}
+
+perfetto_fuzzer_test("cpu_reader_fuzzer") {
+  testonly = true
+  sources = [ "cpu_reader_fuzzer.cc" ]
+  deps = [
+    ":ftrace",
+    ":test_support",
+    "../../../../gn:default_deps",
+  ]
+}

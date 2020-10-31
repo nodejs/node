@@ -1,0 +1,15 @@
+[Unit]
+Description=Perfetto trace daemon
+
+[Service]
+ExecStart=/usr/sbin/traced
+User=nobody
+Group=nogroup
+PrivateTmp=no
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectSystem=yes
+ProtectHome=yes
+NoNewPrivileges=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native

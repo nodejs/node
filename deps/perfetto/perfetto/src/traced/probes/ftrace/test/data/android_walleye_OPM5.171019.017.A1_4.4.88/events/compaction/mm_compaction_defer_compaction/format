@@ -1,0 +1,16 @@
+name: mm_compaction_defer_compaction
+ID: 227
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int nid;	offset:8;	size:4;	signed:1;
+	field:enum zone_type idx;	offset:12;	size:4;	signed:0;
+	field:int order;	offset:16;	size:4;	signed:1;
+	field:unsigned int considered;	offset:20;	size:4;	signed:0;
+	field:unsigned int defer_shift;	offset:24;	size:4;	signed:0;
+	field:int order_failed;	offset:28;	size:4;	signed:1;
+
+print fmt: "node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu", REC->nid, __print_symbolic(REC->idx, {0, "DMA"}, {1, "Normal"}, {2, "Movable"}), REC->order, REC->order_failed, REC->considered, 1UL << REC->defer_shift

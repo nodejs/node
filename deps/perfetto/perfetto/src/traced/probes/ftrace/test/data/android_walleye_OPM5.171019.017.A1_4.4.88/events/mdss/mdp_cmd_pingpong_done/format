@@ -1,0 +1,14 @@
+name: mdp_cmd_pingpong_done
+ID: 423
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 ctl_num;	offset:8;	size:4;	signed:0;
+	field:u32 intf_num;	offset:12;	size:4;	signed:0;
+	field:u32 pp_num;	offset:16;	size:4;	signed:0;
+	field:int koff_cnt;	offset:20;	size:4;	signed:1;
+
+print fmt: "ctl num:%d intf_num:%d ctx:%d kickoff:%d", REC->ctl_num, REC->intf_num, REC->pp_num, REC->koff_cnt

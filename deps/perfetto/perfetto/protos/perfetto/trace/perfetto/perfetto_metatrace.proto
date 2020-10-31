@@ -1,0 +1,41 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Used to trace the execution of perfetto itself.
+message PerfettoMetatrace {
+  // See base/metatrace_events.h for definitions.
+  oneof record_type {
+    uint32 event_id = 1;
+    uint32 counter_id = 2;
+  }
+
+  // Only when using |event_id|.
+  optional uint32 event_duration_ns = 3;
+
+  // Only when using |counter_id|.
+  optional int32 counter_value = 4;
+
+  // ID of the thread that emitted the event.
+  optional uint32 thread_id = 5;
+
+  // If true the meta-tracing ring buffer had overruns and hence some data is
+  // missing from this point.
+  optional bool has_overruns = 6;
+}

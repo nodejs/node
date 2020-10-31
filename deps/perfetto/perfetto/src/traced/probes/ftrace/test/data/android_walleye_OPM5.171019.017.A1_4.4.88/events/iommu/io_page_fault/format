@@ -1,0 +1,14 @@
+name: io_page_fault
+ID: 745
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] device;	offset:8;	size:4;	signed:0;
+	field:__data_loc char[] driver;	offset:12;	size:4;	signed:0;
+	field:u64 iova;	offset:16;	size:8;	signed:0;
+	field:int flags;	offset:24;	size:4;	signed:1;
+
+print fmt: "IOMMU:%s %s iova=0x%016llx flags=0x%04x", __get_str(driver), __get_str(device), REC->iova, REC->flags

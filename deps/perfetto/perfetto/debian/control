@@ -1,0 +1,16 @@
+Source: perfetto
+Section: unknown
+Priority: optional
+Maintainer: Sami Kyostila <skyostil@google.com>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.8
+Homepage: https://android.googlesource.com/platform/external/perfetto/
+Vcs-Git: https://android.googlesource.com/platform/external/perfetto/
+Vcs-Browser: https://android.googlesource.com/platform/external/perfetto/
+
+Package: perfetto
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Performance instrumentation and logging for POSIX platforms
+ Perfetto is a performance instrumentation and logging framework for POSIX
+ systems.

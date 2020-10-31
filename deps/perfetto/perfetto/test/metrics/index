@@ -1,0 +1,35 @@
+# Real traces
+../data/memory_counters.pb android_mem android_mem_counters.out
+../data/memory_counters.pb trace_metadata trace_metadata.out
+
+# Synthetic traces
+android_mem_by_priority.py android_mem android_mem_by_priority.out
+android_lmk.py android_lmk android_mem_lmk.out
+android_lmk_reason.py android_lmk_reason android_lmk_reason.out
+../trace_processor/oom_kill.textproto android_lmk android_lmk_oom.out
+
+android_ion.py android_ion android_ion.out
+
+android_startup.py android_startup android_startup.out
+android_startup_breakdown.py android_startup android_startup_breakdown.out
+android_startup_process_track.py android_startup android_startup_process_track.out
+
+android_startup_battery.py android_batt android_batt_counters.out
+android_startup_cpu.py android_cpu android_startup_cpu.out
+android_startup_powrails.py android_powrails android_startup_powrails.out
+
+android_package_list.py android_package_list android_package_list.out
+
+heap_profile.textproto heap_profile_callsites heap_profile_callsites.out
+heap_profile_no_symbols.textproto unsymbolized_frames unsymbolized_frames.out
+
+../trace_processor/heap_graph.textproto java_heap_stats java_heap_stats.out
+../trace_processor/heap_graph.textproto java_heap_histogram java_heap_histogram.out
+obfuscated_heap_graph.textproto unmapped_java_symbols unmapped_java_symbols.out
+
+# Json output
+../data/memory_counters.pb trace_metadata trace_metadata.json.out
+
+process_uids.textproto android_task_names android_task_names.out
+
+../trace_processor/thread_time_in_state.textproto android_thread_time_in_state android_thread_time_in_state.out

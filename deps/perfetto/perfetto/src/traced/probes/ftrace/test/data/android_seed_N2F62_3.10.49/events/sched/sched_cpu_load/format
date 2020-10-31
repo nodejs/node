@@ -1,0 +1,23 @@
+name: sched_cpu_load
+ID: 75
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int cpu;	offset:8;	size:4;	signed:0;
+	field:unsigned int idle;	offset:12;	size:4;	signed:0;
+	field:unsigned int mostly_idle;	offset:16;	size:4;	signed:0;
+	field:unsigned int nr_running;	offset:20;	size:4;	signed:0;
+	field:unsigned int nr_big_tasks;	offset:24;	size:4;	signed:0;
+	field:unsigned int nr_small_tasks;	offset:28;	size:4;	signed:0;
+	field:unsigned int load_scale_factor;	offset:32;	size:4;	signed:0;
+	field:unsigned int capacity;	offset:36;	size:4;	signed:0;
+	field:u64 cumulative_runnable_avg;	offset:40;	size:8;	signed:0;
+	field:unsigned int cur_freq;	offset:48;	size:4;	signed:0;
+	field:unsigned int max_freq;	offset:52;	size:4;	signed:0;
+	field:unsigned int power_cost;	offset:56;	size:4;	signed:0;
+	field:int cstate;	offset:60;	size:4;	signed:1;
+
+print fmt: "cpu %u idle %d mostly_idle %d nr_run %u nr_big %u nr_small %u lsf %u capacity %u cr_avg %llu fcur %u fmax %u power_cost %u cstate %d", REC->cpu, REC->idle, REC->mostly_idle, REC->nr_running, REC->nr_big_tasks, REC->nr_small_tasks, REC->load_scale_factor, REC->capacity, REC->cumulative_runnable_avg, REC->cur_freq, REC->max_freq, REC->power_cost, REC->cstate

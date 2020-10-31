@@ -1,0 +1,4 @@
+// Comment for array
+.=[]
+// Comment within array
+.[0]="one-element"

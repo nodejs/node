@@ -1,0 +1,16 @@
+name: drv_remove_interface
+ID: 806
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:enum nl80211_iftype vif_type;	offset:40;	size:4;	signed:0;
+	field:void * sdata;	offset:48;	size:8;	signed:0;
+	field:bool p2p;	offset:56;	size:1;	signed:0;
+	field:__data_loc char[] vif_name;	offset:60;	size:4;	signed:0;
+	field:char addr[6];	offset:64;	size:6;	signed:0;
+
+print fmt: "%s vif:%s(%d%s) addr:%pM", REC->wiphy_name, __get_str(vif_name), REC->vif_type, REC->p2p ? "/p2p" : "", REC->addr

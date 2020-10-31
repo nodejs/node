@@ -1,0 +1,77 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message CommitDataRequest {
+  // When |chunks_to_move| is present, the producer is requesting the service to
+  // move the given chunks form the share memory buffer into the central
+  // trace buffer(s).
+  message ChunksToMove {
+    // The 0-based index of the page in the Shared Memory Buffer.
+    optional uint32 page = 1;
+
+    // The 0-based chunk index [0..13] within the page.
+    optional uint32 chunk = 2;
+
+    // The target buffer it should be moved onto. The service will check that
+    // the producer is allowed to write into that buffer before the move.
+    optional uint32 target_buffer = 3;
+  }
+  repeated ChunksToMove chunks_to_move = 1;
+
+  // Used to patch chunks that have already been sent to the service. The chunk
+  // might not be in the shared memory buffer anymore as it could have been
+  // moved by the service in response to a prior CommitDataRequest.
+  // It is perfectly valid to patch a chunk that is being notified in the same
+  // message (a chunk can show up both in the |changed_pages| and |patches|
+  // field within the same CommitDataRequest message).
+  // In other words, |chunks_to_patch| is always processed after
+  // |chunks_to_move|.
+  message ChunkToPatch {
+    message Patch {
+      // Offset in bytes from the start of the chunk payload. e.g., offset == 0
+      // corresponds to the first byte of the first packet (or fragment) in the
+      // chunk.
+      optional uint32 offset = 1;
+
+      // Bytes to patch at the given offset.
+      optional bytes data = 2;
+    }
+
+    optional uint32 target_buffer = 1;
+
+    // {WriterID, ChunkID} uniquely identify a chunk for the current producer.
+    optional uint32 writer_id = 2;
+    optional uint32 chunk_id = 3;
+
+    // List of patches to apply to the given chunk.
+    repeated Patch patches = 4;
+
+    // When true more patches will follow in future requests and the chunk
+    // should be still considered as patch-pending. When false the chunk becomes
+    // eligible for reading.
+    optional bool has_more_patches = 5;
+  }
+  repeated ChunkToPatch chunks_to_patch = 2;
+
+  // Optional. If this commit is made in response to a Flush(id) request coming
+  // from the service, copy back the id of the request so the service can tell
+  // when the flush happened.
+  optional uint64 flush_request_id = 3;
+}

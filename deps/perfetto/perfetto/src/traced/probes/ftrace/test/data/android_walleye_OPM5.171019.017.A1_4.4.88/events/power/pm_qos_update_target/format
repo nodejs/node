@@ -1,0 +1,13 @@
+name: pm_qos_update_target
+ID: 135
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:enum pm_qos_req_action action;	offset:8;	size:4;	signed:0;
+	field:int prev_value;	offset:12;	size:4;	signed:1;
+	field:int curr_value;	offset:16;	size:4;	signed:1;
+
+print fmt: "action=%s prev_value=%d curr_value=%d", __print_symbolic(REC->action, { PM_QOS_ADD_REQ, "ADD_REQ" }, { PM_QOS_UPDATE_REQ, "UPDATE_REQ" }, { PM_QOS_REMOVE_REQ, "REMOVE_REQ" }), REC->prev_value, REC->curr_value

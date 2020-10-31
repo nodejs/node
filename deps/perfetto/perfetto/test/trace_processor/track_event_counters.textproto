@@ -1,0 +1,245 @@
+# Sequence 1 defaults to track for "t1" and extra_counter_values for "c1".
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 1
+    parent_uuid: 3
+    thread {
+      pid: 5
+      tid: 1
+      thread_name: "t1"
+    }
+  }
+  trace_packet_defaults {
+    track_event_defaults {
+      track_uuid: 1
+      extra_counter_track_uuids: 10  # Counter "c1", defined below.
+    }
+  }
+}
+
+# Process track for the thread.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  track_descriptor {
+    uuid: 3
+    process {
+      pid: 5
+      process_name: "p1"
+    }
+  }
+}
+
+# Counter track "c1", a thread-scoped counter for "t1".
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  track_descriptor {
+    uuid: 10
+    parent_uuid: 1
+    counter {
+      type: 1                # COUNTER_THREAD_TIME_NS.
+      unit_multiplier: 1000  # provided in ys.
+      is_incremental: true   # use delta encoding.
+    }
+  }
+}
+
+# Sequence 2 has no defaults. Define a new global counter "MySizeCounter".
+packet {
+  trusted_packet_sequence_id: 2
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 11
+    name: "MySizeCounter"
+    counter {
+      unit: 3  # UNIT_SIZE_BYTES.
+    }
+  }
+}
+
+# Should appear on default track "t1" with extra_counter_values for "c1".
+packet {
+  trusted_packet_sequence_id: 1
+  sequence_flags: 2  # SEQ_NEEDS_INCREMENTAL_STATE
+  timestamp: 1000
+  track_event {
+    categories: "cat"
+    name: "event1_on_t1"
+    type: 1                     # TYPE_SLICE_BEGIN.
+    extra_counter_values: 1000  # First value, so effectively absolute.
+  }
+}
+
+# End for event above.
+packet {
+  trusted_packet_sequence_id: 1
+  sequence_flags: 2  # SEQ_NEEDS_INCREMENTAL_STATE
+  timestamp: 1100
+  track_event {
+    type: 2                   # TYPE_SLICE_END.
+    extra_counter_values: 10  # Absolute: 1010.
+  }
+}
+
+# Resetting incremental state on sequence 1 will restart counter at 0.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 2000
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 1
+    parent_uuid: 3
+    thread {
+      pid: 5
+      tid: 1
+      thread_name: "t1"
+    }
+  }
+  trace_packet_defaults {
+    track_event_defaults {
+      track_uuid: 1
+      extra_counter_track_uuids: 10  # Counter "c1", defined below.
+    }
+  }
+}
+
+# Reemit process track for the thread.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 2000
+  track_descriptor {
+    uuid: 3
+    process {
+      pid: 5
+      process_name: "p1"
+    }
+  }
+}
+
+# Reemit counter descriptor, too.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 2000
+  track_descriptor {
+    uuid: 10
+    parent_uuid: 1
+    counter {
+      type: 1                # COUNTER_THREAD_TIME_NS.
+      unit_multiplier: 1000  # provided in ys.
+      is_incremental: true   # use delta encoding.
+    }
+  }
+}
+
+# Should appear on default track "t1" with extra_counter_values for "c1".
+packet {
+  trusted_packet_sequence_id: 1
+  sequence_flags: 2  # SEQ_NEEDS_INCREMENTAL_STATE
+  timestamp: 2000
+  track_event {
+    categories: "cat"
+    name: "event2_on_t1"
+    type: 1                     # TYPE_SLICE_BEGIN.
+    extra_counter_values: 2000  # First value after reset, so absolute.
+  }
+}
+
+# End for event above.
+packet {
+  trusted_packet_sequence_id: 1
+  sequence_flags: 2  # SEQ_NEEDS_INCREMENTAL_STATE
+  timestamp: 2200
+  track_event {
+    type: 2                   # TYPE_SLICE_END.
+    extra_counter_values: 10  # Absolute: 2010.
+  }
+}
+
+# Counter type event for "MySizeCounter" on sequence 1.
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 3000
+  track_event {
+    track_uuid: 11       # "MySizeCounter".
+    type: 4              # TYPE_COUNTER.
+    counter_value: 1024  # Absolute.
+  }
+}
+
+# Counter type event for "MySizeCounter" on sequence 2.
+packet {
+  trusted_packet_sequence_id: 2
+  timestamp: 3100
+  track_event {
+    track_uuid: 11       # "MySizeCounter".
+    type: 4              # TYPE_COUNTER.
+    counter_value: 2048  # Absolute.
+  }
+}
+
+# Override the default extra_counter_values.
+packet {
+  trusted_packet_sequence_id: 1
+  sequence_flags: 2  # SEQ_NEEDS_INCREMENTAL_STATE
+  timestamp: 4000
+  track_event {
+    categories: "cat"
+    name: "event3_on_t1"
+    type: 3                        # TYPE_INSTANT.
+    extra_counter_track_uuids: 10  # "c1".
+    extra_counter_track_uuids: 11  # "MySizeCounter".
+    extra_counter_values: 10       # Absolute: 2020.
+    extra_counter_values: 1024     # Absolute: 2020.
+  }
+}
+
+# Sequence 3 defaults to track for "t4" and uses legacy thread time and
+# instruction count.
+packet {
+  trusted_packet_sequence_id: 3
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 4
+    parent_uuid: 3
+    thread {
+      pid: 5
+      tid: 4
+      thread_name: "t4"
+    }
+  }
+  trace_packet_defaults {
+    track_event_defaults {
+      track_uuid: 4
+    }
+  }
+}
+
+packet {
+  trusted_packet_sequence_id: 3
+  timestamp: 4000
+  track_event {
+    categories: "cat"
+    name: "event1_on_t3"
+    type: 1                        # TYPE_SLICE_BEGIN.
+    thread_time_absolute_us: 10
+    thread_instruction_count_absolute: 20
+  }
+}
+
+packet {
+  trusted_packet_sequence_id: 3
+  timestamp: 4100
+  track_event {
+    categories: "cat"
+    name: "event1_on_t3"
+    type: 2                        # TYPE_SLICE_END.
+    thread_time_absolute_us: 15
+    thread_instruction_count_absolute: 25
+  }
+}

@@ -1,0 +1,58 @@
+packet {
+  power_rails {
+    rail_descriptor {
+      index: 4
+      rail_name: "test_rail"
+      subsys_name: "test_subsys"
+      sampling_rate: 1023
+    }
+  }
+}
+packet {
+  timestamp: 3000003
+  power_rails {
+    energy_data {
+      index: 4
+      timestamp_ms: 3
+      energy: 333
+    }
+  }
+}
+packet {
+  timestamp: 3000005
+  power_rails {
+    rail_descriptor {
+      index: 3
+      rail_name: "test_rail2"
+      subsys_name: "test_subsys2"
+      sampling_rate: 1022
+    }
+    energy_data {
+      index: 4
+      timestamp_ms: 5
+      energy: 666
+    }
+    energy_data {
+      index: 3
+      energy: 999
+    }
+    energy_data {
+      index: 4
+      timestamp_ms: 3
+      energy: 0
+    }
+  }
+}
+
+packet {
+  ftrace_events {
+    cpu: 2
+    event {
+      timestamp: 3000004
+      pid: 1257
+      print {
+        buf: "C|1204|Testing|1000\n"
+      }
+    }
+  }
+}

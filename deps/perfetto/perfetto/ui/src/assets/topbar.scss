@@ -1,0 +1,246 @@
+// Copyright (C) 2018 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+@mixin omnibox-width() {
+    width: 90%;
+    max-width: 600px;
+}
+
+.topbar {
+    grid-area: topbar;
+    position: relative;
+    z-index: 3;
+    overflow: visible;
+    background-color: hsl(215, 1%, 95%);
+    box-shadow: 0px -3px 14px 2px #bbb;
+    min-height: var(--topbar-height);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .omnibox {
+        @include omnibox-width();
+        @include transition(0.25s);
+        display: grid;
+        grid-template-areas: "icon input stepthrough";
+        grid-template-columns: 34px auto max-content;
+        border-radius: 20px;
+        background-color: #fcfcfc;
+        border: 0;
+        line-height: 36px;
+        &:before {
+            @include material-icon('search');
+            margin: 5px;
+            color: #aaa;
+            grid-area: icon;
+        }
+        input {
+            grid-area: input;
+            border: 0;
+            padding: 0 10px;
+            font-size: 18px;
+            font-family: 'Roboto Condensed', sans-serif;
+            font-weight: 300;
+            color: #666;
+            background-color: transparent;
+            &:focus {
+                outline: none;
+            }
+            &::placeholder {
+                color: #b4b7ba;
+                font-family: 'Raleway', sans-serif;
+                font-weight: 400;
+            }
+        }
+        &.command-mode {
+            // background-color: #354252;
+            background-color: #111;
+            border-radius: 0;
+            width: 100%;
+            max-width: 100%;
+            margin-top: 0;
+            border-left: 1px solid #404854;
+            height: var(--topbar-height);
+            input {
+                color: #9ddc67;
+                font-family: var(--monospace-font);
+                padding-left: 0;
+            }
+            &:before {
+                content: 'attach_money';
+                color: #9ddc67;
+                font-size: 26px;
+                padding-top: 5px;
+            }
+        }
+        &.message-mode {
+            background-color: hsl(0, 0%, 89%);
+            border-radius: 4px;
+            input::placeholder {
+                font-weight: 400;
+                font-family: var(--monospace-font);
+                color: hsl(213, 40%, 50%);
+            }
+            &:before {
+                content: 'bubble_chart';
+            }
+        }
+        .stepthrough {
+          grid-area: stepthrough;
+          display: flex;
+          font: inherit;
+          font-size: 14px;
+          font-family: 'Roboto Condensed', sans-serif;
+          font-weight: 300;
+          color: #aaa;
+          .current {
+            padding-right: 10px;
+          }
+          .material-icons.left {
+            border-right: rgb(218, 217, 217) solid 1px;
+          }
+        }
+    }
+    .omnibox-results {
+        @include transition(0.25s);
+        @include omnibox-width();
+        position: absolute;
+        z-index: 1;
+        max-height: 250px;
+        top: calc(var(--topbar-height) + 2px);
+        left: 0;
+        right: 0;
+        margin: auto;
+        background-color: hsla(213, 0%, 95%, 0.99);
+        box-shadow: 0 3px 9px #ccc;
+        border-radius: 0 0 5px 5px;
+        >* {
+            height: 24px;
+            line-height: 24px;
+            padding: 0 10px;
+            font-family: 'Raleway', sans-serif;
+            font-size: 14px;
+            vertical-align: middle;
+            color: #666;
+            border-bottom: 1px solid #eee;
+            &:hover {
+                background-color: hsl(213, 20%, 92%);
+            }
+            &.selected {
+                background-color: hsl(213, 40%, 90%);
+            }
+        }
+    }
+    .progress {
+        position: absolute;
+        bottom: 0;
+        height: 1px;
+        width: 100%;
+      }
+      .progress-anim {
+        &:before {
+            content: '';
+            position: absolute;
+            background-color: hsl(219, 50%, 50%);
+            top: 0;
+            left: 0;
+            bottom: 0;
+            will-change: left, right;
+            animation: indeterminate 2.1s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
+        }
+        &:after {
+            content: '';
+            position: absolute;
+            background-color: hsl(219, 50%, 50%);
+            top: 0;
+            left: 0;
+            bottom: 0;
+            will-change: left, right;
+            animation: indeterminate-short 2.1s cubic-bezier(0.165, 0.84, 0.44, 1) infinite;
+            animation-delay: 1.15s;
+        }
+    }
+    @keyframes indeterminate {
+        0% {
+            left: -35%;
+            right: 100%;
+        }
+        60% {
+            left: 100%;
+            right: -90%;
+        }
+        100% {
+            left: 100%;
+            right: -90%;
+        }
+    }
+    @keyframes indeterminate-short {
+        0% {
+            left: -35%;
+            right: 100%;
+        }
+        60% {
+            left: 100%;
+            right: -90%;
+        }
+        100% {
+            left: 100%;
+            right: -90%;
+        }
+    }
+
+    .notification-btn {
+        @include transition(0.25s);
+        font-size: 16px;
+        padding: 8px 10px;
+        margin: 0 10px;
+        border-radius: 2px;
+        background: hsl(210, 10%, 73%);
+        &:hover {
+            background: hsl(210, 10%, 83%);
+        }
+
+        &.preferred {
+            background: hsl(210, 98%, 53%);
+            color: #fff;
+            &:hover {
+                background: hsl(210, 98%, 63%);
+            }
+        }
+    }
+}
+
+.helpful-hint {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  width: 300px;
+  background-color: white;
+  font-size: 12px;
+  color: #3f4040;
+  display: grid;
+  border-radius: 5px;
+  padding: 8px;
+  box-shadow: 1px 3px 15px rgba(23, 32, 44, 0.3);
+}
+
+.hint-text {
+  padding-bottom: 5px
+}
+
+.hint-dismiss-button {
+  color: #f4fafb;
+  background-color: #19212b;
+  width: fit-content;
+  padding: 3px;
+  border-radius: 3px;
+}

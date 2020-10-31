@@ -1,0 +1,15 @@
+name: bw_hwmon_update
+ID: 141
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:unsigned long mbps;	offset:16;	size:8;	signed:0;
+	field:unsigned long freq;	offset:24;	size:8;	signed:0;
+	field:unsigned long up_thres;	offset:32;	size:8;	signed:0;
+	field:unsigned long down_thres;	offset:40;	size:8;	signed:0;
+
+print fmt: "dev: %s, mbps = %lu, freq = %lu, up = %lu, down = %lu", __get_str(name), REC->mbps, REC->freq, REC->up_thres, REC->down_thres

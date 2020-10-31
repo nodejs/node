@@ -1,0 +1,4 @@
+"id","depth","name","count","cumulative_count","size","cumulative_size","parent_id"
+0,0,"RootNode",1,3,100,700,"[NULL]"
+1,1,"LeftChild0",1,2,200,600,0
+2,2,"LeftChild1",1,1,400,400,1

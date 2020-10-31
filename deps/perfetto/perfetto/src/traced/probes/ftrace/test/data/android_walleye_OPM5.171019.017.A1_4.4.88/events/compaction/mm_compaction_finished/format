@@ -1,0 +1,14 @@
+name: mm_compaction_finished
+ID: 224
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int nid;	offset:8;	size:4;	signed:1;
+	field:enum zone_type idx;	offset:12;	size:4;	signed:0;
+	field:int order;	offset:16;	size:4;	signed:1;
+	field:int ret;	offset:20;	size:4;	signed:1;
+
+print fmt: "node=%d zone=%-8s order=%d ret=%s", REC->nid, __print_symbolic(REC->idx, {0, "DMA"}, {1, "Normal"}, {2, "Movable"}), REC->order, __print_symbolic(REC->ret, {0, "deferred"}, {1, "skipped"}, {2, "continue"}, {3, "partial"}, {4, "complete"}, {5, "no_suitable_page"}, {6, "not_suitable_zone"}, {7, "contended"})

@@ -1,0 +1,17 @@
+name: ext4_ext_convert_to_initialized_enter
+ID: 219
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:ext4_lblk_t m_lblk;	offset:24;	size:4;	signed:0;
+	field:unsigned m_len;	offset:28;	size:4;	signed:0;
+	field:ext4_lblk_t u_lblk;	offset:32;	size:4;	signed:0;
+	field:unsigned u_len;	offset:36;	size:4;	signed:0;
+	field:ext4_fsblk_t u_pblk;	offset:40;	size:8;	signed:0;
+
+print fmt: "dev %d,%d ino %lu m_lblk %u m_len %u u_lblk %u u_len %u u_pblk %llu", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->m_lblk, REC->m_len, REC->u_lblk, REC->u_len, REC->u_pblk

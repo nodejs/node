@@ -1,0 +1,18 @@
+name: adreno_hw_preempt_trig_to_comp_int
+ID: 538
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int cur_level;	offset:8;	size:4;	signed:1;
+	field:int new_level;	offset:12;	size:4;	signed:1;
+	field:unsigned int cur_rptr;	offset:16;	size:4;	signed:0;
+	field:unsigned int new_rptr;	offset:20;	size:4;	signed:0;
+	field:unsigned int cur_wptr;	offset:24;	size:4;	signed:0;
+	field:unsigned int new_wptr;	offset:28;	size:4;	signed:0;
+	field:unsigned int cur_rbbase;	offset:32;	size:4;	signed:0;
+	field:unsigned int new_rbbase;	offset:36;	size:4;	signed:0;
+
+print fmt: "cur_rb_lvl=%d rptr=%x wptr=%x rbbase=%x new_rb_lvl=%d rptr=%x wptr=%x rbbase=%x", REC->cur_level, REC->cur_rptr, REC->cur_wptr, REC->cur_rbbase, REC->new_level, REC->new_rptr, REC->new_wptr, REC->new_rbbase

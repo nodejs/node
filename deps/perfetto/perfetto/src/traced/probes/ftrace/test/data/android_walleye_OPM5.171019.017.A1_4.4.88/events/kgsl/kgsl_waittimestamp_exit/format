@@ -1,0 +1,13 @@
+name: kgsl_waittimestamp_exit
+ID: 472
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] device_name;	offset:8;	size:4;	signed:0;
+	field:unsigned int curr_ts;	offset:12;	size:4;	signed:0;
+	field:int result;	offset:16;	size:4;	signed:1;
+
+print fmt: "d_name=%s curr_ts=%u result=%d", __get_str(device_name), REC->curr_ts, REC->result

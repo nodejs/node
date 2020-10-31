@@ -1,0 +1,16 @@
+name: i2c_write
+ID: 624
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int adapter_nr;	offset:8;	size:4;	signed:1;
+	field:__u16 msg_nr;	offset:12;	size:2;	signed:0;
+	field:__u16 addr;	offset:14;	size:2;	signed:0;
+	field:__u16 flags;	offset:16;	size:2;	signed:0;
+	field:__u16 len;	offset:18;	size:2;	signed:0;
+	field:__data_loc __u8[] buf;	offset:20;	size:4;	signed:0;
+
+print fmt: "i2c-%d #%u a=%03x f=%04x l=%u [%*phD]", REC->adapter_nr, REC->msg_nr, REC->addr, REC->flags, REC->len, REC->len, __get_dynamic_array(buf)

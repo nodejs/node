@@ -1,0 +1,132 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+import "protos/perfetto/trace/profiling/profile_common.proto";
+
+// These messages encode a graph of objects that retain one another. Currently
+// this is used for Android Runtime (i.e. Java and Kotlin) heap graphs.
+
+package perfetto.protos;
+
+message ObfuscatedMember {
+  // This is the obfuscated field name relative to the class containing the
+  // ObfuscatedMember.
+  optional string obfuscated_name = 1;
+  // If this is fully qualified (i.e. contains a '.') this is the deobfuscated
+  // field name including its class. Otherwise, this is this the unqualified
+  // deobfuscated field name relative to the class containing this
+  // ObfuscatedMember.
+  optional string deobfuscated_name = 2;
+}
+
+message ObfuscatedClass {
+  optional string obfuscated_name = 1;
+  optional string deobfuscated_name = 2;
+  repeated ObfuscatedMember obfuscated_members = 3;
+}
+
+message DeobfuscationMapping {
+  optional string package_name = 1;
+  optional int64 version_code = 2;
+  repeated ObfuscatedClass obfuscated_classes = 3;
+}
+
+message HeapGraphRoot {
+  enum Type {
+    ROOT_UNKNOWN = 0;
+    ROOT_JNI_GLOBAL = 1;
+    ROOT_JNI_LOCAL = 2;
+    ROOT_JAVA_FRAME = 3;
+    ROOT_NATIVE_STACK = 4;
+    ROOT_STICKY_CLASS = 5;
+    ROOT_THREAD_BLOCK = 6;
+    ROOT_MONITOR_USED = 7;
+    ROOT_THREAD_OBJECT = 8;
+    ROOT_INTERNED_STRING = 9;
+    ROOT_FINALIZING = 10;
+    ROOT_DEBUGGER = 11;
+    ROOT_REFERENCE_CLEANUP = 12;
+    ROOT_VM_INTERNAL = 13;
+    ROOT_JNI_MONITOR = 14;
+  };
+  // Objects retained by this root.
+  repeated uint64 object_ids = 1 [packed = true];
+
+  optional Type root_type = 2;
+}
+
+message HeapGraphType {
+  // TODO(fmayer): Consider removing this and using the index in the repeaed
+  // field to save space.
+  optional uint64 id = 1;
+  optional uint64 location_id = 2;
+  optional string class_name = 3;
+}
+
+message HeapGraphObject {
+  optional uint64 id = 1;
+
+  // Index for InternedData.type_names for the name of the type of this object.
+  optional uint64 type_id = 2;
+
+  // Bytes occupied by this objects.
+  optional uint64 self_size = 3;
+
+  // Indices for InternedData.field_names for the name of the field referring
+  // to the object.
+  repeated uint64 reference_field_id = 4 [packed = true];
+
+  // Ids of the Object that is referred to.
+  repeated uint64 reference_object_id = 5 [packed = true];
+}
+
+message HeapGraph {
+  optional int32 pid = 1;
+
+  // This contains all objects at the time this dump was taken. Some of these
+  // will be live, some of those unreachable (garbage). To find the live
+  // objects, the client needs to build the transitive closure of objects
+  // reachable from |roots|.
+  // All objects not contained within that transitive closure are garbage that
+  // has not yet been collected.
+  repeated HeapGraphObject objects = 2;
+
+  // Roots at the time this dump was taken.
+  // All live objects are reachable from the roots. All other objects are
+  // garbage.
+  repeated HeapGraphRoot roots = 7;
+
+  // Types used in HeapGraphObjects.
+  repeated HeapGraphType types = 9;
+
+  // Legacy way to encode types. Names here are emitted by old perfetto_hprof,
+  // which do not include the class_name. Handle like a HeapGraphType with
+  // no location_id.
+  // TODO(b/153552977): Remove this. This was was not used in any publicly
+  // available release.
+  repeated InternedString type_names = 3;
+
+  // Field names for references in managed heap graph.
+  repeated InternedString field_names = 4;
+
+  // Paths of files used in managed heap graph.
+  repeated InternedString location_names = 8;
+
+  optional bool continued = 5;
+  optional uint64 index = 6;
+}

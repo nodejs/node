@@ -1,0 +1,20 @@
+name: ext4_da_write_pages
+ID: 269
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:12;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:4;	signed:0;
+	field:__u64 b_blocknr;	offset:24;	size:8;	signed:0;
+	field:__u32 b_size;	offset:32;	size:4;	signed:0;
+	field:__u32 b_state;	offset:36;	size:4;	signed:0;
+	field:unsigned long first_page;	offset:40;	size:4;	signed:0;
+	field:int io_done;	offset:44;	size:4;	signed:1;
+	field:int pages_written;	offset:48;	size:4;	signed:1;
+	field:int sync_mode;	offset:52;	size:4;	signed:1;
+
+print fmt: "dev %d,%d ino %lu b_blocknr %llu b_size %u b_state 0x%04x first_page %lu io_done %d pages_written %d sync_mode %d", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->b_blocknr, REC->b_size, REC->b_state, REC->first_page, REC->io_done, REC->pages_written, REC->sync_mode

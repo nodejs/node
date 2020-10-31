@@ -1,0 +1,15 @@
+name: cluster_pred_hist
+ID: 713
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:const char * name;	offset:8;	size:8;	signed:0;
+	field:int idx;	offset:16;	size:4;	signed:1;
+	field:u32 resi;	offset:20;	size:4;	signed:0;
+	field:u32 sample;	offset:24;	size:4;	signed:0;
+	field:u32 tmr;	offset:28;	size:4;	signed:0;
+
+print fmt: "name:%s idx:%d resi:%u sample:%u tmr:%u", REC->name, REC->idx, REC->resi, REC->sample, REC->tmr

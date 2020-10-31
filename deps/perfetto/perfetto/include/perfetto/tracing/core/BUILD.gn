@@ -1,0 +1,36 @@
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+source_set("core") {
+  public_deps = [
+    ":forward_decls",
+    "../../../../protos/perfetto/common:cpp",
+    "../../../../protos/perfetto/config:cpp",
+  ]
+  sources = [
+    "chrome_config.h",
+    "data_source_config.h",
+    "data_source_descriptor.h",
+    "trace_config.h",
+    "tracing_service_capabilities.h",
+    "tracing_service_state.h",
+  ]
+}
+
+# This is a separate target so other targets in include/**/BUILD.gn can pull
+# forward_decls.h without polluting their public_deps with the proto-generated
+# {common,config}:cpp, which would slow-down build time.
+source_set("forward_decls") {
+  sources = [ "forward_decls.h" ]
+}

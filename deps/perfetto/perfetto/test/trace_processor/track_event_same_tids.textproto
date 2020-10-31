@@ -1,0 +1,45 @@
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 1
+    thread {
+      pid: 5
+      tid: 1
+      thread_name: "t1"
+    }
+  }
+}
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  track_descriptor {
+    uuid: 2
+    thread {
+      pid: 10
+      tid: 1
+      thread_name: "t2"
+    }
+  }
+}
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 1000
+  track_event {
+    track_uuid: 1
+    categories: "cat"
+    name: "name1"
+    type: 3
+  }
+}
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 2000
+  track_event {
+    track_uuid: 2
+    categories: "cat"
+    name: "name2"
+    type: 3
+  }
+}

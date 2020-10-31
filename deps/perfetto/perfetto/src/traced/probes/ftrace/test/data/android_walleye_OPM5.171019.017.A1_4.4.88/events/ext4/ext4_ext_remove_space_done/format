@@ -1,0 +1,17 @@
+name: ext4_ext_remove_space_done
+ID: 358
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:ext4_lblk_t start;	offset:24;	size:4;	signed:0;
+	field:ext4_lblk_t end;	offset:28;	size:4;	signed:0;
+	field:int depth;	offset:32;	size:4;	signed:1;
+	field:long long partial;	offset:40;	size:8;	signed:1;
+	field:unsigned short eh_entries;	offset:48;	size:2;	signed:0;
+
+print fmt: "dev %d,%d ino %lu since %u end %u depth %d partial %lld remaining_entries %u", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, (unsigned) REC->start, (unsigned) REC->end, REC->depth, (long long) REC->partial, (unsigned short) REC->eh_entries

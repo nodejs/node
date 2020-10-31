@@ -1,0 +1,14 @@
+name: kgsl_mem_unmapped_area_collision
+ID: 417
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int id;	offset:8;	size:4;	signed:0;
+	field:unsigned long hint;	offset:12;	size:4;	signed:0;
+	field:unsigned long len;	offset:16;	size:4;	signed:0;
+	field:unsigned long addr;	offset:20;	size:4;	signed:0;
+
+print fmt: "id=%u hint=0x%lx len=%lu addr=0x%lx", REC->id, REC->hint, REC->len, REC->addr

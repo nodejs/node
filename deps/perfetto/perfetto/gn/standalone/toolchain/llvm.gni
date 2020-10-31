@@ -1,0 +1,45 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//gn/standalone/sanitizers/vars.gni")
+
+declare_args() {
+  is_hermetic_clang = is_clang && is_linux_host
+}
+
+assert(!is_hermetic_clang || is_clang, "is_hermetic_clang requires is_clang")
+
+declare_args() {
+  if (is_linux_host) {
+    if (is_hermetic_clang) {
+      _hermetic_llvm_dir = rebase_path("//buildtools/clang", root_build_dir)
+      linux_clang_bin = "$_hermetic_llvm_dir/bin/clang"
+      linux_clangxx_bin = "$_hermetic_llvm_dir/bin/clang++"
+      linux_clangrt_dir = "$_hermetic_llvm_dir/lib/clang/9.0.0/lib/linux"
+      linux_clang_linker = "lld"
+    } else if (is_clang) {
+      # Guess the path for the system clang.
+      find_llvm_out = exec_script("linux_find_llvm.py", [], "list lines")
+      linux_llvm_dir = find_llvm_out[0]
+      linux_clang_bin = find_llvm_out[1]
+      linux_clangxx_bin = find_llvm_out[2]
+      linux_clangrt_dir = "$linux_llvm_dir/lib/linux"
+      linux_clang_linker = "gold"
+    }
+  } else if (is_mac) {
+    mac_toolchain_dirs_ = exec_script("mac_find_llvm.py", [], "list lines")
+    mac_toolchain_dir = mac_toolchain_dirs_[0]
+    mac_clangrt_dir = mac_toolchain_dirs_[1]
+  }
+}

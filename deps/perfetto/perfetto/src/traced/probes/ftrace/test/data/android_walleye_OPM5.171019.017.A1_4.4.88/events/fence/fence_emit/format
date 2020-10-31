@@ -1,0 +1,14 @@
+name: fence_emit
+ID: 559
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] driver;	offset:8;	size:4;	signed:0;
+	field:__data_loc char[] timeline;	offset:12;	size:4;	signed:0;
+	field:unsigned int context;	offset:16;	size:4;	signed:0;
+	field:unsigned int seqno;	offset:20;	size:4;	signed:0;
+
+print fmt: "driver=%s timeline=%s context=%u seqno=%u", __get_str(driver), __get_str(timeline), REC->context, REC->seqno

@@ -1,0 +1,13 @@
+name: binder_ioctl
+ID: 423
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:unsigned int cmd;	offset:12;	size:4;	signed:0;
+	field:unsigned long arg;	offset:16;	size:4;	signed:0;
+
+print fmt: "cmd=0x%x arg=0x%lx", REC->cmd, REC->arg

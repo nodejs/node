@@ -1,0 +1,15 @@
+name: sched_load_avg_cpu
+ID: 70
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int cpu;	offset:8;	size:4;	signed:1;
+	field:unsigned long load_avg;	offset:16;	size:8;	signed:0;
+	field:unsigned long util_avg;	offset:24;	size:8;	signed:0;
+	field:unsigned long util_avg_pelt;	offset:32;	size:8;	signed:0;
+	field:unsigned long util_avg_walt;	offset:40;	size:8;	signed:0;
+
+print fmt: "cpu=%d load_avg=%lu util_avg=%lu util_avg_pelt=%lu util_avg_walt=%lu", REC->cpu, REC->load_avg, REC->util_avg, REC->util_avg_pelt, REC->util_avg_walt

@@ -1,0 +1,13 @@
+name: cfg80211_cqm_rssi_notify
+ID: 615
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char name[16];	offset:8;	size:16;	signed:0;
+	field:int ifindex;	offset:24;	size:4;	signed:1;
+	field:enum nl80211_cqm_rssi_threshold_event rssi_event;	offset:28;	size:4;	signed:0;
+
+print fmt: "netdev:%s(%d), rssi event: %d", REC->name, REC->ifindex, REC->rssi_event

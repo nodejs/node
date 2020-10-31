@@ -1,0 +1,52 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Describes a process's attributes. Emitted as part of a TrackDescriptor,
+// usually by the process's main thread.
+//
+// Next id: 7.
+message ProcessDescriptor {
+  optional int32 pid = 1;
+  repeated string cmdline = 2;
+  optional string process_name = 6;
+
+  optional int32 process_priority = 5;
+
+  // ---------------------------------------------------------------------------
+  // Deprecated / legacy fields, which will be removed in the future:
+  // ---------------------------------------------------------------------------
+
+  // See chromium's content::ProcessType.
+  enum ChromeProcessType {
+    PROCESS_UNSPECIFIED = 0;
+    PROCESS_BROWSER = 1;
+    PROCESS_RENDERER = 2;
+    PROCESS_UTILITY = 3;
+    PROCESS_ZYGOTE = 4;
+    PROCESS_SANDBOX_HELPER = 5;
+    PROCESS_GPU = 6;
+    PROCESS_PPAPI_PLUGIN = 7;
+    PROCESS_PPAPI_BROKER = 8;
+  }
+  optional ChromeProcessType chrome_process_type = 4;
+
+  // To support old UI. New UI should determine default sorting by process_type.
+  optional int32 legacy_sort_index = 3;
+}

@@ -1,0 +1,13 @@
+name: nvhost_cdma_push
+ID: 389
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:const char * name;	offset:8;	size:8;	signed:0;
+	field:u32 op1;	offset:16;	size:4;	signed:0;
+	field:u32 op2;	offset:20;	size:4;	signed:0;
+
+print fmt: "name=%s, op1=%08x, op2=%08x", REC->name, REC->op1, REC->op2

@@ -1,0 +1,37 @@
+java_heap_histogram {
+  instance_stats {
+    upid: 2
+    process {
+      name: "system_server"
+      uid: 1000
+    }
+    samples {
+      ts: 10
+      type_count {
+        type_name: "DeobfuscatedA"
+        obj_count: 1
+        reachable_obj_count: 0
+      }
+      type_count {
+        type_name: "DeobfuscatedA[]"
+        obj_count: 1
+        reachable_obj_count: 1
+      }
+      type_count {
+        type_name: "FactoryProducerDelegateImplActor"
+        obj_count: 1
+        reachable_obj_count: 1
+      }
+      type_count {
+        type_name: "Foo"
+        obj_count: 2
+        reachable_obj_count: 1
+      }
+      type_count {
+        type_name: "java.lang.Class<DeobfuscatedA[]>"
+        obj_count: 1
+        reachable_obj_count: 0
+      }
+    }
+  }
+}

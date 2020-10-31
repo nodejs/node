@@ -1,0 +1,266 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+import "protos/perfetto/trace/track_event/source_location.proto";
+
+package perfetto.protos;
+
+// Describes Chrome's Compositor scheduler's current state and associated
+// variables.
+//
+// These protos and enums were adapted from the corresponding original JSON
+// trace event for the scheduler state. In contrast to the JSON, we use strongly
+// typed enum values instead of strings for many fields, and
+// microsecond-granularity timestamps.
+//
+// The original format was generated in JSON by the code at
+// https://cs.chromium.org/chromium/src/cc/scheduler/scheduler.cc?l=870&rcl=5e15eabc9c0eec8daf94fdf78e93f13b6e3b63dd
+//
+// TODO(nuskos): Update link once we've switched to writing this proto.
+//
+// All non-delta-timestamps are absolute CLOCK_MONOTONIC timestamps.
+
+enum ChromeCompositorSchedulerAction {
+  CC_SCHEDULER_ACTION_UNSPECIFIED = 0;
+  CC_SCHEDULER_ACTION_NONE = 1;
+  CC_SCHEDULER_ACTION_SEND_BEGIN_MAIN_FRAME = 2;
+  CC_SCHEDULER_ACTION_COMMIT = 3;
+  CC_SCHEDULER_ACTION_ACTIVATE_SYNC_TREE = 4;
+  CC_SCHEDULER_ACTION_DRAW_IF_POSSIBLE = 5;
+  CC_SCHEDULER_ACTION_DRAW_FORCED = 6;
+  CC_SCHEDULER_ACTION_DRAW_ABORT = 7;
+  CC_SCHEDULER_ACTION_BEGIN_LAYER_TREE_FRAME_SINK_CREATION = 8;
+  CC_SCHEDULER_ACTION_PREPARE_TILES = 9;
+  CC_SCHEDULER_ACTION_INVALIDATE_LAYER_TREE_FRAME_SINK = 10;
+  CC_SCHEDULER_ACTION_PERFORM_IMPL_SIDE_INVALIDATION = 11;
+  CC_SCHEDULER_ACTION_NOTIFY_BEGIN_MAIN_FRAME_NOT_EXPECTED_UNTIL = 12;
+  CC_SCHEDULER_ACTION_NOTIFY_BEGIN_MAIN_FRAME_NOT_EXPECTED_SOON = 13;
+}
+
+// Next id: 18
+message ChromeCompositorSchedulerState {
+  enum BeginImplFrameDeadlineMode {
+    DEADLINE_MODE_UNSPECIFIED = 0;
+    DEADLINE_MODE_NONE = 1;
+    DEADLINE_MODE_IMMEDIATE = 2;
+    DEADLINE_MODE_REGULAR = 3;
+    DEADLINE_MODE_LATE = 4;
+    DEADLINE_MODE_BLOCKED = 5;
+  }
+  optional ChromeCompositorStateMachine state_machine = 1;
+  optional bool observing_begin_frame_source = 2;
+  optional bool begin_impl_frame_deadline_task = 3;
+  optional bool pending_begin_frame_task = 4;
+  optional bool skipped_last_frame_missed_exceeded_deadline = 5;
+  optional bool skipped_last_frame_to_reduce_latency = 6;
+  optional ChromeCompositorSchedulerAction inside_action = 7;
+  optional BeginImplFrameDeadlineMode deadline_mode = 8;
+  optional int64 deadline_us = 9;
+  optional int64 deadline_scheduled_at_us = 10;
+  optional int64 now_us = 11;
+  optional int64 now_to_deadline_delta_us = 12;
+  optional int64 now_to_deadline_scheduled_at_delta_us = 13;
+  optional BeginImplFrameArgs begin_impl_frame_args = 14;
+  optional BeginFrameObserverState begin_frame_observer_state = 15;
+  optional BeginFrameSourceState begin_frame_source_state = 16;
+  optional CompositorTimingHistory compositor_timing_history = 17;
+}
+
+// Describes the current values stored in the Chrome Compositor state machine.
+// Next id: 3
+message ChromeCompositorStateMachine {
+  // Next id: 6
+  message MajorState {
+    enum BeginImplFrameState {
+      BEGIN_IMPL_FRAME_UNSPECIFIED = 0;
+      BEGIN_IMPL_FRAME_IDLE = 1;
+      BEGIN_IMPL_FRAME_INSIDE_BEGIN_FRAME = 2;
+      BEGIN_IMPL_FRAME_INSIDE_DEADLINE = 3;
+    }
+    enum BeginMainFrameState {
+      BEGIN_MAIN_FRAME_UNSPECIFIED = 0;
+      BEGIN_MAIN_FRAME_IDLE = 1;
+      BEGIN_MAIN_FRAME_SENT = 2;
+      BEGIN_MAIN_FRAME_READY_TO_COMMIT = 3;
+    }
+    enum LayerTreeFrameSinkState {
+      LAYER_TREE_FRAME_UNSPECIFIED = 0;
+      LAYER_TREE_FRAME_NONE = 1;
+      LAYER_TREE_FRAME_ACTIVE = 2;
+      LAYER_TREE_FRAME_CREATING = 3;
+      LAYER_TREE_FRAME_WAITING_FOR_FIRST_COMMIT = 4;
+      LAYER_TREE_FRAME_WAITING_FOR_FIRST_ACTIVATION = 5;
+    }
+    enum ForcedRedrawOnTimeoutState {
+      FORCED_REDRAW_UNSPECIFIED = 0;
+      FORCED_REDRAW_IDLE = 1;
+      FORCED_REDRAW_WAITING_FOR_COMMIT = 2;
+      FORCED_REDRAW_WAITING_FOR_ACTIVATION = 3;
+      FORCED_REDRAW_WAITING_FOR_DRAW = 4;
+    }
+    optional ChromeCompositorSchedulerAction next_action = 1;
+    optional BeginImplFrameState begin_impl_frame_state = 2;
+    optional BeginMainFrameState begin_main_frame_state = 3;
+    optional LayerTreeFrameSinkState layer_tree_frame_sink_state = 4;
+    optional ForcedRedrawOnTimeoutState forced_redraw_state = 5;
+  }
+  optional MajorState major_state = 1;
+
+  // Next id: 47
+  message MinorState {
+    enum TreePriority {
+      TREE_PRIORITY_UNSPECIFIED = 0;
+      TREE_PRIORITY_SAME_PRIORITY_FOR_BOTH_TREES = 1;
+      TREE_PRIORITY_SMOOTHNESS_TAKES_PRIORITY = 2;
+      TREE_PRIORITY_NEW_CONTENT_TAKES_PRIORITY = 3;
+    }
+    enum ScrollHandlerState {
+      SCROLL_HANDLER_UNSPECIFIED = 0;
+      SCROLL_AFFECTS_SCROLL_HANDLER = 1;
+      SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER = 2;
+    }
+    optional int32 commit_count = 1;
+    optional int32 current_frame_number = 2;
+    optional int32 last_frame_number_submit_performed = 3;
+    optional int32 last_frame_number_draw_performed = 4;
+    optional int32 last_frame_number_begin_main_frame_sent = 5;
+    optional bool did_draw = 6;
+    optional bool did_send_begin_main_frame_for_current_frame = 7;
+    optional bool did_notify_begin_main_frame_not_expected_until = 8;
+    optional bool did_notify_begin_main_frame_not_expected_soon = 9;
+    optional bool wants_begin_main_frame_not_expected = 10;
+    optional bool did_commit_during_frame = 11;
+    optional bool did_invalidate_layer_tree_frame_sink = 12;
+    optional bool did_perform_impl_side_invalidaion = 13;
+    optional bool did_prepare_tiles = 14;
+    optional int32 consecutive_checkerboard_animations = 15;
+    optional int32 pending_submit_frames = 16;
+    optional int32 submit_frames_with_current_layer_tree_frame_sink = 17;
+    optional bool needs_redraw = 18;
+    optional bool needs_prepare_tiles = 19;
+    optional bool needs_begin_main_frame = 20;
+    optional bool needs_one_begin_impl_frame = 21;
+    optional bool visible = 22;
+    optional bool begin_frame_source_paused = 23;
+    optional bool can_draw = 24;
+    optional bool resourceless_draw = 25;
+    optional bool has_pending_tree = 26;
+    optional bool pending_tree_is_ready_for_activation = 27;
+    optional bool active_tree_needs_first_draw = 28;
+    optional bool active_tree_is_ready_to_draw = 29;
+    optional bool did_create_and_initialize_first_layer_tree_frame_sink = 30;
+    optional TreePriority tree_priority = 31;
+    optional ScrollHandlerState scroll_handler_state = 32;
+    optional bool critical_begin_main_frame_to_activate_is_fast = 33;
+    optional bool main_thread_missed_last_deadline = 34;
+    optional bool skip_next_begin_main_frame_to_reduce_latency = 35;
+    optional bool video_needs_begin_frames = 36;
+    optional bool defer_begin_main_frame = 37;
+    optional bool last_commit_had_no_updates = 38;
+    optional bool did_draw_in_last_frame = 39;
+    optional bool did_submit_in_last_frame = 40;
+    optional bool needs_impl_side_invalidation = 41;
+    optional bool current_pending_tree_is_impl_side = 42;
+    optional bool previous_pending_tree_was_impl_side = 43;
+    optional bool processing_animation_worklets_for_active_tree = 44;
+    optional bool processing_animation_worklets_for_pending_tree = 45;
+    optional bool processing_paint_worklets_for_pending_tree = 46;
+  }
+  optional MinorState minor_state = 2;
+}
+
+// Next id: 12
+message BeginFrameArgs {
+  // JSON format has a "type" field that was always just "BeginFrameArgs" we
+  // drop this in the proto representation, and instead make the JSON format
+  // "subtype" field become the type field.
+  enum BeginFrameArgsType {
+    BEGIN_FRAME_ARGS_TYPE_UNSPECIFIED = 0;
+    BEGIN_FRAME_ARGS_TYPE_INVALID = 1;
+    BEGIN_FRAME_ARGS_TYPE_NORMAL = 2;
+    BEGIN_FRAME_ARGS_TYPE_MISSED = 3;
+  }
+  optional BeginFrameArgsType type = 1;
+  optional uint64 source_id = 2;
+  optional uint64 sequence_number = 3;
+  optional int64 frame_time_us = 4;
+  optional int64 deadline_us = 5;
+  optional int64 interval_delta_us = 6;
+  optional bool on_critical_path = 7;
+  optional bool animate_only = 8;
+  oneof created_from {
+    // The interned SourceLocation.
+    uint64 source_location_iid = 9;
+    // The SourceLocation that this args was created from.
+    // TODO(nuskos): Eventually we will support interning inside of
+    // TypedArgument TraceEvents and then we shouldn't need this SourceLocation
+    // since we can emit it as part of the InternedData message. When we can
+    // remove this |source_location|.
+    SourceLocation source_location = 10;
+  }
+}
+
+// Next id: 7
+message BeginImplFrameArgs {
+  optional int64 updated_at_us = 1;
+  optional int64 finished_at_us = 2;
+  enum State {
+    BEGIN_FRAME_FINISHED = 0;
+    BEGIN_FRAME_USING = 1;
+  }
+  optional State state = 3;
+  oneof args {
+    // Only set if |state| is BEGIN_FRAME_FINISHED.
+    BeginFrameArgs current_args = 4;
+    // Only set if |state| is BEGIN_FRAME_USING.
+    BeginFrameArgs last_args = 5;
+  }
+  message TimestampsInUs {
+    optional int64 interval_delta = 1;
+    optional int64 now_to_deadline_delta = 2;
+    optional int64 frame_time_to_now_delta = 3;
+    optional int64 frame_time_to_deadline_delta = 4;
+    optional int64 now = 5;
+    optional int64 frame_time = 6;
+    optional int64 deadline = 7;
+  }
+  optional TimestampsInUs timestamps_in_us = 6;
+}
+
+message BeginFrameObserverState {
+  optional int64 dropped_begin_frame_args = 1;
+  optional BeginFrameArgs last_begin_frame_args = 2;
+}
+
+message BeginFrameSourceState {
+  optional uint32 source_id = 1;
+  optional bool paused = 2;
+  optional uint32 num_observers = 3;
+  optional BeginFrameArgs last_begin_frame_args = 4;
+}
+
+message CompositorTimingHistory {
+  optional int64 begin_main_frame_queue_critical_estimate_delta_us = 1;
+  optional int64 begin_main_frame_queue_not_critical_estimate_delta_us = 2;
+  optional int64 begin_main_frame_start_to_ready_to_commit_estimate_delta_us =
+      3;
+  optional int64 commit_to_ready_to_activate_estimate_delta_us = 4;
+  optional int64 prepare_tiles_estimate_delta_us = 5;
+  optional int64 activate_estimate_delta_us = 6;
+  optional int64 draw_estimate_delta_us = 7;
+}

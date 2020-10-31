@@ -1,0 +1,13 @@
+android_task_names {
+  process {
+    pid: 1
+    process_name: "init"
+    uid: 0
+  }
+  process {
+    pid: 2
+    process_name: "com.google.android.gm:process"
+    uid: 10001
+    uid_package_name: "com.google.android.gm"
+  }
+}

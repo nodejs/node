@@ -1,0 +1,14 @@
+name: adreno_drawctxt_wait_done
+ID: 529
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int rb_id;	offset:8;	size:4;	signed:0;
+	field:unsigned int ctx_id;	offset:12;	size:4;	signed:0;
+	field:unsigned int ts;	offset:16;	size:4;	signed:0;
+	field:int status;	offset:20;	size:4;	signed:1;
+
+print fmt: "rb=%u ctx=%u ts=%u status=%d", REC->rb_id, REC->ctx_id, REC->ts, REC->status

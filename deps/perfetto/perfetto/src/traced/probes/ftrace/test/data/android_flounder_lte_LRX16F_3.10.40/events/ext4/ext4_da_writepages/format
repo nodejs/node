@@ -1,0 +1,20 @@
+name: ext4_da_writepages
+ID: 262
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:long nr_to_write;	offset:24;	size:8;	signed:1;
+	field:long pages_skipped;	offset:32;	size:8;	signed:1;
+	field:loff_t range_start;	offset:40;	size:8;	signed:1;
+	field:loff_t range_end;	offset:48;	size:8;	signed:1;
+	field:unsigned long writeback_index;	offset:56;	size:8;	signed:0;
+	field:int sync_mode;	offset:64;	size:4;	signed:1;
+	field:char for_kupdate;	offset:68;	size:1;	signed:0;
+	field:char range_cyclic;	offset:69;	size:1;	signed:0;
+
+print fmt: "dev %d,%d ino %lu nr_to_write %ld pages_skipped %ld range_start %lld range_end %lld sync_mode %d for_kupdate %d range_cyclic %d writeback_index %lu", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->nr_to_write, REC->pages_skipped, REC->range_start, REC->range_end, REC->sync_mode, REC->for_kupdate, REC->range_cyclic, (unsigned long) REC->writeback_index

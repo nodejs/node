@@ -1,0 +1,15 @@
+name: nvhost_syncpt_wait_check
+ID: 370
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 mem_id;	offset:8;	size:4;	signed:0;
+	field:u32 offset;	offset:12;	size:4;	signed:0;
+	field:u32 syncpt_id;	offset:16;	size:4;	signed:0;
+	field:u32 thresh;	offset:20;	size:4;	signed:0;
+	field:u32 min;	offset:24;	size:4;	signed:0;
+
+print fmt: "mem_id=%08x, offset=%05x, id=%d, thresh=%d, current=%d", REC->mem_id, REC->offset, REC->syncpt_id, REC->thresh, REC->min

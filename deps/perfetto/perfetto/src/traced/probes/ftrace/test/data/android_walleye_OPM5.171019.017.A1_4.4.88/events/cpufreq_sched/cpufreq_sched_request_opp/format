@@ -1,0 +1,14 @@
+name: cpufreq_sched_request_opp
+ID: 83
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int cpu;	offset:8;	size:4;	signed:1;
+	field:unsigned long capacity;	offset:16;	size:8;	signed:0;
+	field:unsigned int freq_new;	offset:24;	size:4;	signed:0;
+	field:unsigned int requested_freq;	offset:28;	size:4;	signed:0;
+
+print fmt: "cpu %d cap change, cluster cap request %ld => OPP %d (cur %d)", REC->cpu, REC->capacity, REC->freq_new, REC->requested_freq

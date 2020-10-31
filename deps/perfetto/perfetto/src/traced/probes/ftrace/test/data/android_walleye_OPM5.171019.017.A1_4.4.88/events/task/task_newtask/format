@@ -1,0 +1,14 @@
+name: task_newtask
+ID: 24
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:pid_t pid;	offset:8;	size:4;	signed:1;
+	field:char comm[16];	offset:12;	size:16;	signed:0;
+	field:unsigned long clone_flags;	offset:32;	size:8;	signed:0;
+	field:short oom_score_adj;	offset:40;	size:2;	signed:1;
+
+print fmt: "pid=%d comm=%s clone_flags=%lx oom_score_adj=%hd", REC->pid, REC->comm, REC->clone_flags, REC->oom_score_adj

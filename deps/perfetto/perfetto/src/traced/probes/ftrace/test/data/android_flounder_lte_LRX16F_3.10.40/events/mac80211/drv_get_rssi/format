@@ -1,0 +1,14 @@
+name: drv_get_rssi
+ID: 759
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char sta_addr[6];	offset:40;	size:6;	signed:0;
+	field:s8 rssi;	offset:46;	size:1;	signed:1;
+	field:int ret;	offset:48;	size:4;	signed:1;
+
+print fmt: "%s sta:%pM rssi:%d ret:%d", REC->wiphy_name, REC->sta_addr, REC->rssi, REC->ret

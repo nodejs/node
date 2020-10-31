@@ -1,0 +1,14 @@
+name: mm_migrate_pages
+ID: 232
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned long succeeded;	offset:8;	size:8;	signed:0;
+	field:unsigned long failed;	offset:16;	size:8;	signed:0;
+	field:enum migrate_mode mode;	offset:24;	size:4;	signed:0;
+	field:int reason;	offset:28;	size:4;	signed:1;
+
+print fmt: "nr_succeeded=%lu nr_failed=%lu mode=%s reason=%s", REC->succeeded, REC->failed, __print_symbolic(REC->mode, {0, "MIGRATE_ASYNC"}, {1, "MIGRATE_SYNC_LIGHT"}, {2, "MIGRATE_SYNC"}), __print_symbolic(REC->reason, {0, "compaction"}, {1, "memory_failure"}, {2, "memory_hotplug"}, {3, "syscall_or_cpuset"}, {4, "mempolicy_mbind"}, {5, "numa_misplaced"}, {6, "cma"})

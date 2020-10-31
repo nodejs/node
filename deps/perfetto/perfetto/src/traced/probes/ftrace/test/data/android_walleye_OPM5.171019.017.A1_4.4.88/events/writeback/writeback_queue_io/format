@@ -1,0 +1,16 @@
+name: writeback_queue_io
+ID: 255
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char name[32];	offset:8;	size:32;	signed:0;
+	field:unsigned long older;	offset:40;	size:8;	signed:0;
+	field:long age;	offset:48;	size:8;	signed:1;
+	field:int moved;	offset:56;	size:4;	signed:1;
+	field:int reason;	offset:60;	size:4;	signed:1;
+	field:__data_loc char[] cgroup;	offset:64;	size:4;	signed:0;
+
+print fmt: "bdi %s: older=%lu age=%ld enqueue=%d reason=%s cgroup=%s", REC->name, REC->older, REC->age, REC->moved, __print_symbolic(REC->reason, { 0, "background" }, { 1, "try_to_free_pages" }, { 2, "sync" }, { 3, "periodic" }, { 4, "laptop_timer" }, { 5, "free_more_memory" }, { 6, "fs_free_space" }, { 7, "forker_thread" }), __get_str(cgroup)

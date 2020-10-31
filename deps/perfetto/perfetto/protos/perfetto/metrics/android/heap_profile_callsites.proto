@@ -1,0 +1,70 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto2";
+
+package perfetto.protos;
+
+import "protos/perfetto/metrics/android/process_metadata.proto";
+
+message HeapProfileCallsites {
+  message Frame {
+    optional string name = 1;
+    optional string mapping_name = 2;
+  }
+
+  message Counters {
+    // Count of objects allocated
+    optional int64 total_count = 1;
+    // Count of bytes allocated
+    optional int64 total_bytes = 2;
+
+    // Count of allocated objects that were not freed
+    optional int64 delta_count = 3;
+    // Count of allocated bytes that were not freed
+    optional int64 delta_bytes = 4;
+  }
+
+  message Callsite {
+    // The hash unambiguously identifies a callsite in a heap profile (as a
+    // traversal from the root node). It is based on the symbol names (instead
+    // of the addresses).
+    optional int64 hash = 1;
+    optional int64 parent_hash = 2;
+
+    // Leaf frame of the callsite. Use parent_hash to traverse to parent nodes.
+    optional Frame frame = 3;
+
+    optional Counters self_allocs = 4;
+    optional Counters child_allocs = 5;
+  }
+
+  // Callsites per process instance.
+  // Next id: 7
+  message InstanceStats {
+    optional uint32 pid = 1;
+    // TODO(ilkos): Remove process_name in favour of the metadata.
+    optional string process_name = 2;
+    optional AndroidProcessMetadata process = 6;
+    repeated Callsite callsites = 3;
+
+    // Bytes allocated via malloc but not freed.
+    optional int64 profile_delta_bytes = 4;
+    // Bytes allocated via malloc irrespective of whether they were freed.
+    optional int64 profile_total_bytes = 5;
+  }
+
+  repeated InstanceStats instance_stats = 1;
+}

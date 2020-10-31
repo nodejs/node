@@ -1,0 +1,530 @@
+#!/usr/bin/env python
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This tool translates a collection of BUILD.gn files into a mostly equivalent
+# BUILD file for the Bazel build system. The input to the tool is a
+# JSON description of the GN build definition generated with the following
+# command:
+#
+#   gn desc out --format=json --all-toolchains "//*" > desc.json
+#
+# The tool is then given a list of GN labels for which to generate Bazel
+# build rules.
+
+from __future__ import print_function
+import argparse
+import json
+import os
+import re
+import sys
+
+import gn_utils
+
+from compat import itervalues, iteritems, basestring
+
+# Arguments for the GN output directory.
+# host_os="linux" is to generate the right build files from Mac OS.
+gn_args = ' '.join([
+    'host_os="linux"',
+    'is_debug=false',
+    'is_perfetto_build_generator=true',
+    'enable_perfetto_watchdog=true',
+    'monolithic_binaries=true',
+    'target_os="linux"',
+])
+
+# Default targets to translate to the blueprint file.
+
+# These targets will be exported with public visibility in the generated BUILD.
+public_targets = [
+    '//:libperfetto_client_experimental',
+    '//src/perfetto_cmd:perfetto',
+    '//src/traced/probes:traced_probes',
+    '//src/traced/service:traced',
+    '//src/trace_processor:trace_processor_shell',
+    '//src/trace_processor:trace_processor',
+    '//tools/trace_to_text:trace_to_text',
+    '//tools/trace_to_text:libpprofbuilder',
+]
+
+# These targets are required by internal build rules but don't need to be
+# exported publicly.
+default_targets = [
+    '//test:client_api_example',
+    '//src/ipc:perfetto_ipc',
+    '//src/ipc/protoc_plugin:ipc_plugin',
+    '//src/protozero:libprotozero',
+    '//src/protozero/protoc_plugin:protozero_plugin',
+    '//src/protozero/protoc_plugin:cppgen_plugin',
+] + public_targets
+
+# Root proto targets (to force discovery of intermediate proto targets).
+# These targets are marked public.
+proto_targets = [
+    '//protos/perfetto/trace:merged_trace',
+    '//protos/perfetto/trace:non_minimal_lite',
+    '//protos/perfetto/config:merged_config',
+    '//protos/perfetto/metrics:lite',
+    '//protos/perfetto/metrics/android:lite',
+    '//protos/perfetto/trace:lite',
+    '//protos/perfetto/config:lite',
+]
+
+# The directory where the generated perfetto_build_flags.h will be copied into.
+buildflags_dir = 'include/perfetto/base/build_configs/bazel'
+
+# Internal equivalents for third-party libraries that the upstream project
+# depends on.
+external_deps = {
+    '//gn:default_deps': [],
+    '//gn:jsoncpp': ['PERFETTO_CONFIG.deps.jsoncpp'],
+    '//gn:linenoise': ['PERFETTO_CONFIG.deps.linenoise'],
+    '//gn:protobuf_full': ['PERFETTO_CONFIG.deps.protobuf_full'],
+    '//gn:protobuf_lite': ['PERFETTO_CONFIG.deps.protobuf_lite'],
+    '//gn:protoc_lib': ['PERFETTO_CONFIG.deps.protoc_lib'],
+    '//gn:protoc': ['PERFETTO_CONFIG.deps.protoc'],
+    '//gn:sqlite': [
+        'PERFETTO_CONFIG.deps.sqlite',
+        'PERFETTO_CONFIG.deps.sqlite_ext_percentile'
+    ],
+    '//gn:zlib': ['PERFETTO_CONFIG.deps.zlib'],
+    '//gn/standalone:gen_git_revision': [],
+    '//src/trace_processor/metrics:gen_merged_sql_metrics': [[
+        ":cc_merged_sql_metrics"
+    ]]
+}
+
+
+def gen_sql_metrics(target):
+  label = BazelLabel(get_bazel_label_name(target.name), 'genrule')
+  label.srcs += [re.sub('^//', '', x) for x in sorted(target.inputs)]
+  label.outs += target.outputs
+  label.cmd = r'$(location gen_merged_sql_metrics_py) --cpp_out=$@ $(SRCS)'
+  label.tools += [':gen_merged_sql_metrics_py']
+  return [label]
+
+
+custom_actions = {
+    '//src/trace_processor/metrics:gen_merged_sql_metrics': gen_sql_metrics,
+}
+
+# ------------------------------------------------------------------------------
+# End of configuration.
+# ------------------------------------------------------------------------------
+
+
+class Error(Exception):
+  pass
+
+
+class BazelLabel(object):
+
+  def __init__(self, name, type):
+    self.comment = None
+    self.name = name
+    self.type = type
+    self.visibility = []
+    self.srcs = []
+    self.hdrs = []
+    self.deps = []
+    self.external_deps = []
+    self.tools = []
+    self.outs = []
+
+  def __lt__(self, other):
+    if isinstance(other, self.__class__):
+      return self.name < other.name
+    raise TypeError('\'<\' not supported between instances of \'%s\' and \'%s\''
+                    % (type(self).__name__, type(other).__name__))
+
+  def __str__(self):
+    """Converts the object into a Bazel Starlark label."""
+    res = ''
+    res += ('# GN target: %s\n' % self.comment) if self.comment else ''
+    res += '%s(\n' % self.type
+    any_deps = len(self.deps) + len(self.external_deps) > 0
+    ORD = ['name', 'srcs', 'hdrs', 'visibility', 'deps', 'outs', 'cmd', 'tools']
+    hasher = lambda x: sum((99,) + tuple(ord(c) for c in x))
+    key_sorter = lambda kv: ORD.index(kv[0]) if kv[0] in ORD else hasher(kv[0])
+    for k, v in sorted(iteritems(self.__dict__), key=key_sorter):
+      if k in ('type', 'comment',
+               'external_deps') or v is None or (v == [] and
+                                                 (k != 'deps' or not any_deps)):
+        continue
+      res += '    %s = ' % k
+      if isinstance(v, basestring):
+        if v.startswith('PERFETTO_CONFIG.'):
+          res += '%s,\n' % v
+        else:
+          res += '"%s",\n' % v
+      elif isinstance(v, bool):
+        res += '%s,\n' % v
+      elif isinstance(v, list):
+        res += '[\n'
+        if k == 'deps' and len(self.external_deps) > 1:
+          indent = '           '
+        else:
+          indent = '    '
+        for entry in v:
+          if entry.startswith('PERFETTO_CONFIG.'):
+            res += '%s    %s,\n' % (indent, entry)
+          else:
+            res += '%s    "%s",\n' % (indent, entry)
+        res += '%s]' % indent
+        if k == 'deps' and self.external_deps:
+          res += ' + %s' % self.external_deps[0]
+          for edep in self.external_deps[1:]:
+            if isinstance(edep, list):
+              res += ' + [\n'
+              for inner_dep in edep:
+                res += '        "%s",\n' % inner_dep
+              res += '    ]'
+            else:
+              res += ' +\n%s%s' % (indent, edep)
+        res += ',\n'
+      else:
+        raise Error('Unsupported value %s', type(v))
+    res += ')\n\n'
+    return res
+
+
+# Public visibility for targets in Bazel.
+PUBLIC_VISIBILITY = 'PERFETTO_CONFIG.public_visibility'
+
+
+def get_bazel_label_name(gn_name):
+  """Converts a GN target name into a Bazel label name.
+
+  If target is in the public taraget list, returns only the GN target name,
+  e.g.: //src/ipc:perfetto_ipc -> perfetto_ipc
+
+  Otherwise, in the case of an intermediate taraget, returns a mangled path.
+  e.g.:  //include/perfetto/base:base -> include_perfetto_base_base.
+  """
+  if gn_name in default_targets:
+    return gn_utils.label_without_toolchain(gn_name).split(':')[1]
+  return gn_utils.label_to_target_name_with_path(gn_name)
+
+
+def gen_proto_labels(target):
+  """ Generates the xx_proto_library label for proto targets.
+
+  Bazel requires that each protobuf-related target is modeled with two labels:
+  1. A plugin-dependent target (e.g. cc_library, cc_protozero_library) that has
+     only a dependency on 2 and does NOT refer to any .proto sources.
+  2. A plugin-agnostic target that defines only the .proto sources and their
+     dependencies.
+  """
+  assert (target.type == 'proto_library')
+
+  def get_sources_label(target_name):
+    return re.sub('_(lite|zero|cpp|ipc)$', '',
+                  get_bazel_label_name(target_name)) + '_protos'
+
+  sources_label_name = get_sources_label(target.name)
+
+  # Generates 1.
+  if target.proto_plugin == 'proto':
+    plugin_label_type = 'perfetto_cc_proto_library'
+  elif target.proto_plugin == 'protozero':
+    plugin_label_type = 'perfetto_cc_protozero_library'
+  elif target.proto_plugin == 'cppgen':
+    plugin_label_type = 'perfetto_cc_protocpp_library'
+  elif target.proto_plugin == 'ipc':
+    plugin_label_type = 'perfetto_cc_ipc_library'
+  else:
+    raise Error('Unknown proto plugin: %s' % target.proto_plugin)
+  plugin_label_name = get_bazel_label_name(target.name)
+  plugin_label = BazelLabel(plugin_label_name, plugin_label_type)
+  plugin_label.comment = target.name
+  plugin_label.deps += [':' + sources_label_name]
+
+  # When using the cppgen plugin we need to pass down also the transitive deps.
+  # For instance consider foo.proto including common.proto. The generated
+  # foo.cc will #include "common.gen.h". Hence the generated cc_protocpp_library
+  # rule need to pass down the dependency on the target that generates
+  # common.gen.{cc,h}. This is not needed for protozero because protozero
+  # headers are fully hermetic deps-wise and use only on forward declarations.
+  if target.proto_deps and target.proto_plugin in ('cppgen', 'ipc'):
+    plugin_label.deps += [
+        ':' + get_bazel_label_name(x) for x in target.proto_deps
+    ]
+
+  # Generates 2.
+  sources_label = BazelLabel(sources_label_name, 'perfetto_proto_library')
+  sources_label.comment = target.name
+  assert (all(x.startswith('//') for x in target.sources))
+  assert (all(x.endswith('.proto') for x in target.sources))
+  sources_label.srcs = sorted([x[2:] for x in target.sources])  # Strip //.
+
+  deps = [
+      ':' + get_sources_label(x)
+      for x in target.proto_deps
+
+      # This is to avoid a dependency-on-self in the case where
+      # protos/perfetto/ipc:ipc depends on protos/perfetto/ipc:cpp and both
+      # targets resolve to "protos_perfetto_ipc_protos".
+      if get_sources_label(x) != sources_label_name
+  ]
+  sources_label.deps = sorted(deps)
+
+  if target.name in proto_targets:
+    sources_label.visibility = PUBLIC_VISIBILITY
+  else:
+    sources_label.visibility = ['PERFETTO_CONFIG.proto_library_visibility']
+
+  return [plugin_label, sources_label]
+
+
+def gen_target(gn_target):
+  if gn_target.type == 'proto_library':
+    return gen_proto_labels(gn_target)
+  elif gn_target.type == 'action':
+    if gn_target.name in custom_actions:
+      return custom_actions[gn_target.name](gn_target)
+    return []
+  elif gn_target.type == 'group':
+    return []
+  elif gn_target.type == 'executable':
+    bazel_type = 'perfetto_cc_binary'
+  elif gn_target.type == 'shared_library':
+    bazel_type = 'perfetto_cc_binary'
+    vars['linkshared'] = True
+  elif gn_target.type == 'static_library':
+    bazel_type = 'perfetto_cc_library'
+  elif gn_target.type == 'source_set':
+    bazel_type = 'filegroup'
+  else:
+    raise Error('target type not supported: %s' % gn_target.type)
+
+  label = BazelLabel(get_bazel_label_name(gn_target.name), bazel_type)
+  label.comment = gn_target.name
+
+  raw_srcs = [x[2:] for x in gn_target.sources]
+  if bazel_type == 'perfetto_cc_library':
+    label.srcs = [x for x in raw_srcs if not x.startswith('include')]
+    label.hdrs = [x for x in raw_srcs if x.startswith('include')]
+
+    # Most Perfetto libraries cannot by dynamically linked as they would
+    # cause ODR violations.
+    label.__dict__['linkstatic'] = True
+  else:
+    label.srcs = raw_srcs
+
+  if gn_target.name in public_targets:
+    label.visibility = ['//visibility:public']
+
+  if gn_target.type in gn_utils.LINKER_UNIT_TYPES:
+    # |source_sets| contains the transitive set of source_set deps.
+    for trans_dep in gn_target.source_set_deps:
+      name = ':' + get_bazel_label_name(trans_dep)
+      if name.startswith(
+          ':include_perfetto_') and gn_target.type != 'executable':
+        label.hdrs += [name]
+      else:
+        label.srcs += [name]
+    for dep in sorted(gn_target.deps):
+      if dep.startswith('//gn:'):
+        assert (dep in external_deps), dep
+      if dep in external_deps:
+        assert (isinstance(external_deps[dep], list))
+        label.external_deps += external_deps[dep]
+      else:
+        label.deps += [':' + get_bazel_label_name(dep)]
+    label.deps += [':' + get_bazel_label_name(x) for x in gn_target.proto_deps]
+
+  # All items starting with : need to be sorted to the end of the list.
+  # However, Python makes specifying a comparator function hard so cheat
+  # instead and make everything start with : sort as if it started with |
+  # As | > all other normal ASCII characters, this will lead to all : targets
+  # starting with : to be sorted to the end.
+  label.srcs = sorted(label.srcs, key=lambda x: x.replace(':', '|'))
+
+  label.deps = sorted(label.deps)
+  label.hdrs = sorted(label.hdrs)
+  return [label]
+
+
+def gen_target_str(gn_target):
+  return ''.join(str(x) for x in gen_target(gn_target))
+
+
+def generate_build(gn_desc, targets, extras):
+  gn = gn_utils.GnParser(gn_desc)
+  res = '''
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This file is automatically generated by {}. Do not edit.
+
+load("@perfetto_cfg//:perfetto_cfg.bzl", "PERFETTO_CONFIG")
+load(
+    "@perfetto//bazel:rules.bzl",
+    "perfetto_cc_binary",
+    "perfetto_cc_ipc_library",
+    "perfetto_cc_library",
+    "perfetto_cc_proto_library",
+    "perfetto_cc_protocpp_library",
+    "perfetto_cc_protozero_library",
+    "perfetto_java_proto_library",
+    "perfetto_proto_library",
+    "perfetto_py_binary",
+    "perfetto_gensignature_internal_only",
+)
+
+package(default_visibility = ["//visibility:private"])
+
+licenses(["notice"])
+
+exports_files(["NOTICE"])
+
+'''.format(__file__).lstrip()
+
+  # Public targets need to be computed at the beginning (to figure out the
+  # intermediate deps) but printed at the end (because declaration order matters
+  # in Bazel).
+  public_str = ''
+  for target_name in sorted(public_targets):
+    target = gn.get_target(target_name)
+    public_str += gen_target_str(target)
+
+  res += '''
+# ##############################################################################
+# Internal targets
+# ##############################################################################
+
+'''.lstrip()
+  # Generate the other non-public targets.
+  for target_name in sorted(set(default_targets) - set(public_targets)):
+    target = gn.get_target(target_name)
+    res += gen_target_str(target)
+
+  # Generate all the intermediate targets.
+  for target in sorted(itervalues(gn.all_targets)):
+    if target.name in default_targets or target.name in gn.proto_libs:
+      continue
+    res += gen_target_str(target)
+
+  res += '''
+# ##############################################################################
+# Proto libraries
+# ##############################################################################
+
+'''.lstrip()
+  # Force discovery of explicilty listed root proto targets.
+  for target_name in sorted(proto_targets):
+    gn.get_target(target_name)
+
+  # Generate targets for the transitive set of proto targets.
+  # TODO explain deduping here.
+  labels = {}
+  for target in sorted(itervalues(gn.proto_libs)):
+    for label in gen_target(target):
+      # Ensure that if the existing target has public visibility, we preserve
+      # that in the new label; this ensures that we don't accidentaly reduce
+      # the visibility of targets which are meant to be public.
+      existing_label = labels.get(label.name)
+      if existing_label and existing_label.visibility == PUBLIC_VISIBILITY:
+        label.visibility = PUBLIC_VISIBILITY
+      labels[label.name] = label
+
+  res += ''.join(str(x) for x in sorted(itervalues(labels)))
+
+  res += '''
+# ##############################################################################
+# Public targets
+# ##############################################################################
+
+'''.lstrip()
+  res += public_str
+  res += '# Content from BUILD.extras\n\n'
+  res += extras
+  return res
+
+
+def main():
+  parser = argparse.ArgumentParser(
+      description='Generate BUILD from a GN description.')
+  parser.add_argument(
+      '--check-only',
+      help='Don\'t keep the generated files',
+      action='store_true')
+  parser.add_argument(
+      '--desc',
+      help='GN description ' +
+      '(e.g., gn desc out --format=json --all-toolchains "//*"')
+  parser.add_argument(
+      '--repo-root',
+      help='Standalone Perfetto repository to generate a GN description',
+      default=gn_utils.repo_root(),
+  )
+  parser.add_argument(
+      '--extras',
+      help='Extra targets to include at the end of the BUILD file',
+      default=os.path.join(gn_utils.repo_root(), 'BUILD.extras'),
+  )
+  parser.add_argument(
+      '--output',
+      help='BUILD file to create',
+      default=os.path.join(gn_utils.repo_root(), 'BUILD'),
+  )
+  parser.add_argument(
+      '--output-proto',
+      help='Proto BUILD file to create',
+      default=os.path.join(gn_utils.repo_root(), 'protos', 'BUILD'),
+  )
+  parser.add_argument(
+      'targets',
+      nargs=argparse.REMAINDER,
+      help='Targets to include in the BUILD file (e.g., "//:perfetto_tests")')
+  args = parser.parse_args()
+
+  if args.desc:
+    with open(args.desc) as f:
+      desc = json.load(f)
+  else:
+    desc = gn_utils.create_build_description(gn_args, args.repo_root)
+
+  out_files = []
+
+  # Generate the main BUILD file.
+  with open(args.extras, 'r') as extra_f:
+    extras = extra_f.read()
+
+  contents = generate_build(desc, args.targets or default_targets, extras)
+  out_files.append(args.output + '.swp')
+  with open(out_files[-1], 'w') as out_f:
+    out_f.write(contents)
+
+  # Generate the build flags file.
+  out_files.append(os.path.join(buildflags_dir, 'perfetto_build_flags.h.swp'))
+  gn_utils.gen_buildflags(gn_args, out_files[-1])
+
+  return gn_utils.check_or_commit_generated_files(out_files, args.check_only)
+
+
+if __name__ == '__main__':
+  sys.exit(main())

@@ -1,0 +1,8 @@
+trace_metadata {
+  error_stats_entry {
+    name: "mismatched_sched_switch_tids"
+    value: 5
+  }
+  trace_duration_ns: 9519159074,
+  trace_size_bytes: 6365447
+}

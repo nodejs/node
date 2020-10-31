@@ -1,0 +1,16 @@
+name: mm_vmscan_lru_shrink_inactive
+ID: 178
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int nid;	offset:8;	size:4;	signed:1;
+	field:int zid;	offset:12;	size:4;	signed:1;
+	field:unsigned long nr_scanned;	offset:16;	size:8;	signed:0;
+	field:unsigned long nr_reclaimed;	offset:24;	size:8;	signed:0;
+	field:int priority;	offset:32;	size:4;	signed:1;
+	field:int reclaim_flags;	offset:36;	size:4;	signed:1;
+
+print fmt: "nid=%d zid=%d nr_scanned=%ld nr_reclaimed=%ld priority=%d flags=%s", REC->nid, REC->zid, REC->nr_scanned, REC->nr_reclaimed, REC->priority, (REC->reclaim_flags) ? __print_flags(REC->reclaim_flags, "|", {0x0001u, "RECLAIM_WB_ANON"}, {0x0002u, "RECLAIM_WB_FILE"}, {0x0010u, "RECLAIM_WB_MIXED"}, {0x0004u, "RECLAIM_WB_SYNC"}, {0x0008u, "RECLAIM_WB_ASYNC"} ) : "RECLAIM_WB_NONE"

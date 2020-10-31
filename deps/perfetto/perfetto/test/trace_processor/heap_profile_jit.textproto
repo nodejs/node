@@ -1,0 +1,81 @@
+packet {
+  process_tree {
+    processes {
+      pid: 1
+      ppid: 0
+      cmdline: "init"
+    }
+    processes {
+      pid: 2
+      ppid: 1
+      cmdline: "system_server"
+    }
+  }
+}
+packet {
+  trusted_packet_sequence_id: 999
+  previous_packet_dropped: true
+  incremental_state_cleared: true
+  timestamp: 10
+  profile_packet {
+    strings {
+      iid: 1
+      str: "java_frame_1"
+    }
+    strings {
+      iid: 2
+      str: "java_frame_2"
+    }
+    strings {
+      iid: 3
+      str: "jit-mapping"
+    }
+    strings {
+      iid: 4
+      str: "buildid"
+    }
+    frames {
+      iid: 1
+      function_name_id: 1
+      mapping_id: 1
+      rel_pc: 0x1000
+    }
+    frames {
+      iid: 2
+      function_name_id: 2
+      mapping_id: 1
+      rel_pc: 0x1000
+    }
+    callstacks {
+      iid: 1
+      frame_ids: 1
+    }
+    callstacks {
+      iid: 2
+      frame_ids: 2
+    }
+    mappings {
+      iid: 1
+      path_string_ids: 3
+      build_id: 4
+    }
+    process_dumps {
+      pid: 2
+      samples {
+        callstack_id: 1
+        self_allocated: 2000
+        self_freed: 1000
+        alloc_count: 2
+        free_count: 1
+      }
+      samples {
+        callstack_id: 2
+        self_allocated: 100
+        self_freed: 10
+        alloc_count: 10
+        free_count: 1
+      }
+    }
+  }
+}
+

@@ -1,0 +1,44 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message AndroidBatteryMetric {
+  message BatteryCounters {
+    // Timestamp measured from boot time [ns].
+    optional int64 timestamp_ns = 1;
+    // Fields 2-5 are the same as in BatteryCounters proto in TracePacket.
+    optional double charge_counter_uah = 2;
+    optional float capacity_percent = 3;
+    optional double current_ua = 4;
+    optional double current_avg_ua = 5;
+  }
+
+  message BatteryAggregates {
+    // Field numbers for these 3 == the int values fromm Android
+    optional int64 total_screen_off_ns = 1;
+    optional int64 total_screen_on_ns = 2;
+    optional int64 total_screen_doze_ns = 3;
+  }
+
+  // Battery counters info for each ts of the trace. This should only be
+  // extracted for short traces.
+  repeated BatteryCounters battery_counters = 1;
+
+  optional BatteryAggregates battery_aggregates = 2;
+}

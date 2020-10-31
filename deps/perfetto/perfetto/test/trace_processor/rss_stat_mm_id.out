@@ -1,0 +1,5 @@
+"ts","name","pid","name","value"
+90,"mem.rss.file",2,"kthreadd",9.000000
+99,"mem.rss.file",2,"kthreadd",10.000000
+100,"mem.rss.file",10,"process",1000.000000
+101,"mem.rss.file",10,"process",900.000000

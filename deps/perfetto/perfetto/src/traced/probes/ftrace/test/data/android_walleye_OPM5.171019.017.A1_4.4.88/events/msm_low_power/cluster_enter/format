@@ -1,0 +1,15 @@
+name: cluster_enter
+ID: 710
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:const char * name;	offset:8;	size:8;	signed:0;
+	field:int index;	offset:16;	size:4;	signed:1;
+	field:unsigned long sync_cpus;	offset:24;	size:8;	signed:0;
+	field:unsigned long child_cpus;	offset:32;	size:8;	signed:0;
+	field:bool from_idle;	offset:40;	size:1;	signed:0;
+
+print fmt: "cluster_name:%s idx:%d sync:0x%lx child:0x%lx idle:%d", REC->name, REC->index, REC->sync_cpus, REC->child_cpus, REC->from_idle

@@ -1,0 +1,21 @@
+name: jbd2_run_stats
+ID: 326
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:unsigned long tid;	offset:12;	size:4;	signed:0;
+	field:unsigned long wait;	offset:16;	size:4;	signed:0;
+	field:unsigned long request_delay;	offset:20;	size:4;	signed:0;
+	field:unsigned long running;	offset:24;	size:4;	signed:0;
+	field:unsigned long locked;	offset:28;	size:4;	signed:0;
+	field:unsigned long flushing;	offset:32;	size:4;	signed:0;
+	field:unsigned long logging;	offset:36;	size:4;	signed:0;
+	field:__u32 handle_count;	offset:40;	size:4;	signed:0;
+	field:__u32 blocks;	offset:44;	size:4;	signed:0;
+	field:__u32 blocks_logged;	offset:48;	size:4;	signed:0;
+
+print fmt: "dev %d,%d tid %lu wait %u request_delay %u running %u locked %u flushing %u logging %u handle_count %u blocks %u blocks_logged %u", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), REC->tid, jiffies_to_msecs(REC->wait), jiffies_to_msecs(REC->request_delay), jiffies_to_msecs(REC->running), jiffies_to_msecs(REC->locked), jiffies_to_msecs(REC->flushing), jiffies_to_msecs(REC->logging), REC->handle_count, REC->blocks, REC->blocks_logged

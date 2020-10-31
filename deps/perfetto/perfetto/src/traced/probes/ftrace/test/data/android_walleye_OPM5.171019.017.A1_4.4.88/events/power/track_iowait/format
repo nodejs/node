@@ -1,0 +1,15 @@
+name: track_iowait
+ID: 148
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 cpu;	offset:8;	size:4;	signed:0;
+	field:u32 enter_cycle_cnt;	offset:12;	size:4;	signed:0;
+	field:u32 exit_cycle_cnt;	offset:16;	size:4;	signed:0;
+	field:u32 io_busy;	offset:20;	size:4;	signed:0;
+	field:u64 iowait;	offset:24;	size:8;	signed:0;
+
+print fmt: "CPU:%u enter_cycles=%u exit_cycles=%u io_busy=%u iowait=%lu", (unsigned int)REC->cpu, (unsigned int)REC->enter_cycle_cnt, (unsigned int)REC->exit_cycle_cnt, (unsigned int)REC->io_busy, (unsigned long)REC->iowait

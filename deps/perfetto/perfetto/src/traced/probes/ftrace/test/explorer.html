@@ -1,0 +1,329 @@
+#!/bin/bash
+# Loading... <!--
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cd $(dirname $0)
+python -m webbrowser -t "http://localhost:8000/$(basename $0)"
+python -m SimpleHTTPServer
+
+<<-EOF
+-->
+<body>
+<style>
+* {
+  box-sizing: border-box;
+}
+
+.main {
+  display: flex;
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+  font-weight: 300;
+}
+
+pre {
+  font-size: 12px;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  list-style: none;
+  border-radius: 3px;
+  border: solid rgba(0, 0, 0, 0) 1px;
+  padding: 3px;
+  margin-right: 5px 0;
+}
+
+li.selected {
+  border: solid rgba(0, 0, 0, 0.89) 1px;
+}
+
+h1 {
+  font-weight: 200;
+  margin-bottom: 0;
+}
+
+h2 {
+  font-size: smaller;
+}
+
+.focus {
+  flex: 1;
+  margin: 20px;
+}
+
+.context {
+  flex: 0 0 25%;
+}
+
+.green {
+  color: green;
+}
+
+.red {
+  color: red;
+}
+
+.files {
+  position: sticky;
+  top: 15px;
+}
+
+.file {
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: row;
+}
+
+.file *:first-child {
+  flex: 0 0 300px;
+}
+
+.file *:last-child {
+  flex-grow: 1;
+}
+
+.version {
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.version li {
+  margin-right: 20px;
+}
+
+input {
+  font-size: large;
+  margin: 20px 0;
+}
+
+</style>
+<script src="//unpkg.com/mithril"></script>
+<script src="//unpkg.com/diff"></script>
+
+<div id="content"></div>
+
+<script>
+// Remove hash bang.
+document.body.firstChild.remove();
+
+let THIS_URL = window.location.href;
+let gDirectoryToFormatFiles;
+let gNamesToRecords = new Map();
+let gFilterText = '';
+let gDisplayedRecords = null;
+let gDisplayedName = null;
+let gADevice = null;
+let gBDevice = null;
+let gDevices = []
+let gCache = new Map();
+
+function isdir(url) {
+  return url[url.length - 1] == '/';
+}
+
+function isfile(url) {
+  return !isdir(url);
+}
+
+function getdir(url) {
+  return url.slice(0, url.lastIndexOf('/')+1);
+}
+
+let getdirectories = url => listdir(url).then(xs => xs.filter(isdir));
+let getfiles = url => listdir(url).then(xs => xs.filter(isfile));
+
+function fetch(url) {
+  return new Promise(function(resolve, reject) {
+    let xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.onload = e => resolve({
+      text: () => Promise.resolve(xhr.responseText),
+    });
+    xhr.onerror = e => reject(xhr.statusText);
+    xhr.send(null);
+  });
+}
+
+function geturl(url) {
+  console.log('Fetch:', url);
+  if (gCache.has(url)) return Promise.resolve(gCache.get(url));
+  return fetch(url).then(r => r.text()).then(text => {
+    gCache.set(url, text);
+    return text;
+  });
+}
+
+function listdir(url) {
+  return geturl(url).then(text => {
+    let re = new RegExp('<li><a href="(.+)">(.+)</a>', 'g');
+    if (window.location.href.indexOf('x20') != -1)
+      re = new RegExp('[^>]</td>\n<td>\n<a href="(.+)">(.+)</a>', 'g');
+    let match;
+    let matches = [];
+    while (match = re.exec(text)) {
+      matches.push(match[1]);
+    }
+    return matches;
+  });
+}
+
+function getfiletext(url) {
+  if (gCache.has(url)) return gCache.get(url);
+  geturl(url).then(() => m.redraw());
+  return "";
+}
+
+function makeFormatFileRecord(base_url, device, group_name, event_name) {
+  let url = base_url + device + 'events/' + group_name + event_name + 'format';
+  let group = group_name.replace('/', '');
+  let name = event_name.replace('/', '');
+  return new FormatFileRecord(device, group, name, url);
+}
+
+function findFormatFilesByDirectory() {
+  let url = getdir(THIS_URL) + 'data/';
+  let directoryToFormatFiles = new Map();
+  return getdirectories(url).then(directories => {
+    return Promise.all(directories.map(device => {
+      directoryToFormatFiles.set(device, []);
+      return getdirectories(url + device + 'events/').then(groups => {
+        return Promise.all(groups.map(group_name => {
+          let innerUrl = url + device + 'events/' + group_name;
+          return getdirectories(innerUrl).then(event_names => {
+            event_names.map(event_name => {
+              let record = makeFormatFileRecord(
+                  url,
+                  device,
+                  group_name,
+                  event_name);
+              directoryToFormatFiles.get(device).push(record);
+            });
+          });
+        }));
+      });
+    }));
+  }).then(_ => {
+    return directoryToFormatFiles
+  });
+}
+
+class FormatFileRecord {
+  constructor(device, group, name, url) {
+    this.device = device;
+    this.group = group;
+    this.name = name;
+    this.url = url;
+  }
+}
+
+function fuzzyMatch(query) {
+  let re = new RegExp(Array.from(query).join('.*'));
+  return text => text.match(re);
+}
+
+function contextView(filterText, namesToRecords) {
+  let matcher = fuzzyMatch(filterText);
+  return m('.context', [
+    m('h1', {class: 'title'}, 'Ftrace Format Explorer'),
+    m('input[type=text][placeholder=Filter]', {
+      oninput: m.withAttr('value', value => gFilterText = value),
+      value: filterText,
+    }),
+    m('ul',
+      Array.from(namesToRecords.entries())
+          .filter(e => matcher(e[0])).map(e => m('li[tabindex=0]', {
+        onfocus: () => { gDisplayedRecords = e[1]; gDisplayedName = e[0];
+      },
+      class: gDisplayedName == e[0] ? 'selected' : '',
+    }, e[0] + ' (' + e[1].length + ')' ))),
+  ]);
+}
+
+function focusView(records) {
+  if (records == null) {
+    return m('div.focus');
+  }
+
+  let r1 = records.filter(r => r.device == gADevice)[0];
+  let r2 = records.filter(r => r.device == gBDevice)[0];
+  if (!r1) r1 = records[0];
+  if (!r2) r2 = records[0];
+  let f1 = getfiletext(r1.url);
+  let f2 = getfiletext(r2.url);
+  let diff = JsDiff.diffChars(f1, f2);
+
+  let es = diff.map(part => {
+    let color = part.added ? 'green' : part.removed ? 'red' : 'grey';
+    let e = m('span.' + color, part.value);
+    return e;
+  });
+  return m('.focus', [
+    m('ul.version', gDevices.map(device => m('li', {
+      onclick: () => gADevice = device,
+      class: device == gADevice ? 'selected' : '',
+    }, device))),
+    m('ul.version', gDevices.map(device => m('li', {
+      onclick: () => gBDevice = device,
+      class: device == gBDevice ? 'selected' : '',
+    }, device))),
+    m('.files', [
+      m('.file', [m('h2', gADevice),  m('pre', f1)]),
+      gADevice == gBDevice ? undefined : [
+        m('.file', [m('h2', gBDevice),  m('pre', f2)]),
+        m('.file', [m('h2', 'Delta'), m('pre', es)]),
+      ]
+    ]),
+  ]);
+}
+
+let root = document.getElementById('content');
+let App = {
+  view: function() {
+    if (!gDirectoryToFormatFiles)
+      return m('.main', 'Loading...');
+    return m('.main', [
+      contextView(gFilterText, gNamesToRecords),
+      focusView(gDisplayedRecords),
+    ])
+  }
+}
+m.mount(root, App);
+
+findFormatFilesByDirectory().then(data => {
+  gDirectoryToFormatFiles = data;
+  gNamesToRecords = new Map();
+  gDevices = Array.from(gDirectoryToFormatFiles.keys());
+  for (let records of gDirectoryToFormatFiles.values()) {
+    for (let record of records) {
+      geturl(record.url);
+      if (gNamesToRecords.get(record.name) == null) {
+        gNamesToRecords.set(record.name, []);
+      }
+      gNamesToRecords.get(record.name).push(record);
+    }
+  }
+  [gADevice, gBDevice] = gDevices;
+  m.redraw();
+});
+
+</script>
+
+<!--
+EOF
+#-->

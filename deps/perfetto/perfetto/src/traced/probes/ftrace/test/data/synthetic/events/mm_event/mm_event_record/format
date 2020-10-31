@@ -1,0 +1,14 @@
+name: mm_event_record
+ID: 258
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:enum mm_event_type type;	offset:8;	size:4;	signed:0;
+	field:unsigned int count;	offset:12;	size:4;	signed:0;
+	field:unsigned int avg_lat;	offset:16;	size:4;	signed:0;
+	field:unsigned int max_lat;	offset:20;	size:4;	signed:0;
+
+print fmt: "%s count=%d avg_lat=%u max_lat=%u", __print_symbolic(REC->type, { MM_MIN_FAULT, "min_flt" }, { MM_MAJ_FAULT, "maj_flt" }, { MM_READ_IO, "read_io" }, { MM_COMPACTION, "compaction" }, { MM_RECLAIM, "reclaim" }, { MM_SWP_FAULT, "swp_flt" }, { MM_KERN_ALLOC, "kern_alloc" }), REC->count, REC->avg_lat, REC->max_lat

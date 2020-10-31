@@ -1,0 +1,19 @@
+name: sched_switch_with_ctrs
+ID: 18
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:pid_t old_pid;	offset:8;	size:4;	signed:1;
+	field:pid_t new_pid;	offset:12;	size:4;	signed:1;
+	field:u32 cctr;	offset:16;	size:4;	signed:0;
+	field:u32 ctr0;	offset:20;	size:4;	signed:0;
+	field:u32 ctr1;	offset:24;	size:4;	signed:0;
+	field:u32 ctr2;	offset:28;	size:4;	signed:0;
+	field:u32 ctr3;	offset:32;	size:4;	signed:0;
+	field:u32 lctr0;	offset:36;	size:4;	signed:0;
+	field:u32 lctr1;	offset:40;	size:4;	signed:0;
+
+print fmt: "prev_pid=%d, next_pid=%d, CCNTR: %u, CTR0: %u, CTR1: %u, CTR2: %u, CTR3: %u, L2CTR0: %u, L2CTR1: %u", REC->old_pid, REC->new_pid, REC->cctr, REC->ctr0, REC->ctr1, REC->ctr2, REC->ctr3, REC->lctr0, REC->lctr1

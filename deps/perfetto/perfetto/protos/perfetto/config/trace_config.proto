@@ -1,0 +1,330 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+import "protos/perfetto/config/data_source_config.proto";
+
+package perfetto.protos;
+
+// The overall config that is used when starting a new tracing session through
+// ProducerPort::StartTracing().
+// It contains the general config for the logging buffer(s) and the configs for
+// all the data source being enabled.
+//
+// Next id: 30.
+message TraceConfig {
+  message BufferConfig {
+    optional uint32 size_kb = 1;
+
+    reserved 2;  // |page_size|, now deprecated.
+    reserved 3;  // |optimize_for|, now deprecated.
+
+    enum FillPolicy {
+      UNSPECIFIED = 0;
+
+      // Default behavior. The buffer operates as a conventional ring buffer.
+      // If the writer is faster than the reader (or if the reader reads only
+      // after tracing is stopped) newly written packets will overwrite old
+      // packets.
+      RING_BUFFER = 1;
+
+      // Behaves like RING_BUFFER as long as there is space in the buffer or
+      // the reader catches up with the writer. As soon as the writer hits
+      // an unread chunk, it stops accepting new data in the buffer.
+      DISCARD = 2;
+    }
+    optional FillPolicy fill_policy = 4;
+  }
+  repeated BufferConfig buffers = 1;
+
+  message DataSource {
+    // Filters and data-source specific config. It contains also the unique name
+    // of the data source, the one passed in the  DataSourceDescriptor when they
+    // register on the service.
+    optional protos.DataSourceConfig config = 1;
+
+    // Optional. If multiple producers (~processes) expose the same data source
+    // and either |producer_name_filter| or |producer_name_regex_filter| is set,
+    // the data source is enabled only for producers whose names match any of
+    // the filters.
+    // |producer_name_filter| has to be an exact match, while
+    // |producer_name_regex_filter| is a regular expression.
+    // This allows to enable a data source only for specific processes.
+    // The "repeated" fields have OR semantics: specifying a filter ["foo",
+    // "bar"] will enable data sources on both "foo" and "bar" (if they exist).
+    repeated string producer_name_filter = 2;
+    repeated string producer_name_regex_filter = 3;
+  }
+  repeated DataSource data_sources = 2;
+
+  // Config for disabling builtin data sources in the tracing service.
+  message BuiltinDataSource {
+    // Disable emitting clock timestamps into the trace.
+    optional bool disable_clock_snapshotting = 1;
+
+    // Disable echoing the original trace config in the trace.
+    optional bool disable_trace_config = 2;
+
+    // Disable emitting system info (build fingerprint, cpuinfo, etc).
+    optional bool disable_system_info = 3;
+
+    // Disable emitting events for data-source state changes (e.g. the marker
+    // for all data sources having ACKed the start of the trace).
+    optional bool disable_service_events = 4;
+  }
+  optional BuiltinDataSource builtin_data_sources = 20;
+
+  // If specified, the trace will be stopped |duration_ms| after starting.
+  // This does *not* count the time the system is suspended, so we will run
+  // for duration_ms of system activity, not wall time.
+  //
+  // However in case of traces with triggers, see
+  // TriggerConfig.trigger_timeout_ms instead.
+  optional uint32 duration_ms = 3;
+
+  // This is set when --dropbox is passed to the Perfetto command line client
+  // and enables guardrails that limit resource usage for traces requested
+  // by statsd.
+  optional bool enable_extra_guardrails = 4;
+
+  enum LockdownModeOperation {
+    LOCKDOWN_UNCHANGED = 0;
+    LOCKDOWN_CLEAR = 1;
+    LOCKDOWN_SET = 2;
+  }
+  // Reject producers that are not running under the same UID as the tracing
+  // service.
+  optional LockdownModeOperation lockdown_mode = 5;
+
+  message ProducerConfig {
+    // Identifies the producer for which this config is for.
+    optional string producer_name = 1;
+
+    // Specifies the preferred size of the shared memory buffer. If the size is
+    // larger than the max size, the max will be used. If it is smaller than
+    // the page size or doesn't fit pages evenly into it, it will fall back to
+    // the size specified by the producer or finally the default shared memory
+    // size.
+    optional uint32 shm_size_kb = 2;
+
+    // Specifies the preferred size of each page in the shared memory buffer.
+    // Must be an integer multiple of 4K.
+    optional uint32 page_size_kb = 3;
+  }
+
+  repeated ProducerConfig producers = 6;
+
+  // Contains statsd-specific metadata about an alert associated with the trace.
+  message StatsdMetadata {
+    // The identifier of the alert which triggered this trace.
+    optional int64 triggering_alert_id = 1;
+    // The uid which registered the triggering configuration with statsd.
+    optional int32 triggering_config_uid = 2;
+    // The identifier of the config which triggered the alert.
+    optional int64 triggering_config_id = 3;
+    // The identifier of the subscription which triggered this trace.
+    optional int64 triggering_subscription_id = 4;
+  }
+
+  // Statsd-specific metadata.
+  optional StatsdMetadata statsd_metadata = 7;
+
+  // When true && |output_path| is empty, the EnableTracing() request must
+  // provide a file descriptor. The service will then periodically read packets
+  // out of the trace buffer and store it into the passed file.
+  // If |output_path| is not empty no fd should be passed, the service
+  // will create a new file and write into that (see comment below).
+  optional bool write_into_file = 8;
+
+  // This must point to a non-existing file. If the file exists the service
+  // will NOT overwrite and will fail instead as a security precaution.
+  // On Android, when this is used with the system traced, the path must be
+  // within /data/misc/perfetto-traces/ or the trace will fail.
+  // This option has been introduced in Android R. Before R write_into_file
+  // can be used only with the "pass a file descriptor over IPC" mode.
+  optional string output_path = 29;
+
+  // Optional. If non-zero tunes the write period. A min value of 100ms is
+  // enforced (i.e. smaller values are ignored).
+  optional uint32 file_write_period_ms = 9;
+
+  // Optional. When non zero the periodic write stops once at most X bytes
+  // have been written into the file. Tracing is disabled when this limit is
+  // reached, even if |duration_ms| has not been reached yet.
+  optional uint64 max_file_size_bytes = 10;
+
+  // Contains flags which override the default values of the guardrails inside
+  // Perfetto. These values are only affect userdebug builds.
+  message GuardrailOverrides {
+    // Override the default limit (in bytes) for uploading data to server within
+    // a 24 hour period.
+    optional uint64 max_upload_per_day_bytes = 1;
+  }
+
+  optional GuardrailOverrides guardrail_overrides = 11;
+
+  // When true, data sources are not started until an explicit call to
+  // StartTracing() on the consumer port. This is to support early
+  // initialization and fast trace triggering. This can be used only when the
+  // Consumer explicitly triggers the StartTracing() method.
+  // This should not be used in a remote trace config via statsd, doing so will
+  // result in a hung trace session.
+  optional bool deferred_start = 12;
+
+  // When set, it periodically issues a Flush() to all data source, forcing them
+  // to commit their data into the tracing service. This can be used for
+  // quasi-real-time streaming mode and to guarantee some partial ordering of
+  // events in the trace in windows of X ms.
+  optional uint32 flush_period_ms = 13;
+
+  // Wait for this long for producers to acknowledge flush requests.
+  // Default 5s.
+  optional uint32 flush_timeout_ms = 14;
+
+  // Wait for this long for producers to acknowledge stop requests.
+  // Default 5s.
+  optional uint32 data_source_stop_timeout_ms = 23;
+
+  reserved 15;  // |disable_clock_snapshotting| moved.
+
+  // Android-only. If set, sends an intent to the Traceur system app when the
+  // trace ends to notify it about the trace readiness.
+  optional bool notify_traceur = 16;
+
+  // Triggers allow producers to start or stop the tracing session when an event
+  // occurs.
+  //
+  // For example if we are tracing probabilistically, most traces will be
+  // uninteresting. Triggers allow us to keep only the interesting ones such as
+  // those traces during which the device temperature reached a certain
+  // threshold. In this case the producer can activate a trigger to keep
+  // (STOP_TRACING) the trace, otherwise it can also begin a trace
+  // (START_TRACING) because it knows something is about to happen.
+  message TriggerConfig {
+    enum TriggerMode {
+      UNSPECIFIED = 0;
+
+      // When this mode is chosen, data sources are not started until one of the
+      // |triggers| are received. This supports early initialization and fast
+      // starting of the tracing system. On triggering, the session will then
+      // record for |stop_delay_ms|. However if no trigger is seen
+      // after |trigger_timeout_ms| the session will be stopped and no data will
+      // be returned.
+      START_TRACING = 1;
+
+      // When this mode is chosen, the session will be started via the normal
+      // EnableTracing() & StartTracing(). If no trigger is ever seen
+      // the session will be stopped after |trigger_timeout_ms| and no data will
+      // be returned. However if triggered the trace will stop after
+      // |stop_delay_ms| and any data in the buffer will be returned to the
+      // consumer.
+      STOP_TRACING = 2;
+    }
+    optional TriggerMode trigger_mode = 1;
+
+    message Trigger {
+      // The producer must specify this name to activate the trigger.
+      optional string name = 1;
+
+      // The a std::regex that will match the producer that can activate this
+      // trigger. This is optional. If unset any producers can activate this
+      // trigger.
+      optional string producer_name_regex = 2;
+
+      // After a trigger is received either in START_TRACING or STOP_TRACING
+      // mode then the trace will end |stop_delay_ms| after triggering.
+      optional uint32 stop_delay_ms = 3;
+    }
+    // A list of triggers which are related to this configuration. If ANY
+    // trigger is seen then an action will be performed based on |trigger_mode|.
+    repeated Trigger triggers = 2;
+
+    // Required and must be positive if a TriggerConfig is specified. This is
+    // how long this TraceConfig should wait for a trigger to arrive. After this
+    // period of time if no trigger is seen the TracingSession will be cleaned
+    // up.
+    optional uint32 trigger_timeout_ms = 3;
+  }
+  optional TriggerConfig trigger_config = 17;
+
+  // When this is non-empty the perfetto command line tool will ignore the rest
+  // of this TraceConfig and instead connect to the perfetto service as a
+  // producer and send these triggers, potentially stopping or starting traces
+  // that were previous configured to use a TriggerConfig.
+  repeated string activate_triggers = 18;
+
+  // Configuration for trace contents that reference earlier trace data. For
+  // example, a data source might intern strings, and emit packets containing
+  // {interned id : string} pairs. Future packets from that data source can then
+  // use the interned ids instead of duplicating the raw string contents. The
+  // trace parser will then need to use that interning table to fully interpret
+  // the rest of the trace.
+  message IncrementalStateConfig {
+    // If nonzero, notify eligible data sources to clear their incremental state
+    // periodically, with the given period. The notification is sent only to
+    // data sources that have |handles_incremental_state_clear| set in their
+    // DataSourceDescriptor. The notification requests that the data source
+    // stops referring to past trace contents. This is particularly useful when
+    // tracing in ring buffer mode, where it is not exceptional to overwrite old
+    // trace data.
+    //
+    // Warning: this time-based global clearing is likely to be removed in the
+    // future, to be replaced with a smarter way of sending the notifications
+    // only when necessary.
+    optional uint32 clear_period_ms = 1;
+  }
+  optional IncrementalStateConfig incremental_state_config = 21;
+
+  // Additional guardrail used by the Perfetto command line client.
+  // On user builds when --dropbox is set perfetto will refuse to trace unless
+  // this is also set.
+  // Added in Q.
+  optional bool allow_user_build_tracing = 19;
+
+  // If set the tracing service will ensure there is at most one tracing session
+  // with this key.
+  optional string unique_session_name = 22;
+
+  // Compress trace with the given method. Best effort.
+  enum CompressionType {
+    COMPRESSION_TYPE_UNSPECIFIED = 0;
+    COMPRESSION_TYPE_DEFLATE = 1;
+  }
+  optional CompressionType compression_type = 24;
+
+  // Android-only. Debug builds only. Not for general use. If set, saves a
+  // Dropbox trace into an incident. This field is read by perfetto_cmd, rather
+  // than the tracing service. All fields are mandatory.
+  message IncidentReportConfig {
+    optional string destination_package = 1;
+    optional string destination_class = 2;
+    // Level of filtering in the requested incident. See |Destination| in
+    // frameworks/base/core/proto/android/privacy.proto.
+    optional int32 privacy_level = 3;
+    // If true, do not write the trace into dropbox (i.e. incident only).
+    // Otherwise, write to both dropbox and incident.
+    optional bool skip_dropbox = 4;
+  }
+  optional IncidentReportConfig incident_report_config = 25;
+
+  // DEPRECATED. Was trace_uuid, use trace_uuid_msb and trace_uuid_lsb instead.
+  reserved 26;
+  // An identifier clients can use to tie this trace to other logging.
+  // Alternative encoding of trace_uuid as two int64s.
+  optional int64 trace_uuid_msb = 27;
+  optional int64 trace_uuid_lsb = 28;
+}

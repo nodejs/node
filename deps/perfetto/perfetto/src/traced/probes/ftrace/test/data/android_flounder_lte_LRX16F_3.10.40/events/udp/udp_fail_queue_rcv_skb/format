@@ -1,0 +1,12 @@
+name: udp_fail_queue_rcv_skb
+ID: 580
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int rc;	offset:8;	size:4;	signed:1;
+	field:__u16 lport;	offset:12;	size:2;	signed:0;
+
+print fmt: "rc=%d port=%hu", REC->rc, REC->lport

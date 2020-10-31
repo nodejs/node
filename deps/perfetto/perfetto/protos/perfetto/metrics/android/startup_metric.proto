@@ -1,0 +1,119 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+import "protos/perfetto/metrics/android/process_metadata.proto";
+
+// Android app startup metrics.
+message AndroidStartupMetric {
+  // A simplified view of the task state durations for a thread
+  // and a span of time.
+  message TaskStateBreakdown {
+    optional int64 running_dur_ns = 1;
+    optional int64 runnable_dur_ns = 2;
+    optional int64 uninterruptible_sleep_dur_ns = 3;
+    optional int64 interruptible_sleep_dur_ns = 4;
+  }
+
+  message Slice {
+    optional int64 dur_ns = 1;
+    optional double dur_ms = 2;
+  }
+
+  // Timing information spanning the intent received by the
+  // activity manager to the first frame drawn.
+  // Next id: 21.
+  message ToFirstFrame {
+    optional int64 dur_ns = 1;
+    optional double dur_ms = 17;
+    optional TaskStateBreakdown main_thread_by_task_state = 2;
+
+    // In this timespan, how many processes (apart from the main activity) were
+    // spawned.
+    optional uint32 other_processes_spawned_count = 3;
+
+    // Total time spent in activity manager between the initial intent
+    // and the end of the activity starter.
+    optional Slice time_activity_manager = 4;
+
+    // The following slices follow the typical steps post-fork.
+    optional Slice time_activity_thread_main = 5;
+    optional Slice time_bind_application = 6;
+    optional Slice time_activity_start = 7;
+    optional Slice time_activity_resume = 8;
+    optional Slice time_choreographer = 9;
+
+    // If we are starting a new process, record the duration from the
+    // intent being received to the time we call the zygote.
+    optional Slice time_before_start_process = 10;
+
+    // The actual duration of the process start (based on the zygote slice).
+    optional Slice time_during_start_process = 11;
+
+    optional Slice to_post_fork = 18;
+    optional Slice to_activity_thread_main = 19;
+    optional Slice to_bind_application = 20;
+
+    optional Slice time_post_fork = 16;
+
+    // Deprecated was other_process_to_activity_cpu_ratio
+    reserved 12;
+
+    // Removed: was uint32 versions of to_post_fork, to_activity_thread_main and
+    // to_bind_application.
+    reserved 13, 14, 15;
+  }
+
+  // Metrics about startup which were developed by looking at experiments using
+  // high-speed cameras (HSC).
+  message HscMetrics {
+    // The duration of the full "startup" as defined by HSC tests.
+    optional Slice full_startup = 1;
+  }
+
+  // Next id: 8
+  message Startup {
+    // Random id uniquely identifying an app startup in this trace.
+    optional uint32 startup_id = 1;
+
+    // Name of the package launched
+    optional string package_name = 2;
+
+    // Name of the process launched
+    optional string process_name = 3;
+
+    // Did we ask the zygote for a new process
+    optional bool zygote_new_process = 4;
+
+    // Number of processes hosting the activity involved in the launch.
+    // This will usually be 1. If it is 0, it is indicative of a data / process
+    // error. If > 1, the process died during startup and the system respawned
+    // it.
+    optional uint32 activity_hosting_process_count = 6;
+
+    optional ToFirstFrame to_first_frame = 5;
+
+    // Details about the process (uid, version, etc)
+    optional AndroidProcessMetadata process = 7;
+
+    optional HscMetrics hsc = 8;
+  }
+
+  repeated Startup startup = 1;
+}

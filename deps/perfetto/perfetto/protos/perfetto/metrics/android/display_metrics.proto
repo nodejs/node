@@ -1,0 +1,30 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message AndroidDisplayMetrics {
+  // Stat that reports the number of duplicate frames submitted
+  // to the display for rendering. That is frames that have the same
+  // pixels values but where still submitted. It is tracked based on
+  // comparing the MISR of the current frame vs previous frame.
+  optional uint32 total_duplicate_frames = 1;
+
+  // Stat reports whether there is any duplicate_frames tracked
+  optional uint32 duplicate_frames_logged = 2;
+}

@@ -1,0 +1,14 @@
+name: task_rename
+ID: 22
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:pid_t pid;	offset:8;	size:4;	signed:1;
+	field:char oldcomm[16];	offset:12;	size:16;	signed:0;
+	field:char newcomm[16];	offset:28;	size:16;	signed:0;
+	field:short oom_score_adj;	offset:44;	size:2;	signed:1;
+
+print fmt: "pid=%d oldcomm=%s newcomm=%s oom_score_adj=%hd", REC->pid, REC->oldcomm, REC->newcomm, REC->oom_score_adj

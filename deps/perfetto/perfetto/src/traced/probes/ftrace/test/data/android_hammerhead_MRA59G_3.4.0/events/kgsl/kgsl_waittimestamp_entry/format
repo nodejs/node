@@ -1,0 +1,16 @@
+name: kgsl_waittimestamp_entry
+ID: 359
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:__data_loc char[] device_name;	offset:12;	size:4;	signed:0;
+	field:unsigned int context_id;	offset:16;	size:4;	signed:0;
+	field:unsigned int curr_ts;	offset:20;	size:4;	signed:0;
+	field:unsigned int wait_ts;	offset:24;	size:4;	signed:0;
+	field:unsigned int timeout;	offset:28;	size:4;	signed:0;
+
+print fmt: "d_name=%s ctx=%u curr_ts=%u ts=%u timeout=%u", __get_str(device_name), REC->context_id, REC->curr_ts, REC->wait_ts, REC->timeout

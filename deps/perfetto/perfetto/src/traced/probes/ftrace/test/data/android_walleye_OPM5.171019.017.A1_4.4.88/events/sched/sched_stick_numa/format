@@ -1,0 +1,17 @@
+name: sched_stick_numa
+ID: 65
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:pid_t pid;	offset:8;	size:4;	signed:1;
+	field:pid_t tgid;	offset:12;	size:4;	signed:1;
+	field:pid_t ngid;	offset:16;	size:4;	signed:1;
+	field:int src_cpu;	offset:20;	size:4;	signed:1;
+	field:int src_nid;	offset:24;	size:4;	signed:1;
+	field:int dst_cpu;	offset:28;	size:4;	signed:1;
+	field:int dst_nid;	offset:32;	size:4;	signed:1;
+
+print fmt: "pid=%d tgid=%d ngid=%d src_cpu=%d src_nid=%d dst_cpu=%d dst_nid=%d", REC->pid, REC->tgid, REC->ngid, REC->src_cpu, REC->src_nid, REC->dst_cpu, REC->dst_nid

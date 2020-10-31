@@ -1,0 +1,95 @@
+packet {
+  process_tree {
+    processes {
+      pid: 1
+      ppid: 0
+      cmdline: "init"
+      uid: 0
+    }
+    processes {
+      pid: 2
+      ppid: 1
+      cmdline: "system_server"
+      uid: 1000
+    }
+  }
+}
+packet {
+  trusted_packet_sequence_id: 999
+  timestamp: 10
+  heap_graph {
+    pid: 2
+    roots {
+      root_type: ROOT_JAVA_FRAME
+      object_ids: 0x01
+    }
+    objects {
+      id: 0x01
+      type_id: 1
+      self_size: 100
+      reference_field_id: 1
+      reference_object_id: 0x02
+      reference_field_id: 1
+      reference_object_id: 0x04
+    }
+    objects {
+      id: 0x02
+      type_id: 2
+      self_size: 200
+      reference_field_id: 1
+      reference_object_id: 0x03
+    }
+    objects {
+      id: 0x03
+      type_id: 3
+      self_size: 400
+    }
+    objects {
+      id: 0x04
+      type_id: 4
+      self_size: 800
+      reference_field_id: 1
+      reference_object_id: 0x05
+    }
+    objects {
+      id: 0x05
+      type_id: 5
+      self_size: 1600
+    }
+    continued: true
+    index: 0
+  }
+}
+packet {
+  trusted_packet_sequence_id: 999
+  heap_graph {
+    pid: 2
+    type_names {
+      iid: 1
+      str: "RootNode"
+    }
+    type_names {
+      iid: 2
+      str: "LeftChild0"
+    }
+    type_names {
+      iid: 3
+      str: "LeftChild1"
+    }
+    type_names {
+      iid: 4
+      str: "RightChild0"
+    }
+    type_names {
+      iid: 5
+      str: "RightChild1"
+    }
+    field_names {
+      iid: 1
+      str: "Node.next"
+    }
+    continued: false
+    index: 1
+  }
+}
+

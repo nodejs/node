@@ -1,0 +1,15 @@
+name: mm_compaction_begin
+ID: 221
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned long zone_start;	offset:8;	size:8;	signed:0;
+	field:unsigned long migrate_pfn;	offset:16;	size:8;	signed:0;
+	field:unsigned long free_pfn;	offset:24;	size:8;	signed:0;
+	field:unsigned long zone_end;	offset:32;	size:8;	signed:0;
+	field:bool sync;	offset:40;	size:1;	signed:0;
+
+print fmt: "zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s", REC->zone_start, REC->migrate_pfn, REC->free_pfn, REC->zone_end, REC->sync ? "sync" : "async"

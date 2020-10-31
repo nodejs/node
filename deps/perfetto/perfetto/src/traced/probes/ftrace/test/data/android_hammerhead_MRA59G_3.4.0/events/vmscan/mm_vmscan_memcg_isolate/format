@@ -1,0 +1,20 @@
+name: mm_vmscan_memcg_isolate
+ID: 101
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:int order;	offset:12;	size:4;	signed:1;
+	field:unsigned long nr_requested;	offset:16;	size:4;	signed:0;
+	field:unsigned long nr_scanned;	offset:20;	size:4;	signed:0;
+	field:unsigned long nr_taken;	offset:24;	size:4;	signed:0;
+	field:unsigned long nr_lumpy_taken;	offset:28;	size:4;	signed:0;
+	field:unsigned long nr_lumpy_dirty;	offset:32;	size:4;	signed:0;
+	field:unsigned long nr_lumpy_failed;	offset:36;	size:4;	signed:0;
+	field:isolate_mode_t isolate_mode;	offset:40;	size:4;	signed:0;
+	field:int file;	offset:44;	size:4;	signed:1;
+
+print fmt: "isolate_mode=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu contig_taken=%lu contig_dirty=%lu contig_failed=%lu file=%d", REC->isolate_mode, REC->order, REC->nr_requested, REC->nr_scanned, REC->nr_taken, REC->nr_lumpy_taken, REC->nr_lumpy_dirty, REC->nr_lumpy_failed, REC->file

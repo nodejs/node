@@ -1,0 +1,68 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+service traced /system/bin/traced
+    class late_start
+    disabled
+    socket traced_consumer stream 0666 root root
+    socket traced_producer stream 0666 root root
+    user nobody
+    group nobody
+    writepid /dev/cpuset/system-background/tasks
+
+service traced_probes /system/bin/traced_probes
+    class late_start
+    disabled
+    user nobody
+    # Despite the "log" group below, traced_probes is whitelisted for log read
+    # access only on userdebug/eng via selinux (see traced_probes.te).
+    group nobody readproc log
+    writepid /dev/cpuset/system-background/tasks
+    # Clean up procfs configuration even if traced_probes crashes
+    # unexpectedly.
+    onrestart exec_background - nobody shell -- /system/bin/traced_probes --cleanup-after-crash
+    file /dev/kmsg w
+    capabilities DAC_READ_SEARCH
+
+on property:persist.device_config.global_settings.sys_traced=1
+    setprop persist.traced.enable 1
+
+on property:persist.device_config.global_settings.sys_traced=0
+    setprop persist.traced.enable 0
+
+on property:debug.atrace.user_initiated=1
+    stop traced_probes
+
+on property:persist.traced.enable=1 && property:debug.atrace.user_initiated=""
+    start traced_probes
+
+on property:persist.traced.enable=1
+    # Trace files need to be:
+    # - Written by either uid:shell or uid:statsd.
+    # - Read by shell and dropbox (dropbox is part of system_server).
+    # When written to dropbox, they are persistet in the perfetto-traces folder
+    # only for the time it takes to make a dropbox call, and unlinked
+    # immediately in any case.
+    mkdir /data/misc/perfetto-traces 0773 root shell
+
+    start traced
+    start traced_probes
+
+on property:persist.traced.enable=0
+    stop traced
+    stop traced_probes
+
+# Reset the Perfetto guard rail state on boot:
+on post-fs-data
+    rm /data/misc/perfetto-traces/.guardraildata

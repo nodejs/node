@@ -1,0 +1,13 @@
+name: pm_qos_update_request_timeout
+ID: 134
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int pm_qos_class;	offset:8;	size:4;	signed:1;
+	field:s32 value;	offset:12;	size:4;	signed:1;
+	field:unsigned long timeout_us;	offset:16;	size:8;	signed:0;
+
+print fmt: "pm_qos_class=%s value=%d, timeout_us=%ld", __print_symbolic(REC->pm_qos_class, { PM_QOS_CPU_DMA_LATENCY, "CPU_DMA_LATENCY" }, { PM_QOS_NETWORK_LATENCY, "NETWORK_LATENCY" }, { PM_QOS_NETWORK_THROUGHPUT, "NETWORK_THROUGHPUT" }), REC->value, REC->timeout_us

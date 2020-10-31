@@ -1,0 +1,16 @@
+name: msm_smem_buffer_iommu_op_start
+ID: 657
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char * buffer_op;	offset:8;	size:8;	signed:0;
+	field:int domain_num;	offset:16;	size:4;	signed:1;
+	field:int partition_num;	offset:20;	size:4;	signed:1;
+	field:unsigned long align;	offset:24;	size:8;	signed:0;
+	field:unsigned long iova;	offset:32;	size:8;	signed:0;
+	field:unsigned long buffer_size;	offset:40;	size:8;	signed:0;
+
+print fmt: "%s, domain : %d, partition : %d, align : %lx, iova : 0x%lx, buffer_size=%lx", REC->buffer_op, REC->domain_num, REC->partition_num, REC->align, REC->iova, REC->buffer_size

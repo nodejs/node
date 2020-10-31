@@ -1,0 +1,11 @@
+/* A comment
+   at the beginning of the file.
+ */
+.={}
+.first=1
+/* Comment before 'second'
+ */
+.second=2
+/* A comment at 
+   the end of the file.
+ */

@@ -1,0 +1,192 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// This is a subset of descriptor.proto from the Protobuf library.
+syntax = "proto2";
+
+package perfetto.protos;
+
+
+// The protocol compiler can output a FileDescriptorSet containing the .proto
+// files it parses.
+message FileDescriptorSet {
+  repeated FileDescriptorProto file = 1;
+}
+
+// Describes a complete .proto file.
+message FileDescriptorProto {
+  optional string name = 1;     // file name, relative to root of source tree
+  optional string package = 2;  // e.g. "foo", "foo.bar", etc.
+
+  // Names of files imported by this file.
+  repeated string dependency = 3;
+  // Indexes of the public imported files in the dependency list above.
+  repeated int32 public_dependency = 10;
+  // Indexes of the weak imported files in the dependency list.
+  // For Google-internal migration only. Do not use.
+  repeated int32 weak_dependency = 11;
+
+  // All top-level definitions in this file.
+  repeated DescriptorProto message_type = 4;
+  repeated EnumDescriptorProto enum_type = 5;
+  repeated FieldDescriptorProto extension = 7;
+
+  reserved 6;
+  reserved 8;
+  reserved 9;
+  reserved 12;
+}
+
+// Describes a message type.
+message DescriptorProto {
+  optional string name = 1;
+
+  repeated FieldDescriptorProto field = 2;
+  repeated FieldDescriptorProto extension = 6;
+
+  repeated DescriptorProto nested_type = 3;
+  repeated EnumDescriptorProto enum_type = 4;
+
+  reserved 5;
+
+  repeated OneofDescriptorProto oneof_decl = 8;
+
+  reserved 7;
+
+  // Range of reserved tag numbers. Reserved tag numbers may not be used by
+  // fields or extension ranges in the same message. Reserved ranges may
+  // not overlap.
+  message ReservedRange {
+    optional int32 start = 1;  // Inclusive.
+    optional int32 end = 2;    // Exclusive.
+  }
+  repeated ReservedRange reserved_range = 9;
+  // Reserved field names, which may not be used by fields in the same message.
+  // A given name may only be reserved once.
+  repeated string reserved_name = 10;
+}
+
+// Describes a field within a message.
+message FieldDescriptorProto {
+  enum Type {
+    // 0 is reserved for errors.
+    // Order is weird for historical reasons.
+    TYPE_DOUBLE = 1;
+    TYPE_FLOAT = 2;
+    // Not ZigZag encoded.  Negative numbers take 10 bytes.  Use TYPE_SINT64 if
+    // negative values are likely.
+    TYPE_INT64 = 3;
+    TYPE_UINT64 = 4;
+    // Not ZigZag encoded.  Negative numbers take 10 bytes.  Use TYPE_SINT32 if
+    // negative values are likely.
+    TYPE_INT32 = 5;
+    TYPE_FIXED64 = 6;
+    TYPE_FIXED32 = 7;
+    TYPE_BOOL = 8;
+    TYPE_STRING = 9;
+    // Tag-delimited aggregate.
+    // Group type is deprecated and not supported in proto3. However, Proto3
+    // implementations should still be able to parse the group wire format and
+    // treat group fields as unknown fields.
+    TYPE_GROUP = 10;
+    TYPE_MESSAGE = 11;  // Length-delimited aggregate.
+
+    // New in version 2.
+    TYPE_BYTES = 12;
+    TYPE_UINT32 = 13;
+    TYPE_ENUM = 14;
+    TYPE_SFIXED32 = 15;
+    TYPE_SFIXED64 = 16;
+    TYPE_SINT32 = 17;  // Uses ZigZag encoding.
+    TYPE_SINT64 = 18;  // Uses ZigZag encoding.
+  };
+
+  enum Label {
+    // 0 is reserved for errors
+    LABEL_OPTIONAL = 1;
+    LABEL_REQUIRED = 2;
+    LABEL_REPEATED = 3;
+  };
+
+  optional string name = 1;
+  optional int32 number = 3;
+  optional Label label = 4;
+
+  // If type_name is set, this need not be set.  If both this and type_name
+  // are set, this must be one of TYPE_ENUM, TYPE_MESSAGE or TYPE_GROUP.
+  optional Type type = 5;
+
+  // For message and enum types, this is the name of the type.  If the name
+  // starts with a '.', it is fully-qualified.  Otherwise, C++-like scoping
+  // rules are used to find the type (i.e. first the nested types within this
+  // message are searched, then within the parent, on up to the root
+  // namespace).
+  optional string type_name = 6;
+
+  // For extensions, this is the name of the type being extended.  It is
+  // resolved in the same manner as type_name.
+  optional string extendee = 2;
+
+  // For numeric types, contains the original text representation of the value.
+  // For booleans, "true" or "false".
+  // For strings, contains the default text contents (not escaped in any way).
+  // For bytes, contains the C escaped value.  All bytes >= 128 are escaped.
+  // TODO(kenton):  Base-64 encode?
+  optional string default_value = 7;
+
+  // If set, gives the index of a oneof in the containing type's oneof_decl
+  // list.  This field is a member of that oneof.
+  optional int32 oneof_index = 9;
+
+  reserved 10;
+
+  reserved 8;
+}
+
+// Describes a oneof.
+message OneofDescriptorProto {
+  optional string name = 1;
+  optional OneofOptions options = 2;
+}
+
+// Describes an enum type.
+message EnumDescriptorProto {
+  optional string name = 1;
+
+  repeated EnumValueDescriptorProto value = 2;
+
+  reserved 3;
+  reserved 4;
+
+  // Reserved enum value names, which may not be reused. A given name may only
+  // be reserved once.
+  repeated string reserved_name = 5;
+}
+
+// Describes a value within an enum.
+message EnumValueDescriptorProto {
+  optional string name = 1;
+  optional int32 number = 2;
+
+  reserved 3;
+}
+
+message OneofOptions {
+  reserved 999;
+
+  // Clients can define custom options in extensions of this message. See above.
+  extensions 1000 to max;
+}

@@ -1,0 +1,32 @@
+name: walt_update_task_ravg
+ID: 79
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char comm[16];	offset:8;	size:16;	signed:0;
+	field:pid_t pid;	offset:24;	size:4;	signed:1;
+	field:pid_t cur_pid;	offset:28;	size:4;	signed:1;
+	field:unsigned int cur_freq;	offset:32;	size:4;	signed:0;
+	field:u64 wallclock;	offset:40;	size:8;	signed:0;
+	field:u64 mark_start;	offset:48;	size:8;	signed:0;
+	field:u64 delta_m;	offset:56;	size:8;	signed:0;
+	field:u64 win_start;	offset:64;	size:8;	signed:0;
+	field:u64 delta;	offset:72;	size:8;	signed:0;
+	field:u64 irqtime;	offset:80;	size:8;	signed:0;
+	field:int evt;	offset:88;	size:4;	signed:1;
+	field:unsigned int demand;	offset:92;	size:4;	signed:0;
+	field:unsigned int sum;	offset:96;	size:4;	signed:0;
+	field:int cpu;	offset:100;	size:4;	signed:1;
+	field:u64 cs;	offset:104;	size:8;	signed:0;
+	field:u64 ps;	offset:112;	size:8;	signed:0;
+	field:unsigned long util;	offset:120;	size:8;	signed:0;
+	field:u32 curr_window;	offset:128;	size:4;	signed:0;
+	field:u32 prev_window;	offset:132;	size:4;	signed:0;
+	field:u64 nt_cs;	offset:136;	size:8;	signed:0;
+	field:u64 nt_ps;	offset:144;	size:8;	signed:0;
+	field:u32 active_windows;	offset:152;	size:4;	signed:0;
+
+print fmt: "wc %llu ws %llu delta %llu event %d cpu %d cur_freq %u cur_pid %d task %d (%s) ms %llu delta %llu demand %u sum %u irqtime %llu cs %llu ps %llu util %lu cur_window %u prev_window %u active_wins %u", REC->wallclock, REC->win_start, REC->delta, REC->evt, REC->cpu, REC->cur_freq, REC->cur_pid, REC->pid, REC->comm, REC->mark_start, REC->delta_m, REC->demand, REC->sum, REC->irqtime, REC->cs, REC->ps, REC->util, REC->curr_window, REC->prev_window, REC->active_windows

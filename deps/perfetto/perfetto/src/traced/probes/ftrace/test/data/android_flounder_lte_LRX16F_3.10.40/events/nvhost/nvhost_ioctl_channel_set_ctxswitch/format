@@ -1,0 +1,22 @@
+name: nvhost_ioctl_channel_set_ctxswitch
+ID: 383
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:const char * name;	offset:8;	size:8;	signed:0;
+	field:void * ctx;	offset:16;	size:8;	signed:0;
+	field:u32 save_mem;	offset:24;	size:4;	signed:0;
+	field:u32 save_offset;	offset:28;	size:4;	signed:0;
+	field:u32 save_words;	offset:32;	size:4;	signed:0;
+	field:u32 restore_mem;	offset:36;	size:4;	signed:0;
+	field:u32 restore_offset;	offset:40;	size:4;	signed:0;
+	field:u32 restore_words;	offset:44;	size:4;	signed:0;
+	field:u32 syncpt_id;	offset:48;	size:4;	signed:0;
+	field:u32 waitbase;	offset:52;	size:4;	signed:0;
+	field:u32 save_incrs;	offset:56;	size:4;	signed:0;
+	field:u32 restore_incrs;	offset:60;	size:4;	signed:0;
+
+print fmt: "name=%s, ctx=%p, save_mem=%08x, save_offset=%d, save_words=%d, restore_mem=%08x, restore_offset=%d, restore_words=%d, syncpt_id=%d, waitbase=%d, save_incrs=%d, restore_incrs=%d", REC->name, REC->ctx, REC->save_mem, REC->save_offset, REC->save_words, REC->restore_mem, REC->restore_offset, REC->restore_words, REC->syncpt_id, REC->waitbase, REC->save_incrs, REC->restore_incrs

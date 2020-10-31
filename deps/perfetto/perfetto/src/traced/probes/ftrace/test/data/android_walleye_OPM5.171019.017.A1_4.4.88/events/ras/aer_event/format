@@ -1,0 +1,14 @@
+name: aer_event
+ID: 747
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] dev_name;	offset:8;	size:4;	signed:0;
+	field:u32 status;	offset:12;	size:4;	signed:0;
+	field:u8 severity;	offset:16;	size:1;	signed:0;
+
+print fmt: "%s PCIe Bus Error: severity=%s, %s
+", __get_str(dev_name), REC->severity == 2 ? "Corrected" : REC->severity == 1 ? "Fatal" : "Uncorrected, non-fatal", REC->severity == 2 ? __print_flags(REC->status, "|", {0x00000001, "Receiver Error"}, {0x00000040, "Bad TLP"}, {0x00000080, "Bad DLLP"}, {0x00000100, "RELAY_NUM Rollover"}, {0x00001000, "Replay Timer Timeout"}, {0x00002000, "Advisory Non-Fatal Error"}, {0x00004000, "Corrected Internal Error"}, {0x00008000, "Header Log Overflow"}) : __print_flags(REC->status, "|", {0x00000001, "Undefined"}, {0x00000010, "Data Link Protocol Error"}, {0x00000020, "Surprise Down Error"}, {0x00001000,"Poisoned TLP"}, {0x00002000, "Flow Control Protocol Error"}, {0x00004000, "Completion Timeout"}, {0x00008000,"Completer Abort"}, {0x00010000, "Unexpected Completion"}, {0x00020000, "Receiver Overflow"}, {0x00040000, "Malformed TLP"}, {0x00080000, "ECRC Error"}, {0x00100000, "Unsupported Request Error"}, {0x00200000, "ACS Violation"}, {0x00400000, "Uncorrectable Internal Error"}, {0x00800000, "MC Blocked TLP"}, {0x01000000, "AtomicOp Egress Blocked"}, {0x02000000, "TLP Prefix Blocked Error"})

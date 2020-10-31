@@ -1,0 +1,17 @@
+name: ext4_ind_map_blocks_exit
+ID: 214
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:ext4_fsblk_t pblk;	offset:24;	size:8;	signed:0;
+	field:ext4_lblk_t lblk;	offset:32;	size:4;	signed:0;
+	field:unsigned int len;	offset:36;	size:4;	signed:0;
+	field:unsigned int flags;	offset:40;	size:4;	signed:0;
+	field:int ret;	offset:44;	size:4;	signed:1;
+
+print fmt: "dev %d,%d ino %lu lblk %u pblk %llu len %u flags %x ret %d", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->lblk, REC->pblk, REC->len, REC->flags, REC->ret

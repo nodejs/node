@@ -1,0 +1,152 @@
+android_mem {
+  process_metrics {
+    process_name: "com.google.android.calendar"
+    total_counters {
+      anon_rss {
+        min: 2000.0
+        max: 4000.0
+        avg: 3000.0
+      }
+      file_rss {
+        min: 10000.0
+        max: 10000.0
+        avg: 10000.0
+      }
+      swap {
+        min: 0.0
+        max: 0.0
+        avg: 0.0
+      }
+      anon_and_swap {
+        min: 2000.0
+        max: 4000.0
+        avg: 3000.0
+      }
+    }
+    priority_breakdown {
+      priority: "cached"
+      counters {
+        anon_rss {
+          min: 3000.0
+          max: 3000.0
+          avg: 3000.0
+        }
+        file_rss {
+          min: 10000.0
+          max: 10000.0
+          avg: 10000.0
+        }
+        swap {
+          min: 0.0
+          max: 0.0
+          avg: 0.0
+        }
+        anon_and_swap {
+          min: 3000.0
+          max: 3000.0
+          avg: 3000.0
+        }
+      }
+    }
+    priority_breakdown {
+      priority: "foreground"
+      counters {
+        anon_rss {
+          min: 2000.0
+          max: 4000.0
+          avg: 3000.0
+        }
+        file_rss {
+          min: 10000.0
+          max: 10000.0
+          avg: 10000.0
+        }
+        swap {
+          min: 0.0
+          max: 0.0
+          avg: 0.0
+        }
+        anon_and_swap {
+          min: 2000.0
+          max: 4000.0
+          avg: 3000.0
+        }
+      }
+    }
+  }
+  process_metrics {
+    process_name: "com.google.android.deskclock"
+    total_counters {
+      anon_rss {
+        min: 4000.0
+        max: 8000.0
+        avg: 6000.0
+      }
+      file_rss {
+        min: 10000.0
+        max: 10000.0
+        avg: 10000.0
+      }
+      swap {
+        min: 0.0
+        max: 0.0
+        avg: 0.0
+      }
+      anon_and_swap {
+        min: 4000.0
+        max: 8000.0
+        avg: 6000.0
+      }
+    }
+    priority_breakdown {
+      priority: "cached"
+      counters {
+        anon_rss {
+          min: 4000.0
+          max: 8000.0
+          avg: 6000.0
+        }
+        file_rss {
+          min: 10000.0
+          max: 10000.0
+          avg: 10000.0
+        }
+        swap {
+          min: 0.0
+          max: 0.0
+          avg: 0.0
+        }
+        anon_and_swap {
+          min: 4000.0
+          max: 8000.0
+          avg: 6000.0
+        }
+      }
+    }
+    priority_breakdown {
+      priority: "foreground"
+      counters {
+        anon_rss {
+          min: 6000.0
+          max: 6000.0
+          avg: 6000.0
+        }
+        file_rss {
+          min: 10000.0
+          max: 10000.0
+          avg: 10000.0
+        }
+        swap {
+          min: 0.0
+          max: 0.0
+          avg: 0.0
+        }
+        anon_and_swap {
+          min: 6000.0
+          max: 6000.0
+          avg: 6000.0
+        }
+      }
+    }
+  }
+}

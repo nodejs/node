@@ -1,0 +1,16 @@
+name: sock_exceed_buf_limit
+ID: 441
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:char name[32];	offset:12;	size:32;	signed:0;
+	field:long * sysctl_mem;	offset:44;	size:4;	signed:0;
+	field:long allocated;	offset:48;	size:4;	signed:1;
+	field:int sysctl_rmem;	offset:52;	size:4;	signed:1;
+	field:int rmem_alloc;	offset:56;	size:4;	signed:1;
+
+print fmt: "proto:%s sysctl_mem=%ld,%ld,%ld allocated=%ld sysctl_rmem=%d rmem_alloc=%d", REC->name, REC->sysctl_mem[0], REC->sysctl_mem[1], REC->sysctl_mem[2], REC->allocated, REC->sysctl_rmem, REC->rmem_alloc

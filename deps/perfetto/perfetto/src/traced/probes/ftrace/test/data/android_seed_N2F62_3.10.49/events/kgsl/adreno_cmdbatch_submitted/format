@@ -1,0 +1,17 @@
+name: adreno_cmdbatch_submitted
+ID: 448
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int id;	offset:8;	size:4;	signed:0;
+	field:unsigned int timestamp;	offset:12;	size:4;	signed:0;
+	field:int inflight;	offset:16;	size:4;	signed:1;
+	field:unsigned int flags;	offset:20;	size:4;	signed:0;
+	field:uint64_t ticks;	offset:24;	size:8;	signed:0;
+	field:unsigned long secs;	offset:32;	size:4;	signed:0;
+	field:unsigned long usecs;	offset:36;	size:4;	signed:0;
+
+print fmt: "ctx=%u ts=%u inflight=%d flags=%s ticks=%lld time=%lu.%0lu", REC->id, REC->timestamp, REC->inflight, REC->flags ? __print_flags(REC->flags, "|", { 0x00000002, "MARKER" }, { 0x00000008, "CTX_SWITCH" }, { 0x00000400, "SYNC" }, { 0x00000100, "EOF" }, { 0x00000800, "PWR_CONSTRAINT" }, { 0x00000004, "IB_LIST" }) : "none", REC->ticks, REC->secs, REC->usecs

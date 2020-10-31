@@ -1,0 +1,21 @@
+name: rdev_return_int_mpath_info
+ID: 692
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:int ret;	offset:40;	size:4;	signed:1;
+	field:int generation;	offset:44;	size:4;	signed:1;
+	field:u32 filled;	offset:48;	size:4;	signed:0;
+	field:u32 frame_qlen;	offset:52;	size:4;	signed:0;
+	field:u32 sn;	offset:56;	size:4;	signed:0;
+	field:u32 metric;	offset:60;	size:4;	signed:0;
+	field:u32 exptime;	offset:64;	size:4;	signed:0;
+	field:u32 discovery_timeout;	offset:68;	size:4;	signed:0;
+	field:u8 discovery_retries;	offset:72;	size:1;	signed:0;
+	field:u8 flags;	offset:73;	size:1;	signed:0;
+
+print fmt: "%s, returned %d. mpath info - generation: %d, filled: %u, frame qlen: %u, sn: %u, metric: %u, exptime: %u, discovery timeout: %u, discovery retries: %u, flags: %u", REC->wiphy_name, REC->ret, REC->generation, REC->filled, REC->frame_qlen, REC->sn, REC->metric, REC->exptime, REC->discovery_timeout, REC->discovery_retries, REC->flags

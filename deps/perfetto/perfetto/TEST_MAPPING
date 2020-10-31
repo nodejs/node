@@ -1,0 +1,17 @@
+{
+  "presubmit": [
+    {
+      "name": "CtsPerfettoTestCases"
+    },
+    // Additional presubmit tests that explicitly exercise
+    // Perfetto's backend
+    {
+      "name": "libsurfaceflinger_unittest",
+      "options": [
+          {
+	      "include-filter": "FrameTracerTest.*"
+	  }
+      ]
+    }
+  ]
+}

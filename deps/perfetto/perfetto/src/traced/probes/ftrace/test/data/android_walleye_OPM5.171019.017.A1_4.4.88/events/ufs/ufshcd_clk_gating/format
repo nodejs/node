@@ -1,0 +1,12 @@
+name: ufshcd_clk_gating
+ID: 571
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] dev_name;	offset:8;	size:4;	signed:0;
+	field:int state;	offset:12;	size:4;	signed:1;
+
+print fmt: "%s: state changed to %s", __get_str(dev_name), __print_symbolic(REC->state, { CLKS_OFF, "CLKS_OFF" }, { CLKS_ON, "CLKS_ON" }, { REQ_CLKS_OFF, "REQ_CLKS_OFF" }, { REQ_CLKS_ON, "REQ_CLKS_ON" })

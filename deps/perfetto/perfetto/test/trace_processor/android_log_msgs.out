@@ -1,0 +1,32 @@
+
+
+
+
+"tag","count(*)"
+"mm-camera",562
+"NxpTml",109
+"sysui_multi_action",102
+"NuPlayerDriver",60
+"CAM_Profiler",57
+"-----",0
+"AlarmManager",1
+"AudioTrack",1
+"CAM_ActvCamDevTrckr",1
+"CAM_AutoFlashZslImgFltr",1
+"CAM_FlashBasedPhotoCmd",1
+"-----",0
+"GnssLocationProvider",8
+"power_screen_broadcast_done",2
+"power_screen_broadcast_send",2
+"power_sleep_requested",1
+"-----",0
+"tracing_service_impl.cc:427 Configured tracing, #sources:1, duration:3600000 ms, #buffers:2, total buffer size:65536 KB, total sessions:1",1
+"@ 1507.130: [VSC] Request sensor 65537, sample_duration 14 ms, report_duration 64 ms",1
+"@ 1507.131: [VSC] Stopping sensor events for sensor 131074",1
+"@ 1507.133: +: id 0, otherClientPresent 1, mode 3",1
+"@ 1508.133: [DevicePickup] pickup Detected",1
+"@ 1508.133: [VSC] Stopping sensor events for sensor 65537",1
+"@ 1508.134: [VSC] Request sensor 65544, sample_duration 42 ms, report_duration 42 ms",1
+"@ 1508.137: -: id 0, otherClientPresent 0, mode 3",1
+"@ 1508.137: ams_deviceSetConfig: Forcing ALS interrupt",1
+"@ 1508.139: [DevicePickup] sending event",1

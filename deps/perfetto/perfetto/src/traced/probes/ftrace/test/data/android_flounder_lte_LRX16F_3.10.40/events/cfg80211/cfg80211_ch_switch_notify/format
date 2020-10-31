@@ -1,0 +1,17 @@
+name: cfg80211_ch_switch_notify
+ID: 612
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char name[16];	offset:8;	size:16;	signed:0;
+	field:int ifindex;	offset:24;	size:4;	signed:1;
+	field:enum ieee80211_band band;	offset:28;	size:4;	signed:0;
+	field:u32 control_freq;	offset:32;	size:4;	signed:0;
+	field:u32 width;	offset:36;	size:4;	signed:0;
+	field:u32 center_freq1;	offset:40;	size:4;	signed:0;
+	field:u32 center_freq2;	offset:44;	size:4;	signed:0;
+
+print fmt: "netdev:%s(%d), band: %d, control freq: %u, width: %d, cf1: %u, cf2: %u", REC->name, REC->ifindex, REC->band, REC->control_freq, REC->width, REC->center_freq1, REC->center_freq2

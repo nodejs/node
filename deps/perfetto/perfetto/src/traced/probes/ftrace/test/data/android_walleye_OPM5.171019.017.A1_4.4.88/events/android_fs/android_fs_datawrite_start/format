@@ -1,0 +1,17 @@
+name: android_fs_datawrite_start
+ID: 269
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] pathbuf;	offset:8;	size:4;	signed:0;
+	field:loff_t offset;	offset:16;	size:8;	signed:1;
+	field:int bytes;	offset:24;	size:4;	signed:1;
+	field:loff_t i_size;	offset:32;	size:8;	signed:1;
+	field:__data_loc char[] cmdline;	offset:40;	size:4;	signed:0;
+	field:pid_t pid;	offset:44;	size:4;	signed:1;
+	field:ino_t ino;	offset:48;	size:8;	signed:0;
+
+print fmt: "entry_name %s, offset %llu, bytes %d, cmdline %s, pid %d, i_size %llu, ino %lu", __get_str(pathbuf), REC->offset, REC->bytes, __get_str(cmdline), REC->pid, REC->i_size, (unsigned long) REC->ino

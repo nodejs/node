@@ -1,0 +1,14 @@
+name: adreno_drawctxt_switch
+ID: 438
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int rb_level;	offset:8;	size:4;	signed:1;
+	field:unsigned int oldctx;	offset:12;	size:4;	signed:0;
+	field:unsigned int newctx;	offset:16;	size:4;	signed:0;
+	field:unsigned int flags;	offset:20;	size:4;	signed:0;
+
+print fmt: "rb level=%d oldctx=%u newctx=%u flags=%X", REC->rb_level, REC->oldctx, REC->newctx, flags

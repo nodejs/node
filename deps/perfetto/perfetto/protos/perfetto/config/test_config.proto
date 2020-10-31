@@ -1,0 +1,63 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// The configuration for a fake producer used in tests.
+message TestConfig {
+  message DummyFields {
+    optional uint32 field_uint32 = 1;
+    optional int32 field_int32 = 2;
+    optional uint64 field_uint64 = 3;
+    optional int64 field_int64 = 4;
+    optional fixed64 field_fixed64 = 5;
+    optional sfixed64 field_sfixed64 = 6;
+    optional fixed32 field_fixed32 = 7;
+    optional sfixed32 field_sfixed32 = 8;
+    optional double field_double = 9;
+    optional float field_float = 10;
+    optional sint64 field_sint64 = 11;
+    optional sint32 field_sint32 = 12;
+    optional string field_string = 13;
+    optional bytes field_bytes = 14;
+  }
+
+  // The number of messages the fake producer should send.
+  optional uint32 message_count = 1;
+
+  // The maximum number of messages which should be sent each second.
+  // The actual obserced speed may be lower if the producer is unable to
+  // work fast enough.
+  // If this is zero or unset, the producer will send as fast as possible.
+  optional uint32 max_messages_per_second = 2;
+
+  // The seed value for a simple multiplicative congruential pseudo-random
+  // number sequence.
+  optional uint32 seed = 3;
+
+  // The size of each message in bytes. Should be greater than or equal 5 to
+  // account for the number of bytes needed to encode the random number and a
+  // null byte for the string.
+  optional uint32 message_size = 4;
+
+  // Whether the producer should send a event batch when the data source is
+  // is initially registered.
+  optional bool send_batch_on_register = 5;
+
+  optional DummyFields dummy_fields = 6;
+}

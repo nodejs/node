@@ -1,0 +1,14 @@
+name: ext4_mb_release_inode_pa
+ID: 251
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:8;	signed:0;
+	field:__u64 block;	offset:24;	size:8;	signed:0;
+	field:__u32 count;	offset:32;	size:4;	signed:0;
+
+print fmt: "dev %d,%d ino %lu block %llu count %u", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->block, REC->count

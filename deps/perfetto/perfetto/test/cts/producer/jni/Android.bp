@@ -1,0 +1,22 @@
+cc_library_shared {
+  name: "libperfettocts_jni",
+  srcs: [
+    "fake_producer_jni.cc",
+  ],
+  static_libs: [
+    "libgtest",
+    "libprotobuf-cpp-lite",
+    "perfetto_cts_jni_deps",
+    "libperfetto_client_experimental",
+  ],
+  shared_libs: [
+    "libandroid",
+    "liblog",
+    "libnativehelper_compat_libc++",
+  ],
+  compile_multilib: "both",
+  stl: "libc++_static",
+  defaults: [
+    "perfetto_defaults",
+  ],
+}

@@ -1,0 +1,95 @@
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../gn/perfetto.gni")
+
+# This target is supported only in in-tree builds of Android. It contains
+# code that is not NDK-clean and references other repos in the Android tree.
+shared_library("libperfetto_android_internal") {
+  deps = [
+    ":android_internal",
+    "../../gn:default_deps",
+  ]
+}
+
+source_set("headers") {
+  deps = [
+    "../../gn:default_deps",
+    "../../src/perfetto_cmd:perfetto_atoms",
+  ]
+  sources = [
+    "atrace_hal.h",
+    "dropbox_service.h",
+    "health_hal.h",
+    "incident_service.h",
+    "power_stats_hal.h",
+    "statsd_logging.h",
+  ]
+}
+
+source_set("lazy_library_loader") {
+  public_deps = [ ":headers" ]
+  deps = [
+    "../../gn:default_deps",
+    "../../src/base",
+  ]
+  sources = [
+    "lazy_library_loader.cc",
+    "lazy_library_loader.h",
+  ]
+  libs = [ "dl" ]
+}
+
+# This target proxies calls to Android internal libraries that are not part of
+# the NDK. See README.md.
+source_set("android_internal") {
+  visibility = [ ":libperfetto_android_internal" ]
+  deps = [
+    ":headers",
+    "../../gn:default_deps",
+  ]
+  if (perfetto_build_with_android) {
+    sources = [
+      "atrace_hal.cc",
+      "dropbox_service.cc",
+      "health_hal.cc",
+      "incident_service.cc",
+      "power_stats_hal.cc",
+      "statsd_logging.cc",
+    ]
+    libs = [
+      "android.hardware.health@2.0",
+      "android.hardware.power.stats@1.0",
+      "android.hardware.atrace@1.0",
+      "statslog_perfetto",
+      "statssocket",
+      "cutils",
+      "base",
+      "binder",
+      "log",
+      "hidlbase",
+      "incident",
+      "services",
+      "utils",
+    ]
+  }
+
+  # This target should never depend on any other perfetto target to avoid ODR
+  # violation by doubly linking code in two .so(s) loaded in the same exe.
+  assert_no_deps = [
+    "//include/*",
+    "//src/base/*",
+    "//src/tracing/*",
+  ]
+}

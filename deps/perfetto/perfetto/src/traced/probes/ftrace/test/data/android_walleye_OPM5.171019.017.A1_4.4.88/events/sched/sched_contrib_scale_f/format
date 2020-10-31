@@ -1,0 +1,13 @@
+name: sched_contrib_scale_f
+ID: 68
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int cpu;	offset:8;	size:4;	signed:1;
+	field:unsigned long freq_scale_factor;	offset:16;	size:8;	signed:0;
+	field:unsigned long cpu_scale_factor;	offset:24;	size:8;	signed:0;
+
+print fmt: "cpu=%d freq_scale_factor=%lu cpu_scale_factor=%lu", REC->cpu, REC->freq_scale_factor, REC->cpu_scale_factor

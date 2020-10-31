@@ -1,0 +1,15 @@
+name: sched_stat_runtime
+ID: 57
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:char comm[16];	offset:12;	size:16;	signed:0;
+	field:pid_t pid;	offset:28;	size:4;	signed:1;
+	field:u64 runtime;	offset:32;	size:8;	signed:0;
+	field:u64 vruntime;	offset:40;	size:8;	signed:0;
+
+print fmt: "comm=%s pid=%d runtime=%Lu [ns] vruntime=%Lu [ns]", REC->comm, REC->pid, (unsigned long long)REC->runtime, (unsigned long long)REC->vruntime

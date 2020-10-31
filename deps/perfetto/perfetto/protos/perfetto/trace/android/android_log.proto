@@ -1,0 +1,77 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+package perfetto.protos;
+
+import "protos/perfetto/common/android_log_constants.proto";
+
+message AndroidLogPacket {
+  message LogEvent {
+    // The log buffer (e.g. MAIN, SYSTEM, RADIO) the event comes from.
+    optional AndroidLogId log_id = 1;
+
+    // PID (TGID), TID and UID of the task that emitted the event.
+    optional int32 pid = 2;
+    optional int32 tid = 3;
+    optional int32 uid = 4;
+
+    // Timestamp [ns]. The clock source is CLOCK_REALTIME, unlike many other
+    // Perfetto trace events that instead use CLOCK_BOOTTIME. The trace
+    // processor will take care of realigning clocks using the ClockSnapshot(s).
+    optional uint64 timestamp = 5;
+
+    // When log_id == LID_EVENTS, |tag| corresponds to the event name defined in
+    // the second column of /system/etc/event-log-tags. For all other events,
+    // |tag| is the app-specified argument passed to __android_log_write().
+    optional string tag = 6;
+
+    // Empty when log_id == LID_EVENTS.
+    optional AndroidLogPriority prio = 7;
+
+    // Empty when log_id == LID_EVENTS.
+    optional string message = 8;
+
+    message Arg {
+      optional string name = 1;
+      oneof value {
+        int64 int_value = 2;
+        float float_value = 3;
+        string string_value = 4;
+      }
+    }
+    // Only populated when log_id == LID_EVENTS.
+    repeated Arg args = 9;
+  }
+
+  repeated LogEvent events = 1;
+
+  // Stats are emitted only upon Flush() and are monotonic (i.e. they are
+  // absolute counters since the beginning of the lifetime of the tracing
+  // session and NOT relative to the previous Stats snapshot).
+  message Stats {
+    // Total number of log events seen, including errors and skipped entries
+    // (num of events stored in the trace = total - failed - skipped).
+    optional uint64 num_total = 1;
+
+    // Parser failures.
+    optional uint64 num_failed = 2;
+
+    // Messages skipped due to filters.
+    optional uint64 num_skipped = 3;
+  }
+  optional Stats stats = 2;
+}

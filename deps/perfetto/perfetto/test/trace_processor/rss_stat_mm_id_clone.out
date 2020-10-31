@@ -1,0 +1,9 @@
+"ts","name","pid","name","value"
+100,"mem.rss.file",10,"parent_process",100.000000
+100,"mem.rss.file",2,"kthreadd",10.000000
+102,"mem.rss.file",2,"kthreadd",20.000000
+102,"mem.rss.file",11,"child_process",90.000000
+104,"mem.rss.file",11,"child_process",10.000000
+105,"mem.rss.file",10,"parent_process",95.000000
+107,"mem.rss.file",10,"parent_process",105.000000
+108,"mem.rss.file",10,"parent_process",110.000000

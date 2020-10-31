@@ -1,0 +1,15 @@
+name: branch
+ID: 9
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:unsigned int line;	offset:12;	size:4;	signed:0;
+	field:char func[31];	offset:16;	size:31;	signed:0;
+	field:char file[21];	offset:47;	size:21;	signed:0;
+	field:char correct;	offset:68;	size:1;	signed:0;
+
+print fmt: "%u:%s:%s (%u)", REC->line, REC->func, REC->file, REC->correct

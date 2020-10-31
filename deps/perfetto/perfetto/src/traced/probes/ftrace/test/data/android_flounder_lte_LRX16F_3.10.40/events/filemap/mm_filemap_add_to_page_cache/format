@@ -1,0 +1,14 @@
+name: mm_filemap_add_to_page_cache
+ID: 92
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct page * page;	offset:8;	size:8;	signed:0;
+	field:unsigned long i_ino;	offset:16;	size:8;	signed:0;
+	field:unsigned long index;	offset:24;	size:8;	signed:0;
+	field:dev_t s_dev;	offset:32;	size:4;	signed:0;
+
+print fmt: "dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu", ((unsigned int) ((REC->s_dev) >> 20)), ((unsigned int) ((REC->s_dev) & ((1U << 20) - 1))), REC->i_ino, REC->page, (unsigned long)((REC->page) - ((struct page *)((((0xffffffffffffffffUL) << ((39) - 1)) - (0x400000000UL) - 0x00010000) + 0x00010000))), REC->index << 12

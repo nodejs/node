@@ -1,0 +1,12 @@
+unsymbolized_frames {
+  frames {
+    module: "/liblib.so"
+    build_id: "6275696c642d6964"
+    address: 4096
+  }
+  frames {
+    module: "/liblib.so"
+    build_id: "6275696c642d6964"
+    address: 8192
+  }
+}

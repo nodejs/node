@@ -1,0 +1,14 @@
+name: iommu_map_range
+ID: 206
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned long va;	offset:8;	size:8;	signed:0;
+	field:phys_addr_t pa;	offset:16;	size:8;	signed:0;
+	field:unsigned long chunk_size;	offset:24;	size:8;	signed:0;
+	field:size_t len;	offset:32;	size:8;	signed:0;
+
+print fmt: "v_addr=%p p_addr=%pa chunk_size=0x%lu len=%zu", (void *)REC->va, &REC->pa, REC->chunk_size, REC->len

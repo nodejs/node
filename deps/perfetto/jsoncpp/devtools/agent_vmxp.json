@@ -1,0 +1,26 @@
+{
+    "cmake_variants" : [
+        {"name": "generator",
+         "generators": [
+            {"generator": [
+                "Visual Studio 6",
+                "Visual Studio 7",
+                "Visual Studio 8 2005"
+                ]
+            }
+         ]
+        },
+        {"name": "shared_dll",
+         "variables": [
+            ["BUILD_SHARED_LIBS=true"],
+            ["BUILD_SHARED_LIBS=false"]
+          ]
+        },
+        {"name": "build_type",
+         "build_types": [
+            "debug",
+            "release"
+            ]
+        }
+    ]
+}

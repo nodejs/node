@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": [ "." ],
+  "exclude": [
+    "../gen/"
+  ],
+  "compilerOptions": {
+    "lib": [
+      "webworker",
+      "es2018",
+    ],
+    "types" : []
+  }
+}

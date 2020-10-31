@@ -1,0 +1,4 @@
+// Out of 32-bit integer range, switch to double in 32-bit mode. Length the
+// same as UINT_MAX in base 10 and digit less than UINT_MAX's last digit in
+// order to catch a bug in the parsing code.
+.=4300000001

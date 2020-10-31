@@ -1,0 +1,17 @@
+name: kgsl_mem_map
+ID: 486
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:uint64_t gpuaddr;	offset:8;	size:8;	signed:0;
+	field:uint64_t size;	offset:16;	size:8;	signed:0;
+	field:int fd;	offset:24;	size:4;	signed:1;
+	field:int type;	offset:28;	size:4;	signed:1;
+	field:unsigned int tgid;	offset:32;	size:4;	signed:0;
+	field:char usage[16];	offset:36;	size:16;	signed:0;
+	field:unsigned int id;	offset:52;	size:4;	signed:0;
+
+print fmt: "gpuaddr=0x%llx size=%llu type=%s fd=%d tgid=%u usage=%s id=%u", REC->gpuaddr, REC->size, __print_symbolic(REC->type, { 0, "gpumem" }, { (KGSL_USER_MEM_TYPE_ADDR + 1), "usermem" }, { (KGSL_USER_MEM_TYPE_ION + 1), "ion" }), REC->fd, REC->tgid, REC->usage, REC->id

@@ -1,0 +1,4 @@
+// Out of 32-bit signed integer range, switch to double in all modes. Length
+// the same as INT_MIN in base 10 and digit less than INT_MIN's last digit in
+// order to catch a bug in the parsing code.
+-2200000001

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2017 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<!-- The Android.mk file that defines these target lives in /external/perfetto/cts -->
+<configuration description="Config for CTS Perfetto test cases">
+    <option name="config-descriptor:metadata" key="component" value="metrics" />
+    <option name="config-descriptor:metadata" key="parameter" value="not_instant_app" />
+    <option name="config-descriptor:metadata" key="parameter" value="multi_abi" />
+    <option name="config-descriptor:metadata" key="parameter" value="secondary_user" />
+    <option name="test-suite-tag" value="cts" />
+    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
+        <option name="cleanup-apks" value="true" />
+        <option name="test-file-name" value="CtsPerfettoProducerApp.apk" />
+        <option name="test-file-name" value="CtsPerfettoDebuggableApp.apk" />
+        <option name="test-file-name" value="CtsPerfettoReleaseApp.apk" />
+        <option name="test-file-name" value="CtsPerfettoProfileableApp.apk" />
+    </target_preparer>
+    <target_preparer class="com.android.compatibility.common.tradefed.targetprep.FilePusher">
+        <option name="cleanup" value="true" />
+        <option name="push" value="CtsPerfettoTestCases->/data/local/tmp/CtsPerfettoTestCases" />
+        <option name="append-bitness" value="true" />
+    </target_preparer>
+    <target_preparer class="com.android.tradefed.targetprep.RunCommandTargetPreparer">
+        <option name="run-command" value="setprop persist.heapprofd.enable 1" />
+        <option name="run-command" value="setprop persist.traced_perf.enable 1" />
+    </target_preparer>
+    <test class="com.android.tradefed.testtype.GTest" >
+        <option name="native-test-device-path" value="/data/local/tmp" />
+        <option name="module-name" value="CtsPerfettoTestCases" />
+        <option name="runtime-hint" value="0m30s" />
+        <!-- test-timeout unit is ms -->
+        <option name="native-test-timeout" value="40000" />
+    </test>
+</configuration>

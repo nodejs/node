@@ -1,0 +1,117 @@
+packet {
+  trusted_packet_sequence_id: 1
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 1
+    thread {
+      pid: 5
+      tid: 1
+      thread_name: "t1"
+    }
+  }
+}
+packet {
+  trusted_packet_sequence_id: 2
+  timestamp: 0
+  incremental_state_cleared: true
+  track_descriptor {
+    uuid: 1
+    thread {
+      pid: 5
+      tid: 5
+      thread_name: "t1"
+    }
+  }
+}
+packet {
+  # Emitted on tid 1.
+  # Should set the legacy_passthrough_utid to utid 1.
+  trusted_packet_sequence_id: 1
+  timestamp: 1000
+  track_event {
+    categories: "cat"
+    name: "name1"
+    debug_annotations {
+      name: "debug1"
+      nested_value {
+        nested_type: 1  # DICT
+        dict_keys: "key1"
+        dict_keys: "key2"
+        dict_values {
+          nested_type: 0  # leaf
+          int_value: 10
+        }
+        dict_values {
+          nested_type: 2  # ARRAY
+          array_values {
+            nested_type: 0  # leaf
+            int_value: 20
+          }
+          array_values {
+            nested_type: 0  # leaf
+            int_value: 21
+          }
+        }
+      }
+    }
+    debug_annotations {
+      name: "debug2"
+      legacy_json_value: "{\"key1\": 10, \"key2\": [20, 21],"
+                         " \"key3\": {\"key31\": 31}}"
+    }
+    debug_annotations {
+      name: "debug3"
+      int_value: 31
+    }
+    legacy_event {
+      phase: 98  # 'b'
+      global_id: 1234
+    }
+  }
+}
+packet {
+  # Emitted on tid 5.
+  # Should NOT override the legacy_passthrough_utid from the BEGIN event.
+  trusted_packet_sequence_id: 2
+  timestamp: 2000
+  track_event {
+    categories: "cat"
+    debug_annotations {
+      name: "debug1"
+      nested_value {
+        nested_type: 1  # DICT
+        dict_keys: "key3"
+        dict_keys: "key2"
+        dict_values {
+          nested_type: 0  # leaf
+          int_value: 30
+        }
+        dict_values {
+          nested_type: 2  # ARRAY
+          array_values {
+            nested_type: 0  # leaf
+            int_value: 22
+          }
+          array_values {
+            nested_type: 0  # leaf
+            int_value: 23
+          }
+        }
+      }
+    }
+    debug_annotations {
+      name: "debug2"
+      legacy_json_value: "{\"key4\": 40, \"key2\": [22, 23],"
+                         " \"key3\": {\"key32\": 32}}"
+    }
+    debug_annotations {
+      name: "debug3"
+      int_value: 32
+    }
+    legacy_event {
+      phase: 101  # 'e'
+      global_id: 1234
+    }
+  }
+}

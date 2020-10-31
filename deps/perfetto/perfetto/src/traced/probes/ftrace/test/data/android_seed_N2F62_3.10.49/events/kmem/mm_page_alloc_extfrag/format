@@ -1,0 +1,16 @@
+name: mm_page_alloc_extfrag
+ID: 145
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct page * page;	offset:8;	size:4;	signed:0;
+	field:int alloc_order;	offset:12;	size:4;	signed:1;
+	field:int fallback_order;	offset:16;	size:4;	signed:1;
+	field:int alloc_migratetype;	offset:20;	size:4;	signed:1;
+	field:int fallback_migratetype;	offset:24;	size:4;	signed:1;
+	field:int change_ownership;	offset:28;	size:4;	signed:1;
+
+print fmt: "page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d", REC->page, ((unsigned long)((REC->page) - mem_map) + (__pv_phys_offset >> 12)), REC->alloc_order, REC->fallback_order, (11-1), REC->alloc_migratetype, REC->fallback_migratetype, REC->fallback_order < (11-1), REC->change_ownership

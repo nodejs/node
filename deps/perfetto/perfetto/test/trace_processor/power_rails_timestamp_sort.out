@@ -1,0 +1,6 @@
+"ts","value","name"
+3000000,333.000000,"power.test_rail_uws"
+3000000,0.000000,"power.test_rail_uws"
+3000004,1000.000000,"Testing"
+3000005,999.000000,"power.test_rail2_uws"
+5000000,666.000000,"power.test_rail_uws"

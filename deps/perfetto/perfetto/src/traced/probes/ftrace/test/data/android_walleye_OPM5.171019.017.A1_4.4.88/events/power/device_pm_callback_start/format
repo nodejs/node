@@ -1,0 +1,15 @@
+name: device_pm_callback_start
+ID: 119
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] device;	offset:8;	size:4;	signed:0;
+	field:__data_loc char[] driver;	offset:12;	size:4;	signed:0;
+	field:__data_loc char[] parent;	offset:16;	size:4;	signed:0;
+	field:__data_loc char[] pm_ops;	offset:20;	size:4;	signed:0;
+	field:int event;	offset:24;	size:4;	signed:1;
+
+print fmt: "%s %s, parent: %s, %s[%s]", __get_str(driver), __get_str(device), __get_str(parent), __get_str(pm_ops), __print_symbolic(REC->event, { 0x0002, "suspend" }, { 0x0010, "resume" }, { 0x0001, "freeze" }, { 0x0008, "quiesce" }, { 0x0004, "hibernate" }, { 0x0020, "thaw" }, { 0x0040, "restore" }, { 0x0080, "recover" })

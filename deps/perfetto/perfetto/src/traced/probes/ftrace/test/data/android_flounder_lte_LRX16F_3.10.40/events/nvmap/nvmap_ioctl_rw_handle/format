@@ -1,0 +1,19 @@
+name: nvmap_ioctl_rw_handle
+ID: 444
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct nvmap_client * client;	offset:8;	size:8;	signed:0;
+	field:struct nvmap_handle * h;	offset:16;	size:8;	signed:0;
+	field:u32 is_read;	offset:24;	size:4;	signed:0;
+	field:u32 offset;	offset:28;	size:4;	signed:0;
+	field:unsigned long addr;	offset:32;	size:8;	signed:0;
+	field:u32 mem_stride;	offset:40;	size:4;	signed:0;
+	field:u32 user_stride;	offset:44;	size:4;	signed:0;
+	field:u32 elem_size;	offset:48;	size:4;	signed:0;
+	field:u32 count;	offset:52;	size:4;	signed:0;
+
+print fmt: "client=%p, h=%p, is_read=%d, offset=%d, addr=0x%lx,mem_stride=%d, user_stride=%d, elem_size=%d, count=%d", REC->client, REC->h, REC->is_read, REC->offset, REC->addr, REC->mem_stride, REC->user_stride, REC->elem_size, REC->count

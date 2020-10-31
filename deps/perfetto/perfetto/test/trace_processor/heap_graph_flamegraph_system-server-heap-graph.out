@@ -1,0 +1,11 @@
+"id","depth","name","map_name","count","cumulative_count","size","cumulative_size","parent_id"
+0,0,"java.lang.Class<boolean>","JAVA",2,4,240,276,"[NULL]"
+1,1,"java.lang.Object[]","JAVA",1,1,12,12,0
+2,1,"java.lang.String","JAVA",1,1,24,24,0
+3,0,"java.lang.Class<byte>","JAVA",3,4,360,384,"[NULL]"
+4,1,"java.lang.String","JAVA",1,1,24,24,3
+5,0,"java.lang.Class<short>","JAVA",2,3,240,264,"[NULL]"
+6,1,"java.lang.String","JAVA",1,1,24,24,5
+7,0,"java.lang.Class<char>","JAVA",2,3,240,264,"[NULL]"
+8,1,"java.lang.String","JAVA",1,1,24,24,7
+9,0,"java.lang.Class<int>","JAVA",2,3,240,264,"[NULL]"

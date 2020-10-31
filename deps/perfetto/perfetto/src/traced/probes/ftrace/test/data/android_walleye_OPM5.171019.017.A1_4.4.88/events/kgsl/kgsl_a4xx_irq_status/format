@@ -1,0 +1,12 @@
+name: kgsl_a4xx_irq_status
+ID: 534
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] device_name;	offset:8;	size:4;	signed:0;
+	field:unsigned int status;	offset:12;	size:4;	signed:0;
+
+print fmt: "d_name=%s status=%s", __get_str(device_name), REC->status ? __print_flags(REC->status, "|", { (1UL << (0)), "RBBM_GPU_IDLE" }, { (1UL << (2)), "RBBM_REG_TIMEOUT" }, { (1UL << (3)), "RBBM_ME_MS_TIMEOUT" }, { (1UL << (4)), "RBBM_PFP_MS_TIMEOUT" }, { (1UL << (5)), "RBBM_ETS_MS_TIMEOUT" }, { (1UL << (6)), "RBBM_ASYNC_OVERFLOW" }, { (1UL << (7)), "RBBM_GPC_ERR" }, { (1UL << (8)), "CP_SW" }, { (1UL << (9)), "CP_OPCODE_ERROR" }, { (1UL << (10)), "CP_RESERVED_BIT_ERROR" }, { (1UL << (11)), "CP_HW_FAULT" }, { (1UL << (12)), "CP_DMA" }, { (1UL << (13)), "CP_IB2_INT" }, { (1UL << (14)), "CP_IB1_INT" }, { (1UL << (15)), "CP_RB_INT" }, { (1UL << (16)), "CP_REG_PROTECT_FAULT" }, { (1UL << (17)), "CP_RB_DONE_TS" }, { (1UL << (18)), "CP_VS_DONE_TS" }, { (1UL << (19)), "CP_PS_DONE_TS" }, { (1UL << (20)), "CACHE_FLUSH_TS" }, { (1UL << (21)), "CP_AHB_ERROR_HALT" }, { (1UL << (22)), "RBBM_ATB_BUS_OVERFLOW" }, { (1UL << (24)), "MISC_HANG_DETECT" }, { (1UL << (25)), "UCHE_OOB_ACCESS" }, { (1UL << (28)), "RBBM_DPM_CALC_ERR" }, { (1UL << (29)), "RBBM_DPM_CALC_ERR" }, { (1UL << (30)), "RBBM_DPM_THERMAL_YELLOW_ERR" }, { (1UL << (31)), "RBBM_DPM_THERMAL_RED_ERR" }) : "None"

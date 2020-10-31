@@ -1,0 +1,22 @@
+name: sched_enq_deq_task
+ID: 77
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char comm[16];	offset:8;	size:16;	signed:0;
+	field:pid_t pid;	offset:24;	size:4;	signed:1;
+	field:int prio;	offset:28;	size:4;	signed:1;
+	field:int cpu;	offset:32;	size:4;	signed:1;
+	field:int enqueue;	offset:36;	size:4;	signed:1;
+	field:unsigned int nr_running;	offset:40;	size:4;	signed:0;
+	field:unsigned long cpu_load;	offset:44;	size:4;	signed:0;
+	field:unsigned int rt_nr_running;	offset:48;	size:4;	signed:0;
+	field:unsigned int cpus_allowed;	offset:52;	size:4;	signed:0;
+	field:unsigned int sum_scaled;	offset:56;	size:4;	signed:0;
+	field:unsigned int period;	offset:60;	size:4;	signed:0;
+	field:unsigned int demand;	offset:64;	size:4;	signed:0;
+
+print fmt: "cpu=%d %s comm=%s pid=%d prio=%d nr_running=%u cpu_load=%lu rt_nr_running=%u affine=%x sum_scaled=%u period=%u demand=%u", REC->cpu, REC->enqueue ? "enqueue" : "dequeue", REC->comm, REC->pid, REC->prio, REC->nr_running, REC->cpu_load, REC->rt_nr_running, REC->cpus_allowed , REC->sum_scaled, REC->period, REC->demand

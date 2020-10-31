@@ -1,0 +1,18 @@
+name: pstate_sample
+ID: 115
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 core_busy;	offset:8;	size:4;	signed:0;
+	field:u32 scaled_busy;	offset:12;	size:4;	signed:0;
+	field:u32 from;	offset:16;	size:4;	signed:0;
+	field:u32 to;	offset:20;	size:4;	signed:0;
+	field:u64 mperf;	offset:24;	size:8;	signed:0;
+	field:u64 aperf;	offset:32;	size:8;	signed:0;
+	field:u64 tsc;	offset:40;	size:8;	signed:0;
+	field:u32 freq;	offset:48;	size:4;	signed:0;
+
+print fmt: "core_busy=%lu scaled=%lu from=%lu to=%lu mperf=%llu aperf=%llu tsc=%llu freq=%lu ", (unsigned long)REC->core_busy, (unsigned long)REC->scaled_busy, (unsigned long)REC->from, (unsigned long)REC->to, (unsigned long long)REC->mperf, (unsigned long long)REC->aperf, (unsigned long long)REC->tsc, (unsigned long)REC->freq

@@ -1,0 +1,13 @@
+name: i2c_result
+ID: 627
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int adapter_nr;	offset:8;	size:4;	signed:1;
+	field:__u16 nr_msgs;	offset:12;	size:2;	signed:0;
+	field:__s16 ret;	offset:14;	size:2;	signed:1;
+
+print fmt: "i2c-%d n=%u ret=%d", REC->adapter_nr, REC->nr_msgs, REC->ret

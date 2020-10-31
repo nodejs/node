@@ -1,0 +1,124 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Description of GPU counters.
+// This message is sent by a GPU counter producer to specify the counters
+// available in the hardware.
+message GpuCounterDescriptor {
+  message GpuCounterSpec {
+    optional uint32 counter_id = 1;
+    optional string name = 2;
+    optional string description = 3;
+    reserved 4;  // MeasureUnit unit (deprecated)
+    oneof peak_value {
+      int64 int_peak_value = 5;
+      double double_peak_value = 6;
+    }
+    repeated MeasureUnit numerator_units = 7;
+    repeated MeasureUnit denominator_units = 8;
+    optional bool select_by_default = 9;
+  }
+  repeated GpuCounterSpec specs = 1;
+
+  // Allow producer to group counters into block to represent counter islands.
+  // A capacity may be specified to indicate the number of counters that can be
+  // enable simultaneously in that block.
+  message GpuCounterBlock {
+    // required. Unique ID for the counter group.
+    optional uint32 block_id = 1;
+    // optional. Number of counters supported by the block. No limit if unset.
+    optional uint32 block_capacity = 2;
+    // optional. Name of block.
+    optional string name = 3;
+    // optional. Description for the block.
+    optional string description = 4;
+    // list of counters that are part of the block.
+    repeated uint32 counter_ids = 5;
+  }
+  repeated GpuCounterBlock blocks = 2;
+
+  // optional.  Minimum sampling period supported by the producer in
+  // nanoseconds.
+  optional uint64 min_sampling_period_ns = 3;
+
+  // optional.  Maximum sampling period supported by the producer in
+  // nanoseconds.
+  optional uint64 max_sampling_period_ns = 4;
+
+  // optional.  The producer supports counter sampling by instrumenting the
+  // command buffer.
+  optional bool supports_instrumented_sampling = 5;
+
+  // next id: 41
+  enum MeasureUnit {
+    NONE = 0;
+
+    BIT = 1;
+    KILOBIT = 2;
+    MEGABIT = 3;
+    GIGABIT = 4;
+    TERABIT = 5;
+    PETABIT = 6;
+
+    BYTE = 7;
+    KILOBYTE = 8;
+    MEGABYTE = 9;
+    GIGABYTE = 10;
+    TERABYTE = 11;
+    PETABYTE = 12;
+
+    HERTZ = 13;
+    KILOHERTZ = 14;
+    MEGAHERTZ = 15;
+    GIGAHERTZ = 16;
+    TERAHERTZ = 17;
+    PETAHERTZ = 18;
+
+    NANOSECOND = 19;
+    MICROSECOND = 20;
+    MILLISECOND = 21;
+    SECOND = 22;
+    MINUTE = 23;
+    HOUR = 24;
+
+    VERTEX = 25;
+    PIXEL = 26;
+    TRIANGLE = 27;
+    PRIMITIVE = 38;
+    FRAGMENT = 39;
+
+    MILLIWATT = 28;
+    WATT = 29;
+    KILOWATT = 30;
+
+    JOULE = 31;
+    VOLT = 32;
+    AMPERE = 33;
+
+    CELSIUS = 34;
+    FAHRENHEIT = 35;
+    KELVIN = 36;
+
+    // Values should be out of 100.
+    PERCENT = 37;
+
+    INSTRUCTION = 40;
+  }
+}

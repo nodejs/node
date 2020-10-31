@@ -1,0 +1,27 @@
+{
+  "name": "Perfetto UI",
+  "key":"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhm3X7qutsrskke84ltokTObnFJakd/d0XFQ6Ox2wQueHTGJM5GUNPTY/x8bdreNtGnfzvt/Sd0vABbR0wsS6lz5yY+g6ksMXJnigFe9N7uz8E3KojDrl3xYjIe+mkiJo8yxxzPydgb7GjQ6jmsX3g+yjj67kXzm9rZFkmoZ5WmqwBZlguPYVRN/W8CIIqBZkC3Qmq6uSG7b/g93YbwqmTmGiL2sAzgvXtqvDOD6503abtQkRC795E4VjJd+ffyeRH38fAEz5ZIrA6GJsfmov1TZTIu1NTwqylSpBYl5as7C6gpmuxDV4SvHvGT2hMQuIufDhZhErjI3B7bcX+XLe1wIDAQAB",
+  "description": "Enables the Perfetto trace viewer (https://ui.perfetto.dev) to record Chrome browser traces.",
+  "version": "0.0.0.11",
+  "manifest_version": 2,
+  "minimum_chrome_version": "81.0.4022.0",
+  "permissions": [
+    "declarativeContent",
+    "debugger"
+  ],
+  "icons": {
+    "128": "logo-128.png"
+  },
+  "background": {
+    "scripts": [
+      "chrome_extension_bundle.js"
+    ],
+    "persistent": false
+  },
+  "externally_connectable": {
+    "matches": [
+      "*://localhost/*",
+      "https://*.perfetto.dev/*"
+    ]
+  }
+}

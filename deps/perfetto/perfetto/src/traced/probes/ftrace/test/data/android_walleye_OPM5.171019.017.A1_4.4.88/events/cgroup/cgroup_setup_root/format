@@ -1,0 +1,13 @@
+name: cgroup_setup_root
+ID: 105
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int root;	offset:8;	size:4;	signed:1;
+	field:u16 ss_mask;	offset:12;	size:2;	signed:0;
+	field:__data_loc char[] name;	offset:16;	size:4;	signed:0;
+
+print fmt: "root=%d ss_mask=%#x name=%s", REC->root, REC->ss_mask, __get_str(name)

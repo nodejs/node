@@ -1,0 +1,108 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+declare_args() {
+  is_debug = true
+  is_clang = true
+  is_system_compiler = false
+  is_lto = false
+
+  extra_cflags = ""
+  extra_cxxflags = ""
+  extra_ldflags = ""
+}
+
+# Platform detection
+if (target_os == "") {
+  target_os = host_os
+}
+if (current_os == "") {
+  current_os = target_os
+}
+
+is_android = current_os == "android"
+is_linux = current_os == "linux"
+is_linux_host = host_os == "linux"
+is_mac = current_os == "mac"
+
+# Building with Windows/Fuchsia/nacl is currently only supported in the Chromium
+# tree so always set this to false.
+is_win = false
+is_fuchsia = false
+is_nacl = false
+
+if (target_cpu == "") {
+  target_cpu = host_cpu
+  if (is_android) {
+    target_cpu = "arm"
+  }
+}
+if (current_cpu == "") {
+  current_cpu = target_cpu
+}
+
+is_cross_compiling = target_cpu != host_cpu || target_os != host_os
+
+default_configs = [
+  "//gn/standalone:debug_symbols",
+  "//gn/standalone:default",
+  "//gn/standalone:c++11",
+  "//gn/standalone:extra_warnings",
+  "//gn/standalone:no_exceptions",
+  "//gn/standalone:no_rtti",
+  "//gn/standalone:visibility_hidden",
+  "//gn/standalone/libc++:config",
+  "//gn/standalone/sanitizers:sanitizers_cflags",
+]
+
+if (!is_debug) {
+  default_configs -= [ "//gn/standalone:debug_symbols" ]
+  default_configs += [ "//gn/standalone:release" ]
+}
+
+set_defaults("source_set") {
+  configs = default_configs
+}
+
+set_defaults("static_library") {
+  configs = default_configs
+}
+
+# Realistically the only shared_library that we build right now is libc++.so
+# when use_custom_libcxx=true (on Linux). Hence don't add a dependency on
+# libc++ itself on these targets.
+set_defaults("shared_library") {
+  configs = default_configs
+  configs += [ "//gn/standalone:shared_library" ]
+
+  # note: the following is not a nested config to be removable.
+  configs += [ "//gn/standalone:android_liblog" ]
+}
+
+set_defaults("executable") {
+  configs = default_configs
+  configs += [ "//gn/standalone:executable" ]
+
+  # note: the following is not a nested config to be removable.
+  configs += [ "//gn/standalone:android_liblog" ]
+}
+
+_default_toolchain = "//gn/standalone/toolchain:gcc_like"
+set_default_toolchain(_default_toolchain)
+
+if (is_cross_compiling) {
+  host_toolchain = "//gn/standalone/toolchain:gcc_like_host"
+} else {
+  host_toolchain = _default_toolchain
+}

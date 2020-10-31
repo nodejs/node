@@ -1,0 +1,15 @@
+name: nvhost_cdma_end
+ID: 391
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:const char * name;	offset:8;	size:8;	signed:0;
+	field:int prio;	offset:16;	size:4;	signed:1;
+	field:int hi_count;	offset:20;	size:4;	signed:1;
+	field:int med_count;	offset:24;	size:4;	signed:1;
+	field:int low_count;	offset:28;	size:4;	signed:1;
+
+print fmt: "name=%s, prio=%d, hi=%d, med=%d, low=%d", REC->name, REC->prio, REC->hi_count, REC->med_count, REC->low_count

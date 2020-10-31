@@ -1,0 +1,34 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message AndroidPowerConfig {
+  enum BatteryCounters {
+    BATTERY_COUNTER_UNSPECIFIED = 0;
+    BATTERY_COUNTER_CHARGE = 1;            // Coulomb counter.
+    BATTERY_COUNTER_CAPACITY_PERCENT = 2;  // Charge (%).
+    BATTERY_COUNTER_CURRENT = 3;           // Instantaneous current.
+    BATTERY_COUNTER_CURRENT_AVG = 4;       // Avg current.
+  }
+  optional uint32 battery_poll_ms = 1;
+  repeated BatteryCounters battery_counters = 2;
+
+  // Where available enables per-power-rail measurements.
+  optional bool collect_power_rails = 3;
+}

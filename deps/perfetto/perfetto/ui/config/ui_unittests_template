@@ -1,0 +1,9 @@
+#!/bin/bash
+
+DIR="$(dirname "${BASH_SOURCE[0]}")"
+
+exec ui/node ui/node_modules/jest/bin/jest.js \
+  --projects=ui/jest.unit.config.js \
+  --projects=ui/jest.jsdom.config.js \
+  --roots=../$DIR/obj/ui ${@:1}
+

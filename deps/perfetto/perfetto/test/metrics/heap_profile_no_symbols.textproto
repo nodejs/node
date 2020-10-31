@@ -1,0 +1,54 @@
+packet {
+  trusted_packet_sequence_id: 999
+  timestamp: 10
+  profile_packet {
+    strings {
+      iid: 1
+      str: "f1"
+    }
+    strings {
+      iid: 2
+      str: "f2"
+    }
+    strings {
+      iid: 4
+      str: "liblib.so"
+    }
+    strings {
+      iid: 5
+      str: "build-id"
+    }
+    frames {
+      iid: 1
+      function_name_id: 1
+      mapping_id: 1
+      rel_pc: 0x1000
+    }
+    frames {
+      iid: 2
+      function_name_id: 2
+      mapping_id: 1
+      rel_pc: 0x2000
+    }
+    callstacks {
+      iid: 1
+      frame_ids: 1
+      frame_ids: 2
+    }
+    mappings {
+      iid: 1
+      path_string_ids: 4
+      build_id: 5
+    }
+    process_dumps {
+      pid: 2
+      samples {
+        callstack_id: 1
+        self_allocated: 2000
+        self_freed: 1000
+        alloc_count: 2
+        free_count: 1
+      }
+    }
+  }
+}

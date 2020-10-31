@@ -1,0 +1,13 @@
+name: adreno_cmdbatch_recovery
+ID: 523
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int id;	offset:8;	size:4;	signed:0;
+	field:unsigned int timestamp;	offset:12;	size:4;	signed:0;
+	field:unsigned int action;	offset:16;	size:4;	signed:0;
+
+print fmt: "ctx=%u ts=%u action=%s", REC->id, REC->timestamp, __print_symbolic(REC->action, { (1UL << (KGSL_FT_OFF)), "off" }, { (1UL << (KGSL_FT_REPLAY)), "replay" }, { (1UL << (KGSL_FT_SKIPIB)), "skipib" }, { (1UL << (KGSL_FT_SKIPFRAME)), "skipframe" }, { (1UL << (KGSL_FT_DISABLE)), "disable" }, { (1UL << (KGSL_FT_TEMP_DISABLE)), "temp" }, { (1UL << (KGSL_FT_THROTTLE)), "throttle"}, { (1UL << (KGSL_FT_SKIPCMD)), "skipcmd" })

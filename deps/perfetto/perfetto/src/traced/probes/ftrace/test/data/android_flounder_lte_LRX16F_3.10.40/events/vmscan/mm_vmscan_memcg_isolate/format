@@ -1,0 +1,16 @@
+name: mm_vmscan_memcg_isolate
+ID: 97
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int order;	offset:8;	size:4;	signed:1;
+	field:unsigned long nr_requested;	offset:16;	size:8;	signed:0;
+	field:unsigned long nr_scanned;	offset:24;	size:8;	signed:0;
+	field:unsigned long nr_taken;	offset:32;	size:8;	signed:0;
+	field:isolate_mode_t isolate_mode;	offset:40;	size:4;	signed:0;
+	field:int file;	offset:44;	size:4;	signed:1;
+
+print fmt: "isolate_mode=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu file=%d", REC->isolate_mode, REC->order, REC->nr_requested, REC->nr_scanned, REC->nr_taken, REC->file

@@ -1,0 +1,9 @@
+sched:sched_switch
+sched:sched_waking
+kmem:ion_heap_grow
+kmem:ion_heap_shrink
+kmem:rss_stat
+clk:clk_enable
+clk:clk_disable
+clk:clk_set_rate
+sde:tracing_mark_write

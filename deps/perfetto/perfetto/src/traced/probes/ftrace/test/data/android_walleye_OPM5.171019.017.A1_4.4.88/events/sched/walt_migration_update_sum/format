@@ -1,0 +1,16 @@
+name: walt_migration_update_sum
+ID: 81
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int cpu;	offset:8;	size:4;	signed:1;
+	field:int pid;	offset:12;	size:4;	signed:1;
+	field:u64 cs;	offset:16;	size:8;	signed:0;
+	field:u64 ps;	offset:24;	size:8;	signed:0;
+	field:s64 nt_cs;	offset:32;	size:8;	signed:1;
+	field:s64 nt_ps;	offset:40;	size:8;	signed:1;
+
+print fmt: "cpu %d: cs %llu ps %llu nt_cs %lld nt_ps %lld pid %d", REC->cpu, REC->cs, REC->ps, REC->nt_cs, REC->nt_ps, REC->pid

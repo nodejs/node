@@ -1,0 +1,24 @@
+packet {
+  clock_snapshot {
+    clocks {
+      clock_id: 6
+      timestamp: 101000002
+    }
+    clocks {
+      clock_id: 128
+      timestamp: 2
+    }
+  }
+  timestamp: 101000002
+}
+packet {
+  trace_config {
+    trace_uuid_msb: 1314564453825188563
+    trace_uuid_lsb: -6605018796207623390
+  }
+}
+packet {
+  system_info {
+    android_build_fingerprint: "the fingerprint"
+  }
+}

@@ -1,0 +1,17 @@
+name: rdev_assoc
+ID: 850
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:u8 bssid[6];	offset:60;	size:6;	signed:0;
+	field:u8 prev_bssid[6];	offset:66;	size:6;	signed:0;
+	field:bool use_mfp;	offset:72;	size:1;	signed:0;
+	field:u32 flags;	offset:76;	size:4;	signed:0;
+
+print fmt: "%s, netdev:%s(%d), bssid: %pM, previous bssid: %pM, use mfp: %s, flags: %u", REC->wiphy_name, REC->name, REC->ifindex, (REC->bssid), (REC->prev_bssid), (REC->use_mfp) ? "true" : "false", REC->flags

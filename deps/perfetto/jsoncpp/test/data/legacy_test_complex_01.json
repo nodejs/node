@@ -1,0 +1,17 @@
+{ 
+	"count" : 1234,
+	"name" : { "aka" : "T.E.S.T.", "id" : 123987 },
+	"attribute" : [ 
+		"random", 
+		"short", 
+		"bold", 
+		12, 
+		{ "height" : 7, "width" : 64 } 
+		],
+	"test": { "1" : 
+		{ "2" : 
+			{ "3" :  { "coord" : [ 1,2] } 
+			} 
+		}
+	}
+}

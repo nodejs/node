@@ -1,0 +1,48 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//gn/standalone/sanitizers/sanitizers.gni")
+import("//gn/standalone/wasm.gni")
+
+declare_args() {
+  # Background:
+  # there are mainly two C++ libraries around in the world: (i) GNU's
+  # libstdc++ and LLVM's libc++ (aka libcxx). By default Linux provides libstdc++
+  # (even building with clang on Linux uses that by default) while Mac and
+  # Android switched to libcxx.
+  # buildtools/libcxx(abi) contains a fixed version of the libcxx, the same one
+  # that Chrome uses on most production configurations (% lagging catching up
+  # with our DEPS).
+  # The variable use_custom_libcxx tells our build system to prefer the
+  # aforementioned copy to the system one.
+  #
+  # Now, there are two reasons for using the checked in copy of libcxx:
+  # 1) LLVM sanitizers require that the c++ library is built from sources,
+  #    because they need to be instrumented with -fsanitize as well (see
+  #    https://github.com/google/sanitizers/wiki/MemorySanitizerLibcxxHowTo).
+  #    On top of this, they also require that the c++ library is dynamically
+  #    linked to prevent duplicate symbol errors when linking (see Chrome's
+  #    build/config/c++/c++.gni)
+  # 2) The libstdc++ situation is too wild on Linux. Modern debian distros are
+  #    fine but Ubuntu Trusty still ships a libstdc++ that doesn't fully
+  #    support C++11. Hence we enable this flag on Linux by default.
+  #    We still retain libstdc++ coverage on the CI bots by overriding
+  #    use_custom_libcxx=false when we target a modern library (see the
+  #    GCC target in infra/ci/config.py).
+  use_custom_libcxx = is_linux && is_clang && !is_wasm
+  custom_libcxx_is_static = !using_sanitizer
+}
+
+libcxx_prefix = "//buildtools/libcxx"
+libcxxabi_prefix = "//buildtools/libcxxabi"

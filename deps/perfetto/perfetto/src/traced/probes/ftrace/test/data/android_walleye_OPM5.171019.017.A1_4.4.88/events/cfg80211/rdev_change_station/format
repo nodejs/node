@@ -1,0 +1,24 @@
+name: rdev_change_station
+ID: 828
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:u8 sta_mac[6];	offset:60;	size:6;	signed:0;
+	field:u32 sta_flags_mask;	offset:68;	size:4;	signed:0;
+	field:u32 sta_flags_set;	offset:72;	size:4;	signed:0;
+	field:u32 sta_modify_mask;	offset:76;	size:4;	signed:0;
+	field:int listen_interval;	offset:80;	size:4;	signed:1;
+	field:u16 aid;	offset:84;	size:2;	signed:0;
+	field:u8 plink_action;	offset:86;	size:1;	signed:0;
+	field:u8 plink_state;	offset:87;	size:1;	signed:0;
+	field:u8 uapsd_queues;	offset:88;	size:1;	signed:0;
+	field:u8 ht_capa[(int)sizeof(struct ieee80211_ht_cap)];	offset:89;	size:26;	signed:0;
+	field:char vlan[16];	offset:115;	size:16;	signed:0;
+
+print fmt: "%s, netdev:%s(%d), station mac: %pM, station flags mask: %u, station flags set: %u, station modify mask: %u, listen interval: %d, aid: %u, plink action: %u, plink state: %u, uapsd queues: %u, vlan:%s", REC->wiphy_name, REC->name, REC->ifindex, (REC->sta_mac), REC->sta_flags_mask, REC->sta_flags_set, REC->sta_modify_mask, REC->listen_interval, REC->aid, REC->plink_action, REC->plink_state, REC->uapsd_queues, REC->vlan

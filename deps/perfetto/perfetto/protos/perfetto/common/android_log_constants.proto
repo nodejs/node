@@ -1,0 +1,42 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Values from NDK's android/log.h.
+enum AndroidLogId {
+  LID_DEFAULT = 0;  // MAIN.
+  LID_RADIO = 1;
+  LID_EVENTS = 2;
+  LID_SYSTEM = 3;
+  LID_CRASH = 4;
+  LID_STATS = 5;
+  LID_SECURITY = 6;
+  LID_KERNEL = 7;
+}
+
+enum AndroidLogPriority {
+  PRIO_UNSPECIFIED = 0;
+  PRIO_UNUSED = 1;  // _DEFAULT, but should never be seen in logs.
+  PRIO_VERBOSE = 2;
+  PRIO_DEBUG = 3;
+  PRIO_INFO = 4;
+  PRIO_WARN = 5;
+  PRIO_ERROR = 6;
+  PRIO_FATAL = 7;
+}

@@ -1,0 +1,13 @@
+name: ion_secure_cma_add_to_pool_end
+ID: 127
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned long len;	offset:8;	size:4;	signed:0;
+	field:int pool_total;	offset:12;	size:4;	signed:1;
+	field:bool is_prefetch;	offset:16;	size:1;	signed:0;
+
+print fmt: "len %lx, pool total %x is_prefetch %d", REC->len, REC->pool_total, REC->is_prefetch

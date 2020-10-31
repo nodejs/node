@@ -1,0 +1,586 @@
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../gn/perfetto.gni")
+import("../gn/perfetto_check_build_deps.gni")
+import("../gn/wasm.gni")
+import("../protos/perfetto/trace_processor/proto_files.gni")
+
+# Prevent that this file is accidentally included in embedder builds.
+assert(enable_perfetto_ui)
+
+ui_dir = "$root_build_dir/ui"
+chrome_extension_dir = "$root_build_dir/chrome_extension"
+ui_gen_dir = "$target_out_dir/gen"
+nodejs_root = "../buildtools/nodejs"
+nodejs_bin = rebase_path("$nodejs_root/bin", root_build_dir)
+
+# +----------------------------------------------------------------------------+
+# | The outer "ui" target to just ninja -C out/xxx ui                          |
+# +----------------------------------------------------------------------------+
+
+group("ui") {
+  deps = [
+    ":chrome_extension_assets_dist",
+    ":chrome_extension_bundle_dist",
+    ":dist",
+    ":gen_dist_file_map",
+    ":service_worker_bundle_dist",
+    ":test_scripts",
+
+    # IMPORTANT: Only add deps here if they are NOT part of the production UI
+    # (e.g., tests, extensions, ...). Any UI dep should go in the
+    # |ui_dist_targets| list below. The only exception is the service worker
+    # target, that depends on that list.
+  ]
+}
+
+# The list of targets that produces dist/ files for the UI. This list is used
+# also by the gen_dist_file_map to generate the map of hashes of all UI files,
+# which is turn used by the service worker code for the offline caching.
+ui_dist_targets = [
+  ":assets_dist",
+  ":catapult_dist",
+  ":controller_bundle_dist",
+  ":engine_bundle_dist",
+  ":frontend_bundle_dist",
+  ":index_dist",
+  ":scss",
+  ":typefaces_dist",
+  ":wasm_dist",
+]
+
+# Buils the ui, but not service worker, tests and extensions.
+group("dist") {
+  deps = ui_dist_targets
+}
+
+# A minimal page to profile the WASM engine without the all UI.
+group("query") {
+  deps = [
+    ":query_bundle_dist",
+    ":query_dist",
+    ":ui",
+  ]
+}
+
+# +----------------------------------------------------------------------------+
+# | Template used to run node binaries using the hermetic node toolchain.      |
+# +----------------------------------------------------------------------------+
+template("node_bin") {
+  action(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "inputs",
+                             "outputs",
+                             "depfile",
+                           ])
+    deps = [ ":node_modules" ]
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+    script = "../gn/standalone/build_tool_wrapper.py"
+    _node_cmd = invoker.node_cmd
+    args = []
+    if (defined(invoker.suppress_stdout) && invoker.suppress_stdout) {
+      args += [ "--suppress_stdout" ]
+    }
+    if (defined(invoker.suppress_stderr) && invoker.suppress_stderr) {
+      args += [ "--suppress_stderr" ]
+    }
+    args += [
+              "--path=$nodejs_bin",
+              "node",
+              rebase_path("node_modules/.bin/$_node_cmd", root_build_dir),
+            ] + invoker.args
+  }
+}
+
+# +----------------------------------------------------------------------------+
+# | Template for "sorcery" the source map resolver.                            |
+# +----------------------------------------------------------------------------+
+template("sorcery") {
+  node_bin(target_name) {
+    assert(defined(invoker.input))
+    assert(defined(invoker.output))
+    forward_variables_from(invoker, [ "deps" ])
+    inputs = [ invoker.input ]
+    outputs = [
+      invoker.output,
+      invoker.output + ".map",
+    ]
+    node_cmd = "sorcery"
+    args = [
+      "-i",
+      rebase_path(invoker.input, root_build_dir),
+      "-o",
+      rebase_path(invoker.output, root_build_dir),
+    ]
+  }
+}
+
+# +----------------------------------------------------------------------------+
+# | Template for bundling js                                                   |
+# +----------------------------------------------------------------------------+
+template("bundle") {
+  node_bin(target_name) {
+    assert(defined(invoker.input))
+    assert(defined(invoker.output))
+    forward_variables_from(invoker, [ "deps" ])
+    inputs = [
+      invoker.input,
+      "rollup.config.js",
+    ]
+    outputs = [
+      invoker.output,
+      invoker.output + ".map",
+    ]
+    node_cmd = "rollup"
+    args = [
+      "-c",
+      rebase_path("rollup.config.js", root_build_dir),
+      rebase_path(invoker.input, root_build_dir),
+      "-o",
+      rebase_path(invoker.output, root_build_dir),
+      "-f",
+      "iife",
+      "-m",
+      "--silent",
+    ]
+  }
+}
+
+# +----------------------------------------------------------------------------+
+# | Bundles all *.js files together resolving CommonJS require() deps.         |
+# +----------------------------------------------------------------------------+
+
+# Bundle together all js sources into a bundle.js file, that will ultimately be
+# included by the .html files.
+
+bundle("frontend_bundle") {
+  deps = [ ":transpile_all_ts" ]
+  input = "$target_out_dir/frontend/index.js"
+  output = "$target_out_dir/frontend_bundle.js"
+}
+
+bundle("chrome_extension_bundle") {
+  deps = [ ":transpile_all_ts" ]
+  input = "$target_out_dir/chrome_extension/index.js"
+  output = "$target_out_dir/chrome_extension_bundle.js"
+}
+
+bundle("controller_bundle") {
+  deps = [ ":transpile_all_ts" ]
+  input = "$target_out_dir/controller/index.js"
+  output = "$target_out_dir/controller_bundle.js"
+}
+
+bundle("engine_bundle") {
+  deps = [ ":transpile_all_ts" ]
+  input = "$target_out_dir/engine/index.js"
+  output = "$target_out_dir/engine_bundle.js"
+}
+
+bundle("service_worker_bundle") {
+  deps = [ ":transpile_service_worker_ts" ]
+  input = "$target_out_dir/service_worker/service_worker.js"
+  output = "$target_out_dir/service_worker.js"
+}
+
+bundle("query_bundle") {
+  deps = [ ":transpile_all_ts" ]
+  input = "$target_out_dir/query/index.js"
+  output = "$target_out_dir/query_bundle.js"
+}
+
+# +----------------------------------------------------------------------------+
+# | Protobuf: gen rules to create .js and .d.ts files from protos.             |
+# +----------------------------------------------------------------------------+
+node_bin("protos_to_js") {
+  inputs = []
+  foreach(proto, trace_processor_protos) {
+    inputs += [ "../protos/perfetto/trace_processor/$proto.proto" ]
+  }
+  inputs += [
+    "../protos/perfetto/common/trace_stats.proto",
+    "../protos/perfetto/common/tracing_service_capabilities.proto",
+    "../protos/perfetto/config/perfetto_config.proto",
+    "../protos/perfetto/ipc/consumer_port.proto",
+    "../protos/perfetto/ipc/wire_protocol.proto",
+    "../protos/perfetto/metrics/metrics.proto",
+  ]
+  outputs = [ "$ui_gen_dir/protos.js" ]
+  node_cmd = "pbjs"
+  args = [
+           "-t",
+           "static-module",
+           "-w",
+           "commonjs",
+           "-p",
+           rebase_path("..", root_build_dir),
+           "-o",
+           rebase_path(outputs[0], root_build_dir),
+         ] + rebase_path(inputs, root_build_dir)
+}
+
+# Protobuf.js requires to first generate .js files from the .proto and then
+# create .ts definitions for them.
+node_bin("protos_to_ts") {
+  deps = [ ":protos_to_js" ]
+  inputs = [ "$ui_gen_dir/protos.js" ]
+  outputs = [ "$ui_gen_dir/protos.d.ts" ]
+  node_cmd = "pbts"
+  args = [
+    "-p",
+    rebase_path("..", root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
+# +----------------------------------------------------------------------------+
+# | TypeScript: transpiles all *.ts into .js                                   |
+# +----------------------------------------------------------------------------+
+
+# Builds all .ts sources in the repo under |src|.
+node_bin("transpile_all_ts") {
+  deps = [
+    ":dist_symlink",
+    ":protos_to_ts",
+    ":wasm_gen",
+  ]
+  inputs = [ "tsconfig.json" ]
+  outputs = [
+    "$target_out_dir/frontend/index.js",
+    "$target_out_dir/engine/index.js",
+    "$target_out_dir/controller/index.js",
+    "$target_out_dir/query/index.js",
+    "$target_out_dir/chrome_extension/index.js",
+  ]
+
+  depfile = root_out_dir + "/tsc.d"
+  exec_script("../gn/standalone/glob.py",
+              [
+                "--root=" + rebase_path(".", root_build_dir),
+                "--filter=*.ts",
+                "--exclude=node_modules",
+                "--exclude=dist",
+                "--exclude=service_worker",
+                "--deps=obj/ui/frontend/index.js",
+                "--output=" + rebase_path(depfile),
+              ],
+              "")
+
+  node_cmd = "tsc"
+  args = [
+    "--project",
+    rebase_path(".", root_build_dir),
+    "--outDir",
+    rebase_path(target_out_dir, root_build_dir),
+  ]
+}
+
+node_bin("transpile_service_worker_ts") {
+  deps = [
+    ":dist_symlink",
+    ":gen_dist_file_map",
+  ]
+  inputs = [
+    "tsconfig.json",
+    "src/service_worker/service_worker.ts",
+  ]
+  outputs = [ "$target_out_dir/service_worker/service_worker.js" ]
+
+  node_cmd = "tsc"
+  args = [
+    "--project",
+    rebase_path("src/service_worker", root_build_dir),
+    "--outDir",
+    rebase_path(target_out_dir, root_build_dir),
+  ]
+}
+
+# +----------------------------------------------------------------------------+
+# | Build css.                                                                 |
+# +----------------------------------------------------------------------------+
+
+scss_root = "src/assets/perfetto.scss"
+scss_srcs = [
+  "src/assets/typefaces.scss",
+  "src/assets/sidebar.scss",
+  "src/assets/topbar.scss",
+  "src/assets/record.scss",
+  "src/assets/common.scss",
+  "src/assets/modal.scss",
+  "src/assets/details.scss",
+]
+
+# Build css.
+node_bin("scss") {
+  deps = [ ":dist_symlink" ]
+  inputs = [ scss_root ] + scss_srcs
+  outputs = [ "$ui_dir/perfetto.css" ]
+
+  node_cmd = "node-sass"
+  args = [
+    "--quiet",
+    rebase_path(scss_root, root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+# +----------------------------------------------------------------------------+
+# | Copy rules: create the final output directory.                             |
+# +----------------------------------------------------------------------------+
+copy("index_dist") {
+  sources = [ "index.html" ]
+  outputs = [ "$ui_dir/index.html" ]
+}
+
+copy("typefaces_dist") {
+  sources = [
+    "../buildtools/typefaces/MaterialIcons.woff2",
+    "../buildtools/typefaces/Raleway-Regular.woff2",
+    "../buildtools/typefaces/Raleway-Thin.woff2",
+    "../buildtools/typefaces/RobotoCondensed-Light.woff2",
+    "../buildtools/typefaces/RobotoCondensed-Regular.woff2",
+    "../buildtools/typefaces/RobotoMono-Regular.woff2",
+  ]
+
+  outputs = [ "$ui_dir/assets/{{source_file_part}}" ]
+}
+
+copy("query_dist") {
+  sources = [ "query.html" ]
+  outputs = [ "$ui_dir/query.html" ]
+}
+
+copy("assets_dist") {
+  sources = [
+              "src/assets/brand.png",
+              "src/assets/favicon.png",
+              "src/assets/logo-3d.png",
+              "src/assets/rec_atrace.png",
+              "src/assets/rec_battery_counters.png",
+              "src/assets/rec_board_voltage.png",
+              "src/assets/rec_cpu_coarse.png",
+              "src/assets/rec_cpu_fine.png",
+              "src/assets/rec_cpu_freq.png",
+              "src/assets/rec_cpu_voltage.png",
+              "src/assets/rec_cpu_wakeup.png",
+              "src/assets/rec_ftrace.png",
+              "src/assets/rec_java_heap_dump.png",
+              "src/assets/rec_lmk.png",
+              "src/assets/rec_logcat.png",
+              "src/assets/rec_long_trace.png",
+              "src/assets/rec_mem_hifreq.png",
+              "src/assets/rec_meminfo.png",
+              "src/assets/rec_native_heap_profiler.png",
+              "src/assets/rec_one_shot.png",
+              "src/assets/rec_ps_stats.png",
+              "src/assets/rec_ring_buf.png",
+              "src/assets/rec_vmstat.png",
+            ] + [ scss_root ] + scss_srcs
+  outputs = [ "$ui_dir/assets/{{source_file_part}}" ]
+}
+copy("chrome_extension_assets_dist") {
+  sources = [
+    "src/assets/logo-128.png",
+    "src/chrome_extension/manifest.json",
+  ]
+  outputs = [ "$chrome_extension_dir/{{source_file_part}}" ]
+}
+
+sorcery("frontend_bundle_dist") {
+  deps = [ ":frontend_bundle" ]
+  input = "$target_out_dir/frontend_bundle.js"
+  output = "$ui_dir/frontend_bundle.js"
+}
+
+sorcery("chrome_extension_bundle_dist") {
+  deps = [ ":chrome_extension_bundle" ]
+  input = "$target_out_dir/chrome_extension_bundle.js"
+  output = "$chrome_extension_dir/chrome_extension_bundle.js"
+}
+
+sorcery("controller_bundle_dist") {
+  deps = [ ":controller_bundle" ]
+  input = "$target_out_dir/controller_bundle.js"
+  output = "$ui_dir/controller_bundle.js"
+}
+
+sorcery("engine_bundle_dist") {
+  deps = [ ":engine_bundle" ]
+  input = "$target_out_dir/engine_bundle.js"
+  output = "$ui_dir/engine_bundle.js"
+}
+
+sorcery("service_worker_bundle_dist") {
+  deps = [ ":service_worker_bundle" ]
+  input = "$target_out_dir/service_worker.js"
+  output = "$ui_dir/service_worker.js"
+}
+
+sorcery("query_bundle_dist") {
+  deps = [ ":query_bundle" ]
+  input = "$target_out_dir/query_bundle.js"
+  output = "$ui_dir/query_bundle.js"
+}
+
+copy("wasm_dist") {
+  deps = [
+    "//src/trace_processor:trace_processor.wasm($wasm_toolchain)",
+    "//tools/trace_to_text:trace_to_text.wasm($wasm_toolchain)",
+  ]
+  sources = [
+    "$root_build_dir/wasm/trace_processor.wasm",
+    "$root_build_dir/wasm/trace_to_text.wasm",
+  ]
+  outputs = [ "$ui_dir/{{source_file_part}}" ]
+}
+
+copy("wasm_gen") {
+  deps = [
+    ":dist_symlink",
+
+    # trace_processor
+    "//src/trace_processor:trace_processor.d.ts($wasm_toolchain)",
+    "//src/trace_processor:trace_processor.js($wasm_toolchain)",
+    "//src/trace_processor:trace_processor.wasm($wasm_toolchain)",
+
+    # trace_to_text
+    "//tools/trace_to_text:trace_to_text.d.ts($wasm_toolchain)",
+    "//tools/trace_to_text:trace_to_text.js($wasm_toolchain)",
+    "//tools/trace_to_text:trace_to_text.wasm($wasm_toolchain)",
+  ]
+  sources = [
+    # trace_processor
+    "$root_build_dir/wasm/trace_processor.d.ts",
+    "$root_build_dir/wasm/trace_processor.js",
+    "$root_build_dir/wasm/trace_processor.wasm",
+
+    # trace_to_text
+    "$root_build_dir/wasm/trace_to_text.d.ts",
+    "$root_build_dir/wasm/trace_to_text.js",
+    "$root_build_dir/wasm/trace_to_text.wasm",
+  ]
+  if (is_debug) {
+    sources += [
+      "$root_build_dir/wasm/trace_processor.wasm.map",
+      "$root_build_dir/wasm/trace_to_text.wasm.map",
+    ]
+  }
+  outputs = [ "$ui_gen_dir/{{source_file_part}}" ]
+}
+
+# Copy over the vulcanized legacy trace viewer.
+copy("catapult_dist") {
+  sources = [
+    "../buildtools/catapult_trace_viewer/catapult_trace_viewer.html",
+    "../buildtools/catapult_trace_viewer/catapult_trace_viewer.js",
+  ]
+  outputs = [ "$ui_dir/assets/{{source_file_part}}" ]
+}
+
+# +----------------------------------------------------------------------------+
+# | Node JS: Creates a symlink in the out directory to node_modules.           |
+# +----------------------------------------------------------------------------+
+
+perfetto_check_build_deps("check_ui_deps") {
+  args = [ "--ui" ]
+  inputs = [ "package-lock.json" ]
+}
+
+# Creates a symlink from out/xxx/ui/node_modules -> ../../../ui/node_modules.
+# This allows to run rollup and other node tools from the out/xxx directory.
+action("node_modules_symlink") {
+  deps = [ ":check_ui_deps" ]
+  script = "../gn/standalone/build_tool_wrapper.py"
+  stamp_file = "$target_out_dir/.$target_name.stamp"
+  args = [
+    "--stamp",
+    rebase_path(stamp_file, root_build_dir),
+    "/bin/ln",
+    "-fns",
+    rebase_path("node_modules", target_out_dir),
+    rebase_path("$target_out_dir/node_modules", root_build_dir),
+  ]
+  outputs = [ stamp_file ]
+}
+
+group("node_modules") {
+  deps = [ ":node_modules_symlink" ]
+}
+
+# Creates a symlink from //ui/dist -> ../../out/xxx/ui. Used only for
+# autocompletion in IDEs. The problem this is solving is that in tsconfig.json
+# we can't possibly know the path to ../../out/xxx for outDir. Instead, we set
+# outDir to "./dist" and create a symlink on the first build.
+action("dist_symlink") {
+  script = "../gn/standalone/build_tool_wrapper.py"
+  stamp_file = "$target_out_dir/.$target_name.stamp"
+  args = [
+    "--stamp",
+    rebase_path(stamp_file, root_build_dir),
+    "/bin/ln",
+    "-fns",
+    rebase_path(target_out_dir, "."),
+    rebase_path("dist", root_build_dir),
+  ]
+  inputs = [ "$root_build_dir" ]
+  outputs = [ stamp_file ]
+}
+
+group("test_scripts") {
+  deps = [
+    ":copy_tests_script",
+    ":copy_unittests_script",
+  ]
+}
+
+copy("copy_unittests_script") {
+  sources = [ "config/ui_unittests_template" ]
+  outputs = [ "$root_build_dir/ui_unittests" ]
+}
+
+copy("copy_tests_script") {
+  sources = [ "config/ui_tests_template" ]
+  outputs = [ "$root_build_dir/ui_tests" ]
+}
+
+# This target generates an map containing all the UI subresources and their
+# hashes. This is used by the service worker code for offline caching.
+# This taarget needs to be kept at the end of the BUILD.gn file, because of the
+# get_target_outputs() call (fails otherwise due to GN's evaluation order).
+action("gen_dist_file_map") {
+  out_file_path = "$ui_gen_dir/dist_file_map.ts"
+
+  dist_files = []
+  foreach(target, ui_dist_targets) {
+    foreach(dist_file, get_target_outputs(target)) {
+      dist_files += [ rebase_path(dist_file, root_build_dir) ]
+    }
+  }
+  deps = [ ":dist" ]
+  script = "../gn/standalone/write_ui_dist_file_map.py"
+  inputs = []
+  outputs = [ out_file_path ]
+  args = [
+           "--out",
+           rebase_path(out_file_path, root_build_dir),
+           "--strip",
+           rebase_path(ui_dir, root_build_dir),
+         ] + dist_files
+}

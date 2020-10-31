@@ -1,0 +1,19 @@
+name: adreno_gpu_fault
+ID: 437
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int ctx;	offset:8;	size:4;	signed:0;
+	field:unsigned int ts;	offset:12;	size:4;	signed:0;
+	field:unsigned int status;	offset:16;	size:4;	signed:0;
+	field:unsigned int rptr;	offset:20;	size:4;	signed:0;
+	field:unsigned int wptr;	offset:24;	size:4;	signed:0;
+	field:unsigned int ib1base;	offset:28;	size:4;	signed:0;
+	field:unsigned int ib1size;	offset:32;	size:4;	signed:0;
+	field:unsigned int ib2base;	offset:36;	size:4;	signed:0;
+	field:unsigned int ib2size;	offset:40;	size:4;	signed:0;
+
+print fmt: "ctx=%d ts=%d status=%X RB=%X/%X IB1=%X/%X IB2=%X/%X", REC->ctx, REC->ts, REC->status, REC->wptr, REC->rptr, REC->ib1base, REC->ib1size, REC->ib2base, REC->ib2size

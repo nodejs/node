@@ -1,0 +1,15 @@
+name: kgsl_clock_throttling
+ID: 517
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int idle_10pct;	offset:8;	size:4;	signed:1;
+	field:int crc_50pct;	offset:12;	size:4;	signed:1;
+	field:int crc_more50pct;	offset:16;	size:4;	signed:1;
+	field:int crc_less50pct;	offset:20;	size:4;	signed:1;
+	field:int adj;	offset:24;	size:4;	signed:1;
+
+print fmt: "idle_10=%d crc_50=%d crc_more50=%d crc_less50=%d adj=%d", REC->idle_10pct, REC->crc_50pct, REC->crc_more50pct, REC->crc_less50pct, REC->adj

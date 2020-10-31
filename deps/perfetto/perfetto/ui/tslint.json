@@ -1,0 +1,74 @@
+{
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [],
+  "rules": {
+    "array-type": [true, "array-simple"],
+    "arrow-return-shorthand": true,
+    "ban": [true,
+      {"name": "parseInt", "message": "See http://goto.google.com/tsstyle#type-coercion"},
+      {"name": "parseFloat", "message": "See http://goto.google.com/tsstyle#type-coercion"},
+      {"name": "Array", "message": "See http://goto.google.com/tsstyle#array-constructor"},
+      {"name": ["*", "innerText"], "message": "Use .textContent instead. http://goto.google.com/typescript/patterns#browser-oddities"}
+    ],
+    "ban-types": [true,
+      ["Object", "Use {} or 'object' instead. See http://goto.google.com/ts-style#redundant-types"],
+      ["String", "Use 'string' instead."],
+      ["Number", "Use 'number' instead."],
+      ["Boolean", "Use 'boolean' instead."]
+    ],
+    "class-name": true,
+    "curly": [true, "ignore-same-line"],
+    "forin": true,
+    "interface-name": [true, "never-prefix"],
+    "interface-over-type-literal": true,
+    "jsdoc-format": true,
+    "label-position": true,
+    "member-access": [true, "no-public"],
+    "new-parens": true,
+    "no-angle-bracket-type-assertion": true,
+    "no-any": true,
+    "no-construct": true,
+    "no-debugger": true,
+    "no-default-export": true,
+    "no-duplicate-switch-case": true,
+    "no-inferrable-types": true,
+    "no-namespace": [true, "allow-declarations"],
+    "no-reference": true,
+    "no-require-imports": true,
+    "no-string-throw": true,
+    "no-return-await": true,
+    "no-unsafe-finally": true,
+    "no-unused-expression": [true, "allow-new"], // E.g. new ModifyGlobalState(); without assignment.
+    "no-var-keyword": true,
+    "object-literal-shorthand": true,
+    "only-arrow-functions": [true, "allow-declarations", "allow-named-functions"],
+    "prefer-const": true,
+    "radix": true,
+    "semicolon": [true, "always", "ignore-bound-class-methods"],
+    "switch-default": true,
+    "triple-equals": [true, "allow-null-check"],
+    "variable-name": [
+      true,
+      "check-format",
+      "ban-keywords",
+      "allow-leading-underscore",
+      "allow-trailing-underscore",
+      "allow-pascal-case"
+    ],
+    "deprecation": true,
+    "no-for-in-array": true,
+    "no-unnecessary-type-assertion": true,
+    "restrict-plus-operands": true,
+    "whitespace": [
+       true,
+       "check-branch",
+       "check-decl",
+       "check-operator"
+    ]
+  },
+  "jsRules": {
+    "no-empty": true
+  }
+}

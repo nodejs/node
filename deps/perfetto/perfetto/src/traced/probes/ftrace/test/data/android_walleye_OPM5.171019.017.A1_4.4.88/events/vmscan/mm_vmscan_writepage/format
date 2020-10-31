@@ -1,0 +1,12 @@
+name: mm_vmscan_writepage
+ID: 177
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned long pfn;	offset:8;	size:8;	signed:0;
+	field:int reclaim_flags;	offset:16;	size:4;	signed:1;
+
+print fmt: "page=%p pfn=%lu flags=%s", (((struct page *)((((0xffffffffffffffffUL) - ((1UL) << ((39) - 1)) + 1) - (1UL << ((12 - 3) * (4 - (4 - 3)) + 3)) - (((((1UL << ((39) - 12)) * sizeof(struct page))) + ((typeof(((1UL << ((39) - 12)) * sizeof(struct page))))(((1UL << ((12 - 3) * (4 - (4 - 3)) + 3)))) - 1)) & ~((typeof(((1UL << ((39) - 12)) * sizeof(struct page))))(((1UL << ((12 - 3) * (4 - (4 - 3)) + 3)))) - 1)) - 0x00010000) + 0x00010000) - ((memstart_addr >> 12) & (~((1UL << (30 - 12))-1)))) + (REC->pfn)), REC->pfn, (REC->reclaim_flags) ? __print_flags(REC->reclaim_flags, "|", {0x0001u, "RECLAIM_WB_ANON"}, {0x0002u, "RECLAIM_WB_FILE"}, {0x0010u, "RECLAIM_WB_MIXED"}, {0x0004u, "RECLAIM_WB_SYNC"}, {0x0008u, "RECLAIM_WB_ASYNC"} ) : "RECLAIM_WB_NONE"

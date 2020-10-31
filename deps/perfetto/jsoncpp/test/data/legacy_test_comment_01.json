@@ -1,0 +1,10 @@
+{
+    "test":
+    // Comment for array
+    [
+       // Comment within array
+       { "a" : "aaa" }, // Comment for a
+       { "b" : "bbb" }, // Comment for b
+       { "c" : "ccc" } // Comment for c
+    ]
+}

@@ -1,0 +1,17 @@
+name: mdp_perf_set_qos_luts
+ID: 412
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 pnum;	offset:8;	size:4;	signed:0;
+	field:u32 fmt;	offset:12;	size:4;	signed:0;
+	field:u32 intf;	offset:16;	size:4;	signed:0;
+	field:u32 rot;	offset:20;	size:4;	signed:0;
+	field:u32 fl;	offset:24;	size:4;	signed:0;
+	field:u32 lut;	offset:28;	size:4;	signed:0;
+	field:bool linear;	offset:32;	size:1;	signed:0;
+
+print fmt: "pnum=%d fmt=%d intf=%d rot=%d fl:%d lut=0x%x lin:%d", REC->pnum, REC->fmt, REC->intf, REC->rot, REC->fl, REC->lut, REC->linear

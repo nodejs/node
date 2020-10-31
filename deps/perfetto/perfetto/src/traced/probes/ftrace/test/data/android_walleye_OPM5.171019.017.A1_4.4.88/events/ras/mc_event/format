@@ -1,0 +1,22 @@
+name: mc_event
+ID: 746
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:unsigned int error_type;	offset:8;	size:4;	signed:0;
+	field:__data_loc char[] msg;	offset:12;	size:4;	signed:0;
+	field:__data_loc char[] label;	offset:16;	size:4;	signed:0;
+	field:u16 error_count;	offset:20;	size:2;	signed:0;
+	field:u8 mc_index;	offset:22;	size:1;	signed:0;
+	field:s8 top_layer;	offset:23;	size:1;	signed:1;
+	field:s8 middle_layer;	offset:24;	size:1;	signed:1;
+	field:s8 lower_layer;	offset:25;	size:1;	signed:1;
+	field:long address;	offset:32;	size:8;	signed:1;
+	field:u8 grain_bits;	offset:40;	size:1;	signed:0;
+	field:long syndrome;	offset:48;	size:8;	signed:1;
+	field:__data_loc char[] driver_detail;	offset:56;	size:4;	signed:0;
+
+print fmt: "%d %s error%s:%s%s on %s (mc:%d location:%d:%d:%d address:0x%08lx grain:%d syndrome:0x%08lx%s%s)", REC->error_count, mc_event_error_type(REC->error_type), REC->error_count > 1 ? "s" : "", ((char *)__get_str(msg))[0] ? " " : "", __get_str(msg), __get_str(label), REC->mc_index, REC->top_layer, REC->middle_layer, REC->lower_layer, REC->address, 1 << REC->grain_bits, REC->syndrome, ((char *)__get_str(driver_detail))[0] ? " " : "", __get_str(driver_detail)

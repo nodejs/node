@@ -1,0 +1,22 @@
+name: ext4_allocate_blocks
+ID: 255
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:12;	size:4;	signed:0;
+	field:ino_t ino;	offset:16;	size:4;	signed:0;
+	field:__u64 block;	offset:24;	size:8;	signed:0;
+	field:unsigned int flags;	offset:32;	size:4;	signed:0;
+	field:unsigned int len;	offset:36;	size:4;	signed:0;
+	field:__u32 logical;	offset:40;	size:4;	signed:0;
+	field:__u32 lleft;	offset:44;	size:4;	signed:0;
+	field:__u32 lright;	offset:48;	size:4;	signed:0;
+	field:__u64 goal;	offset:56;	size:8;	signed:0;
+	field:__u64 pleft;	offset:64;	size:8;	signed:0;
+	field:__u64 pright;	offset:72;	size:8;	signed:0;
+
+print fmt: "dev %d,%d ino %lu flags %u len %u block %llu lblk %u goal %llu lleft %u lright %u pleft %llu pright %llu", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->flags, REC->len, REC->block, REC->logical, REC->goal, REC->lleft, REC->lright, REC->pleft, REC->pright

@@ -1,0 +1,46 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+import "protos/perfetto/metrics/android/process_metadata.proto";
+
+// Potential culplit of a low-memory kill on Android.
+message AndroidLmkReasonMetric {
+  message Process {
+    optional AndroidProcessMetadata process = 1;
+
+    // OOM score adj of the process.
+    optional int32 oom_score_adj = 2;
+
+    // RSS + swap.
+    optional int64 size = 3;
+  }
+  message Lmk {
+    // OOM score adj of the LMK'ed process.
+    optional int32 oom_score_adj = 1;
+
+    // Total size of the system ION heap in bytes during this LMK.
+    optional int64 system_ion_heap_size = 2;
+
+    // Processes present during this LMK.
+    repeated Process processes = 3;
+  }
+
+  repeated Lmk lmks = 1;
+}

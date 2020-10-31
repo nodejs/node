@@ -1,0 +1,84 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+message ChromeLatencyInfo {
+  optional int64 trace_id = 1;
+
+  // NEXT ID: 11
+  // All step are optional but the enum is ordered (not by number) below in the
+  // order we expect them to appear if they are emitted in trace in a blocking
+  // fashion.
+  enum Step {
+    STEP_UNSPECIFIED = 0;
+    // Emitted on the browser main thread.
+    STEP_SEND_INPUT_EVENT_UI = 3;
+    // Happens on the renderer's compositor.
+    STEP_HANDLE_INPUT_EVENT_IMPL = 5;
+    STEP_DID_HANDLE_INPUT_AND_OVERSCROLL = 8;
+    // Occurs on the Renderer's main thread.
+    STEP_HANDLE_INPUT_EVENT_MAIN = 4;
+    STEP_MAIN_THREAD_SCROLL_UPDATE = 2;
+    STEP_HANDLE_INPUT_EVENT_MAIN_COMMIT = 1;
+    // Could be emitted on both the renderer's main OR compositor.
+    STEP_HANDLED_INPUT_EVENT_MAIN_OR_IMPL = 9;
+    // Optionally sometimes HANDLED_INPUT_EVENT_MAIN_OR_IMPL will proxy to the
+    // renderer's compositor and this will be emitted.
+    STEP_HANDLED_INPUT_EVENT_IMPL = 10;
+    // Renderer's compositor.
+    STEP_SWAP_BUFFERS = 6;
+    // Happens on the VizCompositor in the GPU process.
+    STEP_DRAW_AND_SWAP = 7;
+  };
+
+  optional Step step = 2;
+  optional int32 frame_tree_node_id = 3;
+
+  // This enum is a copy of LatencyComponentType enum in Chrome, located in
+  // ui/latency/latency_info.h, modulo added UNKNOWN value per protobuf
+  // practices.
+  enum LatencyComponentType {
+    COMPONENT_UNSPECIFIED = 0;
+    COMPONENT_INPUT_EVENT_LATENCY_BEGIN_RWH = 1;
+    COMPONENT_INPUT_EVENT_LATENCY_SCROLL_UPDATE_ORIGINAL = 2;
+    COMPONENT_INPUT_EVENT_LATENCY_FIRST_SCROLL_UPDATE_ORIGINAL = 3;
+    COMPONENT_INPUT_EVENT_LATENCY_ORIGINAL = 4;
+    COMPONENT_INPUT_EVENT_LATENCY_UI = 5;
+    COMPONENT_INPUT_EVENT_LATENCY_RENDERER_MAIN = 6;
+    COMPONENT_INPUT_EVENT_LATENCY_RENDERING_SCHEDULED_MAIN = 7;
+    COMPONENT_INPUT_EVENT_LATENCY_RENDERING_SCHEDULED_IMPL = 8;
+    COMPONENT_INPUT_EVENT_LATENCY_SCROLL_UPDATE_LAST_EVENT = 9;
+    COMPONENT_INPUT_EVENT_LATENCY_ACK_RWH = 10;
+    COMPONENT_INPUT_EVENT_LATENCY_RENDERER_SWAP = 11;
+    COMPONENT_DISPLAY_COMPOSITOR_RECEIVED_FRAME = 12;
+    COMPONENT_INPUT_EVENT_GPU_SWAP_BUFFER = 13;
+    COMPONENT_INPUT_EVENT_LATENCY_FRAME_SWAP = 14;
+  }
+
+  message ComponentInfo {
+    optional LatencyComponentType component_type = 1;
+
+    // Microsecond timestamp in CLOCK_MONOTONIC domain
+    optional uint64 time_us = 2;
+  };
+
+  repeated ComponentInfo component_info = 4;
+  optional bool is_coalesced = 5;
+  optional int64 gesture_scroll_id = 6;
+}

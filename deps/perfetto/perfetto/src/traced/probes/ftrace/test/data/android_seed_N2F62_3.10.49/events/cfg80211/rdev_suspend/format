@@ -1,0 +1,19 @@
+name: rdev_suspend
+ID: 732
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:bool any;	offset:40;	size:1;	signed:0;
+	field:bool disconnect;	offset:41;	size:1;	signed:0;
+	field:bool magic_pkt;	offset:42;	size:1;	signed:0;
+	field:bool gtk_rekey_failure;	offset:43;	size:1;	signed:0;
+	field:bool eap_identity_req;	offset:44;	size:1;	signed:0;
+	field:bool four_way_handshake;	offset:45;	size:1;	signed:0;
+	field:bool rfkill_release;	offset:46;	size:1;	signed:0;
+	field:bool valid_wow;	offset:47;	size:1;	signed:0;
+
+print fmt: "%s, wow%s - any: %d, disconnect: %d, magic pkt: %d, gtk rekey failure: %d, eap identify req: %d, four way handshake: %d, rfkill release: %d.", REC->wiphy_name, REC->valid_wow ? "" : "(Not configured!)", REC->any, REC->disconnect, REC->magic_pkt, REC->gtk_rekey_failure, REC->eap_identity_req, REC->four_way_handshake, REC->rfkill_release

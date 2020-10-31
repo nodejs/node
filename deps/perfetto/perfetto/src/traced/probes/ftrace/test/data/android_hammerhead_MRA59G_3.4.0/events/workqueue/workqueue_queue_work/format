@@ -1,0 +1,16 @@
+name: workqueue_queue_work
+ID: 54
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:void * work;	offset:12;	size:4;	signed:0;
+	field:void * function;	offset:16;	size:4;	signed:0;
+	field:void * workqueue;	offset:20;	size:4;	signed:0;
+	field:unsigned int req_cpu;	offset:24;	size:4;	signed:0;
+	field:unsigned int cpu;	offset:28;	size:4;	signed:0;
+
+print fmt: "work struct=%p function=%pf workqueue=%p req_cpu=%u cpu=%u", REC->work, REC->function, REC->workqueue, REC->req_cpu, REC->cpu

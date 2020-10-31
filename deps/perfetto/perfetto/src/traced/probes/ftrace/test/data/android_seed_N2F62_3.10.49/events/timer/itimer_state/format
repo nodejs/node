@@ -1,0 +1,16 @@
+name: itimer_state
+ID: 34
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int which;	offset:8;	size:4;	signed:1;
+	field:cputime_t expires;	offset:12;	size:4;	signed:0;
+	field:long value_sec;	offset:16;	size:4;	signed:1;
+	field:long value_usec;	offset:20;	size:4;	signed:1;
+	field:long interval_sec;	offset:24;	size:4;	signed:1;
+	field:long interval_usec;	offset:28;	size:4;	signed:1;
+
+print fmt: "which=%d expires=%llu it_value=%ld.%ld it_interval=%ld.%ld", REC->which, (unsigned long long)REC->expires, REC->value_sec, REC->value_usec, REC->interval_sec, REC->interval_usec

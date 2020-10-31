@@ -1,0 +1,66 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// A snapshot of clock readings to allow for trace alignment.
+message ClockSnapshot {
+  message Clock {
+    enum BuiltinClocks {
+      UNKNOWN = 0;
+      REALTIME = 1;
+      REALTIME_COARSE = 2;
+      MONOTONIC = 3;
+      MONOTONIC_COARSE = 4;
+      MONOTONIC_RAW = 5;
+      BOOTTIME = 6;
+      PROCESS_CPUTIME = 7;
+      THREAD_CPUTIME = 8;
+      BUILTIN_CLOCK_MAX_ID = 63;
+    }
+
+    // Clock IDs have the following semantic:
+    // [1, 63]:    Builtin types, see BuiltinClocks above.
+    // [64, 127]:  User-defined clocks. These clocks are sequence-scoped. They
+    //             are only valid within the same |trusted_packet_sequence_id|
+    //             (i.e. only for TracePacket(s) emitted by the same TraceWriter
+    //             that emitted the clock snapshot).
+    // [128, MAX]: Reserved for future use. The idea is to allow global clock
+    //             IDs and setting this ID to hash(full_clock_name) & ~127.
+    optional uint32 clock_id = 1;
+
+    // Absolute timestamp. Unit is ns unless specified otherwise by the
+    // unit_multiplier_ns field below.
+    optional uint64 timestamp = 2;
+
+    // When true each TracePacket's timestamp should be interpreted as a delta
+    // from the last TracePacket's timestamp (referencing this clock) emitted by
+    // the same packet_sequence_id. Should only be used for user-defined
+    // sequence-local clocks. The first packet timestamp after each
+    // ClockSnapshot that contains this clock is relative to the |timestamp| in
+    // the ClockSnapshot.
+    optional bool is_incremental = 3;
+
+    // Allows to specify a custom unit different than the default (ns) for this
+    // clock domain. A multiplier of 1000 means that a timestamp = 3 should be
+    // interpreted as 3000 ns = 3 us. All snapshots for the same clock within a
+    // trace need to use the same unit.
+    optional uint64 unit_multiplier_ns = 4;
+  }
+  repeated Clock clocks = 1;
+}

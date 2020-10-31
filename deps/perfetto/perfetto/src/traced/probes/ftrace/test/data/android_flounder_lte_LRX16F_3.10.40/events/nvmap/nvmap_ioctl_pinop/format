@@ -1,0 +1,15 @@
+name: nvmap_ioctl_pinop
+ID: 443
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct nvmap_client * client;	offset:8;	size:8;	signed:0;
+	field:u32 is_pin;	offset:16;	size:4;	signed:0;
+	field:u32 count;	offset:20;	size:4;	signed:0;
+	field:struct nvmap_handle ** ids;	offset:24;	size:8;	signed:0;
+	field:__data_loc struct nvmap_handle *[] ids;	offset:32;	size:4;	signed:0;
+
+print fmt: "client=%p, is_pin=%d, count=%d, ids=[%s]", REC->client, REC->is_pin, REC->count, __print_hex(__get_dynamic_array(ids), REC->ids ? sizeof(struct nvmap_handle *) * REC->count : 0)

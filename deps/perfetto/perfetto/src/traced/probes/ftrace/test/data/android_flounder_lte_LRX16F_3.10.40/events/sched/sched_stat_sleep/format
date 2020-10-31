@@ -1,0 +1,13 @@
+name: sched_stat_sleep
+ID: 58
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char comm[16];	offset:8;	size:16;	signed:0;
+	field:pid_t pid;	offset:24;	size:4;	signed:1;
+	field:u64 delay;	offset:32;	size:8;	signed:0;
+
+print fmt: "comm=%s pid=%d delay=%Lu [ns]", REC->comm, REC->pid, (unsigned long long)REC->delay

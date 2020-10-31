@@ -1,0 +1,9 @@
+Name: Perfetto
+URL: https://android.googlesource.com/platform/external/perfetto/
+Version: unknown
+License: Apache2
+License File: LICENSE
+Security Critical: yes
+License Android Compatible: yes
+Description: Performance instrumentation and logging for Google client platforms
+Local Modifications: None

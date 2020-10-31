@@ -1,0 +1,55 @@
+# Copyright (C) 2020 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../gn/perfetto.gni")
+import("../../../gn/test.gni")
+
+assert(enable_perfetto_ipc)
+
+# The lack of a default "ipc" target is deliberate. Clients need to explicitly
+# depend on ipc/{producer, consumer, service}. This is to avoid binary bloat
+# by always linking everything.
+
+source_set("common") {
+  public_deps = [
+    "../../../include/perfetto/ext/tracing/core",
+    "../../../include/perfetto/ext/tracing/ipc",
+  ]
+  sources = [
+    "default_socket.cc",
+    "memfd.cc",
+    "memfd.h",
+    "posix_shared_memory.cc",
+    "posix_shared_memory.h",
+  ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/ext/ipc",
+    "../../base",
+    "../core",
+  ]
+}
+
+perfetto_unittest_source_set("unittests") {
+  testonly = true
+  deps = [
+    ":common",
+    "../../../gn:default_deps",
+    "../../../gn:gtest_and_gmock",
+    "../../../include/perfetto/ext/ipc",
+    "../../base",
+    "../../base:test_support",
+  ]
+  sources = [ "posix_shared_memory_unittest.cc" ]
+}

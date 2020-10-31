@@ -1,0 +1,20 @@
+name: ext4_mballoc_prealloc
+ID: 276
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:12;	size:4;	signed:0;
+	field:__u32 orig_logical;	offset:16;	size:4;	signed:0;
+	field:int orig_start;	offset:20;	size:4;	signed:1;
+	field:__u32 orig_group;	offset:24;	size:4;	signed:0;
+	field:int orig_len;	offset:28;	size:4;	signed:1;
+	field:__u32 result_logical;	offset:32;	size:4;	signed:0;
+	field:int result_start;	offset:36;	size:4;	signed:1;
+	field:__u32 result_group;	offset:40;	size:4;	signed:0;
+	field:int result_len;	offset:44;	size:4;	signed:1;
+
+print fmt: "dev %d,%d inode %lu orig %u/%d/%u@%u result %u/%d/%u@%u", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->orig_group, REC->orig_start, REC->orig_len, REC->orig_logical, REC->result_group, REC->result_start, REC->result_len, REC->result_logical

@@ -1,0 +1,48 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto2";
+
+package perfetto.protos;
+
+message AndroidProcessMetadata {
+  // Process name. Usually, cmdline or <package_name>(:<custom_name>)?.
+  optional string name = 1;
+
+  // User id under which this process runs.
+  optional int64 uid = 2;
+
+  // Package metadata from Android package list.
+  message Package {
+    optional string package_name = 1;
+    optional int64 apk_version_code = 2;
+    optional bool debuggable = 3;
+  }
+
+  // Package that this process belongs to.
+  //
+  // If this process shares its uid (see `packages_for_uid` field), the package
+  // is determined based on the process name and package name. If there is no
+  // match this field is empty.
+  optional Package package = 7;
+
+  // All packages using this uid.
+  //
+  // Shared uid documentation:
+  // https://developer.android.com/guide/topics/manifest/manifest-element#uid
+  repeated Package packages_for_uid = 8;
+
+  reserved 3, 4, 5, 6;
+}

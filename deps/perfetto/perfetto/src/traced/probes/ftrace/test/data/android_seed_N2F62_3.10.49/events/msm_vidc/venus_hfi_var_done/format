@@ -1,0 +1,14 @@
+name: venus_hfi_var_done
+ID: 487
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 cp_start;	offset:8;	size:4;	signed:0;
+	field:u32 cp_size;	offset:12;	size:4;	signed:0;
+	field:u32 cp_nonpixel_start;	offset:16;	size:4;	signed:0;
+	field:u32 cp_nonpixel_size;	offset:20;	size:4;	signed:0;
+
+print fmt: "TZBSP_MEM_PROTECT_VIDEO_VAR done, cp_start : 0x%x, cp_size : 0x%x, cp_nonpixel_start : 0x%x, cp_nonpixel_size : 0x%x", REC->cp_start, REC->cp_size, REC->cp_nonpixel_start, REC->cp_nonpixel_size

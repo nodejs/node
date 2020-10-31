@@ -1,0 +1,14 @@
+name: thermal_zone_trip
+ID: 680
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] thermal_zone;	offset:8;	size:4;	signed:0;
+	field:int id;	offset:12;	size:4;	signed:1;
+	field:int trip;	offset:16;	size:4;	signed:1;
+	field:enum thermal_trip_type trip_type;	offset:20;	size:4;	signed:0;
+
+print fmt: "thermal_zone=%s id=%d trip=%d trip_type=%d", __get_str(thermal_zone), REC->id, REC->trip, REC->trip_type

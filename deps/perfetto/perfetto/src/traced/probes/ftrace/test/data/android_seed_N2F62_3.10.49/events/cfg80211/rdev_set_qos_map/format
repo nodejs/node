@@ -1,0 +1,16 @@
+name: rdev_set_qos_map
+ID: 638
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:u8 num_des;	offset:60;	size:1;	signed:0;
+	field:u8 dscp_exception[2 * 21];	offset:61;	size:42;	signed:0;
+	field:u8 up[16];	offset:103;	size:16;	signed:0;
+
+print fmt: "%s, netdev:%s(%d), num_des: %u", REC->wiphy_name, REC->name, REC->ifindex, REC->num_des

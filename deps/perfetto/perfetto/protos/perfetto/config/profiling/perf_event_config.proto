@@ -1,0 +1,80 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Configuration for the traced_perf profiler.
+//
+// At the time of writing, the config options are restricted to the periodic
+// system-wide stack sampling use-case (|all_cpus| must be true).
+message PerfEventConfig {
+  // If true, sample events on all CPUs.
+  optional bool all_cpus = 1;
+
+  // Per-cpu sampling frequency (requested from the kernel). Not guaranteed to
+  // be honored as the kernel can throttle the sampling rate if it's too high.
+  // If unset, an implementation-defined default is used.
+  optional uint32 sampling_frequency = 2;
+
+  // How often the per-cpu ring buffers are read by the producer.
+  // If unset, an implementation-defined default is used.
+  optional uint32 ring_buffer_read_period_ms = 8;
+
+  // Size (in 4k pages) of each per-cpu ring buffer that is filled by the
+  // kernel. If set, must be a power of two.
+  // If unset, an implementation-defined default is used.
+  optional uint32 ring_buffer_pages = 3;
+
+  // Process ID (TGID) whitelist. If this list is not empty, only matching
+  // samples will be retained. If multiple whitelists and blacklists are
+  // specified by the config, then all of them are evaluated for each sampled
+  // process.
+  repeated int32 target_pid = 4;
+
+  // Command line whitelist, matched against the
+  // /proc/<pid>/cmdline (not the comm string), with both sides being
+  // "normalized". Normalization is as follows: (1) trim everything beyond the
+  // first null or "@" byte; (2) if the string contains forward slashes, trim
+  // everything up to and including the last one.
+  repeated string target_cmdline = 5;
+
+  // PID blacklist.
+  repeated int32 exclude_pid = 6;
+
+  // Command line blacklist. Normalized in the same way as |target_cmdline|.
+  repeated string exclude_cmdline = 7;
+
+  ////////////////////
+  // Uncommon options:
+
+  // Timeout for the remote /proc/<pid>/{maps,mem} file descriptors for a
+  // sampled process. This is primarily for Android, where this lookup is
+  // asynchronous. As long as the producer is waiting, the associated samples
+  // will be kept enqueued (putting pressure on the capacity of the shared
+  // unwinding queue). Once a lookup for a process expires, all associated
+  // samples are discarded. However, if the lookup still succeeds after the
+  // timeout, future samples will be handled normally.
+  // If unset, an implementation-defined default is used.
+  optional uint32 remote_descriptor_timeout_ms = 9;
+
+  // Optional period for clearing state cached by the unwinder. This is a heavy
+  // operation that is only necessary for traces that target a wide set of
+  // processes, and require the memory footprint to be reset periodically.
+  // If unset, the cached state will not be cleared.
+  optional uint32 unwind_state_clear_period_ms = 10;
+}

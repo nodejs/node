@@ -1,0 +1,3 @@
+"id","type","upid","ts","path","size_kb","private_dirty_kb","swap_kb"
+0,"profiler_smaps",2,10,"/system/lib64/libc.so",20,4,4
+1,"profiler_smaps",2,10,"[anon: libc_malloc]",30,10,10

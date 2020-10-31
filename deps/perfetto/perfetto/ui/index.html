@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+  <title>Perfetto UI</title>
+  <!-- See b/149573396 for CSP rationale. -->
+  <!-- TODO(b/121211019): remove script-src-elem rule once fixed. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src-elem 'self' https://*.google.com https://*.googleusercontent.com; object-src 'none'; connect-src 'self' http://127.0.0.1:9001 https://*.googleapis.com; navigate-to https://*.perfetto.dev;">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport" />
+  <link href="perfetto.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+</head>
+<body>
+  <main>
+    <div class="full-page-loading-screen"></div>
+  </main>
+  <div id="main-modal" aria-hidden="true" class="modal micromodal-slide"></div>
+</body>
+</html>
+<script src="frontend_bundle.js"></script>
+<script src="https://storage.cloud.google.com/perfetto-ui-internal/is_internal_user.js" async defer></script>

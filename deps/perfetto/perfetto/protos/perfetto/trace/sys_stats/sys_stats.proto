@@ -1,0 +1,76 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+package perfetto.protos;
+
+import "protos/perfetto/common/sys_stats_counters.proto";
+
+// Various Linux system stat counters from /proc.
+// The fields in this message can be reported at different rates and with
+// different granularity. See sys_stats_config.proto.
+message SysStats {
+  // Counters from /proc/meminfo. Values are in KB.
+  message MeminfoValue {
+    optional MeminfoCounters key = 1;
+    optional uint64 value = 2;
+  };
+  repeated MeminfoValue meminfo = 1;
+
+  // Counter from /proc/vmstat. Units are often pages, not KB.
+  message VmstatValue {
+    optional VmstatCounters key = 1;
+    optional uint64 value = 2;
+  };
+  repeated VmstatValue vmstat = 2;
+
+  // Times in each mode, since boot. Unit: nanoseconds.
+  message CpuTimes {
+    optional uint32 cpu_id = 1;
+    optional uint64 user_ns = 2;         // Time spent in user mode.
+    optional uint64 user_ice_ns = 3;     // Time spent in user mode (low prio).
+    optional uint64 system_mode_ns = 4;  // Time spent in system mode.
+    optional uint64 idle_ns = 5;         // Time spent in the idle task.
+    optional uint64 io_wait_ns = 6;      // Time spent waiting for I/O.
+    optional uint64 irq_ns = 7;          // Time spent servicing interrupts.
+    optional uint64 softirq_ns = 8;      // Time spent servicing softirqs.
+  }
+  repeated CpuTimes cpu_stat = 3;  // One entry per cpu.
+
+  // Num processes forked since boot.
+  // Populated only if FORK_COUNT in config.stat_counters.
+  optional uint64 num_forks = 4;
+
+  message InterruptCount {
+    optional int32 irq = 1;
+    optional uint64 count = 2;
+  }
+
+  // Number of interrupts, broken by IRQ number.
+  // Populated only if IRQ_COUNTS in config.stat_counters.
+  optional uint64 num_irq_total = 5;  // Total num of irqs serviced since boot.
+  repeated InterruptCount num_irq = 6;
+
+  // Number of softirqs, broken by softirq number.
+  // Populated only if SOFTIRQ_COUNTS in config.stat_counters.
+  optional uint64 num_softirq_total = 7;    // Total num of softirqs since boot.
+  repeated InterruptCount num_softirq = 8;  // Per-softirq count.
+
+  // The time at which we finish collecting this set of samples;
+  // the top-level packet timestamp is the time at which
+  // we begin collection.
+  optional uint64 collection_end_timestamp = 9;
+}

@@ -1,0 +1,195 @@
+#!/usr/bin/env python
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import argparse
+import os
+import re
+import functools
+import logging
+import subprocess
+import sys
+import tempfile
+import time
+""" Runs a test executable on Android.
+
+Takes care of pushing the extra shared libraries that might be required by
+some sanitizers. Propagates the test return code to the host, exiting with
+0 only if the test execution succeeds on the device.
+"""
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ADB_PATH = os.path.join(ROOT_DIR, 'buildtools/android_sdk/platform-tools/adb')
+
+
+def RetryOn(exc_type=(), returns_falsy=False, retries=5):
+  """Decorator to retry a function in case of errors or falsy values.
+
+  Implements exponential backoff between retries.
+
+  Args:
+    exc_type: Type of exceptions to catch and retry on. May also pass a tuple
+      of exceptions to catch and retry on any of them. Defaults to catching no
+      exceptions at all.
+    returns_falsy: If True then the function will be retried until it stops
+      returning a "falsy" value (e.g. None, False, 0, [], etc.). If equal to
+      'raise' and the function keeps returning falsy values after all retries,
+      then the decorator will raise a ValueError.
+    retries: Max number of retry attempts. After exhausting that number of
+      attempts the function will be called with no safeguards: any exceptions
+      will be raised and falsy values returned to the caller (except when
+      returns_falsy='raise').
+  """
+
+  def Decorator(f):
+
+    @functools.wraps(f)
+    def Wrapper(*args, **kwargs):
+      wait = 1
+      this_retries = kwargs.pop('retries', retries)
+      for _ in range(this_retries):
+        retry_reason = None
+        try:
+          value = f(*args, **kwargs)
+        except exc_type as exc:
+          retry_reason = 'raised %s' % type(exc).__name__
+        if retry_reason is None:
+          if returns_falsy and not value:
+            retry_reason = 'returned %r' % value
+          else:
+            return value  # Success!
+        print('{} {}, will retry in {} second{} ...'.format(
+            f.__name__, retry_reason, wait, '' if wait == 1 else 's'))
+        time.sleep(wait)
+        wait *= 2
+      value = f(*args, **kwargs)  # Last try to run with no safeguards.
+      if returns_falsy == 'raise' and not value:
+        raise ValueError('%s returned %r' % (f.__name__, value))
+      return value
+
+    return Wrapper
+
+  return Decorator
+
+
+def AdbCall(*args):
+  cmd = [ADB_PATH] + list(args)
+  print '> adb ' + ' '.join(args)
+  return subprocess.check_call(cmd)
+
+
+def AdbPush(host, device):
+  if not os.path.exists(host):
+    logging.fatal('Cannot find %s. Was it built?', host)
+  cmd = [ADB_PATH, 'push', host, device]
+  print '> adb push ' + ' '.join(cmd[2:])
+  with open(os.devnull) as devnull:
+    return subprocess.check_call(cmd, stdout=devnull)
+
+
+def GetProp(prop):
+  cmd = [ADB_PATH, 'shell', 'getprop', prop]
+  print '> adb ' + ' '.join(cmd)
+  output = subprocess.check_output(cmd)
+  lines = output.splitlines()
+  assert len(lines) == 1, 'Expected output to have one line: {}'.format(output)
+  print lines[0]
+  return lines[0]
+
+
+@RetryOn([subprocess.CalledProcessError], returns_falsy=True, retries=10)
+def WaitForBootCompletion():
+  return GetProp('sys.boot_completed') == '1'
+
+
+def EnumerateDataDeps():
+  with open(os.path.join(ROOT_DIR, 'tools', 'test_data.txt')) as f:
+    lines = f.readlines()
+  for line in (line.strip() for line in lines if not line.startswith('#')):
+    assert os.path.exists(line), line
+    yield line
+
+
+def Main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--no-cleanup', '-n', action='store_true')
+  parser.add_argument('--no-data-deps', '-x', action='store_true')
+  parser.add_argument('--env', '-e', action='append')
+  parser.add_argument('out_dir', help='out/android/')
+  parser.add_argument('test_name', help='perfetto_unittests')
+  parser.add_argument('cmd_args', nargs=argparse.REMAINDER)
+  args = parser.parse_args()
+
+  test_bin = os.path.join(args.out_dir, args.test_name)
+  assert os.path.exists(test_bin)
+
+  print 'Waiting for device ...'
+  AdbCall('wait-for-device')
+  # WaitForBootCompletion()
+  AdbCall('root')
+  AdbCall('wait-for-device')
+
+  target_dir = '/data/local/tmp/' + args.test_name
+  AdbCall('shell', 'rm -rf "%s"; mkdir -p "%s"' % (2 * (target_dir,)))
+  # Some tests require the trace directory to exist, while true for android
+  # devices in general some emulators might not have it set up. So we check to
+  # see if it exists, and if not create it.
+  trace_dir = '/data/misc/perfetto-traces'
+  AdbCall('shell', 'test -d "%s" || mkdir -p "%s"' % (2 * (trace_dir,)))
+  AdbCall('shell', 'rm -rf "%s/*";  ' % trace_dir)
+  AdbCall('shell', 'mkdir -p /data/nativetest')
+  # This needs to go into /data/nativetest in order to have the system linker
+  # namespace applied, which we need in order to link libdexfile_external.so.
+  # This gets linked into our tests via libundwindstack.so.
+  #
+  # See https://android.googlesource.com/platform/system/core/+/master/rootdir/etc/ld.config.txt.
+  AdbPush(test_bin, "/data/nativetest")
+
+  # These two binaries are required to run perfetto_integrationtests.
+  AdbPush(os.path.join(args.out_dir, "perfetto"), "/data/nativetest")
+  AdbPush(os.path.join(args.out_dir, "trigger_perfetto"), "/data/nativetest")
+
+  if not args.no_data_deps:
+    for dep in EnumerateDataDeps():
+      AdbPush(os.path.join(ROOT_DIR, dep), target_dir + '/' + dep)
+
+  # LLVM sanitizers require to sideload a libclangrtXX.so on the device.
+  sanitizer_libs = os.path.join(args.out_dir, 'sanitizer_libs')
+  env = ' '.join(args.env if args.env is not None else []) + ' '
+  if os.path.exists(sanitizer_libs):
+    AdbPush(sanitizer_libs, target_dir)
+    env += 'LD_LIBRARY_PATH="%s/sanitizer_libs" ' % (target_dir)
+  cmd = 'cd %s;' % target_dir
+  binary = env + '/data/nativetest/%s' % args.test_name
+  cmd += binary
+  if args.cmd_args:
+    actual_args = [arg.replace(args.test_name, binary) for arg in args.cmd_args]
+    cmd += ' ' + ' '.join(actual_args)
+  print cmd
+  retcode = subprocess.call([ADB_PATH, 'shell', cmd])
+  if not args.no_cleanup:
+    AdbCall('shell', 'rm -rf "%s"' % target_dir)
+
+  # Smoke test that adb shell is actually propagating retcode. adb has a history
+  # of breaking this.
+  test_code = subprocess.call([ADB_PATH, 'shell', 'echo Done; exit 42'])
+  if test_code != 42:
+    logging.fatal('adb is incorrectly propagating the exit code')
+    return 1
+
+  return retcode
+
+
+if __name__ == '__main__':
+  sys.exit(Main())

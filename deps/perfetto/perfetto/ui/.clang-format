@@ -1,0 +1,5 @@
+Language:         JavaScript
+BasedOnStyle:     Google
+ColumnLimit:      80
+BinPackArguments: false
+JavaScriptWrapImports: true

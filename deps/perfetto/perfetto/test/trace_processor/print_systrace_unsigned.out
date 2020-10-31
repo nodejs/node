@@ -1,0 +1,4 @@
+"to_ftrace(id)"
+"       <unknown>-10    (   10) [000] .... 0.000000: kfree: call_site=16 ptr=32"
+"       <unknown>-10    (   10) [000] .... 0.000000: kfree: call_site=18446744073709551600 ptr=18446744073709551584"
+"       <unknown>-10    (   10) [000] .... 0.000000: kmalloc: gfp_flags=0 call_site=18446744073709551600 ptr=18446744073709551584 bytes_alloc=32 bytes_req=16"

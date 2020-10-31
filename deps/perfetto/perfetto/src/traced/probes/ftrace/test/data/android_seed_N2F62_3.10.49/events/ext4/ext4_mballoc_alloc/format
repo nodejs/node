@@ -1,0 +1,30 @@
+name: ext4_mballoc_alloc
+ID: 277
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:ino_t ino;	offset:12;	size:4;	signed:0;
+	field:__u32 orig_logical;	offset:16;	size:4;	signed:0;
+	field:int orig_start;	offset:20;	size:4;	signed:1;
+	field:__u32 orig_group;	offset:24;	size:4;	signed:0;
+	field:int orig_len;	offset:28;	size:4;	signed:1;
+	field:__u32 goal_logical;	offset:32;	size:4;	signed:0;
+	field:int goal_start;	offset:36;	size:4;	signed:1;
+	field:__u32 goal_group;	offset:40;	size:4;	signed:0;
+	field:int goal_len;	offset:44;	size:4;	signed:1;
+	field:__u32 result_logical;	offset:48;	size:4;	signed:0;
+	field:int result_start;	offset:52;	size:4;	signed:1;
+	field:__u32 result_group;	offset:56;	size:4;	signed:0;
+	field:int result_len;	offset:60;	size:4;	signed:1;
+	field:__u16 found;	offset:64;	size:2;	signed:0;
+	field:__u16 groups;	offset:66;	size:2;	signed:0;
+	field:__u16 buddy;	offset:68;	size:2;	signed:0;
+	field:__u16 flags;	offset:70;	size:2;	signed:0;
+	field:__u16 tail;	offset:72;	size:2;	signed:0;
+	field:__u8 cr;	offset:74;	size:1;	signed:0;
+
+print fmt: "dev %d,%d inode %lu orig %u/%d/%u@%u goal %u/%d/%u@%u result %u/%d/%u@%u blks %u grps %u cr %u flags 0x%04x tail %u broken %u", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), (unsigned long) REC->ino, REC->orig_group, REC->orig_start, REC->orig_len, REC->orig_logical, REC->goal_group, REC->goal_start, REC->goal_len, REC->goal_logical, REC->result_group, REC->result_start, REC->result_len, REC->result_logical, REC->found, REC->groups, REC->cr, REC->flags, REC->tail, REC->buddy ? 1 << REC->buddy : 0

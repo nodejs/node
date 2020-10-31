@@ -1,0 +1,158 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package protozero.test.protos;
+
+import "src/protozero/test/example_proto/library.proto";
+
+// This file contains comprehensive set of supported message structures and
+// data types. Unit tests depends on the plugin-processed version of this file.
+
+// Tests importing message definition from another proto file.
+message TransgalacticParcel {
+  optional TransgalacticMessage message = 1;
+  optional string tracking_code = 2;
+}
+
+enum SmallEnum {
+  TO_BE = 1;
+  NOT_TO_BE = 0;
+}
+
+enum SignedEnum {
+  POSITIVE = 1;
+  NEUTRAL = 0;
+  NEGATIVE = -1;
+}
+
+enum BigEnum {
+  BEGIN = 10;
+  END = 100500;
+}
+
+message EveryField {
+  optional int32 field_int32 = 1;
+  optional int64 field_int64 = 2;
+  optional uint32 field_uint32 = 3;
+  optional uint64 field_uint64 = 4;
+  optional sint32 field_sint32 = 5;
+  optional sint64 field_sint64 = 6;
+  optional fixed32 field_fixed32 = 7;
+  optional fixed64 field_fixed64 = 8;
+  optional sfixed32 field_sfixed32 = 9;
+  optional sfixed64 field_sfixed64 = 10;
+  optional float field_float = 11;
+  optional double field_double = 12;
+  optional bool field_bool = 13;
+
+  optional SmallEnum small_enum = 51;
+  optional SignedEnum signed_enum = 52;
+  optional BigEnum big_enum = 53;
+
+  optional string field_string = 500;
+  optional bytes field_bytes = 505;
+
+  enum NestedEnum {
+    PING = 1;
+    PONG = 2;
+  }
+  optional NestedEnum nested_enum = 600;
+
+  repeated int32 repeated_int32 = 999;
+}
+
+message NestedA {
+  message NestedB {
+    message NestedC { optional int32 value_c = 1; }
+    optional NestedC value_b = 1;
+  }
+  repeated NestedB repeated_a = 2;
+  optional NestedB.NestedC super_nested = 3;
+}
+
+message CamelCaseFields {
+  // To check that any reasonable name converts to camel case correctly.
+  optional bool foo_bar_baz = 1;
+  optional bool barBaz = 2;
+  optional bool MooMoo = 3;
+  optional bool URLEncoder = 4;
+  optional bool XMap = 5;
+  optional bool UrLE_nco__der = 6;
+  optional bool __bigBang = 7;
+  optional bool U2 = 8;
+  optional bool bangBig__ = 9;
+}
+
+message PackedRepeatedFields {
+  repeated int32 field_int32 = 1 [packed = true];
+  repeated fixed32 field_fixed32 = 2 [packed = true];
+  repeated sfixed64 field_sfixed64 = 3 [packed = true];
+}
+
+// The following two messages are for testing that unknown fields being
+// preserved in the decode->reencode path.
+
+message TestVersioning_V1 {
+  enum Enumz_V1 {
+    ONE = 1;
+    TWO = 2;
+  }
+  message Sub1_V1 {
+    optional int32 sub1_int = 1;
+    optional string sub1_string = 2;
+  }
+  optional int32 root_int = 1;
+  repeated Enumz_V1 enumz = 2;
+  optional string root_string = 3;
+  repeated string rep_string = 4;
+  optional Sub1_V1 sub1 = 5;
+  repeated Sub1_V1 sub1_rep = 6;
+  optional Sub1_V1 sub1_lazy = 7 [lazy = true];
+}
+
+message TestVersioning_V2 {
+  enum Enumz_V2 {
+    ONE = 1;
+    TWO = 2;
+    THREE_V2 = 3;
+  }
+  message Sub1_V2 {
+    optional int32 sub1_int = 1;
+    optional string sub1_string = 2;
+    optional int32 sub1_int_v2 = 3;      // New in v2.
+    optional string sub1_string_v2 = 4;  // New in v2.
+  }
+  message Sub2_V2 {  // New in v2.
+    optional int32 sub2_int = 1;
+    optional string sub2_string = 2;
+  }
+
+  optional int32 root_int = 1;
+  repeated Enumz_V2 enumz = 2;
+  optional string root_string = 3;
+  repeated string rep_string = 4;
+  optional Sub1_V2 sub1 = 5;
+  repeated Sub1_V2 sub1_rep = 6;
+  optional Sub1_V2 sub1_lazy = 7 [lazy = true];
+
+  // New fields introduced in V2.
+  optional int32 root_int_v2 = 10;
+  optional Sub2_V2 sub2 = 11;
+  repeated Sub2_V2 sub2_rep = 12;
+  optional Sub2_V2 sub2_lazy = 13 [lazy = true];
+}

@@ -1,0 +1,36 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+package perfetto.protos;
+
+// Information about CPUs from procfs and sysfs.
+message CpuInfo {
+  // Information about a single CPU.
+  message Cpu {
+    // Value of "Processor" field from /proc/cpuinfo for this CPU.
+    // Example: "AArch64 Processor rev 12 (aarch64)"
+    optional string processor = 1;
+
+    // Frequencies from
+    // /sys/devices/system/cpu/cpuX/cpufreq/scaling_available_frequencies
+    // where X is the index of this CPU.
+    repeated uint32 frequencies = 2;
+  }
+
+  // Describes available CPUs, one entry per CPU.
+  repeated Cpu cpus = 1;
+}

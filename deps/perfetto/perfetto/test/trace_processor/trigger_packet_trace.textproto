@@ -1,0 +1,16 @@
+packet {
+  trigger {
+    trigger_name: "test1"
+    trusted_producer_uid: 3
+    producer_name: "producer1"
+  }
+  timestamp: 101000002
+}
+packet {
+  trigger {
+    trigger_name: "test2"
+    trusted_producer_uid: 4
+    producer_name: "producer2"
+  }
+  timestamp: 101000004
+}

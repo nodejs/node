@@ -1,0 +1,19 @@
+packet: {
+  timestamp: 1
+  initial_display_state: {
+    display_state: 2
+    brightness: 0.5
+  }
+}
+packet {
+  ftrace_events {
+    cpu: 0
+    event {
+      timestamp: 1000
+      pid: 1234
+      print {
+        buf: "C|5678|ScreenState|0\n"
+      }
+    }
+  }
+}

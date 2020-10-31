@@ -1,0 +1,57 @@
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../../gn/perfetto.gni")
+
+source_set("base") {
+  sources = [
+    "circular_queue.h",
+    "container_annotations.h",
+    "event_fd.h",
+    "file_utils.h",
+    "hash.h",
+    "lookup_set.h",
+    "metatrace.h",
+    "metatrace_events.h",
+    "no_destructor.h",
+    "optional.h",
+    "paged_memory.h",
+    "pipe.h",
+    "scoped_file.h",
+    "small_set.h",
+    "string_splitter.h",
+    "string_utils.h",
+    "string_view.h",
+    "string_writer.h",
+    "subprocess.h",
+    "temp_file.h",
+    "thread_annotations.h",
+    "thread_checker.h",
+    "thread_task_runner.h",
+    "thread_utils.h",
+    "unix_task_runner.h",
+    "utils.h",
+    "uuid.h",
+    "waitable_event.h",
+    "watchdog.h",
+    "watchdog_noop.h",
+    "watchdog_posix.h",
+    "weak_ptr.h",
+  ]
+  if (enable_perfetto_ipc) {
+    sources += [ "unix_socket.h" ]
+  }
+  public_configs = [ "../../../../gn:asan_instrumentation" ]
+  public_deps = [ "../../base" ]
+}

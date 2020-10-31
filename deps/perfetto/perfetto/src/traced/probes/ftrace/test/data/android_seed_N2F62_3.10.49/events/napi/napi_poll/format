@@ -1,0 +1,12 @@
+name: napi_poll
+ID: 585
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct napi_struct * napi;	offset:8;	size:4;	signed:0;
+	field:__data_loc char[] dev_name;	offset:12;	size:4;	signed:0;
+
+print fmt: "napi poll on napi struct %p for device %s", REC->napi, __get_str(dev_name)

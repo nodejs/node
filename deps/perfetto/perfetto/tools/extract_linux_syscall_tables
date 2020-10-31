@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+import re
+import sys
+import urllib2
+
+syscalls = {}
+
+
+def print_table(name):
+  tab = syscalls[name]
+  print '\n\n----------------- BEGIN OF %s -----------------' % name
+  for i in xrange(max(tab.keys()) + 1):
+    print '"%s",  // %d' % (tab.get(i, ''), i)
+  print '----------------- END OF %s -----------------' % name
+
+
+# Parses a .tbl file (new format).
+def parse_tlb(data):
+  table = {}
+  for line in data.splitlines():
+    line = line.strip()
+    if line.startswith('#') or not (line):
+      continue
+    parts = line.split()
+    table[int(parts[0])] = 'sys_' + parts[2]
+  return table
+
+
+# Parses a #define __NR_xx 1234 old-style unistd.h header.
+def parse_def(data):
+  table = {}
+  for line in data.splitlines():
+    m = re.match(r'^#define\s+__NR\d*?_(\w+)\s+(\d+)\s*$', line.strip())
+    if not m or m.group(1) == 'syscalls':  # __NR_syscalls is just a sentinel.
+      continue
+    table[int(m.group(2))] = 'sys_' + m.group(1)
+  return table
+
+
+def Main():
+  KSRC = 'https://raw.githubusercontent.com/torvalds/linux/v4.20/'
+
+  response = urllib2.urlopen(KSRC + 'arch/x86/entry/syscalls/syscall_64.tbl')
+  syscalls['x86_64'] = parse_tlb(response.read())
+
+  response = urllib2.urlopen(KSRC + 'arch/x86/entry/syscalls/syscall_32.tbl')
+  syscalls['x86'] = parse_tlb(response.read())
+
+  response = urllib2.urlopen(KSRC + 'arch/arm/tools/syscall.tbl')
+  syscalls['armeabi'] = parse_tlb(response.read())
+
+  response = urllib2.urlopen(KSRC + 'arch/arm64/include/asm/unistd32.h')
+  syscalls['aarch32'] = parse_def(response.read())
+
+  # From:
+  # arch/arm64/include/asm/unistd.h
+  #   -> arch/arm64/include/uapi/asm/unistd.h
+  #     -> include/uapi/asm-generic/unistd.h
+  response = urllib2.urlopen(KSRC + 'include/uapi/asm-generic/unistd.h')
+  syscalls['aarch64'] = parse_def(response.read())
+
+  print_table('x86_64')
+  print_table('x86')
+  print_table('aarch64')
+  print_table('armeabi')
+  print_table('aarch32')
+
+
+if __name__ == '__main__':
+  sys.exit(Main())

@@ -1,0 +1,231 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+import "protos/perfetto/common/trace_stats.proto";
+import "protos/perfetto/config/trace_config.proto";
+import "protos/perfetto/trace/android/android_log.proto";
+import "protos/perfetto/trace/android/graphics_frame_event.proto";
+import "protos/perfetto/trace/android/initial_display_state.proto";
+import "protos/perfetto/trace/android/packages_list.proto";
+import "protos/perfetto/trace/chrome/chrome_benchmark_metadata.proto";
+import "protos/perfetto/trace/chrome/chrome_metadata.proto";
+import "protos/perfetto/trace/chrome/chrome_trace_event.proto";
+import "protos/perfetto/trace/clock_snapshot.proto";
+import "protos/perfetto/trace/filesystem/inode_file_map.proto";
+import "protos/perfetto/trace/ftrace/ftrace_event_bundle.proto";
+import "protos/perfetto/trace/ftrace/ftrace_stats.proto";
+import "protos/perfetto/trace/gpu/gpu_counter_event.proto";
+import "protos/perfetto/trace/gpu/gpu_log.proto";
+import "protos/perfetto/trace/gpu/gpu_render_stage_event.proto";
+import "protos/perfetto/trace/gpu/vulkan_memory_event.proto";
+import "protos/perfetto/trace/gpu/vulkan_api_event.proto";
+import "protos/perfetto/trace/interned_data/interned_data.proto";
+import "protos/perfetto/trace/perfetto/perfetto_metatrace.proto";
+import "protos/perfetto/trace/perfetto/tracing_service_event.proto";
+import "protos/perfetto/trace/power/battery_counters.proto";
+import "protos/perfetto/trace/power/power_rails.proto";
+import "protos/perfetto/trace/profiling/heap_graph.proto";
+import "protos/perfetto/trace/profiling/profile_common.proto";
+import "protos/perfetto/trace/profiling/profile_packet.proto";
+import "protos/perfetto/trace/profiling/smaps.proto";
+import "protos/perfetto/trace/ps/process_stats.proto";
+import "protos/perfetto/trace/ps/process_tree.proto";
+import "protos/perfetto/trace/sys_stats/sys_stats.proto";
+import "protos/perfetto/trace/system_info.proto";
+import "protos/perfetto/trace/system_info/cpu_info.proto";
+import "protos/perfetto/trace/trace_packet_defaults.proto";
+import "protos/perfetto/trace/track_event/process_descriptor.proto";
+import "protos/perfetto/trace/track_event/thread_descriptor.proto";
+import "protos/perfetto/trace/track_event/track_descriptor.proto";
+import "protos/perfetto/trace/track_event/track_event.proto";
+import "protos/perfetto/trace/trigger.proto";
+import "protos/perfetto/trace/test_event.proto";
+
+package perfetto.protos;
+
+// The root object emitted by Perfetto. A perfetto trace is just a stream of
+// TracePacket(s).
+//
+// Next reserved id: 13 (up to 15).
+// Next id: 71.
+message TracePacket {
+  // The timestamp of the TracePacket.
+  // By default this timestamps refers to the trace clock (CLOCK_BOOTTIME on
+  // Android). It can be overridden using a different timestamp_clock_id.
+  // The clock domain definition in ClockSnapshot can also override:
+  // - The unit (default: 1ns).
+  // - The absolute vs delta encoding (default: absolute timestamp).
+  optional uint64 timestamp = 8;
+
+  // Specifies the ID of the clock used for the TracePacket |timestamp|. Can be
+  // one of the built-in types from ClockSnapshot::BuiltinClocks, or a
+  // producer-defined clock id.
+  // If unspecified and if no default per-sequence value has been provided via
+  // TracePacketDefaults, it defaults to BuiltinClocks::BOOTTIME.
+  optional uint32 timestamp_clock_id = 58;
+
+  oneof data {
+    FtraceEventBundle ftrace_events = 1;
+    ProcessTree process_tree = 2;
+    ProcessStats process_stats = 9;
+    InodeFileMap inode_file_map = 4;
+    ChromeEventBundle chrome_events = 5;
+    ClockSnapshot clock_snapshot = 6;
+    SysStats sys_stats = 7;
+    TrackEvent track_event = 11;
+
+    // IDs up to 15 are reserved. They take only one byte to encode their
+    // preamble so should be used for freqeuent events.
+
+    TraceConfig trace_config = 33;
+    FtraceStats ftrace_stats = 34;
+    TraceStats trace_stats = 35;
+    ProfilePacket profile_packet = 37;
+    BatteryCounters battery = 38;
+    PowerRails power_rails = 40;
+    AndroidLogPacket android_log = 39;
+    SystemInfo system_info = 45;
+    Trigger trigger = 46;
+    PackagesList packages_list = 47;
+    ChromeBenchmarkMetadata chrome_benchmark_metadata = 48;
+    PerfettoMetatrace perfetto_metatrace = 49;
+    ChromeMetadataPacket chrome_metadata = 51;
+    GpuCounterEvent gpu_counter_event = 52;
+    GpuRenderStageEvent gpu_render_stage_event = 53;
+    StreamingProfilePacket streaming_profile_packet = 54;
+    HeapGraph heap_graph = 56;
+    GraphicsFrameEvent graphics_frame_event = 57;
+    VulkanMemoryEvent vulkan_memory_event = 62;
+    GpuLog gpu_log = 63;
+    VulkanApiEvent vulkan_api_event = 65;
+    PerfSample perf_sample = 66;
+    CpuInfo cpu_info = 67;
+    SmapsPacket smaps_packet = 68;
+    TracingServiceEvent service_event = 69;
+    InitialDisplayState initial_display_state = 70;
+
+    // Only used in profile packets.
+    ProfiledFrameSymbols profiled_frame_symbols = 55;
+    ModuleSymbols module_symbols = 61;
+    DeobfuscationMapping deobfuscation_mapping = 64;
+
+    // Only used by TrackEvent.
+    TrackDescriptor track_descriptor = 60;
+
+    // Deprecated, use TrackDescriptor instead.
+    ProcessDescriptor process_descriptor = 43;
+
+    // Deprecated, use TrackDescriptor instead.
+    ThreadDescriptor thread_descriptor = 44;
+
+    // This field is emitted at periodic intervals (~10s) and
+    // contains always the binary representation of the UUID
+    // {82477a76-b28d-42ba-81dc-33326d57a079}. This is used to be able to
+    // efficiently partition long traces without having to fully parse them.
+    bytes synchronization_marker = 36;
+
+    // Zero or more proto encoded trace packets compressed using deflate.
+    // Each compressed_packets TracePacket (including the two field ids and
+    // sizes) should be less than 512KB.
+    bytes compressed_packets = 50;
+
+    // This field is only used for testing.
+    // In previous versions of this proto this field had the id 268435455
+    // This caused many problems:
+    // - protozero decoder does not handle field ids larger than 999.
+    // - old versions of protoc produce Java bindings with syntax errors when
+    //   the field id is large enough.
+    TestEvent for_testing = 900;
+  }
+
+  // Trusted user id of the producer which generated this packet. Keep in sync
+  // with TrustedPacket.trusted_uid.
+  //
+  // TODO(eseckler): Emit this field in a PacketSequenceDescriptor message
+  // instead.
+  oneof optional_trusted_uid { int32 trusted_uid = 3; };
+
+  // Service-assigned identifier of the packet sequence this packet belongs to.
+  // Uniquely identifies a producer + writer pair within the tracing session. A
+  // value of zero denotes an invalid ID. Keep in sync with
+  // TrustedPacket.trusted_packet_sequence_id.
+  oneof optional_trusted_packet_sequence_id {
+    uint32 trusted_packet_sequence_id = 10;
+  }
+
+  // Incrementally emitted interned data, valid only on the packet's sequence
+  // (packets with the same |trusted_packet_sequence_id|). The writer will
+  // usually emit new interned data in the same TracePacket that first refers to
+  // it (since the last reset of interning state). It may also be emitted
+  // proactively in advance of referring to them in later packets.
+  optional InternedData interned_data = 12;
+
+  enum SequenceFlags {
+    SEQ_UNSPECIFIED = 0;
+
+    // Set by the writer to indicate that it will re-emit any incremental data
+    // for the packet's sequence before referring to it again. This includes
+    // interned data as well as periodically emitted data like
+    // Process/ThreadDescriptors. This flag only affects the current packet
+    // sequence (see |trusted_packet_sequence_id|).
+    //
+    // When set, this TracePacket and subsequent TracePackets on the same
+    // sequence will not refer to any incremental data emitted before this
+    // TracePacket. For example, previously emitted interned data will be
+    // re-emitted if it is referred to again.
+    //
+    // When the reader detects packet loss (|previous_packet_dropped|), it needs
+    // to skip packets in the sequence until the next one with this flag set, to
+    // ensure intact incremental data.
+    SEQ_INCREMENTAL_STATE_CLEARED = 1;
+
+    // This packet requires incremental state, such as TracePacketDefaults or
+    // InternedData, to be parsed correctly. The trace reader should skip this
+    // packet if incremental state is not valid on this sequence, i.e. if no
+    // packet with the SEQ_INCREMENTAL_STATE_CLEARED flag has been seen on the
+    // current |trusted_packet_sequence_id|.
+    SEQ_NEEDS_INCREMENTAL_STATE = 2;
+  };
+  optional uint32 sequence_flags = 13;
+
+  // DEPRECATED. Moved to SequenceFlags::SEQ_INCREMENTAL_STATE_CLEARED.
+  optional bool incremental_state_cleared = 41;
+
+  // Default values for fields of later TracePackets emitted on this packet's
+  // sequence (TracePackets with the same |trusted_packet_sequence_id|).
+  // It must be reemitted when incremental state is cleared (see
+  // |incremental_state_cleared|).
+  // Requires that any future packet emitted on the same sequence specifies
+  // the SEQ_NEEDS_INCREMENTAL_STATE flag.
+  // TracePacketDefaults always override the global defaults for any future
+  // packet on this sequence (regardless of SEQ_NEEDS_INCREMENTAL_STATE).
+  optional TracePacketDefaults trace_packet_defaults = 59;
+
+  // Flag set by the service if, for the current packet sequence (see
+  // |trusted_packet_sequence_id|), either:
+  // * this is the first packet, or
+  // * one or multiple packets were dropped since the last packet that the
+  //   consumer read from the sequence. This can happen if chunks in the trace
+  //   buffer are overridden before the consumer could read them when the trace
+  //   is configured in ring buffer mode.
+  //
+  // When packet loss occurs, incrementally emitted data (including interned
+  // data) on the sequence should be considered invalid up until the next packet
+  // with SEQ_INCREMENTAL_STATE_CLEARED set.
+  optional bool previous_packet_dropped = 42;
+}

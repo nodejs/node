@@ -1,0 +1,65 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+import "protos/perfetto/trace/ftrace/ftrace_event.proto";
+
+package perfetto.protos;
+
+// The result of tracing one or more ftrace data pages from a single per-cpu
+// kernel ring buffer. If collating multiple pages' worth of events, all of
+// them come from contiguous pages, with no kernel data loss in between.
+message FtraceEventBundle {
+  optional uint32 cpu = 1;
+  repeated FtraceEvent event = 2;
+  // Set to true if there was data loss between the last time we've read from
+  // the corresponding per-cpu kernel buffer, and the earliest event recorded
+  // in this bundle.
+  optional bool lost_events = 3;
+
+  // Optionally-enabled compact encoding of a batch of scheduling events. Only
+  // a subset of events & their fields is recorded.
+  // All fields (except comms) are stored in a structure-of-arrays form, one
+  // entry in each repeated field per event.
+  message CompactSched {
+    // Interned table of unique strings for this bundle.
+    repeated string intern_table = 5;
+
+    // Delta-encoded timestamps across all sched_switch events within this
+    // bundle. The first is absolute, each next one is relative to its
+    // predecessor.
+    repeated uint64 switch_timestamp = 1 [packed = true];
+    repeated int64 switch_prev_state = 2 [packed = true];
+    repeated int32 switch_next_pid = 3 [packed = true];
+    repeated int32 switch_next_prio = 4 [packed = true];
+    // One per event, index into |intern_table| corresponding to the
+    // next_comm field of the event.
+    repeated uint32 switch_next_comm_index = 6 [packed = true];
+
+    // Delta-encoded timestamps across all sched_waking events within this
+    // bundle. The first is absolute, each next one is relative to its
+    // predecessor.
+    repeated uint64 waking_timestamp = 7 [packed = true];
+    repeated int32 waking_pid = 8 [packed = true];
+    repeated int32 waking_target_cpu = 9 [packed = true];
+    repeated int32 waking_prio = 10 [packed = true];
+    // One per event, index into |intern_table| corresponding to the
+    // comm field of the event.
+    repeated uint32 waking_comm_index = 11 [packed = true];
+  }
+  optional CompactSched compact_sched = 4;
+}

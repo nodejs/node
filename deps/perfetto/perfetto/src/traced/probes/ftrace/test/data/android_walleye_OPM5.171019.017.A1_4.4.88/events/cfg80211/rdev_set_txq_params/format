@@ -1,0 +1,18 @@
+name: rdev_set_txq_params
+ID: 846
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:enum nl80211_ac ac;	offset:60;	size:4;	signed:0;
+	field:u16 txop;	offset:64;	size:2;	signed:0;
+	field:u16 cwmin;	offset:66;	size:2;	signed:0;
+	field:u16 cwmax;	offset:68;	size:2;	signed:0;
+	field:u8 aifs;	offset:70;	size:1;	signed:0;
+
+print fmt: "%s, netdev:%s(%d), ac: %d, txop: %u, cwmin: %u, cwmax: %u, aifs: %u", REC->wiphy_name, REC->name, REC->ifindex, REC->ac, REC->txop, REC->cwmin, REC->cwmax, REC->aifs

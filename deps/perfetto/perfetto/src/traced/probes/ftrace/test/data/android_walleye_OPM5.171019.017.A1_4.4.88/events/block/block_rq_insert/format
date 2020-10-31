@@ -1,0 +1,17 @@
+name: block_rq_insert
+ID: 393
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dev_t dev;	offset:8;	size:4;	signed:0;
+	field:sector_t sector;	offset:16;	size:8;	signed:0;
+	field:unsigned int nr_sector;	offset:24;	size:4;	signed:0;
+	field:unsigned int bytes;	offset:28;	size:4;	signed:0;
+	field:char rwbs[8];	offset:32;	size:8;	signed:0;
+	field:char comm[16];	offset:40;	size:16;	signed:0;
+	field:__data_loc char[] cmd;	offset:56;	size:4;	signed:0;
+
+print fmt: "%d,%d %s %u (%s) %llu + %u [%s]", ((unsigned int) ((REC->dev) >> 20)), ((unsigned int) ((REC->dev) & ((1U << 20) - 1))), REC->rwbs, REC->bytes, __get_str(cmd), (unsigned long long)REC->sector, REC->nr_sector, REC->comm

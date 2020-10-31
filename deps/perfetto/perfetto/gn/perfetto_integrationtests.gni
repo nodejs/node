@@ -1,0 +1,43 @@
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("perfetto.gni")
+
+perfetto_integrationtests_targets = [
+  "gn:default_deps",
+  "gn:gtest_main",
+  "src/tracing/test:client_api_integrationtests",
+]
+
+if (enable_perfetto_platform_services) {
+  perfetto_integrationtests_targets += [
+    "src/traced/probes/ftrace:integrationtests",
+    "test:end_to_end_integrationtests",
+  ]
+}
+
+if (enable_perfetto_heapprofd) {
+  perfetto_integrationtests_targets +=
+      [ "src/profiling/memory:end_to_end_tests" ]
+}
+
+# This test requires extra data files that are not easily available in Android
+# builds.
+# TODO(lalitm): looks like they don't work on standalone Android either because
+# run_android_test doesn't push the test data.
+if (enable_perfetto_trace_processor && perfetto_build_standalone &&
+    !is_android) {
+  perfetto_integrationtests_targets +=
+      [ "src/trace_processor:integrationtests" ]
+}

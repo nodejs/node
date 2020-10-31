@@ -1,0 +1,81 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+declare_args() {
+  android_api_level = 21
+  android_ndk_root = rebase_path("//buildtools/ndk")
+  _android_toolchain_version = "4.9"
+
+  if (host_os == "linux") {
+    android_host = "linux-x86_64"
+  } else if (host_os == "mac") {
+    android_host = "darwin-x86_64"
+  } else {
+    assert(false, "Need Android toolchain support for your build OS.")
+  }
+}
+
+declare_args() {
+  android_llvm_dir = "$android_ndk_root/toolchains/llvm/prebuilt/$android_host"
+  android_clangrt_dir = "$android_llvm_dir/lib64/clang/6.0.2/lib/linux"
+  android_compile_sysroot = "$android_ndk_root/sysroot/usr/include"
+
+  if (current_cpu == "x86") {
+    android_abi_target = "i686-linux-android"
+    android_compile_sysroot_subdir = "i686-linux-android"
+    android_link_sysroot_subdir =
+        "platforms/android-${android_api_level}/arch-x86"
+    android_prebuilt_arch = "android-x86"
+    android_toolchain_root = "$android_ndk_root/toolchains/x86-${_android_toolchain_version}/prebuilt/$android_host"
+    android_llvm_arch = "i686"
+  } else if (current_cpu == "arm") {
+    android_abi_target = "arm-linux-androideabi"
+    android_compile_sysroot_subdir = "arm-linux-androideabi"
+    android_link_sysroot_subdir =
+        "platforms/android-${android_api_level}/arch-arm"
+    android_prebuilt_arch = "android-arm"
+    android_toolchain_root = "$android_ndk_root/toolchains/arm-linux-androideabi-${_android_toolchain_version}/prebuilt/$android_host"
+    android_llvm_arch = "arm"
+  } else if (current_cpu == "x64") {
+    android_abi_target = "x86_64-linux-android"
+    android_compile_sysroot_subdir = "x86_64-linux-android"
+    android_link_sysroot_subdir =
+        "platforms/android-${android_api_level}/arch-x86_64"
+    android_prebuilt_arch = "android-x86_64"
+    android_toolchain_root = "$android_ndk_root/toolchains/x86_64-${_android_toolchain_version}/prebuilt/$android_host"
+    android_llvm_arch = "x86_64"
+  } else if (current_cpu == "arm64") {
+    android_abi_target = "aarch64-linux-android"
+    android_compile_sysroot_subdir = "aarch64-linux-android"
+    android_link_sysroot_subdir =
+        "platforms/android-${android_api_level}/arch-arm64"
+    android_prebuilt_arch = "android-arm64"
+    android_toolchain_root = "$android_ndk_root/toolchains/aarch64-linux-android-${_android_toolchain_version}/prebuilt/$android_host"
+    android_llvm_arch = "aarch64"
+  } else {
+    assert(false, "Need android libgcc support for this arch.")
+  }
+
+  if (current_cpu == "x86") {
+    android_app_abi = "x86"
+  } else if (current_cpu == "arm") {
+    android_app_abi = "armeabi-v7a"
+  } else if (current_cpu == "x64") {
+    android_app_abi = "x86_64"
+  } else if (current_cpu == "arm64") {
+    android_app_abi = "arm64-v8a"
+  } else {
+    assert(false, "Unknown ABI: " + current_cpu)
+  }
+}

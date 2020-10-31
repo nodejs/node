@@ -1,0 +1,20 @@
+name: mdp_perf_prefill_calc
+ID: 369
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 pnum;	offset:8;	size:4;	signed:0;
+	field:u32 latency_buf;	offset:12;	size:4;	signed:0;
+	field:u32 ot;	offset:16;	size:4;	signed:0;
+	field:u32 y_buf;	offset:20;	size:4;	signed:0;
+	field:u32 y_scaler;	offset:24;	size:4;	signed:0;
+	field:u32 pp_lines;	offset:28;	size:4;	signed:0;
+	field:u32 pp_bytes;	offset:32;	size:4;	signed:0;
+	field:u32 post_sc;	offset:36;	size:4;	signed:0;
+	field:u32 fbc_bytes;	offset:40;	size:4;	signed:0;
+	field:u32 prefill_bytes;	offset:44;	size:4;	signed:0;
+
+print fmt: "pnum:%d latency_buf:%d ot:%d y_buf:%d y_scaler:%d pp_lines:%d, pp_bytes=%d post_sc:%d fbc_bytes:%d prefill:%d", REC->pnum, REC->latency_buf, REC->ot, REC->y_buf, REC->y_scaler, REC->pp_lines, REC->pp_bytes, REC->post_sc, REC->fbc_bytes, REC->prefill_bytes

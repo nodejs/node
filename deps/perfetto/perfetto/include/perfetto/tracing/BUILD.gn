@@ -1,0 +1,52 @@
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+source_set("tracing") {
+  public_deps = [
+    "../../../protos/perfetto/common:cpp",
+    "../../../protos/perfetto/config/track_event:cpp",
+    "../../../protos/perfetto/trace:zero",
+    "../../../protos/perfetto/trace/interned_data:zero",
+    "../../../protos/perfetto/trace/track_event:zero",
+    "../base",
+    "../protozero",
+    "core:forward_decls",
+  ]
+
+  sources = [
+    "buffer_exhausted_policy.h",
+    "data_source.h",
+    "debug_annotation.h",
+    "event_context.h",
+    "internal/basic_types.h",
+    "internal/data_source_internal.h",
+    "internal/in_process_tracing_backend.h",
+    "internal/system_tracing_backend.h",
+    "internal/tracing_muxer.h",
+    "internal/tracing_tls.h",
+    "internal/track_event_data_source.h",
+    "internal/track_event_internal.h",
+    "internal/track_event_macros.h",
+    "locked_handle.h",
+    "platform.h",
+    "trace_writer_base.h",
+    "tracing.h",
+    "tracing_backend.h",
+    "track.h",
+    "track_event.h",
+    "track_event_category_registry.h",
+    "track_event_interned_data_index.h",
+    "track_event_legacy.h",
+  ]
+}

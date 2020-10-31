@@ -1,0 +1,13 @@
+name: urandom_read
+ID: 468
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int got_bits;	offset:8;	size:4;	signed:1;
+	field:int pool_left;	offset:12;	size:4;	signed:1;
+	field:int input_left;	offset:16;	size:4;	signed:1;
+
+print fmt: "got_bits %d nonblocking_pool_entropy_left %d input_entropy_left %d", REC->got_bits, REC->pool_left, REC->input_left

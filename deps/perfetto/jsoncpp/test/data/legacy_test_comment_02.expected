@@ -1,0 +1,23 @@
+.={}
+/* C-style comment
+
+    C-style-2 comment */
+.c-test={}
+.c-test.a=1
+/* Internal comment c-style */
+.c-test.b=2
+// C++-style comment
+.cpp-test={}
+// Multiline comment cpp-style
+// Second line
+.cpp-test.c=3
+// Comment before double
+.cpp-test.d=4.1
+// Comment before string
+.cpp-test.e="e-string"
+// Comment before true
+.cpp-test.f=true
+// Comment before false
+.cpp-test.g=false
+// Comment before null
+.cpp-test.h=null

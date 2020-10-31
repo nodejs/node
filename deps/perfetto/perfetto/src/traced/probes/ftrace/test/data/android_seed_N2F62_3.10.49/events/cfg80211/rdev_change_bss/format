@@ -1,0 +1,18 @@
+name: rdev_change_bss
+ID: 688
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:int use_cts_prot;	offset:60;	size:4;	signed:1;
+	field:int use_short_preamble;	offset:64;	size:4;	signed:1;
+	field:int use_short_slot_time;	offset:68;	size:4;	signed:1;
+	field:int ap_isolate;	offset:72;	size:4;	signed:1;
+	field:int ht_opmode;	offset:76;	size:4;	signed:1;
+
+print fmt: "%s, netdev:%s(%d), use cts prot: %d, use short preamble: %d, use short slot time: %d, ap isolate: %d, ht opmode: %d", REC->wiphy_name, REC->name, REC->ifindex, REC->use_cts_prot, REC->use_short_preamble, REC->use_short_slot_time, REC->ap_isolate, REC->ht_opmode

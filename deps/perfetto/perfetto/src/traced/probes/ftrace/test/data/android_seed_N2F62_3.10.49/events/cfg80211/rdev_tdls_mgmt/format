@@ -1,0 +1,19 @@
+name: rdev_tdls_mgmt
+ID: 660
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:u8 peer[6];	offset:60;	size:6;	signed:0;
+	field:u8 action_code;	offset:66;	size:1;	signed:0;
+	field:u8 dialog_token;	offset:67;	size:1;	signed:0;
+	field:u16 status_code;	offset:68;	size:2;	signed:0;
+	field:u32 peer_capability;	offset:72;	size:4;	signed:0;
+	field:__data_loc u8[] buf;	offset:76;	size:4;	signed:0;
+
+print fmt: "%s, netdev:%s(%d), %pM, action_code: %u, dialog_token: %u, status_code: %u, peer_capability: %u buf: %#.2x ", REC->wiphy_name, REC->name, REC->ifindex, (REC->peer), REC->action_code, REC->dialog_token, REC->status_code, REC->peer_capability, ((u8 *)__get_dynamic_array(buf))[0]

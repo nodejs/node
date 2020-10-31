@@ -1,0 +1,14 @@
+name: spmi_write_end
+ID: 592
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u8 opcode;	offset:8;	size:1;	signed:0;
+	field:u8 sid;	offset:9;	size:1;	signed:0;
+	field:u16 addr;	offset:10;	size:2;	signed:0;
+	field:int ret;	offset:12;	size:4;	signed:1;
+
+print fmt: "opc=%d sid=%02d addr=0x%04x ret=%d", (int)REC->opcode, (int)REC->sid, (int)REC->addr, REC->ret

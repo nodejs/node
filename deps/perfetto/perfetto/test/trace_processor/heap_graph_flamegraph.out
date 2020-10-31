@@ -1,0 +1,4 @@
+"id","depth","name","map_name","count","cumulative_count","size","cumulative_size","parent_id"
+0,0,"FactoryProducerDelegateImplActor","JAVA",1,2,64,96,"[NULL]"
+1,1,"Foo","JAVA",1,1,32,32,0
+2,0,"DeobfuscatedA[]","JAVA",1,1,256,256,"[NULL]"

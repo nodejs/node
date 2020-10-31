@@ -1,0 +1,13 @@
+name: kgsl_z180_irq_status
+ID: 378
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:__data_loc char[] device_name;	offset:12;	size:4;	signed:0;
+	field:unsigned int status;	offset:16;	size:4;	signed:0;
+
+print fmt: "d_name=%s status=%s", __get_str(device_name), REC->status ? __print_flags(REC->status, "|", { 0x00000001L, "MH" }, { 0x00000002L, "G2D" }, { 0x00000004L, "FIFO" }) : "None"

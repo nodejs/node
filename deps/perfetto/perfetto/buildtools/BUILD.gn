@@ -1,0 +1,1069 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../gn/perfetto.gni")
+import("../gn/standalone/libc++/libc++.gni")
+import("../gn/standalone/sanitizers/vars.gni")
+
+# We should never get here in embedder builds.
+assert(perfetto_build_standalone || is_perfetto_build_generator)
+
+# This is to make sure that we don't add accidental dependencies from build
+# files in src/ or include/ to buildtools. All deps (outside of /gn/*) should
+# go via the groups defined in gn/BUILD.gn, not directly into buildtools. This
+# is to allow embedders to re-route targets to their third_party directories.
+_buildtools_visibility = [
+  "./*",
+  "../gn:*",
+  "../gn/standalone:*",
+]
+
+# Used to suppress warnings coming from googletest macros expansions.
+# These suppressions apply both to gtest/gmock haders and to perfetto's
+# test translation units. See test/gtest_and_gmock.h for the subset of
+# suppressions that apply only to the gmock/gtest headers.
+config("test_warning_suppressions") {
+  visibility = _buildtools_visibility
+  if (is_clang) {
+    cflags = [
+      "-Wno-unknown-warning-option",
+      "-Wno-global-constructors",
+      "-Wno-covered-switch-default",
+      "-Wno-used-but-marked-unused",
+      "-Wno-inconsistent-missing-override",
+      "-Wno-unused-member-function",
+      "-Wno-zero-as-null-pointer-constant",
+      "-Wno-weak-vtables",
+    ]
+  } else {
+    cflags = [
+      "-Wno-unknown-warning-option",
+      "-Wno-deprecated-copy",
+    ]
+  }
+}
+
+config("libunwindstack_config") {
+  visibility = _buildtools_visibility
+  cflags = [
+    # Using -isystem instead of include_dirs (-I), so we don't need to suppress
+    # warnings coming from libunwindstack headers. Doing so would mask warnings
+    # in our own code.
+    "-isystem",
+    rebase_path("android-core/libunwindstack/include", root_build_dir),
+    "-isystem",
+    rebase_path("android-core/libprocinfo/include", root_build_dir),
+    "-isystem",
+    rebase_path("android-core/base/include", root_build_dir),
+    "-isystem",
+    rebase_path("android-core/demangle/include", root_build_dir),
+  ]
+  if (is_android) {
+    cflags += [
+      "-isystem",
+      rebase_path("bionic/libc/include", root_build_dir),
+    ]
+  }
+  defines = [ "NO_LIBDEXFILE_SUPPORT" ]
+}
+
+# Config to include gtest.h in test targets.
+config("googletest_config") {
+  visibility = _buildtools_visibility
+  defines = [ "GTEST_LANG_CXX11=1" ]
+  include_dirs = [
+    "googletest/googletest/include",
+    "googletest/googlemock/include",
+  ]
+  configs = [ ":test_warning_suppressions" ]
+}
+
+source_set("gtest") {
+  visibility = _buildtools_visibility
+  testonly = true
+  include_dirs = [ "googletest/googletest" ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  public_configs = [ ":googletest_config" ]
+  all_dependent_configs = [ ":googletest_config" ]
+  sources = [ "googletest/googletest/src/gtest-all.cc" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+source_set("gtest_main") {
+  visibility = _buildtools_visibility
+  testonly = true
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  configs += [ ":googletest_config" ]
+  sources = [ "googletest/googletest/src/gtest_main.cc" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+source_set("gmock") {
+  visibility = _buildtools_visibility
+  testonly = true
+  include_dirs = [ "googletest/googlemock" ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  public_configs = [ ":googletest_config" ]
+  all_dependent_configs = [ ":googletest_config" ]
+  sources = [ "googletest/googlemock/src/gmock-all.cc" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+# Configuration used to build libprotobuf_* and the protoc compiler.
+config("protobuf_config") {
+  visibility = _buildtools_visibility
+
+  # Apply the lighter supressions and macro definitions from above.
+  configs = [ "//gn:protobuf_gen_config" ]
+
+  defines = [ "HAVE_PTHREAD=1" ]
+  if (is_clang) {
+    cflags = [
+      "-Wno-unknown-warning-option",
+      "-Wno-enum-compare-switch",
+      "-Wno-user-defined-warnings",
+      "-Wno-tautological-constant-compare",
+    ]
+  } else {  # implies gcc
+    cflags = [ "-Wno-return-type" ]
+  }
+}
+
+source_set("protobuf_lite") {
+  visibility = _buildtools_visibility
+  sources = [
+    "protobuf/src/google/protobuf/any_lite.cc",
+    "protobuf/src/google/protobuf/arena.cc",
+    "protobuf/src/google/protobuf/arena.h",
+    "protobuf/src/google/protobuf/arena_impl.h",
+    "protobuf/src/google/protobuf/arenastring.h",
+    "protobuf/src/google/protobuf/extension_set.cc",
+    "protobuf/src/google/protobuf/extension_set.h",
+    "protobuf/src/google/protobuf/generated_enum_util.cc",
+    "protobuf/src/google/protobuf/generated_enum_util.h",
+    "protobuf/src/google/protobuf/generated_message_table_driven_lite.cc",
+    "protobuf/src/google/protobuf/generated_message_table_driven_lite.h",
+    "protobuf/src/google/protobuf/generated_message_util.cc",
+    "protobuf/src/google/protobuf/generated_message_util.h",
+    "protobuf/src/google/protobuf/has_bits.h",
+    "protobuf/src/google/protobuf/implicit_weak_message.cc",
+    "protobuf/src/google/protobuf/implicit_weak_message.h",
+    "protobuf/src/google/protobuf/inlined_string_field.h",
+    "protobuf/src/google/protobuf/io/coded_stream.cc",
+    "protobuf/src/google/protobuf/io/coded_stream.h",
+    "protobuf/src/google/protobuf/io/coded_stream_inl.h",
+    "protobuf/src/google/protobuf/io/io_win32.cc",
+    "protobuf/src/google/protobuf/io/io_win32.h",
+    "protobuf/src/google/protobuf/io/strtod.cc",
+    "protobuf/src/google/protobuf/io/strtod.h",
+    "protobuf/src/google/protobuf/io/zero_copy_stream.cc",
+    "protobuf/src/google/protobuf/io/zero_copy_stream.h",
+    "protobuf/src/google/protobuf/io/zero_copy_stream_impl.cc",
+    "protobuf/src/google/protobuf/io/zero_copy_stream_impl.h",
+    "protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.cc",
+    "protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.h",
+    "protobuf/src/google/protobuf/map.h",
+    "protobuf/src/google/protobuf/map_entry_lite.h",
+    "protobuf/src/google/protobuf/map_field_lite.h",
+    "protobuf/src/google/protobuf/map_type_handler.h",
+    "protobuf/src/google/protobuf/message_lite.cc",
+    "protobuf/src/google/protobuf/message_lite.h",
+    "protobuf/src/google/protobuf/repeated_field.cc",
+    "protobuf/src/google/protobuf/repeated_field.h",
+    "protobuf/src/google/protobuf/stubs/bytestream.cc",
+    "protobuf/src/google/protobuf/stubs/bytestream.h",
+    "protobuf/src/google/protobuf/stubs/callback.h",
+    "protobuf/src/google/protobuf/stubs/casts.h",
+    "protobuf/src/google/protobuf/stubs/common.cc",
+    "protobuf/src/google/protobuf/stubs/common.h",
+    "protobuf/src/google/protobuf/stubs/fastmem.h",
+    "protobuf/src/google/protobuf/stubs/hash.h",
+    "protobuf/src/google/protobuf/stubs/int128.cc",
+    "protobuf/src/google/protobuf/stubs/int128.h",
+    "protobuf/src/google/protobuf/stubs/logging.h",
+    "protobuf/src/google/protobuf/stubs/macros.h",
+    "protobuf/src/google/protobuf/stubs/map_util.h",
+    "protobuf/src/google/protobuf/stubs/mutex.h",
+    "protobuf/src/google/protobuf/stubs/once.h",
+    "protobuf/src/google/protobuf/stubs/platform_macros.h",
+    "protobuf/src/google/protobuf/stubs/port.h",
+    "protobuf/src/google/protobuf/stubs/status.cc",
+    "protobuf/src/google/protobuf/stubs/status.h",
+    "protobuf/src/google/protobuf/stubs/status_macros.h",
+    "protobuf/src/google/protobuf/stubs/statusor.cc",
+    "protobuf/src/google/protobuf/stubs/statusor.h",
+    "protobuf/src/google/protobuf/stubs/stl_util.h",
+    "protobuf/src/google/protobuf/stubs/stringpiece.cc",
+    "protobuf/src/google/protobuf/stubs/stringpiece.h",
+    "protobuf/src/google/protobuf/stubs/stringprintf.cc",
+    "protobuf/src/google/protobuf/stubs/stringprintf.h",
+    "protobuf/src/google/protobuf/stubs/structurally_valid.cc",
+    "protobuf/src/google/protobuf/stubs/strutil.cc",
+    "protobuf/src/google/protobuf/stubs/strutil.h",
+    "protobuf/src/google/protobuf/stubs/template_util.h",
+    "protobuf/src/google/protobuf/stubs/time.cc",
+    "protobuf/src/google/protobuf/stubs/time.h",
+    "protobuf/src/google/protobuf/wire_format_lite.cc",
+    "protobuf/src/google/protobuf/wire_format_lite.h",
+  ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  configs += [ ":protobuf_config" ]
+  public_configs = [ "//gn:protobuf_gen_config" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+source_set("protobuf_full") {
+  visibility = _buildtools_visibility
+  deps = [
+    ":protobuf_lite",
+    "//gn:default_deps",
+  ]
+  sources = [
+    "protobuf/src/google/protobuf/any.cc",
+    "protobuf/src/google/protobuf/any.h",
+    "protobuf/src/google/protobuf/any.pb.cc",
+    "protobuf/src/google/protobuf/any.pb.h",
+    "protobuf/src/google/protobuf/api.pb.cc",
+    "protobuf/src/google/protobuf/api.pb.h",
+    "protobuf/src/google/protobuf/compiler/importer.cc",
+    "protobuf/src/google/protobuf/compiler/importer.h",
+    "protobuf/src/google/protobuf/compiler/parser.cc",
+    "protobuf/src/google/protobuf/compiler/parser.h",
+    "protobuf/src/google/protobuf/descriptor.cc",
+    "protobuf/src/google/protobuf/descriptor.h",
+    "protobuf/src/google/protobuf/descriptor.pb.cc",
+    "protobuf/src/google/protobuf/descriptor.pb.h",
+    "protobuf/src/google/protobuf/descriptor_database.cc",
+    "protobuf/src/google/protobuf/descriptor_database.h",
+    "protobuf/src/google/protobuf/duration.pb.cc",
+    "protobuf/src/google/protobuf/duration.pb.h",
+    "protobuf/src/google/protobuf/dynamic_message.cc",
+    "protobuf/src/google/protobuf/dynamic_message.h",
+    "protobuf/src/google/protobuf/empty.pb.cc",
+    "protobuf/src/google/protobuf/empty.pb.h",
+    "protobuf/src/google/protobuf/extension_set_heavy.cc",
+    "protobuf/src/google/protobuf/field_mask.pb.cc",
+    "protobuf/src/google/protobuf/field_mask.pb.h",
+    "protobuf/src/google/protobuf/generated_enum_reflection.h",
+    "protobuf/src/google/protobuf/generated_message_reflection.cc",
+    "protobuf/src/google/protobuf/generated_message_reflection.h",
+    "protobuf/src/google/protobuf/io/gzip_stream.cc",
+    "protobuf/src/google/protobuf/io/gzip_stream.h",
+    "protobuf/src/google/protobuf/io/printer.cc",
+    "protobuf/src/google/protobuf/io/printer.h",
+    "protobuf/src/google/protobuf/io/tokenizer.cc",
+    "protobuf/src/google/protobuf/io/tokenizer.h",
+    "protobuf/src/google/protobuf/map_entry.h",
+    "protobuf/src/google/protobuf/map_field.cc",
+    "protobuf/src/google/protobuf/map_field.h",
+    "protobuf/src/google/protobuf/map_field_inl.h",
+    "protobuf/src/google/protobuf/message.cc",
+    "protobuf/src/google/protobuf/message.h",
+    "protobuf/src/google/protobuf/metadata.h",
+    "protobuf/src/google/protobuf/reflection.h",
+    "protobuf/src/google/protobuf/reflection_internal.h",
+    "protobuf/src/google/protobuf/reflection_ops.cc",
+    "protobuf/src/google/protobuf/reflection_ops.h",
+    "protobuf/src/google/protobuf/service.cc",
+    "protobuf/src/google/protobuf/service.h",
+    "protobuf/src/google/protobuf/source_context.pb.cc",
+    "protobuf/src/google/protobuf/source_context.pb.h",
+    "protobuf/src/google/protobuf/struct.pb.cc",
+    "protobuf/src/google/protobuf/struct.pb.h",
+    "protobuf/src/google/protobuf/stubs/mathlimits.cc",
+    "protobuf/src/google/protobuf/stubs/mathlimits.h",
+    "protobuf/src/google/protobuf/stubs/mathutil.h",
+    "protobuf/src/google/protobuf/stubs/substitute.cc",
+    "protobuf/src/google/protobuf/stubs/substitute.h",
+    "protobuf/src/google/protobuf/text_format.cc",
+    "protobuf/src/google/protobuf/text_format.h",
+    "protobuf/src/google/protobuf/timestamp.pb.cc",
+    "protobuf/src/google/protobuf/timestamp.pb.h",
+    "protobuf/src/google/protobuf/type.pb.cc",
+    "protobuf/src/google/protobuf/type.pb.h",
+    "protobuf/src/google/protobuf/unknown_field_set.cc",
+    "protobuf/src/google/protobuf/unknown_field_set.h",
+    "protobuf/src/google/protobuf/util/field_comparator.cc",
+    "protobuf/src/google/protobuf/util/field_comparator.h",
+    "protobuf/src/google/protobuf/util/field_mask_util.cc",
+    "protobuf/src/google/protobuf/util/field_mask_util.h",
+    "protobuf/src/google/protobuf/util/internal/constants.h",
+    "protobuf/src/google/protobuf/util/internal/datapiece.cc",
+    "protobuf/src/google/protobuf/util/internal/datapiece.h",
+    "protobuf/src/google/protobuf/util/internal/default_value_objectwriter.cc",
+    "protobuf/src/google/protobuf/util/internal/default_value_objectwriter.h",
+    "protobuf/src/google/protobuf/util/internal/error_listener.cc",
+    "protobuf/src/google/protobuf/util/internal/error_listener.h",
+    "protobuf/src/google/protobuf/util/internal/field_mask_utility.cc",
+    "protobuf/src/google/protobuf/util/internal/field_mask_utility.h",
+    "protobuf/src/google/protobuf/util/internal/json_escaping.cc",
+    "protobuf/src/google/protobuf/util/internal/json_escaping.h",
+    "protobuf/src/google/protobuf/util/internal/json_objectwriter.cc",
+    "protobuf/src/google/protobuf/util/internal/json_objectwriter.h",
+    "protobuf/src/google/protobuf/util/internal/json_stream_parser.cc",
+    "protobuf/src/google/protobuf/util/internal/json_stream_parser.h",
+    "protobuf/src/google/protobuf/util/internal/location_tracker.h",
+    "protobuf/src/google/protobuf/util/internal/object_location_tracker.h",
+    "protobuf/src/google/protobuf/util/internal/object_source.h",
+    "protobuf/src/google/protobuf/util/internal/object_writer.cc",
+    "protobuf/src/google/protobuf/util/internal/object_writer.h",
+    "protobuf/src/google/protobuf/util/internal/proto_writer.cc",
+    "protobuf/src/google/protobuf/util/internal/proto_writer.h",
+    "protobuf/src/google/protobuf/util/internal/protostream_objectsource.cc",
+    "protobuf/src/google/protobuf/util/internal/protostream_objectsource.h",
+    "protobuf/src/google/protobuf/util/internal/protostream_objectwriter.cc",
+    "protobuf/src/google/protobuf/util/internal/protostream_objectwriter.h",
+    "protobuf/src/google/protobuf/util/internal/structured_objectwriter.h",
+    "protobuf/src/google/protobuf/util/internal/type_info.cc",
+    "protobuf/src/google/protobuf/util/internal/type_info.h",
+    "protobuf/src/google/protobuf/util/internal/type_info_test_helper.cc",
+    "protobuf/src/google/protobuf/util/internal/type_info_test_helper.h",
+    "protobuf/src/google/protobuf/util/internal/utility.cc",
+    "protobuf/src/google/protobuf/util/internal/utility.h",
+    "protobuf/src/google/protobuf/util/json_util.cc",
+    "protobuf/src/google/protobuf/util/json_util.h",
+    "protobuf/src/google/protobuf/util/message_differencer.cc",
+    "protobuf/src/google/protobuf/util/message_differencer.h",
+    "protobuf/src/google/protobuf/util/time_util.cc",
+    "protobuf/src/google/protobuf/util/time_util.h",
+    "protobuf/src/google/protobuf/util/type_resolver.h",
+    "protobuf/src/google/protobuf/util/type_resolver_util.cc",
+    "protobuf/src/google/protobuf/util/type_resolver_util.h",
+    "protobuf/src/google/protobuf/wire_format.cc",
+    "protobuf/src/google/protobuf/wire_format.h",
+    "protobuf/src/google/protobuf/wrappers.pb.cc",
+    "protobuf/src/google/protobuf/wrappers.pb.h",
+  ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  configs += [ ":protobuf_config" ]
+  public_configs = [ "//gn:protobuf_gen_config" ]
+}
+
+source_set("protoc_lib") {
+  visibility = _buildtools_visibility
+  deps = [
+    ":protobuf_full",
+    "//gn:default_deps",
+  ]
+  sources = [
+    "protobuf/src/google/protobuf/compiler/code_generator.cc",
+    "protobuf/src/google/protobuf/compiler/code_generator.h",
+    "protobuf/src/google/protobuf/compiler/command_line_interface.cc",
+    "protobuf/src/google/protobuf/compiler/command_line_interface.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_enum.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_enum.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_enum_field.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_enum_field.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_extension.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_extension.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_field.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_field.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_file.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_file.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_generator.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_generator.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_helpers.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_helpers.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_map_field.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_map_field.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_message.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_message_field.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_message_field.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_message_layout_helper.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_options.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_padding_optimizer.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_padding_optimizer.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_primitive_field.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_primitive_field.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_service.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_service.h",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_string_field.cc",
+    "protobuf/src/google/protobuf/compiler/cpp/cpp_string_field.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_doc_comment.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_doc_comment.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_enum.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_enum.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_enum_field.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_enum_field.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_field_base.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_field_base.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_generator.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_generator.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_helpers.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_helpers.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_map_field.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_map_field.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_message.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_message.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_message_field.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_message_field.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_options.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_primitive_field.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_primitive_field.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_reflection_class.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_reflection_class.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_repeated_enum_field.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_repeated_enum_field.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_repeated_message_field.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_repeated_message_field.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_repeated_primitive_field.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_repeated_primitive_field.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_source_generator_base.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_source_generator_base.h",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_wrapper_field.cc",
+    "protobuf/src/google/protobuf/compiler/csharp/csharp_wrapper_field.h",
+    "protobuf/src/google/protobuf/compiler/java/java_context.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_context.h",
+    "protobuf/src/google/protobuf/compiler/java/java_doc_comment.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_doc_comment.h",
+    "protobuf/src/google/protobuf/compiler/java/java_enum.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_enum.h",
+    "protobuf/src/google/protobuf/compiler/java/java_enum_field.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_enum_field.h",
+    "protobuf/src/google/protobuf/compiler/java/java_enum_field_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_enum_field_lite.h",
+    "protobuf/src/google/protobuf/compiler/java/java_enum_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_enum_lite.h",
+    "protobuf/src/google/protobuf/compiler/java/java_extension.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_extension.h",
+    "protobuf/src/google/protobuf/compiler/java/java_extension_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_extension_lite.h",
+    "protobuf/src/google/protobuf/compiler/java/java_field.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_field.h",
+    "protobuf/src/google/protobuf/compiler/java/java_file.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_file.h",
+    "protobuf/src/google/protobuf/compiler/java/java_generator.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_generator.h",
+    "protobuf/src/google/protobuf/compiler/java/java_generator_factory.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_generator_factory.h",
+    "protobuf/src/google/protobuf/compiler/java/java_helpers.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_helpers.h",
+    "protobuf/src/google/protobuf/compiler/java/java_map_field.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_map_field.h",
+    "protobuf/src/google/protobuf/compiler/java/java_map_field_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_map_field_lite.h",
+    "protobuf/src/google/protobuf/compiler/java/java_message.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_message.h",
+    "protobuf/src/google/protobuf/compiler/java/java_message_builder.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_message_builder.h",
+    "protobuf/src/google/protobuf/compiler/java/java_message_builder_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_message_builder_lite.h",
+    "protobuf/src/google/protobuf/compiler/java/java_message_field.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_message_field.h",
+    "protobuf/src/google/protobuf/compiler/java/java_message_field_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_message_field_lite.h",
+    "protobuf/src/google/protobuf/compiler/java/java_message_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_message_lite.h",
+    "protobuf/src/google/protobuf/compiler/java/java_name_resolver.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_name_resolver.h",
+    "protobuf/src/google/protobuf/compiler/java/java_options.h",
+    "protobuf/src/google/protobuf/compiler/java/java_primitive_field.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_primitive_field.h",
+    "protobuf/src/google/protobuf/compiler/java/java_primitive_field_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_primitive_field_lite.h",
+    "protobuf/src/google/protobuf/compiler/java/java_service.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_service.h",
+    "protobuf/src/google/protobuf/compiler/java/java_shared_code_generator.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_shared_code_generator.h",
+    "protobuf/src/google/protobuf/compiler/java/java_string_field.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_string_field.h",
+    "protobuf/src/google/protobuf/compiler/java/java_string_field_lite.cc",
+    "protobuf/src/google/protobuf/compiler/java/java_string_field_lite.h",
+    "protobuf/src/google/protobuf/compiler/js/js_generator.cc",
+    "protobuf/src/google/protobuf/compiler/js/js_generator.h",
+    "protobuf/src/google/protobuf/compiler/js/well_known_types_embed.cc",
+    "protobuf/src/google/protobuf/compiler/js/well_known_types_embed.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_enum.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_enum.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_enum_field.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_enum_field.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_extension.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_extension.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_field.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_field.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_file.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_file.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_generator.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_generator.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_helpers.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_helpers.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_map_field.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_map_field.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_message.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_message.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_message_field.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_message_field.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_oneof.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_oneof.h",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_primitive_field.cc",
+    "protobuf/src/google/protobuf/compiler/objectivec/objectivec_primitive_field.h",
+    "protobuf/src/google/protobuf/compiler/php/php_generator.cc",
+    "protobuf/src/google/protobuf/compiler/php/php_generator.h",
+    "protobuf/src/google/protobuf/compiler/plugin.cc",
+    "protobuf/src/google/protobuf/compiler/plugin.h",
+    "protobuf/src/google/protobuf/compiler/plugin.pb.cc",
+    "protobuf/src/google/protobuf/compiler/plugin.pb.h",
+    "protobuf/src/google/protobuf/compiler/python/python_generator.cc",
+    "protobuf/src/google/protobuf/compiler/python/python_generator.h",
+    "protobuf/src/google/protobuf/compiler/ruby/ruby_generator.cc",
+    "protobuf/src/google/protobuf/compiler/ruby/ruby_generator.h",
+    "protobuf/src/google/protobuf/compiler/subprocess.cc",
+    "protobuf/src/google/protobuf/compiler/subprocess.h",
+    "protobuf/src/google/protobuf/compiler/zip_writer.cc",
+    "protobuf/src/google/protobuf/compiler/zip_writer.h",
+  ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  configs += [ ":protobuf_config" ]
+  public_configs = [ "//gn:protobuf_gen_config" ]
+}
+
+if (current_toolchain == host_toolchain) {
+  executable("protoc") {
+    visibility = _buildtools_visibility
+    deps = [
+      ":protoc_lib",
+      "//gn:default_deps",
+    ]
+    sources = [ "protobuf/src/google/protobuf/compiler/main.cc" ]
+    configs -= [ "//gn/standalone:extra_warnings" ]
+  }
+}  # host_toolchain
+
+if (use_custom_libcxx) {
+  # Config applied to both libc++ and libc++abi targets below.
+  config("libc++config") {
+    visibility = _buildtools_visibility
+    defines = [
+      "LIBCXX_BUILDING_LIBCXXABI",
+      "_LIBCXXABI_NO_EXCEPTIONS",
+      "_LIBCPP_OVERRIDABLE_FUNC_VIS=__attribute__((__visibility__(\"default\")))",
+    ]
+    cflags = [
+      "-fPIC",
+      "-fstrict-aliasing",
+    ]
+  }
+
+  source_set("libunwind") {
+    visibility = _buildtools_visibility
+    sources = [
+      "libunwind/src/Unwind-EHABI.cpp",
+      "libunwind/src/Unwind-sjlj.c",
+      "libunwind/src/UnwindLevel1-gcc-ext.c",
+      "libunwind/src/UnwindLevel1.c",
+      "libunwind/src/UnwindRegistersRestore.S",
+      "libunwind/src/UnwindRegistersSave.S",
+      "libunwind/src/libunwind.cpp",
+    ]
+    include_dirs = [ "libunwind/include" ]
+    configs -= [
+      "//gn/standalone:extra_warnings",
+      "//gn/standalone:no_exceptions",
+      "//gn/standalone:no_rtti",
+
+      # When building with msan, libunwind itself triggers memory violations
+      # that causes msan to get stuck into an infinite loop. Just don't
+      # instrument libunwind itself.
+      "//gn/standalone/sanitizers:sanitizers_cflags",
+    ]
+    configs += [
+      ":libc++config",
+      "//gn/standalone/sanitizers:sanitizer_options_link_helper",
+    ]
+  }
+
+  source_set("libc++abi") {
+    visibility = _buildtools_visibility
+    sources = [
+      "libcxxabi/src/abort_message.cpp",
+      "libcxxabi/src/cxa_aux_runtime.cpp",
+      "libcxxabi/src/cxa_default_handlers.cpp",
+      "libcxxabi/src/cxa_demangle.cpp",
+      "libcxxabi/src/cxa_exception.cpp",
+      "libcxxabi/src/cxa_exception_storage.cpp",
+      "libcxxabi/src/cxa_guard.cpp",
+      "libcxxabi/src/cxa_handlers.cpp",
+      "libcxxabi/src/cxa_personality.cpp",
+      "libcxxabi/src/cxa_unexpected.cpp",
+      "libcxxabi/src/cxa_vector.cpp",
+      "libcxxabi/src/cxa_virtual.cpp",
+      "libcxxabi/src/fallback_malloc.cpp",
+      "libcxxabi/src/private_typeinfo.cpp",
+      "libcxxabi/src/stdlib_exception.cpp",
+      "libcxxabi/src/stdlib_stdexcept.cpp",
+      "libcxxabi/src/stdlib_typeinfo.cpp",
+    ]
+
+    # On linux this seems to introduce an unwanted glibc 2.18 dependency.
+    if (is_android) {
+      sources += [ "libcxxabi/src/cxa_thread_atexit.cpp" ]
+    }
+    configs -= [
+      "//gn/standalone:extra_warnings",
+      "//gn/standalone:no_exceptions",
+      "//gn/standalone:no_rtti",
+      "//gn/standalone:visibility_hidden",
+    ]
+    configs += [
+      ":libc++config",
+      "//gn/standalone/sanitizers:sanitizer_options_link_helper",
+    ]
+    deps = [ ":libunwind" ]
+  }
+
+  if (custom_libcxx_is_static) {
+    libcxx_target_type = "source_set"
+  } else {
+    libcxx_target_type = "shared_library"
+  }
+
+  target(libcxx_target_type, "libc++") {
+    visibility = _buildtools_visibility
+    visibility += [ "../gn/standalone/libc++:*" ]
+    sources = [
+      "libcxx/src/algorithm.cpp",
+      "libcxx/src/any.cpp",
+      "libcxx/src/bind.cpp",
+      "libcxx/src/charconv.cpp",
+      "libcxx/src/chrono.cpp",
+      "libcxx/src/condition_variable.cpp",
+      "libcxx/src/condition_variable_destructor.cpp",
+      "libcxx/src/debug.cpp",
+      "libcxx/src/exception.cpp",
+      "libcxx/src/functional.cpp",
+      "libcxx/src/future.cpp",
+      "libcxx/src/hash.cpp",
+      "libcxx/src/ios.cpp",
+      "libcxx/src/iostream.cpp",
+      "libcxx/src/locale.cpp",
+      "libcxx/src/memory.cpp",
+      "libcxx/src/mutex.cpp",
+      "libcxx/src/mutex_destructor.cpp",
+      "libcxx/src/new.cpp",
+      "libcxx/src/optional.cpp",
+      "libcxx/src/random.cpp",
+      "libcxx/src/regex.cpp",
+      "libcxx/src/shared_mutex.cpp",
+      "libcxx/src/stdexcept.cpp",
+      "libcxx/src/string.cpp",
+      "libcxx/src/strstream.cpp",
+      "libcxx/src/system_error.cpp",
+      "libcxx/src/thread.cpp",
+      "libcxx/src/typeinfo.cpp",
+      "libcxx/src/utility.cpp",
+      "libcxx/src/valarray.cpp",
+      "libcxx/src/variant.cpp",
+      "libcxx/src/vector.cpp",
+    ]
+    configs -= [
+      "//gn/standalone:extra_warnings",
+      "//gn/standalone:no_exceptions",
+      "//gn/standalone:no_rtti",
+      "//gn/standalone:visibility_hidden",
+    ]
+    configs += [
+      ":libc++config",
+      "//gn/standalone/sanitizers:sanitizer_options_link_helper",
+    ]
+    defines = [ "_LIBCPP_BUILDING_LIBRARY" ]
+    if ((is_linux || is_android) && (is_asan || is_tsan || is_msan)) {
+      # In {a,t,m}san configurations, operator new and operator delete will be
+      # provided by the sanitizer runtime library.  Since libc++ defines these
+      # symbols with weak linkage, and the *san runtime uses strong linkage, it
+      # should technically be OK to omit this, but it's added to be explicit.
+      defines += [ "_LIBCPP_DISABLE_NEW_DELETE_DEFINITIONS" ]
+    }
+    deps = [ ":libc++abi" ]
+  }
+}  # if (use_custom_libcxx)
+
+config("benchmark_config") {
+  visibility = _buildtools_visibility
+  include_dirs = [ "benchmark/include" ]
+  configs = [ ":test_warning_suppressions" ]
+}
+
+source_set("benchmark") {
+  visibility = _buildtools_visibility
+  testonly = true
+  sources = [
+    "benchmark/include/benchmark/benchmark.h",
+    "benchmark/include/benchmark/benchmark_api.h",
+    "benchmark/include/benchmark/reporter.h",
+    "benchmark/src/arraysize.h",
+    "benchmark/src/benchmark.cc",
+    "benchmark/src/benchmark_api_internal.h",
+    "benchmark/src/benchmark_register.cc",
+    "benchmark/src/check.h",
+    "benchmark/src/colorprint.cc",
+    "benchmark/src/colorprint.h",
+    "benchmark/src/commandlineflags.cc",
+    "benchmark/src/commandlineflags.h",
+    "benchmark/src/complexity.cc",
+    "benchmark/src/complexity.h",
+    "benchmark/src/console_reporter.cc",
+    "benchmark/src/counter.cc",
+    "benchmark/src/counter.h",
+    "benchmark/src/csv_reporter.cc",
+    "benchmark/src/cycleclock.h",
+    "benchmark/src/internal_macros.h",
+    "benchmark/src/json_reporter.cc",
+    "benchmark/src/log.h",
+    "benchmark/src/mutex.h",
+    "benchmark/src/re.h",
+    "benchmark/src/reporter.cc",
+    "benchmark/src/sleep.cc",
+    "benchmark/src/sleep.h",
+    "benchmark/src/statistics.cc",
+    "benchmark/src/statistics.h",
+    "benchmark/src/string_util.cc",
+    "benchmark/src/string_util.h",
+    "benchmark/src/sysinfo.cc",
+    "benchmark/src/sysinfo.h",
+    "benchmark/src/timers.cc",
+    "benchmark/src/timers.h",
+  ]
+  defines = [ "HAVE_POSIX_REGEX" ]
+  public_configs = [ ":benchmark_config" ]
+  all_dependent_configs = [ ":benchmark_config" ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+# On Linux/Android use libbacktrace in debug builds for better stacktraces.
+if (is_linux || is_android) {
+  config("libbacktrace_config") {
+    visibility = _buildtools_visibility
+    include_dirs = [
+      "libbacktrace_config",
+      "libbacktrace",
+    ]
+    cflags = [
+      # We force include this config file because "config.h" is too generic as a
+      # file name and on some platforms #include "config.h" ends up colliding
+      # importing some other project's config.h.
+      "-include",
+      rebase_path("libbacktrace_config/config.h", root_build_dir),
+    ]
+  }
+
+  source_set("libbacktrace") {
+    visibility = _buildtools_visibility
+    sources = [
+      "libbacktrace/dwarf.c",
+      "libbacktrace/elf.c",
+      "libbacktrace/fileline.c",
+      "libbacktrace/mmap.c",
+      "libbacktrace/mmapio.c",
+      "libbacktrace/posix.c",
+      "libbacktrace/sort.c",
+      "libbacktrace/state.c",
+    ]
+    configs -= [ "//gn/standalone:extra_warnings" ]
+    public_configs = [ ":libbacktrace_config" ]
+    deps = [ "//gn:default_deps" ]
+  }
+}
+
+config("sqlite_config") {
+  visibility = _buildtools_visibility
+  include_dirs = [ "sqlite" ]
+  cflags = [
+    "-DSQLITE_THREADSAFE=0",
+    "-DQLITE_DEFAULT_MEMSTATUS=0",
+    "-DSQLITE_LIKE_DOESNT_MATCH_BLOBS",
+    "-DSQLITE_OMIT_DEPRECATED",
+    "-DSQLITE_OMIT_SHARED_CACHE",
+    "-DHAVE_USLEEP",
+    "-DHAVE_UTIME",
+    "-DSQLITE_BYTEORDER=1234",
+    "-DSQLITE_DEFAULT_AUTOVACUUM=0",
+    "-DSQLITE_DEFAULT_MMAP_SIZE=0",
+    "-DSQLITE_CORE",
+    "-DSQLITE_TEMP_STORE=3",
+    "-DSQLITE_OMIT_LOAD_EXTENSION",
+    "-DSQLITE_OMIT_RANDOMNESS",
+    "-DSQLITE_OMIT_AUTOINIT",
+    "-DSQLITE_ENABLE_JSON1",
+  ]
+}
+
+source_set("sqlite") {
+  visibility = _buildtools_visibility
+  sources = [
+    "sqlite/sqlite3.c",
+    "sqlite/sqlite3.h",
+    "sqlite/sqlite3ext.h",
+    "sqlite_src/ext/misc/percentile.c",
+  ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  public_configs = [ ":sqlite_config" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+source_set("sqlite_shell") {
+  visibility = _buildtools_visibility
+  testonly = true
+  sources = [ "sqlite/shell.c" ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  deps = [
+    ":sqlite",
+    "//gn:default_deps",
+  ]
+}
+
+source_set("lzma") {
+  visibility = _buildtools_visibility
+  defines = [ "_7ZIP_ST" ]
+  sources = [
+    "lzma/C/7zAlloc.c",
+    "lzma/C/7zArcIn.c",
+    "lzma/C/7zBuf.c",
+    "lzma/C/7zBuf2.c",
+    "lzma/C/7zCrc.c",
+    "lzma/C/7zCrcOpt.c",
+    "lzma/C/7zDec.c",
+    "lzma/C/7zFile.c",
+    "lzma/C/7zStream.c",
+    "lzma/C/Aes.c",
+    "lzma/C/AesOpt.c",
+    "lzma/C/Alloc.c",
+    "lzma/C/Bcj2.c",
+    "lzma/C/Bra.c",
+    "lzma/C/Bra86.c",
+    "lzma/C/BraIA64.c",
+    "lzma/C/CpuArch.c",
+    "lzma/C/Delta.c",
+    "lzma/C/LzFind.c",
+    "lzma/C/Lzma2Dec.c",
+    "lzma/C/Lzma2Enc.c",
+    "lzma/C/Lzma86Dec.c",
+    "lzma/C/Lzma86Enc.c",
+    "lzma/C/LzmaDec.c",
+    "lzma/C/LzmaEnc.c",
+    "lzma/C/LzmaLib.c",
+    "lzma/C/Ppmd7.c",
+    "lzma/C/Ppmd7Dec.c",
+    "lzma/C/Ppmd7Enc.c",
+    "lzma/C/Sha256.c",
+    "lzma/C/Sort.c",
+    "lzma/C/Xz.c",
+    "lzma/C/XzCrc64.c",
+    "lzma/C/XzCrc64Opt.c",
+    "lzma/C/XzDec.c",
+    "lzma/C/XzEnc.c",
+    "lzma/C/XzIn.c",
+  ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  cflags = [
+    "-Wno-empty-body",
+    "-Wno-enum-conversion",
+  ]
+  deps = [ "//gn:default_deps" ]
+}
+
+source_set("zlib") {
+  visibility = _buildtools_visibility
+  sources = [
+    "zlib/src/adler32.c",
+    "zlib/src/compress.c",
+    "zlib/src/crc32.c",
+    "zlib/src/deflate.c",
+    "zlib/src/gzclose.c",
+    "zlib/src/gzlib.c",
+    "zlib/src/gzread.c",
+    "zlib/src/gzwrite.c",
+    "zlib/src/infback.c",
+    "zlib/src/inffast.c",
+    "zlib/src/inflate.c",
+    "zlib/src/inftrees.c",
+    "zlib/src/trees.c",
+    "zlib/src/uncompr.c",
+    "zlib/src/zutil.c",
+  ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  cflags = []
+  public_configs = [ ":zlib_config" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+config("zlib_config") {
+  visibility = _buildtools_visibility
+  defines = [ "HAVE_HIDDEN" ]
+  cflags = [
+    # Using -isystem instead of include_dirs (-I), so we don't need to suppress
+    # warnings coming from third-party headers. Doing so would mask warnings in
+    # our own code.
+    "-isystem",
+    rebase_path("zlib/src", root_build_dir),
+  ]
+}
+
+source_set("libunwindstack") {
+  visibility = _buildtools_visibility
+  include_dirs = [
+    "android-core/libunwindstack/include",
+    "android-core/libunwindstack",
+    "android-core/base/include",
+    "android-core/liblog/include",
+    "android-core/libprocinfo/include",
+    "android-core/include",
+    "lzma/C",
+  ]
+  deps = [
+    ":lzma",
+    "//gn:default_deps",
+  ]
+  sources = [
+    "android-core/base/file.cpp",
+    "android-core/base/liblog_symbols.cpp",
+    "android-core/base/logging.cpp",
+    "android-core/base/stringprintf.cpp",
+    "android-core/base/strings.cpp",
+    "android-core/base/threads.cpp",
+    "android-core/liblog/fake_log_device.cpp",
+    "android-core/liblog/logger_write.cpp",
+    "android-core/libunwindstack/ArmExidx.cpp",
+    "android-core/libunwindstack/DwarfCfa.cpp",
+    "android-core/libunwindstack/DwarfEhFrameWithHdr.cpp",
+    "android-core/libunwindstack/DwarfMemory.cpp",
+    "android-core/libunwindstack/DwarfOp.cpp",
+    "android-core/libunwindstack/DwarfSection.cpp",
+    "android-core/libunwindstack/Elf.cpp",
+    "android-core/libunwindstack/ElfInterface.cpp",
+    "android-core/libunwindstack/ElfInterfaceArm.cpp",
+    "android-core/libunwindstack/Global.cpp",
+    "android-core/libunwindstack/JitDebug.cpp",
+    "android-core/libunwindstack/LocalUnwinder.cpp",
+    "android-core/libunwindstack/Log.cpp",
+    "android-core/libunwindstack/MapInfo.cpp",
+    "android-core/libunwindstack/Maps.cpp",
+    "android-core/libunwindstack/Memory.cpp",
+    "android-core/libunwindstack/Regs.cpp",
+    "android-core/libunwindstack/RegsArm.cpp",
+    "android-core/libunwindstack/RegsArm64.cpp",
+    "android-core/libunwindstack/RegsMips.cpp",
+    "android-core/libunwindstack/RegsMips64.cpp",
+    "android-core/libunwindstack/RegsX86.cpp",
+    "android-core/libunwindstack/RegsX86_64.cpp",
+    "android-core/libunwindstack/Symbols.cpp",
+    "android-core/libunwindstack/Unwinder.cpp",
+  ]
+  if (current_cpu == "x86") {
+    sources += [ "android-core/libunwindstack/AsmGetRegsX86.S" ]
+  } else if (current_cpu == "x64") {
+    sources += [ "android-core/libunwindstack/AsmGetRegsX86_64.S" ]
+  }
+  configs -= [
+    "//gn/standalone:extra_warnings",
+    "//gn/standalone:c++11",
+    "//gn/standalone:visibility_hidden",
+  ]
+  cflags = [ "-DFAKE_LOG_DEVICE=1" ]
+  configs += [ "//gn/standalone:c++17" ]
+  public_configs = [ ":libunwindstack_config" ]
+}
+
+config("bionic_kernel_uapi_headers") {
+  visibility = _buildtools_visibility
+  cflags = [
+    "-isystem",
+    rebase_path("bionic/libc/kernel", root_build_dir),
+  ]
+}
+
+config("jsoncpp_config") {
+  visibility = _buildtools_visibility
+  cflags = [
+    "-DJSON_USE_EXCEPTION=0",
+
+    # Using -isystem instead of include_dirs (-I), so we don't need to suppress
+    # warnings coming from third-party headers. Doing so would mask warnings in
+    # our own code.
+    "-isystem",
+    rebase_path("jsoncpp/include", root_build_dir),
+  ]
+}
+
+source_set("jsoncpp") {
+  visibility = _buildtools_visibility
+  sources = [
+    "jsoncpp/src/lib_json/json_reader.cpp",
+    "jsoncpp/src/lib_json/json_value.cpp",
+    "jsoncpp/src/lib_json/json_writer.cpp",
+  ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  public_configs = [ ":jsoncpp_config" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+config("linenoise_config") {
+  visibility = _buildtools_visibility
+  cflags = [
+    # Using -isystem instead of include_dirs (-I), so we don't need to suppress
+    # warnings coming from third-party headers. Doing so would mask warnings in
+    # our own code.
+    "-isystem",
+    rebase_path("linenoise", root_build_dir),
+  ]
+}
+
+source_set("linenoise") {
+  visibility = _buildtools_visibility
+  sources = [
+    "linenoise/linenoise.c",
+    "linenoise/linenoise.h",
+  ]
+  configs -= [ "//gn/standalone:extra_warnings" ]
+  public_configs = [ ":linenoise_config" ]
+  cflags = [ "-Wno-tautological-unsigned-zero-compare" ]
+  deps = [ "//gn:default_deps" ]
+}
+
+if (use_libfuzzer) {
+  source_set("libfuzzer") {
+    visibility = _buildtools_visibility
+    configs -= [
+      "//gn/standalone:extra_warnings",
+      "//gn/standalone/sanitizers:sanitizers_cflags",
+    ]
+    sources = [
+      "libfuzzer/FuzzerCrossOver.cpp",
+      "libfuzzer/FuzzerDataFlowTrace.cpp",
+      "libfuzzer/FuzzerDriver.cpp",
+      "libfuzzer/FuzzerExtFunctionsDlsym.cpp",
+      "libfuzzer/FuzzerExtFunctionsWeak.cpp",
+      "libfuzzer/FuzzerExtFunctionsWindows.cpp",
+      "libfuzzer/FuzzerExtraCounters.cpp",
+      "libfuzzer/FuzzerFork.cpp",
+      "libfuzzer/FuzzerIO.cpp",
+      "libfuzzer/FuzzerIOPosix.cpp",
+      "libfuzzer/FuzzerIOWindows.cpp",
+      "libfuzzer/FuzzerLoop.cpp",
+      "libfuzzer/FuzzerMain.cpp",
+      "libfuzzer/FuzzerMerge.cpp",
+      "libfuzzer/FuzzerMutate.cpp",
+      "libfuzzer/FuzzerSHA1.cpp",
+      "libfuzzer/FuzzerTracePC.cpp",
+      "libfuzzer/FuzzerUtil.cpp",
+      "libfuzzer/FuzzerUtilDarwin.cpp",
+      "libfuzzer/FuzzerUtilFuchsia.cpp",
+      "libfuzzer/FuzzerUtilLinux.cpp",
+      "libfuzzer/FuzzerUtilPosix.cpp",
+      "libfuzzer/FuzzerUtilWindows.cpp",
+    ]
+    deps = [ "//gn:default_deps" ]
+  }
+}

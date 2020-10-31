@@ -1,0 +1,20 @@
+name: rdev_tdls_channel_switch
+ID: 899
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:u8 addr[6];	offset:60;	size:6;	signed:0;
+	field:u8 oper_class;	offset:66;	size:1;	signed:0;
+	field:enum nl80211_band band;	offset:68;	size:4;	signed:0;
+	field:u32 control_freq;	offset:72;	size:4;	signed:0;
+	field:u32 width;	offset:76;	size:4;	signed:0;
+	field:u32 center_freq1;	offset:80;	size:4;	signed:0;
+	field:u32 center_freq2;	offset:84;	size:4;	signed:0;
+
+print fmt: "%s, netdev:%s(%d), %pM oper class %d, band: %d, control freq: %u, width: %d, cf1: %u, cf2: %u", REC->wiphy_name, REC->name, REC->ifindex, (REC->addr), REC->oper_class, REC->band, REC->control_freq, REC->width, REC->center_freq1, REC->center_freq2

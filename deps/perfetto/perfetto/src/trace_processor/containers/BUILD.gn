@@ -1,0 +1,69 @@
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../gn/test.gni")
+
+source_set("containers") {
+  sources = [
+    "bit_vector.cc",
+    "bit_vector.h",
+    "bit_vector_iterators.cc",
+    "bit_vector_iterators.h",
+    "null_term_string_view.h",
+    "row_map.cc",
+    "row_map.h",
+    "sparse_vector.cc",
+    "sparse_vector.h",
+    "string_pool.cc",
+    "string_pool.h",
+  ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/base",
+    "../../../include/perfetto/ext/base",
+    "../../../include/perfetto/protozero",
+  ]
+}
+
+perfetto_unittest_source_set("unittests") {
+  testonly = true
+  sources = [
+    "bit_vector_unittest.cc",
+    "null_term_string_view_unittest.cc",
+    "row_map_unittest.cc",
+    "sparse_vector_unittest.cc",
+    "string_pool_unittest.cc",
+  ]
+  deps = [
+    ":containers",
+    "../../../gn:default_deps",
+    "../../../gn:gtest_and_gmock",
+  ]
+}
+
+if (enable_perfetto_benchmarks) {
+  source_set("benchmarks") {
+    testonly = true
+    deps = [
+      ":containers",
+      "../../../gn:benchmark",
+      "../../../gn:default_deps",
+    ]
+    sources = [
+      "bit_vector_benchmark.cc",
+      "row_map_benchmark.cc",
+      "sparse_vector_benchmark.cc",
+    ]
+  }
+}

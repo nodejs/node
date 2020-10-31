@@ -1,0 +1,432 @@
+#!/usr/bin/env python
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import argparse
+import hashlib
+import logging
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipfile
+
+from collections import namedtuple
+from platform import system
+
+from compat import urlretrieve
+
+# The format for the deps below is the following:
+# (target_folder, source_url, sha1, target_platform)
+# |source_url| can be either a git repo or a http url.
+# If a git repo, |sha1| is the committish that will be checked out.
+# If a http url, |sha1| is the shasum of the original file.
+# If the url is a .zip or .tgz file it will be automatically deflated under
+# |target_folder|, taking care of stripping the root folder if it's a single
+# root (to avoid ending up with buildtools/protobuf/protobuf-1.2.3/... and have
+# instead just buildtools/protobuf).
+# |target_platform| is either 'darwin', 'linux' or 'all' and applies the dep
+# only on the given platform
+
+# Dependencies required to build code on the host or when targeting desktop OS.
+BUILD_DEPS_HOST = [
+    # GN
+    ('buildtools/mac/gn',
+     'https://storage.googleapis.com/perfetto/gn-mac-1695-83dad00a',
+     '4c0d45772aea4146699772165e8112fa76ceb295', 'darwin'),
+    ('buildtools/linux64/gn',
+     'https://storage.googleapis.com/perfetto/gn-linux64-1695-83dad00a',
+     'fcabfc379bccaa65b4e2fc791594ba124dafc7d0', 'linux'),
+
+    # clang-format
+    ('buildtools/mac/clang-format',
+     'https://storage.googleapis.com/chromium-clang-format/025ca7c75f37ef4a40f3a67d81ddd11d7d0cdb9b',
+     '025ca7c75f37ef4a40f3a67d81ddd11d7d0cdb9b', 'darwin'),
+    ('buildtools/linux64/clang-format',
+     'https://storage.googleapis.com/chromium-clang-format/942fc8b1789144b8071d3fc03ff0fcbe1cf81ac8',
+     '942fc8b1789144b8071d3fc03ff0fcbe1cf81ac8', 'linux'),
+    # Keep the SHA1 in sync with |clang_format_rev| in chromium //buildtools/DEPS.
+    ('buildtools/clang_format/script',
+     'https://chromium.googlesource.com/chromium/llvm-project/cfe/tools/clang-format.git',
+     '96636aa0e9f047f17447f2d45a094d0b59ed7917', 'all'),
+
+    # Ninja
+    ('buildtools/mac/ninja',
+     'https://storage.googleapis.com/perfetto/ninja-mac-c15b0698da038b2bd2e8970c14c75fadc06b1add',
+     'c15b0698da038b2bd2e8970c14c75fadc06b1add', 'darwin'),
+    ('buildtools/linux64/ninja',
+     'https://storage.googleapis.com/perfetto/ninja-linux64-c866952bda50c29a669222477309287119bbb7e8',
+     'c866952bda50c29a669222477309287119bbb7e8', 'linux'),
+
+    # Keep in sync with Android's //external/googletest/README.version.
+    ('buildtools/googletest.zip',
+     'https://github.com/google/googletest/archive/3f05f651ae3621db58468153e32016bc1397800b.zip',
+     '86384688f7c533ad325a505efc917e0cdf39a0ce', 'all'),
+
+    # Keep in sync with Chromium's //third_party/protobuf.
+    ('buildtools/protobuf.zip',
+     'https://github.com/protocolbuffers/protobuf/releases/download/v3.9.0/protobuf-cpp-3.9.0.zip',
+     'c975536dffe9d9a3d362928aef4fb9f199012b98', 'all'),
+
+    # libc++, libc++abi and libunwind for Linux where we need to rebuild the C++
+    # lib from sources. Keep the SHA1s in sync with Chrome's src/buildtools/DEPS.
+    ('buildtools/libcxx',
+     'https://chromium.googlesource.com/chromium/llvm-project/libcxx.git',
+     '78d6a7767ed57b50122a161b91f59f19c9bd0d19', 'all'),
+    ('buildtools/libcxxabi',
+     'https://chromium.googlesource.com/chromium/llvm-project/libcxxabi.git',
+     '0d529660e32d77d9111912d73f2c74fc5fa2a858', 'all'),
+    ('buildtools/libunwind',
+     'https://chromium.googlesource.com/external/llvm.org/libunwind.git',
+     '69d9b84cca8354117b9fe9705a4430d789ee599b', 'all'),
+
+    # Keep the revision in sync with Chrome's PACKAGE_VERSION in
+    # tools/clang/scripts/update.py.
+    ('buildtools/clang.tgz',
+     'https://commondatastorage.googleapis.com/chromium-browser-clang/Linux_x64/clang-n332890-c2443155-2.tgz',
+     'd6501ffdb5dbb0ffe8a4b873cc092a9929e661ec', 'linux'),
+
+    # Keep in sync with chromium DEPS.
+    ('buildtools/libfuzzer',
+     'https://chromium.googlesource.com/chromium/llvm-project/compiler-rt/lib/fuzzer.git',
+     'debe7d2d1982e540fbd6bd78604bf001753f9e74', 'linux'),
+
+    # Benchmarking tool.
+    ('buildtools/benchmark.zip',
+     'https://github.com/google/benchmark/archive/v1.3.0.zip',
+     'f387e0df37d54bfd5be239e8d0d3ea2e2c3e34f4', 'all'),
+
+    # Libbacktrace, for stacktraces in Linux/Android debug builds.
+    ('buildtools/libbacktrace.zip',
+     'https://github.com/ianlancetaylor/libbacktrace/archive/177940370e4a6b2509e92a0aaa9749184e64af43.zip',
+     'b723fe9d671d1ab54df1297f6afbf2893a41c3ea', 'all'),
+
+    # Sqlite for the trace processing library.
+    # This is the amalgamated source whose compiled output is meant to be faster.
+    # We still pull the full source for the extensions (not amalgamated).
+    ('buildtools/sqlite.zip',
+     'https://storage.googleapis.com/perfetto/sqlite-amalgamation-3250300.zip',
+     'b78c2cb0d2c9182686c582312479f96a82bf5380', 'all'),
+    ('buildtools/sqlite_src.zip',
+     'https://storage.googleapis.com/perfetto/sqlite-src-3250300.zip',
+     'd1af2883bb800852946f9bf8ab6055e7698e18ee', 'all'),
+
+    # JsonCpp for legacy json import. Used only by the trace processor in
+    # standalone builds.
+    ('buildtools/jsoncpp.zip',
+     'https://github.com/open-source-parsers/jsoncpp/archive/1.0.0.zip',
+     '3219e26f2e249bb46b7d688478208c7ec138fea4', 'all'),
+
+    # These dependencies are for libunwindstack, which is used by src/profiling.
+    ('buildtools/android-core',
+     'https://android.googlesource.com/platform/system/core.git',
+     '8bf4e29e44098e3232ff646331675fb113064162', 'all'),
+    ('buildtools/lzma',
+     'https://android.googlesource.com/platform/external/lzma.git',
+     '7851dce6f4ca17f5caa1c93a4e0a45686b1d56c3', 'all'),
+    ('buildtools/zlib',
+     'https://android.googlesource.com/platform/external/zlib.git',
+     'dfa0646a03b4e1707469e04dc931b09774968fe6', 'all'),
+    ('buildtools/bionic',
+     'https://android.googlesource.com/platform/bionic.git',
+     'a60488109cda997dfd83832731c8527feaa2825e', 'all'),
+
+    # Example traces for regression tests.
+    (
+        'buildtools/test_data.zip',
+        'https://storage.googleapis.com/perfetto/test-data-20200427-094919.zip',
+        'e003d49ef3d31a939ac75b0bbb6ca5eed4e759f9',
+        'all',
+    ),
+
+    # Linenoise, used only by trace_processor in standalone builds.
+    ('buildtools/linenoise',
+     'https://fuchsia.googlesource.com/third_party/linenoise.git',
+     'c894b9e59f02203dbe4e2be657572cf88c4230c3', 'all'),
+]
+
+# Dependencies required to build Android code.
+# URLs and SHA1s taken from:
+# - https://dl.google.com/android/repository/repository-11.xml
+# - https://dl.google.com/android/repository/sys-img/android/sys-img.xml
+BUILD_DEPS_ANDROID = [
+    # Android NDK
+    ('buildtools/ndk.zip',
+     'https://dl.google.com/android/repository/android-ndk-r17b-darwin-x86_64.zip',
+     'f990aafaffec0b583d2c5420bfa622e52ac14248', 'darwin'),
+    ('buildtools/ndk.zip',
+     'https://dl.google.com/android/repository/android-ndk-r17b-linux-x86_64.zip',
+     'dd5762ee7ef4995ad04fe0c45a608c344d99ca9f', 'linux'),
+]
+
+# Dependencies required to run Android tests.
+TEST_DEPS_ANDROID = [
+    # Android emulator images.
+    ('buildtools/aosp-arm.zip',
+     'https://storage.googleapis.com/perfetto/aosp-02022018-arm.zip',
+     'a480d5e7d3ca888b0a58fe15ce76b1791537429a', 'all'),
+
+    # platform-tools.zip contains adb binaries.
+    ('buildtools/android_sdk/platform-tools.zip',
+     'https://dl.google.com/android/repository/platform-tools_r26.0.0-darwin.zip',
+     'e75b6137dc444f777eb02f44a6d9819b3aabff82', 'darwin'),
+    ('buildtools/android_sdk/platform-tools.zip',
+     'https://dl.google.com/android/repository/platform-tools_r26.0.0-linux.zip',
+     '00de8a6631405b617c10f68cd11ff2e1cd528e23', 'linux'),
+
+    # Android emulator binaries.
+    ('buildtools/emulator',
+     'https://android.googlesource.com/platform/prebuilts/android-emulator.git',
+     '4b260028dc27bc92c39bee9129cb2ba839970956', 'all'),
+]
+
+# This variable is updated by tools/roll-catapult-trace-viewer.
+CATAPULT_SHA1 = '4d292db280e546ac8ab35acf249214e0979ab781'
+
+TYPEFACES_SHA1 = '4fb455de506f8a2859dc5264b8448c2559b08ab8'
+
+UI_DEPS = [
+    ('buildtools/nodejs.tgz',
+     'https://storage.googleapis.com/perfetto/node-v10.3.0-darwin-x64.tar.gz',
+     '6d9a122785f38c256add3b25f74adf125497861a', 'darwin'),
+    ('buildtools/nodejs.tgz',
+     'https://storage.googleapis.com/perfetto/node-v10.3.0-linux-x64.tar.xz',
+     '118f6ea19f75089b3f12ac2ddfce357bff872b5e', 'linux'),
+    ('buildtools/emsdk/emscripten.tgz',
+     'https://storage.googleapis.com/perfetto/emscripten-1.37.40.tar.gz',
+     '588c28221321ebbdfc8e3a6f47ea6106f589669b', 'all'),
+    ('buildtools/emsdk/llvm.tgz',
+     'https://storage.googleapis.com/perfetto/emscripten-llvm-e1.37.40-darwin.tar.gz',
+     '7a894ef0a52821c62f6abaac552dc4ce5d424607', 'darwin'),
+    ('buildtools/emsdk/llvm.tgz',
+     'https://storage.googleapis.com/perfetto/emscripten-llvm-e1.37.40-static-linux.tar.gz',
+     '478501b9b7a14884e546c84efe209a90052cbb07', 'linux'),
+    ('buildtools/d8.tgz',
+     'https://storage.googleapis.com/perfetto/d8-linux-5.7.492.65.tar.gz',
+     '95e82ad7faf0a6f74d950c2aa65e3858b7bdb6c6', 'linux'),
+    ('buildtools/d8.tgz',
+     'https://storage.googleapis.com/perfetto/d8-darwin-6.6.346.32.tar.gz',
+     '1abd630619bb1977ab62095570a113d782a1545d', 'darwin'),
+    ('buildtools/catapult_trace_viewer.tgz',
+     'https://storage.googleapis.com/perfetto/catapult_trace_viewer-%s.tar.gz' %
+     CATAPULT_SHA1, CATAPULT_SHA1, 'all'),
+    ('buildtools/typefaces.tgz',
+     'https://storage.googleapis.com/perfetto/typefaces-%s.tar.gz' %
+     TYPEFACES_SHA1, TYPEFACES_SHA1, 'all')
+]
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+UI_DIR = os.path.join(ROOT_DIR, 'ui')
+NODE_MODULES_STATUS_FILE = os.path.join(UI_DIR, 'node_modules', '.last_install')
+
+
+def ReadFile(path):
+  if not os.path.exists(path):
+    return None
+  with open(path) as f:
+    return f.read().strip()
+
+
+def MkdirRecursive(path):
+  # Works with both relative and absolute paths
+  cwd = '/' if path.startswith('/') else ROOT_DIR
+  for part in path.split('/'):
+    cwd = os.path.join(cwd, part)
+    if not os.path.exists(cwd):
+      os.makedirs(cwd)
+    else:
+      assert (os.path.isdir(cwd))
+
+
+def HashLocalFile(path):
+  if not os.path.exists(path):
+    return None
+  with open(path, 'rb') as f:
+    return hashlib.sha1(f.read()).hexdigest()
+
+
+def ExtractZipfilePreservePermissions(zf, info, path):
+  zf.extract(info.filename, path=path)
+  target_path = os.path.join(path, info.filename)
+  min_acls = 0o755 if info.filename.endswith('/') else 0o644
+  os.chmod(target_path, (info.external_attr >> 16) | min_acls)
+
+
+def IsGitRepoCheckoutOutAtRevision(path, revision):
+  return ReadFile(os.path.join(path, '.git', 'HEAD')) == revision
+
+
+def CheckoutGitRepo(path, git_url, revision, check_only):
+  if IsGitRepoCheckoutOutAtRevision(path, revision):
+    return False
+  if check_only:
+    return True
+  if os.path.exists(path):
+    shutil.rmtree(path)
+  MkdirRecursive(path)
+  logging.info('Fetching %s @ %s into %s', git_url, revision, path)
+  subprocess.check_call(['git', 'init', path], cwd=path)
+  subprocess.check_call(
+      ['git', 'fetch', '--quiet', '--depth', '1', git_url, revision], cwd=path)
+  subprocess.check_call(['git', 'checkout', revision, '--quiet'], cwd=path)
+  assert (IsGitRepoCheckoutOutAtRevision(path, revision))
+  return True
+
+
+def InstallNodeModules():
+  logging.info("Running npm install in {0}".format(UI_DIR))
+  subprocess.check_call([os.path.join(UI_DIR, 'npm'), 'install', '--no-save'],
+                        cwd=UI_DIR)
+  with open(NODE_MODULES_STATUS_FILE, 'w') as f:
+    f.write(HashLocalFile(os.path.join(UI_DIR, 'package-lock.json')))
+
+
+def CheckNodeModules():
+  """Returns True if the modules are up-to-date.
+
+  There doesn't seem to be an easy way to check node modules versions. Instead
+  just check if package-lock.json changed since the last `npm install` call.
+  """
+  if not os.path.exists(NODE_MODULES_STATUS_FILE):
+    return False
+  with open(NODE_MODULES_STATUS_FILE, 'r') as f:
+    actual = f.read()
+  expected = HashLocalFile(os.path.join(UI_DIR, 'package-lock.json'))
+  return expected == actual
+
+
+def CheckHashes():
+  for deps in [BUILD_DEPS_HOST, BUILD_DEPS_ANDROID, TEST_DEPS_ANDROID, UI_DEPS]:
+    for rel_path, url, expected_sha1, platform in deps:
+      if url.endswith('.git'):
+        continue
+      logging.info('Downloading %s from %s', rel_path, url)
+      with tempfile.NamedTemporaryFile(delete=False) as f:
+        f.close()
+        urlretrieve(url, f.name)
+        actual_sha1 = HashLocalFile(f.name)
+        os.unlink(f.name)
+        if (actual_sha1 != expected_sha1):
+          logging.fatal('SHA1 mismatch for {} expected {} was {}'.format(
+              url, expected_sha1, actual_sha1))
+
+
+def Main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--android', action='store_true')
+  parser.add_argument('--ui', action='store_true')
+  parser.add_argument('--check-only')
+  parser.add_argument('--verify', help='Check all URLs', action='store_true')
+  args = parser.parse_args()
+  if args.verify:
+    CheckHashes()
+    return 0
+  deps = BUILD_DEPS_HOST
+  if args.android:
+    deps += BUILD_DEPS_ANDROID + TEST_DEPS_ANDROID
+  if args.ui:
+    deps += UI_DEPS
+  deps_updated = False
+  for rel_path, url, expected_sha1, platform in deps:
+    if (platform != 'all' and platform != system().lower()):
+      continue
+    local_path = os.path.join(ROOT_DIR, rel_path)
+    if url.endswith('.git'):
+      deps_updated |= CheckoutGitRepo(local_path, url, expected_sha1,
+                                      args.check_only)
+      continue
+    is_zip = local_path.endswith('.zip') or local_path.endswith('.tgz')
+    zip_target_dir = local_path[:-4] if is_zip else None
+    zip_dir_stamp = os.path.join(zip_target_dir, '.stamp') if is_zip else None
+
+    if ((not is_zip and HashLocalFile(local_path) == expected_sha1) or
+        (is_zip and ReadFile(zip_dir_stamp) == expected_sha1)):
+      continue
+    deps_updated = True
+    if args.check_only:
+      continue
+    MkdirRecursive(os.path.dirname(rel_path))
+    if HashLocalFile(local_path) != expected_sha1:
+      download_path = local_path + '.tmp'
+      logging.info('Downloading %s from %s', local_path, url)
+      urlretrieve(url, download_path)
+      os.chmod(download_path, 0o755)
+      actual_sha1 = HashLocalFile(download_path)
+      if (actual_sha1 != expected_sha1):
+        os.remove(download_path)
+        logging.fatal('SHA1 mismatch for {} expected {} was {}'.format(
+            download_path, expected_sha1, actual_sha1))
+        return 1
+      os.rename(download_path, local_path)
+    assert (HashLocalFile(local_path) == expected_sha1)
+
+    if is_zip:
+      logging.info('Extracting %s into %s' % (local_path, zip_target_dir))
+      assert (os.path.commonprefix((ROOT_DIR, zip_target_dir)) == ROOT_DIR)
+      if os.path.exists(zip_target_dir):
+        logging.info('Deleting stale dir %s' % zip_target_dir)
+        shutil.rmtree(zip_target_dir)
+
+      # Decompress the archive.
+      if local_path.endswith('.tgz'):
+        MkdirRecursive(zip_target_dir)
+        subprocess.check_call(['tar', '-xf', local_path], cwd=zip_target_dir)
+      elif local_path.endswith('.zip'):
+        with zipfile.ZipFile(local_path, 'r') as zf:
+          for info in zf.infolist():
+            ExtractZipfilePreservePermissions(zf, info, zip_target_dir)
+
+      # If the zip contains one root folder, rebase one level up moving all
+      # its sub files and folders inside |target_dir|.
+      subdir = os.listdir(zip_target_dir)
+      if len(subdir) == 1:
+        subdir = os.path.join(zip_target_dir, subdir[0])
+        if os.path.isdir(subdir):
+          for subf in os.listdir(subdir):
+            shutil.move(os.path.join(subdir, subf), zip_target_dir)
+          os.rmdir(subdir)
+
+      # Create stamp and remove the archive.
+      with open(zip_dir_stamp, 'w') as stamp_file:
+        stamp_file.write(expected_sha1)
+      os.remove(local_path)
+
+  if args.ui:
+    # Needs to happen after nodejs is installed above.
+    if args.check_only:
+      deps_updated = not CheckNodeModules()
+    else:
+      InstallNodeModules()
+
+  if args.check_only:
+    if not deps_updated:
+      with open(args.check_only, 'w') as f:
+        f.write('OK')  # The content is irrelevant, just keep GN happy.
+      return 0
+    argz = ' '.join([x for x in sys.argv[1:] if not '--check-only' in x])
+    sys.stderr.write('\033[91mBuild deps are stale. ' +
+                     'Please run tools/install-build-deps %s\033[0m' % argz)
+    return 1
+
+  if deps_updated:
+    # Stale binary files may be compiled against old sysroot headers that aren't
+    # tracked by gn.
+    logging.warning('Remember to run "gn clean <output_directory>" ' +
+                    'to avoid stale binary files.')
+
+
+if __name__ == '__main__':
+  logging.basicConfig(level=logging.INFO)
+  sys.exit(Main())

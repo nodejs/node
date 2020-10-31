@@ -1,0 +1,50 @@
+# Copyright (C) 2020 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Imlementation of the public-facing consumer API in libperfetto.so (only for
+# Android builds).
+# TODO(primiano): remove this. This is a legacy and deprecated API. The only
+# user is iorap which should be moved to the perfetto Client API.
+
+import("../../../gn/perfetto.gni")
+import("../../../gn/test.gni")
+
+assert(perfetto_build_standalone || perfetto_build_with_android)
+
+source_set("consumer_api_deprecated") {
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/public",
+    "../../../protos/perfetto/config:cpp",
+    "../../base",
+    "../core",
+    "../ipc/consumer",
+  ]
+  sources = [ "consumer_api_deprecated.cc" ]
+}
+
+executable("consumer_api_test") {
+  testonly = true
+  deps = [
+    ":consumer_api_deprecated",
+    "../../../gn:default_deps",
+    "../../../include/perfetto/public",
+    "../../../protos/perfetto/config:cpp",
+    "../../../protos/perfetto/config/ftrace:cpp",
+    "../../../protos/perfetto/trace:cpp",
+    "../../../protos/perfetto/trace/ftrace:cpp",
+    "../../base",
+  ]
+  sources = [ "consumer_api_deprecated_test.cc" ]
+}

@@ -1,0 +1,19 @@
+name: kgsl_issueibcmds
+ID: 361
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:__data_loc char[] device_name;	offset:12;	size:4;	signed:0;
+	field:unsigned int drawctxt_id;	offset:16;	size:4;	signed:0;
+	field:unsigned int ibdesc_addr;	offset:20;	size:4;	signed:0;
+	field:unsigned int numibs;	offset:24;	size:4;	signed:0;
+	field:unsigned int timestamp;	offset:28;	size:4;	signed:0;
+	field:unsigned int flags;	offset:32;	size:4;	signed:0;
+	field:int result;	offset:36;	size:4;	signed:1;
+	field:unsigned int drawctxt_type;	offset:40;	size:4;	signed:0;
+
+print fmt: "d_name=%s ctx=%u ib=0x%u numibs=%u ts=%u flags=0x%x(%s) result=%d type=%s", __get_str(device_name), REC->drawctxt_id, REC->ibdesc_addr, REC->numibs, REC->timestamp, REC->flags, REC->flags ? __print_flags(REC->flags, "|", { 0x00000001, "SAVE_GMEM" }, { 0x00000004, "IB_LIST" }, { 0x00000008, "CTX_SWITCH" }) : "None", REC->result, __print_symbolic(REC->drawctxt_type, { 0, "any" }, { 1, "GL" }, { 2, "CL" }, { 3, "C2D" }, { 4, "RS" })

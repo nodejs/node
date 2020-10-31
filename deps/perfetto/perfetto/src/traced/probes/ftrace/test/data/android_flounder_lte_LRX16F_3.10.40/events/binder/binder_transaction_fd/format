@@ -1,0 +1,13 @@
+name: binder_transaction_fd
+ID: 509
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int debug_id;	offset:8;	size:4;	signed:1;
+	field:int src_fd;	offset:12;	size:4;	signed:1;
+	field:int dest_fd;	offset:16;	size:4;	signed:1;
+
+print fmt: "transaction=%d src_fd=%d ==> dest_fd=%d", REC->debug_id, REC->src_fd, REC->dest_fd

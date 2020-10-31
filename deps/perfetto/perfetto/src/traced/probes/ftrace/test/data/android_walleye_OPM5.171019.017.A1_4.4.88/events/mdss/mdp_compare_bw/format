@@ -1,0 +1,18 @@
+name: mdp_compare_bw
+ID: 421
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u64 new_ab;	offset:8;	size:8;	signed:0;
+	field:u64 new_ib;	offset:16;	size:8;	signed:0;
+	field:u64 new_wb;	offset:24;	size:8;	signed:0;
+	field:u64 old_ab;	offset:32;	size:8;	signed:0;
+	field:u64 old_ib;	offset:40;	size:8;	signed:0;
+	field:u64 old_wb;	offset:48;	size:8;	signed:0;
+	field:u32 params_changed;	offset:56;	size:4;	signed:0;
+	field:bool update_bw;	offset:60;	size:1;	signed:0;
+
+print fmt: "[ab,ib,wb]new[%llu,%llu,%llu]old[%llu,%llu,%llu]chgd:%d %d", REC->new_ab, REC->new_ib, REC->new_wb, REC->old_ab, REC->old_ib, REC->old_wb, REC->params_changed, REC->update_bw

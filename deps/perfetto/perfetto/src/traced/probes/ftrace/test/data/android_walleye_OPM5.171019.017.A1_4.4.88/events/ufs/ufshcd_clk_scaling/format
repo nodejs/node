@@ -1,0 +1,15 @@
+name: ufshcd_clk_scaling
+ID: 574
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] dev_name;	offset:8;	size:4;	signed:0;
+	field:__data_loc char[] state;	offset:12;	size:4;	signed:0;
+	field:__data_loc char[] clk;	offset:16;	size:4;	signed:0;
+	field:u32 prev_state;	offset:20;	size:4;	signed:0;
+	field:u32 curr_state;	offset:24;	size:4;	signed:0;
+
+print fmt: "%s: %s %s from %u to %u Hz", __get_str(dev_name), __get_str(state), __get_str(clk), REC->prev_state, REC->curr_state

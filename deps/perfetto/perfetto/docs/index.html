@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Perfetto - Docs</title>
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <link href="//fonts.googleapis.com/css?family=Exo" rel="stylesheet">
+  <link rel="stylesheet" href="/static/theme-simple.css">
+  <style>
+    :root {
+      --base-font-size: 16px;
+      --base-font-family: 'Exo', sans-serif;
+      --theme-hue: 210;
+      --cover-max-width: 90vw;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+  <script>
+    window.$docsify = {
+      name: 'Perfetto',
+      repo: 'https://github.com/google/perfetto',
+      coverpage: true,
+      loadSidebar: 'toc.md',
+      markdown: {
+        renderer: {
+          link: function (href, title, text) {
+            title = title || '';
+            if (href.startsWith('/') && !href.startsWith('/docs')) {
+              href = `https://android.googlesource.com/platform/external/perfetto/+/master${href}`;
+            } else if(href.startsWith('http') || href.startsWith('//')) {
+              // Leave it as it is.
+            } else if(href.startsWith('#')) {
+              href = `${document.location.hash.split('?')[0]}?id=${href.substr(1)}`;
+            } else {
+              href = href.replace(/^[/]docs/, '');
+              href = `#/${href}`;
+            }
+            return `<a href="${href}" title="${title}">${text}</a>`;
+          }
+        }
+      }
+    }
+  </script>
+  <!-- see infra/perfetto-site.appspot.com -->
+  <script src="/static/docsify.min.js"></script>
+  <script src="/static/docsify-themeable.min.js"></script>
+  <script src="/static/docsify-copy-code.min.js"></script>
+  <script src="/static/prism-bash.min.js"></script>
+  <script src="/static/prism-protobuf.min.js"></script>
+  <script src="/static/prism-sql.min.js"></script>
+</body>
+
+</html>

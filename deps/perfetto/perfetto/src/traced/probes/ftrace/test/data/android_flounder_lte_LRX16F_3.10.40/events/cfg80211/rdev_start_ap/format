@@ -1,0 +1,26 @@
+name: rdev_start_ap
+ID: 708
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:char name[16];	offset:40;	size:16;	signed:0;
+	field:int ifindex;	offset:56;	size:4;	signed:1;
+	field:enum ieee80211_band band;	offset:60;	size:4;	signed:0;
+	field:u32 control_freq;	offset:64;	size:4;	signed:0;
+	field:u32 width;	offset:68;	size:4;	signed:0;
+	field:u32 center_freq1;	offset:72;	size:4;	signed:0;
+	field:u32 center_freq2;	offset:76;	size:4;	signed:0;
+	field:int beacon_interval;	offset:80;	size:4;	signed:1;
+	field:int dtim_period;	offset:84;	size:4;	signed:1;
+	field:char ssid[32 + 1];	offset:88;	size:33;	signed:0;
+	field:enum nl80211_hidden_ssid hidden_ssid;	offset:124;	size:4;	signed:0;
+	field:u32 wpa_ver;	offset:128;	size:4;	signed:0;
+	field:bool privacy;	offset:132;	size:1;	signed:0;
+	field:enum nl80211_auth_type auth_type;	offset:136;	size:4;	signed:0;
+	field:int inactivity_timeout;	offset:140;	size:4;	signed:1;
+
+print fmt: "%s, netdev:%s(%d), AP settings - ssid: %s, band: %d, control freq: %u, width: %d, cf1: %u, cf2: %u, beacon interval: %d, dtim period: %d, hidden ssid: %d, wpa versions: %u, privacy: %s, auth type: %d, inactivity timeout: %d", REC->wiphy_name, REC->name, REC->ifindex, REC->ssid, REC->band, REC->control_freq, REC->width, REC->center_freq1, REC->center_freq2, REC->beacon_interval, REC->dtim_period, REC->hidden_ssid, REC->wpa_ver, (REC->privacy) ? "true" : "false", REC->auth_type, REC->inactivity_timeout

@@ -1,0 +1,14 @@
+packet {
+  ftrace_events {
+    cpu: 4
+    event {
+      timestamp: 1234
+      pid: 4321
+      ion_stat {
+        buffer_id: 101010
+        len: 100
+        total_allocated: 200
+      }
+    }
+  }
+}

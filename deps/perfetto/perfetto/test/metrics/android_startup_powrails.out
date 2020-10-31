@@ -1,0 +1,35 @@
+android_powrails{
+   power_rails{
+      name: "power.PR_1_uws"
+      energy_data {
+        timestamp_ms: 5
+        energy_uws: 12
+      }
+      energy_data {
+        timestamp_ms: 6
+        energy_uws: 50
+      }
+    }
+   power_rails{
+      name: "power.PR_2_uws"
+      energy_data {
+        timestamp_ms: 5
+        energy_uws: 10
+      }
+      energy_data {
+        timestamp_ms: 6
+        energy_uws: 70
+      }
+    }
+    power_rails{
+      name: "power.PR_3_uws"
+      energy_data {
+        timestamp_ms: 5
+        energy_uws: 8
+      }
+      energy_data {
+        timestamp_ms: 6
+        energy_uws: 15
+      }
+    }
+}

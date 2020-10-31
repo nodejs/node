@@ -1,0 +1,39 @@
+# Copyright (C) 2020 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("perfetto.gni")
+
+# This template, when instantiated, runs
+# tools/install-build-deps --check-only ${args}.
+# It's used to ensure that deps are current before building.
+template("perfetto_check_build_deps") {
+  if (perfetto_build_standalone && !skip_buildtools_check) {
+    action(target_name) {
+      out_file = "$target_gen_dir/$target_name.check"
+      out_file_path = rebase_path(out_file, root_build_dir)
+      script = "${perfetto_root_path}tools/install-build-deps"
+      args = [ "--check-only=${out_file_path}" ]
+      args += invoker.args
+      inputs = []
+      if (defined(invoker.inputs)) {
+        inputs += invoker.inputs
+      }
+      outputs = [ out_file ]
+    }
+  } else {
+    group(target_name) {
+      not_needed(invoker, "*")
+    }
+  }
+}

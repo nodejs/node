@@ -1,0 +1,17 @@
+name: msm_smem_buffer_ion_op_start
+ID: 655
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char * buffer_op;	offset:8;	size:8;	signed:0;
+	field:u32 buffer_type;	offset:16;	size:4;	signed:0;
+	field:u32 heap_mask;	offset:20;	size:4;	signed:0;
+	field:u32 size;	offset:24;	size:4;	signed:0;
+	field:u32 align;	offset:28;	size:4;	signed:0;
+	field:u32 flags;	offset:32;	size:4;	signed:0;
+	field:int map_kernel;	offset:36;	size:4;	signed:1;
+
+print fmt: "%s, buffer_type : 0x%x, heap_mask : 0x%x, size : 0x%x, align : 0x%x, flags : 0x%x, map_kernel : %d", REC->buffer_op, REC->buffer_type, REC->heap_mask, REC->size, REC->align, REC->flags, REC->map_kernel

@@ -1,0 +1,103 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Android HWUI graphics performance and graphics memory usage metrics.
+message ProcessRenderInfo {
+  // Name of the package launched
+  optional string process_name = 1;
+
+  // CPU time spent on RenderThread in milliseconds.
+  optional int64 rt_cpu_time_ms = 2;
+
+  // Number of frames drawn on RenderThread, followed by max/min/avg CPU time to draw a frame
+  // in nanoseconds.
+  optional uint32 draw_frame_count = 3;
+  optional int64 draw_frame_max = 4;
+  optional int64 draw_frame_min = 5;
+  optional double draw_frame_avg = 6;
+
+  // Number of GPU commands flushes and max/min/avg time per flush in nanoseconds.
+  optional uint32 flush_count = 7;
+  optional int64 flush_max = 8;
+  optional int64 flush_min = 9;
+  optional double flush_avg = 10;
+
+  // Number of View tree preparation counts and max/min/avg time to traverse the tree in
+  // nanoseconds.
+  optional uint32 prepare_tree_count = 11;
+  optional int64 prepare_tree_max = 12;
+  optional int64 prepare_tree_min = 13;
+  optional double prepare_tree_avg = 14;
+
+  // Number of times the GPU rendered a frame and max/min/avg time for GPU to finish rendering in
+  // in nanoseconds.
+  optional uint32 gpu_completion_count = 15;
+  optional int64 gpu_completion_max = 16;
+  optional int64 gpu_completion_min = 17;
+  optional double gpu_completion_avg = 18;
+
+  // Number of times a frame was recorded/serialized in a display list on the UI thread with
+  // max/min/avg time in nanoseconds.
+  optional uint32 ui_record_count = 19;
+  optional int64 ui_record_max = 20;
+  optional int64 ui_record_min = 21;
+  optional double ui_record_avg = 22;
+
+  // number of unique shader programs that were used to render frames, followed by total and average
+  // times to prepare a shader in nanoseconds.
+  optional uint32 shader_compile_count = 23;
+  optional int64 shader_compile_time = 24;
+  optional double shader_compile_avg = 25;
+  // number of shader programs loaded from the disk cache, followed by total time and average time
+  // to prepare a shader in nanoseconds.
+  optional uint32 cache_hit_count = 26;
+  optional int64 cache_hit_time = 27;
+  optional double cache_hit_avg = 28;
+  // number of shader programs compiled/linked, followed by total time and average time to prepare
+  // a shader in nanoseconds.
+  optional uint32 cache_miss_count = 29;
+  optional int64 cache_miss_time = 30;
+  optional double cache_miss_avg = 31;
+
+  // max/min/avg CPU memory used for graphics by HWUI at the end of a frame.
+  optional int64 graphics_cpu_mem_max = 32;
+  optional int64 graphics_cpu_mem_min = 33;
+  optional double graphics_cpu_mem_avg = 34;
+
+  // max/min/avg GPU memory used by HWUI at the end of a frame excluding textures.
+  optional int64 graphics_gpu_mem_max = 35;
+  optional int64 graphics_gpu_mem_min = 36;
+  optional double graphics_gpu_mem_avg = 37;
+
+  // max/min/avg memory used for GPU textures by HWUI at the end of a frame.
+  optional int64 texture_mem_max = 38;
+  optional int64 texture_mem_min = 39;
+  optional double texture_mem_avg = 40;
+
+  // max/min/avg memory used by HWUI at the end of a frame. This is a sum of previous 3 categories.
+  optional int64 all_mem_max = 41;
+  optional int64 all_mem_min = 42;
+  optional double all_mem_avg = 43;
+}
+
+message AndroidHwuiMetric {
+  //  HWUI metrics for processes that have a RenderThread.
+  repeated ProcessRenderInfo process_info = 1;
+}

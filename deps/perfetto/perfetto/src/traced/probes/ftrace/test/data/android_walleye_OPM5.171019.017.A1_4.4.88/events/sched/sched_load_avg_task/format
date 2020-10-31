@@ -1,0 +1,20 @@
+name: sched_load_avg_task
+ID: 69
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char comm[16];	offset:8;	size:16;	signed:0;
+	field:pid_t pid;	offset:24;	size:4;	signed:1;
+	field:int cpu;	offset:28;	size:4;	signed:1;
+	field:unsigned long load_avg;	offset:32;	size:8;	signed:0;
+	field:unsigned long util_avg;	offset:40;	size:8;	signed:0;
+	field:unsigned long util_avg_pelt;	offset:48;	size:8;	signed:0;
+	field:unsigned long util_avg_walt;	offset:56;	size:8;	signed:0;
+	field:u64 load_sum;	offset:64;	size:8;	signed:0;
+	field:u32 util_sum;	offset:72;	size:4;	signed:0;
+	field:u32 period_contrib;	offset:76;	size:4;	signed:0;
+
+print fmt: "comm=%s pid=%d cpu=%d load_avg=%lu util_avg=%lu util_avg_pelt=%lu util_avg_walt=%lu load_sum=%llu util_sum=%u period_contrib=%u", REC->comm, REC->pid, REC->cpu, REC->load_avg, REC->util_avg, REC->util_avg_pelt, REC->util_avg_walt, (u64)REC->load_sum, (u32)REC->util_sum, (u32)REC->period_contrib

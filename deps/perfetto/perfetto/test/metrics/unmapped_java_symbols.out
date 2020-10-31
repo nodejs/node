@@ -1,0 +1,18 @@
+unmapped_java_symbols {
+  process_symbols {
+    process_metadata {
+      name: "com.google.android.gm"
+      uid: 10001
+    }
+    type_name: "FactoryProducerDelegateImplActor"
+    type_name: "a"
+    type_name: "abc"
+    field {
+      field_name: "FactoryProducerDelegateImplActor.a"
+    }
+    field {
+      field_name: "FactoryProducerDelegateImplActor.b"
+      field_type_name: "FactoryProducerDelegateImplActor"
+    }
+  }
+}

@@ -1,0 +1,267 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("gn/perfetto.gni")
+import("gn/test.gni")
+
+# +----------------------------------------------------------------------------+
+# | "all" targets definition: defines targets reachable by the various configs |
+# +----------------------------------------------------------------------------+
+# There is a subtletly here related with chromium and other GN embedders.
+# When adding a dependency some_dir/:target_name, some_dir/BUILD.gn is
+# "discovered". As a side effect any *other* target defined in some_dir/BUILD.gn
+# (and its transitive dependencies) becomes implicitly part of the "default"
+# target, the one invoked running ninja -C out/xxx without further args.
+# Because of this, care must be taken to wrap dependencies to targets in other
+# build files with if (enable_xxx) flags. Accidentally including a harmless
+# target that happens to be defined in the same BUILD.gn that contains targets
+# incompatible with the chromium build will cause build/roll failures.
+
+all_targets = [ "protos/perfetto/trace:perfetto_trace_protos" ]
+
+if (enable_perfetto_platform_services) {
+  all_targets += [
+    "src/perfetto_cmd:perfetto",
+    "src/perfetto_cmd:trigger_perfetto",
+    "src/traced/service:traced",
+    "src/traced/probes:traced_probes",
+  ]
+}
+
+if (enable_perfetto_trace_processor && enable_perfetto_trace_processor_sqlite) {
+  all_targets += [ "src/trace_processor:trace_processor_shell" ]
+}
+
+if (enable_perfetto_heapprofd) {
+  all_targets += [ "src/profiling/memory:heapprofd" ]
+  if (perfetto_build_with_android) {
+    all_targets += [ "src/profiling/memory:heapprofd_client" ]
+  }
+}
+
+if (enable_perfetto_traced_perf) {
+  all_targets += [ "src/profiling/perf:traced_perf" ]
+}
+
+if (perfetto_build_with_android) {
+  all_targets += [ "src/android_internal/:libperfetto_android_internal" ]
+}
+
+if (enable_perfetto_tools) {
+  all_targets += [ "tools" ]
+}
+
+if (enable_perfetto_unittests) {
+  import("gn/perfetto_unittests.gni")
+  test("perfetto_unittests") {
+    deps = perfetto_unittests_targets
+  }
+  all_targets += [ ":perfetto_unittests" ]
+}
+
+if (enable_perfetto_integration_tests) {
+  import("gn/perfetto_integrationtests.gni")
+  test("perfetto_integrationtests") {
+    deps = perfetto_integrationtests_targets
+  }
+  all_targets += [
+    ":perfetto_integrationtests",
+    "test:client_api_example",
+  ]
+}
+
+if (enable_perfetto_trace_processor_json) {
+  test("trace_processor_minimal_smoke_tests") {
+    testonly = true
+    deps = [
+      "gn:default_deps",
+      "src/trace_processor:storage_minimal_smoke_tests",
+    ]
+  }
+  all_targets += [ ":trace_processor_minimal_smoke_tests" ]
+}
+
+if (enable_perfetto_benchmarks) {
+  import("gn/perfetto_benchmarks.gni")
+  executable("perfetto_benchmarks") {
+    testonly = true
+    deps = perfetto_benchmarks_targets
+  }
+  all_targets += [ ":perfetto_benchmarks" ]
+}
+
+if (enable_perfetto_fuzzers) {
+  import("gn/perfetto_fuzzers.gni")
+  group("fuzzers") {
+    testonly = true
+    deps = perfetto_fuzzers_targets
+  }
+  all_targets += [ ":fuzzers" ]
+}
+
+# Less interesting stuff that makes sense only in the standalone build, mainly
+# compile-time checks for the CI.
+if (perfetto_build_standalone) {
+  all_targets += [
+    "src/tracing/consumer_api_deprecated:consumer_api_test",
+    "test/configs",
+
+    # For syntax-checking the proto.
+    "protos/perfetto/config:merged_config",
+    "protos/perfetto/trace:merged_trace",  # For syntax-checking the proto.
+
+    # For checking all generated xxx.gen.{cc,h} files without waiting for
+    # embedders to try to use them and fail.
+    "protos/perfetto/config:cpp",
+    "protos/perfetto/common:cpp",
+
+    # The diff testing framework depends on these descriptors.
+    "protos/perfetto/metrics:descriptor($host_toolchain)",
+    "protos/perfetto/trace:descriptor($host_toolchain)",
+
+    # Used in the when updating the ftrace protos
+    "protos/perfetto/trace/ftrace:descriptor",
+
+    # Checks that the "fake" backend implementations build.
+    "src/tracing:client_api_no_backends_compile_test",
+  ]
+}
+
+# The CTS code is built (but not ran) also in standalone builds. This is to
+# catch refactoring breakages earlier without having to wait for treehugger.
+if (is_android && (perfetto_build_standalone || perfetto_build_with_android)) {
+  all_targets += [ "test/cts:perfetto_cts_deps" ]
+}
+
+group("all") {
+  testonly = true  # allow to build also test targets
+  deps = all_targets
+}
+
+# This target is used when running ninja without any argument (by default would
+# build all reachable targets). This is mainly used to prevent the UI being
+# built when running ninja -C out/xxx.
+# This has effect only in standalone builds, no effect on chromium builds.
+# Chromium's "all" target depends on our "all" target above. However chromium's
+# "default" target depends on any target that we cause to be discovered by
+# depending on other GN files.
+group("default") {
+  testonly = true
+  deps = [ ":all" ]
+}
+
+# +----------------------------------------------------------------------------+
+# | Other definitions: root targets that don't belong to any other subdirectory|
+# +----------------------------------------------------------------------------+
+
+if (enable_perfetto_ui) {
+  group("ui") {
+    deps = [ "ui" ]
+  }
+}
+
+# In Android builds, we build the code of traced and traced_probes in one shared
+# library that exposes one xxx_main() for each. The executables themselves are
+# tiny shells that just invoke their own entry point into the library.
+# This is done merely for saving binary size, because the three binaries happen
+# to share a lot of code.
+# When setting monolithic_binaries=true (only supported in standalone builds)
+# it builds more conventional executables, where each binary has the full
+# implementation and no shared library dependency. This is to make dev cycles
+# on Android faster, avoiding all the LD_LIBRARY_PATH boilerplate.
+# libperfetto.so is also used for stuff that is exposed to the rest of the
+# Android tree.
+if (enable_perfetto_platform_services) {
+  if (monolithic_binaries) {
+    libperfetto_target_type = "static_library"
+  } else {
+    libperfetto_target_type = "shared_library"
+  }
+
+  target(libperfetto_target_type, "libperfetto") {
+    if (libperfetto_target_type == "static_library") {
+      complete_static_lib = true
+    }
+    deps = [
+      "gn:default_deps",
+      "src/traced/probes",
+      "src/traced/service",
+      "src/tracing/consumer_api_deprecated",
+    ]
+  }
+}
+
+if (!build_with_chromium) {
+  # Client library target exposed to the Android tree.
+  # Still in experimental stage and not API stable yet.
+  # See "libperfetto_client_example" (in Android.bp.extras) for an example
+  # on how to use the Perfetto Client API from the android tree.
+  static_library("libperfetto_client_experimental") {
+    complete_static_lib = true
+    public_deps = [
+      "gn:default_deps",
+      "src/tracing:client_api",
+      "src/tracing:platform_posix",
+    ]
+    sources = [ "include/perfetto/tracing.h" ]
+    assert_no_deps = [ "//gn:protobuf_lite" ]
+  }
+}
+
+# TODO(primiano): there seem to be two "libperfetto" and one
+# "libperfetto_client_experimental" targets defined within this BUILD.gn file.
+# Rationalize them with eseckler@. For now seems this one is only used from
+# chromium and the other one only from the Android tree.
+if (build_with_chromium) {
+  component("libperfetto") {
+    public_configs = [ "gn:public_config" ]
+    deps = [
+      "src/trace_processor:export_json",
+      "src/trace_processor:storage_minimal",
+      "src/tracing:client_api",
+      "src/tracing/core",
+
+      # TODO(eseckler): Create a platform for chrome and hook it up somehow.
+      "src/tracing:platform_fake",
+    ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    public_deps = [
+      "include/perfetto/ext/trace_processor:export_json",
+      "include/perfetto/ext/tracing/core",
+      "include/perfetto/trace_processor:storage",
+      "include/perfetto/tracing",
+      "protos/perfetto/common:zero",
+      "protos/perfetto/trace:zero",
+      "protos/perfetto/trace/chrome:zero",
+      "protos/perfetto/trace/interned_data:zero",
+      "protos/perfetto/trace/profiling:zero",
+      "protos/perfetto/trace/track_event:zero",
+    ]
+    if (enable_perfetto_ipc) {
+      deps += [
+        "src/tracing/ipc/producer",
+        "src/tracing/ipc/service",
+      ]
+      public_deps += [ "include/perfetto/ext/tracing/ipc:ipc" ]
+    }
+  }
+  component("libtrace_processor") {
+    public_configs = [ "gn:public_config" ]
+    deps = [ "src/trace_processor:lib" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    public_deps = [ "include/perfetto/trace_processor" ]
+  }
+}

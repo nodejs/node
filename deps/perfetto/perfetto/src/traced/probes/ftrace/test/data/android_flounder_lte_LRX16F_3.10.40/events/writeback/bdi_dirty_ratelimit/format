@@ -1,0 +1,17 @@
+name: bdi_dirty_ratelimit
+ID: 132
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char bdi[32];	offset:8;	size:32;	signed:0;
+	field:unsigned long write_bw;	offset:40;	size:8;	signed:0;
+	field:unsigned long avg_write_bw;	offset:48;	size:8;	signed:0;
+	field:unsigned long dirty_rate;	offset:56;	size:8;	signed:0;
+	field:unsigned long dirty_ratelimit;	offset:64;	size:8;	signed:0;
+	field:unsigned long task_ratelimit;	offset:72;	size:8;	signed:0;
+	field:unsigned long balanced_dirty_ratelimit;	offset:80;	size:8;	signed:0;
+
+print fmt: "bdi %s: write_bw=%lu awrite_bw=%lu dirty_rate=%lu dirty_ratelimit=%lu task_ratelimit=%lu balanced_dirty_ratelimit=%lu", REC->bdi, REC->write_bw, REC->avg_write_bw, REC->dirty_rate, REC->dirty_ratelimit, REC->task_ratelimit, REC->balanced_dirty_ratelimit

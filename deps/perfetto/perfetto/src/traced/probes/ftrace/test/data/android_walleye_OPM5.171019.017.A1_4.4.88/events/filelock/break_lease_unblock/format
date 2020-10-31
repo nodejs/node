@@ -1,0 +1,19 @@
+name: break_lease_unblock
+ID: 273
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:struct file_lock * fl;	offset:8;	size:8;	signed:0;
+	field:unsigned long i_ino;	offset:16;	size:8;	signed:0;
+	field:dev_t s_dev;	offset:24;	size:4;	signed:0;
+	field:struct file_lock * fl_next;	offset:32;	size:8;	signed:0;
+	field:fl_owner_t fl_owner;	offset:40;	size:8;	signed:0;
+	field:unsigned int fl_flags;	offset:48;	size:4;	signed:0;
+	field:unsigned char fl_type;	offset:52;	size:1;	signed:0;
+	field:unsigned long fl_break_time;	offset:56;	size:8;	signed:0;
+	field:unsigned long fl_downgrade_time;	offset:64;	size:8;	signed:0;
+
+print fmt: "fl=0x%p dev=0x%x:0x%x ino=0x%lx fl_next=0x%p fl_owner=0x%p fl_flags=%s fl_type=%s fl_break_time=%lu fl_downgrade_time=%lu", REC->fl, ((unsigned int) ((REC->s_dev) >> 20)), ((unsigned int) ((REC->s_dev) & ((1U << 20) - 1))), REC->i_ino, REC->fl_next, REC->fl_owner, __print_flags(REC->fl_flags, "|", { 1, "FL_POSIX" }, { 2, "FL_FLOCK" }, { 4, "FL_DELEG" }, { 8, "FL_ACCESS" }, { 16, "FL_EXISTS" }, { 32, "FL_LEASE" }, { 64, "FL_CLOSE" }, { 128, "FL_SLEEP" }, { 256, "FL_DOWNGRADE_PENDING" }, { 512, "FL_UNLOCK_PENDING" }, { 1024, "FL_OFDLCK" }), __print_symbolic(REC->fl_type, { 0, "F_RDLCK" }, { 1, "F_WRLCK" }, { 2, "F_UNLCK" }), REC->fl_break_time, REC->fl_downgrade_time

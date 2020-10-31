@@ -1,0 +1,14 @@
+name: rpm_smd_send_active_set
+ID: 435
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 msg_id;	offset:8;	size:4;	signed:0;
+	field:u32 rsc_type;	offset:12;	size:4;	signed:0;
+	field:u32 rsc_id;	offset:16;	size:4;	signed:0;
+	field:char name[5];	offset:20;	size:5;	signed:0;
+
+print fmt: "msg_id:%d, rsc_type:0x%08x(%s), rsc_id:0x%08x", REC->msg_id, REC->rsc_type, REC->name, REC->rsc_id

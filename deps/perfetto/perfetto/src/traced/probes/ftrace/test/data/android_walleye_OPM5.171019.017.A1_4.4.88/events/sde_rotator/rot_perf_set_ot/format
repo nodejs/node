@@ -1,0 +1,13 @@
+name: rot_perf_set_ot
+ID: 665
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u32 pnum;	offset:8;	size:4;	signed:0;
+	field:u32 xin_id;	offset:12;	size:4;	signed:0;
+	field:u32 rd_lim;	offset:16;	size:4;	signed:0;
+
+print fmt: "pnum:%d xin_id:%d ot:%d", REC->pnum, REC->xin_id, REC->rd_lim

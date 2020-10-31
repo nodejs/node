@@ -1,0 +1,11 @@
+{
+  "name": "perfetto-docs",
+  "version": "1.0.0",
+  "main": "index.html",
+  "dependencies": {
+    "docsify": "^4.7.1",
+    "docsify-copy-code": "^2.0.2",
+    "docsify-themeable": "^0.4.0",
+    "prismjs": "^1.15.0"
+  }
+}

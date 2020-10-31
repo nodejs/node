@@ -1,0 +1,84 @@
+#!/usr/bin/env python
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import print_function
+
+import os
+import re
+import sys
+
+from codecs import open
+from compat import xrange
+
+
+def fix_guards(fpath, checkonly):
+  with open(fpath, 'r', encoding='utf-8') as f:
+    lines = [l.strip('\n') for l in f.readlines()]
+
+  if any(x.startswith('// fix_include_guards: off') for x in lines):
+    return 0
+
+  res = []
+  guard = re.sub(r'[^a-zA-Z0-9_-]', '_', fpath.upper()) + '_'
+  replacements = 0
+
+  endif_line_idx = -1
+  for line_idx in xrange(len(lines) - 1, -1, -1):
+    if lines[line_idx].startswith('#endif'):
+      endif_line_idx = line_idx
+      break
+  assert endif_line_idx > 0, fpath
+
+  line_idx = 0
+  for line in lines:
+    if replacements == 0 and line.startswith('#ifndef '):
+      line = '#ifndef ' + guard
+      replacements = 1
+    elif replacements == 1 and line.startswith('#define '):
+      line = '#define ' + guard
+      replacements = 2
+    elif line_idx == endif_line_idx and replacements == 2:
+      assert (line.startswith('#endif'))
+      line = '#endif  // ' + guard
+    res.append(line)
+    line_idx += 1
+  if res == lines:
+    return 0
+  if checkonly:
+    print('Wrong #include guards in %s' % fpath, file=sys.stderr)
+    return 1
+  with open(fpath, 'w', encoding='utf-8') as f:
+    f.write('\n'.join(res) + '\n')
+  return 1
+
+
+def main():
+  checkonly = '--check-only' in sys.argv
+  num_files_changed = 0
+  for topdir in ('src', 'include', 'test', 'tools'):
+    for root, dirs, files in os.walk(topdir):
+      for name in files:
+        if not name.endswith('.h'):
+          continue
+        fpath = os.path.join(root, name)
+        num_files_changed += fix_guards(fpath, checkonly)
+  if checkonly:
+    return 0 if num_files_changed == 0 else 1
+  else:
+    print('%d files changed' % num_files_changed)
+
+
+if __name__ == '__main__':
+  sys.exit(main())

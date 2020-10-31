@@ -1,0 +1,18 @@
+name: rpm_resume
+ID: 90
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] name;	offset:8;	size:4;	signed:0;
+	field:int flags;	offset:12;	size:4;	signed:1;
+	field:int usage_count;	offset:16;	size:4;	signed:1;
+	field:int disable_depth;	offset:20;	size:4;	signed:1;
+	field:int runtime_auto;	offset:24;	size:4;	signed:1;
+	field:int request_pending;	offset:28;	size:4;	signed:1;
+	field:int irq_safe;	offset:32;	size:4;	signed:1;
+	field:int child_count;	offset:36;	size:4;	signed:1;
+
+print fmt: "%s flags-%x cnt-%-2d dep-%-2d auto-%-1d p-%-1d irq-%-1d child-%d", __get_str(name), REC->flags, REC->usage_count, REC->disable_depth, REC->runtime_auto, REC->request_pending, REC->irq_safe, REC->child_count

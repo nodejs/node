@@ -1,0 +1,76 @@
+packet {
+  process_tree {
+    processes {
+      pid: 1
+      ppid: 0
+      cmdline: "init"
+      uid: 0
+    }
+    processes {
+      pid: 2
+      ppid: 1
+      cmdline: "com.google.android.gm"
+      uid: 10001
+    }
+  }
+}
+packet {
+  trusted_packet_sequence_id: 999
+  timestamp: 10
+  heap_graph {
+    pid: 2
+    roots {
+      root_type: ROOT_JAVA_FRAME
+      object_ids: 0x01
+    }
+    objects {
+      id: 0x01
+      type_id: 1
+      self_size: 64
+      reference_field_id: 1
+      reference_object_id: 0x02
+      reference_field_id: 2
+      reference_object_id: 0x01
+    }
+    objects {
+      id: 0x02
+      type_id: 2
+      self_size: 32
+    }
+    objects {
+      id: 0x03
+      type_id: 3
+      self_size: 32
+    }
+    continued: true
+    index: 1
+  }
+}
+packet {
+  trusted_packet_sequence_id: 999
+  heap_graph {
+    pid: 2
+    type_names {
+      iid: 1
+      str: "FactoryProducerDelegateImplActor"
+    }
+    type_names {
+      iid: 2
+      str: "a"
+    }
+    type_names {
+      iid: 3
+      str: "java.lang.Class<abc[]>"
+    }
+    field_names {
+      iid: 1
+      str: "FactoryProducerDelegateImplActor.a"
+    }
+    field_names {
+      iid: 2
+      str: "FactoryProducerDelegateImplActor FactoryProducerDelegateImplActor.b"
+    }
+    continued: false
+    index: 2
+  }
+}

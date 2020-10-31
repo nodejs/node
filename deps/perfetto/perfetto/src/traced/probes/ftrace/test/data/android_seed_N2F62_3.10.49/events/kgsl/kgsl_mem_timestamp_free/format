@@ -1,0 +1,19 @@
+name: kgsl_mem_timestamp_free
+ID: 411
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:__data_loc char[] device_name;	offset:8;	size:4;	signed:0;
+	field:unsigned int gpuaddr;	offset:12;	size:4;	signed:0;
+	field:unsigned int size;	offset:16;	size:4;	signed:0;
+	field:int type;	offset:20;	size:4;	signed:1;
+	field:char usage[16];	offset:24;	size:16;	signed:0;
+	field:unsigned int id;	offset:40;	size:4;	signed:0;
+	field:unsigned int drawctxt_id;	offset:44;	size:4;	signed:0;
+	field:unsigned int curr_ts;	offset:48;	size:4;	signed:0;
+	field:unsigned int free_ts;	offset:52;	size:4;	signed:0;
+
+print fmt: "d_name=%s gpuaddr=0x%08x size=%u type=%s usage=%s id=%u ctx=%u curr_ts=%u free_ts=%u", __get_str(device_name), REC->gpuaddr, REC->size, __print_symbolic(REC->type, { 0, "gpumem" }, { (KGSL_USER_MEM_TYPE_PMEM + 1), "pmem" }, { (KGSL_USER_MEM_TYPE_ASHMEM + 1), "ashmem" }, { (KGSL_USER_MEM_TYPE_ADDR + 1), "usermem" }, { (KGSL_USER_MEM_TYPE_ION + 1), "ion" }), REC->usage, REC->id, REC->drawctxt_id, REC->curr_ts, REC->free_ts

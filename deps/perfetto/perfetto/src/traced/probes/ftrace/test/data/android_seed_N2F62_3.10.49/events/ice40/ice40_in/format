@@ -1,0 +1,15 @@
+name: ice40_in
+ID: 470
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:u16 ep;	offset:8;	size:2;	signed:0;
+	field:__data_loc char[] token;	offset:12;	size:4;	signed:0;
+	field:u32 len;	offset:16;	size:4;	signed:0;
+	field:u32 expected;	offset:20;	size:4;	signed:0;
+	field:int ret;	offset:24;	size:4;	signed:1;
+
+print fmt: "Trace: %d IN %s len %d expected %d ret %d", REC->ep, __get_str(token), REC->len, REC->expected, REC->ret

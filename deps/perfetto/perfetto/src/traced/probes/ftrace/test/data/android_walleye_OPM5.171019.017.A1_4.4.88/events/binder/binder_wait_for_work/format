@@ -1,0 +1,13 @@
+name: binder_wait_for_work
+ID: 753
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:bool proc_work;	offset:8;	size:1;	signed:0;
+	field:bool transaction_stack;	offset:9;	size:1;	signed:0;
+	field:bool thread_todo;	offset:10;	size:1;	signed:0;
+
+print fmt: "proc_work=%d transaction_stack=%d thread_todo=%d", REC->proc_work, REC->transaction_stack, REC->thread_todo

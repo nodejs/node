@@ -1,0 +1,14 @@
+name: nvmap_cache_flush
+ID: 446
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:size_t size;	offset:8;	size:8;	signed:0;
+	field:u64 alloc_rq;	offset:16;	size:8;	signed:0;
+	field:u64 total_rq;	offset:24;	size:8;	signed:0;
+	field:u64 total_done;	offset:32;	size:8;	signed:0;
+
+print fmt: "size=%zu, alloc_rq=%llu, total_rq=%llu, total_done=%llu", REC->size, (unsigned long long)REC->alloc_rq, (unsigned long long)REC->total_rq, (unsigned long long)REC->total_done

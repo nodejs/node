@@ -1,0 +1,166 @@
+# Copyright (C) 2017 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build_overrides/build.gni")
+import("../../gn/fuzzer.gni")
+import("../../gn/perfetto.gni")
+import("../../gn/test.gni")
+
+# Full version of the client API. Supports both the in-process backend and the
+# system backend (on posix systems and if enabled by the enable_perfetto_ipc).
+# The backends are designed to be dead-code-eliminated via linker's gc-section
+# when not use. See comments in Tracing::Initialize() in tracing.h.
+group("client_api") {
+  public_deps = [
+    ":client_api_without_backends",
+    ":in_process_backend",
+    "../../gn:default_deps",
+    "../../include/perfetto/tracing",
+    "../../include/perfetto/tracing/core",
+  ]
+  if (enable_perfetto_ipc) {
+    public_deps += [ ":system_backend" ]
+  }
+}
+
+# This target checks that the client API builds without backends. This is to
+# check that no references to the backends are leaked from the implementation
+# internals. In turn, this allows to dead-code-eliminate unused backends when
+# using linker's gc-sections (or similar mechanism).
+if (perfetto_build_standalone) {
+  shared_library("client_api_no_backends_compile_test") {
+    deps = [
+      ":client_api_without_backends",
+      ":platform_fake",
+      "../../gn:default_deps",
+    ]
+  }
+}
+
+# Separate target because the embedder might not want this (e.g. on Windows).
+if (is_linux || is_mac || is_android) {
+  source_set("platform_posix") {
+    deps = [
+      "../../gn:default_deps",
+      "../../include/perfetto/tracing",
+      "../base",
+    ]
+    sources = [ "platform_posix.cc" ]
+  }
+}
+
+# Fake platform that allows buiding the client lib on all OSes. You can only use
+# those parts of the client lib that do not use the platform.
+source_set("platform_fake") {
+  deps = [
+    "../../gn:default_deps",
+    "../../include/perfetto/tracing",
+  ]
+  sources = [ "platform_fake.cc" ]
+}
+
+# Code that both public headers and other non-public sources (e.g.
+# src/tracing/core) need to depend on. It cannot be in the root :tracing target
+# otherwise there would be a cyclic dependency because public itself needs to
+# depend on tracing.
+source_set("common") {
+  deps = [
+    "../../gn:default_deps",
+    "../../include/perfetto/tracing",
+  ]
+  sources = [ "trace_writer_base.cc" ]
+}
+
+# Base target for the client API. On its own doesn't provide any backend.
+source_set("client_api_without_backends") {
+  deps = [
+    "../../include/perfetto/tracing/core",
+    "../../protos/perfetto/common:zero",
+    "../../protos/perfetto/config:cpp",
+    "../../protos/perfetto/config/track_event:cpp",
+    "../base",
+    "core",
+  ]
+  public_deps = [
+    "../../gn:default_deps",
+    "../../include/perfetto/tracing",
+  ]
+  sources = [
+    "data_source.cc",
+    "debug_annotation.cc",
+    "event_context.cc",
+    "internal/tracing_muxer_impl.cc",
+    "internal/tracing_muxer_impl.h",
+    "internal/track_event_internal.cc",
+    "platform.cc",
+    "tracing.cc",
+    "track.cc",
+    "track_event_category_registry.cc",
+    "track_event_legacy.cc",
+    "virtual_destructors.cc",
+  ]
+  assert_no_deps = [ "core:service" ]
+  if (enable_perfetto_ipc) {
+    assert_no_deps += [
+      "../ipc:common",
+      "ipc/common",
+    ]
+  }
+}
+
+# System backend: connects to an external "traced" instance via a UNIX socket.
+# Requires the IPC layer and is supported only on posix systems.
+if (enable_perfetto_ipc) {
+  source_set("system_backend") {
+    public_deps = [ "../../include/perfetto/tracing" ]
+    deps = [
+      ":client_api_without_backends",
+      "../../gn:default_deps",
+      "../../include/perfetto/tracing/core",
+      "../base",
+      "ipc/consumer",
+      "ipc/producer",
+      "ipc/service",
+    ]
+    sources = [ "internal/system_tracing_backend.cc" ]
+  }
+}
+
+# In-process backend: starts the tracing service in-process on a dedicated
+# thread. It depends only on having a valid "platform" target. It has a larger
+# binary size cost because links in all the service code.
+source_set("in_process_backend") {
+  public_deps = [ "../../include/perfetto/tracing" ]
+  deps = [
+    ":client_api_without_backends",
+    "../../gn:default_deps",
+    "../../include/perfetto/tracing/core",
+    "../base",
+    "core:service",
+  ]
+  sources = [ "internal/in_process_tracing_backend.cc" ]
+}
+
+if (enable_perfetto_benchmarks) {
+  source_set("benchmarks") {
+    testonly = true
+    deps = [
+      ":platform_posix",
+      "../..:libperfetto_client_experimental",
+      "../../../../../gn:benchmark",
+      "../../../../../gn:default_deps",
+    ]
+    sources = [ "api_benchmark.cc" ]
+  }
+}

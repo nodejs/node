@@ -1,0 +1,7 @@
+android_package_list {
+  packages {
+    package_name: "com.my.pkg"
+    uid: 123
+    version_code: 456000
+  }
+}

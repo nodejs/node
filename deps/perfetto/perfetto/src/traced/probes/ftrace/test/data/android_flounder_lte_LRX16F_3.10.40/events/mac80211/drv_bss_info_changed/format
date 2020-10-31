@@ -1,0 +1,46 @@
+name: drv_bss_info_changed
+ID: 804
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:char wiphy_name[32];	offset:8;	size:32;	signed:0;
+	field:enum nl80211_iftype vif_type;	offset:40;	size:4;	signed:0;
+	field:void * sdata;	offset:48;	size:8;	signed:0;
+	field:bool p2p;	offset:56;	size:1;	signed:0;
+	field:__data_loc char[] vif_name;	offset:60;	size:4;	signed:0;
+	field:u32 changed;	offset:64;	size:4;	signed:0;
+	field:bool assoc;	offset:68;	size:1;	signed:0;
+	field:bool ibss_joined;	offset:69;	size:1;	signed:0;
+	field:bool ibss_creator;	offset:70;	size:1;	signed:0;
+	field:u16 aid;	offset:72;	size:2;	signed:0;
+	field:bool cts;	offset:74;	size:1;	signed:0;
+	field:bool shortpre;	offset:75;	size:1;	signed:0;
+	field:bool shortslot;	offset:76;	size:1;	signed:0;
+	field:bool enable_beacon;	offset:77;	size:1;	signed:0;
+	field:u8 dtimper;	offset:78;	size:1;	signed:0;
+	field:u16 bcnint;	offset:80;	size:2;	signed:0;
+	field:u16 assoc_cap;	offset:82;	size:2;	signed:0;
+	field:u64 sync_tsf;	offset:88;	size:8;	signed:0;
+	field:u32 sync_device_ts;	offset:96;	size:4;	signed:0;
+	field:u8 sync_dtim_count;	offset:100;	size:1;	signed:0;
+	field:u32 basic_rates;	offset:104;	size:4;	signed:0;
+	field:int mcast_rate[IEEE80211_NUM_BANDS];	offset:108;	size:12;	signed:1;
+	field:u16 ht_operation_mode;	offset:120;	size:2;	signed:0;
+	field:s32 cqm_rssi_thold;	offset:124;	size:4;	signed:1;
+	field:s32 cqm_rssi_hyst;	offset:128;	size:4;	signed:1;
+	field:u32 channel_width;	offset:132;	size:4;	signed:0;
+	field:u32 channel_cfreq1;	offset:136;	size:4;	signed:0;
+	field:__data_loc u32[] arp_addr_list;	offset:140;	size:4;	signed:0;
+	field:int arp_addr_cnt;	offset:144;	size:4;	signed:1;
+	field:bool qos;	offset:148;	size:1;	signed:0;
+	field:bool idle;	offset:149;	size:1;	signed:0;
+	field:bool ps;	offset:150;	size:1;	signed:0;
+	field:__data_loc u8[] ssid;	offset:152;	size:4;	signed:0;
+	field:bool hidden_ssid;	offset:156;	size:1;	signed:0;
+	field:int txpower;	offset:160;	size:4;	signed:1;
+	field:u8 p2p_oppps_ctwindow;	offset:164;	size:1;	signed:0;
+
+print fmt: "%s vif:%s(%d%s) changed:%#x", REC->wiphy_name, __get_str(vif_name), REC->vif_type, REC->p2p ? "/p2p" : "", REC->changed

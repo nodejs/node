@@ -1,0 +1,35 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// LMK stats on Android.
+message AndroidLmkMetric {
+  message ByOomScore {
+    optional int32 oom_score_adj = 1;
+    optional int32 count = 2;
+  }
+
+  // Total count of LMK events observed in the trace.
+  optional int32 total_count = 1;
+  repeated ByOomScore by_oom_score = 2;
+
+  // OOM reaper kills. Enabled via the oom/mark_victim point. Should never
+  // happen.
+  optional int32 oom_victim_count = 3;
+}

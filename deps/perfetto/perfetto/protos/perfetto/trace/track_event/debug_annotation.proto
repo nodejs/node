@@ -1,0 +1,73 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Key/value annotations provided in untyped TRACE_EVENT macros. These
+// annotations are intended for debug use and are not considered a stable API
+// surface. As such, they should not be relied upon to implement (new) metrics.
+//
+// Next ID: 10.
+message DebugAnnotation {
+  message NestedValue {
+    enum NestedType {
+      UNSPECIFIED = 0;  // leaf value.
+      DICT = 1;
+      ARRAY = 2;
+    }
+    optional NestedType nested_type = 1;
+
+    repeated string dict_keys = 2;
+    repeated NestedValue dict_values = 3;
+    repeated NestedValue array_values = 4;
+    optional int64 int_value = 5;
+    optional double double_value = 6;
+    optional bool bool_value = 7;
+    optional string string_value = 8;
+  }
+
+  oneof name_field {
+    uint64 name_iid = 1;  // interned DebugAnnotationName.
+    string name = 10;     // non-interned variant.
+  }
+
+  oneof value {
+    bool bool_value = 2;
+    uint64 uint_value = 3;
+    int64 int_value = 4;
+    double double_value = 5;
+    string string_value = 6;
+    // Pointers are stored in a separate type as the JSON output treats them
+    // differently from other uint64 values.
+    uint64 pointer_value = 7;
+    NestedValue nested_value = 8;
+
+    // Legacy instrumentation may not support conversion of nested data to
+    // NestedValue yet.
+    string legacy_json_value = 9;
+  }
+}
+
+// --------------------
+// Interned data types:
+// --------------------
+
+message DebugAnnotationName {
+  optional uint64 iid = 1;
+  optional string name = 2;
+}

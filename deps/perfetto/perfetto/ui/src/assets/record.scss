@@ -1,0 +1,890 @@
+// Copyright (C) 2018 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+:root {
+  --record-text-color: #333;
+}
+
+// The whole record page.
+.record-page {
+  position: relative;
+  overflow-y: scroll;
+  background-color: #fefefe;
+  padding: 40px 20px;
+}
+
+// The always-visible centered box that has menu and sections on the right.
+.record-container {
+  position: relative;
+  max-width: 900px;
+  min-height: 500px;
+  margin: auto;
+  border-radius: 5px;
+  box-shadow: 0 1px 2px 0#aaa, 0 1px 3px 1px #eee;
+  background-color: #fff;
+  display: grid;
+  grid-template-columns: 2fr 5fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "header header"
+                       "sidebar section";
+  overflow: hidden;
+  z-index: 6;
+}
+
+.hider {
+  @include transition(0.2s);
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background: #000;
+  opacity: 0.2;
+  z-index: 5;
+}
+
+.record-header {
+  grid-area: header;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #eee;
+
+  .top-part {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    // Connect/start/stop tracing buttons.
+    .button {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      width: auto;
+      height: 50px;
+      margin: 0;
+      >* {
+        @include transition(0.2s);
+        cursor: pointer;
+        border-radius: 10px;
+        margin: 10px;
+        text-align: center;
+        background-color: #eee;
+        font-family: 'Raleway', sans-serif;
+        font-size: 17px;
+        @media (max-width: 1280px) {
+          font-size: 1.6vw;
+        }
+        padding: 7px;
+
+        &:hover {
+          background-color: hsl(88, 50%, 84%);
+          box-shadow: 0 0 4px 0px #999;
+        }
+
+        &.selected {
+          background-color: hsl(88, 50%, 67%);
+          box-shadow: 0 0 4px 0px #999;
+        }
+
+        &.disabled {
+          background-color: hsl(0, 0%, 97%);
+        }
+      }
+    }
+
+    .target-and-status {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+
+      .target {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+      }
+
+      label, select, button {
+        font-weight: 100;
+        margin: 3px;
+        color: #333;
+        font-size: 17px;
+        font-family: 'Roboto', sans-serif;
+        align-items: center;
+
+        &.error-label {
+          max-width: 500px;
+          color: rgb(255, 0, 0);
+          font-size: 15px;
+        }
+      }
+      .chip {
+        @include transition();
+        display: flex;
+        align-items: center;
+        border: 1px solid #eee;
+        outline: none;
+        margin: 4px;
+        border-radius: 20px;
+        padding: 4px;
+        height: 30px;
+        &:hover, &:active {
+          box-shadow: 0 0 4px 0px #ccc;
+          background-color: #fafafa;
+        }
+        i {
+          margin: 3px;
+          align-items: center;
+        }
+      }
+    }
+  }
+
+  .note {
+    border: 1px dashed #ddd;
+    background: #f9eeba;
+    margin: var(--record-section-padding);
+    padding: 10px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  select {
+    @include transition();
+    margin-left: 10px;
+    border-radius: 0;
+    border: 1px solid #eee;
+    outline: none;
+    &:hover, &:active {
+      box-shadow: 0 0 6px #ccc;
+    }
+  }
+}
+
+// The left-hand-side menu with 'Cpu', 'Memory' etc.
+.record-menu {
+  grid-area: sidebar;
+  .rec { color: #ee3326; }
+
+  background-color: #fcfcfc;
+  border-right: 1px solid #eee;
+  padding-bottom: 1em;
+
+  header {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    margin: 1em;
+  }
+
+  ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  a, a:link, a:visited {
+    text-decoration: none;
+  }
+
+  li {
+    @include transition();
+    display: block;
+    height: 55px;
+    padding: 0 1em;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    color: #666;
+    display: grid;
+    grid-template-columns: 50px 1fr;
+    grid-template-rows: 40px 1fr;
+    grid-template-areas: "icon title" "icon subtext";
+    cursor: pointer;
+    overflow: hidden;
+
+    i {
+      margin: auto;
+      border-radius: 100%;
+      font-size: 32px;
+      width: 38px;
+      height: 38px;
+      padding: 3px;
+      background: #eee;
+      grid-area: icon;
+    }
+
+    .title {
+      transition: line-height .25s ease;
+      grid-area: title;
+      line-height: 55px;
+      display: block;
+    }
+
+    .sub {
+      @include transition(0.5s);
+      grid-area: subtext;
+      font-size: 10px;
+      line-height: 12.5px;
+      margin-top: -5px;
+      opacity: 0;
+    }
+
+    &:hover {
+      background-color: hsl(214, 0%, 90%);
+      .title { line-height: 50px; }
+      .sub {
+        opacity: 1;
+        transition-duration: 0.25s;
+        transition-delay: 0.0s;
+      }
+    }
+
+    &.active {
+      background-color: hsl(214, 80%, 70%);
+      .title, .sub {
+        color: white;
+      }
+    }
+  }  // li
+
+  &.disabled {
+    opacity: 0.50;
+    pointer-events: none;
+  }
+}  // record-menu
+
+
+.record-section {
+  grid-area: section;
+  background: #fff;
+  transition: opacity 0.25s ease;
+  opacity: 0;
+  display: none;
+
+  &:not(.active) {
+    max-height: 0;
+  }
+
+  &.active {
+    display: grid;
+    opacity: 1;
+  }
+
+  // By default space all section elements by the same amount.
+  --record-section-padding: 20px;
+
+  >* {
+    padding-left: var(--record-section-padding);
+    padding-right: var(--record-section-padding);
+    &:first-child { padding-top: 20px; }
+    &:last-child { padding-bottom: 20px; }
+  }
+
+  >header {
+    text-align: center;
+    font-family: 'Raleway', sans-serif;
+    font-size: 20px;
+    padding: 15px 10px;
+    color: #333;
+    letter-spacing: 0.5px;
+  }
+
+  .hide {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .probe {
+    display: grid;
+    grid-template-rows: 40px 1fr;
+    grid-template-columns: 220px 1fr;
+    grid-template-areas: "label label" "img descr";
+    transition: color 0.2s ease;
+    padding-top: var(--record-section-padding);
+    padding-bottom: var(--record-section-padding);
+
+    &:nth-of-type(2n) {
+      background-color: #f9f9f9;
+    }
+
+    >img {
+      transition: filter 0.2s ease, opacity 0.2s ease;
+      grid-area: img;
+      width: 210px;
+      box-sizing: content-box;
+      cursor: pointer;
+      opacity: 0.5;
+      filter: saturate(0.15);
+    }
+
+    &:hover {
+      >img { opacity: 1; }
+      >label {
+        color: #333;
+        input[type=checkbox]::after {
+          background: hsl(207, 60%, 60%);
+        }
+      }
+    }  // :hover
+
+    >label {
+      grid-area: label;
+      cursor: pointer;
+      font-family: 'Roboto' , sans-serif;
+      font-size: 20px;
+      font-weight: 400;
+      color: #999;
+
+      // The per-probe on-off switch.
+      input[type=checkbox] {
+        -moz-appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        margin: 0 10px 0 3px;
+        position: relative;
+        display: inline-block;
+        height: 20px;
+        width: 44px;
+        background: #89898966;
+        border-radius: 100px;
+        transition: all 0.3s ease;
+        overflow: visible;
+        vertical-align: middle;
+
+        &:focus {
+          outline: none;
+        }
+
+        &::after {
+          position: absolute;
+          left: -2px;
+          top: -3px;
+          display: block;
+          width: 26px;
+          height: 26px;
+          border-radius: 100px;
+          background: #f5f5f5;
+          box-shadow: 0px 3px 3px rgba(0,0,0,0.15);
+          content: '';
+          transition: all 0.3s ease;
+        }
+        &:checked {
+          background: #8398b7;
+        }
+        &:focus::after {
+          background: hsl(207, 60%, 60%);
+        }
+        &:checked::after {
+          left: 20px;
+          background: #27303d;
+        }
+      }  // checkbox
+    }  // label
+
+    // The content of the probe section.
+    >div {
+      grid-area: descr;
+      font-size: 14px;
+      font-weight: 200;
+      min-height: 50px;
+      color: var(--record-text-color);
+      line-height: 20px;
+    }
+
+    // .probe-config is showed only when the probe is enabled.
+    .probe-config {
+      @include transition(0.3s);
+      opacity: 0;
+      visibility: hidden;
+      margin: 10px 10px 0 0;
+      max-height: 0;
+    }
+
+    &.enabled {
+      .probe-config {
+        opacity: 1;
+        visibility: visible;
+        max-height: 100vh;
+      }
+      >label span { color: #4e80b7; }
+      >img {
+        filter: saturate(1);
+        opacity: 1;
+      }
+    }
+  }  // probe
+
+  // The three "Stop when full", "Ring buffer", "Long trace" buttons.
+  .record-mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-areas: ". . .";
+    grid-template-rows: 1fr;
+    padding-top: 0;
+
+    input[type=radio] {
+      appearance: none;
+      -webkit-appearance: none;
+      display: none;
+    }
+
+    >* {
+      @include transition(0.2s);
+      cursor: pointer;
+      border-radius: 15px;
+      margin: 5px;
+      text-align: center;
+      background-color: #eee;
+      font-family: 'Raleway', sans-serif;
+      font-size: 20px;
+      @media (max-width: 1280px) {
+        font-size: 1.6vw;
+      }
+      padding-bottom: 10px;
+
+      &:hover {
+        background-color: hsl(88, 50%, 84%);
+        box-shadow: 0 0 4px 0px #999;
+      }
+
+      &.selected {
+        background-color: hsl(207, 90%, 74%);
+        background-color: hsl(88, 50%, 67%);
+        box-shadow: 0 0 4px 0px #999;
+      }
+
+      img {
+        width: 100%;
+      }
+    }
+  }  // record-mode
+
+  // There are two types of sliders:
+  // 1) The full-width one (default), e.g. the one used in the main recording
+  //    page for the duration of the trace. This one has both an icon and a
+  //    label on the top.
+  // 2) The smaller ones (.thin) used in the probes. This one has no icon.
+  .slider {
+    @include transition(0.3s);
+    display: grid;
+    grid-template-columns: 40px 1fr 130px 0;
+    grid-template-rows: 30px min-content 1fr;
+    grid-template-areas: "hdr hdr hdr hdr" "descr descr descr descr"
+    "icon slider label unit";
+    margin-top: var(--record-section-padding);
+
+    &.thin {
+      grid-template-columns: 1fr 1fr 100px 0;
+      grid-template-areas: "hdr hdr hdr hdr" "descr descr descr descr"
+      "slider slider label unit";
+    }
+
+    &.greyed-out {
+      opacity: 0.5;
+    }
+
+    >* {
+      height: 40px;
+      line-height: 40px;
+    }
+
+    >header {
+      @include transition(0.3s);
+      opacity: 0.6;
+      color: #333;
+      grid-area: hdr;
+    }
+
+    &.thin >header {
+      opacity: 1;
+      color: var(--record-text-color);
+      font-size: 14px;
+    }
+
+    &.thin >header.descr {
+      grid-area: descr;
+      font-size: 12px;
+      color: #666;
+      height: 20px;
+      line-height: 20px;
+    }
+
+    &:hover > header {
+      opacity: 1;
+      transition-duration: 0.15s;
+    }
+
+    >i {
+      grid-area: icon;
+      font-size: 32px;
+      color: #333;
+    }
+
+    input[type=range] {
+      grid-area: slider;
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+      scroll-snap-type: mandatory;
+      background-color : transparent;
+      outline: none;
+      margin-left: -10px;
+      margin-top: -5px;
+
+      &::-webkit-slider-runnable-track {
+        margin: 10px;
+        border-radius: 1px;
+        width: 100%;
+        height: 10px;
+        background-color : #ddd;
+        border-radius: 4px;
+      }
+
+      &::-webkit-slider-thumb {
+        @include transition();
+        appearance: none;
+        -webkit-appearance: none;
+        border: none;
+        border-radius: 3px;
+        height: 20px;
+        width: 40px;
+        background-color: rgb(33, 150, 243);
+        margin-top: -5px;
+        cursor: pointer;
+        content: "";
+      }
+
+      &:hover::-webkit-slider-thumb,
+      &:focus::-webkit-slider-thumb {
+        box-shadow: 0 0 4px rgb(16, 81, 134);
+        transform: scale(1, 1.1);
+      }
+    }
+
+    &.thin input[type=range]::-webkit-slider-runnable-track {
+      height: 8px;
+    }
+
+    &.thin input[type=range]::-webkit-slider-thumb {
+      width: 20px;
+      border-radius: 100%;
+    }
+
+    .spinner {
+      @include transition();
+      grid-area: label;
+      border: 1px solid #fafafa;
+      border-bottom: 2px solid #ddd;
+      padding: 0 5px;
+      border-radius: 2px;
+      background-color: rgba(255, 255, 255, 60%);
+      font-family: 'Roboto', sans-serif;
+      font-size: 16px;
+      font-weight: 100;
+      height: 35px;
+      outline: none;
+
+      &::-webkit-inner-spin-button,
+      &::-webkit-outer-spin-button,
+      &::-webkit-clear-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      &:hover, &:focus {
+        border-bottom-color: hsl(207, 90%, 54%);
+        background-color: hsl(207, 50%, 97%);;
+      }
+
+      &:invalid {
+        border-bottom-color: hsl(9, 90%, 54%);
+        background-color: hsl(9, 50%, 97%);;
+      }
+    }
+
+    &.thin .spinner {
+      font-size: 14px;
+      margin-top: -5px;
+    }
+
+    .unit {
+      grid-area: unit;
+      font-size: 12px;
+      color: var(--record-text-color);
+      position: relative;
+      line-height: 37px;
+      overflow: hidden;
+      width: 35px;
+      left: -45px;
+      text-align: right;
+      margin-top: -5px;
+    }
+  }
+
+  .dropdown {
+    border: 1px solid #eee;
+    outline: none;
+    -webkit-appearance: none;
+
+    &:not(.multicolumn) {
+      overflow: hidden;
+      height: 25px;
+      padding: 0 5px;
+      &:focus, &:hover {
+        height: 30vh;
+        position: absolute;
+        overflow: auto;
+        box-shadow: 0 0 15px 0 #eee;
+      }
+    }
+
+    option, optgroup {
+      @include transition();
+      min-height: 25px;
+      font-size: 12px;
+      color: var(--record-text-color);
+      cursor: pointer;
+      padding: 5px 0;
+    }
+
+    option {
+      padding: 2.5px 5px;
+      border-bottom: 1px solid #eee;
+      &:hover {
+        background-color: hsl(214, 80%, 90%);
+      }
+      &::before {
+        display: none;
+        content: '';
+      }
+    }
+
+    &.multicolumn {
+      padding: 0;
+      max-width: 100%;
+      width: 100%;
+      overflow-y: auto;
+      optgroup {
+        display: grid;
+        padding: 0;
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      option {
+        &:nth-of-type(3n + 1) {
+          border-left: 1px solid #eee;
+          border-right: 1px solid #eee;
+        }
+        margin: 0;
+      }
+
+      &.two-columns {
+        height: 400px;
+        margin: var(--record-section-padding);
+        optgroup {
+          display: grid;
+          padding: 0;
+          grid-template-columns: 1fr 1fr;
+        }
+        option {
+          &:nth-of-type(2n + 1) {
+            border-left: 1px solid #eee;
+            border-right: 1px solid #eee;
+          }
+          margin: 0;
+        }
+      }
+    }
+  }
+
+  .atrace-categories {
+    height: 227px;
+  }
+
+  .ftrace-events {
+    height: 152px;
+  }
+
+  textarea.extra-input {
+    width: 100%;
+    height: 60px;
+    border: 1px solid #eee;
+    resize: none;
+    outline: none;
+    font-family: var(--monospace-font);
+
+    &::placeholder { color: #aaa; }
+  }
+
+  .code-snippet {
+    display: grid;
+    position: relative;
+    padding: 0;
+    margin: var(--record-section-padding);
+    background-color: #111;
+    border-radius: 4px;
+    user-select: text;
+    box-shadow: 0 0 12px #999;
+
+    @keyframes ripple{
+      0% { transform: scale(1.00); }
+      30% { transform: scale(1.20); }
+      60% { transform: scale(1.00); }
+      80% { transform: scale(1.30); }
+      100% { transform: scale(1.20); }
+    }
+
+    &::before {
+      height: 20px;
+      content: "";
+      display: block;
+      background-color: #598eca;
+    }
+
+    &.no-top-bar {
+      white-space: 'pre';
+      &::before {
+        height: 0;
+      }
+    }
+
+    >code {
+      display: block;
+      margin: 10px 5px 20px 20px;
+      color: #ccc;
+      font-family: var(--monospace-font);
+      font-size: 12px;
+      line-height: 20px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+
+      // 510px and not 500px, so the overflowing line gets truncated, giving
+      // a clear indication that the code box scrolls.
+      max-height: 510px;
+    }
+
+    >button {
+      @include transition();
+      display: inline-block;
+      position: absolute;
+      top: 30px;
+      right: 20px;
+      color: white;
+      border-radius: 100%;
+      background-color: #333;
+      box-shadow: 0 0 2px rgba(255, 255, 255, 200);
+      padding: 5px;
+      font-size: 16px;
+      line-height: 13px;  // Deliberately smaller to center the icon.
+      user-select: none;
+
+      &:hover {
+        background-color: #444;
+        transform: scale(1.1);
+      }
+    }
+
+    &:active:hover >button:not(:hover) {
+      animation: ripple linear 0.5s;
+      background-color: #701d17;
+      transform: scale(1.1);
+    }
+
+    >button:active:hover {
+      transform: scale(0.9);
+    }
+  }  // code-snippet
+
+  &.instructions {
+    label, select {
+      font-weight: 100;
+      color: #333;
+      font-size: 16px;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    .note {
+      border: 1px dashed #ddd;
+      background: #f9eeba;
+      margin: var(--record-section-padding);
+      padding: 10px;
+      font-family: 'Roboto', sans-serif;
+      font-size: 14px;
+      line-height: 20px;
+    }
+
+    select {
+      @include transition();
+      margin-left: 10px;
+      border-radius: 0;
+      border: 1px solid #eee;
+      outline: none;
+
+      &:hover, &:active {
+        box-shadow: 0 0 6px #ccc;
+      }
+    }
+    // Stop/cancel buttons
+    .buttons {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: auto;
+      height: 70px;
+      >* {
+        @include transition(0.2s);
+        cursor: pointer;
+        border-radius: 10px;
+        text-align: center;
+        margin: 3px;
+        background-color: #eee;
+        font-family: 'Raleway', sans-serif;
+        flex-grow: 1;
+        font-size: 17px;
+        @media (max-width: 1280px) {
+          font-size: 1.6vw;
+        }
+        padding: 7px;
+
+        &:hover {
+          background-color: hsl(88, 50%, 84%);
+          box-shadow: 0 0 4px 0px #999;
+        }
+
+        &.selected {
+          background-color: hsl(88, 50%, 67%);
+          box-shadow: 0 0 4px 0px #999;
+        }
+      }
+    }
+
+    progress {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 600px;
+      height: 30px;
+      margin: var(--record-section-padding);
+      border-radius: 5px;
+    }
+    ::-webkit-progress-value {
+      background-color: hsl(88, 50%, 67%);
+    }
+    ::-webkit-progress-bar {
+      background-color: #eee;
+    }
+  }
+}  // record-section

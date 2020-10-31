@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [ "src/" ],
+  "exclude": [
+    "./node_modules/",
+    "./src/service_worker/",
+    "./src/gen/"
+  ],
+  "compilerOptions": {
+    "lib": [
+      "dom",                               // Need to be explicitly mentioned now since we're overriding default included libs.
+      "es2018",                            // Need this to use Object.values.
+    ],
+    "paths": {
+      "*" : ["*", "./node_modules/@tsundoku/micromodal_types/*"]
+    },
+  }
+}

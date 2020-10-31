@@ -1,0 +1,16 @@
+name: sched_wakeup
+ID: 72
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:char comm[16];	offset:12;	size:16;	signed:0;
+	field:pid_t pid;	offset:28;	size:4;	signed:1;
+	field:int prio;	offset:32;	size:4;	signed:1;
+	field:int success;	offset:36;	size:4;	signed:1;
+	field:int target_cpu;	offset:40;	size:4;	signed:1;
+
+print fmt: "comm=%s pid=%d prio=%d success=%d target_cpu=%03d", REC->comm, REC->pid, REC->prio, REC->success, REC->target_cpu

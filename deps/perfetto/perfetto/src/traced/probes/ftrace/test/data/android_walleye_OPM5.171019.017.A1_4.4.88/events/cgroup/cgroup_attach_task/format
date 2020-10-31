@@ -1,0 +1,15 @@
+name: cgroup_attach_task
+ID: 112
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:int dst_root;	offset:8;	size:4;	signed:1;
+	field:int dst_id;	offset:12;	size:4;	signed:1;
+	field:int pid;	offset:16;	size:4;	signed:1;
+	field:__data_loc char[] comm;	offset:20;	size:4;	signed:0;
+	field:char cname[20];	offset:24;	size:20;	signed:0;
+
+print fmt: "dst_root=%d dst_id=%d cgroup=%s pid=%d comm=%s", REC->dst_root, REC->dst_id, REC->cname, REC->pid, __get_str(comm)

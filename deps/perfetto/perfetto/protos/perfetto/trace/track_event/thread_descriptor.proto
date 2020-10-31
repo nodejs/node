@@ -1,0 +1,75 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package perfetto.protos;
+
+// Describes a thread's attributes. Emitted as part of a TrackDescriptor,
+// usually by the thread's trace writer.
+//
+// Next id: 9.
+message ThreadDescriptor {
+  optional int32 pid = 1;
+  optional int32 tid = 2;
+
+  optional string thread_name = 5;
+
+  // ---------------------------------------------------------------------------
+  // Deprecated / legacy fields, which will be removed in the future:
+  // ---------------------------------------------------------------------------
+
+  enum ChromeThreadType {
+    CHROME_THREAD_UNSPECIFIED = 0;
+
+    CHROME_THREAD_MAIN = 1;
+    CHROME_THREAD_IO = 2;
+
+    // Scheduler:
+    CHROME_THREAD_POOL_BG_WORKER = 3;
+    CHROME_THREAD_POOL_FG_WORKER = 4;
+    CHROME_THREAD_POOL_FB_BLOCKING = 5;
+    CHROME_THREAD_POOL_BG_BLOCKING = 6;
+    CHROME_THREAD_POOL_SERVICE = 7;
+
+    // Compositor:
+    CHROME_THREAD_COMPOSITOR = 8;
+    CHROME_THREAD_VIZ_COMPOSITOR = 9;
+    CHROME_THREAD_COMPOSITOR_WORKER = 10;
+
+    // Renderer:
+    CHROME_THREAD_SERVICE_WORKER = 11;
+
+    // Tracing related threads:
+    CHROME_THREAD_MEMORY_INFRA = 50;
+    CHROME_THREAD_SAMPLING_PROFILER = 51;
+  };
+  optional ChromeThreadType chrome_thread_type = 4;
+
+  // Deprecated. Use ClockSnapshot in combination with TracePacket's timestamp
+  // and timestamp_clock_id fields instead.
+  optional int64 reference_timestamp_us = 6;
+
+  // Absolute reference values. Clock values in subsequent TrackEvents can be
+  // encoded accumulatively and relative to these. This reduces their var-int
+  // encoding size.
+  // TODO(eseckler): Deprecated. Replace these with ClockSnapshot encoding.
+  optional int64 reference_thread_time_us = 7;
+  optional int64 reference_thread_instruction_count = 8;
+
+  // To support old UI. New UI should determine default sorting by thread_type.
+  optional int32 legacy_sort_index = 3;
+}
