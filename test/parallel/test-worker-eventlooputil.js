@@ -34,9 +34,10 @@ function workerOnMetricsMsg(msg) {
   }
 
   if (msg.cmd === 'spin') {
+    const elu = eventLoopUtilization();
     const t = now();
     while (now() - t < msg.dur);
-    return this.postMessage(eventLoopUtilization());
+    return this.postMessage(eventLoopUtilization(elu));
   }
 }
 
@@ -50,12 +51,13 @@ let workerELU;
   if (eventLoopUtilization().idle <= 0)
     return setTimeout(mustCall(r), 5);
 
+  mainElu = eventLoopUtilization();
+
   worker = new Worker(__filename, { argv: [ 'iamalive' ] });
   metricsCh = new MessageChannel();
   worker.postMessage({ metricsCh: metricsCh.port1 }, [ metricsCh.port1 ]);
 
   workerELU = worker.performance.eventLoopUtilization;
-  mainElu = eventLoopUtilization();
   metricsCh.port2.once('message', mustCall(checkWorkerIdle));
   metricsCh.port2.postMessage({ cmd: 'elu' });
   // Make sure it's still safe to call eventLoopUtilization() after the worker
@@ -66,15 +68,10 @@ let workerELU;
   }));
 })();
 
-
 function checkWorkerIdle(wElu) {
-  const tmpMainElu = eventLoopUtilization(mainElu);
   const perfWorkerElu = workerELU();
-  const eluDiff = eventLoopUtilization(perfWorkerElu, mainElu);
+  const tmpMainElu = eventLoopUtilization(mainElu);
 
-  assert.strictEqual(idleActive(eluDiff),
-                     (perfWorkerElu.active - mainElu.active) +
-                       (perfWorkerElu.idle - mainElu.idle));
   assert.ok(idleActive(wElu) > 0, `${idleActive(wElu)} <= 0`);
   assert.ok(idleActive(workerELU(wElu)) > 0,
             `${idleActive(workerELU(wElu))} <= 0`);
@@ -104,8 +101,9 @@ function checkWorkerActive() {
     const w2 = workerELU(w);
 
     assert.ok(w2.active >= 50, `${w2.active} < 50`);
-    assert.ok(idleActive(wElu) > idleActive(w2),
-              `${idleActive(wElu)} <= ${idleActive(w2)}`);
+    assert.ok(wElu.active >= 50, `${wElu.active} < 50`);
+    assert.ok(idleActive(wElu) < idleActive(w2),
+              `${idleActive(wElu)} >= ${idleActive(w2)}`);
 
     metricsCh.port2.postMessage({ cmd: 'close' });
   });
