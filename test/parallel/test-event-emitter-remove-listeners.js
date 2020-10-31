@@ -168,3 +168,71 @@ function listener2() {}
   ee.removeListener('foo', listener1);
   assert.strictEqual(ee._events.foo, listener2);
 }
+{
+  // AbortSignals
+  const ac = new AbortController();
+  const ee = new EventEmitter();
+  ee.on('foo', common.mustNotCall(), { signal: ac.signal });
+  ee.prependListener('foo', common.mustNotCall(), { signal: ac.signal });
+  ac.abort();
+  ee.emit('foo');
+}
+{
+  // AbortSignals - aborting before adding the listener
+  const ac = new AbortController();
+  const ee = new EventEmitter();
+  ac.abort();
+  ee.on('foo', common.mustNotCall(), { signal: ac.signal });
+  ee.prependListener('foo', common.mustNotCall(), { signal: ac.signal });
+  ee.emit('foo');
+}
+{
+  // AbortSignals - removing the correct listener
+  const ac = new AbortController();
+  const ee = new EventEmitter();
+  const mustCall = common.mustCall();
+  const mustNotCall = common.mustNotCall();
+  ee.on('foo', mustNotCall, { signal: ac.signal });
+  ee.on('foo', mustCall);
+  ac.abort();
+  ee.emit('foo');
+}
+{
+  // AbortSignals - removing the correct same listener
+  const ac = new AbortController();
+  const ee = new EventEmitter();
+  const arr = [];
+  const fn1 = (arg) => arr.push(arg);
+  const pushA = fn1.bind(null, 'A');
+  const pushB = fn1.bind(null, 'B');
+  ee.on('foo', pushA, { signal: ac.signal });
+  ee.on('foo', pushB);
+  ee.on('foo', pushA);
+  ac.abort();
+  ee.emit('foo');
+  assert.deepStrictEqual(arr, ['B', 'A']);
+}
+{
+  // AbortSignals - removing the correct same listener
+  const ac = new AbortController();
+  const ee = new EventEmitter();
+  const arr = [];
+  const fn1 = (arg) => arr.push(arg);
+  const pushA = fn1.bind(null, 'A');
+  const pushB = fn1.bind(null, 'B');
+  ee.on('foo', pushA);
+  ee.on('foo', pushB);
+  ee.on('foo', pushA, { signal: ac.signal });
+  ac.abort();
+  ee.emit('foo');
+  assert.deepStrictEqual(arr, ['A', 'B']);
+}
+{
+  // AbortSignals - removing with removeListener
+  const ac = new AbortController();
+  const ee = new EventEmitter();
+  const mustNotCall = common.mustNotCall();
+  ee.on('foo', mustNotCall, { signal: ac.signal });
+  ee.removeListener('foo', mustNotCall);
+  ee.emit('foo');
+}

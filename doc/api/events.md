@@ -383,15 +383,17 @@ Installing a listener using this symbol does not change the behavior once an
 `'error'` event is emitted, therefore the process will still crash if no
 regular `'error'` listener is installed.
 
-### `emitter.addListener(eventName, listener)`
+### `emitter.addListener(eventName, listener [,options])`
 <!-- YAML
 added: v0.1.26
 -->
 
 * `eventName` {string|symbol}
 * `listener` {Function}
+* `options` {Object}
+  * `signal` {AbortSignal} Can be used to unsubscribe from the event
 
-Alias for `emitter.on(eventName, listener)`.
+Alias for `emitter.on(eventName, listener, options)`.
 
 ### `emitter.emit(eventName[, ...args])`
 <!-- YAML
@@ -519,13 +521,15 @@ added: v10.0.0
 
 Alias for [`emitter.removeListener()`][].
 
-### `emitter.on(eventName, listener)`
+### `emitter.on(eventName, listener[, options])`
 <!-- YAML
 added: v0.1.101
 -->
 
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
+* `options` {Object}
+  * `signal` {AbortSignal} Can be used to unsubscrie from the event
 * Returns: {EventEmitter}
 
 Adds the `listener` function to the end of the listeners array for the
@@ -556,6 +560,20 @@ myEE.emit('foo');
 //   a
 ```
 
+An AbortSignal can be passed in to facilitate removal of the listener without 
+keeping a reference to the listener function:
+
+```js
+const myEE = new EventEmitter();
+const ac = new AbortController();
+myEE.on('foo', () => console.log('a'), { signal: ac.signal });
+myEE.emit('foo');
+// Prints:
+//   a
+ac.abort();
+myEE.emit('foo');
+// Prints nothing, the listener was removed
+```
 ### `emitter.once(eventName, listener)`
 <!-- YAML
 added: v0.3.0
@@ -590,13 +608,15 @@ myEE.emit('foo');
 //   a
 ```
 
-### `emitter.prependListener(eventName, listener)`
+### `emitter.prependListener(eventName, listener [,options])`
 <!-- YAML
 added: v6.0.0
 -->
 
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
+* `options` {Object}
+  * `signal` {AbortSignal} Can be used to unsubscrie from the event
 * Returns: {EventEmitter}
 
 Adds the `listener` function to the *beginning* of the listeners array for the
