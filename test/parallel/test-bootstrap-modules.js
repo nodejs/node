@@ -93,6 +93,7 @@ if (!common.isMainThread) {
   expectedModules.add('Internal Binding messaging');
   expectedModules.add('Internal Binding symbols');
   expectedModules.add('Internal Binding worker');
+  expectedModules.add('Internal Binding performance');
   expectedModules.add('NativeModule _stream_duplex');
   expectedModules.add('NativeModule _stream_passthrough');
   expectedModules.add('NativeModule _stream_readable');
