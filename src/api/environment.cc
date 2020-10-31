@@ -444,6 +444,7 @@ MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env) {
   return env->platform();
 }
 
+#ifndef V8_USE_PERFETTO
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     node::tracing::TracingController* tracing_controller) {
@@ -451,6 +452,7 @@ MultiIsolatePlatform* CreatePlatform(
       thread_pool_size,
       static_cast<v8::TracingController*>(tracing_controller));
 }
+#endif
 
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,

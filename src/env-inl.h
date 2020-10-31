@@ -717,6 +717,10 @@ inline uint64_t Environment::heap_prof_interval() const {
 
 #endif  // HAVE_INSPECTOR
 
+TrackingTraceStateObserver* Environment::trace_state_observer() {
+  return &trace_state_observer_;
+}
+
 inline
 std::shared_ptr<ExclusiveAccess<HostPort>> Environment::inspector_host_port() {
   return inspector_host_port_;

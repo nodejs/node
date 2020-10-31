@@ -4,7 +4,11 @@
 #include "memory_tracker-inl.h"
 #include "util.h"
 
-#include "tracing/trace_event.h"
+#ifndef V8_USE_PERFETTO
+#  include "tracing/trace_event.h"
+#else
+#  include "tracing/tracing.h"
+#endif
 
 #include "string_bytes.h"
 
@@ -42,6 +46,7 @@ using v8::ObjectTemplate;
 using v8::String;
 using v8::Value;
 
+#ifndef V8_USE_PERFETTO
 #define TRACE_NAME(name) "fs_dir.sync." #name
 #define GET_TRACE_ENABLED                                                      \
   (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED                                 \
@@ -54,6 +59,12 @@ using v8::Value;
   if (GET_TRACE_ENABLED)                                                       \
   TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs_dir, sync), TRACE_NAME(syscall),   \
   ##__VA_ARGS__);
+#else
+#define FS_DIR_SYNC_TRACE_BEGIN(syscall, ...)                                  \
+  TRACE_EVENT("node,node.fs_dir,node.fs_dir.sync", #syscall);
+#define FS_DIR_SYNC_TRACE_END(syscall, ...)
+#endif
+
 
 DirHandle::DirHandle(Environment* env, Local<Object> obj, uv_dir_t* dir)
     : AsyncWrap(env, obj, AsyncWrap::PROVIDER_DIRHANDLE),

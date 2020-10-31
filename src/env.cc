@@ -15,10 +15,15 @@
 #include "node_worker.h"
 #include "req_wrap-inl.h"
 #include "stream_base.h"
-#include "tracing/agent.h"
-#include "tracing/traced_value.h"
 #include "util-inl.h"
 #include "v8-profiler.h"
+
+#ifndef V8_USE_PERFETTO
+#include "tracing/agent.h"
+#include "tracing/traced_value.h"
+#else
+#include "tracing/tracing.h"
+#endif
 
 #include <algorithm>
 #include <atomic>
@@ -228,19 +233,6 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void TrackingTraceStateObserver::UpdateTraceCategoryState() {
-  if (!env_->owns_process_state() || !env_->can_call_into_js()) {
-    // Ideally, we’d have a consistent story that treats all threads/Environment
-    // instances equally here. However, tracing is essentially global, and this
-    // callback is called from whichever thread calls `StartTracing()` or
-    // `StopTracing()`. The only way to do this in a threadsafe fashion
-    // seems to be only tracking this from the main thread, and only allowing
-    // these state modifications from the main thread.
-    return;
-  }
-
-  bool async_hooks_enabled = (*(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-                                 TRACING_CATEGORY_NODE1(async_hooks)))) != 0;
-
   Isolate* isolate = env_->isolate();
   HandleScope handle_scope(isolate);
   Local<Function> cb = env_->trace_category_state_function();
@@ -248,8 +240,7 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
     return;
   TryCatchScope try_catch(env_);
   try_catch.SetVerbose(true);
-  Local<Value> args[] = {Boolean::New(isolate, async_hooks_enabled)};
-  USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
+  USE(cb->Call(env_->context(), Undefined(isolate), 0, nullptr));
 }
 
 void Environment::CreateProperties() {
@@ -325,6 +316,7 @@ Environment::Environment(IsolateData* isolate_data,
           isolate_,
           1,
           MAYBE_FIELD_PTR(env_info, should_abort_on_uncaught_toggle)),
+      trace_state_observer_(this),
       stream_base_state_(isolate_,
                          StreamBase::kNumStreamBaseStateFields,
                          MAYBE_FIELD_PTR(env_info, stream_base_state)),
@@ -366,16 +358,14 @@ Environment::Environment(IsolateData* isolate_data,
   inspector_agent_ = std::make_unique<inspector::Agent>(this);
 #endif
 
+performance_state_ = std::make_unique<performance::PerformanceState>(
+    isolate, MAYBE_FIELD_PTR(env_info, performance_state));
+
+#ifndef V8_USE_PERFETTO
   if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
-    trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
     if (TracingController* tracing_controller = writer->GetTracingController())
-      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+      tracing_controller->AddTraceStateObserver(&trace_state_observer_);
   }
-
-  destroy_async_id_list_.reserve(512);
-
-  performance_state_ = std::make_unique<performance::PerformanceState>(
-      isolate, MAYBE_FIELD_PTR(env_info, performance_state));
 
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
@@ -392,6 +382,20 @@ Environment::Environment(IsolateData* isolate_data,
                                       "args",
                                       std::move(traced_value));
   }
+#else
+  per_process::v8_platform.tracing_service_
+      .tracing_controller()->AddTraceStateObserver(&trace_state_observer_);
+  TRACE_EVENT_BEGIN(
+      "node,node.process",
+      "environment",
+      [&](perfetto::EventContext ctx) {
+        auto metadata = ctx.event()->set_node_process_metadata();
+        for (const std::string& arg : args)
+          metadata->add_args(arg);
+        for (const std::string& arg : exec_args)
+          metadata->add_exec_args(arg);
+      });
+#endif
 
   // This adjusts the return value of base_object_count() so that tests that
   // check the count do not have to account for internally created BaseObjects.
@@ -492,6 +496,7 @@ Environment::~Environment() {
   context()->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                              nullptr);
 
+#ifndef V8_USE_PERFETTO
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
     CHECK_NOT_NULL(writer);
@@ -501,6 +506,11 @@ Environment::~Environment() {
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
     TRACING_CATEGORY_NODE1(environment), "Environment", this);
+#else
+  per_process::v8_platform.tracing_service_
+      .tracing_controller()->RemoveTraceStateObserver(&trace_state_observer_);
+  TRACE_EVENT_END("node,node.process");
+#endif
 
   // Do not unload addons on the main thread. Some addons need to retain memory
   // beyond the Environment's lifetime, and unloading them early would break
@@ -586,6 +596,7 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
+  TRACE_EVENT("node,node.process", "CleanupHandles");
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
     task_queues_async_initialized_ = false;
@@ -627,8 +638,13 @@ void Environment::PrintSyncTrace() const {
 
 void Environment::RunCleanup() {
   started_cleanup_ = true;
+#ifndef V8_USE_PERFETTO
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunCleanup", this);
+#else
+  TRACE_EVENT("node,node.process", "RunCleanup");
+#endif
+
   bindings_.clear();
   initial_base_object_count_ = 0;
   CleanupHandles();
@@ -671,8 +687,13 @@ void Environment::RunCleanup() {
 }
 
 void Environment::RunAtExitCallbacks() {
+#ifndef V8_USE_PERFETTO
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "AtExit", this);
+#else
+  TRACE_EVENT("node,node.process", "AtExit");
+#endif
+
   for (ExitCallback at_exit : at_exit_functions_) {
     at_exit.cb_(at_exit.arg_);
   }
@@ -698,8 +719,15 @@ void Environment::RunAndClearInterrupts() {
 }
 
 void Environment::RunAndClearNativeImmediates(bool only_refed) {
+#ifndef V8_USE_PERFETTO
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunAndClearNativeImmediates", this);
+#else
+  TRACE_EVENT(
+      "node,node.native_immediates",
+      "RunAndClearNativeImmediates");
+#endif
+
   HandleScope handle_scope(isolate_);
   InternalCallbackScope cb_scope(this, Object::New(isolate_), { 0, 0 });
 
@@ -803,8 +831,12 @@ void Environment::ToggleTimerRef(bool ref) {
 
 void Environment::RunTimers(uv_timer_t* handle) {
   Environment* env = Environment::from_timer_handle(handle);
+#ifndef V8_USE_PERFETTO
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunTimers", env);
+#else
+  TRACE_EVENT("node,node.process", "RunTimers");
+#endif
 
   if (!env->can_call_into_js())
     return;
@@ -865,8 +897,12 @@ void Environment::RunTimers(uv_timer_t* handle) {
 
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
+#ifndef V8_USE_PERFETTO
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "CheckImmediate", env);
+#else
+  TRACE_EVENT("node,node.native_immediates", "GetImmediate");
+#endif
 
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());

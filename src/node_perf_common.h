@@ -22,6 +22,8 @@ namespace performance {
 // here and add them to the milestones when the env is init'd.
 extern uint64_t performance_v8_start;
 
+// If Perfetto is being used, be sure to keep these in
+// sync with nodejs.proto
 #define NODE_PERFORMANCE_MILESTONES(V)                                        \
   V(ENVIRONMENT, "environment")                                               \
   V(NODE_START, "nodeStart")                                                  \

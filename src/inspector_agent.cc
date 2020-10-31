@@ -4,7 +4,6 @@
 #include "inspector/main_thread_interface.h"
 #include "inspector/node_string.h"
 #include "inspector/runtime_agent.h"
-#include "inspector/tracing_agent.h"
 #include "inspector/worker_agent.h"
 #include "inspector/worker_inspector.h"
 #include "inspector_io.h"
@@ -18,6 +17,10 @@
 #include "timer_wrap.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
+
+#ifndef V8_USE_PERFETTO
+#include "inspector/tracing_agent.h"
+#endif
 
 #include "libplatform/libplatform.h"
 
@@ -221,9 +224,11 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
         retaining_context_(false) {
     session_ = inspector->connect(CONTEXT_GROUP_ID, this, StringView());
     node_dispatcher_ = std::make_unique<protocol::UberDispatcher>(this);
+#ifndef V8_USE_PERFETTO
     tracing_agent_ =
         std::make_unique<protocol::TracingAgent>(env, main_thread_);
     tracing_agent_->Wire(node_dispatcher_.get());
+#endif
     if (worker_manager) {
       worker_agent_ = std::make_unique<protocol::WorkerAgent>(worker_manager);
       worker_agent_->Wire(node_dispatcher_.get());
@@ -233,8 +238,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   }
 
   ~ChannelImpl() override {
+#ifndef V8_USE_PERFETTO
     tracing_agent_->disable();
     tracing_agent_.reset();  // Dispose before the dispatchers
+#endif
     if (worker_agent_) {
       worker_agent_->disable();
       worker_agent_.reset();  // Dispose before the dispatchers
@@ -318,7 +325,11 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   }
 
   std::unique_ptr<protocol::RuntimeAgent> runtime_agent_;
+
+#ifndef V8_USE_PERFETTO
   std::unique_ptr<protocol::TracingAgent> tracing_agent_;
+#endif
+
   std::unique_ptr<protocol::WorkerAgent> worker_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;

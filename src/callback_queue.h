@@ -60,6 +60,7 @@ class CallbackQueue {
   class CallbackImpl final : public Callback {
    public:
     CallbackImpl(Fn&& callback, CallbackFlags::Flags flags);
+    ~CallbackImpl() override;
     R Call(Args... args) override;
 
    private:

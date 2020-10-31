@@ -7,6 +7,11 @@
 #include "node_revert.h"
 #include "util-inl.h"
 
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#include "protos/perfetto/trace/track_event/nodejs.pbzero.h"
+#endif
+
 #include <climits>  // PATH_MAX
 
 namespace node {
@@ -42,8 +47,19 @@ static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_METADATA1(
       "__metadata", "process_name", "name", TRACE_STR_COPY(*title));
+#else
+  node::tracing::SetProcessTrackTitle(*title);
+  TRACE_EVENT_INSTANT(
+      "node,node.process",
+      "process",
+      [&](perfetto::EventContext ctx) {
+        auto metadata = ctx.event()->set_node_process_metadata();
+        metadata->set_title(*title);
+      });
+#endif
   uv_set_process_title(*title);
 }
 

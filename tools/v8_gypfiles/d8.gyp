@@ -37,6 +37,12 @@
         '<(V8_ROOT)/src/d8/d8.h',
       ],
       'conditions': [
+        ['v8_use_perfetto == 1', {
+          'dependencies': [
+            '../../deps/perfetto/perfetto.gyp:libperfetto',
+            '../../deps/protobuf/protobuf.gyp:protobuf-lite',
+          ]
+        }],
         [ 'want_separate_host_toolset==1', {
           'toolsets': [ 'target', ],
           'dependencies': [

@@ -40,6 +40,10 @@
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
 
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
+
 #if HAVE_OPENSSL
 #include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h
 #include "node_crypto.h"
@@ -1086,6 +1090,17 @@ int Stop(Environment* env) {
   env->ExitEnv();
   return 0;
 }
+
+// TODO(@jasnell): TEMPORARY
+static v8::TracingController* controller_;
+
+NODE_EXTERN v8::TracingController* GetTracingController() {
+  return controller_;
+}
+NODE_EXTERN void SetTracingController(v8::TracingController* controller) {
+  controller_ = controller;
+}
+
 
 }  // namespace node
 

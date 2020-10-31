@@ -6,6 +6,11 @@
 #include "node_process.h"
 #include "util-inl.h"
 
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#include "protos/perfetto/trace/track_event/nodejs.pbzero.h"
+#endif
+
 #include <cinttypes>
 
 namespace node {
@@ -86,13 +91,32 @@ std::ostream& operator<<(std::ostream& o,
   return o;
 }
 
-void PerformanceState::Mark(enum PerformanceMilestone milestone,
-                             uint64_t ts) {
+void PerformanceState::Mark(enum PerformanceMilestone milestone, uint64_t ts) {
   this->milestones[milestone] = ts;
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_INSTANT_WITH_TIMESTAMP0(
       TRACING_CATEGORY_NODE1(bootstrap),
       GetPerformanceMilestoneName(milestone),
       TRACE_EVENT_SCOPE_THREAD, ts / 1000);
+#else
+  auto fn = [&](perfetto::EventContext ctx) {
+        switch (milestone) {
+#define V(name, _)                                                             \
+  case NODE_PERFORMANCE_MILESTONE_##name:                                      \
+    ctx.event()->set_node_performance_milestone(                               \
+      perfetto::protos::pbzero::NodePerformanceMilestone::name                 \
+    );                                                                         \
+    break;
+  NODE_PERFORMANCE_MILESTONES(V)
+#undef V
+          default: {
+            // Fall through
+          }
+        }
+      };
+
+  TRACE_EVENT_INSTANT("node,node.process", "milestone", ts, fn);
+#endif
 }
 
 // Initialize the performance entry object properties
@@ -176,9 +200,19 @@ void Mark(const FunctionCallbackInfo<Value>& args) {
   auto marks = env->performance_marks();
   (*marks)[*name] = now;
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_COPY_MARK_WITH_TIMESTAMP(
       TRACING_CATEGORY_NODE2(perf, usertiming),
       *name, now / 1000);
+#else
+  TRACE_EVENT_INSTANT(
+      "node,node.perf,node.perf.usertiming",
+      "mark",
+      now,
+      [&](perfetto::EventContext ctx) {
+        ctx.event()->set_name(*name);
+      });
+#endif
 
   PerformanceEntry entry(env, *name, "mark", now, now);
   Local<Object> obj;
@@ -241,12 +275,18 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
   if (endTimestamp < startTimestamp)
     endTimestamp = startTimestamp;
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
       TRACING_CATEGORY_NODE2(perf, usertiming),
       *name, *name, startTimestamp / 1000);
   TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
       TRACING_CATEGORY_NODE2(perf, usertiming),
       *name, *name, endTimestamp / 1000);
+#else
+  // TODO(@jasnell): This doesn't work the correct way
+  // with perfetto yet. Need to determine an approach
+  // that can work, or drop this entirely.
+#endif
 
   PerformanceEntry entry(env, *name, "measure", startTimestamp, endTimestamp);
   Local<Object> obj;
@@ -380,9 +420,19 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   bool is_construct_call = args.IsConstructCall();
 
   uint64_t start = PERFORMANCE_NOW();
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
       TRACING_CATEGORY_NODE2(perf, timerify),
       *name, *name, start / 1000);
+#else
+  TRACE_EVENT(
+      "node,node.perf,node.perf.timerify",
+      "timerify",
+      start,
+      [&](perfetto::EventContext ctx) {
+        ctx.event()->set_name(*name);
+      });
+#endif
   v8::MaybeLocal<Value> ret;
 
   if (is_construct_call) {
@@ -393,9 +443,11 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   }
 
   uint64_t end = PERFORMANCE_NOW();
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
       TRACING_CATEGORY_NODE2(perf, timerify),
       *name, *name, end / 1000);
+#endif
 
   if (ret.IsEmpty())
     return;
@@ -547,6 +599,7 @@ ELDHistogram::ELDHistogram(
 void ELDHistogram::DelayIntervalCallback(uv_timer_t* req) {
   ELDHistogram* histogram = ContainerOf(&ELDHistogram::timer_, req);
   histogram->RecordDelta();
+#ifndef V8_USE_PERFETTO
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                  "min", histogram->Min());
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
@@ -555,6 +608,25 @@ void ELDHistogram::DelayIntervalCallback(uv_timer_t* req) {
                  "mean", histogram->Mean());
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                  "stddev", histogram->Stddev());
+#else
+  TRACE_EVENT_INSTANT(
+      "node,node.perf,node.perf.event_loop",
+      "event_loop",
+      [&](perfetto::EventContext ctx) {
+        auto detail = ctx.event()->set_event_loop_delay();
+        detail->set_min(histogram->Min());
+        detail->set_max(histogram->Max());
+        detail->set_mean(histogram->Mean());
+        detail->set_stddev(histogram->Stddev());
+        detail->set_idle_time(
+            uv_metrics_idle_time(histogram->env()->event_loop()));
+        histogram->Percentiles([&](double percentile, double value) {
+          auto entry = detail->add_percentiles();
+          entry->set_percentile(percentile);
+          entry->set_value(value);
+        });
+      });
+#endif
 }
 
 bool ELDHistogram::RecordDelta() {
@@ -564,8 +636,10 @@ bool ELDHistogram::RecordDelta() {
     int64_t delta = time - prev_;
     if (delta > 0) {
       ret = Record(delta);
+#ifndef V8_USE_PERFETTO
       TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                      "delay", delta);
+#endif
       if (!ret) {
         if (exceeds_ < 0xFFFFFFFF)
           exceeds_++;

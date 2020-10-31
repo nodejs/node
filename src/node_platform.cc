@@ -3,9 +3,15 @@
 
 #include "env-inl.h"
 #include "debug_utils-inl.h"
+
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
+
 #include <algorithm>  // find_if(), find(), move()
 #include <cmath>  // llround()
 #include <memory>  // unique_ptr(), shared_ptr(), make_shared()
+
 
 namespace node {
 
@@ -29,8 +35,12 @@ static void PlatformWorkerThread(void* data) {
       worker_data(static_cast<PlatformWorkerData*>(data));
 
   TaskQueue<Task>* pending_worker_tasks = worker_data->task_queue;
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "PlatformWorkerThread");
+#else
+  node::tracing::SetThreadTrackTitle("PlatformWorkerThread");
+#endif
 
   // Notify the main thread that the platform worker is ready.
   {
@@ -77,8 +87,13 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
  private:
   void Run() {
+#ifndef V8_USE_PERFETTO
     TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                           "WorkerThreadsTaskRunner::DelayedTaskScheduler");
+#else
+    node::tracing::SetThreadTrackTitle(
+        "WorkerThreadsTaskRunner::DelayedTaskScheduler");
+#endif
     loop_.data = this;
     CHECK_EQ(0, uv_loop_init(&loop_));
     flush_tasks_.data = this;

@@ -5,6 +5,10 @@
 
 #include "callback_queue.h"
 
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
+
 namespace node {
 
 template <typename R, typename... Args>
@@ -82,7 +86,20 @@ template <typename Fn>
 CallbackQueue<R, Args...>::CallbackImpl<Fn>::CallbackImpl(
     Fn&& callback, CallbackFlags::Flags flags)
   : Callback(flags),
-    callback_(std::move(callback)) {}
+    callback_(std::move(callback)) {
+  TRACE_EVENT_BEGIN(
+    "node,node.native_immediates",
+    "NATIVE_IMMEDIATE",
+    perfetto::Track(reinterpret_cast<uint64_t>(this)));
+}
+
+template <typename R, typename... Args>
+template <typename Fn>
+CallbackQueue<R, Args...>::CallbackImpl<Fn>::~CallbackImpl() {
+  TRACE_EVENT_END(
+    "node,node.native_immediates",
+    perfetto::Track(reinterpret_cast<uint64_t>(this)));
+}
 
 template <typename R, typename... Args>
 template <typename Fn>

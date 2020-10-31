@@ -3,6 +3,11 @@
 #include "node_process.h"
 #include "async_wrap.h"
 
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
+
+
 namespace node {
 
 using v8::Context;
@@ -32,8 +37,12 @@ void EmitBeforeExit(Environment* env) {
 }
 
 Maybe<bool> EmitProcessBeforeExit(Environment* env) {
+#ifndef V8_USE_PERFETTO
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "BeforeExit", env);
+#else
+  TRACE_EVENT("node,node.process", "BeforeExit");
+#endif
   if (!env->destroy_async_id_list()->empty())
     AsyncWrap::DestroyAsyncIdsCallback(env);
 

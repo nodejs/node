@@ -1,3 +1,4 @@
+#ifndef V8_USE_PERFETTO
 #include "tracing/traced_value.h"
 
 #include <cmath>
@@ -94,3 +95,4 @@ TEST(TracedValue, EscapingArray) {
 
   EXPECT_EQ(check, string);
 }
+#endif

@@ -6,6 +6,11 @@
 #include "node_process.h"
 #include "util-inl.h"
 #include "v8.h"
+#include "node_v8_platform-inl.h"
+
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
 
 #include <atomic>
 
@@ -52,17 +57,43 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   if (event == kPromiseRejectWithNoHandler) {
     value = message.GetValue();
     unhandledRejections++;
+#ifndef V8_USE_PERFETTO
     TRACE_COUNTER2(TRACING_CATEGORY_NODE2(promises, rejections),
                   "rejections",
                   "unhandled", unhandledRejections,
                   "handledAfter", rejectionsHandledAfter);
+#else
+  TRACE_EVENT_NODE_COUNTER(
+      "node,node.promises,node.promises.rejections",
+      "unhandledRejections",
+      UNHANDLEDREJECTIONS_COUNTER_TRACK,
+      unhandledRejections);
+  TRACE_EVENT_NODE_COUNTER(
+      "node,node.promises,node.promises.rejections",
+      "rejectionsHandledAfter",
+      REJECTIONSHANDLEDAFTER_COUNTER_TRACK,
+      rejectionsHandledAfter);
+#endif
   } else if (event == kPromiseHandlerAddedAfterReject) {
     value = Undefined(isolate);
     rejectionsHandledAfter++;
+#ifndef V8_USE_PERFETTO
     TRACE_COUNTER2(TRACING_CATEGORY_NODE2(promises, rejections),
                   "rejections",
                   "unhandled", unhandledRejections,
                   "handledAfter", rejectionsHandledAfter);
+#else
+  TRACE_EVENT_NODE_COUNTER(
+      "node,node.promises,node.promises.rejections",
+      "unhandledRejections",
+      UNHANDLEDREJECTIONS_COUNTER_TRACK,
+      unhandledRejections);
+  TRACE_EVENT_NODE_COUNTER(
+      "node,node.promises,node.promises.rejections",
+      "rejectionsHandledAfter",
+      REJECTIONSHANDLEDAFTER_COUNTER_TRACK,
+      rejectionsHandledAfter);
+#endif
   } else if (event == kPromiseResolveAfterResolved) {
     value = message.GetValue();
   } else if (event == kPromiseRejectAfterResolved) {

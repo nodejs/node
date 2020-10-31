@@ -30,6 +30,10 @@
 #include "module_wrap.h"
 #include "util-inl.h"
 
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
+
 namespace node {
 namespace contextify {
 
@@ -712,6 +716,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   ContextifyScript* contextify_script =
       new ContextifyScript(env, args.This());
 
+#ifndef V8_USE_PERFETTO
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE2(vm, script)) != 0) {
     Utf8Value fn(isolate, filename);
@@ -721,6 +726,17 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
         contextify_script,
         "filename", TRACE_STR_COPY(*fn));
   }
+#else
+  TRACE_EVENT_BEGIN(
+      "node,node.vm,node.vm.script",
+      "ContextifyScript::New",
+      [&](perfetto::EventContext ctx) {
+        Utf8Value fn(isolate, filename);
+        auto annotation = ctx.event()->add_debug_annotations();
+        annotation->set_name("filename");
+        annotation->set_string_value(*fn);
+      });
+#endif
 
   ScriptCompiler::CachedData* cached_data = nullptr;
   if (!cached_data_buf.IsEmpty()) {
@@ -768,10 +784,14 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
     no_abort_scope.Close();
     if (!try_catch.HasTerminated())
       try_catch.ReThrow();
+#ifndef V8_USE_PERFETTO
     TRACE_EVENT_NESTABLE_ASYNC_END0(
         TRACING_CATEGORY_NODE2(vm, script),
         "ContextifyScript::New",
         contextify_script);
+#else
+    TRACE_EVENT_END("node,node.vm,node.vm.script");
+#endif
     return;
   }
   contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
@@ -799,10 +819,14 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
         env->cached_data_produced_string(),
         Boolean::New(isolate, cached_data_produced)).Check();
   }
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_END0(
       TRACING_CATEGORY_NODE2(vm, script),
       "ContextifyScript::New",
       contextify_script);
+#else
+  TRACE_EVENT_END("node,node.vm,node.vm.script");
+#endif
 }
 
 bool ContextifyScript::InstanceOf(Environment* env,
@@ -838,8 +862,12 @@ void ContextifyScript::RunInThisContext(
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
       TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
+#else
+  TRACE_EVENT("node,node.vm,node.vm.script", "RunInThisContext");
+#endif
 
   // TODO(addaleax): Use an options object or otherwise merge this with
   // RunInContext().
@@ -866,8 +894,10 @@ void ContextifyScript::RunInThisContext(
               nullptr,  // microtask_queue
               args);
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_END0(
       TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
+#endif
 }
 
 void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
@@ -888,8 +918,12 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   if (contextify_context->context().IsEmpty())
     return;
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
       TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
+#else
+  TRACE_EVENT("node,node.vm,node.vm.script", "RunInContext");
+#endif
 
   CHECK(args[1]->IsNumber());
   int64_t timeout = args[1]->IntegerValue(env->context()).FromJust();
@@ -913,8 +947,10 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
               contextify_context->microtask_queue(),
               args);
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_END0(
       TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
+#endif
 }
 
 bool ContextifyScript::EvalMachine(Environment* env,

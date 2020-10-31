@@ -56,6 +56,9 @@ static void Initialize(Local<Object> target,
 
 #if NODE_USE_V8_PLATFORM
   READONLY_TRUE_PROPERTY(target, "hasTracing");
+#ifdef V8_USE_PERFETTO
+  READONLY_TRUE_PROPERTY(target, "usePerfetto");
+#endif
 #endif
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)

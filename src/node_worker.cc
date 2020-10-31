@@ -9,6 +9,10 @@
 #include "util-inl.h"
 #include "async_wrap-inl.h"
 
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -249,9 +253,13 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
 void Worker::Run() {
   std::string name = "WorkerThread ";
   name += std::to_string(thread_id_.id);
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_METADATA1(
       "__metadata", "thread_name", "name",
       TRACE_STR_COPY(name.c_str()));
+#else
+  node::tracing::SetThreadTrackTitle(name);
+#endif
   CHECK_NOT_NULL(platform_);
 
   Debug(this, "Creating isolate for worker with id %llu", thread_id_.id);

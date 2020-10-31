@@ -3,7 +3,11 @@
 #include "node_internals.h"
 #include "node_test_fixture.h"
 #include "req_wrap-inl.h"
+
+#ifndef V8_USE_PERFETTO
 #include "tracing/agent.h"
+#endif
+
 #include "v8.h"
 #include "v8abbr.h"
 

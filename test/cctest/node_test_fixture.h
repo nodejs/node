@@ -57,13 +57,19 @@ struct Argv {
 
 using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
       decltype(&node::FreeArrayBufferAllocator)>;
+
+#ifndef V8_USE_PERFETTO
 using TracingAgentUniquePtr = std::unique_ptr<node::tracing::Agent>;
+#endif
+
 using NodePlatformUniquePtr = std::unique_ptr<node::NodePlatform>;
 
 class NodeZeroIsolateTestFixture : public ::testing::Test {
  protected:
   static ArrayBufferUniquePtr allocator;
+#ifndef V8_USE_PERFETTO
   static TracingAgentUniquePtr tracing_agent;
+#endif
   static NodePlatformUniquePtr platform;
   static uv_loop_t current_loop;
   static bool node_initialized;
@@ -81,10 +87,15 @@ class NodeZeroIsolateTestFixture : public ::testing::Test {
       CHECK(errors.empty());
     }
 
+#ifndef V8_USE_PERFETTO
     tracing_agent = std::make_unique<node::tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent.get());
     node::tracing::TracingController* tracing_controller =
         tracing_agent->GetTracingController();
+#else
+    v8::TracingController* tracing_controller
+        = new v8::TracingController();
+#endif
     CHECK_EQ(0, uv_loop_init(&current_loop));
     static constexpr int kV8ThreadPoolSize = 4;
     platform.reset(

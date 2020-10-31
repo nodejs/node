@@ -1301,6 +1301,7 @@ void DefineDLOpenConstants(Local<Object> target) {
 }
 
 void DefineTraceConstants(Local<Object> target) {
+#ifndef V8_USE_PERFETTO
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_BEGIN);
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_END);
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_COMPLETE);
@@ -1327,6 +1328,7 @@ void DefineTraceConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ENTER_CONTEXT);
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_LEAVE_CONTEXT);
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_LINK_IDS);
+#endif
 }
 
 }  // anonymous namespace

@@ -28,10 +28,13 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_mutex.h"
-#include "tracing/trace_event.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
+
+#ifndef V8_USE_PERFETTO
+#include "tracing/trace_event.h"
+#endif
 
 #include <cstdint>
 #include <cstdlib>
@@ -367,6 +370,7 @@ namespace heap {
 bool WriteSnapshot(v8::Isolate* isolate, const char* filename);
 }
 
+#ifndef V8_USE_PERFETTO
 class TraceEventScope {
  public:
   TraceEventScope(const char* category,
@@ -383,6 +387,7 @@ class TraceEventScope {
   const char* name_;
   void* id_;
 };
+#endif
 
 namespace heap {
 

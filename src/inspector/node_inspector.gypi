@@ -62,12 +62,18 @@
     '../../src/inspector/node_string.h',
     '../../src/inspector/runtime_agent.cc',
     '../../src/inspector/runtime_agent.h',
-    '../../src/inspector/tracing_agent.cc',
-    '../../src/inspector/tracing_agent.h',
     '../../src/inspector/worker_agent.cc',
     '../../src/inspector/worker_agent.h',
     '../../src/inspector/worker_inspector.cc',
     '../../src/inspector/worker_inspector.h',
+  ],
+  'conditions': [
+    ['v8_use_perfetto == 0', {
+      'sources': [
+        '../../src/inspector/tracing_agent.cc',
+        '../../src/inspector/tracing_agent.h',
+      ],
+    }],
   ],
   'include_dirs': [
     '<(SHARED_INTERMEDIATE_DIR)/include', # for inspector

@@ -27,7 +27,11 @@
 #include "node_stat_watcher.h"
 #include "util-inl.h"
 
+#ifndef V8_USE_PERFETTO
 #include "tracing/trace_event.h"
+#else
+#include "tracing/tracing.h"
+#endif
 
 #include "req_wrap-inl.h"
 #include "stream_base-inl.h"
@@ -110,6 +114,7 @@ inline int64_t GetOffset(Local<Value> value) {
   return IsSafeJsInt(value) ? value.As<Integer>()->Value() : -1;
 }
 
+#ifndef V8_USE_PERFETTO
 #define TRACE_NAME(name) "fs.sync." #name
 #define GET_TRACE_ENABLED                                                  \
   (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED                             \
@@ -122,6 +127,11 @@ inline int64_t GetOffset(Local<Value> value) {
   if (GET_TRACE_ENABLED)                                                   \
   TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall),   \
   ##__VA_ARGS__);
+#else
+#define FS_SYNC_TRACE_BEGIN(syscall, ...)                                  \
+  TRACE_EVENT("node,node.fs,node.fs.sync", #syscall);
+#define FS_SYNC_TRACE_END(syscall, ...)
+#endif
 
 // We sometimes need to convert a C++ lambda function to a raw C-style function.
 // This is helpful, because ReqWrap::Dispatch() does not recognize lambda

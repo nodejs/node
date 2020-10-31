@@ -76,9 +76,6 @@
 
     'v8_win64_unwinding_info': 1,
 
-    # TODO(refack): make v8-perfetto happen
-    'v8_use_perfetto': 0,
-
     ##### end V8 defaults #####
 
     'conditions': [

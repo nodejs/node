@@ -377,6 +377,16 @@
       'target_name': 'v8_init',
       'type': 'static_library',
       'conditions': [
+        ['v8_use_perfetto == 1', {
+          'defines': [
+            'GOOGLE_PROTOBUF_NO_RTTI',
+            'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+          ],
+          'dependencies': [
+            '../../deps/perfetto/perfetto.gyp:libperfetto',
+            '../../deps/protobuf/protobuf.gyp:protobuf-lite',
+          ]
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
@@ -410,6 +420,16 @@
         '<@(torque_outputs)',
       ],
       'conditions': [
+        ['v8_use_perfetto == 1', {
+          'defines': [
+            'GOOGLE_PROTOBUF_NO_RTTI',
+            'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+          ],
+          'dependencies': [
+            '../../deps/perfetto/perfetto.gyp:libperfetto',
+            '../../deps/protobuf/protobuf.gyp:protobuf-lite',
+          ]
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
@@ -682,6 +702,16 @@
       ],
       'sources': ['<@(v8_compiler_sources)'],
       'conditions': [
+        ['v8_use_perfetto == 1', {
+          'defines': [
+            'GOOGLE_PROTOBUF_NO_RTTI',
+            'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+          ],
+          'dependencies': [
+            '../../deps/perfetto/perfetto.gyp:libperfetto',
+            '../../deps/protobuf/protobuf.gyp:protobuf-lite',
+          ]
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
@@ -705,6 +735,16 @@
         'v8_maybe_icu',
       ],
       'conditions': [
+        ['v8_use_perfetto == 1', {
+          'defines': [
+            'GOOGLE_PROTOBUF_NO_RTTI',
+            'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+          ],
+          'dependencies': [
+            '../../deps/perfetto/perfetto.gyp:libperfetto',
+            '../../deps/protobuf/protobuf.gyp:protobuf-lite',
+          ]
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
@@ -762,6 +802,16 @@
         '<@(inspector_all_sources)',
       ],
       'conditions': [
+        ['v8_use_perfetto == 1', {
+          'defines': [
+            'GOOGLE_PROTOBUF_NO_RTTI',
+            'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+          ],
+          'dependencies': [
+            '../../deps/perfetto/perfetto.gyp:libperfetto',
+            '../../deps/protobuf/protobuf.gyp:protobuf-lite',
+          ]
+        }],
         ['v8_enable_third_party_heap==1', {
           # TODO(targos): add values from v8_third_party_heap_files to sources
         }, {
@@ -1255,12 +1305,7 @@
         '<(V8_ROOT)/src/libplatform/delayed-task-queue.h',
         '<(V8_ROOT)/src/libplatform/task-queue.cc',
         '<(V8_ROOT)/src/libplatform/task-queue.h',
-        '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.cc',
-        '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.h',
         '<(V8_ROOT)/src/libplatform/tracing/trace-config.cc',
-        '<(V8_ROOT)/src/libplatform/tracing/trace-object.cc',
-        '<(V8_ROOT)/src/libplatform/tracing/trace-writer.cc',
-        '<(V8_ROOT)/src/libplatform/tracing/trace-writer.h',
         '<(V8_ROOT)/src/libplatform/tracing/tracing-controller.cc',
         '<(V8_ROOT)/src/libplatform/worker-thread.cc',
         '<(V8_ROOT)/src/libplatform/worker-thread.h',
@@ -1275,16 +1320,28 @@
           },
           'defines': ['BUILDING_V8_PLATFORM_SHARED'],
         }],
-        ['v8_use_perfetto', {
+        ['v8_use_perfetto != 1', {
           'sources': [
-            '<(V8_ROOT)/src/libplatform/tracing/json-trace-event-listener.cc',
-            '<(V8_ROOT)/src/libplatform/tracing/json-trace-event-listener.h',
-            '<(V8_ROOT)/src/libplatform/tracing/trace-event-listener.cc',
-            '<(V8_ROOT)/src/libplatform/tracing/trace-event-listener.h',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.h',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-object.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-writer.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-writer.h',
+          ],
+        }],
+        ['v8_use_perfetto == 1', {
+          'defines': [
+            'GOOGLE_PROTOBUF_NO_RTTI',
+            'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
           ],
           'dependencies': [
-            '<(V8_ROOT)/third_party/perfetto:libperfetto',
-            '<(V8_ROOT)/third_party/perfetto/protos/perfetto/trace:lite',
+            '../../deps/perfetto/perfetto.gyp:libperfetto',
+            '../../deps/protobuf/protobuf.gyp:protobuf-lite',
+          ],
+          'sources': [
+            '<(V8_ROOT)/src/tracing/trace-categories.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-event-listener.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-event-listener.h',
           ],
         }],
       ],
@@ -1349,6 +1406,16 @@
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"mksnapshot.*?sources = ")',
       ],
       'conditions': [
+        ['v8_use_perfetto == 1', {
+          'defines': [
+            'GOOGLE_PROTOBUF_NO_RTTI',
+            'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+          ],
+          'dependencies': [
+            '../../deps/perfetto/perfetto.gyp:libperfetto',
+            '../../deps/protobuf/protobuf.gyp:protobuf-lite',
+          ]
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],

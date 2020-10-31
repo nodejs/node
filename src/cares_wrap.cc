@@ -31,6 +31,10 @@
 #include "uv.h"
 #include "node_errors.h"
 
+#ifdef V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
+
 #include <cerrno>
 #include <cstring>
 #include <memory>
@@ -609,9 +613,28 @@ class QueryWrap : public AsyncWrap {
                  int dnsclass,
                  int type) {
     channel_->EnsureServers();
+#ifndef V8_USE_PERFETTO
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
       TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
       "name", TRACE_STR_COPY(name));
+#else
+  TRACE_EVENT_BEGIN(
+      "node,node.dns,node.dns.native",
+      "query",
+      perfetto::Track(static_cast<uint64_t>(get_async_id())),
+      [&](perfetto::EventContext ctx) {
+        {
+          auto annotations = ctx.event()->add_debug_annotations();
+          annotations->set_name("name");
+          annotations->set_string_value(name);
+        }
+        {
+          auto annotations = ctx.event()->add_debug_annotations();
+          annotations->set_name("trace_name");
+          annotations->set_string_value(trace_name_);
+        }
+      });
+#endif
     ares_query(channel_->cares_channel(), name, dnsclass, type, Callback,
                MakeCallbackPointer());
   }
@@ -714,8 +737,14 @@ class QueryWrap : public AsyncWrap {
       extra
     };
     const int argc = arraysize(argv) - extra.IsEmpty();
+#ifndef V8_USE_PERFETTO
     TRACE_EVENT_NESTABLE_ASYNC_END0(
         TRACING_CATEGORY_NODE2(dns, native), trace_name_, this);
+#else
+    TRACE_EVENT_END(
+        "node,node.dns,node.dns.native",
+        perfetto::Track(static_cast<uint64_t>(get_async_id())));
+#endif
 
     MakeCallback(env()->oncomplete_string(), argc, argv);
   }
@@ -726,9 +755,20 @@ class QueryWrap : public AsyncWrap {
     Context::Scope context_scope(env()->context());
     const char* code = ToErrorCodeString(status);
     Local<Value> arg = OneByteString(env()->isolate(), code);
+#ifndef V8_USE_PERFETTO
     TRACE_EVENT_NESTABLE_ASYNC_END1(
         TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
         "error", status);
+#else
+    TRACE_EVENT_END(
+        "node,node.dns,node.dns.native",
+        perfetto::Track(static_cast<uint64_t>(get_async_id())),
+        [&](perfetto::EventContext ctx) {
+          auto annotations = ctx.event()->add_debug_annotations();
+          annotations->set_name("error");
+          annotations->set_string_value(code);
+        });
+#endif
     MakeCallback(env()->oncomplete_string(), 1, &arg);
   }
 
@@ -1833,10 +1873,29 @@ class GetHostByAddrWrap: public QueryWrap {
       return UV_EINVAL;  // So errnoException() reports a proper error.
     }
 
+#ifndef V8_USE_PERFETTO
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
         TRACING_CATEGORY_NODE2(dns, native), "reverse", this,
         "name", TRACE_STR_COPY(name),
         "family", family == AF_INET ? "ipv4" : "ipv6");
+#else
+    TRACE_EVENT_BEGIN(
+        "node,node.dns,node.dns.native",
+        "reverse",
+        perfetto::Track(static_cast<uint64_t>(get_async_id())),
+        [&](perfetto::EventContext ctx) {
+          {
+            auto annotation = ctx.event()->add_debug_annotations();
+            annotation->set_name("name");
+            annotation->set_string_value(name);
+          }
+          {
+            auto annotation = ctx.event()->add_debug_annotations();
+            annotation->set_name("family");
+            annotation->set_string_value(family == AF_INET ? "ipv4" : "ipv6");
+          }
+        });
+#endif
 
     ares_gethostbyaddr(channel_->cares_channel(),
                        address_buffer,
@@ -1946,9 +2005,27 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
   uv_freeaddrinfo(res);
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_END2(
       TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
       "count", n, "verbatim", verbatim);
+#else
+  TRACE_EVENT_END(
+      "node,node.dns,node.dns.native",
+      perfetto::Track(static_cast<uint64_t>(req_wrap.get()->get_async_id())),
+      [&](perfetto::EventContext ctx) {
+        {
+          auto annotation = ctx.event()->add_debug_annotations();
+          annotation->set_name("count");
+          annotation->set_uint_value(n);
+        }
+        {
+          auto annotation = ctx.event()->add_debug_annotations();
+          annotation->set_name("verbatim");
+          annotation->set_bool_value(verbatim);
+        }
+      });
+#endif
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
@@ -1980,10 +2057,28 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
     argv[2] = js_service;
   }
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_END2(
       TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "hostname", TRACE_STR_COPY(hostname),
       "service", TRACE_STR_COPY(service));
+#else
+  TRACE_EVENT_END(
+      "node,node.dns,node.dns.native",
+      perfetto::Track(static_cast<uint64_t>(req_wrap.get()->get_async_id())),
+      [&](perfetto::EventContext ctx) {
+        {
+          auto annotation = ctx.event()->add_debug_annotations();
+          annotation->set_name("hostname");
+          annotation->set_string_value("hostname");
+        }
+        {
+          auto annotation = ctx.event()->add_debug_annotations();
+          annotation->set_name("service");
+          annotation->set_string_value(service);
+        }
+      });
+#endif
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
@@ -2057,11 +2152,32 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = flags;
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
       TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
       "hostname", TRACE_STR_COPY(*hostname),
       "family",
       family == AF_INET ? "ipv4" : family == AF_INET6 ? "ipv6" : "unspec");
+#else
+  TRACE_EVENT_BEGIN(
+      "node,node.dns,node.dns.native",
+      "lookup",
+      perfetto::Track(static_cast<uint64_t>(req_wrap.get()->get_async_id())),
+      [&](perfetto::EventContext ctx) {
+        {
+          auto annotation = ctx.event()->add_debug_annotations();
+          annotation->set_name("hostname");
+          annotation->set_string_value(*hostname);
+        }
+        {
+          auto annotation = ctx.event()->add_debug_annotations();
+          annotation->set_name("family");
+          annotation->set_string_value(
+              family == AF_INET ? "ipv4" :
+                  family == AF_INET6 ? "ipv6" : "unspec");
+        }
+      });
+#endif
 
   int err = req_wrap->Dispatch(uv_getaddrinfo,
                                AfterGetAddrInfo,
@@ -2092,9 +2208,28 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
 
   auto req_wrap = std::make_unique<GetNameInfoReqWrap>(env, req_wrap_obj);
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
       TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "ip", TRACE_STR_COPY(*ip), "port", port);
+#else
+  TRACE_EVENT_BEGIN(
+      "node,node.dns,node.dns.native",
+      "lookupService",
+      perfetto::Track(static_cast<uint64_t>(req_wrap.get()->get_async_id())),
+      [&](perfetto::EventContext ctx) {
+        {
+          auto annotation = ctx.event()->add_debug_annotations();
+          annotation->set_name("ip");
+          annotation->set_string_value(*ip);
+        }
+        {
+          auto annotation = ctx.event()->add_debug_annotations();
+          annotation->set_name("port");
+          annotation->set_uint_value(port);
+        }
+      });
+#endif
 
   int err = req_wrap->Dispatch(uv_getnameinfo,
                                AfterGetNameInfo,
@@ -2296,8 +2431,15 @@ void Cancel(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
 
+#ifndef V8_USE_PERFETTO
   TRACE_EVENT_INSTANT0(TRACING_CATEGORY_NODE2(dns, native),
       "cancel", TRACE_EVENT_SCOPE_THREAD);
+#else
+  TRACE_EVENT_INSTANT(
+      "node,node.dns,node.dns.native",
+      "cancel",
+      perfetto::ThreadTrack::Current());
+#endif
 
   ares_cancel(channel->cares_channel());
 }

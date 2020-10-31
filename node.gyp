@@ -662,11 +662,6 @@
         'src/tcp_wrap.cc',
         'src/timers.cc',
         'src/timer_wrap.cc',
-        'src/tracing/agent.cc',
-        'src/tracing/node_trace_buffer.cc',
-        'src/tracing/node_trace_writer.cc',
-        'src/tracing/trace_event.cc',
-        'src/tracing/traced_value.cc',
         'src/tty_wrap.cc',
         'src/udp_wrap.cc',
         'src/util.cc',
@@ -761,12 +756,6 @@
         'src/string_decoder-inl.h',
         'src/string_search.h',
         'src/tcp_wrap.h',
-        'src/tracing/agent.h',
-        'src/tracing/node_trace_buffer.h',
-        'src/tracing/node_trace_writer.h',
-        'src/tracing/trace_event.h',
-        'src/tracing/trace_event_common.h',
-        'src/tracing/traced_value.h',
         'src/timer_wrap.h',
         'src/tty_wrap.h',
         'src/udp_wrap.h',
@@ -799,6 +788,35 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        # Not using Perfetto for tracing. Enable legacy tracing code
+        [ 'v8_use_perfetto != 1', {
+          'sources': [
+            'src/tracing/agent.cc',
+            'src/tracing/node_trace_buffer.cc',
+            'src/tracing/node_trace_writer.cc',
+            'src/tracing/trace_event.cc',
+            'src/tracing/traced_value.cc',
+            'src/tracing/agent.h',
+            'src/tracing/node_trace_buffer.h',
+            'src/tracing/node_trace_writer.h',
+            'src/tracing/trace_event.h',
+            'src/tracing/trace_event_common.h',
+            'src/tracing/traced_value.h',
+          ],
+        }],
+        # Using Perfetto for tracing.
+        [ 'v8_use_perfetto == 1', {
+          'defines': [ 'V8_USE_PERFETTO' ],
+          'dependencies': [
+            'deps/protobuf/protobuf.gyp:protobuf-lite',
+            'deps/perfetto/jsoncpp.gyp:jsoncpp',
+            'deps/perfetto/perfetto.gyp:libperfetto',
+          ],
+          'sources': [
+            'src/tracing/tracing.cc',
+            'src/tracing/tracing.h',
+          ],
+        }],
         [ 'openssl_default_cipher_list!=""', {
           'defines': [
             'NODE_OPENSSL_DEFAULT_CIPHER_LIST="<(openssl_default_cipher_list)"'
@@ -1311,6 +1329,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/perfetto/perfetto.gyp:libperfetto',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'node_dtrace_header',
         'node_dtrace_ustack',
@@ -1541,6 +1560,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/perfetto/perfetto.gyp:libperfetto',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 

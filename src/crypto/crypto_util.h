@@ -23,6 +23,10 @@
 #  include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
 
+#if V8_USE_PERFETTO
+#include "tracing/tracing.h"
+#endif
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -292,6 +296,13 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
   }
 
   void AfterThreadPoolWork(int status) override {
+#ifdef V8_USE_PERFETTO
+    auto on_leave = OnScopeLeave([id=get_async_id()]() {
+      TRACE_EVENT_END(
+          "node,node.crypto",
+          perfetto::Track(static_cast<uint64_t>(id)));
+    });
+#endif
     Environment* env = AsyncWrap::env();
     CHECK_EQ(mode_, kCryptoJobAsync);
     CHECK(status == 0 || status == UV_ECANCELED);
@@ -332,8 +343,30 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
     CryptoJob<CryptoJobTraits>* job;
     ASSIGN_OR_RETURN_UNWRAP(&job, args.Holder());
-    if (job->mode() == kCryptoJobAsync)
+    if (job->mode() == kCryptoJobAsync) {
+#ifdef V8_USE_PERFETTO
+      TRACE_EVENT_BEGIN(
+          "node,node.crypto",
+          nullptr,
+          perfetto::Track(static_cast<uint64_t>(job->get_async_id())),
+          [&](perfetto::EventContext ctx) {
+            ctx.event()->set_name(
+                std::string(CryptoJobTraits::JobName) + "::Run");
+          });
+#endif
       return job->ScheduleWork();
+    }
+
+#ifdef V8_USE_PERFETTO
+    TRACE_EVENT(
+        "node,node.crypto",
+        nullptr,
+        perfetto::Track(static_cast<uint64_t>(job->get_async_id())),
+        [&](perfetto::EventContext ctx) {
+          ctx.event()->set_name(
+              std::string(CryptoJobTraits::JobName) + "::Run");
+        });
+#endif
 
     v8::Local<v8::Value> ret[2];
     env->PrintSyncTrace();

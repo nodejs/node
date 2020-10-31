@@ -396,6 +396,11 @@ shared_optgroup.add_option('--shared-cares-libpath',
     dest='shared_cares_libpath',
     help='a directory to search for the shared cares DLL')
 
+shared_optgroup.add_option('--use-perfetto',
+    action='store_true',
+    dest='use_perfetto',
+    help='use perfetto for trace events')
+
 parser.add_option_group(shared_optgroup)
 
 parser.add_option('--systemtap-includes',
@@ -1243,6 +1248,11 @@ def configure_node(o):
     o['variables']['experimental_quic'] = 1
   else:
     o['variables']['experimental_quic'] = 'false'
+
+  if options.use_perfetto:
+    o['variables']['v8_use_perfetto'] = 1
+  else:
+    o['variables']['v8_use_perfetto'] = 0
 
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
 

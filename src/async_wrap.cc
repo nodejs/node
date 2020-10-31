@@ -24,8 +24,14 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "tracing/traced_value.h"
 #include "util-inl.h"
+
+#ifndef V8_USE_PERFETTO
+#include "tracing/traced_value.h"
+#else
+#include "tracing/tracing.h"
+#include "protos/perfetto/trace/track_event/nodejs.pbzero.h"
+#endif
 
 #include "v8.h"
 
@@ -114,18 +120,28 @@ void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
 
 
 void AsyncWrap::EmitTraceEventBefore() {
-  switch (provider_type()) {
+#ifndef V8_USE_PERFETTO
 #define V(PROVIDER)                                                           \
     case PROVIDER_ ## PROVIDER:                                               \
       TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(                                      \
         TRACING_CATEGORY_NODE1(async_hooks),                                  \
         #PROVIDER "_CALLBACK", static_cast<int64_t>(get_async_id()));         \
       break;
+#else
+#define V(PROVIDER)                                                           \
+    case PROVIDER_ ## PROVIDER:                                               \
+      TRACE_EVENT_BEGIN(                                                      \
+        "node.async_hooks",                                                   \
+        #PROVIDER "_CALLBACK",                                                \
+        perfetto::Track(get_async_id()));                                     \
+      break;
+#endif
+  switch (provider_type()) {
     NODE_ASYNC_PROVIDER_TYPES(V)
-#undef V
     default:
       UNREACHABLE();
   }
+#undef V
 }
 
 
@@ -136,18 +152,27 @@ void AsyncWrap::EmitBefore(Environment* env, double async_id) {
 
 
 void AsyncWrap::EmitTraceEventAfter(ProviderType type, double async_id) {
-  switch (type) {
+#ifndef V8_USE_PERFETTO
 #define V(PROVIDER)                                                           \
     case PROVIDER_ ## PROVIDER:                                               \
       TRACE_EVENT_NESTABLE_ASYNC_END0(                                        \
         TRACING_CATEGORY_NODE1(async_hooks),                                  \
         #PROVIDER "_CALLBACK", static_cast<int64_t>(async_id));               \
       break;
+#else
+#define V(PROVIDER)                                                           \
+    case PROVIDER_ ## PROVIDER:                                               \
+      TRACE_EVENT_END(                                                        \
+        "node.async_hooks",                                                   \
+        perfetto::Track(async_id));                                           \
+      break;
+#endif
+  switch (type) {
     NODE_ASYNC_PROVIDER_TYPES(V)
-#undef V
     default:
       UNREACHABLE();
   }
+#undef V
 }
 
 
@@ -361,8 +386,12 @@ static void FullPromiseHook(PromiseHookType type, Local<Promise> promise,
 
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return;
+#ifndef V8_USE_PERFETTO
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "EnvPromiseHook", env);
+#else
+  TRACE_EVENT("node,node.process", "EnvPromiseHook");
+#endif
 
   PromiseWrap* wrap = extractPromiseWrap(promise);
   if (type == PromiseHookType::kInit || wrap == nullptr) {
@@ -798,18 +827,27 @@ AsyncWrap::~AsyncWrap() {
 }
 
 void AsyncWrap::EmitTraceEventDestroy() {
+#ifndef V8_USE_PERFETTO
+#define V(PROVIDER)                                                           \
+  case PROVIDER_ ## PROVIDER:                                                 \
+    TRACE_EVENT_NESTABLE_ASYNC_END0(                                          \
+      TRACING_CATEGORY_NODE1(async_hooks),                                    \
+      #PROVIDER, static_cast<int64_t>(get_async_id()));                       \
+    break;
+#else
+#define V(PROVIDER)                                                           \
+  case PROVIDER_ ## PROVIDER:                                                 \
+    TRACE_EVENT_END(                                                          \
+      "node.async_hooks",                                                     \
+      perfetto::Track(get_async_id()));                                       \
+    break;
+#endif
   switch (provider_type()) {
-  #define V(PROVIDER)                                                         \
-    case PROVIDER_ ## PROVIDER:                                               \
-      TRACE_EVENT_NESTABLE_ASYNC_END0(                                        \
-        TRACING_CATEGORY_NODE1(async_hooks),                                  \
-        #PROVIDER, static_cast<int64_t>(get_async_id()));                     \
-      break;
     NODE_ASYNC_PROVIDER_TYPES(V)
-  #undef V
     default:
       UNREACHABLE();
   }
+#undef V
 }
 
 void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
@@ -865,6 +903,7 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
     }
   }
 
+#ifndef V8_USE_PERFETTO
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
     case PROVIDER_ ## PROVIDER:                                               \
@@ -886,6 +925,27 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
     default:
       UNREACHABLE();
   }
+#else
+  switch (provider_type()) {
+#define V(PROVIDER)                                                           \
+    case PROVIDER_ ## PROVIDER:                                               \
+      TRACE_EVENT_BEGIN(                                                      \
+        "node.async_hooks",                                                   \
+        #PROVIDER,                                                            \
+        perfetto::Track(get_async_id()), [&](perfetto::EventContext ctx) {    \
+          auto info = ctx.event()->set_async_wrap_info();                     \
+          info->set_executionasyncid(                                         \
+              static_cast<int64_t>(env()->execution_async_id()));             \
+          info->set_triggerasyncid(                                           \
+              static_cast<int64_t>(env()->trigger_async_id()));               \
+        });                                                                   \
+      break;
+    NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+#endif
 
   if (silent) return;
 

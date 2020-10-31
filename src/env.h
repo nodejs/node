@@ -860,10 +860,12 @@ class TrackingTraceStateObserver :
   explicit TrackingTraceStateObserver(Environment* env) : env_(env) {}
 
   void OnTraceEnabled() override {
+printf("TracingTraceStateObserver::OnTraceEnabled\n");
     UpdateTraceCategoryState();
   }
 
   void OnTraceDisabled() override {
+printf("TracingTraceStateObserver::OnTraceDisabled\n");
     UpdateTraceCategoryState();
   }
 
@@ -1387,6 +1389,8 @@ class Environment : public MemoryRetainer {
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
 
+  inline TrackingTraceStateObserver* trace_state_observer();
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1451,7 +1455,7 @@ class Environment : public MemoryRetainer {
   AliasedUint32Array should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
 
-  std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
+  TrackingTraceStateObserver trace_state_observer_;
 
   AliasedInt32Array stream_base_state_;
 

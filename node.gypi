@@ -29,6 +29,9 @@
     [ 'clang==1', {
       'cflags': [ '-Werror=undefined-inline', ]
     }],
+    [ 'v8_use_perfetto == 1', {
+      'defines': ['V8_USE_PERFETTO']
+    }],
     [ 'node_shared=="false" and "<(_type)"=="executable"', {
       'msvs_settings': {
         'VCManifestTool': {
