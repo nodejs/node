@@ -182,17 +182,7 @@ TEST_F(EnvironmentTest, AtExitWithEnvironment) {
   const Argv argv;
   Env env {handle_scope, argv};
 
-  AtExit(*env, at_exit_callback1);
-  RunAtExit(*env);
-  EXPECT_TRUE(called_cb_1);
-}
-
-TEST_F(EnvironmentTest, AtExitWithoutEnvironment) {
-  const v8::HandleScope handle_scope(isolate_);
-  const Argv argv;
-  Env env {handle_scope, argv};
-
-  AtExit(at_exit_callback1);  // No Environment is passed to AtExit.
+  AtExit(*env, at_exit_callback1, nullptr);
   RunAtExit(*env);
   EXPECT_TRUE(called_cb_1);
 }
@@ -203,8 +193,8 @@ TEST_F(EnvironmentTest, AtExitOrder) {
   Env env {handle_scope, argv};
 
   // Test that callbacks are run in reverse order.
-  AtExit(*env, at_exit_callback_ordered1);
-  AtExit(*env, at_exit_callback_ordered2);
+  AtExit(*env, at_exit_callback_ordered1, nullptr);
+  AtExit(*env, at_exit_callback_ordered2, nullptr);
   RunAtExit(*env);
   EXPECT_TRUE(called_cb_ordered_1);
   EXPECT_TRUE(called_cb_ordered_2);
@@ -239,8 +229,8 @@ TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   Env env1 {handle_scope, argv};
   Env env2 {handle_scope, argv, node::EnvironmentFlags::kNoFlags};
 
-  AtExit(*env1, at_exit_callback1);
-  AtExit(*env2, at_exit_callback2);
+  AtExit(*env1, at_exit_callback1, nullptr);
+  AtExit(*env2, at_exit_callback2, nullptr);
   RunAtExit(*env1);
   EXPECT_TRUE(called_cb_1);
   EXPECT_FALSE(called_cb_2);

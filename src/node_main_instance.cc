@@ -139,7 +139,7 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
     Context::Scope context_scope(env->context());
 
     if (exit_code == 0) {
-      LoadEnvironment(env.get());
+      LoadEnvironment(env.get(), StartExecutionCallback{});
 
       exit_code = SpinEventLoop(env.get()).FromMaybe(1);
     }
