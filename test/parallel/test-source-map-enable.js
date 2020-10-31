@@ -265,6 +265,23 @@ function nextdir() {
   );
 }
 
+// Does not attempt to apply path resolution logic to absolute URLs
+// with schemes.
+// Refs: https://github.com/webpack/webpack/issues/9601
+// Refs: https://sourcemaps.info/spec.html#h.75yo6yoyk7x5
+{
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/webpack.js')
+  ]);
+  // Error in original context of source content:
+  assert.ok(
+    output.stderr.toString().match(/throw new Error\('oh no!'\)\n.*\^/)
+  );
+  // Rewritten stack trace:
+  assert.ok(output.stderr.toString().includes('webpack:///./webpack.js:14:9'));
+}
+
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {
