@@ -23,6 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const EventEmitter = require('events');
+const { strictEqual } = require('assert');
 
 function listener1() {}
 
@@ -235,4 +236,18 @@ function listener2() {}
   ee.on('foo', mustNotCall, { signal: ac.signal });
   ee.removeListener('foo', mustNotCall);
   ee.emit('foo');
+}
+{
+  // AbortSignals - checking rawListeners
+  const ac = new AbortController();
+  const ee = new EventEmitter();
+  const fn = common.mustCall();
+  ee.on('foo', fn, { signal: ac.signal });
+  const listeners = ee.listeners('foo');
+  strictEqual(listeners.length, 1);
+  strictEqual(listeners[0], fn);
+  ee.emit('foo');
+  const rawListeners = ee.rawListeners('foo');
+  strictEqual(rawListeners.length, 1);
+  strictEqual(rawListeners[0].listener, fn);
 }

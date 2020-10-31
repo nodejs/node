@@ -560,7 +560,7 @@ myEE.emit('foo');
 //   a
 ```
 
-An AbortSignal can be passed in to facilitate removal of the listener without 
+An AbortSignal can be passed in to facilitate removal of the listener without
 keeping a reference to the listener function:
 
 ```js
