@@ -383,10 +383,6 @@ inline T* Environment::AddBindingData(
   return item.get();
 }
 
-inline Environment* Environment::GetThreadLocalEnv() {
-  return static_cast<Environment*>(uv_key_get(&thread_local_env));
-}
-
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }

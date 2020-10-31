@@ -222,14 +222,6 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 // in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env);
 
-// It is recommended to use InitializeNodeWithArgs() instead as an embedder.
-// Init() calls InitializeNodeWithArgs() and exits the process with the exit
-// code returned from it.
-NODE_DEPRECATED("Use InitializeNodeWithArgs() instead",
-    NODE_EXTERN void Init(int* argc,
-                          const char** argv,
-                          int* exec_argc,
-                          const char*** exec_argv));
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from argv, fill exec_argv, and possibly add errors resulting from parsing
 // the arguments to `errors`. The return value is a suggested exit code for the
@@ -358,10 +350,8 @@ NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate);
 // Isolate::Allocate(), MultiIsolatePlatform::RegisterIsolate(),
 // Isolate::Initialize(), and SetIsolateUpForNode().
 NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
-                                    struct uv_loop_s* event_loop);
-NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
                                     struct uv_loop_s* event_loop,
-                                    MultiIsolatePlatform* platform);
+                                    MultiIsolatePlatform* platform = nullptr);
 NODE_EXTERN v8::Isolate* NewIsolate(
     std::shared_ptr<ArrayBufferAllocator> allocator,
     struct uv_loop_s* event_loop,
@@ -422,14 +412,6 @@ struct InspectorParentHandle {
 // TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are
 // pending JavaScript exceptions.
-// It is recommended to use the second variant taking a flags argument.
-NODE_DEPRECATED("Use overload taking a flags argument",
-    NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
-                                               v8::Local<v8::Context> context,
-                                               int argc,
-                                               const char* const* argv,
-                                               int exec_argc,
-                                               const char* const* exec_argv));
 NODE_EXTERN Environment* CreateEnvironment(
     IsolateData* isolate_data,
     v8::Local<v8::Context> context,
@@ -459,18 +441,12 @@ struct StartExecutionCallbackInfo {
 using StartExecutionCallback =
     std::function<v8::MaybeLocal<v8::Value>(const StartExecutionCallbackInfo&)>;
 
-NODE_DEPRECATED("Use variants returning MaybeLocal<> instead",
-    NODE_EXTERN void LoadEnvironment(Environment* env));
-// The `InspectorParentHandle` arguments here are ignored and not used.
-// For passing `InspectorParentHandle`, use `CreateEnvironment()`.
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
-    StartExecutionCallback cb,
-    std::unique_ptr<InspectorParentHandle> ignored_donotuse_removeme = {});
+    StartExecutionCallback cb);
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
-    const char* main_script_source_utf8,
-    std::unique_ptr<InspectorParentHandle> ignored_donotuse_removeme = {});
+    const char* main_script_source_utf8);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
@@ -498,25 +474,17 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> PrepareStackTraceCallback(
     v8::Local<v8::Value> exception,
     v8::Local<v8::Array> trace);
 
-// This returns the MultiIsolatePlatform used in the main thread of Node.js.
-// If NODE_USE_V8_PLATFORM has not been defined when Node.js was built,
-// it returns nullptr.
-NODE_DEPRECATED("Use GetMultiIsolatePlatform(env) instead",
-    NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform());
 // This returns the MultiIsolatePlatform used for an Environment or IsolateData
 // instance, if one exists.
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
-// Legacy variants of MultiIsolatePlatform::Create().
-NODE_DEPRECATED("Use variant taking a v8::TracingController* pointer instead",
+NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
     NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
         int thread_pool_size,
-        node::tracing::TracingController* tracing_controller));
-NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller);
-NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
+        v8::TracingController* tracing_controller));
+NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
+    NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform));
 
 // Get/set the currently active tracing controller. Using CreatePlatform()
 // will implicitly set this by default. This is global and should be initialized
@@ -920,16 +888,6 @@ NODE_EXTERN void AddLinkedBinding(Environment* env,
                                   addon_context_register_func fn,
                                   void* priv);
 
-/* Called after the event loop exits but before the VM is disposed.
- * Callbacks are run in reverse order of registration, i.e. newest first.
- *
- * You should always use the three-argument variant (or, for addons,
- * AddEnvironmentCleanupHook) in order to avoid relying on global state.
- */
-NODE_DEPRECATED(
-    "Use the three-argument variant of AtExit() or AddEnvironmentCleanupHook()",
-    NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = nullptr));
-
 /* Registers a callback with the passed-in Environment instance. The callback
  * is called after the event loop exits, but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.
@@ -937,12 +895,6 @@ NODE_DEPRECATED(
 NODE_EXTERN void AtExit(Environment* env,
                         void (*cb)(void* arg),
                         void* arg);
-NODE_DEPRECATED(
-    "Use the three-argument variant of AtExit() or AddEnvironmentCleanupHook()",
-    inline void AtExit(Environment* env,
-                       void (*cb)(void* arg)) {
-      AtExit(env, cb, nullptr);
-    })
 
 typedef double async_id;
 struct async_context {
