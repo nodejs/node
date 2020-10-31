@@ -1,0 +1,5 @@
+name: addressbook
+description: dartlang.org example code.
+
+dependencies:
+  protobuf:

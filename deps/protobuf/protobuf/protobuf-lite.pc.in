@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: Protocol Buffers
+Description: Google's Data Interchange Format
+Version: @VERSION@
+Libs: -L${libdir} -lprotobuf-lite @PTHREAD_LIBS@
+Cflags: -I${includedir} @PTHREAD_CFLAGS@
+Conflicts: protobuf

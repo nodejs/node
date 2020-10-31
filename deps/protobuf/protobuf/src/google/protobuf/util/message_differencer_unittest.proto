@@ -1,0 +1,78 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// Author: kenton@google.com (Kenton Varda)
+//  Based on original Protocol Buffers design by
+//  Sanjay Ghemawat, Jeff Dean, and others.
+//
+// This file contains messages for testing repeated field comparison
+
+syntax = "proto2";
+
+package protobuf_unittest;
+
+import "google/protobuf/any.proto";
+
+option optimize_for = SPEED;
+
+message TestField {
+  optional int32 a = 3;
+  optional int32 b = 4;
+  optional int32 c = 1;
+  repeated int32 rc = 2;
+  optional TestField m = 5;
+
+  extend TestDiffMessage {
+    optional TestField tf = 100;
+  }
+}
+
+message TestDiffMessage {
+  repeated group Item = 1 {
+    optional int32 a = 2;       // Test basic repeated field comparison.
+    optional string b = 4;      // Test basic repeated field comparison.
+    repeated int32 ra = 3;      // Test SetOfSet Comparison.
+    repeated string rb = 5;     // Test TreatAsMap when key is repeated
+    optional TestField m = 6;   // Test TreatAsMap when key is a message
+    repeated TestField rm = 7;  // Test TreatAsMap when key is a repeated
+                                // message
+  }
+
+  optional int32 v = 13 [deprecated = true];
+  optional string w = 14;
+  optional TestField m = 15;
+  repeated int32 rv = 11;                          // Test for combinations
+  repeated string rw = 10;                         // Test for combinations
+  repeated TestField rm = 12 [deprecated = true];  // Test for combinations
+  repeated google.protobuf.Any rany =
+      16;  // Test for repeated Any type resolution
+
+  extensions 100 to 199;
+}

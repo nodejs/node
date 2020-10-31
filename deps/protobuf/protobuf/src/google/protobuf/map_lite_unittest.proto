@@ -1,0 +1,130 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto2";
+
+option cc_enable_arenas = true;
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/unittest_lite.proto";
+import "google/protobuf/unittest_no_arena_lite.proto";
+
+package protobuf_unittest;
+
+message TestMapLite {
+  map<int32   , int32   > map_int32_int32       = 1;
+  map<int64   , int64   > map_int64_int64       = 2;
+  map<uint32  , uint32  > map_uint32_uint32     = 3;
+  map<uint64  , uint64  > map_uint64_uint64     = 4;
+  map<sint32  , sint32  > map_sint32_sint32     = 5;
+  map<sint64  , sint64  > map_sint64_sint64     = 6;
+  map<fixed32 , fixed32 > map_fixed32_fixed32   = 7;
+  map<fixed64 , fixed64 > map_fixed64_fixed64   = 8;
+  map<sfixed32, sfixed32> map_sfixed32_sfixed32 = 9;
+  map<sfixed64, sfixed64> map_sfixed64_sfixed64 = 10;
+  map<int32   , float   > map_int32_float       = 11;
+  map<int32   , double  > map_int32_double      = 12;
+  map<bool    , bool    > map_bool_bool         = 13;
+  map<string  , string  > map_string_string     = 14;
+  map<int32   , bytes   > map_int32_bytes       = 15;
+  map<int32   , MapEnumLite> map_int32_enum     = 16;
+  map<int32   , ForeignMessageLite> map_int32_foreign_message = 17;
+  map<int32, int32> teboring = 18;
+}
+
+message TestArenaMapLite {
+  map<int32   , int32   > map_int32_int32       = 1;
+  map<int64   , int64   > map_int64_int64       = 2;
+  map<uint32  , uint32  > map_uint32_uint32     = 3;
+  map<uint64  , uint64  > map_uint64_uint64     = 4;
+  map<sint32  , sint32  > map_sint32_sint32     = 5;
+  map<sint64  , sint64  > map_sint64_sint64     = 6;
+  map<fixed32 , fixed32 > map_fixed32_fixed32   = 7;
+  map<fixed64 , fixed64 > map_fixed64_fixed64   = 8;
+  map<sfixed32, sfixed32> map_sfixed32_sfixed32 = 9;
+  map<sfixed64, sfixed64> map_sfixed64_sfixed64 = 10;
+  map<int32   , float   > map_int32_float       = 11;
+  map<int32   , double  > map_int32_double      = 12;
+  map<bool    , bool    > map_bool_bool         = 13;
+  map<string  , string  > map_string_string     = 14;
+  map<int32   , bytes   > map_int32_bytes       = 15;
+  map<int32   , MapEnumLite> map_int32_enum     = 16;
+  map<int32   , ForeignMessageArenaLite> map_int32_foreign_message = 17;
+  map<int32, .protobuf_unittest_no_arena.ForeignMessageLite>
+      map_int32_foreign_message_no_arena = 18;
+}
+
+// Test embedded message with required fields
+message TestRequiredMessageMapLite {
+  map<int32, TestRequiredLite> map_field = 1;
+}
+
+message TestEnumMapLite {
+  map<int32, Proto2MapEnumLite> known_map_field = 101;
+  map<int32, Proto2MapEnumLite> unknown_map_field = 102;
+}
+
+message TestEnumMapPlusExtraLite {
+  map<int32, Proto2MapEnumPlusExtraLite> known_map_field = 101;
+  map<int32, Proto2MapEnumPlusExtraLite> unknown_map_field = 102;
+}
+
+message TestMessageMapLite {
+  map<int32, TestAllTypesLite> map_int32_message = 1;
+}
+
+enum Proto2MapEnumLite {
+  PROTO2_MAP_ENUM_FOO_LITE = 0;
+  PROTO2_MAP_ENUM_BAR_LITE = 1;
+  PROTO2_MAP_ENUM_BAZ_LITE = 2;
+}
+
+enum Proto2MapEnumPlusExtraLite {
+  E_PROTO2_MAP_ENUM_FOO_LITE   = 0;
+  E_PROTO2_MAP_ENUM_BAR_LITE   = 1;
+  E_PROTO2_MAP_ENUM_BAZ_LITE   = 2;
+  E_PROTO2_MAP_ENUM_EXTRA_LITE = 3;
+}
+
+enum MapEnumLite {
+  MAP_ENUM_FOO_LITE = 0;
+  MAP_ENUM_BAR_LITE = 1;
+  MAP_ENUM_BAZ_LITE = 2;
+}
+
+message TestRequiredLite {
+  required int32 a = 1;
+  required int32 b = 2;
+  required int32 c = 3;
+}
+
+message ForeignMessageArenaLite {
+  optional int32 c = 1;
+}

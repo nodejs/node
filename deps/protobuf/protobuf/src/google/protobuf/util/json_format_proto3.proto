@@ -1,0 +1,189 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto3";
+
+package proto3;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/unittest.proto";
+
+option java_package = "com.google.protobuf.util";
+option java_outer_classname = "JsonFormatProto3";
+
+enum EnumType {
+  FOO = 0;
+  BAR = 1;
+}
+
+message MessageType {
+  int32 value = 1;
+}
+
+message TestMessage {
+  bool bool_value = 1;
+  int32 int32_value = 2;
+  int64 int64_value = 3;
+  uint32 uint32_value = 4;
+  uint64 uint64_value = 5;
+  float float_value = 6;
+  double double_value = 7;
+  string string_value = 8;
+  bytes bytes_value = 9;
+  EnumType enum_value = 10;
+  MessageType message_value = 11;
+
+  repeated bool repeated_bool_value = 21;
+  repeated int32 repeated_int32_value = 22;
+  repeated int64 repeated_int64_value = 23;
+  repeated uint32 repeated_uint32_value = 24;
+  repeated uint64 repeated_uint64_value = 25;
+  repeated float repeated_float_value = 26;
+  repeated double repeated_double_value = 27;
+  repeated string repeated_string_value = 28;
+  repeated bytes repeated_bytes_value = 29;
+  repeated EnumType repeated_enum_value = 30;
+  repeated MessageType repeated_message_value = 31;
+}
+
+message TestOneof {
+  // In JSON format oneof fields behave mostly the same as optional
+  // fields except that:
+  //   1. Oneof fields have field presence information and will be
+  //      printed if it's set no matter whether it's the default value.
+  //   2. Multiple oneof fields in the same oneof cannot appear at the
+  //      same time in the input.
+  oneof oneof_value {
+    int32 oneof_int32_value = 1;
+    string oneof_string_value = 2;
+    bytes oneof_bytes_value = 3;
+    EnumType oneof_enum_value = 4;
+    MessageType oneof_message_value = 5;
+  }
+}
+
+message TestMap {
+  map<bool, int32> bool_map = 1;
+  map<int32, int32> int32_map = 2;
+  map<int64, int32> int64_map = 3;
+  map<uint32, int32> uint32_map = 4;
+  map<uint64, int32> uint64_map = 5;
+  map<string, int32> string_map = 6;
+}
+
+message TestNestedMap {
+  map<bool, int32> bool_map = 1;
+  map<int32, int32> int32_map = 2;
+  map<int64, int32> int64_map = 3;
+  map<uint32, int32> uint32_map = 4;
+  map<uint64, int32> uint64_map = 5;
+  map<string, int32> string_map = 6;
+  map<string, TestNestedMap> map_map = 7;
+}
+
+message TestWrapper {
+  google.protobuf.BoolValue bool_value = 1;
+  google.protobuf.Int32Value int32_value = 2;
+  google.protobuf.Int64Value int64_value = 3;
+  google.protobuf.UInt32Value uint32_value = 4;
+  google.protobuf.UInt64Value uint64_value = 5;
+  google.protobuf.FloatValue float_value = 6;
+  google.protobuf.DoubleValue double_value = 7;
+  google.protobuf.StringValue string_value = 8;
+  google.protobuf.BytesValue bytes_value = 9;
+
+  repeated google.protobuf.BoolValue repeated_bool_value = 11;
+  repeated google.protobuf.Int32Value repeated_int32_value = 12;
+  repeated google.protobuf.Int64Value repeated_int64_value = 13;
+  repeated google.protobuf.UInt32Value repeated_uint32_value = 14;
+  repeated google.protobuf.UInt64Value repeated_uint64_value = 15;
+  repeated google.protobuf.FloatValue repeated_float_value = 16;
+  repeated google.protobuf.DoubleValue repeated_double_value = 17;
+  repeated google.protobuf.StringValue repeated_string_value = 18;
+  repeated google.protobuf.BytesValue repeated_bytes_value = 19;
+}
+
+message TestTimestamp {
+  google.protobuf.Timestamp value = 1;
+  repeated google.protobuf.Timestamp repeated_value = 2;
+}
+
+message TestDuration {
+  google.protobuf.Duration value = 1;
+  repeated google.protobuf.Duration repeated_value = 2;
+}
+
+message TestFieldMask {
+  google.protobuf.FieldMask value = 1;
+}
+
+message TestStruct {
+  google.protobuf.Struct value = 1;
+  repeated google.protobuf.Struct repeated_value = 2;
+}
+
+message TestAny {
+  google.protobuf.Any value = 1;
+  repeated google.protobuf.Any repeated_value = 2;
+}
+
+message TestValue {
+  google.protobuf.Value value = 1;
+  repeated google.protobuf.Value repeated_value = 2;
+}
+
+message TestListValue {
+  google.protobuf.ListValue value = 1;
+  repeated google.protobuf.ListValue repeated_value = 2;
+}
+
+message TestBoolValue {
+  bool bool_value = 1;
+  map<bool, int32> bool_map = 2;
+}
+
+message TestCustomJsonName {
+  int32 value = 1 [json_name = "@value"];
+}
+
+message TestExtensions {
+  .protobuf_unittest.TestAllExtensions extensions = 1;
+}
+
+message TestEnumValue {
+  EnumType enum_value1 = 1;
+  EnumType enum_value2 = 2;
+  EnumType enum_value3 = 3;
+}

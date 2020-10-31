@@ -1,0 +1,130 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// Author: kenton@google.com (Kenton Varda)
+//  Based on original Protocol Buffers design by
+//  Sanjay Ghemawat, Jeff Dean, and others.
+//
+// A proto file we will use for unit testing.
+
+syntax = "proto2";
+
+package protobuf_unittest;
+
+message TestFlagsAndStrings {
+  required int32 A = 1;
+  repeated group RepeatedGroup = 2 {
+    required string f = 3;
+  }
+}
+
+message TestBase64ByteArrays {
+  required bytes a = 1;
+}
+
+message TestJavaScriptJSON {
+  optional int32 a = 1;
+  optional float final = 2;
+  optional string in = 3;
+  optional string Var = 4;
+}
+
+message TestJavaScriptOrderJSON1 {
+  optional int32 d = 1;
+  optional int32 c = 2;
+  optional bool x = 3;
+  optional int32 b = 4;
+  optional int32 a = 5;
+}
+
+message TestJavaScriptOrderJSON2 {
+  optional int32 d = 1;
+  optional int32 c = 2;
+  optional bool x = 3;
+  optional int32 b = 4;
+  optional int32 a = 5;
+  repeated TestJavaScriptOrderJSON1 z = 6;
+}
+
+message TestLargeInt {
+  required int64 a = 1;
+  required uint64 b = 2;
+}
+
+message TestNumbers {
+  enum MyType {
+    OK = 0;
+    WARNING = 1;
+    ERROR = 2;
+  }
+  optional MyType a = 1;
+  optional int32 b = 2;
+  optional float c = 3;
+  optional bool d = 4;
+  optional double e = 5;
+  optional uint32 f = 6;
+}
+
+
+message TestCamelCase {
+  optional string normal_field = 1;
+  optional int32 CAPITAL_FIELD = 2;
+  optional int32 CamelCaseField = 3;
+}
+
+message TestBoolMap {
+  map<bool, int32> bool_map = 1;
+}
+
+message TestRecursion {
+  optional int32 value = 1;
+  optional TestRecursion child = 2;
+}
+
+message TestStringMap {
+  map<string, string> string_map = 1;
+}
+
+message TestStringSerializer {
+  optional string scalar_string = 1;
+  repeated string repeated_string = 2;
+  map<string, string> string_map = 3;
+}
+
+message TestMessageWithExtension {
+  extensions 100 to max;
+}
+
+message TestExtension {
+  extend TestMessageWithExtension {
+    optional TestExtension ext = 100;
+  }
+  optional string value = 1;
+}

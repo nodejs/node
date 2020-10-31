@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package one.two.a_three;
+
+option ruby_package = "A::B::C";
+
+message Four {
+  string a_string = 1;
+}

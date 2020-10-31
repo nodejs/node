@@ -1,0 +1,176 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto3";
+package conformance;
+option java_package = "com.google.protobuf.conformance";
+
+// This defines the conformance testing protocol.  This protocol exists between
+// the conformance test suite itself and the code being tested.  For each test,
+// the suite will send a ConformanceRequest message and expect a
+// ConformanceResponse message.
+//
+// You can either run the tests in two different ways:
+//
+//   1. in-process (using the interface in conformance_test.h).
+//
+//   2. as a sub-process communicating over a pipe.  Information about how to
+//      do this is in conformance_test_runner.cc.
+//
+// Pros/cons of the two approaches:
+//
+//   - running as a sub-process is much simpler for languages other than C/C++.
+//
+//   - running as a sub-process may be more tricky in unusual environments like
+//     iOS apps, where fork/stdin/stdout are not available.
+
+enum WireFormat {
+  UNSPECIFIED = 0;
+  PROTOBUF = 1;
+  JSON = 2;
+  JSPB = 3;  // Google internal only. Opensource testees just skip it.
+  TEXT_FORMAT = 4;
+}
+
+enum TestCategory {
+  UNSPECIFIED_TEST = 0;
+  BINARY_TEST = 1;  // Test binary wire format.
+  JSON_TEST = 2;    // Test json wire format.
+  // Similar to JSON_TEST. However, during parsing json, testee should ignore
+  // unknown fields. This feature is optional. Each implementation can descide
+  // whether to support it.  See
+  // https://developers.google.com/protocol-buffers/docs/proto3#json_options
+  // for more detail.
+  JSON_IGNORE_UNKNOWN_PARSING_TEST = 3;
+  // Test jspb wire format. Google internal only. Opensource testees just skip it.
+  JSPB_TEST = 4;
+  // Test text format. For cpp, java and python, testees can already deal with
+  // this type. Testees of other languages can simply skip it.
+  TEXT_FORMAT_TEST = 5;
+}
+
+// The conformance runner will request a list of failures as the first request.
+// This will be known by message_type == "conformance.FailureSet", a conformance
+// test should return a serialized FailureSet in protobuf_payload.
+message FailureSet {
+  repeated string failure = 1;
+}
+
+// Represents a single test case's input.  The testee should:
+//
+//   1. parse this proto (which should always succeed)
+//   2. parse the protobuf or JSON payload in "payload" (which may fail)
+//   3. if the parse succeeded, serialize the message in the requested format.
+message ConformanceRequest {
+  // The payload (whether protobuf of JSON) is always for a
+  // protobuf_test_messages.proto3.TestAllTypes proto (as defined in
+  // src/google/protobuf/proto3_test_messages.proto).
+  //
+  // TODO(haberman): if/when we expand the conformance tests to support proto2,
+  // we will want to include a field that lets the payload/response be a
+  // protobuf_test_messages.proto2.TestAllTypes message instead.
+  oneof payload {
+    bytes protobuf_payload = 1;
+    string json_payload = 2;
+    // Google internal only.  Opensource testees just skip it.
+    string jspb_payload = 7;
+    string text_payload = 8;
+  }
+
+  // Which format should the testee serialize its message to?
+  WireFormat requested_output_format = 3;
+
+  // The full name for the test message to use; for the moment, either:
+  // protobuf_test_messages.proto3.TestAllTypesProto3 or
+  // protobuf_test_messages.proto2.TestAllTypesProto2.
+  string message_type = 4;
+
+  // Each test is given a specific test category. Some category may need
+  // spedific support in testee programs. Refer to the defintion of TestCategory
+  // for more information.
+  TestCategory test_category = 5;
+
+  // Specify details for how to encode jspb.
+  JspbEncodingConfig jspb_encoding_options = 6;
+
+  // This can be used in json and text format. If true, testee should print
+  // unknown fields instead of ignore. This feature is optional.
+  bool print_unknown_fields = 9;
+}
+
+// Represents a single test case's output.
+message ConformanceResponse {
+  oneof result {
+    // This string should be set to indicate parsing failed.  The string can
+    // provide more information about the parse error if it is available.
+    //
+    // Setting this string does not necessarily mean the testee failed the
+    // test.  Some of the test cases are intentionally invalid input.
+    string parse_error = 1;
+
+    // If the input was successfully parsed but errors occurred when
+    // serializing it to the requested output format, set the error message in
+    // this field.
+    string serialize_error = 6;
+
+    // This should be set if some other error occurred.  This will always
+    // indicate that the test failed.  The string can provide more information
+    // about the failure.
+    string runtime_error = 2;
+
+    // If the input was successfully parsed and the requested output was
+    // protobuf, serialize it to protobuf and set it in this field.
+    bytes protobuf_payload = 3;
+
+    // If the input was successfully parsed and the requested output was JSON,
+    // serialize to JSON and set it in this field.
+    string json_payload = 4;
+
+    // For when the testee skipped the test, likely because a certain feature
+    // wasn't supported, like JSON input/output.
+    string skipped = 5;
+
+    // If the input was successfully parsed and the requested output was JSPB,
+    // serialize to JSPB and set it in this field. JSPB is google internal only
+    // format. Opensource testees can just skip it.
+    string jspb_payload = 7;
+
+    // If the input was successfully parsed and the requested output was
+    // TEXT_FORMAT, serialize to TEXT_FORMAT and set it in this field.
+    string text_payload = 8;
+  }
+}
+
+// Encoding options for jspb format.
+message JspbEncodingConfig {
+  // Encode the value field of Any as jspb array if ture, otherwise binary.
+  bool use_jspb_array_any_format = 1;
+}
+

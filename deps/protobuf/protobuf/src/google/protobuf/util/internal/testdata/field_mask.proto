@@ -1,0 +1,71 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto3";
+
+package proto_util_converter.testing;
+
+import "google/protobuf/field_mask.proto";
+
+message NestedFieldMask {
+  string data = 1;
+  google.protobuf.FieldMask single_mask = 2;
+  repeated google.protobuf.FieldMask repeated_mask = 3;
+}
+
+message FieldMaskTest {
+  string id = 1;
+  google.protobuf.FieldMask single_mask = 2;
+  repeated google.protobuf.FieldMask repeated_mask = 3;
+  repeated NestedFieldMask nested_mask = 4;
+}
+
+message FieldMaskTestCases {
+  FieldMaskWrapper single_mask = 1;
+  FieldMaskWrapper multiple_mask = 2;
+  FieldMaskWrapper snake_camel = 3;
+  FieldMaskWrapper empty_field = 4;
+  FieldMaskWrapper apiary_format1 = 5;
+  FieldMaskWrapper apiary_format2 = 6;
+  FieldMaskWrapper apiary_format3 = 7;
+  FieldMaskWrapper map_key1 = 8;
+  FieldMaskWrapper map_key2 = 9;
+  FieldMaskWrapper map_key3 = 10;
+  FieldMaskWrapper map_key4 = 11;
+  FieldMaskWrapper map_key5 = 12;
+}
+
+message FieldMaskWrapper {
+  google.protobuf.FieldMask mask = 1;
+}
+
+service FieldMaskTestService {
+  rpc Call(FieldMaskTestCases) returns (FieldMaskTestCases);
+}

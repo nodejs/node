@@ -1,0 +1,22 @@
+# This is the list of conformance tests that are known to fail for the
+# Python/C++ implementation right now.  These should be fixed.
+#
+# By listing them here we can keep tabs on which ones are failing and be sure
+# that we don't introduce regressions in other tests.
+#
+# TODO(haberman): insert links to corresponding bugs tracking the issue.
+# Should we use GitHub issues or the Google-internal bug tracker?
+
+Recommended.Proto3.JsonInput.BytesFieldBase64Url.JsonOutput
+Recommended.Proto3.JsonInput.BytesFieldBase64Url.ProtobufOutput
+Recommended.Proto3.JsonInput.DoubleFieldInfinityNotQuoted
+Recommended.Proto3.JsonInput.DoubleFieldNanNotQuoted
+Recommended.Proto3.JsonInput.DoubleFieldNegativeInfinityNotQuoted
+Recommended.Proto3.JsonInput.FloatFieldInfinityNotQuoted
+Recommended.Proto3.JsonInput.FloatFieldNanNotQuoted
+Recommended.Proto3.JsonInput.FloatFieldNegativeInfinityNotQuoted
+Required.Proto3.JsonInput.DoubleFieldTooSmall
+Required.Proto3.JsonInput.FloatFieldTooLarge
+Required.Proto3.JsonInput.FloatFieldTooSmall
+Required.Proto3.JsonInput.RepeatedFieldWrongElementTypeExpectingIntegersGotBool
+Required.Proto3.JsonInput.TimestampJsonInputLowercaseT

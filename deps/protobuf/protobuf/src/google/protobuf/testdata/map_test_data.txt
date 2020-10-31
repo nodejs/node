@@ -1,0 +1,140 @@
+map_int32_int32 {
+  key: 0
+  value: 0
+}
+map_int32_int32 {
+  key: 1
+  value: 1
+}
+map_int64_int64 {
+  key: 0
+  value: 0
+}
+map_int64_int64 {
+  key: 1
+  value: 1
+}
+map_uint32_uint32 {
+  key: 0
+  value: 0
+}
+map_uint32_uint32 {
+  key: 1
+  value: 1
+}
+map_uint64_uint64 {
+  key: 0
+  value: 0
+}
+map_uint64_uint64 {
+  key: 1
+  value: 1
+}
+map_sint32_sint32 {
+  key: 0
+  value: 0
+}
+map_sint32_sint32 {
+  key: 1
+  value: 1
+}
+map_sint64_sint64 {
+  key: 0
+  value: 0
+}
+map_sint64_sint64 {
+  key: 1
+  value: 1
+}
+map_fixed32_fixed32 {
+  key: 0
+  value: 0
+}
+map_fixed32_fixed32 {
+  key: 1
+  value: 1
+}
+map_fixed64_fixed64 {
+  key: 0
+  value: 0
+}
+map_fixed64_fixed64 {
+  key: 1
+  value: 1
+}
+map_sfixed32_sfixed32 {
+  key: 0
+  value: 0
+}
+map_sfixed32_sfixed32 {
+  key: 1
+  value: 1
+}
+map_sfixed64_sfixed64 {
+  key: 0
+  value: 0
+}
+map_sfixed64_sfixed64 {
+  key: 1
+  value: 1
+}
+map_int32_float {
+  key: 0
+  value: 0
+}
+map_int32_float {
+  key: 1
+  value: 1
+}
+map_int32_double {
+  key: 0
+  value: 0
+}
+map_int32_double {
+  key: 1
+  value: 1
+}
+map_bool_bool {
+  key: false
+  value: false
+}
+map_bool_bool {
+  key: true
+  value: true
+}
+map_string_string {
+  key: "0"
+  value: "0"
+}
+map_string_string {
+  key: "1"
+  value: "1"
+}
+map_int32_bytes {
+  key: 0
+  value: "0"
+}
+map_int32_bytes {
+  key: 1
+  value: "1"
+}
+map_int32_enum {
+  key: 0
+  value: MAP_ENUM_BAR
+}
+map_int32_enum {
+  key: 1
+  value: MAP_ENUM_BAZ
+}
+map_int32_foreign_message {
+  key: 0
+  value {
+    c: 0
+  }
+}
+map_int32_foreign_message {
+  key: 1
+  value {
+    c: 1
+  }
+}

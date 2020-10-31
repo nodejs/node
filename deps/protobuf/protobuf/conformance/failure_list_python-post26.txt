@@ -1,0 +1,2 @@
+JsonInput.StringFieldSurrogateInWrongOrder
+JsonInput.StringFieldUnpairedHighSurrogate

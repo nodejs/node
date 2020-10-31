@@ -1,0 +1,117 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto3";
+
+package proto_util_converter.testing;
+
+import "google/protobuf/struct.proto";
+
+message StructTestCases {
+  StructWrapper empty_value = 1;
+  StructWrapper empty_value2 = 2;
+  StructWrapper null_value = 3;
+  StructWrapper simple_struct = 4;
+  StructWrapper longer_struct = 5;
+  StructWrapper struct_with_nested_struct = 6;
+  StructWrapper struct_with_nested_list = 7;
+  StructWrapper struct_with_list_of_nulls = 8;
+  StructWrapper struct_with_list_of_lists = 9;
+  StructWrapper struct_with_list_of_structs = 10;
+  StructWrapper struct_with_empty_list = 11;
+  StructWrapper struct_with_list_with_empty_struct = 12;
+  google.protobuf.Struct top_level_struct = 13;
+  google.protobuf.Struct top_level_struct_with_empty_list = 14;
+  google.protobuf.Struct top_level_struct_with_list_with_empty_struct = 15;
+  ValueWrapper value_wrapper_simple = 16;
+  ValueWrapper value_wrapper_with_struct = 17;
+  ValueWrapper value_wrapper_with_list = 18;
+  ValueWrapper value_wrapper_with_empty_list = 19;
+  ValueWrapper value_wrapper_with_list_with_empty_struct = 20;
+  ListValueWrapper list_value_wrapper = 21;
+  ListValueWrapper list_value_wrapper_with_empty_list = 22;
+  ListValueWrapper list_value_wrapper_with_list_with_empty_struct = 23;
+  google.protobuf.Value top_level_value_simple = 24;
+  google.protobuf.Value top_level_value_with_struct = 25;
+  google.protobuf.Value top_level_value_with_list = 26;
+  google.protobuf.Value top_level_value_with_empty_list = 27;
+  google.protobuf.Value top_level_value_with_list_with_empty_struct = 28;
+  google.protobuf.ListValue top_level_listvalue = 29;
+  google.protobuf.ListValue top_level_empty_listvalue = 30;
+  google.protobuf.ListValue top_level_listvalue_with_empty_struct = 31;
+  RepeatedValueWrapper repeated_value = 32;
+  RepeatedValueWrapper repeated_value_nested_list = 33;
+  RepeatedValueWrapper repeated_value_nested_list2 = 34;
+  RepeatedValueWrapper repeated_value_nested_list3 = 35;
+  RepeatedListValueWrapper repeated_listvalue = 36;
+  MapOfStruct map_of_struct = 37;
+  MapOfStruct map_of_struct_value = 38;
+  MapOfStruct map_of_listvalue = 39;
+}
+
+message StructWrapper {
+  google.protobuf.Struct struct = 1;
+}
+
+message ValueWrapper {
+  google.protobuf.Value value = 1;
+}
+
+message RepeatedValueWrapper {
+  repeated google.protobuf.Value values = 1;
+}
+
+message ListValueWrapper {
+  google.protobuf.ListValue shopping_list = 1;
+}
+
+message RepeatedListValueWrapper {
+  repeated google.protobuf.ListValue dimensions = 1;
+}
+
+message MapOfStruct {
+  map<string, google.protobuf.Struct> struct_map = 1;
+  map<string, google.protobuf.Value> value_map = 2;
+  map<string, google.protobuf.ListValue> listvalue_map = 3;
+}
+
+// Hack to test return types with Struct as top-level message. Struct typers
+// cannot be directly used in API requests. Hence using Dummy as request type.
+message Dummy {
+  string text = 1;
+}
+
+service StructTestService {
+  rpc Call(Dummy) returns (StructTestCases);
+}
+
+message StructType {
+  google.protobuf.Struct object = 1;
+}

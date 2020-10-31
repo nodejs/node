@@ -1,0 +1,13 @@
+Required.Proto3.ProtobufInput.ValidDataRepeated.BOOL.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.DOUBLE.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.FIXED32.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.FIXED64.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.FLOAT.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.INT32.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.INT64.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.SFIXED64.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.SINT32.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.SINT64.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.UINT32.ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataRepeated.UINT64.ProtobufOutput

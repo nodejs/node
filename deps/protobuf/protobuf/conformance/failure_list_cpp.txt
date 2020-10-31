@@ -1,0 +1,36 @@
+# This is the list of conformance tests that are known to fail for the C++
+# implementation right now.  These should be fixed.
+#
+# By listing them here we can keep tabs on which ones are failing and be sure
+# that we don't introduce regressions in other tests.
+#
+# TODO(haberman): insert links to corresponding bugs tracking the issue.
+# Should we use GitHub issues or the Google-internal bug tracker?
+
+Recommended.FieldMaskNumbersDontRoundTrip.JsonOutput
+Recommended.FieldMaskPathsDontRoundTrip.JsonOutput
+Recommended.FieldMaskTooManyUnderscore.JsonOutput
+Recommended.Proto3.JsonInput.BoolFieldDoubleQuotedFalse
+Recommended.Proto3.JsonInput.BoolFieldDoubleQuotedTrue
+Recommended.Proto3.JsonInput.BytesFieldBase64Url.JsonOutput
+Recommended.Proto3.JsonInput.BytesFieldBase64Url.ProtobufOutput
+Recommended.Proto3.JsonInput.FieldMaskInvalidCharacter
+Recommended.Proto3.JsonInput.FieldNameDuplicate
+Recommended.Proto3.JsonInput.FieldNameDuplicateDifferentCasing1
+Recommended.Proto3.JsonInput.FieldNameDuplicateDifferentCasing2
+Recommended.Proto3.JsonInput.FieldNameNotQuoted
+Recommended.Proto3.JsonInput.MapFieldValueIsNull
+Recommended.Proto3.JsonInput.RepeatedFieldMessageElementIsNull
+Recommended.Proto3.JsonInput.RepeatedFieldPrimitiveElementIsNull
+Recommended.Proto3.JsonInput.RepeatedFieldTrailingComma
+Recommended.Proto3.JsonInput.RepeatedFieldTrailingCommaWithNewlines
+Recommended.Proto3.JsonInput.RepeatedFieldTrailingCommaWithSpace
+Recommended.Proto3.JsonInput.RepeatedFieldTrailingCommaWithSpaceCommaSpace
+Recommended.Proto3.JsonInput.StringFieldSingleQuoteBoth
+Recommended.Proto3.JsonInput.StringFieldSingleQuoteKey
+Recommended.Proto3.JsonInput.StringFieldSingleQuoteValue
+Recommended.Proto3.JsonInput.StringFieldUppercaseEscapeLetter
+Recommended.Proto3.JsonInput.TrailingCommaInAnObject
+Recommended.Proto3.JsonInput.TrailingCommaInAnObjectWithNewlines
+Recommended.Proto3.JsonInput.TrailingCommaInAnObjectWithSpace
+Recommended.Proto3.JsonInput.TrailingCommaInAnObjectWithSpaceCommaSpace

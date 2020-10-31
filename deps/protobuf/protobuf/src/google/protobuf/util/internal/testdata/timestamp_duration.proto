@@ -1,0 +1,80 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto3";
+
+package proto_util_converter.testing;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+message TimestampDurationTestCases {
+  // Timestamp tests
+  TimeStampType epoch = 1;
+  TimeStampType epoch2 = 2;
+  TimeStampType mintime = 3;
+  TimeStampType maxtime = 4;
+  TimeStampType timeval1 = 5;
+  TimeStampType timeval2 = 6;
+  TimeStampType timeval3 = 7;
+  TimeStampType timeval4 = 8;
+  TimeStampType timeval5 = 9;
+  TimeStampType timeval6 = 10;
+  TimeStampType timeval7 = 11;
+  google.protobuf.Timestamp timeval8 = 12;
+
+  // Duration tests
+  DurationType zero_duration = 101;
+  DurationType min_duration = 102;
+  DurationType max_duration = 103;
+  DurationType duration1 = 104;
+  DurationType duration2 = 105;
+  DurationType duration3 = 106;
+  DurationType duration4 = 107;
+  google.protobuf.Duration duration5 = 108;
+}
+
+message TimeStampType {
+  google.protobuf.Timestamp timestamp = 1;
+}
+
+message DurationType {
+  google.protobuf.Duration duration = 1;
+}
+
+service TimestampDurationTestService {
+  rpc Call(TimestampDurationTestCases) returns (TimestampDurationTestCases);
+}
+
+message TimestampDuration {
+  google.protobuf.Timestamp ts = 1;
+  google.protobuf.Duration dur = 2;
+  repeated google.protobuf.Timestamp rep_ts = 3;
+}

@@ -1,0 +1,214 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// Author: sven@google.com (Sven Mawson)
+//
+// Sample protos for testing.
+
+// Some of the older enums don't use CAPITALS_WITH_UNDERSCORES for testing.
+// LINT: LEGACY_NAMES
+
+syntax = "proto2";
+
+package proto_util_converter.testing;
+
+import "google/protobuf/util/internal/testdata/anys.proto";
+
+// A book
+message Book {
+  optional string title = 1;
+  optional Author author = 2;
+  optional uint32 length = 3;
+  optional int64 published = 4;
+  optional bytes content = 5;
+
+  optional group Data = 6 {
+    optional uint32 year = 7;
+    optional string copyright = 8;
+  }
+
+  message Label {
+    optional string key = 1;
+    optional string value = 2;
+  }
+
+  optional Publisher publisher = 9;
+  repeated Label labels = 10;
+
+  enum Type {
+    FICTION = 1;
+    KIDS = 2;
+    ACTION_AND_ADVENTURE = 3;
+    arts_and_photography = 4;
+    I18N_Tech = 5;
+  }
+  optional Type type = 11;
+
+  // Useful for testing JSON snake/camel-case conversions.
+  optional string snake_field = 12;
+
+  // Used to test type not found in type info. Messages defined in other files
+  // are not added when adding Book to type info.
+  optional AnyWrapper type_not_found = 13;
+
+  // Used to test invalid value inside of primitive repeated fields.
+  repeated int32 primitive_repeated = 14;
+
+  extensions 200 to 499;
+}
+
+// A publisher of a book, tests required fields.
+message Publisher {
+  required string name = 1;
+}
+
+// An author of a book
+message Author {
+  optional uint64 id = 1 [json_name = "@id"];
+  optional string name = 2;
+  repeated string pseudonym = 3;
+  optional bool alive = 4;
+  repeated Author friend = 5;
+}
+
+// For testing resiliency of our protostream parser.
+// Field numbers of Author are reused for something else.
+message BadAuthor {
+  optional string id = 1;         // non-length-delimited to length-delimited.
+  repeated uint64 name = 2;       // string to repeated (both length-delimited).
+  optional string pseudonym = 3;  // Repeated to optional.
+  repeated bool alive = 4 [packed = true];  // Optional to repeated.
+}
+
+// All primitive types
+message Primitive {
+  // 32 bit numbers:
+  optional fixed32 fix32 = 1;
+  optional uint32 u32 = 2;
+  optional int32 i32 = 3;
+  optional sfixed32 sf32 = 4;
+  optional sint32 s32 = 5;
+
+  // 64 bit numbers:
+  optional fixed64 fix64 = 6;
+  optional uint64 u64 = 7;
+  optional int64 i64 = 8;
+  optional sfixed64 sf64 = 9;
+  optional sint64 s64 = 10;
+
+  // The other stuff.
+  optional string str = 11;
+  optional bytes bytes = 12;
+  optional float float = 13;
+  optional double double = 14;
+  optional bool bool = 15;
+
+  // repeated 32 bit numbers:
+  repeated fixed32 rep_fix32 = 16;
+  repeated uint32 rep_u32 = 17;
+  repeated int32 rep_i32 = 18;
+  repeated sfixed32 rep_sf32 = 19;
+  repeated sint32 rep_s32 = 20;
+
+  // repeated 64 bit numbers:
+  repeated fixed64 rep_fix64 = 21;
+  repeated uint64 rep_u64 = 22;
+  repeated int64 rep_i64 = 23;
+  repeated sfixed64 rep_sf64 = 24;
+  repeated sint64 rep_s64 = 25;
+
+  // repeated other stuff:
+  repeated string rep_str = 26;
+  repeated bytes rep_bytes = 27;
+  repeated float rep_float = 28;
+  repeated double rep_double = 29;
+  repeated bool rep_bool = 30;
+}
+
+// Test packed versions of all repeated primitives.
+// The field numbers should match their non-packed version in Primitive message.
+message PackedPrimitive {
+  // repeated 32 bit numbers:
+  repeated fixed32 rep_fix32 = 16 [packed = true];
+  repeated uint32 rep_u32 = 17 [packed = true];
+  repeated int32 rep_i32 = 18 [packed = true];
+  repeated sfixed32 rep_sf32 = 19 [packed = true];
+  repeated sint32 rep_s32 = 20 [packed = true];
+
+  // repeated 64 bit numbers:
+  repeated fixed64 rep_fix64 = 21 [packed = true];
+  repeated uint64 rep_u64 = 22 [packed = true];
+  repeated int64 rep_i64 = 23 [packed = true];
+  repeated sfixed64 rep_sf64 = 24 [packed = true];
+  repeated sint64 rep_s64 = 25 [packed = true];
+
+  // repeated other stuff:
+  repeated float rep_float = 28 [packed = true];
+  repeated double rep_double = 29 [packed = true];
+  repeated bool rep_bool = 30 [packed = true];
+}
+
+// Test extensions.
+extend Book {
+  repeated Author more_author = 201;
+}
+
+// Test nested extensions.
+message NestedBook {
+  extend Book {
+    optional NestedBook another_book = 301;
+  }
+  // Recurse
+  optional Book book = 1;
+}
+
+// For testing resiliency of our protostream parser.
+// Field number of NestedBook is reused for something else.
+message BadNestedBook {
+  repeated uint32 book = 1 [packed = true];  // Packed to optional message.
+}
+
+// A recursively defined message.
+message Cyclic {
+  optional int32 m_int = 1;
+  optional string m_str = 2;
+  optional Book m_book = 3;
+  repeated Author m_author = 5;
+  optional Cyclic m_cyclic = 4;
+}
+
+// Test that two messages can have different fields mapped to the same JSON
+// name. See: https://github.com/protocolbuffers/protobuf/issues/1415
+message TestJsonName1 {
+  optional int32 one_value = 1 [json_name = "value"];
+}
+message TestJsonName2 {
+  optional int32 another_value = 1 [json_name = "value"];
+}

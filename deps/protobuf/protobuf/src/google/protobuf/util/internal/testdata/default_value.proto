@@ -1,0 +1,170 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto3";
+
+package proto_util_converter.testing;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/wrappers.proto";
+
+message DefaultValueTestCases {
+  DoubleMessage empty_double = 1;
+  DoubleMessage double_with_default_value = 2;
+  DoubleMessage double_with_nondefault_value = 3;
+  DoubleMessage repeated_double = 4;
+  DoubleMessage nested_message = 5;
+  DoubleMessage repeated_nested_message = 6;
+  DoubleMessage double_message_with_oneof = 7;
+  StructMessage empty_struct = 201;
+  StructMessage empty_struct2 = 202;
+  StructMessage struct_with_null_value = 203;
+  StructMessage struct_with_values = 204;
+  StructMessage struct_with_nested_struct = 205;
+  StructMessage struct_with_nested_list = 206;
+  StructMessage struct_with_list_of_nulls = 207;
+  StructMessage struct_with_list_of_lists = 208;
+  StructMessage struct_with_list_of_structs = 209;
+  google.protobuf.Struct top_level_struct = 210;
+  ValueMessage value_wrapper_simple = 212;
+  ValueMessage value_wrapper_with_struct = 213;
+  ValueMessage value_wrapper_with_list = 214;
+  ListValueMessage list_value_wrapper = 215;
+  google.protobuf.Value top_level_value_simple = 216;
+  google.protobuf.Value top_level_value_with_struct = 217;
+  google.protobuf.Value top_level_value_with_list = 218;
+  google.protobuf.ListValue top_level_listvalue = 219;
+  AnyMessage empty_any = 301;
+  AnyMessage type_only_any = 302;
+  AnyMessage recursive_any = 303;
+  AnyMessage any_with_message_value = 304;
+  AnyMessage any_with_nested_message = 305;
+  AnyMessage any_with_message_containing_map = 306;
+  AnyMessage any_with_message_containing_struct = 307;
+  google.protobuf.Any top_level_any = 308;
+  StringtoIntMap empty_map = 401;
+  StringtoIntMap string_to_int = 402;
+  IntToStringMap int_to_string = 403;
+  MixedMap mixed1 = 404;
+  MixedMap2 mixed2 = 405;
+  MixedMap2 empty_mixed2 = 406;
+  MessageMap map_of_objects = 407;
+  MixedMap mixed_empty = 408;
+  MessageMap message_map_empty = 409;
+  DoubleValueMessage double_value = 501;
+  DoubleValueMessage double_value_default = 502;
+}
+
+message DoubleMessage {
+  double double_value = 1;
+  repeated double repeated_double = 2;
+  DoubleMessage nested_message = 3;
+  repeated DoubleMessage repeated_nested_message = 4;
+  google.protobuf.DoubleValue double_wrapper = 100;
+  oneof value {
+    string str_value = 112;
+    int64 num_value = 113;
+  }
+}
+
+message StructMessage {
+  google.protobuf.Struct struct = 1;
+}
+
+message ValueMessage {
+  google.protobuf.Value value = 1;
+}
+
+message ListValueMessage {
+  google.protobuf.ListValue shopping_list = 1;
+}
+message RequestMessage {
+  string content = 1;
+}
+
+// A test service.
+service DefaultValueTestService {
+  // A test method.
+  rpc Call(RequestMessage) returns (DefaultValueTestCases);
+}
+
+message AnyMessage {
+  google.protobuf.Any any = 1;
+  AnyData data = 2;
+}
+
+message AnyData {
+  int32 attr = 1;
+  string str = 2;
+  repeated string msgs = 3;
+  AnyData nested_data = 4;
+  map<string, string> map_data = 7;
+  google.protobuf.Struct struct_data = 8;
+  repeated AnyData repeated_data = 9;
+}
+
+message StringtoIntMap {
+  map<string, int32> map = 1;
+}
+
+message IntToStringMap {
+  map<int32, string> map = 1;
+}
+
+message MixedMap {
+  string msg = 1;
+  map<string, float> map = 2;
+  int32 int_value = 3;
+}
+
+message MixedMap2 {
+  enum E {
+    E0 = 0;
+    E1 = 1;
+    E2 = 2;
+    E3 = 3;
+  }
+  map<int32, bool> map = 1;
+  E ee = 2;
+  string msg = 4;
+}
+
+message MessageMap {
+  message M {
+    int32 inner_int = 1;
+    string inner_text = 2;
+  }
+  map<string, M> map = 1;
+}
+
+message DoubleValueMessage {
+  google.protobuf.DoubleValue double = 1;
+}

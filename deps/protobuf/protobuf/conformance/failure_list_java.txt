@@ -1,0 +1,47 @@
+# This is the list of conformance tests that are known to fail for the Java
+# implementation right now.  These should be fixed.
+#
+# By listing them here we can keep tabs on which ones are failing and be sure
+# that we don't introduce regressions in other tests.
+
+Recommended.FieldMaskNumbersDontRoundTrip.JsonOutput
+Recommended.FieldMaskPathsDontRoundTrip.JsonOutput
+Recommended.FieldMaskTooManyUnderscore.JsonOutput
+Recommended.Proto3.JsonInput.BoolFieldAllCapitalFalse
+Recommended.Proto3.JsonInput.BoolFieldAllCapitalTrue
+Recommended.Proto3.JsonInput.BoolFieldCamelCaseFalse
+Recommended.Proto3.JsonInput.BoolFieldCamelCaseTrue
+Recommended.Proto3.JsonInput.BoolFieldDoubleQuotedFalse
+Recommended.Proto3.JsonInput.BoolFieldDoubleQuotedTrue
+Recommended.Proto3.JsonInput.BoolMapFieldKeyNotQuoted
+Recommended.Proto3.JsonInput.DoubleFieldInfinityNotQuoted
+Recommended.Proto3.JsonInput.DoubleFieldNanNotQuoted
+Recommended.Proto3.JsonInput.DoubleFieldNegativeInfinityNotQuoted
+Recommended.Proto3.JsonInput.FieldMaskInvalidCharacter
+Recommended.Proto3.JsonInput.FieldNameDuplicate
+Recommended.Proto3.JsonInput.FieldNameNotQuoted
+Recommended.Proto3.JsonInput.FloatFieldInfinityNotQuoted
+Recommended.Proto3.JsonInput.FloatFieldNanNotQuoted
+Recommended.Proto3.JsonInput.FloatFieldNegativeInfinityNotQuoted
+Recommended.Proto3.JsonInput.Int32MapFieldKeyNotQuoted
+Recommended.Proto3.JsonInput.Int64MapFieldKeyNotQuoted
+Recommended.Proto3.JsonInput.JsonWithComments
+Recommended.Proto3.JsonInput.StringFieldSingleQuoteBoth
+Recommended.Proto3.JsonInput.StringFieldSingleQuoteKey
+Recommended.Proto3.JsonInput.StringFieldSingleQuoteValue
+Recommended.Proto3.JsonInput.StringFieldSurrogateInWrongOrder
+Recommended.Proto3.JsonInput.StringFieldUnpairedHighSurrogate
+Recommended.Proto3.JsonInput.StringFieldUnpairedLowSurrogate
+Recommended.Proto3.JsonInput.Uint32MapFieldKeyNotQuoted
+Recommended.Proto3.JsonInput.Uint64MapFieldKeyNotQuoted
+Required.Proto3.JsonInput.EnumFieldNotQuoted
+Required.Proto3.JsonInput.Int32FieldLeadingZero
+Required.Proto3.JsonInput.Int32FieldNegativeWithLeadingZero
+Required.Proto3.JsonInput.Int32FieldPlusSign
+Required.Proto3.JsonInput.RepeatedFieldWrongElementTypeExpectingStringsGotBool
+Required.Proto3.JsonInput.RepeatedFieldWrongElementTypeExpectingStringsGotInt
+Required.Proto3.JsonInput.StringFieldNotAString
+Required.Proto3.ProtobufInput.PrematureEofInDelimitedDataForKnownNonRepeatedValue.MESSAGE
+Required.Proto3.ProtobufInput.PrematureEofInDelimitedDataForKnownRepeatedValue.MESSAGE
+Required.Proto2.ProtobufInput.PrematureEofInDelimitedDataForKnownNonRepeatedValue.MESSAGE
+Required.Proto2.ProtobufInput.PrematureEofInDelimitedDataForKnownRepeatedValue.MESSAGE

@@ -1,0 +1,77 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// Proto to test proto3 oneofs.
+syntax = "proto3";
+
+package proto_util_converter.testing.oneofs;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+message OneOfsRequest {
+  string value = 1;
+  oneof data {
+    string str_data = 2;
+    int32 int_data = 3;
+    // Simple message
+    Data message_data = 4;
+    MoreData more_data = 5;
+    // Well known types
+    google.protobuf.Struct struct_data = 6;
+    google.protobuf.Value value_data = 7;
+    google.protobuf.ListValue list_value_data = 8;
+    google.protobuf.Timestamp ts_data = 9;
+  }
+  google.protobuf.Any any_data = 19;
+}
+
+message RequestWithSimpleOneof {
+  string value = 1;
+  oneof data {
+    string str_data = 2;
+    int32 int_data = 3;
+    Data message_data = 4;
+    MoreData more_data = 5;
+  }
+}
+
+message Data {
+  int32 data_value = 1;
+}
+
+message MoreData {
+  string str_value = 1;
+}
+
+message Response {
+  string value = 1;
+}

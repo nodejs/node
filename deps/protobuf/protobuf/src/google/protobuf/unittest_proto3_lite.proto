@@ -1,0 +1,206 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/unittest_import.proto";
+
+package proto3_lite_unittest;
+
+// This proto includes every type of field in both singular and repeated
+// forms.
+message TestAllTypes {
+  message NestedMessage {
+    // The field name "b" fails to compile in proto1 because it conflicts with
+    // a local variable named "b" in one of the generated methods.  Doh.
+    // This file needs to compile in proto1 to test backwards-compatibility.
+    int32 bb = 1;
+  }
+
+  enum NestedEnum {
+    ZERO = 0;
+    FOO = 1;
+    BAR = 2;
+    BAZ = 3;
+    NEG = -1;  // Intentionally negative.
+  }
+
+  // Singular
+     int32 optional_int32    =  1;
+     int64 optional_int64    =  2;
+    uint32 optional_uint32   =  3;
+    uint64 optional_uint64   =  4;
+    sint32 optional_sint32   =  5;
+    sint64 optional_sint64   =  6;
+   fixed32 optional_fixed32  =  7;
+   fixed64 optional_fixed64  =  8;
+  sfixed32 optional_sfixed32 =  9;
+  sfixed64 optional_sfixed64 = 10;
+     float optional_float    = 11;
+    double optional_double   = 12;
+      bool optional_bool     = 13;
+    string optional_string   = 14;
+     bytes optional_bytes    = 15;
+
+  // Groups are not allowed in proto3.
+  // optional group OptionalGroup = 16 {
+  //   optional int32 a = 17;
+  // }
+
+  NestedMessage                        optional_nested_message  = 18;
+  ForeignMessage                       optional_foreign_message = 19;
+  protobuf_unittest_import.ImportMessage optional_import_message  = 20;
+
+  NestedEnum                           optional_nested_enum     = 21;
+  ForeignEnum                          optional_foreign_enum    = 22;
+
+  // Omitted (compared to unittest.proto) because proto2 enums are not allowed
+  // inside proto2 messages.
+  //
+  // optional protobuf_unittest_import.ImportEnum    optional_import_enum  = 23;
+
+  string optional_string_piece = 24 [ctype=STRING_PIECE];
+  string optional_cord = 25 [ctype=CORD];
+
+  // Defined in unittest_import_public.proto
+  protobuf_unittest_import.PublicImportMessage
+      optional_public_import_message = 26;
+
+  NestedMessage optional_lazy_message = 27 [lazy=true];
+
+  // Repeated
+  repeated    int32 repeated_int32    = 31;
+  repeated    int64 repeated_int64    = 32;
+  repeated   uint32 repeated_uint32   = 33;
+  repeated   uint64 repeated_uint64   = 34;
+  repeated   sint32 repeated_sint32   = 35;
+  repeated   sint64 repeated_sint64   = 36;
+  repeated  fixed32 repeated_fixed32  = 37;
+  repeated  fixed64 repeated_fixed64  = 38;
+  repeated sfixed32 repeated_sfixed32 = 39;
+  repeated sfixed64 repeated_sfixed64 = 40;
+  repeated    float repeated_float    = 41;
+  repeated   double repeated_double   = 42;
+  repeated     bool repeated_bool     = 43;
+  repeated   string repeated_string   = 44;
+  repeated    bytes repeated_bytes    = 45;
+
+  // Groups are not allowed in proto3.
+  // repeated group RepeatedGroup = 46 {
+  //   optional int32 a = 47;
+  // }
+
+  repeated NestedMessage                        repeated_nested_message  = 48;
+  repeated ForeignMessage                       repeated_foreign_message = 49;
+  repeated protobuf_unittest_import.ImportMessage repeated_import_message  = 50;
+
+  repeated NestedEnum                           repeated_nested_enum     = 51;
+  repeated ForeignEnum                          repeated_foreign_enum    = 52;
+
+  // Omitted (compared to unittest.proto) because proto2 enums are not allowed
+  // inside proto2 messages.
+  //
+  // repeated protobuf_unittest_import.ImportEnum    repeated_import_enum  = 53;
+
+  repeated string repeated_string_piece = 54 [ctype=STRING_PIECE];
+  repeated string repeated_cord = 55 [ctype=CORD];
+
+  repeated NestedMessage repeated_lazy_message = 57 [lazy=true];
+
+  oneof oneof_field {
+    uint32 oneof_uint32 = 111;
+    NestedMessage oneof_nested_message = 112;
+    string oneof_string = 113;
+    bytes oneof_bytes = 114;
+  }
+}
+
+// Test messages for packed fields
+
+message TestPackedTypes {
+  repeated    int32 packed_int32    =  90 [packed = true];
+  repeated    int64 packed_int64    =  91 [packed = true];
+  repeated   uint32 packed_uint32   =  92 [packed = true];
+  repeated   uint64 packed_uint64   =  93 [packed = true];
+  repeated   sint32 packed_sint32   =  94 [packed = true];
+  repeated   sint64 packed_sint64   =  95 [packed = true];
+  repeated  fixed32 packed_fixed32  =  96 [packed = true];
+  repeated  fixed64 packed_fixed64  =  97 [packed = true];
+  repeated sfixed32 packed_sfixed32 =  98 [packed = true];
+  repeated sfixed64 packed_sfixed64 =  99 [packed = true];
+  repeated    float packed_float    = 100 [packed = true];
+  repeated   double packed_double   = 101 [packed = true];
+  repeated     bool packed_bool     = 102 [packed = true];
+  repeated ForeignEnum packed_enum  = 103 [packed = true];
+}
+
+// Explicitly set packed to false
+message TestUnpackedTypes {
+  repeated    int32 repeated_int32    =  1 [packed = false];
+  repeated    int64 repeated_int64    =  2 [packed = false];
+  repeated   uint32 repeated_uint32   =  3 [packed = false];
+  repeated   uint64 repeated_uint64   =  4 [packed = false];
+  repeated   sint32 repeated_sint32   =  5 [packed = false];
+  repeated   sint64 repeated_sint64   =  6 [packed = false];
+  repeated  fixed32 repeated_fixed32  =  7 [packed = false];
+  repeated  fixed64 repeated_fixed64  =  8 [packed = false];
+  repeated sfixed32 repeated_sfixed32 =  9 [packed = false];
+  repeated sfixed64 repeated_sfixed64 = 10 [packed = false];
+  repeated    float repeated_float    = 11 [packed = false];
+  repeated   double repeated_double   = 12 [packed = false];
+  repeated     bool repeated_bool     = 13 [packed = false];
+  repeated TestAllTypes.NestedEnum repeated_nested_enum = 14 [packed = false];
+}
+
+// This proto includes a recusively nested message.
+message NestedTestAllTypes {
+  NestedTestAllTypes child = 1;
+  TestAllTypes payload = 2;
+}
+
+// Define these after TestAllTypes to make sure the compiler can handle
+// that.
+message ForeignMessage {
+  int32 c = 1;
+}
+
+enum ForeignEnum {
+  FOREIGN_ZERO = 0;
+  FOREIGN_FOO = 4;
+  FOREIGN_BAR = 5;
+  FOREIGN_BAZ = 6;
+}
+
+// TestEmptyMessage is used to test behavior of unknown fields.
+message TestEmptyMessage {
+}
+

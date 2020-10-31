@@ -1,0 +1,91 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+syntax = "proto2";
+option cc_enable_arenas = true;
+
+import "google/protobuf/unittest_import.proto";
+
+// We don't put this in a package within proto2 because we need to make sure
+// that the generated code doesn't depend on being in the proto2 namespace.
+// In map_test_util.h we do "using namespace unittest = protobuf_unittest".
+package protobuf_unittest;
+
+enum Proto2MapEnum {
+  PROTO2_MAP_ENUM_FOO   = 0;
+  PROTO2_MAP_ENUM_BAR   = 1;
+  PROTO2_MAP_ENUM_BAZ   = 2;
+}
+
+enum Proto2MapEnumPlusExtra {
+  E_PROTO2_MAP_ENUM_FOO   = 0;
+  E_PROTO2_MAP_ENUM_BAR   = 1;
+  E_PROTO2_MAP_ENUM_BAZ   = 2;
+  E_PROTO2_MAP_ENUM_EXTRA = 3;
+}
+
+message TestEnumMap {
+  map<int32, Proto2MapEnum> known_map_field = 101;
+  map<int32, Proto2MapEnum> unknown_map_field = 102;
+}
+
+message TestEnumMapPlusExtra {
+  map<int32, Proto2MapEnumPlusExtra> known_map_field = 101;
+  map<int32, Proto2MapEnumPlusExtra> unknown_map_field = 102;
+}
+
+message TestImportEnumMap {
+  map<int32, protobuf_unittest_import.ImportEnumForMap> import_enum_amp = 1;
+}
+
+message TestIntIntMap {
+  map<int32, int32> m = 1;
+}
+
+// Test all key types: string, plus the non-floating-point scalars.
+message TestMaps {
+  map<int32, TestIntIntMap> m_int32 = 1;
+  map<int64, TestIntIntMap> m_int64 = 2;
+  map<uint32, TestIntIntMap> m_uint32 = 3;
+  map<uint64, TestIntIntMap> m_uint64 = 4;
+  map<sint32, TestIntIntMap> m_sint32 = 5;
+  map<sint64, TestIntIntMap> m_sint64 = 6;
+  map<fixed32, TestIntIntMap> m_fixed32 = 7;
+  map<fixed64, TestIntIntMap> m_fixed64 = 8;
+  map<sfixed32, TestIntIntMap> m_sfixed32 = 9;
+  map<sfixed64, TestIntIntMap> m_sfixed64 = 10;
+  map<bool, TestIntIntMap> m_bool = 11;
+  map<string, TestIntIntMap> m_string = 12;
+}
+
+// Test maps in submessages.
+message TestSubmessageMaps {
+  optional TestMaps m = 1;
+}

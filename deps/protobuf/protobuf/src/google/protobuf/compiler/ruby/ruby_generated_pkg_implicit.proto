@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package one.two.a_three;
+
+message Four {
+  string a_string = 1;
+}
