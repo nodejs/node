@@ -260,30 +260,117 @@ function tryParseObjectDefineOrKeys (keys) {
     pos++;
     ch = commentWhitespace();
     if (ch === 100/*d*/ && source.startsWith('efineProperty', pos + 1)) {
-      pos += 14;
-      revertPos = pos - 1;
-      ch = commentWhitespace();
-      if (ch !== 40/*(*/) {
-        pos = revertPos;
-        return;
-      }
-      pos++;
-      ch = commentWhitespace();
-      if (readExportsOrModuleDotExports(ch)) {
+      while (true) {
+        pos += 14;
+        revertPos = pos - 1;
         ch = commentWhitespace();
-        if (ch === 44/*,*/) {
+        if (ch !== 40/*(*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (!readExportsOrModuleDotExports(ch)) break;
+        ch = commentWhitespace();
+        if (ch !== 44/*,*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 39/*'*/ && ch !== 34/*"*/) break;
+        let quot = ch;
+        const exportPos = ++pos;
+        if (!identifier() || source.charCodeAt(pos) !== quot) break;
+        const expt = source.slice(exportPos, pos);
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 44/*,*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 123/*{*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch === 101/*e*/) {
+          if (!source.startsWith('numerable', pos + 1)) break;
+          pos += 10;
+          ch = commentWhitespace();
+          if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch === 39/*'*/ || ch === 34/*"*/) {
-            const exportPos = ++pos;
-            if (identifier() && source.charCodeAt(pos) === ch) {
-              // revert for "("
-              const expt = source.slice(exportPos, pos);
-              if (expt === '__esModule')
-                addExport(expt);
-            }
-          }
+          if (ch !== 116/*t*/ || !source.startsWith('rue', pos + 1)) break;
+          pos += 4;
+          ch = commentWhitespace();
+          if (ch !== 44) break;
+          pos++;
+          ch = commentWhitespace();
         }
+        if (ch === 118/*v*/) {
+          if (!source.startsWith('alue', pos + 1)) break;
+          pos += 5;
+          ch = commentWhitespace();
+          if (ch !== 58/*:*/) break;
+          pos++;
+          addExport(expt);
+          break;
+        }
+        else if (ch === 103/*g*/) {
+          if (!source.startsWith('et', pos + 1)) break;
+          pos += 3;
+          ch = commentWhitespace();
+          if (ch === 58/*:*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 102/*f*/) break;
+            if (!source.startsWith('unction', pos + 1)) break;
+            pos += 8;
+            let lastPos = pos;
+            ch = commentWhitespace();
+            if (ch !== 40 && (lastPos === pos || !identifier())) break;
+            ch = commentWhitespace();
+          }
+          if (ch !== 40/*(*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 41/*)*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 123/*{*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 114/*r*/) break;
+          if (!source.startsWith('eturn', pos + 1)) break;
+          pos += 6;
+          ch = commentWhitespace();
+          if (!identifier()) break;
+          ch = commentWhitespace();
+          if (ch === 46/*.*/) {
+            pos++;
+            commentWhitespace();
+            if (!identifier()) break;
+            ch = commentWhitespace();
+          }
+          else if (ch === 91/*[*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch === 39/*'*/) singleQuoteString();
+            else if (ch === 34/*"*/) doubleQuoteString();
+            else break;
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 93/*]*/) break;
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch === 59/*;*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch !== 125/*}*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 125/*}*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 41/*)*/) break;
+          addExport(expt);
+          return;
+        }
+        break;
       }
     }
     else if (keys && ch === 107/*k*/ && source.startsWith('eys', pos + 1)) {
