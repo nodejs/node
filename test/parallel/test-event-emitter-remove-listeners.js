@@ -251,3 +251,14 @@ function listener2() {}
   strictEqual(rawListeners.length, 1);
   strictEqual(rawListeners[0].listener, fn);
 }
+{
+  // AbortSignals - already aborted
+  const ac = new AbortController();
+  const ee = new EventEmitter();
+  const fn = common.mustNotCall();
+  ac.abort();
+  ee.on('foo', fn, { signal: ac.signal });
+  const listeners = ee.listeners('foo');
+  strictEqual(listeners.length, 0);
+  ee.emit('foo');
+}
