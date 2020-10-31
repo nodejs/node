@@ -227,10 +227,6 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   // TODO(joyeecheung): implement MemoryRetainer in the option classes.
 }
 
-void InitThreadLocalOnce() {
-  CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
-}
-
 void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   if (!env_->owns_process_state() || !env_->can_call_into_js()) {
     // Ideally, we’d have a consistent story that treats all threads/Environment
@@ -369,10 +365,6 @@ Environment::Environment(IsolateData* isolate_data,
   // We can only create the inspector agent after having cloned the options.
   inspector_agent_ = std::make_unique<inspector::Agent>(this);
 #endif
-
-  static uv_once_t init_once = UV_ONCE_INIT;
-  uv_once(&init_once, InitThreadLocalOnce);
-  uv_key_set(&thread_local_env, this);
 
   if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
     trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
@@ -1142,8 +1134,6 @@ void AsyncHooks::grow_async_ids_stack() {
       env()->async_ids_stack_string(),
       async_ids_stack_.GetJSArray()).Check();
 }
-
-uv_key_t Environment::thread_local_env = {};
 
 void Environment::Exit(int exit_code) {
   if (options()->trace_exit) {

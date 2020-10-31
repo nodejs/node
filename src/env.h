@@ -1008,9 +1008,6 @@ class Environment : public MemoryRetainer {
       BaseObjectPtr<BaseObject>,
       FastStringKey::Hash> BindingDataStore;
 
-  static uv_key_t thread_local_env;
-  static inline Environment* GetThreadLocalEnv();
-
   // Create an Environment without initializing a main Context. Use
   // InitializeMainContext() to initialize a main context for it.
   Environment(IsolateData* isolate_data,

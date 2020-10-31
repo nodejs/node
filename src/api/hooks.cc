@@ -22,11 +22,6 @@ void RunAtExit(Environment* env) {
   env->RunAtExitCallbacks();
 }
 
-void AtExit(void (*cb)(void* arg), void* arg) {
-  auto env = Environment::GetThreadLocalEnv();
-  AtExit(env, cb, arg);
-}
-
 void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
   CHECK_NOT_NULL(env);
   env->AtExit(cb, arg);
