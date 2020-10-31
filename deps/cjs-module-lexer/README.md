@@ -70,31 +70,35 @@ STRING_LITERAL: A `"` or `'` bounded ECMA-262 string literal.
 
 IDENTIFIER_STRING: ( `"` IDENTIFIER `"` | `'` IDENTIFIER `'` )
 
-COMMENT_SPACE: Any ECMA-262 whitespace, ECMA-262 block comment or ECMA-262 line comment
-
-MODULE_EXPORTS: `module` COMMENT_SPACE `.` COMMENT_SPACE `exports`
+MODULE_EXPORTS: `module` `.` `exports`
 
 EXPORTS_IDENTIFIER: MODULE_EXPORTS_IDENTIFIER | `exports`
 
-EXPORTS_DOT_ASSIGN: EXPORTS_IDENTIFIER COMMENT_SPACE `.` COMMENT_SPACE IDENTIFIER COMMENT_SPACE `=`
+EXPORTS_DOT_ASSIGN: EXPORTS_IDENTIFIER `.` IDENTIFIER `=`
 
-EXPORTS_LITERAL_COMPUTED_ASSIGN: EXPORTS_IDENTIFIER COMMENT_SPACE `[` COMMENT_SPACE IDENTIFIER_STRING COMMENT_SPACE `]` COMMENT_SPACE `=`
+EXPORTS_LITERAL_COMPUTED_ASSIGN: EXPORTS_IDENTIFIER `[` IDENTIFIER_STRING `]` `=`
 
-EXPORTS_LITERAL_PROP: (IDENTIFIER (COMMENT_SPACE `:` COMMENT_SPACE IDENTIFIER)?) | (IDENTIFIER_STRING COMMENT_SPACE `:` COMMENT_SPACE IDENTIFIER)
+EXPORTS_LITERAL_PROP: (IDENTIFIER  `:` IDENTIFIER)?) | (IDENTIFIER_STRING `:` IDENTIFIER)
 
-EXPORTS_SPREAD: `...` COMMENT_SPACE (IDENTIFIER | REQUIRE)
+EXPORTS_SPREAD: `...` (IDENTIFIER | REQUIRE)
 
 EXPORTS_MEMBER: EXPORTS_DOT_ASSIGN | EXPORTS_LITERAL_COMPUTED_ASSIGN
 
-ES_MODULE_DEFINE: `Object` COMMENT_SPACE `.` COMMENT_SPACE `defineProperty COMMENT_SPACE `(` COMMENT_SPACE `__esModule` COMMENT_SPACE `,` COMMENT_SPACE IDENTIFIER_STRING
+EXPORTS_DEFINE: `Object` `.` `defineProperty `(` IDENTIFIER_STRING `, {`
+  (`enumerable: true,`)?
+  (
+    `value:` |
+    `get` (`: function` IDENTIFIER? )?  `()` {` return IDENTIFIER (`.` IDENTIFIER | `[` IDENTIFIER_STRING `]`)? `;`? `}`
+  )
+  `})`
 
-EXPORTS_LITERAL: MODULE_EXPORTS COMMENT_SPACE `=` COMMENT_SPACE `{` COMMENT_SPACE (EXPORTS_LITERAL_PROP | EXPORTS_SPREAD) COMMENT_SPACE `,` COMMENT_SPACE)+ `}`
+EXPORTS_LITERAL: MODULE_EXPORTS `=` `{` (EXPORTS_LITERAL_PROP | EXPORTS_SPREAD) `,`)+ `}`
 
-REQUIRE: `require` COMMENT_SPACE `(` COMMENT_SPACE STRING_LITERAL COMMENT_SPACE `)`
+REQUIRE: `require` `(` STRING_LITERAL `)`
 
 EXPORTS_ASSIGN: (`var` | `const` | `let`) IDENTIFIER `=` REQUIRE
 
-MODULE_EXPORTS_ASSIGN: MODULE_EXPORTS COMMENT_SPACE `=` COMMENT_SPACE REQUIRE
+MODULE_EXPORTS_ASSIGN: MODULE_EXPORTS `=` REQUIRE
 
 EXPORT_STAR: (`__export` | `__exportStar`) `(` REQUIRE
 
@@ -113,9 +117,9 @@ EXPORT_STAR_LIB: `Object.keys(` IDENTIFIER$1 `).forEach(function (` IDENTIFIER$2
   `})`
 ```
 
-* The returned export names are taken to be the combination of:
-  1. `IDENTIFIER` and `IDENTIFIER_STRING` slots for all `EXPORTS_MEMBER` and `EXPORTS_LITERAL` matches.
-  2. `__esModule` if there is an `ES_MODULE_DEFINE` match.
+Spacing between tokens is taken to be any ECMA-262 whitespace, ECMA-262 block comment or ECMA-262 line comment.
+
+* The returned export names are taken to be the combination of the `IDENTIFIER` and `IDENTIFIER_STRING` slots for all `EXPORTS_MEMBER`, `EXPORTS_LITERAL` and `EXPORTS_DEFINE` matches.
 * The reexport specifiers are taken to be the the combination of:
   1. The `REQUIRE` matches of the last matched of either `MODULE_EXPORTS_ASSIGN` or `EXPORTS_LITERAL`.
   2. All _top-level_ `EXPORT_STAR` `REQUIRE` matches and `EXPORTS_ASSIGN` matches whose `IDENTIFIER` also matches the first `IDENTIFIER` in `EXPORT_STAR_LIB`.
@@ -156,17 +160,66 @@ It will in turn underclassify in cases where the identifiers are renamed:
 })(exports);
 ```
 
-#### __esModule Detection
-
-In addition, `__esModule` is detected as an export when set by `Object.defineProperty`:
+`Object.defineProperty` is detected for specifically value and getter forms returning an identifier or member expression:
 
 ```js
-// DETECTS: __esModule
-Object.defineProperty(exports, 'a', { value: 'a' });
+// DETECTS: a, b, c, d, __esModule
+Object.defineProperty(exports, 'a', {
+  enumerable: true,
+  get: function () {
+    return q.p;
+  }
+});
+Object.defineProperty(exports, 'b', {
+  enumerable: true,
+  get: function () {
+    return q['p'];
+  }
+});
+Object.defineProperty(exports, 'c', {
+  enumerable: true,
+  get () {
+    return b;
+  }
+});
+Object.defineProperty(exports, 'd', { value: 'd' });
 Object.defineProperty(exports, '__esModule', { value: true });
 ```
 
-No other named exports are detected for `defineProperty` calls in order not to trigger getters or non-enumerable properties unnecessarily.
+Alternative object definition structures or getter function bodies are not detected:
+
+```js
+// DETECTS: NO EXPORTS
+Object.defineProperty(exports, 'a', {
+  enumerable: false,
+  get () {
+    return p;
+  }
+});
+Object.defineProperty(exports, 'b', {
+  configurable: true,
+  get () {
+    return p;
+  }
+});
+Object.defineProperty(exports, 'c', {
+  get: () => p
+});
+Object.defineProperty(exports, 'd', {
+  enumerable: true,
+  get: function () {
+    return dynamic();
+  }
+});
+Object.defineProperty(exports, 'e', {
+  enumerable: true,
+  get () {
+    return 'str';
+  }
+});
+```
+
+`Object.defineProperties` is also not supported.
 
 #### Exports Object Assignment
 
@@ -281,65 +334,64 @@ Current results:
 JS Build:
 
 ```
---- JS Build ---
 Module load time
-> 2ms
+> 5ms
 Cold Run, All Samples
 test/samples/*.js (3635 KiB)
-> 311ms
+> 323ms
 
 Warm Runs (average of 25 runs)
 test/samples/angular.js (1410 KiB)
-> 14.76ms
+> 14.84ms
 test/samples/angular.min.js (303 KiB)
-> 5.04ms
+> 4.8ms
 test/samples/d3.js (553 KiB)
-> 7.12ms
+> 7.84ms
 test/samples/d3.min.js (250 KiB)
 > 4ms
 test/samples/magic-string.js (34 KiB)
-> 0.84ms
+> 0.72ms
 test/samples/magic-string.min.js (20 KiB)
-> 0.08ms
+> 0.4ms
 test/samples/rollup.js (698 KiB)
-> 9.08ms
+> 9.32ms
 test/samples/rollup.min.js (367 KiB)
-> 6ms
+> 6.52ms
 
 Warm Runs, All Samples (average of 25 runs)
 test/samples/*.js (3635 KiB)
-> 41.32ms
+> 44ms
 ```
 
 Wasm Build:
 ```
 Module load time
-> 10ms
+> 11ms
 Cold Run, All Samples
 test/samples/*.js (3635 KiB)
-> 47ms
+> 42ms
 
 Warm Runs (average of 25 runs)
 test/samples/angular.js (1410 KiB)
-> 12.96ms
+> 9.92ms
 test/samples/angular.min.js (303 KiB)
-> 4ms
+> 3.2ms
 test/samples/d3.js (553 KiB)
-> 6.12ms
+> 5.2ms
 test/samples/d3.min.js (250 KiB)
-> 3.08ms
+> 2.52ms
 test/samples/magic-string.js (34 KiB)
-> 0.32ms
+> 0.16ms
 test/samples/magic-string.min.js (20 KiB)
-> 0ms
+> 0.04ms
 test/samples/rollup.js (698 KiB)
-> 7.8ms
+> 6.44ms
 test/samples/rollup.min.js (367 KiB)
-> 4.64ms
+> 3.96ms
 
 Warm Runs, All Samples (average of 25 runs)
 test/samples/*.js (3635 KiB)
-> 35.64ms
+> 30.48ms
 ```
 
 ### Wasm Build Steps
