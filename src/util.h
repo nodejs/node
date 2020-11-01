@@ -602,6 +602,15 @@ class NonCopyableMaybe {
     return empty_;
   }
 
+  const T* get() const {
+    return empty_ ? nullptr : &value_;
+  }
+
+  const T* operator->() const {
+    CHECK(!empty_);
+    return &value_;
+  }
+
   T&& Release() {
     CHECK_EQ(empty_, false);
     empty_ = true;
