@@ -1,12 +1,8 @@
 ---
-section: using-npm
 title: config
+section: 7
 description: More than you probably want to know about npm configuration
 ---
-
-# config(7)
-
-## More than you probably want to know about npm configuration
 
 ### Description
 
@@ -161,7 +157,7 @@ When "dev" or "development" and running local `npm shrinkwrap`,
 
 When "true" submit audit reports alongside `npm install` runs to the default
 registry and all registries configured for scopes.  See the documentation
-for [`npm audit`](/cli-commands/audit) for details on what is submitted.
+for [`npm audit`](/commands/npm-audit) for details on what is submitted.
 
 #### audit-level
 
@@ -257,7 +253,7 @@ well as for the CA information to be stored in a file on disk.
 * Default: Windows: `%AppData%\npm-cache`, Posix: `~/.npm`
 * Type: path
 
-The location of npm's cache directory.  See [`npm cache`](/cli-commands/cache)
+The location of npm's cache directory.  See [`npm cache`](/commands/npm-cache)
 
 #### cache-lock-stale
 
@@ -437,7 +433,7 @@ Format `package-lock.json` or `npm-shrinkwrap.json` as a human readable file.
 
 When "true" displays the message at the end of each `npm install`
 aknowledging the number of dependencies looking for funding.
-See [`npm fund`](/cli-commands/fund) for details.
+See [`npm fund`](/commands/npm-fund) for details.
 
 #### fetch-retries
 
@@ -584,7 +580,7 @@ Option that allows for defining which types of dependencies to install.
 A module that will be loaded by the `npm init` command.  See the
 documentation for the
 [init-package-json](https://github.com/npm/init-package-json) module
-for more information, or [npm init](/cli-commands/init).
+for more information, or [npm init](/commands/npm-init).
 
 #### init-author-name
 
@@ -1251,7 +1247,7 @@ version of npm than the latest.
 * Type: Boolean
 
 Set to show short usage output (like the -H output)
-instead of complete help when doing [`npm help`](/cli-commands/help).
+instead of complete help when doing [`npm help`](/commands/npm-help).
 
 #### userconfig
 
@@ -1309,8 +1305,8 @@ Set to `"browser"` to view html help content in the default web browser.
 
 ### See also
 
-* [npm config](/cli-commands/config)
+* [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)
 * [npm scripts](/using-npm/scripts)
 * [npm folders](/configuring-npm/folders)
-* [npm](/cli-commands/npm)
+* [npm](/commands/npm)

@@ -31,7 +31,7 @@ const ci = async () => {
         'later to generate a package-lock.json file, then try again.'
       throw new Error(msg)
     }),
-    rimraf(`${where}/node_modules/`)
+    rimraf(`${where}/node_modules/*`, { glob: { dot: true, nosort: true, silent: true } }),
   ])
   // npm ci should never modify the lockfile or package.json
   await arb.reify({ save: false })

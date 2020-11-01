@@ -13,9 +13,9 @@ const completion = require('./utils/completion/none.js')
 const cmd = (args, cb) => repo(args).then(() => cb()).catch(cb)
 
 const repo = async args => {
-  if (!args || !args.length) {
+  if (!args || !args.length)
     args = ['.']
-  }
+
   await Promise.all(args.map(pkg => getRepo(pkg)))
 }
 
@@ -31,7 +31,7 @@ const getRepo = async pkg => {
 
   if (!rurl) {
     throw Object.assign(new Error('no repository'), {
-      pkgid: pkg
+      pkgid: pkg,
     })
   }
 
@@ -40,7 +40,7 @@ const getRepo = async pkg => {
 
   if (!url) {
     throw Object.assign(new Error('no repository: could not get url'), {
-      pkgid: pkg
+      pkgid: pkg,
     })
   }
 
@@ -53,13 +53,12 @@ const unknownHostedUrl = url => {
     const {
       protocol,
       hostname,
-      pathname
+      pathname,
     } = new URL(url)
 
     /* istanbul ignore next - URL ctor should prevent this */
-    if (!protocol || !hostname) {
+    if (!protocol || !hostname)
       return null
-    }
 
     const proto = /(git\+)http:$/.test(protocol) ? 'http:' : 'https:'
     const path = pathname.replace(/\.git$/, '')

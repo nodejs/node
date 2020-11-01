@@ -55,6 +55,7 @@ const readPackageJson = require('read-package-json-fast')
 const Arborist = require('@npmcli/arborist')
 const runScript = require('@npmcli/run-script')
 const { resolve, delimiter } = require('path')
+const ciDetect = require('@npmcli/ci-detect')
 const crypto = require('crypto')
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
@@ -64,12 +65,46 @@ const PATH = require('./utils/path.js')
 
 const cmd = (args, cb) => exec(args).then(() => cb()).catch(cb)
 
+const run = async ({ args, call, pathArr }) => {
+  // turn list of args into command string
+  const script = call || args.map(escapeArg).join(' ').trim()
+
+  // do the fakey runScript dance
+  // still should work if no package.json in cwd
+  const realPkg = await readPackageJson(`${npm.localPrefix}/package.json`)
+    .catch(() => ({}))
+  const pkg = {
+    ...realPkg,
+    scripts: {
+      ...(realPkg.scripts || {}),
+      npx: script,
+    },
+  }
+
+  npm.log.disableProgress()
+  try {
+    return await runScript({
+      pkg,
+      banner: false,
+      // we always run in cwd, not --prefix
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: {
+        PATH: pathArr.join(delimiter),
+      },
+      stdio: 'inherit',
+    })
+  } finally {
+    npm.log.enableProgress()
+  }
+}
+
 const exec = async args => {
   const { package: packages, call } = npm.flatOptions
 
-  if (call && args.length) {
+  if (call && args.length)
     throw usage
-  }
 
   const pathArr = [...PATH]
 
@@ -89,17 +124,10 @@ const exec = async args => {
     }
 
     if (binExists) {
-      return await runScript({
-        cmd: [args[0], ...args.slice(1).map(escapeArg)].join(' ').trim(),
-        banner: false,
-        // we always run in cwd, not --prefix
-        path: process.cwd(),
-        stdioString: true,
-        event: 'npx',
-        env: {
-          PATH: pathArr.join(delimiter)
-        },
-        stdio: 'inherit'
+      return await run({
+        args,
+        call: [args[0], ...args.slice(1).map(escapeArg)].join(' ').trim(),
+        pathArr,
       })
     }
 
@@ -122,21 +150,17 @@ const exec = async args => {
       } catch (er) {}
     }
     return await pacote.manifest(p, {
-      ...npm.flatOptions
+      ...npm.flatOptions,
     })
   }))
 
-  if (needPackageCommandSwap) {
+  if (needPackageCommandSwap)
     args[0] = getBinFromManifest(manis[0])
-  }
-
-  // turn list of args into command string
-  const script = call || args.map(escapeArg).join(' ').trim()
 
   // figure out whether we need to install stuff, or if local is fine
   const localArb = new Arborist({
     ...npm.flatOptions,
-    path: npm.localPrefix
+    path: npm.localPrefix,
   })
   const tree = await localArb.loadActual()
 
@@ -160,22 +184,20 @@ const exec = async args => {
       const isTTY = process.stdin.isTTY && process.stdout.isTTY
       if (!npm.flatOptions.yes) {
         // set -n to always say no
-        if (npm.flatOptions.yes === false) {
+        if (npm.flatOptions.yes === false)
           throw 'canceled'
-        }
 
-        if (!isTTY) {
+        if (!isTTY || ciDetect())
           npm.log.warn('exec', `The following package${add.length === 1 ? ' was' : 's were'} not found and will be installed: ${add.map((pkg) => pkg.replace(/@$/, '')).join(', ')}`)
-        } else {
+        else {
           const addList = add.map(a => `  ${a.replace(/@$/, '')}`)
             .join('\n') + '\n'
           const prompt = `Need to install the following packages:\n${
             addList
           }Ok to proceed? `
           const confirm = await read({ prompt, default: 'y' })
-          if (confirm.trim().toLowerCase().charAt(0) !== 'y') {
+          if (confirm.trim().toLowerCase().charAt(0) !== 'y')
             throw 'canceled'
-          }
         }
       }
       await arb.reify({ ...npm.flatOptions, add })
@@ -183,35 +205,7 @@ const exec = async args => {
     pathArr.unshift(resolve(installDir, 'node_modules/.bin'))
   }
 
-  // do the fakey runScript dance
-  // still should work if no package.json in cwd
-  const realPkg = await readPackageJson(`${npm.localPrefix}/package.json`)
-    .catch(() => ({}))
-  const pkg = {
-    ...realPkg,
-    scripts: {
-      ...(realPkg.scripts || {}),
-      npx: script
-    }
-  }
-
-  npm.log.disableProgress()
-  try {
-    return await runScript({
-      pkg,
-      banner: false,
-      // we always run in cwd, not --prefix
-      path: process.cwd(),
-      stdioString: true,
-      event: 'npx',
-      env: {
-        PATH: pathArr.join(delimiter)
-      },
-      stdio: 'inherit'
-    })
-  } finally {
-    npm.log.enableProgress()
-  }
+  return await run({ args, call, pathArr })
 }
 
 const manifestMissing = (tree, mani) => {
@@ -219,13 +213,13 @@ const manifestMissing = (tree, mani) => {
   // true means we need to install it
   const child = tree.children.get(mani.name)
   // if no child, we have to load it
-  if (!child) {
+  if (!child)
     return true
-  }
+
   // if no version/tag specified, allow whatever's there
-  if (mani._from === `${mani.name}@`) {
+  if (mani._from === `${mani.name}@`)
     return false
-  }
+
   // otherwise the version has to match what we WOULD get
   return child.version !== mani.version
 }
@@ -235,17 +229,17 @@ const getBinFromManifest = mani => {
   // otherwise if there's 1 bin, use that,
   // otherwise fail
   const bins = Object.entries(mani.bin || {})
-  if (bins.length === 1) {
+  if (bins.length === 1)
     return bins[0][0]
-  }
+
   // XXX probably a util to parse this better?
   const name = mani.name.replace(/^@[^/]+\//, '')
-  if (mani.bin && mani.bin[name]) {
+  if (mani.bin && mani.bin[name])
     return name
-  }
+
   // XXX need better error message
   throw Object.assign(new Error('could not determine executable to run'), {
-    pkgid: mani._id
+    pkgid: mani._id,
   })
 }
 

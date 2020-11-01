@@ -104,7 +104,8 @@ test('should remove existing node_modules before installing', (t) => {
         t.equal(options.save, false, 'npm ci should never save')
         // check if node_modules was removed before reifying
         const contents = await readdir(testDir)
-        t.equals(contents.indexOf('node_modules'), -1, 'node_modules does not exist')
+        const nodeModules = contents.filter((path) => path.startsWith('node_modules'))
+        t.same(nodeModules, ['node_modules'], 'should only have the node_modules directory')
         t.end()
       }
     }

@@ -15,6 +15,8 @@ const removeFromOthers = (name, type, pkg) => {
       break
     case 'dev':
       others.delete('devDependencies')
+      others.delete('peerDependencies')
+      others.delete('peerDependenciesMeta')
       break
     case 'optional':
       others.delete('optionalDependencies')

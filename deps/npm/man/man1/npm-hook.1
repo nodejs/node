@@ -1,4 +1,4 @@
-.TH "NPM\-HOOK" "1" "October 2020" "" ""
+.TH "NPM\-HOOK" "1" "November 2020" "" ""
 .SH "NAME"
 \fBnpm-hook\fR \- Manage registry hooks
 .SS Synopsis
@@ -11,6 +11,29 @@ npm hook update <id> <url> [secret]
 npm hook rm <id>
 .fi
 .RE
+.SS Description
+.P
+Allows you to manage npm
+hooks \fIhttps://blog\.npmjs\.org/post/145260155635/introducing\-hooks\-get\-notifications\-of\-npm\fR,
+including adding, removing, listing, and updating\.
+.P
+Hooks allow you to configure URL endpoints that will be notified whenever a
+change happens to any of the supported entity types\. Three different types
+of entities can be watched by hooks: packages, owners, and scopes\.
+.P
+To create a package hook, simply reference the package name\.
+.P
+To create an owner hook, prefix the owner name with \fB~\fP (as in,
+\fB~youruser\fP)\.
+.P
+To create a scope hook, prefix the scope name with \fB@\fP (as in,
+\fB@yourscope\fP)\.
+.P
+The hook \fBid\fP used by \fBupdate\fP and \fBrm\fP are the IDs listed in \fBnpm hook ls\fP
+for that particular hook\.
+.P
+The shared secret will be sent along to the URL endpoint so you can verify
+the request came from your own configured hook\.
 .SS Example
 .P
 Add a hook to watch a package for changes:
@@ -68,26 +91,6 @@ Remove a hook:
 $ npm hook rm id\-deadbeef
 .fi
 .RE
-.SS Description
-.P
-Allows you to manage npm hooks \fIhttps://blog\.npmjs\.org/post/145260155635/introducing\-hooks\-get\-notifications\-of\-npm\fR,
-including adding, removing, listing, and updating\.
-.P
-Hooks allow you to configure URL endpoints that will be notified whenever a
-change happens to any of the supported entity types\. Three different types of
-entities can be watched by hooks: packages, owners, and scopes\.
-.P
-To create a package hook, simply reference the package name\.
-.P
-To create an owner hook, prefix the owner name with \fB~\fP (as in, \fB~youruser\fP)\.
-.P
-To create a scope hook, prefix the scope name with \fB@\fP (as in, \fB@yourscope\fP)\.
-.P
-The hook \fBid\fP used by \fBupdate\fP and \fBrm\fP are the IDs listed in \fBnpm hook ls\fP for
-that particular hook\.
-.P
-The shared secret will be sent along to the URL endpoint so you can verify the
-request came from your own configured hook\.
 .SS See Also
 .RS 0
 .IP \(bu 2

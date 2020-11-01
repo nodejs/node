@@ -15,7 +15,7 @@ const dedupe = async (args) => {
   const arb = new Arborist({
     ...npm.flatOptions,
     path: where,
-    dryRun
+    dryRun,
   })
   await arb.dedupe(npm.flatOptions)
   reifyOutput(arb)

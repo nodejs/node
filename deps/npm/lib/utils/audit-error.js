@@ -6,13 +6,11 @@
 const output = require('./output.js')
 const npm = require('../npm.js')
 const auditError = (report) => {
-  if (!report || !report.error) {
+  if (!report || !report.error)
     return false
-  }
 
-  if (npm.command !== 'audit') {
+  if (npm.command !== 'audit')
     return true
-  }
 
   const { error } = report
 
@@ -27,11 +25,10 @@ const auditError = (report) => {
       uri: error.uri,
       headers: error.headers,
       statusCode: error.statusCode,
-      body
+      body,
     }, null, 2))
-  } else {
+  } else
     output(body)
-  }
 
   throw 'audit endpoint returned an error'
 }

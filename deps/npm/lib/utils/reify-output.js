@@ -21,9 +21,8 @@ const auditError = require('./audit-error.js')
 // TODO: output JSON if flatOptions.json is true
 const reifyOutput = arb => {
   // don't print any info in --silent mode
-  if (log.levels[log.level] > log.levels.error) {
+  if (log.levels[log.level] > log.levels.error)
     return
-  }
 
   const { diff, actualTree } = arb
 
@@ -37,7 +36,7 @@ const reifyOutput = arb => {
     removed: 0,
     changed: 0,
     audited: auditReport && !auditReport.error ? actualTree.inventory.size : 0,
-    funding: 0
+    funding: 0,
   }
 
   if (diff) {
@@ -60,7 +59,7 @@ const reifyOutput = arb => {
         const node = d.actual || d.ideal
         log.silly(d.action, node.location)
       },
-      getChildren: d => d.children
+      getChildren: d => d.children,
     })
   }
 
@@ -87,9 +86,9 @@ const reifyOutput = arb => {
 // to tell you to run `npm audit` for details.  otherwise, use the summary
 // report.  if we get here, we know it's not quiet or json.
 const printAuditReport = report => {
-  if (!report) {
+  if (!report)
     return
-  }
+
   const reporter = npm.command !== 'audit' ? 'install' : 'detail'
   const defaultAuditLevel = npm.command !== 'audit' ? 'none' : 'low'
   const auditLevel = npm.flatOptions.auditLevel || defaultAuditLevel
@@ -97,7 +96,7 @@ const printAuditReport = report => {
   const res = auditReport(report, {
     reporter,
     ...npm.flatOptions,
-    auditLevel
+    auditLevel,
   })
   process.exitCode = process.exitCode || res.exitCode
   output('\n' + res.report)
@@ -107,46 +106,43 @@ const packagesChangedMessage = ({ added, removed, changed, audited }) => {
   const msg = ['\n']
   if (added === 0 && removed === 0 && changed === 0) {
     msg.push('up to date')
-    if (audited) {
+    if (audited)
       msg.push(', ')
-    }
   } else {
-    if (added) {
+    if (added)
       msg.push(`added ${added} package${added === 1 ? '' : 's'}`)
-    }
+
     if (removed) {
-      if (added) {
+      if (added)
         msg.push(', ')
-      }
-      if (added && !audited && !changed) {
+
+      if (added && !audited && !changed)
         msg.push('and ')
-      }
+
       msg.push(`removed ${removed} package${removed === 1 ? '' : 's'}`)
     }
     if (changed) {
-      if (added || removed) {
+      if (added || removed)
         msg.push(', ')
-      }
-      if (!audited && (added || removed)) {
+
+      if (!audited && (added || removed))
         msg.push('and ')
-      }
+
       msg.push(`changed ${changed} package${changed === 1 ? '' : 's'}`)
     }
-    if (audited) {
+    if (audited)
       msg.push(', and ')
-    }
   }
-  if (audited) {
+  if (audited)
     msg.push(`audited ${audited} package${audited === 1 ? '' : 's'}`)
-  }
+
   msg.push(` in ${ms(Date.now() - npm.started)}`)
   output(msg.join(''))
 }
 
 const packagesFundingMessage = ({ funding }) => {
-  if (!funding) {
+  if (!funding)
     return
-  }
 
   output('')
   const pkg = funding === 1 ? 'package' : 'packages'

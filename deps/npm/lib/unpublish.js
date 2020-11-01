@@ -24,10 +24,12 @@ const completion = (args, cb) => completionFn(args)
 const completionFn = async (args) => {
   const { partialWord, conf } = args
 
-  if (conf.argv.remain.length >= 3) return
+  if (conf.argv.remain.length >= 3)
+    return
 
   const username = await whoami([], true)
-  if (!username) { return [] }
+  if (!username)
+    return []
   const opts = npm.flatOptions
 
   const access = await libaccess.lsPackages(username, opts)
@@ -35,23 +37,25 @@ const completionFn = async (args) => {
   // to fetch versions for more than one thing, but also don't
   // accidentally a whole project
   let pkgs = Object.keys(access)
-  if (!partialWord || !pkgs.length) return pkgs
+  if (!partialWord || !pkgs.length)
+    return pkgs
 
   const pp = npa(partialWord).name
   pkgs = pkgs.filter(p => !p.indexOf(pp))
-  if (pkgs.length > 1) return pkgs
+  if (pkgs.length > 1)
+    return pkgs
 
   const json = await npmFetch.json(npa(pkgs[0]).escapedName, opts)
   const versions = Object.keys(json.versions)
-  if (!versions.length) {
+  if (!versions.length)
     return pkgs
-  } else {
+  else
     return versions.map(v => `${pkgs[0]}@${v}`)
-  }
 }
 
 async function unpublish (args) {
-  if (args.length > 1) throw usage
+  if (args.length > 1)
+    throw usage
 
   const spec = args.length && npa(args[0])
   const opts = npm.flatOptions
@@ -83,15 +87,13 @@ async function unpublish (args) {
     try {
       ret = await otplease(opts, opts => libunpub(pkgJsonSpec, { ...opts, publishConfig }))
     } catch (err) {
-      if (err && err.code !== 'ENOENT' && err.code !== 'ENOTDIR') {
+      if (err && err.code !== 'ENOENT' && err.code !== 'ENOTDIR')
         throw err
-      } else {
+      else
         throw `Usage: ${usage}`
-      }
     }
-  } else {
+  } else
     ret = await otplease(opts, opts => libunpub(spec, opts))
-  }
 
   if (!silent && loglevel !== 'silent') {
     output(`- ${spec.name}${

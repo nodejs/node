@@ -47,11 +47,10 @@ const login = async (opts) => {
         opts
       )
     } catch (err) {
-      if (err.code === 'EOTP') {
+      if (err.code === 'EOTP')
         newUser = await requestOTP()
-      } else {
+      else
         throw err
-      }
     }
 
     return newUser
@@ -65,20 +64,20 @@ const login = async (opts) => {
       opts.creds.username &&
       opts.creds.password &&
       opts.creds.email)
-    if (err.code === 'EOTP') {
+    if (err.code === 'EOTP')
       res = await requestOTP()
-    } else if (needsMoreInfo) {
+    else if (needsMoreInfo)
       throw err
-    } else {
+    else {
       // TODO: maybe this needs to check for err.code === 'E400' instead?
       res = await addNewUser()
     }
   }
 
   const newCreds = {}
-  if (res && res.token) {
+  if (res && res.token)
     newCreds.token = res.token
-  } else {
+  else {
     newCreds.username = opts.creds.username
     newCreds.password = opts.creds.password
     newCreds.email = opts.creds.email
@@ -94,7 +93,7 @@ const login = async (opts) => {
 
   return {
     message,
-    newCreds
+    newCreds,
   }
 }
 

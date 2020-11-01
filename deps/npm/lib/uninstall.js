@@ -15,9 +15,9 @@ const rm = async args => {
   const path = global ? resolve(npm.globalDir, '..') : prefix
 
   if (!args.length) {
-    if (!global) {
+    if (!global)
       throw new Error('must provide a package name to remove')
-    } else {
+    else {
       const pkg = await rpj(resolve(npm.localPrefix, 'package.json'))
         .catch(er => {
           throw er.code !== 'ENOENT' && er.code !== 'ENOTDIR' ? er : usage()
@@ -30,7 +30,7 @@ const rm = async args => {
 
   await arb.reify({
     ...npm.flatOptions,
-    rm: args
+    rm: args,
   })
   reifyOutput(arb)
 }

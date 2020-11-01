@@ -75,7 +75,7 @@ Object {
   "omit": Array [],
   "otp": "otp",
   "package": "package",
-  "packageLock": "package-lock",
+  "packageLock": true,
   "packageLockOnly": "package-lock-only",
   "parseable": undefined,
   "preferDedupe": undefined,

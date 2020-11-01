@@ -8,8 +8,7 @@ const usage = usageUtil('bin', 'npm bin [-g]')
 const bin = async (args, cb) => {
   const b = npm.bin
   output(b)
-  if (npm.flatOptions.global && !PATH.includes(b)) {
+  if (npm.flatOptions.global && !PATH.includes(b))
     console.error('(not in PATH env variable)')
-  }
 }
 module.exports = Object.assign(cmd, { usage, completion })

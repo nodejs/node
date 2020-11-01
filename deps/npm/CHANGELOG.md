@@ -1,3 +1,137 @@
+## 7.0.7 (2020-10-30)
+
+### BUG FIXES
+
+* [`3990b422d`](https://github.com/npm/cli/commit/3990b422d3ff63c54d96b61596bdb8f26a45ca7b)
+  [#2067](https://github.com/npm/cli/pull/2067)
+  use sh as default unix shell, not bash
+  ([@isaacs](https://github.com/isaacs))
+* [`81d6ceef6`](https://github.com/npm/cli/commit/81d6ceef6947e46355eb3ddb05a73da50870dfc1)
+  [#1975](https://github.com/npm/cli/issues/1975)
+  fix npm exec on folders missing package.json
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`2a680e91a`](https://github.com/npm/cli/commit/2a680e91a2be1f3f03a6fbd946f74628ee1cb370)
+  [#2083](https://github.com/npm/cli/pull/2083)
+  delete the contents of `node_modules` only in `npm ci`
+  ([@nlf](https://github.com/nlf))
+* [`2636fe1f4`](https://github.com/npm/cli/commit/2636fe1f45383cb1b6fc164564dc49318815db37)
+  [#2086](https://github.com/npm/cli/pull/2086)
+  disable banner output if loglevel is silent in `npm run-script`
+  ([@macno](https://github.com/macno))
+
+### DEPENDENCIES
+
+* [`4156f053e`](https://github.com/npm/cli/commit/4156f053ee8712a4b53a210e62fba1e6562ba43a)
+  `@npmcli/run-script@1.7.4`
+    * restore the default `npm start` script
+* [`1900ae9ad`](https://github.com/npm/cli/commit/1900ae9adecd227dd6f8b49de61a99c978ba89cf)
+  `@npmcli/promise-spawn@1.3.2`
+    * fix errors when processing scripts as root
+* [`8cb0c166c`](https://github.com/npm/cli/commit/8cb0c166ccc019146a7a94d13c12723f001d2551)
+  `@npmcli/arborist@1.0.6`
+    * make sure missing bin links get set on reify
+
+## 7.0.6 (2020-10-27)
+
+### BUG FIXES
+
+* [`46c7f792a`](https://github.com/npm/cli/commit/46c7f792ab16dd0b091e1ad6d37de860c8885883)
+  [#2047](https://github.com/npm/cli/pull/2047)
+  [#1935](https://github.com/npm/cli/issues/1935)
+  skip the prompt when in a known ci environment
+  ([@nlf](https://github.com/nlf))
+* [`f8f6e1fad`](https://github.com/npm/cli/commit/f8f6e1fad8057edc02e4ce4382b1bc086d01211c)
+  [#2049](https://github.com/npm/cli/pull/2049)
+  properly remove pycache in release script
+  ([@MylesBorins](https://github.com/MylesBorins))
+* [`5db95b393`](https://github.com/npm/cli/commit/5db95b393e9c461ad34c1774f3515c322bf375bf)
+  [#2050](https://github.com/npm/cli/pull/2050)
+  pack: do not show individual files of bundled deps
+  ([@isaacs](https://github.com/isaacs))
+* [`3ee8f3b34`](https://github.com/npm/cli/commit/3ee8f3b34055da2ef1e735e1a06f64593512f1e3)
+  [#2051](https://github.com/npm/cli/pull/2051)
+  view: Better errors when package.json is not JSON
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`99ae633f6`](https://github.com/npm/cli/commit/99ae633f6ccc8aa93dc3dcda863071658b0653db)
+  `libnpmversion@1.0.6`
+    - respect gitTagVersion = false
+* [`d4173f58d`](https://github.com/npm/cli/commit/d4173f58ddefdd5456145f34f3c9f4ba5fca407e)
+  `@npmcli/promise-spawn@1.3.1`
+    - do not return empty buffer when stdio is inherited
+    - attach child process to returned promise
+* [`c09380fa5`](https://github.com/npm/cli/commit/c09380fa51b720141a9971602f4bb7aabd4d6242)
+  `@npmcli/run-script@1.7.3`
+    - forward SIGINT and SIGTERM to children that inherit stdio
+* [`b154861ad`](https://github.com/npm/cli/commit/b154861ad244b6a14020c43738d0cce1948bfdd3)
+  `@npmcli/arborist@1.0.5`
+* [`ffea6596b`](https://github.com/npm/cli/commit/ffea6596b8653da32a2b4c9a4903970e7146eee4)
+  `agent-base@6.0.2`
+    - support http proxy for https registries
+
+## 7.0.5 (2020-10-23)
+
+* [`77ad86b5e`](https://github.com/npm/cli/commit/77ad86b5eedf139dda3329a6686d5f104dc233bb)
+  Merge docs deps with main project
+
+## 7.0.4 (2020-10-23)
+
+### DOCUMENTATION
+
+* [`cc026daf8`](https://github.com/npm/cli/commit/cc026daf8c8330256de01375350a1407064562f9)
+  docs: `npm-dedupe` through `npm-install`
+* [`aec77acf8`](https://github.com/npm/cli/commit/aec77acf886d73f85e747cafdf7a2b360befba16)
+  [#1915](https://github.com/npm/cli/pull/1915)
+  use "dockhand" for faster static documentation generation
+  ([@ethomson](https://github.com/ethomson))
+* [`aeb10d210`](https://github.com/npm/cli/commit/aeb10d210816cf6829e0ac557c79d9efd8c4bdd1)
+  [#2024](https://github.com/npm/cli/pull/2024)
+  Fix post-install script name
+  ([@irajtaghlidi](https://github.com/irajtaghlidi))
+
+### BUG FIXES
+
+* [`59e8dd6c6`](https://github.com/npm/cli/commit/59e8dd6c621f9a5c6e0b65533d8256be87a8e0d3)
+  [#2015](https://github.com/npm/cli/issues/2015)
+  [#2016](https://github.com/npm/cli/pull/2016)
+  Properly set `npm_command` environment variable.
+
+### TESTS
+
+* [`39ad1ad9e`](https://github.com/npm/cli/commit/39ad1ad9e1e1a9530db5b90a588b5081b71abc8d)
+  [#2001](https://github.com/npm/cli/pull/2001)
+  `npm config` tests
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`b9c1caa8e`](https://github.com/npm/cli/commit/b9c1caa8e4cc7c900d09657425ea361db5974319)
+  [#2026](https://github.com/npm/cli/pull/2026)
+  `npm owner` test and refactor
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DEPENDENCIES
+
+* [`ed6e6a9d3`](https://github.com/npm/cli/commit/ed6e6a9d3c36ffc5fb77fc25b6d66dbcb26beeb9)
+  `eslint-plugin-standard@4.0.2`
+* [`b737ee999`](https://github.com/npm/cli/commit/b737ee99961364827bacf210a3e5ca5d2b7edad2)
+  [#2009](https://github.com/npm/cli/issues/2009)
+  [#2007](https://github.com/npm/cli/issues/2007)
+  `npm-packlist@2.1.4`:
+
+    * Maintain order in package.json files array globs
+    * Strip slashes from package files list results
+
+* [`783965508`](https://github.com/npm/cli/commit/783965508d49f8ab0d8ceff38bee700cd0a06a54)
+  [#1997](https://github.com/npm/cli/issues/1997)
+  [#2000](https://github.com/npm/cli/issues/2000)
+  [#2005](https://github.com/npm/cli/issues/2005)
+  `@npmcli/arborist@1.0.4`
+
+    * Ensure that root is added when root.meta is set
+    * Include all edges in explain() output when a root edge exists
+    * Do not conflict on meta-peers that will not be replaced
+    * Install peerOptionals if explicitly requested, or dev
+
 ## 7.0.3 (2020-10-20)
 
 ### BUG FIXES
