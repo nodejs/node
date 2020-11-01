@@ -15,6 +15,7 @@ env:
 
 jobs:
   test-macOS-with-quic:
+    if: github.event.pull_request.draft == false
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2

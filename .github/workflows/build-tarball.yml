@@ -13,6 +13,7 @@ env:
 
 jobs:
   build-tarball:
+    if: github.event.pull_request.draft == false
     env:
       PYTHON_VERSION: 3.9
     runs-on: ubuntu-latest

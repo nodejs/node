@@ -15,6 +15,7 @@ env:
 
 jobs:
   test-linux:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -30,6 +31,7 @@ jobs:
         run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions"
 
   test-linux-with-quic:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

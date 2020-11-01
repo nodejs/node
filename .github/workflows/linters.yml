@@ -14,6 +14,7 @@ env:
 
 jobs:
   lint-addon-docs:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -26,6 +27,7 @@ jobs:
       - name: Lint addon docs
         run: NODE=$(command -v node) make lint-addon-docs
   lint-cpp:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -38,6 +40,7 @@ jobs:
       - name: Lint C/C++ files
         run: make lint-cpp
   lint-md:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -52,6 +55,7 @@ jobs:
           echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"
           NODE=$(command -v node) make lint-md
   lint-js:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -64,6 +68,7 @@ jobs:
       - name: Lint JavaScript files
         run: NODE=$(command -v node) make lint-js
   lint-py:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -78,14 +83,15 @@ jobs:
           make lint-py-build || true
           NODE=$(command -v node) make lint-py
   lint-sh:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - run: shellcheck -V
       - name: Lint Shell scripts
         run: tools/lint-sh.js .
-
   lint-codeowners:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

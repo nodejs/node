@@ -15,6 +15,7 @@ env:
 
 jobs:
   build-windows-with-quic:
+    if: github.event.pull_request.draft == false
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
