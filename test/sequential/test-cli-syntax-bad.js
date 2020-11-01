@@ -44,7 +44,7 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
 
       // stderr should include the filename
       assert(stderr.startsWith(pathToFileURL(file)),
-             `${stderr} starts with ${file}`);
+             `${stderr} starts with ${pathToFileURL(file)}`);
     }));
   });
 });
