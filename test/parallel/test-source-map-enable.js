@@ -276,10 +276,10 @@ function nextdir() {
   ]);
   // Error in original context of source content:
   assert.ok(
-    output.stderr.toString().match(/throw new Error\('oh no!'\)\n.*\^/)
+    output.stderr.toString().match(/throw new Error\('oh no!'\)\r?\n.*\^/)
   );
   // Rewritten stack trace:
-  assert.ok(output.stderr.toString().includes('webpack:///./webpack.js:14:9'));
+  assert.ok(output.stderr.toString().includes('webpack:///webpack.js:14:9'));
 }
 
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
