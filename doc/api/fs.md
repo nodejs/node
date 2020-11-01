@@ -3031,6 +3031,10 @@ If `options.withFileTypes` is set to `true`, the result will contain
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35911
+    description: The options argument may include an AbortSignal to abort an
+                 ongoing readFile request.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3056,6 +3060,7 @@ changes:
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `signal` {AbortSignal} allows aborting an in-progress readFile
 * `callback` {Function}
   * `err` {Error}
   * `data` {string|Buffer}
@@ -3097,8 +3102,24 @@ fs.readFile('<directory>', (err, data) => {
 });
 ```
 
+It is possible to abort an ongoing request using an `AbortSignal`. If a
+request is aborted the callback is called with an `AbortError`:
+
+```js
+const controller = new AbortController();
+const signal = controller.signal;
+fs.readFile(fileInfo[0].name, { signal }, (err, buf) => {
+  // ...
+});
+// When you want to abort the request
+controller.abort();
+```
+
 The `fs.readFile()` function buffers the entire file. To minimize memory costs,
 when possible prefer streaming via `fs.createReadStream()`.
+
+Aborting an ongoing request does not abort individual operating
+system requests but rather the internal buffering `fs.readFile` performs.
 
 ### File descriptors
 
@@ -4771,6 +4792,7 @@ added: v10.0.0
 
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
+  * `signal` {AbortSignal} allows aborting an in-progress readFile
 * Returns: {Promise}
 
 Asynchronously reads the entire contents of a file.
@@ -5438,12 +5460,18 @@ print('./').catch(console.error);
 ### `fsPromises.readFile(path[, options])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35911
+    description: The options argument may include an AbortSignal to abort an
+                 ongoing readFile request.
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or `FileHandle`
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `signal` {AbortSignal} allows aborting an in-progress readFile
 * Returns: {Promise}
 
 Asynchronously reads the entire contents of a file.
@@ -5458,6 +5486,20 @@ When the `path` is a directory, the behavior of `fsPromises.readFile()` is
 platform-specific. On macOS, Linux, and Windows, the promise will be rejected
 with an error. On FreeBSD, a representation of the directory's contents will be
 returned.
+
+It is possible to abort an ongoing `readFile` using an `AbortSignal`. If a
+request is aborted the promise returned is rejected with an `AbortError`:
+
+```js
+const controller = new AbortController();
+const signal = controller.signal;
+readFile(fileName, { signal }).then((file) => { /* ... */ });
+// Abort the request
+controller.abort();
+```
+
+Aborting an ongoing request does not abort individual operating
+system requests but rather the internal buffering `fs.readFile` performs.
 
 Any specified `FileHandle` has to support reading.
 
