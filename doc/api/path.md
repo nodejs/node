@@ -53,7 +53,7 @@ On POSIX and Windows:
 
 ```js
 path.posix.basename('/tmp/myfile.html');
-// Returns: 'myfile.html'
+// Returns: 'C:\\temp\\myfile.html'
 ```
 
 On Windows Node.js follows the concept of per-drive working directory.
