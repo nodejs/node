@@ -36,7 +36,7 @@ async function outdated (args) {
 
   const arb = new Arborist({
     ...opts,
-    path: where
+    path: where,
   })
 
   const tree = await arb.loadActual()
@@ -46,35 +46,34 @@ async function outdated (args) {
   const outdated = list.sort((a, b) => a.name.localeCompare(b.name))
 
   // return if no outdated packages
-  if (outdated.length === 0 && !opts.json) {
+  if (outdated.length === 0 && !opts.json)
     return
-  }
 
   // display results
-  if (opts.json) {
+  if (opts.json)
     output(makeJSON(outdated, opts))
-  } else if (opts.parseable) {
+  else if (opts.parseable)
     output(makeParseable(outdated, opts))
-  } else {
+  else {
     const outList = outdated.map(x => makePretty(x, opts))
     const outHead = ['Package',
       'Current',
       'Wanted',
       'Latest',
       'Location',
-      'Depended by'
+      'Depended by',
     ]
 
-    if (opts.long) outHead.push('Package Type', 'Homepage')
+    if (opts.long)
+      outHead.push('Package Type', 'Homepage')
     const outTable = [outHead].concat(outList)
 
-    if (opts.color) {
+    if (opts.color)
       outTable[0] = outTable[0].map(heading => styles.underline(heading))
-    }
 
     const tableOpts = {
       align: ['l', 'r', 'r', 'r', 'l'],
-      stringLength: s => ansiTrim(s).length
+      stringLength: s => ansiTrim(s).length,
     }
     output(table(outTable, tableOpts))
   }
@@ -86,24 +85,22 @@ async function outdated_ (tree, deps, opts) {
   const edges = new Set()
   function getEdges (nodes, type) {
     const getEdgesIn = (node) => {
-      for (const edge of node.edgesIn) {
+      for (const edge of node.edgesIn)
         edges.add(edge)
-      }
     }
 
     const getEdgesOut = (node) => {
       if (opts.global) {
-        for (const child of node.children.values()) {
+        for (const child of node.children.values())
           edges.add(child)
-        }
       } else {
-        for (const edge of node.edgesOut.values()) {
+        for (const edge of node.edgesOut.values())
           edges.add(edge)
-        }
       }
     }
 
-    if (!nodes) return getEdgesOut(tree)
+    if (!nodes)
+      return getEdgesOut(tree)
     for (const node of nodes) {
       type === 'edgesOut'
         ? getEdgesOut(node)
@@ -114,7 +111,7 @@ async function outdated_ (tree, deps, opts) {
   async function getPackument (spec) {
     const packument = await pacote.packument(spec, {
       fullMetadata: npm.flatOptions.long,
-      preferOnline: true
+      preferOnline: true,
     })
     return packument
   }
@@ -131,23 +128,22 @@ async function outdated_ (tree, deps, opts) {
       : 'dependencies'
 
     for (const omitType of opts.omit || []) {
-      if (node[omitType]) {
+      if (node[omitType])
         return
-      }
     }
 
     // deps different from prod not currently
     // on disk are not included in the output
-    if (edge.error === 'MISSING' && type !== 'dependencies') return
+    if (edge.error === 'MISSING' && type !== 'dependencies')
+      return
 
     try {
       const packument = await getPackument(spec)
       const expected = edge.spec
       // if it's not a range, version, or tag, skip it
       try {
-        if (!npa(`${edge.name}@${edge.spec}`).registry) {
+        if (!npa(`${edge.name}@${edge.spec}`).registry)
           return null
-        }
       } catch (err) {
         return null
       }
@@ -168,7 +164,7 @@ async function outdated_ (tree, deps, opts) {
           wanted: wanted.version,
           latest: latest.version,
           dependent: edge.from ? edge.from.name : 'global',
-          homepage: packument.homepage
+          homepage: packument.homepage,
         })
       }
     } catch (err) {
@@ -178,9 +174,8 @@ async function outdated_ (tree, deps, opts) {
         err.code === 'ETARGET' ||
         err.code === 'E403' ||
         err.code === 'E404')
-      ) {
+      )
         throw err
-      }
     }
   }
 
@@ -201,9 +196,8 @@ async function outdated_ (tree, deps, opts) {
     getEdges()
   }
 
-  for (const edge of edges) {
+  for (const edge of edges)
     p.push(getOutdatedInfo(edge))
-  }
 
   await Promise.all(p)
   return list
@@ -219,7 +213,7 @@ function makePretty (dep, opts) {
     wanted,
     latest,
     type,
-    dependent
+    dependent,
   } = dep
 
   const columns = [name, current, wanted, latest, location, dependent]
@@ -248,9 +242,10 @@ function makeParseable (list, opts) {
       name + '@' + wanted,
       current ? (name + '@' + current) : 'MISSING',
       name + '@' + latest,
-      dependent
+      dependent,
     ]
-    if (opts.long) out.push(type, homepage)
+    if (opts.long)
+      out.push(type, homepage)
 
     return out.join(':')
   }).join(os.EOL)
@@ -265,7 +260,7 @@ function makeJSON (list, opts) {
       wanted,
       latest,
       dependent,
-      location: path
+      location: path,
     }
     if (opts.long) {
       out[name].type = type

@@ -1,16 +1,12 @@
 ---
-section: configuring-npm
 title: package-locks
+section: 5
 description: An explanation of npm lockfiles
 ---
 
-# package-locks(5)
-
-## An explanation of npm lockfiles
-
 ### Description
 
-Conceptually, the "input" to [`npm install`](/cli-commands/install) is a [package.json](/configuring-npm/package-json), while its
+Conceptually, the "input" to [`npm install`](/commands/npm-install) is a [package.json](/configuring-npm/package-json), while its
 "output" is a fully-formed `node_modules` tree: a representation of the
 dependencies you declared. In an ideal world, npm would work like a pure
 function: the same `package.json` should produce the exact same `node_modules`
@@ -179,4 +175,4 @@ pre-`npm@5.7.0` versions of npm 5, albeit a bit more noisily. Note that if
 * [package.json](/configuring-npm/package-json)
 * [package-lock.json](/configuring-npm/package-lock-json)
 * [shrinkwrap.json](/configuring-npm/shrinkwrap-json)
-* [npm shrinkwrap](/cli-commands/shrinkwrap)
+* [npm shrinkwrap](/commands/npm-shrinkwrap)

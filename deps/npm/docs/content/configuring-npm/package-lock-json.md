@@ -1,12 +1,8 @@
 ---
-section: configuring-npm
 title: package-lock.json
+section: 5
 description: A manifestation of the manifest
 ---
-
-# package-lock.json(5)
-
-## A manifestation of the manifest
 
 ### Description
 
@@ -142,8 +138,8 @@ The dependencies of this dependency, exactly as at the top level.
 
 ### See also
 
-* [npm shrinkwrap](/cli-commands/shrinkwrap)
+* [npm shrinkwrap](/commands/npm-shrinkwrap)
 * [shrinkwrap.json](/configuring-npm/shrinkwrap-json)
 * [package-locks](/configuring-npm/package-locks)
 * [package.json](/configuring-npm/package-json)
-* [npm install](/cli-commands/install)
+* [npm install](/commands/npm-install)

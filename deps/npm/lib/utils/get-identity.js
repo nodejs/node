@@ -6,9 +6,8 @@ const needsAuthError = (msg) =>
 
 module.exports = async (opts = {}) => {
   const { registry } = opts
-  if (!registry) {
+  if (!registry)
     throw Object.assign(new Error('No registry specified.'), { code: 'ENOREGISTRY' })
-  }
 
   // First, check if we have a user/pass-based auth
   const creds = npm.config.getCredentialsByURI(registry)
@@ -20,13 +19,13 @@ module.exports = async (opts = {}) => {
   } else if (token) {
     // No username, but we have a token; fetch the username from registry
     const registryData = await npmFetch.json('/-/whoami', {
-      ...opts
+      ...opts,
     })
     const { username: usernameFromRegistry } = registryData
     // Retrieved username from registry; return it
-    if (usernameFromRegistry) {
+    if (usernameFromRegistry)
       return usernameFromRegistry
-    } else {
+    else {
       // Didn't get username from registry; bad token
       throw needsAuthError(
         'Your auth token is no longer valid. Please login again.'

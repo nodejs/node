@@ -9,14 +9,19 @@ function warnDeprecated (type) {
     if (!instance) {
       if (!deprecations[type]) {
         deprecations[type] = {}
-        messages.forEach(function (m) { log.warn(type, m) })
+        messages.forEach(function (m) {
+          log.warn(type, m)
+        })
       }
     } else {
-      if (!deprecations[type]) deprecations[type] = {}
+      if (!deprecations[type])
+        deprecations[type] = {}
 
       if (!deprecations[type][instance]) {
         deprecations[type][instance] = true
-        messages.forEach(function (m) { log.warn(type, m) })
+        messages.forEach(function (m) {
+          log.warn(type, m)
+        })
       }
     }
   }

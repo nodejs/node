@@ -21,7 +21,7 @@ const shorthands = {
   'clean-install': 'ci',
   'clean-install-test': 'cit',
   x: 'exec',
-  why: 'explain'
+  why: 'explain',
 }
 
 const affordances = {
@@ -60,7 +60,7 @@ const affordances = {
   rum: 'run-script',
   sit: 'cit',
   urn: 'run-script',
-  ogr: 'org'
+  ogr: 'org',
 }
 
 // these are filenames in .
@@ -130,7 +130,7 @@ const cmdList = [
   'completion',
   'doctor',
   'exec',
-  'explain'
+  'explain',
 ]
 
 const plumbing = ['birthday', 'help-search']
@@ -139,5 +139,5 @@ module.exports = {
   shorthands,
   affordances,
   cmdList,
-  plumbing
+  plumbing,
 }

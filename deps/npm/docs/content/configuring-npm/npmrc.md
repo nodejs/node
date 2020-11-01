@@ -1,12 +1,8 @@
 ---
-section: configuring-npm
 title: npmrc
+section: 5
 description: The npm config files
 ---
-
-# npmrc(5)
-
-## The npm config files
 
 ### Description
 
@@ -97,7 +93,7 @@ manner.
 ### See also
 
 * [npm folders](/configuring-npm/folders)
-* [npm config](/cli-commands/config)
+* [npm config](/commands/npm-config)
 * [config](/using-npm/config)
 * [package.json](/configuring-npm/package-json)
-* [npm](/cli-commands/npm)
+* [npm](/commands/npm)

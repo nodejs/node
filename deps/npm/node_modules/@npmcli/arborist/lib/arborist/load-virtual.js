@@ -71,7 +71,6 @@ module.exports = cls => class VirtualLoader extends cls {
   }
 
   async [loadFromShrinkwrap] (s, root) {
-    root.meta = s
     // root is never any of these things, but might be a brand new
     // baby Node object that never had its dep flags calculated.
     root.extraneous = false
@@ -80,7 +79,7 @@ module.exports = cls => class VirtualLoader extends cls {
     root.devOptional = false
     root.peer = false
     this[checkRootEdges](s, root)
-    s.add(root)
+    root.meta = s
     this.virtualTree = root
     const {links, nodes} = this[resolveNodes](s, root)
     await this[resolveLinks](links, nodes)
