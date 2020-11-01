@@ -63,7 +63,10 @@ using PublicKeyEncodingConfig = AsymmetricKeyEncodingConfig;
 
 struct PrivateKeyEncodingConfig : public AsymmetricKeyEncodingConfig {
   const EVP_CIPHER* cipher_;
-  ByteSource passphrase_;
+  // The ByteSource alone is not enough to distinguish between "no passphrase"
+  // and a zero-length passphrase (which can be a null pointer), therefore, we
+  // use a NonCopyableMaybe.
+  NonCopyableMaybe<ByteSource> passphrase_;
 };
 
 // This uses the built-in reference counter of OpenSSL to manage an EVP_PKEY

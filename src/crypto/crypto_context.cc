@@ -522,13 +522,19 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   if (!bio)
     return;
 
-  node::Utf8Value passphrase(env->isolate(), args[1]);
+  ByteSource passphrase;
+  if (args[1]->IsString())
+    passphrase = ByteSource::FromString(env, args[1].As<String>());
+  // This redirection is necessary because the PasswordCallback expects a
+  // pointer to a pointer to the passphrase ByteSource to allow passing in
+  // const ByteSources.
+  const ByteSource* pass_ptr = &passphrase;
 
   EVPKeyPointer key(
       PEM_read_bio_PrivateKey(bio.get(),
                               nullptr,
                               PasswordCallback,
-                              *passphrase));
+                              &pass_ptr));
 
   if (!key) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
