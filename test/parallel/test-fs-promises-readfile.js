@@ -10,18 +10,21 @@ tmpdir.refresh();
 
 const fn = path.join(tmpdir.path, 'large-file');
 
-async function validateReadFile() {
-  // Creating large buffer with random content
-  const buffer = Buffer.from(
-    Array.apply(null, { length: 16834 * 2 })
-      .map(Math.random)
-      .map((number) => (number * (1 << 8)))
-  );
+// Creating large buffer with random content
+const largeBuffer = Buffer.from(
+  Array.apply(null, { length: 16834 * 2 })
+    .map(Math.random)
+    .map((number) => (number * (1 << 8)))
+);
 
+async function createLargeFile() {
   // Writing buffer to a file then try to read it
-  await writeFile(fn, buffer);
+  await writeFile(fn, largeBuffer);
+}
+
+async function validateReadFile() {
   const readBuffer = await readFile(fn);
-  assert.strictEqual(readBuffer.equals(buffer), true);
+  assert.strictEqual(readBuffer.equals(largeBuffer), true);
 }
 
 async function validateReadFileProc() {
@@ -39,6 +42,28 @@ async function validateReadFileProc() {
   assert.ok(hostname.length > 0);
 }
 
-validateReadFile()
-  .then(() => validateReadFileProc())
-  .then(common.mustCall());
+function validateReadFileAbortLogicBefore() {
+  const controller = new AbortController();
+  const signal = controller.signal;
+  controller.abort();
+  assert.rejects(readFile(fn, { signal }), {
+    name: 'AbortError'
+  });
+}
+
+function validateReadFileAbortLogicDuring() {
+  const controller = new AbortController();
+  const signal = controller.signal;
+  process.nextTick(() => controller.abort());
+  assert.rejects(readFile(fn, { signal }), {
+    name: 'AbortError'
+  });
+}
+
+(async () => {
+  await createLargeFile();
+  await validateReadFile();
+  await validateReadFileProc();
+  await validateReadFileAbortLogicBefore();
+  await validateReadFileAbortLogicDuring();
+})().then(common.mustCall());
