@@ -251,8 +251,10 @@ struct KeyPairGenConfig final : public MemoryRetainer {
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("key", key);
-    tracker->TrackFieldWithSize("private_key_encoding.passphrase",
-                        private_key_encoding.passphrase_.size());
+    if (!private_key_encoding.passphrase_.IsEmpty()) {
+      tracker->TrackFieldWithSize("private_key_encoding.passphrase",
+                                  private_key_encoding.passphrase_->size());
+    }
     tracker->TrackField("params", params);
   }
 

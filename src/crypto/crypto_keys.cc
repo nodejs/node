@@ -210,8 +210,7 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
                                const PrivateKeyEncodingConfig& config,
                                const char* key,
                                size_t key_len) {
-  // OpenSSL needs a non-const pointer, that's why the const_cast is required.
-  char* const passphrase = const_cast<char*>(config.passphrase_.get());
+  const ByteSource* passphrase = config.passphrase_.get();
 
   if (config.format_ == kKeyFormatPEM) {
     BIOPointer bio(BIO_new_mem_buf(key, key_len));
@@ -221,7 +220,7 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
     pkey->reset(PEM_read_bio_PrivateKey(bio.get(),
                                         nullptr,
                                         PasswordCallback,
-                                        passphrase));
+                                        &passphrase));
   } else {
     CHECK_EQ(config.format_, kKeyFormatDER);
 
@@ -238,7 +237,7 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
         pkey->reset(d2i_PKCS8PrivateKey_bio(bio.get(),
                                             nullptr,
                                             PasswordCallback,
-                                            passphrase));
+                                            &passphrase));
       } else {
         PKCS8Pointer p8inf(d2i_PKCS8_PRIV_KEY_INFO_bio(bio.get(), nullptr));
         if (p8inf)
@@ -260,7 +259,7 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
     return ParseKeyResult::kParseKeyOk;
   if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
       ERR_GET_REASON(err) == PEM_R_BAD_PASSWORD_READ) {
-    if (config.passphrase_.get() == nullptr)
+    if (config.passphrase_.IsEmpty())
       return ParseKeyResult::kParseKeyNeedPassphrase;
   }
   return ParseKeyResult::kParseKeyFailed;
@@ -293,6 +292,28 @@ MaybeLocal<Value> WritePrivateKey(
   BIOPointer bio(BIO_new(BIO_s_mem()));
   CHECK(bio);
 
+  // If an empty string was passed as the passphrase, the ByteSource might
+  // contain a null pointer, which OpenSSL will ignore, causing it to invoke its
+  // default passphrase callback, which would block the thread until the user
+  // manually enters a passphrase. We could supply our own passphrase callback
+  // to handle this special case, but it is easier to avoid passing a null
+  // pointer to OpenSSL.
+  char* pass = nullptr;
+  size_t pass_len = 0;
+  if (!config.passphrase_.IsEmpty()) {
+    pass = const_cast<char*>(config.passphrase_->get());
+    pass_len = config.passphrase_->size();
+    if (pass == nullptr) {
+      // OpenSSL will not actually dereference this pointer, so it can be any
+      // non-null pointer. We cannot assert that directly, which is why we
+      // intentionally use a pointer that will likely cause a segmentation fault
+      // when dereferenced.
+      CHECK_EQ(pass_len, 0);
+      pass = reinterpret_cast<char*>(-1);
+      CHECK_NE(pass, nullptr);
+    }
+  }
+
   bool err;
 
   PKEncodingType encoding_type = config.type_.ToChecked();
@@ -303,12 +324,11 @@ MaybeLocal<Value> WritePrivateKey(
     RSAPointer rsa(EVP_PKEY_get1_RSA(pkey));
     if (config.format_ == kKeyFormatPEM) {
       // Encode PKCS#1 as PEM.
-      const char* pass = config.passphrase_.get();
       err = PEM_write_bio_RSAPrivateKey(
                 bio.get(), rsa.get(),
                 config.cipher_,
-                reinterpret_cast<unsigned char*>(const_cast<char*>(pass)),
-                config.passphrase_.size(),
+                reinterpret_cast<unsigned char*>(pass),
+                pass_len,
                 nullptr, nullptr) != 1;
     } else {
       // Encode PKCS#1 as DER. This does not permit encryption.
@@ -322,8 +342,8 @@ MaybeLocal<Value> WritePrivateKey(
       err = PEM_write_bio_PKCS8PrivateKey(
                 bio.get(), pkey,
                 config.cipher_,
-                const_cast<char*>(config.passphrase_.get()),
-                config.passphrase_.size(),
+                pass,
+                pass_len,
                 nullptr, nullptr) != 1;
     } else {
       // Encode PKCS#8 as DER.
@@ -331,8 +351,8 @@ MaybeLocal<Value> WritePrivateKey(
       err = i2d_PKCS8PrivateKey_bio(
                 bio.get(), pkey,
                 config.cipher_,
-                const_cast<char*>(config.passphrase_.get()),
-                config.passphrase_.size(),
+                pass,
+                pass_len,
                 nullptr, nullptr) != 1;
     }
   } else {
@@ -344,12 +364,11 @@ MaybeLocal<Value> WritePrivateKey(
     ECKeyPointer ec_key(EVP_PKEY_get1_EC_KEY(pkey));
     if (config.format_ == kKeyFormatPEM) {
       // Encode SEC1 as PEM.
-      const char* pass = config.passphrase_.get();
       err = PEM_write_bio_ECPrivateKey(
                 bio.get(), ec_key.get(),
                 config.cipher_,
-                reinterpret_cast<unsigned char*>(const_cast<char*>(pass)),
-                config.passphrase_.size(),
+                reinterpret_cast<unsigned char*>(pass),
+                pass_len,
                 nullptr, nullptr) != 1;
     } else {
       // Encode SEC1 as DER. This does not permit encryption.
@@ -640,7 +659,8 @@ ManagedEVPPKey::GetPrivateKeyEncodingFromJs(
         THROW_ERR_OUT_OF_RANGE(env, "passphrase is too big");
         return NonCopyableMaybe<PrivateKeyEncodingConfig>();
       }
-      result.passphrase_ = passphrase.ToNullTerminatedCopy();
+      result.passphrase_ = NonCopyableMaybe<ByteSource>(
+          passphrase.ToNullTerminatedCopy());
     } else {
       CHECK(args[*offset]->IsNullOrUndefined() && !needs_passphrase);
     }
