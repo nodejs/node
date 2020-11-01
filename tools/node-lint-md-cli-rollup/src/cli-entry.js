@@ -9,9 +9,10 @@ const processor = require('remark');
 const proc = require('remark/package.json');
 const cli = require('../package.json');
 const lintNode = require('remark-preset-lint-node');
+const gfm = require('remark-gfm');
 
 start({
-  processor: processor().use(lintNode),
+  processor: processor().use(gfm).use(lintNode),
   name: proc.name,
   description: cli.description,
   version: [
