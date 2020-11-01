@@ -6,9 +6,8 @@ const names = global => readdir(global ? npm.globalDir : npm.localDir)
 
 const installedShallow = async opts => {
   const { conf: { argv: { remain } } } = opts
-  if (remain.length > 3) {
+  if (remain.length > 3)
     return null
-  }
 
   const { global } = npm.flatOptions
   const locals = global ? [] : await names(false)

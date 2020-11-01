@@ -253,6 +253,7 @@ t.test('skip pre/post hooks when using ignoreScripts', async t => {
           postenv: 'echo after the env',
           env: 'env'
         } },
+        banner: true,
         event: 'env'
       }
     ])
@@ -295,7 +296,8 @@ t.test('run silent', async t => {
         pkg: { name: 'x', version: '1.2.3', _id: 'x@1.2.3', scripts: {
           env: 'env'
         } },
-        event: 'env'
+        event: 'env',
+        banner: false
       },
       {
         event: 'postenv',

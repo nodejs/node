@@ -67,9 +67,8 @@ const missingArgsFromTree = (tree, args) => {
 
   // remote nodes from the loaded tree in order
   // to avoid dropping them later when reifying
-  for (const node of foundNodes) {
+  for (const node of foundNodes)
     node.parent = null
-  }
 
   return missing
 }
@@ -82,14 +81,14 @@ const linkInstall = async args => {
     ...npm.flatOptions,
     path: globalTop,
     global: true,
-    prune: false
+    prune: false,
   }
   const globalArb = new Arborist(globalOpts)
 
   // get only current top-level packages from the global space
   const globals = await globalArb.loadActual({
     filter: (node, kid) =>
-      !node.isRoot || args.some(a => npa(a).name === kid)
+      !node.isRoot || args.some(a => npa(a).name === kid),
   })
 
   // any extra arg that is missing from the current
@@ -98,7 +97,7 @@ const linkInstall = async args => {
   if (missing.length) {
     await globalArb.reify({
       ...globalOpts,
-      add: missing
+      add: missing,
     })
   }
 
@@ -117,10 +116,10 @@ const linkInstall = async args => {
   // reify all the pending names as symlinks there
   const localArb = new Arborist({
     ...npm.flatOptions,
-    path: npm.prefix
+    path: npm.prefix,
   })
   await localArb.reify({
-    add: names.map(l => `file:${resolve(globalTop, 'node_modules', l)}`)
+    add: names.map(l => `file:${resolve(globalTop, 'node_modules', l)}`),
   })
 
   reifyOutput(localArb)
@@ -131,7 +130,7 @@ const linkPkg = async () => {
   const arb = new Arborist({
     ...npm.flatOptions,
     path: globalTop,
-    global: true
+    global: true,
   })
   await arb.reify({ add: [`file:${npm.prefix}`] })
   reifyOutput(arb)

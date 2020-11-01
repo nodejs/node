@@ -17,7 +17,8 @@ const usage = usageUtil('pack', 'npm pack [[<@scope>/]<pkg>...] [--dry-run]')
 const cmd = (args, cb) => pack(args).then(() => cb()).catch(cb)
 
 const pack = async (args) => {
-  if (args.length === 0) args = ['.']
+  if (args.length === 0)
+    args = ['.']
 
   const { unicode } = npm.flatOptions
 
@@ -40,9 +41,8 @@ const pack_ = async (arg, opts) => {
   const tarballData = await libpack(arg, opts)
   const pkgContents = await getContents(manifest, tarballData)
 
-  if (!dryRun) {
+  if (!dryRun)
     await writeFile(filename, tarballData)
-  }
 
   return pkgContents
 }

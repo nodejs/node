@@ -37,16 +37,15 @@ const shrinkwrap = async () => {
   meta.filename = sw
   await meta.save()
 
-  if (newFile) {
+  if (newFile)
     log.notice('', 'created a lockfile as npm-shrinkwrap.json')
-  } else if (notSW) {
+  else if (notSW) {
     await unlink(oldFilename)
     log.notice('', 'package-lock.json has been renamed to npm-shrinkwrap.json')
-  } else if (meta.originalLockfileVersion !== npm.lockfileVersion) {
+  } else if (meta.originalLockfileVersion !== npm.lockfileVersion)
     log.notice('', `npm-shrinkwrap.json updated to version ${npm.lockfileVersion}`)
-  } else {
+  else
     log.notice('', 'npm-shrinkwrap.json up to date')
-  }
 }
 
 module.exports = Object.assign(cmd, { usage, completion })

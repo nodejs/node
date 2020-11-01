@@ -9,19 +9,19 @@ const audit = async args => {
   const arb = new Arborist({
     ...npm.flatOptions,
     audit: true,
-    path: npm.prefix
+    path: npm.prefix,
   })
   const fix = args[0] === 'fix'
   await arb.audit({ fix })
-  if (fix) {
+  if (fix)
     reifyOutput(arb)
-  } else {
+  else {
     // will throw if there's an error, because this is an audit command
     auditError(arb.auditReport)
     const reporter = npm.flatOptions.json ? 'json' : 'detail'
     const result = auditReport(arb.auditReport, {
       ...npm.flatOptions,
-      reporter
+      reporter,
     })
     process.exitCode = process.exitCode || result.exitCode
     output(result.report)
@@ -41,9 +41,8 @@ const usage = usageUtil(
 const completion = (opts, cb) => {
   const argv = opts.conf.argv.remain
 
-  if (argv.length === 2) {
+  if (argv.length === 2)
     return cb(null, ['fix'])
-  }
 
   switch (argv[2]) {
     case 'fix':

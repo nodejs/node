@@ -19,11 +19,10 @@ const ping = async args => {
     output(JSON.stringify({
       registry: npm.flatOptions.registry,
       time,
-      details
+      details,
     }, null, 2))
-  } else if (Object.keys(details).length) {
+  } else if (Object.keys(details).length)
     log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
-  }
 }
 
 module.exports = Object.assign(cmd, { completion, usage })

@@ -38,17 +38,17 @@ const runScript = async (args) => {
   const pkg = await readJson(`${path}/package.json`)
   const { scripts = {} } = pkg
 
-  if (event === 'restart' && !scripts.restart) {
+  if (event === 'restart' && !scripts.restart)
     scripts.restart = 'npm stop --if-present && npm start'
-  } else if (event === 'env') {
+  else if (event === 'env')
     scripts.env = isWindowsShell ? 'SET' : 'env'
-  }
+
   pkg.scripts = scripts
 
   if (!scripts[event]) {
-    if (npm.config.get('if-present')) {
+    if (npm.config.get('if-present'))
       return
-    }
+
     const suggestions = didYouMean(event, Object.keys(scripts))
     throw new Error(`missing script: ${event}${
       suggestions ? `\n${suggestions}` : ''}`)
@@ -57,12 +57,11 @@ const runScript = async (args) => {
   // positional args only added to the main event, not pre/post
   const events = [[event, args]]
   if (!npm.flatOptions.ignoreScripts) {
-    if (scripts[`pre${event}`]) {
+    if (scripts[`pre${event}`])
       events.unshift([`pre${event}`, []])
-    }
-    if (scripts[`post${event}`]) {
+
+    if (scripts[`post${event}`])
       events.push([`post${event}`, []])
-    }
   }
 
   const opts = {
@@ -71,14 +70,15 @@ const runScript = async (args) => {
     scriptShell,
     stdio: 'inherit',
     stdioString: true,
-    pkg
+    pkg,
+    banner: log.level !== 'silent',
   }
 
   for (const [event, args] of events) {
     await run({
       ...opts,
       event,
-      args
+      args,
     })
   }
 }
@@ -94,17 +94,15 @@ const list = async () => {
     'stop',
     'start',
     'restart',
-    'version'
+    'version',
   ].reduce((l, p) => l.concat(['pre' + p, p, 'post' + p]), [])
 
-  if (!scripts) {
+  if (!scripts)
     return []
-  }
 
   const allScripts = Object.keys(scripts)
-  if (log.level === 'silent') {
+  if (log.level === 'silent')
     return allScripts
-  }
 
   if (npm.flatOptions.json) {
     output(JSON.stringify(scripts, null, 2))
@@ -112,9 +110,9 @@ const list = async () => {
   }
 
   if (npm.flatOptions.parseable) {
-    for (const [script, cmd] of Object.entries(scripts)) {
+    for (const [script, cmd] of Object.entries(scripts))
       output(`${script}:${cmd}`)
-    }
+
     return allScripts
   }
 
@@ -127,20 +125,20 @@ const list = async () => {
     list.push(script)
   }
 
-  if (cmds.length) {
+  if (cmds.length)
     output(`Lifecycle scripts included in ${name}:`)
-  }
-  for (const script of cmds) {
+
+  for (const script of cmds)
     output(prefix + script + indent + scripts[script])
-  }
-  if (!cmds.length && runScripts.length) {
+
+  if (!cmds.length && runScripts.length)
     output(`Scripts available in ${name} via \`npm run-script\`:`)
-  } else if (runScripts.length) {
+  else if (runScripts.length)
     output('\navailable via `npm run-script`:')
-  }
-  for (const script of runScripts) {
+
+  for (const script of runScripts)
     output(prefix + script + indent + scripts[script])
-  }
+
   return allScripts
 }
 

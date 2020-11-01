@@ -6,6 +6,7 @@
 // for a given branch of the tree being mutated.
 
 const {depth} = require('treeverse')
+const {existsSync} = require('fs')
 
 const ssri = require('ssri')
 
@@ -37,25 +38,35 @@ class Diff {
   }
 }
 
-const getAction = ({actual, ideal}) =>
-  !ideal ? 'REMOVE'
+const getAction = ({actual, ideal}) => {
+  if (!ideal)
+    return 'REMOVE'
+
   // bundled meta-deps are copied over to the ideal tree when we visit it,
   // so they'll appear to be missing here.  There's no need to handle them
   // in the diff, though, because they'll be replaced at reify time anyway
   // Otherwise, add the missing node.
-  : !actual ? (ideal.inDepBundle ? null : 'ADD')
+  if (!actual)
+    return ideal.inDepBundle ? null : 'ADD'
+
   // always ignore the root node
-  : ideal.isRoot && actual.isRoot ||
+  if (ideal.isRoot && actual.isRoot)
+    return null
+
+  const binsExist = ideal.binPaths.every((path) => existsSync(path))
+
   // top nodes, links, and git deps won't have integrity, but do have resolved
-    !ideal.integrity && !actual.integrity &&
-      ideal.resolved === actual.resolved ||
+  if (!ideal.integrity && !actual.integrity && ideal.resolved === actual.resolved && binsExist)
+    return null
+
   // otherwise, verify that it's the same bits
   // note that if ideal has integrity, and resolved doesn't, we treat
   // that as a 'change', so that it gets re-fetched and locked down.
-    ideal.integrity &&
-    actual.integrity &&
-    ssri.parse(ideal.integrity).match(actual.integrity) ? null
-  : 'CHANGE'
+  if (!ideal.integrity || !actual.integrity || !ssri.parse(ideal.integrity).match(actual.integrity) || !binsExist)
+    return 'CHANGE'
+
+  return null
+}
 
 const allChildren = node => {
   if (!node)

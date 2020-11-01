@@ -16,7 +16,7 @@ const prune = async () => {
   const where = npm.prefix
   const arb = new Arborist({
     ...npm.flatOptions,
-    path: where
+    path: where,
   })
   await arb.prune(npm.flatOptions)
   reifyOutput(arb)

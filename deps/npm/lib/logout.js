@@ -27,18 +27,17 @@ const logout = async (args) => {
     await npmFetch(`/-/user/token/${eu(auth.token)}`, {
       ...npm.flatOptions,
       method: 'DELETE',
-      ignoreBody: true
+      ignoreBody: true,
     })
-  } else if (auth.username || auth.password) {
+  } else if (auth.username || auth.password)
     log.verbose('logout', `clearing user credentials for ${reg}`)
-  } else {
+  else {
     const msg = `not logged in to ${reg}, so can't log out!`
     throw Object.assign(new Error(msg), { code: 'ENEEDAUTH' })
   }
 
-  if (scope) {
+  if (scope)
     npm.config.delete(regRef, 'user')
-  }
 
   npm.config.clearCredentialsByURI(reg)
 

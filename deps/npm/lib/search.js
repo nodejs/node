@@ -26,12 +26,11 @@ function search (args, cb) {
     ...npm.flatOptions,
     ...npm.flatOptions.search,
     include: prepareIncludes(args, npm.flatOptions.search.opts),
-    exclude: prepareExcludes(npm.flatOptions.search.exclude)
+    exclude: prepareExcludes(npm.flatOptions.search.exclude),
   }
 
-  if (opts.include.length === 0) {
+  if (opts.include.length === 0)
     return cb(new Error('search must be called with arguments'))
-  }
 
   // Used later to figure out whether we had any packages go out
   let anyOutput = false
@@ -42,21 +41,22 @@ function search (args, cb) {
   // This is a text minipass stream
   var outputStream = formatPackageStream({
     args, // --searchinclude options are not highlighted
-    ...opts
+    ...opts,
   })
 
   log.silly('search', 'searching packages')
   const p = new Pipeline(libSearch.stream(opts.include, opts), outputStream)
 
   p.on('data', chunk => {
-    if (!anyOutput) { anyOutput = true }
+    if (!anyOutput)
+      anyOutput = true
     output(chunk.toString('utf8'))
   })
 
   p.promise().then(() => {
-    if (!anyOutput && !opts.json && !opts.parseable) {
+    if (!anyOutput && !opts.json && !opts.parseable)
       output('No matches found for ' + (args.map(JSON.stringify).join(' ')))
-    }
+
     log.silly('search', 'search completed')
     log.clearProgress()
     cb(null, {})
@@ -64,19 +64,22 @@ function search (args, cb) {
 }
 
 function prepareIncludes (args, searchopts) {
-  if (typeof searchopts !== 'string') searchopts = ''
+  if (typeof searchopts !== 'string')
+    searchopts = ''
   return searchopts.split(/\s+/).concat(args).map(function (s) {
     return s.toLowerCase()
-  }).filter(function (s) { return s })
+  }).filter(function (s) {
+    return s
+  })
 }
 
 function prepareExcludes (searchexclude) {
   var exclude
-  if (typeof searchexclude === 'string') {
+  if (typeof searchexclude === 'string')
     exclude = searchexclude.split(/\s+/)
-  } else {
+  else
     exclude = []
-  }
+
   return exclude.map(function (s) {
     return s.toLowerCase()
   })

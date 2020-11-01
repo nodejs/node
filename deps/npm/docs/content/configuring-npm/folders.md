@@ -1,12 +1,8 @@
 ---
-section: configuring-npm
 title: folders
+section: 5
 description: Folder Structures Used by npm
 ---
-
-# folders(5)
-
-## Folder Structures Used by npm
 
 ### Description
 
@@ -73,7 +69,7 @@ Man pages are not installed on Windows systems.
 
 #### Cache
 
-See [`npm cache`](/cli-commands/cache).  Cache files are stored in `~/.npm` on Posix, or
+See [`npm cache`](/commands/npm-cache).  Cache files are stored in `~/.npm` on Posix, or
 `%AppData%/npm-cache` on Windows.
 
 This is controlled by the `cache` configuration param.
@@ -214,10 +210,10 @@ cannot be found elsewhere.  See [`package.json`](/configuring-npm/package.json) 
 ### See also
 
 * [package.json](/configuring-npm/package-json)
-* [npm install](/cli-commands/install)
-* [npm pack](/cli-commands/pack)
-* [npm cache](/cli-commands/cache)
-* [npm config](/cli-commands/config)
+* [npm install](/commands/npm-install)
+* [npm pack](/commands/npm-pack)
+* [npm cache](/commands/npm-cache)
+* [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)
 * [config](/using-npm/config)
-* [npm publish](/cli-commands/publish)
+* [npm publish](/commands/npm-publish)

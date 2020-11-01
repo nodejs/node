@@ -1,11 +1,8 @@
 ---
-section: using-npm
 title: scope
+section: 7
 description: Scoped packages
 ---
-# scope(7)
-
-## Scoped packages
 
 ### Description
 
@@ -55,7 +52,7 @@ Or in `package.json`:
 ```
 
 Note that if the `@` symbol is omitted, in either case, npm will instead attempt to
-install from GitHub; see [`npm install`](/cli-commands/install).
+install from GitHub; see [`npm install`](/commands/npm-install).
 
 ### Requiring scoped packages
 
@@ -125,7 +122,7 @@ that registry instead.
 
 ### See also
 
-* [npm install](/cli-commands/install)
-* [npm publish](/cli-commands/publish)
-* [npm access](/cli-commands/access)
+* [npm install](/commands/npm-install)
+* [npm publish](/commands/npm-publish)
+* [npm access](/commands/npm-access)
 * [npm registry](/using-npm/registry)

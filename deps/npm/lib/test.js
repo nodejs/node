@@ -4,9 +4,8 @@ const cmd = (args, cb) => testCmd(args, er => {
   if (er && er.code === 'ELIFECYCLE') {
     /* eslint-disable standard/no-callback-literal */
     cb('Test failed.  See above for more details.')
-  } else {
+  } else
     cb(er)
-  }
 })
 
 module.exports = Object.assign(cmd, { completion, usage })

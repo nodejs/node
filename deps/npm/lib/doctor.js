@@ -17,11 +17,10 @@ const checkPing = async () => {
     await ping(npm.flatOptions)
     return ''
   } catch (er) {
-    if (/^E\d{3}$/.test(er.code || '')) {
+    if (/^E\d{3}$/.test(er.code || ''))
       throw er.code.substr(1) + ' ' + er.message
-    } else {
+    else
       throw er
-    }
   } finally {
     tracker.finish()
   }
@@ -33,11 +32,10 @@ const getLatestNpmVersion = async () => {
   tracker.info('getLatestNpmVersion', 'Getting npm package information')
   try {
     const latest = (await pacote.manifest('npm@latest', npm.flatOptions)).version
-    if (semver.gte(npm.version, latest)) {
+    if (semver.gte(npm.version, latest))
       return `current: v${npm.version}, latest: v${latest}`
-    } else {
+    else
       throw `Use npm v${latest}`
-    }
   } finally {
     tracker.finish()
   }
@@ -58,19 +56,17 @@ const getLatestNodejsVersion = async () => {
     let maxCurrent = '0.0.0'
     let maxLTS = '0.0.0'
     for (const { lts, version } of data) {
-      if (lts && semver.gt(version, maxLTS)) {
+      if (lts && semver.gt(version, maxLTS))
         maxLTS = version
-      }
-      if (semver.satisfies(version, currentRange) && semver.gt(version, maxCurrent)) {
+
+      if (semver.satisfies(version, currentRange) && semver.gt(version, maxCurrent))
         maxCurrent = version
-      }
     }
     const recommended = semver.gt(maxCurrent, maxLTS) ? maxCurrent : maxLTS
-    if (semver.gte(process.version, recommended)) {
+    if (semver.gte(process.version, recommended))
       return `current: ${current}, recommended: ${recommended}`
-    } else {
+    else
       throw `Use node ${recommended} (current: ${current})`
-    }
   } finally {
     tracker.finish()
   }
@@ -81,15 +77,15 @@ const fs = require('fs')
 const { R_OK, W_OK, X_OK } = fs.constants
 const maskLabel = mask => {
   const label = []
-  if (mask & R_OK) {
+  if (mask & R_OK)
     label.push('readable')
-  }
-  if (mask & W_OK) {
+
+  if (mask & W_OK)
     label.push('writable')
-  }
-  if (mask & X_OK) {
+
+  if (mask & X_OK)
     label.push('executable')
-  }
+
   return label.join(', ')
 }
 const lstat = promisify(fs.lstat)
@@ -97,9 +93,8 @@ const readdir = promisify(fs.readdir)
 const access = promisify(fs.access)
 const isWindows = require('./utils/is-windows.js')
 const checkFilesPermission = async (root, shouldOwn = true, mask = null) => {
-  if (mask === null) {
+  if (mask === null)
     mask = shouldOwn ? R_OK | W_OK : R_OK
-  }
 
   let ok = true
 
@@ -119,18 +114,16 @@ const checkFilesPermission = async (root, shouldOwn = true, mask = null) => {
 
       tracker.completeWork(1)
 
-      if (!st) {
+      if (!st)
         continue
-      }
 
       if (shouldOwn && (uid !== st.uid || gid !== st.gid)) {
         tracker.warn('checkFilesPermission', 'should be owner of ' + f)
         ok = false
       }
 
-      if (!st.isDirectory() && !st.isFile()) {
+      if (!st.isDirectory() && !st.isFile())
         continue
-      }
 
       try {
         await access(f, mask)
@@ -148,9 +141,8 @@ const checkFilesPermission = async (root, shouldOwn = true, mask = null) => {
             tracker.warn('checkFilesPermission', 'error reading directory ' + f)
             return []
           })
-        for (const entry of entries) {
+        for (const entry of entries)
           files.add(resolve(f, entry))
-        }
       }
     }
   } finally {
@@ -158,9 +150,8 @@ const checkFilesPermission = async (root, shouldOwn = true, mask = null) => {
     if (!ok) {
       throw `Check the permissions of files in ${root}` +
         (shouldOwn ? ' (should be owned by current user)' : '')
-    } else {
+    } else
       return ''
-    }
   }
 }
 
@@ -186,15 +177,15 @@ const verifyCachedFiles = async () => {
     const stats = await cacache.verify(npm.flatOptions.cache)
     const { badContentCount, reclaimedCount, missingContent, reclaimedSize } = stats
     if (badContentCount || reclaimedCount || missingContent) {
-      if (badContentCount) {
+      if (badContentCount)
         tracker.warn('verifyCachedFiles', `Corrupted content removed: ${badContentCount}`)
-      }
-      if (reclaimedCount) {
+
+      if (reclaimedCount)
         tracker.warn('verifyCachedFiles', `Content garbage-collected: ${reclaimedCount} (${reclaimedSize} bytes)`)
-      }
-      if (missingContent) {
+
+      if (missingContent)
         tracker.warn('verifyCachedFiles', `Missing content: ${missingContent}`)
-      }
+
       tracker.warn('verifyCachedFiles', 'Cache issues have been fixed')
     }
     tracker.info('verifyCachedFiles', `Verification complete. Stats: ${
@@ -208,11 +199,10 @@ const verifyCachedFiles = async () => {
 
 const { defaults: { registry: defaultRegistry } } = require('./utils/config.js')
 const checkNpmRegistry = async () => {
-  if (npm.flatOptions.registry !== defaultRegistry) {
+  if (npm.flatOptions.registry !== defaultRegistry)
     throw `Try \`npm config set registry=${defaultRegistry}\``
-  } else {
+  else
     return `using default registry (${defaultRegistry})`
-  }
 }
 
 const cmd = (args, cb) => doctor(args).then(() => cb()).catch(cb)
@@ -234,9 +224,9 @@ const doctor = async args => {
       ['Perms check on local node_modules', checkFilesPermission, [npm.localDir, true]],
       ['Perms check on global node_modules', checkFilesPermission, [npm.globalDir, false]],
       ['Perms check on local bin folder', checkFilesPermission, [npm.localBin, false, R_OK | W_OK | X_OK]],
-      ['Perms check on global bin folder', checkFilesPermission, [npm.globalBin, false, X_OK]]
+      ['Perms check on global bin folder', checkFilesPermission, [npm.globalBin, false, X_OK]],
     ]),
-    ['Verify cache contents', verifyCachedFiles, [npm.flatOptions.cache]]
+    ['Verify cache contents', verifyCachedFiles, [npm.flatOptions.cache]],
     // TODO:
     // - ensure arborist.loadActual() runs without errors and no invalid edges
     // - ensure package-lock.json matches loadActual()
@@ -277,18 +267,16 @@ const doctor = async args => {
     })
   const outTable = [outHead, ...outBody]
   const tableOpts = {
-    stringLength: s => ansiTrim(s).length
+    stringLength: s => ansiTrim(s).length,
   }
 
   if (!silent) {
     output(table(outTable, tableOpts))
-    if (!allOk) {
+    if (!allOk)
       console.error('')
-    }
   }
-  if (!allOk) {
+  if (!allOk)
     throw 'Some problems found. See above for recommendations.'
-  }
 }
 
 module.exports = Object.assign(cmd, { completion, usage })

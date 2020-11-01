@@ -12,21 +12,19 @@ const completion = require('./utils/completion/none.js')
 const cmd = (args, cb) => docs(args).then(() => cb()).catch(cb)
 
 const docs = async args => {
-  if (!args || !args.length) {
+  if (!args || !args.length)
     args = ['.']
-  }
+
   await Promise.all(args.map(pkg => getDocs(pkg)))
 }
 
 const getDocsUrl = mani => {
-  if (mani.homepage) {
+  if (mani.homepage)
     return mani.homepage
-  }
 
   const info = hostedFromMani(mani)
-  if (info) {
+  if (info)
     return info.docs()
-  }
 
   return 'https://www.npmjs.com/package/' + mani.name
 }

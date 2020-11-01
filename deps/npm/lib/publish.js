@@ -24,24 +24,24 @@ const usage = usageUtil('publish',
 const cmd = (args, cb) => publish(args).then(() => cb()).catch(cb)
 
 const publish = async args => {
-  if (args.length === 0) args = ['.']
-  if (args.length !== 1) throw usage
+  if (args.length === 0)
+    args = ['.']
+  if (args.length !== 1)
+    throw usage
 
   log.verbose('publish', args)
 
   const opts = { ...npm.flatOptions }
   const { json, defaultTag } = opts
-  if (semver.validRange(defaultTag)) {
+  if (semver.validRange(defaultTag))
     throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
-  }
 
   const tarball = await publish_(args[0], opts)
   const silent = log.level === 'silent'
-  if (!silent && json) {
+  if (!silent && json)
     output(JSON.stringify(tarball, null, 2))
-  } else if (!silent) {
+  else if (!silent)
     output(`+ ${tarball.id}`)
-  }
 
   return tarball
 }
@@ -55,15 +55,14 @@ const publish_ = async (arg, opts) => {
     event: 'prepublishOnly',
     path: arg,
     stdio: 'inherit',
-    pkg: manifest
+    pkg: manifest,
   })
 
   const tarballData = await pack(arg)
   const pkgContents = await getContents(manifest, tarballData)
 
-  if (!json) {
+  if (!json)
     logTar(pkgContents, { log, unicode })
-  }
 
   if (!dryRun) {
     // The purpose of re-reading the manifest is in case it changed,
@@ -78,7 +77,7 @@ const publish_ = async (arg, opts) => {
     event: 'publish',
     path: arg,
     stdio: 'inherit',
-    pkg: manifest
+    pkg: manifest,
   })
 
   // postpublish
@@ -86,7 +85,7 @@ const publish_ = async (arg, opts) => {
     event: 'postpublish',
     path: arg,
     stdio: 'inherit',
-    pkg: manifest
+    pkg: manifest,
   })
 
   return pkgContents

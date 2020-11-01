@@ -8,7 +8,7 @@ const { depth } = require('treeverse')
 const {
   readTree: getFundingInfo,
   normalizeFunding,
-  isValidFunding
+  isValidFunding,
 } = require('libnpmfund')
 
 const npm = require('./npm.js')
@@ -52,13 +52,13 @@ function printHuman (fundingInfo, { color, unicode }) {
       const { url } = fundingSource || {}
       const pkgRef = getPrintableName({ name, version })
       let item = {
-        label: pkgRef
+        label: pkgRef,
       }
 
       if (url) {
         item.label = tree({
           label: color ? chalk.bgBlack.white(url) : url,
-          nodes: [pkgRef]
+          nodes: [pkgRef],
         }).trim()
 
         // stacks all packages together under the same item
@@ -66,9 +66,8 @@ function printHuman (fundingInfo, { color, unicode }) {
           item = seenUrls.get(url)
           item.label += `, ${pkgRef}`
           return null
-        } else {
+        } else
           seenUrls.set(url, item)
-        }
       }
 
       return item
@@ -77,7 +76,8 @@ function printHuman (fundingInfo, { color, unicode }) {
     // puts child nodes back into returned archy
     // output while also filtering out missing items
     leave: (item, children) => {
-      if (item) { item.nodes = children.filter(Boolean) }
+      if (item)
+        item.nodes = children.filter(Boolean)
 
       return item
     },
@@ -88,8 +88,8 @@ function printHuman (fundingInfo, { color, unicode }) {
       Object.keys(node.dependencies || {})
         .map(key => ({
           name: key,
-          ...node.dependencies[key]
-        }))
+          ...node.dependencies[key],
+        })),
   })
 
   const res = tree(result)
@@ -106,9 +106,8 @@ async function openFundingUrl ({ path, tree, spec, fundingSourceNumber }) {
       } else {
         // matches any file path within current arborist inventory
         for (const item of tree.inventory.values()) {
-          if (item.path === arg.fetchSpec) {
+          if (item.path === arg.fetchSpec)
             return item.package
-          }
         }
       }
     } else {
@@ -118,9 +117,8 @@ async function openFundingUrl ({ path, tree, spec, fundingSourceNumber }) {
         .filter(i => semver.valid(i.package.version))
         .sort((a, b) => semver.rcompare(a.package.version, b.package.version))
 
-      if (item) {
+      if (item)
         return item.package
-      }
     }
   }
 
@@ -192,7 +190,7 @@ const fund = async (args) => {
       path: where,
       tree,
       spec,
-      fundingSourceNumber
+      fundingSourceNumber,
     })
     return
   }

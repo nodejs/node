@@ -20,9 +20,8 @@ const usage = usageUtil(
 
 const completion = function (opts, cb) {
   const argv = opts.conf.argv.remain
-  if (argv.length === 2) {
+  if (argv.length === 2)
     return cb(null, ['add', 'rm', 'ls'])
-  }
 
   switch (argv[2]) {
     default:
@@ -36,25 +35,21 @@ const distTag = async ([cmdName, pkg, tag]) => {
   const opts = npm.flatOptions
   const has = (items) => new Set(items).has(cmdName)
 
-  if (has(['add', 'a', 'set', 's'])) {
+  if (has(['add', 'a', 'set', 's']))
     return add(pkg, tag, opts)
-  }
 
-  if (has(['rm', 'r', 'del', 'd', 'remove'])) {
+  if (has(['rm', 'r', 'del', 'd', 'remove']))
     return remove(pkg, tag, opts)
-  }
 
-  if (has(['ls', 'l', 'sl', 'list'])) {
+  if (has(['ls', 'l', 'sl', 'list']))
     return list(pkg, opts)
-  }
 
   if (!pkg) {
     // when only using the pkg name the default behavior
     // should be listing the existing tags
     return list(cmdName, opts)
-  } else {
+  } else
     throw usage
-  }
 }
 
 function add (spec, tag, opts) {
@@ -64,15 +59,13 @@ function add (spec, tag, opts) {
 
   log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
 
-  if (!spec.name || !version || !defaultTag) {
+  if (!spec.name || !version || !defaultTag)
     throw usage
-  }
 
   const t = defaultTag.trim()
 
-  if (semver.validRange(t)) {
+  if (semver.validRange(t))
     throw new Error('Tag name must not be a valid SemVer range: ' + t)
-  }
 
   return fetchTags(spec, opts).then(tags => {
     if (tags[t] === version) {
@@ -87,9 +80,9 @@ function add (spec, tag, opts) {
       method: 'PUT',
       body: JSON.stringify(version),
       headers: {
-        'content-type': 'application/json'
+        'content-type': 'application/json',
       },
-      spec
+      spec,
     }
     return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
       output(`+${t}: ${spec.name}@${version}`)
@@ -101,9 +94,8 @@ function remove (spec, tag, opts) {
   spec = npa(spec || '')
   log.verbose('dist-tag del', tag, 'from', spec.name)
 
-  if (!spec.name) {
+  if (!spec.name)
     throw usage
-  }
 
   return fetchTags(spec, opts).then(tags => {
     if (!tags[tag]) {
@@ -117,7 +109,7 @@ function remove (spec, tag, opts) {
     const reqOpts = {
       ...opts,
       method: 'DELETE',
-      spec
+      spec,
     }
     return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
       output(`-${tag}: ${spec.name}@${version}`)
@@ -128,9 +120,8 @@ function remove (spec, tag, opts) {
 function list (spec, opts) {
   if (!spec) {
     return readLocalPkgName().then(pkg => {
-      if (!pkg) {
+      if (!pkg)
         throw usage
-      }
 
       return list(pkg, opts)
     })
@@ -154,13 +145,14 @@ function fetchTags (spec, opts) {
     {
       ...opts,
       'prefer-online': true,
-      spec
+      spec,
     }
   ).then(data => {
-    if (data && typeof data === 'object') delete data._etag
-    if (!data || !Object.keys(data).length) {
+    if (data && typeof data === 'object')
+      delete data._etag
+    if (!data || !Object.keys(data).length)
       throw new Error('No dist-tags found for ' + spec.name)
-    }
+
     return data
   })
 }

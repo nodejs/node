@@ -32,13 +32,11 @@ Configuration fields: npm help 7 config
 npm@${npm.version} ${dirname(dirname(__dirname))}
 `)
 
-  if (npm.argv.length >= 1) {
+  if (npm.argv.length >= 1)
     output(didYouMean(npm.argv[0], cmdList))
-  }
 
-  if (!valid) {
+  if (!valid)
     process.exitCode = 1
-  }
 }
 
 const wrap = (arr) => {
@@ -47,17 +45,18 @@ const wrap = (arr) => {
   var line
 
   line = process.stdout.columns
-  if (!line) {
+  if (!line)
     line = 60
-  } else {
+  else
     line = Math.min(60, Math.max(line - 16, 24))
-  }
 
-  arr.sort(function (a, b) { return a < b ? -1 : 1 })
+  arr.sort(function (a, b) {
+    return a < b ? -1 : 1
+  })
     .forEach(function (c) {
-      if (out[l].length + c.length + 2 < line) {
+      if (out[l].length + c.length + 2 < line)
         out[l] += ', ' + c
-      } else {
+      else {
         out[l++] += ','
         out[l] = c
       }

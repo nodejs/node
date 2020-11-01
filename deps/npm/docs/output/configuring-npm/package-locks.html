@@ -1,0 +1,310 @@
+<html><head>
+<title>package-locks</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="package-locks">package-locks</h1>
+<span class="description">An explanation of npm lockfiles</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><ul><li><a href="#using-locked-packages">Using locked packages</a></li><li><a href="#resolving-lockfile-conflicts">Resolving lockfile conflicts</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p>Conceptually, the “input” to <a href="../commands/npm-install.html"><code>npm install</code></a> is a <a href="../configuring-npm/package-json.html">package.json</a>, while its
+“output” is a fully-formed <code>node_modules</code> tree: a representation of the
+dependencies you declared. In an ideal world, npm would work like a pure
+function: the same <code>package.json</code> should produce the exact same <code>node_modules</code>
+tree, any time. In some cases, this is indeed true. But in many others, npm is
+unable to do this. There are multiple reasons for this:</p>
+<ul>
+<li>
+<p>different versions of npm (or other package managers) may have been used to install a package, each using slightly different installation algorithms.</p>
+</li>
+<li>
+<p>a new version of a direct semver-range package may have been published since the last time your packages were installed, and thus a newer version will be used.</p>
+</li>
+<li>
+<p>A dependency of one of your dependencies may have published a new version, which will update even if you used pinned dependency specifiers (<code>1.2.3</code> instead of <code>^1.2.3</code>)</p>
+</li>
+<li>
+<p>The registry you installed from is no longer available, or allows mutation of versions (unlike the primary npm registry), and a different version of a package exists under the same version number now.</p>
+</li>
+</ul>
+<p>As an example, consider package A:</p>
+<pre lang="json"><code>{
+  "name": "A",
+  "version": "0.1.0",
+  "dependencies": {
+    "B": "&lt;0.1.0"
+  }
+}
+</code></pre>
+<p>package B:</p>
+<pre lang="json"><code>{
+  "name": "B",
+  "version": "0.0.1",
+  "dependencies": {
+    "C": "&lt;0.1.0"
+  }
+}
+</code></pre>
+<p>and package C:</p>
+<pre lang="json"><code>{
+  "name": "C",
+  "version": "0.0.1"
+}
+</code></pre>
+<p>If these are the only versions of A, B, and C available in the
+registry, then a normal <code>npm install A</code> will install:</p>
+<pre lang="json"><code>A@0.1.0
+`-- B@0.0.1
+    `-- C@0.0.1
+</code></pre>
+<p>However, if B@0.0.2 is published, then a fresh <code>npm install A</code> will
+install:</p>
+<pre lang="bash"><code>A@0.1.0
+`-- B@0.0.2
+    `-- C@0.0.1
+</code></pre>
+<p>assuming the new version did not modify B’s dependencies. Of course,
+the new version of B could include a new version of C and any number
+of new dependencies. If such changes are undesirable, the author of A
+could specify a dependency on B@0.0.1. However, if A’s author and B’s
+author are not the same person, there’s no way for A’s author to say
+that he or she does not want to pull in newly published versions of C
+when B hasn’t changed at all.</p>
+<p>To prevent this potential issue, npm uses <a href="../configuring-npm/package-lock-json.html">package-lock.json</a> or, if present, <a href="../configuring-npm/shrinkwrap-json.html">npm-shrinkwrap.json</a>. These files are called package locks, or lockfiles.</p>
+<p>Whenever you run <code>npm install</code>, npm generates or updates your package lock,
+which will look something like this:</p>
+<pre lang="json"><code>{
+  "name": "A",
+  "version": "0.1.0",
+  ...metadata fields...
+  "dependencies": {
+    "B": {
+      "version": "0.0.1",
+      "resolved": "https://registry.npmjs.org/B/-/B-0.0.1.tgz",
+      "integrity": "sha512-DeAdb33F+"
+      "dependencies": {
+        "C": {
+          "version": "git://github.com/org/C.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4"
+        }
+      }
+    }
+  }
+}
+</code></pre>
+<p>This file describes an <em>exact</em>, and more importantly <em>reproducible</em>
+<code>node_modules</code> tree. Once it’s present, any future installation will base its
+work off this file, instead of recalculating dependency versions off
+<a href="../configuring-npm/package-json.html">package.json</a>.</p>
+<p>The presence of a package lock changes the installation behavior such that:</p>
+<ol>
+<li>
+<p>The module tree described by the package lock is reproduced. This means
+reproducing the structure described in the file, using the specific files
+referenced in “resolved” if available, falling back to normal package resolution
+using “version” if one isn’t.</p>
+</li>
+<li>
+<p>The tree is walked and any missing dependencies are installed in the usual
+fashion.</p>
+</li>
+</ol>
+<p>If <code>preshrinkwrap</code>, <code>shrinkwrap</code> or <code>postshrinkwrap</code> are in the <code>scripts</code>
+property of the <code>package.json</code>, they will be executed in order. <code>preshrinkwrap</code>
+and <code>shrinkwrap</code> are executed before the shrinkwrap, <code>postshrinkwrap</code> is
+executed afterwards. These scripts run for both <code>package-lock.json</code> and
+<code>npm-shrinkwrap.json</code>. For example to run some postprocessing on the generated
+file:</p>
+<pre lang="json"><code>  "scripts": {
+    "postshrinkwrap": "json -I -e \"this.myMetadata = $MY_APP_METADATA\""
+  }
+</code></pre>
+<h4 id="using-locked-packages">Using locked packages</h4>
+<p>Using a locked package is no different than using any package without a package
+lock: any commands that update <code>node_modules</code> and/or <code>package.json</code>’s
+dependencies will automatically sync the existing lockfile. This includes <code>npm install</code>, <code>npm rm</code>, <code>npm update</code>, etc. To prevent this update from happening,
+you can use the <code>--no-save</code> option to prevent saving altogether, or
+<code>--no-shrinkwrap</code> to allow <code>package.json</code> to be updated while leaving
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> intact.</p>
+<p>It is highly recommended you commit the generated package lock to source
+control: this will allow anyone else on your team, your deployments, your
+CI/continuous integration, and anyone else who runs <code>npm install</code> in your
+package source to get the exact same dependency tree that you were developing
+on. Additionally, the diffs from these changes are human-readable and will
+inform you of any changes npm has made to your <code>node_modules</code>, so you can notice
+if any transitive dependencies were updated, hoisted, etc.</p>
+<h4 id="resolving-lockfile-conflicts">Resolving lockfile conflicts</h4>
+<p>Occasionally, two separate npm install will create package locks that cause
+merge conflicts in source control systems. As of <code>npm@5.7.0</code>, these conflicts
+can be resolved by manually fixing any <code>package.json</code> conflicts, and then
+running <code>npm install [--package-lock-only]</code> again. npm will automatically
+resolve any conflicts for you and write a merged package lock that includes all
+the dependencies from both branches in a reasonable tree. If
+<code>--package-lock-only</code> is provided, it will do this without also modifying your
+local <code>node_modules/</code>.</p>
+<p>To make this process seamless on git, consider installing
+<a href="https://npm.im/npm-merge-driver"><code>npm-merge-driver</code></a>, which will teach git how
+to do this itself without any user interaction. In short: <code>$ npx npm-merge-driver install -g</code> will let you do this, and even works with
+pre-<code>npm@5.7.0</code> versions of npm 5, albeit a bit more noisily. Note that if
+<code>package.json</code> itself conflicts, you will have to resolve that by hand and run
+<code>npm install</code> manually, even with the merge driver.</p>
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="https://medium.com/@sdboyer/so-you-want-to-write-a-package-manager-4ae9c17d9527">https://medium.com/@sdboyer/so-you-want-to-write-a-package-manager-4ae9c17d9527</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../configuring-npm/package-lock-json.html">package-lock.json</a></li>
+<li><a href="../configuring-npm/shrinkwrap-json.html">shrinkwrap.json</a></li>
+<li><a href="../commands/npm-shrinkwrap.html">npm shrinkwrap</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/configuring-npm/package-locks.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

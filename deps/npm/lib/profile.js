@@ -28,11 +28,11 @@ profileCmd.completion = function (opts, cb) {
   switch (argv[2]) {
     case 'enable-2fa':
     case 'enable-tfa':
-      if (argv.length === 3) {
+      if (argv.length === 3)
         return cb(null, ['auth-and-writes', 'auth-only'])
-      } else {
+      else
         return cb(null, [])
-      }
+
     case 'disable-2fa':
     case 'disable-tfa':
     case 'get':
@@ -48,7 +48,8 @@ function withCb (prom, cb) {
 }
 
 function profileCmd (args, cb) {
-  if (args.length === 0) return cb(new Error(profileCmd.usage))
+  if (args.length === 0)
+    return cb(new Error(profileCmd.usage))
   log.gauge.show('profile')
   switch (args[0]) {
     case 'enable-2fa':
@@ -84,29 +85,34 @@ const knownProfileKeys = [
   'twitter',
   'github',
   'created',
-  'updated'
+  'updated',
 ]
 
 function get (args) {
   const tfa = 'two-factor auth'
   const conf = npm.flatOptions
   return pulseTillDone.withPromise(profile.get(conf)).then((info) => {
-    if (!info.cidr_whitelist) delete info.cidr_whitelist
+    if (!info.cidr_whitelist)
+      delete info.cidr_whitelist
     if (conf.json) {
       output(JSON.stringify(info, null, 2))
       return
     }
     const cleaned = {}
-    knownProfileKeys.forEach((k) => { cleaned[k] = info[k] || '' })
-    Object.keys(info).filter((k) => !(k in cleaned)).forEach((k) => { cleaned[k] = info[k] || '' })
+    knownProfileKeys.forEach((k) => {
+      cleaned[k] = info[k] || ''
+    })
+    Object.keys(info).filter((k) => !(k in cleaned)).forEach((k) => {
+      cleaned[k] = info[k] || ''
+    })
     delete cleaned.tfa
     delete cleaned.email_verified
     cleaned.email += info.email_verified ? ' (verified)' : '(unverified)'
-    if (info.tfa && !info.tfa.pending) {
+    if (info.tfa && !info.tfa.pending)
       cleaned[tfa] = info.tfa.mode
-    } else {
+    else
       cleaned[tfa] = 'disabled'
-    }
+
     if (args.length) {
       const values = args // comma or space separated ↓
         .join(',').split(/,/).map((arg) => arg.trim()).filter((arg) => arg !== '')
@@ -116,11 +122,10 @@ function get (args) {
     } else {
       if (conf.parseable) {
         Object.keys(info).forEach((key) => {
-          if (key === 'tfa') {
+          if (key === 'tfa')
             output(`${key}\t${cleaned[tfa]}`)
-          } else {
+          else
             output(`${key}\t${info[key]}`)
-          }
         })
       } else {
         const table = new Table()
@@ -138,24 +143,24 @@ const writableProfileKeys = [
   'homepage',
   'freenode',
   'twitter',
-  'github'
+  'github',
 ]
 
 function set (args) {
   const conf = npm.flatOptions
   const prop = (args[0] || '').toLowerCase().trim()
   let value = args.length > 1 ? args.slice(1).join(' ') : null
-  if (prop !== 'password' && value === null) {
+  if (prop !== 'password' && value === null)
     return Promise.reject(Error('npm profile set <prop> <value>'))
-  }
+
   if (prop === 'password' && value !== null) {
     return Promise.reject(Error(
       'npm profile set password\n' +
       'Do not include your current or new passwords on the command line.'))
   }
-  if (writableProfileKeys.indexOf(prop) === -1) {
+  if (writableProfileKeys.indexOf(prop) === -1)
     return Promise.reject(Error(`"${prop}" is not a property we can set. Valid properties are: ` + writableProfileKeys.join(', ')))
-  }
+
   return Promise.resolve().then(() => {
     if (prop === 'password') {
       return readUserInfo.password('Current password: ').then((current) => {
@@ -183,28 +188,29 @@ function set (args) {
     // FIXME: Work around to not clear everything other than what we're setting
     return pulseTillDone.withPromise(profile.get(conf).then((user) => {
       const newUser = {}
-      writableProfileKeys.forEach((k) => { newUser[k] = user[k] })
+      writableProfileKeys.forEach((k) => {
+        newUser[k] = user[k]
+      })
       newUser[prop] = value
       return otplease(conf, conf => profile.set(newUser, conf))
         .then((result) => {
-          if (conf.json) {
+          if (conf.json)
             output(JSON.stringify({ [prop]: result[prop] }, null, 2))
-          } else if (conf.parseable) {
+          else if (conf.parseable)
             output(prop + '\t' + result[prop])
-          } else if (result[prop] != null) {
+          else if (result[prop] != null)
             output('Set', prop, 'to', result[prop])
-          } else {
+          else
             output('Set', prop)
-          }
         })
     }))
   })
 }
 
 function enable2fa (args) {
-  if (args.length > 1) {
+  if (args.length > 1)
     return Promise.reject(new Error('npm profile enable-2fa [auth-and-writes|auth-only]'))
-  }
+
   const mode = args[0] || 'auth-and-writes'
   if (mode !== 'auth-only' && mode !== 'auth-and-writes') {
     return Promise.reject(new Error(`Invalid two-factor authentication mode "${mode}".\n` +
@@ -221,8 +227,8 @@ function enable2fa (args) {
 
   const info = {
     tfa: {
-      mode: mode
-    }
+      mode: mode,
+    },
   }
 
   return Promise.resolve().then(() => {
@@ -234,7 +240,11 @@ function enable2fa (args) {
       return profile.createToken(
         auth.basic.password, false, [], conf
       ).then((result) => {
-        if (!result.token) throw new Error('Your registry ' + conf.registry + 'does not seem to support bearer tokens. Bearer tokens are required for two-factor authentication')
+        if (!result.token) {
+          throw new Error(`Your registry ${conf.registry} does not seem to ` +
+            'support bearer tokens. Bearer tokens are required for ' +
+            'two-factor authentication')
+        }
         npm.config.setCredentialsByURI(conf.registry, { token: result.token })
         return npm.config.save('user')
       })
@@ -246,12 +256,14 @@ function enable2fa (args) {
     info.tfa.password = password
     log.info('profile', 'Determine if tfa is pending')
     return pulseTillDone.withPromise(profile.get(conf)).then((info) => {
-      if (!info.tfa) return
+      if (!info.tfa)
+        return
       if (info.tfa.pending) {
         log.info('profile', 'Resetting two-factor authentication')
         return pulseTillDone.withPromise(profile.set({ tfa: { password, mode: 'disable' } }, conf))
       } else {
-        if (conf.auth.otp) return
+        if (conf.auth.otp)
+          return
         return readUserInfo.otp('Enter one-time password from your authenticator app: ').then((otp) => {
           conf.auth.otp = otp
         })
@@ -265,9 +277,9 @@ function enable2fa (args) {
       output('Two factor authentication mode changed to: ' + mode)
       return
     }
-    if (typeof challenge.tfa !== 'string' || !/^otpauth:[/][/]/.test(challenge.tfa)) {
+    if (typeof challenge.tfa !== 'string' || !/^otpauth:[/][/]/.test(challenge.tfa))
       throw new Error('Unknown error enabling two-factor authentication. Expected otpauth URL, got: ' + inspect(challenge.tfa))
-    }
+
     const otpauth = new URL(challenge.tfa)
     const secret = otpauth.searchParams.get('secret')
     return qrcode(challenge.tfa).then((code) => {
@@ -288,18 +300,18 @@ function enable2fa (args) {
 function getAuth (conf) {
   const creds = npm.config.getCredentialsByURI(conf.registry)
   let auth
-  if (creds.token) {
+  if (creds.token)
     auth = { token: creds.token }
-  } else if (creds.username) {
+  else if (creds.username)
     auth = { basic: { username: creds.username, password: creds.password } }
-  } else if (creds.auth) {
+  else if (creds.auth) {
     const basic = Buffer.from(creds.auth, 'base64').toString().split(':', 2)
     auth = { basic: { username: basic[0], password: basic[1] } }
-  } else {
+  } else
     auth = {}
-  }
 
-  if (conf.otp) auth.otp = conf.otp
+  if (conf.otp)
+    auth.otp = conf.otp
   return auth
 }
 
@@ -312,20 +324,20 @@ function disable2fa (args) {
     }
     return readUserInfo.password().then((password) => {
       return Promise.resolve().then(() => {
-        if (conf.otp) return
+        if (conf.otp)
+          return
         return readUserInfo.otp('Enter one-time password from your authenticator: ').then((otp) => {
           conf = { ...conf, otp }
         })
       }).then(() => {
         log.info('profile', 'disabling tfa')
         return pulseTillDone.withPromise(profile.set({ tfa: { password: password, mode: 'disable' } }, conf)).then(() => {
-          if (conf.json) {
+          if (conf.json)
             output(JSON.stringify({ tfa: false }, null, 2))
-          } else if (conf.parseable) {
+          else if (conf.parseable)
             output('tfa\tfalse')
-          } else {
+          else
             output('Two factor authentication disabled.')
-          }
         })
       })
     })

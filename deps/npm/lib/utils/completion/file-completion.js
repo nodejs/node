@@ -13,7 +13,8 @@ function fileCompletion (root, req, depth, cb) {
     var pattern = root + '/{' + req + ',' + req + '/**/*}'
     var opts = { mark: true, dot: true, maxDepth: depth }
     glob(pattern, opts, function (er, files) {
-      if (er) return cb(er)
+      if (er)
+        return cb(er)
       return cb(null, (files || []).map(function (f) {
         return f.substr(root.length + 1).replace(/^\/|\/$/g, '')
       }))

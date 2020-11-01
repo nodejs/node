@@ -13,9 +13,9 @@ const cmd = (args, cb) => stars(args).then(() => cb()).catch(cb)
 
 const stars = (args) => {
   return stars_(args).catch(er => {
-    if (er.code === 'ENEEDAUTH') {
+    if (er.code === 'ENEEDAUTH')
       log.warn('star', 'auth is required to look up your username')
-    }
+
     throw er
   })
 }
@@ -23,14 +23,13 @@ const stars = (args) => {
 const stars_ = async ([user = getIdentity(npm.flatOptions)]) => {
   const { rows } = await fetch.json('/-/_view/starredByUser', {
     ...npm.flatOptions,
-    query: { key: `"${await user}"` }
+    query: { key: `"${await user}"` },
   })
-  if (rows.length === 0) {
+  if (rows.length === 0)
     log.warn('stars', 'user has not starred any packages')
-  }
-  for (const row of rows) {
+
+  for (const row of rows)
     output(row.value)
-  }
 }
 
 module.exports = Object.assign(cmd, { usage, completion })

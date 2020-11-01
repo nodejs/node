@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 // happy birthday! 🎂
 
 module.exports = (_, c) => {

@@ -482,7 +482,43 @@ t.test('throw error if global mode', (t) => {
   })
 })
 
-t.test('throw error if invalid package.json', (t) => {
+t.test('throw ENOENT error if package.json misisng', (t) => {
+  const testDir = t.testdir({})
+
+  const view = requireInject('../../lib/view.js', {
+    '../../lib/npm.js': {
+      prefix: testDir,
+      flatOptions: {
+        global: false
+      }
+    }
+  })
+  view([], (err) => {
+    t.match(err, { code: 'ENOENT' })
+    t.end()
+  })
+})
+
+t.test('throw EJSONPARSE error if package.json not json', (t) => {
+  const testDir = t.testdir({
+    'package.json': 'not json, nope, not even a little bit!'
+  })
+
+  const view = requireInject('../../lib/view.js', {
+    '../../lib/npm.js': {
+      prefix: testDir,
+      flatOptions: {
+        global: false
+      }
+    }
+  })
+  view([], (err) => {
+    t.match(err, { code: 'EJSONPARSE' })
+    t.end()
+  })
+})
+
+t.test('throw error if package.json has no name', (t) => {
   const testDir = t.testdir({
     'package.json': '{}'
   })
@@ -496,7 +532,7 @@ t.test('throw error if invalid package.json', (t) => {
     }
   })
   view([], (err) => {
-    t.equals(err.message, 'Invalid package.json')
+    t.equals(err.message, 'Invalid package.json, no "name" field')
     t.end()
   })
 })

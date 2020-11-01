@@ -3,13 +3,13 @@ const { defaults, types } = require('./utils/config.js')
 const usageUtil = require('./utils/usage.js')
 const output = require('./utils/output.js')
 
-const editor = require('editor')
 const mkdirp = require('mkdirp-infer-owner')
 const { dirname } = require('path')
 const { promisify } = require('util')
 const fs = require('fs')
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
+const editor = promisify(require('editor'))
 const { EOL } = require('os')
 const ini = require('ini')
 
@@ -28,10 +28,14 @@ const cmd = (args, cb) => config(args).then(() => cb()).catch(cb)
 
 const completion = (opts, cb) => {
   const argv = opts.conf.argv.remain
-  if (argv[1] !== 'config') argv.unshift('config')
+  if (argv[1] !== 'config')
+    argv.unshift('config')
+
   if (argv.length === 2) {
     const cmds = ['get', 'set', 'delete', 'ls', 'rm', 'edit']
-    if (opts.partialWord !== 'l') cmds.push('list')
+    if (opts.partialWord !== 'l')
+      cmds.push('list')
+
     return cb(null, cmds)
   }
 
@@ -39,7 +43,9 @@ const completion = (opts, cb) => {
   switch (action) {
     case 'set':
       // todo: complete with valid values, if possible.
-      if (argv.length > 3) return cb(null, [])
+      if (argv.length > 3)
+        return cb(null, [])
+
       // fallthrough
       /* eslint no-fallthrough:0 */
     case 'get':
@@ -49,11 +55,13 @@ const completion = (opts, cb) => {
     case 'edit':
     case 'list':
     case 'ls':
-      return cb(null, [])
     default:
       return cb(null, [])
   }
 }
+
+const UsageError = () =>
+  Object.assign(new Error(usage), { code: 'EUSAGE' })
 
 const config = async ([action, key, val]) => {
   npm.log.disableProgress()
@@ -72,13 +80,13 @@ const config = async ([action, key, val]) => {
         break
       case 'list':
       case 'ls':
-        await (npm.config.get('json') ? listJson() : list())
+        await (npm.flatOptions.json ? listJson() : list())
         break
       case 'edit':
         await edit()
         break
       default:
-        throw usage
+        throw UsageError()
     }
   } finally {
     npm.log.enableProgress()
@@ -86,60 +94,52 @@ const config = async ([action, key, val]) => {
 }
 
 const set = async (key, val) => {
-  if (key === undefined) {
-    throw usage
-  }
+  if (key === undefined)
+    throw UsageError()
 
   if (val === undefined) {
     if (key.indexOf('=') !== -1) {
       const k = key.split('=')
       key = k.shift()
       val = k.join('=')
-    } else {
+    } else
       val = ''
-    }
   }
 
   key = key.trim()
   val = val.trim()
   npm.log.info('config', 'set %j %j', key, val)
-  const where = npm.config.get('global') ? 'global' : 'user'
-  const validBefore = npm.config.data.get(where).valid
-  console.error('validBefore?', validBefore)
+  const where = npm.flatOptions.global ? 'global' : 'user'
   npm.config.set(key, val, where)
-  if (!npm.config.validate(where)) {
+  if (!npm.config.validate(where))
     npm.log.warn('config', 'omitting invalid config values')
-  }
+
   await npm.config.save(where)
 }
 
 const get = async key => {
-  if (!key) {
+  if (!key)
     return list()
-  }
 
-  if (!publicVar(key)) {
+  if (!publicVar(key))
     throw `The ${key} option is protected, and cannot be retrieved in this way`
-  }
 
   output(npm.config.get(key))
 }
 
 const del = async key => {
-  if (!key) {
-    throw usage
-  }
+  if (!key)
+    throw UsageError()
 
-  const where = npm.config.get('global') ? 'global' : 'user'
+  const where = npm.flatOptions.global ? 'global' : 'user'
   npm.config.delete(key, where)
   await npm.config.save(where)
 }
 
 const edit = async () => {
   const { editor: e, global } = npm.flatOptions
-  if (!e) {
-    throw new Error('No `editor` config or EDITOR envionment variable set')
-  }
+  if (!e)
+    throw new Error('No `editor` config or EDITOR environment variable set')
 
   const where = global ? 'global' : 'user'
   const file = npm.config.data.get(where).source
@@ -147,10 +147,14 @@ const edit = async () => {
   // save first, just to make sure it's synced up
   // this also removes all the comments from the last time we edited it.
   await npm.config.save(where)
-  const data = (await readFile(file, 'utf8').catch(() => '')).replace(/\r\n/g, '\n')
+
+  const data = (
+    await readFile(file, 'utf8').catch(() => '')
+  ).replace(/\r\n/g, '\n')
   const defData = Object.entries(defaults).reduce((str, [key, val]) => {
     const obj = { [key]: val }
     const i = ini.stringify(obj)
+      .replace(/\r\n/g, '\n') // normalizes output from ini.stringify
       .replace(/\n$/m, '')
       .replace(/^/g, '; ')
       .replace(/\n/g, '\n; ')
@@ -179,9 +183,7 @@ ${defData}
 `.split('\n').join(EOL)
   await mkdirp(dirname(file))
   await writeFile(file, tmpData, 'utf8')
-  await new Promise((res, rej) => {
-    editor(file, { editor: e }, (er) => er ? rej(er) : res())
-  })
+  await editor(file, { editor: e })
 }
 
 const publicVar = k => !/^(\/\/[^:]+:)?_/.test(k)
@@ -190,13 +192,13 @@ const list = async () => {
   const msg = []
   const { long } = npm.flatOptions
   for (const [where, { data, source }] of npm.config.data.entries()) {
-    if (where === 'default' && !long) {
+    if (where === 'default' && !long)
       continue
-    }
+
     const keys = Object.keys(data).sort((a, b) => a.localeCompare(b))
-    if (!keys.length) {
+    if (!keys.length)
       continue
-    }
+
     msg.push(`; "${where}" config from ${source}`, '')
     for (const k of keys) {
       const v = publicVar(k) ? JSON.stringify(data[k]) : '(protected)'
@@ -223,9 +225,9 @@ const list = async () => {
 const listJson = async () => {
   const publicConf = {}
   for (const key in npm.config.list[0]) {
-    if (!publicVar(key)) {
+    if (!publicVar(key))
       continue
-    }
+
     publicConf[key] = npm.config.get(key)
   }
   output(JSON.stringify(publicConf, null, 2))

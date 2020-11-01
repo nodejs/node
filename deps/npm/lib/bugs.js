@@ -12,27 +12,25 @@ const completion = require('./utils/completion/none.js')
 const cmd = (args, cb) => bugs(args).then(() => cb()).catch(cb)
 
 const bugs = async args => {
-  if (!args || !args.length) {
+  if (!args || !args.length)
     args = ['.']
-  }
+
   await Promise.all(args.map(pkg => getBugs(pkg)))
 }
 
 const getBugsUrl = mani => {
   if (mani.bugs) {
-    if (typeof mani.bugs === 'string') {
+    if (typeof mani.bugs === 'string')
       return mani.bugs
-    }
-    if (typeof mani.bugs === 'object' && mani.bugs.url) {
+
+    if (typeof mani.bugs === 'object' && mani.bugs.url)
       return mani.bugs.url
-    }
   }
 
   // try to get it from the repo, if possible
   const info = hostedFromMani(mani)
-  if (info) {
+  if (info)
     return info.bugs()
-  }
 
   // just send them to the website, hopefully that has some info!
   return `https://www.npmjs.com/package/${mani.name}`

@@ -21,9 +21,8 @@ const usage = usageUtil('cache',
 
 const completion = (opts, cb) => {
   const argv = opts.conf.argv.remain
-  if (argv.length === 2) {
+  if (argv.length === 2)
     return cb(null, ['add', 'clean'])
-  }
 
   // TODO - eventually...
   switch (argv[2]) {
@@ -51,9 +50,9 @@ const cache = async (args) => {
 
 // npm cache clean [pkg]*
 const clean = async (args) => {
-  if (args.length) {
+  if (args.length)
     throw new Error('npm cache clear does not accept arguments')
-  }
+
   const cachePath = path.join(npm.cache, '_cacache')
   if (!npm.flatOptions.force) {
     throw new Error(`As of npm@5, the npm cache self-heals from corruption issues
@@ -89,9 +88,8 @@ const add = async (args, where) => {
     (args[1] === undefined || args[1] === null ? '' : `@${args[1]}`)
 
   log.verbose('cache add', 'spec', spec)
-  if (!spec) {
+  if (!spec)
     throw new Error(usage)
-  }
 
   log.silly('cache add', 'parsed spec', spec)
   const opts = { ...npm.flatOptions, where }

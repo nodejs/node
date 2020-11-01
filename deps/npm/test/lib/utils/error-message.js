@@ -112,6 +112,24 @@ t.test('just simple messages', t => {
   })
 })
 
+t.test('replace message/stack sensistive info', t => {
+  npm.command = 'audit'
+  const path = '/some/path'
+  const pkgid = 'some@package'
+  const file = '/some/file'
+  const stack = 'dummy stack trace at https://user:pass@registry.npmjs.org/'
+  const message = 'Error at registry: https://user:pass@registry.npmjs.org/'
+  const er = Object.assign(new Error(message), {
+    code: 'ENOAUDIT',
+    path,
+    pkgid,
+    file,
+    stack,
+  })
+  t.matchSnapshot(errorMessage(er))
+  t.end()
+})
+
 t.test('bad engine with config loaded', t => {
   npm.config.loaded = true
   t.teardown(() => { npm.config.loaded = false })

@@ -21,9 +21,8 @@ const proxyCmds = (npm) => {
   const cmds = {}
   return new Proxy(cmds, {
     get: (prop, cmd) => {
-      if (hasOwnProperty(cmds, cmd)) {
+      if (hasOwnProperty(cmds, cmd))
         return cmds[cmd]
-      }
 
       const actual = deref(cmd)
       if (!actual) {
@@ -37,7 +36,7 @@ const proxyCmds = (npm) => {
       cmds[actual] = makeCmd(actual)
       cmds[cmd] = cmds[actual]
       return cmds[cmd]
-    }
+    },
   })
 }
 
@@ -62,7 +61,7 @@ const npm = module.exports = new class extends EventEmitter {
     this.modes = {
       exec: 0o755,
       file: 0o644,
-      umask: 0o22
+      umask: 0o22,
     }
     this.started = Date.now()
     this.command = null
@@ -74,7 +73,7 @@ const npm = module.exports = new class extends EventEmitter {
       npmPath: dirname(__dirname),
       types,
       defaults,
-      shorthands
+      shorthands,
     })
     this.updateNotification = null
   }
@@ -93,7 +92,12 @@ const npm = module.exports = new class extends EventEmitter {
     }
 
     process.emit('time', `command:${cmd}`)
-    this.command = cmd
+    // since 'test', 'start', 'stop', etc. commands re-enter this function
+    // to call the run-script command, we need to only set it one time.
+    if (!this.command) {
+      process.env.npm_command = cmd
+      this.command = cmd
+    }
 
     // Options are prefixed by a hyphen-minus (-, \u2d).
     // Other dash-type chars look similar but are invalid.
@@ -119,17 +123,17 @@ const npm = module.exports = new class extends EventEmitter {
   // call with parsed CLI options and a callback when done loading
   // XXX promisify this and stop taking a callback
   load (cb) {
-    if (!cb || typeof cb !== 'function') {
+    if (!cb || typeof cb !== 'function')
       throw new TypeError('must call as: npm.load(callback)')
-    }
+
     this.once('load', cb)
     if (this.loaded || this.loadErr) {
       this.emit('load', this.loadErr)
       return
     }
-    if (this.loading) {
+    if (this.loading)
       return
-    }
+
     this.loading = true
 
     process.emit('time', 'npm:load')
@@ -137,13 +141,12 @@ const npm = module.exports = new class extends EventEmitter {
     return this[_load]().catch(er => er).then((er) => {
       this.loading = false
       this.loadErr = er
-      if (!er && this.config.get('force')) {
+      if (!er && this.config.get('force'))
         this.log.warn('using --force', 'Recommended protections disabled.')
-      }
-      if (!er && !this[_flatOptions]) {
+
+      if (!er && !this[_flatOptions])
         this[_flatOptions] = require('./utils/flat-options.js')(this)
-        process.env.npm_command = this.command
-      }
+
       process.emit('timeEnd', 'npm:load')
       this.emit('load', er)
     })
@@ -174,13 +177,13 @@ const npm = module.exports = new class extends EventEmitter {
     this.modes = {
       exec: 0o777 & (~umask),
       file: 0o666 & (~umask),
-      umask
+      umask,
     }
 
     const configScope = this.config.get('scope')
-    if (configScope && !/^@/.test(configScope)) {
+    if (configScope && !/^@/.test(configScope))
       this.config.set('scope', `@${configScope}`, this.config.find('scope'))
-    }
+
     this.projectScope = this.config.get('scope') ||
       getProjectScope(this.prefix)
 
@@ -282,6 +285,5 @@ const setupLog = require('./utils/setup-log.js')
 const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
 const getProjectScope = require('./utils/get-project-scope.js')
 
-if (require.main === module) {
+if (require.main === module)
   require('./cli.js')(process)
-}

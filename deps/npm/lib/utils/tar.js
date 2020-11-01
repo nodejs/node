@@ -1,14 +1,10 @@
-'use strict'
-
 const tar = require('tar')
 const ssri = require('ssri')
 const npmlog = require('npmlog')
 const byteSize = require('byte-size')
 const columnify = require('columnify')
 
-module.exports = { logTar, getContents }
-
-function logTar (tarball, opts = {}) {
+const logTar = (tarball, opts = {}) => {
   const { unicode = false, log = npmlog } = opts
   log.notice('')
   log.notice('', `${unicode ? '📦 ' : 'package:'} ${tarball.name}@${tarball.version}`)
@@ -16,10 +12,11 @@ function logTar (tarball, opts = {}) {
   if (tarball.files.length) {
     log.notice('', columnify(tarball.files.map((f) => {
       const bytes = byteSize(f.size)
-      return { path: f.path, size: `${bytes.value}${bytes.unit}` }
-    }), {
+      return (/^node_modules\//.test(f.path)) ? null
+        : { path: f.path, size: `${bytes.value}${bytes.unit}` }
+    }).filter(f => f), {
       include: ['size', 'path'],
-      showHeaders: false
+      showHeaders: false,
     }))
   }
   if (tarball.bundled.length) {
@@ -36,20 +33,20 @@ function logTar (tarball, opts = {}) {
     { name: 'shasum:', value: tarball.shasum },
     {
       name: 'integrity:',
-      value: tarball.integrity.toString().substr(0, 20) + '[...]' + tarball.integrity.toString().substr(80)
+      value: tarball.integrity.toString().substr(0, 20) + '[...]' + tarball.integrity.toString().substr(80),
     },
     tarball.bundled.length && { name: 'bundled deps:', value: tarball.bundled.length },
     tarball.bundled.length && { name: 'bundled files:', value: tarball.entryCount - tarball.files.length },
     tarball.bundled.length && { name: 'own files:', value: tarball.files.length },
-    { name: 'total files:', value: tarball.entryCount }
+    { name: 'total files:', value: tarball.entryCount },
   ].filter((x) => x), {
     include: ['name', 'value'],
-    showHeaders: false
+    showHeaders: false,
   }))
   log.notice('', '')
 }
 
-async function getContents (manifest, tarball) {
+const getContents = async (manifest, tarball) => {
   const files = []
   const bundled = new Set()
   let totalEntries = 0
@@ -68,20 +65,20 @@ async function getContents (manifest, tarball) {
       files.push({
         path: entry.path.replace(/^package\//, ''),
         size: entry.size,
-        mode: entry.mode
+        mode: entry.mode,
       })
-    }
+    },
   })
   stream.end(tarball)
 
   const integrity = await ssri.fromData(tarball, {
-    algorithms: ['sha1', 'sha512']
+    algorithms: ['sha1', 'sha512'],
   })
 
   const comparator = (a, b) => {
     return a.path.localeCompare(b.path, undefined, {
       sensitivity: 'case',
-      numeric: true
+      numeric: true,
     })
   }
 
@@ -108,6 +105,8 @@ async function getContents (manifest, tarball) {
     filename: `${manifest.name}-${manifest.version}.tgz`,
     files: uppers.concat(others),
     entryCount: totalEntries,
-    bundled: Array.from(bundled)
+    bundled: Array.from(bundled),
   }
 }
+
+module.exports = { logTar, getContents }

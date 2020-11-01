@@ -138,7 +138,7 @@ t.test('no shell on posix', t => {
     '@npmcli/ci-detect': () => false,
     '../../../lib/utils/is-windows.js': false
   })
-  t.equal(config.defaults.shell, 'bash')
+  t.equal(config.defaults.shell, 'sh')
   t.end()
 })
 

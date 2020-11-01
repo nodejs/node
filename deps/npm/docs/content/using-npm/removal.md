@@ -1,12 +1,8 @@
 ---
-section: using-npm
 title: removal
+section: 7
 description: Cleaning the Slate
 ---
-
-# removal(7)
-
-## Cleaning the Slate
 
 ### Synopsis
 
@@ -66,5 +62,5 @@ find /usr/local/{lib/node,bin} -exec grep -l npm \{\} \; ;
 
 ### See also
 
-* [npm uninstall](/cli-commands/uninstall)
-* [npm prune](/cli-commands/prune)
+* [npm uninstall](/commands/npm-uninstall)
+* [npm prune](/commands/npm-prune)

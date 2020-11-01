@@ -129,14 +129,12 @@ module.exports = cls => class ActualLoader extends cls {
     })
     if (meta.loadedFromDisk) {
       this[_actualTree].meta = meta
-      meta.add(this[_actualTree])
       return this[_loadActualVirtually]({ root })
     } else {
       const meta = await Shrinkwrap.load({
         path: this[_actualTree].path,
       })
       this[_actualTree].meta = meta
-      meta.add(this[_actualTree])
       return this[_loadActualActually]({ root, ignoreMissing })
     }
   }

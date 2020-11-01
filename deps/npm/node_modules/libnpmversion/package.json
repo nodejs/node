@@ -1,6 +1,6 @@
 {
   "name": "libnpmversion",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "main": "lib/index.js",
   "files": [
     "lib/*.js"

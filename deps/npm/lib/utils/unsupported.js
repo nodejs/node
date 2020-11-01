@@ -7,7 +7,7 @@ const checkVersion = exports.checkVersion = version => {
   return {
     version: versionNoPrerelease,
     broken: semver.satisfies(versionNoPrerelease, knownBroken),
-    unsupported: !semver.satisfies(versionNoPrerelease, supported)
+    unsupported: !semver.satisfies(versionNoPrerelease, supported),
   }
 }
 

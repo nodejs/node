@@ -18,9 +18,8 @@ const explainEresolve = (expl, color, depth) => {
   const { edge, current, peerConflict } = expl
 
   const out = []
-  if (edge.from && edge.from.whileInstalling) {
+  if (edge.from && edge.from.whileInstalling)
     out.push('While resolving: ' + printNode(edge.from.whileInstalling, color))
-  }
 
   out.push('Found: ' + explainNode(current, depth, color))
   out.push('\nCould not resolve dependency:\n' +
@@ -66,5 +65,5 @@ const explain = (expl, depth = 2) => explainEresolve(expl, npm.color, depth)
 
 module.exports = {
   explain,
-  report
+  report,
 }

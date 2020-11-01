@@ -18,9 +18,8 @@ const npmUsage = require('./utils/npm-usage.js')
 const cmd = (args, cb) => helpSearch(args).then(() => cb()).catch(cb)
 
 const helpSearch = async args => {
-  if (!args.length) {
+  if (!args.length)
     throw usage
-  }
 
   const docPath = path.resolve(__dirname, '..', 'docs/content')
 
@@ -31,9 +30,9 @@ const helpSearch = async args => {
   const data = await readFiles(files)
   const results = await searchFiles(args, data, files)
   const formatted = formatResults(args, results)
-  if (!formatted.trim()) {
+  if (!formatted.trim())
     npmUsage(false)
-  } else {
+  else {
     output(formatted)
     output(didYouMean(args[0], cmdList))
   }
@@ -53,9 +52,8 @@ const searchFiles = async (args, data, files) => {
   for (const [file, content] of Object.entries(data)) {
     const lowerCase = content.toLowerCase()
     // skip if no matches at all
-    if (!args.some(a => lowerCase.includes(a.toLowerCase()))) {
+    if (!args.some(a => lowerCase.includes(a.toLowerCase())))
       continue
-    }
 
     const lines = content.split(/\n+/)
 
@@ -88,18 +86,17 @@ const searchFiles = async (args, data, files) => {
 
     // now squish any string of nulls into a single null
     const pruned = lines.reduce((l, r) => {
-      if (!(r === null && l[l.length - 1] === null)) {
+      if (!(r === null && l[l.length - 1] === null))
         l.push(r)
-      }
+
       return l
     }, [])
 
-    if (pruned[pruned.length - 1] === null) {
+    if (pruned[pruned.length - 1] === null)
       pruned.pop()
-    }
-    if (pruned[0] === null) {
+
+    if (pruned[0] === null)
       pruned.shift()
-    }
 
     // now count how many args were found
     const found = {}
@@ -124,16 +121,15 @@ const searchFiles = async (args, data, files) => {
       lines: pruned,
       found: Object.keys(found),
       hits: found,
-      totalHits
+      totalHits,
     })
   }
 
   // if only one result, then just show that help section.
   if (results.length === 1) {
     npm.commands.help([results[0].file.replace(/\.md$/, '')], er => {
-      if (er) {
+      if (er)
         throw er
-      }
     })
     return []
   }
@@ -151,9 +147,8 @@ const searchFiles = async (args, data, files) => {
 }
 
 const formatResults = (args, results) => {
-  if (!results) {
+  if (!results)
     return 'No results for ' + args.map(JSON.stringify).join(' ')
-  }
 
   const cols = Math.min(process.stdout.columns || Infinity, 80) + 1
 
@@ -167,17 +162,16 @@ const formatResults = (args, results) => {
     out.push(' '.repeat((Math.max(1, cols - out.join(' ').length - r.length - 1))))
     out.push(r)
 
-    if (!npm.flatOptions.long) {
+    if (!npm.flatOptions.long)
       return out.join('')
-    }
 
     out.unshift('\n\n')
     out.push('\n')
     out.push('-'.repeat(cols - 1) + '\n')
     res.lines.forEach((line, i) => {
-      if (line === null || i > 3) {
+      if (line === null || i > 3)
         return
-      }
+
       if (!npm.color) {
         out.push(line + '\n')
         return

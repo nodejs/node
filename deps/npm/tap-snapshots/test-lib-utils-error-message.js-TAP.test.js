@@ -1209,6 +1209,18 @@ Object {
 }
 `
 
+exports[`test/lib/utils/error-message.js TAP replace message/stack sensistive info > must match snapshot 1`] = `
+Object {
+  "detail": Array [],
+  "summary": Array [
+    Array [
+      "audit",
+      "Error at registry: https://user:***@registry.npmjs.org/",
+    ],
+  ],
+}
+`
+
 exports[`v TAP json parse json somewhere else > must match snapshot 1`] = `
 Object {
   "detail": Array [

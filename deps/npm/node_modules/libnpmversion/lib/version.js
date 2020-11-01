@@ -62,7 +62,7 @@ module.exports = async (newversion, opts) => {
 
   // - check if git dir is clean
   // returns false if we should not keep doing git stuff
-  const doGit = isGitDir && await enforceClean(opts)
+  const doGit = gitTagVersion && isGitDir && await enforceClean(opts)
 
   const runScript = ignoreScripts ? () => {} : runner({
     ...opts,

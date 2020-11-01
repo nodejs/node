@@ -17,7 +17,7 @@ const rebuild = async args => {
   const where = npm.flatOptions.global ? globalTop : npm.prefix
   const arb = new Arborist({
     ...npm.flatOptions,
-    path: where
+    path: where,
   })
 
   if (args.length) {
@@ -25,11 +25,10 @@ const rebuild = async args => {
     const tree = await arb.loadActual()
     const filter = getFilterFn(args)
     await arb.rebuild({
-      nodes: tree.inventory.filter(filter)
+      nodes: tree.inventory.filter(filter),
     })
-  } else {
+  } else
     await arb.rebuild()
-  }
 
   output('rebuilt dependencies successfully')
 }
@@ -37,14 +36,18 @@ const rebuild = async args => {
 const getFilterFn = args => {
   const specs = args.map(arg => {
     const spec = npa(arg)
-    if (spec.type === 'tag' && spec.rawSpec === '') { return spec }
-    if (spec.type !== 'range' && spec.type !== 'version') { throw new Error('`npm rebuild` only supports SemVer version/range specifiers') }
+    if (spec.type === 'tag' && spec.rawSpec === '')
+      return spec
+    if (spec.type !== 'range' && spec.type !== 'version')
+      throw new Error('`npm rebuild` only supports SemVer version/range specifiers')
     return spec
   })
   return node => specs.some(spec => {
     const { version } = node.package
-    if (spec.name !== node.name) { return false }
-    if (spec.rawSpec === '' || spec.rawSpec === '*') { return true }
+    if (spec.name !== node.name)
+      return false
+    if (spec.rawSpec === '' || spec.rawSpec === '*')
+      return true
     return semver.satisfies(version, spec.fetchSpec)
   })
 }

@@ -28,7 +28,7 @@ const update = async args => {
 
   const arb = new Arborist({
     ...npm.flatOptions,
-    path: where
+    path: where,
   })
 
   await arb.reify({ update })

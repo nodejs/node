@@ -1,14 +1,22 @@
 'use strict'
+
 const npm = require('../npm.js')
 const { format } = require('util')
 const { resolve } = require('path')
 const nameValidator = require('validate-npm-package-name')
 const npmlog = require('npmlog')
+const replaceInfo = require('./replace-info.js')
 const { report: explainEresolve } = require('./explain-eresolve.js')
 
 module.exports = (er) => {
   const short = []
   const detail = []
+
+  if (er.message)
+    er.message = replaceInfo(er.message)
+  if (er.stack)
+    er.stack = replaceInfo(er.stack)
+
   switch (er.code) {
     case 'ERESOLVE':
       short.push(['ERESOLVE', er.message])
@@ -34,8 +42,8 @@ module.exports = (er) => {
         '',
         [
           '\nIf you are behind a proxy, please make sure that the',
-          "'proxy' config is set properly.  See: 'npm help config'"
-        ].join('\n')
+          "'proxy' config is set properly.  See: 'npm help config'",
+        ].join('\n'),
       ])
       break
 
@@ -59,8 +67,8 @@ module.exports = (er) => {
             'previous versions of npm which has since been addressed.',
             '',
             'To permanently fix this problem, please run:',
-            `  sudo chown -R ${process.getuid()}:${process.getgid()} ${JSON.stringify(npm.config.get('cache'))}`
-          ].join('\n')
+            `  sudo chown -R ${process.getuid()}:${process.getgid()} ${JSON.stringify(npm.config.get('cache'))}`,
+          ].join('\n'),
         ])
       } else {
         short.push(['', er])
@@ -74,7 +82,7 @@ module.exports = (er) => {
               : 'It is likely you do not have the permissions to access this file as the current user'),
             '\nIf you believe this might be a permissions issue, please double-check the',
             'permissions of the file and its containing directories, or try running',
-            'the command again as root/Administrator.'
+            'the command again as root/Administrator.',
           ].join('\n')])
       }
       break
@@ -87,8 +95,8 @@ module.exports = (er) => {
         [
           '',
           'Failed using git.',
-          'Please check if you have git installed and in your PATH.'
-        ].join('\n')
+          'Please check if you have git installed and in your PATH.',
+        ].join('\n'),
       ])
       break
 
@@ -106,8 +114,8 @@ module.exports = (er) => {
               '',
               'Please resolve the package.json conflict and retry the command:',
               '',
-              `$ ${process.argv.join(' ')}`
-            ].join('\n')
+              `$ ${process.argv.join(' ')}`,
+            ].join('\n'),
           ])
           break
         }
@@ -117,8 +125,8 @@ module.exports = (er) => {
         'JSON.parse',
         [
           'Failed to parse JSON data.',
-          'Note: package.json must be actual JSON, not just JavaScript.'
-        ].join('\n')
+          'Note: package.json must be actual JSON, not just JavaScript.',
+        ].join('\n'),
       ])
       break
 
@@ -132,8 +140,8 @@ module.exports = (er) => {
           [
             'You can provide a one-time password by passing --otp=<code> to the command you ran.',
             'If you already provided a one-time password then it is likely that you either typoed',
-            'it, or it timed out. Please try again.'
-          ].join('\n')
+            'it, or it timed out. Please try again.',
+          ].join('\n'),
         ])
       } else {
         // npm ERR! code E401
@@ -147,8 +155,8 @@ module.exports = (er) => {
             '',
             [
               'To correct this please trying logging in again with:',
-              '    npm login'
-            ].join('\n')
+              '    npm login',
+            ].join('\n'),
           ])
         } else if (auth.includes('Basic')) {
           short.push(['', 'Incorrect or missing password.'])
@@ -163,12 +171,11 @@ module.exports = (er) => {
               '',
               'If you were doing some other operation then your saved credentials are',
               'probably out of date. To correct this please try logging in again with:',
-              '    npm login'
-            ].join('\n')
+              '    npm login',
+            ].join('\n'),
           ])
-        } else {
+        } else
           short.push(['', er.message || er])
-        }
       }
       break
 
@@ -183,9 +190,9 @@ module.exports = (er) => {
 
         const valResult = nameValidator(pkg)
 
-        if (valResult.validForNewPackages) {
+        if (valResult.validForNewPackages)
           detail.push(['404', 'You should bug the author to publish it (or use the name yourself!)'])
-        } else {
+        else {
           detail.push(['404', 'This package name is not valid, because', ''])
 
           const errorsArray = (valResult.errors || []).concat(valResult.warnings || [])
@@ -214,8 +221,8 @@ module.exports = (er) => {
         'git',
         [
           'Refusing to remove it. Update manually,',
-          'or move it out of the way first.'
-        ].join('\n')
+          'or move it out of the way first.',
+        ].join('\n'),
       ])
       break
 
@@ -231,8 +238,8 @@ module.exports = (er) => {
       short.push([
         'notsup',
         [
-          format('Unsupported platform for %s: wanted %j (current: %j)', er.pkgid, expected, actual)
-        ].join('\n')
+          format('Unsupported platform for %s: wanted %j (current: %j)', er.pkgid, expected, actual),
+        ].join('\n'),
       ])
       detail.push([
         'notsup',
@@ -240,8 +247,8 @@ module.exports = (er) => {
           'Valid OS:    ' + validOs,
           'Valid Arch:  ' + validArch,
           'Actual OS:   ' + process.platform,
-          'Actual Arch: ' + process.arch
-        ].join('\n')
+          'Actual Arch: ' + process.arch,
+        ].join('\n'),
       ])
       break
     }
@@ -269,8 +276,8 @@ module.exports = (er) => {
           'This is a problem related to network connectivity.',
           'In most cases you are behind a proxy or have bad network settings.',
           '\nIf you are behind a proxy, please make sure that the',
-          "'proxy' config is set properly.  See: 'npm help config'"
-        ].join('\n')
+          "'proxy' config is set properly.  See: 'npm help config'",
+        ].join('\n'),
       ])
       break
 
@@ -278,7 +285,7 @@ module.exports = (er) => {
       short.push(['notarget', er.message])
       detail.push(['notarget', [
         'In most cases you or one of your dependencies are requesting',
-        "a package version that doesn't exist."
+        "a package version that doesn't exist.",
       ].join('\n')])
       break
 
@@ -287,7 +294,7 @@ module.exports = (er) => {
       detail.push(['403', [
         'In most cases, you or one of your dependencies are requesting',
         'a package version that is forbidden by your security policy, or',
-        'on a server you do not have access to.'
+        'on a server you do not have access to.',
       ].join('\n')])
       break
 
@@ -301,9 +308,9 @@ module.exports = (er) => {
           'Required: ' + JSON.stringify(er.required),
           'Actual:   ' + JSON.stringify({
             npm: npm.version,
-            node: npm.config.loaded ? npm.config.get('node-version') : process.version
-          })
-        ].join('\n')
+            node: npm.config.loaded ? npm.config.get('node-version') : process.version,
+          }),
+        ].join('\n'),
       ])
       break
 
@@ -313,8 +320,8 @@ module.exports = (er) => {
         'nospc',
         [
           'There appears to be insufficient space on your system to finish.',
-          'Clear up some disk space and try again.'
-        ].join('\n')
+          'Clear up some disk space and try again.',
+        ].join('\n'),
       ])
       break
 
@@ -324,8 +331,8 @@ module.exports = (er) => {
         'rofs',
         [
           'Often virtualized file systems, or other file systems',
-          "that don't support symlinks, give this error."
-        ].join('\n')
+          "that don't support symlinks, give this error.",
+        ].join('\n'),
       ])
       break
 
@@ -335,8 +342,8 @@ module.exports = (er) => {
         'enoent',
         [
           'This is related to npm not being able to find a file.',
-          er.file ? "\nCheck if the file '" + er.file + "' is present." : ''
-        ].join('\n')
+          er.file ? "\nCheck if the file '" + er.file + "' is present." : '',
+        ].join('\n'),
       ])
       break
 
@@ -349,25 +356,25 @@ module.exports = (er) => {
         'typeerror',
         [
           'This is an error with npm itself. Please report this error at:',
-          '    https://github.com/npm/cli/issues'
-        ].join('\n')
+          '    https://github.com/npm/cli/issues',
+        ].join('\n'),
       ])
       break
 
     default:
       short.push(['', er.message || er])
-      if (er.signal) {
+      if (er.signal)
         detail.push(['signal', er.signal])
-      }
-      if (er.cmd && Array.isArray(er.args)) {
+
+      if (er.cmd && Array.isArray(er.args))
         detail.push(['command', ...[er.cmd, ...er.args]])
-      }
-      if (er.stdout) {
+
+      if (er.stdout)
         detail.push(['', er.stdout.trim()])
-      }
-      if (er.stderr) {
+
+      if (er.stderr)
         detail.push(['', er.stderr.trim()])
-      }
+
       break
   }
   return { summary: short, detail: detail }

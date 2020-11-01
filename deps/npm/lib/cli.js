@@ -4,7 +4,7 @@ module.exports = (process) => {
 
   const {
     checkForBrokenNode,
-    checkForUnsupportedNode
+    checkForUnsupportedNode,
   } = require('../lib/utils/unsupported.js')
 
   checkForBrokenNode()
@@ -21,9 +21,8 @@ module.exports = (process) => {
 
   // if npm is called as "npmg" or "npm_g", then
   // run in global mode.
-  if (process.argv[1][process.argv[1].length - 1] === 'g') {
+  if (process.argv[1][process.argv[1].length - 1] === 'g')
     process.argv.splice(1, 1, 'npm', '-g')
-  }
 
   log.verbose('cli', process.argv)
 
@@ -37,7 +36,8 @@ module.exports = (process) => {
   // this is how to use npm programmatically:
   const updateNotifier = require('../lib/utils/update-notifier.js')
   npm.load(async er => {
-    if (er) return errorHandler(er)
+    if (er)
+      return errorHandler(er)
     if (npm.config.get('version', 'cli')) {
       console.log(npm.version)
       return errorHandler.exit(0)
@@ -52,9 +52,9 @@ module.exports = (process) => {
 
     const cmd = npm.argv.shift()
     const impl = npm.commands[cmd]
-    if (impl) {
+    if (impl)
       impl(npm.argv, errorHandler)
-    } else {
+    else {
       npm.config.set('usage', false)
       npm.argv.unshift(cmd)
       npm.commands.help(npm.argv, errorHandler)

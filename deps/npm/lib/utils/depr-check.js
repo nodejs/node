@@ -7,9 +7,8 @@ const deprWarned = {}
 
 module.exports = deprCheck
 function deprCheck (data) {
-  if (deprecated[data._id]) {
+  if (deprecated[data._id])
     data.deprecated = deprecated[data._id]
-  }
 
   if (data.deprecated) {
     deprecated[data._id] = data.deprecated

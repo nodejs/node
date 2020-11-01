@@ -5,7 +5,7 @@ const nocolor = {
   red: s => s,
   yellow: s => s,
   cyan: s => s,
-  magenta: s => s
+  magenta: s => s,
 }
 
 const explainNode = (node, depth, color) =>
@@ -30,31 +30,29 @@ const printNode = (node, color) => {
     extraneous,
     dev,
     optional,
-    peer
+    peer,
   } = node
   const { bold, dim } = color ? chalk : nocolor
   const extra = []
-  if (extraneous) {
+  if (extraneous)
     extra.push(' ' + bold(colorType('extraneous', color)))
-  }
-  if (dev) {
+
+  if (dev)
     extra.push(' ' + bold(colorType('dev', color)))
-  }
-  if (optional) {
+
+  if (optional)
     extra.push(' ' + bold(colorType('optional', color)))
-  }
-  if (peer) {
+
+  if (peer)
     extra.push(' ' + bold(colorType('peer', color)))
-  }
 
   return `${bold(name)}@${bold(version)}${extra.join('')}` +
     (location ? dim(`\n${location}`) : '')
 }
 
 const explainDependents = ({ name, dependents }, depth, color) => {
-  if (!dependents || !dependents.length || depth <= 0) {
+  if (!dependents || !dependents.length || depth <= 0)
     return ''
-  }
 
   const max = Math.ceil(depth / 2)
   const messages = dependents.slice(0, max)
@@ -90,9 +88,8 @@ const explainEdge = ({ name, type, from, spec }, depth, color) => {
 }
 
 const explainFrom = (from, depth, color) => {
-  if (!from.name && !from.version) {
+  if (!from.name && !from.version)
     return 'the root project'
-  }
 
   return printNode(from, color) +
     explainDependents(from, depth - 1, color)
