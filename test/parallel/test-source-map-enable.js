@@ -8,6 +8,7 @@ const { dirname } = require('path');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { pathToFileURL } = require('url');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -88,8 +89,8 @@ function nextdir() {
   // Source-map should have been loaded from disk and sources should have been
   // rewritten, such that they're absolute paths.
   assert.strictEqual(
-    dirname(
-      `file://${require.resolve('../fixtures/source-map/disk-relative-path')}`),
+    dirname(pathToFileURL(
+      require.resolve('../fixtures/source-map/disk-relative-path')).href),
     dirname(sourceMap.data.sources[0])
   );
 }
@@ -109,8 +110,8 @@ function nextdir() {
   // base64 JSON should have been decoded, and paths to sources should have
   // been rewritten such that they're absolute:
   assert.strictEqual(
-    dirname(
-      `file://${require.resolve('../fixtures/source-map/inline-base64')}`),
+    dirname(pathToFileURL(
+      require.resolve('../fixtures/source-map/inline-base64')).href),
     dirname(sourceMap.data.sources[0])
   );
 }
