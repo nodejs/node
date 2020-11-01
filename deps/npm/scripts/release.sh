@@ -7,8 +7,8 @@ unset CDPATH
 set -e
 
 rm -rf release *.tgz || true
-rm node_modules/node-gyp/gyp/pylib/gyp/*.pyc || true
-rm node_modules/node-gyp/gyp/pylib/gyp/generator/*.pyc || true
+rm node_modules/node-gyp/gyp/pylib/gyp/__pycache__/*.pyc || true
+rm node_modules/node-gyp/gyp/pylib/gyp/generator/__pycache__/*.pyc || true
 mkdir release
 node ./bin/npm-cli.js pack --loglevel error >/dev/null
 mv *.tgz release

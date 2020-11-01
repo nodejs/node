@@ -22,11 +22,11 @@ module.exports = (config) => {
     return warn(heading, ...args)
   }
 
-  if (config.get('timing') && config.get('loglevel') === 'notice') {
+  if (config.get('timing') && config.get('loglevel') === 'notice')
     log.level = 'timing'
-  } else {
+  else
     log.level = config.get('loglevel')
-  }
+
   log.heading = config.get('heading') || 'npm'
 
   const stdoutTTY = process.stdout.isTTY
@@ -42,26 +42,23 @@ module.exports = (config) => {
     : color === false ? false
     : stdoutTTY
 
-  if (enableColorStderr) {
+  if (enableColorStderr)
     log.enableColor()
-  } else {
+  else
     log.disableColor()
-  }
 
-  if (config.get('unicode')) {
+  if (config.get('unicode'))
     log.enableUnicode()
-  } else {
+  else
     log.disableUnicode()
-  }
 
   // if it's more than error, don't show progress
   const quiet = log.levels[log.level] > log.levels.error
 
-  if (config.get('progress') && stderrNotDumb && !quiet) {
+  if (config.get('progress') && stderrNotDumb && !quiet)
     log.enableProgress()
-  } else {
+  else
     log.disableProgress()
-  }
 
   return enableColorStdout
 }

@@ -9,11 +9,15 @@ const npm = require('./npm.js')
 const { packument } = require('pacote')
 const path = require('path')
 const { inspect, promisify } = require('util')
-const readJson = promisify(require('read-package-json'))
 const relativeDate = require('tiny-relative-date')
 const semver = require('semver')
 const style = require('ansistyles')
 const usageUtil = require('./utils/usage')
+
+const fs = require('fs')
+const readFile = promisify(fs.readFile)
+const jsonParse = require('json-parse-even-better-errors')
+const readJson = async file => jsonParse(await readFile(file, 'utf8'))
 
 const usage = usageUtil(
   'view',
@@ -40,57 +44,62 @@ const completion = async (opts, cb) => {
 
   function getFields (d, f, pref) {
     f = f || []
-    if (!d) return f
+    if (!d)
+      return f
     pref = pref || []
     Object.keys(d).forEach(function (k) {
-      if (k.charAt(0) === '_' || k.indexOf('.') !== -1) return
+      if (k.charAt(0) === '_' || k.indexOf('.') !== -1)
+        return
       const p = pref.concat(k).join('.')
       f.push(p)
       if (Array.isArray(d[k])) {
         d[k].forEach(function (val, i) {
           const pi = p + '[' + i + ']'
-          if (val && typeof val === 'object') getFields(val, f, [p])
-          else f.push(pi)
+          if (val && typeof val === 'object')
+            getFields(val, f, [p])
+          else
+            f.push(pi)
         })
         return
       }
-      if (typeof d[k] === 'object') getFields(d[k], f, [p])
+      if (typeof d[k] === 'object')
+        getFields(d[k], f, [p])
     })
     return f
   }
 }
 
 const view = async args => {
-  if (!args.length) args = ['.']
+  if (!args.length)
+    args = ['.']
 
   const opts = { ...npm.flatOptions, preferOnline: true, fullMetadata: true }
   const pkg = args.shift()
   let nv
-  if (/^[.]@/.test(pkg)) {
+  if (/^[.]@/.test(pkg))
     nv = npa.resolve(null, pkg.slice(2))
-  } else {
+  else
     nv = npa(pkg)
-  }
+
   const name = nv.name
   const local = (name === '.' || !name)
 
-  if (opts.global && local) {
+  if (opts.global && local)
     throw new Error('Cannot use view command in global mode.')
-  }
 
   if (local) {
     const dir = npm.prefix
     const manifest = await readJson(path.resolve(dir, 'package.json'))
-    if (!manifest || !manifest.name) throw new Error('Invalid package.json')
+    if (!manifest.name)
+      throw new Error('Invalid package.json, no "name" field')
     const p = manifest.name
     nv = npa(p)
-    if (pkg && ~pkg.indexOf('@')) {
+    if (pkg && ~pkg.indexOf('@'))
       nv.rawSpec = pkg.split('@')[pkg.indexOf('@')]
-    }
+
     await fetchAndRead(nv, args, opts)
-  } else {
+  } else
     await fetchAndRead(nv, args, opts)
-  }
 }
 
 const fetchAndRead = async (nv, args, opts) => {
@@ -99,9 +108,8 @@ const fetchAndRead = async (nv, args, opts) => {
 
   const pckmnt = await packument(nv, opts)
 
-  if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version]) {
+  if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version])
     version = pckmnt['dist-tags'][version]
-  }
 
   if (pckmnt.time && pckmnt.time.unpublished) {
     const u = pckmnt.time.unpublished
@@ -115,20 +123,20 @@ const fetchAndRead = async (nv, args, opts) => {
   const results = []
   const versions = pckmnt.versions || {}
   pckmnt.versions = Object.keys(versions).sort(semver.compareLoose)
-  if (!args.length) args = ['']
+  if (!args.length)
+    args = ['']
 
   // remove readme unless we asked for it
-  if (args.indexOf('readme') === -1) {
+  if (args.indexOf('readme') === -1)
     delete pckmnt.readme
-  }
 
   Object.keys(versions).forEach(function (v) {
     if (semver.satisfies(v, version, true)) {
       args.forEach(arg => {
         // remove readme unless we asked for it
-        if (args.indexOf('readme') !== -1) {
+        if (args.indexOf('readme') !== -1)
           delete versions[v].readme
-        }
+
         results.push(showFields(pckmnt, versions[v], arg))
       })
     }
@@ -186,12 +194,12 @@ const prettyView = async (packument, manifest, opts) => {
     }),
     publisher: manifest._npmUser && unparsePerson({
       name: color.yellow(manifest._npmUser.name),
-      email: color.cyan(manifest._npmUser.email)
+      email: color.cyan(manifest._npmUser.email),
     }),
     modified: packument.time ? color.yellow(relativeDate(packument.time[packument.version])) : undefined,
     maintainers: (packument.maintainers || []).map((u) => unparsePerson({
       name: color.yellow(u.name),
-      email: color.cyan(u.email)
+      email: color.cyan(u.email),
     })),
     repo: (
       manifest.bugs && (manifest.bugs.url || manifest.bugs)
@@ -206,13 +214,13 @@ const prettyView = async (packument, manifest, opts) => {
     shasum: color.yellow(manifest.dist.shasum),
     integrity: manifest.dist.integrity && color.yellow(manifest.dist.integrity),
     fileCount: manifest.dist.fileCount && color.yellow(manifest.dist.fileCount),
-    unpackedSize: unpackedSize && color.yellow(unpackedSize.value) + ' ' + unpackedSize.unit
+    unpackedSize: unpackedSize && color.yellow(unpackedSize.value) + ' ' + unpackedSize.unit,
   }
-  if (info.license.toLowerCase().trim() === 'proprietary') {
+  if (info.license.toLowerCase().trim() === 'proprietary')
     info.license = style.bright(color.red(info.license))
-  } else {
+  else
     info.license = color.green(info.license)
-  }
+
   console.log('')
   console.log(
     style.underline(style.bright(`${info.name}@${info.version}`)) +
@@ -221,9 +229,8 @@ const prettyView = async (packument, manifest, opts) => {
     ' | versions: ' + info.versions
   )
   info.description && console.log(info.description)
-  if (info.repo || info.site) {
+  if (info.repo || info.site)
     info.site && console.log(color.cyan(info.site))
-  }
 
   const warningSign = unicode ? ' ⚠️ ' : '!!'
   info.deprecated && console.log(
@@ -254,9 +261,8 @@ const prettyView = async (packument, manifest, opts) => {
     console.log('')
     console.log('dependencies:')
     console.log(columns(info.deps.slice(0, maxDeps), { padding: 1 }))
-    if (info.deps.length > maxDeps) {
+    if (info.deps.length > maxDeps)
       console.log(`(...and ${info.deps.length - maxDeps} more.)`)
-    }
   }
 
   if (info.maintainers && info.maintainers.length) {
@@ -271,8 +277,10 @@ const prettyView = async (packument, manifest, opts) => {
 
   if (info.publisher || info.modified) {
     let publishInfo = 'published'
-    if (info.modified) { publishInfo += ` ${info.modified}` }
-    if (info.publisher) { publishInfo += ` by ${info.publisher}` }
+    if (info.modified)
+      publishInfo += ` ${info.modified}`
+    if (info.publisher)
+      publishInfo += ` by ${info.publisher}`
     console.log('')
     console.log(publishInfo)
   }
@@ -313,7 +321,8 @@ function showFields (data, version, fields) {
 function search (data, fields, version, title) {
   let field
   const tail = fields
-  while (!field && fields.length) field = tail.shift()
+  while (!field && fields.length)
+    field = tail.shift()
   fields = [field].concat(tail)
   let o
   if (!field && !tail.length) {
@@ -326,16 +335,15 @@ function search (data, fields, version, title) {
   if (index) {
     field = index[1]
     index = index[2]
-    if (data[field] && data[field][index]) {
+    if (data[field] && data[field][index])
       return search(data[field][index], tail, version, title)
-    } else {
+    else
       field = field + '[' + index + ']'
-    }
   }
   if (Array.isArray(data)) {
-    if (data.length === 1) {
+    if (data.length === 1)
       return search(data[0], fields, version, title)
-    }
+
     let results = []
     data.forEach(function (data, i) {
       const tl = title.length
@@ -346,7 +354,8 @@ function search (data, fields, version, title) {
     results = results.reduce(reducer, {})
     return results
   }
-  if (!data[field]) return undefined
+  if (!data[field])
+    return undefined
   data = data[field]
   if (tail.length) {
     // there are more fields to deal with.
@@ -368,23 +377,24 @@ async function printData (data, name, opts) {
   versions.forEach(function (v) {
     const fields = Object.keys(data[v])
     includeFields = includeFields || (fields.length > 1)
-    if (opts.json) msgJson.push({})
+    if (opts.json)
+      msgJson.push({})
     fields.forEach(function (f) {
       let d = cleanup(data[v][f])
-      if (fields.length === 1 && opts.json) {
+      if (fields.length === 1 && opts.json)
         msgJson[msgJson.length - 1][f] = d
-      }
+
       if (includeVersions || includeFields || typeof d !== 'string') {
-        if (opts.json) {
+        if (opts.json)
           msgJson[msgJson.length - 1][f] = d
-        } else {
+        else
           d = inspect(d, { showHidden: false, depth: 5, colors: npm.color, maxArrayLength: null })
-        }
-      } else if (typeof d === 'string' && opts.json) {
+      } else if (typeof d === 'string' && opts.json)
         d = JSON.stringify(d)
-      }
+
       if (!opts.json) {
-        if (f && includeFields) f += ' = '
+        if (f && includeFields)
+          f += ' = '
         msg += (includeVersions ? name + '@' + v + ' ' : '') +
                (includeFields ? f : '') + d + '\n'
       }
@@ -394,13 +404,14 @@ async function printData (data, name, opts) {
   if (opts.json) {
     if (msgJson.length && Object.keys(msgJson[0]).length === 1) {
       const k = Object.keys(msgJson[0])[0]
-      msgJson = msgJson.map(function (m) { return m[k] })
+      msgJson = msgJson.map(function (m) {
+        return m[k]
+      })
     }
-    if (msgJson.length === 1) {
+    if (msgJson.length === 1)
       msg = JSON.stringify(msgJson[0], null, 2) + '\n'
-    } else if (msgJson.length > 1) {
+    else if (msgJson.length > 1)
       msg = JSON.stringify(msgJson, null, 2) + '\n'
-    }
   }
 
   // disable the progress bar entirely, as we can't meaningfully update it if
@@ -408,23 +419,25 @@ async function printData (data, name, opts) {
   log.disableProgress()
 
   // only log if there is something to log
-  if (msg !== '') console.log(msg.trim())
+  if (msg !== '')
+    console.log(msg.trim())
 }
 
 function cleanup (data) {
-  if (Array.isArray(data)) {
+  if (Array.isArray(data))
     return data.map(cleanup)
-  }
-  if (!data || typeof data !== 'object') return data
+
+  if (!data || typeof data !== 'object')
+    return data
 
   const keys = Object.keys(data)
   if (keys.length <= 3 &&
       data.name &&
       (keys.length === 1 ||
        (keys.length === 3 && data.email && data.url) ||
-       (keys.length === 2 && (data.email || data.url)))) {
+       (keys.length === 2 && (data.email || data.url))))
     data = unparsePerson(data)
-  }
+
   return data
 }
 function unparsePerson (d) {

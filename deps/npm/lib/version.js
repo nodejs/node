@@ -6,9 +6,9 @@ const usageUtil = require('./utils/usage.js')
 const completion = (opts, cb) => {
   const none = require('./utils/completion/none.js')
   const { conf: { argv: { remain } } } = opts
-  if (remain.length > 2) {
+  if (remain.length > 2)
     return none(opts, cb)
-  }
+
   return cb(null, [
     'major',
     'minor',
@@ -17,7 +17,7 @@ const completion = (opts, cb) => {
     'preminor',
     'prepatch',
     'prerelease',
-    'from-git'
+    'from-git',
   ])
 }
 
@@ -39,7 +39,7 @@ const version = async args => {
     case 1:
       return output(await libversion(args[0], {
         ...npm.flatOptions,
-        path: npm.prefix
+        path: npm.prefix,
       }))
     default:
       throw version.usage
@@ -57,13 +57,12 @@ const list = async () => {
     .then(data => JSON.parse(data))
     .catch(() => ({}))
 
-  if (pkg.name && pkg.version) {
+  if (pkg.name && pkg.version)
     results[pkg.name] = pkg.version
-  }
+
   results.npm = npm.version
-  for (const [key, version] of Object.entries(process.versions)) {
+  for (const [key, version] of Object.entries(process.versions))
     results[key] = version
-  }
 
   output(npm.flatOptions.json ? JSON.stringify(results, null, 2) : results)
 }

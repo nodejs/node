@@ -6,19 +6,22 @@ let pulsers = 0
 let pulse
 
 function pulseStart (prefix) {
-  if (++pulsers > 1) return
+  if (++pulsers > 1)
+    return
   pulse = setInterval(function () {
     log.gauge.pulse(prefix)
   }, 150)
 }
 function pulseStop () {
-  if (--pulsers > 0) return
+  if (--pulsers > 0)
+    return
   clearInterval(pulse)
 }
 
 module.exports = function (prefix, cb) {
   validate('SF', [prefix, cb])
-  if (!prefix) prefix = 'network'
+  if (!prefix)
+    prefix = 'network'
   pulseStart(prefix)
   return (er, ...args) => {
     pulseStop()

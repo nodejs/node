@@ -13,21 +13,17 @@ const buildOmitList = npm => {
     .filter(type => !include.includes(type)))
   const only = npm.config.get('only')
 
-  if (/^prod(uction)?$/.test(only) || npm.config.get('production')) {
+  if (/^prod(uction)?$/.test(only) || npm.config.get('production'))
     omit.add('dev')
-  }
 
-  if (/dev/.test(npm.config.get('also'))) {
+  if (/dev/.test(npm.config.get('also')))
     omit.delete('dev')
-  }
 
-  if (npm.config.get('dev')) {
+  if (npm.config.get('dev'))
     omit.delete('dev')
-  }
 
-  if (npm.config.get('optional') === false) {
+  if (npm.config.get('optional') === false)
     omit.add('optional')
-  }
 
   npm.config.set('omit', [...omit])
   return [...omit]
@@ -91,7 +87,7 @@ const flatOptions = npm => npm.flatOptions || Object.freeze({
   lockFile: {
     retries: npm.config.get('cache-lock-retries'),
     stale: npm.config.get('cache-lock-stale'),
-    wait: npm.config.get('cache-lock-wait')
+    wait: npm.config.get('cache-lock-wait'),
   },
 
   // XXX remove these once no longer used
@@ -134,7 +130,7 @@ const flatOptions = npm => npm.flatOptions || Object.freeze({
     exclude: npm.config.get('searchexclude'),
     limit: npm.config.get('searchlimit') || 20,
     opts: npm.config.get('searchopts'),
-    staleness: npm.config.get('searchstaleness')
+    staleness: npm.config.get('searchstaleness'),
   },
 
   dryRun: npm.config.get('dry-run'),
@@ -144,7 +140,7 @@ const flatOptions = npm => npm.flatOptions || Object.freeze({
     retries: npm.config.get('fetch-retries'),
     factor: npm.config.get('fetch-retry-factor'),
     maxTimeout: npm.config.get('fetch-retry-maxtimeout'),
-    minTimeout: npm.config.get('fetch-retry-mintimeout')
+    minTimeout: npm.config.get('fetch-retry-mintimeout'),
   },
 
   timeout: npm.config.get('fetch-timeout'),
@@ -164,7 +160,9 @@ const flatOptions = npm => npm.flatOptions || Object.freeze({
   // configs that affect how we build trees
   binLinks: npm.config.get('bin-links'),
   rebuildBundle: npm.config.get('rebuild-bundle'),
-  packageLock: npm.config.get('package-lock'),
+  // --no-shrinkwrap is the same as --no-package-lock
+  packageLock: !(npm.config.get('package-lock') === false ||
+    npm.config.get('shrinkwrap') === false),
   packageLockOnly: npm.config.get('package-lock-only'),
   globalStyle: npm.config.get('global-style'),
   legacyBundling: npm.config.get('legacy-bundling'),
@@ -215,22 +213,22 @@ const flatOptions = npm => npm.flatOptions || Object.freeze({
   // note that the various (HTTPS_|HTTP_|)PROXY environs will be
   // respected if this is not set.
   proxy: npm.config.get('https-proxy') || npm.config.get('proxy'),
-  noProxy: npm.config.get('noproxy')
+  noProxy: npm.config.get('noproxy'),
 })
 
 const getPreferOnline = npm => {
   const po = npm.config.get('prefer-online')
-  if (po !== undefined) {
+  if (po !== undefined)
     return po
-  }
+
   return npm.config.get('cache-max') <= 0
 }
 
 const getPreferOffline = npm => {
   const po = npm.config.get('prefer-offline')
-  if (po !== undefined) {
+  if (po !== undefined)
     return po
-  }
+
   return npm.config.get('cache-min') >= 9999
 }
 
@@ -240,9 +238,8 @@ const getScopesAndAuths = npm => {
   const scopesAndAuths = {}
   // pull out all the @scope:... configs into a flat object.
   for (const key in npm.config.list[0]) {
-    if (/@.*:registry$/i.test(key) || /^\/\//.test(key)) {
+    if (/@.*:registry$/i.test(key) || /^\/\//.test(key))
       scopesAndAuths[key] = npm.config.get(key)
-    }
   }
   return scopesAndAuths
 }

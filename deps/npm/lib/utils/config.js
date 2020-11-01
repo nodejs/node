@@ -5,8 +5,8 @@ const {
     semver: { type: semver },
     Umask: { type: Umask },
     url: { type: url },
-    path: { type: path }
-  }
+    path: { type: path },
+  },
 } = require('@npmcli/config')
 
 const { version: npmVersion } = require('../../package.json')
@@ -21,7 +21,7 @@ const editor = process.env.EDITOR ||
   (isWindows ? 'notepad.exe' : 'vi')
 
 const shell = isWindows ? process.env.ComSpec || 'cmd'
-  : process.env.SHELL || 'bash'
+  : process.env.SHELL || 'sh'
 
 const { tmpdir, networkInterfaces } = require('os')
 const getLocalAddresses = () => {
@@ -183,7 +183,7 @@ const defaults = {
   userconfig: '~/.npmrc',
   version: false,
   versions: false,
-  viewer: isWindows ? 'browser' : 'man'
+  viewer: isWindows ? 'browser' : 'man',
 }
 
 const types = {
@@ -265,7 +265,7 @@ const types = {
     'timing',
     'info',
     'verbose',
-    'silly'
+    'silly',
   ],
   'logs-max': Number,
   long: Boolean,
@@ -331,7 +331,7 @@ const types = {
   userconfig: path,
   version: Boolean,
   versions: Boolean,
-  viewer: String
+  viewer: String,
 }
 
 const shorthands = {
@@ -372,7 +372,7 @@ const shorthands = {
   silent: ['--loglevel', 'silent'],
   v: ['--version'],
   verbose: ['--loglevel', 'verbose'],
-  y: ['--yes']
+  y: ['--yes'],
 }
 
 module.exports = { defaults, types, shorthands }

@@ -1,0 +1,273 @@
+<html><head>
+<title>package-lock.json</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="package-lockjson">package-lock.json</h1>
+<span class="description">A manifestation of the manifest</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#file-format">File Format</a></li><ul><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#lockfileversion">lockfileVersion</a></li><li><a href="#packageintegrity">packageIntegrity</a></li><li><a href="#preservesymlinks">preserveSymlinks</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#version2">version</a></li><li><a href="#integrity">integrity</a></li><li><a href="#resolved">resolved</a></li><li><a href="#bundled">bundled</a></li><li><a href="#dev">dev</a></li><li><a href="#optional">optional</a></li><li><a href="#requires">requires</a></li><li><a href="#dependencies2">dependencies</a></li></ul></ul><li><a href="#see-also">See also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p><code>package-lock.json</code> is automatically generated for any operations where npm
+modifies either the <code>node_modules</code> tree, or <code>package.json</code>. It describes the
+exact tree that was generated, such that subsequent installs are able to
+generate identical trees, regardless of intermediate dependency updates.</p>
+<p>This file is intended to be committed into source repositories, and serves
+various purposes:</p>
+<ul>
+<li>
+<p>Describe a single representation of a dependency tree such that teammates, deployments, and continuous integration are guaranteed to install exactly the same dependencies.</p>
+</li>
+<li>
+<p>Provide a facility for users to “time-travel” to previous states of <code>node_modules</code> without having to commit the directory itself.</p>
+</li>
+<li>
+<p>To facilitate greater visibility of tree changes through readable source control diffs.</p>
+</li>
+<li>
+<p>And optimize the installation process by allowing npm to skip repeated metadata resolutions for previously-installed packages.</p>
+</li>
+</ul>
+<p>One key detail about <code>package-lock.json</code> is that it cannot be published, and it
+will be ignored if found in any place other than the toplevel package. It shares
+a format with <a href="../configuring-npm/shrinkwrap-json.html">npm-shrinkwrap.json</a>, which is essentially the same file, but
+allows publication. This is not recommended unless deploying a CLI tool or
+otherwise using the publication process for producing production packages.</p>
+<p>If both <code>package-lock.json</code> and <code>npm-shrinkwrap.json</code> are present in the root of
+a package, <code>package-lock.json</code> will be completely ignored.</p>
+<h3 id="file-format">File Format</h3>
+<h4 id="name">name</h4>
+<p>The name of the package this is a package-lock for. This must match what’s in
+<code>package.json</code>.</p>
+<h4 id="version">version</h4>
+<p>The version of the package this is a package-lock for. This must match what’s in
+<code>package.json</code>.</p>
+<h4 id="lockfileversion">lockfileVersion</h4>
+<p>An integer version, starting at <code>1</code> with the version number of this document
+whose semantics were used when generating this <code>package-lock.json</code>.</p>
+<h4 id="packageintegrity">packageIntegrity</h4>
+<p>This is a <a href="https://w3c.github.io/webappsec/specs/subresourceintegrity/">subresource
+integrity</a> value
+created from the <code>package.json</code>. No preprocessing of the <code>package.json</code> should
+be done. Subresource integrity strings can be produced by modules like
+<a href="https://www.npmjs.com/package/ssri"><code>ssri</code></a>.</p>
+<h4 id="preservesymlinks">preserveSymlinks</h4>
+<p>Indicates that the install was done with the environment variable
+<code>NODE_PRESERVE_SYMLINKS</code> enabled. The installer should insist that the value of
+this property match that environment variable.</p>
+<h4 id="dependencies">dependencies</h4>
+<p>A mapping of package name to dependency object.  Dependency objects have the
+following properties:</p>
+<h5 id="version2">version</h5>
+<p>This is a specifier that uniquely identifies this package and should be
+usable in fetching a new copy of it.</p>
+<ul>
+<li>bundled dependencies: Regardless of source, this is a version number that is purely for informational purposes.</li>
+<li>registry sources: This is a version number. (eg, <code>1.2.3</code>)</li>
+<li>git sources: This is a git specifier with resolved committish. (eg, <code>git+https://example.com/foo/bar#115311855adb0789a0466714ed48a1499ffea97e</code>)</li>
+<li>http tarball sources: This is the URL of the tarball. (eg, <code>https://example.com/example-1.3.0.tgz</code>)</li>
+<li>local tarball sources: This is the file URL of the tarball. (eg <code>file:///opt/storage/example-1.3.0.tgz</code>)</li>
+<li>local link sources: This is the file URL of the link. (eg <code>file:libs/our-module</code>)</li>
+</ul>
+<h5 id="integrity">integrity</h5>
+<p>This is a <a href="https://w3c.github.io/webappsec/specs/subresourceintegrity/">Standard Subresource
+Integrity</a> for this
+resource.</p>
+<ul>
+<li>For bundled dependencies this is not included, regardless of source.</li>
+<li>For registry sources, this is the <code>integrity</code> that the registry provided, or if one wasn’t provided the SHA1 in <code>shasum</code>.</li>
+<li>For git sources this is the specific commit hash we cloned from.</li>
+<li>For remote tarball sources this is an integrity based on a SHA512 of
+the file.</li>
+<li>For local tarball sources: This is an integrity field based on the SHA512 of the file.</li>
+</ul>
+<h5 id="resolved">resolved</h5>
+<ul>
+<li>For bundled dependencies this is not included, regardless of source.</li>
+<li>For registry sources this is path of the tarball relative to the registry
+URL.  If the tarball URL isn’t on the same server as the registry URL then
+this is a complete URL.</li>
+</ul>
+<h5 id="bundled">bundled</h5>
+<p>If true, this is the bundled dependency and will be installed by the parent
+module.  When installing, this module will be extracted from the parent
+module during the extract phase, not installed as a separate dependency.</p>
+<h5 id="dev">dev</h5>
+<p>If true then this dependency is either a development dependency ONLY of the
+top level module or a transitive dependency of one.  This is false for
+dependencies that are both a development dependency of the top level and a
+transitive dependency of a non-development dependency of the top level.</p>
+<h5 id="optional">optional</h5>
+<p>If true then this dependency is either an optional dependency ONLY of the
+top level module or a transitive dependency of one.  This is false for
+dependencies that are both an optional dependency of the top level and a
+transitive dependency of a non-optional dependency of the top level.</p>
+<p>All optional dependencies should be included even if they’re uninstallable
+on the current platform.</p>
+<h5 id="requires">requires</h5>
+<p>This is a mapping of module name to version.  This is a list of everything
+this module requires, regardless of where it will be installed.  The version
+should match via normal matching rules a dependency either in our
+<code>dependencies</code> or in a level higher than us.</p>
+<h5 id="dependencies2">dependencies</h5>
+<p>The dependencies of this dependency, exactly as at the top level.</p>
+<h3 id="see-also">See also</h3>
+<ul>
+<li><a href="../commands/npm-shrinkwrap.html">npm shrinkwrap</a></li>
+<li><a href="../configuring-npm/shrinkwrap-json.html">shrinkwrap.json</a></li>
+<li><a href="../configuring-npm/package-locks.html">package-locks</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../commands/npm-install.html">npm install</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/configuring-npm/package-lock-json.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

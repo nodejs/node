@@ -22,24 +22,22 @@ const install = async (args, cb) => {
   args = args.filter(a => resolve(a) !== npm.prefix)
 
   // `npm i -g` => "install this package globally"
-  if (where === globalTop && !args.length) {
+  if (where === globalTop && !args.length)
     args = ['.']
-  }
 
   // TODO: Add warnings for other deprecated flags?  or remove this one?
-  if (npm.config.get('dev')) {
+  if (npm.config.get('dev'))
     log.warn('install', 'Usage of the `--dev` option is deprecated. Use `--include=dev` instead.')
-  }
 
   const arb = new Arborist({
     ...npm.flatOptions,
-    path: where
+    path: where,
   })
 
   try {
     await arb.reify({
       ...npm.flatOptions,
-      add: args
+      add: args,
     })
     if (!args.length && !isGlobalInstall && !ignoreScripts) {
       const { scriptShell } = npm.flatOptions
@@ -50,7 +48,7 @@ const install = async (args, cb) => {
         'prepublish', // XXX should we remove this finally??
         'preprepare',
         'prepare',
-        'postprepare'
+        'postprepare',
       ]
       for (const event of scripts) {
         await runScript({
@@ -59,7 +57,7 @@ const install = async (args, cb) => {
           scriptShell,
           stdio: 'inherit',
           stdioString: true,
-          event
+          event,
         })
       }
     }
@@ -107,17 +105,16 @@ const completion = async (opts, cb) => {
 
     const annotatePackageDirMatch = async (sibling) => {
       const fullPath = join(partialPath, sibling)
-      if (sibling.slice(0, partialName.length) !== partialName) {
+      if (sibling.slice(0, partialName.length) !== partialName)
         return null // not name match
-      }
 
       try {
         const contents = await readdir(fullPath)
         return {
           fullPath,
-          isPackage: contents.indexOf('package.json') !== -1
+          isPackage: contents.indexOf('package.json') !== -1,
         }
-      } catch {
+      } catch (er) {
         return { isPackage: false }
       }
     }
@@ -137,7 +134,7 @@ const completion = async (opts, cb) => {
         // no matches
         return cb(null, [])
       }
-    } catch {
+    } catch (er) {
       return cb(null, []) // invalid dir: no matching
     }
   }

@@ -34,12 +34,12 @@ const subcommands = [
   'ls-collaborators',
   'edit',
   '2fa-required',
-  '2fa-not-required'
+  '2fa-not-required',
 ]
 
 const UsageError = (msg) =>
   Object.assign(new Error(`\nUsage: ${msg}\n\n` + usage), {
-    code: 'EUSAGE'
+    code: 'EUSAGE',
   })
 
 const cmd = (args, cb) =>
@@ -53,30 +53,27 @@ const cmd = (args, cb) =>
 const access = async ([cmd, ...args], cb) => {
   const fn = subcommands.includes(cmd) && access[cmd]
 
-  if (!cmd) {
+  if (!cmd)
     throw UsageError('Subcommand is required.')
-  }
 
-  if (!fn) {
+  if (!fn)
     throw UsageError(`${cmd} is not a recognized subcommand.`)
-  }
 
   return fn(args, { ...npm.flatOptions })
 }
 
 const completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
-  if (argv.length === 2) {
+  if (argv.length === 2)
     return cb(null, subcommands)
-  }
 
   switch (argv[2]) {
     case 'grant':
-      if (argv.length === 3) {
+      if (argv.length === 3)
         return cb(null, ['read-only', 'read-write'])
-      } else {
+      else
         return cb(null, [])
-      }
+
     case 'public':
     case 'restricted':
     case 'ls-packages':
@@ -98,13 +95,11 @@ access.restricted = ([pkg], opts) =>
   modifyPackage(pkg, opts, libaccess.restricted)
 
 access.grant = async ([perms, scopeteam, pkg], opts) => {
-  if (!perms || (perms !== 'read-only' && perms !== 'read-write')) {
+  if (!perms || (perms !== 'read-only' && perms !== 'read-write'))
     throw UsageError('First argument must be either `read-only` or `read-write`.')
-  }
 
-  if (!scopeteam) {
+  if (!scopeteam)
     throw UsageError('`<scope:team>` argument is required.')
-  }
 
   const [, scope, team] = scopeteam.match(/^@?([^:]+):(.*)$/) || []
 
@@ -120,9 +115,8 @@ access.grant = async ([perms, scopeteam, pkg], opts) => {
 }
 
 access.revoke = async ([scopeteam, pkg], opts) => {
-  if (!scopeteam) {
+  if (!scopeteam)
     throw UsageError('`<scope:team>` argument is required.')
-  }
 
   const [, scope, team] = scopeteam.match(/^@?([^:]+):(.*)$/) || []
 
@@ -144,9 +138,8 @@ access['2fa-not-required'] = access.tfaNotRequired = ([pkg], opts) =>
   modifyPackage(pkg, opts, libaccess.tfaNotRequired, false)
 
 access['ls-packages'] = access.lsPackages = async ([owner], opts) => {
-  if (!owner) {
+  if (!owner)
     owner = await getIdentity(opts)
-  }
 
   const pkgs = await libaccess.lsPackages(owner, opts)
 
@@ -170,9 +163,9 @@ const modifyPackage = (pkg, opts, fn, requireScope = true) =>
     .then(pkgName => otplease(opts, opts => fn(pkgName, opts)))
 
 const getPackage = async (name, requireScope) => {
-  if (name && name.trim()) {
+  if (name && name.trim())
     return name.trim()
-  } else {
+  else {
     try {
       const pkg = await readPackageJson(path.resolve(prefix, 'package.json'))
       name = pkg.name
@@ -181,16 +174,14 @@ const getPackage = async (name, requireScope) => {
         throw new Error(
           'no package name passed to command and no package.json found'
         )
-      } else {
+      } else
         throw err
-      }
     }
 
-    if (requireScope && !name.match(/^@[^/]+\/.*$/)) {
+    if (requireScope && !name.match(/^@[^/]+\/.*$/))
       throw UsageError('This command is only available for scoped packages.')
-    } else {
+    else
       return name
-    }
   }
 }
 

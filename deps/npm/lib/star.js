@@ -24,7 +24,8 @@ module.exports = star
 function star (args, cb) {
   const opts = npm.flatOptions
   return Promise.resolve().then(() => {
-    if (!args.length) throw new Error(star.usage)
+    if (!args.length)
+      throw new Error(star.usage)
     // if we're unstarring, then show an empty star image
     // otherwise, show the full star image
     const unstar = /^un/.test(npm.command)
@@ -38,14 +39,15 @@ function star (args, cb) {
           ...opts,
           spec: pkg,
           query: { write: true },
-          preferOnline: true
-        })
+          preferOnline: true,
+        }),
       ]).then(([username, fullData]) => {
-        if (!username) { throw new Error('You need to be logged in!') }
+        if (!username)
+          throw new Error('You need to be logged in!')
         const body = {
           _id: fullData._id,
           _rev: fullData._rev,
-          users: fullData.users || {}
+          users: fullData.users || {},
         }
 
         if (!unstar) {
@@ -61,7 +63,7 @@ function star (args, cb) {
           ...opts,
           spec: pkg,
           method: 'PUT',
-          body
+          body,
         })
       }).then(data => {
         output(show + ' ' + pkg.name)

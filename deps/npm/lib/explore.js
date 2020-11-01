@@ -21,9 +21,8 @@ const { promisify } = require('util')
 const stat = promisify(require('fs').stat)
 
 const explore = async args => {
-  if (args.length < 1 || !args[0]) {
+  if (args.length < 1 || !args[0])
     throw usage
-  }
 
   const pkg = args.shift()
   const cwd = resolve(npm.dir, pkg)
@@ -35,9 +34,8 @@ const explore = async args => {
       const execCmd = escapeExecPath(args.shift())
       opts.windowsVerbatimArguments = true
       shellArgs.push('/d', '/s', '/c', execCmd, ...args.map(escapeArg))
-    } else {
+    } else
       shellArgs.push('-c', args.map(escapeArg).join(' ').trim())
-    }
   }
 
   await stat(cwd).catch(er => {
@@ -47,9 +45,8 @@ const explore = async args => {
   const sh = npm.flatOptions.shell
   log.disableProgress()
 
-  if (!shellArgs.length) {
+  if (!shellArgs.length)
     output(`\nExploring ${cwd}\nType 'exit' or ^D when finished\n`)
-  }
 
   log.silly('explore', { sh, shellArgs, opts })
 

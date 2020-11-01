@@ -42,7 +42,8 @@ const initTree = async ({ arb, args, json }) => {
 }
 
 const isGitNode = (node) => {
-  if (!node.resolved) return
+  if (!node.resolved)
+    return
 
   try {
     const { type } = npa(node.resolved)
@@ -61,17 +62,14 @@ const isExtraneous = (node, { global }) =>
 const getProblems = (node, { global }) => {
   const problems = new Set()
 
-  if (node[_missing] && !isOptional(node)) {
+  if (node[_missing] && !isOptional(node))
     problems.add(`missing: ${node.pkgid}, required by ${node[_missing]}`)
-  }
 
-  if (node[_invalid]) {
+  if (node[_invalid])
     problems.add(`invalid: ${node.pkgid} ${node.path}`)
-  }
 
-  if (isExtraneous(node, { global })) {
+  if (isExtraneous(node, { global }))
     problems.add(`extraneous: ${node.pkgid} ${node.path}`)
-  }
 
   return problems
 }
@@ -103,11 +101,10 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
   // special formatting for top-level package name
   if (node.isRoot) {
     const hasNoPackageJson = !Object.keys(node.package).length
-    if (hasNoPackageJson) {
+    if (hasNoPackageJson)
       printable = path
-    } else {
+    else
       printable += `${long ? EOL : ' '}${path}`
-    }
   }
 
   const highlightDepName =
@@ -148,21 +145,19 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
 const getJsonOutputItem = (node, { global, long }) => {
   const item = {}
 
-  if (node.version) {
+  if (node.version)
     item.version = node.version
-  }
-  if (node.resolved) {
+
+  if (node.resolved)
     item.resolved = node.resolved
-  }
 
   item[_name] = node.name
 
   // special formatting for top-level package name
   const hasPackageJson =
     node && node.package && Object.keys(node.package).length
-  if (node.isRoot && hasPackageJson) {
+  if (node.isRoot && hasPackageJson)
     item.name = node.package.name || node.name
-  }
 
   if (long) {
     item.name = item[_name]
@@ -176,19 +171,18 @@ const getJsonOutputItem = (node, { global, long }) => {
   }
 
   // augment json output items with extra metadata
-  if (isExtraneous(node, { global })) {
+  if (isExtraneous(node, { global }))
     item.extraneous = true
-  }
-  if (node[_invalid]) {
+
+  if (node[_invalid])
     item.invalid = true
-  }
+
   if (node[_missing] && !isOptional(node)) {
     item.required = node[_required]
     item.missing = true
   }
-  if (node[_include] && node[_problems] && node[_problems].size) {
+  if (node[_include] && node[_problems] && node[_problems].size)
     item.problems = [...node[_problems]]
-  }
 
   return augmentItemWithIncludeMetadata(node, item)
 }
@@ -201,7 +195,7 @@ const filterByEdgesTypes = ({
   prod,
   production,
   only,
-  tree
+  tree,
 }) => {
   // filter deps by type, allows for: `npm ls --dev`, `npm ls --prod`,
   // `npm ls --link`, `npm ls --only=dev`, etc
@@ -238,9 +232,8 @@ const mapEdgesToNodes = ({ seenPaths }) => (edge) => {
   // item would appear twice given that it's a children of an extraneous item,
   // so it's marked extraneous but it will ALSO show up in edgesOuts of
   // its parent so it ends up as two diff nodes if we don't track it
-  if (node.path) {
+  if (node.path)
     seenPaths.add(node.path)
-  }
 
   node[_required] = edge.spec
   node[_type] = edge.type
@@ -259,7 +252,7 @@ const augmentNodesWithMetadata = ({
   currentDepth,
   nodeResult,
   parseable,
-  seenNodes
+  seenNodes,
 }) => (node) => {
   // if the original edge was a deduped dep, treeverse will fail to
   // revisit that node in tree traversal logic, so we make it so that
@@ -275,7 +268,7 @@ const augmentNodesWithMetadata = ({
       realpath: node.realpath,
       [_invalid]: node[_invalid],
       [_missing]: node[_missing],
-      [_dedupe]: true
+      [_dedupe]: true,
     }
   } else {
     // keeps track of already seen nodes in order to check for dedupes
@@ -308,28 +301,25 @@ const humanOutput = ({ color, result, seenItems, unicode }) => {
   // so that all its ancestors should be displayed)
   // here is where we put items in their expected place for archy output
   for (const item of seenItems) {
-    if (item[_include] && item[_parent]) {
+    if (item[_include] && item[_parent])
       item[_parent].nodes.push(item)
-    }
   }
 
-  if (!result.nodes.length) {
+  if (!result.nodes.length)
     result.nodes = ['(empty)']
-  }
 
   const archyOutput = archy(result, '', { unicode })
   return color ? chalk.reset(archyOutput) : archyOutput
 }
 
 const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {
-  if (problems.size) {
+  if (problems.size)
     result.problems = [...problems]
-  }
 
   if (rootError) {
     result.problems = [
       ...(result.problems || []),
-      ...[`error in ${path}: Failed to parse root package.json`]
+      ...[`error in ${path}: Failed to parse root package.json`],
     ]
     result.invalid = true
   }
@@ -342,9 +332,8 @@ const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {
     // append current item to its parent item.dependencies obj in order
     // to provide a json object structure that represents the installed tree
     if (item[_include] && item[_parent]) {
-      if (!item[_parent].dependencies) {
+      if (!item[_parent].dependencies)
         item[_parent].dependencies = {}
-      }
 
       item[_parent].dependencies[item[_name]] = item
     }
@@ -380,7 +369,7 @@ const ls = async (args) => {
     global,
     parseable,
     prefix,
-    unicode
+    unicode,
   } = npm.flatOptions
   const path = global ? resolve(npm.globalDir, '..') : prefix
   const dev = npm.config.get('dev')
@@ -394,13 +383,13 @@ const ls = async (args) => {
     global,
     ...npm.flatOptions,
     legacyPeerDeps: false,
-    path
+    path,
   })
   const tree = await initTree({
     arb,
     args,
     global,
-    json
+    json,
   })
 
   const seenItems = new Set()
@@ -437,7 +426,7 @@ const ls = async (args) => {
             prod,
             production,
             only,
-            tree
+            tree,
           }))
           .map(mapEdgesToNodes({ seenPaths }))
           .concat(appendExtraneousChildren({ node, seenPaths }))
@@ -447,7 +436,7 @@ const ls = async (args) => {
             currentDepth: node[_depth],
             nodeResult,
             parseable,
-            seenNodes
+            seenNodes,
           }))
     },
     // visit each `node` of the `tree`, returning an `item` - these are
@@ -463,16 +452,15 @@ const ls = async (args) => {
 
       // loop through list of node problems to add them to global list
       if (node[_include]) {
-        for (const problem of node[_problems]) {
+        for (const problem of node[_problems])
           problems.add(problem)
-        }
       }
 
       seenItems.add(item)
 
       // return a promise so we don't blow the stack
       return Promise.resolve(item)
-    }
+    },
   })
 
   // handle the special case of a broken package.json in the root folder
@@ -488,9 +476,8 @@ const ls = async (args) => {
   )
 
   // if filtering items, should exit with error code on no results
-  if (result && !result[_include] && args.length) {
+  if (result && !result[_include] && args.length)
     process.exitCode = 1
-  }
 
   if (rootError) {
     throw Object.assign(
