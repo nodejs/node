@@ -61,4 +61,5 @@ fs.promises.open(file, 'r').then((handle) => {
     name: 'Error',
     message: 'The FileHandle with fs method is not implemented'
   });
+  handle.close();
 });
