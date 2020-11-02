@@ -19,33 +19,32 @@ async function read(fileHandle, buffer, offset, length, position) {
     fileHandle.read(buffer, offset, length, position);
 }
 
-async function validateRead() {
-  const filePath = path.resolve(tmpDir, 'tmp-read-file.txt');
-  const fileHandle = await open(filePath, 'w+');
-  const buffer = Buffer.from('Hello world', 'utf8');
+async function validateRead(data, file) {
+  const filePath = path.resolve(tmpDir, file);
+  const buffer = Buffer.from(data, 'utf8');
 
   const fd = fs.openSync(filePath, 'w+');
-  fs.writeSync(fd, buffer, 0, buffer.length);
-  fs.closeSync(fd);
-  const readAsyncHandle = await read(fileHandle, Buffer.alloc(11), 0, 11, 0);
-  assert.deepStrictEqual(buffer.length, readAsyncHandle.bytesRead);
-  assert.deepStrictEqual(buffer, readAsyncHandle.buffer);
-
-  await fileHandle.close();
-}
-
-async function validateEmptyRead() {
-  const filePath = path.resolve(tmpDir, 'tmp-read-empty-file.txt');
   const fileHandle = await open(filePath, 'w+');
-  const buffer = Buffer.from('', 'utf8');
+  const streamFileHandle = await open(filePath, 'w+');
 
-  const fd = fs.openSync(filePath, 'w+');
   fs.writeSync(fd, buffer, 0, buffer.length);
   fs.closeSync(fd);
-  const readAsyncHandle = await read(fileHandle, Buffer.alloc(11), 0, 11, 0);
-  assert.deepStrictEqual(buffer.length, readAsyncHandle.bytesRead);
 
+  fileHandle.on('close', common.mustCall());
+  const readAsyncHandle = await read(fileHandle, Buffer.alloc(11), 0, 11, 0);
+  assert.deepStrictEqual(data.length, readAsyncHandle.bytesRead);
+  if (data.length)
+    assert.deepStrictEqual(buffer, readAsyncHandle.buffer);
   await fileHandle.close();
+
+  const stream = fs.createReadStream(null, { fd: streamFileHandle });
+  let streamData = Buffer.alloc(0);
+  for await (const chunk of stream)
+    streamData = Buffer.from(chunk);
+  assert.deepStrictEqual(buffer, streamData);
+  if (data.length)
+    assert.deepStrictEqual(streamData, readAsyncHandle.buffer);
+  await streamFileHandle.close();
 }
 
 async function validateLargeRead() {
@@ -67,9 +66,9 @@ let useConf = false;
     tmpdir.refresh();
     useConf = value;
 
-    await validateRead()
-          .then(validateEmptyRead)
-          .then(validateLargeRead)
-          .then(common.mustCall());
+    await validateRead('Hello world', 'tmp-read-file.txt')
+      .then(validateRead('', 'tmp-read-empty-file.txt'))
+      .then(validateLargeRead)
+      .then(common.mustCall());
   }
-});
+})().then(common.mustCall());
