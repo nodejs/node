@@ -69,8 +69,8 @@ let workerELU;
 
 
 function checkWorkerIdle(wElu) {
-  const tmpMainElu = eventLoopUtilization(mainElu);
   const perfWorkerElu = workerELU();
+  const tmpMainElu = eventLoopUtilization(mainElu);
   const eluDiff = eventLoopUtilization(perfWorkerElu, mainElu);
 
   assert.strictEqual(idleActive(eluDiff),
@@ -107,7 +107,7 @@ function checkWorkerActive() {
     assert.ok(w2.active >= 50, `${w2.active} < 50`);
     assert.ok(wElu.active >= 50, `${wElu.active} < 50`);
     assert.ok(idleActive(wElu) < idleActive(w2),
-              `${idleActive(wElu)} > ${idleActive(w2)}`);
+              `${idleActive(wElu)} => ${idleActive(w2)}`);
 
     metricsCh.port2.postMessage({ cmd: 'close' });
   });
