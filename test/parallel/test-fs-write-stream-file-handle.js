@@ -2,6 +2,7 @@
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');
+const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const file = path.join(tmpdir.path, '/write_stream_filehandle_test.txt');
 const input = 'hello world';
@@ -13,5 +14,8 @@ fs.promises.open(file, 'w+').then((handle) => {
   const stream = fs.createWriteStream(null, { fd: handle });
 
   stream.end(input);
-  stream.on('close', common.mustCall());
+  stream.on('close', common.mustCall(() => {
+    const output = fs.readFileSync(file, 'utf-8');
+    assert.strictEqual(output, input);
+  }));
 });
