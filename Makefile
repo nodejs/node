@@ -1228,7 +1228,7 @@ lint-js-fix:
 .PHONY: lint-js-doc
 # Note that on the CI `lint-js-ci` is run instead.
 # Lints the JavaScript code with eslint.
-lint-js: EXTENSIONS=.js,.mjs,.md
+lint-js lint-js-fix: EXTENSIONS=.js,.mjs,.md
 lint-js-doc: EXTENSIONS=.md
 lint-js lint-js-doc:
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
