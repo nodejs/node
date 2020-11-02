@@ -165,9 +165,7 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   assert.deepStrictEqual(
     Object.getOwnPropertyNames(MessagePort.prototype).sort(),
     [
-      // TODO(addaleax): This should include onmessage (and eventually
-      // onmessageerror).
-      'close', 'constructor', 'postMessage', 'ref', 'start',
-      'unref'
+      'close', 'constructor', 'onmessage', 'onmessageerror', 'postMessage',
+      'ref', 'start', 'unref'
     ]);
 }
