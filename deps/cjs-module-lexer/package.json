@@ -1,12 +1,13 @@
 {
   "name": "cjs-module-lexer",
-  "version": "0.5.2",
+  "version": "1.0.0",
   "description": "Lexes CommonJS modules, returning their named exports metadata",
   "main": "lexer.js",
   "exports": {
     "import": "./dist/lexer.mjs",
     "default": "./lexer.js"
   },
+  "types": "lexer.d.ts",
   "scripts": {
     "test-js": "mocha -b -u tdd test/*.js",
     "test-wasm": "WASM=1 mocha -b -u tdd test/*.js",
@@ -28,7 +29,8 @@
     "terser": "^4.1.4"
   },
   "files": [
-    "dist"
+    "dist",
+    "lexer.d.ts"
   ],
   "repository": {
     "type": "git",
