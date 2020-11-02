@@ -1762,6 +1762,10 @@ fs.copyFileSync('source.txt', 'destination.txt', COPYFILE_EXCL);
 added: v0.1.31
 changes:
   - version:
+     - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35922
+    description: The `fd` option accepts FileHandle arguments.
+  - version:
      - v13.6.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29083
@@ -1792,7 +1796,7 @@ changes:
   * `flags` {string} See [support of file system `flags`][]. **Default:**
     `'r'`.
   * `encoding` {string} **Default:** `null`
-  * `fd` {integer} **Default:** `null`
+  * `fd` {integer|FileHandle} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `false`
@@ -1869,6 +1873,10 @@ If `options` is a string, then it specifies the encoding.
 added: v0.1.31
 changes:
   - version:
+     - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35922
+    description: The `fd` option accepts FileHandle arguments.
+  - version:
      - v13.6.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29083
@@ -1897,7 +1905,7 @@ changes:
   * `flags` {string} See [support of file system `flags`][]. **Default:**
     `'w'`.
   * `encoding` {string} **Default:** `'utf8'`
-  * `fd` {integer} **Default:** `null`
+  * `fd` {integer|FileHandle} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `false`
@@ -4706,6 +4714,14 @@ so on), a numeric file descriptor is not used by the promise-based API. Instead,
 the promise-based API uses the `FileHandle` class in order to help avoid
 accidental leaking of unclosed file descriptors after a `Promise` is resolved or
 rejected.
+
+#### Event: `'close'`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'close'` event is emitted when the `FileHandle` and any of its underlying
+resources (a file descriptor, for example) have been closed.
 
 #### `filehandle.appendFile(data, options)`
 <!-- YAML
