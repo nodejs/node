@@ -517,3 +517,10 @@ let asyncTest = Promise.resolve();
   }));
   target.dispatchEvent(new Event('foo'));
 }
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  const descriptor = Object.getOwnPropertyDescriptor(target, 'onfoo');
+  strictEqual(descriptor.configurable, true);
+  strictEqual(descriptor.enumerable, true);
+}
