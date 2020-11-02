@@ -369,6 +369,7 @@
                     '-Wl,--whole-archive,'
                       '<(obj_dir)/deps/openssl/<(openssl_product)',
                     '-Wl,--no-whole-archive',
+                    '-lrt',
                   ],
                 }],
                 # openssl.def is based on zlib.def, zlib symbols
