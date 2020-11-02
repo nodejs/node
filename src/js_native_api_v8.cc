@@ -220,6 +220,8 @@ class RefBase : protected Finalizer, RefTracker {
                        finalize_hint);
   }
 
+  virtual ~RefBase() { Unlink(); }
+
   inline void* Data() {
     return _finalize_data;
   }
@@ -240,7 +242,6 @@ class RefBase : protected Finalizer, RefTracker {
   // the finalizer and _delete_self is set. In this case we
   // know we need to do the deletion so just do it.
   static inline void Delete(RefBase* reference) {
-    reference->Unlink();
     if ((reference->RefCount() != 0) ||
         (reference->_delete_self) ||
         (reference->_finalize_ran)) {
