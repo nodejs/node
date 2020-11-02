@@ -1763,6 +1763,7 @@ added: v0.1.31
 changes:
   - version:
      - v15.0.2
+    pr-url: https://github.com/nodejs/node/pull/35922
     description: The `fd` option accepts FileHandle arguments.
   - version:
      - v13.6.0
@@ -1873,6 +1874,7 @@ added: v0.1.31
 changes:
   - version:
      - v15.0.2
+    pr-url: https://github.com/nodejs/node/pull/35922
     description: The `fd` option accepts FileHandle arguments.
   - version:
      - v13.6.0
