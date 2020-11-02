@@ -1762,7 +1762,7 @@ fs.copyFileSync('source.txt', 'destination.txt', COPYFILE_EXCL);
 added: v0.1.31
 changes:
   - version:
-     - v15.0.2
+     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/35922
     description: The `fd` option accepts FileHandle arguments.
   - version:
@@ -1873,7 +1873,7 @@ If `options` is a string, then it specifies the encoding.
 added: v0.1.31
 changes:
   - version:
-     - v15.0.2
+     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/35922
     description: The `fd` option accepts FileHandle arguments.
   - version:
@@ -4717,7 +4717,7 @@ rejected.
 
 #### Event: `'close'`
 <!-- YAML
-added: v15.0.2
+added: REPLACEME
 -->
 
 The `'close'` event is emitted when the FileHandle and any of its underlying
