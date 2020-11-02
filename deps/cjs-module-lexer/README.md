@@ -19,7 +19,9 @@ npm install cjs-module-lexer
 For use in CommonJS:
 
 ```js
-const parse = require('cjs-module-lexer');
+const { parse } = require('cjs-module-lexer');
+
+// `init` return a promise for parity with the ESM API, but you do not have to call it
 
 const { exports, reexports } = parse(`
   // named exports detection
@@ -84,7 +86,9 @@ EXPORTS_SPREAD: `...` (IDENTIFIER | REQUIRE)
 
 EXPORTS_MEMBER: EXPORTS_DOT_ASSIGN | EXPORTS_LITERAL_COMPUTED_ASSIGN
 
-EXPORTS_DEFINE: `Object` `.` `defineProperty `(` IDENTIFIER_STRING `, {`
+EXPORTS_DEFINE: `Object` `.` `defineProperty `(` EXPORTS_IDENFITIER `,` IDENTIFIER_STRING
+
+EXPORTS_DEFINE_VALUE: EXPORTS_DEFINE `, {`
   (`enumerable: true,`)?
   (
     `value:` |
@@ -119,7 +123,9 @@ EXPORT_STAR_LIB: `Object.keys(` IDENTIFIER$1 `).forEach(function (` IDENTIFIER$2
 
 Spacing between tokens is taken to be any ECMA-262 whitespace, ECMA-262 block comment or ECMA-262 line comment.
 
-* The returned export names are taken to be the combination of the `IDENTIFIER` and `IDENTIFIER_STRING` slots for all `EXPORTS_MEMBER`, `EXPORTS_LITERAL` and `EXPORTS_DEFINE` matches.
+* The returned export names are taken to be the combination of:
+  1. All `IDENTIFIER` and `IDENTIFIER_STRING` slots for `EXPORTS_MEMBER` and `EXPORTS_LITERAL` matches.
+  2. The first `IDENTIFIER_STRING` slot for all `EXPORTS_DEFINE_VALUE` matches where that same string is not an `EXPORTS_DEFINE` match that is not also an `EXPORTS_DEFINE_VALUE` match.
 * The reexport specifiers are taken to be the the combination of:
   1. The `REQUIRE` matches of the last matched of either `MODULE_EXPORTS_ASSIGN` or `EXPORTS_LITERAL`.
   2. All _top-level_ `EXPORT_STAR` `REQUIRE` matches and `EXPORTS_ASSIGN` matches whose `IDENTIFIER` also matches the first `IDENTIFIER` in `EXPORT_STAR_LIB`.
@@ -160,6 +166,8 @@ It will in turn underclassify in cases where the identifiers are renamed:
 })(exports);
 ```
 
+#### Getter Exports Parsing
+
 `Object.defineProperty` is detected for specifically value and getter forms returning an identifier or member expression:
 
 ```js
@@ -184,6 +192,24 @@ Object.defineProperty(exports, 'c', {
 });
 Object.defineProperty(exports, 'd', { value: 'd' });
 Object.defineProperty(exports, '__esModule', { value: true });
+```
+
+To avoid matching getters that have side effects, any getter for an export name that does not support the forms above will
+opt-out of the getter matching:
+
+```js
+// DETECTS: NO EXPORTS
+Object.defineProperty(exports, 'a', {
+  value: 'no problem'
+});
+
+if (false) {
+  Object.defineProperty(module.exports, 'a', {
+    get () {
+      return dynamic();
+    }
+  })
+}
 ```
 
 Alternative object definition structures or getter function bodies are not detected:
@@ -335,63 +361,63 @@ JS Build:
 
 ```
 Module load time
-> 5ms
+> 4ms
 Cold Run, All Samples
 test/samples/*.js (3635 KiB)
-> 323ms
+> 299ms
 
 Warm Runs (average of 25 runs)
 test/samples/angular.js (1410 KiB)
-> 14.84ms
+> 13.96ms
 test/samples/angular.min.js (303 KiB)
-> 4.8ms
+> 4.72ms
 test/samples/d3.js (553 KiB)
-> 7.84ms
+> 6.76ms
 test/samples/d3.min.js (250 KiB)
 > 4ms
 test/samples/magic-string.js (34 KiB)
-> 0.72ms
+> 0.64ms
 test/samples/magic-string.min.js (20 KiB)
-> 0.4ms
+> 0ms
 test/samples/rollup.js (698 KiB)
-> 9.32ms
+> 8.48ms
 test/samples/rollup.min.js (367 KiB)
-> 6.52ms
+> 5.36ms
 
 Warm Runs, All Samples (average of 25 runs)
 test/samples/*.js (3635 KiB)
-> 44ms
+> 40.28ms
 ```
 
 Wasm Build:
 ```
 Module load time
-> 11ms
+> 10ms
 Cold Run, All Samples
 test/samples/*.js (3635 KiB)
-> 42ms
+> 43ms
 
 Warm Runs (average of 25 runs)
 test/samples/angular.js (1410 KiB)
-> 9.92ms
+> 9.32ms
 test/samples/angular.min.js (303 KiB)
-> 3.2ms
+> 3.16ms
 test/samples/d3.js (553 KiB)
-> 5.2ms
+> 5ms
 test/samples/d3.min.js (250 KiB)
-> 2.52ms
+> 2.32ms
 test/samples/magic-string.js (34 KiB)
 > 0.16ms
 test/samples/magic-string.min.js (20 KiB)
-> 0.04ms
+> 0ms
 test/samples/rollup.js (698 KiB)
-> 6.44ms
+> 6.28ms
 test/samples/rollup.min.js (367 KiB)
-> 3.96ms
+> 3.6ms
 
 Warm Runs, All Samples (average of 25 runs)
 test/samples/*.js (3635 KiB)
-> 30.48ms
+> 27.76ms
 ```
 
 ### Wasm Build Steps

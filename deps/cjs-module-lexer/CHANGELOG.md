@@ -1,3 +1,10 @@
+1.0.0
+- Unsafe getter tracking (https://github.com/guybedford/cjs-module-lexer/pull/29)
+
+0.6.0
+- API-only breaking change: Unify JS and Wasm interfaces (https://github.com/guybedford/cjs-module-lexer/pull/27)
+- Add type definitions (https://github.com/guybedford/cjs-module-lexer/pull/28)
+
 0.5.2
 - Support named getter functions (https://github.com/guybedford/cjs-module-lexer/pull/26)
 
