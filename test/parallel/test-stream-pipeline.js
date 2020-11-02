@@ -1232,3 +1232,24 @@ const net = require('net');
     assert.strictEqual(res, '123');
   }));
 }
+{
+  function createThenable() {
+    let counter = 0;
+    return {
+      get then() {
+        if (counter++) {
+          throw new Error('Cannot access `then` more than once');
+        }
+        return Function.prototype;
+      },
+    };
+  }
+
+  pipeline(
+    function* () {
+      yield 0;
+    },
+    createThenable,
+    () => common.mustNotCall(),
+  );
+}
