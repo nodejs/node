@@ -36,6 +36,24 @@ fs.promises.open(file, 'r').then((handle) => {
 });
 
 fs.promises.open(file, 'r').then((handle) => {
+  handle.on('close', common.mustCall());
+  const stream = fs.createReadStream(null, { fd: handle });
+  stream.on('close', common.mustCall());
+
+  stream.on('data', common.mustCall(() => {
+    handle.close();
+  }));
+});
+
+fs.promises.open(file, 'r').then((handle) => {
+  handle.on('close', common.mustCall());
+  const stream = fs.createReadStream(null, { fd: handle });
+  stream.on('close', common.mustCall());
+
+  stream.close();
+});
+
+fs.promises.open(file, 'r').then((handle) => {
   assert.throws(() => {
     fs.createReadStream(null, { fd: handle, fs });
   }, {

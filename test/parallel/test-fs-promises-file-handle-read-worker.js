@@ -21,7 +21,6 @@ if (isMainThread) {
     });
   });
   fs.promises.open(file, 'r').then((handle) => {
-    handle.on('close', common.mustNotCall());
     fs.createReadStream(null, { fd: handle });
     assert.throws(() => {
       new Worker(__filename, {
@@ -34,6 +33,7 @@ if (isMainThread) {
   });
 } else {
   const handle = workerData.handle;
+  handle.on('close', common.mustCall());
   const stream = fs.createReadStream(null, { fd: handle });
 
   stream.on('data', common.mustCallAtLeast((data) => {
@@ -41,6 +41,7 @@ if (isMainThread) {
   }));
 
   stream.on('end', common.mustCall(() => {
+    handle.close();
     assert.strictEqual(output, input);
   }));
 
