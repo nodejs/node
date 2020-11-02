@@ -373,6 +373,10 @@ if "%target%"=="Build" (
 )
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
+@rem Setup env variables to use multiprocessor build
+set UseMultiToolTask=True
+set EnforceProcessCountAcrossBuilds=True
+set MultiProcMaxCount=%NUMBER_OF_PROCESSORS%
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args%
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
