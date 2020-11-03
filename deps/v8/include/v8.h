@@ -4976,6 +4976,13 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
   bool IsShared() const;
 
   /**
+   * Prevent implicit instantiation of operator delete with size_t argument.
+   * The size_t argument would be incorrect because ptr points to the
+   * internal BackingStore object.
+   */
+  void operator delete(void* ptr) { ::operator delete(ptr); }
+
+  /**
    * Wrapper around ArrayBuffer::Allocator::Reallocate that preserves IsShared.
    * Assumes that the backing_store was allocated by the ArrayBuffer allocator
    * of the given isolate.
