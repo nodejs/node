@@ -1,0 +1,8 @@
+$ git clone git@github.com: hhfdserth/boppitynodsss.git
+$ cd node
+$ git remote add upstream https://github.com/nodejs/node.git
+$ git fetch upstream
+Configure git so that it knows who you are:
+
+$ git config user.name "hhfdserth"
+$ git config user.email "los9crunch@outlook.com"
