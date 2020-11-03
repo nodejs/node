@@ -210,7 +210,7 @@ changes:
     description: --experimental-abortcontroller is no longer required.
 -->
 
-Experimental `AbortController` and `AbortSignal` support is enabled by default.
+`AbortController` and `AbortSignal` support is enabled by default.
 Use of this command-line flag is no longer required.
 
 ### `--experimental-import-meta-resolve`
