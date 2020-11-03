@@ -611,7 +611,7 @@ Other changes might have landed on master since the successful CI run. As a
 precaution, run tests (`make -j4 test` or `vcbuild test`).
 
 Confirm that the commit message format is correct using
-[core-validate-commit](https://github.com/evanlucas/core-validate-commit).
+[core-validate-commit](https://github.com/nodejs/core-validate-commit).
 
 ```text
 $ git rev-list upstream/master...HEAD | xargs core-validate-commit
