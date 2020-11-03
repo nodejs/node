@@ -1,6 +1,6 @@
 # Diagnostics Channel
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v15.1.0-->
 
 > Stability: 1 - Experimental
 
