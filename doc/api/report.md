@@ -292,7 +292,8 @@ is provided below for reference.
     {
       "type": "loop",
       "is_active": true,
-      "address": "0x000055fc7b2cb180"
+      "address": "0x000055fc7b2cb180",
+      "loopIdleTimeSeconds": 22644.8
     }
   ],
   "workers": [],

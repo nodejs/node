@@ -294,6 +294,10 @@ static void WriteNodeReport(Isolate* isolate,
         static_cast<bool>(uv_loop_alive(env->event_loop())));
     writer.json_keyvalue("address",
         ValueToHexString(reinterpret_cast<int64_t>(env->event_loop())));
+
+    // Report Event loop idle time
+    uint64_t idle_time = uv_metrics_idle_time(env->event_loop());
+    writer.json_keyvalue("loopIdleTimeSeconds", 1.0 * idle_time / 1e9);
     writer.json_end();
   }
 

@@ -128,6 +128,9 @@ if (process.argv[2] === 'child') {
         assert.strictEqual(handle.filename, expected_filename);
         assert(handle.is_referenced);
       }),
+      loop: common.mustCall(function loop_validator(handle) {
+        assert.strictEqual(typeof handle.loopIdleTimeSeconds, 'number');
+      }),
       pipe: common.mustCallAtLeast(function pipe_validator(handle) {
         assert(handle.is_referenced);
       }),
