@@ -50,10 +50,12 @@ function httpsTest() {
     const opts = { port: this.address().port, rejectUnauthorized: false };
     https.get(opts).on('response', function(res) {
       test(res);
+    }).on('error', () => {
+      // TODO: investigate why the server closes with a TCP RST on Windows
+      // https://github.com/nodejs/node/issues/35904
     });
   });
 }
-
 
 const test = common.mustCall(function(res) {
   res.on('end', common.mustCall(function() {
