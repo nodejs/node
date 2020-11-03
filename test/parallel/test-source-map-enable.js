@@ -283,6 +283,24 @@ function nextdir() {
   assert.ok(output.stderr.toString().includes('webpack:///webpack.js:14:9'));
 }
 
+// Stores and applies source map associated with file that throws while
+// being required.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/throw-on-require-entry.js')
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'throw-on-require.js',
+    coverageDirectory
+  );
+  // Rewritten stack trace.
+  assert.match(output.stderr.toString(), /throw-on-require\.ts:9:9/);
+  // Source map should have been serialized.
+  assert.ok(sourceMap);
+}
+
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {

@@ -135,7 +135,10 @@ import { findSourceMap, SourceMap } from 'module';
 const { findSourceMap, SourceMap } = require('module');
 ```
 
-### `module.findSourceMap(path[, error])`
+<!-- Anchors to make sure old links find a target -->
+<a id="module_module_findsourcemap_path_error"></a>
+### `module.findSourceMap(path)`
+
 <!-- YAML
 added:
  - v13.7.0
@@ -143,17 +146,10 @@ added:
 -->
 
 * `path` {string}
-* `error` {Error}
 * Returns: {module.SourceMap}
 
 `path` is the resolved path for the file for which a corresponding source map
 should be fetched.
-
-The `error` instance should be passed as the second parameter to `findSourceMap`
-in exceptional flows, such as when an overridden
-[`Error.prepareStackTrace(error, trace)`][] is invoked. Modules are not added to
-the module cache until they are successfully loaded. In these cases, source maps
-are associated with the `error` instance along with the `path`.
 
 ### Class: `module.SourceMap`
 <!-- YAML
@@ -204,7 +200,6 @@ consists of the following keys:
 [ES Modules]: esm.md
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
 [`--enable-source-maps`]: cli.md#cli_enable_source_maps
-[`Error.prepareStackTrace(error, trace)`]: https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 [`NODE_V8_COVERAGE=dir`]: cli.md#cli_node_v8_coverage_dir
 [`SourceMap`]: #module_class_module_sourcemap
 [`createRequire()`]: #module_module_createrequire_filename
