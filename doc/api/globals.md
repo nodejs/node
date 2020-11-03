@@ -20,9 +20,11 @@ accessible.
 ## Class: `AbortController`
 <!--YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35949
+    description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 <!-- type=global -->
 
@@ -172,11 +174,13 @@ Used to print to stdout and stderr. See the [`console`][] section.
 ## `Event`
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35949
+    description: No longer experimental.
 -->
 
 <!-- type=global -->
-
-> Stability: 1 - Experimental
 
 A browser-compatible implementation of the `Event` class. See
 [`EventTarget` and `Event` API][] for more details.
@@ -184,11 +188,13 @@ A browser-compatible implementation of the `Event` class. See
 ## `EventTarget`
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35949
+    description: No longer experimental.
 -->
 
 <!-- type=global -->
-
-> Stability: 1 - Experimental
 
 A browser-compatible implementation of the `EventTarget` class. See
 [`EventTarget` and `Event` API][] for more details.
