@@ -46,7 +46,7 @@ const { readFileSync } = require('fs');
   Error.prepareStackTrace = (error, trace) => {
     const throwingRequireCallSite = trace[0];
     if (throwingRequireCallSite.getFileName().endsWith('typescript-throw.js')) {
-      sourceMap = findSourceMap(throwingRequireCallSite.getFileName(), error);
+      sourceMap = findSourceMap(throwingRequireCallSite.getFileName());
       callSite = throwingRequireCallSite;
     }
   };
