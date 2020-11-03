@@ -220,7 +220,7 @@ class RefBase : protected Finalizer, RefTracker {
                        finalize_hint);
   }
 
-  ~RefBase() { Unlink(); }
+  virtual ~RefBase() { Unlink(); }
 
   inline void* Data() {
     return _finalize_data;
