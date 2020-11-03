@@ -296,7 +296,7 @@ function nextdir() {
     coverageDirectory
   );
   // Rewritten stack trace.
-  assert.ok(output.stderr.toString().includes('throw-on-require.ts:9:9'));
+  assert.match(output.stderr.toString(), /throw-on-require\.ts:9:9/);
   // Source map should have been serialized.
   assert.ok(sourceMap);
 }
