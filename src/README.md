@@ -495,16 +495,16 @@ The most common reasons for this are:
 holds a value of type `Local<T>`. It has methods that perform the same
 operations as the methods of `v8::Maybe`, but with different names:
 
-| `Maybe`                | `MaybeLocal`                    |
-| ---------------------- | ------------------------------- |
-| `maybe.IsNothing()`    | `maybe_local.IsEmpty()`         |
-| `maybe.IsJust()`       | `!maybe_local.IsEmpty()`        |
-| `maybe.To(&value)`     | `maybe_local.ToLocal(&local)`   |
-| `maybe.ToChecked()`    | `maybe_local.ToLocalChecked()`  |
-| `maybe.FromJust()`     | `maybe_local.ToLocalChecked()`  |
-| `maybe.Check()`        | –                               |
-| `v8::Nothing<T>()`     | `v8::MaybeLocal<T>()`           |
-| `v8::Just<T>(value)`   | `v8::MaybeLocal<T>(value)`      |
+| `Maybe`              | `MaybeLocal`                   |
+| -------------------- | ------------------------------ |
+| `maybe.IsNothing()`  | `maybe_local.IsEmpty()`        |
+| `maybe.IsJust()`     | `!maybe_local.IsEmpty()`       |
+| `maybe.To(&value)`   | `maybe_local.ToLocal(&local)`  |
+| `maybe.ToChecked()`  | `maybe_local.ToLocalChecked()` |
+| `maybe.FromJust()`   | `maybe_local.ToLocalChecked()` |
+| `maybe.Check()`      | –                              |
+| `v8::Nothing<T>()`   | `v8::MaybeLocal<T>()`          |
+| `v8::Just<T>(value)` | `v8::MaybeLocal<T>(value)`     |
 
 ##### Handling empty `Maybe`s
 
