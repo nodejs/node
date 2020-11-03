@@ -100,9 +100,9 @@ The tools are currently assigned to Tiers as follows:
 
 ## Tier 2
 
- | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
- |-----------|---------------------------|-------------------------------|-------------------------|-------------|
- |           |                           |                               |                         |             |
+ | Tool Type | Tool/API Name | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+ |-----------|---------------|-------------------------------|-------------------------|-------------|
+ |           |               |                               |                         |             |
 
 ## Tier 3
 
@@ -116,9 +116,9 @@ The tools are currently assigned to Tiers as follows:
 
 ## Tier 4
 
- | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
- |-----------|---------------------------|-------------------------------|-------------------------|-------------|
- |           |                           |                               |                         |             |
+ | Tool Type | Tool/API Name | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+ |-----------|---------------|-------------------------------|-------------------------|-------------|
+ |           |               |                               |                         |             |
 
 ## Not yet classified
 
