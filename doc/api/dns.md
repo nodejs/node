@@ -119,7 +119,7 @@ callbacks will be called with an error with code `ECANCELLED`.
 
 ### `resolver.setLocalAddress([ipv4][, ipv6])`
 <!-- YAML
-added: REPLACEME
+added: v15.1.0
 -->
 
 * `ipv4` {string} A string representation of an IPv4 address.

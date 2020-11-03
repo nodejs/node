@@ -1881,7 +1881,7 @@ value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
 <!-- YAML
-added: REPLACEME
+added: v15.1.0
 -->
 
 * `settings` {HTTP/2 Settings Object}
@@ -2073,7 +2073,7 @@ value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
 <!-- YAML
-added: REPLACEME
+added: v15.1.0
 -->
 
 * `settings` {HTTP/2 Settings Object}
