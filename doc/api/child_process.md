@@ -1038,7 +1038,7 @@ See [Advanced serialization][] for more details.
 
 ### Event: `'spawn'`
 <!-- YAML
-added: REPLACEME
+added: v15.1.0
 -->
 
 The `'spawn'` event is emitted once the child process has spawned successfully.

@@ -368,7 +368,7 @@ targets, this expansion is dependent on only the files of the package itself.
 ### Subpath folder mappings
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v15.1.0
     pr-url: https://github.com/nodejs/node/pull/35746
     description: Runtime deprecation.
   - version: v14.13.0

@@ -335,7 +335,7 @@ be added.
 
 ### `--heapsnapshot-near-heap-limit=max_count`
 <!-- YAML
-added: REPLACEME
+added: v15.1.0
 -->
 
 > Stability: 1 - Experimental
