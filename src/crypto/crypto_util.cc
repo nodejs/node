@@ -237,7 +237,7 @@ ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
 
 std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore() {
   // It's ok for allocated_data_ to be nullptr but
-  // only if size_ is not zero.
+  // only if size_ is zero.
   CHECK_IMPLIES(size_ > 0, allocated_data_ != nullptr);
   std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
       allocated_data_,
