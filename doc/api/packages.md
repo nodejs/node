@@ -954,13 +954,13 @@ added: REPLACEME
 ```
 
 The `"packageManager"` field defines which package manager is expected to be
-used when working on the current project. The npm client doesn't use this field
-at the moment, but defining it to any of the [supported package managers][]
-will let your teams use the exact same package manager versions without
-installing anything else than Node.js.
+used when working on the current project. It can set to any of the
+[supported package managers][], and will ensure that your teams use the exact
+same package manager versions without having to install anything else than
+Node.js.
 
-This field is currently experimental and needs to be opted-in, together with
-the [Corepack][] utility.
+This field is currently experimental and needs to be opted-in; check the
+[Corepack][] page for details about the procedure.
 
 ### `"type"`
 <!-- YAML

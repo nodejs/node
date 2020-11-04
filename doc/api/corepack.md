@@ -101,8 +101,8 @@ that happen, run [`corepack enable`][] again to add them back).
 [`corepack disable`]: https://github.com/nodejs/corepack#corepack-disable--name
 [`corepack enable`]: https://github.com/nodejs/corepack#corepack-enable--name
 [`corepack prepare`]: https://github.com/nodejs/corepack#corepack-prepare--nameversion
-[`package.json`]: packages.md
+[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
 [pnpm]: https://pnpm.js.org
-[supported binaries]: #supported-package-managers
-[supported package manager]: #supported-package-managers
+[supported binaries]: #corepack_supported_package_managers
+[supported package manager]: #corepack_supported_package_managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands
