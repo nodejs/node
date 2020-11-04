@@ -1429,11 +1429,7 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
   if (tcp->flags & UV_HANDLE_READ_PENDING) {
     /* In order for winsock to do a graceful close there must not be any any
      * pending reads, or the socket must be shut down for writing */
-    if (!(tcp->flags & UV_HANDLE_SHARED_TCP_SOCKET)) {
-      /* Just do shutdown on non-shared sockets, which ensures graceful close. */
-      shutdown(tcp->socket, SD_SEND);
-
-    } else if (uv_tcp_try_cancel_io(tcp) == 0) {
+    if (uv_tcp_try_cancel_io(tcp) == 0) {
       /* In case of a shared socket, we try to cancel all outstanding I/O,. If
        * that works, don't close the socket yet - wait for the read req to
        * return and close the socket in uv_tcp_endgame. */
