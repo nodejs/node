@@ -48,11 +48,8 @@ function httpsTest() {
 
   server.listen(0, function() {
     const opts = { port: this.address().port, rejectUnauthorized: false };
-    https.get(opts).on('response', function(res) {
+    https.get(opts).on('response', function (res) {
       test(res);
-    }).on('error', () => {
-      // TODO: investigate why the server closes with a TCP RST on Windows
-      // https://github.com/nodejs/node/issues/35904
     });
   });
 }
