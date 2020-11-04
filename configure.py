@@ -1722,7 +1722,8 @@ def configure_section_file(o):
     proc = subprocess.Popen(['ld.gold'] + ['-v'], stdin = subprocess.PIPE,
                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   except OSError:
-    warn('''No acceptable ld.gold linker found!''')
+    if options.node_section_ordering_info != "":
+      warn('''No acceptable ld.gold linker found!''')
     return 0
 
   match = re.match(r"^GNU gold.*([0-9]+)\.([0-9]+)$",
