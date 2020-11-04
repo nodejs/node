@@ -88,7 +88,7 @@ was required by each matching version of yui3:
 
 ```bash
 npm view yui3@'>0.5.4' dependencies.jsdom
-```
+```    
 
 To show the `connect` package version history, you can do
 this:

@@ -46,3 +46,4 @@ test('should remove dupes using Arborist - no arguments', (t) => {
     t.end()
   })
 })
+

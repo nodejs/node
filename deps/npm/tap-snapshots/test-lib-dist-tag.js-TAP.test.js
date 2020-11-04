@@ -26,7 +26,7 @@ exports[`test/lib/dist-tag.js TAP add new tag > should return success msg 1`] = 
 `
 
 exports[`test/lib/dist-tag.js TAP add using valid semver range as name > should return success msg 1`] = `
-dist-tag add 1.0.0 to @scoped/another@7.7.7
+dist-tag add 1.0.0 to @scoped/another@7.7.7 
 
 `
 
@@ -53,7 +53,7 @@ alias: dist-tags
 `
 
 exports[`test/lib/dist-tag.js TAP ls on missing package > should log no dist-tag found msg 1`] = `
-dist-tag ls Couldn't get dist-tag data for foo@latest
+dist-tag ls Couldn't get dist-tag data for foo@latest 
 
 `
 
@@ -80,7 +80,7 @@ latest: 2.0.0
 `
 
 exports[`test/lib/dist-tag.js TAP remove existing tag > should log remove info 1`] = `
-dist-tag del c from @scoped/another
+dist-tag del c from @scoped/another 
 
 `
 
@@ -97,13 +97,13 @@ alias: dist-tags
 `
 
 exports[`test/lib/dist-tag.js TAP remove non-existing tag > should log error msg 1`] = `
-dist-tag del nonexistent from @scoped/another
-dist-tag del nonexistent is not a dist-tag on @scoped/another
+dist-tag del nonexistent from @scoped/another 
+dist-tag del nonexistent is not a dist-tag on @scoped/another 
 
 `
 
 exports[`test/lib/dist-tag.js TAP set existing version > should log warn msg 1`] = `
-dist-tag add b to @scoped/another@0.6.0
-dist-tag add b is already set to version 0.6.0
+dist-tag add b to @scoped/another@0.6.0 
+dist-tag add b is already set to version 0.6.0 
 
 `

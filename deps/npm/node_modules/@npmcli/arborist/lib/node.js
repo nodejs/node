@@ -175,7 +175,7 @@ class Node {
 
     // have to set the internal package ref before assigning the parent,
     // because this.package is read when adding to inventory
-    this[_package] = pkg
+    this[_package] = pkg && typeof pkg === 'object' ? pkg : {}
 
     // only relevant for the root and top nodes
     this.meta = meta
@@ -307,6 +307,13 @@ class Node {
       edge.detach()
 
     this[_explanation] = null
+    /* istanbul ignore next - should be impossible */
+    if (!pkg || typeof pkg !== 'object') {
+      debug(() => {
+        throw new Error('setting Node.package to non-object')
+      })
+      pkg = {}
+    }
     this[_package] = pkg
     this[_loadWorkspaces]()
     this[_loadDeps]()

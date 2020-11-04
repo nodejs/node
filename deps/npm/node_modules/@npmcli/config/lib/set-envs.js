@@ -92,7 +92,8 @@ const setEnvs = (config) => {
   if (cliConf['node-options'])
     env.NODE_OPTIONS = cliConf['node-options']
 
-  env.npm_execpath = require.main.filename
+  if (require.main && require.main.filename)
+    env.npm_execpath = require.main.filename
   env.npm_node_execpath = config.execPath
 }
 
