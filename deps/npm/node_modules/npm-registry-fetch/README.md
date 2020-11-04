@@ -1,11 +1,5 @@
 # npm-registry-fetch
 
-[![npm version](https://img.shields.io/npm/v/npm-registry-fetch.svg)](https://npm.im/npm-registry-fetch)
-[![license](https://img.shields.io/npm/l/npm-registry-fetch.svg)](https://npm.im/npm-registry-fetch)
-[![Travis](https://img.shields.io/travis/npm/npm-registry-fetch/latest.svg)](https://travis-ci.org/npm/npm-registry-fetch)
-[![AppVeyor](https://img.shields.io/appveyor/ci/npm/npm-registry-fetch/latest.svg)](https://ci.appveyor.com/project/npm/npm-registry-fetch)
-[![Coverage Status](https://coveralls.io/repos/github/npm/npm-registry-fetch/badge.svg?branch=latest)](https://coveralls.io/github/npm/npm-registry-fetch?branch=latest)
-
 [`npm-registry-fetch`](https://github.com/npm/npm-registry-fetch) is a Node.js
 library that implements a `fetch`-like API for accessing npm registry APIs
 consistently. It's able to consume npm-style configuration values and has all
