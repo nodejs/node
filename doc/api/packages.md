@@ -149,6 +149,26 @@ For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
 
+## Determining package manager
+
+> Stability: 1 - Experimental
+
+While all Node projects are expected to be installable by all package managers
+once published, their development teams are often required to use one specific
+package manager. To make this process easier, Node now ships with a tool called
+[Corepack][] that aims to make all package managers transparently available in
+your environment, provided you have Node installed.
+
+By default Corepack won't enforce any specific package manager and will use
+generic "Last Known Good" versions, but you can improve this experience by
+setting the [`"packageManager"`][] field in your project's `package.json`:
+
+```json
+{
+  "packageManager": "yarn@2.3.3"
+}
+```
+
 ## Package entry points
 
 In a package’s `package.json` file, two fields can define entry points for a
@@ -924,6 +944,28 @@ require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
 When a package has an [`"exports"`][] field, this will take precedence over the
 `"main"` field when importing the package by name.
 
+### `"packageManager"`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+```json
+{
+  "packageManager": "<package manager name>@<version>"
+}
+```
+
+The `"packageManager"` field defines which package manager is expected to be
+used when working on the current project. The npm client doesn't use this field
+at the moment, but defining it to any of `yarn` or `pnpm` will let your teams
+use the exact same package manager versions without installing anything else
+than Node.
+
+Note that this field is currently experimental and needs to be opted-in,
+together with the [Corepack][] utility.
+
 ### `"type"`
 <!-- YAML
 added: v12.0.0
@@ -1060,6 +1102,7 @@ This field defines [subpath imports][] for the current package.
 [`"exports"`]: #packages_exports
 [`"main"`]: #packages_main
 [`"name"`]: #packages_name
+[`"packageManager"`]: #packages_packagemanager
 [`"imports"`]: #packages_imports
 [`"type"`]: #packages_type
 [`package.json`]: #packages_node_js_package_json_field_definitions
