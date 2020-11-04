@@ -153,11 +153,11 @@ unspecified.
 
 > Stability: 1 - Experimental
 
-While all Node projects are expected to be installable by all package managers
-once published, their development teams are often required to use one specific
-package manager. To make this process easier, Node now ships with a tool called
-[Corepack][] that aims to make all package managers transparently available in
-your environment, provided you have Node installed.
+While all Node.js projects are expected to be installable by all package
+managers once published, their development teams are often required to use one
+specific package manager. To make this process easier, Node.js now ships with a
+tool called [Corepack][] that aims to make all package managers transparently
+available in your environment - provided you have Node.js installed.
 
 By default Corepack won't enforce any specific package manager and will use
 generic "Last Known Good" versions, but you can improve this experience by
@@ -961,10 +961,10 @@ The `"packageManager"` field defines which package manager is expected to be
 used when working on the current project. The npm client doesn't use this field
 at the moment, but defining it to any of `yarn` or `pnpm` will let your teams
 use the exact same package manager versions without installing anything else
-than Node.
+than Node.js.
 
-Note that this field is currently experimental and needs to be opted-in,
-together with the [Corepack][] utility.
+This field is currently experimental and needs to be opted-in, together with
+the [Corepack][] utility.
 
 ### `"type"`
 <!-- YAML
@@ -1095,6 +1095,7 @@ This field defines [subpath imports][] for the current package.
 [Babel]: https://babeljs.io/
 [Conditional exports]: #packages_conditional_exports
 [CommonJS]: modules.md
+[Corepack]: corepack.md
 [ES module]: esm.md
 [ES modules]: esm.md
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#errors_err_package_path_not_exported
