@@ -136,7 +136,7 @@ const { findSourceMap, SourceMap } = require('module');
 ```
 
 <!-- Anchors to make sure old links find a target -->
-<a name="module_module_findsourcemap_path_error"></a>
+<a id="module_module_findsourcemap_path_error"></a>
 ### `module.findSourceMap(path)`
 
 <!-- YAML
