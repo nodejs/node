@@ -83,13 +83,13 @@ that happen, run [`corepack enable`][] again to add them back).
 
 [Corepack]: https://github.com/nodejs/corepack
 [Corepack documentation]: https://github.com/nodejs/corepack#readme
-[`corepack enable`]: https://github.com/nodejs/corepack#corepack-enable--name
-[`corepack disable`]: https://github.com/nodejs/corepack#corepack-disable--name
-[`corepack prepare`]: https://github.com/nodejs/corepack#corepack-prepare--nameversion
 [Corepack repository]: https://github.com/nodejs/corepack
+[Yarn]: https://yarnpkg.com
 [`"packageManager"`]: packages.md#packages_packagemanager
+[`corepack disable`]: https://github.com/nodejs/corepack#corepack-disable--name
+[`corepack enable`]: https://github.com/nodejs/corepack#corepack-enable--name
+[`corepack prepare`]: https://github.com/nodejs/corepack#corepack-prepare--nameversion
 [`package.json`]: packages.md
 [pnpm]: https://pnpm.js.org
-[supported]: #supported_package_managers
+[supported]: #supported-package-managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands
-[Yarn]: https://yarnpkg.com
