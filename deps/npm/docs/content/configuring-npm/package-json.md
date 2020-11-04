@@ -716,6 +716,30 @@ the host package's major version will break your plugin. Thus, if you've worked
 with every 1.x version of the host package, use `"^1.0"` or `"1.x"` to express
 this. If you depend on features introduced in 1.5.2, use `">= 1.5.2 < 2"`.
 
+### peerDependenciesMeta
+
+When a user installs your package, npm will emit warnings if packages specified in `peerDependencies` are not already installed. The `peerDependenciesMeta` field serves to provide npm more information on how your peer dependencies are to be used. Specifically, it allows peer dependencies to be marked as optional.
+
+For example:
+
+```json
+{
+  "name": "tea-latte",
+  "version": "1.3.5",
+  "peerDependencies": {
+    "tea": "2.x",
+    "soy-milk": "1.2"
+  },
+  "peerDependenciesMeta": {
+    "soy-milk": {
+      "optional": true
+    }
+  }
+}
+```
+
+Marking a peer dependency as optional ensures npm will not emit a warning if the `soy-milk` package is not installed on the host. This allows you to integrate and interact with a variety of host packages without requiring all of them to be installed.
+
 ### bundledDependencies
 
 This defines an array of package names that will be bundled when publishing

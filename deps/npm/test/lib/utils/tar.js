@@ -51,11 +51,11 @@ test('should log tarball contents with unicode', async (t) => {
       }
     }
   })
-
-  logTar({
-    files: [],
+  
+  logTar({ 
+    files: [], 
     bundled: [],
-    integrity: ''
+    integrity: '' 
   }, { unicode: true })
   t.end()
 })

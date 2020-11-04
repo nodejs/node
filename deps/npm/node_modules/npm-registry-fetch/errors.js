@@ -8,11 +8,10 @@ function packageName (href) {
     if (!basePath.match(/^-/)) {
       basePath = basePath.split('/')
       var index = basePath.indexOf('_rewrite')
-      if (index === -1) {
+      if (index === -1)
         index = basePath.length - 1
-      } else {
+      else
         index++
-      }
       return decodeURIComponent(basePath[index])
     }
   } catch (_) {

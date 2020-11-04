@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#main">main</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directorieslib">directories.lib</a></li><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li><li><a href="#directoriesdoc">directories.doc</a></li><li><a href="#directoriesexample">directories.example</a></li><li><a href="#directoriestest">directories.test</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#bundleddependencies">bundledDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#engines">engines</a></li><li><a href="#enginestrict">engineStrict</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#preferglobal">preferGlobal</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#main">main</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directorieslib">directories.lib</a></li><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li><li><a href="#directoriesdoc">directories.doc</a></li><li><a href="#directoriesexample">directories.example</a></li><li><a href="#directoriestest">directories.test</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundleddependencies">bundledDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#engines">engines</a></li><li><a href="#enginestrict">engineStrict</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#preferglobal">preferGlobal</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -669,6 +669,24 @@ possible, and not to lock it down to specific patch versions.</p>
 the host package’s major version will break your plugin. Thus, if you’ve worked
 with every 1.x version of the host package, use <code>"^1.0"</code> or <code>"1.x"</code> to express
 this. If you depend on features introduced in 1.5.2, use <code>"&gt;= 1.5.2 &lt; 2"</code>.</p>
+<h3 id="peerdependenciesmeta">peerDependenciesMeta</h3>
+<p>When a user installs your package, npm will emit warnings if packages specified in <code>peerDependencies</code> are not already installed. The <code>peerDependenciesMeta</code> field serves to provide npm more information on how your peer dependencies are to be used. Specifically, it allows peer dependencies to be marked as optional.</p>
+<p>For example:</p>
+<pre lang="json"><code>{
+  "name": "tea-latte",
+  "version": "1.3.5",
+  "peerDependencies": {
+    "tea": "2.x",
+    "soy-milk": "1.2"
+  },
+  "peerDependenciesMeta": {
+    "soy-milk": {
+      "optional": true
+    }
+  }
+}
+</code></pre>
+<p>Marking a peer dependency as optional ensures npm will not emit a warning if the <code>soy-milk</code> package is not installed on the host. This allows you to integrate and interact with a variety of host packages without requiring all of them to be installed.</p>
 <h3 id="bundleddependencies">bundledDependencies</h3>
 <p>This defines an array of package names that will be bundled when publishing
 the package.</p>

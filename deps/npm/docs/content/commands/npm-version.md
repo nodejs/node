@@ -94,7 +94,7 @@ and tag up to the server, and deletes the `build/temp` directory.
 * Default: false
 * Type: Boolean
 
-Prevents throwing an error when `npm version` is used to set the new version
+Prevents throwing an error when `npm version` is used to set the new version 
 to the same value as the current version.
 
 #### git-tag-version

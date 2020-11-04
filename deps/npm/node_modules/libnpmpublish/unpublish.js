@@ -5,21 +5,20 @@ const npmFetch = require('npm-registry-fetch')
 const semver = require('semver')
 const { URL } = require('url')
 
-module.exports = unpublish
-async function unpublish (spec, opts) {
+const unpublish = async (spec, opts) => {
   spec = npa(spec)
   // spec is used to pick the appropriate registry/auth combo.
   opts = {
     force: false,
     ...opts,
-    spec
+    spec,
   }
 
   try {
     const pkgUri = spec.escapedName
     const pkg = await npmFetch.json(pkgUri, {
       ...opts,
-      query: { write: true }
+      query: { write: true },
     })
 
     const version = spec.rawSpec
@@ -32,9 +31,8 @@ async function unpublish (spec, opts) {
 
     // if missing specific version,
     // assumed unpublished
-    if (!versionData && !rawSpecs && !noVersions) {
+    if (!versionData && !rawSpecs && !noVersions)
       return true
-    }
 
     // unpublish all versions of a package:
     // - no specs supplied "npm unpublish foo"
@@ -45,7 +43,7 @@ async function unpublish (spec, opts) {
       await npmFetch(`${pkgUri}/-rev/${pkg._rev}`, {
         ...opts,
         method: 'DELETE',
-        ignoreBody: true
+        ignoreBody: true,
       })
       return true
     } else {
@@ -56,9 +54,8 @@ async function unpublish (spec, opts) {
 
       // deleting dist tags associated to version
       Object.keys(pkg['dist-tags']).forEach(tag => {
-        if (pkg['dist-tags'][tag] === version) {
+        if (pkg['dist-tags'][tag] === version)
           delete pkg['dist-tags'][tag]
-        }
       })
 
       if (latestVer === version) {
@@ -75,26 +72,28 @@ async function unpublish (spec, opts) {
         ...opts,
         method: 'PUT',
         body: pkg,
-        ignoreBody: true
+        ignoreBody: true,
       })
 
       // Remove the tarball itself
       const { _rev } = await npmFetch.json(pkgUri, {
         ...opts,
-        query: { write: true }
+        query: { write: true },
       })
       const tarballUrl = new URL(dist.tarball).pathname.substr(1)
       await npmFetch(`${tarballUrl}/-rev/${_rev}`, {
         ...opts,
         method: 'DELETE',
-        ignoreBody: true
+        ignoreBody: true,
       })
       return true
     }
   } catch (err) {
-    if (err.code !== 'E404') {
+    if (err.code !== 'E404')
       throw err
-    }
+
     return true
   }
 }
+
+module.exports = unpublish

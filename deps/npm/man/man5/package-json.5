@@ -801,6 +801,31 @@ Assuming the host complies with semver \fIhttps://semver\.org/\fR, only changes 
 the host package's major version will break your plugin\. Thus, if you've worked
 with every 1\.x version of the host package, use \fB"^1\.0"\fP or \fB"1\.x"\fP to express
 this\. If you depend on features introduced in 1\.5\.2, use \fB">= 1\.5\.2 < 2"\fP\|\.
+.SS peerDependenciesMeta
+.P
+When a user installs your package, npm will emit warnings if packages specified in \fBpeerDependencies\fP are not already installed\. The \fBpeerDependenciesMeta\fP field serves to provide npm more information on how your peer dependencies are to be used\. Specifically, it allows peer dependencies to be marked as optional\.
+.P
+For example:
+.P
+.RS 2
+.nf
+{
+  "name": "tea\-latte",
+  "version": "1\.3\.5",
+  "peerDependencies": {
+    "tea": "2\.x",
+    "soy\-milk": "1\.2"
+  },
+  "peerDependenciesMeta": {
+    "soy\-milk": {
+      "optional": true
+    }
+  }
+}
+.fi
+.RE
+.P
+Marking a peer dependency as optional ensures npm will not emit a warning if the \fBsoy\-milk\fP package is not installed on the host\. This allows you to integrate and interact with a variety of host packages without requiring all of them to be installed\.
 .SS bundledDependencies
 .P
 This defines an array of package names that will be bundled when publishing

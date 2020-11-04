@@ -163,7 +163,7 @@ t.test('get preferOffline from cache-min', t => {
   const opts = flatOptions(npm)
   t.equal(opts.preferOffline, true, 'got preferOffline from cache min')
   logs.length = 0
-  t.equal(opts.cacheMin, 9999999, 'opts.cacheMin is set')
+  t.equal(opts.cacheMin, undefined, 'opts.cacheMin is not set')
   t.match(logs, [])
   logs.length = 0
   t.end()
@@ -177,7 +177,7 @@ t.test('get preferOnline from cache-max', t => {
   const opts = flatOptions(npm)
   t.equal(opts.preferOnline, true, 'got preferOnline from cache min')
   logs.length = 0
-  t.equal(opts.cacheMax, -1, 'opts.cacheMax is set')
+  t.equal(opts.cacheMax, undefined, 'opts.cacheMax is not set')
   t.match(logs, [])
   logs.length = 0
   t.end()

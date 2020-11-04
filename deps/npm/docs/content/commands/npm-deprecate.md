@@ -25,8 +25,8 @@ npm deprecate my-thing@"< 0.2.3" "critical bug fixed in v0.2.3"
 Note that you must be the package owner to deprecate something.  See the
 `owner` and `adduser` help topics.
 
-To un-deprecate a package, specify an empty string (`""`) for the `message`
-argument. Note that you must use double quotes with no space between them to
+To un-deprecate a package, specify an empty string (`""`) for the `message` 
+argument. Note that you must use double quotes with no space between them to 
 format an empty string.
 
 ### See Also

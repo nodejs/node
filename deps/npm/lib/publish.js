@@ -6,12 +6,17 @@ const semver = require('semver')
 const pack = require('libnpmpack')
 const libpub = require('libnpmpublish').publish
 const runScript = require('@npmcli/run-script')
+const pacote = require('pacote')
+const npa = require('npm-package-arg')
 
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const { getContents, logTar } = require('./utils/tar.js')
 
+// this is the only case in the CLI where we use the old full slow
+// 'read-package-json' module, because we want to pull in all the
+// defaults and metadata, like git sha's and default scripts and all that.
 const readJson = util.promisify(require('read-package-json'))
 
 const completion = require('./utils/completion/none.js')
@@ -46,47 +51,75 @@ const publish = async args => {
   return tarball
 }
 
+// if it's a directory, read it from the file system
+// otherwise, get the full metadata from whatever it is
+const getManifest = (spec, opts) =>
+  spec.type === 'directory' ? readJson(`${spec.fetchSpec}/package.json`)
+  : pacote.manifest(spec, { ...opts, fullMetadata: true })
+
+// for historical reasons, publishConfig in package.json can contain
+// ANY config keys that npm supports in .npmrc files and elsewhere.
+// We *may* want to revisit this at some point, and have a minimal set
+// that's a SemVer-major change that ought to get a RFC written on it.
+const { flatten } = require('./utils/flat-options.js')
+const publishConfigToOpts = publishConfig =>
+  // create a new object that inherits from the config stack
+  // then squash the css-case into camelCase opts, like we do
+  flatten(Object.assign(Object.create(npm.config.list[0]), publishConfig))
+
 const publish_ = async (arg, opts) => {
   const { unicode, dryRun, json } = opts
-  let manifest = await readJson(`${arg}/package.json`)
+  // you can publish name@version, ./foo.tgz, etc.
+  // even though the default is the 'file:.' cwd.
+  const spec = npa(arg)
+  const manifest = await getManifest(spec, opts)
 
-  // prepublishOnly
-  await runScript({
-    event: 'prepublishOnly',
-    path: arg,
-    stdio: 'inherit',
-    pkg: manifest,
-  })
+  if (manifest.publishConfig)
+    Object.assign(opts, publishConfigToOpts(manifest.publishConfig))
 
-  const tarballData = await pack(arg)
+  // only run scripts for directory type publishes
+  if (spec.type === 'directory') {
+    await runScript({
+      event: 'prepublishOnly',
+      path: spec.fetchSpec,
+      stdio: 'inherit',
+      pkg: manifest,
+    })
+  }
+
+  const tarballData = await pack(spec, opts)
   const pkgContents = await getContents(manifest, tarballData)
 
+  // note that logTar calls npmlog.notice(), so if we ARE in silent mode,
+  // this will do nothing, but we still want it in the debuglog if it fails.
   if (!json)
     logTar(pkgContents, { log, unicode })
 
   if (!dryRun) {
     // The purpose of re-reading the manifest is in case it changed,
     // so that we send the latest and greatest thing to the registry
-    manifest = await readJson(`${arg}/package.json`)
-    const { publishConfig } = manifest
-    await otplease(opts, opts => libpub(arg, manifest, { ...opts, publishConfig }))
+    // note that publishConfig might have changed as well!
+    const manifest = await getManifest(spec, opts)
+    if (manifest.publishConfig)
+      Object.assign(opts, publishConfigToOpts(manifest.publishConfig))
+    await otplease(opts, opts => libpub(manifest, tarballData, opts))
   }
 
-  // publish
-  await runScript({
-    event: 'publish',
-    path: arg,
-    stdio: 'inherit',
-    pkg: manifest,
-  })
+  if (spec.type === 'directory') {
+    await runScript({
+      event: 'publish',
+      path: spec.fetchSpec,
+      stdio: 'inherit',
+      pkg: manifest,
+    })
 
-  // postpublish
-  await runScript({
-    event: 'postpublish',
-    path: arg,
-    stdio: 'inherit',
-    pkg: manifest,
-  })
+    await runScript({
+      event: 'postpublish',
+      path: spec.fetchSpec,
+      stdio: 'inherit',
+      pkg: manifest,
+    })
+  }
 
   return pkgContents
 }

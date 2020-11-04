@@ -177,3 +177,4 @@ t.test('load error calls error handler', t => {
   LOAD_ERROR = null
   t.end()
 })
+

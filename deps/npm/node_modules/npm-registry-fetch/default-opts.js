@@ -18,5 +18,5 @@ module.exports = {
       process.arch
     } (${
       process.platform
-    })`
+    })`,
 }
