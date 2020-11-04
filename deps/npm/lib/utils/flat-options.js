@@ -7,29 +7,176 @@ const npmSession = crypto.randomBytes(8).toString('hex')
 log.verbose('npm-session', npmSession)
 const { join } = require('path')
 
-const buildOmitList = npm => {
-  const include = npm.config.get('include') || []
-  const omit = new Set((npm.config.get('omit') || [])
+const buildOmitList = obj => {
+  const include = obj.include || []
+  const omit = new Set((obj.omit || [])
     .filter(type => !include.includes(type)))
-  const only = npm.config.get('only')
+  const only = obj.only
 
-  if (/^prod(uction)?$/.test(only) || npm.config.get('production'))
+  if (/^prod(uction)?$/.test(only) || obj.production)
     omit.add('dev')
 
-  if (/dev/.test(npm.config.get('also')))
+  if (/dev/.test(obj.also))
     omit.delete('dev')
 
-  if (npm.config.get('dev'))
+  if (obj.dev)
     omit.delete('dev')
 
-  if (npm.config.get('optional') === false)
+  if (obj.optional === false)
     omit.add('optional')
 
-  npm.config.set('omit', [...omit])
+  obj.omit = [...omit]
   return [...omit]
 }
 
+// turn an object with npm-config style keys into an options object
+// with camelCase values.  This doesn't account for the stuff that is
+// not pulled from the config keys, that's all handled only for the
+// main function which acts on the npm object itself.  Used by the
+// flatOptions generator, and by the publishConfig handling logic.
+const flatten = obj => ({
+  includeStaged: obj['include-staged'],
+  preferDedupe: obj['prefer-dedupe'],
+  ignoreScripts: obj['ignore-scripts'],
+  nodeVersion: obj['node-version'],
+  cache: join(obj.cache, '_cacache'),
+  global: obj.global,
+
+  metricsRegistry: obj['metrics-registry'] || obj.registry,
+  sendMetrics: obj['send-metrics'],
+  registry: obj.registry,
+  scope: obj.scope,
+  access: obj.access,
+  alwaysAuth: obj['always-auth'],
+  audit: obj.audit,
+  auditLevel: obj['audit-level'],
+  authType: obj['auth-type'],
+  ssoType: obj['sso-type'],
+  ssoPollFrequency: obj['sso-poll-frequency'],
+  before: obj.before,
+  browser: obj.browser,
+  ca: obj.ca,
+  cafile: obj.cafile,
+  cert: obj.cert,
+  key: obj.key,
+
+  // token creation options
+  cidr: obj.cidr,
+  readOnly: obj['read-only'],
+
+  // npm version options
+  preid: obj.preid,
+  tagVersionPrefix: obj['tag-version-prefix'],
+  allowSameVersion: obj['allow-same-version'],
+
+  // npm version git options
+  message: obj.message,
+  commitHooks: obj['commit-hooks'],
+  gitTagVersion: obj['git-tag-version'],
+  signGitCommit: obj['sign-git-commit'],
+  signGitTag: obj['sign-git-tag'],
+
+  // only used for npm ls in v7, not update
+  depth: obj.depth,
+  all: obj.all,
+
+  // Output configs
+  unicode: obj.unicode,
+  json: obj.json,
+  long: obj.long,
+  parseable: obj.parseable,
+
+  // options for npm search
+  search: {
+    description: obj.description,
+    exclude: obj.searchexclude,
+    limit: obj.searchlimit || 20,
+    opts: obj.searchopts,
+    staleness: obj.searchstaleness,
+  },
+
+  dryRun: obj['dry-run'],
+  engineStrict: obj['engine-strict'],
+
+  retry: {
+    retries: obj['fetch-retries'],
+    factor: obj['fetch-retry-factor'],
+    maxTimeout: obj['fetch-retry-maxtimeout'],
+    minTimeout: obj['fetch-retry-mintimeout'],
+  },
+
+  timeout: obj['fetch-timeout'],
+
+  force: obj.force,
+
+  formatPackageLock: obj['format-package-lock'],
+  fund: obj.fund,
+
+  // binary locators
+  git: obj.git,
+  viewer: obj.viewer,
+  editor: obj.editor,
+
+  // configs that affect how we build trees
+  binLinks: obj['bin-links'],
+  rebuildBundle: obj['rebuild-bundle'],
+  // --no-shrinkwrap is the same as --no-package-lock
+  packageLock: !(obj['package-lock'] === false ||
+    obj.shrinkwrap === false),
+  packageLockOnly: obj['package-lock-only'],
+  globalStyle: obj['global-style'],
+  legacyBundling: obj['legacy-bundling'],
+  scriptShell: obj['script-shell'] || undefined,
+  shell: obj.shell,
+  omit: buildOmitList(obj),
+  legacyPeerDeps: obj['legacy-peer-deps'],
+  strictPeerDeps: obj['strict-peer-deps'],
+
+  // npx stuff
+  call: obj.call,
+  package: obj.package,
+
+  // used to build up the appropriate {add:{...}} options to Arborist.reify
+  save: obj.save,
+  saveBundle: obj['save-bundle'] && !obj['save-peer'],
+  saveType: obj['save-optional'] && obj['save-peer']
+    ? 'peerOptional'
+    : obj['save-optional'] ? 'optional'
+    : obj['save-dev'] ? 'dev'
+    : obj['save-peer'] ? 'peer'
+    : obj['save-prod'] ? 'prod'
+    : null,
+  savePrefix: obj['save-exact'] ? ''
+  : obj['save-prefix'],
+
+  // configs for npm-registry-fetch
+  otp: obj.otp,
+  offline: obj.offline,
+  preferOffline: getPreferOffline(obj),
+  preferOnline: getPreferOnline(obj),
+  strictSSL: obj['strict-ssl'],
+  defaultTag: obj.tag,
+  userAgent: obj['user-agent'],
+
+  // yes, it's fine, just do it, jeez, stop asking
+  yes: obj.yes,
+
+  ...getScopesAndAuths(obj),
+
+  // npm fund exclusive option to select an item from a funding list
+  which: obj.which,
+
+  // socks proxy can be configured in https-proxy or proxy field
+  // note that the various (HTTPS_|HTTP_|]PROXY environs will be
+  // respected if this is not set.
+  proxy: obj['https-proxy'] || obj.proxy,
+  noProxy: obj.noproxy,
+})
+
 const flatOptions = npm => npm.flatOptions || Object.freeze({
+  // flatten the config object
+  ...flatten(npm.config.list[0]),
+
   // Note that many of these do not come from configs or cli flags
   // per se, though they may be implied or defined by them.
   log,
@@ -39,14 +186,9 @@ const flatOptions = npm => npm.flatOptions || Object.freeze({
   umask: npm.modes.umask,
   hashAlgorithm: 'sha1', // XXX should this be sha512?
   color: !!npm.color,
-  includeStaged: npm.config.get('include-staged'),
-
-  preferDedupe: npm.config.get('prefer-dedupe'),
-  ignoreScripts: npm.config.get('ignore-scripts'),
-
   projectScope: npm.projectScope,
   npmVersion: npm.version,
-  nodeVersion: npm.config.get('node-version'),
+
   // npm.command is not set until AFTER flatOptions are defined
   // so we need to make this a getter.
   get npmCommand () {
@@ -54,194 +196,42 @@ const flatOptions = npm => npm.flatOptions || Object.freeze({
   },
 
   tmp: npm.tmp,
-  cache: join(npm.config.get('cache'), '_cacache'),
   prefix: npm.prefix,
   globalPrefix: npm.globalPrefix,
   localPrefix: npm.localPrefix,
-  global: npm.config.get('global'),
-
-  metricsRegistry: npm.config.get('metrics-registry') ||
-    npm.config.get('registry'),
-  sendMetrics: npm.config.get('send-metrics'),
-  registry: npm.config.get('registry'),
-  scope: npm.config.get('scope'),
-  access: npm.config.get('access'),
-  alwaysAuth: npm.config.get('always-auth'),
-  audit: npm.config.get('audit'),
-  auditLevel: npm.config.get('audit-level'),
-  authType: npm.config.get('auth-type'),
-  ssoType: npm.config.get('sso-type'),
-  ssoPollFrequency: npm.config.get('sso-poll-frequency'),
-  before: npm.config.get('before'),
-  browser: npm.config.get('browser'),
-  ca: npm.config.get('ca'),
-  cafile: npm.config.get('cafile'),
-  cert: npm.config.get('cert'),
-  key: npm.config.get('key'),
-
-  // XXX remove these when we don't use lockfile any more, once
-  // arborist is handling the installation process
-  cacheLockRetries: npm.config.get('cache-lock-retries'),
-  cacheLockStale: npm.config.get('cache-lock-stale'),
-  cacheLockWait: npm.config.get('cache-lock-wait'),
-  lockFile: {
-    retries: npm.config.get('cache-lock-retries'),
-    stale: npm.config.get('cache-lock-stale'),
-    wait: npm.config.get('cache-lock-wait'),
-  },
-
-  // XXX remove these once no longer used
-  get cacheMax () {
-    return npm.config.get('cache-max')
-  },
-  get cacheMin () {
-    return npm.config.get('cache-min')
-  },
-
-  // token creation options
-  cidr: npm.config.get('cidr'),
-  readOnly: npm.config.get('read-only'),
-
-  // npm version options
-  preid: npm.config.get('preid'),
-  tagVersionPrefix: npm.config.get('tag-version-prefix'),
-  allowSameVersion: npm.config.get('allow-same-version'),
-
-  // npm version git options
-  message: npm.config.get('message'),
-  commitHooks: npm.config.get('commit-hooks'),
-  gitTagVersion: npm.config.get('git-tag-version'),
-  signGitCommit: npm.config.get('sign-git-commit'),
-  signGitTag: npm.config.get('sign-git-tag'),
-
-  // only used for npm ls in v7, not update
-  depth: npm.config.get('depth'),
-  all: npm.config.get('all'),
-
-  // Output configs
-  unicode: npm.config.get('unicode'),
-  json: npm.config.get('json'),
-  long: npm.config.get('long'),
-  parseable: npm.config.get('parseable'),
-
-  // options for npm search
-  search: {
-    description: npm.config.get('description'),
-    exclude: npm.config.get('searchexclude'),
-    limit: npm.config.get('searchlimit') || 20,
-    opts: npm.config.get('searchopts'),
-    staleness: npm.config.get('searchstaleness'),
-  },
-
-  dryRun: npm.config.get('dry-run'),
-  engineStrict: npm.config.get('engine-strict'),
-
-  retry: {
-    retries: npm.config.get('fetch-retries'),
-    factor: npm.config.get('fetch-retry-factor'),
-    maxTimeout: npm.config.get('fetch-retry-maxtimeout'),
-    minTimeout: npm.config.get('fetch-retry-mintimeout'),
-  },
-
-  timeout: npm.config.get('fetch-timeout'),
-
-  force: npm.config.get('force'),
-
-  formatPackageLock: npm.config.get('format-package-lock'),
-  fund: npm.config.get('fund'),
-
-  // binary locators
-  git: npm.config.get('git'),
-  npmBin: require.main.filename,
+  npmBin: require.main && require.main.filename,
   nodeBin: process.env.NODE || process.execPath,
-  viewer: npm.config.get('viewer'),
-  editor: npm.config.get('editor'),
-
-  // configs that affect how we build trees
-  binLinks: npm.config.get('bin-links'),
-  rebuildBundle: npm.config.get('rebuild-bundle'),
-  // --no-shrinkwrap is the same as --no-package-lock
-  packageLock: !(npm.config.get('package-lock') === false ||
-    npm.config.get('shrinkwrap') === false),
-  packageLockOnly: npm.config.get('package-lock-only'),
-  globalStyle: npm.config.get('global-style'),
-  legacyBundling: npm.config.get('legacy-bundling'),
-  scriptShell: npm.config.get('script-shell') || undefined,
-  shell: npm.config.get('shell'),
-  omit: buildOmitList(npm),
-  legacyPeerDeps: npm.config.get('legacy-peer-deps'),
-  strictPeerDeps: npm.config.get('strict-peer-deps'),
-
-  // npx stuff
-  call: npm.config.get('call'),
-  package: npm.config.get('package'),
-
-  // used to build up the appropriate {add:{...}} options to Arborist.reify
-  save: npm.config.get('save'),
-  saveBundle: npm.config.get('save-bundle') && !npm.config.get('save-peer'),
-  saveType: npm.config.get('save-optional') && npm.config.get('save-peer')
-    ? 'peerOptional'
-    : npm.config.get('save-optional') ? 'optional'
-    : npm.config.get('save-dev') ? 'dev'
-    : npm.config.get('save-peer') ? 'peer'
-    : npm.config.get('save-prod') ? 'prod'
-    : null,
-  savePrefix: npm.config.get('save-exact') ? ''
-  : npm.config.get('save-prefix'),
-
-  // configs for npm-registry-fetch
-  otp: npm.config.get('otp'),
-  offline: npm.config.get('offline'),
-  preferOffline: getPreferOffline(npm),
-  preferOnline: getPreferOnline(npm),
-  strictSSL: npm.config.get('strict-ssl'),
-  defaultTag: npm.config.get('tag'),
   get tag () {
     return npm.config.get('tag')
   },
-  userAgent: npm.config.get('user-agent'),
-
-  // yes, it's fine, just do it, jeez, stop asking
-  yes: npm.config.get('yes'),
-
-  ...getScopesAndAuths(npm),
-
-  // npm fund exclusive option to select an item from a funding list
-  which: npm.config.get('which'),
-
-  // socks proxy can be configured in https-proxy or proxy field
-  // note that the various (HTTPS_|HTTP_|)PROXY environs will be
-  // respected if this is not set.
-  proxy: npm.config.get('https-proxy') || npm.config.get('proxy'),
-  noProxy: npm.config.get('noproxy'),
 })
 
-const getPreferOnline = npm => {
-  const po = npm.config.get('prefer-online')
+const getPreferOnline = obj => {
+  const po = obj['prefer-online']
   if (po !== undefined)
     return po
 
-  return npm.config.get('cache-max') <= 0
+  return obj['cache-max'] <= 0
 }
 
-const getPreferOffline = npm => {
-  const po = npm.config.get('prefer-offline')
+const getPreferOffline = obj => {
+  const po = obj['prefer-offline']
   if (po !== undefined)
     return po
 
-  return npm.config.get('cache-min') >= 9999
+  return obj['cache-min'] >= 9999
 }
 
 // pull out all the @scope:<key> and //host:key config fields
 // these are used by npm-registry-fetch for authing against registries
-const getScopesAndAuths = npm => {
+const getScopesAndAuths = obj => {
   const scopesAndAuths = {}
   // pull out all the @scope:... configs into a flat object.
-  for (const key in npm.config.list[0]) {
+  for (const key in obj) {
     if (/@.*:registry$/i.test(key) || /^\/\//.test(key))
-      scopesAndAuths[key] = npm.config.get(key)
+      scopesAndAuths[key] = obj[key]
   }
   return scopesAndAuths
 }
 
-module.exports = flatOptions
+module.exports = Object.assign(flatOptions, { flatten })

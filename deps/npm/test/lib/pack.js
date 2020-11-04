@@ -119,7 +119,7 @@ t.test('should log pack contents', (t) => {
       ...require('../../lib/utils/tar.js'),
       logTar: () => {
         t.ok(true, 'logTar is called')
-      }
+      } 
     },
     '../../lib/npm.js': {
       flatOptions: {

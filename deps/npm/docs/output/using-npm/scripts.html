@@ -266,14 +266,14 @@ the process.</p>
 <p>If you depend on modules that define executable scripts, like test
 suites, then those executables will be added to the <code>PATH</code> for
 executing the scripts.  So, if your package.json has this:</p>
-<pre lang="json"><code>{
-  "name" : "foo",
-  "dependencies" : {
-    "bar" : "0.1.x"
-  },
-  "scripts": {
-    "start" : "bar ./test"
-  }
+<pre lang="json"><code>{ 
+  "name" : "foo", 
+  "dependencies" : { 
+    "bar" : "0.1.x" 
+  }, 
+  "scripts": { 
+    "start" : "bar ./test" 
+  } 
 }
 </code></pre>
 <p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is
@@ -294,14 +294,14 @@ config by checking the <code>npm_config_root</code> environment variable.</p>
 <p>The package.json “config” keys are overwritten in the environment if
 there is a config param of <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example,
 if the package.json has this:</p>
-<pre lang="json"><code>{
-  "name" : "foo",
-  "config" : {
-    "port" : "8080"
-  },
-  "scripts" : {
-    "start" : "node server.js"
-  }
+<pre lang="json"><code>{ 
+  "name" : "foo", 
+  "config" : { 
+    "port" : "8080" 
+  }, 
+  "scripts" : { 
+    "start" : "node server.js" 
+  } 
 }
 </code></pre>
 <p>and the server.js is this:</p>
@@ -322,10 +322,10 @@ see this in the script:</p>
 </code></pre>
 <h3 id="examples">Examples</h3>
 <p>For example, if your package.json contains this:</p>
-<pre lang="json"><code>{
-  "scripts" : {
-    "install" : "scripts/install.js",
-    "postinstall" : "scripts/postinstall.js",
+<pre lang="json"><code>{ 
+  "scripts" : { 
+    "install" : "scripts/install.js", 
+    "postinstall" : "scripts/postinstall.js", 
     "uninstall" : "scripts/uninstall.js"
   }
 }
@@ -338,10 +338,10 @@ be wise in this case to look at the <code>npm_lifecycle_event</code> environment
 variable.</p>
 <p>If you want to run a make command, you can do so.  This works just
 fine:</p>
-<pre lang="json"><code>{
-  "scripts" : {
-    "preinstall" : "./configure",
-    "install" : "make &amp;&amp; make install",
+<pre lang="json"><code>{ 
+  "scripts" : { 
+    "preinstall" : "./configure", 
+    "install" : "make &amp;&amp; make install", 
     "test" : "make test"
   }
 }

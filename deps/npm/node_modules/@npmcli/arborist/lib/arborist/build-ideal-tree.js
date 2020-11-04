@@ -759,6 +759,11 @@ This is a one-time fix-up, please be patient...
       // be forced to agree on a version of z.
       const dep = vrDep && vrDep.satisfies(edge) ? vrDep
         : await this[_nodeFromEdge](edge, edge.peer ? virtualRoot : null)
+      /* istanbul ignore next */
+      debug(() => {
+        if (!dep)
+          throw new Error('no dep??')
+      })
       tasks.push({edge, dep})
     }
 
@@ -1055,13 +1060,18 @@ This is a one-time fix-up, please be patient...
     // top nodes should still get peer deps from their fsParent if possible,
     // and only install locally if there's no other option, eg for a link
     // outside of the project root, or for a conflicted dep.
-    const start = edge.peer && !node.isRoot
-      ? node.resolveParent || node
+    const start = edge.peer && !node.isRoot ? node.resolveParent || node
       : node
 
     let target
     let canPlace = null
     for (let check = start; check; check = check.resolveParent) {
+      // if the current location has a peerDep on it, then we can't place here
+      // this is pretty rare to hit, since we always prefer deduping peers.
+      const checkEdge = check.edgesOut.get(edge.name)
+      if (!check.isTop && checkEdge && checkEdge.peer)
+        continue
+
       const cp = this[_canPlaceDep](dep, check, edge, peerEntryEdge, peerPath)
 
       // anything other than a conflict is fine to proceed with
@@ -1210,9 +1220,15 @@ This is a one-time fix-up, please be patient...
     // otherwise they'd be gone and the peer set would change throughout
     // this loop.
     for (const peerEdge of newDep.edgesOut.values()) {
-      if (!peerEdge.peer || peerEdge.valid)
-        continue
       const peer = virtualRoot.children.get(peerEdge.name)
+
+      // Note: if the virtualRoot *doesn't* have the peer, then that means
+      // it's an optional peer dep.  If it's not being properly met (ie,
+      // peerEdge.valid is false), that this is likely heading for an
+      // ERESOLVE error, unless it can walk further up the tree.
+      if (!peerEdge.peer || peerEdge.valid || !peer)
+        continue
+
       const peerPlaced = this[_placeDep](
         peer, newDep, peerEdge, peerEntryEdge || edge, peerPath)
       placed.push(...peerPlaced)
@@ -1264,6 +1280,11 @@ This is a one-time fix-up, please be patient...
   // When we check peers, we pass along the peerEntryEdge to track the
   // original edge that caused us to load the family of peer dependencies.
   [_canPlaceDep] (dep, target, edge, peerEntryEdge = null, peerPath = []) {
+    /* istanbul ignore next */
+    debug(() => {
+      if (!dep)
+        throw new Error('no dep??')
+    })
     const entryEdge = peerEntryEdge || edge
     const source = this[_peerSetSource].get(dep)
     const isSource = target === source
@@ -1308,7 +1329,10 @@ This is a one-time fix-up, please be patient...
         return KEEP
 
       // if we prefer deduping, then try replacing newer with older
-      if (this[_preferDedupe] && !tryReplace && dep.canReplace(current)) {
+      // we always prefer to dedupe peers, because they are trying
+      // a bit harder to be singletons.
+      const preferDedupe = this[_preferDedupe] || edge.peer
+      if (preferDedupe && !tryReplace && dep.canReplace(current)) {
         const res = this[_canPlacePeers](dep, target, edge, REPLACE, peerEntryEdge, peerPath)
         /* istanbul ignore else - It's extremely rare that a replaceable
          * node would be a conflict, if the current one wasn't a conflict,

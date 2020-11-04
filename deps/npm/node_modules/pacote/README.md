@@ -1,6 +1,6 @@
 # pacote
 
-JavaScript Package Handler
+Fetches package manifests and tarballs from the npm registry.
 
 ## USAGE
 
@@ -21,9 +21,19 @@ pacote.tarball('https://server.com/package.tgz').then(data => {
 })
 ```
 
-Anything that you can do to with kind of package, you can do to any kind of
-package.  Data that isn't relevant (like a packument for a tarball) will be
+`pacote` works with any kind of package specifier that npm can install.  If
+you can pass it to the npm CLI, you can pass it to pacote.  (In fact, that's
+exactly what the npm CLI does.)
+
+Anything that you can do with one kind of package, you can do with another.
+
+Data that isn't relevant (like a packument for a tarball) will be
 simulated.
+
+`prepare` scripts will be run when generating tarballs from `git` and
+`directory` locations, to simulate what _would_ be published to the
+registry, so that you get a working package instead of just raw source
+code that might need to be transpiled.
 
 ## CLI
 

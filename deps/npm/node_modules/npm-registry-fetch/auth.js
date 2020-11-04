@@ -5,7 +5,8 @@ const url = require('url')
 
 module.exports = getAuth
 function getAuth (registry, opts_ = {}) {
-  if (!registry) { throw new Error('registry is required') }
+  if (!registry)
+    throw new Error('registry is required')
   const opts = opts_.forceAuth ? opts_.forceAuth : { ...defaultOpts, ...opts_ }
   const AUTH = {}
   const regKey = registry && registryKey(registry)
@@ -19,9 +20,9 @@ function getAuth (registry, opts_ = {}) {
   doKey('_auth')
   doKey('otp')
   doKey('always-auth', 'alwaysAuth')
-  if (AUTH.password) {
+  if (AUTH.password)
     AUTH.password = Buffer.from(AUTH.password, 'base64').toString('utf8')
-  }
+
   if (AUTH._auth && !(AUTH.username && AUTH.password)) {
     let auth = Buffer.from(AUTH._auth, 'base64').toString()
     auth = auth.split(':')
@@ -33,12 +34,11 @@ function getAuth (registry, opts_ = {}) {
 }
 
 function addKey (opts, obj, scope, key, objKey) {
-  if (opts[key]) {
+  if (opts[key])
     obj[objKey || key] = opts[key]
-  }
-  if (scope && opts[`${scope}:${key}`]) {
+
+  if (scope && opts[`${scope}:${key}`])
     obj[objKey || key] = opts[`${scope}:${key}`]
-  }
 }
 
 // Called a nerf dart in the main codebase. Used as a "safe"
@@ -49,7 +49,7 @@ function registryKey (registry) {
     protocol: parsed.protocol,
     host: parsed.host,
     pathname: parsed.pathname,
-    slashes: true
+    slashes: true,
   })
   return url.format(new url.URL('.', formatted)).replace(/^[^:]+:/, '')
 }

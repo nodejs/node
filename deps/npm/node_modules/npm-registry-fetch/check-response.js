@@ -8,9 +8,9 @@ const defaultOpts = require('./default-opts.js')
 module.exports = checkResponse
 function checkResponse (method, res, registry, startTime, opts_ = {}) {
   const opts = { ...defaultOpts, ...opts_ }
-  if (res.headers.has('npm-notice') && !res.headers.has('x-local-cache')) {
+  if (res.headers.has('npm-notice') && !res.headers.has('x-local-cache'))
     opts.log.notice('', res.headers.get('npm-notice'))
-  }
+
   checkWarnings(res, registry, opts)
   if (res.status >= 400) {
     logRequest(method, res, startTime, opts)
@@ -35,9 +35,9 @@ function logRequest (method, res, startTime, opts) {
   try {
     const { URL } = require('url')
     const url = new URL(res.url)
-    if (url.password) {
+    if (url.password)
       url.password = '***'
-    }
+
     urlStr = url.toString()
   } catch (er) {
     urlStr = res.url
@@ -58,7 +58,8 @@ function checkWarnings (res, registry, opts) {
     // note: headers.raw() will preserve case, so we might have a
     // key on the object like 'WaRnInG' if that was used first
     for (const [key, value] of Object.entries(res.headers.raw())) {
-      if (key.toLowerCase() !== 'warning') { continue }
+      if (key.toLowerCase() !== 'warning')
+        continue
       value.forEach(w => {
         const match = w.match(WARNING_REGEXP)
         if (match) {
@@ -66,18 +67,17 @@ function checkWarnings (res, registry, opts) {
             code: match[1],
             host: match[2],
             message: match[3],
-            date: new Date(match[4])
+            date: new Date(match[4]),
           }
         }
       })
     }
     BAD_HOSTS.set(registry, true)
     if (warnings['199']) {
-      if (warnings['199'].message.match(/ENOTFOUND/)) {
+      if (warnings['199'].message.match(/ENOTFOUND/))
         opts.log.warn('registry', `Using stale data from ${registry} because the host is inaccessible -- are you offline?`)
-      } else {
+      else
         opts.log.warn('registry', `Unexpected warning for ${registry}: ${warnings['199'].message}`)
-      }
     }
     if (warnings['111']) {
       // 111 Revalidation failed -- we're using stale data
