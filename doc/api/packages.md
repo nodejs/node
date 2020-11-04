@@ -879,6 +879,8 @@ The following fields in `package.json` files are used in Node.js:
   by package managers as the name of the package.
 * [`"main"`][] - The default module when loading the package, if exports is not
   specified, and in versions of Node.js prior to the introduction of exports.
+* [`"packageManager"`][] - The package manager recommended when contributing to
+  the package. Leveraged by the [Corepack][] shims.
 * [`"type"`][] - The package type determining whether to load `.js` files as
   CommonJS or ES modules.
 * [`"exports"`][] - Package exports and conditional exports. When present,
