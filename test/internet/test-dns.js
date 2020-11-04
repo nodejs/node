@@ -401,7 +401,8 @@ TEST(function test_resolveSoa_failure(done) {
 
 TEST(async function test_resolveCaa(done) {
   function validateResult(result) {
-    assert.ok(Array.isArray(result[0]));
+    assert.ok(Array.isArray(result),
+              `expected array, got ${util.inspect(result)}`);
     assert.strictEqual(result.length, 1);
     assert.strictEqual(typeof result[0].critical, 'number');
     assert.strictEqual(result[0].critical, 0);
