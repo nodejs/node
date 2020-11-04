@@ -7,14 +7,19 @@
 
 _[Corepack][]_ is an experimental tool shipped with Node.js to help with
 managing versions of your package managers. It exposes binary proxies for
-[Yarn][] and [pnpm][] that, when called, locate the package managers configured
-for your local projects, transparently install them, and finally run them
-without requiring explicit user interaction.
+the [supported package managers][] that, when called, will identify whatever
+package manager is configured for the current project, transparently install
+it if needed, and finally run it without requiring explicit user interactions.
 
-This feature allows you to make sure that everyone in your team is using
-exactly the package manager version you want them to without having to check
-them into your repository or managing complex migrations across developers'
-systems.
+This feature simplifies two core workflows:
+
+* It eases new contributor onboarding, since they won't have to follow
+  system-specific installation processes anymore just to have the package
+  manager you want them to.
+
+* It allows you to ensure that everyone in your team will use exactly the
+  package manager version you intend them to, without them having to
+  manually synchronize it each time you need to make an update.
 
 ## Workflows
 
@@ -25,18 +30,20 @@ enabled to have any effect. To do that simply run [`corepack enable`][], which
 will set up the symlinks in your environment, next to the `node` binary
 (and overwrite the existing symlinks if necessary).
 
-From this point forward, any call to the `yarn`, `pnpm`, or `pnpx` binaries
-will work without further setup. Should you experience a problem, just run
+From this point forward, any call to the [supported binaries][] will work
+without further setup. Should you experience a problem, just run
 [`corepack disable`][] to remove the proxies from your system (and consider
 opening up an issue on the [Corepack repository][] to let us know).
 
 ### Configuring a package
 
-The Corepack proxies will find the closest [`package.json`][] files in your
-directory hierarchy to extract their [`"packageManager"`][] property.
+The Corepack proxies will find the closest [`package.json`][] file in your
+current directory hierarchy to extract its [`"packageManager"`][] property.
 
-If the requested package manager is [supported][], Corepack will make sure that
-all calls to the relevant binaries are run against the requested version.
+If the value corresponds to a [supported package manager][], Corepack will make
+sure that all calls to the relevant binaries are run against the requested
+version, downloading it on demand if needed, and aborting if it cannot be
+successfully retrieved.
 
 ### Upgrading the global versions
 
@@ -64,7 +71,12 @@ The `prepare` command has [various flags][], consult the detailed
 
 ## Supported package managers
 
-Both [Yarn][] and [pnpm][] are supported by Corepack.
+The following binaries are provided through Corepack:
+
+| Package manager | Binary names   |
+| --------------- | -------------- |
+| [Yarn][]        | `yarn`         |
+| [pnpm][]        | `pnpm`, `pnpx` |
 
 ## Troubleshooting
 
@@ -91,5 +103,7 @@ that happen, run [`corepack enable`][] again to add them back).
 [`corepack prepare`]: https://github.com/nodejs/corepack#corepack-prepare--nameversion
 [`package.json`]: packages.md
 [pnpm]: https://pnpm.js.org
-[supported]: #supported-package-managers
+[supported binaries]: #supported-package-managers
+[supported package manager]: #supported-package-managers
+[supported package managers]: #supported-package-managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands
