@@ -1008,6 +1008,8 @@ class Assembler : public AssemblerBase {
              RCBit rc = LeaveRC);
   void fabs(const DoubleRegister frt, const DoubleRegister frb,
             RCBit rc = LeaveRC);
+  void fnabs(const DoubleRegister frt, const DoubleRegister frb,
+            RCBit rc = LeaveRC);
   void fmadd(const DoubleRegister frt, const DoubleRegister fra,
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);

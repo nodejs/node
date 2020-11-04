@@ -203,11 +203,7 @@ constexpr int kReturnAddressStackSlotCount =
     V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
 
 // Number of bits to represent the page size for paged spaces.
-#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
-// PPC has large (64KB) physical pages.
-const int kPageSizeBits = 19;
-#else
+// Use 4KB for all targets. Not all PPC Linux kernels use 64KB pages.
 const int kPageSizeBits = 18;
-#endif
 
 #endif  // V8_BASE_BUILD_CONFIG_H_

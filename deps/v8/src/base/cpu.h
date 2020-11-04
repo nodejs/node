@@ -66,10 +66,12 @@ class V8_BASE_EXPORT CPU final {
   // PPC-specific part codes
   enum {
     PPC_POWER5,
+    PPC_POWER5_PLUS,
     PPC_POWER6,
     PPC_POWER7,
     PPC_POWER8,
     PPC_POWER9,
+    PPC_G3,
     PPC_G4,
     PPC_G5,
     PPC_PA6T
