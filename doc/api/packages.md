@@ -1108,6 +1108,6 @@ This field defines [subpath imports][] for the current package.
 [subpath exports]: #packages_subpath_exports
 [subpath imports]: #packages_subpath_imports
 [subpath patterns]: #packages_subpath_patterns
-[supported package managers]: corepack.md#supported-package-managers
+[supported package managers]: corepack.md#corepack_supported_package_managers
 [the full specifier path]: esm.md#esm_mandatory_file_extensions
 [the dual CommonJS/ES module packages section]: #packages_dual_commonjs_es_module_packages
