@@ -950,7 +950,7 @@ Here is an example of the result object:
     minttl: 60 } ]
 ```
 
-## `dnsPromises.resolveCaa(hostname)`
+### `dnsPromises.resolveCaa(hostname)`
 <!-- YAML
 added: v15.0.0
 -->
