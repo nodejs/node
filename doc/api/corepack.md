@@ -7,7 +7,7 @@
 
 _[Corepack][]_ is an experimental tool shipped with Node.js to help with
 managing versions of your package managers. It exposes binary proxies for
-the [supported package managers][] that, when called, will identify whatever
+each [supported package manager][] that, when called, will identify whatever
 package manager is configured for the current project, transparently install
 it if needed, and finally run it without requiring explicit user interactions.
 
@@ -105,5 +105,4 @@ that happen, run [`corepack enable`][] again to add them back).
 [pnpm]: https://pnpm.js.org
 [supported binaries]: #supported-package-managers
 [supported package manager]: #supported-package-managers
-[supported package managers]: #supported-package-managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands
