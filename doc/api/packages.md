@@ -955,9 +955,9 @@ added: REPLACEME
 
 The `"packageManager"` field defines which package manager is expected to be
 used when working on the current project. The npm client doesn't use this field
-at the moment, but defining it to any of `yarn` or `pnpm` will let your teams
-use the exact same package manager versions without installing anything else
-than Node.js.
+at the moment, but defining it to any of the [supported package managers][]
+will let your teams use the exact same package manager versions without
+installing anything else than Node.js.
 
 This field is currently experimental and needs to be opted-in, together with
 the [Corepack][] utility.
@@ -1108,5 +1108,6 @@ This field defines [subpath imports][] for the current package.
 [subpath exports]: #packages_subpath_exports
 [subpath imports]: #packages_subpath_imports
 [subpath patterns]: #packages_subpath_patterns
+[supported package managers]: corepack.md#supported-package-managers
 [the full specifier path]: esm.md#esm_mandatory_file_extensions
 [the dual CommonJS/ES module packages section]: #packages_dual_commonjs_es_module_packages
