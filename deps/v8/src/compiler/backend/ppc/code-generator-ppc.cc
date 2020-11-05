@@ -295,50 +295,6 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     }                                                                \
   } while (0)
 
-#define ASSEMBLE_FLOAT_ROUNDOP_RC(rounding_mode, round)              \
-  do {                                                               \
-    DoubleRegister input_reg = i.InputDoubleRegister(0);             \
-    DoubleRegister result_reg = i.OutputDoubleRegister();            \
-    Label positive, negative, done;                                  \
-    __ fcmpu(input_reg, kDoubleRegZero);                             \
-    __ bgt(&positive);                                               \
-    __ blt(&negative);                                               \
-    /* if input is 0.0 or NaN, we're done */                         \
-    __ b(&done);                                                     \
-    __ bind(&negative);                                              \
-    __ LoadDoubleLiteral(kScratchDoubleReg, Double(-0x1p+52), kScratchReg);\
-    /* if the magnitude is too big, we're already rounded */         \
-    __ fcmpu(input_reg, kScratchDoubleReg);                          \
-    __ blt(&done);                                                   \
-    __ SetRoundingMode(rounding_mode);                               \
-    /* add a -1 to the left of the mantissa, then subtract it */     \
-    __ fadd(input_reg, input_reg, kScratchDoubleReg);                \
-    __ fsub(input_reg, input_reg, kScratchDoubleReg);                \
-    /* make sure result sign is negative and set RC */               \
-    __ fnabs(input_reg, input_reg, i.OutputRCBit());                 \
-    __ ResetRoundingMode();                                          \
-    __ b(&done);                                                     \
-    __ bind(&positive);                                              \
-    __ LoadDoubleLiteral(kScratchDoubleReg, Double(0x1p+52), kScratchReg);\
-    /* if the magnitude is too big, we're already rounded */         \
-    __ fcmpu(input_reg, kScratchDoubleReg);                          \
-    __ bgt(&done);                                                   \
-    __ SetRoundingMode(rounding_mode);                               \
-    /* add a +1 to the left of the mantissa, then subtract it */     \
-    __ fadd(input_reg, input_reg, kScratchDoubleReg);                \
-    __ fsub(input_reg, input_reg, kScratchDoubleReg);                \
-    /* make sure result sign is positive and set RC */               \
-    __ fabs(input_reg, input_reg, i.OutputRCBit());                  \
-    __ ResetRoundingMode();                                          \
-    __ bind(&done);                                                  \
-    if (input_reg != result_reg) {                                   \
-      __ fmr(result_reg, input_reg);                                 \
-    }                                                                \
-    if (round) {                                                     \
-      __ frsp(result_reg, result_reg);                               \
-    }                                                                \
-  } while (0)
-
 #define ASSEMBLE_FLOAT_BINOP_RC(asm_instr, round)                    \
   do {                                                               \
     __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
@@ -1713,32 +1669,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_FLOAT_UNOP_RC(fsqrt, MiscField::decode(instr->opcode()));
       break;
     case kPPC_FloorDouble:
-      if (CpuFeatures::IsSupported(FP_ROUND_TO_INT)) {
-        ASSEMBLE_FLOAT_UNOP_RC(frim, MiscField::decode(instr->opcode()));
-      } else {
-        ASSEMBLE_FLOAT_ROUNDOP_RC(kRoundToMinusInf, MiscField::decode(instr->opcode()));
-      }
+      ASSEMBLE_FLOAT_UNOP_RC(frim, MiscField::decode(instr->opcode()));
       break;
     case kPPC_CeilDouble:
-      if (CpuFeatures::IsSupported(FP_ROUND_TO_INT)) {
-        ASSEMBLE_FLOAT_UNOP_RC(frip, MiscField::decode(instr->opcode()));
-      } else {
-        ASSEMBLE_FLOAT_ROUNDOP_RC(kRoundToPlusInf, MiscField::decode(instr->opcode()));
-      }
+      ASSEMBLE_FLOAT_UNOP_RC(frip, MiscField::decode(instr->opcode()));
       break;
     case kPPC_TruncateDouble:
-      if (CpuFeatures::IsSupported(FP_ROUND_TO_INT)) {
-        ASSEMBLE_FLOAT_UNOP_RC(friz, MiscField::decode(instr->opcode()));
-      } else {
-        ASSEMBLE_FLOAT_ROUNDOP_RC(kRoundToZero, MiscField::decode(instr->opcode()));
-      }
+      ASSEMBLE_FLOAT_UNOP_RC(friz, MiscField::decode(instr->opcode()));
       break;
     case kPPC_RoundDouble:
-      if (CpuFeatures::IsSupported(FP_ROUND_TO_INT)) {
-        ASSEMBLE_FLOAT_UNOP_RC(frin, MiscField::decode(instr->opcode()));
-      } else {
-        ASSEMBLE_FLOAT_ROUNDOP_RC(kRoundToNearest, MiscField::decode(instr->opcode()));
-      }
+      ASSEMBLE_FLOAT_UNOP_RC(frin, MiscField::decode(instr->opcode()));
       break;
     case kPPC_NegDouble:
       ASSEMBLE_FLOAT_UNOP_RC(fneg, 0);
