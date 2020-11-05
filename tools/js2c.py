@@ -163,9 +163,11 @@ def handle_config_gypi(config_filename):
 def jsonify(config):
   # 1. string comments
   config = re.sub(r'#.*?\n', '', config)
+  # 2. join multiline strings
+  config = re.sub(r"'$\s+'", '', config, flags=re.M)
   # 3. normalize string literals from ' into "
   config = re.sub('\'', '"', config)
-  # 2. turn pseudo-booleans strings into Booleans
+  # 4. turn pseudo-booleans strings into Booleans
   config = re.sub('"true"', 'true', config)
   config = re.sub('"false"', 'false', config)
   return config
