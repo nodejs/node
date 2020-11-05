@@ -707,6 +707,9 @@ see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
 See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
 ### `child_process.escapeArgument(arg)`
+<!-- YAML
+added: REPLACEME
+-->
 
 * `arg` {string} a command line argument to escape.
 * Returns: {string} The escaped argument
