@@ -1493,7 +1493,7 @@ class QueryAaaaWrap: public QueryWrap {
 class QueryCaaWrap: public QueryWrap {
  public:
   QueryCaaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolve6") {
+      : QueryWrap(channel, req_wrap_obj, "resolveCaa") {
   }
 
   int Send(const char* name) override {
