@@ -137,7 +137,7 @@ function badSchedulingOptionTest() {
     assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
     assert.strictEqual(
       err.message,
-      "The argument 'scheduling' must be one of: 'fifo', 'lifo'. " +
+      "The 'scheduling' argument must be one of: 'fifo', 'lifo'. " +
         "Received 'filo'"
     );
   }

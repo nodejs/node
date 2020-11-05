@@ -11,7 +11,7 @@ if (process.argv[2] !== 'child') {
       child_process.spawn(process.execPath, [], { serialization: value });
     }, {
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.serialization' " +
+      message: "The 'options.serialization' property " +
         "must be one of: undefined, 'json', 'advanced'. " +
         `Received ${inspect(value)}`
     });

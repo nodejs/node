@@ -42,7 +42,7 @@ assert.throws(() => fs.lchmod(f, {}), { code: 'ERR_INVALID_CALLBACK' });
   const errObj = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: 'The argument \'mode\' must be a 32-bit unsigned integer or an ' +
+    message: 'The \'mode\' argument must be a 32-bit unsigned integer or an ' +
              `octal string. Received ${util.inspect(input)}`
   };
 

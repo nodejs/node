@@ -54,7 +54,7 @@ assert.throws(() => {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The argument 'hints' is invalid. Received 100"
+    message: "The 'hints' argument is invalid. Received 100"
   };
   const options = {
     hints: 100,
@@ -72,7 +72,7 @@ assert.throws(() => {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The argument 'family' must be one of: 0, 4, 6. Received 20"
+    message: "The 'family' argument must be one of: 0, 4, 6. Received 20"
   };
   const options = {
     hints: 0,

@@ -1082,7 +1082,7 @@ assert.throws(
 assert.throws(
   () => assert.throws(() => { throw new Error(); }, {}),
   {
-    message: "The argument 'error' may not be an empty object. Received {}",
+    message: "The 'error' argument may not be an empty object. Received {}",
     code: 'ERR_INVALID_ARG_VALUE'
   }
 );

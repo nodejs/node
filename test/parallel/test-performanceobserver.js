@@ -58,7 +58,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
                   {
                     code: 'ERR_INVALID_ARG_VALUE',
                     name: 'TypeError',
-                    message: "The property 'options.entryTypes' is invalid. " +
+                    message: "The 'options.entryTypes' property is invalid. " +
                       `Received ${inspect(i)}`
                   });
   });

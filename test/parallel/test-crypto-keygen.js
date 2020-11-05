@@ -536,7 +536,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.paramEncoding' is invalid. " +
+    message: "The 'options.paramEncoding' property is invalid. " +
       "Received 'otherEncoding'"
   });
 }
@@ -583,7 +583,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   assert.throws(() => generateKeyPairSync('rsa2', {}), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The argument 'type' must be a supported key type. Received 'rsa2'"
+    message: "The 'type' argument must be a supported key type. Received 'rsa2'"
   });
 }
 
@@ -659,7 +659,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicKeyEncoding' is invalid. " +
+      message: "The 'options.publicKeyEncoding' property is invalid. " +
         `Received ${inspect(enc)}`
     });
   }
@@ -679,7 +679,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicKeyEncoding.type' is invalid. " +
+      message: "The 'options.publicKeyEncoding.type' property is invalid. " +
         `Received ${inspect(type)}`
     });
   }
@@ -699,7 +699,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicKeyEncoding.format' is invalid. " +
+      message: "The 'options.publicKeyEncoding.format' property is invalid. " +
         `Received ${inspect(format)}`
     });
   }
@@ -716,7 +716,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding' is invalid. " +
+      message: "The 'options.privateKeyEncoding' property is invalid. " +
         `Received ${inspect(enc)}`
     });
   }
@@ -736,7 +736,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.type' is invalid. " +
+      message: "The 'options.privateKeyEncoding.type' property is invalid. " +
         `Received ${inspect(type)}`
     });
   }
@@ -756,7 +756,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.format' is invalid. " +
+      message: "The 'options.privateKeyEncoding.format' property is invalid. " +
         `Received ${inspect(format)}`
     });
   }
@@ -777,7 +777,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.cipher' is invalid. " +
+      message: "The 'options.privateKeyEncoding.cipher' property is invalid. " +
         `Received ${inspect(cipher)}`
     });
   }
@@ -818,7 +818,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.passphrase' " +
+      message: "The 'options.privateKeyEncoding.passphrase' property " +
         `is invalid. Received ${inspect(passphrase)}`
     });
   }
@@ -845,7 +845,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.modulusLength' is invalid. " +
+      message: "The 'options.modulusLength' property is invalid. " +
         `Received ${inspect(modulusLength)}`
     });
   }
@@ -858,7 +858,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicExponent' is invalid. " +
+      message: "The 'options.publicExponent' property is invalid. " +
         `Received ${inspect(publicExponent)}`
     });
   }
@@ -873,7 +873,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.modulusLength' is invalid. " +
+      message: "The 'options.modulusLength' property is invalid. " +
         `Received ${inspect(modulusLength)}`
     });
   }
@@ -886,7 +886,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.divisorLength' is invalid. " +
+      message: "The 'options.divisorLength' property is invalid. " +
         `Received ${inspect(divisorLength)}`
     });
   }
@@ -917,7 +917,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.namedCurve' is invalid. " +
+      message: "The 'options.namedCurve' property is invalid. " +
         `Received ${inspect(namedCurve)}`
     });
   }
@@ -1033,7 +1033,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicKeyEncoding.type' is invalid. " +
+      message: "The 'options.publicKeyEncoding.type' property is invalid. " +
         `Received ${inspect(type)}`
     });
   }
@@ -1048,7 +1048,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.hash' is invalid. " +
+      message: "The 'options.hash' property is invalid. " +
         `Received ${inspect(hashValue)}`
     });
   }
@@ -1064,7 +1064,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.type' is invalid. " +
+      message: "The 'options.privateKeyEncoding.type' property is invalid. " +
         `Received ${inspect(type)}`
     });
   }
@@ -1165,7 +1165,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.mgf1Hash' is invalid. " +
+        message: "The 'options.mgf1Hash' property is invalid. " +
           `Received ${inspect(mgf1Hash)}`
 
       }

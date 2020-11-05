@@ -76,7 +76,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The property 'options.padding' is invalid. Received null",
+    message: "The 'options.padding' property is invalid. Received null",
   });
 
 assert.throws(
@@ -87,7 +87,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The property 'options.saltLength' is invalid. Received null",
+    message: "The 'options.saltLength' property is invalid. Received null",
   });
 
 // Test signing and verifying

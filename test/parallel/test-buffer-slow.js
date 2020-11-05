@@ -54,7 +54,7 @@ assert.throws(() => SlowBuffer(true), bufferInvalidTypeMsg);
 const bufferMaxSizeMsg = {
   code: 'ERR_INVALID_ARG_VALUE',
   name: 'RangeError',
-  message: /^The argument 'size' is invalid\. Received [^"]*$/
+  message: /^The 'size' argument is invalid\. Received [^"]*$/
 };
 assert.throws(() => SlowBuffer(NaN), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(Infinity), bufferMaxSizeMsg);

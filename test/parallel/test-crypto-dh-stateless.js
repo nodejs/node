@@ -92,13 +92,13 @@ const bobPublicKey = crypto.createPublicKey({
 assert.throws(() => crypto.diffieHellman({ privateKey: alicePrivateKey }), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_VALUE',
-  message: "The property 'options.publicKey' is invalid. Received undefined"
+  message: "The 'options.publicKey' property is invalid. Received undefined"
 });
 
 assert.throws(() => crypto.diffieHellman({ publicKey: alicePublicKey }), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_VALUE',
-  message: "The property 'options.privateKey' is invalid. Received undefined"
+  message: "The 'options.privateKey' property is invalid. Received undefined"
 });
 
 const privateKey = Buffer.from(

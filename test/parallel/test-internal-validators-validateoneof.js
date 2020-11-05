@@ -11,7 +11,7 @@ const { validateOneOf } = require('internal/validators');
   assert.throws(() => validateOneOf(1, 'name', allowed), {
     code: 'ERR_INVALID_ARG_VALUE',
     // eslint-disable-next-line quotes
-    message: `The argument 'name' must be one of: 2, 3. Received 1`
+    message: `The 'name' argument must be one of: 2, 3. Received 1`
   });
 }
 
@@ -26,7 +26,7 @@ const { validateOneOf } = require('internal/validators');
   assert.throws(() => validateOneOf('a', 'name', allowed), {
     code: 'ERR_INVALID_ARG_VALUE',
     // eslint-disable-next-line quotes
-    message: `The argument 'name' must be one of: 'b', 'c'. Received 'a'`
+    message: `The 'name' argument must be one of: 'b', 'c'. Received 'a'`
   });
 }
 
@@ -41,7 +41,7 @@ const { validateOneOf } = require('internal/validators');
   assert.throws(() => validateOneOf(Symbol.for('a'), 'name', allowed), {
     code: 'ERR_INVALID_ARG_VALUE',
     // eslint-disable-next-line quotes
-    message: `The argument 'name' must be one of: Symbol(b), Symbol(c). ` +
+    message: `The 'name' argument must be one of: Symbol(b), Symbol(c). ` +
       'Received Symbol(a)'
   });
 }

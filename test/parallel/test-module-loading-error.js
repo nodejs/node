@@ -81,7 +81,7 @@ assert.throws(
   {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: 'The argument \'id\' must be a non-empty string. Received \'\''
+    message: 'The \'id\' argument must be a non-empty string. Received \'\''
   });
 
 assert.throws(

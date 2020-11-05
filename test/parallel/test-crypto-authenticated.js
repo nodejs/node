@@ -330,7 +330,7 @@ for (const test of TEST_CASES) {
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.authTagLength' is invalid. " +
+      message: "The 'options.authTagLength' property is invalid. " +
                `Received ${inspect(authTagLength)}`
     });
 
@@ -344,7 +344,7 @@ for (const test of TEST_CASES) {
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.authTagLength' is invalid. " +
+      message: "The 'options.authTagLength' property is invalid. " +
         `Received ${inspect(authTagLength)}`
     });
 
@@ -354,7 +354,7 @@ for (const test of TEST_CASES) {
       }, {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.authTagLength' is invalid. " +
+        message: "The 'options.authTagLength' property is invalid. " +
           `Received ${inspect(authTagLength)}`
       });
 
@@ -363,7 +363,7 @@ for (const test of TEST_CASES) {
       }, {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.authTagLength' is invalid. " +
+        message: "The 'options.authTagLength' property is invalid. " +
           `Received ${inspect(authTagLength)}`
       });
     }
@@ -454,7 +454,7 @@ for (const test of TEST_CASES) {
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.plaintextLength' is invalid. " +
+      message: "The 'options.plaintextLength' property is invalid. " +
         `Received ${inspect(plaintextLength)}`
     });
   }

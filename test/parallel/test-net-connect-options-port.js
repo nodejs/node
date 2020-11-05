@@ -66,7 +66,7 @@ const net = require('net');
     assert.throws(fn, {
       code: 'ERR_INVALID_ARG_VALUE',
       name: 'TypeError',
-      message: /The argument 'hints' is invalid\. Received \d+/
+      message: /The 'hints' argument is invalid\. Received \d+/
     });
   }
 }
