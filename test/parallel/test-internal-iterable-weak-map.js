@@ -20,7 +20,7 @@ const { IterableWeakMap } = require('internal/util/iterable_weak_map');
   setImmediate(() => {
     _cache;
     globalThis.gc();
-    const values = [...wm.values()];
+    const values = [...wm];
     deepStrictEqual(values, ['hello', 'goodbye']);
   });
 }
@@ -35,7 +35,7 @@ const { IterableWeakMap } = require('internal/util/iterable_weak_map');
   wm.set(_cache.moduleA, 'hello');
   wm.set(_cache.moduleB, 'goodbye');
   wm.set(_cache.moduleB, 'goodnight');
-  const values = [...wm.values()];
+  const values = [...wm];
   deepStrictEqual(values, ['hello', 'goodnight']);
 }
 
@@ -51,7 +51,7 @@ const { IterableWeakMap } = require('internal/util/iterable_weak_map');
   wm.set(_cache.moduleB, 'discard');
   wm.set(_cache.moduleC, 'goodbye');
   wm.delete(_cache.moduleB);
-  const values = [...wm.values()];
+  const values = [...wm];
   deepStrictEqual(values, ['hello', 'goodbye']);
 }
 
@@ -66,7 +66,7 @@ const { IterableWeakMap } = require('internal/util/iterable_weak_map');
   wm.set(_cache.moduleA, 'hello');
   wm.set(_cache.moduleC, 'goodbye');
   wm.delete(_cache.moduleB);
-  const values = [...wm.values()];
+  const values = [...wm];
   deepStrictEqual(values, ['hello', 'goodbye']);
 }
 
@@ -82,4 +82,14 @@ const { IterableWeakMap } = require('internal/util/iterable_weak_map');
   wm.set(_cache.moduleB, 'discard');
   wm.set(_cache.moduleC, 'goodbye');
   strictEqual(wm.get(_cache.moduleB), 'discard');
+}
+
+// It returns true for has() if key exists.
+{
+  const wm = new IterableWeakMap();
+  const _cache = {
+    moduleA: {},
+  };
+  wm.set(_cache.moduleA, 'hello');
+  strictEqual(wm.has(_cache.moduleA), true);
 }
