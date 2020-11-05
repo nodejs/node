@@ -141,7 +141,12 @@ if (!common.isWindows) {
 }
 
 {
-  assert.throws(() => fs.fstatSync(9999), { code: 'EBADF' });
+  assert.throws(
+    () => fs.fstatSync(9999),
+    { code: 'EBADF' });
+  assert.throws(
+    () => fs.fstatSync(9999, { throwIfNoEntry: false }),
+    { code: 'EBADF' });
 }
 
 const runCallbackTest = (func, arg, done) => {
