@@ -706,20 +706,20 @@ see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
 
 See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
-### `child_process.escapeArgument(args)`
+### `child_process.escapeArgument(arg)`
 
-* `args` {string[]} list of string arguments.
-* Returns: {ChildProcess}
+* `arg` {string} a command line argument to escape.
+* Returns: {string} The escaped argument
 
 The `child_process.escapeArgument()` accept the user input and safely
-pass it to another command. It is about providing a way to escape a
-string for shell usage.
+escapes user input for usage on a command line. It is about providing
+a way to escape a string for shell usage.
 
 ```js
-const { escapeArgument, child_process } = require('child_process');
+const { escapeArgument } = require('child_process');
 const value = 'Users & Permissions Management';
-escapeValue = child_process.escapeArgument(value);
-child_process.spawn('somescript', escapeValue);
+const escapedValue = escapeArgument(value);
+child_process.spawn('somescript', [escapedValue]);
 ```
 
 ## Synchronous process creation
@@ -1630,7 +1630,7 @@ or [`child_process.fork()`][].
 [`ChildProcess`]: #child_process_child_process
 [`Error`]: errors.md#errors_class_error
 [`EventEmitter`]: events.md#events_class_eventemitter
-[`child_process.escapeArgument()`]: #child_process_child_process_escapeargument_args
+[`child_process.escapeArgument()`]: #child_process_child_process_escapeargument_arg
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
 [`child_process.execFile()`]: #child_process_child_process_execfile_file_args_options_callback
 [`child_process.execFileSync()`]: #child_process_child_process_execfilesync_file_args_options
