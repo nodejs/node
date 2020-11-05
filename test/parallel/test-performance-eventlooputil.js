@@ -22,6 +22,13 @@ if (nodeTiming.loopStart === -1) {
                          { idle: 0, active: 0, utilization: 0 });
 }
 
+const nodeTimingProps = ['name', 'entryType', 'startTime', 'duration',
+                         'nodeStart', 'v8Start', 'environment', 'loopStart',
+                         'loopExit', 'bootstrapComplete', 'idleTime'];
+for (const p of nodeTimingProps)
+  assert.ok(typeof JSON.parse(JSON.stringify(nodeTiming))[p] ===
+    typeof nodeTiming[p]);
+
 setTimeout(mustCall(function r() {
   const elu1 = eventLoopUtilization();
 
