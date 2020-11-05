@@ -65,6 +65,8 @@ top of [`child_process.spawn()`][] or [`child_process.spawnSync()`][].
 * [`child_process.fork()`][]: spawns a new Node.js process and invokes a
   specified module with an IPC communication channel established that allows
   sending messages between parent and child.
+* [`child_process.escapeArgument()`][]: escapes an argument into a string
+  argument for a shell command.
 * [`child_process.execSync()`][]: a synchronous version of
   [`child_process.exec()`][] that will block the Node.js event loop.
 * [`child_process.execFileSync()`][]: a synchronous version of
@@ -703,6 +705,22 @@ from the child. Applications with a large memory footprint may find frequent
 see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
 
 See also: [`child_process.exec()`][] and [`child_process.fork()`][].
+
+### `child_process.escapeArgument(args)`
+
+* `args` {string[]} list of string arguments.
+* Returns: {ChildProcess}
+
+The `child_process.escapeArgument()` accept the user input and safely
+pass it to another command. It is about providing a way to escape a
+string for shell usage.
+
+```js
+const { escapeArgument, child_process } = require('child_process');
+const value = 'Users & Permissions Management';
+escapeValue = child_process.escapeArgument(value);
+child_process.spawn('somescript', escapeValue);
+```
 
 ## Synchronous process creation
 
@@ -1612,6 +1630,7 @@ or [`child_process.fork()`][].
 [`ChildProcess`]: #child_process_child_process
 [`Error`]: errors.md#errors_class_error
 [`EventEmitter`]: events.md#events_class_eventemitter
+[`child_process.escapeArgument()`]: #child_process_child_process_escapeargument_args
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
 [`child_process.execFile()`]: #child_process_child_process_execfile_file_args_options_callback
 [`child_process.execFileSync()`]: #child_process_child_process_execfilesync_file_args_options
