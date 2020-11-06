@@ -17,6 +17,27 @@
   'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
 }],  # system == macos and asan
 
+['system == macos and arch == arm64 and not simulator_run', {
+  # Throwing C++ exceptions doesn't work; probably because the unittests
+  # binary is built with -fno-exceptions?
+  'LanguageServerJson.LexerError': [SKIP],
+  'LanguageServerJson.ParserError': [SKIP],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [SKIP],
+  'Torque.Enums': [SKIP],
+  'Torque.ImportNonExistentFile': [SKIP],
+
+  # Test uses fancy signal handling. Needs investigation.
+  'MemoryAllocationPermissionsTest.DoTest': [SKIP],
+
+  # cppgc::internal::kGuardPageSize is smaller than kAppleArmPageSize.
+  'PageMemoryRegionTest.PlatformUsesGuardPages': [FAIL],
+
+  # Time tick resolution appears to be ~42 microseconds. Tests expect 1 us.
+  'TimeTicks.NowResolution': [FAIL],
+  'RuntimeCallStatsTest.BasicJavaScript': [SKIP],
+  'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
+}],  # system == macos and arch == arm64 and not simulator_run
+
 ##############################################################################
 ['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
