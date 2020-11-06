@@ -54,9 +54,11 @@ inputs.forEach((file) => {
 
   // Parse source.
   const source = fs.readFileSync(file, 'utf8');
-  const ast = acorn.parse(
-    source,
-    { allowReturnOutsideFunction: true, ecmaVersion: 10, locations: true });
+  const ast = acorn.parse(source, {
+    allowReturnOutsideFunction: true,
+    ecmaVersion: 'latest',
+    locations: true,
+  });
   const program = ast.body;
 
   // Build link
