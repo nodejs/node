@@ -169,6 +169,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
     os << "  page: [" << start << ", " << end << "), access: ";
     switch (access) {
       case PageAllocator::kNoAccess:
+      case PageAllocator::kNoAccessWillJitLater:
         os << "--";
         break;
       case PageAllocator::kRead:
