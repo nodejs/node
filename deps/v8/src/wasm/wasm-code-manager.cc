@@ -1587,7 +1587,11 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   if (!BackingStore::ReserveAddressSpace(size)) return {};
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
-  VirtualMemory mem(page_allocator, size, hint, allocate_page_size);
+  // When we start exposing Wasm in jitless mode, then the jitless flag
+  // will have to determine whether we set kMapAsJittable or not.
+  DCHECK(!FLAG_jitless);
+  VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
+                    VirtualMemory::kMapAsJittable);
   if (!mem.IsReserved()) {
     BackingStore::ReleaseReservation(size);
     return {};

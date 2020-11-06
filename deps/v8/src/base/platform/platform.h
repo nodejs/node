@@ -167,7 +167,10 @@ class V8_BASE_EXPORT OS {
     kReadWrite,
     // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
-    kReadExecute
+    kReadExecute,
+    // TODO(jkummerow): Remove this when Wasm has a platform-independent
+    // w^x implementation.
+    kNoAccessWillJitLater
   };
 
   static bool HasLazyCommits();
