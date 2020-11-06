@@ -1,10 +1,9 @@
-// Flags: --no-warnings --expose-internals
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
 
 const { ok, strictEqual } = require('assert');
-const { Event } = require('internal/event_target');
 
 {
   // Tests that abort is fired with the correct event type on AbortControllers
