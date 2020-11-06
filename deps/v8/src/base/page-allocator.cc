@@ -6,6 +6,10 @@
 
 #include "src/base/platform/platform.h"
 
+#if V8_OS_MACOSX
+#include <sys/mman.h>  // For MAP_JIT.
+#endif
+
 namespace v8 {
 namespace base {
 
