@@ -2699,6 +2699,37 @@ resolutions not in `node_modules`. This means there will not be deprecation
 warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
 runtime warning results no matter where the `"exports"` usage occurs.
 
+### DEP0147: `fs.readdir()`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`fs.readdir()`][] is deprecated. Use [`fsPromises.opendir()`][] instead,
+where possible, otherwise use [`fs.opendir()`][].
+`fs.readdir()` is not fully asynchronous. It is asynchronous while gathering
+the list of directory entries but then sends them to JavaScript as one large
+array. In cases where this array contains hndreds of entries, particularly if
+`withFileTypes` is enabled, this can be quite slow and cause performance
+degredations.
+
+### DEP0148: `fs.readdirSync()`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`fs.readdirSync()`][] is deprecated. Use [`fs.scandirSync()`][] instead.
+`fs.readdirSync()` was always mis-named.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -2750,9 +2781,14 @@ runtime warning results no matter where the `"exports"` usage occurs.
 [`fs.lchmodSync(path, mode)`]: fs.md#fs_fs_lchmodsync_path_mode
 [`fs.lchown(path, uid, gid, callback)`]: fs.md#fs_fs_lchown_path_uid_gid_callback
 [`fs.lchownSync(path, uid, gid)`]: fs.md#fs_fs_lchownsync_path_uid_gid
+[`fs.opendir()`]: fs.html#fs_fs_opendir_path_options_callback
 [`fs.read()`]: fs.md#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.md#fs_fs_readsync_fd_buffer_offset_length_position
+[`fs.readdir()`]: fs.html#fs_fs_readdir_path_options_callback
+[`fs.readdirSync()`]: fs.html#fs_fs_readdirsync_path_options
+[`fs.scandirSync()`]: fs.html#fs_fs_scandirsync_path_options
 [`fs.stat()`]: fs.md#fs_fs_stat_path_options_callback
+[`fsPromises.opendir()`]: fs.html#fs_fspromises_opendir_path_options
 [`http.get()`]: http.md#http_http_get_options_callback
 [`http.request()`]: http.md#http_http_request_options_callback
 [`https.get()`]: https.md#https_https_get_options_callback

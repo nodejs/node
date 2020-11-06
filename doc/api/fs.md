@@ -2957,6 +2957,7 @@ If no `options` object is specified, it will default with the above values.
 ## `fs.readdir(path[, options], callback)`
 <!-- YAML
 added: v0.1.8
+deprecated: REPLACEME
 changes:
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22020
@@ -2978,6 +2979,9 @@ changes:
     description: The `options` parameter was added.
 -->
 
+> Stability: 0 - Deprecated. Use [`fsPromises.opendir()`][] instead,
+where possible, otherwise use [`fs.opendir()`][].
+
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
@@ -2986,7 +2990,7 @@ changes:
   * `err` {Error}
   * `files` {string[]|Buffer[]|fs.Dirent[]}
 
-Asynchronous readdir(3). Reads the contents of a directory.
+Asynchronous scandir(3). Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
 the names of the files in the directory excluding `'.'` and `'..'`.
 
@@ -3011,13 +3015,15 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 
+> Stability: 0 - Deprecated. Use [`fs.scandirSync()`][] instead.
+
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
 * Returns: {string[]|Buffer[]|fs.Dirent[]}
 
-Synchronous readdir(3).
+Synchronous scandir(3).
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
@@ -3653,6 +3659,27 @@ added: v14.14.0
 
 Synchronously removes files and directories (modeled on the standard POSIX `rm`
 utility). Returns `undefined`.
+
+## `fs.scandirSync(path[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+  * `withFileTypes` {boolean} **Default:** `false`
+* Returns: {string[]|Buffer[]|fs.Dirent[]}
+
+Synchronous scandir(3).
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the filenames returned. If the `encoding` is set to `'buffer'`,
+the filenames returned will be passed as `Buffer` objects.
+
+If `options.withFileTypes` is set to `true`, the result will contain
+[`fs.Dirent`][] objects.
 
 ## `fs.stat(path[, options], callback)`
 <!-- YAML
@@ -6125,6 +6152,7 @@ the file contents.
 [`fs.readv()`]: #fs_fs_readv_fd_buffers_position_callback
 [`fs.realpath()`]: #fs_fs_realpath_path_options_callback
 [`fs.rmdir()`]: #fs_fs_rmdir_path_options_callback
+[`fs.scandirSync()`]: fs.html#fs_fs_scandirsync_path_options
 [`fs.stat()`]: #fs_fs_stat_path_options_callback
 [`fs.symlink()`]: #fs_fs_symlink_target_path_type_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
