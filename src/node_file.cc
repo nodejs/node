@@ -1613,7 +1613,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static void ReadDir(const FunctionCallbackInfo<Value>& args) {
+static void ScanDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
@@ -1628,7 +1628,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   bool with_types = args[2]->IsTrue();
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // readdir(path, encoding, withTypes, req)
+  if (req_wrap_async != nullptr) {  // scandir(path, encoding, withTypes, req)
     if (with_types) {
       AsyncCall(env, req_wrap_async, args, "scandir", encoding,
                 AfterScanDirWithTypes, uv_fs_scandir, *path, 0 /*flags*/);
@@ -1636,13 +1636,13 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       AsyncCall(env, req_wrap_async, args, "scandir", encoding,
                 AfterScanDir, uv_fs_scandir, *path, 0 /*flags*/);
     }
-  } else {  // readdir(path, encoding, withTypes, undefined, ctx)
+  } else {  // scandir(path, encoding, withTypes, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
-    FS_SYNC_TRACE_BEGIN(readdir);
+    FS_SYNC_TRACE_BEGIN(scandir);
     int err = SyncCall(env, args[4], &req_wrap_sync, "scandir",
                        uv_fs_scandir, *path, 0 /*flags*/);
-    FS_SYNC_TRACE_END(readdir);
+    FS_SYNC_TRACE_END(scandir);
     if (err < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -1663,7 +1663,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
         ctx->Set(env->context(), env->errno_string(),
                  Integer::New(isolate, r)).Check();
         ctx->Set(env->context(), env->syscall_string(),
-                 OneByteString(isolate, "readdir")).Check();
+                 OneByteString(isolate, "scandir")).Check();
         return;
       }
 
@@ -2416,7 +2416,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "ftruncate", FTruncate);
   env->SetMethod(target, "rmdir", RMDir);
   env->SetMethod(target, "mkdir", MKDir);
-  env->SetMethod(target, "readdir", ReadDir);
+  env->SetMethod(target, "scandir", ScanDir);
   env->SetMethod(target, "internalModuleReadJSON", InternalModuleReadJSON);
   env->SetMethod(target, "internalModuleStat", InternalModuleStat);
   env->SetMethod(target, "stat", Stat);

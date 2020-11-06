@@ -76,7 +76,7 @@ tests['fs.sync.open'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
 tests['fs.sync.read'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                         'fs.readFileSync("fs.txt");' +
                         'fs.unlinkSync("fs.txt")';
-tests['fs.sync.readdir'] = 'fs.readdirSync("./")';
+tests['fs.sync.scandir'] = 'fs.scandirSync("./")';
 tests['fs.sync.realpath'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                             'fs.linkSync("fs.txt", "linkx");' +
                             'fs.realpathSync.native("linkx");' +

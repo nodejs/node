@@ -46,8 +46,11 @@ async function runner(directoryQueue) {
 }
 
 async function main(directory) {
-  const directoryQueue = (await fs.readdir(directory))
-    .map((subdir) => path.join(directory, subdir));
+  const dir = (await fs.opendir(directory));
+  const directoryQueue = [];
+  for await (let subdir of dir) {
+    directoryQueue.push(path.join(directory, subdir.name));
+  }
 
   const runners = [];
   for (let i = 0; i < parallelization; ++i)

@@ -160,7 +160,7 @@ function testError() {
   r.write(`_error;                                // initial value undefined
            throw new Error('foo');                // throws error
            _error;                                // shows error
-           fs.readdirSync('/nonexistent?');       // throws error, sync
+           fs.scandirSync('/nonexistent?');       // throws error, sync
            _error.code;                           // shows error code
            _error.syscall;                        // shows error syscall
            setImmediate(() => { throw new Error('baz'); }); undefined;
@@ -178,7 +178,7 @@ function testError() {
 
       // The sync error, with individual property echoes
       /^Uncaught Error: ENOENT: no such file or directory, scandir '.*nonexistent\?'/,
-      /Object\.readdirSync/,
+      /Object\.scandirSync/,
       /^  errno: -(2|4058),$/,
       "  syscall: 'scandir',",
       "  code: 'ENOENT',",
