@@ -13,6 +13,7 @@
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 #include "src/utils/version.h"
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
@@ -534,6 +535,7 @@ void NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
   auto protected_instructions =
       reader->ReadVector<byte>(protected_instructions_size);
 
+  CODE_SPACE_WRITE_SCOPE
   WasmCode* code = native_module_->AddDeserializedCode(
       fn_index, code_buffer, stack_slot_count, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
