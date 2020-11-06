@@ -496,6 +496,7 @@
   'test-jump-table-assembler/*': [SKIP],
   'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
+  'test-liftoff-inspection/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
   'test-run-wasm-asmjs/*': [SKIP],
   'test-run-wasm-atomics64/*': [SKIP],
