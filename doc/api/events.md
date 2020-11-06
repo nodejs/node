@@ -383,6 +383,29 @@ Installing a listener using this symbol does not change the behavior once an
 `'error'` event is emitted, therefore the process will still crash if no
 regular `'error'` listener is installed.
 
+### `EventEmitter.setMaxListeners(n[, ...eventTargets])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `n` {number} A non-negative number. The maximum number of listeners per
+  `EventTarget` event.
+* `...eventsTargets` {EventTarget[]|EventEmitter[]} Zero or more {EventTarget}
+  or {EventEmitter} instances. If none are specified, `n` is set as the default
+  max for all newly created {EventTarget} and {EventEmitter} objects.
+
+```js
+const {
+  setMaxListeners,
+  EventEmitter
+} = require('events');
+
+const target = new EventTarget();
+const emitter = new EventEmitter();
+
+setMaxListeners(5, target, emitter);
+```
+
 ### `emitter.addListener(eventName, listener)`
 <!-- YAML
 added: v0.1.26
