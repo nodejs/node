@@ -2,11 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const {
-  Event,
-  EventTarget,
-  defineEventHandler
-} = require('internal/event_target');
+const { defineEventHandler } = require('internal/event_target');
 
 const {
   ok,

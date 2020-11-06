@@ -2,10 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const {
-  Event,
-  NodeEventTarget,
-} = require('internal/event_target');
+const { NodeEventTarget } = require('internal/event_target');
 
 const {
   deepStrictEqual,
