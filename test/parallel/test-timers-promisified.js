@@ -1,10 +1,13 @@
-// Flags: --no-warnings
+// Flags: --no-warnings --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
 const child_process = require('child_process');
+
+// TODO(benjamingr) - refactor to use getEventListeners when #35991 lands
+const { NodeEventTarget } = require('internal/event_target');
 
 const timerPromises = require('timers/promises');
 
@@ -90,6 +93,24 @@ process.on('multipleResolves', common.mustNotCall());
   setImmediate(10, { signal }).then(() => {
     ac.abort();
   });
+}
+
+{
+  // Check that timer adding signals does not leak handlers
+  const signal = new NodeEventTarget();
+  signal.aborted = false;
+  setTimeout(0, null, { signal }).finally(common.mustCall(() => {
+    assert.strictEqual(signal.listenerCount('abort'), 0);
+  }));
+}
+
+{
+  // Check that timer adding signals does not leak handlers
+  const signal = new NodeEventTarget();
+  signal.aborted = false;
+  setImmediate(0, { signal }).finally(common.mustCall(() => {
+    assert.strictEqual(signal.listenerCount('abort'), 0);
+  }));
 }
 
 {
