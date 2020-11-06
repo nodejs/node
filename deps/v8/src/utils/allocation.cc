@@ -213,15 +213,17 @@ bool OnCriticalMemoryPressure(size_t length) {
 VirtualMemory::VirtualMemory() = default;
 
 VirtualMemory::VirtualMemory(v8::PageAllocator* page_allocator, size_t size,
-                             void* hint, size_t alignment)
+                             void* hint, size_t alignment, JitPermission jit)
     : page_allocator_(page_allocator) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK(IsAligned(size, page_allocator_->CommitPageSize()));
   size_t page_size = page_allocator_->AllocatePageSize();
   alignment = RoundUp(alignment, page_size);
-  Address address = reinterpret_cast<Address>(
-      AllocatePages(page_allocator_, hint, RoundUp(size, page_size), alignment,
-                    PageAllocator::kNoAccess));
+  PageAllocator::Permission permissions =
+      jit == kMapAsJittable ? PageAllocator::kNoAccessWillJitLater
+                            : PageAllocator::kNoAccess;
+  Address address = reinterpret_cast<Address>(AllocatePages(
+      page_allocator_, hint, RoundUp(size, page_size), alignment, permissions));
   if (address != kNullAddress) {
     DCHECK(IsAligned(address, alignment));
     region_ = base::AddressRegion(address, size);
