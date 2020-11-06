@@ -524,3 +524,15 @@ let asyncTest = Promise.resolve();
   strictEqual(descriptor.configurable, true);
   strictEqual(descriptor.enumerable, true);
 }
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  const output = [];
+  target.addEventListener('foo', () => output.push(1));
+  target.onfoo = common.mustNotCall();
+  target.addEventListener('foo', () => output.push(3));
+  target.onfoo = () => output.push(2);
+  target.addEventListener('foo', () => output.push(4));
+  target.dispatchEvent(new Event('foo'));
+  deepStrictEqual(output, [1, 2, 3, 4]);
+}
