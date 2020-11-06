@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/build_config.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -21,6 +22,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/vector.h"
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
@@ -46,6 +48,10 @@ namespace internal {
 namespace wasm {
 
 using trap_handler::ProtectedInstructionData;
+
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+thread_local int CodeSpaceWriteScope::code_space_write_nesting_level_ = 0;
+#endif
 
 base::AddressRegion DisjointAllocationPool::Merge(
     base::AddressRegion new_region) {
@@ -731,6 +737,7 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   // Zap code area and collect freed code regions.
   DisjointAllocationPool freed_regions;
   size_t code_size = 0;
+  CODE_SPACE_WRITE_SCOPE
   for (WasmCode* code : codes) {
     ZapCode(code->instruction_start(), code->instructions().size());
     FlushInstructionCache(code->instruction_start(),
@@ -842,6 +849,7 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
+  CODE_SPACE_WRITE_SCOPE
   // For off-heap builtins, we create a copy of the off-heap instruction stream
   // instead of the on-heap code object containing the trampoline. Ensure that
   // we do not apply the on-heap reloc info to the off-heap instructions.
@@ -937,6 +945,7 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   if (!lazy_compile_table_) {
     uint32_t num_slots = module_->num_declared_functions;
     WasmCodeRefScope code_ref_scope;
+    CODE_SPACE_WRITE_SCOPE
     base::AddressRegion single_code_space_region;
     {
       base::MutexGuard guard(&allocation_mutex_);
@@ -998,6 +1007,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   const int code_comments_offset = desc.code_comments_offset;
   const int instr_size = desc.instr_size;
 
+  CODE_SPACE_WRITE_SCOPE
   memcpy(dst_code_bytes.begin(), desc.buffer,
          static_cast<size_t>(desc.instr_size));
 
@@ -1122,6 +1132,7 @@ WasmCode* NativeModule::AddDeserializedCode(
     Vector<const byte> protected_instructions_data,
     Vector<const byte> reloc_info, Vector<const byte> source_position_table,
     WasmCode::Kind kind, ExecutionTier tier) {
+  // CodeSpaceWriteScope is provided by the caller.
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
@@ -1180,6 +1191,7 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
   Vector<uint8_t> code_space = code_allocator_.AllocateForCodeInRegion(
       this, jump_table_size, region, allocator_lock);
   DCHECK(!code_space.empty());
+  CODE_SPACE_WRITE_SCOPE
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{
       new WasmCode{this,                  // native_module
@@ -1205,6 +1217,7 @@ void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
+  CODE_SPACE_WRITE_SCOPE
   for (auto& code_space_data : code_space_data_) {
     DCHECK_IMPLIES(code_space_data.jump_table, code_space_data.far_jump_table);
     if (!code_space_data.jump_table) continue;
@@ -1267,6 +1280,7 @@ void NativeModule::AddCodeSpace(
 #endif  // V8_OS_WIN64
 
   WasmCodeRefScope code_ref_scope;
+  CODE_SPACE_WRITE_SCOPE
   WasmCode* jump_table = nullptr;
   WasmCode* far_jump_table = nullptr;
   const uint32_t num_wasm_functions = module_->num_declared_functions;
@@ -1820,6 +1834,7 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   generated_code.reserve(results.size());
 
   // Now copy the generated code into the code space and relocate it.
+  CODE_SPACE_WRITE_SCOPE
   for (auto& result : results) {
     DCHECK_EQ(result.code_desc.buffer, result.instr_buffer.get());
     size_t code_size = RoundUp<kCodeAlignment>(result.code_desc.instr_size);

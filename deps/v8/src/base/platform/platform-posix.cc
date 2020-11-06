@@ -140,6 +140,14 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access) {
 #if V8_OS_QNX
     flags |= MAP_LAZY;
 #endif  // V8_OS_QNX
+#if V8_OS_MACOSX && V8_HOST_ARCH_ARM64 && defined(MAP_JIT) && \
+    !defined(V8_OS_IOS)
+    // TODO(jkummerow): using the V8_OS_IOS define is a crude approximation
+    // of the fact that we don't want to set the MAP_JIT flag when
+    // FLAG_jitless == true, as src/base/ doesn't know any flags.
+    // TODO(crbug.com/1117591): This is only needed for code spaces.
+    flags |= MAP_JIT;
+#endif
   }
   return flags;
 }
