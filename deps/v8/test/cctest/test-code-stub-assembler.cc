@@ -41,8 +41,9 @@ template <class T>
 using TVariable = TypedCodeAssemblerVariable<T>;
 using PromiseResolvingFunctions = TorqueStructPromiseResolvingFunctions;
 
-int sum10(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
-          int a8, int a9) {
+intptr_t sum10(intptr_t a0, intptr_t a1, intptr_t a2, intptr_t a3, intptr_t a4,
+               intptr_t a5, intptr_t a6, intptr_t a7, intptr_t a8,
+               intptr_t a9) {
   return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9;
 }
 

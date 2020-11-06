@@ -3237,6 +3237,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/baseline/liftoff-compiler.cc",
     "src/wasm/baseline/liftoff-compiler.h",
     "src/wasm/baseline/liftoff-register.h",
+    "src/wasm/code-space-access.h",
     "src/wasm/compilation-environment.h",
     "src/wasm/decoder.h",
     "src/wasm/function-body-decoder-impl.h",

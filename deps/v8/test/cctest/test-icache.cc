@@ -6,6 +6,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/simulator.h"
 #include "src/handles/handles-inl.h"
+#include "src/wasm/code-space-access.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 
@@ -179,11 +180,15 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
 
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadWriteExecute));
+    SwitchMemoryPermissionsToWritable();
     FloodWithInc(isolate, buffer.get());
     FlushInstructionCache(buffer->start(), buffer->size());
+    SwitchMemoryPermissionsToExecutable();
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
+    SwitchMemoryPermissionsToWritable();
     FloodWithNop(isolate, buffer.get());
     FlushInstructionCache(buffer->start(), buffer->size());
+    SwitchMemoryPermissionsToExecutable();
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
   }
 }
