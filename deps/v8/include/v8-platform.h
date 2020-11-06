@@ -338,7 +338,13 @@ class PageAllocator {
     kReadWrite,
     // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
-    kReadExecute
+    kReadExecute,
+    // Set this when reserving memory that will later require kReadWriteExecute
+    // permissions. The resulting behavior is platform-specific, currently
+    // this is used to set the MAP_JIT flag on Apple Silicon.
+    // TODO(jkummerow): Remove this when Wasm has a platform-independent
+    // w^x implementation.
+    kNoAccessWillJitLater
   };
 
   /**
