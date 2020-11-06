@@ -11,6 +11,7 @@ const tmpDir = tmpdir.path;
 tmpdir.refresh();
 
 const dest = path.resolve(tmpDir, 'tmp.txt');
+const otherDest = path.resolve(tmpDir, 'tmp-2.txt');
 const buffer = Buffer.from('abc'.repeat(1000));
 const buffer2 = Buffer.from('xyz'.repeat(1000));
 
@@ -18,6 +19,15 @@ async function doWrite() {
   await fsPromises.writeFile(dest, buffer);
   const data = fs.readFileSync(dest);
   assert.deepStrictEqual(data, buffer);
+}
+
+async function doWriteWithCancel() {
+  const controller = new AbortController();
+  const { signal } = controller;
+  process.nextTick(() => controller.abort());
+  assert.rejects(fsPromises.writeFile(otherDest, buffer, { signal }), {
+    name: 'AbortError'
+  });
 }
 
 async function doAppend() {
@@ -41,6 +51,7 @@ async function doReadWithEncoding() {
 }
 
 doWrite()
+  .then(doWriteWithCancel)
   .then(doAppend)
   .then(doRead)
   .then(doReadWithEncoding)

@@ -66,3 +66,32 @@ fs.open(filename4, 'w+', common.mustSucceed((fd) => {
     }));
   }));
 }));
+
+
+{
+  // Test that writeFile is cancellable with an AbortSignal.
+  // Before the operation has started
+  const controller = new AbortController();
+  const signal = controller.signal;
+  const filename3 = join(tmpdir.path, 'test3.txt');
+
+  fs.writeFile(filename3, s, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+
+  controller.abort();
+}
+
+{
+  // Test that writeFile is cancellable with an AbortSignal.
+  // After the operation has started
+  const controller = new AbortController();
+  const signal = controller.signal;
+  const filename4 = join(tmpdir.path, 'test4.txt');
+
+  fs.writeFile(filename4, s, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+
+  process.nextTick(() => controller.abort());
+}
