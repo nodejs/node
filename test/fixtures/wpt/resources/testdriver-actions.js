@@ -9,6 +9,7 @@
   function Actions(defaultTickDuration=16) {
     this.sourceTypes = new Map([["key", KeySource],
                                 ["pointer", PointerSource],
+                                ["wheel", WheelSource],
                                 ["none", GeneralSource]]);
     this.sources = new Map();
     this.sourceOrder = [];
@@ -22,6 +23,7 @@
     this.createSource("none");
     this.tickIdx = 0;
     this.defaultTickDuration = defaultTickDuration;
+    this.context = null;
   }
 
   Actions.prototype = {
@@ -65,7 +67,17 @@
       } catch(e) {
         return Promise.reject(e);
       }
-      return test_driver.action_sequence(actions);
+      return test_driver.action_sequence(actions, this.context);
+    },
+
+    /**
+     * Set the context for the actions
+     *
+     * @param {WindowProxy} context - Context in which to run the action sequence
+     */
+    setContext: function(context) {
+      this.context = context;
+      return this;
     },
 
     /**
@@ -73,7 +85,7 @@
      * If no name is passed, a new source with the given type is
      * created.
      *
-     * @param {String} type - Source type ('none', 'key', or 'pointer')
+     * @param {String} type - Source type ('none', 'key', 'pointer', or 'wheel')
      * @param {String?} name - Name of the source
      * @returns {Source} Source object for that source.
      */
@@ -154,6 +166,32 @@
       return this;
     },
 
+    /**
+     * Add a new wheel input source with the given name
+     *
+     * @param {String} type - Name of the wheel source
+     * @param {Bool} set - Set source as the default wheel source
+     * @returns {Actions}
+     */
+    addWheel: function(name, set=true) {
+      this.createSource("wheel", name);
+      if (set) {
+        this.setWheel(name);
+      }
+      return this;
+    },
+
+    /**
+     * Set the current default wheel source
+     *
+     * @param {String} name - Name of the wheel source
+     * @returns {Actions}
+     */
+    setWheel: function(name) {
+      this.setSource("wheel", name);
+      return this;
+    },
+
     createSource: function(type, name, parameters={}) {
       if (!this.sources.has(type)) {
         throw new Error(`${type} is not a valid action type`);
@@ -196,8 +234,9 @@
      *
      * @param {Number?} duration - Minimum length of the tick in ms.
      * @param {String} sourceType - source type
-     * @param {String?} sourceName - Named key or pointer source to use or null for the default
-     *                               key or pointer source
+     * @param {String?} sourceName - Named key, pointer or wheel source to use
+     *                               or null for the default key, pointer or
+     *                               wheel source
      * @returns {Actions}
      */
     pause: function(duration=0, sourceType="none", {sourceName=null}={}) {
@@ -278,6 +317,27 @@
                           {origin="viewport", duration, sourceName=null}={}) {
       let source = this.getSource("pointer", sourceName);
       source.pointerMove(this, x, y, duration, origin);
+      return this;
+    },
+
+    /**
+     * Create a scroll event for the current default wheel source
+     *
+     * @param {Number} x - mouse cursor x coordinate
+     * @param {Number} y - mouse cursor y coordinate
+     * @param {Number} deltaX - scroll delta value along the x-axis in pixels
+     * @param {Number} deltaY - scroll delta value along the y-axis in pixels
+     * @param {String|Element} origin - Origin of the coordinate system.
+     *                                  Either "viewport" or an Element
+     * @param {Number?} duration - Time in ms for the scroll
+     * @param {String?} sourceName - Named wheel source to use or null for the
+     *                               default wheel source
+     * @returns {Actions}
+     */
+    scroll: function(x, y, deltaX, deltaY,
+                     {origin="viewport", duration, sourceName=null}={}) {
+      let source = this.getSource("wheel", sourceName);
+      source.scroll(this, x, y, deltaX, deltaY, duration, origin);
       return this;
     },
   };
@@ -403,6 +463,47 @@
         tick = actions.addTick().tickIdx;
       }
       this.actions.set(tick, {type: "pointerMove", x, y, origin});
+      if (duration) {
+        this.actions.get(tick).duration = duration;
+      }
+    },
+
+    addPause: function(actions, duration) {
+      let tick = actions.tickIdx;
+      if (this.actions.has(tick)) {
+        tick = actions.addTick().tickIdx;
+      }
+      this.actions.set(tick, {type: "pause", duration: duration});
+    },
+  };
+
+  function WheelSource() {
+    this.actions = new Map();
+  }
+
+  WheelSource.prototype = {
+    serialize: function(tickCount) {
+      if (!this.actions.size) {
+        return undefined;
+      }
+      let actions = [];
+      let data = {"type": "wheel", "actions": actions};
+      for (let i=0; i<tickCount; i++) {
+        if (this.actions.has(i)) {
+          actions.push(this.actions.get(i));
+        } else {
+          actions.push({"type": "pause"});
+        }
+      }
+      return data;
+    },
+
+    scroll: function(actions, x, y, deltaX, deltaY, duration, origin) {
+      let tick = actions.tickIdx;
+      if (this.actions.has(tick)) {
+        tick = actions.addTick().tickIdx;
+      }
+      this.actions.set(tick, {type: "scroll", x, y, deltaX, deltaY, origin});
       if (duration) {
         this.actions.get(tick).duration = duration;
       }
