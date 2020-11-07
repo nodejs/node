@@ -1,3 +1,7 @@
+// You are probably here because you failed a PR and wants to see if this thing
+// has a --fix option.
+// It doesn't. But if you have some Unix utilities, you can just feed the last
+// lines of your markdown file to `sort`.
 'use strict';
 
 const fs = require('fs');

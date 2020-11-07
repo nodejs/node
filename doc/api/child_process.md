@@ -1770,12 +1770,10 @@ or [`child_process.fork()`][].
 [Advanced serialization]: #child_process_advanced_serialization
 [Default Windows shell]: #child_process_default_windows_shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
-[`build_argv`]: https://github.com/mirror/newlib-cygwin/blob/b39cd00/winsup/cygwin/dcrt0.cc#L292
-[Shell requirements]: #child_process_shell_requirements
-[ongoing, cross-platform issue]: https://github.com/PowerShell/PowerShell/issues/1995
-[`options.detached`]: #child_process_options_detached
 [POSIX single-quotes]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_02_02
 [Parsing C++ Command-Line Arguments]: https://docs.microsoft.com/en-us/cpp/cpp/parsing-cpp-command-line-arguments
+[Shell requirements]: #child_process_shell_requirements
+[Windows Command Line]: #child_process_windows_command_line
 [`'disconnect'`]: process.md#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
@@ -1783,6 +1781,7 @@ or [`child_process.fork()`][].
 [`ChildProcess`]: #child_process_class_childprocess
 [`Error`]: errors.md#errors_class_error
 [`EventEmitter`]: events.md#events_class_eventemitter
+[`build_argv`]: https://github.com/mirror/newlib-cygwin/blob/b39cd00/winsup/cygwin/dcrt0.cc#L292
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
 [`child_process.execFile()`]: #child_process_child_process_execfile_file_args_options_callback
 [`child_process.execFileSync()`]: #child_process_child_process_execfilesync_file_args_options
@@ -1793,6 +1792,7 @@ or [`child_process.fork()`][].
 [`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
 [`net.Server`]: net.md#net_class_net_server
 [`net.Socket`]: net.md#net_class_net_socket
+[`options.detached`]: #child_process_options_detached
 [`process.disconnect()`]: process.md#process_process_disconnect
 [`process.env`]: process.md#process_process_env
 [`process.execPath`]: process.md#process_process_execpath
@@ -1807,6 +1807,6 @@ or [`child_process.fork()`][].
 [`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
 [`util.promisify()`]: util.md#util_util_promisify_original
-[Windows Command Line]: #child_process_windows_command_line
+[ongoing, cross-platform issue]: https://github.com/PowerShell/PowerShell/issues/1995
 [synchronous counterparts]: #child_process_synchronous_process_creation
 [v8.serdes]: v8.md#v8_serialization_api
