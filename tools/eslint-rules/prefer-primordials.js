@@ -75,7 +75,6 @@ module.exports = {
       acc.set(
         option.name,
         (option.ignore || [])
-          .concat(['prototype'])
           .reduce((acc, name) => acc.set(name, {
             ignored: true
           }), new Map())
