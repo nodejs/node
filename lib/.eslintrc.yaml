@@ -40,10 +40,8 @@ rules:
     - name: Date
     - name: Error
       ignore:
-        - stackTraceLimit
-        - captureStackTrace
         - prepareStackTrace
-        - isPrototypeOf
+        - stackTraceLimit
     - name: EvalError
     - name: Float32Array
     - name: Float64Array
