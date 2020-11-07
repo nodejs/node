@@ -163,5 +163,13 @@ new RuleTester({
         options: [{ name: 'Map', into: 'Safe' }],
         errors: [{ message: /const { SafeMap } = primordials/ }]
       },
+      {
+        code: `
+          const { Function } = primordials;
+          const noop = Function.prototype;
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { FunctionPrototype } = primordials/ }]
+      },
     ]
   });
