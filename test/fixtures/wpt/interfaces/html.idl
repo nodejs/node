@@ -436,7 +436,6 @@ interface HTMLIFrameElement : HTMLElement {
   [SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
   [CEReactions] attribute DOMString allow;
   [CEReactions] attribute boolean allowFullscreen;
-  [CEReactions] attribute boolean allowPaymentRequest;
   [CEReactions] attribute DOMString width;
   [CEReactions] attribute DOMString height;
   [CEReactions] attribute DOMString referrerPolicy;
@@ -1564,16 +1563,18 @@ dictionary ElementDefinitionOptions {
 
 [Exposed=Window]
 interface ElementInternals {
-  // Form-associated custom elements
+  // Shadow root access
+  readonly attribute ShadowRoot? shadowRoot;
 
+  // Form-associated custom elements
   undefined setFormValue((File or USVString or FormData)? value,
-                    optional (File or USVString or FormData)? state);
+                         optional (File or USVString or FormData)? state);
 
   readonly attribute HTMLFormElement? form;
 
   undefined setValidity(optional ValidityStateFlags flags = {},
-                   optional DOMString message,
-                   optional HTMLElement anchor);
+                        optional DOMString message,
+                        optional HTMLElement anchor);
   readonly attribute boolean willValidate;
   readonly attribute ValidityState validity;
   readonly attribute DOMString validationMessage;
@@ -1582,6 +1583,9 @@ interface ElementInternals {
 
   readonly attribute NodeList labels;
 };
+
+// Accessibility semantics
+ElementInternals includes ARIAMixin;
 
 dictionary ValidityStateFlags {
   boolean valueMissing = false;
@@ -2351,6 +2355,18 @@ interface WorkerLocation {
   readonly attribute USVString pathname;
   readonly attribute USVString search;
   readonly attribute USVString hash;
+};
+
+[Exposed=Worklet, SecureContext]
+interface WorkletGlobalScope {};
+
+[Exposed=Window, SecureContext]
+interface Worklet {
+  [NewObject] Promise<undefined> addModule(USVString moduleURL, optional WorkletOptions options = {});
+};
+
+dictionary WorkletOptions {
+  RequestCredentials credentials = "same-origin";
 };
 
 [Exposed=Window]

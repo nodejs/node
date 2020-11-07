@@ -520,6 +520,43 @@ policies and contribution forms [3].
             Object.prototype.toString.call(worker) == '[object ServiceWorker]';
     }
 
+    var seen_func_name = Object.create(null);
+
+    function get_test_name(func, name)
+    {
+        if (name) {
+            return name;
+        }
+
+        if (func) {
+            var func_code = func.toString();
+
+            // Try and match with brackets, but fallback to matching without
+            var arrow = func_code.match(/^\(\)\s*=>\s*(?:{(.*)}\s*|(.*))$/);
+
+            // Check for JS line separators
+            if (arrow !== null && !/[\u000A\u000D\u2028\u2029]/.test(func_code)) {
+                var trimmed = (arrow[1] !== undefined ? arrow[1] : arrow[2]).trim();
+                // drop trailing ; if there's no earlier ones
+                trimmed = trimmed.replace(/^([^;]*)(;\s*)+$/, "$1");
+
+                if (trimmed) {
+                    let name = trimmed;
+                    if (seen_func_name[trimmed]) {
+                        // This subtest name already exists, so add a suffix.
+                        name += " " + seen_func_name[trimmed];
+                    } else {
+                        seen_func_name[trimmed] = 0;
+                    }
+                    seen_func_name[trimmed] += 1;
+                    return name;
+                }
+            }
+        }
+
+        return test_environment.next_default_test_name();
+    }
+
     /*
      * API functions
      */
@@ -530,17 +567,18 @@ policies and contribution forms [3].
             tests.status.message = '`test` invoked after `promise_setup`';
             tests.complete();
         }
-        var test_name = name ? name : test_environment.next_default_test_name();
+        var test_name = get_test_name(func, name);
         var test_obj = new Test(test_name, properties);
         var value = test_obj.step(func, test_obj, test_obj);
 
         if (value !== undefined) {
-            var msg = "Test named \"" + test_name +
-                "\" inappropriately returned a value";
+            var msg = 'Test named "' + test_name +
+                '" passed a function to `test` that returned a value.';
 
             try {
-                if (value && value.hasOwnProperty("then")) {
-                    msg += ", consider using `promise_test` instead";
+                if (value && typeof value.then === 'function') {
+                    msg += ' Consider using `promise_test` instead when ' +
+                        'using Promises or async/await.';
                 }
             } catch (err) {}
 
@@ -565,10 +603,33 @@ policies and contribution forms [3].
             name = func;
             func = null;
         }
-        var test_name = name ? name : test_environment.next_default_test_name();
+        var test_name = get_test_name(func, name);
         var test_obj = new Test(test_name, properties);
         if (func) {
-            test_obj.step(func, test_obj, test_obj);
+            var value = test_obj.step(func, test_obj, test_obj);
+
+            // Test authors sometimes return values to async_test, expecting us
+            // to handle the value somehow. Make doing so a harness error to be
+            // clear this is invalid, and point authors to promise_test if it
+            // may be appropriate.
+            //
+            // Note that we only perform this check on the initial function
+            // passed to async_test, not on any later steps - we haven't seen a
+            // consistent problem with those (and it's harder to check).
+            if (value !== undefined) {
+                var msg = 'Test named "' + test_name +
+                    '" passed a function to `async_test` that returned a value.';
+
+                try {
+                    if (value && typeof value.then === 'function') {
+                        msg += ' Consider using `promise_test` instead when ' +
+                            'using Promises or async/await.';
+                    }
+                } catch (err) {}
+
+                tests.set_status(tests.status.ERROR, msg);
+                tests.complete();
+            }
         }
         return test_obj;
     }
@@ -579,7 +640,7 @@ policies and contribution forms [3].
             name = func;
             func = null;
         }
-        var test_name = name ? name : test_environment.next_default_test_name();
+        var test_name = get_test_name(func, name);
         var test = new Test(test_name, properties);
         test._is_promise_test = true;
 
@@ -1323,10 +1384,16 @@ policies and contribution forms [3].
                "expected a number but got a ${type_actual}",
                {type_actual:typeof actual});
 
-        assert(Math.abs(actual - expected) <= epsilon,
-               "assert_approx_equals", description,
-               "expected ${expected} +/- ${epsilon} but got ${actual}",
-               {expected:expected, actual:actual, epsilon:epsilon});
+        // The epsilon math below does not place nice with NaN and Infinity
+        // But in this case Infinity = Infinity and NaN = NaN
+        if (isFinite(actual) || isFinite(expected)) {
+            assert(Math.abs(actual - expected) <= epsilon,
+                   "assert_approx_equals", description,
+                   "expected ${expected} +/- ${epsilon} but got ${actual}",
+                   {expected:expected, actual:actual, epsilon:epsilon});
+        } else {
+            assert_equals(actual, expected);
+        }
     }
     expose(assert_approx_equals, "assert_approx_equals");
 
@@ -3773,7 +3840,7 @@ policies and contribution forms [3].
     function get_title()
     {
         if ('document' in global_scope) {
-            //Don't use document.title to work around an Opera bug in XHTML documents
+            //Don't use document.title to work around an Opera/Presto bug in XHTML documents
             var title = document.getElementsByTagName("title")[0];
             if (title && title.firstChild && title.firstChild.data) {
                 return title.firstChild.data;
