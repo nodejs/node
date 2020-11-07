@@ -3,6 +3,10 @@
     "requires": ["small-icu"],
     "skip": "TODO: port from .window.js"
   },
+  "percent-encoding.window.js": {
+    "requires": ["small-icu"],
+    "skip": "TODO: port from .window.js"
+  },
   "historical.any.js": {
     "requires": ["small-icu"]
   },
