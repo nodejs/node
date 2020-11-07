@@ -66,7 +66,7 @@ new RuleTester({
       },
       {
         code: 'const { NumberParseInt } = primordials; NumberParseInt("xxx")',
-        options: [{ name: 'parseInt' }]
+        options: [{ name: 'parseInt', into: 'Number' }]
       },
       {
         code: `
@@ -141,7 +141,7 @@ new RuleTester({
           const { Number } = primordials;
           Number.parseInt('10')
         `,
-        options: [{ name: 'Number', into: Number }],
+        options: [{ name: 'Number' }],
         errors: [{ message: /const { NumberParseInt } = primordials/ }]
       },
       {
