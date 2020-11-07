@@ -55,6 +55,7 @@ rules:
       into: Number
     - name: JSON
     - name: Map
+      into: Safe
     - name: Math
     - name: Number
     - name: Object
@@ -68,6 +69,7 @@ rules:
     - name: Reflect
     - name: RegExp
     - name: Set
+      into: Safe
     - name: String
     - name: Symbol
     - name: SyntaxError
@@ -78,7 +80,9 @@ rules:
     - name: Uint8ClampedArray
     - name: URIError
     - name: WeakMap
+      into: Safe
     - name: WeakSet
+      into: Safe
 globals:
   Intl: false
   # Parameters passed to internal modules
