@@ -77,6 +77,10 @@ new RuleTester({
         `,
         options: [{ name: 'Reflect' }],
       },
+      {
+        code: 'const { Map } = primordials; new Map()',
+        options: [{ name: 'Map', into: 'Safe' }],
+      },
     ],
     invalid: [
       {
@@ -153,6 +157,11 @@ new RuleTester({
         `,
         options: [{ name: 'Reflect' }],
         errors: [{ message: /const { ReflectOwnKeys } = primordials/ }]
+      },
+      {
+        code: 'new Map()',
+        options: [{ name: 'Map', into: 'Safe' }],
+        errors: [{ message: /const { SafeMap } = primordials/ }]
       },
     ]
   });
