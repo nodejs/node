@@ -1410,8 +1410,8 @@ console.log(verify.verify(publicKey, signature));
 added: v0.1.92
 changes:
   - version:
-     - v12.16.0
      - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29292
     description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
   - version: v12.0.0
@@ -1528,8 +1528,8 @@ This can be called many times with new data as it is streamed.
 added: v0.1.92
 changes:
   - version:
-     - v12.16.0
      - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29292
     description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
   - version: v12.0.0
@@ -3003,8 +3003,8 @@ Throws an error if FIPS mode is not available.
 added: v12.0.0
 changes:
   - version:
-     - v12.16.0
      - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29292
     description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
 -->
@@ -3065,8 +3065,8 @@ not introduce timing vulnerabilities.
 added: v12.0.0
 changes:
   - version:
-     - v12.16.0
      - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29292
     description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
 -->
