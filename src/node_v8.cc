@@ -32,6 +32,7 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HeapCodeStatistics;
+using v8::HeapObjectStatistics;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Integer;
@@ -85,6 +86,16 @@ static const size_t kHeapCodeStatisticsPropertiesCount =
     HEAP_CODE_STATISTICS_PROPERTIES(V);
 #undef V
 
+#define HEAP_OBJECT_STATISTICS_PROPERTIES(V)                                   \
+  V(0, object_count, kObjectCountIndex)                                        \
+  V(1, object_size, kObjectSizeIndex)
+
+#define V(a, b, c) +1
+static const size_t kHeapObjectStatisticsPropertiesCount =
+    HEAP_OBJECT_STATISTICS_PROPERTIES(V);
+#undef V
+
+
 class BindingData : public BaseObject {
  public:
   BindingData(Environment* env, Local<Object> obj)
@@ -92,6 +103,8 @@ class BindingData : public BaseObject {
         heap_statistics_buffer(env->isolate(), kHeapStatisticsPropertiesCount),
         heap_space_statistics_buffer(env->isolate(),
                                      kHeapSpaceStatisticsPropertiesCount),
+        heap_object_statistics_buffer(env->isolate(),
+                                      kHeapObjectStatisticsPropertiesCount),
         heap_code_statistics_buffer(env->isolate(),
                                     kHeapCodeStatisticsPropertiesCount) {}
 
@@ -99,6 +112,7 @@ class BindingData : public BaseObject {
 
   AliasedFloat64Array heap_statistics_buffer;
   AliasedFloat64Array heap_space_statistics_buffer;
+  AliasedFloat64Array heap_object_statistics_buffer;
   AliasedFloat64Array heap_code_statistics_buffer;
 
   void MemoryInfo(MemoryTracker* tracker) const override {
@@ -107,6 +121,8 @@ class BindingData : public BaseObject {
                         heap_space_statistics_buffer);
     tracker->TrackField("heap_code_statistics_buffer",
                         heap_code_statistics_buffer);
+    tracker->TrackField("heap_object_statistics_buffer",
+                        heap_object_statistics_buffer);
   }
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
@@ -148,6 +164,23 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   HEAP_SPACE_STATISTICS_PROPERTIES(V)
 #undef V
 }
+
+
+void UpdateHeapObjectStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
+  BindingData* data = Environment::GetBindingData<BindingData>(args);
+  HeapObjectStatistics s;
+  Isolate* const isolate = args.GetIsolate();
+  size_t type_index = static_cast<size_t>(args[0].As<v8::Uint32>()->Value());
+  CHECK_LT(type_index, isolate->NumberOfTrackedHeapObjectTypes());
+  isolate->GetHeapObjectStatisticsAtLastGC(&s, type_index);
+
+  AliasedFloat64Array& buffer = data->heap_object_statistics_buffer;
+
+#define V(index, name, _) buffer[index] = static_cast<double>(s.name());
+  HEAP_OBJECT_STATISTICS_PROPERTIES(V)
+#undef V
+}
+
 
 void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Environment::GetBindingData<BindingData>(args);
@@ -200,12 +233,39 @@ void Initialize(Local<Object> target,
 
   // Export symbols used by v8.getHeapCodeStatistics()
   env->SetMethod(
-      target, "updateHeapCodeStatisticsBuffer", UpdateHeapCodeStatisticsBuffer);
+      target, "updateHeapCodeStatisticsBuffer",
+      UpdateHeapCodeStatisticsBuffer);
 
   target
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "heapCodeStatisticsBuffer"),
             binding_data->heap_code_statistics_buffer.GetJSArray())
+      .Check();
+
+#define V(i, _, name)                                                         \
+  target->Set(env->context(),                                                 \
+              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
+              Uint32::NewFromUnsigned(env->isolate(), i)).Check();
+
+  HEAP_OBJECT_STATISTICS_PROPERTIES(V)
+#undef V
+  // Export symbols used by v8.getObjectStatistics()
+  env->SetMethod(
+      target, "updateHeapObjectStatisticsBuffer",
+      UpdateHeapObjectStatisticsBuffer);
+
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "heapObjectStatisticsBuffer"),
+            binding_data->heap_object_statistics_buffer.GetJSArray())
+      .Check();
+
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "kTrackedHeapObjectTypes"),
+            Uint32::NewFromUnsigned(
+              env->isolate(),
+              env->isolate()->NumberOfTrackedHeapObjectTypes()))
       .Check();
 
 #define V(i, _, name)                                                         \
