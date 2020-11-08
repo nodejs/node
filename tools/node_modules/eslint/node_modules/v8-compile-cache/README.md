@@ -26,9 +26,11 @@ The ability to tap into V8 to produce/consume this cache was introduced in [Node
 
 Set the environment variable `DISABLE_V8_COMPILE_CACHE=1` to disable the cache.
 
+Cache directory is defined by environment variable `V8_COMPILE_CACHE_CACHE_DIR` or defaults to `<os.tmpdir()>/v8-compile-cache-<V8_VERSION>`.
+
 ## Internals
 
-The caches are stored in `$TMP/v8-compile-cache/V8_VERSION`, where there are `.BLOB` and `.MAP` files corresponding to the entry module that required `v8-compile-cache`. The cache is _entry module specific_ because it is faster to load the entire code cache into memory at once, than it is to read it from disk on a file-by-file basis.
+Cache files are suffixed `.BLOB` and `.MAP` corresponding to the entry module that required `v8-compile-cache`. The cache is _entry module specific_ because it is faster to load the entire code cache into memory at once, than it is to read it from disk on a file-by-file basis.
 
 ## Benchmarks
 

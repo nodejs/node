@@ -44,6 +44,26 @@ const enabled = !!process.env.TIMING;
 const HEADERS = ["Rule", "Time (ms)", "Relative"];
 const ALIGN = [alignLeft, alignRight, alignRight];
 
+/**
+ * Decide how many rules to show in the output list.
+ * @returns {number} the number of rules to show
+ */
+function getListSize() {
+    const MINIMUM_SIZE = 10;
+
+    if (typeof process.env.TIMING !== "string") {
+        return MINIMUM_SIZE;
+    }
+
+    if (process.env.TIMING.toLowerCase() === "all") {
+        return Number.POSITIVE_INFINITY;
+    }
+
+    const TIMING_ENV_VAR_AS_INTEGER = Number.parseInt(process.env.TIMING, 10);
+
+    return TIMING_ENV_VAR_AS_INTEGER > 10 ? TIMING_ENV_VAR_AS_INTEGER : MINIMUM_SIZE;
+}
+
 /* istanbul ignore next */
 /**
  * display the data
@@ -61,7 +81,7 @@ function display(data) {
             return [key, time];
         })
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 10);
+        .slice(0, getListSize());
 
     rows.forEach(row => {
         row.push(`${(row[1] * 100 / total).toFixed(1)}%`);
@@ -133,7 +153,8 @@ module.exports = (function() {
 
     return {
         time,
-        enabled
+        enabled,
+        getListSize
     };
 
 }());
