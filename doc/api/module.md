@@ -203,6 +203,7 @@ consists of the following keys:
 * originalSource: {string}
 * originalLine: {number}
 * originalColumn: {number}
+* name: {string}
 
 [CommonJS]: modules.md
 [ES Modules]: esm.md
