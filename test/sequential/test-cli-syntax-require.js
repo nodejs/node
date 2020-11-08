@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const { exec } = require('child_process');
 const fixtures = require('../common/fixtures');
+const { pathToFileURL } = require('url');
 
 const node = process.execPath;
 
@@ -29,8 +30,9 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
       // stderr should have a syntax error message
       assert(syntaxErrorRE.test(stderr), `${syntaxErrorRE} === ${stderr}`);
 
-      // stderr should include the filename
-      assert(stderr.startsWith(file), `${stderr} starts with ${file}`);
+      // stderr should include the file URL
+      const fileUrl = pathToFileURL(file);
+      assert(stderr.startsWith(fileUrl), `${stderr} starts with ${file}`);
     }));
   });
 });
