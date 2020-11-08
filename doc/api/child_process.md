@@ -660,6 +660,9 @@ subprocess.unref();
 <!-- YAML
 added: v0.7.10
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29412
+    description: Added the `overlapped` stdio flag.
   - version: v3.3.1
     pr-url: https://github.com/nodejs/node/pull/2727
     description: The value `0` is now accepted as a file descriptor.
