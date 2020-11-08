@@ -1459,8 +1459,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The privateKey can also be an ArrayBuffer and CryptoKey.
   - version:
-     - v12.16.0
      - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29292
     description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
   - version: v12.0.0
@@ -1582,8 +1582,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The object can also be an ArrayBuffer and CryptoKey.
   - version:
-     - v12.16.0
      - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29292
     description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
   - version: v12.0.0
@@ -3326,8 +3326,8 @@ Throws an error if FIPS mode is not available.
 added: v12.0.0
 changes:
   - version:
-     - v12.16.0
      - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29292
     description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
 -->
@@ -3397,8 +3397,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The data, key, and signature arguments can also be ArrayBuffer.
   - version:
-     - v12.16.0
      - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/29292
     description: This function now supports IEEE-P1363 DSA and ECDSA signatures.
 -->
