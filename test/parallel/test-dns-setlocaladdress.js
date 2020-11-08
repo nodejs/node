@@ -27,7 +27,10 @@ const promiseResolver = new dns.promises.Resolver();
   }, Error);
   assert.throws(() => {
     resolver.setLocalAddress(123);
-  }, Error);
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => {
+    resolver.setLocalAddress('127.0.0.1', 42);
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
   assert.throws(() => {
     resolver.setLocalAddress();
   }, Error);
