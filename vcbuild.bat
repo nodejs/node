@@ -250,7 +250,7 @@ echo Looking for Visual Studio 2019
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)"
+call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)" "prerelease"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
