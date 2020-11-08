@@ -418,7 +418,7 @@ $ make cctest GTEST_FILTER=EnvironmentTest.AtExitWithArgument
 `cctest` can also be run directly which can be useful when debugging:
 
 ```console
-$ out/Release/cctest --gtest_filter=EnvironmentTest.AtExit*
+$ out/Release/cctest --gtest_filter=EnvironmentTest.AtExit\*
 ```
 
 ### Node.js test fixture
