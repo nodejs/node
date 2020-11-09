@@ -71,9 +71,9 @@ Expect major changes in the implementation including interoperability support,
 specifier resolution, and default behavior.
 
 <!-- Anchors to make sure old links find a target -->
-<i id="#esm_package_json_type_field"></i>
-<i id="#esm_package_scope_and_file_extensions"></i>
-<i id="#esm_input_type_flag"></i>
+<i id="esm_package_json_type_field"></i>
+<i id="esm_package_scope_and_file_extensions"></i>
+<i id="esm_input_type_flag"></i>
 
 ## Enabling
 
@@ -456,7 +456,7 @@ hooks can provide this workflow in the future.
 
 `require.cache` is not used by `import`. It has a separate cache.
 
-<i id="#esm_experimental_json_modules"></i>
+<i id="esm_experimental_json_modules"></i>
 
 ## JSON modules
 
@@ -490,7 +490,7 @@ node index.mjs # fails
 node --experimental-json-modules index.mjs # works
 ```
 
-<i id="#esm_experimental_wasm_modules"></i>
+<i id="esm_experimental_wasm_modules"></i>
 
 ## Wasm modules
 
@@ -518,7 +518,7 @@ node --experimental-wasm-modules index.mjs
 
 would provide the exports interface for the instantiation of `module.wasm`.
 
-<i id="#esm_experimental_top_level_await"></i>
+<i id="esm_experimental_top_level_await"></i>
 
 ## Top-level `await`
 
@@ -546,7 +546,7 @@ console.log(five); // Logs `5`
 node b.mjs # works
 ```
 
-<i id="#esm_experimental_loaders"></i>
+<i id="esm_experimental_loaders"></i>
 
 ## Loaders
 
