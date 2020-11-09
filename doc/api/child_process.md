@@ -1667,7 +1667,7 @@ If all of `shell`, `args`, and `shellEscape` are specified, the shell should
 understand [POSIX single-quotes][]. If the shell is `'cmd.exe'`, it should
 understand the double-quoting used by Windows `cmd`. If the shell is
 `'powershell.exe'` or `'pwsh'`, it should understand a powershell-compatible
-single quoting.
+single quoting. If all fails, you may provide your own quoting function.
 
 Since the `command` part is literally passed to the shell, you are responsible
 for any escaping you perform. The specific way to call a file as a command-line
@@ -1722,7 +1722,7 @@ A very common, alternative command-line parsing method is the Cygwin/MSYS2
 with special provisions for dos-like paths. You may escape it as:
 
 <!-- FIXME: Trim this section as soon as the new Cygwin parser is up.
-     I know it's my PR and I've been sloppy there too... -->
+     It's very annoying to read. -->
 ```js
 function quoteCygwinArg(arg, mayBePath = true) {
   // Cygwin escapes the backslashes on paths to handle the Windows verbatim
