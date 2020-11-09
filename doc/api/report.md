@@ -396,15 +396,15 @@ node --report-uncaught-exception --report-on-signal \
 ```
 
 * `--report-uncaught-exception` Enables report to be generated on
-un-caught exceptions. Useful when inspecting JavaScript stack in conjunction
-with native stack and other runtime environment data.
+  un-caught exceptions. Useful when inspecting JavaScript stack in conjunction
+  with native stack and other runtime environment data.
 
 * `--report-on-signal` Enables report to be generated upon receiving
-the specified (or predefined) signal to the running Node.js process. (See below
-on how to modify the signal that triggers the report.) Default signal is `SIGUSR2`.
-Useful when a report needs to be triggered from another program.
-Application monitors may leverage this feature to collect report at regular
-intervals and plot rich set of internal runtime data to their views.
+  the specified (or predefined) signal to the running Node.js process. (See
+  below on how to modify the signal that triggers the report.) Default signal is
+  `SIGUSR2`. Useful when a report needs to be triggered from another program.
+  Application monitors may leverage this feature to collect report at regular
+  intervals and plot rich set of internal runtime data to their views.
 
 Signal based report generation is not supported in Windows.
 
@@ -413,24 +413,24 @@ signal. However, if `SIGUSR2` is already used for other purposes, then this
 flag helps to change the signal for report generation and preserve the original
 meaning of `SIGUSR2` for the said purposes.
 
-* `--report-on-fatalerror` Enables the report to be triggered on
-fatal errors (internal errors within the Node.js runtime, such as out of memory)
-that leads to termination of the application. Useful to inspect various
-diagnostic data elements such as heap, stack, event loop state, resource
-consumption etc. to reason about the fatal error.
+* `--report-on-fatalerror` Enables the report to be triggered on fatal errors
+  (internal errors within the Node.js runtime, such as out of memory)
+  that leads to termination of the application. Useful to inspect various
+  diagnostic data elements such as heap, stack, event loop state, resource
+  consumption etc. to reason about the fatal error.
 
 * `--report-compact` Write reports in a compact format, single-line JSON, more
-easily consumable by log processing systems than the default multi-line format
-designed for human consumption.
+  easily consumable by log processing systems than the default multi-line format
+  designed for human consumption.
 
 * `--report-directory` Location at which the report will be
-generated.
+  generated.
 
 * `--report-filename` Name of the file to which the report will be
-written.
+  written.
 
 * `--report-signal` Sets or resets the signal for report generation
-(not supported on Windows). Default signal is `SIGUSR2`.
+  (not supported on Windows). Default signal is `SIGUSR2`.
 
 A report can also be triggered via an API call from a JavaScript application:
 
