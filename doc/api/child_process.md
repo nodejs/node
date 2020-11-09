@@ -280,8 +280,9 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
-  * `shellEscape` {boolean} If `true`, escape `args[]`, but not `command`,
-    for the shell selected. **Default:** `false` (no escaping).
+  * `shellEscape` {boolean|Function} If `true`, escape `args[]`, but not
+    `command`, for the shell selected. If a function, use it as the escaper.
+    **Default:** `false` (no escaping).
   * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
@@ -473,8 +474,9 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
-  * `shellEscape` {boolean} If `true`, escape `args[]`, but not `command`,
-    for the shell selected. **Default:** `false` (no escaping).
+  * `shellEscape` {boolean|Function} If `true`, escape `args[]`, but not
+    `command`, for the shell selected. If a function, use it as the escaper.
+    **Default:** `false` (no escaping).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -824,8 +826,9 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
-  * `shellEscape` {boolean} If `true`, escape `args[]`, but not `command`,
-    for the shell selected. **Default:** `false` (no escaping).
+  * `shellEscape` {boolean|Function} If `true`, escape `args[]`, but not
+    `command`, for the shell selected. If a function, use it as the escaper.
+    **Default:** `false` (no escaping).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -957,8 +960,9 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
-  * `shellEscape` {boolean} If `true`, escape `args[]`, but not `command`,
-    for the shell selected. **Default:** `false` (no escaping).
+  * `shellEscape` {boolean|Function} If `true`, escape `args[]`, but not
+    `command`, for the shell selected. If a function, use it as the escaper.
+    **Default:** `false` (no escaping).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -1737,10 +1741,11 @@ function quoteCygwinArg(arg, mayBePath = true) {
   return `"${arg.replaceAll('"', '""')}"`;
 }
 
-// For shell (set { shellEscape: false } for spawn):
-exec([command].concat(args.map(quoteCygwinArg)).join(' '));
 // For non-shell:
-spawn(command, args.map(quoteCygwinArg), { windowsVerbatimArguments: true });
+spawn(command, args, {
+  shellEscape: quoteCygwinArg,
+  windowsVerbatimArguments: true,
+});
 ```
 
 MinGW uses the native Windows mechanism and can be used safely with the
