@@ -1,6 +1,6 @@
 'use strict';
 // https://github.com/nodejs/node/issues/35926
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const stream = require('stream');
 
@@ -22,11 +22,8 @@ const dst = new stream.Transform({
 
 src.pipe(dst);
 
-function parser_end() {
-  assert.ok(loops > 0);
-  dst.removeAllListeners();
-}
-
 dst.on('data', () => { });
-dst.on('end', parser_end);
-dst.on('error', parser_end);
+dst.on('end', common.mustCall(() => {
+  assert.strictEqual(loops, 3);
+  assert.ok(src.isPaused());
+}));
