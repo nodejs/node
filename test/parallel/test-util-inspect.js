@@ -583,9 +583,9 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 {
   let obj = vm.runInNewContext('(function(){return {}})()', {});
   assert.strictEqual(util.inspect(obj), '{}');
-  obj = vm.runInNewContext('var m=new Map();m.set(1,2);m', {});
+  obj = vm.runInNewContext('const m=new Map();m.set(1,2);m', {});
   assert.strictEqual(util.inspect(obj), 'Map(1) { 1 => 2 }');
-  obj = vm.runInNewContext('var s=new Set();s.add(1);s.add(2);s', {});
+  obj = vm.runInNewContext('const s=new Set();s.add(1);s.add(2);s', {});
   assert.strictEqual(util.inspect(obj), 'Set(2) { 1, 2 }');
   obj = vm.runInNewContext('fn=function(){};new Promise(fn,fn)', {});
   assert.strictEqual(util.inspect(obj), 'Promise { <pending> }');
