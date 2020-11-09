@@ -237,7 +237,7 @@ added:
 -->
 
 * Returns: {Array} of objects containing information about the wrapper functions
-returned by [`tracker.calls()`][].
+  returned by [`tracker.calls()`][].
 * Object {Object}
   * `message` {string}
   * `actual` {number} The actual number of times the function was called.
