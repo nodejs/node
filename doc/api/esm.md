@@ -118,12 +118,13 @@ There are three types of specifiers:
 
 * _Relative specifiers_ like `'./startup.js'` or `'../config.mjs'`. They refer
   to a path relative to the location of the importing file. _The file extension
-  is always mandatory for these._
+  is always necessary for these._
 
 * _Bare specifiers_ like `'some-package'` or `'some-package/shuffle'`. They can
   refer to the main entry point of a package by the package name, or a
   specific feature module within a package prefixed by the package name as per
-  the examples respectively. _The file extension is optional for these._
+  the examples respectively. _Including the file extension is only necessary
+  for packages without an [`"exports"`][] field._
 
 * _Absolute specifiers_ like `'file:///opt/nodejs/config.js'`. They refer
   directly and explicitly to a full path.
