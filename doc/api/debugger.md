@@ -115,14 +115,14 @@ To begin watching an expression, type `watch('my_expression')`. The command
 * `setBreakpoint()`, `sb()`: Set breakpoint on current line
 * `setBreakpoint(line)`, `sb(line)`: Set breakpoint on specific line
 * `setBreakpoint('fn()')`, `sb(...)`: Set breakpoint on a first statement in
-functions body
+  functions body
 * `setBreakpoint('script.js', 1)`, `sb(...)`: Set breakpoint on first line of
-`script.js`
+  `script.js`
 * `setBreakpoint('script.js', 1, 'num < 4')`, `sb(...)`: Set conditional
-breakpoint on first line of `script.js` that only breaks when `num < 4`
-evaluates to `true`
+  breakpoint on first line of `script.js` that only breaks when `num < 4`
+  evaluates to `true`
 * `clearBreakpoint('script.js', 1)`, `cb(...)`: Clear breakpoint in `script.js`
-on line 1
+  on line 1
 
 It is also possible to set a breakpoint in a file (module) that
 is not loaded yet:
@@ -188,11 +188,11 @@ debug>
 
 * `backtrace`, `bt`: Print backtrace of current execution frame
 * `list(5)`: List scripts source code with 5 line context (5 lines before and
-after)
+  after)
 * `watch(expr)`: Add expression to watch list
 * `unwatch(expr)`: Remove expression from watch list
 * `watchers`: List all watchers and their values (automatically listed on each
-breakpoint)
+  breakpoint)
 * `repl`: Open debugger's repl for evaluation in debugging script's context
 * `exec expr`: Execute an expression in debugging script's context
 
