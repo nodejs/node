@@ -218,7 +218,7 @@ Enable experimental JSON support for the ES Module loader.
 added: v9.0.0
 -->
 
-Specify the `module` of a custom [experimental ECMAScript Module loader][].
+Specify the `module` of a custom experimental [ECMAScript Module loader][].
 `module` may be either a path to a file, or an ECMAScript Module name.
 
 ### `--experimental-modules`
@@ -1554,6 +1554,7 @@ $ node --max-old-space-size=1536 index.js
 ```
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
+[ECMAScript Module loader]: esm.md#esm_loaders
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
@@ -1574,7 +1575,6 @@ $ node --max-old-space-size=1536 index.js
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.md#process_process_emitwarning_warning_type_code_ctor
-[experimental ECMAScript Module loader]: esm.md#esm_experimental_loaders
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
