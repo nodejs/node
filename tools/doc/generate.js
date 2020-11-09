@@ -25,6 +25,7 @@ const { promises: fs } = require('fs');
 const path = require('path');
 const unified = require('unified');
 const markdown = require('remark-parse');
+const gfm = require('remark-gfm');
 const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
@@ -82,6 +83,7 @@ async function main() {
   const content = await unified()
     .use(replaceLinks, { filename, linksMapper })
     .use(markdown)
+    .use(gfm)
     .use(html.preprocessText, { nodeVersion })
     .use(json.jsonAPI, { filename })
     .use(html.firstHeader)

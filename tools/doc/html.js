@@ -27,6 +27,7 @@ const unified = require('unified');
 const find = require('unist-util-find');
 const visit = require('unist-util-visit');
 const markdown = require('remark-parse');
+const gfm = require('remark-gfm');
 const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
@@ -56,6 +57,7 @@ const gtocMD = fs.readFileSync(gtocPath, 'utf8')
   .replace(/^<!--.*?-->/gms, '');
 const gtocHTML = unified()
   .use(markdown)
+  .use(gfm)
   .use(remark2rehype, { allowDangerousHtml: true })
   .use(raw)
   .use(navClasses)
@@ -283,6 +285,7 @@ function parseYAML(text) {
     meta.changes.forEach((change) => {
       const description = unified()
         .use(markdown)
+        .use(gfm)
         .use(remark2rehype, { allowDangerousHtml: true })
         .use(raw)
         .use(htmlStringify)
@@ -381,6 +384,7 @@ function buildToc({ filename, apilinks }) {
 
     file.toc = unified()
       .use(markdown)
+      .use(gfm)
       .use(remark2rehype, { allowDangerousHtml: true })
       .use(raw)
       .use(htmlStringify)
