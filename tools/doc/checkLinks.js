@@ -45,6 +45,7 @@ function findMarkdownFilesRecursively(dirPath) {
 function checkFile(path) {
   const tree = unified()
     .use(require('remark-parse'))
+    .use(require('remark-gfm'))
     .parse(fs.readFileSync(path));
 
   const base = pathToFileURL(path);
