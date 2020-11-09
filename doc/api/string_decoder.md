@@ -62,7 +62,7 @@ added: v0.9.3
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A `Buffer`, or `TypedArray`, or
- `DataView` containing the bytes to decode.
+  `DataView` containing the bytes to decode.
 * Returns: {string}
 
 Returns any remaining input stored in the internal buffer as a string. Bytes
@@ -84,7 +84,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A `Buffer`, or `TypedArray`, or
- `DataView` containing the bytes to decode.
+  `DataView` containing the bytes to decode.
 * Returns: {string}
 
 Returns a decoded string, ensuring that any incomplete multibyte characters at
