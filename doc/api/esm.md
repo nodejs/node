@@ -1287,6 +1287,7 @@ success!
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [Node.js Module Resolution Algorithm]: #esm_resolver_algorithm_specification
 [Terminology]: #esm_terminology
+[URL]: https://url.spec.whatwg.org/
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [`"exports"`]: packages.md#packages_exports
 [`"type"`]: packages.md#packages_type
