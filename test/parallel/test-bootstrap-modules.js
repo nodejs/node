@@ -78,6 +78,7 @@ const expectedModules = new Set([
   'NativeModule internal/process/warning',
   'NativeModule internal/querystring',
   'NativeModule internal/source_map/source_map_cache',
+  'NativeModule internal/streams/add-abort-signal',
   'NativeModule internal/streams/buffer_list',
   'NativeModule internal/streams/destroy',
   'NativeModule internal/streams/duplex',

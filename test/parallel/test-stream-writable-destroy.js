@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { Writable } = require('stream');
+const { Writable, addAbortSignal } = require('stream');
 const assert = require('assert');
 
 {
@@ -416,4 +416,18 @@ const assert = require('assert');
     assert(write._writableState.errored);
   }));
   write.write('asd');
+}
+
+{
+  const ac = new AbortController();
+  const write = addAbortSignal(ac.signal, new Writable({
+    write(chunk, enc, cb) { cb(); }
+  }));
+
+  write.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'AbortError');
+    assert.strictEqual(write.destroyed, true);
+  }));
+  write.write('asd');
+  ac.abort();
 }
