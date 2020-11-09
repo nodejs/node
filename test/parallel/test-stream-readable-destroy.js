@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { Readable } = require('stream');
+const { Readable, addAbortSignal } = require('stream');
 const assert = require('assert');
 
 {
@@ -267,4 +267,39 @@ const assert = require('assert');
     assert(read._readableState.errored);
   }));
   read.resume();
+}
+
+{
+  const controller = new AbortController();
+  const read = addAbortSignal(controller.signal, new Readable({
+    read() {
+      this.push('asd');
+    },
+  }));
+
+  read.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'AbortError');
+  }));
+  controller.abort();
+  read.on('data', common.mustNotCall());
+}
+
+{
+  const controller = new AbortController();
+  const read = addAbortSignal(controller.signal, new Readable({
+    objectMode: true,
+    read() {
+      return false;
+    }
+  }));
+  read.push('asd');
+
+  read.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'AbortError');
+  }));
+  assert.rejects((async () => {
+    /* eslint-disable-next-line no-unused-vars */
+    for await (const chunk of read) {}
+  })(), /AbortError/);
+  setTimeout(() => controller.abort(), 0);
 }

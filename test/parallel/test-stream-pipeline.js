@@ -8,7 +8,8 @@ const {
   Transform,
   pipeline,
   PassThrough,
-  Duplex
+  Duplex,
+  addAbortSignal,
 } = require('stream');
 const assert = require('assert');
 const http = require('http');
@@ -1260,4 +1261,33 @@ const net = require('net');
     createThenable,
     () => common.mustNotCall(),
   );
+}
+
+
+{
+  const ac = new AbortController();
+  const r = Readable.from(async function* () {
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+      yield String(i);
+      if (i === 5) {
+        ac.abort();
+      }
+    }
+  }());
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  const cb = common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+    assert.strictEqual(res, '012345');
+    assert.strictEqual(w.destroyed, true);
+    assert.strictEqual(r.destroyed, true);
+    assert.strictEqual(pipelined.destroyed, true);
+  });
+  const pipelined = addAbortSignal(ac.signal, pipeline([r, w], cb));
 }
