@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#15.2.0">15.2.0</a><br/>
 <a href="#15.1.0">15.1.0</a><br/>
 <a href="#15.0.1">15.0.1</a><br/>
 <a href="#15.0.0">15.0.0</a><br/>
@@ -33,6 +34,87 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="15.2.0"></a>
+## 2020-11-10, Version 15.2.0 (Current), @danielleadams
+
+### Notable changes
+
+* **events**:
+  * getEventListeners static (Benjamin Gruenbaum) [#35991](https://github.com/nodejs/node/pull/35991)
+* **fs**:
+  * support abortsignal in writeFile (Benjamin Gruenbaum) [#35993](https://github.com/nodejs/node/pull/35993)
+  * add support for AbortSignal in readFile (Benjamin Gruenbaum) [#35911](https://github.com/nodejs/node/pull/35911)
+* **stream**:
+  * fix thrown object reference (Gil Pedersen) [#36065](https://github.com/nodejs/node/pull/36065)
+
+### Commits
+
+* [[`9d9a044c1b`](https://github.com/nodejs/node/commit/9d9a044c1b)] - **benchmark**: ignore build artifacts for napi addons (Richard Lau) [#35970](https://github.com/nodejs/node/pull/35970)
+* [[`4c6de854be`](https://github.com/nodejs/node/commit/4c6de854be)] - **benchmark**: remove modules that require intl (Richard Lau) [#35968](https://github.com/nodejs/node/pull/35968)
+* [[`292915a6a8`](https://github.com/nodejs/node/commit/292915a6a8)] - **bootstrap**: refactor to use more primordials (Antoine du Hamel) [#35999](https://github.com/nodejs/node/pull/35999)
+* [[`10c9ea771d`](https://github.com/nodejs/node/commit/10c9ea771d)] - **build**: fix zlib inlining for IA-32 (raisinten) [#35679](https://github.com/nodejs/node/pull/35679)
+* [[`6ac9c8f31b`](https://github.com/nodejs/node/commit/6ac9c8f31b)] - **build, tools**: look for local installation of NASM (Richard Lau) [#36014](https://github.com/nodejs/node/pull/36014)
+* [[`9757b47c44`](https://github.com/nodejs/node/commit/9757b47c44)] - **console**: use more primordials (Antoine du Hamel) [#35734](https://github.com/nodejs/node/pull/35734)
+* [[`0d7422651b`](https://github.com/nodejs/node/commit/0d7422651b)] - **crypto**: refactor to use more primordials (Antoine du Hamel) [#36012](https://github.com/nodejs/node/pull/36012)
+* [[`dc4936ba50`](https://github.com/nodejs/node/commit/dc4936ba50)] - **crypto**: fix comment in ByteSource (Tobias Nießen) [#35972](https://github.com/nodejs/node/pull/35972)
+* [[`7cb5c0911e`](https://github.com/nodejs/node/commit/7cb5c0911e)] - **deps**: cherry-pick 9a49b22 from V8 upstream (Daniel Bevenius) [#35939](https://github.com/nodejs/node/pull/35939)
+* [[`4b03670877`](https://github.com/nodejs/node/commit/4b03670877)] - **dns**: fix trace\_events name for resolveCaa() (Rich Trott) [#35979](https://github.com/nodejs/node/pull/35979)
+* [[`dcb27600da`](https://github.com/nodejs/node/commit/dcb27600da)] - **doc**: escape asterisk in cctest gtest-filter (raisinten) [#36034](https://github.com/nodejs/node/pull/36034)
+* [[`923276ca53`](https://github.com/nodejs/node/commit/923276ca53)] - **doc**: move v8.getHeapCodeStatistics() (Rich Trott) [#36027](https://github.com/nodejs/node/pull/36027)
+* [[`71fa9c6b24`](https://github.com/nodejs/node/commit/71fa9c6b24)] - **doc**: add note regarding file structure in src/README.md (Denys Otrishko) [#35000](https://github.com/nodejs/node/pull/35000)
+* [[`99cb36238d`](https://github.com/nodejs/node/commit/99cb36238d)] - **doc**: advise users to import the full set of trusted release keys (Reşat SABIQ) [#32655](https://github.com/nodejs/node/pull/32655)
+* [[`06cc400160`](https://github.com/nodejs/node/commit/06cc400160)] - **doc**: fix crypto doc linter errors (Antoine du Hamel) [#36035](https://github.com/nodejs/node/pull/36035)
+* [[`01129a7b39`](https://github.com/nodejs/node/commit/01129a7b39)] - **doc**: revise v8.getHeapSnapshot() (Rich Trott) [#35849](https://github.com/nodejs/node/pull/35849)
+* [[`77d33c9b2f`](https://github.com/nodejs/node/commit/77d33c9b2f)] - **doc**: update core-validate-commit link in guide (Daijiro Wachi) [#35938](https://github.com/nodejs/node/pull/35938)
+* [[`6d56ba03e2`](https://github.com/nodejs/node/commit/6d56ba03e2)] - **doc**: update benchmark CI test indicator in README (Rich Trott) [#35945](https://github.com/nodejs/node/pull/35945)
+* [[`8bd364a9b3`](https://github.com/nodejs/node/commit/8bd364a9b3)] - **doc**: add new wordings to the API description (Pooja D.P) [#35588](https://github.com/nodejs/node/pull/35588)
+* [[`acd3617e1a`](https://github.com/nodejs/node/commit/acd3617e1a)] - **doc**: option --prof documentation help added (krank2me) [#34991](https://github.com/nodejs/node/pull/34991)
+* [[`6968b0fd49`](https://github.com/nodejs/node/commit/6968b0fd49)] - **doc**: fix release-schedule link in backport guide (Daijiro Wachi) [#35920](https://github.com/nodejs/node/pull/35920)
+* [[`efbfeff62b`](https://github.com/nodejs/node/commit/efbfeff62b)] - **doc**: fix incorrect heading level (Bryan Field) [#35965](https://github.com/nodejs/node/pull/35965)
+* [[`9c4b360d08`](https://github.com/nodejs/node/commit/9c4b360d08)] - **doc,crypto**: added sign/verify method changes about dsaEncoding (Filip Skokan) [#35480](https://github.com/nodejs/node/pull/35480)
+* [[`85cf30541d`](https://github.com/nodejs/node/commit/85cf30541d)] - **doc,fs**: document value of stats.isDirectory on symbolic links (coderaiser) [#27413](https://github.com/nodejs/node/pull/27413)
+* [[`d6bd78ff82`](https://github.com/nodejs/node/commit/d6bd78ff82)] - **doc,net**: document socket.timeout (Brandon Kobel) [#34543](https://github.com/nodejs/node/pull/34543)
+* [[`36c20d939a`](https://github.com/nodejs/node/commit/36c20d939a)] - **doc,stream**: write(chunk, encoding, cb) encoding can be null (dev-script) [#35372](https://github.com/nodejs/node/pull/35372)
+* [[`9d26c4d496`](https://github.com/nodejs/node/commit/9d26c4d496)] - **domain**: refactor to use more primordials (Antoine du Hamel) [#35885](https://github.com/nodejs/node/pull/35885)
+* [[`d83e253065`](https://github.com/nodejs/node/commit/d83e253065)] - **errors**: refactor to use more primordials (Antoine du Hamel) [#35944](https://github.com/nodejs/node/pull/35944)
+* [[`567f8d8caf`](https://github.com/nodejs/node/commit/567f8d8caf)] - **(SEMVER-MINOR)** **events**: getEventListeners static (Benjamin Gruenbaum) [#35991](https://github.com/nodejs/node/pull/35991)
+* [[`9e673723e3`](https://github.com/nodejs/node/commit/9e673723e3)] - **events**: fire handlers in correct oder (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
+* [[`ff59fcdf7b`](https://github.com/nodejs/node/commit/ff59fcdf7b)] - **events**: define abort on prototype (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
+* [[`ab0eb4f2c9`](https://github.com/nodejs/node/commit/ab0eb4f2c9)] - **events**: support event handlers on prototypes (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
+* [[`33e2ee58a7`](https://github.com/nodejs/node/commit/33e2ee58a7)] - **events**: define event handler as enumerable (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
+* [[`a7d0c76f86`](https://github.com/nodejs/node/commit/a7d0c76f86)] - **events**: support emit on nodeeventtarget (Benjamin Gruenbaum) [#35851](https://github.com/nodejs/node/pull/35851)
+* [[`76332a0439`](https://github.com/nodejs/node/commit/76332a0439)] - **events**: port some wpt tests (Benjamin Gruenbaum) [#33621](https://github.com/nodejs/node/pull/33621)
+* [[`ccf9f0e62e`](https://github.com/nodejs/node/commit/ccf9f0e62e)] - **(SEMVER-MINOR)** **fs**: support abortsignal in writeFile (Benjamin Gruenbaum) [#35993](https://github.com/nodejs/node/pull/35993)
+* [[`7ef9c707e9`](https://github.com/nodejs/node/commit/7ef9c707e9)] - **fs**: replace finally with PromisePrototypeFinally (Baruch Odem (Rothkoff)) [#35995](https://github.com/nodejs/node/pull/35995)
+* [[`ccbe267515`](https://github.com/nodejs/node/commit/ccbe267515)] - **fs**: remove unnecessary Function#bind() in fs/promises (Ben Noordhuis) [#35208](https://github.com/nodejs/node/pull/35208)
+* [[`6011bfdec5`](https://github.com/nodejs/node/commit/6011bfdec5)] - **fs**: remove unused assignment (Rich Trott) [#35882](https://github.com/nodejs/node/pull/35882)
+* [[`92bdfd141b`](https://github.com/nodejs/node/commit/92bdfd141b)] - **(SEMVER-MINOR)** **fs**: add support for AbortSignal in readFile (Benjamin Gruenbaum) [#35911](https://github.com/nodejs/node/pull/35911)
+* [[`11f592450b`](https://github.com/nodejs/node/commit/11f592450b)] - **http2**: add has method to proxySocketHandler (masx200) [#35197](https://github.com/nodejs/node/pull/35197)
+* [[`28ed7d062e`](https://github.com/nodejs/node/commit/28ed7d062e)] - **http2**: centralise socket event binding in Http2Session (Momtchil Momtchev) [#35772](https://github.com/nodejs/node/pull/35772)
+* [[`429113ebfb`](https://github.com/nodejs/node/commit/429113ebfb)] - **http2**: move events to the JSStreamSocket (Momtchil Momtchev) [#35772](https://github.com/nodejs/node/pull/35772)
+* [[`1dd744a420`](https://github.com/nodejs/node/commit/1dd744a420)] - **http2**: fix error stream write followed by destroy (David Halls) [#35951](https://github.com/nodejs/node/pull/35951)
+* [[`af2a560c42`](https://github.com/nodejs/node/commit/af2a560c42)] - **lib**: add %TypedArray% abstract constructor to primordials (ExE Boss) [#36016](https://github.com/nodejs/node/pull/36016)
+* [[`b700900d02`](https://github.com/nodejs/node/commit/b700900d02)] - **lib**: refactor to use more primordials (Antoine du Hamel) [#35875](https://github.com/nodejs/node/pull/35875)
+* [[`7a375902ff`](https://github.com/nodejs/node/commit/7a375902ff)] - **module**: refactor to use more primordials (Antoine du Hamel) [#36024](https://github.com/nodejs/node/pull/36024)
+* [[`8d76db86b5`](https://github.com/nodejs/node/commit/8d76db86b5)] - **module**: refactor to use iterable-weak-map (Benjamin Coe) [#35915](https://github.com/nodejs/node/pull/35915)
+* [[`9b6512f7de`](https://github.com/nodejs/node/commit/9b6512f7de)] - **n-api**: unlink reference during its destructor (Gabriel Schulhof) [#35933](https://github.com/nodejs/node/pull/35933)
+* [[`1b277d97f3`](https://github.com/nodejs/node/commit/1b277d97f3)] - **src**: remove ERR prefix in crypto status enums (Daniel Bevenius) [#35867](https://github.com/nodejs/node/pull/35867)
+* [[`9774b4cc72`](https://github.com/nodejs/node/commit/9774b4cc72)] - **stream**: fix thrown object reference (Gil Pedersen) [#36065](https://github.com/nodejs/node/pull/36065)
+* [[`359a6590b0`](https://github.com/nodejs/node/commit/359a6590b0)] - **stream**: writableNeedDrain (Robert Nagy) [#35348](https://github.com/nodejs/node/pull/35348)
+* [[`b7aa5e2296`](https://github.com/nodejs/node/commit/b7aa5e2296)] - **stream**: remove isPromise utility function (Antoine du Hamel) [#35925](https://github.com/nodejs/node/pull/35925)
+* [[`fdae9ad188`](https://github.com/nodejs/node/commit/fdae9ad188)] - **test**: fix races in test-performance-eventlooputil (Gerhard Stoebich) [#36028](https://github.com/nodejs/node/pull/36028)
+* [[`0a4c96a7df`](https://github.com/nodejs/node/commit/0a4c96a7df)] - **test**: use global.EventTarget instead of internals (Antoine du Hamel) [#36002](https://github.com/nodejs/node/pull/36002)
+* [[`f73b8d84db`](https://github.com/nodejs/node/commit/f73b8d84db)] - **test**: improve error message for policy failures (Bradley Meck) [#35633](https://github.com/nodejs/node/pull/35633)
+* [[`cb6f0d3d89`](https://github.com/nodejs/node/commit/cb6f0d3d89)] - **test**: update old comment style test\_util.cc (raisinten) [#35884](https://github.com/nodejs/node/pull/35884)
+* [[`23f0d0c45c`](https://github.com/nodejs/node/commit/23f0d0c45c)] - **test**: fix error in test/internet/test-dns.js (Rich Trott) [#35969](https://github.com/nodejs/node/pull/35969)
+* [[`77e4f19701`](https://github.com/nodejs/node/commit/77e4f19701)] - **timers**: cleanup abort listener on awaitable timers (James M Snell) [#36006](https://github.com/nodejs/node/pull/36006)
+* [[`a7350b3a8f`](https://github.com/nodejs/node/commit/a7350b3a8f)] - **tools**: don't print gold linker warning w/o flag (Myles Borins) [#35955](https://github.com/nodejs/node/pull/35955)
+* [[`1f27214480`](https://github.com/nodejs/node/commit/1f27214480)] - **tools**: add new ESLint rule: prefer-primordials (Leko) [#35448](https://github.com/nodejs/node/pull/35448)
+* [[`da3c2ab828`](https://github.com/nodejs/node/commit/da3c2ab828)] - **tools,doc**: enable ecmaVersion 2021 in acorn parser (Antoine du Hamel) [#35994](https://github.com/nodejs/node/pull/35994)
+* [[`f8098c3e43`](https://github.com/nodejs/node/commit/f8098c3e43)] - **tools,lib**: recommend using safe primordials (Antoine du Hamel) [#36026](https://github.com/nodejs/node/pull/36026)
+* [[`eea7e3b0d0`](https://github.com/nodejs/node/commit/eea7e3b0d0)] - **tools,lib**: tighten prefer-primordials rules for Error statics (Antoine du Hamel) [#36017](https://github.com/nodejs/node/pull/36017)
+* [[`7a2edea7ed`](https://github.com/nodejs/node/commit/7a2edea7ed)] - **win, build**: fix build time on Windows (Bartosz Sosnowski) [#35932](https://github.com/nodejs/node/pull/35932)
 
 <a id="15.1.0"></a>
 ## 2020-11-04, Version 15.1.0 (Current), @targos
