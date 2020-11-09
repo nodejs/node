@@ -832,7 +832,7 @@ class MyClass extends EventEmitter {
 ## `events.getEventListeners(emitterOrTarget, eventName)`
 <!-- YAML
 added:
- - REPLACEME
+ - v15.2.0
 -->
 * `emitterOrTarget` {EventEmitter|EventTarget}
 * `eventName` {string|symbol}
