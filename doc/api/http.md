@@ -2336,6 +2336,9 @@ This can be overridden for servers and client requests by passing the
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36048
+    description: It is possible to abort a request with an AbortSignal.
   - version:
      - v13.8.0
      - v12.15.0
@@ -2403,6 +2406,8 @@ changes:
      or `port` is specified, those specify a TCP Socket).
   * `timeout` {number}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
+  * `signal` {AbortSignal}: An AbortSignal that may be used to abort an ongoing
+    request.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
@@ -2595,6 +2600,10 @@ events will be emitted in the following order:
 
 Setting the `timeout` option or using the `setTimeout()` function will
 not abort the request or do anything besides add a `'timeout'` event.
+
+Passing an `AbortSignal` and then calling `abort` on the corresponding
+`AbortController` will behave the same way as calling `.destroy()` on the
+request itself.
 
 ## `http.validateHeaderName(name)`
 <!-- YAML

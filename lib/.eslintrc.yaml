@@ -19,7 +19,7 @@ rules:
     - selector: "ThrowStatement > CallExpression[callee.name=/Error$/]"
       message: "Use new keyword when throwing an Error."
     # Config specific to lib
-    - selector: "NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError)$/])"
+    - selector: "NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError|AbortError)$/])"
       message: "Use an error exported by the internal/errors module."
     - selector: "CallExpression[callee.object.name='Error'][callee.property.name='captureStackTrace']"
       message: "Please use `require('internal/errors').hideStackFrames()` instead."
