@@ -456,6 +456,8 @@ hooks can provide this workflow in the future.
 
 `require.cache` is not used by `import`. It has a separate cache.
 
+<i id="#esm_experimental_json_modules"></i>
+
 ## JSON modules
 
 > Stability: 1 - Experimental
@@ -488,6 +490,8 @@ node index.mjs # fails
 node --experimental-json-modules index.mjs # works
 ```
 
+<i id="#esm_experimental_wasm_modules"></i>
+
 ## Wasm modules
 
 > Stability: 1 - Experimental
@@ -514,6 +518,8 @@ node --experimental-wasm-modules index.mjs
 
 would provide the exports interface for the instantiation of `module.wasm`.
 
+<i id="#esm_experimental_top_level_await"></i>
+
 ## Top-level `await`
 
 > Stability: 1 - Experimental
@@ -539,6 +545,8 @@ console.log(five); // Logs `5`
 ```bash
 node b.mjs # works
 ```
+
+<i id="#esm_experimental_loaders"></i>
 
 ## Loaders
 
