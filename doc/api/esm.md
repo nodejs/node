@@ -1298,7 +1298,7 @@ success!
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #esm_import_expressions
 [`import.meta.url`]: #esm_import_meta_url
-[`import.meta.resolve`]: #esm_import_meta_resolve
+[`import.meta.resolve`]: #esm_import_meta_resolve_specifier_parent
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: module.md#module_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: module.md#module_module_syncbuiltinesmexports
