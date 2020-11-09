@@ -11,13 +11,14 @@ const { resolve } = require('path');
 const vfile = require('to-vfile');
 const unified = require('unified');
 const remarkParse = require('remark-parse');
+const gfm = require('remark-gfm');
 
 const rootDir = resolve(__dirname, '..', '..');
 const doc = resolve(rootDir, 'doc', 'api', 'addons.md');
 const verifyDir = resolve(rootDir, 'test', 'addons');
 
 const file = vfile.readSync(doc, 'utf8');
-const tree = unified().use(remarkParse).parse(file);
+const tree = unified().use(remarkParse).use(gfm).parse(file);
 const addons = {};
 let id = 0;
 let currentHeader;
