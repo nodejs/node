@@ -114,7 +114,7 @@ The _specifier_ of an `import` statement is the string after the `from` keyword,
 e.g. `'path'` in `import { sep } from 'path'`. Specifiers are also used in
 `export from` statements, and as the argument to an `import()` expression.
 
-There are four types of specifiers:
+There are three types of specifiers:
 
 * _Relative specifiers_ like `'./startup.js'` or `'../config.mjs'`. They refer
   to a path relative to the location of the importing file. _The file extension
@@ -130,7 +130,7 @@ There are four types of specifiers:
 
 Bare specifier resolutions are handled by the [Node.js module resolution
 algorithm][]. All other specifier resolutions are always only resolved with
-the standard relative [URL](https://url.spec.whatwg.org/) resolution semantics.
+the standard relative [URL][] resolution semantics.
 
 Like in CommonJS, module files within packages can be accessed by appending a
 path to the package name; unless the package’s [`package.json`][] contains an
@@ -169,7 +169,7 @@ import './foo.mjs?query=2'; // loads ./foo.mjs with query of "?query=2"
 ```
 
 The volume root may be referenced via `/`, `//` or `file:///`. Given the
-differences between URL and path resolution (such as percent encoding details),
+differences between [URL][] and path resolution (such as percent encoding details),
 it is recommended to use [url.pathToFileURL][] when importing a path.
 
 #### `data:` Imports
