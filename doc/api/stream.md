@@ -682,11 +682,11 @@ A [`Readable`][] stream can be in object mode or not, regardless of whether
 it is in flowing mode or paused mode.
 
 * In flowing mode, data is read from the underlying system automatically
-and provided to an application as quickly as possible using events via the
-[`EventEmitter`][] interface.
+  and provided to an application as quickly as possible using events via the
+  [`EventEmitter`][] interface.
 
 * In paused mode, the [`stream.read()`][stream-read] method must be called
-explicitly to read chunks of data from the stream.
+  explicitly to read chunks of data from the stream.
 
 All [`Readable`][] streams begin in paused mode but can be switched to flowing
 mode in one of the following ways:

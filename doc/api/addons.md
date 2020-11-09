@@ -154,25 +154,26 @@ they were created.
 
 The context-aware addon can be structured to avoid global static data by
 performing the following steps:
+
 * Define a class which will hold per-addon-instance data and which has a static
-member of the form
+  member of the form
   ```cpp
   static void DeleteInstance(void* data) {
     // Cast `data` to an instance of the class and delete it.
   }
   ```
 * Heap-allocate an instance of this class in the addon initializer. This can be
-accomplished using the `new` keyword.
+  accomplished using the `new` keyword.
 * Call `node::AddEnvironmentCleanupHook()`, passing it the above-created
-instance and a pointer to `DeleteInstance()`. This will ensure the instance is
-deleted when the environment is torn down.
+  instance and a pointer to `DeleteInstance()`. This will ensure the instance is
+  deleted when the environment is torn down.
 * Store the instance of the class in a `v8::External`, and
 * Pass the `v8::External` to all methods exposed to JavaScript by passing it
-to `v8::FunctionTemplate::New()` or `v8::Function::New()` which creates the
-native-backed JavaScript functions. The third parameter of
-`v8::FunctionTemplate::New()` or `v8::Function::New()`  accepts the
-`v8::External` and makes it available in the native callback using the
-`v8::FunctionCallbackInfo::Data()` method.
+  to `v8::FunctionTemplate::New()` or `v8::Function::New()` which creates the
+  native-backed JavaScript functions. The third parameter of
+  `v8::FunctionTemplate::New()` or `v8::Function::New()`  accepts the
+  `v8::External` and makes it available in the native callback using the
+  `v8::FunctionCallbackInfo::Data()` method.
 
 This will ensure that the per-addon-instance data reaches each binding that can
 be called from JavaScript. The per-addon-instance data must also be passed into
@@ -395,14 +396,14 @@ the appropriate headers automatically. However, there are a few caveats to be
 aware of:
 
 * When `node-gyp` runs, it will detect the specific release version of Node.js
-and download either the full source tarball or just the headers. If the full
-source is downloaded, addons will have complete access to the full set of
-Node.js dependencies. However, if only the Node.js headers are downloaded, then
-only the symbols exported by Node.js will be available.
+  and download either the full source tarball or just the headers. If the full
+  source is downloaded, addons will have complete access to the full set of
+  Node.js dependencies. However, if only the Node.js headers are downloaded,
+  then only the symbols exported by Node.js will be available.
 
 * `node-gyp` can be run using the `--nodedir` flag pointing at a local Node.js
-source image. Using this option, the addon will have access to the full set of
-dependencies.
+  source image. Using this option, the addon will have access to the full set of
+  dependencies.
 
 ### Loading addons using `require()`
 

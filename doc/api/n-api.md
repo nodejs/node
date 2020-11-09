@@ -858,8 +858,8 @@ typedef void (*napi_async_cleanup_hook)(napi_async_cleanup_hook_handle handle,
 ```
 
 * `[in] handle`: The handle that must be passed to
-[`napi_remove_async_cleanup_hook`][] after completion of the asynchronous
-cleanup.
+  [`napi_remove_async_cleanup_hook`][] after completion of the asynchronous
+  cleanup.
 * `[in] data`: The data that was passed to [`napi_add_async_cleanup_hook`][].
 
 The body of the function should initiate the asynchronous cleanup actions at the
@@ -939,7 +939,7 @@ napi_get_last_error_info(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[out] result`: The `napi_extended_error_info` structure with more
-information about the error.
+  information about the error.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -1715,7 +1715,7 @@ NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
 * `[in] hook`: The function pointer to call at environment teardown.
 * `[in] arg`: The pointer to pass to `hook` when it gets called.
 * `[out] remove_handle`: Optional handle that refers to the asynchronous cleanup
-hook.
+  hook.
 
 Registers `hook`, which is a function of type [`napi_async_cleanup_hook`][], as
 a function to be run with the `remove_handle` and `arg` parameters once the
@@ -1748,7 +1748,7 @@ NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
 ```
 
 * `[in] remove_handle`: The handle to an asynchronous cleanup hook that was
-created with [`napi_add_async_cleanup_hook`][].
+  created with [`napi_add_async_cleanup_hook`][].
 
 Unregisters the cleanup hook corresponding to `remove_handle`. This will prevent
 the hook from being executed, unless it has already started executing.
@@ -3355,7 +3355,7 @@ napi_status napi_typeof(napi_env env, napi_value value, napi_valuetype* result)
 Returns `napi_ok` if the API succeeded.
 
 * `napi_invalid_arg` if the type of `value` is not a known ECMAScript type and
- `value` is not an External value.
+  `value` is not an External value.
 
 This API represents behavior similar to invoking the `typeof` Operator on
 the object as defined in [Section 12.5.5][] of the ECMAScript Language
@@ -3884,11 +3884,11 @@ napi_get_all_property_names(napi_env env,
 * `[in] object`: The object from which to retrieve the properties.
 * `[in] key_mode`: Whether to retrieve prototype properties as well.
 * `[in] key_filter`: Which properties to retrieve
-(enumerable/readable/writable).
+  (enumerable/readable/writable).
 * `[in] key_conversion`: Whether to convert numbered property keys to strings.
 * `[out] result`: A `napi_value` representing an array of JavaScript values
-that represent the property names of the object. [`napi_get_array_length`][] and
-[`napi_get_element`][] can be used to iterate over `result`.
+  that represent the property names of the object. [`napi_get_array_length`][]
+  and [`napi_get_element`][] can be used to iterate over `result`.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -4920,7 +4920,7 @@ napi_status napi_check_object_type_tag(napi_env env,
 * `[in] js_object`: The JavaScript object whose type tag to examine.
 * `[in] type_tag`: The tag with which to compare any tag found on the object.
 * `[out] result`: Whether the type tag given matched the type tag on the
-object. `false` is also returned if no type tag was found on the object.
+  object. `false` is also returned if no type tag was found on the object.
 
 Returns `napi_ok` if the API succeeded.
 

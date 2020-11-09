@@ -1678,13 +1678,13 @@ OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
 
 * `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
-exists.
+  exists.
 * `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
-copy-on-write reflink. If the platform does not support copy-on-write, then a
-fallback copy mechanism is used.
+  copy-on-write reflink. If the platform does not support copy-on-write, then a
+  fallback copy mechanism is used.
 * `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
-create a copy-on-write reflink. If the platform does not support copy-on-write,
-then the operation will fail.
+  create a copy-on-write reflink. If the platform does not support
+  copy-on-write, then the operation will fail.
 
 ```js
 const fs = require('fs');
@@ -1727,13 +1727,13 @@ OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
 
 * `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
-exists.
+  exists.
 * `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
-copy-on-write reflink. If the platform does not support copy-on-write, then a
-fallback copy mechanism is used.
+  copy-on-write reflink. If the platform does not support copy-on-write, then a
+  fallback copy mechanism is used.
 * `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
-create a copy-on-write reflink. If the platform does not support copy-on-write,
-then the operation will fail.
+  create a copy-on-write reflink. If the platform does not support
+  copy-on-write, then the operation will fail.
 
 ```js
 const fs = require('fs');
@@ -1778,7 +1778,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `flags` {string} See [support of file system `flags`][]. **Default:**
-  `'r'`.
+    `'r'`.
   * `encoding` {string} **Default:** `null`
   * `fd` {integer} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
@@ -1881,7 +1881,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `flags` {string} See [support of file system `flags`][]. **Default:**
-  `'w'`.
+    `'w'`.
   * `encoding` {string} **Default:** `'utf8'`
   * `fd` {integer} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
@@ -3092,11 +3092,11 @@ when possible prefer streaming via `fs.createReadStream()`.
 
 1. Any specified file descriptor has to support reading.
 2. If a file descriptor is specified as the `path`, it will not be closed
-automatically.
+   automatically.
 3. The reading will begin at the current position. For example, if the file
-already had `'Hello World`' and six bytes are read with the file descriptor,
-the call to `fs.readFile()` with the same file descriptor, would give
-`'World'`, rather than `'Hello World'`.
+   already had `'Hello World`' and six bytes are read with the file descriptor,
+   the call to `fs.readFile()` with the same file descriptor, would give
+   `'World'`, rather than `'Hello World'`.
 
 ## `fs.readFileSync(path[, options])`
 <!-- YAML
@@ -5135,13 +5135,13 @@ OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
 
 * `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
-exists.
+  exists.
 * `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
-copy-on-write reflink. If the platform does not support copy-on-write, then a
-fallback copy mechanism is used.
+  copy-on-write reflink. If the platform does not support copy-on-write, then a
+  fallback copy mechanism is used.
 * `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
-create a copy-on-write reflink. If the platform does not support copy-on-write,
-then the operation will fail.
+  create a copy-on-write reflink. If the platform does not support
+  copy-on-write, then the operation will fail.
 
 ```js
 const {
@@ -5987,7 +5987,7 @@ string.
 * `'wx'`: Like `'w'` but fails if the path exists.
 
 * `'w+'`: Open file for reading and writing.
-The file is created (if it does not exist) or truncated (if it exists).
+  The file is created (if it does not exist) or truncated (if it exists).
 
 * `'wx+'`: Like `'w+'` but fails if the path exists.
 
