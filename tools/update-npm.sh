@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -e
 # Shell script to update npm in the source tree to a specific version
 

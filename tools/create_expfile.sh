@@ -37,15 +37,15 @@
 echo "Searching $1 to write out expfile to $2"
 
 # This special sequence must be at the start of the exp file.
-echo "#!." > $2.tmp
+echo "#!." > "$2.tmp"
 
 # Pull the symbols from the .a files.
-find $1 -name "*.a" | grep -v gtest \
+find "$1" -name "*.a" | grep -v gtest \
   | xargs nm -Xany -BCpg \
   | awk '{
       if ((($2 == "T") || ($2 == "D") || ($2 == "B")) &&
           (substr($3,1,1) != ".")) { print $3 }
     }' \
-  | sort -u >> $2.tmp
+  | sort -u >> "$2.tmp"
 
-mv -f $2.tmp $2
+mv -f "$2.tmp" "$2"
