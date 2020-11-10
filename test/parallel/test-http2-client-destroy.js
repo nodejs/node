@@ -77,6 +77,7 @@ const Countdown = require('../common/countdown');
     };
 
     assert.throws(() => client.setNextStreamID(), sessionError);
+    assert.throws(() => client.setLocalWindowSize(), sessionError);
     assert.throws(() => client.ping(), sessionError);
     assert.throws(() => client.settings({}), sessionError);
     assert.throws(() => client.goaway(), sessionError);
@@ -87,6 +88,7 @@ const Countdown = require('../common/countdown');
     // so that state.destroyed is set to true
     setImmediate(() => {
       assert.throws(() => client.setNextStreamID(), sessionError);
+      assert.throws(() => client.setLocalWindowSize(), sessionError);
       assert.throws(() => client.ping(), sessionError);
       assert.throws(() => client.settings({}), sessionError);
       assert.throws(() => client.goaway(), sessionError);

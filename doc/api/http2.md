@@ -519,6 +519,29 @@ added: v8.4.0
 A prototype-less object describing the current remote settings of this
 `Http2Session`. The remote settings are set by the *connected* HTTP/2 peer.
 
+#### `http2session.setLocalWindowSize(windowSize)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `windowSize` {number}
+
+Sets the local endpoint's window size.
+The `windowSize` is the total window size to set, not
+the delta.
+
+```js
+const http2 = require('http2');
+
+const server = http2.createServer();
+const expectedWindowSize = 2 ** 20;
+server.on('connect', (session) => {
+
+  // Set local window size to be 2 ** 20
+  session.setLocalWindowSize(expectedWindowSize);
+});
+```
+
 #### `http2session.setTimeout(msecs, callback)`
 <!-- YAML
 added: v8.4.0
