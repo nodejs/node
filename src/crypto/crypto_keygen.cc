@@ -2,6 +2,7 @@
 #include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
@@ -67,11 +68,11 @@ Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
   CHECK(args[*offset]->IsUint32());
   params->length = std::trunc(args[*offset].As<Uint32>()->Value() / CHAR_BIT);
   if (params->length > INT_MAX) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg),
-             "length must be less than or equal to %lu bits",
-             static_cast<size_t>(INT_MAX) * CHAR_BIT);
-    THROW_ERR_OUT_OF_RANGE(env, msg);
+    const std::string msg{
+      SPrintF("length must be less than or equal to %s bits",
+              static_cast<uint64_t>(INT_MAX) * CHAR_BIT)
+    };
+    THROW_ERR_OUT_OF_RANGE(env, msg.c_str());
     return Nothing<bool>();
   }
   *offset += 1;
