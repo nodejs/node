@@ -167,3 +167,32 @@ const Countdown = require('../common/countdown');
     req.on('close', common.mustCall(() => server.close()));
   }));
 }
+
+// Destroy with AbortSignal
+{
+  const server = h2.createServer();
+  const controller = new AbortController();
+
+  server.on('stream', common.mustNotCall());
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+    client.on('close', common.mustCall());
+    const socket = client[kSocket];
+    socket.on('close', common.mustCall(() => {
+      assert(socket.destroyed);
+    }));
+
+    const req = client.request({}, { signal: controller.signal });
+    client.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ECONNREFUSED');
+      server.close();
+    }));
+
+    assert.strictEqual(req.aborted, false);
+    assert.strictEqual(req.destroyed, false);
+    controller.abort();
+    assert.strictEqual(req.aborted, false);
+    assert.strictEqual(req.destroyed, true);
+    req.on('close', common.mustCall(() => server.close()));
+  }));
+}
