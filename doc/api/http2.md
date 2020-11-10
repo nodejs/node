@@ -5,7 +5,6 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/36070
     description: It is possible to abort a request with an AbortSignal.
-
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34664
     description: Requests with the `host` header (with or without
