@@ -8,6 +8,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 const { kSocket } = require('internal/http2/util');
+const { kEvents } = require('internal/event_target');
 const Countdown = require('../common/countdown');
 
 {
@@ -177,20 +178,23 @@ const Countdown = require('../common/countdown');
   server.listen(0, common.mustCall(() => {
     const client = h2.connect(`http://localhost:${server.address().port}`);
     client.on('close', common.mustCall());
-    const socket = client[kSocket];
-    socket.on('close', common.mustCall(() => {
-      assert(socket.destroyed);
-    }));
-
-    const req = client.request({}, { signal: controller.signal });
     client.on('error', common.mustCall((err) => {
       assert.strictEqual(err.code, 'ECONNREFUSED');
+      assert.strictEqual(signal[kEvents].get('abort'), undefined);
       server.close();
     }));
 
+    const { signal } = controller;
+    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+
+    const req = client.request({}, { signal });
+
     assert.strictEqual(req.aborted, false);
     assert.strictEqual(req.destroyed, false);
+    assert.strictEqual(signal[kEvents].get('abort').size, 1);
+
     controller.abort();
+
     assert.strictEqual(req.aborted, false);
     assert.strictEqual(req.destroyed, true);
     req.on('close', common.mustCall(() => server.close()));
