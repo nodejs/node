@@ -169,7 +169,7 @@ inline static napi_status ConcludeDeferred(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8impl::Persistent<v8::Value>* deferred_ref =
       NodePersistentFromJsDeferred(deferred);
   v8::Local<v8::Value> v8_deferred =
@@ -385,8 +385,7 @@ inline static napi_status Unwrap(napi_env env,
     CHECK_ARG(env, result);
   }
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(js_object);
   RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
