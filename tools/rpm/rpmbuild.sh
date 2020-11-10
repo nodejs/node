@@ -16,7 +16,7 @@
 
 set -e
 
-TOOLSDIR=`dirname $0`
+TOOLSDIR=`dirname "$0"`
 TOPLEVELDIR="$TOOLSDIR/../.."
 
 RPMBUILD_PATH="${RPMBUILD_PATH:-$HOME/rpmbuild}"
@@ -38,7 +38,7 @@ fi
 set -x
 
 sed -re "s/%define _version .+/%define _version ${VERSION}/" \
-    "$TOOLSDIR/node.spec" > $RPMBUILD_PATH/SPECS/node.spec
+    "$TOOLSDIR/node.spec" > "$RPMBUILD_PATH/SPECS/node.spec"
 tar --exclude-vcs --transform="s|^|node-${VERSION}/|" \
-    -czf $RPMBUILD_PATH/SOURCES/node-v${VERSION}.tar.gz .
-rpmbuild $* -ba $RPMBUILD_PATH/SPECS/node.spec
+    -czf "$RPMBUILD_PATH/SOURCES/node-v${VERSION}.tar.gz" .
+rpmbuild "$*" -ba "$RPMBUILD_PATH/SPECS/node.spec"

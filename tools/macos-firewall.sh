@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Script that adds rules to Mac OS X Socket Firewall to avoid
 # popups asking to accept incoming network connections when
 # running tests.
