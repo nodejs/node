@@ -56,8 +56,7 @@ const server = https.createServer(options, common.mustCall(function(req, res) {
   assert.strictEqual(cert.exponent, exponent);
   assert.strictEqual(cert.modulus, modulus);
   res.writeHead(200, { 'content-type': 'text/plain' });
-  res.end(body, () => { console.log('stream finished'); });
-  console.log('sent response');
+  res.end(body);
 }));
 
 server.listen(0, function() {
@@ -70,15 +69,10 @@ server.listen(0, function() {
   const client = spawn(common.opensslCli, args);
 
   client.stdout.on('data', function(data) {
-    console.log('response received');
     const message = data.toString();
     const contents = message.split(CRLF + CRLF).pop();
     assert.strictEqual(body, contents);
-    server.close((e) => {
-      assert.ifError(e);
-      console.log('server closed');
-    });
-    console.log('server.close() called');
+    server.close();
   });
 
   client.stdin.write('GET /\n\n');

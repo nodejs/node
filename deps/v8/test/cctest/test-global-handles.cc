@@ -135,7 +135,7 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
 
   FlagAndGlobal fp;
   construct_function(isolate, context, &fp);
-  CHECK(heap::InCorrectGeneration(isolate, fp.handle));
+  CHECK(heap::InYoungGeneration(isolate, fp.handle));
   fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
                     v8::WeakCallbackType::kParameter);
   fp.flag = false;
@@ -160,7 +160,7 @@ void TracedGlobalTest(v8::Isolate* isolate,
 
   TracedGlobalWrapper fp;
   construct_function(isolate, context, &fp);
-  CHECK(heap::InCorrectGeneration(isolate, fp.handle));
+  CHECK(heap::InYoungGeneration(isolate, fp.handle));
   modifier_function(&fp);
   gc_function();
   CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp.handle.IsEmpty());
@@ -330,7 +330,6 @@ TEST(PhatomHandlesWithoutCallbacks) {
 }
 
 TEST(WeakHandleToUnmodifiedJSObjectDiesOnScavenge) {
-  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSObject<FlagAndGlobal>,
@@ -339,7 +338,6 @@ TEST(WeakHandleToUnmodifiedJSObjectDiesOnScavenge) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavenge) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   TracedGlobalTest(
@@ -369,7 +367,6 @@ TEST(WeakHandleToUnmodifiedJSObjectSurvivesMarkCompactWhenInHandle) {
 }
 
 TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
-  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject<FlagAndGlobal>,
@@ -378,7 +375,6 @@ TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSApiObjectDiesOnScavenge) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   TracedGlobalTest(
@@ -408,7 +404,6 @@ TEST(TracedGlobalToJSApiObjectWithIdentityHashSurvivesScavenge) {
 }
 
 TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesScavengeWhenInHandle) {
-  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject<FlagAndGlobal>,
@@ -451,7 +446,8 @@ TEST(TracedGlobalToJSApiObjectWithModifiedMapSurvivesScavenge) {
     // Create an API object which does not have the same map as constructor.
     auto function_template = FunctionTemplate::New(isolate);
     auto instance_t = function_template->InstanceTemplate();
-    instance_t->Set(isolate, "a", v8::Number::New(isolate, 10));
+    instance_t->Set(v8::String::NewFromUtf8Literal(isolate, "a"),
+                    v8::Number::New(isolate, 10));
     auto function =
         function_template->GetFunction(context.local()).ToLocalChecked();
     auto i = function->NewInstance(context.local()).ToLocalChecked();
@@ -473,8 +469,10 @@ TEST(TracedGlobalTOJsApiObjectWithElementsSurvivesScavenge) {
     // Create an API object which has elements.
     auto function_template = FunctionTemplate::New(isolate);
     auto instance_t = function_template->InstanceTemplate();
-    instance_t->Set(isolate, "1", v8::Number::New(isolate, 10));
-    instance_t->Set(isolate, "2", v8::Number::New(isolate, 10));
+    instance_t->Set(v8::String::NewFromUtf8Literal(isolate, "1"),
+                    v8::Number::New(isolate, 10));
+    instance_t->Set(v8::String::NewFromUtf8Literal(isolate, "2"),
+                    v8::Number::New(isolate, 10));
     auto function =
         function_template->GetFunction(context.local()).ToLocalChecked();
     auto i = function->NewInstance(context.local()).ToLocalChecked();
@@ -592,18 +590,6 @@ TEST(GCFromWeakCallbacks) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-
-  if (FLAG_single_generation) {
-    FlagAndGlobal fp;
-    ConstructJSApiObject(isolate, context, &fp);
-    CHECK(!heap::InYoungGeneration(isolate, fp.handle));
-    fp.flag = false;
-    fp.handle.SetWeak(&fp, &ForceMarkSweep1, v8::WeakCallbackType::kParameter);
-    InvokeMarkSweep();
-    EmptyMessageQueues(isolate);
-    CHECK(fp.flag);
-    return;
-  }
 
   static const int kNumberOfGCTypes = 2;
   using Callback = v8::WeakCallbackInfo<FlagAndGlobal>::Callback;

@@ -29,15 +29,6 @@ class V8_BASE_EXPORT RegionAllocator final {
 
   static constexpr Address kAllocationFailure = static_cast<Address>(-1);
 
-  enum class RegionState {
-    // The region can be allocated from.
-    kFree,
-    // The region has been carved out of the wider area and is not allocatable.
-    kExcluded,
-    // The region has been allocated and is managed by a RegionAllocator.
-    kAllocated,
-  };
-
   RegionAllocator(Address address, size_t size, size_t page_size);
   ~RegionAllocator();
 
@@ -52,12 +43,7 @@ class V8_BASE_EXPORT RegionAllocator final {
   // true.
   // This kind of allocation is supposed to be used during setup phase to mark
   // certain regions as used or for randomizing regions displacement.
-  // By default regions are marked as used, but can also be allocated as
-  // RegionState::kExcluded to prevent the RegionAllocator from using that
-  // memory range, which is useful when reserving any area to remap shared
-  // memory into.
-  bool AllocateRegionAt(Address requested_address, size_t size,
-                        RegionState region_state = RegionState::kAllocated);
+  bool AllocateRegionAt(Address requested_address, size_t size);
 
   // Frees region at given |address|, returns the size of the region.
   // There must be a used region starting at given address otherwise nothing
@@ -101,20 +87,16 @@ class V8_BASE_EXPORT RegionAllocator final {
  private:
   class Region : public AddressRegion {
    public:
-    Region(Address address, size_t size, RegionState state)
-        : AddressRegion(address, size), state_(state) {}
+    Region(Address address, size_t size, bool is_used)
+        : AddressRegion(address, size), is_used_(is_used) {}
 
-    bool is_free() const { return state_ == RegionState::kFree; }
-    bool is_allocated() const { return state_ == RegionState::kAllocated; }
-    bool is_excluded() const { return state_ == RegionState::kExcluded; }
-    void set_state(RegionState state) { state_ = state; }
-
-    RegionState state() { return state_; }
+    bool is_used() const { return is_used_; }
+    void set_is_used(bool used) { is_used_ = used; }
 
     void Print(std::ostream& os) const;
 
    private:
-    RegionState state_;
+    bool is_used_;
   };
 
   // The whole region.
@@ -171,11 +153,10 @@ class V8_BASE_EXPORT RegionAllocator final {
   void Merge(AllRegionsSet::iterator prev_iter,
              AllRegionsSet::iterator next_iter);
 
-  FRIEND_TEST(RegionAllocatorTest, AllocateExcluded);
   FRIEND_TEST(RegionAllocatorTest, AllocateRegionRandom);
-  FRIEND_TEST(RegionAllocatorTest, Contains);
-  FRIEND_TEST(RegionAllocatorTest, FindRegion);
   FRIEND_TEST(RegionAllocatorTest, Fragmentation);
+  FRIEND_TEST(RegionAllocatorTest, FindRegion);
+  FRIEND_TEST(RegionAllocatorTest, Contains);
 
   DISALLOW_COPY_AND_ASSIGN(RegionAllocator);
 };

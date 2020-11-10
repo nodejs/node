@@ -32,8 +32,6 @@ server.listen(0, common.mustCall(() => {
     ['maxConcurrentStreams', 2 ** 32, RangeError],
     ['maxHeaderListSize', -1, RangeError],
     ['maxHeaderListSize', 2 ** 32, RangeError],
-    ['maxHeaderSize', -1, RangeError],
-    ['maxHeaderSize', 2 ** 32, RangeError],
     ['enablePush', 'a', TypeError],
     ['enablePush', 1, TypeError],
     ['enablePush', 0, TypeError],

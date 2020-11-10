@@ -38,15 +38,25 @@ assert.strictEqual(caughtException, true);
 
 fs.openSync(__filename);
 
-fs.open(__filename, common.mustSucceed());
+fs.open(__filename, common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.open(__filename, 'r', common.mustSucceed());
+fs.open(__filename, 'r', common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.open(__filename, 'rs', common.mustSucceed());
+fs.open(__filename, 'rs', common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.open(__filename, 'r', 0, common.mustSucceed());
+fs.open(__filename, 'r', 0, common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.open(__filename, 'r', null, common.mustSucceed());
+fs.open(__filename, 'r', null, common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
 async function promise() {
   await fs.promises.open(__filename);

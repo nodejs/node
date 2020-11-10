@@ -1,0 +1,72 @@
+{
+  "_args": [
+    [
+      "lodash.without@4.4.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "lodash.without@4.4.0",
+  "_id": "lodash.without@4.4.0",
+  "_inBundle": false,
+  "_integrity": "sha1-PNRXSgC2e643OpS3SHcmQFB7eqw=",
+  "_location": "/lodash.without",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "lodash.without@4.4.0",
+    "name": "lodash.without",
+    "escapedName": "lodash.without",
+    "rawSpec": "4.4.0",
+    "saveSpec": null,
+    "fetchSpec": "4.4.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash.without/-/lodash.without-4.4.0.tgz",
+  "_spec": "4.4.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine.bublitz@gmail.com",
+      "url": "https://github.com/phated"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "description": "The lodash method `_.without` exported as a module.",
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "keywords": [
+    "lodash-modularized",
+    "without"
+  ],
+  "license": "MIT",
+  "name": "lodash.without",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.4.0"
+}

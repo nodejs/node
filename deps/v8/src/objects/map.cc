@@ -25,8 +25,6 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
-#include "torque-generated/exported-class-definitions-tq.h"
 #include "torque-generated/field-offsets-tq.h"
 
 namespace v8 {
@@ -91,7 +89,7 @@ Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
   case TYPE:                        \
     map = roots.name##_map();       \
     break;
-    TORQUE_DEFINED_INSTANCE_TYPE_LIST(MAKE_CASE)
+    TORQUE_INTERNAL_INSTANCE_TYPE_LIST(MAKE_CASE)
 #undef MAKE_CASE
     default:
       UNREACHABLE();
@@ -155,6 +153,7 @@ VisitorId Map::GetVisitorId(Map map) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case STRING_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return kVisitFixedArray;
@@ -269,6 +268,7 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
+    case JS_AGGREGATE_ERROR_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -305,7 +305,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_RELATIVE_TIME_FORMAT_TYPE:
     case JS_SEGMENT_ITERATOR_TYPE:
     case JS_SEGMENTER_TYPE:
-    case JS_SEGMENTS_TYPE:
 #endif  // V8_INTL_SUPPORT
     case WASM_EXCEPTION_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
@@ -368,8 +367,6 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmArray;
     case WASM_STRUCT_TYPE:
       return kVisitWasmStruct;
-    case WASM_TYPE_INFO_TYPE:
-      return kVisitWasmTypeInfo;
 
 #define MAKE_TQ_CASE(TYPE, Name) \
   case TYPE:                     \
@@ -638,8 +635,8 @@ void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
   // all its elements.
   Map current = *this;
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(current, to_replace,
-                        to_replace.number_of_descriptors());
+  MarkingBarrierForDescriptorArray(isolate->heap(), current, to_replace,
+                                   to_replace.number_of_descriptors());
 #endif
   while (current.instance_descriptors(isolate) == to_replace) {
     Object next = current.GetBackPointer(isolate);
@@ -1136,8 +1133,8 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(*map, *descriptors,
-                        descriptors->number_of_descriptors());
+  MarkingBarrierForDescriptorArray(isolate->heap(), *map, *descriptors,
+                                   descriptors->number_of_descriptors());
 #endif
 
   Map current = *map;
@@ -1440,9 +1437,8 @@ bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
     }
 
     if (IsSlowArgumentsElementsKind(elements_kind)) {
-      SloppyArgumentsElements elements =
-          SloppyArgumentsElements::cast(current.elements(isolate));
-      Object arguments = elements.arguments();
+      FixedArray parameter_map = FixedArray::cast(current.elements(isolate));
+      Object arguments = parameter_map.get(isolate, 1);
       if (NumberDictionary::cast(arguments).requires_slow_elements()) {
         return true;
       }
@@ -2580,7 +2576,8 @@ void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
   set_synchronized_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(*this, descriptors, number_of_own_descriptors);
+  MarkingBarrierForDescriptorArray(isolate->heap(), *this, descriptors,
+                                   number_of_own_descriptors);
 #endif
 }
 

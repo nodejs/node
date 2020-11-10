@@ -17,8 +17,8 @@ fs.mkdirSync(tmpPath);
 
 const test = (shell) => {
   cp.exec('echo foo bar', { shell: shell },
-          common.mustSucceed((stdout, stderror) => {
-            assert.ok(!stderror);
+          common.mustCall((error, stdout, stderror) => {
+            assert.ok(!error && !stderror);
             assert.ok(stdout.includes('foo') && stdout.includes('bar'));
           }));
 };
@@ -43,11 +43,12 @@ test('CMD');
 test('powershell');
 testCopy('powershell.exe',
          `${system32}\\WindowsPowerShell\\v1.0\\powershell.exe`);
-fs.writeFile(`${tmpPath}\\test file`, 'Test', common.mustSucceed(() => {
+fs.writeFile(`${tmpPath}\\test file`, 'Test', common.mustCall((err) => {
+  assert.ifError(err);
   cp.exec(`Get-ChildItem "${tmpPath}" | Select-Object -Property Name`,
           { shell: 'PowerShell' },
-          common.mustSucceed((stdout, stderror) => {
-            assert.ok(!stderror);
+          common.mustCall((error, stdout, stderror) => {
+            assert.ok(!error && !stderror);
             assert.ok(stdout.includes(
               'test file'));
           }));

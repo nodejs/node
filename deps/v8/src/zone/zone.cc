@@ -5,12 +5,10 @@
 #include "src/zone/zone.h"
 
 #include <cstring>
-#include <memory>
 
 #include "src/init/v8.h"
 #include "src/sanitizer/asan.h"
 #include "src/utils/utils.h"
-#include "src/zone/type-stats.h"
 
 namespace v8 {
 namespace internal {
@@ -29,15 +27,20 @@ constexpr size_t kASanRedzoneBytes = 0;
 
 }  // namespace
 
-Zone::Zone(AccountingAllocator* allocator, const char* name,
-           bool support_compression)
-    : allocator_(allocator),
+Zone::Zone(AccountingAllocator* allocator, const char* name)
+    : allocation_size_(0),
+      segment_bytes_allocated_(0),
+      position_(0),
+      limit_(0),
+      allocator_(allocator),
+      segment_head_(nullptr),
       name_(name),
-      supports_compression_(support_compression) {
-  allocator_->TraceZoneCreation(this);
+      sealed_(false) {
+  allocator_->ZoneCreation(this);
 }
 
 Zone::~Zone() {
+  allocator_->ZoneDestruction(this);
   DeleteAll();
 
   DCHECK_EQ(segment_bytes_allocated_, 0);
@@ -71,23 +74,14 @@ void* Zone::AsanNew(size_t size) {
 }
 
 void Zone::ReleaseMemory() {
+  allocator_->ZoneDestruction(this);
   DeleteAll();
-  allocator_->TraceZoneCreation(this);
+  allocator_->ZoneCreation(this);
 }
 
 void Zone::DeleteAll() {
-  Segment* current = segment_head_;
-  if (current) {
-    // Commit the allocation_size_ of segment_head_ and disconnect the segments
-    // list from the zone in order to ensure that tracing accounting allocator
-    // will observe value including memory from the head segment.
-    allocation_size_ = allocation_size();
-    segment_head_ = nullptr;
-  }
-  allocator_->TraceZoneDestruction(this);
-
   // Traverse the chained list of segments and return them all to the allocator.
-  while (current) {
+  for (Segment* current = segment_head_; current;) {
     Segment* next = current->next();
     size_t size = current->total_size();
 
@@ -96,23 +90,36 @@ void Zone::DeleteAll() {
                                 current->capacity());
 
     segment_bytes_allocated_ -= size;
-    allocator_->ReturnSegment(current, supports_compression());
+    allocator_->ReturnSegment(current);
     current = next;
   }
 
   position_ = limit_ = 0;
   allocation_size_ = 0;
-#ifdef V8_ENABLE_PRECISE_ZONE_STATS
-  allocation_size_for_tracing_ = 0;
-#endif
+  segment_head_ = nullptr;
+}
+
+// Creates a new segment, sets its size, and pushes it to the front
+// of the segment chain. Returns the new segment.
+Segment* Zone::NewSegment(size_t requested_size) {
+  Segment* result = allocator_->AllocateSegment(requested_size);
+  if (!result) return nullptr;
+  DCHECK_GE(result->total_size(), requested_size);
+  segment_bytes_allocated_ += result->total_size();
+  result->set_zone(this);
+  result->set_next(segment_head_);
+  segment_head_ = result;
+  return result;
 }
 
 Address Zone::NewExpand(size_t size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
   DCHECK_EQ(size, RoundDown(size, kAlignmentInBytes));
-  DCHECK_LT(limit_ - position_, size);
+  DCHECK(limit_ - position_ < size);
 
+  // Commit the allocation_size_ of segment_head_ if any.
+  allocation_size_ = allocation_size();
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand
   // except that we employ a maximum segment size when we delete. This
@@ -141,23 +148,11 @@ Address Zone::NewExpand(size_t size) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
     return kNullAddress;
   }
-  Segment* segment =
-      allocator_->AllocateSegment(new_size, supports_compression());
+  Segment* segment = NewSegment(new_size);
   if (segment == nullptr) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
     return kNullAddress;
   }
-
-  DCHECK_GE(segment->total_size(), new_size);
-  segment_bytes_allocated_ += segment->total_size();
-  segment->set_zone(this);
-  segment->set_next(segment_head_);
-  // Commit the allocation_size_ of segment_head_ if any, in order to ensure
-  // that tracing accounting allocator will observe value including memory
-  // from the previous head segment.
-  allocation_size_ = allocation_size();
-  segment_head_ = segment;
-  allocator_->TraceAllocateSegment(segment);
 
   // Recompute 'top' and 'limit' based on the new segment.
   Address result = RoundUp(segment->start(), kAlignmentInBytes);

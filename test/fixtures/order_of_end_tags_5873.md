@@ -2,5 +2,5 @@
 
 ## Subsection
 
-### Static method: Buffer.from(array)
+### Class Method: Buffer.from(array)
 * `array` {Array}

@@ -127,8 +127,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
       int start_source_position, JumpOptimizationInfo* jump_opt,
       PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
       int32_t builtin_index, size_t max_unoptimized_frame_height,
-      size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> = {},
-      const char* debug_name = nullptr);
+      size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> = {});
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -355,9 +354,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void FinishCode();
   void MaybeEmitOutOfLineConstantPool();
 
-  void IncrementStackAccessCounter(InstructionOperand* source,
-                                   InstructionOperand* destination);
-
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
   // ===========================================================================
@@ -476,8 +472,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   ZoneVector<int> block_starts_;
   TurbolizerCodeOffsetsInfo offsets_info_;
   ZoneVector<TurbolizerInstructionStartInfo> instr_starts_;
-
-  const char* debug_name_ = nullptr;
 };
 
 }  // namespace compiler

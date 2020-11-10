@@ -1,14 +1,14 @@
-// META: global=window,worker
+// META: global=worker
 
 'use strict';
 
 const classes = [
   {
-    name: 'TextDecoderStream',
+    constructor: TextDecoderStream,
     input: new Uint8Array([65])
   },
   {
-    name: 'TextEncoderStream',
+    constructor: TextEncoderStream,
     input: 'A'
   }
 ];
@@ -17,7 +17,7 @@ const microtasksRun = () => new Promise(resolve => step_timeout(resolve, 0));
 
 for (const streamClass of classes) {
   promise_test(async () => {
-    const stream = new self[streamClass.name]();
+    const stream = new streamClass.constructor();
     const writer = stream.writable.getWriter();
     const reader = stream.readable.getReader();
     const events = [];
@@ -32,10 +32,10 @@ for (const streamClass of classes) {
     assert_array_equals(events, ['paused', 'read', 'write'],
                         'write should happen after read');
   }, 'write() should not complete until read relieves backpressure for ' +
-     `${streamClass.name}`);
+     `${streamClass.constructor.name}`);
 
   promise_test(async () => {
-    const stream = new self[streamClass.name]();
+    const stream = new streamClass.constructor();
     const writer = stream.writable.getWriter();
     const reader = stream.readable.getReader();
     const events = [];
@@ -56,5 +56,5 @@ for (const streamClass of classes) {
                                  'write2'],
                         'writes should not happen before read2');
   }, 'additional writes should wait for backpressure to be relieved for ' +
-     `class ${streamClass.name}`);
+     `class ${streamClass.constructor.name}`);
 }

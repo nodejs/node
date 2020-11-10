@@ -99,13 +99,7 @@ class CodeEventListener {
   virtual void CodeDisableOptEvent(Handle<AbstractCode> code,
                                    Handle<SharedFunctionInfo> shared) = 0;
   virtual void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
-                              Address pc, int fp_to_sp_delta,
-                              bool reuse_code) = 0;
-  // These events can happen when 1. an assumption made by optimized code fails
-  // or 2. a weakly embedded object dies.
-  virtual void CodeDependencyChangeEvent(Handle<Code> code,
-                                         Handle<SharedFunctionInfo> shared,
-                                         const char* reason) = 0;
+                              Address pc, int fp_to_sp_delta) = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
 };
@@ -221,16 +215,9 @@ class CodeEventDispatcher : public CodeEventListener {
     });
   }
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {
+                      int fp_to_sp_delta) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeDeoptEvent(code, kind, pc, fp_to_sp_delta, reuse_code);
-    });
-  }
-  void CodeDependencyChangeEvent(Handle<Code> code,
-                                 Handle<SharedFunctionInfo> sfi,
-                                 const char* reason) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeDependencyChangeEvent(code, sfi, reason);
+      listener->CodeDeoptEvent(code, kind, pc, fp_to_sp_delta);
     });
   }
 

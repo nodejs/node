@@ -31,7 +31,7 @@ struct uv_loop_s;  // Forward declaration.
 typedef napi_value (*napi_addon_register_func)(napi_env env,
                                                napi_value exports);
 
-typedef struct napi_module {
+typedef struct {
   int nm_version;
   unsigned int nm_flags;
   const char* nm_filename;
@@ -249,19 +249,6 @@ napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 #endif  // __wasm32__
 
 #endif  // NAPI_VERSION >= 4
-
-#ifdef NAPI_EXPERIMENTAL
-
-NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
-    napi_env env,
-    napi_async_cleanup_hook hook,
-    void* arg,
-    napi_async_cleanup_hook_handle* remove_handle);
-
-NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
-    napi_async_cleanup_hook_handle remove_handle);
-
-#endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END
 

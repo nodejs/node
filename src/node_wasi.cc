@@ -104,9 +104,9 @@ static MaybeLocal<Value> WASIException(Local<Context> context,
   js_msg =
       String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, ", "));
   js_msg = String::Concat(isolate, js_msg, js_syscall);
-  Local<Object> e;
-  if (!Exception::Error(js_msg)->ToObject(context).ToLocal(&e))
-    return MaybeLocal<Value>();
+  Local<Object> e =
+    Exception::Error(js_msg)->ToObject(context)
+      .ToLocalChecked();
 
   if (e->Set(context,
              env->errno_string(),
@@ -128,11 +128,13 @@ WASI::WASI(Environment* env,
   options->allocator = &alloc_info_;
   int err = uvwasi_init(&uvw_, options);
   if (err != UVWASI_ESUCCESS) {
-    Local<Value> exception;
-    if (!WASIException(env->context(), err, "uvwasi_init").ToLocal(&exception))
+    Local<Context> context = env->context();
+    MaybeLocal<Value> exception = WASIException(context, err, "uvwasi_init");
+
+    if (exception.IsEmpty())
       return;
 
-    env->isolate()->ThrowException(exception);
+    context->GetIsolate()->ThrowException(exception.ToLocalChecked());
   }
 }
 
@@ -172,8 +174,6 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
   Local<Array> argv = args[0].As<Array>();
   const uint32_t argc = argv->Length();
   uvwasi_options_t options;
-
-  uvwasi_options_init(&options);
 
   Local<Array> stdio = args[3].As<Array>();
   CHECK_EQ(stdio->Length(), 3);
@@ -244,8 +244,8 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
 
   if (options.preopens != nullptr) {
     for (uint32_t i = 0; i < options.preopenc; i++) {
-      free(const_cast<char*>(options.preopens[i].mapped_path));
-      free(const_cast<char*>(options.preopens[i].real_path));
+      free(options.preopens[i].mapped_path);
+      free(options.preopens[i].real_path);
     }
 
     free(options.preopens);

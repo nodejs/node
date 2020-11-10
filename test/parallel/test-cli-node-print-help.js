@@ -14,7 +14,8 @@ let stdOut;
 
 
 function startPrintHelpTest() {
-  exec(`${process.execPath} --help`, common.mustSucceed((stdout, stderr) => {
+  exec(`${process.execPath} --help`, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
     stdOut = stdout;
     validateNodePrintHelp();
   }));

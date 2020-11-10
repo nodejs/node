@@ -10,9 +10,9 @@ const dnsPromises = require('dns').promises;
   assert.throws(
     () => dnsPromises.resolve('example.org', rrtype),
     {
-      code: 'ERR_INVALID_ARG_VALUE',
+      code: 'ERR_INVALID_OPT_VALUE',
       name: 'TypeError',
-      message: `The argument 'rrtype' is invalid. Received '${rrtype}'`
+      message: `The value "${rrtype}" is invalid for option "rrtype"`
     }
   );
 }

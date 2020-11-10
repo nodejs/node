@@ -1,5 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<?xml-stylesheet href='stylesheet.py?id=%(id)s&amp;type=svg&amp;property=%(property)s' type='text/css'?>
-<svg xmlns='http://www.w3.org/2000/svg'>
-  <path d='M 50,5 95,100 5,100 z' />
-</svg>

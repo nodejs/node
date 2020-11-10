@@ -19,7 +19,7 @@ void OSROptimizedCodeCache::AddOptimizedCode(
     Handle<NativeContext> native_context, Handle<SharedFunctionInfo> shared,
     Handle<Code> code, BailoutId osr_offset) {
   DCHECK(!osr_offset.IsNone());
-  DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
+  DCHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
   STATIC_ASSERT(kEntryLength == 3);
   Isolate* isolate = native_context->GetIsolate();
   DCHECK(!isolate->serializer_enabled());

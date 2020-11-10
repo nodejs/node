@@ -9,23 +9,20 @@ from testrunner.objects import testcase
 
 proposal_flags = [{
                     'name': 'reference-types',
-                    'flags': ['--experimental-wasm-reftypes',
-                              '--wasm-staging']
+                    'flags': ['--experimental-wasm-anyref']
                   },
                   {
                     'name': 'bulk-memory-operations',
-                    'flags': ['--experimental-wasm-bulk-memory',
-                              '--wasm-staging']
+                    'flags': ['--experimental-wasm-bulk-memory']
                   },
                   {
                     'name': 'js-types',
                     'flags': ['--experimental-wasm-type-reflection',
-                              '--wasm-staging']
+                              '--no-experimental-wasm-bulk-memory']
                   },
                   {
-                    'name': 'tail-call',
-                    'flags': ['--experimental-wasm-return-call',
-                              '--wasm-staging']
+                    'name': 'JS-BigInt-integration',
+                    'flags': ['--experimental-wasm-bigint']
                   },
                   ]
 
@@ -52,7 +49,8 @@ class TestCase(testcase.D8TestCase):
     for proposal in proposal_flags:
       if os.sep.join(['proposals', proposal['name']]) in self.path:
         return proposal['flags']
-    return []
+    # TODO(thibaudm): Remove the flag once multi-value is shipped in V8.
+    return ['--experimental-wasm-mv']
 
 
 def GetSuite(*args, **kwargs):

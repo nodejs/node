@@ -24,9 +24,8 @@ namespace compiler {
 class ContextSpecializationTester : public HandleAndZoneScope {
  public:
   explicit ContextSpecializationTester(Maybe<OuterContext> context)
-      : HandleAndZoneScope(kCompressGraphZone),
-        canonical_(main_isolate()),
-        graph_(main_zone()->New<Graph>(main_zone())),
+      : canonical_(main_isolate()),
+        graph_(new (main_zone()) Graph(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
         machine_(main_zone()),
@@ -34,7 +33,8 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_),
         reducer_(main_zone(), graph(), &tick_counter_),
-        js_heap_broker_(main_isolate(), main_zone()),
+        js_heap_broker_(main_isolate(), main_zone(), FLAG_trace_heap_broker,
+                        false),
         spec_(&reducer_, jsgraph(), &js_heap_broker_, context,
               MaybeHandle<JSFunction>()) {}
 

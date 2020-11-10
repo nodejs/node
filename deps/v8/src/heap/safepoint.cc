@@ -6,80 +6,57 @@
 
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/gc-tracer.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 
 namespace v8 {
 namespace internal {
 
 GlobalSafepoint::GlobalSafepoint(Heap* heap)
-    : heap_(heap), local_heaps_head_(nullptr), active_safepoint_scopes_(0) {}
+    : heap_(heap), local_heaps_head_(nullptr), is_active_(false) {}
 
-void GlobalSafepoint::Start() { EnterSafepointScope(); }
+void GlobalSafepoint::Start() { StopThreads(); }
 
-void GlobalSafepoint::End() { LeaveSafepointScope(); }
+void GlobalSafepoint::End() { ResumeThreads(); }
 
-void GlobalSafepoint::EnterSafepointScope() {
-  if (!FLAG_local_heaps) return;
-
-  if (++active_safepoint_scopes_ > 1) return;
-
-  TimedHistogramScope timer(heap_->isolate()->counters()->time_to_safepoint());
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::STOP_THE_WORLD);
-
+void GlobalSafepoint::StopThreads() {
   local_heaps_mutex_.Lock();
-  local_heap_of_this_thread_ = LocalHeap::Current();
 
   barrier_.Arm();
 
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
-      continue;
-    }
     current->RequestSafepoint();
   }
 
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
-      continue;
-    }
     current->state_mutex_.Lock();
 
     while (current->state_ == LocalHeap::ThreadState::Running) {
       current->state_change_.Wait(&current->state_mutex_);
     }
   }
+
+  is_active_ = true;
 }
 
-void GlobalSafepoint::LeaveSafepointScope() {
-  if (!FLAG_local_heaps) return;
-
-  DCHECK_GT(active_safepoint_scopes_, 0);
-  if (--active_safepoint_scopes_ > 0) return;
-
-  DCHECK_EQ(local_heap_of_this_thread_, LocalHeap::Current());
+void GlobalSafepoint::ResumeThreads() {
+  is_active_ = false;
 
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
-      continue;
-    }
     current->state_mutex_.Unlock();
   }
 
   barrier_.Disarm();
 
-  local_heap_of_this_thread_ = nullptr;
   local_heaps_mutex_.Unlock();
 }
 
 void GlobalSafepoint::EnterFromThread(LocalHeap* local_heap) {
   {
     base::MutexGuard guard(&local_heap->state_mutex_);
-    DCHECK_EQ(local_heap->state_, LocalHeap::ThreadState::Running);
     local_heap->state_ = LocalHeap::ThreadState::Safepoint;
     local_heap->state_change_.NotifyAll();
   }
@@ -113,10 +90,12 @@ void GlobalSafepoint::Barrier::Wait() {
 }
 
 SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
-  safepoint_->EnterSafepointScope();
+  if (FLAG_local_heaps) safepoint_->StopThreads();
 }
 
-SafepointScope::~SafepointScope() { safepoint_->LeaveSafepointScope(); }
+SafepointScope::~SafepointScope() {
+  if (FLAG_local_heaps) safepoint_->ResumeThreads();
+}
 
 void GlobalSafepoint::AddLocalHeap(LocalHeap* local_heap) {
   base::MutexGuard guard(&local_heaps_mutex_);

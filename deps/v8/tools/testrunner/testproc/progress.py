@@ -4,18 +4,23 @@
 
 # for py2/py3 compatibility
 from __future__ import print_function
-from __future__ import absolute_import
 
 import datetime
 import json
 import os
 import platform
+import subprocess
 import sys
 import time
+import util
 
 from . import base
-from . import util
 from ..local import junit_output
+
+
+# Base dir of the build products for Release and Debug.
+OUT_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', 'out'))
 
 
 def print_failure_header(test):
@@ -108,28 +113,6 @@ class SimpleProgressIndicator(ProgressIndicator):
       print("===")
 
 
-class StreamProgressIndicator(ProgressIndicator):
-  def __init__(self):
-    super(StreamProgressIndicator, self).__init__()
-    self._requirement = base.DROP_PASS_OUTPUT
-
-  def _on_result_for(self, test, result):
-      if not result.has_unexpected_output:
-        self.print('PASS', test)
-      elif result.output.HasCrashed():
-        self.print("CRASH", test)
-      elif result.output.HasTimedOut():
-        self.print("TIMEOUT", test)
-      else:
-        if test.is_fail:
-          self.print("UNEXPECTED PASS", test)
-        else:
-          self.print("FAIL", test)
-
-  def print(self, prefix, test):
-    print('%s: %ss' % (prefix, test))
-    sys.stdout.flush()
-
 class VerboseProgressIndicator(SimpleProgressIndicator):
   def __init__(self):
     super(VerboseProgressIndicator, self).__init__()
@@ -160,10 +143,16 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
   # feedback channel from the workers, providing which tests are currently run.
   def _print_processes_linux(self):
     if platform.system() == 'Linux':
-      self._print('List of processes:')
-      for pid, cmd in util.list_processes_linux():
-        # Show command with pid, but other process info cut off.
-        self._print('pid: %d cmd: %s' % (pid, cmd))
+      try:
+        cmd = 'ps -aux | grep "%s"' % OUT_DIR
+        output = subprocess.check_output(cmd, shell=True)
+        self._print('List of processes:')
+        for line in (output or '').splitlines():
+          # Show command with pid, but other process info cut off.
+          self._print('pid: %s cmd: %s' %
+                      (line.split()[1], line[line.index(OUT_DIR):]))
+      except:
+        pass
 
   def _ensure_delay(self, delay):
     return time.time() - self._last_printed_time > delay
@@ -255,22 +244,15 @@ class CompactProgressIndicator(ProgressIndicator):
       self._clear_line(self._last_status_length)
       print_failure_header(test)
       if len(stdout):
-        self.printFormatted('stdout', stdout)
+        print(self._templates['stdout'] % stdout)
       if len(stderr):
-        self.printFormatted('stderr', stderr)
-      self.printFormatted(
-          'command', "Command: %s" % result.cmd.to_string(relative=True))
+        print(self._templates['stderr'] % stderr)
+      print("Command: %s" % result.cmd.to_string(relative=True))
       if output.HasCrashed():
-        self.printFormatted(
-            'failure', "exit code: %s" % output.exit_code_string)
-        self.printFormatted('failure', "--- CRASHED ---")
-      elif output.HasTimedOut():
-        self.printFormatted('failure', "--- TIMEOUT ---")
-      else:
-        if test.is_fail:
-          self.printFormatted('failure', "--- UNEXPECTED PASS ---")
-        else:
-          self.printFormatted('failure', "--- FAILED ---")
+        print("exit code: %s" % output.exit_code_string)
+        print("--- CRASHED ---")
+      if output.HasTimedOut():
+        print("--- TIMEOUT ---")
 
   def finished(self):
     self._print_progress('Done')
@@ -291,12 +273,12 @@ class CompactProgressIndicator(ProgressIndicator):
       'mins': int(elapsed) // 60,
       'secs': int(elapsed) % 60
     }
-    status = self._truncateStatusLine(status, 78)
+    status = self._truncate(status, 78)
     self._last_status_length = len(status)
     print(status, end='')
     sys.stdout.flush()
 
-  def _truncateStatusLine(self, string, length):
+  def _truncate(self, string, length):
     if length and len(string) > (length - 3):
       return string[:(length - 3)] + "..."
     else:
@@ -315,18 +297,8 @@ class ColorProgressIndicator(CompactProgressIndicator):
                       "\033[31m-%(failed) 4d\033[0m]: %(test)s"),
       'stdout': "\033[1m%s\033[0m",
       'stderr': "\033[31m%s\033[0m",
-      'failure': "\033[1;31m%s\033[0m",
-      'command': "\033[33m%s\033[0m",
     }
     super(ColorProgressIndicator, self).__init__(templates)
-
-  def printFormatted(self, format, string):
-    print(self._templates[format] % string)
-
-  def _truncateStatusLine(self, string, length):
-    # Add some slack for the color control chars
-    return super(ColorProgressIndicator, self)._truncateStatusLine(
-        string, length + 3*9)
 
   def _clear_line(self, last_length):
     print("\033[1K\r", end='')
@@ -334,14 +306,13 @@ class ColorProgressIndicator(CompactProgressIndicator):
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
   def __init__(self):
-   templates = {
-     'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
-                     "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
-   }
-   super(MonochromeProgressIndicator, self).__init__(templates)
-
-  def printFormatted(self, format, string):
-    print(string)
+    templates = {
+      'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
+                      "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
+      'stdout': '%s',
+      'stderr': '%s',
+    }
+    super(MonochromeProgressIndicator, self).__init__(templates)
 
   def _clear_line(self, last_length):
     print(("\r" + (" " * last_length) + "\r"), end='')
@@ -387,7 +358,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
 
 class JsonTestProgressIndicator(ProgressIndicator):
-  def __init__(self, framework_name):
+  def __init__(self, framework_name, arch, mode):
     super(JsonTestProgressIndicator, self).__init__()
     # We want to drop stdout/err for all passed tests on the first try, but we
     # need to get outputs for all runs after the first one. To accommodate that,
@@ -396,6 +367,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self._requirement = base.DROP_PASS_STDOUT
 
     self.framework_name = framework_name
+    self.arch = arch
+    self.mode = mode
     self.results = []
     self.duration_sum = 0
     self.test_count = 0
@@ -465,16 +438,24 @@ class JsonTestProgressIndicator(ProgressIndicator):
       }
 
   def finished(self):
+    complete_results = []
+    if os.path.exists(self.options.json_test_results):
+      with open(self.options.json_test_results, "r") as f:
+        # On bots we might start out with an empty file.
+        complete_results = json.loads(f.read() or "[]")
+
     duration_mean = None
     if self.test_count:
       duration_mean = self.duration_sum / self.test_count
 
-    result = {
+    complete_results.append({
+      "arch": self.arch,
+      "mode": self.mode,
       "results": self.results,
       "slowest_tests": self.tests.as_list(),
       "duration_mean": duration_mean,
       "test_total": self.test_count,
-    }
+    })
 
     with open(self.options.json_test_results, "w") as f:
-      json.dump(result, f)
+      f.write(json.dumps(complete_results))

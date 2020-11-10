@@ -10,7 +10,8 @@ const script = fixtures.path('print-10-lines.js');
 
 const cmd = `"${nodePath}" "${script}" | head -2`;
 
-exec(cmd, common.mustSucceed((stdout, stderr) => {
+exec(cmd, common.mustCall(function(err, stdout, stderr) {
+  assert.ifError(err);
   const lines = stdout.split('\n');
   assert.strictEqual(lines.length, 3);
 }));

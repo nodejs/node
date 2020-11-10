@@ -73,7 +73,8 @@ server.listen(0, common.mustCall(() => {
 
     // Negotiation is still permitted for this first
     // attempt. This should succeed.
-    let ok = client.renegotiate(options, common.mustSucceed(() => {
+    let ok = client.renegotiate(options, common.mustCall((err) => {
+      assert.ifError(err);
       // Once renegotiation completes, we write some
       // data to the socket, which triggers the on
       // data event on the server. After that data

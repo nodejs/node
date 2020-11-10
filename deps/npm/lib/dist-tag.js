@@ -1,27 +1,35 @@
-'use strict'
+/* eslint-disable standard/no-callback-literal */
+module.exports = distTag
 
+const BB = require('bluebird')
+
+const figgyPudding = require('figgy-pudding')
 const log = require('npmlog')
-const npa = require('npm-package-arg')
-const regFetch = require('npm-registry-fetch')
-const semver = require('semver')
-
-const npm = require('./npm.js')
+const npa = require('libnpm/parse-arg')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const readLocalPkgName = require('./utils/read-local-package.js')
-const usageUtil = require('./utils/usage.js')
+const readLocalPkg = BB.promisify(require('./utils/read-local-package.js'))
+const regFetch = require('libnpm/fetch')
+const semver = require('semver')
+const usage = require('./utils/usage')
 
-const usage = usageUtil(
+const DistTagOpts = figgyPudding({
+  tag: {}
+})
+
+distTag.usage = usage(
   'dist-tag',
   'npm dist-tag add <pkg>@<version> [<tag>]' +
   '\nnpm dist-tag rm <pkg> <tag>' +
   '\nnpm dist-tag ls [<pkg>]'
 )
 
-const completion = function (opts, cb) {
-  const argv = opts.conf.argv.remain
-  if (argv.length === 2)
+distTag.completion = function (opts, cb) {
+  var argv = opts.conf.argv.remain
+  if (argv.length === 2) {
     return cb(null, ['add', 'rm', 'ls'])
+  }
 
   switch (argv[2]) {
     default:
@@ -29,43 +37,53 @@ const completion = function (opts, cb) {
   }
 }
 
-const cmd = (args, cb) => distTag(args).then(() => cb()).catch(cb)
+function UsageError () {
+  throw Object.assign(new Error('Usage:\n' + distTag.usage), {
+    code: 'EUSAGE'
+  })
+}
 
-const distTag = async ([cmdName, pkg, tag]) => {
-  const opts = npm.flatOptions
-  const has = (items) => new Set(items).has(cmdName)
-
-  if (has(['add', 'a', 'set', 's']))
-    return add(pkg, tag, opts)
-
-  if (has(['rm', 'r', 'del', 'd', 'remove']))
-    return remove(pkg, tag, opts)
-
-  if (has(['ls', 'l', 'sl', 'list']))
-    return list(pkg, opts)
-
-  if (!pkg) {
-    // when only using the pkg name the default behavior
-    // should be listing the existing tags
-    return list(cmdName, opts)
-  } else
-    throw usage
+function distTag ([cmd, pkg, tag], cb) {
+  const opts = DistTagOpts(npmConfig())
+  return BB.try(() => {
+    switch (cmd) {
+      case 'add': case 'a': case 'set': case 's':
+        return add(pkg, tag, opts)
+      case 'rm': case 'r': case 'del': case 'd': case 'remove':
+        return remove(pkg, tag, opts)
+      case 'ls': case 'l': case 'sl': case 'list':
+        return list(pkg, opts)
+      default:
+        if (!pkg) {
+          return list(cmd, opts)
+        } else {
+          UsageError()
+        }
+    }
+  }).then(
+    x => cb(null, x),
+    err => {
+      if (err.code === 'EUSAGE') {
+        cb(err.message)
+      } else {
+        cb(err)
+      }
+    }
+  )
 }
 
 function add (spec, tag, opts) {
   spec = npa(spec || '')
   const version = spec.rawSpec
-  const defaultTag = tag || opts.defaultTag
+  const t = (tag || opts.tag).trim()
 
-  log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
+  log.verbose('dist-tag add', t, 'to', spec.name + '@' + version)
 
-  if (!spec.name || !version || !defaultTag)
-    throw usage
+  if (!spec || !version || !t) UsageError()
 
-  const t = defaultTag.trim()
-
-  if (semver.validRange(t))
+  if (semver.validRange(t)) {
     throw new Error('Tag name must not be a valid SemVer range: ' + t)
+  }
 
   return fetchTags(spec, opts).then(tags => {
     if (tags[t] === version) {
@@ -73,17 +91,15 @@ function add (spec, tag, opts) {
       return
     }
     tags[t] = version
-    const url =
-      `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(t)}`
-    const reqOpts = {
-      ...opts,
+    const url = `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(t)}`
+    const reqOpts = opts.concat({
       method: 'PUT',
       body: JSON.stringify(version),
       headers: {
-        'content-type': 'application/json',
+        'content-type': 'application/json'
       },
-      spec,
-    }
+      spec
+    })
     return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
       output(`+${t}: ${spec.name}@${version}`)
     })
@@ -94,9 +110,6 @@ function remove (spec, tag, opts) {
   spec = npa(spec || '')
   log.verbose('dist-tag del', tag, 'from', spec.name)
 
-  if (!spec.name)
-    throw usage
-
   return fetchTags(spec, opts).then(tags => {
     if (!tags[tag]) {
       log.info('dist-tag del', tag, 'is not a dist-tag on', spec.name)
@@ -104,13 +117,11 @@ function remove (spec, tag, opts) {
     }
     const version = tags[tag]
     delete tags[tag]
-    const url =
-      `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(tag)}`
-    const reqOpts = {
-      ...opts,
+    const url = `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(tag)}`
+    const reqOpts = opts.concat({
       method: 'DELETE',
-      spec,
-    }
+      spec
+    })
     return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
       output(`-${tag}: ${spec.name}@${version}`)
     })
@@ -119,18 +130,15 @@ function remove (spec, tag, opts) {
 
 function list (spec, opts) {
   if (!spec) {
-    return readLocalPkgName().then(pkg => {
-      if (!pkg)
-        throw usage
-
+    return readLocalPkg().then(pkg => {
+      if (!pkg) { UsageError() }
       return list(pkg, opts)
     })
   }
   spec = npa(spec)
 
   return fetchTags(spec, opts).then(tags => {
-    const msg =
-      Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
+    var msg = Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
     output(msg)
     return tags
   }, err => {
@@ -142,19 +150,15 @@ function list (spec, opts) {
 function fetchTags (spec, opts) {
   return regFetch.json(
     `/-/package/${spec.escapedName}/dist-tags`,
-    {
-      ...opts,
+    opts.concat({
       'prefer-online': true,
-      spec,
-    }
+      spec
+    })
   ).then(data => {
-    if (data && typeof data === 'object')
-      delete data._etag
-    if (!data || !Object.keys(data).length)
+    if (data && typeof data === 'object') delete data._etag
+    if (!data || !Object.keys(data).length) {
       throw new Error('No dist-tags found for ' + spec.name)
-
+    }
     return data
   })
 }
-
-module.exports = Object.assign(cmd, { usage, completion })

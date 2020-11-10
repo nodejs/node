@@ -18,7 +18,8 @@ function test(p) {
   const result = fs.realpathSync(p);
   assert.strictEqual(result.toLowerCase(), path.resolve(p).toLowerCase());
 
-  fs.realpath(p, common.mustSucceed((result) => {
+  fs.realpath(p, common.mustCall(function(err, result) {
+    assert.ok(!err);
     assert.strictEqual(result.toLowerCase(), path.resolve(p).toLowerCase());
   }));
 }

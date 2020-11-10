@@ -23,12 +23,11 @@ class RepresentationChangerTester : public HandleAndZoneScope,
                                     public GraphAndBuilders {
  public:
   explicit RepresentationChangerTester(int num_parameters = 0)
-      : HandleAndZoneScope(kCompressGraphZone),
-        GraphAndBuilders(main_zone()),
+      : GraphAndBuilders(main_zone()),
         javascript_(main_zone()),
         jsgraph_(main_isolate(), main_graph_, &main_common_, &javascript_,
                  &main_simplified_, &main_machine_),
-        broker_(main_isolate(), main_zone()),
+        broker_{main_isolate(), main_zone(), FLAG_trace_heap_broker, false},
         changer_(&jsgraph_, &broker_) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
     graph()->SetStart(s);

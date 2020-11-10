@@ -5,7 +5,6 @@
 # found in the LICENSE file.
 
 # for py2/py3 compatibility
-from __future__ import absolute_import
 from __future__ import print_function
 from functools import reduce
 
@@ -16,7 +15,7 @@ import sys
 import tempfile
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
-from . import base_runner
+import base_runner
 
 from testrunner.local import utils
 from testrunner.local.variants import ALL_VARIANTS
@@ -380,8 +379,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       ]
 
     assert os.path.exists(options.json_test_results)
+    complete_results = []
     with open(options.json_test_results, "r") as f:
-      output = json.load(f)
+      complete_results = json.loads(f.read())
+    output = complete_results[0]
     lines = []
     for test in output['slowest_tests']:
       suffix = ''

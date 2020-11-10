@@ -1,8 +1,8 @@
 #include "debug_utils-inl.h"
 #include "node.h"
 #include "env-inl.h"
-#include "crypto/crypto_context.h"
-#include "crypto/crypto_common.h"
+#include "node_crypto.h"  // SecureContext
+#include "node_crypto_common.h"
 #include "node_errors.h"
 #include "node_process.h"
 #include "node_quic_crypto.h"
@@ -189,6 +189,7 @@ void Initialize(Local<Object> target,
   V(QUICSERVERSESSION_OPTION_REJECT_UNAUTHORIZED)                              \
   V(QUICSERVERSESSION_OPTION_REQUEST_CERT)                                     \
   V(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS)                                       \
+  V(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)                                   \
   V(QUICSTREAM_HEADER_FLAGS_NONE)                                              \
   V(QUICSTREAM_HEADER_FLAGS_TERMINAL)                                          \
   V(QUICSTREAM_HEADERS_KIND_NONE)                                              \

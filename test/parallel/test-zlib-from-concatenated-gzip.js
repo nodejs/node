@@ -20,11 +20,13 @@ const data = Buffer.concat([
 
 assert.strictEqual(zlib.gunzipSync(data).toString(), (abc + def));
 
-zlib.gunzip(data, common.mustSucceed((result) => {
+zlib.gunzip(data, common.mustCall((err, result) => {
+  assert.ifError(err);
   assert.strictEqual(result.toString(), (abc + def));
 }));
 
-zlib.unzip(data, common.mustSucceed((result) => {
+zlib.unzip(data, common.mustCall((err, result) => {
+  assert.ifError(err);
   assert.strictEqual(result.toString(), (abc + def));
 }));
 
@@ -32,7 +34,8 @@ zlib.unzip(data, common.mustSucceed((result) => {
 zlib.unzip(Buffer.concat([
   zlib.deflateSync('abc'),
   zlib.deflateSync('def')
-]), common.mustSucceed((result) => {
+]), common.mustCall((err, result) => {
+  assert.ifError(err);
   assert.strictEqual(result.toString(), abc);
 }));
 

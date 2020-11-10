@@ -2,13 +2,15 @@
 'use strict';
 
 const common = require('../common');
-const { NodeEventTarget } = require('internal/event_target');
+const {
+  Event,
+  NodeEventTarget,
+} = require('internal/event_target');
 
 const {
   deepStrictEqual,
   ok,
   strictEqual,
-  throws,
 } = require('assert');
 
 const { on } = require('events');
@@ -115,11 +117,11 @@ const { on } = require('events');
   strictEqual(eventTarget.listenerCount('foo'), 2);
   strictEqual(eventTarget.listenerCount('bar'), 1);
   deepStrictEqual(eventTarget.eventNames(), ['foo', 'bar']);
-  strictEqual(eventTarget.removeAllListeners('foo'), eventTarget);
+  eventTarget.removeAllListeners('foo');
   strictEqual(eventTarget.listenerCount('foo'), 0);
   strictEqual(eventTarget.listenerCount('bar'), 1);
   deepStrictEqual(eventTarget.eventNames(), ['bar']);
-  strictEqual(eventTarget.removeAllListeners(), eventTarget);
+  eventTarget.removeAllListeners();
   strictEqual(eventTarget.listenerCount('foo'), 0);
   strictEqual(eventTarget.listenerCount('bar'), 0);
   deepStrictEqual(eventTarget.eventNames(), []);
@@ -142,27 +144,6 @@ const { on } = require('events');
   target.setMaxListeners(1);
   target.on('foo', () => {});
   target.on('foo', () => {});
-}
-{
-  // Test NodeEventTarget emit
-  const emitter = new NodeEventTarget();
-  emitter.addEventListener('foo', common.mustCall((e) => {
-    strictEqual(e.type, 'foo');
-    strictEqual(e.detail, 'bar');
-    ok(e instanceof Event);
-  }), { once: true });
-  emitter.once('foo', common.mustCall((e, droppedAdditionalArgument) => {
-    strictEqual(e, 'bar');
-    strictEqual(droppedAdditionalArgument, undefined);
-  }));
-  emitter.emit('foo', 'bar', 'baz');
-}
-{
-  // Test NodeEventTarget emit unsupported usage
-  const emitter = new NodeEventTarget();
-  throws(() => {
-    emitter.emit();
-  }, /ERR_INVALID_ARG_TYPE/);
 }
 
 (async () => {

@@ -70,7 +70,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // task 0, reserved for the main thread).
   static constexpr int kMaxTasks = 7;
 
-  ConcurrentMarking(Heap* heap, MarkingWorklists* marking_worklists,
+  ConcurrentMarking(Heap* heap,
+                    MarkingWorklistsHolder* marking_worklists_holder,
                     WeakObjects* weak_objects);
 
   // Schedules asynchronous tasks to perform concurrent marking. Objects in the
@@ -117,7 +118,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   class Task;
   void Run(int task_id, TaskState* task_state);
   Heap* const heap_;
-  MarkingWorklists* const marking_worklists_;
+  MarkingWorklistsHolder* const marking_worklists_holder_;
   WeakObjects* const weak_objects_;
   TaskState task_state_[kMaxTasks + 1];
   std::atomic<size_t> total_marked_bytes_{0};

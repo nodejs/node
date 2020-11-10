@@ -2,12 +2,8 @@
 #define INCLUDE_LLHTTP_H_
 
 #define LLHTTP_VERSION_MAJOR 2
-#define LLHTTP_VERSION_MINOR 1
-#define LLHTTP_VERSION_PATCH 3
-
-#ifndef LLHTTP_STRICT_MODE
-# define LLHTTP_STRICT_MODE 0
-#endif
+#define LLHTTP_VERSION_MINOR 0
+#define LLHTTP_VERSION_PATCH 4
 
 #ifndef INCLUDE_LLHTTP_ITSELF_H_
 #define INCLUDE_LLHTTP_ITSELF_H_
@@ -144,8 +140,7 @@ enum llhttp_method {
   HTTP_MKCALENDAR = 30,
   HTTP_LINK = 31,
   HTTP_UNLINK = 32,
-  HTTP_SOURCE = 33,
-  HTTP_PRI = 34
+  HTTP_SOURCE = 33
 };
 typedef enum llhttp_method llhttp_method_t;
 
@@ -211,7 +206,6 @@ typedef enum llhttp_method llhttp_method_t;
   XX(31, LINK, LINK) \
   XX(32, UNLINK, UNLINK) \
   XX(33, SOURCE, SOURCE) \
-  XX(34, PRI, PRI) \
 
 
 

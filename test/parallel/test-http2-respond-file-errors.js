@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const http2 = require('http2');
-const { inspect } = require('util');
 
 const optionsWithTypeError = {
   offset: 'number',
@@ -45,9 +44,9 @@ server.on('stream', common.mustCall((stream) => {
         }),
         {
           name: 'TypeError',
-          code: 'ERR_INVALID_ARG_VALUE',
-          message: `The property 'options.${option}' is invalid. ` +
-            `Received ${inspect(types[type])}`
+          code: 'ERR_INVALID_OPT_VALUE',
+          message: `The value "${String(types[type])}" is invalid ` +
+                   `for option "${option}"`
         }
       );
     });

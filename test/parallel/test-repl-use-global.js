@@ -29,7 +29,8 @@ const globalTest = (useGlobal, cb, output) => (err, repl) => {
 
 // Test how the global object behaves in each state for useGlobal
 for (const [option, expected] of globalTestCases) {
-  runRepl(option, globalTest, common.mustSucceed((output) => {
+  runRepl(option, globalTest, common.mustCall((err, output) => {
+    assert.ifError(err);
     assert.strictEqual(output, expected);
   }));
 }
@@ -57,7 +58,8 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
 };
 
 for (const option of processTestCases) {
-  runRepl(option, processTest, common.mustSucceed((output) => {
+  runRepl(option, processTest, common.mustCall((err, output) => {
+    assert.ifError(err);
     assert.strictEqual(output, 'undefined\n42');
   }));
 }

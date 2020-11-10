@@ -135,8 +135,6 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   };
   // clang-format on
 
-  static constexpr uc32 kEndOfInputU = static_cast<uc32>(kEndOfInput);
-
  private:
   Utf16CharacterStream* stream_;
   token_t token_;

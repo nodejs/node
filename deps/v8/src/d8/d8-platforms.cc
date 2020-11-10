@@ -16,7 +16,7 @@
 
 namespace v8 {
 
-class PredictablePlatform final : public Platform {
+class PredictablePlatform : public Platform {
  public:
   explicit PredictablePlatform(std::unique_ptr<Platform> platform)
       : platform_(std::move(platform)) {
@@ -63,11 +63,6 @@ class PredictablePlatform final : public Platform {
 
   bool IdleTasksEnabled(Isolate* isolate) override { return false; }
 
-  std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    return platform_->PostJob(priority, std::move(job_task));
-  }
-
   double MonotonicallyIncreasingTime() override {
     return synthetic_time_in_sec_ += 0.00001;
   }
@@ -94,7 +89,7 @@ std::unique_ptr<Platform> MakePredictablePlatform(
   return std::make_unique<PredictablePlatform>(std::move(platform));
 }
 
-class DelayedTasksPlatform final : public Platform {
+class DelayedTasksPlatform : public Platform {
  public:
   explicit DelayedTasksPlatform(std::unique_ptr<Platform> platform)
       : platform_(std::move(platform)) {
@@ -107,7 +102,7 @@ class DelayedTasksPlatform final : public Platform {
     DCHECK_NOT_NULL(platform_);
   }
 
-  ~DelayedTasksPlatform() override {
+  ~DelayedTasksPlatform() {
     // When the platform shuts down, all task runners must be freed.
     DCHECK_EQ(0, delayed_task_runners_.size());
   }
@@ -162,11 +157,6 @@ class DelayedTasksPlatform final : public Platform {
 
   bool IdleTasksEnabled(Isolate* isolate) override {
     return platform_->IdleTasksEnabled(isolate);
-  }
-
-  std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    return platform_->PostJob(priority, MakeDelayedJob(std::move(job_task)));
   }
 
   double MonotonicallyIncreasingTime() override {
@@ -232,12 +222,11 @@ class DelayedTasksPlatform final : public Platform {
     }
   };
 
-  class DelayedTask final : public Task {
+  class DelayedTask : public Task {
    public:
     DelayedTask(std::unique_ptr<Task> task, int32_t delay_ms)
         : task_(std::move(task)), delay_ms_(delay_ms) {}
-
-    void Run() override {
+    void Run() final {
       base::OS::Sleep(base::TimeDelta::FromMicroseconds(delay_ms_));
       task_->Run();
     }
@@ -247,41 +236,17 @@ class DelayedTasksPlatform final : public Platform {
     int32_t delay_ms_;
   };
 
-  class DelayedIdleTask final : public IdleTask {
+  class DelayedIdleTask : public IdleTask {
    public:
     DelayedIdleTask(std::unique_ptr<IdleTask> task, int32_t delay_ms)
         : task_(std::move(task)), delay_ms_(delay_ms) {}
-
-    void Run(double deadline_in_seconds) override {
+    void Run(double deadline_in_seconds) final {
       base::OS::Sleep(base::TimeDelta::FromMicroseconds(delay_ms_));
       task_->Run(deadline_in_seconds);
     }
 
    private:
     std::unique_ptr<IdleTask> task_;
-    int32_t delay_ms_;
-  };
-
-  class DelayedJob final : public JobTask {
-   public:
-    DelayedJob(std::unique_ptr<JobTask> job_task, int32_t delay_ms)
-        : job_task_(std::move(job_task)), delay_ms_(delay_ms) {}
-
-    void Run(JobDelegate* delegate) override {
-      // If this job is being executed via worker tasks (as e.g. the
-      // {DefaultJobHandle} implementation does it), the worker task would
-      // already include a delay. In order to not depend on that, we add our own
-      // delay here anyway.
-      base::OS::Sleep(base::TimeDelta::FromMicroseconds(delay_ms_));
-      job_task_->Run(delegate);
-    }
-
-    size_t GetMaxConcurrency() const override {
-      return job_task_->GetMaxConcurrency();
-    }
-
-   private:
-    std::unique_ptr<JobTask> job_task_;
     int32_t delay_ms_;
   };
 
@@ -312,11 +277,6 @@ class DelayedTasksPlatform final : public Platform {
       std::unique_ptr<IdleTask> task) {
     return std::make_unique<DelayedIdleTask>(std::move(task),
                                              GetRandomDelayInMilliseconds());
-  }
-
-  std::unique_ptr<JobTask> MakeDelayedJob(std::unique_ptr<JobTask> task) {
-    return std::make_unique<DelayedJob>(std::move(task),
-                                        GetRandomDelayInMilliseconds());
   }
 
   DISALLOW_COPY_AND_ASSIGN(DelayedTasksPlatform);

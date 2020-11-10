@@ -90,21 +90,6 @@ V8_GENERIC_JSON = {
   'units': 'ms',
 }
 
-
-class UnitTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    sys.path.insert(0, BASE_DIR)
-    import run_perf
-    global run_perf
-
-  def testBuildDirectory(self):
-    base_path = os.path.join(TEST_DATA, 'builddirs', 'dir1', 'out')
-    expected_path = os.path.join(base_path, 'build')
-    self.assertEquals(
-        expected_path, run_perf.find_build_directory(base_path, 'x64'))
-
-
 class PerfTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -140,7 +125,6 @@ class PerfTest(unittest.TestCase):
       f.write(json.dumps(json_content))
 
   def _MockCommand(self, *args, **kwargs):
-    on_bots = kwargs.pop('on_bots', False)
     # Fake output for each test run.
     test_outputs = [Output(stdout=arg,
                            timed_out=kwargs.get('timed_out', False),
@@ -157,16 +141,6 @@ class PerfTest(unittest.TestCase):
     mock.patch.object(
         run_perf.command, 'PosixCommand',
         mock.MagicMock(side_effect=create_cmd)).start()
-
-    build_dir = 'Release' if on_bots else 'x64.release'
-    out_dirs = ['out', 'out-secondary']
-    return_values = [
-      os.path.join(os.path.dirname(BASE_DIR), out, build_dir)
-      for out in out_dirs
-    ]
-    mock.patch.object(
-        run_perf, 'find_build_directory',
-        mock.MagicMock(side_effect=return_values)).start()
 
     # Check that d8 is called from the correct cwd for each test run.
     dirs = [os.path.join(TEST_WORKSPACE, arg) for arg in args[0]]
@@ -420,12 +394,11 @@ class PerfTest(unittest.TestCase):
 
   def testBuildbot(self):
     self._WriteTestInput(V8_JSON)
-    self._MockCommand(['.'], ['Richards: 1.234\nDeltaBlue: 10657567\n'],
-                      on_bots=True)
+    self._MockCommand(['.'], ['Richards: 1.234\nDeltaBlue: 10657567\n'])
     mock.patch.object(
         run_perf.Platform, 'ReadBuildConfig',
         mock.MagicMock(return_value={'is_android': False})).start()
-    self.assertEqual(0, self._CallMain())
+    self.assertEqual(0, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': [1.234], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
@@ -437,12 +410,11 @@ class PerfTest(unittest.TestCase):
     test_input = dict(V8_JSON)
     test_input['total'] = True
     self._WriteTestInput(test_input)
-    self._MockCommand(['.'], ['Richards: 1.234\nDeltaBlue: 10657567\n'],
-                      on_bots=True)
+    self._MockCommand(['.'], ['Richards: 1.234\nDeltaBlue: 10657567\n'])
     mock.patch.object(
         run_perf.Platform, 'ReadBuildConfig',
         mock.MagicMock(return_value={'is_android': False})).start()
-    self.assertEqual(0, self._CallMain())
+    self.assertEqual(0, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': [1.234], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
@@ -455,12 +427,11 @@ class PerfTest(unittest.TestCase):
     test_input = dict(V8_JSON)
     test_input['total'] = True
     self._WriteTestInput(test_input)
-    self._MockCommand(['.'], ['x\nRichards: bla\nDeltaBlue: 10657567\ny\n'],
-                      on_bots=True)
+    self._MockCommand(['.'], ['x\nRichards: bla\nDeltaBlue: 10657567\ny\n'])
     mock.patch.object(
         run_perf.Platform, 'ReadBuildConfig',
         mock.MagicMock(return_value={'is_android': False})).start()
-    self.assertEqual(1, self._CallMain())
+    self.assertEqual(1, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
       {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
     ])
@@ -513,7 +484,6 @@ class PerfTest(unittest.TestCase):
     mock.patch('run_perf.AndroidPlatform.PreExecution').start()
     mock.patch('run_perf.AndroidPlatform.PostExecution').start()
     mock.patch('run_perf.AndroidPlatform.PreTests').start()
-    mock.patch('run_perf.find_build_directory').start()
     mock.patch(
         'run_perf.AndroidPlatform.Run',
         return_value=(Output(stdout='Richards: 1.234\nDeltaBlue: 10657567\n'),

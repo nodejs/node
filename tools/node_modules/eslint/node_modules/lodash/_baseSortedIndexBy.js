@@ -22,14 +22,11 @@ var nativeFloor = Math.floor,
  *  into `array`.
  */
 function baseSortedIndexBy(array, value, iteratee, retHighest) {
-  var low = 0,
-      high = array == null ? 0 : array.length;
-  if (high === 0) {
-    return 0;
-  }
-
   value = iteratee(value);
-  var valIsNaN = value !== value,
+
+  var low = 0,
+      high = array == null ? 0 : array.length,
+      valIsNaN = value !== value,
       valIsNull = value === null,
       valIsSymbol = isSymbol(value),
       valIsUndefined = value === undefined;

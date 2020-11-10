@@ -63,6 +63,7 @@ class PipelineStatistics : public Malloced {
 
   // Stats for the entire compilation.
   CommonStats total_stats_;
+  size_t source_size_;
 
   // Stats for phase kind.
   const char* phase_kind_name_;

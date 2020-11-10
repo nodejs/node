@@ -3,17 +3,11 @@
 {{# def.setupKeyword }}
 {{# def.setupNextLevel }}
 
-{{
-  var $currentBaseId = $it.baseId
-    , $prevValid = 'prevValid' + $lvl
-    , $passingSchemas = 'passingSchemas' + $lvl;
-}}
+var {{=$errs}} = errors;
+var prevValid{{=$lvl}} = false;
+var {{=$valid}} = false;
 
-var {{=$errs}} = errors
-  , {{=$prevValid}} = false
-  , {{=$valid}} = false
-  , {{=$passingSchemas}} = null;
-
+{{ var $currentBaseId = $it.baseId; }}
 {{# def.setCompositeRule }}
 
 {{~ $schema:$sch:$i }}
@@ -30,17 +24,13 @@ var {{=$errs}} = errors
   {{?}}
 
   {{? $i }}
-    if ({{=$nextValid}} && {{=$prevValid}}) {
+    if ({{=$nextValid}} && prevValid{{=$lvl}})
       {{=$valid}} = false;
-      {{=$passingSchemas}} = [{{=$passingSchemas}}, {{=$i}}];
-    } else {
+    else {
     {{ $closingBraces += '}'; }}
   {{?}}
 
-    if ({{=$nextValid}}) {
-      {{=$valid}} = {{=$prevValid}} = true;
-      {{=$passingSchemas}} = {{=$i}};
-    }
+    if ({{=$nextValid}}) {{=$valid}} = prevValid{{=$lvl}} = true;
 {{~}}
 
 {{# def.resetCompositeRule }}

@@ -11,7 +11,6 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
-#include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator.h"
 
 namespace v8 {
@@ -20,13 +19,14 @@ namespace internal {
 class Heap;
 class Safepoint;
 class LocalHandles;
+class PersistentHandles;
 
-class V8_EXPORT_PRIVATE LocalHeap {
+class LocalHeap {
  public:
-  explicit LocalHeap(
+  V8_EXPORT_PRIVATE explicit LocalHeap(
       Heap* heap,
       std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
-  ~LocalHeap();
+  V8_EXPORT_PRIVATE ~LocalHeap();
 
   // Invoked by main thread to signal this thread that it needs to halt in a
   // safepoint.
@@ -34,80 +34,19 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Frequently invoked by local thread to check whether safepoint was requested
   // from the main thread.
-  void Safepoint() {
-    if (IsSafepointRequested()) {
-      ClearSafepointRequested();
-      EnterSafepoint();
-    }
-  }
+  V8_EXPORT_PRIVATE void Safepoint();
 
   LocalHandles* handles() { return handles_.get(); }
 
-  template <typename T>
-  Handle<T> NewPersistentHandle(T object) {
-    if (!persistent_handles_) {
-      EnsurePersistentHandles();
-    }
-    return persistent_handles_->NewHandle(object);
-  }
-
-  template <typename T>
-  Handle<T> NewPersistentHandle(Handle<T> object) {
-    return NewPersistentHandle(*object);
-  }
-
-  template <typename T>
-  MaybeHandle<T> NewPersistentMaybeHandle(MaybeHandle<T> maybe_handle) {
-    Handle<T> handle;
-    if (maybe_handle.ToHandle(&handle)) {
-      return NewPersistentHandle(handle);
-    }
-    return kNullMaybeHandle;
-  }
-
-  std::unique_ptr<PersistentHandles> DetachPersistentHandles();
-#ifdef DEBUG
-  bool ContainsPersistentHandle(Address* location);
-  bool ContainsLocalHandle(Address* location);
-  bool IsHandleDereferenceAllowed();
-#endif
+  V8_EXPORT_PRIVATE Handle<Object> NewPersistentHandle(Address value);
+  V8_EXPORT_PRIVATE std::unique_ptr<PersistentHandles>
+  DetachPersistentHandles();
 
   bool IsParked();
 
   Heap* heap() { return heap_; }
 
   ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }
-
-  // Mark/Unmark linear allocation areas black. Used for black allocation.
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
-
-  // Give up linear allocation areas. Used for mark-compact GC.
-  void FreeLinearAllocationArea();
-
-  // Create filler object in linear allocation areas. Verifying requires
-  // iterable heap.
-  void MakeLinearAllocationAreaIterable();
-
-  // Fetches a pointer to the local heap from the thread local storage.
-  // It is intended to be used in handle and write barrier code where it is
-  // difficult to get a pointer to the current instance of local heap otherwise.
-  // The result may be a nullptr if there is no local heap instance associated
-  // with the current thread.
-  static LocalHeap* Current();
-
-  // Allocate an uninitialized object.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationType allocation,
-      AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
-
-  // Allocates an uninitialized object and crashes when object
-  // cannot be allocated.
-  V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
-      int size_in_bytes, AllocationType allocation,
-      AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
 
  private:
   enum class ThreadState {
@@ -120,25 +59,17 @@ class V8_EXPORT_PRIVATE LocalHeap {
     Safepoint
   };
 
-  // Slow path of allocation that performs GC and then retries allocation in
-  // loop.
-  Address PerformCollectionAndAllocateAgain(int object_size,
-                                            AllocationType type,
-                                            AllocationOrigin origin,
-                                            AllocationAlignment alignment);
-
-  void Park();
-  void Unpark();
+  V8_EXPORT_PRIVATE void Park();
+  V8_EXPORT_PRIVATE void Unpark();
   void EnsureParkedBeforeDestruction();
 
-  void EnsurePersistentHandles();
-
-  V8_INLINE bool IsSafepointRequested() {
-    return safepoint_requested_.load(std::memory_order_relaxed);
-  }
+  bool IsSafepointRequested();
   void ClearSafepointRequested();
 
   void EnterSafepoint();
+
+  void FreeLinearAllocationArea();
+  void MakeLinearAllocationAreaIterable();
 
   Heap* heap_;
 
@@ -161,12 +92,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class Heap;
   friend class GlobalSafepoint;
   friend class ParkedScope;
-  friend class UnparkedScope;
   friend class ConcurrentAllocator;
 };
 
-// Scope that explicitly parks LocalHeap prohibiting access to the heap and the
-// creation of Handles.
 class ParkedScope {
  public:
   explicit ParkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
@@ -176,34 +104,7 @@ class ParkedScope {
   ~ParkedScope() { local_heap_->Unpark(); }
 
  private:
-  LocalHeap* const local_heap_;
-};
-
-// Scope that explicitly unparks LocalHeap allowing access to the heap and the
-// creation of Handles.
-class UnparkedScope {
- public:
-  explicit UnparkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
-    local_heap_->Unpark();
-  }
-
-  ~UnparkedScope() { local_heap_->Park(); }
-
- private:
-  LocalHeap* const local_heap_;
-};
-
-class ParkedMutexGuard {
-  base::Mutex* guard_;
-
- public:
-  explicit ParkedMutexGuard(LocalHeap* local_heap, base::Mutex* guard)
-      : guard_(guard) {
-    ParkedScope scope(local_heap);
-    guard_->Lock();
-  }
-
-  ~ParkedMutexGuard() { guard_->Unlock(); }
+  LocalHeap* local_heap_;
 };
 
 }  // namespace internal

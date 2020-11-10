@@ -1,1 +1,0 @@
-exports.assert = require('assert');

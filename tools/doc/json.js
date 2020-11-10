@@ -24,7 +24,7 @@
 const unified = require('unified');
 const common = require('./common.js');
 const html = require('remark-html');
-const { selectAll } = require('unist-util-select');
+const select = require('unist-util-select');
 
 module.exports = { jsonAPI };
 
@@ -38,7 +38,7 @@ function jsonAPI({ filename }) {
     const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/s;
 
     // Extract definitions.
-    const definitions = selectAll('definition', tree);
+    const definitions = select(tree, 'definition');
 
     // Determine the start, stop, and depth of each section.
     const sections = [];
@@ -436,8 +436,8 @@ const r = String.raw;
 const eventPrefix = '^Event: +';
 const classPrefix = '^[Cc]lass: +';
 const ctorPrefix = '^(?:[Cc]onstructor: +)?`?new +';
-const classMethodPrefix = '^Static method: +';
-const maybeClassPropertyPrefix = '(?:Class property: +)?';
+const classMethodPrefix = '^Class Method: +';
+const maybeClassPropertyPrefix = '(?:Class Property: +)?';
 
 const maybeQuote = '[\'"]?';
 const notQuotes = '[^\'"]+';

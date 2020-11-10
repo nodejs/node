@@ -28,10 +28,12 @@
     "type": "object",
     "properties": {
         "id": {
-            "type": "string"
+            "type": "string",
+            "format": "uri"
         },
         "$schema": {
-            "type": "string"
+            "type": "string",
+            "format": "uri"
         },
         "title": {
             "type": "string"
@@ -135,7 +137,6 @@
                 }
             ]
         },
-        "format": { "type": "string" },
         "allOf": { "$ref": "#/definitions/schemaArray" },
         "anyOf": { "$ref": "#/definitions/schemaArray" },
         "oneOf": { "$ref": "#/definitions/schemaArray" },

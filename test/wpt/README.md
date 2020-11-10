@@ -45,20 +45,23 @@ For example, for the URL tests, add a file `test/wpt/test-url.js`:
 ```js
 'use strict';
 
+// This flag is required by the WPT Runner to patch the internals
+// for the tests to run in a vm.
+// Flags: --expose-internals
+
 require('../common');
 const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('url');
 
-// Set Node.js flags required for the tests.
-runner.setFlags(['--expose-internals']);
-
-// Set a script that will be executed in the worker before running the tests.
-runner.setInitScript(`
-  const { internalBinding } = require('internal/test/binding');
-  const { DOMException } = internalBinding('messaging');
-  global.DOMException = DOMException;
-`);
+// Copy global descriptors from the global object
+runner.copyGlobalsFromObject(global, ['URL', 'URLSearchParams']);
+// Define any additional globals with descriptors
+runner.defineGlobal('DOMException', {
+  get() {
+    return require('internal/domexception');
+  }
+});
 
 runner.runJsTests();
 ```
@@ -79,7 +82,7 @@ To run a specific test in WPT, for example, `url/url-searchparams.any.js`,
 pass the file name as argument to the corresponding test driver:
 
 ```text
-node test/wpt/test-url.js url-searchparams.any.js
+node --expose-internals test/wpt/test-url.js url-searchparams.any.js
 ```
 
 If there are any failures, update the corresponding status file
@@ -135,9 +138,9 @@ loads:
 * Status file (for example, `test/wpt/status/url.json` for `url`)
 * The WPT harness
 
-Then, for each test, it creates a worker thread with the globals and mocks,
+Then, for each test, it creates a vm with the globals and mocks,
 sets up the harness result hooks, loads the metadata in the test (including
-loading extra resources), and runs all the tests in that worker thread,
+loading extra resources), and runs all the tests in that vm,
 skipping tests that cannot be run because of lack of dependency or
 expected failures.
 
@@ -164,5 +167,5 @@ Web API, or certain harness has not been ported in our test runner yet.
 In that case it needs to be marked with `skip` instead of `fail`.
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
-[`test/fixtures/wpt/README.md`]: ../fixtures/wpt/README.md
 [git node wpt]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
+[`test/fixtures/wpt/README.md`]: ../fixtures/wpt/README.md

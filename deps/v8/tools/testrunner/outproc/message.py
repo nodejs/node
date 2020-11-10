@@ -59,7 +59,5 @@ class OutProc(base.OutProc):
       not string.strip() or
       string.startswith("==") or
       string.startswith("**") or
-      string.startswith("ANDROID") or
-      # Android linker warning.
-      string.startswith('WARNING: linker:')
+      string.startswith("ANDROID")
     )

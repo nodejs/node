@@ -5,11 +5,9 @@ on:
   push:
     branches:
       - master
-      - v[0-9]+.x-staging
-      - v[0-9]+.x
 
 env:
-  NODE_VERSION: 14.x
+  NODE_VERSION: 12.x
 
 jobs:
   build-docs:
@@ -28,5 +26,3 @@ jobs:
         with:
           name: docs
           path: out/doc
-      - name: Check links
-        run: node tools/doc/checkLinks.js .

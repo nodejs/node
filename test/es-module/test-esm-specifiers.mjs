@@ -49,14 +49,9 @@ main().catch(mustNotCall);
     '../../fixtures/es-module-specifiers',
     item,
   );
-  [
-    '--experimental-specifier-resolution',
-    '--es-module-specifier-resolution'
-  ].forEach((option) => {
-    spawn(process.execPath,
-          [`${option}=node`, modulePath],
-          { stdio: 'inherit' }).on('exit', (code) => {
-      assert.strictEqual(code, 0);
-    });
+  spawn(process.execPath,
+        ['--es-module-specifier-resolution=node', modulePath],
+        { stdio: 'inherit' }).on('exit', (code) => {
+    assert.strictEqual(code, 0);
   });
 });

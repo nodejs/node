@@ -1,0 +1,9 @@
+2015-01-15  Sam Mikes  <smikes@cubane.com>
+
+	* index.js: (convert_fromString) accept decimal strings provided they
+	don't begin with '0'
+
+2015-01-14  Sam Mikes  <smikes@cubane.com>
+
+	* index.js: initial rev
+

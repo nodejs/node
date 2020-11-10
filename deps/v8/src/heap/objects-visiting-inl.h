@@ -7,6 +7,7 @@
 
 #include "src/heap/objects-visiting.h"
 
+#include "src/heap/array-buffer-tracker.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects/free-space-inl.h"

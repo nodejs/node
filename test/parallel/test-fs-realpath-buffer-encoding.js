@@ -54,37 +54,45 @@ for (encoding in expected) {
   fs.realpath(
     string_dir,
     { encoding },
-    common.mustSucceed((res) => {
+    common.mustCall((err, res) => {
+      assert.ifError(err);
       assert.strictEqual(res, expected_value);
     })
   );
-  fs.realpath(string_dir, encoding, common.mustSucceed((res) => {
+  fs.realpath(string_dir, encoding, common.mustCall((err, res) => {
+    assert.ifError(err);
     assert.strictEqual(res, expected_value);
   }));
   fs.realpath(
     buffer_dir,
     { encoding },
-    common.mustSucceed((res) => {
+    common.mustCall((err, res) => {
+      assert.ifError(err);
       assert.strictEqual(res, expected_value);
     })
   );
-  fs.realpath(buffer_dir, encoding, common.mustSucceed((res) => {
+  fs.realpath(buffer_dir, encoding, common.mustCall((err, res) => {
+    assert.ifError(err);
     assert.strictEqual(res, expected_value);
   }));
 }
 
-fs.realpath(string_dir, { encoding: 'buffer' }, common.mustSucceed((res) => {
+fs.realpath(string_dir, { encoding: 'buffer' }, common.mustCall((err, res) => {
+  assert.ifError(err);
   assert.deepStrictEqual(res, buffer_dir);
 }));
 
-fs.realpath(string_dir, 'buffer', common.mustSucceed((res) => {
+fs.realpath(string_dir, 'buffer', common.mustCall((err, res) => {
+  assert.ifError(err);
   assert.deepStrictEqual(res, buffer_dir);
 }));
 
-fs.realpath(buffer_dir, { encoding: 'buffer' }, common.mustSucceed((res) => {
+fs.realpath(buffer_dir, { encoding: 'buffer' }, common.mustCall((err, res) => {
+  assert.ifError(err);
   assert.deepStrictEqual(res, buffer_dir);
 }));
 
-fs.realpath(buffer_dir, 'buffer', common.mustSucceed((res) => {
+fs.realpath(buffer_dir, 'buffer', common.mustCall((err, res) => {
+  assert.ifError(err);
   assert.deepStrictEqual(res, buffer_dir);
 }));

@@ -150,18 +150,6 @@ void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
                                         i::GarbageCollectionReason::kTesting);
 }
 
-i::Handle<i::String> CcTest::MakeString(const char* str) {
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
-  return factory->InternalizeUtf8String(str);
-}
-
-i::Handle<i::String> CcTest::MakeName(const char* str, int suffix) {
-  i::EmbeddedVector<char, 128> buffer;
-  SNPrintF(buffer, "%s%d", str, suffix);
-  return CcTest::MakeString(buffer.begin());
-}
-
 v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
   return InitIsolateOnce()->random_number_generator();
 }
@@ -239,9 +227,8 @@ InitializedHandleScope::InitializedHandleScope()
 
 InitializedHandleScope::~InitializedHandleScope() = default;
 
-HandleAndZoneScope::HandleAndZoneScope(bool support_zone_compression)
-    : main_zone_(
-          new i::Zone(&allocator_, ZONE_NAME, support_zone_compression)) {}
+HandleAndZoneScope::HandleAndZoneScope()
+    : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
@@ -249,22 +236,21 @@ i::Handle<i::JSFunction> Optimize(
     i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
     uint32_t flags, std::unique_ptr<i::compiler::JSHeapBroker>* out_broker) {
   i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
-  i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
+  i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
   CHECK(is_compiled_scope.is_compiled() ||
         i::Compiler::Compile(function, i::Compiler::CLEAR_EXCEPTION,
                              &is_compiled_scope));
 
   CHECK_NOT_NULL(zone);
 
-  i::OptimizedCompilationInfo info(zone, isolate, shared, function,
-                                   i::CodeKind::OPTIMIZED_FUNCTION);
+  i::OptimizedCompilationInfo info(zone, isolate, shared, function);
 
-  if (flags & i::OptimizedCompilationInfo::kInlining) {
-    info.set_inlining();
+  if (flags & i::OptimizedCompilationInfo::kInliningEnabled) {
+    info.MarkAsInliningEnabled();
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());
-  i::JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  i::JSFunction::EnsureFeedbackVector(function);
 
   i::Handle<i::Code> code =
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)

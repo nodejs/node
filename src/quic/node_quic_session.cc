@@ -5,7 +5,7 @@
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
-#include "crypto/crypto_common.h"
+#include "node_crypto_common.h"
 #include "ngtcp2/ngtcp2.h"
 #include "nghttp3/nghttp3.h"  // NGHTTP3_ALPN_H3
 #include "ngtcp2/ngtcp2_crypto.h"
@@ -31,7 +31,6 @@
 #include "uv.h"
 
 #include <algorithm>
-#include <memory>
 #include <vector>
 #include <string>
 #include <utility>
@@ -44,6 +43,7 @@ using crypto::SecureContext;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -263,16 +263,6 @@ void QuicSessionConfig::Set(
   // TODO(@jasnell): QUIC allows both IPv4 and IPv6 addresses to be
   // specified. Here we're specifying one or the other. Need to
   // determine if that's what we want or should we support both.
-  //
-  // TODO(@jasnell): Currently, this is specified as a single value
-  // that is used for all connections. In the future, it may be
-  // necessary to determine the preferred address based on the
-  // remote address. The trick, however, is that the preferred
-  // address must be selected before the QuicSession is created,
-  // before the handshake can be started. That is, it may need
-  // to be an optional callback on QuicSocket. That would incur
-  // a performance penalty so we'd really have to be sure of the
-  // utility.
   if (preferred_addr != nullptr) {
     transport_params.preferred_address_present = 1;
     switch (preferred_addr->sa_family) {
@@ -1422,7 +1412,7 @@ bool QuicApplication::SendPendingData() {
           continue;
         case NGTCP2_ERR_STREAM_NOT_FOUND:
           continue;
-        case NGTCP2_ERR_WRITE_MORE:
+        case NGTCP2_ERR_WRITE_STREAM_MORE:
           CHECK_GT(ndatalen, 0);
           CHECK(StreamCommit(&stream_data, ndatalen));
           pos += ndatalen;
@@ -1632,12 +1622,12 @@ QuicSession::QuicSession(
   PushListener(&default_listener_);
   set_connection_id_strategy(RandomConnectionIDStrategy);
   set_preferred_address_strategy(preferred_address_strategy);
-  crypto_context_ = std::make_unique<QuicCryptoContext>(
-
+  crypto_context_.reset(
+      new QuicCryptoContext(
           this,
           secure_context,
           side,
-          options);
+          options));
   application_.reset(SelectApplication(this));
 
   wrap->DefineOwnProperty(
@@ -1984,7 +1974,7 @@ bool QuicSession::OpenUnidirectionalStream(int64_t* stream_id) {
   return ngtcp2_conn_open_uni_stream(connection(), stream_id, nullptr) == 0;
 }
 
-// When ngtcp2 receives a successful response to a PATH_CHALLENGE,
+// When ngtcp2 receives a successfull response to a PATH_CHALLENGE,
 // it will trigger the OnPathValidation callback which will, in turn
 // invoke this. There's really nothing to do here but update stats and
 // and optionally notify the javascript side if there is a handler registered.
@@ -2096,7 +2086,9 @@ bool QuicSession::Receive(
 
   if (!is_destroyed())
     UpdateIdleTimer();
+
   SendPendingData();
+  UpdateRecoveryStats();
   Debug(this, "Successfully processed received packet");
   return true;
 }
@@ -2238,11 +2230,8 @@ void QuicSession::RemoveStream(int64_t stream_id) {
 void QuicSession::ScheduleRetransmit() {
   uint64_t now = uv_hrtime();
   uint64_t expiry = ngtcp2_conn_get_expiry(connection());
-  // now and expiry are in nanoseconds, interval is milliseconds
-  uint64_t interval = (expiry < now) ? 1 : (expiry - now) / 1000000UL;
-  // If interval ends up being 0, the repeating timer won't be
-  // scheduled, so set it to 1 instead.
-  if (interval == 0) interval = 1;
+  uint64_t interval = (expiry - now) / 1000000UL;
+  if (expiry < now || interval == 0) interval = 1;
   Debug(this, "Scheduling the retransmit timer for %" PRIu64, interval);
   UpdateRetransmitTimer(interval);
 }
@@ -2442,7 +2431,7 @@ bool QuicSession::SendPacket(std::unique_ptr<QuicPacket> packet) {
 
   IncrementStat(&QuicSessionStats::bytes_sent, packet->length());
   RecordTimestamp(&QuicSessionStats::sent_at);
-//  ScheduleRetransmit();
+  ScheduleRetransmit();
 
   Debug(this, "Sending %" PRIu64 " bytes to %s from %s",
         packet->length(),
@@ -2473,7 +2462,6 @@ void QuicSession::SendPendingData() {
     Debug(this, "Error sending QUIC application data");
     HandleError();
   }
-  ScheduleRetransmit();
 }
 
 // When completing the TLS handshake, the TLS session information
@@ -2491,6 +2479,7 @@ int QuicSession::set_session(SSL_SESSION* session) {
 }
 
 // A client QuicSession can be migrated to a different QuicSocket instance.
+// TODO(@jasnell): This will be revisited.
 bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
   CHECK(!is_server());
   CHECK(!is_destroyed());
@@ -2502,6 +2491,8 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
     return true;
 
   Debug(this, "Migrating to %s", socket->diagnostic_name());
+
+  SendSessionScope send(this);
 
   // Ensure that we maintain a reference to keep this from being
   // destroyed while we are starting the migration.
@@ -2520,31 +2511,22 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
 
   // Step 4: Update ngtcp2
   auto local_address = socket->local_address();
-
-  // The nat_rebinding option here should rarely, if ever
-  // be used in a real application. It is intended to serve
-  // as a way of simulating a silent local address change,
-  // such as when the NAT binding changes. Currently, Node.js
-  // does not really have an effective way of detecting that.
-  // Manual user code intervention to handle the migration
-  // to the new QuicSocket is required, which should always
-  // trigger path validation using the ngtcp2_conn_initiate_migration.
-  if (LIKELY(!nat_rebinding)) {
-    SendSessionScope send(this);
-    QuicPath path(local_address, remote_address_);
-    return ngtcp2_conn_initiate_migration(
-        connection(),
-        &path,
-        uv_hrtime()) == 0;
-  } else {
+  if (nat_rebinding) {
     ngtcp2_addr addr;
-    ngtcp2_conn_set_local_addr(
-        connection(),
-        ngtcp2_addr_init(
-            &addr,
-            local_address.data(),
-            local_address.length(),
-            nullptr));
+    ngtcp2_addr_init(
+        &addr,
+        local_address.data(),
+        local_address.length(),
+        nullptr);
+    ngtcp2_conn_set_local_addr(connection(), &addr);
+  } else {
+    QuicPath path(local_address, remote_address_);
+    if (ngtcp2_conn_initiate_migration(
+            connection(),
+            &path,
+            uv_hrtime()) != 0) {
+      return false;
+    }
   }
 
   return true;
@@ -2895,6 +2877,19 @@ void QuicSessionOnCertDone(const FunctionCallbackInfo<Value>& args) {
 }
 }  // namespace
 
+// Recovery stats are used to allow user code to keep track of
+// important round-trip timing statistics that are updated through
+// the lifetime of a connection. Effectively, these communicate how
+// much time (from the perspective of the local peer) is being taken
+// to exchange data reliably with the remote peer.
+// TODO(@jasnell): Revisit
+void QuicSession::UpdateRecoveryStats() {
+  ngtcp2_conn_stat stat;
+  ngtcp2_conn_get_conn_stat(connection(), &stat);
+  SetStat(&QuicSessionStats::min_rtt, stat.min_rtt);
+  SetStat(&QuicSessionStats::latest_rtt, stat.latest_rtt);
+  SetStat(&QuicSessionStats::smoothed_rtt, stat.smoothed_rtt);
+}
 
 // Data stats are used to allow user code to keep track of important
 // statistics such as amount of data in flight through the lifetime
@@ -2906,13 +2901,6 @@ void QuicSession::UpdateDataStats() {
 
   ngtcp2_conn_stat stat;
   ngtcp2_conn_get_conn_stat(connection(), &stat);
-
-  SetStat(&QuicSessionStats::latest_rtt, stat.latest_rtt);
-  SetStat(&QuicSessionStats::min_rtt, stat.min_rtt);
-  SetStat(&QuicSessionStats::smoothed_rtt, stat.smoothed_rtt);
-  SetStat(&QuicSessionStats::receive_rate, stat.recv_rate_sec);
-  SetStat(&QuicSessionStats::send_rate, stat.delivery_rate_sec);
-  SetStat(&QuicSessionStats::cwnd, stat.cwnd);
 
   state_->bytes_in_flight = stat.bytes_in_flight;
   // The max_bytes_in_flight is a highwater mark that can be used
@@ -3390,14 +3378,14 @@ int QuicSession::OnStreamReset(
 // sensitivity of PATH_CHALLENGE operations (an attacker
 // could use a compromised PATH_CHALLENGE to trick an endpoint
 // into redirecting traffic).
-//
-// The ngtcp2_rand_ctx tells us what the random data is used for.
-// Currently, there is only one use. In the future, we'll want to
-// explore whether we want to handle the different cases uses.
+// TODO(@jasnell): In the future, we'll want to explore whether
+// we want to handle the different cases of ngtcp2_rand_ctx
 int QuicSession::OnRand(
+    ngtcp2_conn* conn,
     uint8_t* dest,
     size_t destlen,
-    ngtcp2_rand_ctx ctx) {
+    ngtcp2_rand_ctx ctx,
+    void* user_data) {
   EntropySource(dest, destlen);
   return 0;
 }
@@ -3542,8 +3530,6 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     OnConnectionIDStatus,
     OnHandshakeConfirmed,
     nullptr,  // recv_new_token
-    ngtcp2_crypto_delete_crypto_aead_ctx_cb,
-    ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
   },
   // NGTCP2_CRYPTO_SIDE_SERVER
   {
@@ -3577,8 +3563,6 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     OnConnectionIDStatus,
     nullptr,  // handshake_confirmed
     nullptr,  // recv_new_token
-    ngtcp2_crypto_delete_crypto_aead_ctx_cb,
-    ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
   }
 };
 
@@ -3590,11 +3574,7 @@ BaseObjectPtr<QLogStream> QuicSession::qlog_stream() {
   return qlog_stream_;
 }
 
-void QuicSession::OnQlogWrite(
-    void* user_data,
-    uint32_t flags,
-    const void* data,
-    size_t len) {
+void QuicSession::OnQlogWrite(void* user_data, const void* data, size_t len) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
   Environment* env = session->env();
 
@@ -3608,9 +3588,8 @@ void QuicSession::OnQlogWrite(
   std::vector<uint8_t> buffer(len);
   memcpy(buffer.data(), data, len);
   env->SetImmediate([ptr = std::move(ptr),
-                     buffer = std::move(buffer),
-                     flags](Environment*) {
-    ptr->Emit(buffer.data(), buffer.size(), flags);
+                     buffer = std::move(buffer)](Environment*) {
+    ptr->Emit(buffer.data(), buffer.size());
   });
 }
 
@@ -3648,7 +3627,7 @@ QLogStream::QLogStream(Environment* env, v8::Local<Object> obj)
   StreamBase::AttachToObject(GetObject());
 }
 
-void QLogStream::Emit(const uint8_t* data, size_t len, uint32_t flags) {
+void QLogStream::Emit(const uint8_t* data, size_t len) {
   size_t remaining = len;
   while (remaining != 0) {
     uv_buf_t buf = EmitAlloc(len);
@@ -3659,7 +3638,10 @@ void QLogStream::Emit(const uint8_t* data, size_t len, uint32_t flags) {
     EmitRead(avail, buf);
   }
 
-  if (ended_ && flags & NGTCP2_QLOG_WRITE_FLAG_FIN)
+  // The last chunk that ngtcp2 writes is 6 bytes. Unfortunately,
+  // this is the only way for us to know that ngtcp2 is definitely
+  // done sending qlog events.
+  if (ended_ && len == 6)
     EmitRead(UV_EOF);
 }
 
@@ -3687,7 +3669,7 @@ void QuicSessionSetSocket(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   CHECK(args[0]->IsObject());
   ASSIGN_OR_RETURN_UNWRAP(&socket, args[0].As<Object>());
-  args.GetReturnValue().Set(session->set_socket(socket, args[1]->IsTrue()));
+  args.GetReturnValue().Set(session->set_socket(socket));
 }
 
 // GracefulClose flips a flag that prevents new local streams
@@ -3762,7 +3744,8 @@ void QuicSessionSilentClose(const FunctionCallbackInfo<Value>& args) {
   session->Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
 }
 
-// This is used purely for testing.
+// TODO(addaleax): This is a temporary solution for testing and should be
+// removed later.
 void QuicSessionRemoveFromSocket(const FunctionCallbackInfo<Value>& args) {
   QuicSession* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
@@ -3895,6 +3878,7 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
           args[ARG_IDX::QLOG]->IsTrue() ?
               QlogMode::kEnabled :
               QlogMode::kDisabled);
+
   session->SendPendingData();
   if (session->is_destroyed())
     return args.GetReturnValue().Set(ERR_FAILED_TO_CREATE_SESSION);

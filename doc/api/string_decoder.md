@@ -71,7 +71,6 @@ substitution characters appropriate for the character encoding.
 
 If the `buffer` argument is provided, one final call to `stringDecoder.write()`
 is performed before returning the remaining input.
-After `end()` is called, the `stringDecoder` object can be reused for new input.
 
 ### `stringDecoder.write(buffer)`
 <!-- YAML
@@ -92,4 +91,4 @@ Returns a decoded string, ensuring that any incomplete multibyte characters at
  returned string and stored in an internal buffer for the next call to
  `stringDecoder.write()` or `stringDecoder.end()`.
 
-[encoding]: buffer.md#buffer_buffers_and_character_encodings
+[encoding]: buffer.html#buffer_buffers_and_character_encodings

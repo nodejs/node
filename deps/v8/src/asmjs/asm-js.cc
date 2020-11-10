@@ -187,7 +187,8 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
   explicit AsmJsCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
                                AccountingAllocator* allocator)
       : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
-                                  &compilation_info_),
+                                  &compilation_info_,
+                                  CanOffThreadFinalize::kNo),
         allocator_(allocator),
         zone_(allocator, ZONE_NAME),
         compilation_info_(&zone_, parse_info, literal),
@@ -201,8 +202,8 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
                          Isolate* isolate) final;
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
-                         LocalIsolate* isolate) final {
-    return CompilationJob::RETRY_ON_MAIN_THREAD;
+                         OffThreadIsolate* isolate) final {
+    UNREACHABLE();
   }
 
  private:
@@ -240,9 +241,9 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
     }
     return FAILED;
   }
-  module_ = compile_zone->New<wasm::ZoneBuffer>(compile_zone);
+  module_ = new (compile_zone) wasm::ZoneBuffer(compile_zone);
   parser.module_builder()->WriteTo(module_);
-  asm_offsets_ = compile_zone->New<wasm::ZoneBuffer>(compile_zone);
+  asm_offsets_ = new (compile_zone) wasm::ZoneBuffer(compile_zone);
   parser.module_builder()->WriteAsmJsOffsetTable(asm_offsets_);
   stdlib_uses_ = *parser.stdlib_uses();
 
@@ -277,8 +278,8 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
 
   RecordHistograms(isolate);
   ReportCompilationSuccess(handle(Script::cast(shared_info->script()), isolate),
-                           shared_info->StartPosition(), compile_time_,
-                           module_->size());
+                           compilation_info()->literal()->position(),
+                           compile_time_, module_->size());
   return SUCCEEDED;
 }
 

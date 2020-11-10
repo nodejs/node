@@ -86,24 +86,9 @@ namespace compiler {
   V(JumpIfUndefinedOrNullConstant)
 
 #define IGNORED_BYTECODE_LIST(V)      \
-  V(CallRuntimeForPair)               \
-  V(CollectTypeProfile)               \
-  V(DebugBreak0)                      \
-  V(DebugBreak1)                      \
-  V(DebugBreak2)                      \
-  V(DebugBreak3)                      \
-  V(DebugBreak4)                      \
-  V(DebugBreak5)                      \
-  V(DebugBreak6)                      \
-  V(DebugBreakExtraWide)              \
-  V(DebugBreakWide)                   \
-  V(Debugger)                         \
   V(IncBlockCounter)                  \
-  V(ResumeGenerator)                  \
-  V(SuspendGenerator)                 \
   V(ThrowSuperAlreadyCalledIfNotHole) \
-  V(ThrowSuperNotCalledIfHole)        \
-  V(ToObject)
+  V(ThrowSuperNotCalledIfHole)
 
 #define UNREACHABLE_BYTECODE_LIST(V) \
   V(ExtraWide)                       \
@@ -257,7 +242,7 @@ void Hints::EnsureAllocated(Zone* zone, bool check_zone_equality) {
     // ... else {zone} lives no longer than {impl_->zone_} but we have no way of
     // checking that.
   } else {
-    impl_ = zone->New<HintsImpl>(zone);
+    impl_ = new (zone) HintsImpl(zone);
   }
   DCHECK(IsAllocated());
 }
@@ -463,9 +448,6 @@ class SerializerForBackgroundCompilation {
   void ProcessElementAccess(Hints const& receiver, Hints const& key,
                             ElementAccessFeedback const& feedback,
                             AccessMode access_mode);
-  void ProcessMinimorphicPropertyAccess(
-      MinimorphicLoadPropertyAccessFeedback const& feedback,
-      FeedbackSource const& source);
 
   void ProcessModuleVariableAccess(
       interpreter::BytecodeArrayIterator* iterator);
@@ -1055,7 +1037,7 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       function_(closure, broker->isolate(), zone()),
       osr_offset_(osr_offset),
       jump_target_environments_(zone()),
-      environment_(zone()->New<Environment>(
+      environment_(new (zone()) Environment(
           zone(), CompilationSubject(closure, broker_->isolate(), zone()))),
       arguments_(zone()) {
   closure_hints_.AddConstant(closure, zone(), broker_);
@@ -1078,9 +1060,9 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       function_(function.virtual_closure()),
       osr_offset_(BailoutId::None()),
       jump_target_environments_(zone()),
-      environment_(zone()->New<Environment>(zone(), broker_->isolate(),
-                                            function, new_target, arguments,
-                                            padding)),
+      environment_(new (zone())
+                       Environment(zone(), broker_->isolate(), function,
+                                   new_target, arguments, padding)),
       arguments_(arguments),
       nesting_level_(nesting_level) {
   Handle<JSFunction> closure;
@@ -1314,6 +1296,8 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
     break;
       SUPPORTED_BYTECODE_LIST(DEFINE_BYTECODE_CASE)
 #undef DEFINE_BYTECODE_CASE
+      default:
+        break;
     }
   }
 
@@ -1489,20 +1473,6 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
     case Runtime::kCopyDataProperties: {
       ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
                               Builtins::kCopyDataProperties));
-      break;
-    }
-    case Runtime::kInlineGetImportMetaObject: {
-      Hints const& context_hints = environment()->current_context_hints();
-      for (auto x : context_hints.constants()) {
-        ContextRef(broker(), x)
-            .GetModule(SerializationPolicy::kSerializeIfNeeded)
-            .Serialize();
-      }
-      for (auto x : context_hints.virtual_contexts()) {
-        ContextRef(broker(), x.context)
-            .GetModule(SerializationPolicy::kSerializeIfNeeded)
-            .Serialize();
-      }
       break;
     }
     default: {
@@ -2725,7 +2695,7 @@ void SerializerForBackgroundCompilation::ContributeToJumpTargetEnvironment(
   auto it = jump_target_environments_.find(target_offset);
   if (it == jump_target_environments_.end()) {
     jump_target_environments_[target_offset] =
-        zone()->New<Environment>(*environment());
+        new (zone()) Environment(*environment());
   } else {
     it->second->Merge(environment(), zone(), broker());
   }
@@ -3068,13 +3038,6 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
   return access_info;
 }
 
-void SerializerForBackgroundCompilation::ProcessMinimorphicPropertyAccess(
-    MinimorphicLoadPropertyAccessFeedback const& feedback,
-    FeedbackSource const& source) {
-  broker()->GetPropertyAccessInfo(feedback, source,
-                                  SerializationPolicy::kSerializeIfNeeded);
-}
-
 void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
     BytecodeArrayIterator* iterator) {
   Hints const& key = environment()->accumulator_hints();
@@ -3131,11 +3094,6 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
       DCHECK(name.equals(feedback.AsNamedAccess().name()));
       ProcessNamedAccess(receiver, feedback.AsNamedAccess(), access_mode,
                          &new_accumulator_hints);
-      break;
-    case ProcessedFeedback::kMinimorphicPropertyAccess:
-      DCHECK(name.equals(feedback.AsMinimorphicPropertyAccess().name()));
-      ProcessMinimorphicPropertyAccess(feedback.AsMinimorphicPropertyAccess(),
-                                       source);
       break;
     case ProcessedFeedback::kInsufficient:
       break;

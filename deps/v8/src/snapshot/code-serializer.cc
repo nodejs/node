@@ -4,12 +4,9 @@
 
 #include "src/snapshot/code-serializer.h"
 
-#include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/local-factory-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
@@ -107,14 +104,14 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
   Address address = obj.address();
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
+  Page* page = Page::FromAddress(address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
-  for (ReadOnlyPage* page : read_only_space->pages()) {
-    if (chunk == page) break;
+  for (Page* p : *read_only_space) {
+    if (p == page) break;
     ++chunk_index;
   }
-  uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
+  uint32_t chunk_offset = static_cast<uint32_t>(page->Offset(address));
   SerializerReference back_reference = SerializerReference::BackReference(
       SnapshotSpace::kReadOnlyHeap, chunk_index, chunk_offset);
   reference_map()->Add(reinterpret_cast<void*>(obj.ptr()), back_reference);
@@ -262,34 +259,6 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-namespace {
-class StressOffThreadDeserializeThread final : public base::Thread {
- public:
-  explicit StressOffThreadDeserializeThread(LocalIsolate* local_isolate,
-                                            const SerializedCodeData* scd)
-      : Thread(
-            base::Thread::Options("StressOffThreadDeserializeThread", 2 * MB)),
-        local_isolate_(local_isolate),
-        scd_(scd) {}
-
-  MaybeHandle<SharedFunctionInfo> maybe_result() const { return maybe_result_; }
-
-  void Run() final {
-    MaybeHandle<SharedFunctionInfo> local_maybe_result =
-        ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
-            local_isolate_, scd_, local_isolate_->factory()->empty_string());
-
-    maybe_result_ =
-        local_isolate_->heap()->NewPersistentMaybeHandle(local_maybe_result);
-  }
-
- private:
-  LocalIsolate* local_isolate_;
-  const SerializedCodeData* scd_;
-  MaybeHandle<SharedFunctionInfo> maybe_result_;
-};
-}  // namespace
-
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, ScriptData* cached_data, Handle<String> source,
     ScriptOriginOptions origin_options) {
@@ -312,26 +281,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
 
   // Deserialize.
-  MaybeHandle<SharedFunctionInfo> maybe_result;
-  // TODO(leszeks): Add LocalHeap support to deserializer
-  if (false && FLAG_stress_background_compile) {
-    LocalIsolate local_isolate(isolate);
-
-    StressOffThreadDeserializeThread thread(&local_isolate, &scd);
-    CHECK(thread.Start());
-    thread.Join();
-
-    maybe_result = thread.maybe_result();
-
-    // Fix-up result script source.
-    Handle<SharedFunctionInfo> result;
-    if (maybe_result.ToHandle(&result)) {
-      Script::cast(result->script()).set_source(*source);
-    }
-  } else {
-    maybe_result = ObjectDeserializer::DeserializeSharedFunctionInfo(
-        isolate, &scd, source);
-  }
+  MaybeHandle<SharedFunctionInfo> maybe_result =
+      ObjectDeserializer::DeserializeSharedFunctionInfo(isolate, &scd, source);
 
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
@@ -404,6 +355,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
   return scope.CloseAndEscape(result);
 }
+
 
 SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {

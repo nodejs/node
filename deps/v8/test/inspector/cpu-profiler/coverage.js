@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --no-always-opt --opt
 // Flags: --no-stress-flush-bytecode
-// Flags: --no-stress-incremental-marking
 
 var source =
 `

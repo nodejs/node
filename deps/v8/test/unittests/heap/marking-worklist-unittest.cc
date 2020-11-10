@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/marking-worklist.h"
-
 #include <cmath>
 #include <limits>
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/marking-worklist-inl.h"
+#include "src/heap/marking-worklist.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -19,8 +17,8 @@ namespace internal {
 using MarkingWorklistTest = TestWithContext;
 
 TEST_F(MarkingWorklistTest, PushPop) {
-  MarkingWorklists holder;
-  MarkingWorklists::Local worklists(&holder);
+  MarkingWorklistsHolder holder;
+  MarkingWorklists worklists(kMainThreadTask, &holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   worklists.Push(pushed_object);
@@ -30,8 +28,8 @@ TEST_F(MarkingWorklistTest, PushPop) {
 }
 
 TEST_F(MarkingWorklistTest, PushPopOnHold) {
-  MarkingWorklists holder;
-  MarkingWorklists::Local worklists(&holder);
+  MarkingWorklistsHolder holder;
+  MarkingWorklists worklists(kMainThreadTask, &holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   worklists.PushOnHold(pushed_object);
@@ -41,8 +39,8 @@ TEST_F(MarkingWorklistTest, PushPopOnHold) {
 }
 
 TEST_F(MarkingWorklistTest, PushPopEmbedder) {
-  MarkingWorklists holder;
-  MarkingWorklists::Local worklists(&holder);
+  MarkingWorklistsHolder holder;
+  MarkingWorklists worklists(kMainThreadTask, &holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   worklists.PushEmbedder(pushed_object);
@@ -52,13 +50,13 @@ TEST_F(MarkingWorklistTest, PushPopEmbedder) {
 }
 
 TEST_F(MarkingWorklistTest, MergeOnHold) {
-  MarkingWorklists holder;
-  MarkingWorklists::Local main_worklists(&holder);
-  MarkingWorklists::Local worker_worklists(&holder);
+  MarkingWorklistsHolder holder;
+  MarkingWorklists main_worklists(kMainThreadTask, &holder);
+  MarkingWorklists worker_worklists(kMainThreadTask + 1, &holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   worker_worklists.PushOnHold(pushed_object);
-  worker_worklists.Publish();
+  worker_worklists.FlushToGlobal();
   main_worklists.MergeOnHold();
   HeapObject popped_object;
   EXPECT_TRUE(main_worklists.Pop(&popped_object));
@@ -66,13 +64,13 @@ TEST_F(MarkingWorklistTest, MergeOnHold) {
 }
 
 TEST_F(MarkingWorklistTest, ShareWorkIfGlobalPoolIsEmpty) {
-  MarkingWorklists holder;
-  MarkingWorklists::Local main_worklists(&holder);
-  MarkingWorklists::Local worker_worklists(&holder);
+  MarkingWorklistsHolder holder;
+  MarkingWorklists main_worklists(kMainThreadTask, &holder);
+  MarkingWorklists worker_worklists(kMainThreadTask + 1, &holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   main_worklists.Push(pushed_object);
-  main_worklists.ShareWork();
+  main_worklists.ShareWorkIfGlobalPoolIsEmpty();
   HeapObject popped_object;
   EXPECT_TRUE(worker_worklists.Pop(&popped_object));
   EXPECT_EQ(popped_object, pushed_object);
@@ -80,9 +78,9 @@ TEST_F(MarkingWorklistTest, ShareWorkIfGlobalPoolIsEmpty) {
 
 TEST_F(MarkingWorklistTest, ContextWorklistsPushPop) {
   const Address context = 0xabcdef;
-  MarkingWorklists holder;
+  MarkingWorklistsHolder holder;
   holder.CreateContextWorklists({context});
-  MarkingWorklists::Local worklists(&holder);
+  MarkingWorklists worklists(kMainThreadTask, &holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   worklists.SwitchToContext(context);
@@ -96,9 +94,9 @@ TEST_F(MarkingWorklistTest, ContextWorklistsPushPop) {
 
 TEST_F(MarkingWorklistTest, ContextWorklistsEmpty) {
   const Address context = 0xabcdef;
-  MarkingWorklists holder;
+  MarkingWorklistsHolder holder;
   holder.CreateContextWorklists({context});
-  MarkingWorklists::Local worklists(&holder);
+  MarkingWorklists worklists(kMainThreadTask, &holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   worklists.SwitchToContext(context);
@@ -116,15 +114,15 @@ TEST_F(MarkingWorklistTest, ContextWorklistsEmpty) {
 TEST_F(MarkingWorklistTest, ContextWorklistCrossTask) {
   const Address context1 = 0x1abcdef;
   const Address context2 = 0x2abcdef;
-  MarkingWorklists holder;
+  MarkingWorklistsHolder holder;
   holder.CreateContextWorklists({context1, context2});
-  MarkingWorklists::Local main_worklists(&holder);
-  MarkingWorklists::Local worker_worklists(&holder);
+  MarkingWorklists main_worklists(kMainThreadTask, &holder);
+  MarkingWorklists worker_worklists(kMainThreadTask + 1, &holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   main_worklists.SwitchToContext(context1);
   main_worklists.Push(pushed_object);
-  main_worklists.ShareWork();
+  main_worklists.ShareWorkIfGlobalPoolIsEmpty();
   worker_worklists.SwitchToContext(context2);
   HeapObject popped_object;
   EXPECT_TRUE(worker_worklists.Pop(&popped_object));

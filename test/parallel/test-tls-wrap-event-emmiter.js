@@ -1,7 +1,9 @@
 'use strict';
 
-// Issue: https://github.com/nodejs/node/issues/3655
-// Test checks if we get exception instead of runtime error
+/*
+ * Issue: https://github.com/nodejs/node/issues/3655
+ * Test checks if we get exception instead of runtime error
+ */
 
 const common = require('../common');
 if (!common.hasCrypto)

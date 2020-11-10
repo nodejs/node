@@ -39,16 +39,21 @@ tmpdir.refresh();
 const linkData = fixtures.path('/cycles/root.js');
 const linkPath = path.join(tmpdir.path, 'symlink1.js');
 
-fs.symlink(linkData, linkPath, common.mustSucceed(() => {
-  fs.lstat(linkPath, common.mustSucceed((stats) => {
+fs.symlink(linkData, linkPath, common.mustCall(function(err) {
+  assert.ifError(err);
+
+  fs.lstat(linkPath, common.mustCall(function(err, stats) {
+    assert.ifError(err);
     linkTime = stats.mtime.getTime();
   }));
 
-  fs.stat(linkPath, common.mustSucceed((stats) => {
+  fs.stat(linkPath, common.mustCall(function(err, stats) {
+    assert.ifError(err);
     fileTime = stats.mtime.getTime();
   }));
 
-  fs.readlink(linkPath, common.mustSucceed((destination) => {
+  fs.readlink(linkPath, common.mustCall(function(err, destination) {
+    assert.ifError(err);
     assert.strictEqual(destination, linkData);
   }));
 }));
@@ -58,7 +63,9 @@ fs.symlink(linkData, linkPath, common.mustSucceed(() => {
   const linkData = fixtures.path('/not/exists/file');
   const linkPath = path.join(tmpdir.path, 'symlink2.js');
 
-  fs.symlink(linkData, linkPath, common.mustSucceed(() => {
+  fs.symlink(linkData, linkPath, common.mustCall(function(err) {
+    assert.ifError(err);
+
     assert(!fs.existsSync(linkPath));
   }));
 }

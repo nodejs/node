@@ -927,8 +927,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
   if (!env->can_call_into_js())
     return false;
   if (!ContextifyScript::InstanceOf(env, args.Holder())) {
-    THROW_ERR_INVALID_THIS(
-        env,
+    env->ThrowTypeError(
         "Script methods can only be called on script instances.");
     return false;
   }

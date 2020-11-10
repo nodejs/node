@@ -8,7 +8,6 @@
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/objects/heap-object.h"
-#include "src/roots/roots.h"
 #include "src/snapshot/references.h"
 #include "src/snapshot/snapshot-data.h"
 
@@ -22,7 +21,7 @@ class DeserializerAllocator final {
  public:
   DeserializerAllocator() = default;
 
-  void Initialize(Heap* heap);
+  void Initialize(Heap* heap) { heap_ = heap; }
 
   // ------- Allocation Methods -------
   // Methods related to memory allocation during deserialization.
@@ -100,9 +99,7 @@ class DeserializerAllocator final {
   // back-references.
   std::vector<HeapObject> deserialized_large_objects_;
 
-  // ReadOnlyRoots and heap are null until Initialize is called.
-  Heap* heap_ = nullptr;
-  ReadOnlyRoots roots_ = ReadOnlyRoots(static_cast<Address*>(nullptr));
+  Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(DeserializerAllocator);
 };

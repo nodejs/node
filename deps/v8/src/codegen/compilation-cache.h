@@ -5,7 +5,6 @@
 #ifndef V8_CODEGEN_COMPILATION_CACHE_H_
 #define V8_CODEGEN_COMPILATION_CACHE_H_
 
-#include "src/base/hashmap.h"
 #include "src/objects/compilation-cache.h"
 #include "src/utils/allocation.h"
 
@@ -26,11 +25,13 @@ class CompilationSubCache {
  public:
   CompilationSubCache(Isolate* isolate, int generations)
       : isolate_(isolate), generations_(generations) {
-    DCHECK_LE(generations, kMaxGenerations);
+    tables_ = NewArray<Object>(generations);
   }
 
-  static constexpr int kFirstGeneration = 0;
-  static constexpr int kMaxGenerations = 2;
+  ~CompilationSubCache() { DeleteArray(tables_); }
+
+  // Index for the first generation in the cache.
+  static const int kFirstGeneration = 0;
 
   // Get the compilation cache tables for a specific generation.
   Handle<CompilationCacheTable> GetTable(int generation);
@@ -46,7 +47,7 @@ class CompilationSubCache {
 
   // Age the sub-cache by evicting the oldest generation and creating a new
   // young generation.
-  virtual void Age() = 0;
+  void Age();
 
   // GC support.
   void Iterate(RootVisitor* v);
@@ -58,20 +59,15 @@ class CompilationSubCache {
   void Remove(Handle<SharedFunctionInfo> function_info);
 
   // Number of generations in this sub-cache.
-  int generations() const { return generations_; }
+  inline int generations() { return generations_; }
 
  protected:
-  Isolate* isolate() const { return isolate_; }
-
-  // Ageing occurs either by removing the oldest generation, or with
-  // custom logic implemented in CompilationCacheTable::Age.
-  static void AgeByGeneration(CompilationSubCache* c);
-  static void AgeCustom(CompilationSubCache* c);
+  Isolate* isolate() { return isolate_; }
 
  private:
-  Isolate* const isolate_;
-  const int generations_;
-  Object tables_[kMaxGenerations];  // One for each generation.
+  Isolate* isolate_;
+  int generations_;  // Number of generations.
+  Object* tables_;   // Compilation cache tables - one for each generation.
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationSubCache);
 };
@@ -91,8 +87,6 @@ class CompilationCacheScript : public CompilationSubCache {
   void Put(Handle<String> source, Handle<Context> context,
            LanguageMode language_mode,
            Handle<SharedFunctionInfo> function_info);
-
-  void Age() override;
 
  private:
   bool HasOrigin(Handle<SharedFunctionInfo> function_info,
@@ -129,8 +123,6 @@ class CompilationCacheEval : public CompilationSubCache {
            Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
            int position);
 
-  void Age() override;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
 };
@@ -146,36 +138,8 @@ class CompilationCacheRegExp : public CompilationSubCache {
   void Put(Handle<String> source, JSRegExp::Flags flags,
            Handle<FixedArray> data);
 
-  void Age() override;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
-};
-
-// Sub-cache for Code objects. All code inserted into this cache must
-// be usable across different native contexts.
-class CompilationCacheCode : public CompilationSubCache {
- public:
-  explicit CompilationCacheCode(Isolate* isolate)
-      : CompilationSubCache(isolate, kGenerations) {}
-
-  MaybeHandle<Code> Lookup(Handle<SharedFunctionInfo> key);
-  void Put(Handle<SharedFunctionInfo> key, Handle<Code> value);
-
-  void Age() override;
-
-  // TODO(jgruber,v8:8888): For simplicity we use the generational
-  // approach here, but could consider something else (or more
-  // generations) in the future.
-  static constexpr int kGenerations = 2;
-
-  static void TraceAgeing();
-  static void TraceInsertion(Handle<SharedFunctionInfo> key,
-                             Handle<Code> value);
-  static void TraceHit(Handle<SharedFunctionInfo> key, Handle<Code> value);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheCode);
 };
 
 // The compilation cache keeps shared function infos for compiled
@@ -205,8 +169,6 @@ class V8_EXPORT_PRIVATE CompilationCache {
   MaybeHandle<FixedArray> LookupRegExp(Handle<String> source,
                                        JSRegExp::Flags flags);
 
-  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> sfi);
-
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
   void PutScript(Handle<String> source, Handle<Context> native_context,
@@ -224,8 +186,6 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // This may overwrite an existing mapping.
   void PutRegExp(Handle<String> source, JSRegExp::Flags flags,
                  Handle<FixedArray> data);
-
-  void PutCode(Handle<SharedFunctionInfo> shared, Handle<Code> code);
 
   // Clear the cache - also used to initialize the cache at startup.
   void Clear();
@@ -257,6 +217,9 @@ class V8_EXPORT_PRIVATE CompilationCache {
 
   base::HashMap* EagerOptimizingSet();
 
+  // The number of sub caches covering the different types to cache.
+  static const int kSubCacheCount = 4;
+
   bool IsEnabledScriptAndEval() const {
     return FLAG_compilation_cache && enabled_script_and_eval_;
   }
@@ -269,9 +232,6 @@ class V8_EXPORT_PRIVATE CompilationCache {
   CompilationCacheEval eval_global_;
   CompilationCacheEval eval_contextual_;
   CompilationCacheRegExp reg_exp_;
-  CompilationCacheCode code_;
-
-  static constexpr int kSubCacheCount = 5;
   CompilationSubCache* subcaches_[kSubCacheCount];
 
   // Current enable state of the compilation cache for scripts and eval.

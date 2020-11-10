@@ -166,11 +166,11 @@ inline std::ostream& operator<<(std::ostream& stream,
                     << loc.GetParameterIndex() << ")";
     case DefinitionLocation::Kind::kPhi:
       return stream << "DefinitionLocation::Phi(" << std::hex
-                    << loc.GetPhiBlock() << std::dec << ", "
+                    << (uint64_t)loc.GetPhiBlock() << std::dec << ", "
                     << loc.GetPhiIndex() << ")";
     case DefinitionLocation::Kind::kInstruction:
       return stream << "DefinitionLocation::Instruction(" << std::hex
-                    << loc.GetInstruction() << std::dec << ", "
+                    << (uint64_t)loc.GetInstruction() << std::dec << ", "
                     << loc.GetInstructionIndex() << ")";
   }
 }

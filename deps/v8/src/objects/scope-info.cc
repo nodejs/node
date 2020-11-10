@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/objects/scope-info.h"
-
 #include <stdlib.h>
+
+#include "src/objects/scope-info.h"
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/init/bootstrapper.h"
+
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/string-set-inl.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -215,7 +215,7 @@ Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
         IsReplModeScopeBit::encode(scope->is_repl_mode_scope()) |
-        HasLocalsBlockListBit::encode(false);
+        HasLocalsBlackListBit::encode(false);
     scope_info.SetFlags(flags);
 
     scope_info.SetParameterCount(parameter_count);
@@ -380,13 +380,13 @@ Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
-                                        Scope* scope,
-                                        MaybeHandle<ScopeInfo> outer_scope);
+    Handle<ScopeInfo> ScopeInfo::Create<Isolate>(
+        Isolate* isolate, Zone* zone, Scope* scope,
+        MaybeHandle<ScopeInfo> outer_scope);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
-                                        Scope* scope,
-                                        MaybeHandle<ScopeInfo> outer_scope);
+    Handle<ScopeInfo> ScopeInfo::Create<OffThreadIsolate>(
+        OffThreadIsolate* isolate, Zone* zone, Scope* scope,
+        MaybeHandle<ScopeInfo> outer_scope);
 
 // static
 Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
@@ -415,7 +415,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(true) |
-      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
+      IsReplModeScopeBit::encode(false) | HasLocalsBlackListBit::encode(false);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -495,7 +495,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context) |
-      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
+      IsReplModeScopeBit::encode(false) | HasLocalsBlackListBit::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -552,34 +552,34 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
 }
 
 // static
-Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
-    Isolate* isolate, Handle<ScopeInfo> original, Handle<StringSet> blocklist) {
+Handle<ScopeInfo> ScopeInfo::RecreateWithBlackList(
+    Isolate* isolate, Handle<ScopeInfo> original, Handle<StringSet> blacklist) {
   DCHECK(!original.is_null());
-  if (original->HasLocalsBlockList()) return original;
+  if (original->HasLocalsBlackList()) return original;
 
   Handle<ScopeInfo> scope_info =
       isolate->factory()->NewScopeInfo(original->length() + 1);
 
   // Copy the static part first and update the flags to include the
-  // blocklist field, so {LocalsBlockListIndex} returns the correct value.
+  // blacklist field, so {LocalsBlackListIndex} returns the correct value.
   scope_info->CopyElements(isolate, 0, *original, 0, kVariablePartIndex,
                            WriteBarrierMode::UPDATE_WRITE_BARRIER);
   scope_info->SetFlags(
-      HasLocalsBlockListBit::update(scope_info->Flags(), true));
+      HasLocalsBlackListBit::update(scope_info->Flags(), true));
 
-  // Copy the dynamic part including the provided blocklist:
-  //   1) copy all the fields up to the blocklist index
-  //   2) add the blocklist
+  // Copy the dynamic part including the provided blacklist:
+  //   1) copy all the fields up to the blacklist index
+  //   2) add the blacklist
   //   3) copy the remaining fields
   scope_info->CopyElements(
       isolate, kVariablePartIndex, *original, kVariablePartIndex,
-      scope_info->LocalsBlockListIndex() - kVariablePartIndex,
+      scope_info->LocalsBlackListIndex() - kVariablePartIndex,
       WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  scope_info->set(scope_info->LocalsBlockListIndex(), *blocklist);
+  scope_info->set(scope_info->LocalsBlackListIndex(), *blacklist);
   scope_info->CopyElements(
-      isolate, scope_info->LocalsBlockListIndex() + 1, *original,
-      scope_info->LocalsBlockListIndex(),
-      scope_info->length() - scope_info->LocalsBlockListIndex() - 1,
+      isolate, scope_info->LocalsBlackListIndex() + 1, *original,
+      scope_info->LocalsBlackListIndex(),
+      scope_info->length() - scope_info->LocalsBlackListIndex() - 1,
       WriteBarrierMode::UPDATE_WRITE_BARRIER);
   return scope_info;
 }
@@ -735,14 +735,14 @@ bool ScopeInfo::IsReplModeScope() const {
   return IsReplModeScopeBit::decode(Flags());
 }
 
-bool ScopeInfo::HasLocalsBlockList() const {
+bool ScopeInfo::HasLocalsBlackList() const {
   if (length() == 0) return false;
-  return HasLocalsBlockListBit::decode(Flags());
+  return HasLocalsBlackListBit::decode(Flags());
 }
 
-StringSet ScopeInfo::LocalsBlockList() const {
-  DCHECK(HasLocalsBlockList());
-  return StringSet::cast(get(LocalsBlockListIndex()));
+StringSet ScopeInfo::LocalsBlackList() const {
+  DCHECK(HasLocalsBlackList());
+  return StringSet::cast(get(LocalsBlackListIndex()));
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
@@ -984,12 +984,12 @@ int ScopeInfo::OuterScopeInfoIndex() const {
   return PositionInfoIndex() + (HasPositionInfo() ? kPositionInfoEntries : 0);
 }
 
-int ScopeInfo::LocalsBlockListIndex() const {
+int ScopeInfo::LocalsBlackListIndex() const {
   return OuterScopeInfoIndex() + (HasOuterScopeInfo() ? 1 : 0);
 }
 
 int ScopeInfo::ModuleInfoIndex() const {
-  return LocalsBlockListIndex() + (HasLocalsBlockList() ? 1 : 0);
+  return LocalsBlackListIndex() + (HasLocalsBlackList() ? 1 : 0);
 }
 
 int ScopeInfo::ModuleVariableCountIndex() const {
@@ -1068,7 +1068,7 @@ template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
     Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
     int beg_pos, int end_pos);
 template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
+    OffThreadIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
     Handle<PrimitiveHeapObject> local_name,
     Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
     int beg_pos, int end_pos);
@@ -1140,7 +1140,7 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
 template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
-    LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
+    OffThreadIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
 int SourceTextModuleInfo::RegularExportCount() const {
   DCHECK_EQ(regular_exports().length() % kRegularExportLength, 0);

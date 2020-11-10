@@ -520,10 +520,7 @@ class V8_EXPORT_PRIVATE ProfileGenerator {
  public:
   explicit ProfileGenerator(CpuProfilesCollection* profiles, CodeMap* code_map);
 
-  // Use the CodeMap to turn the raw addresses recorded in the sample into
-  // code/function names. The symbolized stack is added to the relevant
-  // profiles in the CpuProfilesCollection.
-  void SymbolizeTickSample(const TickSample& sample);
+  void RecordTickSample(const TickSample& sample);
 
   void UpdateNativeContextAddress(Address from, Address to);
 

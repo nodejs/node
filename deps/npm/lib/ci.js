@@ -1,41 +1,47 @@
-const util = require('util')
-const Arborist = require('@npmcli/arborist')
-const rimraf = util.promisify(require('rimraf'))
-const reifyOutput = require('./utils/reify-output.js')
+'use strict'
 
-const log = require('npmlog')
 const npm = require('./npm.js')
-const usageUtil = require('./utils/usage.js')
+const Installer = require('libcipm')
+const log = require('npmlog')
+const path = require('path')
+const pack = require('./pack.js')
 
-const usage = usageUtil('ci', 'npm ci')
-const completion = require('./utils/completion/none.js')
+ci.usage = 'npm ci'
 
-const cmd = (args, cb) => ci().then(() => cb()).catch(cb)
+ci.completion = (cb) => cb(null, [])
 
-const ci = async () => {
-  if (npm.flatOptions.global) {
-    const err = new Error('`npm ci` does not work for global packages')
-    err.code = 'ECIGLOBAL'
-    throw err
+module.exports = ci
+function ci (args, cb) {
+  const opts = {
+    // Add some non-npm-config opts by hand.
+    cache: path.join(npm.config.get('cache'), '_cacache'),
+    // NOTE: npm has some magic logic around color distinct from the config
+    // value, so we have to override it here
+    color: !!npm.color,
+    hashAlgorithm: 'sha1',
+    includeDeprecated: false,
+    log,
+    'npm-session': npm.session,
+    'project-scope': npm.projectScope,
+    refer: npm.referer,
+    dmode: npm.modes.exec,
+    fmode: npm.modes.file,
+    umask: npm.modes.umask,
+    npmVersion: npm.version,
+    tmp: npm.tmp,
+    dirPacker: pack.packGitDep
   }
 
-  const where = npm.prefix
-  const arb = new Arborist({ ...npm.flatOptions, path: where })
+  for (const key in npm.config.list[0]) {
+    if (!['log', 'cache'].includes(key)) {
+      opts[key] = npm.config.list[0][key]
+    }
+  }
 
-  await Promise.all([
-    arb.loadVirtual().catch(er => {
-      log.verbose('loadVirtual', er.stack)
-      const msg =
-        'The `npm ci` command can only install with an existing package-lock.json or\n' +
-        'npm-shrinkwrap.json with lockfileVersion >= 1. Run an install with npm@5 or\n' +
-        'later to generate a package-lock.json file, then try again.'
-      throw new Error(msg)
-    }),
-    rimraf(`${where}/node_modules/*`, { glob: { dot: true, nosort: true, silent: true } }),
-  ])
-  // npm ci should never modify the lockfile or package.json
-  await arb.reify({ save: false })
-  reifyOutput(arb)
+  return new Installer(opts).run().then(details => {
+    log.disableProgress()
+    console.log(`added ${details.pkgCount} packages in ${
+      details.runTime / 1000
+    }s`)
+  }).then(() => cb(), cb)
 }
-
-module.exports = Object.assign(cmd, { completion, usage })

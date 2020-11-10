@@ -5,12 +5,10 @@ on:
   push:
     branches:
       - master
-      - v[0-9]+.x-staging
-      - v[0-9]+.x
 
 env:
-  PYTHON_VERSION: 3.9
-  NODE_VERSION: 14.x
+  PYTHON_VERSION: 3.8
+  NODE_VERSION: 10.x
 
 jobs:
   lint-addon-docs:
@@ -30,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -68,7 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -77,11 +75,3 @@ jobs:
         run: |
           make lint-py-build || true
           NODE=$(which node) make lint-py
-
-  lint-codeowners:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: mszostok/codeowners-validator@v0.4.0
-        with:
-          checks: "files,duppatterns"

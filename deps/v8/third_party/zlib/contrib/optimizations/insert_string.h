@@ -28,15 +28,11 @@
 #elif defined(CRC32_ARMV8_CRC32)
   #if defined(__clang__)
     #define __crc32cw __builtin_arm_crc32cw
-  #elif defined(__GNUC__)
-    #define __crc32cw __builtin_aarch64_crc32cw
   #endif
 
-  #if defined(__aarch64__) && defined(__clang__)
+  #if defined(__aarch64__)
     #define TARGET_CPU_WITH_CRC __attribute__((target("crc")))
-  #elif defined(__aarch64__) && defined(__GNUC__)
-    #define TARGET_CPU_WITH_CRC __attribute__((target("+crc")))
-  #elif defined(__clang__) // !defined(__aarch64__)
+  #else  // !defined(__aarch64__)
     #define TARGET_CPU_WITH_CRC __attribute__((target("armv8-a,crc")))
   #endif  // defined(__aarch64__)
 

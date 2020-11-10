@@ -192,10 +192,10 @@ bool Runtime::MayAllocate(FunctionId id) {
   }
 }
 
-bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
-  CHECK(FLAG_fuzzing);
+bool Runtime::IsWhitelistedForFuzzing(FunctionId id) {
+  CHECK(FLAG_allow_natives_for_fuzzing);
   switch (id) {
-    // Runtime functions allowlisted for all fuzzers. Only add functions that
+    // Runtime functions whitelisted for all fuzzers. Only add functions that
     // help increase coverage.
     case Runtime::kArrayBufferDetach:
     case Runtime::kDeoptimizeFunction:

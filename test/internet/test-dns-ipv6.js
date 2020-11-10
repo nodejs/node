@@ -52,7 +52,8 @@ TEST(async function test_resolve6(done) {
 
   const req = dns.resolve6(
     addresses.INET6_HOST,
-    common.mustSucceed((ips) => {
+    common.mustCall((err, ips) => {
+      assert.ifError(err);
       validateResult(ips);
       done();
     }));
@@ -73,7 +74,8 @@ TEST(async function test_reverse_ipv6(done) {
 
   const req = dns.reverse(
     addresses.INET6_IP,
-    common.mustSucceed((domains) => {
+    common.mustCall((err, domains) => {
+      assert.ifError(err);
       validateResult(domains);
       done();
     }));
@@ -92,7 +94,8 @@ TEST(async function test_lookup_ipv6_explicit(done) {
   const req = dns.lookup(
     addresses.INET6_HOST,
     6,
-    common.mustSucceed((ip, family) => {
+    common.mustCall((err, ip, family) => {
+      assert.ifError(err);
       validateResult({ address: ip, family });
       done();
     }));
@@ -100,18 +103,19 @@ TEST(async function test_lookup_ipv6_explicit(done) {
   checkWrap(req);
 });
 
-// This ends up just being too problematic to test
-// TEST(function test_lookup_ipv6_implicit(done) {
-//   var req = dns.lookup(addresses.INET6_HOST, function(err, ip, family) {
-//     assert.ifError(err);
-//     assert.ok(net.isIPv6(ip));
-//     assert.strictEqual(family, 6);
+/* This ends up just being too problematic to test
+TEST(function test_lookup_ipv6_implicit(done) {
+  var req = dns.lookup(addresses.INET6_HOST, function(err, ip, family) {
+    assert.ifError(err);
+    assert.ok(net.isIPv6(ip));
+    assert.strictEqual(family, 6);
 
-//     done();
-//   });
+    done();
+  });
 
-//   checkWrap(req);
-// });
+  checkWrap(req);
+});
+*/
 
 TEST(async function test_lookup_ipv6_explicit_object(done) {
   function validateResult(res) {
@@ -123,7 +127,8 @@ TEST(async function test_lookup_ipv6_explicit_object(done) {
 
   const req = dns.lookup(addresses.INET6_HOST, {
     family: 6
-  }, common.mustSucceed((ip, family) => {
+  }, common.mustCall((err, ip, family) => {
+    assert.ifError(err);
     validateResult({ address: ip, family });
     done();
   }));
@@ -169,7 +174,8 @@ TEST(async function test_lookup_ip_ipv6(done) {
 
   const req = dns.lookup(
     '::1',
-    common.mustSucceed((ip, family) => {
+    common.mustCall((err, ip, family) => {
+      assert.ifError(err);
       validateResult({ address: ip, family });
       done();
     }));
@@ -197,7 +203,8 @@ TEST(async function test_lookup_all_ipv6(done) {
   const req = dns.lookup(
     addresses.INET6_HOST,
     { all: true, family: 6 },
-    common.mustSucceed((ips) => {
+    common.mustCall((err, ips) => {
+      assert.ifError(err);
       validateResult(ips);
       done();
     })
@@ -226,15 +233,15 @@ TEST(function test_lookupservice_ip_ipv6(done) {
   checkWrap(req);
 });
 
-// Disabled because it appears to be not working on Linux.
-// TEST(function test_lookup_localhost_ipv6(done) {
-//   var req = dns.lookup('localhost', 6, function(err, ip, family) {
-//     assert.ifError(err);
-//     assert.ok(net.isIPv6(ip));
-//     assert.strictEqual(family, 6);
-//
-//     done();
-//   });
-//
-//   checkWrap(req);
-// });
+/* Disabled because it appears to be not working on linux. */
+/* TEST(function test_lookup_localhost_ipv6(done) {
+  var req = dns.lookup('localhost', 6, function(err, ip, family) {
+    assert.ifError(err);
+    assert.ok(net.isIPv6(ip));
+    assert.strictEqual(family, 6);
+
+    done();
+  });
+
+  checkWrap(req);
+}); */

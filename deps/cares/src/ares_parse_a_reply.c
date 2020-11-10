@@ -163,7 +163,7 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
             {
               hostent->h_addr_list[i] = (char *)&addrs[i];
               memcpy(hostent->h_addr_list[i],
-                     &(CARES_INADDR_CAST(struct sockaddr_in *, next->ai_addr)->sin_addr),
+                     &(((struct sockaddr_in *)next->ai_addr)->sin_addr),
                      sizeof(struct in_addr));
               if (naddrttls && i < *naddrttls)
                 {
@@ -173,7 +173,7 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
                     addrttls[i].ttl = next->ai_ttl;
 
                   memcpy(&addrttls[i].ipaddr,
-                         &(CARES_INADDR_CAST(struct sockaddr_in *, next->ai_addr)->sin_addr),
+                         &(((struct sockaddr_in *)next->ai_addr)->sin_addr),
                          sizeof(struct in_addr));
                 }
               ++i;

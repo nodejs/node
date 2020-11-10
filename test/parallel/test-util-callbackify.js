@@ -32,7 +32,8 @@ const values = [
     }
 
     const cbAsyncFn = callbackify(asyncFn);
-    cbAsyncFn(common.mustSucceed((ret) => {
+    cbAsyncFn(common.mustCall((err, ret) => {
+      assert.ifError(err);
       assert.strictEqual(ret, value);
     }));
 
@@ -42,7 +43,8 @@ const values = [
     }
 
     const cbPromiseFn = callbackify(promiseFn);
-    cbPromiseFn(common.mustSucceed((ret) => {
+    cbPromiseFn(common.mustCall((err, ret) => {
+      assert.ifError(err);
       assert.strictEqual(ret, value);
     }));
 
@@ -56,7 +58,8 @@ const values = [
     }
 
     const cbThenableFn = callbackify(thenableFn);
-    cbThenableFn(common.mustSucceed((ret) => {
+    cbThenableFn(common.mustCall((err, ret) => {
+      assert.ifError(err);
       assert.strictEqual(ret, value);
     }));
   }
@@ -159,7 +162,8 @@ const values = [
       Object.getPrototypeOf(asyncFn)
     );
     assert.strictEqual(Object.getPrototypeOf(cbAsyncFn), Function.prototype);
-    cbAsyncFn(value, common.mustSucceed((ret) => {
+    cbAsyncFn(value, common.mustCall((err, ret) => {
+      assert.ifError(err);
       assert.strictEqual(ret, value);
     }));
 
@@ -177,7 +181,8 @@ const values = [
 
     const cbPromiseFn = callbackify(promiseFn);
     assert.strictEqual(promiseFn.length, obj);
-    cbPromiseFn(value, common.mustSucceed((ret) => {
+    cbPromiseFn(value, common.mustCall((err, ret) => {
+      assert.ifError(err);
       assert.strictEqual(ret, value);
     }));
   }
@@ -193,7 +198,8 @@ const values = [
       },
     };
     iAmThis.cbFn = callbackify(iAmThis.fn);
-    iAmThis.cbFn(value, common.mustSucceed(function(ret) {
+    iAmThis.cbFn(value, common.mustCall(function(err, ret) {
+      assert.ifError(err);
       assert.strictEqual(ret, value);
       assert.strictEqual(this, iAmThis);
     }));
@@ -205,7 +211,8 @@ const values = [
       },
     };
     iAmThat.cbFn = callbackify(iAmThat.fn);
-    iAmThat.cbFn(value, common.mustSucceed(function(ret) {
+    iAmThat.cbFn(value, common.mustCall(function(err, ret) {
+      assert.ifError(err);
       assert.strictEqual(ret, value);
       assert.strictEqual(this, iAmThat);
     }));
@@ -235,7 +242,8 @@ const values = [
   execFile(
     process.execPath,
     [fixture],
-    common.mustSucceed((stdout, stderr) => {
+    common.mustCall((err, stdout, stderr) => {
+      assert.ifError(err);
       assert.strictEqual(
         stdout.trim(),
         `ifError got unwanted exception: ${fixture}`);

@@ -125,14 +125,16 @@ TEST_F(HeapTest, ASLR) {
 
 TEST_F(HeapTest, ExternalLimitDefault) {
   Heap* heap = i_isolate()->heap();
-  EXPECT_EQ(kExternalAllocationSoftLimit, heap->external_memory_limit());
+  EXPECT_EQ(kExternalAllocationSoftLimit,
+            heap->isolate()->isolate_data()->external_memory_limit_);
 }
 
 TEST_F(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling) {
   v8_isolate()->AdjustAmountOfExternalAllocatedMemory(+10 * MB);
   v8_isolate()->AdjustAmountOfExternalAllocatedMemory(-10 * MB);
   Heap* heap = i_isolate()->heap();
-  EXPECT_GE(heap->external_memory_limit(), kExternalAllocationSoftLimit);
+  EXPECT_GE(heap->isolate()->isolate_data()->external_memory_limit_,
+            kExternalAllocationSoftLimit);
 }
 
 #if V8_TARGET_ARCH_64_BIT

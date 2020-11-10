@@ -70,8 +70,8 @@ Use [wabt](https://github.com/WebAssembly/wabt) to compile `.wat` to `.wasm`
 $ wat2wasm demo.wat
 ```
 
-The `--experimental-wasi-unstable-preview1` CLI argument is needed for this
-example to run.
+The `--experimental-wasi-unstable-preview1` and `--experimental-wasm-bigint`
+CLI arguments are needed for this example to run.
 
 ## Class: `WASI`
 <!-- YAML
@@ -83,7 +83,7 @@ added:
 The `WASI` class provides the WASI system call API and additional convenience
 methods for working with WASI-based applications. Each `WASI` instance
 represents a distinct sandbox environment. For security purposes, each `WASI`
-instance must have its command-line arguments, environment variables, and
+instance must have its command line arguments, environment variables, and
 sandbox directory structure configured explicitly.
 
 ### `new WASI([options])`
@@ -95,7 +95,7 @@ added:
 
 * `options` {Object}
   * `args` {Array} An array of strings that the WebAssembly application will
-    see as command-line arguments. The first argument is the virtual path to the
+    see as command line arguments. The first argument is the virtual path to the
     WASI command itself. **Default:** `[]`.
   * `env` {Object} An object similar to `process.env` that the WebAssembly
     application will see as its environment. **Default:** `{}`.
@@ -136,7 +136,6 @@ If `start()` is called more than once, an exception is thrown.
 <!-- YAML
 added:
  - v14.6.0
- - v12.19.0
 -->
 
 * `instance` {WebAssembly.Instance}
@@ -163,6 +162,6 @@ added:
 should be passed as the `wasi_snapshot_preview1` import during the instantiation
 of a [`WebAssembly.Instance`][].
 
-[WebAssembly System Interface]: https://wasi.dev/
 [`WebAssembly.Instance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Instance
 [`WebAssembly.Memory`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Memory
+[WebAssembly System Interface]: https://wasi.dev/

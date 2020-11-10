@@ -92,7 +92,9 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 
   static constexpr CPURegister Create(int code, int size, RegisterType type) {
-    CONSTEXPR_DCHECK(IsValid(code, size, type));
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK(IsValid(code, size, type));
+#endif
     return CPURegister{code, size, type};
   }
 
@@ -302,7 +304,9 @@ class VRegister : public CPURegister {
   }
 
   static constexpr VRegister Create(int code, int size, int lane_count = 1) {
-    CONSTEXPR_DCHECK(IsValidLaneCount(lane_count));
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK(IsValidLaneCount(lane_count));
+#endif
     return VRegister(CPURegister::Create(code, size, CPURegister::kVRegister),
                      lane_count);
   }

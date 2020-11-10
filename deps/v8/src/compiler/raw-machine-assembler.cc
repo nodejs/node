@@ -22,8 +22,8 @@ RawMachineAssembler::RawMachineAssembler(
     PoisoningMitigationLevel poisoning_level)
     : isolate_(isolate),
       graph_(graph),
-      schedule_(zone()->New<Schedule>(zone())),
-      source_positions_(zone()->New<SourcePositionTable>(graph)),
+      schedule_(new (zone()) Schedule(zone())),
+      source_positions_(new (zone()) SourcePositionTable(graph)),
       machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
       simplified_(zone()),
@@ -47,22 +47,11 @@ RawMachineAssembler::RawMachineAssembler(
   source_positions_->AddDecorator();
 }
 
-void RawMachineAssembler::SetCurrentExternalSourcePosition(
-    FileAndLine file_and_line) {
-  int file_id =
-      isolate()->LookupOrAddExternallyCompiledFilename(file_and_line.first);
-  SourcePosition p = SourcePosition::External(file_and_line.second, file_id);
-  DCHECK(p.ExternalLine() == file_and_line.second);
+void RawMachineAssembler::SetSourcePosition(const char* file, int line) {
+  int file_id = isolate()->LookupOrAddExternallyCompiledFilename(file);
+  SourcePosition p = SourcePosition::External(line, file_id);
+  DCHECK(p.ExternalLine() == line);
   source_positions()->SetCurrentPosition(p);
-}
-
-FileAndLine RawMachineAssembler::GetCurrentExternalSourcePosition() const {
-  SourcePosition p = source_positions_->GetCurrentPosition();
-  if (!p.IsKnown()) return {nullptr, -1};
-  int file_id = p.ExternalFileId();
-  const char* file_name = isolate()->GetExternallyCompiledFilename(file_id);
-  int line = p.ExternalLine();
-  return {file_name, line};
 }
 
 Node* RawMachineAssembler::NullConstant() {
@@ -680,8 +669,8 @@ void RawMachineAssembler::Comment(const std::string& msg) {
   AddNode(machine()->Comment(zone_buffer));
 }
 
-void RawMachineAssembler::StaticAssert(Node* value, const char* source) {
-  AddNode(common()->StaticAssert(source), value);
+void RawMachineAssembler::StaticAssert(Node* value) {
+  AddNode(common()->StaticAssert(), value);
 }
 
 Node* RawMachineAssembler::CallN(CallDescriptor* call_descriptor,
@@ -821,7 +810,8 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 
 Node* RawMachineAssembler::Phi(MachineRepresentation rep, int input_count,
                                Node* const* inputs) {
-  Node** buffer = zone()->NewArray<Node*>(input_count + 1);
+  Node** buffer = new (zone()->New(sizeof(Node*) * (input_count + 1)))
+      Node*[input_count + 1];
   std::copy(inputs, inputs + input_count, buffer);
   buffer[input_count] = graph()->start();
   return AddNode(common()->Phi(rep, input_count), input_count + 1, buffer);

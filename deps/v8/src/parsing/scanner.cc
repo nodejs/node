@@ -107,12 +107,6 @@ void Scanner::Initialize() {
   Scan();
 }
 
-// static
-bool Scanner::IsInvalid(uc32 c) {
-  DCHECK(c == Invalid() || base::IsInRange(c, 0u, String::kMaxCodePoint));
-  return c == Scanner::Invalid();
-}
-
 template <bool capture_raw, bool unicode>
 uc32 Scanner::ScanHexNumber(int expected_length) {
   DCHECK_LE(expected_length, 4);  // prevent overflow
@@ -126,7 +120,7 @@ uc32 Scanner::ScanHexNumber(int expected_length) {
                          unicode
                              ? MessageTemplate::kInvalidUnicodeEscapeSequence
                              : MessageTemplate::kInvalidHexEscapeSequence);
-      return Invalid();
+      return -1;
     }
     x = x * 16 + d;
     Advance<capture_raw>();
@@ -136,17 +130,17 @@ uc32 Scanner::ScanHexNumber(int expected_length) {
 }
 
 template <bool capture_raw>
-uc32 Scanner::ScanUnlimitedLengthHexNumber(uc32 max_value, int beg_pos) {
+uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value, int beg_pos) {
   uc32 x = 0;
   int d = HexValue(c0_);
-  if (d < 0) return Invalid();
+  if (d < 0) return -1;
 
   while (d >= 0) {
     x = x * 16 + d;
     if (x > max_value) {
       ReportScannerError(Location(beg_pos, source_pos() + 1),
                          MessageTemplate::kUndefinedUnicodeCodePoint);
-      return Invalid();
+      return -1;
     }
     Advance<capture_raw>();
     d = HexValue(c0_);
@@ -392,7 +386,7 @@ bool Scanner::ScanEscape() {
     case 't' : c = '\t'; break;
     case 'u' : {
       c = ScanUnicodeEscape<capture_raw>();
-      if (IsInvalid(c)) return false;
+      if (c < 0) return false;
       break;
     }
     case 'v':
@@ -400,26 +394,18 @@ bool Scanner::ScanEscape() {
       break;
     case 'x': {
       c = ScanHexNumber<capture_raw>(2);
-      if (IsInvalid(c)) return false;
+      if (c < 0) return false;
       break;
     }
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
+    case '0':  // Fall through.
+    case '1':  // fall through
+    case '2':  // fall through
+    case '3':  // fall through
+    case '4':  // fall through
+    case '5':  // fall through
+    case '6':  // fall through
     case '7':
       c = ScanOctalEscape<capture_raw>(c, 2);
-      break;
-    case '8':
-    case '9':
-      // '\8' and '\9' are disallowed in strict mode.
-      // Re-use the octal error state to propagate the error.
-      octal_pos_ = Location(source_pos() - 2, source_pos() - 1);
-      octal_message_ = capture_raw ? MessageTemplate::kTemplate8Or9Escape
-                                   : MessageTemplate::kStrict8Or9Escape;
       break;
   }
 
@@ -430,7 +416,6 @@ bool Scanner::ScanEscape() {
 
 template <bool capture_raw>
 uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
-  DCHECK('0' <= c && c <= '7');
   uc32 x = c - '0';
   int i = 0;
   for (; i < length; i++) {
@@ -568,7 +553,7 @@ Token::Value Scanner::ScanTemplateSpan() {
         scanner_error_state.MoveErrorTo(next_);
         octal_error_state.MoveErrorTo(next_);
       }
-    } else if (c == kEndOfInput) {
+    } else if (c < 0) {
       // Unterminated template literal
       break;
     } else {
@@ -600,7 +585,7 @@ Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const {
 }
 
 template Handle<String> Scanner::SourceUrl(Isolate* isolate) const;
-template Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const;
+template Handle<String> Scanner::SourceUrl(OffThreadIsolate* isolate) const;
 
 template <typename LocalIsolate>
 Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const {
@@ -612,7 +597,8 @@ Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const {
 }
 
 template Handle<String> Scanner::SourceMappingUrl(Isolate* isolate) const;
-template Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const;
+template Handle<String> Scanner::SourceMappingUrl(
+    OffThreadIsolate* isolate) const;
 
 bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
                                               bool is_check_first_digit) {
@@ -875,7 +861,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
 uc32 Scanner::ScanIdentifierUnicodeEscape() {
   Advance();
-  if (c0_ != 'u') return Invalid();
+  if (c0_ != 'u') return -1;
   Advance();
   return ScanUnicodeEscape<false>();
 }
@@ -887,12 +873,11 @@ uc32 Scanner::ScanUnicodeEscape() {
   if (c0_ == '{') {
     int begin = source_pos() - 2;
     Advance<capture_raw>();
-    uc32 cp =
-        ScanUnlimitedLengthHexNumber<capture_raw>(String::kMaxCodePoint, begin);
-    if (cp == kInvalidSequence || c0_ != '}') {
+    uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10FFFF, begin);
+    if (cp < 0 || c0_ != '}') {
       ReportScannerError(source_pos(),
                          MessageTemplate::kInvalidUnicodeEscapeSequence);
-      return Invalid();
+      return -1;
     }
     Advance<capture_raw>();
     return cp;
@@ -910,7 +895,7 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
       // Only allow legal identifier part characters.
       // TODO(verwaest): Make this true.
       // DCHECK(!IsIdentifierPart('\'));
-      DCHECK(!IsIdentifierPart(Invalid()));
+      DCHECK(!IsIdentifierPart(-1));
       if (c == '\\' || !IsIdentifierPart(c)) {
         return Token::ILLEGAL;
       }
@@ -1001,9 +986,8 @@ Maybe<int> Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   JSRegExp::Flags flags;
   while (IsIdentifierPart(c0_)) {
-    base::Optional<JSRegExp::Flags> maybe_flag = JSRegExp::FlagFromChar(c0_);
-    if (!maybe_flag.has_value()) return Nothing<int>();
-    JSRegExp::Flags flag = *maybe_flag;
+    JSRegExp::Flags flag = JSRegExp::FlagFromChar(c0_);
+    if (flag == JSRegExp::kInvalid) return Nothing<int>();
     if (flags & flag) return Nothing<int>();
     Advance();
     flags |= flag;

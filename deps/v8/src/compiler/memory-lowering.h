@@ -33,15 +33,15 @@ class MemoryLowering final : public Reducer {
   class AllocationState final : public ZoneObject {
    public:
     static AllocationState const* Empty(Zone* zone) {
-      return zone->New<AllocationState>();
+      return new (zone) AllocationState();
     }
     static AllocationState const* Closed(AllocationGroup* group, Node* effect,
                                          Zone* zone) {
-      return zone->New<AllocationState>(group, effect);
+      return new (zone) AllocationState(group, effect);
     }
     static AllocationState const* Open(AllocationGroup* group, intptr_t size,
                                        Node* top, Node* effect, Zone* zone) {
-      return zone->New<AllocationState>(group, size, top, effect);
+      return new (zone) AllocationState(group, size, top, effect);
     }
 
     bool IsYoungGenerationAllocation() const;
@@ -52,8 +52,6 @@ class MemoryLowering final : public Reducer {
     intptr_t size() const { return size_; }
 
    private:
-    friend Zone;
-
     AllocationState();
     explicit AllocationState(AllocationGroup* group, Node* effect);
     AllocationState(AllocationGroup* group, intptr_t size, Node* top,
@@ -80,6 +78,7 @@ class MemoryLowering final : public Reducer {
       WriteBarrierAssertFailedCallback callback = [](Node*, Node*, const char*,
                                                      Zone*) { UNREACHABLE(); },
       const char* function_debug_name = nullptr);
+  ~MemoryLowering() = default;
 
   const char* reducer_name() const override { return "MemoryReducer"; }
 

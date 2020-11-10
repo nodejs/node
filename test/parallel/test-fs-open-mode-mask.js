@@ -29,7 +29,8 @@ function test(mode, asString) {
 
   {
     const file = path.join(tmpdir.path, `open-${suffix}.txt`);
-    fs.open(file, 'w+', input, common.mustSucceed((fd) => {
+    fs.open(file, 'w+', input, common.mustCall((err, fd) => {
+      assert.ifError(err);
       assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode);
       fs.closeSync(fd);
       assert.strictEqual(fs.statSync(file).mode & 0o777, mode);

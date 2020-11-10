@@ -83,10 +83,10 @@ assert.throws(
   assert.throws(
     () => process.cpuUsage(value),
     {
-      code: 'ERR_INVALID_ARG_VALUE',
+      code: 'ERR_INVALID_OPT_VALUE',
       name: 'RangeError',
-      message: "The property 'prevValue.user' is invalid. " +
-        `Received ${value.user}`,
+      message: `The value "${value.user}" is invalid ` +
+               'for option "prevValue.user"'
     }
   );
 });
@@ -98,10 +98,10 @@ assert.throws(
   assert.throws(
     () => process.cpuUsage(value),
     {
-      code: 'ERR_INVALID_ARG_VALUE',
+      code: 'ERR_INVALID_OPT_VALUE',
       name: 'RangeError',
-      message: "The property 'prevValue.system' is invalid. " +
-        `Received ${value.system}`,
+      message: `The value "${value.system}" is invalid ` +
+               'for option "prevValue.system"'
     }
   );
 });

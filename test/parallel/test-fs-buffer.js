@@ -9,12 +9,13 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-fs.access(Buffer.from(tmpdir.path), common.mustSucceed());
+fs.access(Buffer.from(tmpdir.path), common.mustCall(assert.ifError));
 
 const buf = Buffer.from(path.join(tmpdir.path, 'a.txt'));
-fs.open(buf, 'w+', common.mustSucceed((fd) => {
+fs.open(buf, 'w+', common.mustCall((err, fd) => {
+  assert.ifError(err);
   assert(fd);
-  fs.close(fd, common.mustSucceed());
+  fs.close(fd, common.mustCall(assert.ifError));
 }));
 
 assert.throws(
@@ -30,8 +31,10 @@ assert.throws(
 );
 
 const dir = Buffer.from(fixtures.fixturesDir);
-fs.readdir(dir, 'hex', common.mustSucceed((hexList) => {
-  fs.readdir(dir, common.mustSucceed((stringList) => {
+fs.readdir(dir, 'hex', common.mustCall((err, hexList) => {
+  assert.ifError(err);
+  fs.readdir(dir, common.mustCall((err, stringList) => {
+    assert.ifError(err);
     stringList.forEach((val, idx) => {
       const fromHexList = Buffer.from(hexList[idx], 'hex').toString();
       assert.strictEqual(

@@ -6,7 +6,8 @@ const dgram = require('dgram');
 
 const client = dgram.createSocket('udp4');
 
-const messageSent = common.mustSucceed(function messageSent(bytes) {
+const messageSent = common.mustCall(function messageSent(err, bytes) {
+  assert.ifError(err);
   assert.strictEqual(bytes, buf1.length + buf2.length);
 });
 

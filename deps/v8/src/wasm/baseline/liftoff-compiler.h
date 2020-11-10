@@ -38,7 +38,7 @@ enum LiftoffBailoutReason : int8_t {
   kComplexOperation = 4,
   // Unimplemented proposals:
   kSimd = 5,
-  kRefTypes = 6,
+  kAnyRef = 6,
   kExceptionHandling = 7,
   kMultiValue = 8,
   kTailCall = 9,
@@ -56,10 +56,11 @@ enum LiftoffBailoutReason : int8_t {
 V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index,
     ForDebugging, Counters*, WasmFeatures* detected_features,
-    Vector<int> breakpoints = {}, std::unique_ptr<DebugSideTable>* = nullptr);
+    Vector<int> breakpoints = {}, std::unique_ptr<DebugSideTable>* = nullptr,
+    Vector<int> extra_source_pos = {});
 
 V8_EXPORT_PRIVATE std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
-    AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index);
+    AccountingAllocator*, CompilationEnv*, const FunctionBody&);
 
 }  // namespace wasm
 }  // namespace internal

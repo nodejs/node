@@ -23,30 +23,12 @@ using FunctionSig = Signature<ValueType>;
 // Implements a cache for import wrappers.
 class WasmImportWrapperCache {
  public:
-  struct CacheKey {
-    CacheKey(const compiler::WasmImportCallKind& _kind, const FunctionSig* _sig,
-             int _expected_arity)
-        : kind(_kind),
-          signature(_sig),
-          expected_arity(_expected_arity == kDontAdaptArgumentsSentinel
-                             ? 0
-                             : _expected_arity) {}
-
-    bool operator==(const CacheKey& rhs) const {
-      return kind == rhs.kind && signature == rhs.signature &&
-             expected_arity == rhs.expected_arity;
-    }
-
-    compiler::WasmImportCallKind kind;
-    const FunctionSig* signature;
-    int expected_arity;
-  };
+  using CacheKey = std::pair<compiler::WasmImportCallKind, const FunctionSig*>;
 
   class CacheKeyHash {
    public:
     size_t operator()(const CacheKey& key) const {
-      return base::hash_combine(static_cast<uint8_t>(key.kind), key.signature,
-                                key.expected_arity);
+      return base::hash_combine(static_cast<uint8_t>(key.first), *key.second);
     }
   };
 
@@ -69,8 +51,7 @@ class WasmImportWrapperCache {
 
   // Thread-safe. Assumes the key exists in the map.
   V8_EXPORT_PRIVATE WasmCode* Get(compiler::WasmImportCallKind kind,
-                                  const FunctionSig* sig,
-                                  int expected_arity) const;
+                                  const FunctionSig* sig) const;
 
   ~WasmImportWrapperCache();
 

@@ -6,7 +6,6 @@
 
 #include <cinttypes>
 
-#include "src/base/lazy-instance.h"
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
 
@@ -114,9 +113,6 @@ std::streamsize AndroidLogStream::xsputn(const char* s, std::streamsize n) {
   return n;
 }
 #endif
-
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::RecursiveMutex,
-                                StdoutStream::GetStdoutMutex)
 
 namespace {
 

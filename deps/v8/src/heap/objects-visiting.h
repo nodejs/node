@@ -61,8 +61,7 @@ namespace internal {
   V(WasmCapiFunctionData)              \
   V(WasmIndirectFunctionTable)         \
   V(WasmInstanceObject)                \
-  V(WasmStruct)                        \
-  V(WasmTypeInfo)
+  V(WasmStruct)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)

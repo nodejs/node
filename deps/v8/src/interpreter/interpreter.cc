@@ -12,6 +12,7 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecode-generator.h"
@@ -41,7 +42,7 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
                          Isolate* isolate) final;
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
-                         LocalIsolate* isolate) final;
+                         OffThreadIsolate* isolate) final;
 
  private:
   BytecodeGenerator* generator() { return &generator_; }
@@ -98,7 +99,7 @@ Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
                                      OperandScale operand_scale, Code handler) {
   DCHECK(handler.is_off_heap_trampoline());
-  DCHECK(handler.kind() == CodeKind::BYTECODE_HANDLER);
+  DCHECK(handler.kind() == Code::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   dispatch_table_[index] = handler.InstructionStart();
 }
@@ -148,7 +149,7 @@ InterpreterCompilationJob::InterpreterCompilationJob(
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals)
     : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
-                                &compilation_info_),
+                                &compilation_info_, CanOffThreadFinalize::kYes),
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
       generator_(&zone_, &compilation_info_, parse_info->ast_string_constants(),
@@ -193,14 +194,14 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     MaybeHandle<String> maybe_name = parse_info()->literal()->GetName(isolate);
     Handle<String> name;
     if (maybe_name.ToHandle(&name) && name->length() != 0) {
-      name->PrintUC16(std::cerr);
+      name->StringPrint(std::cerr);
     } else {
       std::cerr << "anonymous";
     }
     Object script_name = script->GetNameOrSourceURL();
     if (script_name.IsString()) {
       std::cerr << " ";
-      String::cast(script_name).PrintUC16(std::cerr);
+      String::cast(script_name).StringPrint(std::cerr);
       std::cerr << ":" << parse_info()->literal()->start_position();
     }
 #endif
@@ -224,7 +225,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
+    Handle<SharedFunctionInfo> shared_info, OffThreadIsolate* isolate) {
   RuntimeCallTimerScope runtimeTimerScope(
       parse_info()->runtime_call_stats(),
       RuntimeCallCounterId::kCompileBackgroundIgnitionFinalization);
@@ -341,7 +342,7 @@ bool Interpreter::IsDispatchTableInitialized() const {
 }
 
 const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
-  if (code.kind() == CodeKind::BYTECODE_HANDLER) {
+  if (code.kind() == Code::BYTECODE_HANDLER) {
     return Builtins::name(code.builtin_index());
   }
   return nullptr;

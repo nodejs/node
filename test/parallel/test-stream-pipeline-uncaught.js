@@ -19,6 +19,7 @@ pipeline(s, async function(source) {
   for await (const chunk of source) {
     chunk;
   }
-}, common.mustSucceed(() => {
+}, common.mustCall((err) => {
+  assert.ifError(err);
   throw new Error('error');
 }));

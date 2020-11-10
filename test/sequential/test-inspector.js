@@ -116,7 +116,7 @@ async function testBreakpoint(session) {
 
   let { result } = await session.send({
     'method': 'Debugger.evaluateOnCallFrame', 'params': {
-      'callFrameId': session.pausedDetails().callFrames[0].callFrameId,
+      'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
       'expression': 'k + t',
       'objectGroup': 'console',
       'includeCommandLineAPI': true,
@@ -150,7 +150,7 @@ async function testI18NCharacters(session) {
   const chars = 'טֶ字и';
   session.send({
     'method': 'Debugger.evaluateOnCallFrame', 'params': {
-      'callFrameId': session.pausedDetails().callFrames[0].callFrameId,
+      'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
       'expression': `console.log("${chars}")`,
       'objectGroup': 'console',
       'includeCommandLineAPI': true,
@@ -276,7 +276,7 @@ async function testCommandLineAPI(session) {
   result = await session.send(
     {
       'method': 'Debugger.evaluateOnCallFrame', 'params': {
-        'callFrameId': session.pausedDetails().callFrames[0].callFrameId,
+        'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
         'expression': `(
           require(${printBModuleStr}),
           require.cache[${printBModuleStr}].parent.id

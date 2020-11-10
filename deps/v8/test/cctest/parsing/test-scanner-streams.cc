@@ -448,17 +448,17 @@ void TestCharacterStream(const char* reference, i::Utf16CharacterStream* stream,
     CHECK_EQU(reference[i], stream->Advance());
   }
   CHECK_EQU(i, stream->pos());
-  CHECK(i::Scanner::IsInvalid(stream->Advance()));
+  CHECK_LT(stream->Advance(), 0);
 
   // Seek back, then seek beyond end of stream.
   stream->Seek(start);
   if (start < length) {
     CHECK_EQU(stream->Advance(), reference[start]);
   } else {
-    CHECK(i::Scanner::IsInvalid(stream->Advance()));
+    CHECK_LT(stream->Advance(), 0);
   }
   stream->Seek(length + 5);
-  CHECK(i::Scanner::IsInvalid(stream->Advance()));
+  CHECK_LT(stream->Advance(), 0);
 }
 
 void TestCloneCharacterStream(const char* reference,
@@ -746,8 +746,6 @@ TEST(TestOverlongAndInvalidSequences) {
 }
 
 TEST(RelocatingCharacterStream) {
-  // This test relies on the invariant that the scavenger will move objects
-  if (i::FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   i::Isolate* i_isolate = CcTest::i_isolate();
@@ -779,8 +777,6 @@ TEST(RelocatingCharacterStream) {
 }
 
 TEST(RelocatingUnbufferedCharacterStream) {
-  // This test relies on the invariant that the scavenger will move objects
-  if (i::FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   i::Isolate* i_isolate = CcTest::i_isolate();

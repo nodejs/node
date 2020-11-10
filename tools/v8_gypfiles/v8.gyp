@@ -13,7 +13,6 @@
     'generate_bytecode_output_root': '<(SHARED_INTERMEDIATE_DIR)/generate-bytecode-output-root',
     'generate_bytecode_builtins_list_output': '<(generate_bytecode_output_root)/builtins-generated/bytecodes-builtins-list.h',
     'torque_files': [
-      "<(V8_ROOT)/src/builtins/aggregate-error.tq",
       "<(V8_ROOT)/src/builtins/array-copywithin.tq",
       "<(V8_ROOT)/src/builtins/array-every.tq",
       "<(V8_ROOT)/src/builtins/array-filter.tq",
@@ -39,22 +38,18 @@
       "<(V8_ROOT)/src/builtins/bigint.tq",
       "<(V8_ROOT)/src/builtins/boolean.tq",
       "<(V8_ROOT)/src/builtins/builtins-string.tq",
-      "<(V8_ROOT)/src/builtins/cast.tq",
       "<(V8_ROOT)/src/builtins/collections.tq",
-      "<(V8_ROOT)/src/builtins/constructor.tq",
-      "<(V8_ROOT)/src/builtins/conversion.tq",
+      "<(V8_ROOT)/src/builtins/cast.tq",
       "<(V8_ROOT)/src/builtins/convert.tq",
       "<(V8_ROOT)/src/builtins/console.tq",
       "<(V8_ROOT)/src/builtins/data-view.tq",
       "<(V8_ROOT)/src/builtins/finalization-registry.tq",
       "<(V8_ROOT)/src/builtins/frames.tq",
       "<(V8_ROOT)/src/builtins/frame-arguments.tq",
-      "<(V8_ROOT)/src/builtins/function.tq",
       "<(V8_ROOT)/src/builtins/growable-fixed-array.tq",
       "<(V8_ROOT)/src/builtins/ic-callable.tq",
       "<(V8_ROOT)/src/builtins/ic.tq",
       "<(V8_ROOT)/src/builtins/internal-coverage.tq",
-      "<(V8_ROOT)/src/builtins/internal.tq",
       "<(V8_ROOT)/src/builtins/iterator.tq",
       "<(V8_ROOT)/src/builtins/math.tq",
       "<(V8_ROOT)/src/builtins/number.tq",
@@ -108,13 +103,11 @@
       "<(V8_ROOT)/src/builtins/torque-internal.tq",
       "<(V8_ROOT)/src/builtins/typed-array-createtypedarray.tq",
       "<(V8_ROOT)/src/builtins/typed-array-every.tq",
-      "<(V8_ROOT)/src/builtins/typed-array-entries.tq",
       "<(V8_ROOT)/src/builtins/typed-array-filter.tq",
       "<(V8_ROOT)/src/builtins/typed-array-find.tq",
       "<(V8_ROOT)/src/builtins/typed-array-findindex.tq",
       "<(V8_ROOT)/src/builtins/typed-array-foreach.tq",
       "<(V8_ROOT)/src/builtins/typed-array-from.tq",
-      "<(V8_ROOT)/src/builtins/typed-array-keys.tq",
       "<(V8_ROOT)/src/builtins/typed-array-of.tq",
       "<(V8_ROOT)/src/builtins/typed-array-reduce.tq",
       "<(V8_ROOT)/src/builtins/typed-array-reduceright.tq",
@@ -123,10 +116,8 @@
       "<(V8_ROOT)/src/builtins/typed-array-some.tq",
       "<(V8_ROOT)/src/builtins/typed-array-sort.tq",
       "<(V8_ROOT)/src/builtins/typed-array-subarray.tq",
-      "<(V8_ROOT)/src/builtins/typed-array-values.tq",
       "<(V8_ROOT)/src/builtins/typed-array.tq",
       "<(V8_ROOT)/src/builtins/wasm.tq",
-      "<(V8_ROOT)/src/builtins/weak-ref.tq",
       "<(V8_ROOT)/src/ic/handler-configuration.tq",
       "<(V8_ROOT)/src/objects/allocation-site.tq",
       "<(V8_ROOT)/src/objects/api-callbacks.tq",
@@ -145,6 +136,7 @@
       "<(V8_ROOT)/src/objects/free-space.tq",
       "<(V8_ROOT)/src/objects/heap-number.tq",
       "<(V8_ROOT)/src/objects/heap-object.tq",
+      "<(V8_ROOT)/src/objects/js-aggregate-error.tq",
       "<(V8_ROOT)/src/objects/js-array-buffer.tq",
       "<(V8_ROOT)/src/objects/js-array.tq",
       "<(V8_ROOT)/src/objects/js-collection-iterator.tq",
@@ -618,7 +610,6 @@
       ],
       'direct_dependent_settings': {
         'sources': [
-          '<(V8_ROOT)/include/v8-cppgc.h',
           '<(V8_ROOT)/include/v8-fast-api-calls.h',
           '<(V8_ROOT)/include/v8-internal.h',
           '<(V8_ROOT)/include/v8.h',
@@ -730,7 +721,6 @@
       'type': 'static_library',
       'dependencies': [
         # Code generators that only need to be build for the host.
-        'cppgc_base',
         'torque_generated_definitions',
         'v8_headers',
         'v8_libbase',
@@ -740,7 +730,6 @@
         # BUILD.gn public_deps
         'generate_bytecode_builtins_list',
         'run_torque',
-        'v8_cppgc_shared',
         'v8_maybe_icu',
         'v8_zlib',
       ],
@@ -1465,96 +1454,6 @@
         },
       ],
     },  # run_gen-regexp-special-case
-    {
-      'target_name': 'cppgc_base',
-      'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
-      'direct_dependent_settings': {
-        'sources': [
-          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?sources = ")',
-        ],
-      },
-    },  # cppgc_base
-    {
-      'target_name': 'v8_cppgc_shared',
-      'type': 'none',
-      'toolsets': ['host', 'target'],
-      'direct_dependent_settings': {
-        'sources': [
-          '<(V8_ROOT)/src/heap/base/stack.cc',
-          '<(V8_ROOT)/src/heap/base/stack.h',
-        ],
-        'conditions': [
-          ['clang or OS!="win"', {
-            'conditions': [
-              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_asm.cc',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_asm.cc',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "arm" or _toolset == "target" and target_arch=="arm"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/arm/push_registers_asm.cc',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_asm.cc',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "ppc64" or _toolset == "target" and target_arch=="ppc64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ppc/push_registers_asm.cc',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "s390x" or _toolset == "target" and target_arch=="s390x"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/s390/push_registers_asm.cc',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "mips" or _toolset == "target" and target_arch=="mips" or _toolset == "host" and host_arch == "mipsel" or _toolset == "target" and target_arch=="mipsel"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/mips/push_registers_asm.cc',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "mips64" or _toolset == "target" and target_arch=="mips64" or _toolset == "host" and host_arch == "mips64el" or _toolset == "target" and target_arch=="mips64el"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/mips64/push_registers_asm.cc',
-                ],
-              }],
-            ]
-          }],
-          ['OS=="win"', {
-            'conditions': [
-              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.S',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.S',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_masm.S',
-                ],
-              }],
-            ],
-          }],
-        ],
-      },
-    },  # v8_cppgc_shared
 
     ###############################################################################
     # Public targets
@@ -1671,66 +1570,65 @@
       'dependencies': ['run_torque'],
       'variables': {
         'heapobject_files': [
-          '<(torque_output_root)/torque-generated/instance-types-tq.h',
-          '<(V8_ROOT)/src/objects/allocation-site.h',
+          '<(V8_ROOT)/src/objects/objects.h',
+          '<(V8_ROOT)/src/objects/objects-inl.h',
           '<(V8_ROOT)/src/objects/allocation-site-inl.h',
-          '<(V8_ROOT)/src/objects/cell.h',
+          '<(V8_ROOT)/src/objects/allocation-site.h',
           '<(V8_ROOT)/src/objects/cell-inl.h',
-          '<(V8_ROOT)/src/objects/code.h',
+          '<(V8_ROOT)/src/objects/cell.h',
           '<(V8_ROOT)/src/objects/code-inl.h',
+          '<(V8_ROOT)/src/objects/code.h',
           '<(V8_ROOT)/src/objects/data-handler.h',
           '<(V8_ROOT)/src/objects/data-handler-inl.h',
           '<(V8_ROOT)/src/objects/descriptor-array.h',
           '<(V8_ROOT)/src/objects/descriptor-array-inl.h',
           '<(V8_ROOT)/src/objects/feedback-cell.h',
           '<(V8_ROOT)/src/objects/feedback-cell-inl.h',
-          '<(V8_ROOT)/src/objects/fixed-array.h',
           '<(V8_ROOT)/src/objects/fixed-array-inl.h',
-          '<(V8_ROOT)/src/objects/heap-number.h',
+          '<(V8_ROOT)/src/objects/fixed-array.h',
           '<(V8_ROOT)/src/objects/heap-number-inl.h',
-          '<(V8_ROOT)/src/objects/heap-object.h',
+          '<(V8_ROOT)/src/objects/heap-number.h',
           '<(V8_ROOT)/src/objects/heap-object-inl.h',
+          '<(V8_ROOT)/src/objects/heap-object.h',
           '<(V8_ROOT)/src/objects/instance-type.h',
-          '<(V8_ROOT)/src/objects/js-array-buffer.h',
-          '<(V8_ROOT)/src/objects/js-array-buffer-inl.h',
-          '<(V8_ROOT)/src/objects/js-array.h',
           '<(V8_ROOT)/src/objects/js-array-inl.h',
-          '<(V8_ROOT)/src/objects/js-function.cc',
-          '<(V8_ROOT)/src/objects/js-function.h',
-          '<(V8_ROOT)/src/objects/js-objects.cc',
-          '<(V8_ROOT)/src/objects/js-objects.h',
+          '<(V8_ROOT)/src/objects/js-array.h',
+          '<(V8_ROOT)/src/objects/js-aggregate-error-inl.h',
+          '<(V8_ROOT)/src/objects/js-aggregate-error.h',
+          '<(V8_ROOT)/src/objects/js-array-buffer-inl.h',
+          '<(V8_ROOT)/src/objects/js-array-buffer.h',
           '<(V8_ROOT)/src/objects/js-objects-inl.h',
-          '<(V8_ROOT)/src/objects/js-promise.h',
+          '<(V8_ROOT)/src/objects/js-objects.h',
           '<(V8_ROOT)/src/objects/js-promise-inl.h',
+          '<(V8_ROOT)/src/objects/js-promise.h',
+          '<(V8_ROOT)/src/objects/js-regexp-inl.h',
           '<(V8_ROOT)/src/objects/js-regexp.cc',
           '<(V8_ROOT)/src/objects/js-regexp.h',
-          '<(V8_ROOT)/src/objects/js-regexp-inl.h',
-          '<(V8_ROOT)/src/objects/js-regexp-string-iterator.h',
           '<(V8_ROOT)/src/objects/js-regexp-string-iterator-inl.h',
-          '<(V8_ROOT)/src/objects/map.cc',
+          '<(V8_ROOT)/src/objects/js-regexp-string-iterator.h',
           '<(V8_ROOT)/src/objects/map.h',
+          '<(V8_ROOT)/src/objects/map.cc',
           '<(V8_ROOT)/src/objects/map-inl.h',
+          '<(V8_ROOT)/src/objects/js-objects.cc',
           '<(V8_ROOT)/src/objects/name.h',
           '<(V8_ROOT)/src/objects/name-inl.h',
-          '<(V8_ROOT)/src/objects/objects.h',
-          '<(V8_ROOT)/src/objects/objects-inl.h',
-          '<(V8_ROOT)/src/objects/oddball.h',
           '<(V8_ROOT)/src/objects/oddball-inl.h',
+          '<(V8_ROOT)/src/objects/oddball.h',
           '<(V8_ROOT)/src/objects/primitive-heap-object.h',
           '<(V8_ROOT)/src/objects/primitive-heap-object-inl.h',
           '<(V8_ROOT)/src/objects/scope-info.h',
           '<(V8_ROOT)/src/objects/script.h',
           '<(V8_ROOT)/src/objects/script-inl.h',
-          '<(V8_ROOT)/src/objects/shared-function-info.cc',
           '<(V8_ROOT)/src/objects/shared-function-info.h',
           '<(V8_ROOT)/src/objects/shared-function-info-inl.h',
           '<(V8_ROOT)/src/objects/string.cc',
+          '<(V8_ROOT)/src/objects/string.h',
           '<(V8_ROOT)/src/objects/string-comparator.cc',
           '<(V8_ROOT)/src/objects/string-comparator.h',
-          '<(V8_ROOT)/src/objects/string.h',
           '<(V8_ROOT)/src/objects/string-inl.h',
           '<(V8_ROOT)/src/objects/struct.h',
           '<(V8_ROOT)/src/objects/struct-inl.h',
+          '<(torque_output_root)/torque-generated/instance-types-tq.h',
         ],
       },
       'actions': [

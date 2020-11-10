@@ -40,7 +40,9 @@ class InternalIndex {
     return static_cast<uint32_t>(entry_);
   }
   constexpr int as_int() const {
-    CONSTEXPR_DCHECK(entry_ <= std::numeric_limits<int>::max());
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK_LE(entry_, std::numeric_limits<int>::max());
+#endif
     return static_cast<int>(entry_);
   }
 

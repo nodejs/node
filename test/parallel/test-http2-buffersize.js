@@ -1,6 +1,6 @@
 'use strict';
 
-const { mustCall, mustSucceed, hasCrypto, skip } = require('../common');
+const { mustCall, hasCrypto, skip } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
 const assert = require('assert');
@@ -42,7 +42,7 @@ const { once } = require('events');
       stream.on('data', () => {});
 
       for (let i = 0; i < kTimes; i += 1) {
-        stream.write(Buffer.allocUnsafe(kBufferSize), mustSucceed());
+        stream.write(Buffer.allocUnsafe(kBufferSize), mustCall());
         const expectedSocketBufferSize = kBufferSize * (i + 1);
         assert.strictEqual(stream.bufferSize, expectedSocketBufferSize);
       }

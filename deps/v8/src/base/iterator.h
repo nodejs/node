@@ -36,7 +36,8 @@ class iterator_range {
       typename std::iterator_traits<iterator>::difference_type;
 
   iterator_range() : begin_(), end_() {}
-  iterator_range(ForwardIterator begin, ForwardIterator end)
+  template <typename ForwardIterator1, typename ForwardIterator2>
+  iterator_range(ForwardIterator1 begin, ForwardIterator2 end)
       : begin_(begin), end_(end) {}
 
   iterator begin() { return begin_; }

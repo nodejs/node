@@ -7,7 +7,6 @@
 
 #include <array>
 #include <functional>
-#include <iosfwd>
 #include <type_traits>
 #include <utility>
 

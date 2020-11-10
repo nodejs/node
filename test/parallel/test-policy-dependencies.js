@@ -3,7 +3,6 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-common.requireNoPackageJSONAbove();
 
 const fixtures = require('../common/fixtures');
 

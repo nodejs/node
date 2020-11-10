@@ -15,43 +15,14 @@
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
-
-class Visitor;
-
 namespace internal {
-
-class PersistentBase {
- protected:
-  PersistentBase() = default;
-  explicit PersistentBase(void* raw) : raw_(raw) {}
-
-  void* GetValue() const { return raw_; }
-  void SetValue(void* value) { raw_ = value; }
-
-  PersistentNode* GetNode() const { return node_; }
-  void SetNode(PersistentNode* node) { node_ = node; }
-
-  // Performs a shallow clear which assumes that internal persistent nodes are
-  // destroyed elsewhere.
-  void ClearFromGC() const {
-    raw_ = nullptr;
-    node_ = nullptr;
-  }
-
- private:
-  mutable void* raw_ = nullptr;
-  mutable PersistentNode* node_ = nullptr;
-
-  friend class PersistentRegion;
-};
 
 // The basic class from which all Persistent classes are generated.
 template <typename T, typename WeaknessPolicy, typename LocationPolicy,
           typename CheckingPolicy>
-class BasicPersistent final : public PersistentBase,
-                              public LocationPolicy,
-                              private WeaknessPolicy,
-                              private CheckingPolicy {
+class BasicPersistent : public LocationPolicy,
+                        private WeaknessPolicy,
+                        private CheckingPolicy {
  public:
   using typename WeaknessPolicy::IsStrongPersistent;
   using PointeeType = T;
@@ -67,15 +38,15 @@ class BasicPersistent final : public PersistentBase,
 
   BasicPersistent(  // NOLINT
       SentinelPointer s, const SourceLocation& loc = SourceLocation::Current())
-      : PersistentBase(s), LocationPolicy(loc) {}
+      : LocationPolicy(loc), raw_(s) {}
 
-  // Raw value constructors.
+  // Raw value contstructors.
   BasicPersistent(T* raw,  // NOLINT
                   const SourceLocation& loc = SourceLocation::Current())
-      : PersistentBase(raw), LocationPolicy(loc) {
+      : LocationPolicy(loc), raw_(raw) {
     if (!IsValid()) return;
-    SetNode(WeaknessPolicy::GetPersistentRegion(GetValue())
-                .AllocateNode(this, &BasicPersistent::Trace));
+    node_ = WeaknessPolicy::GetPersistentRegion(raw_).AllocateNode(
+        this, &BasicPersistent::Trace);
     this->CheckPointer(Get());
   }
 
@@ -103,11 +74,13 @@ class BasicPersistent final : public PersistentBase,
   BasicPersistent(
       BasicPersistent&& other,
       const SourceLocation& loc = SourceLocation::Current()) noexcept
-      : PersistentBase(std::move(other)), LocationPolicy(std::move(other)) {
+      : LocationPolicy(std::move(other)),
+        raw_(std::move(other.raw_)),
+        node_(std::move(other.node_)) {
     if (!IsValid()) return;
-    GetNode()->UpdateOwner(this);
-    other.SetValue(nullptr);
-    other.SetNode(nullptr);
+    node_->UpdateOwner(this);
+    other.raw_ = nullptr;
+    other.node_ = nullptr;
     this->CheckPointer(Get());
   }
 
@@ -141,12 +114,13 @@ class BasicPersistent final : public PersistentBase,
   BasicPersistent& operator=(BasicPersistent&& other) {
     if (this == &other) return *this;
     Clear();
-    PersistentBase::operator=(std::move(other));
     LocationPolicy::operator=(std::move(other));
+    raw_ = std::move(other.raw_);
+    node_ = std::move(other.node_);
     if (!IsValid()) return *this;
-    GetNode()->UpdateOwner(this);
-    other.SetValue(nullptr);
-    other.SetNode(nullptr);
+    node_->UpdateOwner(this);
+    other.raw_ = nullptr;
+    other.node_ = nullptr;
     this->CheckPointer(Get());
     return *this;
   }
@@ -182,12 +156,7 @@ class BasicPersistent final : public PersistentBase,
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }
 
-  // CFI cast exemption to allow passing SentinelPointer through T* and support
-  // heterogeneous assignments between different Member and Persistent handles
-  // based on their actual types.
-  V8_CLANG_NO_SANITIZE("cfi-unrelated-cast") T* Get() const {
-    return static_cast<T*>(GetValue());
-  }
+  T* Get() const { return raw_; }
 
   void Clear() { Assign(nullptr); }
 
@@ -207,35 +176,29 @@ class BasicPersistent final : public PersistentBase,
     // Ideally, handling kSentinelPointer would be done by the embedder. On the
     // other hand, having Persistent aware of it is beneficial since no node
     // gets wasted.
-    return GetValue() != nullptr && GetValue() != kSentinelPointer;
+    return raw_ != nullptr && raw_ != kSentinelPointer;
   }
 
   void Assign(T* ptr) {
     if (IsValid()) {
       if (ptr && ptr != kSentinelPointer) {
         // Simply assign the pointer reusing the existing node.
-        SetValue(ptr);
+        raw_ = ptr;
         this->CheckPointer(ptr);
         return;
       }
-      WeaknessPolicy::GetPersistentRegion(GetValue()).FreeNode(GetNode());
-      SetNode(nullptr);
+      WeaknessPolicy::GetPersistentRegion(raw_).FreeNode(node_);
+      node_ = nullptr;
     }
-    SetValue(ptr);
+    raw_ = ptr;
     if (!IsValid()) return;
-    SetNode(WeaknessPolicy::GetPersistentRegion(GetValue())
-                .AllocateNode(this, &BasicPersistent::Trace));
+    node_ = WeaknessPolicy::GetPersistentRegion(raw_).AllocateNode(
+        this, &BasicPersistent::Trace);
     this->CheckPointer(Get());
   }
 
-  void ClearFromGC() const {
-    if (IsValid()) {
-      WeaknessPolicy::GetPersistentRegion(GetValue()).FreeNode(GetNode());
-      PersistentBase::ClearFromGC();
-    }
-  }
-
-  friend class cppgc::Visitor;
+  T* raw_ = nullptr;
+  PersistentNode* node_ = nullptr;
 };
 
 template <typename T1, typename WeaknessPolicy1, typename LocationPolicy1,

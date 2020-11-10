@@ -239,9 +239,11 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   ZoneVector<std::pair<Smi, index_t>> smi_pairs_;
   ZoneMap<double, index_t> heap_number_map_;
 
-#define SINGLETON_ENTRY_FIELD(NAME, LOWER_NAME) int LOWER_NAME##_ = -1;
+#define SINGLETON_ENTRY_FIELD(NAME, LOWER_NAME) int LOWER_NAME##_;
   SINGLETON_CONSTANT_ENTRY_TYPES(SINGLETON_ENTRY_FIELD)
 #undef SINGLETON_ENTRY_FIELD
+
+  Zone* zone_;
 };
 
 }  // namespace interpreter

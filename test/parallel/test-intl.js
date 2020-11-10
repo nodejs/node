@@ -133,7 +133,7 @@ if (!common.hasIntl) {
     execFile(
       process.execPath, ['-p', 'new Date().toLocaleString()'],
       { env },
-      common.mustSucceed()
+      common.mustCall((e) => assert.ifError(e))
     );
   }
 
@@ -144,7 +144,7 @@ if (!common.hasIntl) {
       process.execPath,
       ['-p', 'new Intl.NumberFormat().resolvedOptions().locale'],
       { env },
-      common.mustSucceed()
+      common.mustCall((e) => assert.ifError(e))
     );
   }
 }

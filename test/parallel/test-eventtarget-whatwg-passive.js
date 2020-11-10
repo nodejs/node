@@ -1,6 +1,12 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+
+const {
+  Event,
+  EventTarget,
+} = require('internal/event_target');
 
 const {
   fail,

@@ -1,6 +1,3 @@
-// META: global=window,worker
-// META: script=/common/sab.js
-
 [
   {
     "input": "Hi",
@@ -77,46 +74,44 @@
       "filler": "random"
     }
   ].forEach(destinationData => {
-    ["ArrayBuffer", "SharedArrayBuffer"].forEach(arrayBufferOrSharedArrayBuffer => {
-      test(() => {
-        // Setup
-        const bufferLength = testData.destinationLength + destinationData.bufferIncrease;
-        const destinationOffset = destinationData.destinationOffset;
-        const destinationLength = testData.destinationLength;
-        const destinationFiller = destinationData.filler;
-        const encoder = new TextEncoder();
-        const buffer = createBuffer(arrayBufferOrSharedArrayBuffer, bufferLength);
-        const view = new Uint8Array(buffer, destinationOffset, destinationLength);
-        const fullView = new Uint8Array(buffer);
-        const control = new Array(bufferLength);
-        let byte = destinationFiller;
-        for (let i = 0; i < bufferLength; i++) {
-          if (destinationFiller === "random") {
-            byte = Math.floor(Math.random() * 256);
-          }
-          control[i] = byte;
-          fullView[i] = byte;
+    test(() => {
+      // Setup
+      const bufferLength = testData.destinationLength + destinationData.bufferIncrease,
+            destinationOffset = destinationData.destinationOffset,
+            destinationLength = testData.destinationLength,
+            destinationFiller = destinationData.filler,
+            encoder = new TextEncoder(),
+            buffer = new ArrayBuffer(bufferLength),
+            view = new Uint8Array(buffer, destinationOffset, destinationLength),
+            fullView = new Uint8Array(buffer),
+            control = new Array(bufferLength);
+      let byte = destinationFiller;
+      for (let i = 0; i < bufferLength; i++) {
+        if (destinationFiller === "random") {
+          byte = Math.floor(Math.random() * 256);
         }
+        control[i] = byte;
+        fullView[i] = byte;
+      }
 
-        // It's happening
-        const result = encoder.encodeInto(testData.input, view);
+      // It's happening
+      const result = encoder.encodeInto(testData.input, view);
 
-        // Basics
-        assert_equals(view.byteLength, destinationLength);
-        assert_equals(view.length, destinationLength);
+      // Basics
+      assert_equals(view.byteLength, destinationLength);
+      assert_equals(view.length, destinationLength);
 
-        // Remainder
-        assert_equals(result.read, testData.read);
-        assert_equals(result.written, testData.written.length);
-        for (let i = 0; i < bufferLength; i++) {
-          if (i < destinationOffset || i >= (destinationOffset + testData.written.length)) {
-            assert_equals(fullView[i], control[i]);
-          } else {
-            assert_equals(fullView[i], testData.written[i - destinationOffset]);
-          }
+      // Remainder
+      assert_equals(result.read, testData.read);
+      assert_equals(result.written, testData.written.length);
+      for (let i = 0; i < bufferLength; i++) {
+        if (i < destinationOffset || i >= (destinationOffset + testData.written.length)) {
+          assert_equals(fullView[i], control[i]);
+        } else {
+          assert_equals(fullView[i], testData.written[i - destinationOffset]);
         }
-      }, "encodeInto() into "  + arrayBufferOrSharedArrayBuffer + " with " + testData.input + " and destination length " + testData.destinationLength + ", offset " + destinationData.destinationOffset + ", filler " + destinationData.filler);
-    })
+      }
+    }, "encodeInto() with " + testData.input + " and destination length " + testData.destinationLength + ", offset " + destinationData.destinationOffset + ", filler " + destinationData.filler);
   });
 });
 
@@ -129,18 +124,14 @@
  Uint8ClampedArray,
  Float32Array,
  Float64Array].forEach(view => {
-  ["ArrayBuffer", "SharedArrayBuffer"].forEach((arrayBufferOrSharedArrayBuffer) => {
-    test(() => {
-      assert_throws_js(TypeError, () => new TextEncoder().encodeInto("", new view(createBuffer(arrayBufferOrSharedArrayBuffer, 0))));
-    }, "Invalid encodeInto() destination: " + view.name + ", backed by: " + arrayBufferOrSharedArrayBuffer);
-  });
-});
-
-["ArrayBuffer", "SharedArrayBuffer"].forEach((arrayBufferOrSharedArrayBuffer) => {
   test(() => {
-    assert_throws_js(TypeError, () => new TextEncoder().encodeInto("", createBuffer(arrayBufferOrSharedArrayBuffer, 10)));
-  }, "Invalid encodeInto() destination: " + arrayBufferOrSharedArrayBuffer);
-});
+    assert_throws(new TypeError(), () => new TextEncoder().encodeInto("", new view(new ArrayBuffer(0))));
+  }, "Invalid encodeInto() destination: " + view.name);
+ });
+
+test(() => {
+  assert_throws(new TypeError(), () => new TextEncoder().encodeInto("", new ArrayBuffer(10)));
+}, "Invalid encodeInto() destination: ArrayBuffer");
 
 test(() => {
   const buffer = new ArrayBuffer(10),

@@ -51,7 +51,8 @@ cp.exec(cmd, {
 }));
 
 // Test the case where a timeout is set, but not expired.
-cp.exec(cmd, { timeout: 2 ** 30 }, common.mustSucceed((stdout, stderr) => {
+cp.exec(cmd, { timeout: 2 ** 30 }, common.mustCall((err, stdout, stderr) => {
+  assert.ifError(err);
   assert.strictEqual(stdout.trim(), 'child stdout');
   assert.strictEqual(stderr.trim(), 'child stderr');
 }));

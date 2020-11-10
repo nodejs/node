@@ -19,7 +19,6 @@ server.on(
       assert.strictEqual(typeof settings.maxFrameSize, 'number');
       assert.strictEqual(typeof settings.maxConcurrentStreams, 'number');
       assert.strictEqual(typeof settings.maxHeaderListSize, 'number');
-      assert.strictEqual(typeof settings.maxHeaderSize, 'number');
     };
 
     const localSettings = stream.session.localSettings;
@@ -101,9 +100,7 @@ server.listen(
         ['maxFrameSize', 16383],
         ['maxFrameSize', 2 ** 24],
         ['maxHeaderListSize', -1],
-        ['maxHeaderListSize', 2 ** 32],
-        ['maxHeaderSize', -1],
-        ['maxHeaderSize', 2 ** 32]
+        ['maxHeaderListSize', 2 ** 32]
       ].forEach((i) => {
         const settings = {};
         settings[i[0]] = i[1];

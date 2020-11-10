@@ -40,6 +40,10 @@ import getmoduleversion
 import getnapibuildversion
 from gyp_node import run_gyp
 
+# imports in deps/v8/tools/node
+sys.path.insert(0, os.path.join('deps', 'v8', 'tools', 'node'))
+from fetch_deps import FetchDeps
+
 # parse our options
 parser = optparse.OptionParser()
 
@@ -435,11 +439,6 @@ parser.add_option('--v8-options',
     dest='v8_options',
     help='v8 options to pass, see `node --v8-options` for examples.')
 
-parser.add_option('--with-ossfuzz',
-    action='store_true',
-    dest='ossfuzz',
-    help='Enables building of fuzzers. This command should be run in an OSS-Fuzz Docker image.')
-
 parser.add_option('--with-arm-float-abi',
     action='store',
     dest='arm_float_abi',
@@ -497,14 +496,6 @@ parser.add_option('--use-largepages-script-lld',
     action='store_true',
     dest='node_use_large_pages_script_lld',
     help='This option has no effect. --use-largepages is now a runtime option.')
-
-parser.add_option('--use-section-ordering-file',
-    action='store',
-    dest='node_section_ordering_info',
-    default='',
-    help='Pass a section ordering file to the linker. This requires that ' +
-         'Node.js be linked using the gold linker. The gold linker must have ' +
-         'version 1.2 or greater.')
 
 intl_optgroup.add_option('--with-intl',
     action='store',
@@ -683,6 +674,12 @@ parser.add_option('--without-bundled-v8',
     help='do not use V8 includes from the bundled deps folder. ' +
          '(This mode is not officially supported for regular applications)')
 
+parser.add_option('--build-v8-with-gn',
+    action='store_true',
+    dest='build_v8_with_gn',
+    default=False,
+    help='build V8 using GN instead of gyp')
+
 parser.add_option('--verbose',
     action='store_true',
     dest='verbose',
@@ -708,12 +705,6 @@ parser.add_option('--v8-lite-mode',
     help='compile V8 in lite mode for constrained environments (lowers V8 '+
          'memory footprint, but also implies no just-in-time compilation ' +
          'support, thus much slower execution)')
-
-parser.add_option('--v8-enable-object-print',
-    action='store_true',
-    dest='v8_enable_object_print',
-    default=True,
-    help='compile V8 with auxiliar functions for native debuggers')
 
 parser.add_option('--node-builtin-modules-path',
     action='store',
@@ -1330,7 +1321,6 @@ def configure_v8(o):
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0 if options.v8_non_optimized_debug else 1
   o['variables']['dcheck_always_on'] = 1 if options.v8_with_dchecks else 0
-  o['variables']['v8_enable_object_print'] = 1 if options.v8_enable_object_print else 0
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
@@ -1345,6 +1335,14 @@ def configure_v8(o):
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
   if options.without_bundled_v8 and options.enable_d8:
     raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
+  if options.without_bundled_v8 and options.build_v8_with_gn:
+    raise Exception(
+        '--build-v8-with-gn is incompatible with --without-bundled-v8.')
+  if options.build_v8_with_gn:
+    v8_path = os.path.join('deps', 'v8')
+    print('Fetching dependencies to build V8 with GN')
+    options.build_v8_with_gn = FetchDeps(v8_path)
+  o['variables']['build_v8_with_gn'] = b(options.build_v8_with_gn)
 
 
 def configure_openssl(o):
@@ -1756,30 +1754,6 @@ def configure_inspector(o):
                        options.without_ssl)
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
-def configure_section_file(o):
-  try:
-    proc = subprocess.Popen(['ld.gold'] + ['-v'], stdin = subprocess.PIPE,
-                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  except OSError:
-    if options.node_section_ordering_info != "":
-      warn('''No acceptable ld.gold linker found!''')
-    return 0
-
-  match = re.match(r"^GNU gold.*([0-9]+)\.([0-9]+)$",
-                   proc.communicate()[0].decode("utf-8"))
-
-  if match:
-    gold_major_version = match.group(1)
-    gold_minor_version = match.group(2)
-    if int(gold_major_version) == 1 and int(gold_minor_version) <= 1:
-      error('''GNU gold version must be greater than 1.2 in order to use section
-            reordering''')
-
-  if options.node_section_ordering_info != "":
-    o['variables']['node_section_ordering_info'] = os.path.realpath(
-      str(options.node_section_ordering_info))
-  else:
-    o['variables']['node_section_ordering_info'] = ""
 
 def make_bin_override():
   if sys.platform == 'win32':
@@ -1845,10 +1819,6 @@ configure_openssl(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)
-configure_section_file(output)
-
-# Forward OSS-Fuzz settings
-output['variables']['ossfuzz'] = b(options.ossfuzz)
 
 # variables should be a root level element,
 # move everything else to target_defaults

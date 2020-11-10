@@ -44,8 +44,7 @@
   };
 
   // Anonymous classes do not have a "name" property by default.
-  descriptor.value = '';
-  assertEquals(descriptor, Object.getOwnPropertyDescriptor(class {}, 'name'));
+  assertSame(undefined, Object.getOwnPropertyDescriptor(class {}, 'name'));
   descriptor.value = 'C';
   assertEquals(descriptor, Object.getOwnPropertyDescriptor(class C {}, 'name'));
 
@@ -56,9 +55,8 @@
 
   let b = { __proto__: class {} };
   assertSame('', b.__proto__.name);
-  descriptor.value = '';
-  assertEquals(
-    descriptor, Object.getOwnPropertyDescriptor(b.__proto__, 'name'));
+  assertSame(
+      undefined, Object.getOwnPropertyDescriptor(b.__proto__, 'name'));
 
   let c = { fn: class F {} };
   assertSame('F', c.fn.name);

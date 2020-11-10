@@ -89,12 +89,9 @@ function assertTableIsValid(table, length) {
   table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize + 1});
-  assertTableIsValid(table, 0);
-
   assertThrows(
     () => new WebAssembly.Table(
-      {element: "anyfunc", initial: kV8MaxWasmTableSize + 1}),
+      {element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize + 1}),
     RangeError, /above the upper bound/);
 })();
 

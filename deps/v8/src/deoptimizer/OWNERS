@@ -1,7 +1,6 @@
-jgruber@chromium.org
-neis@chromium.org
-nicohartmann@chromium.org
+bmeurer@chromium.org
+jarin@chromium.org
 sigurds@chromium.org
 tebbi@chromium.org
 
-# COMPONENT: Blink>JavaScript>Compiler
+# COMPONENT: Blink>JavaScript>Runtime

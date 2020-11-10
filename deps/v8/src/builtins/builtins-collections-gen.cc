@@ -413,7 +413,8 @@ TNode<JSObject> BaseCollectionsAssembler::AllocateJSCollectionSlow(
     TNode<Context> context, TNode<JSFunction> constructor,
     TNode<JSReceiver> new_target) {
   ConstructorBuiltinsAssembler constructor_assembler(this->state());
-  return constructor_assembler.FastNewObject(context, constructor, new_target);
+  return constructor_assembler.EmitFastNewObject(context, constructor,
+                                                 new_target);
 }
 
 void BaseCollectionsAssembler::GenerateConstructor(
@@ -567,7 +568,8 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
   TVARIABLE(Object, entry);
   Label if_hole(this, Label::kDeferred), next(this);
   TNode<Float64T> element =
-      LoadFixedDoubleArrayElement(CAST(elements), index, &if_hole);
+      LoadFixedDoubleArrayElement(CAST(elements), index, MachineType::Float64(),
+                                  0, INTPTR_PARAMETERS, &if_hole);
   {  // not hole
     entry = AllocateHeapNumberWithValue(element);
     Goto(&next);
@@ -759,7 +761,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
   const TNode<IntPtrT> number_of_buckets =
       SmiUntag(CAST(UnsafeLoadFixedArrayElement(
           table, CollectionType::NumberOfBucketsIndex())));
-  const TNode<IntPtrT> bucket =
+  const TNode<WordT> bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   const TNode<IntPtrT> first_entry = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
       table, bucket, CollectionType::HashTableStartIndex() * kTaggedSize)));
@@ -2509,7 +2511,7 @@ TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
       AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
 
   TNode<Map> map =
-      HeapConstant(EphemeronHashTable::GetMap(ReadOnlyRoots(isolate())));
+      HeapConstant(EphemeronHashTableShape::GetMap(ReadOnlyRoots(isolate())));
   StoreMapNoWriteBarrier(table, map);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
@@ -2693,7 +2695,7 @@ TNode<Word32T> WeakCollectionsBuiltinsAssembler::ShouldShrink(
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::ValueIndexFromKeyIndex(
     TNode<IntPtrT> key_index) {
   return IntPtrAdd(key_index,
-                   IntPtrConstant(EphemeronHashTable::ShapeT::kEntryValueIndex -
+                   IntPtrConstant(EphemeronHashTableShape::kEntryValueIndex -
                                   EphemeronHashTable::kEntryKeyIndex));
 }
 

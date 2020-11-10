@@ -77,12 +77,11 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
 Handle<Code> BuildSetupFunction(Isolate* isolate,
                                 CallDescriptor* call_descriptor,
                                 std::vector<AllocatedOperand> parameters) {
-  CodeAssemblerTester tester(isolate, 3, CodeKind::BUILTIN,
-                             "setup");  // Include receiver.
+  CodeAssemblerTester tester(isolate, 2, Code::BUILTIN, "setup");
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  params.push_back(__ Parameter(1));
+  params.push_back(__ Parameter(0));
   params.push_back(__ HeapConstant(
       BuildTeardownFunction(isolate, call_descriptor, parameters)));
   // First allocate the FixedArray which will hold the final results. Here we
@@ -114,7 +113,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   }
   params.push_back(state_out);
   // Then take each element of the initial state and pass them as arguments.
-  TNode<FixedArray> state_in = __ Cast(__ Parameter(2));
+  TNode<FixedArray> state_in = __ Cast(__ Parameter(1));
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     Node* element = __ LoadFixedArrayElement(state_in, __ IntPtrConstant(i));
     // Unbox all elements before passing them as arguments.
@@ -564,17 +563,17 @@ class TestEnvironment : public HandleAndZoneScope {
     test_signature.AddReturn(LinkageLocation::ForRegister(
         kReturnRegister0.code(), MachineType::AnyTagged()));
 
-    test_descriptor_ = main_zone()->New<CallDescriptor>(
-        CallDescriptor::kCallCodeObject,  // kind
-        MachineType::AnyTagged(),         // target MachineType
-        LinkageLocation::ForAnyRegister(
-            MachineType::AnyTagged()),  // target location
-        test_signature.Build(),         // location_sig
-        kTotalStackParameterCount,      // stack_parameter_count
-        Operator::kNoProperties,        // properties
-        kNoCalleeSaved,                 // callee-saved registers
-        kNoCalleeSaved,                 // callee-saved fp
-        CallDescriptor::kNoFlags);      // flags
+    test_descriptor_ = new (main_zone())
+        CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
+                       MachineType::AnyTagged(),         // target MachineType
+                       LinkageLocation::ForAnyRegister(
+                           MachineType::AnyTagged()),  // target location
+                       test_signature.Build(),         // location_sig
+                       kTotalStackParameterCount,      // stack_parameter_count
+                       Operator::kNoProperties,        // properties
+                       kNoCalleeSaved,                 // callee-saved registers
+                       kNoCalleeSaved,                 // callee-saved fp
+                       CallDescriptor::kNoFlags);      // flags
   }
 
   int AllocateConstant(Constant constant) {
@@ -835,7 +834,7 @@ class TestEnvironment : public HandleAndZoneScope {
   // Generate parallel moves at random. Note that they may not be compatible
   // between each other as this doesn't matter to the code generator.
   ParallelMove* GenerateRandomMoves(int size) {
-    ParallelMove* parallel_move = main_zone()->New<ParallelMove>(main_zone());
+    ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
 
     for (int i = 0; i < size;) {
       MachineRepresentation rep = CreateRandomMachineRepresentation();
@@ -853,7 +852,7 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   ParallelMove* GenerateRandomSwaps(int size) {
-    ParallelMove* parallel_move = main_zone()->New<ParallelMove>(main_zone());
+    ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
 
     for (int i = 0; i < size;) {
       MachineRepresentation rep = CreateRandomMachineRepresentation();
@@ -917,8 +916,7 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   static InstructionBlock* NewBlock(Zone* zone, RpoNumber rpo) {
-    return zone->New<InstructionBlock>(zone, rpo, RpoNumber::Invalid(),
-                                       RpoNumber::Invalid(),
+    return new (zone) InstructionBlock(zone, rpo, RpoNumber::Invalid(),
                                        RpoNumber::Invalid(), false, false);
   }
 
@@ -964,10 +962,10 @@ class CodeGeneratorTester {
   explicit CodeGeneratorTester(TestEnvironment* environment,
                                int extra_stack_space = 0)
       : zone_(environment->main_zone()),
-        info_(ArrayVector("test"), environment->main_zone(), CodeKind::STUB),
+        info_(ArrayVector("test"), environment->main_zone(), Code::STUB),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize(
-            CodeKind::STUB)) {
+            Code::STUB)) {
     // Pick half of the stack parameters at random and move them into spill
     // slots, separated by `extra_stack_space` bytes.
     // When testing a move with stack slots using CheckAssembleMove or
@@ -1137,7 +1135,8 @@ class CodeGeneratorTester {
     sequence->AddInstruction(Instruction::New(zone_, kArchPrepareTailCall));
 
     // We use either zero or one slots.
-    static constexpr int first_unused_stack_slot = kReturnAddressStackSlotCount;
+    int first_unused_stack_slot =
+        V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
     int optional_padding_slot = first_unused_stack_slot;
     InstructionOperand callee[] = {
         AllocatedOperand(LocationOperand::REGISTER,
@@ -1322,7 +1321,7 @@ TEST(AssembleTailCallGap) {
                                        MachineRepresentation::kTagged, -1);
 
   // Avoid slot 0 for architectures which use it store the return address.
-  static constexpr int first_slot = kReturnAddressStackSlotCount;
+  int first_slot = V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
   auto slot_0 = AllocatedOperand(LocationOperand::STACK_SLOT,
                                  MachineRepresentation::kTagged, first_slot);
   auto slot_1 =

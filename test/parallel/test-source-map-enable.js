@@ -8,7 +8,6 @@ const { dirname } = require('path');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { pathToFileURL } = require('url');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -89,8 +88,8 @@ function nextdir() {
   // Source-map should have been loaded from disk and sources should have been
   // rewritten, such that they're absolute paths.
   assert.strictEqual(
-    dirname(pathToFileURL(
-      require.resolve('../fixtures/source-map/disk-relative-path')).href),
+    dirname(
+      `file://${require.resolve('../fixtures/source-map/disk-relative-path')}`),
     dirname(sourceMap.data.sources[0])
   );
 }
@@ -110,8 +109,8 @@ function nextdir() {
   // base64 JSON should have been decoded, and paths to sources should have
   // been rewritten such that they're absolute:
   assert.strictEqual(
-    dirname(pathToFileURL(
-      require.resolve('../fixtures/source-map/inline-base64')).href),
+    dirname(
+      `file://${require.resolve('../fixtures/source-map/inline-base64')}`),
     dirname(sourceMap.data.sources[0])
   );
 }
@@ -264,41 +263,6 @@ function nextdir() {
   assert.ok(
     output.stderr.toString().match('emptyStackError')
   );
-}
-
-// Does not attempt to apply path resolution logic to absolute URLs
-// with schemes.
-// Refs: https://github.com/webpack/webpack/issues/9601
-// Refs: https://sourcemaps.info/spec.html#h.75yo6yoyk7x5
-{
-  const output = spawnSync(process.execPath, [
-    '--enable-source-maps',
-    require.resolve('../fixtures/source-map/webpack.js')
-  ]);
-  // Error in original context of source content:
-  assert.ok(
-    output.stderr.toString().match(/throw new Error\('oh no!'\)\r?\n.*\^/)
-  );
-  // Rewritten stack trace:
-  assert.ok(output.stderr.toString().includes('webpack:///webpack.js:14:9'));
-}
-
-// Stores and applies source map associated with file that throws while
-// being required.
-{
-  const coverageDirectory = nextdir();
-  const output = spawnSync(process.execPath, [
-    '--enable-source-maps',
-    require.resolve('../fixtures/source-map/throw-on-require-entry.js')
-  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
-  const sourceMap = getSourceMapFromCache(
-    'throw-on-require.js',
-    coverageDirectory
-  );
-  // Rewritten stack trace.
-  assert.match(output.stderr.toString(), /throw-on-require\.ts:9:9/);
-  // Source map should have been serialized.
-  assert.ok(sourceMap);
 }
 
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {

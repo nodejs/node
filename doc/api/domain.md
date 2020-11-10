@@ -1,9 +1,7 @@
 # Domain
 <!-- YAML
-deprecated: v1.4.2
 changes:
   - version: v8.8.0
-    pr-url: https://github.com/nodejs/node/pull/15695
     description: Any `Promise`s created in VM contexts no longer have a
                  `.domain` property. Their handlers are still executed in the
                  proper domain, however, and `Promise`s created in the main
@@ -21,7 +19,7 @@ changes:
 <!-- source_link=lib/domain.js -->
 
 **This module is pending deprecation**. Once a replacement API has been
-finalized, this module will be fully deprecated. Most developers should
+finalized, this module will be fully deprecated. Most end users should
 **not** have cause to use this module. Users who absolutely must have
 the functionality that domains provide may rely on it for the time being
 but should expect to have to migrate to a different solution
@@ -479,10 +477,10 @@ Domains will not interfere with the error handling mechanisms for
 promises. In other words, no `'error'` event will be emitted for unhandled
 `Promise` rejections.
 
-[`Error`]: errors.md#errors_class_error
+[`Error`]: errors.html#errors_class_error
 [`domain.add(emitter)`]: #domain_domain_add_emitter
 [`domain.bind(callback)`]: #domain_domain_bind_callback
 [`domain.exit()`]: #domain_domain_exit
-[`setInterval()`]: timers.md#timers_setinterval_callback_delay_args
-[`setTimeout()`]: timers.md#timers_settimeout_callback_delay_args
+[`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
+[`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
 [`throw`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw

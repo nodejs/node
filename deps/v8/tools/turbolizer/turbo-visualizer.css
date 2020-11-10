@@ -342,13 +342,6 @@ input:hover,
   background-color: #F8F8F8;
   user-select: none;
   flex: 1;
-  z-index: 7;
-}
-
-#middle.display-inline-flex,
-#middle.display-inline-flex #multiview,
-#middle.display-inline-flex #ranges {
-  display: inline-flex;
 }
 
 .viewpane {
@@ -357,6 +350,11 @@ input:hover,
   display: flex;
   flex-direction: column;
 }
+
+.multiview {
+  width: 100%;
+}
+
 
 #show-hide-disassembly {
   right: 0;
@@ -423,10 +421,6 @@ tspan {
 
 text {
   dominant-baseline: text-before-edge;
-}
-
-.tab-content {
-  z-index: 6;
 }
 
 .resizer {
@@ -601,10 +595,6 @@ text {
   padding-right: .5ex;
 }
 
-.instruction span {
-  padding-right: 0;
-}
-
 .phi-label,
 .instruction-id {
   display: inline-block;
@@ -636,10 +626,6 @@ text {
   display: inline-block;
 }
 
-.phi span {
-  padding-right: 0;
-}
-
 .gap .gap-move {
   padding-left: .5ex;
   padding-right: .5ex;
@@ -651,10 +637,6 @@ text {
 
 .gap>*:after {
   content: ")";
-}
-
-.virtual-reg {
-  outline: 1px dotted blue;
 }
 
 .parameter.constant {

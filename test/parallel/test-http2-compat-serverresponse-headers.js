@@ -114,11 +114,6 @@ server.listen(0, common.mustCall(function() {
     response.sendDate = false;
     assert.strictEqual(response.sendDate, false);
 
-    response.sendDate = true;
-    assert.strictEqual(response.sendDate, true);
-    response.removeHeader('Date');
-    assert.strictEqual(response.sendDate, false);
-
     response.on('finish', common.mustCall(function() {
       assert.strictEqual(response.headersSent, true);
 

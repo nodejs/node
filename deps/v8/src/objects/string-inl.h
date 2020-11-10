@@ -270,16 +270,7 @@ class SequentialStringKey final : public StringTableKey {
     return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
   }
 
-  Handle<String> AsHandle(Isolate* isolate) {
-    if (sizeof(Char) == 1) {
-      return isolate->factory()->NewOneByteInternalizedString(
-          Vector<const uint8_t>::cast(chars_), hash_field());
-    }
-    return isolate->factory()->NewTwoByteInternalizedString(
-        Vector<const uint16_t>::cast(chars_), hash_field());
-  }
-
-  Handle<String> AsHandle(LocalIsolate* isolate) {
+  Handle<String> AsHandle(Isolate* isolate) override {
     if (sizeof(Char) == 1) {
       return isolate->factory()->NewOneByteInternalizedString(
           Vector<const uint8_t>::cast(chars_), hash_field());
@@ -340,8 +331,7 @@ class SeqSubStringKey final : public StringTableKey {
     return CompareChars(string_->GetChars(no_gc) + from_, data, length()) == 0;
   }
 
-  template <typename LocalIsolate>
-  Handle<String> AsHandle(LocalIsolate* isolate) {
+  Handle<String> AsHandle(Isolate* isolate) override {
     if (sizeof(Char) == 1 || (sizeof(Char) == 2 && convert_)) {
       Handle<SeqOneByteString> result =
           isolate->factory()->AllocateRawOneByteInternalizedString(
@@ -409,7 +399,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
   return string;
 }
 
-Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
+Handle<String> String::Flatten(OffThreadIsolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   // We should never pass non-flat strings to String::Flatten when off-thread.
   DCHECK(string->IsFlat());

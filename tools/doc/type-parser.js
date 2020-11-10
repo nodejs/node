@@ -71,47 +71,7 @@ const customTypesMap = {
   'Verify': 'crypto.html#crypto_class_verify',
   'crypto.constants': 'crypto.html#crypto_crypto_constants_1',
 
-  'CryptoKey': 'webcrypto.html#webcrypto_class_cryptokey',
-  'CryptoKeyPair': 'webcrypto.html#webcrypto_class_cryptokeypair',
-  'Crypto': 'webcrypto.html#webcrypto_class_crypto',
-  'SubtleCrypto': 'webcrypto.html#webcrypto_class_subtlecrypto',
-  'RsaOaepParams': 'webcrypto.html#webcrypto_class_rsaoaepparams',
-  'AesCtrParams': 'webcrypto.html#webcrypto_class_aesctrparams',
-  'AesCbcParams': 'webcrypto.html#webcrypto_class_aescbcparams',
-  'AesGcmParams': 'webcrypto.html#webcrypto_class_aesgcmparams',
-  'AesKwParams': 'webcrypto.html#webcrypto_class_aeskwparams',
-  'EcdhKeyDeriveParams': 'webcrypto.html#webcrypto_class_ecdhkeyderiveparams',
-  'HkdfParams': 'webcrypto.html#webcrypto_class_hkdfparams',
-  'Pbkdf2Params': 'webcrypto.html#webcrypto_class_pbkdf2params',
-  'HmacKeyGenParams': 'webcrypto.html#webcrypto_class_hmackeygenparams',
-  'AesKeyGenParams': 'webcrypto.html#webcrypto_class_aeskeygenparams',
-  'RsaHashedKeyGenParams':
-    'webcrypto.html#webcrypto_class_rsahashedkeygenparams',
-  'EcKeyGenParams': 'webcrypto.html#webcrypto_class_eckeygenparams',
-  'RsaHashedImportParams':
-    'webcrypto.html#webcrypto_class_rsahashedimportparams',
-  'EcKeyImportParams': 'webcrypto.html#webcrypto_class_eckeyimportparams',
-  'HmacImportParams': 'webcrypto.html#webcrypto_class_hmacimportparams',
-  'AesImportParams': 'webcrypto.html#webcrypto_class_aesimportparams',
-  'Pbkdf2ImportParams': 'webcrypto.html#webcrypto_class.pbkdf2importparams',
-  'HmacParams': 'webcrypto.html#webcrypto_class_hmacparams',
-  'EcdsaParams': 'webcrypto.html#webcrypto_class_ecdsaparams',
-  'RsaPssParams': 'webcrypto.html#webcrypto_class_rsapssparams',
-  'RsaSignParams': 'webcrypto.html#webcrypto_class_rsasignparams',
-  'NodeDhImportParams': 'webcrypto.html#webcrypto_class_nodedhimportparams',
-  'NodeDhKeyGenParams': 'webcrypto.html#webcrypto_class_nodedhkeygenparams',
-  'NodeDhDeriveBitsParams':
-    'webcrypto.html#webcrypto_class_nodedhderivebitsparams',
-  'NodeDsaImportParams': 'webcrypto.html#webcrypto_class_nodedsaimportparams',
-  'NodeDsaKeyGenParams': 'webcrypto.html#webcrypto_class_nodedsakeygenparams',
-  'NodeDsaSignParams': 'webcrypto.html#webcrypto_class_nodedsasignparams',
-  'NodeScryptImportParams':
-    'webcrypto.html#webcrypto_class_nodescryptimportparams',
-  'NodeScryptParams': 'webcrypto.html#webcrypto_class_nodescryptparams',
-
   'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',
-
-  'Channel': 'diagnostics_channel.html#diagnostics_channel_class_channel',
 
   'Domain': 'domain.html#domain_class_domain',
 
@@ -157,12 +117,11 @@ const customTypesMap = {
   'module': 'modules.html#modules_the_module_object',
 
   'module.SourceMap':
-    'module.html#module_class_module_sourcemap',
+    'modules.html#modules_class_module_sourcemap',
 
   'require': 'modules.html#modules_require_id',
 
   'Handle': 'net.html#net_server_listen_handle_backlog_callback',
-  'net.BlockList': 'net.html#net_class_net_blocklist',
   'net.Server': 'net.html#net_class_net_server',
   'net.Socket': 'net.html#net_class_net_socket',
 
@@ -208,7 +167,6 @@ const customTypesMap = {
   'URLSearchParams': 'url.html#url_class_urlsearchparams',
 
   'vm.Module': 'vm.html#vm_class_vm_module',
-  'vm.Script': 'vm.html#vm_class_vm_script',
   'vm.SourceTextModule': 'vm.html#vm_class_vm_sourcetextmodule',
 
   'MessagePort': 'worker_threads.html#worker_threads_class_messageport',

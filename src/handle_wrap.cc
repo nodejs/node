@@ -89,13 +89,6 @@ void HandleWrap::OnGCCollect() {
 }
 
 
-bool HandleWrap::IsNotIndicativeOfMemoryLeakAtExit() const {
-  return IsWeakOrDetached() ||
-         !HandleWrap::HasRef(this) ||
-         !uv_is_active(GetHandle());
-}
-
-
 void HandleWrap::MarkAsInitialized() {
   env()->handle_wrap_queue()->PushBack(this);
   state_ = kInitialized;

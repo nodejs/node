@@ -10,23 +10,16 @@
 namespace v8 {
 namespace internal {
 
-class LocalHeap;
-
-// This method generates a tick. Also makes the current thread to enter a
-// safepoint iff it was required to do so. The tick is used as a deterministic
-// correlate of time to detect performance or divergence bugs in Turbofan.
-// TickAndMaybeEnterSafepoint() should be called frequently thoughout the
-// compilation.
+// A deterministic correlate of time, used to detect performance or
+// divergence bugs in Turbofan. DoTick() should be called frequently
+// thoughout the compilation.
 class TickCounter {
  public:
-  void TickAndMaybeEnterSafepoint();
-  void AttachLocalHeap(LocalHeap* local_heap);
-  void DetachLocalHeap();
+  void DoTick();
   size_t CurrentTicks() const { return ticks_; }
 
  private:
   size_t ticks_ = 0;
-  LocalHeap* local_heap_ = nullptr;
 };
 
 }  // namespace internal

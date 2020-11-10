@@ -203,7 +203,6 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-loop-stop.c \
                          test/test-loop-time.c \
                          test/test-loop-configure.c \
-                         test/test-metrics.c \
                          test/test-multiple-listen.c \
                          test/test-mutexes.c \
                          test/test-osx-select.c \
@@ -260,7 +259,6 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-flags.c \
                          test/test-tcp-open.c \
                          test/test-tcp-read-stop.c \
-                         test/test-tcp-read-stop-start.c \
                          test/test-tcp-shutdown-after-write.c \
                          test/test-tcp-unexpected-read.c \
                          test/test-tcp-oob.c \
@@ -271,7 +269,6 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-try-write.c \
                          test/test-tcp-try-write-error.c \
                          test/test-tcp-write-queue-order.c \
-                         test/test-test-macros.c \
                          test/test-thread-equal.c \
                          test/test-thread.c \
                          test/test-threadpool-cancel.c \
@@ -289,7 +286,6 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-udp-create-socket-early.c \
                          test/test-udp-dgram-too-big.c \
                          test/test-udp-ipv6.c \
-                         test/test-udp-mmsg.c \
                          test/test-udp-multicast-interface.c \
                          test/test-udp-multicast-interface6.c \
                          test/test-udp-multicast-join.c \
@@ -378,7 +374,8 @@ uvinclude_HEADERS += include/uv/posix.h
 libuv_la_SOURCES += src/unix/aix-common.c \
                     src/unix/ibmi.c \
                     src/unix/posix-poll.c \
-                    src/unix/no-fsevents.c
+                    src/unix/no-fsevents.c \
+                    src/unix/no-proctitle.c
 endif
 
 if ANDROID

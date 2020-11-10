@@ -7,7 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/optional.h"
-#include "src/zone/zone-type-traits.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

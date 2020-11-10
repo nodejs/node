@@ -8,7 +8,6 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/safepoint.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/script.h"
@@ -265,11 +264,7 @@ TEST(FinalizeTracingWhenMarking) {
   CHECK(i_isolate->heap()->incremental_marking()->IsStopped());
 
   i::IncrementalMarking* marking = i_isolate->heap()->incremental_marking();
-  {
-    SafepointScope scope(i_isolate->heap());
-    marking->Start(i::GarbageCollectionReason::kTesting);
-  }
-
+  marking->Start(i::GarbageCollectionReason::kTesting);
   // Sweeping is not runing so we should immediately start marking.
   CHECK(marking->IsMarking());
   tracer.FinalizeTracing();
@@ -326,7 +321,7 @@ void TracedGlobalTest(v8::Isolate* isolate,
 
   v8::TracedGlobal<v8::Object> global;
   construct_function(isolate, context, &global);
-  CHECK(InCorrectGeneration(isolate, global));
+  CHECK(InYoungGeneration(isolate, global));
   modifier_function(global);
   gc_function();
   CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !global.IsEmpty());
@@ -473,7 +468,6 @@ TEST(TracedGlobalToUnmodifiedJSObjectSurvivesMarkSweepWhenHeldAliveOtherwise) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavenge) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   TracedGlobalTest(
@@ -483,7 +477,6 @@ TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavenge) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavengeWhenExcludedFromRoots) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -497,7 +490,6 @@ TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavengeWhenExcludedFromRoots) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSApiObjectSurvivesScavengePerDefault) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -511,7 +503,6 @@ TEST(TracedGlobalToUnmodifiedJSApiObjectSurvivesScavengePerDefault) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSApiObjectDiesOnScavengeWhenExcludedFromRoots) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -660,7 +651,6 @@ void FinalizationCallback(const WeakCallbackInfo<void>& data) {
 }  // namespace
 
 TEST(TracedGlobalSetFinalizationCallbackScavenge) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -868,7 +858,6 @@ void SetupOptimizedAndNonOptimizedHandle(v8::Isolate* isolate,
 }  // namespace
 
 TEST(TracedGlobalDestructorReclaimedOnScavenge) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -894,7 +883,6 @@ TEST(TracedGlobalDestructorReclaimedOnScavenge) {
 }
 
 TEST(TracedGlobalNoDestructorReclaimedOnScavenge) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -997,9 +985,8 @@ V8_NOINLINE void StackToHeapTest(TestEmbedderHeapTracer* tracer, Operation op,
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
         isolate->GetCurrentContext(), nullptr, nullptr));
-    CHECK(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
-    if (!FLAG_single_generation &&
-        target_handling == TargetHandling::kInitializedOldGen) {
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
       heap::InvokeScavenge();
       heap::InvokeScavenge();
       CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
@@ -1038,9 +1025,8 @@ V8_NOINLINE void HeapToStackTest(TestEmbedderHeapTracer* tracer, Operation op,
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
         isolate->GetCurrentContext(), nullptr, nullptr));
-    CHECK(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
-    if (!FLAG_single_generation &&
-        target_handling == TargetHandling::kInitializedOldGen) {
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
       heap::InvokeScavenge();
       heap::InvokeScavenge();
       CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
@@ -1079,9 +1065,8 @@ V8_NOINLINE void StackToStackTest(TestEmbedderHeapTracer* tracer, Operation op,
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
         isolate->GetCurrentContext(), nullptr, nullptr));
-    CHECK(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
-    if (!FLAG_single_generation &&
-        target_handling == TargetHandling::kInitializedOldGen) {
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
       heap::InvokeScavenge();
       heap::InvokeScavenge();
       CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));

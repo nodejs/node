@@ -1,13 +1,18 @@
+/* eslint-disable standard/no-callback-literal */
+
 const columns = require('cli-columns')
-const libteam = require('libnpmteam')
-const npm = require('./npm.js')
+const figgyPudding = require('figgy-pudding')
+const libteam = require('libnpm/team')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const usageUtil = require('./utils/usage')
+const usage = require('./utils/usage')
 
-const subcommands = ['create', 'destroy', 'add', 'rm', 'ls', 'edit']
+module.exports = team
 
-const usage = usageUtil(
+team.subcommands = ['create', 'destroy', 'add', 'rm', 'ls', 'edit']
+
+team.usage = usage(
   'team',
   'npm team create <scope:team> [--otp <otpcode>]\n' +
   'npm team destroy <scope:team> [--otp <otpcode>]\n' +
@@ -17,11 +22,22 @@ const usage = usageUtil(
   'npm team edit <scope:team>'
 )
 
-const completion = (opts, cb) => {
-  const { conf: { argv: { remain: argv } } } = opts
-  if (argv.length === 2)
-    return cb(null, subcommands)
+const TeamConfig = figgyPudding({
+  json: {},
+  loglevel: {},
+  parseable: {},
+  silent: {}
+})
 
+function UsageError () {
+  throw Object.assign(new Error(team.usage), {code: 'EUSAGE'})
+}
+
+team.completion = function (opts, cb) {
+  var argv = opts.conf.argv.remain
+  if (argv.length === 2) {
+    return cb(null, team.subcommands)
+  }
   switch (argv[2]) {
     case 'ls':
     case 'create':
@@ -35,14 +51,10 @@ const completion = (opts, cb) => {
   }
 }
 
-const cmd = (args, cb) => team(args).then(() => cb()).catch(cb)
-
-const team = async ([cmd, entity = '', user = '']) => {
+function team ([cmd, entity = '', user = ''], cb) {
   // Entities are in the format <scope>:<team>
-  // XXX: "description" option to libnpmteam is used as a description of the
-  // team, but in npm's options, this is a boolean meaning "show the
-  // description in npm search output".  Hence its being set to null here.
-  await otplease(npm.flatOptions, opts => {
+  otplease(npmConfig(), opts => {
+    opts = TeamConfig(opts).concat({description: null})
     entity = entity.replace(/^@/, '')
     switch (cmd) {
       case 'create': return teamCreate(entity, opts)
@@ -51,95 +63,109 @@ const team = async ([cmd, entity = '', user = '']) => {
       case 'rm': return teamRm(entity, user, opts)
       case 'ls': {
         const match = entity.match(/[^:]+:.+/)
-        if (match)
+        if (match) {
           return teamListUsers(entity, opts)
-        else
+        } else {
           return teamListTeams(entity, opts)
+        }
       }
       case 'edit':
         throw new Error('`npm team edit` is not implemented yet.')
       default:
-        throw usage
+        UsageError()
+    }
+  }).then(
+    data => cb(null, data),
+    err => err.code === 'EUSAGE' ? cb(err.message) : cb(err)
+  )
+}
+
+function teamCreate (entity, opts) {
+  return libteam.create(entity, opts).then(() => {
+    if (opts.json) {
+      output(JSON.stringify({
+        created: true,
+        team: entity
+      }))
+    } else if (opts.parseable) {
+      output(`${entity}\tcreated`)
+    } else if (!opts.silent && opts.loglevel !== 'silent') {
+      output(`+@${entity}`)
     }
   })
 }
 
-const teamCreate = async (entity, opts) => {
-  await libteam.create(entity, opts)
-  if (opts.json) {
-    output(JSON.stringify({
-      created: true,
-      team: entity,
-    }))
-  } else if (opts.parseable)
-    output(`${entity}\tcreated`)
-  else if (!opts.silent && opts.loglevel !== 'silent')
-    output(`+@${entity}`)
+function teamDestroy (entity, opts) {
+  return libteam.destroy(entity, opts).then(() => {
+    if (opts.json) {
+      output(JSON.stringify({
+        deleted: true,
+        team: entity
+      }))
+    } else if (opts.parseable) {
+      output(`${entity}\tdeleted`)
+    } else if (!opts.silent && opts.loglevel !== 'silent') {
+      output(`-@${entity}`)
+    }
+  })
 }
 
-const teamDestroy = async (entity, opts) => {
-  await libteam.destroy(entity, opts)
-  if (opts.json) {
-    output(JSON.stringify({
-      deleted: true,
-      team: entity,
-    }))
-  } else if (opts.parseable)
-    output(`${entity}\tdeleted`)
-  else if (!opts.silent && opts.loglevel !== 'silent')
-    output(`-@${entity}`)
+function teamAdd (entity, user, opts) {
+  return libteam.add(user, entity, opts).then(() => {
+    if (opts.json) {
+      output(JSON.stringify({
+        added: true,
+        team: entity,
+        user
+      }))
+    } else if (opts.parseable) {
+      output(`${user}\t${entity}\tadded`)
+    } else if (!opts.silent && opts.loglevel !== 'silent') {
+      output(`${user} added to @${entity}`)
+    }
+  })
 }
 
-const teamAdd = async (entity, user, opts) => {
-  await libteam.add(user, entity, opts)
-  if (opts.json) {
-    output(JSON.stringify({
-      added: true,
-      team: entity,
-      user,
-    }))
-  } else if (opts.parseable)
-    output(`${user}\t${entity}\tadded`)
-  else if (!opts.silent && opts.loglevel !== 'silent')
-    output(`${user} added to @${entity}`)
+function teamRm (entity, user, opts) {
+  return libteam.rm(user, entity, opts).then(() => {
+    if (opts.json) {
+      output(JSON.stringify({
+        removed: true,
+        team: entity,
+        user
+      }))
+    } else if (opts.parseable) {
+      output(`${user}\t${entity}\tremoved`)
+    } else if (!opts.silent && opts.loglevel !== 'silent') {
+      output(`${user} removed from @${entity}`)
+    }
+  })
 }
 
-const teamRm = async (entity, user, opts) => {
-  await libteam.rm(user, entity, opts)
-  if (opts.json) {
-    output(JSON.stringify({
-      removed: true,
-      team: entity,
-      user,
-    }))
-  } else if (opts.parseable)
-    output(`${user}\t${entity}\tremoved`)
-  else if (!opts.silent && opts.loglevel !== 'silent')
-    output(`${user} removed from @${entity}`)
+function teamListUsers (entity, opts) {
+  return libteam.lsUsers(entity, opts).then(users => {
+    users = users.sort()
+    if (opts.json) {
+      output(JSON.stringify(users, null, 2))
+    } else if (opts.parseable) {
+      output(users.join('\n'))
+    } else if (!opts.silent && opts.loglevel !== 'silent') {
+      output(`\n@${entity} has ${users.length} user${users.length === 1 ? '' : 's'}:\n`)
+      output(columns(users, {padding: 1}))
+    }
+  })
 }
 
-const teamListUsers = async (entity, opts) => {
-  const users = (await libteam.lsUsers(entity, opts)).sort()
-  if (opts.json)
-    output(JSON.stringify(users, null, 2))
-  else if (opts.parseable)
-    output(users.join('\n'))
-  else if (!opts.silent && opts.loglevel !== 'silent') {
-    output(`\n@${entity} has ${users.length} user${users.length === 1 ? '' : 's'}:\n`)
-    output(columns(users, { padding: 1 }))
-  }
+function teamListTeams (entity, opts) {
+  return libteam.lsTeams(entity, opts).then(teams => {
+    teams = teams.sort()
+    if (opts.json) {
+      output(JSON.stringify(teams, null, 2))
+    } else if (opts.parseable) {
+      output(teams.join('\n'))
+    } else if (!opts.silent && opts.loglevel !== 'silent') {
+      output(`\n@${entity} has ${teams.length} team${teams.length === 1 ? '' : 's'}:\n`)
+      output(columns(teams.map(t => `@${t}`), {padding: 1}))
+    }
+  })
 }
-
-const teamListTeams = async (entity, opts) => {
-  const teams = (await libteam.lsTeams(entity, opts)).sort()
-  if (opts.json)
-    output(JSON.stringify(teams, null, 2))
-  else if (opts.parseable)
-    output(teams.join('\n'))
-  else if (!opts.silent && opts.loglevel !== 'silent') {
-    output(`\n@${entity} has ${teams.length} team${teams.length === 1 ? '' : 's'}:\n`)
-    output(columns(teams.map(t => `@${t}`), { padding: 1 }))
-  }
-}
-
-module.exports = Object.assign(cmd, { completion, usage })

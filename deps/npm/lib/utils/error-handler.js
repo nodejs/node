@@ -1,39 +1,40 @@
-'use strict'
 
-let cbCalled = false
-const log = require('npmlog')
-const npm = require('../npm.js')
-let itWorked = false
-const path = require('path')
-let wroteLogFile = false
-let exitCode = 0
-const errorMessage = require('./error-message.js')
-const replaceInfo = require('./replace-info.js')
-const stopMetrics = require('./metrics.js').stop
+module.exports = errorHandler
+module.exports.exit = exit
+
+var cbCalled = false
+var log = require('npmlog')
+var npm = require('../npm.js')
+var itWorked = false
+var path = require('path')
+var wroteLogFile = false
+var exitCode = 0
+var rollbacks = npm.rollbacks
+var chain = require('slide').chain
+var errorMessage = require('./error-message.js')
+var replaceInfo = require('./replace-info.js')
+var stopMetrics = require('./metrics.js').stop
 
 const cacheFile = require('./cache-file.js')
 
-let logFileName
-const getLogFile = () => {
-  if (!logFileName)
+var logFileName
+function getLogFile () {
+  if (!logFileName) {
     logFileName = path.resolve(npm.config.get('cache'), '_logs', (new Date()).toISOString().replace(/[.:]/g, '_') + '-debug.log')
-
+  }
   return logFileName
 }
 
-const timings = {
+var timings = {
   version: npm.version,
   command: process.argv.slice(2),
-  logfile: null,
+  logfile: null
 }
-process.on('timing', (name, value) => {
-  if (timings[name])
-    timings[name] += value
-  else
-    timings[name] = value
+process.on('timing', function (name, value) {
+  if (timings[name]) { timings[name] += value } else { timings[name] = value }
 })
 
-process.on('exit', code => {
+process.on('exit', function (code) {
   process.emit('timeEnd', 'npm')
   log.disableProgress()
   if (npm.config && npm.config.loaded && npm.config.get('timing')) {
@@ -48,55 +49,85 @@ process.on('exit', code => {
   // kill any outstanding stats reporter if it hasn't finished yet
   stopMetrics()
 
-  if (code)
-    itWorked = false
-  if (itWorked)
+  if (code) itWorked = false
+  if (itWorked) {
     log.info('ok')
-  else {
+  } else {
     if (!cbCalled) {
       log.error('', 'cb() never called!')
       console.error('')
       log.error('', 'This is an error with npm itself. Please report this error at:')
-      log.error('', '    <https://github.com/npm/cli/issues>')
+      log.error('', '    <https://npm.community>')
       writeLogFile()
     }
 
-    if (code)
+    if (code) {
       log.verbose('code', code)
+    }
   }
-  if (npm.config && npm.config.loaded && npm.config.get('timing') && !wroteLogFile)
-    writeLogFile()
+  if (npm.config && npm.config.loaded && npm.config.get('timing') && !wroteLogFile) writeLogFile()
   if (wroteLogFile) {
     // just a line break
-    if (log.levels[log.level] <= log.levels.error)
-      console.error('')
+    if (log.levels[log.level] <= log.levels.error) console.error('')
 
     log.error(
       '',
       [
         'A complete log of this run can be found in:',
-        '    ' + getLogFile(),
+        '    ' + getLogFile()
       ].join('\n')
     )
     wroteLogFile = false
   }
 
-  // actually exit.
-  if (exitCode === 0 && !itWorked)
-    exitCode = 1
-
-  if (exitCode !== 0)
-    process.exit(exitCode)
+  var doExit = npm.config && npm.config.loaded && npm.config.get('_exit')
+  if (doExit) {
+    // actually exit.
+    if (exitCode === 0 && !itWorked) {
+      exitCode = 1
+    }
+    if (exitCode !== 0) process.exit(exitCode)
+  } else {
+    itWorked = false // ready for next exit
+  }
 })
 
-const exit = (code, noLog) => {
+function exit (code, noLog) {
   exitCode = exitCode || process.exitCode || code
 
-  log.verbose('exit', code)
-  if (log.level === 'silent')
-    noLog = true
+  var doExit = npm.config && npm.config.loaded ? npm.config.get('_exit') : true
+  log.verbose('exit', [code, doExit])
+  if (log.level === 'silent') noLog = true
 
-  const reallyExit = () => {
+  if (rollbacks.length) {
+    chain(rollbacks.map(function (f) {
+      return function (cb) {
+        npm.commands.unbuild([f], true, cb)
+      }
+    }), function (er) {
+      if (er) {
+        log.error('error rolling back', er)
+        if (!code) {
+          errorHandler(er)
+        } else {
+          if (!noLog) writeLogFile()
+          reallyExit(er)
+        }
+      } else {
+        if (!noLog && code) writeLogFile()
+        reallyExit()
+      }
+    })
+    rollbacks.length = 0
+  } else if (code && !noLog) {
+    writeLogFile()
+  } else {
+    reallyExit()
+  }
+
+  function reallyExit (er) {
+    if (er && !code) code = typeof er.errno === 'number' ? er.errno : 1
+
     itWorked = !code
 
     // Exit directly -- nothing in the CLI should still be running in the
@@ -108,14 +139,9 @@ const exit = (code, noLog) => {
       process.exit(code)
     })
   }
-
-  if (code && !noLog)
-    writeLogFile()
-  else
-    reallyExit()
 }
 
-const errorHandler = (er) => {
+function errorHandler (er) {
   log.disableProgress()
   if (!npm.config || !npm.config.loaded) {
     // logging won't work unless we pretend that it's ready
@@ -123,19 +149,12 @@ const errorHandler = (er) => {
     console.error(er.stack || er.message)
   }
 
-  if (cbCalled)
+  if (cbCalled) {
     er = er || new Error('Callback called more than once.')
-
-  if (npm.updateNotification) {
-    const { level } = log
-    log.level = log.levels.notice
-    log.notice('', npm.updateNotification)
-    log.level = level
   }
 
   cbCalled = true
-  if (!er)
-    return exit(0)
+  if (!er) return exit(0)
   if (typeof er === 'string') {
     log.error('', er)
     return exit(1, true)
@@ -144,71 +163,85 @@ const errorHandler = (er) => {
     return exit(1, true)
   }
 
-  if (!er.code) {
-    const matchErrorCode = er.message.match(/^(?:Error: )?(E[A-Z]+)/)
-    er.code = matchErrorCode && matchErrorCode[1]
+  var m = er.code || er.message.match(/^(?:Error: )?(E[A-Z]+)/)
+  if (m && !er.code) {
+    er.code = m
   }
 
-  for (const k of ['type', 'stack', 'statusCode', 'pkgid']) {
-    const v = er[k]
-    if (v)
-      log.verbose(k, replaceInfo(v))
-  }
+  ;[
+    'type',
+    'stack',
+    'statusCode',
+    'pkgid'
+  ].forEach(function (k) {
+    var v = er[k]
+    if (!v) return
+    v = replaceInfo(v)
+    log.verbose(k, v)
+  })
 
   log.verbose('cwd', process.cwd())
 
-  const os = require('os')
-  const args = replaceInfo(process.argv)
+  var os = require('os')
+  var args = replaceInfo(process.argv)
   log.verbose('', os.type() + ' ' + os.release())
   log.verbose('argv', args.map(JSON.stringify).join(' '))
   log.verbose('node', process.version)
   log.verbose('npm ', 'v' + npm.version)
 
-  for (const k of ['code', 'syscall', 'file', 'path', 'dest', 'errno']) {
-    const v = er[k]
-    if (v)
-      log.error(k, v)
-  }
+  ;[
+    'code',
+    'syscall',
+    'file',
+    'path',
+    'dest',
+    'errno'
+  ].forEach(function (k) {
+    var v = er[k]
+    if (v) log.error(k, v)
+  })
 
-  const msg = errorMessage(er)
-  for (const errline of [...msg.summary, ...msg.detail])
-    log.error(...errline)
-
+  var msg = errorMessage(er)
+  msg.summary.concat(msg.detail).forEach(function (errline) {
+    log.error.apply(log, errline)
+  })
   if (npm.config && npm.config.get('json')) {
-    const error = {
+    var error = {
       error: {
         code: er.code,
         summary: messageText(msg.summary),
-        detail: messageText(msg.detail),
-      },
+        detail: messageText(msg.detail)
+      }
     }
     console.log(JSON.stringify(error, null, 2))
   }
 
-  exit(typeof er.errno === 'number' ? er.errno : typeof er.code === 'number' ? er.code : 1)
+  exit(typeof er.errno === 'number' ? er.errno : 1)
 }
 
-const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
+function messageText (msg) {
+  return msg.map(function (line) {
+    return line.slice(1).join(' ')
+  }).join('\n')
+}
 
-const writeLogFile = () => {
-  if (wroteLogFile)
-    return
+function writeLogFile () {
+  if (wroteLogFile) return
 
-  const os = require('os')
+  var os = require('os')
 
   try {
-    let logOutput = ''
-    log.record.forEach(m => {
-      const p = [m.id, m.level]
-      if (m.prefix)
-        p.push(m.prefix)
-      const pref = p.join(' ')
+    var logOutput = ''
+    log.record.forEach(function (m) {
+      var pref = [m.id, m.level]
+      if (m.prefix) pref.push(m.prefix)
+      pref = pref.join(' ')
 
-      m.message.trim().split(/\r?\n/)
-        .map(line => (pref + ' ' + line).trim())
-        .forEach(line => {
-          logOutput += line + os.EOL
-        })
+      m.message.trim().split(/\r?\n/).map(function (line) {
+        return (pref + ' ' + line).trim()
+      }).forEach(function (line) {
+        logOutput += line + os.EOL
+      })
     })
     cacheFile.write(getLogFile(), logOutput)
 
@@ -219,6 +252,3 @@ const writeLogFile = () => {
 
   }
 }
-
-module.exports = errorHandler
-module.exports.exit = exit

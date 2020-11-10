@@ -32,5 +32,4 @@ API documentation
    dll
    threading
    misc
-   metrics
 

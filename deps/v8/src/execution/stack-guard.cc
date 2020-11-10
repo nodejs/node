@@ -249,10 +249,6 @@ class ShouldBeZeroOnReturnScope final {
 Object StackGuard::HandleInterrupts() {
   TRACE_EVENT0("v8.execute", "V8.HandleInterrupts");
 
-#if DEBUG
-  isolate_->heap()->VerifyNewSpaceTop();
-#endif
-
   if (FLAG_verify_predictable) {
     // Advance synthetic time by making a time request.
     isolate_->heap()->MonotonicallyIncreasingTimeInMs();
@@ -276,7 +272,8 @@ Object StackGuard::HandleInterrupts() {
   }
 
   if (TestAndClear(&interrupt_flags, GROW_SHARED_MEMORY)) {
-    TRACE_EVENT0("v8.wasm", "V8.WasmGrowSharedMemory");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+                 "V8.WasmGrowSharedMemory");
     BackingStore::UpdateSharedWasmMemoryObjects(isolate_);
   }
 
@@ -300,12 +297,12 @@ Object StackGuard::HandleInterrupts() {
   }
 
   if (TestAndClear(&interrupt_flags, LOG_WASM_CODE)) {
-    TRACE_EVENT0("v8.wasm", "V8.LogCode");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "LogCode");
     isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
   }
 
   if (TestAndClear(&interrupt_flags, WASM_CODE_GC)) {
-    TRACE_EVENT0("v8.wasm", "V8.WasmCodeGC");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "WasmCodeGC");
     isolate_->wasm_engine()->ReportLiveCodeFromStackForGC(isolate_);
   }
 

@@ -23,6 +23,4 @@ let myIterable = {
   }
 };
 
-MyPromise.race(myIterable).then(
-  assertUnreachable,
-  (e) => { assertEquals(e, "then throws")});
+MyPromise.race(myIterable);

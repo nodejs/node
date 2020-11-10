@@ -66,13 +66,12 @@ Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
 class ClearThreadInWasmScope {
  public:
   ClearThreadInWasmScope() {
-    DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                   trap_handler::IsThreadInWasm());
+    DCHECK_EQ(trap_handler::IsTrapHandlerEnabled(),
+              trap_handler::IsThreadInWasm());
     trap_handler::ClearThreadInWasm();
   }
   ~ClearThreadInWasmScope() {
-    DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                   !trap_handler::IsThreadInWasm());
+    DCHECK(!trap_handler::IsThreadInWasm());
     trap_handler::SetThreadInWasm();
   }
 };
@@ -209,26 +208,15 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   return Object(entrypoint);
 }
 
-RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-
-  FrameFinder<WasmFrame, StackFrame::EXIT> frame_finder(isolate);
-  int func_index = frame_finder.frame()->function_index();
-  auto* native_module = instance->module_object().native_module();
-
-  wasm::TriggerTierUp(isolate, native_module, func_index);
-
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 // Should be called from within a handle scope
-Handle<JSArrayBuffer> GetArrayBuffer(Handle<WasmInstanceObject> instance,
-                                     Isolate* isolate, uint32_t address) {
+Handle<JSArrayBuffer> GetSharedArrayBuffer(Handle<WasmInstanceObject> instance,
+                                           Isolate* isolate, uint32_t address) {
   DCHECK(instance->has_memory_object());
   Handle<JSArrayBuffer> array_buffer(instance->memory_object().array_buffer(),
                                      isolate);
+
+  // Validation should have failed if the memory was not shared.
+  DCHECK(array_buffer->is_shared());
 
   // Should have trapped if address was OOB
   DCHECK_LT(address, array_buffer->byte_length());
@@ -243,12 +231,8 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
   CONVERT_NUMBER_CHECKED(uint32_t, count, Uint32, args[2]);
   Handle<JSArrayBuffer> array_buffer =
-      GetArrayBuffer(instance, isolate, address);
-  if (array_buffer->is_shared()) {
-    return FutexEmulation::Wake(array_buffer, address, count);
-  } else {
-    return Smi::FromInt(0);
-  }
+      GetSharedArrayBuffer(instance, isolate, address);
+  return FutexEmulation::Wake(array_buffer, address, count);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
@@ -261,12 +245,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
 
   Handle<JSArrayBuffer> array_buffer =
-      GetArrayBuffer(instance, isolate, address);
-
-  // Trap if memory is not shared
-  if (!array_buffer->is_shared()) {
-    return ThrowWasmError(isolate, MessageTemplate::kAtomicsWaitNotAllowed);
-  }
+      GetSharedArrayBuffer(instance, isolate, address);
   return FutexEmulation::WaitWasm32(isolate, array_buffer, address,
                                     expected_value, timeout_ns->AsInt64());
 }
@@ -281,12 +260,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
 
   Handle<JSArrayBuffer> array_buffer =
-      GetArrayBuffer(instance, isolate, address);
-
-  // Trap if memory is not shared
-  if (!array_buffer->is_shared()) {
-    return ThrowWasmError(isolate, MessageTemplate::kAtomicsWaitNotAllowed);
-  }
+      GetSharedArrayBuffer(instance, isolate, address);
   return FutexEmulation::WaitWasm64(isolate, array_buffer, address,
                                     expected_value->AsInt64(),
                                     timeout_ns->AsInt64());
@@ -370,9 +344,6 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_UINT32_ARG_CHECKED(table_index, 1);
   CONVERT_UINT32_ARG_CHECKED(elem_segment_index, 2);
-  static_assert(
-      wasm::kV8MaxWasmTableSize < kSmiMaxValue,
-      "Make sure clamping to Smi range doesn't make an invalid call valid");
   CONVERT_UINT32_ARG_CHECKED(dst, 3);
   CONVERT_UINT32_ARG_CHECKED(src, 4);
   CONVERT_UINT32_ARG_CHECKED(count, 5);
@@ -392,9 +363,6 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_UINT32_ARG_CHECKED(table_dst_index, 1);
   CONVERT_UINT32_ARG_CHECKED(table_src_index, 2);
-  static_assert(
-      wasm::kV8MaxWasmTableSize < kSmiMaxValue,
-      "Make sure clamping to Smi range doesn't make an invalid call valid");
   CONVERT_UINT32_ARG_CHECKED(dst, 3);
   CONVERT_UINT32_ARG_CHECKED(src, 4);
   CONVERT_UINT32_ARG_CHECKED(count, 5);
@@ -472,15 +440,14 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
 
+  const auto undefined = ReadOnlyRoots(isolate).undefined_value();
   WasmFrame* frame = frame_finder.frame();
   auto* debug_info = frame->native_module()->GetDebugInfo();
   if (debug_info->IsStepping(frame)) {
-    debug_info->ClearStepping(isolate);
-    StepAction stepAction = isolate->debug()->last_step_action();
+    debug_info->ClearStepping();
     isolate->debug()->ClearStepping();
-    isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array(),
-                                   stepAction);
-    return ReadOnlyRoots(isolate).undefined_value();
+    isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array());
+    return undefined;
   }
 
   // Check whether we hit a breakpoint.
@@ -488,27 +455,26 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   Handle<FixedArray> breakpoints;
   if (WasmScript::CheckBreakPoints(isolate, script, position)
           .ToHandle(&breakpoints)) {
-    debug_info->ClearStepping(isolate);
-    StepAction stepAction = isolate->debug()->last_step_action();
+    debug_info->ClearStepping();
     isolate->debug()->ClearStepping();
     if (isolate->debug()->break_points_active()) {
       // We hit one or several breakpoints. Notify the debug listeners.
-      isolate->debug()->OnDebugBreak(breakpoints, stepAction);
+      isolate->debug()->OnDebugBreak(breakpoints);
     }
+  } else {
+    // Unused breakpoint. Possible scenarios:
+    // 1. We hit a breakpoint that was already removed,
+    // 2. We hit a stepping breakpoint after resuming,
+    // 3. We hit a stepping breakpoint during a stepOver on a recursive call.
+    // 4. The breakpoint was set in a different isolate.
+    // We can handle the first three cases by simply removing the breakpoint (if
+    // it exists), since this will also recompile the function without the
+    // stepping breakpoints.
+    // TODO(thibaudm/clemensb): handle case 4.
+    debug_info->RemoveBreakpoint(frame->function_index(), position, isolate);
   }
 
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_WasmAllocateRtt) {
-  ClearThreadInWasmScope flag_scope;
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_UINT32_ARG_CHECKED(type_index, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Map, parent, 1);
-  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
-                                      isolate);
-  return *wasm::AllocateSubRtt(isolate, instance, type_index, parent);
+  return undefined;
 }
 
 }  // namespace internal

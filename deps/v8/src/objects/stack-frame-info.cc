@@ -42,27 +42,13 @@ int StackTraceFrame::GetOneBasedColumnNumber(Handle<StackTraceFrame> frame) {
 
 // static
 int StackTraceFrame::GetScriptId(Handle<StackTraceFrame> frame) {
-  Isolate* isolate = frame->GetIsolate();
-
-  // Use FrameInfo if it's already there, but avoid initializing it for just
-  // the script id, as it is much more expensive than just getting this
-  // directly. See GetScriptNameOrSourceUrl() for more detail.
-  int id;
-  if (!frame->frame_info().IsUndefined()) {
-    id = GetFrameInfo(frame)->script_id();
-  } else {
-    FrameArrayIterator it(
-        isolate, handle(FrameArray::cast(frame->frame_array()), isolate),
-        frame->frame_index());
-    DCHECK(it.HasFrame());
-    id = it.Frame()->GetScriptId();
-  }
+  int id = GetFrameInfo(frame)->script_id();
   return id != StackFrameBase::kNone ? id : Message::kNoScriptIdInfo;
 }
 
 // static
-int StackTraceFrame::GetPromiseCombinatorIndex(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->promise_combinator_index();
+int StackTraceFrame::GetPromiseAllIndex(Handle<StackTraceFrame> frame) {
+  return GetFrameInfo(frame)->promise_all_index();
 }
 
 // static
@@ -180,11 +166,6 @@ bool StackTraceFrame::IsAsync(Handle<StackTraceFrame> frame) {
 // static
 bool StackTraceFrame::IsPromiseAll(Handle<StackTraceFrame> frame) {
   return GetFrameInfo(frame)->is_promise_all();
-}
-
-// static
-bool StackTraceFrame::IsPromiseAny(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_promise_any();
 }
 
 // static
@@ -345,7 +326,6 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
   const bool is_toplevel = StackTraceFrame::IsToplevel(frame);
   const bool is_async = StackTraceFrame::IsAsync(frame);
   const bool is_promise_all = StackTraceFrame::IsPromiseAll(frame);
-  const bool is_promise_any = StackTraceFrame::IsPromiseAny(frame);
   const bool is_constructor = StackTraceFrame::IsConstructor(frame);
   // Note: Keep the {is_method_call} predicate in sync with the corresponding
   //       predicate in factory.cc where the StackFrameInfo is created.
@@ -358,13 +338,7 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
   }
   if (is_promise_all) {
     builder->AppendCString("Promise.all (index ");
-    builder->AppendInt(StackTraceFrame::GetPromiseCombinatorIndex(frame));
-    builder->AppendCString(")");
-    return;
-  }
-  if (is_promise_any) {
-    builder->AppendCString("Promise.any (index ");
-    builder->AppendInt(StackTraceFrame::GetPromiseCombinatorIndex(frame));
+    builder->AppendInt(StackTraceFrame::GetPromiseAllIndex(frame));
     builder->AppendCString(")");
     return;
   }

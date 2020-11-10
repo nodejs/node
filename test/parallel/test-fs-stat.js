@@ -25,7 +25,8 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-fs.stat('.', common.mustSucceed(function(stats) {
+fs.stat('.', common.mustCall(function(err, stats) {
+  assert.ifError(err);
   assert.ok(stats.mtime instanceof Date);
   assert.ok(stats.hasOwnProperty('blksize'));
   assert.ok(stats.hasOwnProperty('blocks'));
@@ -35,7 +36,8 @@ fs.stat('.', common.mustSucceed(function(stats) {
   assert.strictEqual(this, undefined);
 }));
 
-fs.lstat('.', common.mustSucceed(function(stats) {
+fs.lstat('.', common.mustCall(function(err, stats) {
+  assert.ifError(err);
   assert.ok(stats.mtime instanceof Date);
   // Confirm that we are not running in the context of the internal binding
   // layer.
@@ -44,10 +46,12 @@ fs.lstat('.', common.mustSucceed(function(stats) {
 }));
 
 // fstat
-fs.open('.', 'r', undefined, common.mustSucceed(function(fd) {
+fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
+  assert.ifError(err);
   assert.ok(fd);
 
-  fs.fstat(fd, common.mustSucceed(function(stats) {
+  fs.fstat(fd, common.mustCall(function(err, stats) {
+    assert.ifError(err);
     assert.ok(stats.mtime instanceof Date);
     fs.close(fd, assert.ifError);
     // Confirm that we are not running in the context of the internal binding
@@ -66,10 +70,11 @@ fs.open('.', 'r', undefined, common.mustSucceed(function(fd) {
 fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   const stats = fs.fstatSync(fd);
   assert.ok(stats.mtime instanceof Date);
-  fs.close(fd, common.mustSucceed());
+  fs.close(fd, common.mustCall(assert.ifError));
 }));
 
-fs.stat(__filename, common.mustSucceed((s) => {
+fs.stat(__filename, common.mustCall(function(err, s) {
+  assert.ifError(err);
   assert.strictEqual(s.isDirectory(), false);
   assert.strictEqual(s.isFile(), true);
   assert.strictEqual(s.isSocket(), false);

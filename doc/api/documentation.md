@@ -38,8 +38,8 @@ The stability indices are as follows:
 > priority.
 
 Use caution when making use of Experimental features, particularly within
-modules. Users may not be aware that experimental features are being used.
-Bugs or behavior changes may surprise users when Experimental API
+modules. End users may not be aware that experimental features are being used.
+Bugs or behavior changes may surprise end users when Experimental API
 modifications occur. To avoid surprises, use of an Experimental feature may need
 a command-line flag. Experimental features may also emit a [warning][].
 
@@ -60,7 +60,7 @@ Most Unix system calls have Windows analogues. Still, behavior differences may
 be unavoidable.
 
 [Semantic Versioning]: https://semver.org/
-[V8 JavaScript engine]: https://v8.dev/
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
-[warning]: process.md#process_event_warning
+[V8 JavaScript engine]: https://v8.dev/
+[warning]: process.html#process_event_warning

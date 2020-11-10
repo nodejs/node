@@ -35,6 +35,7 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+
 RUNTIME_FUNCTION(Runtime_SetShrink) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -79,7 +80,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
 
 #ifdef DEBUG
   DCHECK(key->IsJSReceiver());
-  DCHECK(EphemeronHashTable::IsKey(ReadOnlyRoots(isolate), *key));
+  DCHECK(EphemeronHashTableShape::IsLive(ReadOnlyRoots(isolate), *key));
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()), isolate);
   // Should only be called when shrinking the table is necessary. See
@@ -102,7 +103,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
 
 #ifdef DEBUG
   DCHECK(key->IsJSReceiver());
-  DCHECK(EphemeronHashTable::IsKey(ReadOnlyRoots(isolate), *key));
+  DCHECK(EphemeronHashTableShape::IsLive(ReadOnlyRoots(isolate), *key));
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()), isolate);
   // Should only be called when rehashing or resizing the table is necessary.

@@ -30,14 +30,12 @@
 #include "uv.h"
 #include "internal.h"
 
-/* clang-format off */
 #include <winsock2.h>
 #include <winperf.h>
 #include <iphlpapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <windows.h>
-/* clang-format on */
 #include <userenv.h>
 #include <math.h>
 
@@ -1808,9 +1806,7 @@ int uv_os_uname(uv_utsname_t* buffer) {
     pRtlGetVersion(&os_info);
   } else {
     /* Silence GetVersionEx() deprecation warning. */
-    #ifdef _MSC_VER
     #pragma warning(suppress : 4996)
-    #endif
     if (GetVersionExW(&os_info) == 0) {
       r = uv_translate_sys_error(GetLastError());
       goto error;
@@ -1877,7 +1873,7 @@ int uv_os_uname(uv_utsname_t* buffer) {
                "MINGW32_NT-%u.%u",
                (unsigned int) os_info.dwMajorVersion,
                (unsigned int) os_info.dwMinorVersion);
-  assert((size_t)r < sizeof(buffer->sysname));
+  assert(r < sizeof(buffer->sysname));
 #else
   uv__strscpy(buffer->sysname, "Windows_NT", sizeof(buffer->sysname));
 #endif
@@ -1889,7 +1885,7 @@ int uv_os_uname(uv_utsname_t* buffer) {
                (unsigned int) os_info.dwMajorVersion,
                (unsigned int) os_info.dwMinorVersion,
                (unsigned int) os_info.dwBuildNumber);
-  assert((size_t)r < sizeof(buffer->release));
+  assert(r < sizeof(buffer->release));
 
   /* Populate the machine field. */
   GetSystemInfo(&system_info);

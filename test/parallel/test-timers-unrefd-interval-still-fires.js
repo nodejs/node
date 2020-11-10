@@ -1,5 +1,7 @@
 'use strict';
-// Regression test for https://github.com/nodejs/node-v0.x-archive/issues/8900.
+/*
+ * This test is a regression test for joyent/node#8900.
+ */
 const common = require('../common');
 
 const TEST_DURATION = common.platformTimeout(1000);

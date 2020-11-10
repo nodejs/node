@@ -71,7 +71,7 @@ log_and_run cp -r ${TMP_DIR}/spec/test/js-api/* ${JS_API_TEST_DIR}/tests
 # Generate the proposal tests.
 ###############################################################################
 
-repos='bulk-memory-operations reference-types js-types tail-call'
+repos='bulk-memory-operations reference-types js-types JS-BigInt-integration'
 
 for repo in ${repos}; do
   echo "Process ${repo}"
@@ -95,10 +95,7 @@ for repo in ${repos}; do
       log_and_run ./run.py --wasm ../../interpreter/wasm ${rel_filename} --out _build 2> /dev/null
     fi
   done
-
-  if ls _build/*.js > /dev/null; then
-    log_and_run cp _build/*.js ${SPEC_TEST_DIR}/tests/proposals/${repo}/
-  fi
+  log_and_run cp _build/*.js ${SPEC_TEST_DIR}/tests/proposals/${repo}/
 
   echo ">> Process js-api tests"
   log_and_run mkdir ${JS_API_TEST_DIR}/tests/proposals/${repo}

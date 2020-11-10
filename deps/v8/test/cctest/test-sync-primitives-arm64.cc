@@ -204,8 +204,7 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   TestData t = initial_data;
   Simulator::current(isolate)->Call<void>(code->entry(), &t);
@@ -276,8 +275,7 @@ int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   Simulator::current(isolate)->Call<void>(code->entry(), test_data);
   return Simulator::current(isolate)->wreg(0);
 }

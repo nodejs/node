@@ -34,12 +34,11 @@ class JSConstantCacheTester : public HandleAndZoneScope,
                               public JSGraph {
  public:
   JSConstantCacheTester()
-      : HandleAndZoneScope(kCompressGraphZone),
-        JSCacheTesterHelper(main_zone()),
+      : JSCacheTesterHelper(main_zone()),
         JSGraph(main_isolate(), &main_graph_, &main_common_, &main_javascript_,
                 nullptr, &main_machine_),
         canonical_(main_isolate()),
-        broker_(main_isolate(), main_zone()) {
+        broker_(main_isolate(), main_zone(), false, false) {
     main_graph_.SetStart(main_graph_.NewNode(common()->Start(0)));
     main_graph_.SetEnd(
         main_graph_.NewNode(common()->End(1), main_graph_.start()));

@@ -1197,7 +1197,7 @@ void MacroAssembler::PeekPair(const CPURegister& dst1, const CPURegister& dst2,
 
 void MacroAssembler::PushCalleeSavedRegisters() {
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Pacibsp();
+  Paciasp();
 #endif
 
   {
@@ -1249,7 +1249,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
   }
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Autibsp();
+  Autiasp();
 #endif
 }
 
@@ -1953,13 +1953,7 @@ void TurboAssembler::CallCodeObject(Register code_object) {
 
 void TurboAssembler::JumpCodeObject(Register code_object) {
   LoadCodeObjectEntry(code_object, code_object);
-
-  UseScratchRegisterScope temps(this);
-  if (code_object != x17) {
-    temps.Exclude(x17);
-    Mov(x17, code_object);
-  }
-  Jump(x17);
+  Jump(code_object);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
@@ -1977,7 +1971,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   Adr(x17, &return_location);
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   Add(x16, sp, kSystemPointerSize);
-  Pacib1716();
+  Pacia1716();
 #endif
   Poke(x17, 0);
 
@@ -2269,11 +2263,6 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
                                        DoubleRegister double_input,
                                        StubCallMode stub_mode,
                                        LinkRegisterStatus lr_status) {
-  if (CpuFeatures::IsSupported(JSCVT)) {
-    Fjcvtzs(result.W(), double_input);
-    return;
-  }
-
   Label done;
 
   // Try to convert the double to an int64. If successful, the bottom 32 bits
@@ -2661,7 +2650,7 @@ void TurboAssembler::CheckPageFlag(const Register& object, int mask,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
   And(scratch, object, ~kPageAlignmentMask);
-  Ldr(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
+  Ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
   if (cc == eq) {
     TestAndBranchIfAnySet(scratch, mask, condition_met);
   } else {
@@ -3254,7 +3243,7 @@ void TurboAssembler::RestoreFPAndLR() {
   // We can load the return address directly into x17.
   Add(x16, fp, StandardFrameConstants::kCallerSPOffset);
   Ldp(fp, x17, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  Autib1716();
+  Autia1716();
   Mov(lr, x17);
 #else
   Ldp(fp, lr, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -3267,7 +3256,7 @@ void TurboAssembler::StoreReturnAddressInWasmExitFrame(Label* return_location) {
   Adr(x17, return_location);
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   Add(x16, fp, WasmExitFrameConstants::kCallingPCOffset + kSystemPointerSize);
-  Pacib1716();
+  Pacia1716();
 #endif
   Str(x17, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
 }

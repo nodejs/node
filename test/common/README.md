@@ -314,15 +314,6 @@ If `fn` is not provided, an empty function will be used.
 Returns a function that triggers an `AssertionError` if it is invoked. `msg` is
 used as the error message for the `AssertionError`.
 
-### `mustSucceed([fn])`
-
-* `fn` [&lt;Function>][] default = () => {}
-* return [&lt;Function>][]
-
-Returns a function that accepts arguments `(err, ...args)`. If `err` is not
-`undefined` or `null`, it triggers an `AssertionError`. Otherwise, it calls
-`fn(...args)`.
-
 ### `nodeProcessAborted(exitCode, signal)`
 
 * `exitCode` [&lt;number>][]
@@ -378,10 +369,11 @@ const { spawn } = require('child_process');
 spawn(...common.pwdCommand, { stdio: ['pipe'] });
 ```
 
-### `requireNoPackageJSONAbove()`
+### `rootDir`
 
-Throws an `AssertionError` if a `package.json` file is in any ancestor
-directory. Such files may interfere with proper test functionality.
+* [&lt;string>][]
+
+Path to the 'root' directory. either `/` or `c:\\` (windows)
 
 ### `runWithInvalidFD(func)`
 
@@ -977,7 +969,7 @@ the original WPT harness, see [the WPT tests README][].
 
 ### Class: WPTRunner
 
-A driver class for running WPT with the WPT harness in a worker thread.
+A driver class for running WPT with the WPT harness in a vm.
 
 See [the WPT tests README][] for details.
 

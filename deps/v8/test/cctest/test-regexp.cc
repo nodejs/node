@@ -508,7 +508,7 @@ static bool NotWord(uc16 c) {
 static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* ranges =
-      zone.New<ZoneList<CharacterRange>>(2, &zone);
+      new(&zone) ZoneList<CharacterRange>(2, &zone);
   CharacterRange::AddClassEscape(c, ranges, &zone);
   for (uc32 i = 0; i < (1 << 16); i++) {
     bool in_class = false;
@@ -642,7 +642,8 @@ static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
   Handle<JSRegExp> regexp =
       Handle<JSRegExp>::cast(factory->NewJSObject(constructor));
 
-  factory->SetRegExpIrregexpData(regexp, source, JSRegExp::kNone, 0,
+  factory->SetRegExpIrregexpData(regexp, JSRegExp::IRREGEXP, source,
+                                 JSRegExp::kNone, 0,
                                  JSRegExp::kNoBacktrackLimit);
   regexp->SetDataAt(is_unicode ? JSRegExp::kIrregexpUC16CodeIndex
                                : JSRegExp::kIrregexpLatin1CodeIndex,
@@ -1020,16 +1021,16 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   m.WriteCurrentPositionToRegister(2, 0);
   m.AdvanceCurrentPosition(3);
   m.WriteCurrentPositionToRegister(3, 0);
-  m.CheckNotBackReferenceIgnoreCase(2, false, false, &fail);  // Match "AbC".
-  m.CheckNotBackReferenceIgnoreCase(2, false, false, &fail);  // Match "ABC".
+  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "AbC".
+  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "ABC".
   Label expected_fail;
-  m.CheckNotBackReferenceIgnoreCase(2, false, false, &expected_fail);
+  m.CheckNotBackReferenceIgnoreCase(2, false, &expected_fail);
   m.BindJumpTarget(&fail);
   m.Fail();
 
   m.Bind(&expected_fail);
   m.AdvanceCurrentPosition(3);  // Skip "xYz"
-  m.CheckNotBackReferenceIgnoreCase(2, false, false, &succ);
+  m.CheckNotBackReferenceIgnoreCase(2, false, &succ);
   m.Fail();
 
   m.Bind(&succ);
@@ -1414,7 +1415,7 @@ static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   int count = expected.length();
   ZoneList<CharacterRange>* list =
-      zone.New<ZoneList<CharacterRange>>(count, &zone);
+      new(&zone) ZoneList<CharacterRange>(count, &zone);
   list->Add(input, &zone);
   CharacterRange::AddCaseEquivalents(isolate, &zone, list, false);
   list->Remove(0);  // Remove the input before checking results.
@@ -1485,7 +1486,8 @@ static bool InClass(uc32 c,
 
 TEST(UnicodeRangeSplitter) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  ZoneList<CharacterRange>* base = zone.New<ZoneList<CharacterRange>>(1, &zone);
+  ZoneList<CharacterRange>* base =
+      new(&zone) ZoneList<CharacterRange>(1, &zone);
   base->Add(CharacterRange::Everything(), &zone);
   UnicodeRangeSplitter splitter(base);
   // BMP
@@ -1528,7 +1530,8 @@ TEST(UnicodeRangeSplitter) {
 
 TEST(CanonicalizeCharacterSets) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  ZoneList<CharacterRange>* list = zone.New<ZoneList<CharacterRange>>(4, &zone);
+  ZoneList<CharacterRange>* list =
+      new(&zone) ZoneList<CharacterRange>(4, &zone);
   CharacterSet set(list);
 
   list->Add(CharacterRange::Range(10, 20), &zone);
@@ -2358,7 +2361,7 @@ TEST(UnicodePropertyEscapeCodeSize) {
   } else if (maybe_code.IsCode()) {
     // On x64, excessive inlining produced >360KB.
     CHECK_LT(Code::cast(maybe_code).Size(), kMaxSize);
-    CHECK_EQ(Code::cast(maybe_code).kind(), CodeKind::REGEXP);
+    CHECK_EQ(Code::cast(maybe_code).kind(), Code::REGEXP);
   } else {
     UNREACHABLE();
   }

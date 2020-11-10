@@ -35,7 +35,7 @@ class PromiseBuiltins {
     kPromiseAllResolveElementCapabilitySlot,
 
     // Values array from Promise.all
-    kPromiseAllResolveElementValuesSlot,
+    kPromiseAllResolveElementValuesArraySlot,
 
     kPromiseAllResolveElementLength
   };
@@ -48,7 +48,7 @@ class PromiseBuiltins {
     kPromiseAnyRejectElementCapabilitySlot,
 
     // errors array from Promise.any
-    kPromiseAnyRejectElementErrorsSlot,
+    kPromiseAnyRejectElementErrorsArraySlot,
     kPromiseAnyRejectElementLength
   };
 

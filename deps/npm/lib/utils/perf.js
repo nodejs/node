@@ -1,16 +1,26 @@
-const log = require('npmlog')
-const timings = new Map()
+'use strict'
+var log = require('npmlog')
+var EventEmitter = require('events').EventEmitter
+var perf = new EventEmitter()
+module.exports = perf
 
-process.on('time', (name) => {
-  timings.set(name, Date.now())
-})
+var timings = {}
 
-process.on('timeEnd', (name) => {
-  if (timings.has(name)) {
-    const ms = Date.now() - timings.get(name)
-    process.emit('timing', name, ms)
-    log.timing(name, `Completed in ${ms}ms`)
-    timings.delete(name)
-  } else
+process.on('time', time)
+process.on('timeEnd', timeEnd)
+
+perf.on('time', time)
+perf.on('timeEnd', timeEnd)
+
+function time (name) {
+  timings[name] = Date.now()
+}
+
+function timeEnd (name) {
+  if (name in timings) {
+    perf.emit('timing', name, Date.now() - timings[name])
+    delete timings[name]
+  } else {
     log.silly('timing', "Tried to end timer that doesn't exist:", name)
-})
+  }
+}

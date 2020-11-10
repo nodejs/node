@@ -18,8 +18,6 @@
 extern "C" {
 #endif
 
-const size_t kBrotliShellGaps[] = {132, 57, 23, 10, 4, 1};
-
 BROTLI_BOOL BrotliSetDepth(
     int p0, HuffmanTree* pool, uint8_t* depth, int max_depth) {
   int stack[16];

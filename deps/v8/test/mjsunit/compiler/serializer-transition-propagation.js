@@ -41,11 +41,11 @@ function foo() {
 %PrepareFunctionForOptimization(foo);
 
 // Make 'this.x' access in C megamorhpic.
-var c = new C;
-var d = new D;
-var e = new E;
-var f = new F;
-var g = new G;
+new C;
+new D;
+new E;
+new F;
+new G;
 
 foo();
 foo();

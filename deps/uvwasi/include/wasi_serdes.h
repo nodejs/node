@@ -5,20 +5,21 @@
 
 /* Basic uint{8,16,32,64}_t read/write functions. */
 
-#define BASIC_TYPE(name, type)                                                \
+#define BASIC_TYPE_(name, type)                                               \
   void uvwasi_serdes_write_##name(void* ptr, size_t offset, type value);      \
   type uvwasi_serdes_read_##name(const void* ptr, size_t offset);             \
 
-#define BASIC_TYPE_UVWASI(type) BASIC_TYPE(type, uvwasi_##type)
+#define BASIC_TYPE(type) BASIC_TYPE_(type, type)
+#define BASIC_TYPE_UVWASI(type) BASIC_TYPE_(type, uvwasi_##type)
 
 #define UVWASI_SERDES_SIZE_uint8_t sizeof(uint8_t)
-BASIC_TYPE(uint8_t, uint8_t)
+BASIC_TYPE(uint8_t)
 #define UVWASI_SERDES_SIZE_uint16_t sizeof(uint16_t)
-BASIC_TYPE(uint16_t, uint16_t)
+BASIC_TYPE(uint16_t)
 #define UVWASI_SERDES_SIZE_uint32_t sizeof(uint32_t)
-BASIC_TYPE(uint32_t, uint32_t)
+BASIC_TYPE(uint32_t)
 #define UVWASI_SERDES_SIZE_uint64_t sizeof(uint64_t)
-BASIC_TYPE(uint64_t, uint64_t)
+BASIC_TYPE(uint64_t)
 
 #define UVWASI_SERDES_SIZE_advice_t sizeof(uvwasi_advice_t)
 BASIC_TYPE_UVWASI(advice_t)
@@ -79,6 +80,7 @@ BASIC_TYPE_UVWASI(whence_t)
 
 #undef BASIC_TYPE_UVWASI
 #undef BASIC_TYPE
+#undef BASIC_TYPE_
 
 /* WASI structure read/write functions. */
 
@@ -102,9 +104,6 @@ IOVS_STRUCT(ciovec_t)
 
 #define UVWASI_SERDES_SIZE_iovec_t 8
 IOVS_STRUCT(iovec_t)
-
-#define UVWASI_SERDES_SIZE_dirent_t 24
-STRUCT(dirent_t)
 
 #define UVWASI_SERDES_SIZE_fdstat_t 24
 STRUCT(fdstat_t)

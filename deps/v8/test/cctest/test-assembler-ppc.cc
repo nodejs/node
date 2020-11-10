@@ -60,8 +60,7 @@ TEST(0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -96,8 +95,7 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -144,8 +142,7 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -213,8 +210,7 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -327,7 +323,7 @@ TEST(4) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        Code::STUB,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -387,7 +383,7 @@ TEST(5) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        Code::STUB,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -422,7 +418,7 @@ TEST(6) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        Code::STUB,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -497,7 +493,7 @@ static void TestRoundingMode(VCVTTypes types,
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        Code::STUB,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -684,7 +680,7 @@ TEST(8) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        Code::STUB,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -799,7 +795,7 @@ TEST(9) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        Code::STUB,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -910,7 +906,7 @@ TEST(10) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        Code::STUB,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -1007,7 +1003,7 @@ TEST(11) {
   assm.GetCode(isolate, &desc);
   Object code = isolate->heap()->CreateCode(
       desc,
-      CodeKind::STUB,
+      Code::STUB,
       Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG

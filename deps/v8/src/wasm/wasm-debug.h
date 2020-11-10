@@ -91,8 +91,6 @@ class DebugSideTable {
       return values_[index].reg_code;
     }
 
-    void Print(std::ostream&) const;
-
    private:
     int pc_offset_;
     std::vector<Value> values_;
@@ -122,8 +120,6 @@ class DebugSideTable {
 
   int num_locals() const { return num_locals_; }
 
-  void Print(std::ostream&) const;
-
  private:
   struct EntryPositionLess {
     bool operator()(const Entry& a, const Entry& b) const {
@@ -149,11 +145,11 @@ class V8_EXPORT_PRIVATE DebugInfo {
   // For the frame inspection methods below:
   // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
   // the {WasmDebugBreak} frame (if any).
-  int GetNumLocals(Address pc);
-  WasmValue GetLocalValue(int local, Address pc, Address fp,
+  int GetNumLocals(Isolate*, Address pc);
+  WasmValue GetLocalValue(int local, Isolate*, Address pc, Address fp,
                           Address debug_break_fp);
-  int GetStackDepth(Address pc);
-  WasmValue GetStackValue(int index, Address pc, Address fp,
+  int GetStackDepth(Isolate*, Address pc);
+  WasmValue GetStackValue(int index, Isolate*, Address pc, Address fp,
                           Address debug_break_fp);
 
   Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp,
@@ -168,19 +164,13 @@ class V8_EXPORT_PRIVATE DebugInfo {
 
   void PrepareStep(Isolate*, StackFrameId);
 
-  void ClearStepping(Isolate*);
+  void ClearStepping();
 
   bool IsStepping(WasmFrame*);
 
   void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
   void RemoveDebugSideTables(Vector<WasmCode* const>);
-
-  // Return the debug side table for the given code object, but only if it has
-  // already been created. This will never trigger generation of the table.
-  DebugSideTable* GetDebugSideTableIfExists(const WasmCode*) const;
-
-  void RemoveIsolate(Isolate*);
 
  private:
   std::unique_ptr<DebugInfoImpl> impl_;

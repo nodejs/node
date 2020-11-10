@@ -155,5 +155,3 @@ std::vector<std::u16string> ListObjectClasses() {
   }
   return result;
 }
-
-const char* BitsetName(uint64_t payload) { return d::BitsetName(payload); }

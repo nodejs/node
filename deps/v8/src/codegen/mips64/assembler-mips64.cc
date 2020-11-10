@@ -3596,7 +3596,7 @@ void Assembler::insve_d(MSARegister wd, uint32_t n, MSARegister ws) {
 }
 
 void Assembler::move_v(MSARegister wd, MSARegister ws) {
-  DCHECK(IsEnabled(MIPS_SIMD));
+  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
   DCHECK(ws.is_valid() && wd.is_valid());
   Instr instr = MSA | MOVE_V | (ws.code() << kWsShift) |
                 (wd.code() << kWdShift) | MSA_ELM_MINOR;
@@ -3604,7 +3604,7 @@ void Assembler::move_v(MSARegister wd, MSARegister ws) {
 }
 
 void Assembler::ctcmsa(MSAControlRegister cd, Register rs) {
-  DCHECK(IsEnabled(MIPS_SIMD));
+  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
   DCHECK(cd.is_valid() && rs.is_valid());
   Instr instr = MSA | CTCMSA | (rs.code() << kWsShift) |
                 (cd.code() << kWdShift) | MSA_ELM_MINOR;
@@ -3612,7 +3612,7 @@ void Assembler::ctcmsa(MSAControlRegister cd, Register rs) {
 }
 
 void Assembler::cfcmsa(Register rd, MSAControlRegister cs) {
-  DCHECK(IsEnabled(MIPS_SIMD));
+  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
   DCHECK(rd.is_valid() && cs.is_valid());
   Instr instr = MSA | CFCMSA | (cs.code() << kWsShift) |
                 (rd.code() << kWdShift) | MSA_ELM_MINOR;
@@ -3763,20 +3763,17 @@ void Assembler::GrowBuffer() {
 
 void Assembler::db(uint8_t data) {
   CheckForEmitInForbiddenSlot();
-  *reinterpret_cast<uint8_t*>(pc_) = data;
-  pc_ += sizeof(uint8_t);
+  EmitHelper(data);
 }
 
 void Assembler::dd(uint32_t data) {
   CheckForEmitInForbiddenSlot();
-  *reinterpret_cast<uint32_t*>(pc_) = data;
-  pc_ += sizeof(uint32_t);
+  EmitHelper(data);
 }
 
 void Assembler::dq(uint64_t data) {
   CheckForEmitInForbiddenSlot();
-  *reinterpret_cast<uint64_t*>(pc_) = data;
-  pc_ += sizeof(uint64_t);
+  EmitHelper(data);
 }
 
 void Assembler::dd(Label* label) {
@@ -3859,12 +3856,8 @@ void Assembler::CheckTrampolinePool() {
         }
       }
       nop();
-      // If unbound_labels_count_ is big enough, label after_pool will
-      // need a trampoline too, so we must create the trampoline before
-      // the bind operation to make sure function 'bind' can get this
-      // information.
-      trampoline_ = Trampoline(pool_start, unbound_labels_count_);
       bind(&after_pool);
+      trampoline_ = Trampoline(pool_start, unbound_labels_count_);
 
       trampoline_emitted_ = true;
       // As we are only going to emit trampoline once, we need to prevent any

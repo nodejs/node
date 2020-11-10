@@ -13,7 +13,6 @@
 
 #include "include/v8config.h"
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -81,20 +80,12 @@ class StdoutStream : public std::ostream {
   StdoutStream() : std::ostream(&stream_) {}
 
  private:
-  static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
-
   AndroidLogStream stream_;
-  base::RecursiveMutexGuard mutex_guard_{GetStdoutMutex()};
 };
 #else
 class StdoutStream : public OFStream {
  public:
   StdoutStream() : OFStream(stdout) {}
-
- private:
-  static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
-
-  base::RecursiveMutexGuard mutex_guard_{GetStdoutMutex()};
 };
 #endif
 

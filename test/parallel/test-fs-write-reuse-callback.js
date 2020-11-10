@@ -19,7 +19,8 @@ const size = 16 * 1024;
 const writes = 1000;
 let done = 0;
 
-const ondone = common.mustSucceed(() => {
+const ondone = common.mustCall((err) => {
+  assert.ifError(err);
   if (++done < writes) {
     if (done % 25 === 0) global.gc();
     setImmediate(write);
@@ -34,5 +35,5 @@ const ondone = common.mustSucceed(() => {
 write();
 function write() {
   const buf = Buffer.alloc(size, 'x');
-  fs.write(fd, buf, 0, buf.length, -1, ondone);
+  fs.write(fd, buf, 0, buf.size, -1, ondone);
 }

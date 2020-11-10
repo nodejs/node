@@ -3,21 +3,12 @@
 // found in the LICENSE file.
 
 import { Sequence } from "../src/source-resolver";
-import { createElement } from "../src/util";
+import { isIterable } from "../src/util";
 import { TextView } from "../src/text-view";
-import { RangeView } from "../src/range-view";
 
 export class SequenceView extends TextView {
   sequence: Sequence;
   searchInfo: Array<any>;
-  phaseSelect: HTMLSelectElement;
-  numInstructions: number;
-  currentPhaseIndex: number;
-  phaseIndexes: Set<number>;
-  isShown: boolean;
-  rangeView: RangeView;
-  showRangeView: boolean;
-  toggleRangeViewEl: HTMLElement;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -29,12 +20,6 @@ export class SequenceView extends TextView {
 
   constructor(parentId, broker) {
     super(parentId, broker);
-    this.numInstructions = 0;
-    this.phaseIndexes = new Set<number>();
-    this.isShown = false;
-    this.showRangeView = false;
-    this.rangeView = null;
-    this.toggleRangeViewEl = this.elementForToggleRangeView();
   }
 
   attachSelection(s) {
@@ -52,58 +37,34 @@ export class SequenceView extends TextView {
     return this.selection.detachSelection();
   }
 
-  show() {
-    this.currentPhaseIndex = this.phaseSelect.selectedIndex;
-    if (!this.isShown) {
-      this.isShown = true;
-      this.phaseIndexes.add(this.currentPhaseIndex);
-      this.container.appendChild(this.divNode);
-      this.container.getElementsByClassName("graph-toolbox")[0].appendChild(this.toggleRangeViewEl);
-    }
-    if (this.showRangeView) this.rangeView.show();
-  }
-
-  hide() {
-    // A single SequenceView object is used for two phases (i.e before and after
-    // register allocation), tracking the indexes lets the redundant hides and
-    // shows be avoided when switching between the two.
-    this.currentPhaseIndex = this.phaseSelect.selectedIndex;
-    if (!this.phaseIndexes.has(this.currentPhaseIndex)) {
-      this.isShown = false;
-      this.container.removeChild(this.divNode);
-      this.container.getElementsByClassName("graph-toolbox")[0].removeChild(this.toggleRangeViewEl);
-      if (this.showRangeView) this.rangeView.hide();
-    }
-  }
-
-  onresize() {
-    if (this.showRangeView) this.rangeView.onresize();
-  }
-
   initializeContent(data, rememberedSelection) {
     this.divNode.innerHTML = '';
     this.sequence = data.sequence;
     this.searchInfo = [];
-    this.divNode.onclick = (e: MouseEvent) => {
+    this.divNode.addEventListener('click', (e: MouseEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
       const instructionId = Number.parseInt(e.target.dataset.instructionId, 10);
       if (!instructionId) return;
       if (!e.shiftKey) this.broker.broadcastClear(null);
       this.broker.broadcastInstructionSelect(null, [instructionId], true);
-    };
-    this.phaseSelect = (document.getElementById('phase-select') as HTMLSelectElement);
-    this.currentPhaseIndex = this.phaseSelect.selectedIndex;
-
+    });
     this.addBlocks(this.sequence.blocks);
-    const lastBlock = this.sequence.blocks[this.sequence.blocks.length - 1];
-    this.numInstructions = lastBlock.instructions[lastBlock.instructions.length - 1].id + 1;
-    this.addRangeView();
     this.attachSelection(rememberedSelection);
     this.show();
   }
 
   elementForBlock(block) {
     const view = this;
+    function createElement(tag: string, cls: string | Array<string>, content?: string) {
+      const el = document.createElement(tag);
+      if (isIterable(cls)) {
+        for (const c of cls) el.classList.add(c);
+      } else {
+        el.classList.add(cls);
+      }
+      if (content != undefined) el.innerHTML = content;
+      return el;
+    }
 
     function mkLinkHandler(id, handler) {
       return function (e) {
@@ -123,33 +84,16 @@ export class SequenceView extends TextView {
       return mkLinkHandler(text, view.selectionHandler);
     }
 
-    function elementForOperandWithSpan(span, text, searchInfo, isVirtual) {
-      const selectionText = isVirtual ? "virt_" + text : text;
-      span.onclick = mkOperandLinkHandler(selectionText);
-      searchInfo.push(text);
-      view.addHtmlElementForNodeId(selectionText, span);
-      const container = createElement("div", "");
-      container.appendChild(span);
-      return container;
-    }
-
     function elementForOperand(operand, searchInfo) {
-      let isVirtual = false;
-      let className = "parameter tag clickable " + operand.type;
-      if (operand.text[0] == 'v' && !(operand.tooltip && operand.tooltip.includes("Float"))) {
-        isVirtual = true;
-        className += " virtual-reg";
-      }
-      const span = createElement("span", className, operand.text);
+      const text = operand.text;
+      const operandEl = createElement("div", ["parameter", "tag", "clickable", operand.type], text);
       if (operand.tooltip) {
-        span.setAttribute("title", operand.tooltip);
+        operandEl.setAttribute("title", operand.tooltip);
       }
-      return elementForOperandWithSpan(span, operand.text, searchInfo, isVirtual);
-    }
-
-    function elementForPhiOperand(text, searchInfo) {
-      const span = createElement("span", "parameter tag clickable virtual-reg", text);
-      return elementForOperandWithSpan(span, text, searchInfo, true);
+      operandEl.onclick = mkOperandLinkHandler(text);
+      searchInfo.push(text);
+      view.addHtmlElementForNodeId(text, operandEl);
+      return operandEl;
     }
 
     function elementForInstruction(instruction, searchInfo) {
@@ -171,7 +115,7 @@ export class SequenceView extends TextView {
       const gapEl = createElement("div", "gap", "gap");
       let hasGaps = false;
       for (const gap of instruction.gaps) {
-        const moves = createElement("div", "comma-sep-list gap-move");
+        const moves = createElement("div", ["comma-sep-list", "gap-move"]);
         for (const move of gap) {
           hasGaps = true;
           const moveEl = createElement("div", "move");
@@ -193,7 +137,7 @@ export class SequenceView extends TextView {
       instContentsEl.appendChild(instEl);
 
       if (instruction.outputs.length > 0) {
-        const outputs = createElement("div", "comma-sep-list input-output-list");
+        const outputs = createElement("div", ["comma-sep-list", "input-output-list"]);
         for (const output of instruction.outputs) {
           const outputEl = elementForOperand(output, searchInfo);
           outputs.appendChild(outputEl);
@@ -203,8 +147,8 @@ export class SequenceView extends TextView {
         instEl.appendChild(assignEl);
       }
 
-      const text = instruction.opcode + instruction.flags;
-      const instLabel = createElement("div", "node-label", text);
+      let text = instruction.opcode + instruction.flags;
+      const instLabel = createElement("div", "node-label", text)
       if (instruction.opcode == "ArchNop" && instruction.outputs.length == 1 && instruction.outputs[0].tooltip) {
         instLabel.innerText = instruction.outputs[0].tooltip;
       }
@@ -214,7 +158,7 @@ export class SequenceView extends TextView {
       instEl.appendChild(instLabel);
 
       if (instruction.inputs.length > 0) {
-        const inputs = createElement("div", "comma-sep-list input-output-list");
+        const inputs = createElement("div", ["comma-sep-list", "input-output-list"]);
         for (const input of instruction.inputs) {
           const inputEl = elementForOperand(input, searchInfo);
           inputs.appendChild(inputEl);
@@ -223,7 +167,7 @@ export class SequenceView extends TextView {
       }
 
       if (instruction.temps.length > 0) {
-        const temps = createElement("div", "comma-sep-list input-output-list temps");
+        const temps = createElement("div", ["comma-sep-list", "input-output-list", "temps"]);
         for (const temp of instruction.temps) {
           const tempEl = elementForOperand(temp, searchInfo);
           temps.appendChild(tempEl);
@@ -237,12 +181,12 @@ export class SequenceView extends TextView {
     const sequenceBlock = createElement("div", "schedule-block");
     sequenceBlock.classList.toggle("deferred", block.deferred);
 
-    const blockId = createElement("div", "block-id com clickable", block.id);
+    const blockId = createElement("div", ["block-id", "com", "clickable"], block.id);
     blockId.onclick = mkBlockLinkHandler(block.id);
     sequenceBlock.appendChild(blockId);
-    const blockPred = createElement("div", "predecessor-list block-list comma-sep-list");
+    const blockPred = createElement("div", ["predecessor-list", "block-list", "comma-sep-list"]);
     for (const pred of block.predecessors) {
-      const predEl = createElement("div", "block-id com clickable", pred);
+      const predEl = createElement("div", ["block-id", "com", "clickable"], pred);
       predEl.onclick = mkBlockLinkHandler(pred);
       blockPred.appendChild(predEl);
     }
@@ -267,7 +211,7 @@ export class SequenceView extends TextView {
       phiEl.appendChild(assignEl);
 
       for (const input of phi.operands) {
-        const inputEl = elementForPhiOperand(input, this.searchInfo);
+        const inputEl = createElement("div", ["parameter", "tag", "clickable"], input);
         phiEl.appendChild(inputEl);
       }
     }
@@ -277,9 +221,9 @@ export class SequenceView extends TextView {
       instructions.appendChild(elementForInstruction(instruction, this.searchInfo));
     }
     sequenceBlock.appendChild(instructions);
-    const blockSucc = createElement("div", "successor-list block-list comma-sep-list");
+    const blockSucc = createElement("div", ["successor-list", "block-list", "comma-sep-list"]);
     for (const succ of block.successors) {
-      const succEl = createElement("div", "block-id com clickable", succ);
+      const succEl = createElement("div", ["block-id", "com", "clickable"], succ);
       succEl.onclick = mkBlockLinkHandler(succ);
       blockSucc.appendChild(succEl);
     }
@@ -293,63 +237,6 @@ export class SequenceView extends TextView {
       const blockEl = this.elementForBlock(block);
       this.divNode.appendChild(blockEl);
     }
-  }
-
-  addRangeView() {
-    const preventRangeView = reason => {
-      const toggleRangesInput = this.toggleRangeViewEl.firstChild as HTMLInputElement;
-      if (this.rangeView) {
-        toggleRangesInput.checked = false;
-        this.toggleRangeView(toggleRangesInput);
-      }
-      toggleRangesInput.disabled = true;
-      this.toggleRangeViewEl.style.textDecoration = "line-through";
-      this.toggleRangeViewEl.setAttribute("title", reason);
-    };
-
-    if (this.sequence.register_allocation) {
-      if (!this.rangeView) {
-        this.rangeView = new RangeView(this);
-      }
-      const source = this.sequence.register_allocation;
-      if (source.fixedLiveRanges.size == 0 && source.liveRanges.size == 0) {
-        preventRangeView("No live ranges to show");
-      } else if (this.numInstructions >= 249) {
-        // This is due to the css grid-column being limited to 1000 columns.
-        // Performance issues would otherwise impose some limit.
-        // TODO(george.wort@arm.com): Allow the user to specify an instruction range
-        //                            to display that spans less than 249 instructions.
-        preventRangeView(
-          "Live range display is only supported for sequences with less than 249 instructions");
-      }
-      if (this.showRangeView) {
-        this.rangeView.initializeContent(this.sequence.blocks);
-      }
-    } else {
-      preventRangeView("No live range data provided");
-    }
-  }
-
-  elementForToggleRangeView() {
-    const toggleRangeViewEl = createElement("label", "", "show live ranges");
-    const toggleRangesInput = createElement("input", "range-toggle-show") as HTMLInputElement;
-    toggleRangesInput.setAttribute("type", "checkbox");
-    toggleRangesInput.oninput = () => this.toggleRangeView(toggleRangesInput);
-    toggleRangeViewEl.insertBefore(toggleRangesInput, toggleRangeViewEl.firstChild);
-    return toggleRangeViewEl;
-  }
-
-  toggleRangeView(toggleRangesInput: HTMLInputElement) {
-    toggleRangesInput.disabled = true;
-    this.showRangeView = toggleRangesInput.checked;
-    if (this.showRangeView) {
-      this.rangeView.initializeContent(this.sequence.blocks);
-      this.rangeView.show();
-    } else {
-      this.rangeView.hide();
-    }
-    window.dispatchEvent(new Event('resize'));
-    toggleRangesInput.disabled = false;
   }
 
   searchInputAction(searchBar, e) {

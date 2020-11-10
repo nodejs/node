@@ -12,8 +12,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/execution/local-isolate.h"
-#include "src/handles/persistent-handles.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/logging/code-events.h"
 #include "src/objects/contexts.h"
 #include "src/parsing/parse-info.h"
@@ -44,10 +43,6 @@ class WorkerThreadRuntimeCallStats;
 using UnoptimizedCompilationJobList =
     std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>;
 
-inline bool ShouldSpawnExtraNativeContextIndependentCompilationJob() {
-  return FLAG_turbo_nci && !FLAG_turbo_nci_as_highest_tier;
-}
-
 // The V8 compiler API.
 //
 // This is the central hub for dispatching to the various compilers within V8.
@@ -73,8 +68,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       IsCompiledScope* is_compiled_scope);
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
-  static bool CompileOptimized(Handle<JSFunction> function,
-                               ConcurrencyMode mode, CodeKind code_kind);
+  static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
 
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because
@@ -202,7 +196,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 // thread. The current state of the job can be checked using {state()}.
 class V8_EXPORT_PRIVATE CompilationJob {
  public:
-  enum Status { SUCCEEDED, FAILED, RETRY_ON_MAIN_THREAD };
+  enum Status { SUCCEEDED, FAILED };
   enum class State {
     kReadyToPrepare,
     kReadyToExecute,
@@ -224,16 +218,10 @@ class V8_EXPORT_PRIVATE CompilationJob {
   }
 
   V8_WARN_UNUSED_RESULT Status UpdateState(Status status, State next_state) {
-    switch (status) {
-      case SUCCEEDED:
-        state_ = next_state;
-        break;
-      case FAILED:
-        state_ = State::kFailed;
-        break;
-      case RETRY_ON_MAIN_THREAD:
-        // Don't change the state, we'll re-try on the main thread.
-        break;
+    if (status == SUCCEEDED) {
+      state_ = next_state;
+    } else {
+      state_ = State::kFailed;
     }
     return status;
   }
@@ -253,12 +241,17 @@ class V8_EXPORT_PRIVATE CompilationJob {
 // Either of phases can either fail or succeed.
 class UnoptimizedCompilationJob : public CompilationJob {
  public:
+  enum class CanOffThreadFinalize : bool { kYes = true, kNo = false };
+
   UnoptimizedCompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
-                            UnoptimizedCompilationInfo* compilation_info)
+                            UnoptimizedCompilationInfo* compilation_info,
+                            CanOffThreadFinalize can_off_thread_finalize)
       : CompilationJob(State::kReadyToExecute),
         stack_limit_(stack_limit),
         parse_info_(parse_info),
-        compilation_info_(compilation_info) {}
+        compilation_info_(compilation_info),
+        can_off_thread_finalize_(can_off_thread_finalize ==
+                                 CanOffThreadFinalize::kYes) {}
 
   // Executes the compile job. Can be called on a background thread.
   V8_WARN_UNUSED_RESULT Status ExecuteJob();
@@ -267,21 +260,16 @@ class UnoptimizedCompilationJob : public CompilationJob {
   V8_WARN_UNUSED_RESULT Status
   FinalizeJob(Handle<SharedFunctionInfo> shared_info, Isolate* isolate);
 
-  // Finalizes the compile job. Can be called on a background thread, and might
-  // return RETRY_ON_MAIN_THREAD if the finalization can't be run on the
-  // background thread, and should instead be retried on the foreground thread.
-  V8_WARN_UNUSED_RESULT Status
-  FinalizeJob(Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate);
+  // Finalizes the compile job. Can be called on a background thread.
+  V8_WARN_UNUSED_RESULT Status FinalizeJob(
+      Handle<SharedFunctionInfo> shared_info, OffThreadIsolate* isolate);
 
   void RecordCompilationStats(Isolate* isolate) const;
   void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                  Handle<SharedFunctionInfo> shared,
                                  Isolate* isolate) const;
 
-  ParseInfo* parse_info() const {
-    DCHECK_NOT_NULL(parse_info_);
-    return parse_info_;
-  }
+  ParseInfo* parse_info() const { return parse_info_; }
   UnoptimizedCompilationInfo* compilation_info() const {
     return compilation_info_;
   }
@@ -295,7 +283,7 @@ class UnoptimizedCompilationJob : public CompilationJob {
     return time_taken_to_finalize_;
   }
 
-  void ClearParseInfo() { parse_info_ = nullptr; }
+  bool can_off_thread_finalize() const { return can_off_thread_finalize_; }
 
  protected:
   // Overridden by the actual implementation.
@@ -303,7 +291,7 @@ class UnoptimizedCompilationJob : public CompilationJob {
   virtual Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
                                  Isolate* isolate) = 0;
   virtual Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
-                                 LocalIsolate* isolate) = 0;
+                                 OffThreadIsolate* isolate) = 0;
 
  private:
   uintptr_t stack_limit_;
@@ -311,6 +299,7 @@ class UnoptimizedCompilationJob : public CompilationJob {
   UnoptimizedCompilationInfo* compilation_info_;
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
+  bool can_off_thread_finalize_;
 };
 
 // A base class for optimized compilation jobs.
@@ -380,15 +369,25 @@ class FinalizeUnoptimizedCompilationData {
                                      base::TimeDelta time_taken_to_finalize)
       : time_taken_to_execute_(time_taken_to_execute),
         time_taken_to_finalize_(time_taken_to_finalize),
-        function_handle_(function_handle) {}
+        function_handle_(function_handle),
+        handle_state_(kHandle) {}
 
-  FinalizeUnoptimizedCompilationData(LocalIsolate* isolate,
+  FinalizeUnoptimizedCompilationData(OffThreadIsolate* isolate,
                                      Handle<SharedFunctionInfo> function_handle,
                                      base::TimeDelta time_taken_to_execute,
-                                     base::TimeDelta time_taken_to_finalize);
+                                     base::TimeDelta time_taken_to_finalize)
+      : time_taken_to_execute_(time_taken_to_execute),
+        time_taken_to_finalize_(time_taken_to_finalize),
+        function_transfer_handle_(isolate->TransferHandle(function_handle)),
+        handle_state_(kTransferHandle) {}
 
   Handle<SharedFunctionInfo> function_handle() const {
-    return function_handle_;
+    switch (handle_state_) {
+      case kHandle:
+        return function_handle_;
+      case kTransferHandle:
+        return function_transfer_handle_.ToHandle();
+    }
   }
 
   base::TimeDelta time_taken_to_execute() const {
@@ -401,51 +400,15 @@ class FinalizeUnoptimizedCompilationData {
  private:
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
-  Handle<SharedFunctionInfo> function_handle_;
+  union {
+    Handle<SharedFunctionInfo> function_handle_;
+    OffThreadTransferHandle<SharedFunctionInfo> function_transfer_handle_;
+  };
+  enum { kHandle, kTransferHandle } handle_state_;
 };
 
 using FinalizeUnoptimizedCompilationDataList =
     std::vector<FinalizeUnoptimizedCompilationData>;
-
-class DeferredFinalizationJobData {
- public:
-  DeferredFinalizationJobData(Isolate* isolate,
-                              Handle<SharedFunctionInfo> function_handle,
-                              std::unique_ptr<UnoptimizedCompilationJob> job) {
-    UNREACHABLE();
-  }
-  DeferredFinalizationJobData(LocalIsolate* isolate,
-                              Handle<SharedFunctionInfo> function_handle,
-                              std::unique_ptr<UnoptimizedCompilationJob> job);
-
-  Handle<SharedFunctionInfo> function_handle() const {
-    return function_handle_;
-  }
-
-  UnoptimizedCompilationJob* job() const { return job_.get(); }
-
- private:
-  Handle<SharedFunctionInfo> function_handle_;
-  std::unique_ptr<UnoptimizedCompilationJob> job_;
-};
-
-// A wrapper around a OptimizedCompilationInfo that detaches the Handles from
-// the underlying PersistentHandlesScope and stores them in info_ on
-// destruction.
-class CompilationHandleScope final {
- public:
-  explicit CompilationHandleScope(Isolate* isolate,
-                                  OptimizedCompilationInfo* info)
-      : persistent_(isolate), info_(info) {}
-  ~CompilationHandleScope();
-
- private:
-  PersistentHandlesScope persistent_;
-  OptimizedCompilationInfo* info_;
-};
-
-using DeferredFinalizationJobDataList =
-    std::vector<DeferredFinalizationJobData>;
 
 class V8_EXPORT_PRIVATE BackgroundCompileTask {
  public:
@@ -472,30 +435,33 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
     return info_.get();
   }
   Parser* parser() { return parser_.get(); }
-  UnoptimizedCompilationJobList* compilation_jobs() {
-    return &compilation_jobs_;
+  UnoptimizedCompilationJob* outer_function_job() {
+    return outer_function_job_.get();
+  }
+  UnoptimizedCompilationJobList* inner_function_jobs() {
+    return &inner_function_jobs_;
   }
   UnoptimizedCompileFlags flags() const { return flags_; }
-  UnoptimizedCompileState* compile_state() { return &compile_state_; }
+  const UnoptimizedCompileState* compile_state() const {
+    return &compile_state_;
+  }
   LanguageMode language_mode() { return language_mode_; }
   bool finalize_on_background_thread() {
     return finalize_on_background_thread_;
+  }
+  OffThreadIsolate* off_thread_isolate() { return off_thread_isolate_.get(); }
+  MaybeHandle<SharedFunctionInfo> outer_function_sfi() {
+    DCHECK_NOT_NULL(off_thread_isolate_);
+    return outer_function_sfi_.ToHandle();
+  }
+  Handle<Script> script() {
+    DCHECK_NOT_NULL(off_thread_isolate_);
+    return script_.ToHandle();
   }
   FinalizeUnoptimizedCompilationDataList*
   finalize_unoptimized_compilation_data() {
     return &finalize_unoptimized_compilation_data_;
   }
-
-  // Jobs which could not be finalized in the background task, and need to be
-  // finalized on the main thread.
-  DeferredFinalizationJobDataList* jobs_to_retry_finalization_on_main_thread() {
-    return &jobs_to_retry_finalization_on_main_thread_;
-  }
-
-  // Getters for the off-thread finalization results, that create main-thread
-  // handles to the objects.
-  MaybeHandle<SharedFunctionInfo> GetOuterFunctionSfi(Isolate* isolate);
-  Handle<Script> GetScript(Isolate* isolate);
 
  private:
   // Data needed for parsing, and data needed to to be passed between thread
@@ -507,19 +473,17 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   std::unique_ptr<Parser> parser_;
 
   // Data needed for finalizing compilation after background compilation.
-  UnoptimizedCompilationJobList compilation_jobs_;
+  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job_;
+  UnoptimizedCompilationJobList inner_function_jobs_;
 
   // Data needed for merging onto the main thread after background finalization.
   // TODO(leszeks): When these are available, the above fields are not. We
   // should add some stricter type-safety or DCHECKs to ensure that the user of
   // the task knows this.
-  Isolate* isolate_for_local_isolate_;
-  std::unique_ptr<PersistentHandles> persistent_handles_;
-  MaybeHandle<SharedFunctionInfo> outer_function_sfi_;
-  Handle<Script> script_;
-  IsCompiledScope is_compiled_scope_;
+  std::unique_ptr<OffThreadIsolate> off_thread_isolate_;
+  OffThreadTransferMaybeHandle<SharedFunctionInfo> outer_function_sfi_;
+  OffThreadTransferHandle<Script> script_;
   FinalizeUnoptimizedCompilationDataList finalize_unoptimized_compilation_data_;
-  DeferredFinalizationJobDataList jobs_to_retry_finalization_on_main_thread_;
 
   // Single function data for top-level function compilation.
   int start_position_;

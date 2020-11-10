@@ -1,6 +1,5 @@
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';
-import { sep } from 'path';
 
 import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
 import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
@@ -33,9 +32,6 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       { default: 'self-cjs' } : { default: 'self-mjs' }],
     // Resolve self sugar
     ['pkgexports-sugar', { default: 'main' }],
-    // Path patterns
-    ['pkgexports/subpath/sub-dir1', { default: 'main' }],
-    ['pkgexports/features/dir1', { default: 'main' }]
   ]);
 
   if (isRequire) {
@@ -139,9 +135,9 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   const notFoundExports = new Map([
     // Non-existing file
-    ['pkgexports/sub/not-a-file.js', `pkgexports${sep}not-a-file.js`],
+    ['pkgexports/sub/not-a-file.js', 'pkgexports/sub/not-a-file.js'],
     // No extension lookups
-    ['pkgexports/no-ext', `pkgexports${sep}asdf`],
+    ['pkgexports/no-ext', 'pkgexports/no-ext'],
   ]);
 
   if (!isRequire) {
@@ -157,8 +153,10 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   for (const [specifier, request] of notFoundExports) {
     loadFixture(specifier).catch(mustCall((err) => {
       strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
-      assertIncludes(err.message, request);
-      assertStartsWith(err.message, 'Cannot find module');
+      // ESM returns a full file path
+      assertStartsWith(err.message, isRequire ?
+        `Cannot find module '${request}'` :
+        'Cannot find module');
     }));
   }
 

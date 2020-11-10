@@ -65,7 +65,6 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
   Reduction ReduceIncBlockCounter(Node* node);
-  Reduction ReduceGetImportMetaObject(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);

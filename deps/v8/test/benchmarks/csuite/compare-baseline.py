@@ -189,7 +189,7 @@ def ProcessResults(opts, results, baselines):
       PrintSeparator(opts, baselines, False)
 
 def ProcessFile(file_path):
-  file_reader = csv.reader(open(file_path, 'r'), delimiter=',')
+  file_reader = csv.reader(open(file_path, 'rb'), delimiter=',')
   benchmark_results = {}
   current_rows = []
   for row in file_reader:

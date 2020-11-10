@@ -72,7 +72,6 @@ class JSTypeHintLowering {
                                          Node* control) {
       DCHECK_NOT_NULL(effect);
       DCHECK_NOT_NULL(control);
-      DCHECK(value->op()->HasProperty(Operator::kNoThrow));
       return LoweringResult(LoweringResultKind::kSideEffectFree, value, effect,
                             control);
     }

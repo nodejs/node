@@ -1,0 +1,64 @@
+{
+  "_args": [
+    [
+      "slide@1.1.6",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "slide@1.1.6",
+  "_id": "slide@1.1.6",
+  "_inBundle": false,
+  "_integrity": "sha1-VusCfWW00tzmyy4tMsTUr8nh1wc=",
+  "_location": "/slide",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "slide@1.1.6",
+    "name": "slide",
+    "escapedName": "slide",
+    "rawSpec": "1.1.6",
+    "saveSpec": null,
+    "fetchSpec": "1.1.6"
+  },
+  "_requiredBy": [
+    "/",
+    "/gentle-fs",
+    "/npm-lifecycle",
+    "/npm-registry-client",
+    "/read-installed"
+  ],
+  "_resolved": "https://registry.npmjs.org/slide/-/slide-1.1.6.tgz",
+  "_spec": "1.1.6",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/slide-flow-control/issues"
+  },
+  "contributors": [
+    {
+      "name": "S. Sriram",
+      "email": "ssriram@gmail.com",
+      "url": "http://www.565labs.com"
+    }
+  ],
+  "dependencies": {},
+  "description": "A flow control lib small enough to fit on in a slide presentation. Derived live at Oak.JS",
+  "devDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "homepage": "https://github.com/isaacs/slide-flow-control#readme",
+  "license": "ISC",
+  "main": "./lib/slide.js",
+  "name": "slide",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/slide-flow-control.git"
+  },
+  "version": "1.1.6"
+}

@@ -28,7 +28,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cstdio>
-#include <uv.h>
 #include "gtest.h"
 
 #ifdef ARDUINO
@@ -41,7 +40,6 @@ void loop() { RUN_ALL_TESTS(); }
 #else
 
 GTEST_API_ int main(int argc, char **argv) {
-  argv = uv_setup_args(argc, argv);
   printf("Running main() from %s\n", __FILE__);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

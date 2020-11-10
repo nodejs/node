@@ -72,9 +72,13 @@ function removeAsync(dir) {
       assert.strictEqual(err.syscall, 'rmdir');
 
       // Recursive removal should succeed.
-      fs.rmdir(dir, { recursive: true }, common.mustSucceed(() => {
+      fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
+        assert.ifError(err);
+
         // No error should occur if recursive and the directory does not exist.
-        fs.rmdir(dir, { recursive: true }, common.mustSucceed(() => {
+        fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
+          assert.ifError(err);
+
           // Attempted removal should fail now because the directory is gone.
           fs.rmdir(dir, common.mustCall((err) => {
             assert.strictEqual(err.syscall, 'rmdir');
@@ -187,7 +191,7 @@ function removeAsync(dir) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "options\.recursive" property must be of type boolean\./
+      message: /^The "recursive" argument must be of type boolean\./
     });
   });
 
@@ -196,7 +200,7 @@ function removeAsync(dir) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: /^The value of "options\.retryDelay" is out of range\./
+    message: /^The value of "retryDelay" is out of range\./
   });
 
   assert.throws(() => {
@@ -204,31 +208,6 @@ function removeAsync(dir) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: /^The value of "options\.maxRetries" is out of range\./
+    message: /^The value of "maxRetries" is out of range\./
   });
-}
-
-// It should not pass recursive option to rmdirSync, when called from
-// rimraf (see: #35566)
-{
-  // Make a non-empty directory:
-  const original = fs.rmdirSync;
-  const dir = `${nextDirPath()}/foo/bar`;
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(`${dir}/foo.txt`, 'hello world', 'utf8');
-
-  // When called the second time from rimraf, the recursive option should
-  // not be set for rmdirSync:
-  let callCount = 0;
-  let rmdirSyncOptionsFromRimraf;
-  fs.rmdirSync = (path, options) => {
-    if (callCount > 0) {
-      rmdirSyncOptionsFromRimraf = { ...options };
-    }
-    callCount++;
-    return original(path, options);
-  };
-  fs.rmdirSync(dir, { recursive: true });
-  fs.rmdirSync = original;
-  assert.strictEqual(rmdirSyncOptionsFromRimraf.recursive, undefined);
 }

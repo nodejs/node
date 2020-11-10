@@ -43,6 +43,20 @@ const int kPropCount = 7;
 // Helper functions.
 //
 
+static Handle<String> MakeString(const char* str) {
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  return factory->InternalizeUtf8String(str);
+}
+
+
+static Handle<String> MakeName(const char* str, int suffix) {
+  EmbeddedVector<char, 128> buffer;
+  SNPrintF(buffer, "%s%d", str, suffix);
+  return MakeString(buffer.begin());
+}
+
+
 static Handle<AccessorPair> CreateAccessorPair(bool with_getter,
                                                bool with_setter) {
   Isolate* isolate = CcTest::i_isolate();
@@ -325,7 +339,7 @@ class Expectations {
     SetDataField(property_index, attributes, constness, representation,
                  field_type);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    Handle<String> name = MakeName("prop", property_index);
     return Map::CopyWithField(isolate_, map, name, field_type, attributes,
                               constness, representation, INSERT_TRANSITION)
         .ToHandleChecked();
@@ -337,7 +351,7 @@ class Expectations {
     int property_index = number_of_properties_++;
     SetDataConstant(property_index, attributes, value);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    Handle<String> name = MakeName("prop", property_index);
     return Map::CopyWithConstant(isolate_, map, name, value, attributes,
                                  INSERT_TRANSITION)
         .ToHandleChecked();
@@ -354,7 +368,7 @@ class Expectations {
     SetDataField(property_index, attributes, constness, representation,
                  heap_type);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    Handle<String> name = MakeName("prop", property_index);
     return Map::TransitionToDataProperty(isolate_, map, name, value, attributes,
                                          constness, StoreOrigin::kNamed);
   }
@@ -366,7 +380,7 @@ class Expectations {
     int property_index = number_of_properties_++;
     SetDataConstant(property_index, attributes, value);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    Handle<String> name = MakeName("prop", property_index);
     return Map::TransitionToDataProperty(isolate_, map, name, value, attributes,
                                          PropertyConstness::kConst,
                                          StoreOrigin::kNamed);
@@ -382,7 +396,7 @@ class Expectations {
     SetDataField(property_index, attributes, constness, representation,
                  heap_type);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    Handle<String> name = MakeName("prop", property_index);
     Map target = TransitionsAccessor(isolate_, map)
                      .SearchTransition(*name, kData, attributes);
     CHECK(!target.is_null());
@@ -396,7 +410,7 @@ class Expectations {
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, pair);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    Handle<String> name = MakeName("prop", property_index);
 
     Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
     return Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
@@ -410,7 +424,7 @@ class Expectations {
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, getter, setter);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    Handle<String> name = MakeName("prop", property_index);
 
     CHECK(!getter->IsNull(isolate_) || !setter->IsNull(isolate_));
     Factory* factory = isolate_->factory();
@@ -437,7 +451,7 @@ class Expectations {
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, pair);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    Handle<String> name = MakeName("prop", property_index);
 
     Isolate* isolate = CcTest::i_isolate();
     Handle<Object> getter(pair->getter(), isolate);
@@ -585,7 +599,7 @@ Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
   desc.buffer = buffer;
   desc.buffer_size = arraysize(buffer);
   desc.instr_size = arraysize(buffer);
-  return Factory::CodeBuilder(isolate, desc, CodeKind::OPTIMIZED_FUNCTION)
+  return Factory::CodeBuilder(isolate, desc, Code::OPTIMIZED_FUNCTION)
       .set_is_turbofanned()
       .Build();
 }
@@ -2107,7 +2121,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
         split_map = map2;
       }
 
-      Handle<String> name = CcTest::MakeName("prop", i);
+      Handle<String> name = MakeName("prop", i);
       Map target = TransitionsAccessor(isolate, map2)
                        .SearchTransition(*name, kData, NONE);
       CHECK(!target.is_null());
@@ -2134,7 +2148,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   // Fill in transition tree of |map2| so that it can't have more transitions.
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions; i++) {
     CHECK(TransitionsAccessor(isolate, map2).CanHaveMoreTransitions());
-    Handle<String> name = CcTest::MakeName("foo", i);
+    Handle<String> name = MakeName("foo", i);
     Map::CopyWithField(isolate, map2, name, any_type, NONE,
                        PropertyConstness::kMutable, Representation::Smi(),
                        INSERT_TRANSITION)
@@ -2353,9 +2367,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       // Add one more transition to |map| in order to prevent descriptors
       // ownership.
       CHECK(map->owns_descriptors());
-      Map::CopyWithField(isolate, map, CcTest::MakeString("foo"), any_type,
-                         NONE, PropertyConstness::kMutable,
-                         Representation::Smi(), INSERT_TRANSITION)
+      Map::CopyWithField(isolate, map, MakeString("foo"), any_type, NONE,
+                         PropertyConstness::kMutable, Representation::Smi(),
+                         INSERT_TRANSITION)
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
@@ -2466,9 +2480,9 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       // Add one more transition to |map| in order to prevent descriptors
       // ownership.
       CHECK(map->owns_descriptors());
-      Map::CopyWithField(isolate, map, CcTest::MakeString("foo"), any_type,
-                         NONE, PropertyConstness::kMutable,
-                         Representation::Smi(), INSERT_TRANSITION)
+      Map::CopyWithField(isolate, map, MakeString("foo"), any_type, NONE,
+                         PropertyConstness::kMutable, Representation::Smi(),
+                         INSERT_TRANSITION)
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 

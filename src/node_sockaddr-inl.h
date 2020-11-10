@@ -4,11 +4,9 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "env-inl.h"
 #include "node_internals.h"
 #include "node_sockaddr.h"
 #include "util-inl.h"
-#include "memory_tracker-inl.h"
 
 #include <string>
 
@@ -89,11 +87,11 @@ SocketAddress& SocketAddress::operator=(const SocketAddress& addr) {
 }
 
 const sockaddr& SocketAddress::operator*() const {
-  return *data();
+  return *this->data();
 }
 
 const sockaddr* SocketAddress::operator->() const {
-  return data();
+  return this->data();
 }
 
 size_t SocketAddress::length() const {
@@ -152,11 +150,6 @@ void SocketAddress::Update(uint8_t* data, size_t len) {
   memcpy(&address_, data, len);
 }
 
-void SocketAddress::Update(const sockaddr* data, size_t len) {
-  CHECK_LE(len, sizeof(address_));
-  memcpy(&address_, data, len);
-}
-
 v8::Local<v8::Object> SocketAddress::ToJS(
     Environment* env,
     v8::Local<v8::Object> info) const {
@@ -170,95 +163,6 @@ bool SocketAddress::operator==(const SocketAddress& other) const {
 
 bool SocketAddress::operator!=(const SocketAddress& other) const {
   return !(*this == other);
-}
-
-bool SocketAddress::operator<(const SocketAddress& other) const {
-  return compare(other) == CompareResult::LESS_THAN;
-}
-
-bool SocketAddress::operator>(const SocketAddress& other) const {
-  return compare(other) == CompareResult::GREATER_THAN;
-}
-
-bool SocketAddress::operator<=(const SocketAddress& other) const {
-  CompareResult c = compare(other);
-  return c == CompareResult::NOT_COMPARABLE ? false :
-              c <= CompareResult::SAME;
-}
-
-bool SocketAddress::operator>=(const SocketAddress& other) const {
-  return compare(other) >= CompareResult::SAME;
-}
-
-template <typename T>
-SocketAddressLRU<T>::SocketAddressLRU(
-    size_t max_size)
-    : max_size_(max_size) {}
-
-template <typename T>
-typename T::Type* SocketAddressLRU<T>::Peek(
-    const SocketAddress& address) const {
-  auto it = map_.find(address);
-  return it == std::end(map_) ? nullptr : &it->second->second;
-}
-
-template <typename T>
-void SocketAddressLRU<T>::CheckExpired() {
-  auto it = list_.rbegin();
-  while (it != list_.rend()) {
-    if (T::CheckExpired(it->first, it->second)) {
-      map_.erase(it->first);
-      list_.pop_back();
-      it = list_.rbegin();
-      continue;
-    } else {
-      break;
-    }
-  }
-}
-
-template <typename T>
-void SocketAddressLRU<T>::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackFieldWithSize("list", size() * sizeof(Pair));
-}
-
-// If an item already exists for the given address, bump up it's
-// position in the LRU list and return it. If the item does not
-// exist, create it. If an item is created, check the size of the
-// cache and adjust if necessary. Whether the item exists or not,
-// purge expired items.
-template <typename T>
-typename T::Type* SocketAddressLRU<T>::Upsert(
-    const SocketAddress& address) {
-
-  auto on_exit = OnScopeLeave([&]() { CheckExpired(); });
-
-  auto it = map_.find(address);
-  if (it != std::end(map_)) {
-    list_.splice(list_.begin(), list_, it->second);
-    T::Touch(it->first, &it->second->second);
-    return &it->second->second;
-  }
-
-  list_.push_front(Pair(address, { }));
-  map_[address] = list_.begin();
-  T::Touch(list_.begin()->first, &list_.begin()->second);
-
-  // Drop the last item in the list if we are
-  // over the size limit...
-  if (map_.size() > max_size_) {
-    auto last = list_.end();
-    map_.erase((--last)->first);
-    list_.pop_back();
-  }
-
-  return &map_[address]->second;
-}
-
-v8::MaybeLocal<v8::Value> SocketAddressBlockList::Rule::ToV8String(
-    Environment* env) {
-  std::string str = ToString();
-  return ToV8Value(env->context(), str);
 }
 }  // namespace node
 

@@ -53,20 +53,10 @@ if (!StringDecoder.prototype.end) // Node v0.8 doesn't have this method.
 
 
 function InternalDecoder(options, codec) {
-    this.decoder = new StringDecoder(codec.enc);
+    StringDecoder.call(this, codec.enc);
 }
 
-InternalDecoder.prototype.write = function(buf) {
-    if (!Buffer.isBuffer(buf)) {
-        buf = Buffer.from(buf);
-    }
-
-    return this.decoder.write(buf);
-}
-
-InternalDecoder.prototype.end = function() {
-    return this.decoder.end();
-}
+InternalDecoder.prototype = StringDecoder.prototype;
 
 
 //------------------------------------------------------------------------------

@@ -40,7 +40,6 @@ const methods = [
   'LOCK',
   'MKCOL',
   'MOVE',
-  'PRI',
   'PROPFIND',
   'PROPPATCH',
   'SEARCH',

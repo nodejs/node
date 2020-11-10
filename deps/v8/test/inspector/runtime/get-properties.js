@@ -50,9 +50,6 @@ InspectorTest.runAsyncTestSuite([
       InspectorTest.log(prop.name);
       await logGetPropertiesResult(prop.value.objectId);
     }
-    for (let prop of props.result.internalProperties) {
-      InspectorTest.log(prop.name + ' ' + prop.value.value);
-    }
   },
 
   async function testDetachedArrayBuffer() {
@@ -67,9 +64,6 @@ InspectorTest.runAsyncTestSuite([
         continue;
       InspectorTest.log(prop.name);
       await logGetPropertiesResult(prop.value.objectId);
-    }
-    for (let prop of props.result.internalProperties) {
-      InspectorTest.log(prop.name + ' ' + prop.value.value);
     }
   },
 

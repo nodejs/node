@@ -21,15 +21,14 @@
 
 'use strict';
 const common = require('../common');
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh();
-
 const assert = require('assert');
 const { spawn } = require('child_process');
 
-// Spawns 'pwd' with given options, then test
-// - whether the exit code equals expectCode,
-// - optionally whether the trimmed stdout result matches expectData
+/*
+  Spawns 'pwd' with given options, then test
+  - whether the exit code equals expectCode,
+  - optionally whether the trimmed stdout result matches expectData
+*/
 function testCwd(options, expectCode = 0, expectData) {
   const child = spawn(...common.pwdCommand, options);
 
@@ -64,7 +63,7 @@ function testCwd(options, expectCode = 0, expectData) {
 }
 
 // Assume these exist, and 'pwd' gives us the right directory back
-testCwd({ cwd: tmpdir.path }, 0, tmpdir.path);
+testCwd({ cwd: common.rootDir }, 0, common.rootDir);
 const shouldExistDir = common.isWindows ? process.env.windir : '/dev';
 testCwd({ cwd: shouldExistDir }, 0, shouldExistDir);
 

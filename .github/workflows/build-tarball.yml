@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - master
-      - v[0-9]+.x-staging
-      - v[0-9]+.x
 
 env:
   FLAKY_TESTS: dontcare
@@ -14,12 +12,12 @@ env:
 jobs:
   build-tarball:
     env:
-      PYTHON_VERSION: 3.9
+      PYTHON_VERSION: 3.8
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -39,13 +37,13 @@ jobs:
           path: tarballs
   test-tarball-linux:
     env:
-      PYTHON_VERSION: 3.9
+      PYTHON_VERSION: 3.8
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -57,7 +55,7 @@ jobs:
       - name: Extract tarball
         run: |
           tar xzf tarballs/*.tar.gz
-          echo "TAR_DIR=`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
+          echo "::set-env name=TAR_DIR::`basename tarballs/*.tar.gz .tar.gz`"
       - name: Copy directories needed for testing
         run: |
           cp -r tools/node_modules $TAR_DIR/tools

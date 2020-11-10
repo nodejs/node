@@ -1,13 +1,10 @@
-// Flags: --no-warnings --expose-internals
+// Flags: --no-warnings
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
 const child_process = require('child_process');
-
-// TODO(benjamingr) - refactor to use getEventListeners when #35991 lands
-const { NodeEventTarget } = require('internal/event_target');
 
 const timerPromises = require('timers/promises');
 
@@ -96,24 +93,6 @@ process.on('multipleResolves', common.mustNotCall());
 }
 
 {
-  // Check that timer adding signals does not leak handlers
-  const signal = new NodeEventTarget();
-  signal.aborted = false;
-  setTimeout(0, null, { signal }).finally(common.mustCall(() => {
-    assert.strictEqual(signal.listenerCount('abort'), 0);
-  }));
-}
-
-{
-  // Check that timer adding signals does not leak handlers
-  const signal = new NodeEventTarget();
-  signal.aborted = false;
-  setImmediate(0, { signal }).finally(common.mustCall(() => {
-    assert.strictEqual(signal.listenerCount('abort'), 0);
-  }));
-}
-
-{
   Promise.all(
     [1, '', false, Infinity].map((i) => assert.rejects(setImmediate(10, i)), {
       code: 'ERR_INVALID_ARG_TYPE'
@@ -122,12 +101,6 @@ process.on('multipleResolves', common.mustNotCall());
   Promise.all(
     [1, '', false, Infinity, null, {}].map(
       (signal) => assert.rejects(setImmediate(10, { signal })), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      })).then(common.mustCall());
-
-  Promise.all(
-    [1, '', Infinity, null, {}].map(
-      (ref) => assert.rejects(setImmediate(10, { ref })), {
         code: 'ERR_INVALID_ARG_TYPE'
       })).then(common.mustCall());
 

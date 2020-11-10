@@ -11,11 +11,11 @@
 #include <utility>  // For move
 #include <vector>
 
-#include "include/v8-cppgc.h"
+#include "src/api/api-inl.h"
+
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-profiler.h"
 #include "include/v8-util.h"
-#include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/functional.h"
 #include "src/base/logging.h"
@@ -49,7 +49,6 @@
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
-#include "src/handles/persistent-handles.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/init/bootstrapper.h"
@@ -59,8 +58,6 @@
 #include "src/json/json-parser.h"
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters.h"
-#include "src/logging/metrics.h"
-#include "src/logging/tracing-flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/contexts.h"
@@ -110,7 +107,6 @@
 #include "src/utils/detachable-vector.h"
 #include "src/utils/version.h"
 #include "src/wasm/streaming-decoder.h"
-#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
@@ -507,11 +503,7 @@ void Utils::ReportOOMFailure(i::Isolate* isolate, const char* location,
     if (fatal_callback == nullptr) {
       base::OS::PrintError("\n#\n# Fatal %s OOM in %s\n#\n\n",
                            is_heap_oom ? "javascript" : "process", location);
-#ifdef V8_FUZZILLI
-      exit(0);
-#else
       base::OS::Abort();
-#endif  // V8_FUZZILLI
     } else {
       fatal_callback(location,
                      is_heap_oom
@@ -831,8 +823,6 @@ bool StartupData::CanBeRehashed() const {
   return i::Snapshot::ExtractRehashability(this);
 }
 
-bool StartupData::IsValid() const { return i::Snapshot::VersionIsValid(this); }
-
 void V8::SetDcheckErrorHandler(DcheckErrorCallback that) {
   v8::base::SetDcheckFunction(that);
 }
@@ -847,9 +837,7 @@ void V8::SetFlagsFromString(const char* str, size_t length) {
 }
 
 void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
-  using HelpOptions = i::FlagList::HelpOptions;
-  i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags,
-                                       HelpOptions(HelpOptions::kDontExit));
+  i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
 }
 
 RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;
@@ -989,42 +977,6 @@ i::Address* V8::GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
   }
 #endif  // VERIFY_HEAP
   return result.location();
-}
-
-// static
-i::Address* i::JSMemberBase::New(v8::Isolate* isolate, i::Address* object_slot,
-                                 i::Address** this_slot) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, JSMemberBase, New);
-#ifdef DEBUG
-  Utils::ApiCheck((object_slot != nullptr), "i::JSMemberBase::New",
-                  "the object must be not null");
-#endif
-  i::Handle<i::Object> result = i_isolate->global_handles()->CreateTraced(
-      *object_slot, reinterpret_cast<i::Address*>(this_slot),
-      false /* no destructor */);
-#ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
-    i::Object(*object_slot).ObjectVerify(i_isolate);
-  }
-#endif  // VERIFY_HEAP
-  return result.location();
-}
-
-// static
-void i::JSMemberBase::Delete(i::Address* object) {
-  i::GlobalHandles::DestroyTraced(object);
-}
-
-// static
-void i::JSMemberBase::Copy(const i::Address* const* from_slot,
-                           i::Address** to_slot) {
-  i::GlobalHandles::CopyTracedGlobal(from_slot, to_slot);
-}
-
-// static
-void i::JSMemberBase::Move(i::Address** from_slot, i::Address** to_slot) {
-  i::GlobalHandles::MoveTracedGlobal(from_slot, to_slot);
 }
 
 i::Address* V8::CopyGlobalReference(i::Address* from) {
@@ -1322,7 +1274,7 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
 
 static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
   that->set_number_of_properties(0);
-  that->set_tag(type);
+  that->set_tag(i::Smi::FromInt(type));
 }
 
 void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
@@ -1334,7 +1286,7 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   auto value_obj = Utils::OpenHandle(*value);
   CHECK(!value_obj->IsJSReceiver() || value_obj->IsTemplateInfo());
   if (value_obj->IsObjectTemplateInfo()) {
-    templ->set_serial_number(0);
+    templ->set_serial_number(i::Smi::zero());
     if (templ->IsFunctionTemplateInfo()) {
       i::Handle<i::FunctionTemplateInfo>::cast(templ)->set_do_not_cache(true);
     }
@@ -1384,7 +1336,7 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::HeapObject> result(self->GetPrototypeTemplate(), i_isolate);
+  i::Handle<i::Object> result(self->GetPrototypeTemplate(), i_isolate);
   if (result->IsUndefined(i_isolate)) {
     // Do not cache prototype objects.
     result = Utils::OpenHandle(
@@ -1399,8 +1351,7 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::FunctionTemplateInfo> result =
-      Utils::OpenHandle(*prototype_provider);
+  i::Handle<i::Object> result = Utils::OpenHandle(*prototype_provider);
   CHECK(self->GetPrototypeTemplate().IsUndefined(i_isolate));
   CHECK(self->GetParentTemplate().IsUndefined(i_isolate));
   i::FunctionTemplateInfo::SetPrototypeProviderTemplate(i_isolate, self,
@@ -1443,7 +1394,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     if (!do_not_cache) {
       next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
     }
-    obj->set_serial_number(next_serial_number);
+    obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
@@ -1654,19 +1605,15 @@ static Local<ObjectTemplate> ObjectTemplateNew(
       i::OBJECT_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
-  {
-    // Disallow GC until all fields of obj have acceptable types.
-    i::DisallowHeapAllocation no_gc;
-    InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
-    int next_serial_number = 0;
-    if (!do_not_cache) {
-      next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
-    }
-    obj->set_serial_number(next_serial_number);
-    obj->set_data(0);
+  InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
+  int next_serial_number = 0;
+  if (!do_not_cache) {
+    next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
   }
+  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (!constructor.IsEmpty())
     obj->set_constructor(*Utils::OpenHandle(*constructor));
+  obj->set_data(i::Smi::zero());
   return Utils::ToLocal(obj);
 }
 
@@ -2285,28 +2232,6 @@ Local<UnboundModuleScript> Module::GetUnboundModuleScript() {
   return ToApiHandle<UnboundModuleScript>(i::Handle<i::SharedFunctionInfo>(
       i::Handle<i::SourceTextModule>::cast(self)->GetSharedFunctionInfo(),
       self->GetIsolate()));
-}
-
-int Module::ScriptId() {
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
-  Utils::ApiCheck(self->IsSourceTextModule(), "v8::Module::ScriptId",
-                  "v8::Module::ScriptId must be used on an SourceTextModule");
-
-  // The SharedFunctionInfo is not available for errored modules.
-  Utils::ApiCheck(GetStatus() != kErrored, "v8::Module::ScriptId",
-                  "v8::Module::ScriptId must not be used on an errored module");
-  i::Handle<i::SharedFunctionInfo> sfi(
-      i::Handle<i::SourceTextModule>::cast(self)->GetSharedFunctionInfo(),
-      self->GetIsolate());
-  return ToApiHandle<UnboundScript>(sfi)->GetId();
-}
-
-bool Module::IsSourceTextModule() const {
-  return Utils::OpenHandle(this)->IsSourceTextModule();
-}
-
-bool Module::IsSyntheticModule() const {
-  return Utils::OpenHandle(this)->IsSyntheticModule();
 }
 
 int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }
@@ -4728,9 +4653,9 @@ Maybe<PropertyAttribute>
 v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
     Local<Context> context, Local<Name> key) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Object,
-           GetRealNamedPropertyAttributesInPrototypeChain,
-           Nothing<PropertyAttribute>(), i::HandleScope);
+  ENTER_V8_NO_SCRIPT(isolate, context, Object,
+                     GetRealNamedPropertyAttributesInPrototypeChain,
+                     Nothing<PropertyAttribute>(), i::HandleScope);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   if (!self->IsJSObject()) return Nothing<PropertyAttribute>();
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
@@ -4743,7 +4668,6 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Maybe<i::PropertyAttributes> result =
       i::JSReceiver::GetPropertyAttributes(&it);
-  has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
   if (result.FromJust() == i::ABSENT) return Just(None);
@@ -4768,15 +4692,14 @@ MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
 Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
     Local<Context> context, Local<Name> key) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Object, GetRealNamedPropertyAttributes,
-           Nothing<PropertyAttribute>(), i::HandleScope);
+  ENTER_V8_NO_SCRIPT(isolate, context, Object, GetRealNamedPropertyAttributes,
+                     Nothing<PropertyAttribute>(), i::HandleScope);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
   i::LookupIterator::Key lookup_key(isolate, key_obj);
   i::LookupIterator it(isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
-  has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
   if (result.FromJust() == i::ABSENT) {
@@ -5112,7 +5035,7 @@ struct OneByteMask<4> {
 };
 template <>
 struct OneByteMask<8> {
-  static const uint64_t value = 0xFF00'FF00'FF00'FF00;
+  static const uint64_t value = V8_2PART_UINT64_C(0xFF00FF00, FF00FF00);
 };
 static const uintptr_t kOneByteMask = OneByteMask<sizeof(uintptr_t)>::value;
 static const uintptr_t kAlignmentMask = sizeof(uintptr_t) - 1;
@@ -5879,9 +5802,9 @@ static i::Handle<ObjectType> CreateEnvironment(
     v8::Local<ObjectTemplate> proxy_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
-    i::Handle<i::HeapObject> named_interceptor(
+    i::Handle<i::Object> named_interceptor(
         isolate->factory()->undefined_value());
-    i::Handle<i::HeapObject> indexed_interceptor(
+    i::Handle<i::Object> indexed_interceptor(
         isolate->factory()->undefined_value());
 
     if (!maybe_global_template.IsEmpty()) {
@@ -6151,20 +6074,6 @@ void Context::SetContinuationPreservedEmbedderData(Local<Value> data) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   context->native_context().set_continuation_preserved_embedder_data(
       *i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*data)));
-}
-
-MaybeLocal<Context> metrics::Recorder::GetContext(
-    Isolate* isolate, metrics::Recorder::ContextId id) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  return i_isolate->GetContextFromRecorderContextId(id);
-}
-
-metrics::Recorder::ContextId metrics::Recorder::GetContextId(
-    Local<Context> context) {
-  i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  i::Isolate* isolate = i_context->GetIsolate();
-  return isolate->GetOrRegisterRecorderContextId(
-      handle(i_context->native_context(), isolate));
 }
 
 namespace {
@@ -8235,11 +8144,6 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
   isolate->RequestInterrupt(callback, data);
 }
 
-bool Isolate::HasPendingBackgroundTasks() {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return isolate->wasm_engine()->HasRunningCompileJob(isolate);
-}
-
 void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   CHECK(i::FLAG_expose_gc);
   if (type == kMinorGarbageCollection) {
@@ -8507,13 +8411,13 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->total_global_handles_size_ = heap->TotalGlobalHandlesSize();
   heap_statistics->used_global_handles_size_ = heap->UsedGlobalHandlesSize();
 
-  if (!i::ReadOnlyHeap::IsReadOnlySpaceShared()) {
-    i::ReadOnlySpace* ro_space = heap->read_only_space();
-    heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
-    heap_statistics->total_physical_size_ +=
-        ro_space->CommittedPhysicalMemory();
-    heap_statistics->used_heap_size_ += ro_space->Size();
-  }
+#ifndef V8_SHARED_RO_HEAP
+  i::ReadOnlySpace* ro_space = heap->read_only_space();
+  heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
+  heap_statistics->total_physical_size_ += ro_space->CommittedPhysicalMemory();
+  heap_statistics->total_available_size_ += ro_space->Available();
+  heap_statistics->used_heap_size_ += ro_space->SizeOfObjects();
+#endif  // V8_SHARED_RO_HEAP
 
   heap_statistics->total_heap_size_executable_ =
       heap->CommittedMemoryExecutable();
@@ -8523,8 +8427,7 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   // now we just add the values, thereby over-approximating the peak slightly.
   heap_statistics->malloced_memory_ =
       isolate->allocator()->GetCurrentMemoryUsage() +
-      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage() +
-      isolate->string_table()->GetCurrentMemoryUsage();
+      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
   heap_statistics->external_memory_ = isolate->heap()->backing_store_bytes();
   heap_statistics->peak_malloced_memory_ =
       isolate->allocator()->GetMaxMemoryUsage() +
@@ -8547,26 +8450,18 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();
+  i::Space* space = heap->space(static_cast<int>(index));
 
   i::AllocationSpace allocation_space = static_cast<i::AllocationSpace>(index);
-  space_statistics->space_name_ = i::BaseSpace::GetSpaceName(allocation_space);
+  space_statistics->space_name_ = i::Heap::GetSpaceName(allocation_space);
 
-  if (allocation_space == i::RO_SPACE) {
-    if (i::ReadOnlyHeap::IsReadOnlySpaceShared()) {
-      // RO_SPACE memory is accounted for elsewhere when ReadOnlyHeap is shared.
-      space_statistics->space_size_ = 0;
-      space_statistics->space_used_size_ = 0;
-      space_statistics->space_available_size_ = 0;
-      space_statistics->physical_space_size_ = 0;
-    } else {
-      i::ReadOnlySpace* space = heap->read_only_space();
-      space_statistics->space_size_ = space->CommittedMemory();
-      space_statistics->space_used_size_ = space->Size();
-      space_statistics->space_available_size_ = 0;
-      space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
-    }
+  if (allocation_space == i::RO_SPACE && V8_SHARED_RO_HEAP_BOOL) {
+    // RO_SPACE memory is accounted for elsewhere when ReadOnlyHeap is shared.
+    space_statistics->space_size_ = 0;
+    space_statistics->space_used_size_ = 0;
+    space_statistics->space_available_size_ = 0;
+    space_statistics->physical_space_size_ = 0;
   } else {
-    i::Space* space = heap->space(static_cast<int>(index));
     space_statistics->space_size_ = space->CommittedMemory();
     space_statistics->space_used_size_ = space->SizeOfObjects();
     space_statistics->space_available_size_ = space->Available();
@@ -8663,19 +8558,6 @@ void Isolate::GetStackSample(const RegisterState& state, void** frames,
 size_t Isolate::NumberOfPhantomHandleResetsSinceLastCall() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->global_handles()->GetAndResetGlobalHandleResetCount();
-}
-
-int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
-    int64_t change_in_bytes) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  int64_t amount = i_isolate->heap()->update_external_memory(change_in_bytes);
-
-  if (change_in_bytes <= 0) return amount;
-
-  if (amount > i_isolate->heap()->external_memory_limit()) {
-    ReportExternalAllocationLimitReached();
-  }
-  return amount;
 }
 
 void Isolate::SetEventLogger(LogEventCallback that) {
@@ -8821,12 +8703,6 @@ void Isolate::SetAddHistogramSampleFunction(
       ->SetAddHistogramSampleFunction(callback);
 }
 
-void Isolate::SetMetricsRecorder(
-    const std::shared_ptr<metrics::Recorder>& metrics_recorder) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->metrics_recorder()->SetRecorder(isolate, metrics_recorder);
-}
-
 void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->SetAddCrashKeyCallback(callback);
@@ -8941,9 +8817,9 @@ UnwindState Isolate::GetUnwindState() {
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   unwind_state.embedded_code_range.start =
-      reinterpret_cast<const void*>(isolate->embedded_blob_code());
+      reinterpret_cast<const void*>(isolate->embedded_blob());
   unwind_state.embedded_code_range.length_in_bytes =
-      isolate->embedded_blob_code_size();
+      isolate->embedded_blob_size();
 
   std::array<std::pair<i::Builtins::Name, JSEntryStub*>, 3> entry_stubs = {
       {{i::Builtins::kJSEntry, &unwind_state.js_entry_stub},
@@ -9788,14 +9664,6 @@ v8::Platform* debug::GetCurrentPlatform() {
   return i::V8::GetCurrentPlatform();
 }
 
-void debug::ForceGarbageCollection(
-    v8::Isolate* isolate,
-    v8::EmbedderHeapTracer::EmbedderStackState embedder_stack_state) {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  heap->SetEmbedderStackStateForNextFinalizaton(embedder_stack_state);
-  isolate->LowMemoryNotification();
-}
-
 debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {
   CHECK(script->IsWasm());
   return static_cast<WasmScript*>(script);
@@ -10190,7 +10058,7 @@ void debug::GlobalLexicalScopeNames(
   i::Handle<i::ScriptContextTable> table(
       context->global_object().native_context().script_context_table(),
       isolate);
-  for (int i = 0; i < table->synchronized_used(); i++) {
+  for (int i = 0; i < table->used(); i++) {
     i::Handle<i::Context> context =
         i::ScriptContextTable::GetContext(isolate, table, i);
     DCHECK(context->IsScriptContext());
@@ -10437,11 +10305,9 @@ int debug::WasmValue::value_type() {
 
 v8::Local<v8::Array> debug::WasmValue::bytes() {
   i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  DCHECK(i::wasm::ValueType::Kind::kI32 == obj->value_type() ||
-         i::wasm::ValueType::Kind::kI64 == obj->value_type() ||
-         i::wasm::ValueType::Kind::kF32 == obj->value_type() ||
-         i::wasm::ValueType::Kind::kF64 == obj->value_type() ||
-         i::wasm::ValueType::Kind::kS128 == obj->value_type());
+  // Should only be called on i32, i64, f32, f64, s128.
+  DCHECK_GE(1, obj->value_type());
+  DCHECK_LE(5, obj->value_type());
 
   i::Isolate* isolate = obj->GetIsolate();
   i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
@@ -10463,7 +10329,8 @@ v8::Local<v8::Array> debug::WasmValue::bytes() {
 
 v8::Local<v8::Value> debug::WasmValue::ref() {
   i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  DCHECK_EQ(i::wasm::HeapType::kExtern, obj->value_type());
+  // Should only be called on anyref.
+  DCHECK_EQ(6, obj->value_type());
 
   i::Isolate* isolate = obj->GetIsolate();
   i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
@@ -10847,8 +10714,7 @@ static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
 
 void HeapSnapshot::Delete() {
   i::Isolate* isolate = ToInternal(this)->profiler()->isolate();
-  if (isolate->heap_profiler()->GetSnapshotsCount() > 1 ||
-      isolate->heap_profiler()->IsTakingSnapshot()) {
+  if (isolate->heap_profiler()->GetSnapshotsCount() > 1) {
     ToInternal(this)->Delete();
   } else {
     // If this is the last snapshot, clean up all accessory data as well.
@@ -11180,46 +11046,71 @@ char* HandleScopeImplementer::Iterate(RootVisitor* v, char* storage) {
   return storage + ArchiveSpacePerThread();
 }
 
-std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
+std::unique_ptr<DeferredHandles> HandleScopeImplementer::Detach(
     Address* prev_limit) {
-  std::unique_ptr<PersistentHandles> ph(new PersistentHandles(isolate()));
-  DCHECK_NOT_NULL(prev_limit);
+  std::unique_ptr<DeferredHandles> deferred(
+      new DeferredHandles(isolate()->handle_scope_data()->next, isolate()));
 
   while (!blocks_.empty()) {
     Address* block_start = blocks_.back();
     Address* block_limit = &block_start[kHandleBlockSize];
     // We should not need to check for SealHandleScope here. Assert this.
-    DCHECK_IMPLIES(block_start <= prev_limit && prev_limit <= block_limit,
-                   prev_limit == block_limit);
+    DCHECK(prev_limit == block_limit ||
+           !(block_start <= prev_limit && prev_limit <= block_limit));
     if (prev_limit == block_limit) break;
-    ph->blocks_.push_back(blocks_.back());
-#if DEBUG
-    ph->ordered_blocks_.insert(blocks_.back());
-#endif
+    deferred->blocks_.push_back(blocks_.back());
     blocks_.pop_back();
   }
 
-  // ph->blocks_ now contains the blocks installed on the
+  // deferred->blocks_ now contains the blocks installed on the
   // HandleScope stack since BeginDeferredScope was called, but in
   // reverse order.
 
-  // Switch first and last blocks, such that the last block is the one
-  // that is potentially half full.
-  DCHECK(!blocks_.empty() && !ph->blocks_.empty());
-  std::swap(ph->blocks_.front(), ph->blocks_.back());
+  DCHECK(prev_limit == nullptr || !blocks_.empty());
 
-  ph->block_next_ = isolate()->handle_scope_data()->next;
-  Address* block_start = ph->blocks_.back();
-  ph->block_limit_ = block_start + kHandleBlockSize;
-
+  DCHECK(!blocks_.empty() && prev_limit != nullptr);
   DCHECK_NOT_NULL(last_handle_before_deferred_block_);
   last_handle_before_deferred_block_ = nullptr;
-  return ph;
+  return deferred;
 }
 
 void HandleScopeImplementer::BeginDeferredScope() {
   DCHECK_NULL(last_handle_before_deferred_block_);
   last_handle_before_deferred_block_ = isolate()->handle_scope_data()->next;
+}
+
+DeferredHandles::~DeferredHandles() {
+  isolate_->UnlinkDeferredHandles(this);
+
+  for (size_t i = 0; i < blocks_.size(); i++) {
+#ifdef ENABLE_HANDLE_ZAPPING
+    HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
+#endif
+    isolate_->handle_scope_implementer()->ReturnBlock(blocks_[i]);
+  }
+}
+
+void DeferredHandles::Iterate(RootVisitor* v) {
+  DCHECK(!blocks_.empty());
+
+  // Comparing pointers that do not point into the same array is undefined
+  // behavior, which means if we didn't cast everything to plain Address
+  // before comparing, the compiler would be allowed to assume that all
+  // comparisons evaluate to true and drop the entire check.
+  DCHECK((reinterpret_cast<Address>(first_block_limit_) >=
+          reinterpret_cast<Address>(blocks_.front())) &&
+         (reinterpret_cast<Address>(first_block_limit_) <=
+          reinterpret_cast<Address>(&(blocks_.front())[kHandleBlockSize])));
+
+  v->VisitRootPointers(Root::kHandleScope, nullptr,
+                       FullObjectSlot(blocks_.front()),
+                       FullObjectSlot(first_block_limit_));
+
+  for (size_t i = 1; i < blocks_.size(); i++) {
+    v->VisitRootPointers(Root::kHandleScope, nullptr,
+                         FullObjectSlot(blocks_[i]),
+                         FullObjectSlot(&blocks_[i][kHandleBlockSize]));
+  }
 }
 
 void InvokeAccessorGetterCallback(

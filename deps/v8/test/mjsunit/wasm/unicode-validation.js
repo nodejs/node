@@ -51,7 +51,7 @@ function checkImportsAndExports(imported_module_name, imported_function_name,
     .addBody([kExprCallFunction, 0])
     .exportAs(exported_function_name);
 
-  // Consistency check: does javascript agree with our shouldThrow annotation?
+  // sanity check: does javascript agree with out shouldThrow annotation?
   assertEquals(shouldThrow,
       !isValidUtf8(imported_module_name) ||
           !isValidUtf8(imported_function_name) ||

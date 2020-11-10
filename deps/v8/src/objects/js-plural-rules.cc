@@ -33,7 +33,7 @@ bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
   if (type == JSPluralRules::Type::ORDINAL) {
     icu_type = UPLURAL_TYPE_ORDINAL;
   } else {
-    DCHECK_EQ(JSPluralRules::Type::CARDINAL, type);
+    CHECK_EQ(JSPluralRules::Type::CARDINAL, type);
   }
 
   std::unique_ptr<icu::PluralRules> plural_rules(
@@ -41,7 +41,7 @@ bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
   if (U_FAILURE(status)) {
     return false;
   }
-  DCHECK_NOT_NULL(plural_rules.get());
+  CHECK_NOT_NULL(plural_rules.get());
 
   *pl = std::move(plural_rules);
   return true;
@@ -184,20 +184,20 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
 MaybeHandle<String> JSPluralRules::ResolvePlural(
     Isolate* isolate, Handle<JSPluralRules> plural_rules, double number) {
   icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules().raw();
-  DCHECK_NOT_NULL(icu_plural_rules);
+  CHECK_NOT_NULL(icu_plural_rules);
 
   icu::number::LocalizedNumberFormatter* fmt =
       plural_rules->icu_number_formatter().raw();
-  DCHECK_NOT_NULL(fmt);
+  CHECK_NOT_NULL(fmt);
 
   UErrorCode status = U_ZERO_ERROR;
   icu::number::FormattedNumber formatted_number =
       fmt->formatDouble(number, status);
-  DCHECK(U_SUCCESS(status));
+  CHECK(U_SUCCESS(status));
 
   icu::UnicodeString result =
       icu_plural_rules->select(formatted_number, status);
-  DCHECK(U_SUCCESS(status));
+  CHECK(U_SUCCESS(status));
 
   return Intl::ToString(isolate, result);
 }
@@ -210,10 +210,9 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
 
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
-  Maybe<bool> maybe = JSReceiver::CreateDataProperty(isolate, options, key_str,
-                                                     value, Just(kDontThrow));
-  DCHECK(maybe.FromJust());
-  USE(maybe);
+  CHECK(JSReceiver::CreateDataProperty(isolate, options, key_str, value,
+                                       Just(kDontThrow))
+            .FromJust());
 }
 
 void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
@@ -239,7 +238,7 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   icu::number::LocalizedNumberFormatter* icu_number_formatter =
       plural_rules->icu_number_formatter().raw();
   icu::UnicodeString skeleton = icu_number_formatter->toSkeleton(status);
-  DCHECK(U_SUCCESS(status));
+  CHECK(U_SUCCESS(status));
 
   CreateDataPropertyForOptions(
       isolate, options,
@@ -263,19 +262,19 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   // 6. Let pluralCategories be a List of Strings representing the
   // possible results of PluralRuleSelect for the selected locale pr.
   icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules().raw();
-  DCHECK_NOT_NULL(icu_plural_rules);
+  CHECK_NOT_NULL(icu_plural_rules);
 
   std::unique_ptr<icu::StringEnumeration> categories(
       icu_plural_rules->getKeywords(status));
-  DCHECK(U_SUCCESS(status));
+  CHECK(U_SUCCESS(status));
   int32_t count = categories->count(status);
-  DCHECK(U_SUCCESS(status));
+  CHECK(U_SUCCESS(status));
 
   Handle<FixedArray> plural_categories =
       isolate->factory()->NewFixedArray(count);
   for (int32_t i = 0; i < count; i++) {
     const icu::UnicodeString* category = categories->snext(status);
-    DCHECK(U_SUCCESS(status));
+    CHECK(U_SUCCESS(status));
     if (category == nullptr) break;
 
     std::string keyword;
@@ -302,7 +301,7 @@ class PluralRulesAvailableLocales {
     UErrorCode status = U_ZERO_ERROR;
     std::unique_ptr<icu::StringEnumeration> locales(
         icu::PluralRules::getAvailableLocales(status));
-    DCHECK(U_SUCCESS(status));
+    CHECK(U_SUCCESS(status));
     int32_t len = 0;
     const char* locale = nullptr;
     while ((locale = locales->next(&len, status)) != nullptr &&

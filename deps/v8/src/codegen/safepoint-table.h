@@ -15,10 +15,6 @@
 namespace v8 {
 namespace internal {
 
-namespace wasm {
-class WasmCode;
-}  // namespace wasm
-
 class SafepointEntry {
  public:
   SafepointEntry() : deopt_index_(0), bits_(nullptr), trampoline_pc_(-1) {}
@@ -68,7 +64,9 @@ class SafepointEntry {
 class SafepointTable {
  public:
   explicit SafepointTable(Code code);
-  explicit SafepointTable(const wasm::WasmCode* code);
+  explicit SafepointTable(Address instruction_start,
+                          size_t safepoint_table_offset, uint32_t stack_slots,
+                          bool has_deopt = false);
 
   int size() const {
     return kHeaderSize + (length_ * (kFixedEntrySize + entry_size_));
@@ -92,7 +90,7 @@ class SafepointTable {
     DCHECK(index < length_);
     unsigned deopt_index =
         base::Memory<uint32_t>(GetEncodedInfoLocation(index));
-    uint8_t* bits = &base::Memory<uint8_t>(entries() + (index * entry_size_));
+    uint8_t* bits = &base::Memory<uint8_t>(entries_ + (index * entry_size_));
     int trampoline_pc =
         has_deopt_ ? base::Memory<int>(GetTrampolineLocation(index)) : -1;
     return SafepointEntry(deopt_index, bits, trampoline_pc);
@@ -104,12 +102,9 @@ class SafepointTable {
   void PrintEntry(unsigned index, std::ostream& os) const;  // NOLINT
 
  private:
-  SafepointTable(Address instruction_start, Address safepoint_table_address,
-                 uint32_t stack_slots, bool has_deopt);
-
   static const uint8_t kNoRegisters = 0xFF;
 
-  // Layout information.
+  // Layout information
   static const int kLengthOffset = 0;
   static const int kEntrySizeOffset = kLengthOffset + kIntSize;
   static const int kHeaderSize = kEntrySizeOffset + kIntSize;
@@ -118,21 +113,8 @@ class SafepointTable {
   static const int kTrampolinePcOffset = kEncodedInfoOffset + kIntSize;
   static const int kFixedEntrySize = kTrampolinePcOffset + kIntSize;
 
-  static uint32_t ReadLength(Address table) {
-    return base::Memory<uint32_t>(table + kLengthOffset);
-  }
-  static uint32_t ReadEntrySize(Address table) {
-    return base::Memory<uint32_t>(table + kEntrySizeOffset);
-  }
-  Address pc_and_deoptimization_indexes() const {
-    return safepoint_table_address_ + kHeaderSize;
-  }
-  Address entries() const {
-    return safepoint_table_address_ + kHeaderSize + (length_ * kFixedEntrySize);
-  }
-
   Address GetPcOffsetLocation(unsigned index) const {
-    return pc_and_deoptimization_indexes() + (index * kFixedEntrySize);
+    return pc_and_deoptimization_indexes_ + (index * kFixedEntrySize);
   }
 
   Address GetEncodedInfoLocation(unsigned index) const {
@@ -143,18 +125,18 @@ class SafepointTable {
     return GetPcOffsetLocation(index) + kTrampolinePcOffset;
   }
 
-  static void PrintBits(std::ostream& os, uint8_t byte, int digits);
+  static void PrintBits(std::ostream& os,  // NOLINT
+                        uint8_t byte, int digits);
 
   DISALLOW_HEAP_ALLOCATION(no_allocation_)
+  Address instruction_start_;
+  uint32_t stack_slots_;
+  unsigned length_;
+  unsigned entry_size_;
 
-  const Address instruction_start_;
-  const uint32_t stack_slots_;
-  const bool has_deopt_;
-
-  // Safepoint table layout.
-  const Address safepoint_table_address_;
-  const uint32_t length_;
-  const uint32_t entry_size_;
+  Address pc_and_deoptimization_indexes_;
+  Address entries_;
+  bool has_deopt_;
 
   friend class SafepointTableBuilder;
   friend class SafepointEntry;
@@ -211,7 +193,7 @@ class SafepointTableBuilder {
         : pc(pc),
           deopt_index(Safepoint::kNoDeoptimizationIndex),
           trampoline(-1),
-          indexes(zone->New<ZoneChunkList<int>>(
+          indexes(new (zone) ZoneChunkList<int>(
               zone, ZoneChunkList<int>::StartMode::kSmall)) {}
   };
 

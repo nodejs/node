@@ -199,8 +199,6 @@
 #else
 #define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK false
 #endif
-constexpr int kReturnAddressStackSlotCount =
-    V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
 
 // Number of bits to represent the page size for paged spaces.
 #if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)

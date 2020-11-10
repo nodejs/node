@@ -777,7 +777,6 @@ TEST(CanonicalHandleScope) {
 }
 
 TEST(GCShortCutting) {
-  if (FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   IdentityMapTester t;
   Isolate* isolate = CcTest::i_isolate();

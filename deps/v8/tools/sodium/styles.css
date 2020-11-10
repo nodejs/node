@@ -1,0 +1,70 @@
+#table-header {
+	background-color: rgba(150, 150, 255, 0.4);
+}
+
+#asm-container {
+	background-color: rgba(200, 200, 255, 0.4);
+    position:absolute;
+    overflow:auto;
+    cursor:default;
+    width:50%;
+    height:92%;
+}
+
+#source-container {
+    position:absolute;
+    overflow:auto;
+    width:48%;
+    left:51%;
+    height:92%;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+.hover-underline:hover {
+    text-decoration: underline;
+}
+
+.highlight-flash-blue {
+    -webkit-transition: all 1s ease;
+    background-color: rgba(50, 50, 245, 0.4);
+    border-radius: 10px;
+    -o-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -webkit-border-radius: 10px;
+}
+
+
+.highlight-green {
+    background-color: rgba(0, 255, 0, 0.4);
+    border-radius: 10px;
+    -o-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -webkit-border-radius: 10px;
+}
+
+.highlight-yellow {
+    background-color: rgba(255, 255, 0, 0.4);
+    border-radius: 10px;
+    -o-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -webkit-border-radius: 10px;
+}
+
+.highlight-gray {
+    background-color: rgba(128, 128, 128, 0.4);
+    border-radius: 10px;
+    -o-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -webkit-border-radius: 10px;
+}
+
+.highlight-red {
+    background-color: rgba(255, 0, 0, 0.4);
+    border-radius: 10px;
+    -o-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -webkit-border-radius: 10px;
+}

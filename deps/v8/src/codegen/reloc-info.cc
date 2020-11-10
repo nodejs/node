@@ -369,7 +369,7 @@ void RelocInfo::set_target_address(Address target,
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
       IsCodeTargetMode(rmode_) && !FLAG_disable_write_barriers) {
     Code target_code = Code::GetCodeFromTargetAddress(target);
-    WriteBarrier::Marking(host(), this, target_code);
+    MarkingBarrierForCode(host(), this, target_code);
   }
 }
 
@@ -471,7 +471,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     const Address code_target = target_address();
     Code code = Code::GetCodeFromTargetAddress(code_target);
     DCHECK(code.IsCode());
-    os << " (" << CodeKindToString(code.kind());
+    os << " (" << Code::Kind2String(code.kind());
     if (Builtins::IsBuiltin(code)) {
       os << " " << Builtins::name(code.builtin_index());
     }
@@ -480,7 +480,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     // Deoptimization bailouts are stored as runtime entries.
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, target_address(), &type)) {
-      os << "  (" << Deoptimizer::MessageFor(type, false)
+      os << "  (" << Deoptimizer::MessageFor(type)
          << " deoptimization bailout)";
     }
   } else if (IsConstPool(rmode_)) {

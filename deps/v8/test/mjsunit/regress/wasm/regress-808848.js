@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The test needs --wasm-tier-up because we can't serialize and deserialize
-// Liftoff code.
-// Flags: --allow-natives-syntax --wasm-tier-up
+// Flags: --allow-natives-syntax
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 

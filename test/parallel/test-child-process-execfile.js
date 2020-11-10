@@ -43,5 +43,7 @@ const execOpts = { encoding: 'utf8', shell: true };
 
 {
   // Verify the shell option works properly
-  execFile(process.execPath, [fixture, 0], execOpts, common.mustSucceed());
+  execFile(process.execPath, [fixture, 0], execOpts, common.mustCall((err) => {
+    assert.ifError(err);
+  }));
 }

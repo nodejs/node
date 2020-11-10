@@ -50,7 +50,7 @@ void UnwindingInfoWriter::EndInstructionBlock(const InstructionBlock* block) {
       DCHECK_EQ(existing_state->saved_lr_, saved_lr_);
     } else {
       block_initial_states_[successor_index] =
-          zone_->New<BlockInitialState>(saved_lr_);
+          new (zone_) BlockInitialState(saved_lr_);
     }
   }
 }

@@ -142,7 +142,8 @@ childProcess.exec(
 // Test that preload works with -i
 const interactive = childProcess.exec(
   `"${nodeBinary}" ${preloadOption([fixtureD])}-i`,
-  common.mustSucceed((stdout, stderr) => {
+  common.mustCall(function(err, stdout, stderr) {
+    assert.ifError(err);
     assert.ok(stdout.endsWith("> 'test'\n> "));
   })
 );
@@ -163,7 +164,8 @@ childProcess.exec(
 childProcess.exec(
   `"${nodeBinary}" ${preloadOption(['./printA.js'])} "${fixtureB}"`,
   { cwd: fixtures.fixturesDir },
-  common.mustSucceed((stdout, stderr) => {
+  common.mustCall(function(err, stdout, stderr) {
+    assert.ifError(err);
     assert.strictEqual(stdout, 'A\nB\n');
   })
 );
@@ -172,7 +174,8 @@ if (common.isWindows) {
   childProcess.exec(
     `"${nodeBinary}" ${preloadOption(['.\\printA.js'])} "${fixtureB}"`,
     { cwd: fixtures.fixturesDir },
-    common.mustSucceed((stdout, stderr) => {
+    common.mustCall(function(err, stdout, stderr) {
+      assert.ifError(err);
       assert.strictEqual(stdout, 'A\nB\n');
     })
   );

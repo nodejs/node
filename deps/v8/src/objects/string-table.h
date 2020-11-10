@@ -5,8 +5,7 @@
 #ifndef V8_OBJECTS_STRING_TABLE_H_
 #define V8_OBJECTS_STRING_TABLE_H_
 
-#include "src/common/assert-scope.h"
-#include "src/objects/string.h"
+#include "src/objects/hash-table.h"
 #include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -15,17 +14,12 @@
 namespace v8 {
 namespace internal {
 
-// A generic key for lookups into the string table, which allows heteromorphic
-// lookup and on-demand creation of new strings.
 class StringTableKey {
  public:
   virtual ~StringTableKey() = default;
   inline StringTableKey(uint32_t hash_field, int length);
 
-  // The individual keys will have their own AsHandle, we shouldn't call the
-  // base version.
-  Handle<String> AsHandle(Isolate* isolate) = delete;
-
+  virtual Handle<String> AsHandle(Isolate* isolate) = 0;
   uint32_t hash_field() const {
     DCHECK_NE(0, hash_field_);
     return hash_field_;
@@ -43,55 +37,88 @@ class StringTableKey {
   int length_;
 };
 
+class V8_EXPORT_PRIVATE StringTableShape : public BaseShape<StringTableKey*> {
+ public:
+  static inline bool IsMatch(Key key, Object value);
+
+  static inline uint32_t Hash(ReadOnlyRoots roots, Key key);
+
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+
+  static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
+
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 1;
+};
+
 class SeqOneByteString;
 
-// StringTable, for internalizing strings. The Lookup methods are designed to be
-// thread-safe, in combination with GC safepoints.
+EXTERN_DECLARE_HASH_TABLE(StringTable, StringTableShape)
+
+// StringTable.
 //
-// The string table layout is defined by its Data implementation class, see
-// StringTable::Data for details.
-class V8_EXPORT_PRIVATE StringTable {
+// No special elements in the prefix and the element size is 1
+// because only the string itself (the key) needs to be stored.
+class V8_EXPORT_PRIVATE StringTable
+    : public HashTable<StringTable, StringTableShape> {
  public:
-  static constexpr Smi empty_element() { return Smi::FromInt(0); }
-  static constexpr Smi deleted_element() { return Smi::FromInt(1); }
-
-  StringTable();
-  ~StringTable();
-
-  int Capacity() const;
-  int NumberOfElements() const;
-
   // Find string in the string table. If it is not there yet, it is
   // added. The return value is the string found.
-  Handle<String> LookupString(Isolate* isolate, Handle<String> key);
+  static Handle<String> LookupString(Isolate* isolate, Handle<String> key);
+  template <typename StringTableKey>
+  static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
+  static Handle<String> AddKeyNoResize(Isolate* isolate, StringTableKey* key);
 
-  // Find string in the string table, using the given key. If the string is not
-  // there yet, it is created (by the key) and added. The return value is the
-  // string found.
-  template <typename StringTableKey, typename LocalIsolate>
-  Handle<String> LookupKey(LocalIsolate* isolate, StringTableKey* key);
+  // Shrink the StringTable if it's very empty (kMaxEmptyFactor) to avoid the
+  // performance overhead of re-allocating the StringTable over and over again.
+  static Handle<StringTable> CautiousShrink(Isolate* isolate,
+                                            Handle<StringTable> table);
 
   // {raw_string} must be a tagged String pointer.
-  // Returns a tagged pointer: either a Smi if the string is an array index, an
-  // internalized string, or a Smi sentinel.
-  static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
-                                                  Address raw_string);
+  // Returns a tagged pointer: either an internalized string, or a Smi
+  // sentinel.
+  static Address LookupStringIfExists_NoAllocate(Isolate* isolate,
+                                                 Address raw_string);
 
-  void Print(const Isolate* isolate) const;
-  size_t GetCurrentMemoryUsage() const;
+  static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 
-  // The following methods must be called either while holding the write lock,
-  // or while in a Heap safepoint.
-  void IterateElements(RootVisitor* visitor);
-  void DropOldData();
-  void NotifyElementsRemoved(int count);
+  DECL_CAST(StringTable)
+
+  static const int kMaxEmptyFactor = 4;
+  static const int kMinCapacity = 2048;
+  static const int kMinShrinkCapacity = kMinCapacity;
 
  private:
-  void EnsureCapacity(const Isolate* isolate, int additional_elements);
+  template <typename char_type>
+  friend class JsonParser;
 
-  class Data;
-  std::unique_ptr<Data> data_;
-  base::Mutex write_mutex_;
+  OBJECT_CONSTRUCTORS(StringTable, HashTable<StringTable, StringTableShape>);
+};
+
+class StringSetShape : public BaseShape<String> {
+ public:
+  static inline bool IsMatch(String key, Object value);
+  static inline uint32_t Hash(ReadOnlyRoots roots, String key);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 1;
+};
+
+EXTERN_DECLARE_HASH_TABLE(StringSet, StringSetShape)
+
+class StringSet : public HashTable<StringSet, StringSetShape> {
+ public:
+  V8_EXPORT_PRIVATE static Handle<StringSet> New(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Handle<StringSet> Add(Isolate* isolate,
+                                                 Handle<StringSet> blacklist,
+                                                 Handle<String> name);
+  V8_EXPORT_PRIVATE bool Has(Isolate* isolate, Handle<String> name);
+
+  DECL_CAST(StringSet)
+  OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>);
 };
 
 }  // namespace internal

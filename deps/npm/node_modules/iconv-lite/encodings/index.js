@@ -4,7 +4,6 @@
 // We support Browserify by skipping automatic module discovery and requiring modules directly.
 var modules = [
     require("./internal"),
-    require("./utf32"),
     require("./utf16"),
     require("./utf7"),
     require("./sbcs-codec"),
@@ -14,7 +13,7 @@ var modules = [
     require("./dbcs-data"),
 ];
 
-// Put all encoding/alias/codec definitions to single object and export it.
+// Put all encoding/alias/codec definitions to single object and export it. 
 for (var i = 0; i < modules.length; i++) {
     var module = modules[i];
     for (var enc in module)

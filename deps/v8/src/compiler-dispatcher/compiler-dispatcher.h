@@ -35,6 +35,7 @@ class BackgroundCompileTask;
 class CancelableTaskManager;
 class UnoptimizedCompileJob;
 class CompilerDispatcherTracer;
+class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class ParseInfo;

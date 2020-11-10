@@ -46,6 +46,9 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
+    message:
+      'The "buf1" argument must be an instance of Buffer, TypedArray, or ' +
+      'DataView.'
   }
 );
 
@@ -54,5 +57,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
+    message:
+      'The "buf2" argument must be an instance of Buffer, TypedArray, or ' +
+      'DataView.'
   }
 );

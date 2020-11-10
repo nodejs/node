@@ -13,7 +13,8 @@ if (process.argv[2] === 'child') {
   console.error(stderrData);
 } else {
   const cmd = `"${process.execPath}" "${__filename}" child`;
-  const child = cp.exec(cmd, common.mustSucceed((stdout, stderr) => {
+  const child = cp.exec(cmd, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
     assert.strictEqual(stdout, expectedStdout);
     assert.strictEqual(stderr, expectedStderr);
   }));

@@ -22,8 +22,6 @@ class SourcePosition;
 namespace compiler {
 
 class Graph;
-class LiveRange;
-class TopLevelLiveRange;
 class Instruction;
 class InstructionBlock;
 class InstructionOperand;
@@ -156,30 +154,6 @@ std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac);
 std::ostream& operator<<(std::ostream& os, const AsC1V& ac);
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac);
-
-struct LiveRangeAsJSON {
-  const LiveRange& range_;
-  const InstructionSequence& code_;
-};
-
-std::ostream& operator<<(std::ostream& os,
-                         const LiveRangeAsJSON& live_range_json);
-
-struct TopLevelLiveRangeAsJSON {
-  const TopLevelLiveRange& range_;
-  const InstructionSequence& code_;
-};
-
-std::ostream& operator<<(
-    std::ostream& os, const TopLevelLiveRangeAsJSON& top_level_live_range_json);
-
-struct RegisterAllocationDataAsJSON {
-  const RegisterAllocationData& data_;
-  const InstructionSequence& code_;
-};
-
-std::ostream& operator<<(std::ostream& os,
-                         const RegisterAllocationDataAsJSON& ac);
 
 struct InstructionOperandAsJSON {
   const InstructionOperand* op_;

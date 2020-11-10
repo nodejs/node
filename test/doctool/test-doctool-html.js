@@ -9,7 +9,7 @@ try {
 }
 
 const assert = require('assert');
-const { readFileSync } = require('fs');
+const { readFile } = require('fs');
 const fixtures = require('../common/fixtures');
 const { replaceLinks } = require('../../tools/doc/markdown.js');
 const html = require('../../tools/doc/html.js');
@@ -59,10 +59,15 @@ function toHTML({ input, filename, nodeVersion, versions }) {
 // have an HTML parser.
 const testData = [
   {
+    file: fixtures.path('sample_document.md'),
+    html: '<ol><li>fish</li><li>fish</li></ol>' +
+      '<ul><li>Redfish</li><li>Bluefish</li></ul>'
+  },
+  {
     file: fixtures.path('order_of_end_tags_5873.md'),
-    html: '<h3>Static method: Buffer.from(array) <span> ' +
-      '<a class="mark" href="#foo_static_method_buffer_from_array" ' +
-      'id="foo_static_method_buffer_from_array">#</a> </span> </h3>' +
+    html: '<h3>ClassMethod: Buffer.from(array) <span> ' +
+      '<a class="mark" href="#foo_class_method_buffer_from_array" ' +
+      'id="foo_class_method_buffer_from_array">#</a> </span> </h3>' +
       '<ul><li><code>array</code><a ' +
       'href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
       'Reference/Global_Objects/Array" class="type">&#x3C;Array></a></li></ul>'
@@ -121,10 +126,6 @@ const testData = [
     'href="#foo_see_also" id="foo_see_also">#</a></span></h2><p>Check' +
     'out also<a href="https://nodejs.org/">this guide</a></p>'
   },
-  {
-    file: fixtures.path('document_with_special_heading.md'),
-    html: '<title>Sample markdown with special heading |',
-  }
 ];
 
 const spaces = /\s/g;
@@ -143,16 +144,17 @@ testData.forEach(({ file, html }) => {
   // Normalize expected data by stripping whitespace.
   const expected = html.replace(spaces, '');
 
-  const input = readFileSync(file, 'utf8');
+  readFile(file, 'utf8', common.mustCall(async (err, input) => {
+    assert.ifError(err);
+    const output = toHTML({ input: input,
+                            filename: 'foo',
+                            nodeVersion: process.version,
+                            versions: versions });
 
-  const output = toHTML({ input,
-                          filename: 'foo',
-                          nodeVersion: process.version,
-                          versions });
-
-  const actual = output.replace(spaces, '');
-  // Assert that the input stripped of all whitespace contains the
-  // expected markup.
-  assert(actual.includes(expected),
-         `ACTUAL: ${actual}\nEXPECTED: ${expected}`);
+    const actual = output.replace(spaces, '');
+    // Assert that the input stripped of all whitespace contains the
+    // expected markup.
+    assert(actual.includes(expected),
+           `ACTUAL: ${actual}\nEXPECTED: ${expected}`);
+  }));
 });

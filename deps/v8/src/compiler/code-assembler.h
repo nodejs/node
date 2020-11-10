@@ -62,22 +62,21 @@ class JSRegExpStringIterator;
 class JSRelativeTimeFormat;
 class JSSegmentIterator;
 class JSSegmenter;
-class JSSegments;
 class JSV8BreakIterator;
 class JSWeakCollection;
 class JSFinalizationRegistry;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;
-class ProfileDataFromFile;
 class PromiseCapability;
 class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
+class WasmDebugInfo;
 class Zone;
 #define MAKE_FORWARD_DECLARATION(Name) class Name;
-TORQUE_DEFINED_CLASS_LIST(MAKE_FORWARD_DECLARATION)
+TORQUE_INTERNAL_CLASS_LIST(MAKE_FORWARD_DECLARATION)
 #undef MAKE_FORWARD_DECLARATION
 
 template <typename T>
@@ -323,6 +322,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(BitcastMaybeObjectToWord, IntPtrT, MaybeObject)            \
   V(BitcastWordToTagged, Object, WordT)                        \
   V(BitcastWordToTaggedSigned, Smi, WordT)                     \
+  V(TruncateFloat32ToInt32, Int32T, Float32T)                  \
   V(TruncateFloat64ToFloat32, Float32T, Float64T)              \
   V(TruncateFloat64ToWord32, Uint32T, Float64T)                \
   V(TruncateInt64ToInt32, Int32T, Int64T)                      \
@@ -377,8 +377,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   ~CodeAssembler();
 
   static Handle<Code> GenerateCode(CodeAssemblerState* state,
-                                   const AssemblerOptions& options,
-                                   const ProfileDataFromFile* profile_data);
+                                   const AssemblerOptions& options);
 
   bool Is64() const;
   bool Is32() const;
@@ -392,6 +391,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Shortened aliases for use in CodeAssembler subclasses.
   using Label = CodeAssemblerLabel;
+  using Variable = CodeAssemblerVariable;
   template <class T>
   using TVariable = TypedCodeAssemblerVariable<T>;
   using VariableList = CodeAssemblerVariableList;
@@ -598,25 +598,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     Comment(s.str());
   }
 
-  void StaticAssert(TNode<BoolT> value,
-                    const char* source = "unknown position");
+  void StaticAssert(TNode<BoolT> value);
 
-  // The following methods refer to source positions in CSA or Torque code
-  // compiled during mksnapshot, not JS compiled at runtime.
   void SetSourcePosition(const char* file, int line);
-  void PushSourcePosition();
-  void PopSourcePosition();
-  class SourcePositionScope {
-   public:
-    explicit SourcePositionScope(CodeAssembler* ca) : ca_(ca) {
-      ca->PushSourcePosition();
-    }
-    ~SourcePositionScope() { ca_->PopSourcePosition(); }
-
-   private:
-    CodeAssembler* ca_;
-  };
-  const std::vector<FileAndLine>& GetMacroSourcePositionStack() const;
 
   void Bind(Label* label);
 #if DEBUG
@@ -819,10 +803,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return Unsigned(
         Word32Shr(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
-  TNode<Int32T> Word32Sar(TNode<Int32T> left, TNode<Int32T> right) {
-    return Signed(
-        Word32Sar(static_cast<Node*>(left), static_cast<Node*>(right)));
-  }
 
   TNode<IntPtrT> WordAnd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
     return Signed(WordAnd(static_cast<Node*>(left), static_cast<Node*>(right)));
@@ -957,12 +937,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> ChangeUint32ToWord(TNode<Word32T> value);
   // No-op on 32-bit, otherwise sign extend.
   TNode<IntPtrT> ChangeInt32ToIntPtr(TNode<Word32T> value);
-
-  // Truncates a float to a 32-bit integer. If the float is outside of 32-bit
-  // range, make sure that overflow detection is easy. In particular, return
-  // int_min instead of int_max on arm platforms by using parameter
-  // kSetOverflowToMin.
-  TNode<Int32T> TruncateFloat32ToInt32(SloppyTNode<Float32T> value);
 
   // No-op that guarantees that the value is kept alive till this point even
   // if GC happens.
@@ -1228,16 +1202,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
 
-// TODO(solanes, v8:6949): this class should be merged into
-// TypedCodeAssemblerVariable. It's required to be separate for
-// CodeAssemblerVariableLists.
 class V8_EXPORT_PRIVATE CodeAssemblerVariable {
  public:
-  Node* value() const;
-  MachineRepresentation rep() const;
-  bool IsBound() const;
-
- protected:
   explicit CodeAssemblerVariable(CodeAssembler* assembler,
                                  MachineRepresentation rep);
   CodeAssemblerVariable(CodeAssembler* assembler, MachineRepresentation rep,
@@ -1251,6 +1217,9 @@ class V8_EXPORT_PRIVATE CodeAssemblerVariable {
 
   ~CodeAssemblerVariable();
   void Bind(Node* value);
+  Node* value() const;
+  MachineRepresentation rep() const;
+  bool IsBound() const;
 
  private:
   class Impl;
@@ -1274,19 +1243,20 @@ template <class T>
 class TypedCodeAssemblerVariable : public CodeAssemblerVariable {
  public:
   TypedCodeAssemblerVariable(TNode<T> initial_value, CodeAssembler* assembler)
-      : CodeAssemblerVariable(assembler, PhiMachineRepresentationOf<T>,
+      : CodeAssemblerVariable(assembler, MachineRepresentationOf<T>::value,
                               initial_value) {}
   explicit TypedCodeAssemblerVariable(CodeAssembler* assembler)
-      : CodeAssemblerVariable(assembler, PhiMachineRepresentationOf<T>) {}
+      : CodeAssemblerVariable(assembler, MachineRepresentationOf<T>::value) {}
 #if DEBUG
   TypedCodeAssemblerVariable(AssemblerDebugInfo debug_info,
                              CodeAssembler* assembler)
       : CodeAssemblerVariable(assembler, debug_info,
-                              PhiMachineRepresentationOf<T>) {}
+                              MachineRepresentationOf<T>::value) {}
   TypedCodeAssemblerVariable(AssemblerDebugInfo debug_info,
                              TNode<T> initial_value, CodeAssembler* assembler)
       : CodeAssemblerVariable(assembler, debug_info,
-                              PhiMachineRepresentationOf<T>, initial_value) {}
+                              MachineRepresentationOf<T>::value,
+                              initial_value) {}
 #endif  // DEBUG
 
   TNode<T> value() const {
@@ -1410,7 +1380,7 @@ class CodeAssemblerParameterizedLabel
   void CreatePhis(TNode<Types>*... results) {
     const std::vector<Node*>& phi_nodes =
         CodeAssemblerParameterizedLabelBase::CreatePhis(
-            {PhiMachineRepresentationOf<Types>...});
+            {MachineRepresentationOf<Types>::value...});
     auto it = phi_nodes.begin();
     USE(it);
     ITERATE_PACK(AssignPhi(results, *(it++)));
@@ -1430,13 +1400,13 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   // |result_size| specifies the number of results returned by the stub.
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeAssemblerState(Isolate* isolate, Zone* zone,
-                     const CallInterfaceDescriptor& descriptor, CodeKind kind,
+                     const CallInterfaceDescriptor& descriptor, Code::Kind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
-                     CodeKind kind, const char* name,
+                     Code::Kind kind, const char* name,
                      PoisoningMitigationLevel poisoning_level,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
@@ -1460,7 +1430,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class ScopedExceptionHandler;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
-                     CallDescriptor* call_descriptor, CodeKind kind,
+                     CallDescriptor* call_descriptor, Code::Kind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
                      int32_t builtin_index);
 
@@ -1468,7 +1438,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   void PopExceptionHandler();
 
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
-  CodeKind kind_;
+  Code::Kind kind_;
   const char* name_;
   int32_t builtin_index_;
   bool code_generated_;
@@ -1480,9 +1450,6 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   using VariableId = uint32_t;
   VariableId next_variable_id_ = 0;
   JSGraph* jsgraph_;
-
-  // Only used by CodeStubAssembler builtins.
-  std::vector<FileAndLine> macro_call_stack_;
 
   VariableId NextVariableId() { return next_variable_id_++; }
 

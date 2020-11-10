@@ -44,7 +44,8 @@ function ready() {
 
   for (const { server: { socket, reply }, resolver } of resolvers) {
     resolver.setServers([`127.0.0.1:${socket.address().port}`]);
-    resolver.resolve4('example.org', common.mustSucceed((res) => {
+    resolver.resolve4('example.org', common.mustCall((err, res) => {
+      assert.ifError(err);
       assert.deepStrictEqual(res, [reply.address]);
       socket.close();
     }));

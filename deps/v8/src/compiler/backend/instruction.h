@@ -33,16 +33,7 @@ namespace compiler {
 class Schedule;
 class SourcePositionTable;
 
-#if defined(V8_CC_MSVC) && defined(V8_TARGET_ARCH_IA32)
-// MSVC on x86 has issues with ALIGNAS(8) on InstructionOperand, but does
-// align the object to 8 bytes anyway (covered by a static assert below).
-// See crbug.com/v8/10796
-#define INSTRUCTION_OPERAND_ALIGN
-#else
-#define INSTRUCTION_OPERAND_ALIGN ALIGNAS(8)
-#endif
-
-class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
+class V8_EXPORT_PRIVATE InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
 
@@ -51,7 +42,6 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
     UNALLOCATED,
     CONSTANT,
     IMMEDIATE,
-    PENDING,
     // Location operand kinds.
     ALLOCATED,
     FIRST_LOCATION_OPERAND_KIND = ALLOCATED
@@ -77,10 +67,6 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
   // embedded directly in instructions, e.g. small integers and on some
   // platforms Objects.
   INSTRUCTION_OPERAND_PREDICATE(Immediate, IMMEDIATE)
-  // PendingOperands are pending allocation during register allocation and
-  // shouldn't be seen elsewhere. They chain together multiple operators that
-  // will be replaced together with the same value when finalized.
-  INSTRUCTION_OPERAND_PREDICATE(Pending, PENDING)
   // AllocatedOperands are registers or stack slots that are assigned by the
   // register allocator and are always associated with a virtual register.
   INSTRUCTION_OPERAND_PREDICATE(Allocated, ALLOCATED)
@@ -104,7 +90,8 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
 
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
-    return zone->New<SubKindOperand>(op);
+    void* buffer = zone->New(sizeof(op));
+    return new (buffer) SubKindOperand(op);
   }
 
   static void ReplaceWith(InstructionOperand* dest,
@@ -113,10 +100,6 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
   }
 
   bool Equals(const InstructionOperand& that) const {
-    if (IsPending()) {
-      // Pending operands are only equal if they are the same operand.
-      return this == &that;
-    }
     return this->value_ == that.value_;
   }
 
@@ -125,15 +108,10 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
   }
 
   bool EqualsCanonicalized(const InstructionOperand& that) const {
-    if (IsPending()) {
-      // Pending operands can't be canonicalized, so just compare for equality.
-      return Equals(that);
-    }
     return this->GetCanonicalizedValue() == that.GetCanonicalizedValue();
   }
 
   bool CompareCanonicalized(const InstructionOperand& that) const {
-    DCHECK(!IsPending());
     return this->GetCanonicalizedValue() < that.GetCanonicalizedValue();
   }
 
@@ -320,8 +298,8 @@ class UnallocatedOperand final : public InstructionOperand {
 
   // [lifetime]: Only for non-FIXED_SLOT.
   bool IsUsedAtStart() const {
-    return basic_policy() == EXTENDED_POLICY &&
-           LifetimeField::decode(value_) == USED_AT_START;
+    DCHECK(basic_policy() == EXTENDED_POLICY);
+    return LifetimeField::decode(value_) == USED_AT_START;
   }
 
   INSTRUCTION_OPERAND_CASTS(UnallocatedOperand, UNALLOCATED)
@@ -425,44 +403,6 @@ class ImmediateOperand : public InstructionOperand {
   STATIC_ASSERT(KindField::kSize == 3);
   using TypeField = base::BitField64<ImmediateType, 3, 1>;
   using ValueField = base::BitField64<int32_t, 32, 32>;
-};
-
-class PendingOperand : public InstructionOperand {
- public:
-  PendingOperand() : InstructionOperand(PENDING) {}
-  explicit PendingOperand(PendingOperand* next_operand) : PendingOperand() {
-    set_next(next_operand);
-  }
-
-  void set_next(PendingOperand* next) {
-    DCHECK_NULL(this->next());
-    uintptr_t shifted_value =
-        reinterpret_cast<uintptr_t>(next) >> kPointerShift;
-    DCHECK_EQ(reinterpret_cast<uintptr_t>(next),
-              shifted_value << kPointerShift);
-    value_ |= NextOperandField::encode(static_cast<uint64_t>(shifted_value));
-  }
-
-  PendingOperand* next() const {
-    uintptr_t shifted_value =
-        static_cast<uint64_t>(NextOperandField::decode(value_));
-    return reinterpret_cast<PendingOperand*>(shifted_value << kPointerShift);
-  }
-
-  static PendingOperand* New(Zone* zone, PendingOperand* previous_operand) {
-    return InstructionOperand::New(zone, PendingOperand(previous_operand));
-  }
-
-  INSTRUCTION_OPERAND_CASTS(PendingOperand, PENDING)
-
- private:
-  // Operands are uint64_t values and so are aligned to 8 byte boundaries,
-  // therefore we can shift off the bottom three zeros without losing data.
-  static const uint64_t kPointerShift = 3;
-  STATIC_ASSERT(alignof(InstructionOperand) >= (1 << kPointerShift));
-
-  STATIC_ASSERT(KindField::kSize == 3);
-  using NextOperandField = base::BitField64<uint64_t, 3, 61>;
 };
 
 class LocationOperand : public InstructionOperand {
@@ -764,7 +704,7 @@ class V8_EXPORT_PRIVATE ParallelMove final
                         const InstructionOperand& to,
                         Zone* operand_allocation_zone) {
     if (from.EqualsCanonicalized(to)) return nullptr;
-    MoveOperands* move = operand_allocation_zone->New<MoveOperands>(from, to);
+    MoveOperands* move = new (operand_allocation_zone) MoveOperands(from, to);
     if (empty()) reserve(4);
     push_back(move);
     return move;
@@ -877,7 +817,7 @@ class V8_EXPORT_PRIVATE Instruction final {
     int size = static_cast<int>(
         RoundUp(sizeof(Instruction), sizeof(InstructionOperand)) +
         total_extra_ops * sizeof(InstructionOperand));
-    return new (zone->Allocate<Instruction>(size)) Instruction(
+    return new (zone->New(size)) Instruction(
         opcode, output_count, outputs, input_count, inputs, temp_count, temps);
   }
 
@@ -936,7 +876,7 @@ class V8_EXPORT_PRIVATE Instruction final {
 
   ParallelMove* GetOrCreateParallelMove(GapPosition pos, Zone* zone) {
     if (parallel_moves_[pos] == nullptr) {
-      parallel_moves_[pos] = zone->New<ParallelMove>(zone);
+      parallel_moves_[pos] = new (zone) ParallelMove(zone);
     }
     return parallel_moves_[pos];
   }
@@ -1034,7 +974,7 @@ class RpoNumber final {
   int32_t index_;
 };
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, const RpoNumber&);
+std::ostream& operator<<(std::ostream&, const RpoNumber&);
 
 class V8_EXPORT_PRIVATE Constant final {
  public:
@@ -1144,9 +1084,11 @@ class StateValueDescriptor {
     descr.args_type_ = type;
     return descr;
   }
-  static StateValueDescriptor ArgumentsLength() {
-    return StateValueDescriptor(StateValueKind::kArgumentsLength,
-                                MachineType::AnyTagged());
+  static StateValueDescriptor ArgumentsLength(ArgumentsStateType type) {
+    StateValueDescriptor descr(StateValueKind::kArgumentsLength,
+                               MachineType::AnyTagged());
+    descr.args_type_ = type;
+    return descr;
   }
   static StateValueDescriptor Plain(MachineType type) {
     return StateValueDescriptor(StateValueKind::kPlain, type);
@@ -1185,7 +1127,8 @@ class StateValueDescriptor {
     return id_;
   }
   ArgumentsStateType arguments_type() const {
-    DCHECK(kind_ == StateValueKind::kArgumentsElements);
+    DCHECK(kind_ == StateValueKind::kArgumentsElements ||
+           kind_ == StateValueKind::kArgumentsLength);
     return args_type_;
   }
 
@@ -1252,15 +1195,16 @@ class StateValueList {
 
   StateValueList* PushRecursiveField(Zone* zone, size_t id) {
     fields_.push_back(StateValueDescriptor::Recursive(id));
-    StateValueList* nested = zone->New<StateValueList>(zone);
+    StateValueList* nested =
+        new (zone->New(sizeof(StateValueList))) StateValueList(zone);
     nested_.push_back(nested);
     return nested;
   }
   void PushArgumentsElements(ArgumentsStateType type) {
     fields_.push_back(StateValueDescriptor::ArgumentsElements(type));
   }
-  void PushArgumentsLength() {
-    fields_.push_back(StateValueDescriptor::ArgumentsLength());
+  void PushArgumentsLength(ArgumentsStateType type) {
+    fields_.push_back(StateValueDescriptor::ArgumentsLength(type));
   }
   void PushDuplicate(size_t id) {
     fields_.push_back(StateValueDescriptor::Duplicate(id));
@@ -1394,8 +1338,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   InstructionBlock(Zone* zone, RpoNumber rpo_number, RpoNumber loop_header,
-                   RpoNumber loop_end, RpoNumber dominator, bool deferred,
-                   bool handler);
+                   RpoNumber loop_end, bool deferred, bool handler);
 
   // Instruction indexes (used by the register allocator).
   int first_instruction_index() const {
@@ -1444,9 +1387,6 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   const Successors& successors() const { return successors_; }
   size_t SuccessorCount() const { return successors_.size(); }
 
-  RpoNumber dominator() const { return dominator_; }
-  void set_dominator(RpoNumber dominator) { dominator_ = dominator; }
-
   using PhiInstructions = ZoneVector<PhiInstruction*>;
   const PhiInstructions& phis() const { return phis_; }
   PhiInstruction* PhiAt(size_t i) const { return phis_[i]; }
@@ -1466,7 +1406,6 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   bool must_deconstruct_frame() const { return must_deconstruct_frame_; }
   void mark_must_deconstruct_frame() { must_deconstruct_frame_ = true; }
-  void clear_must_deconstruct_frame() { must_deconstruct_frame_ = false; }
 
  private:
   Successors successors_;
@@ -1476,7 +1415,6 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   const RpoNumber rpo_number_;
   const RpoNumber loop_header_;
   const RpoNumber loop_end_;
-  RpoNumber dominator_;
   int32_t code_start_;   // start index of arch-specific code.
   int32_t code_end_ = -1;     // end index of arch-specific code.
   const bool deferred_;       // Block contains deferred code.
@@ -1598,7 +1536,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
     return virtual_register;
   }
   Constant GetConstant(int virtual_register) const {
-    auto it = constants_.find(virtual_register);
+    ConstantMap::const_iterator it = constants_.find(virtual_register);
     DCHECK(it != constants_.end());
     DCHECK_EQ(virtual_register, it->first);
     return it->second;
@@ -1702,7 +1640,6 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            const InstructionSequence&);
-#undef INSTRUCTION_OPERAND_ALIGN
 
 }  // namespace compiler
 }  // namespace internal

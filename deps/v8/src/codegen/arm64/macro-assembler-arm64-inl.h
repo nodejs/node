@@ -318,15 +318,23 @@ void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
     // instructions between the bind and the target identifier instruction.
     InstructionAccurateScope scope(this, 1);
     bind(label);
-    if (id == BranchTargetIdentifier::kPacibsp) {
-      pacibsp();
+    if (id == BranchTargetIdentifier::kPaciasp) {
+      paciasp();
     } else {
       bti(id);
     }
   }
 }
 
-void TurboAssembler::CodeEntry() { CallTarget(); }
+void TurboAssembler::CodeEntry() {
+  // Since `kJavaScriptCallCodeStartRegister` is the target register for tail
+  // calls, we have to allow for jumps too, with "BTI jc". We also allow the
+  // register allocator to pick the target register for calls made from
+  // WebAssembly.
+  // TODO(v8:10026): Consider changing this so that we can use CallTarget(),
+  // which maps to "BTI c", here instead.
+  JumpOrCallTarget();
+}
 
 void TurboAssembler::ExceptionHandler() { JumpTarget(); }
 
@@ -1128,7 +1136,7 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Pacibsp();
+    Paciasp();
   }
 #endif
 
@@ -1145,7 +1153,7 @@ void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), ((src0 != lr) && (src1 != lr)));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Pacibsp();
+    Paciasp();
   }
 #endif
 
@@ -1180,7 +1188,7 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR) {
-    Autibsp();
+    Autiasp();
   }
 #endif
 }
@@ -1191,7 +1199,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), (src != lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Pacibsp();
+    Paciasp();
   }
 #endif
 
@@ -1220,7 +1228,7 @@ void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   DCHECK_IMPLIES((lr_mode == kDontLoadLR), (dst != lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR) {
-    Autibsp();
+    Autiasp();
   }
 #endif
 }
@@ -1230,7 +1238,7 @@ void TurboAssembler::PushCPURegList(CPURegList registers) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), !registers.IncludesAliasOf(lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR && registers.IncludesAliasOf(lr)) {
-    Pacibsp();
+    Paciasp();
   }
 #endif
 
@@ -1272,7 +1280,7 @@ void TurboAssembler::PopCPURegList(CPURegList registers) {
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR && contains_lr) {
-    Autibsp();
+    Autiasp();
   }
 #endif
 }

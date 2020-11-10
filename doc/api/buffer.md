@@ -107,14 +107,14 @@ string into a `Buffer` as decoding.
   tabs, and new lines contained within the base64-encoded string are ignored.
 
 * `'hex'`: Encode each byte as two hexadecimal characters. Data truncation
-  may occur when decoding strings that do exclusively contain valid hexadecimal
+  may occur when decoding string that do exclusively contain valid hexadecimal
   characters. See below for an example.
 
 The following legacy character encodings are also supported:
 
 * `'ascii'`: For 7-bit [ASCII][] data only. When encoding a string into a
   `Buffer`, this is equivalent to using `'latin1'`. When decoding a `Buffer`
-  into a string, using this encoding will additionally unset the highest bit of
+  into a string, using encoding this will additionally unset the highest bit of
   each byte before decoding as `'latin1'`.
   Generally, there should be no reason to use this encoding, as `'utf8'`
   (or, if the data is known to always be ASCII-only, `'latin1'`) will be a
@@ -176,7 +176,7 @@ In particular:
 There are two ways to create new [`TypedArray`][] instances from a `Buffer`:
 
 * Passing a `Buffer` to a [`TypedArray`][] constructor will copy the `Buffer`s
-  contents, interpreted as an array of integers, and not as a byte sequence
+  contents, interpreted an array array of integers, and not as a byte sequence
   of the target type.
 
 ```js
@@ -284,14 +284,10 @@ Additionally, the [`buf.values()`][], [`buf.keys()`][], and
 The `Buffer` class is a global type for dealing with binary data directly.
 It can be constructed in a variety of ways.
 
-### Static method: `Buffer.alloc(size[, fill[, encoding]])`
+### Class Method: `Buffer.alloc(size[, fill[, encoding]])`
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v15.0.0
-    pr-url: https://github.com/nodejs/node/pull/34682
-    description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
-                 for invalid input arguments.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18129
     description: Attempting to fill a non-zero length buffer with a zero length
@@ -323,7 +319,7 @@ console.log(buf);
 ```
 
 If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_OPT_VALUE`][]
 is thrown.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
@@ -353,14 +349,10 @@ data that might not have been allocated for `Buffer`s.
 
 A `TypeError` will be thrown if `size` is not a number.
 
-### Static method: `Buffer.allocUnsafe(size)`
+### Class Method: `Buffer.allocUnsafe(size)`
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v15.0.0
-    pr-url: https://github.com/nodejs/node/pull/34682
-    description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
-                 for invalid input arguments.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7079
     description: Passing a negative `size` will now throw an error.
@@ -369,7 +361,7 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`.
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_OPT_VALUE`][]
 is thrown.
 
 The underlying memory for `Buffer` instances created in this way is *not
@@ -394,9 +386,9 @@ A `TypeError` will be thrown if `size` is not a number.
 The `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`][] that is used as a pool for the fast allocation of new
 `Buffer` instances created using [`Buffer.allocUnsafe()`][],
-[`Buffer.from(array)`][], [`Buffer.concat()`][], and the deprecated
-`new Buffer(size)` constructor only when `size` is less than or equal
-to `Buffer.poolSize >> 1` (floor of [`Buffer.poolSize`][] divided by two).
+[`Buffer.from(array)`][], and the deprecated `new Buffer(size)` constructor only
+when `size` is less than or equal to `Buffer.poolSize >> 1` (floor of
+[`Buffer.poolSize`][] divided by two).
 
 Use of this pre-allocated internal memory pool is a key difference between
 calling `Buffer.alloc(size, fill)` vs. `Buffer.allocUnsafe(size).fill(fill)`.
@@ -406,20 +398,15 @@ pool, while `Buffer.allocUnsafe(size).fill(fill)` *will* use the internal
 difference is subtle but can be important when an application requires the
 additional performance that [`Buffer.allocUnsafe()`][] provides.
 
-### Static method: `Buffer.allocUnsafeSlow(size)`
+### Class Method: `Buffer.allocUnsafeSlow(size)`
 <!-- YAML
 added: v5.12.0
-changes:
-  - version: v15.0.0
-    pr-url: https://github.com/nodejs/node/pull/34682
-    description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
-                 for invalid input arguments.
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_OPT_VALUE`][]
 is thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
@@ -459,7 +446,7 @@ socket.on('readable', () => {
 
 A `TypeError` will be thrown if `size` is not a number.
 
-### Static method: `Buffer.byteLength(string[, encoding])`
+### Class Method: `Buffer.byteLength(string[, encoding])`
 <!-- YAML
 added: v0.1.90
 changes:
@@ -498,7 +485,7 @@ When `string` is a `Buffer`/[`DataView`][]/[`TypedArray`][]/[`ArrayBuffer`][]/
 [`SharedArrayBuffer`][], the byte length as reported by `.byteLength`
 is returned.
 
-### Static method: `Buffer.compare(buf1, buf2)`
+### Class Method: `Buffer.compare(buf1, buf2)`
 <!-- YAML
 added: v0.11.13
 changes:
@@ -526,7 +513,7 @@ console.log(arr.sort(Buffer.compare));
 // (This result is equal to: [buf2, buf1].)
 ```
 
-### Static method: `Buffer.concat(list[, totalLength])`
+### Class Method: `Buffer.concat(list[, totalLength])`
 <!-- YAML
 added: v0.7.11
 changes:
@@ -573,10 +560,7 @@ console.log(bufA.length);
 // Prints: 42
 ```
 
-`Buffer.concat()` may also use the internal `Buffer` pool like
-[`Buffer.allocUnsafe()`][] does.
-
-### Static method: `Buffer.from(array)`
+### Class Method: `Buffer.from(array)`
 <!-- YAML
 added: v5.10.0
 -->
@@ -597,7 +581,7 @@ appropriate for `Buffer.from()` variants.
 `Buffer.from(array)` and [`Buffer.from(string)`][] may also use the internal
 `Buffer` pool like [`Buffer.allocUnsafe()`][] does.
 
-### Static method: `Buffer.from(arrayBuffer[, byteOffset[, length]])`
+### Class Method: `Buffer.from(arrayBuffer[, byteOffset[, length]])`
 <!-- YAML
 added: v5.10.0
 -->
@@ -648,7 +632,7 @@ A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`][] or a
 [`SharedArrayBuffer`][] or another type appropriate for `Buffer.from()`
 variants.
 
-### Static method: `Buffer.from(buffer)`
+### Class Method: `Buffer.from(buffer)`
 <!-- YAML
 added: v5.10.0
 -->
@@ -673,7 +657,7 @@ console.log(buf2.toString());
 A `TypeError` will be thrown if `buffer` is not a `Buffer` or another type
 appropriate for `Buffer.from()` variants.
 
-### Static method: `Buffer.from(object[, offsetOrEncoding[, length]])`
+### Class Method: `Buffer.from(object[, offsetOrEncoding[, length]])`
 <!-- YAML
 added: v8.2.0
 -->
@@ -707,7 +691,7 @@ const buf = Buffer.from(new Foo(), 'utf8');
 A `TypeError` will be thrown if `object` does not have the mentioned methods or
 is not of another type appropriate for `Buffer.from()` variants.
 
-### Static method: `Buffer.from(string[, encoding])`
+### Class Method: `Buffer.from(string[, encoding])`
 <!-- YAML
 added: v5.10.0
 -->
@@ -733,7 +717,7 @@ console.log(buf1.toString('latin1'));
 A `TypeError` will be thrown if `string` is not a string or another type
 appropriate for `Buffer.from()` variants.
 
-### Static method: `Buffer.isBuffer(obj)`
+### Class Method: `Buffer.isBuffer(obj)`
 <!-- YAML
 added: v0.1.101
 -->
@@ -743,7 +727,7 @@ added: v0.1.101
 
 Returns `true` if `obj` is a `Buffer`, `false` otherwise.
 
-### Static method: `Buffer.isEncoding(encoding)`
+### Class Method: `Buffer.isEncoding(encoding)`
 <!-- YAML
 added: v0.9.1
 -->
@@ -768,7 +752,7 @@ console.log(Buffer.isEncoding(''));
 // Prints: false
 ```
 
-### Class property: `Buffer.poolSize`
+### Class Property: `Buffer.poolSize`
 <!-- YAML
 added: v0.11.3
 -->
@@ -779,6 +763,10 @@ This is the size (in bytes) of pre-allocated internal `Buffer` instances used
 for pooling. This value may be modified.
 
 ### `buf[index]`
+<!-- YAML
+type: property
+name: [index]
+-->
 
 * `index` {integer}
 
@@ -1144,9 +1132,7 @@ changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `value` can now be a `Uint8Array`.
-  - version:
-    - v5.7.0
-    - v4.4.0
+  - version: v5.7.0, v4.4.0
     pr-url: https://github.com/nodejs/node/pull/4803
     description: When `encoding` is being passed, the `byteOffset` parameter
                  is no longer required.
@@ -1393,12 +1379,6 @@ values.
 added:
  - v12.0.0
  - v10.20.0
-changes:
-  - version:
-    - v14.10.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34960
-    description: This function is also available as `buf.readBigUint64BE()`.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1420,12 +1400,6 @@ console.log(buf.readBigUInt64BE(0));
 added:
  - v12.0.0
  - v10.20.0
-changes:
-  - version:
-    - v14.10.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34960
-    description: This function is also available as `buf.readBigUint64LE()`.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1735,11 +1709,6 @@ console.log(buf.readIntLE(0, 6).toString(16));
 <!-- YAML
 added: v0.5.0
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.readUint8()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1767,11 +1736,6 @@ console.log(buf.readUInt8(2));
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.readUint16BE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1798,11 +1762,6 @@ console.log(buf.readUInt16BE(1).toString(16));
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.readUint16LE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1831,11 +1790,6 @@ console.log(buf.readUInt16LE(2).toString(16));
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.readUint32BE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1860,11 +1814,6 @@ console.log(buf.readUInt32BE(0).toString(16));
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.readUint32LE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1891,11 +1840,6 @@ console.log(buf.readUInt32LE(1).toString(16));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.readUintBE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1925,11 +1869,6 @@ console.log(buf.readUIntBE(1, 6).toString(16));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.readUintLE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2019,9 +1958,7 @@ console.log(buf.subarray(-5, -2).toString());
 <!-- YAML
 added: v0.3.0
 changes:
-  - version:
-    - v7.1.0
-    - v6.9.2
+  - version: v7.1.0, v6.9.2
     pr-url: https://github.com/nodejs/node/pull/9341
     description: Coercing the offsets to integers now handles values outside
                  the 32-bit integer range properly.
@@ -2346,12 +2283,6 @@ console.log(buf);
 added:
  - v12.0.0
  - v10.20.0
-changes:
-  - version:
-    - v14.10.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34960
-    description: This function is also available as `buf.writeBigUint64BE()`.
 -->
 
 * `value` {bigint} Number to be written to `buf`.
@@ -2375,12 +2306,6 @@ console.log(buf);
 added:
  - v12.0.0
  - v10.20.0
-changes:
-  - version:
-    - v14.10.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34960
-    description: This function is also available as `buf.writeBigUint64LE()`.
 -->
 
 * `value` {bigint} Number to be written to `buf`.
@@ -2726,11 +2651,6 @@ console.log(buf);
 <!-- YAML
 added: v0.5.0
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.writeUint8()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2762,11 +2682,6 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.writeUint16BE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2796,11 +2711,6 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.writeUint16LE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2830,11 +2740,6 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.writeUint32BE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2863,11 +2768,6 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.writeUint32LE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2896,11 +2796,6 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.writeUintBE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2931,11 +2826,6 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version:
-    - v14.9.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34729
-    description: This function is also available as `buf.writeUintLE()`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -3189,8 +3079,8 @@ added: v8.2.0
 
 * {integer} The largest size allowed for a single `Buffer` instance.
 
-On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (~1GB).
-On 64-bit architectures, this value currently is 2<sup>31</sup> - 1 (~2GB).
+On 32-bit architectures, this value currently is `(2^30)-1` (~1GB).
+On 64-bit architectures, this value currently is `(2^31)-1` (~2GB).
 
 This value is also available as [`buffer.kMaxLength`][].
 
@@ -3281,12 +3171,12 @@ if `size` is less than or equal to half [`Buffer.poolSize`][]. Instances
 returned by [`Buffer.allocUnsafeSlow()`][] *never* use the shared internal
 memory pool.
 
-### The `--zero-fill-buffers` command-line option
+### The `--zero-fill-buffers` command line option
 <!-- YAML
 added: v5.10.0
 -->
 
-Node.js can be started using the `--zero-fill-buffers` command-line option to
+Node.js can be started using the `--zero-fill-buffers` command line option to
 cause all newly-allocated `Buffer` instances to be zero-filled upon creation by
 default. Without the option, buffers created with [`Buffer.allocUnsafe()`][],
 [`Buffer.allocUnsafeSlow()`][], and `new SlowBuffer(size)` are not zero-filled.
@@ -3313,36 +3203,30 @@ While there are clear performance advantages to using
 [`Buffer.allocUnsafe()`][], extra care *must* be taken in order to avoid
 introducing security vulnerabilities into an application.
 
-[ASCII]: https://en.wikipedia.org/wiki/ASCII
-[Base64]: https://en.wikipedia.org/wiki/Base64
-[ISO-8859-1]: https://en.wikipedia.org/wiki/ISO-8859-1
 [RFC 4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
-[UTF-16]: https://en.wikipedia.org/wiki/UTF-16
-[UTF-8]: https://en.wikipedia.org/wiki/UTF-8
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-[`Buffer.alloc()`]: #buffer_static_method_buffer_alloc_size_fill_encoding
-[`Buffer.allocUnsafe()`]: #buffer_static_method_buffer_allocunsafe_size
-[`Buffer.allocUnsafeSlow()`]: #buffer_static_method_buffer_allocunsafeslow_size
-[`Buffer.concat()`]: #buffer_static_method_buffer_concat_list_totallength
-[`Buffer.from(array)`]: #buffer_static_method_buffer_from_array
-[`Buffer.from(arrayBuf)`]: #buffer_static_method_buffer_from_arraybuffer_byteoffset_length
-[`Buffer.from(buffer)`]: #buffer_static_method_buffer_from_buffer
-[`Buffer.from(string)`]: #buffer_static_method_buffer_from_string_encoding
+[`Buffer.alloc()`]: #buffer_class_method_buffer_alloc_size_fill_encoding
+[`Buffer.allocUnsafe()`]: #buffer_class_method_buffer_allocunsafe_size
+[`Buffer.allocUnsafeSlow()`]: #buffer_class_method_buffer_allocunsafeslow_size
+[`Buffer.from(array)`]: #buffer_class_method_buffer_from_array
+[`Buffer.from(arrayBuf)`]: #buffer_class_method_buffer_from_arraybuffer_byteoffset_length
+[`Buffer.from(buffer)`]: #buffer_class_method_buffer_from_buffer
+[`Buffer.from(string)`]: #buffer_class_method_buffer_from_string_encoding
 [`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
-[`ERR_INVALID_ARG_VALUE`]: errors.md#ERR_INVALID_ARG_VALUE
-[`ERR_INVALID_BUFFER_SIZE`]: errors.md#ERR_INVALID_BUFFER_SIZE
-[`ERR_OUT_OF_RANGE`]: errors.md#ERR_OUT_OF_RANGE
+[`ERR_INVALID_BUFFER_SIZE`]: errors.html#ERR_INVALID_BUFFER_SIZE
+[`ERR_INVALID_OPT_VALUE`]: errors.html#ERR_INVALID_OPT_VALUE
+[`ERR_OUT_OF_RANGE`]: errors.html#ERR_OUT_OF_RANGE
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String#lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
+[`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
 [`TypedArray#set()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/set
 [`TypedArray#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/slice
 [`TypedArray#subarray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/subarray
-[`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`buf.buffer`]: #buffer_buf_buffer
@@ -3358,7 +3242,12 @@ introducing security vulnerabilities into an application.
 [`buffer.constants.MAX_LENGTH`]: #buffer_buffer_constants_max_length
 [`buffer.constants.MAX_STRING_LENGTH`]: #buffer_buffer_constants_max_string_length
 [`buffer.kMaxLength`]: #buffer_buffer_kmaxlength
-[`util.inspect()`]: util.md#util_util_inspect_object_options
+[`util.inspect()`]: util.html#util_util_inspect_object_options
+[ASCII]: https://en.wikipedia.org/wiki/ASCII
+[Base64]: https://en.wikipedia.org/wiki/Base64
+[ISO-8859-1]: https://en.wikipedia.org/wiki/ISO-8859-1
+[UTF-8]: https://en.wikipedia.org/wiki/UTF-8
+[UTF-16]: https://en.wikipedia.org/wiki/UTF-16
 [binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols

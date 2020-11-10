@@ -37,7 +37,8 @@ tmpdir.refresh();
 
 fs.writeFileSync(fileName, buf);
 
-fs.readFile(fileName, common.mustSucceed((data) => {
+fs.readFile(fileName, common.mustCall((err, data) => {
+  assert.ifError(err);
   assert.strictEqual(data.length, buf.length);
   assert.strictEqual(buf[0], 42);
 

@@ -32,9 +32,8 @@ function parseState(s) {
 
 
 function IcProcessor() {
-  var propertyICParser = [
-    parseInt, parseInt, parseInt, parseInt, parseString, parseString,
-    parseInt, parseString, parseString, parseString];
+  var propertyICParser = [parseInt, parseInt, parseInt, parseString,
+      parseString, parseInt, parseString, parseString, parseString];
   LogReader.call(this, {
       'code-creation': {
           parsers: [parseString, parseInt, parseInt, parseInt, parseInt,
@@ -162,17 +161,15 @@ IcProcessor.prototype.formatName = function(entry) {
 }
 
 IcProcessor.prototype.processPropertyIC = function (
-  type, pc, time, line, column, old_state, new_state, map, name, modifier,
-  slow_reason) {
-this[type]++;
-let entry = this.profile_.findEntry(pc);
-print(
-    type + ' (' + old_state + '->' + new_state + modifier + ') at ' +
-    this.formatName(entry) + ':' + line + ':' + column + ' ' + name +
-    ' (map 0x' + map.toString(16) + ')' +
-    (slow_reason ? ' ' + slow_reason : '') + 'time: ' + time);
+    type, pc, line, column, old_state, new_state, map, name, modifier,
+    slow_reason) {
+  this[type]++;
+  var entry = this.profile_.findEntry(pc);
+  print(type + " (" + old_state + "->" + new_state + modifier + ") at " +
+        this.formatName(entry) + ":" + line + ":" + column + " " + name +
+        " (map 0x" + map.toString(16) + ")" +
+        (slow_reason ? " " + slow_reason : ""));
 }
-
 
 
 class ArgumentsProcessor extends BaseArgumentsProcessor {

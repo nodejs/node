@@ -17,7 +17,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string-inl.h"
-#include "src/objects/string-table-inl.h"
 #include "src/strings/string-hasher.h"
 
 namespace v8 {
@@ -32,13 +31,12 @@ ROOT_LIST(ROOT_ACCESSOR)
 
 Handle<String> Factory::InternalizeString(Handle<String> string) {
   if (string->IsInternalizedString()) return string;
-  return isolate()->string_table()->LookupString(isolate(), string);
+  return StringTable::LookupString(isolate(), string);
 }
 
 Handle<Name> Factory::InternalizeName(Handle<Name> name) {
   if (name->IsUniqueName()) return name;
-  return isolate()->string_table()->LookupString(isolate(),
-                                                 Handle<String>::cast(name));
+  return StringTable::LookupString(isolate(), Handle<String>::cast(name));
 }
 
 Handle<String> Factory::NewSubString(Handle<String> str, int begin, int end) {

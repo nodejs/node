@@ -28,12 +28,14 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const cryptop = require('crypto').webcrypto;
 const { kMaxLength } = require('buffer');
 const { inspect } = require('util');
 
 const kMaxUint32 = Math.pow(2, 32) - 1;
 const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
+
+// Bump, we register a lot of exit listeners
+process.setMaxListeners(256);
 
 common.expectWarning('DeprecationWarning',
                      'crypto.pseudoRandomBytes is deprecated.', 'DEP0115');
@@ -103,33 +105,10 @@ common.expectWarning('DeprecationWarning',
 }
 
 {
-  [
-    new Uint16Array(10),
-    new Uint32Array(10),
-  ].forEach((buf) => {
-    const before = Buffer.from(buf.buffer).toString('hex');
-    cryptop.getRandomValues(buf);
-    const after = Buffer.from(buf.buffer).toString('hex');
-    assert.notStrictEqual(before, after);
-  });
-}
-
-{
-  [
-    new ArrayBuffer(10),
-    new SharedArrayBuffer(10)
-  ].forEach((buf) => {
-    const before = Buffer.from(buf).toString('hex');
-    crypto.randomFillSync(buf);
-    const after = Buffer.from(buf).toString('hex');
-    assert.notStrictEqual(before, after);
-  });
-}
-
-{
   const buf = Buffer.alloc(10);
   const before = buf.toString('hex');
-  crypto.randomFill(buf, common.mustSucceed((buf) => {
+  crypto.randomFill(buf, common.mustCall((err, buf) => {
+    assert.ifError(err);
     const after = buf.toString('hex');
     assert.notStrictEqual(before, after);
   }));
@@ -138,7 +117,8 @@ common.expectWarning('DeprecationWarning',
 {
   const buf = new Uint8Array(new Array(10).fill(0));
   const before = Buffer.from(buf).toString('hex');
-  crypto.randomFill(buf, common.mustSucceed((buf) => {
+  crypto.randomFill(buf, common.mustCall((err, buf) => {
+    assert.ifError(err);
     const after = Buffer.from(buf).toString('hex');
     assert.notStrictEqual(before, after);
   }));
@@ -153,21 +133,9 @@ common.expectWarning('DeprecationWarning',
     new DataView(new ArrayBuffer(10))
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
-    crypto.randomFill(buf, common.mustSucceed((buf) => {
+    crypto.randomFill(buf, common.mustCall((err, buf) => {
+      assert.ifError(err);
       const after = Buffer.from(buf.buffer).toString('hex');
-      assert.notStrictEqual(before, after);
-    }));
-  });
-}
-
-{
-  [
-    new ArrayBuffer(10),
-    new SharedArrayBuffer(10)
-  ].forEach((buf) => {
-    const before = Buffer.from(buf).toString('hex');
-    crypto.randomFill(buf, common.mustSucceed((buf) => {
-      const after = Buffer.from(buf).toString('hex');
       assert.notStrictEqual(before, after);
     }));
   });
@@ -203,7 +171,8 @@ common.expectWarning('DeprecationWarning',
 {
   const buf = Buffer.alloc(10);
   const before = buf.toString('hex');
-  crypto.randomFill(buf, 5, 5, common.mustSucceed((buf) => {
+  crypto.randomFill(buf, 5, 5, common.mustCall((err, buf) => {
+    assert.ifError(err);
     const after = buf.toString('hex');
     assert.notStrictEqual(before, after);
     assert.deepStrictEqual(before.slice(0, 5), after.slice(0, 5));
@@ -213,7 +182,8 @@ common.expectWarning('DeprecationWarning',
 {
   const buf = new Uint8Array(new Array(10).fill(0));
   const before = Buffer.from(buf).toString('hex');
-  crypto.randomFill(buf, 5, 5, common.mustSucceed((buf) => {
+  crypto.randomFill(buf, 5, 5, common.mustCall((err, buf) => {
+    assert.ifError(err);
     const after = Buffer.from(buf).toString('hex');
     assert.notStrictEqual(before, after);
     assert.deepStrictEqual(before.slice(0, 5), after.slice(0, 5));
@@ -337,6 +307,7 @@ assert.throws(
   );
 });
 
+
 ['pseudoRandomBytes', 'prng', 'rng'].forEach((f) => {
   const desc = Object.getOwnPropertyDescriptor(crypto, f);
   assert.ok(desc);
@@ -344,184 +315,3 @@ assert.throws(
   assert.strictEqual(desc.writable, true);
   assert.strictEqual(desc.enumerable, false);
 });
-
-
-{
-  // Asynchronous API
-  const randomInts = [];
-  for (let i = 0; i < 100; i++) {
-    crypto.randomInt(3, common.mustSucceed((n) => {
-      assert.ok(n >= 0);
-      assert.ok(n < 3);
-      randomInts.push(n);
-      if (randomInts.length === 100) {
-        assert.ok(!randomInts.includes(-1));
-        assert.ok(randomInts.includes(0));
-        assert.ok(randomInts.includes(1));
-        assert.ok(randomInts.includes(2));
-        assert.ok(!randomInts.includes(3));
-      }
-    }));
-  }
-}
-{
-  // Synchronous API
-  const randomInts = [];
-  for (let i = 0; i < 100; i++) {
-    const n = crypto.randomInt(3);
-    assert.ok(n >= 0);
-    assert.ok(n < 3);
-    randomInts.push(n);
-  }
-
-  assert.ok(!randomInts.includes(-1));
-  assert.ok(randomInts.includes(0));
-  assert.ok(randomInts.includes(1));
-  assert.ok(randomInts.includes(2));
-  assert.ok(!randomInts.includes(3));
-}
-{
-  // Positive range
-  const randomInts = [];
-  for (let i = 0; i < 100; i++) {
-    crypto.randomInt(1, 3, common.mustSucceed((n) => {
-      assert.ok(n >= 1);
-      assert.ok(n < 3);
-      randomInts.push(n);
-      if (randomInts.length === 100) {
-        assert.ok(!randomInts.includes(0));
-        assert.ok(randomInts.includes(1));
-        assert.ok(randomInts.includes(2));
-        assert.ok(!randomInts.includes(3));
-      }
-    }));
-  }
-}
-{
-  // Negative range
-  const randomInts = [];
-  for (let i = 0; i < 100; i++) {
-    crypto.randomInt(-10, -8, common.mustSucceed((n) => {
-      assert.ok(n >= -10);
-      assert.ok(n < -8);
-      randomInts.push(n);
-      if (randomInts.length === 100) {
-        assert.ok(!randomInts.includes(-11));
-        assert.ok(randomInts.includes(-10));
-        assert.ok(randomInts.includes(-9));
-        assert.ok(!randomInts.includes(-8));
-      }
-    }));
-  }
-}
-{
-
-  ['10', true, NaN, null, {}, []].forEach((i) => {
-    const invalidMinError = {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-      message: 'The "min" argument must be a safe integer.' +
-               `${common.invalidArgTypeHelper(i)}`,
-    };
-    const invalidMaxError = {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-      message: 'The "max" argument must be a safe integer.' +
-               `${common.invalidArgTypeHelper(i)}`,
-    };
-
-    assert.throws(
-      () => crypto.randomInt(i, 100),
-      invalidMinError
-    );
-    assert.throws(
-      () => crypto.randomInt(i, 100, common.mustNotCall()),
-      invalidMinError
-    );
-    assert.throws(
-      () => crypto.randomInt(i),
-      invalidMaxError
-    );
-    assert.throws(
-      () => crypto.randomInt(i, common.mustNotCall()),
-      invalidMaxError
-    );
-    assert.throws(
-      () => crypto.randomInt(0, i, common.mustNotCall()),
-      invalidMaxError
-    );
-    assert.throws(
-      () => crypto.randomInt(0, i),
-      invalidMaxError
-    );
-  });
-
-  const maxInt = Number.MAX_SAFE_INTEGER;
-  const minInt = Number.MIN_SAFE_INTEGER;
-
-  crypto.randomInt(minInt, minInt + 5, common.mustSucceed());
-  crypto.randomInt(maxInt - 5, maxInt, common.mustSucceed());
-
-  assert.throws(
-    () => crypto.randomInt(minInt - 1, minInt + 5, common.mustNotCall()),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-      message: 'The "min" argument must be a safe integer.' +
-      `${common.invalidArgTypeHelper(minInt - 1)}`,
-    }
-  );
-
-  assert.throws(
-    () => crypto.randomInt(maxInt + 1, common.mustNotCall()),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-      message: 'The "max" argument must be a safe integer.' +
-      `${common.invalidArgTypeHelper(maxInt + 1)}`,
-    }
-  );
-
-  crypto.randomInt(1, common.mustSucceed());
-  crypto.randomInt(0, 1, common.mustSucceed());
-  for (const arg of [[0], [1, 1], [3, 2], [-5, -5], [11, -10]]) {
-    assert.throws(() => crypto.randomInt(...arg, common.mustNotCall()), {
-      code: 'ERR_OUT_OF_RANGE',
-      name: 'RangeError',
-      message: 'The value of "max" is out of range. It must be greater than ' +
-      `the value of "min" (${arg[arg.length - 2] || 0}). ` +
-      `Received ${arg[arg.length - 1]}`
-    });
-  }
-
-  const MAX_RANGE = 0xFFFF_FFFF_FFFF;
-  crypto.randomInt(MAX_RANGE, common.mustSucceed());
-  crypto.randomInt(1, MAX_RANGE + 1, common.mustSucceed());
-  assert.throws(
-    () => crypto.randomInt(1, MAX_RANGE + 2, common.mustNotCall()),
-    {
-      code: 'ERR_OUT_OF_RANGE',
-      name: 'RangeError',
-      message: 'The value of "max - min" is out of range. ' +
-               `It must be <= ${MAX_RANGE}. ` +
-               'Received 281_474_976_710_656'
-    }
-  );
-
-  assert.throws(() => crypto.randomInt(MAX_RANGE + 1, common.mustNotCall()), {
-    code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError',
-    message: 'The value of "max" is out of range. ' +
-             `It must be <= ${MAX_RANGE}. ` +
-             'Received 281_474_976_710_656'
-  });
-
-  [true, NaN, null, {}, [], 10].forEach((i) => {
-    const cbError = {
-      code: 'ERR_INVALID_CALLBACK',
-      name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
-    };
-    assert.throws(() => crypto.randomInt(0, 1, i), cbError);
-  });
-}

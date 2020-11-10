@@ -23,6 +23,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 using v8::Object;
+using v8::SealHandleScope;
 
 std::unique_ptr<ExternalReferenceRegistry> NodeMainInstance::registry_ =
     nullptr;
@@ -108,8 +109,6 @@ NodeMainInstance::NodeMainInstance(
     // complete.
     SetIsolateErrorHandlers(isolate_, s);
   }
-  isolate_data_->max_young_gen_size =
-      params->constraints.max_young_generation_size_in_bytes();
 }
 
 void NodeMainInstance::Dispose() {
@@ -139,9 +138,37 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
     Context::Scope context_scope(env->context());
 
     if (exit_code == 0) {
-      LoadEnvironment(env.get(), StartExecutionCallback{});
+      LoadEnvironment(env.get());
 
-      exit_code = SpinEventLoop(env.get()).FromMaybe(1);
+      env->set_trace_sync_io(env->options()->trace_sync_io);
+
+      {
+        SealHandleScope seal(isolate_);
+        bool more;
+        env->performance_state()->Mark(
+            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
+        do {
+          uv_run(env->event_loop(), UV_RUN_DEFAULT);
+
+          per_process::v8_platform.DrainVMTasks(isolate_);
+
+          more = uv_loop_alive(env->event_loop());
+          if (more && !env->is_stopping()) continue;
+
+          if (!uv_loop_alive(env->event_loop())) {
+            EmitBeforeExit(env.get());
+          }
+
+          // Emit `beforeExit` if the loop became alive either after emitting
+          // event, or after running some callbacks.
+          more = uv_loop_alive(env->event_loop());
+        } while (more == true && !env->is_stopping());
+        env->performance_state()->Mark(
+            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
+      }
+
+      env->set_trace_sync_io(false);
+      exit_code = EmitExit(env.get());
     }
 
     ResetStdio();

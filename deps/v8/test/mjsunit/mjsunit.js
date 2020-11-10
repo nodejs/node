@@ -216,7 +216,6 @@ var prettyPrinted;
   var ArrayPrototypeJoin = Array.prototype.join;
   var ArrayPrototypeMap = Array.prototype.map;
   var ArrayPrototypePush = Array.prototype.push;
-  var JSONStringify = JSON.stringify;
 
   var BigIntPrototypeValueOf;
   // TODO(neis): Remove try-catch once BigInts are enabled by default.
@@ -253,7 +252,7 @@ var prettyPrinted;
   prettyPrinted = function prettyPrinted(value) {
     switch (typeof value) {
       case "string":
-        return JSONStringify(value);
+        return JSON.stringify(value);
       case "bigint":
         return String(value) + "n";
       case "number":

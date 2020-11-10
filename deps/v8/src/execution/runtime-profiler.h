@@ -20,10 +20,7 @@ class RuntimeProfiler {
  public:
   explicit RuntimeProfiler(Isolate* isolate);
 
-  // Called from the interpreter when the bytecode interrupt has been exhausted.
-  void MarkCandidatesForOptimizationFromBytecode();
-  // Likewise, from generated code.
-  void MarkCandidatesForOptimizationFromCode();
+  void MarkCandidatesForOptimization();
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 

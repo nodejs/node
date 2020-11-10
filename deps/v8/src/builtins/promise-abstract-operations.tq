@@ -24,18 +24,8 @@ PromiseRejectEventFromStack(implicit context: Context)(JSPromise, JSAny): JSAny;
 
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
 namespace promise {
-
-extern macro PromiseForwardingHandlerSymbolConstant(): Symbol;
-const kPromiseForwardingHandlerSymbol: Symbol =
-    PromiseForwardingHandlerSymbolConstant();
-extern macro PromiseHandledBySymbolConstant(): Symbol;
-const kPromiseHandledBySymbol: Symbol = PromiseHandledBySymbolConstant();
-extern macro ResolveStringConstant(): String;
-const kResolveString: String = ResolveStringConstant();
-extern macro IsPromiseResolveProtectorCellInvalid(): bool;
-
 extern macro AllocateFunctionWithMapAndContext(
-    Map, SharedFunctionInfo, FunctionContext): JSFunction;
+    Map, SharedFunctionInfo, Context): JSFunction;
 
 extern macro PromiseReactionMapConstant(): Map;
 extern macro PromiseFulfillReactionJobTaskMapConstant(): Map;
@@ -100,7 +90,7 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
     primaryHandler = promiseReaction.fulfill_handler;
     secondaryHandler = promiseReaction.reject_handler;
   } else {
-    static_assert(reactionType == kPromiseReactionReject);
+    StaticAssert(reactionType == kPromiseReactionReject);
     primaryHandler = promiseReaction.reject_handler;
     secondaryHandler = promiseReaction.fulfill_handler;
   }
@@ -114,26 +104,26 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
   // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
   // and schedule that on the microtask queue. We try to minimize the number
   // of stores here to avoid screwing up the store buffer.
-  static_assert(
+  StaticAssert(
       kPromiseReactionSize ==
       kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks);
   if constexpr (reactionType == kPromiseReactionFulfill) {
-    *UnsafeConstCast(&promiseReaction.map) =
+    * UnsafeConstCast(& promiseReaction.map) =
         PromiseFulfillReactionJobTaskMapConstant();
     const promiseReactionJobTask =
         UnsafeCast<PromiseFulfillReactionJobTask>(promiseReaction);
     promiseReactionJobTask.argument = argument;
     promiseReactionJobTask.context = handlerContext;
     EnqueueMicrotask(handlerContext, promiseReactionJobTask);
-    static_assert(
+    StaticAssert(
         kPromiseReactionFulfillHandlerOffset ==
         kPromiseReactionJobTaskHandlerOffset);
-    static_assert(
+    StaticAssert(
         kPromiseReactionPromiseOrCapabilityOffset ==
         kPromiseReactionJobTaskPromiseOrCapabilityOffset);
   } else {
-    static_assert(reactionType == kPromiseReactionReject);
-    *UnsafeConstCast(&promiseReaction.map) =
+    StaticAssert(reactionType == kPromiseReactionReject);
+    * UnsafeConstCast(& promiseReaction.map) =
         PromiseRejectReactionJobTaskMapConstant();
     const promiseReactionJobTask =
         UnsafeCast<PromiseRejectReactionJobTask>(promiseReaction);
@@ -141,7 +131,7 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
     promiseReactionJobTask.context = handlerContext;
     promiseReactionJobTask.handler = primaryHandler;
     EnqueueMicrotask(handlerContext, promiseReactionJobTask);
-    static_assert(
+    StaticAssert(
         kPromiseReactionPromiseOrCapabilityOffset ==
         kPromiseReactionJobTaskPromiseOrCapabilityOffset);
   }
@@ -252,33 +242,24 @@ RejectPromise(implicit context: Context)(
 
 const kPromiseCapabilitySize:
     constexpr int31 generates 'PromiseCapability::kSize';
-
-type PromiseResolvingFunctionContext extends FunctionContext;
-extern enum PromiseResolvingFunctionContextSlot extends intptr
-constexpr 'PromiseBuiltins::PromiseResolvingFunctionContextSlot' {
-  kPromiseSlot: Slot<PromiseResolvingFunctionContext, JSPromise>,
-  kAlreadyResolvedSlot: Slot<PromiseResolvingFunctionContext, Boolean>,
-  kDebugEventSlot: Slot<PromiseResolvingFunctionContext, Boolean>,
-  kPromiseContextLength
-}
-
-type PromiseCapabilitiesExecutorContext extends FunctionContext;
-extern enum FunctionContextSlot extends intptr
-constexpr 'PromiseBuiltins::FunctionContextSlot' {
-  kCapabilitySlot: Slot<PromiseCapabilitiesExecutorContext, PromiseCapability>,
-  kCapabilitiesContextLength
-}
+const kPromiseBuiltinsCapabilitiesContextLength: constexpr int31
+    generates 'PromiseBuiltins::kCapabilitiesContextLength';
+const kPromiseBuiltinsCapabilitySlot: constexpr ContextSlot
+    generates 'PromiseBuiltins::kCapabilitySlot';
+const kPromiseBuiltinsPromiseSlot: constexpr ContextSlot
+    generates 'PromiseBuiltins::kPromiseSlot';
+const kPromiseBuiltinsAlreadyResolvedSlot: constexpr ContextSlot
+    generates 'PromiseBuiltins::kAlreadyResolvedSlot';
+const kPromiseBuiltinsDebugEventSlot: constexpr ContextSlot
+    generates 'PromiseBuiltins::kDebugEventSlot';
 
 @export
 macro CreatePromiseCapabilitiesExecutorContext(
-    nativeContext: NativeContext, capability: PromiseCapability):
-    PromiseCapabilitiesExecutorContext {
-  const executorContext = %RawDownCast<PromiseCapabilitiesExecutorContext>(
-      AllocateSyntheticFunctionContext(
-          nativeContext, FunctionContextSlot::kCapabilitiesContextLength));
+    nativeContext: NativeContext, capability: PromiseCapability): Context {
+  const executorContext = AllocateSyntheticFunctionContext(
+      nativeContext, kPromiseBuiltinsCapabilitiesContextLength);
 
-  InitContextSlot(
-      executorContext, FunctionContextSlot::kCapabilitySlot, capability);
+  executorContext[kPromiseBuiltinsCapabilitySlot] = capability;
   return executorContext;
 }
 
@@ -302,12 +283,13 @@ struct PromiseResolvingFunctions {
 
 @export
 macro CreatePromiseResolvingFunctions(implicit context: Context)(
-    promise: JSPromise, debugEvent: Boolean, nativeContext: NativeContext):
+    promise: JSPromise, debugEvent: Object, nativeContext: NativeContext):
     PromiseResolvingFunctions {
   const promiseContext = CreatePromiseResolvingFunctionsContext(
       promise, debugEvent, nativeContext);
-  const map = *NativeContextSlot(
-      nativeContext, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  const map = UnsafeCast<Map>(
+      nativeContext
+          [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
   const resolveInfo = PromiseCapabilityDefaultResolveSharedFunConstant();
 
   const resolve: JSFunction =
@@ -320,10 +302,11 @@ macro CreatePromiseResolvingFunctions(implicit context: Context)(
 
 transitioning macro
 InnerNewPromiseCapability(implicit context: Context)(
-    constructor: HeapObject, debugEvent: Boolean): PromiseCapability {
+    constructor: HeapObject, debugEvent: Object): PromiseCapability {
   const nativeContext = LoadNativeContext(context);
-  if (constructor ==
-      *NativeContextSlot(nativeContext, ContextSlot::PROMISE_FUNCTION_INDEX)) {
+  if (TaggedEqual(
+          constructor,
+          nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX])) {
     const promise = NewJSPromise();
 
     const pair =
@@ -338,10 +321,9 @@ InnerNewPromiseCapability(implicit context: Context)(
         CreatePromiseCapabilitiesExecutorContext(nativeContext, capability);
 
     const executorInfo = PromiseGetCapabilitiesExecutorSharedFunConstant();
-    const functionMap =
-        *NativeContextSlot(
-        nativeContext,
-        ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+    const functionMap = UnsafeCast<Map>(
+        nativeContext
+            [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
     const executor = AllocateFunctionWithMapAndContext(
         functionMap, executorInfo, executorContext);
 
@@ -359,7 +341,7 @@ InnerNewPromiseCapability(implicit context: Context)(
 // https://tc39.es/ecma262/#sec-newpromisecapability
 transitioning builtin
 NewPromiseCapability(implicit context: Context)(
-    maybeConstructor: Object, debugEvent: Boolean): PromiseCapability {
+    maybeConstructor: Object, debugEvent: Object): PromiseCapability {
   typeswitch (maybeConstructor) {
     case (Smi): {
       ThrowTypeError(MessageTemplate::kNotConstructor, maybeConstructor);
@@ -376,15 +358,13 @@ NewPromiseCapability(implicit context: Context)(
 // https://tc39.es/ecma262/#sec-promise-reject-functions
 transitioning javascript builtin
 PromiseCapabilityDefaultReject(
-    js-implicit context: Context, receiver: JSAny)(reason: JSAny): JSAny {
-  const context = %RawDownCast<PromiseResolvingFunctionContext>(context);
+    js-implicit context: NativeContext, receiver: JSAny)(reason: JSAny): JSAny {
   // 2. Let promise be F.[[Promise]].
-  const promise =
-      *ContextSlot(context, PromiseResolvingFunctionContextSlot::kPromiseSlot);
+  const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  const alreadyResolved = *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot);
+  const alreadyResolved =
+      UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
   if (alreadyResolved == True) {
@@ -392,28 +372,25 @@ PromiseCapabilityDefaultReject(
   }
 
   // 5. Set alreadyResolved.[[Value]] to true.
-  *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot) =
-      True;
+  context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
 
   // 6. Return RejectPromise(promise, reason).
-  const debugEvent = *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kDebugEventSlot);
+  const debugEvent =
+      UnsafeCast<Boolean>(context[kPromiseBuiltinsDebugEventSlot]);
   return RejectPromise(promise, reason, debugEvent);
 }
 
 // https://tc39.es/ecma262/#sec-promise-resolve-functions
 transitioning javascript builtin
 PromiseCapabilityDefaultResolve(
-    js-implicit context: Context, receiver: JSAny)(resolution: JSAny): JSAny {
-  const context = %RawDownCast<PromiseResolvingFunctionContext>(context);
+    js-implicit context: NativeContext,
+    receiver: JSAny)(resolution: JSAny): JSAny {
   // 2. Let promise be F.[[Promise]].
-  const promise: JSPromise =
-      *ContextSlot(context, PromiseResolvingFunctionContextSlot::kPromiseSlot);
+  const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  const alreadyResolved: Boolean = *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot);
+  const alreadyResolved =
+      UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
   if (alreadyResolved == True) {
@@ -421,9 +398,7 @@ PromiseCapabilityDefaultResolve(
   }
 
   // 5. Set alreadyResolved.[[Value]] to true.
-  *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot) =
-      True;
+  context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
 
   // The rest of the logic (and the catch prediction) is
   // encapsulated in the dedicated ResolvePromise builtin.
@@ -490,7 +465,7 @@ PromiseReject(
   const receiver = Cast<JSReceiver>(receiver) otherwise
   ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'PromiseReject');
 
-  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
+  const promiseFun = context[NativeContextSlot::PROMISE_FUNCTION_INDEX];
   if (promiseFun == receiver) {
     const promise = NewJSPromise(PromiseState::kRejected, reason);
     runtime::PromiseRejectEventFromStack(promise, reason);
@@ -513,11 +488,11 @@ const kPromiseExecutorAlreadyInvoked: constexpr MessageTemplate
 
 // https://tc39.es/ecma262/#sec-getcapabilitiesexecutor-functions
 transitioning javascript builtin
-PromiseGetCapabilitiesExecutor(js-implicit context: Context, receiver: JSAny)(
+PromiseGetCapabilitiesExecutor(
+    js-implicit context: NativeContext, receiver: JSAny)(
     resolve: JSAny, reject: JSAny): JSAny {
-  const context = %RawDownCast<PromiseCapabilitiesExecutorContext>(context);
-  const capability: PromiseCapability =
-      *ContextSlot(context, FunctionContextSlot::kCapabilitySlot);
+  const capability =
+      UnsafeCast<PromiseCapability>(context[kPromiseBuiltinsCapabilitySlot]);
   if (capability.resolve != Undefined || capability.reject != Undefined)
     deferred {
       ThrowTypeError(kPromiseExecutorAlreadyInvoked);
@@ -526,41 +501,6 @@ PromiseGetCapabilitiesExecutor(js-implicit context: Context, receiver: JSAny)(
   capability.resolve = resolve;
   capability.reject = reject;
   return Undefined;
-}
-
-macro IsPromiseResolveLookupChainIntact(implicit context: Context)(
-    nativeContext: NativeContext, constructor: JSReceiver): bool {
-  if (IsForceSlowPath()) return false;
-  const promiseFun =
-      *NativeContextSlot(nativeContext, ContextSlot::PROMISE_FUNCTION_INDEX);
-  return promiseFun == constructor && !IsPromiseResolveProtectorCellInvalid();
-}
-
-// https://tc39.es/ecma262/#sec-getpromiseresolve
-transitioning macro GetPromiseResolve(implicit context: Context)(
-    nativeContext: NativeContext, constructor: Constructor): JSAny {
-  // 1. Assert: IsConstructor(constructor) is true.
-
-  // We can skip the "resolve" lookup on {constructor} if it's the
-  // Promise constructor and the Promise.resolve protector is intact,
-  // as that guards the lookup path for the "resolve" property on the
-  // Promise constructor. In this case, promiseResolveFunction is undefined,
-  // and when CallResolve is called with it later, it will call Promise.resolve.
-  let promiseResolveFunction: JSAny = Undefined;
-
-  if (!IsPromiseResolveLookupChainIntact(nativeContext, constructor)) {
-    let promiseResolve: JSAny;
-
-    // 2. Let promiseResolve be ? Get(constructor, "resolve").
-    promiseResolve = GetProperty(constructor, kResolveString);
-
-    // 3. If IsCallable(promiseResolve) is false, throw a TypeError exception.
-    promiseResolveFunction =
-        Cast<Callable>(promiseResolve) otherwise ThrowTypeError(
-            MessageTemplate::kCalledNonCallable, 'resolve');
-  }
-  // 4. return promiseResolve.
-  return promiseResolveFunction;
 }
 
 transitioning macro CallResolve(implicit context: Context)(

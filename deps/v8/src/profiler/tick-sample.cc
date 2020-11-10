@@ -10,7 +10,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/simulator.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/heap/heap-inl.h"  // For Heap::code_range.
+#include "src/heap/heap-inl.h"  // For MemoryAllocator::code_range.
 #include "src/logging/counters.h"
 #include "src/sanitizer/asan.h"
 #include "src/sanitizer/msan.h"
@@ -337,10 +337,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
         continue;
       }
     }
-    // For arm64, the PC for the frame sometimes doesn't come from the stack,
-    // but from the link register instead. For this reason, we skip
-    // authenticating it.
-    frames[i++] = reinterpret_cast<void*>(it.frame()->unauthenticated_pc());
+    frames[i++] = reinterpret_cast<void*>(it.frame()->pc());
   }
   sample_info->frames_count = i;
   return true;

@@ -16,5 +16,4 @@ for (let i = 0; i < 100; ++i) {
   chain = chain.then(() => WebAssembly.instantiate(buffer));
 }
 chain.then(({module, instance}) => instance.exports.fun1155())
-    .then(res => print('Result of executing fun1155: ' + res))
-    .catch(() => {/* ignore */});
+    .then(res => print('Result of executing fun1155: ' + res));

@@ -35,13 +35,17 @@ const fileTemp = path.join(tmpdir.path, 'a.js');
 tmpdir.refresh();
 fs.copyFileSync(fileFixture, fileTemp);
 
-fs.open(fileTemp, 'a', 0o777, common.mustSucceed((fd) => {
+fs.open(fileTemp, 'a', 0o777, common.mustCall(function(err, fd) {
+  assert.ifError(err);
+
   fs.fdatasyncSync(fd);
 
   fs.fsyncSync(fd);
 
-  fs.fdatasync(fd, common.mustSucceed(() => {
-    fs.fsync(fd, common.mustSucceed(() => {
+  fs.fdatasync(fd, common.mustCall(function(err) {
+    assert.ifError(err);
+    fs.fsync(fd, common.mustCall(function(err) {
+      assert.ifError(err);
       fs.closeSync(fd);
     }));
   }));

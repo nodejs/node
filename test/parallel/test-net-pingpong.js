@@ -39,7 +39,8 @@ function pingPongTest(port, host) {
     assert.strictEqual(socket.server, server);
     assert.strictEqual(
       server,
-      server.getConnections(common.mustSucceed((connections) => {
+      server.getConnections(common.mustCall(function(err, connections) {
+        assert.ifError(err);
         assert.strictEqual(connections, 1);
       }))
     );

@@ -311,18 +311,18 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
 
 }  // namespace
 
-Handle<PrimitiveHeapObject> StackFrameBase::GetEvalOrigin() {
+Handle<Object> StackFrameBase::GetEvalOrigin() {
   if (!HasScript() || !IsEval()) return isolate_->factory()->undefined_value();
   return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
 }
 
-Handle<PrimitiveHeapObject> StackFrameBase::GetWasmModuleName() {
+Handle<Object> StackFrameBase::GetWasmModuleName() {
   return isolate_->factory()->undefined_value();
 }
 
 int StackFrameBase::GetWasmFunctionIndex() { return StackFrameBase::kNone; }
 
-Handle<HeapObject> StackFrameBase::GetWasmInstance() {
+Handle<Object> StackFrameBase::GetWasmInstance() {
   return isolate_->factory()->undefined_value();
 }
 
@@ -351,7 +351,6 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
   is_async_ = (flags & FrameArray::kIsAsync) != 0;
   is_promise_all_ = (flags & FrameArray::kIsPromiseAll) != 0;
-  is_promise_any_ = (flags & FrameArray::kIsPromiseAny) != 0;
 }
 
 JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
@@ -376,7 +375,7 @@ Handle<Object> JSStackFrame::GetFileName() {
   return handle(GetScript()->name(), isolate_);
 }
 
-Handle<PrimitiveHeapObject> JSStackFrame::GetFunctionName() {
+Handle<Object> JSStackFrame::GetFunctionName() {
   Handle<String> result = JSFunction::GetDebugName(function_);
   if (result->length() != 0) return result;
 
@@ -419,7 +418,7 @@ Handle<Object> JSStackFrame::GetScriptNameOrSourceUrl() {
   return ScriptNameOrSourceUrl(GetScript(), isolate_);
 }
 
-Handle<PrimitiveHeapObject> JSStackFrame::GetMethodName() {
+Handle<Object> JSStackFrame::GetMethodName() {
   if (receiver_->IsNullOrUndefined(isolate_)) {
     return isolate_->factory()->null_value();
   }
@@ -453,7 +452,7 @@ Handle<PrimitiveHeapObject> JSStackFrame::GetMethodName() {
   }
 
   HandleScope outer_scope(isolate_);
-  Handle<PrimitiveHeapObject> result;
+  Handle<Object> result;
   for (PrototypeIterator iter(isolate_, receiver, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<Object> current = PrototypeIterator::GetCurrent(iter);
@@ -479,7 +478,7 @@ Handle<PrimitiveHeapObject> JSStackFrame::GetMethodName() {
   return isolate_->factory()->null_value();
 }
 
-Handle<PrimitiveHeapObject> JSStackFrame::GetTypeName() {
+Handle<Object> JSStackFrame::GetTypeName() {
   // TODO(jgruber): Check for strict/constructor here as in
   // CallSitePrototypeGetThis.
 
@@ -515,7 +514,7 @@ int JSStackFrame::GetColumnNumber() {
 }
 
 int JSStackFrame::GetPromiseIndex() const {
-  return (is_promise_all_ || is_promise_any_) ? offset_ : kNone;
+  return is_promise_all_ ? offset_ : kNone;
 }
 
 bool JSStackFrame::IsNative() {
@@ -565,8 +564,8 @@ Handle<Object> WasmStackFrame::GetFunction() const {
   return handle(Smi::FromInt(wasm_func_index_), isolate_);
 }
 
-Handle<PrimitiveHeapObject> WasmStackFrame::GetFunctionName() {
-  Handle<PrimitiveHeapObject> name;
+Handle<Object> WasmStackFrame::GetFunctionName() {
+  Handle<Object> name;
   Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
                                          isolate_);
   if (!WasmModuleObject::GetFunctionNameOrNull(isolate_, module_object,
@@ -583,8 +582,8 @@ Handle<Object> WasmStackFrame::GetScriptNameOrSourceUrl() {
   return ScriptNameOrSourceUrl(script, isolate_);
 }
 
-Handle<PrimitiveHeapObject> WasmStackFrame::GetWasmModuleName() {
-  Handle<PrimitiveHeapObject> module_name;
+Handle<Object> WasmStackFrame::GetWasmModuleName() {
+  Handle<Object> module_name;
   Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
                                          isolate_);
   if (!WasmModuleObject::GetModuleNameOrNull(isolate_, module_object)
@@ -594,7 +593,7 @@ Handle<PrimitiveHeapObject> WasmStackFrame::GetWasmModuleName() {
   return module_name;
 }
 
-Handle<HeapObject> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
+Handle<Object> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
 
 int WasmStackFrame::GetPosition() const {
   return IsInterpreted() ? offset_ : code_->GetSourcePositionBefore(offset_);
@@ -608,9 +607,7 @@ int WasmStackFrame::GetModuleOffset() const {
   return function_offset + GetPosition();
 }
 
-Handle<Object> WasmStackFrame::GetFileName() { return Null(); }
-
-Handle<PrimitiveHeapObject> WasmStackFrame::Null() const {
+Handle<Object> WasmStackFrame::Null() const {
   return isolate_->factory()->null_value();
 }
 
@@ -1261,13 +1258,14 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
         isolate, *location->shared());
     UnoptimizedCompileState compile_state(isolate);
     ParseInfo info(isolate, flags, &compile_state);
-    if (parsing::ParseAny(&info, location->shared(), isolate,
-                          parsing::ReportStatisticsMode::kNo)) {
+    if (parsing::ParseAny(&info, location->shared(), isolate)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location->shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location->start_pos());
       *hint = printer.GetErrorHint();
       if (str->length() > 0) return str;
+    } else {
+      isolate->clear_pending_exception();
     }
   }
   return BuildDefaultCallSite(isolate, object);
@@ -1321,8 +1319,7 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
         isolate, *location.shared());
     UnoptimizedCompileState compile_state(isolate);
     ParseInfo info(isolate, flags, &compile_state);
-    if (parsing::ParseAny(&info, location.shared(), isolate,
-                          parsing::ReportStatisticsMode::kNo)) {
+    if (parsing::ParseAny(&info, location.shared(), isolate)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript(),
                           CallPrinter::SpreadErrorInArgsHint::kErrorInArgs);
@@ -1337,6 +1334,7 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
             MessageLocation(location.script(), pos, pos + 1, location.shared());
       }
     } else {
+      isolate->clear_pending_exception();
       callsite = BuildDefaultCallSite(isolate, object);
     }
   }
@@ -1398,8 +1396,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
         isolate, *location.shared());
     UnoptimizedCompileState compile_state(isolate);
     ParseInfo info(isolate, flags, &compile_state);
-    if (parsing::ParseAny(&info, location.shared(), isolate,
-                          parsing::ReportStatisticsMode::kNo)) {
+    if (parsing::ParseAny(&info, location.shared(), isolate)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location.start_pos());
@@ -1434,6 +1431,8 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
       }
 
       if (str->length() > 0) callsite = str;
+    } else {
+      isolate->clear_pending_exception();
     }
   }
 

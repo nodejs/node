@@ -52,9 +52,9 @@ assert.throws(() => {
 
 {
   const err = {
-    code: 'ERR_INVALID_ARG_VALUE',
+    code: 'ERR_INVALID_OPT_VALUE',
     name: 'TypeError',
-    message: "The argument 'hints' is invalid. Received 100"
+    message: 'The value "100" is invalid for option "hints"'
   };
   const options = {
     hints: 100,
@@ -70,9 +70,9 @@ assert.throws(() => {
 
 {
   const err = {
-    code: 'ERR_INVALID_ARG_VALUE',
+    code: 'ERR_INVALID_OPT_VALUE',
     name: 'TypeError',
-    message: "The argument 'family' must be one of: 0, 4, 6. Received 20"
+    message: 'The value "20" is invalid for option "family"'
   };
   const options = {
     hints: 0,
@@ -115,7 +115,8 @@ dns.lookup(false, {
   hints: 0,
   family: 0,
   all: true
-}, common.mustSucceed((result, addressType) => {
+}, common.mustCall((error, result, addressType) => {
+  assert.ifError(error);
   assert.deepStrictEqual(result, []);
   assert.strictEqual(addressType, undefined);
 }));
@@ -124,7 +125,8 @@ dns.lookup('127.0.0.1', {
   hints: 0,
   family: 4,
   all: true
-}, common.mustSucceed((result, addressType) => {
+}, common.mustCall((error, result, addressType) => {
+  assert.ifError(error);
   assert.deepStrictEqual(result, [{
     address: '127.0.0.1',
     family: 4
@@ -136,7 +138,8 @@ dns.lookup('127.0.0.1', {
   hints: 0,
   family: 4,
   all: false
-}, common.mustSucceed((result, addressType) => {
+}, common.mustCall((error, result, addressType) => {
+  assert.ifError(error);
   assert.deepStrictEqual(result, '127.0.0.1');
   assert.strictEqual(addressType, 4);
 }));

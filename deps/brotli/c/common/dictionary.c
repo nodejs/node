@@ -5,13 +5,12 @@
 */
 
 #include "./dictionary.h"
-#include "./platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-#if !defined(BROTLI_EXTERNAL_DICTIONARY_DATA)
+#ifndef BROTLI_EXTERNAL_DICTIONARY_DATA
 static const uint8_t kBrotliDictionaryData[] =
 {
 116,105,109,101,100,111,119,110,108,105,102,101,108,101,102,116,98,97,99,107,99,
@@ -5863,11 +5862,7 @@ static const uint8_t kBrotliDictionaryData[] =
 ;
 #endif  /* !BROTLI_EXTERNAL_DICTIONARY_DATA */
 
-#if !defined(BROTLI_EXTERNAL_DICTIONARY_DATA)
-static const BrotliDictionary kBrotliDictionary = {
-#else
 static BrotliDictionary kBrotliDictionary = {
-#endif
   /* size_bits_by_length */
   {
     0, 0, 0, 0, 10, 10, 11, 11,
@@ -5900,13 +5895,9 @@ const BrotliDictionary* BrotliGetDictionary() {
 }
 
 void BrotliSetDictionaryData(const uint8_t* data) {
-#if defined(BROTLI_EXTERNAL_DICTIONARY_DATA)
   if (!!data && !kBrotliDictionary.data) {
     kBrotliDictionary.data = data;
   }
-#else
-  BROTLI_UNUSED(data);  // Appease -Werror=unused-parameter
-#endif
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

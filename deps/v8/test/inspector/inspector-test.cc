@@ -111,11 +111,10 @@ std::vector<uint16_t> ToVector(const v8_inspector::StringView& string) {
 class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
  public:
   FrontendChannelImpl(TaskRunner* task_runner, int context_group_id,
-                      v8::Isolate* isolate,
-                      v8::Local<v8::Function> dispatch_message_callback)
+                      v8::Isolate* isolate, v8::Local<v8::Function> function)
       : task_runner_(task_runner),
         context_group_id_(context_group_id),
-        dispatch_message_callback_(isolate, dispatch_message_callback) {}
+        function_(isolate, function) {}
   ~FrontendChannelImpl() override = default;
 
   void set_session_id(int session_id) { session_id_ = session_id; }
@@ -152,7 +151,7 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
       v8::Context::Scope context_scope(context);
       v8::Local<v8::Value> message = ToV8String(data->isolate(), message_);
       v8::MaybeLocal<v8::Value> result;
-      result = channel_->dispatch_message_callback_.Get(data->isolate())
+      result = channel_->function_.Get(data->isolate())
                    ->Call(context, context->Global(), 1, &message);
     }
     FrontendChannelImpl* channel_;
@@ -161,7 +160,7 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
 
   TaskRunner* task_runner_;
   int context_group_id_;
-  v8::Global<v8::Function> dispatch_message_callback_;
+  v8::Global<v8::Function> function_;
   int session_id_;
   DISALLOW_COPY_AND_ASSIGN(FrontendChannelImpl);
 };
@@ -637,8 +636,8 @@ std::map<int, std::unique_ptr<FrontendChannelImpl>> UtilsExtension::channels_;
 class SetTimeoutTask : public TaskRunner::Task {
  public:
   SetTimeoutTask(int context_group_id, v8::Isolate* isolate,
-                 v8::Local<v8::Function> callback)
-      : callback_(isolate, callback), context_group_id_(context_group_id) {}
+                 v8::Local<v8::Function> function)
+      : function_(isolate, function), context_group_id_(context_group_id) {}
   ~SetTimeoutTask() override = default;
   bool is_priority_task() final { return false; }
 
@@ -650,12 +649,12 @@ class SetTimeoutTask : public TaskRunner::Task {
     v8::Local<v8::Context> context = data->GetContext(context_group_id_);
     v8::Context::Scope context_scope(context);
 
-    v8::Local<v8::Function> callback = callback_.Get(data->isolate());
+    v8::Local<v8::Function> function = function_.Get(data->isolate());
     v8::MaybeLocal<v8::Value> result;
-    result = callback->Call(context, context->Global(), 0, nullptr);
+    result = function->Call(context, context->Global(), 0, nullptr);
   }
 
-  v8::Global<v8::Function> callback_;
+  v8::Global<v8::Function> function_;
   int context_group_id_;
 };
 

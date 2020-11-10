@@ -83,7 +83,7 @@ V8 will not compile.
 
 ```c
 // deps/v8/src/objects/intl-objects.h
-#define V8_MINIMUM_ICU_VERSION 65
+#define V8_MINIMUM_ICU_VERSION 64
 ```
 
 V8 in Node.js depends on the ICU version supplied by Node.js.
@@ -104,7 +104,7 @@ should be sufficient).
 ```bash
 ./configure \
     --with-intl=full-icu \
-    --with-icu-source=https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-src.tgz
+    --with-icu-source=http://download.icu-project.org/files/icu4c/58.1/icu4c-58_1-src.tgz
 make
 ```
 
@@ -261,8 +261,8 @@ Node.js (see the top level README.md). Only modifying `icu-small` would cause
 the patch not to be landed in case the user specifies the ICU source code
 another way.
 
-[CLDR]: https://unicode.org/cldr
-[Ecma402]: https://github.com/tc39/ecma402
 [ICU]: http://icu-project.org
 [Unicode]: https://unicode.org
 [tz]: https://www.iana.org/time-zones
+[CLDR]: https://unicode.org/cldr
+[Ecma402]: https://github.com/tc39/ecma402

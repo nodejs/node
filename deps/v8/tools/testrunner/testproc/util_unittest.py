@@ -3,17 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import absolute_import
-
-import os
-import sys
+from util import FixedSizeTopList
 import unittest
-
-TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
-sys.path.append(TOOLS_PATH)
-
-from testrunner.testproc.util import FixedSizeTopList
 
 class TestOrderedFixedSizeList(unittest.TestCase):
   def test_empty(self):

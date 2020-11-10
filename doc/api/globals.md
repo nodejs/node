@@ -19,7 +19,7 @@ accessible.
 
 ## Class: `AbortController`
 <!--YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -42,7 +42,7 @@ console.log(ac.signal.aborted);  // Prints True
 
 ### `abortController.abort()`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 Triggers the abort signal, causing the `abortController.signal` to emit
@@ -50,14 +50,14 @@ the `'abort'` event.
 
 ### `abortController.signal`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * Type: {AbortSignal}
 
 ### Class: `AbortSignal`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * Extends: {EventTarget}
@@ -67,7 +67,7 @@ The `AbortSignal` is used to notify observers when the
 
 #### Event: `'abort'`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 The `'abort'` event is emitted when the `abortController.abort()` method
@@ -97,14 +97,14 @@ Failure to do so may result in memory leaks.
 
 #### `abortSignal.aborted`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * Type: {boolean} True after the `AbortController` has been aborted.
 
 #### `abortSignal.onabort`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * Type: {Function}
@@ -169,30 +169,6 @@ added: v0.1.100
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
-## `Event`
-<!-- YAML
-added: v15.0.0
--->
-
-<!-- type=global -->
-
-> Stability: 1 - Experimental
-
-A browser-compatible implementation of the `Event` class. See
-[`EventTarget` and `Event` API][] for more details.
-
-## `EventTarget`
-<!-- YAML
-added: v15.0.0
--->
-
-<!-- type=global -->
-
-> Stability: 1 - Experimental
-
-A browser-compatible implementation of the `EventTarget` class. See
-[`EventTarget` and `Event` API][] for more details.
-
 ## `exports`
 
 This variable may appear to be global but is not. See [`exports`][].
@@ -210,33 +186,6 @@ In browsers, the top-level scope is the global scope. This means that
 within the browser `var something` will define a new global variable. In
 Node.js this is different. The top-level scope is not the global scope;
 `var something` inside a Node.js module will be local to that module.
-
-## `MessageChannel`
-<!-- YAML
-added: v15.0.0
--->
-
-<!-- type=global -->
-
-The `MessageChannel` class. See [`MessageChannel`][] for more details.
-
-## `MessageEvent`
-<!-- YAML
-added: v15.0.0
--->
-
-<!-- type=global -->
-
-The `MessageEvent` class. See [`MessageEvent`][] for more details.
-
-## `MessagePort`
-<!-- YAML
-added: v15.0.0
--->
-
-<!-- type=global -->
-
-The `MessagePort` class. See [`MessagePort`][] for more details.
 
 ## `module`
 
@@ -373,31 +322,27 @@ The object that acts as the namespace for all W3C
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
-[`EventTarget` and `Event` API]: events.md#event-target-and-event-api
-[`MessageChannel`]: worker_threads.md#worker_threads_class_messagechannel
-[`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
-[`MessagePort`]: worker_threads.md#worker_threads_class_messageport
-[`TextDecoder`]: util.md#util_class_util_textdecoder
-[`TextEncoder`]: util.md#util_class_util_textencoder
-[`URLSearchParams`]: url.md#url_class_urlsearchparams
-[`URL`]: url.md#url_class_url
-[`__dirname`]: modules.md#modules_dirname
-[`__filename`]: modules.md#modules_filename
-[`clearImmediate`]: timers.md#timers_clearimmediate_immediate
-[`clearInterval`]: timers.md#timers_clearinterval_timeout
-[`clearTimeout`]: timers.md#timers_cleartimeout_timeout
-[`console`]: console.md
-[`exports`]: modules.md#modules_exports
-[`module`]: modules.md#modules_module
-[`process.nextTick()`]: process.md#process_process_nexttick_callback_args
-[`process` object]: process.md#process_process
-[`require()`]: modules.md#modules_require_id
-[`setImmediate`]: timers.md#timers_setimmediate_callback_args
-[`setInterval`]: timers.md#timers_setinterval_callback_delay_args
-[`setTimeout`]: timers.md#timers_settimeout_callback_delay_args
-[buffer section]: buffer.md
+[`TextDecoder`]: util.html#util_class_util_textdecoder
+[`TextEncoder`]: util.html#util_class_util_textencoder
+[`URLSearchParams`]: url.html#url_class_urlsearchparams
+[`URL`]: url.html#url_class_url
+[`__dirname`]: modules.html#modules_dirname
+[`__filename`]: modules.html#modules_filename
+[`clearImmediate`]: timers.html#timers_clearimmediate_immediate
+[`clearInterval`]: timers.html#timers_clearinterval_timeout
+[`clearTimeout`]: timers.html#timers_cleartimeout_timeout
+[`console`]: console.html
+[`exports`]: modules.html#modules_exports
+[`module`]: modules.html#modules_module
+[`process.nextTick()`]: process.html#process_process_nexttick_callback_args
+[`process` object]: process.html#process_process
+[`require()`]: modules.html#modules_require_id
+[`setImmediate`]: timers.html#timers_setimmediate_callback_args
+[`setInterval`]: timers.html#timers_setinterval_callback_delay_args
+[`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
+[buffer section]: buffer.html
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
-[module system documentation]: modules.md
-[timers]: timers.md
+[module system documentation]: modules.html
+[timers]: timers.html
 [webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
 [webassembly-org]: https://webassembly.org

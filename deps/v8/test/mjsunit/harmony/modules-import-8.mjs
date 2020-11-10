@@ -9,24 +9,21 @@ var ran = false;
 var x = {
   get toString() { return undefined; }
 };
-import(x).then(assertUnreachable, 
-    (e) => assertInstanceof(e, TypeError));
+import(x);
 
 var x = {
   toString() {
     throw new Error('42 is the answer');
   }
 };
-import(x).then(assertUnreachable, 
-    (e) => assertEquals(e.message, '42 is the answer'))
+import(x);
 
 var x = {
   get toString() {
     throw new Error('42 is the answer');
   }
 };
-import(x).then(assertUnreachable,
-    (e) => assertEquals(e.message, '42 is the answer'))
+import(x);
 
 async function test1() {
   try {

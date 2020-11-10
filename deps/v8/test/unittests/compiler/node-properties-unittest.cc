@@ -18,8 +18,6 @@ namespace node_properties_unittest {
 
 class NodePropertiesTest : public TestWithZone {
  public:
-  NodePropertiesTest() : TestWithZone(kCompressGraphZone) {}
-
   Node* NewMockNode(const Operator* op) {
     return Node::New(zone(), 0, op, 0, nullptr, false);
   }

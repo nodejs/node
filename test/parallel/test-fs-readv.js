@@ -24,7 +24,9 @@ const allocateEmptyBuffers = (combinedLength) => {
 };
 
 const getCallback = (fd, bufferArr) => {
-  return common.mustSucceed((bytesRead, buffers) => {
+  return common.mustCall((err, bytesRead, buffers) => {
+    assert.ifError(err);
+
     assert.deepStrictEqual(bufferArr, buffers);
     const expectedLength = exptectedBuff.length;
     assert.deepStrictEqual(bytesRead, expectedLength);

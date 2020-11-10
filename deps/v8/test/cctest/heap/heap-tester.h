@@ -47,7 +47,6 @@
   V(TestMemoryReducerSampleJsCalls)                         \
   V(TestSizeOfObjects)                                      \
   V(Regress5831)                                            \
-  V(Regress10560)                                           \
   V(Regress538257)                                          \
   V(Regress587004)                                          \
   V(Regress589413)                                          \
@@ -58,10 +57,7 @@
   V(Regress791582)                                          \
   V(Regress845060)                                          \
   V(RegressMissingWriteBarrierInAllocate)                   \
-  V(WriteBarrier_Marking)                                   \
-  V(WriteBarrier_MarkingExtension)                          \
-  V(WriteBarriersInCopyJSObject)                            \
-  V(DoNotEvacuatePinnedPages)
+  V(WriteBarriersInCopyJSObject)
 
 #define HEAP_TEST(Name)                                                   \
   CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \

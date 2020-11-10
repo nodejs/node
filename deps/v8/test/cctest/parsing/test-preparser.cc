@@ -716,8 +716,7 @@ TEST(PreParserScopeAnalysis) {
       i::ParseInfo using_scope_data(isolate, flags, &using_scope_state);
       using_scope_data.set_consumed_preparse_data(
           i::ConsumedPreparseData::For(isolate, produced_data_on_heap));
-      CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate,
-                                      i::parsing::ReportStatisticsMode::kYes));
+      CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate));
 
       // Verify that we skipped at least one function inside that scope.
       i::DeclarationScope* scope_with_skipped_functions =
@@ -728,8 +727,7 @@ TEST(PreParserScopeAnalysis) {
       // Parse the lazy function again eagerly to produce baseline data.
       i::UnoptimizedCompileState not_using_scope_state(isolate);
       i::ParseInfo not_using_scope_data(isolate, flags, &not_using_scope_state);
-      CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate,
-                                      i::parsing::ReportStatisticsMode::kYes));
+      CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate));
 
       // Verify that we didn't skip anything (there's no preparsed scope data,
       // so we cannot skip).
@@ -766,8 +764,7 @@ TEST(Regress753896) {
 
   // We don't assert that parsing succeeded or that it failed; currently the
   // error is not detected inside lazy functions, but it might be in the future.
-  i::parsing::ParseProgram(&info, script, isolate,
-                           i::parsing::ReportStatisticsMode::kYes);
+  i::parsing::ParseProgram(&info, script, isolate);
 }
 
 TEST(ProducingAndConsumingByteData) {

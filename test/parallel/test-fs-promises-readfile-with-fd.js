@@ -1,7 +1,9 @@
 'use strict';
 
-// This test makes sure that `readFile()` always reads from the current
-// position of the file, instead of reading from the beginning of the file.
+/*
+ * This test makes sure that `readFile()` always reads from the current
+ * position of the file, instead of reading from the beginning of the file.
+ */
 
 const common = require('../common');
 const assert = require('assert');

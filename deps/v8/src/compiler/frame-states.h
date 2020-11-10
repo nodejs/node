@@ -6,7 +6,6 @@
 #define V8_COMPILER_FRAME_STATES_H_
 
 #include "src/builtins/builtins.h"
-#include "src/compiler/node.h"
 #include "src/handles/handles.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/utils.h"
@@ -141,28 +140,28 @@ size_t hash_value(FrameStateInfo const&);
 
 std::ostream& operator<<(std::ostream&, FrameStateInfo const&);
 
-static constexpr int kFrameStateParametersInput = 0;
-static constexpr int kFrameStateLocalsInput = 1;
-static constexpr int kFrameStateStackInput = 2;
-static constexpr int kFrameStateContextInput = 3;
-static constexpr int kFrameStateFunctionInput = 4;
-static constexpr int kFrameStateOuterStateInput = 5;
-static constexpr int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
+static const int kFrameStateParametersInput = 0;
+static const int kFrameStateLocalsInput = 1;
+static const int kFrameStateStackInput = 2;
+static const int kFrameStateContextInput = 3;
+static const int kFrameStateFunctionInput = 4;
+static const int kFrameStateOuterStateInput = 5;
+static const int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
 
 enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 
-FrameState CreateStubBuiltinContinuationFrameState(
+Node* CreateStubBuiltinContinuationFrameState(
     JSGraph* graph, Builtins::Name name, Node* context, Node* const* parameters,
     int parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);
 
-FrameState CreateJavaScriptBuiltinContinuationFrameState(
+Node* CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);
 
-FrameState CreateGenericLazyDeoptContinuationFrameState(
+Node* CreateGenericLazyDeoptContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
     Node* context, Node* receiver, Node* outer_frame_state);
 

@@ -98,7 +98,7 @@ function TestArraySortingWithUndefined() {
 TestArraySortingWithUndefined();
 
 // Test that sorting using an unsound comparison function still gives a
-// sensible result, i.e. it terminates without error and retains the elements
+// sane result, i.e. it terminates without error and retains the elements
 // in the array.
 function TestArraySortingWithUnsoundComparisonFunction() {
   var a = [ 3, void 0, 2 ];

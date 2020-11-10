@@ -43,9 +43,7 @@ module.exports = {
     {
       files: [
         'doc/api/esm.md',
-        'doc/api/module.md',
         'doc/api/modules.md',
-        'doc/api/packages.md',
         'test/es-module/test-esm-type-flag.js',
         'test/es-module/test-esm-type-flag-alias.js',
         '*.mjs',
@@ -287,11 +285,6 @@ module.exports = {
     BigInt: 'readable',
     BigInt64Array: 'readable',
     BigUint64Array: 'readable',
-    Event: 'readable',
-    EventTarget: 'readable',
-    MessageChannel: 'readable',
-    MessageEvent: 'readable',
-    MessagePort: 'readable',
     TextEncoder: 'readable',
     TextDecoder: 'readable',
     queueMicrotask: 'readable',

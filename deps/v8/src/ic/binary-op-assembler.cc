@@ -69,8 +69,6 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
       // Not overflowed.
       {
         var_type_feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
-        UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
-                       slot_id);
         var_result = smi_result;
         Goto(&end);
       }
@@ -118,7 +116,6 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
   BIND(&do_fadd);
   {
     var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
-    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
     TNode<Float64T> value =
         Float64Add(var_fadd_lhs.value(), var_fadd_rhs.value());
     TNode<HeapNumber> result = AllocateHeapNumberWithValue(value);
@@ -169,8 +166,6 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
                   &call_with_any_feedback);
 
         var_type_feedback = SmiConstant(BinaryOperationFeedback::kString);
-        UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
-                       slot_id);
         var_result =
             CallBuiltin(Builtins::kStringAdd_CheckNone, context, lhs, rhs);
 
@@ -199,7 +194,6 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
     GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
 
     var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
-    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
     Goto(&end);
 
     BIND(&bigint_too_big);
@@ -225,12 +219,12 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
 
   BIND(&call_add_stub);
   {
-    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
     var_result = CallBuiltin(Builtins::kAdd, context, lhs, rhs);
     Goto(&end);
   }
 
   BIND(&end);
+  UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
   return var_result.value();
 }
 
@@ -285,7 +279,6 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     {
       Comment("perform smi operation");
       var_result = smiOperation(lhs_smi, CAST(rhs), &var_type_feedback);
-      UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
       Goto(&end);
     }
   }
@@ -328,7 +321,6 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   BIND(&do_float_operation);
   {
     var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
-    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
     TNode<Float64T> lhs_value = var_float_lhs.value();
     TNode<Float64T> rhs_value = var_float_rhs.value();
     TNode<Float64T> value = floatOperation(lhs_value, rhs_value);
@@ -392,7 +384,6 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   BIND(&if_both_bigint);
   {
     var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
-    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
     if (op == Operation::kSubtract) {
       Label bigint_too_big(this);
       var_result =
@@ -424,7 +415,6 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 
   BIND(&call_stub);
   {
-    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
     TNode<Object> result;
     switch (op) {
       case Operation::kSubtract:
@@ -447,6 +437,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   }
 
   BIND(&end);
+  UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
   return var_result.value();
 }
 

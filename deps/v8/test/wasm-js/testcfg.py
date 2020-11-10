@@ -15,24 +15,21 @@ META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
 proposal_flags = [{
                     'name': 'reference-types',
-                    'flags': ['--experimental-wasm-reftypes',
-                              '--no-experimental-wasm-bulk-memory',
-                              '--wasm-staging']
+                    'flags': ['--experimental-wasm-anyref',
+                              '--no-experimental-wasm-bulk-memory']
                   },
                   {
                     'name': 'bulk-memory-operations',
-                    'flags': ['--experimental-wasm-bulk-memory',
-                              '--wasm-staging']
+                    'flags': ['--experimental-wasm-bulk-memory']
                   },
                   {
                     'name': 'js-types',
                     'flags': ['--experimental-wasm-type-reflection',
-                              '--wasm-staging']
+                              '--no-experimental-wasm-bulk-memory']
                   },
                   {
-                    'name': 'tail-call',
-                    'flags': ['--experimental-wasm-tail-call',
-                              '--wasm-staging']
+                    'name': 'JS-BigInt-integration',
+                    'flags': ['--experimental-wasm-bigint']
                   },
                   ]
 
@@ -76,9 +73,7 @@ class TestCase(testcase.D8TestCase):
 
   def _get_files_params(self):
     files = [self.suite.mjsunit_js,
-             os.path.join(self.suite.root, "third_party", "testharness.js"),
-             os.path.join(self.suite.root, "testharness-additions.js"),
-             os.path.join(self.suite.root, "report.js")]
+             os.path.join(self.suite.root, "testharness.js")]
 
     source = self.get_source()
     current_dir = os.path.dirname(self._get_source_path())
@@ -103,15 +98,17 @@ class TestCase(testcase.D8TestCase):
 
       files.append(script)
 
-    files.extend([self._get_source_path(),
-                  os.path.join(self.suite.root, "after.js")])
+    files.extend([
+      self._get_source_path(),
+      os.path.join(self.suite.root, "testharness-after.js")
+    ])
     return files
 
   def _get_source_flags(self):
     for proposal in proposal_flags:
       if get_proposal_path_identifier(proposal) in self.path:
         return proposal['flags']
-    return ['--wasm-staging']
+    return []
 
   def _get_source_path(self):
     # All tests are named `path/name.any.js`

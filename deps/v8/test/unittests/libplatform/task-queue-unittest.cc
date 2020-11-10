@@ -18,7 +18,7 @@ namespace task_queue_unittest {
 namespace {
 
 struct MockTask : public Task {
-  MOCK_METHOD(void, Run, (), (override));
+  MOCK_METHOD0(Run, void());
 };
 
 

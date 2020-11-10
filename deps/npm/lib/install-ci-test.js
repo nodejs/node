@@ -1,19 +1,26 @@
+'use strict'
+
 // npm install-ci-test
 // Runs `npm ci` and then runs `npm test`
 
-const ci = require('./ci.js')
-const test = require('./test.js')
-const usageUtil = require('./utils/usage.js')
+module.exports = installTest
+var ci = require('./ci.js')
+var test = require('./test.js')
+var usage = require('./utils/usage')
 
-const usage = usageUtil(
+installTest.usage = usage(
   'install-ci-test',
-  'npm install-ci-test [args]' +
+  '\nnpm install-ci-test [args]' +
   '\nSame args as `npm ci`'
 )
 
-const completion = ci.completion
+installTest.completion = ci.completion
 
-const ciTest = (args, cb) =>
-  ci(args, er => er ? cb(er) : test([], cb))
-
-module.exports = Object.assign(ciTest, { usage, completion })
+function installTest (args, cb) {
+  ci(args, function (er) {
+    if (er) {
+      return cb(er)
+    }
+    test([], cb)
+  })
+}

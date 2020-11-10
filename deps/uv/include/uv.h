@@ -247,8 +247,7 @@ typedef struct uv_utsname_s uv_utsname_t;
 typedef struct uv_statfs_s uv_statfs_t;
 
 typedef enum {
-  UV_LOOP_BLOCK_SIGNAL = 0,
-  UV_METRICS_IDLE_TIME
+  UV_LOOP_BLOCK_SIGNAL
 } uv_loop_option;
 
 typedef enum {
@@ -614,12 +613,6 @@ enum uv_udp_flags {
    * must not be freed by the recv_cb callback.
    */
   UV_UDP_MMSG_CHUNK = 8,
-  /*
-   * Indicates that the buffer provided has been fully utilized by recvmmsg and
-   * that it should now be freed by the recv_cb callback. When this flag is set
-   * in uv_udp_recv_cb, nread will always be 0 and addr will always be NULL.
-   */
-  UV_UDP_MMSG_FREE = 16,
 
   /*
    * Indicates that recvmmsg should be used, if available.
@@ -700,7 +693,6 @@ UV_EXTERN int uv_udp_try_send(uv_udp_t* handle,
 UV_EXTERN int uv_udp_recv_start(uv_udp_t* handle,
                                 uv_alloc_cb alloc_cb,
                                 uv_udp_recv_cb recv_cb);
-UV_EXTERN int uv_udp_using_recvmmsg(const uv_udp_t* handle);
 UV_EXTERN int uv_udp_recv_stop(uv_udp_t* handle);
 UV_EXTERN size_t uv_udp_get_send_queue_size(const uv_udp_t* handle);
 UV_EXTERN size_t uv_udp_get_send_queue_count(const uv_udp_t* handle);
@@ -871,7 +863,6 @@ UV_EXTERN int uv_timer_stop(uv_timer_t* handle);
 UV_EXTERN int uv_timer_again(uv_timer_t* handle);
 UV_EXTERN void uv_timer_set_repeat(uv_timer_t* handle, uint64_t repeat);
 UV_EXTERN uint64_t uv_timer_get_repeat(const uv_timer_t* handle);
-UV_EXTERN uint64_t uv_timer_get_due_in(const uv_timer_t* handle);
 
 
 /*
@@ -1200,12 +1191,12 @@ UV_EXTERN uv_pid_t uv_os_getppid(void);
 
 #if defined(__PASE__)
 /* On IBM i PASE, the highest process priority is -10 */
-# define UV_PRIORITY_LOW 39          /* RUNPTY(99) */
-# define UV_PRIORITY_BELOW_NORMAL 15 /* RUNPTY(50) */
-# define UV_PRIORITY_NORMAL 0        /* RUNPTY(20) */
-# define UV_PRIORITY_ABOVE_NORMAL -4 /* RUNTY(12) */
-# define UV_PRIORITY_HIGH -7         /* RUNPTY(6) */
-# define UV_PRIORITY_HIGHEST -10     /* RUNPTY(1) */
+# define UV_PRIORITY_LOW 39            // RUNPTY(99)
+# define UV_PRIORITY_BELOW_NORMAL 15   // RUNPTY(50)
+# define UV_PRIORITY_NORMAL 0          // RUNPTY(20)
+# define UV_PRIORITY_ABOVE_NORMAL -4   // RUNTY(12)
+# define UV_PRIORITY_HIGH -7           // RUNPTY(6)
+# define UV_PRIORITY_HIGHEST -10       // RUNPTY(1)
 #else
 # define UV_PRIORITY_LOW 19
 # define UV_PRIORITY_BELOW_NORMAL 10
@@ -1252,7 +1243,6 @@ UV_EXTERN int uv_os_gethostname(char* buffer, size_t* size);
 
 UV_EXTERN int uv_os_uname(uv_utsname_t* buffer);
 
-UV_EXTERN uint64_t uv_metrics_idle_time(uv_loop_t* loop);
 
 typedef enum {
   UV_FS_UNKNOWN = -1,
@@ -1784,11 +1774,9 @@ struct uv_loop_s {
   unsigned int active_handles;
   void* handle_queue[2];
   union {
-    void* unused;
+    void* unused[2];
     unsigned int count;
   } active_reqs;
-  /* Internal storage for future extensions. */
-  void* internal_fields;
   /* Internal flag to signal loop stop. */
   unsigned int stop_flag;
   UV_LOOP_PRIVATE_FIELDS

@@ -3,18 +3,15 @@ name: test-asan
 on:
   push:
     branches:
-      - master
-      - canary
-      - v[0-9]+.x-staging
-      - v[0-9]+.x
+    - master
     paths-ignore:
-      - 'doc/**'
+    - 'doc/**'
   pull_request:
     paths-ignore:
-      - 'doc/**'
+    - 'doc/**'
 
 env:
-  PYTHON_VERSION: 3.9
+  PYTHON_VERSION: 3.8
   FLAKY_TESTS: dontcare
 
 jobs:
@@ -28,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -36,4 +33,4 @@ jobs:
       - name: Build
         run: make build-ci -j2 V=1
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions"
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p dots"

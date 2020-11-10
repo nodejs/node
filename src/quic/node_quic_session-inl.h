@@ -5,7 +5,7 @@
 
 #include "debug_utils-inl.h"
 #include "node_crypto.h"
-#include "crypto/crypto_common.h"
+#include "node_crypto_common.h"
 #include "node_quic_crypto.h"
 #include "node_quic_session.h"
 #include "node_quic_socket-inl.h"
@@ -50,8 +50,6 @@ void QuicSessionConfig::set_original_connection_id(
     transport_params.original_dcid = *ocid;
     transport_params.retry_scid = *scid;
     transport_params.retry_scid_present = 1;
-  } else {
-    transport_params.original_dcid = *scid;
   }
 }
 

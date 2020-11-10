@@ -36,6 +36,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
+    message: 'The "key" argument must be of type string or an instance of ' +
+             'Buffer, TypedArray, DataView, or KeyObject. Received null'
   });
 
 function testHmac(algo, key, data, expected) {
@@ -448,5 +450,5 @@ assert.strictEqual(
 {
   assert.throws(
     () => crypto.createHmac('sha7', 'key'),
-    /Invalid digest/);
+    /Unknown message digest/);
 }

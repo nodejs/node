@@ -308,10 +308,10 @@ HIGH
 !CAMELLIA
 ```
 
-This default can be replaced entirely using the [`--tls-cipher-list`][]
-command-line switch (directly, or via the [`NODE_OPTIONS`][] environment
-variable). For instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4`
-the default TLS cipher suite:
+This default can be replaced entirely using the [`--tls-cipher-list`][] command
+line switch (directly, or via the [`NODE_OPTIONS`][] environment variable). For
+instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS
+cipher suite:
 
 ```bash
 node --tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4' server.js
@@ -369,51 +369,6 @@ There are only 5 TLSv1.3 cipher suites:
 The first 3 are enabled by default. The last 2 `CCM`-based suites are supported
 by TLSv1.3 because they may be more performant on constrained systems, but they
 are not enabled by default since they offer less security.
-
-## Class: `tls.CryptoStream`
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-The `tls.CryptoStream` class represents a stream of encrypted data. This class
-is deprecated and should no longer be used.
-
-### `cryptoStream.bytesWritten`
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-The `cryptoStream.bytesWritten` property returns the total number of bytes
-written to the underlying socket *including* the bytes required for the
-implementation of the TLS protocol.
-
-## Class: `tls.SecurePair`
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-Returned by [`tls.createSecurePair()`][].
-
-### Event: `'secure'`
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
--->
-
-The `'secure'` event is emitted by the `SecurePair` object once a secure
-connection has been established.
-
-As with checking for the server
-[`'secureConnection'`](#tls_event_secureconnection)
-event, `pair.cleartext.authorized` should be inspected to confirm whether the
-certificate used is properly authorized.
 
 ## Class: `tls.Server`
 <!-- YAML
@@ -1068,8 +1023,7 @@ For EC keys, the following properties may be defined:
 
 Example certificate:
 
-<!-- eslint-skip -->
-```js
+```text
 { subject:
    { OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
      CN: '*.nodejs.org' },
@@ -1346,9 +1300,6 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: v15.1.0
-    pr-url: https://github.com/nodejs/node/pull/35753
-    description: Added `onread` option.
   - version:
     - v14.1.0
     - v13.14.0
@@ -1380,9 +1331,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` option can be a `TypedArray` or
      `DataView` now.
-  - version:
-    - v5.3.0
-    - v4.7.0
+  - version: v5.3.0, v4.7.0
     pr-url: https://github.com/nodejs/node/pull/4246
     description: The `secureContext` option is supported now.
   - version: v5.0.0
@@ -1462,10 +1411,6 @@ changes:
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
     `tls.createSecureContext()`.
-  * `onread` {Object} If the `socket` option is missing, incoming data is
-    stored in a single `buffer` and passed to the supplied `callback` when
-    data arrives on the socket, otherwise the option is ignored. See the
-    `onread` option of [`net.Socket`][] for details.
   * ...: [`tls.createSecureContext()`][] options that are used if the
     `secureContext` option is missing, otherwise they are ignored.
   * ...: Any [`socket.connect()`][] option not already listed.
@@ -1723,74 +1668,11 @@ The `tls.createSecureContext()` method creates a `SecureContext` object. It is
 usable as an argument to several `tls` APIs, such as [`tls.createServer()`][]
 and [`server.addContext()`][], but has no public methods.
 
-A key is *required* for ciphers that use certificates. Either `key` or
+A key is *required* for ciphers that make use of certificates. Either `key` or
 `pfx` can be used to provide it.
 
 If the `ca` option is not given, then Node.js will default to using
 [Mozilla's publicly trusted list of CAs][].
-
-## `tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])`
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
-changes:
-  - version: v5.0.0
-    pr-url: https://github.com/nodejs/node/pull/2564
-    description: ALPN options are supported now.
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-* `context` {Object} A secure context object as returned by
-  `tls.createSecureContext()`
-* `isServer` {boolean} `true` to specify that this TLS connection should be
-  opened as a server.
-* `requestCert` {boolean} `true` to specify whether a server should request a
-  certificate from a connecting client. Only applies when `isServer` is `true`.
-* `rejectUnauthorized` {boolean} If not `false` a server automatically reject
-  clients with invalid certificates. Only applies when `isServer` is `true`.
-* `options`
-  * `enableTrace`: See [`tls.createServer()`][]
-  * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
-  * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
-    **Default:** `false`.
-  * `server` {net.Server} A [`net.Server`][] instance
-  * `requestCert`: See [`tls.createServer()`][]
-  * `rejectUnauthorized`: See [`tls.createServer()`][]
-  * `ALPNProtocols`: See [`tls.createServer()`][]
-  * `SNICallback`: See [`tls.createServer()`][]
-  * `session` {Buffer} A `Buffer` instance containing a TLS session.
-  * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
-    extension will be added to the client hello and an `'OCSPResponse'` event
-    will be emitted on the socket before establishing a secure communication.
-
-Creates a new secure pair object with two streams, one of which reads and writes
-the encrypted data and the other of which reads and writes the cleartext data.
-Generally, the encrypted stream is piped to/from an incoming encrypted data
-stream and the cleartext one is used as a replacement for the initial encrypted
-stream.
-
-`tls.createSecurePair()` returns a `tls.SecurePair` object with `cleartext` and
-`encrypted` stream properties.
-
-Using `cleartext` has the same API as [`tls.TLSSocket`][].
-
-The `tls.createSecurePair()` method is now deprecated in favor of
-`tls.TLSSocket()`. For example, the code:
-
-```js
-pair = tls.createSecurePair(/* ... */);
-pair.encrypted.pipe(socket);
-socket.pipe(pair.encrypted);
-```
-
-can be replaced by:
-
-```js
-secureSocket = tls.TLSSocket(socket, options);
-```
-
-where `secureSocket` has the same API as `pair.cleartext`.
 
 ## `tls.createServer([options][, secureConnectionListener])`
 <!-- YAML
@@ -1988,41 +1870,136 @@ added: v11.4.0
   `'TLSv1.3'`. If multiple of the options are provided, the lowest minimum is
   used.
 
-[Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
-[DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
-[ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-[Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
-[OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
-[OpenSSL Options]: crypto.md#crypto_openssl_options
-[RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
-[RFC 4086]: https://tools.ietf.org/html/rfc4086
-[RFC 4279]: https://tools.ietf.org/html/rfc4279
-[RFC 5077]: https://tools.ietf.org/html/rfc5077
-[RFC 5929]: https://tools.ietf.org/html/rfc5929
-[SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
-[Session Resumption]: #tls_session_resumption
-[Stream]: stream.md#stream_stream
-[TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
-[`--tls-cipher-list`]: cli.md#cli_tls_cipher_list_list
-[`Duplex`]: stream.md#stream_class_stream_duplex
-[`NODE_OPTIONS`]: cli.md#cli_node_options_options
+## Deprecated APIs
+
+### Class: `CryptoStream`
+<!-- YAML
+added: v0.3.4
+deprecated: v0.11.3
+-->
+
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+
+The `tls.CryptoStream` class represents a stream of encrypted data. This class
+is deprecated and should no longer be used.
+
+#### `cryptoStream.bytesWritten`
+<!-- YAML
+added: v0.3.4
+deprecated: v0.11.3
+-->
+
+The `cryptoStream.bytesWritten` property returns the total number of bytes
+written to the underlying socket *including* the bytes required for the
+implementation of the TLS protocol.
+
+### Class: `SecurePair`
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
+
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+
+Returned by [`tls.createSecurePair()`][].
+
+#### Event: `'secure'`
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
+
+The `'secure'` event is emitted by the `SecurePair` object once a secure
+connection has been established.
+
+As with checking for the server
+[`'secureConnection'`](#tls_event_secureconnection)
+event, `pair.cleartext.authorized` should be inspected to confirm whether the
+certificate used is properly authorized.
+
+### `tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])`
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
+-->
+
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+
+* `context` {Object} A secure context object as returned by
+  `tls.createSecureContext()`
+* `isServer` {boolean} `true` to specify that this TLS connection should be
+  opened as a server.
+* `requestCert` {boolean} `true` to specify whether a server should request a
+  certificate from a connecting client. Only applies when `isServer` is `true`.
+* `rejectUnauthorized` {boolean} If not `false` a server automatically reject
+  clients with invalid certificates. Only applies when `isServer` is `true`.
+* `options`
+  * `enableTrace`: See [`tls.createServer()`][]
+  * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
+  * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
+    **Default:** `false`.
+  * `server` {net.Server} A [`net.Server`][] instance
+  * `requestCert`: See [`tls.createServer()`][]
+  * `rejectUnauthorized`: See [`tls.createServer()`][]
+  * `ALPNProtocols`: See [`tls.createServer()`][]
+  * `SNICallback`: See [`tls.createServer()`][]
+  * `session` {Buffer} A `Buffer` instance containing a TLS session.
+  * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
+    extension will be added to the client hello and an `'OCSPResponse'` event
+    will be emitted on the socket before establishing a secure communication.
+
+Creates a new secure pair object with two streams, one of which reads and writes
+the encrypted data and the other of which reads and writes the cleartext data.
+Generally, the encrypted stream is piped to/from an incoming encrypted data
+stream and the cleartext one is used as a replacement for the initial encrypted
+stream.
+
+`tls.createSecurePair()` returns a `tls.SecurePair` object with `cleartext` and
+`encrypted` stream properties.
+
+Using `cleartext` has the same API as [`tls.TLSSocket`][].
+
+The `tls.createSecurePair()` method is now deprecated in favor of
+`tls.TLSSocket()`. For example, the code:
+
+```js
+pair = tls.createSecurePair(/* ... */);
+pair.encrypted.pipe(socket);
+socket.pipe(pair.encrypted);
+```
+
+can be replaced by:
+
+```js
+secureSocket = tls.TLSSocket(socket, options);
+```
+
+where `secureSocket` has the same API as `pair.cleartext`.
+
 [`'newSession'`]: #tls_event_newsession
 [`'resumeSession'`]: #tls_event_resumesession
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [`'session'`]: #tls_event_session
+[`--tls-cipher-list`]: cli.html#cli_tls_cipher_list_list
+[`NODE_OPTIONS`]: cli.html#cli_node_options_options
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
-[`crypto.getCurves()`]: crypto.md#crypto_crypto_getcurves
-[`net.Server.address()`]: net.md#net_server_address
-[`net.Server`]: net.md#net_class_net_server
-[`net.Socket`]: net.md#net_class_net_socket
-[`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
+[`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
+[`Duplex`]: stream.html#stream_class_stream_duplex
+[`net.createServer()`]: net.html#net_net_createserver_options_connectionlistener
+[`net.Server.address()`]: net.html#net_server_address
+[`net.Server`]: net.html#net_class_net_server
+[`net.Socket`]: net.html#net_class_net_socket
 [`server.addContext()`]: #tls_server_addcontext_hostname_context
 [`server.getTicketKeys()`]: #tls_server_getticketkeys
-[`server.listen()`]: net.md#net_server_listen
+[`server.listen()`]: net.html#net_server_listen
 [`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
-[`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
+[`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.DEFAULT_MAX_VERSION`]: #tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tls_tls_default_min_version
@@ -2038,10 +2015,25 @@ added: v11.4.0
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
 [`tls.getCiphers()`]: #tls_tls_getciphers
 [`tls.rootCertificates`]: #tls_tls_rootcertificates
+[Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
+[DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
+[ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
+[forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
+[Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
+[OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
+[OpenSSL Options]: crypto.html#crypto_openssl_options
+[perfect forward secrecy]: #tls_perfect_forward_secrecy
+[RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
+[RFC 5077]: https://tools.ietf.org/html/rfc5077
+[RFC 5929]: https://tools.ietf.org/html/rfc5929
+[SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
+[Session Resumption]: #tls_session_resumption
+[Stream]: stream.html#stream_stream
+[TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #tls_certificate_object
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
-[forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
-[perfect forward secrecy]: #tls_perfect_forward_secrecy
+[RFC 4279]: https://tools.ietf.org/html/rfc4279
+[RFC 4086]: https://tools.ietf.org/html/rfc4086

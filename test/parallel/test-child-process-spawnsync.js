@@ -21,9 +21,6 @@
 
 'use strict';
 const common = require('../common');
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh();
-
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const { getSystemErrorName } = require('util');
@@ -44,7 +41,7 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 
 {
   // Test the cwd option
-  const cwd = tmpdir.path;
+  const cwd = common.rootDir;
   const response = spawnSync(...common.pwdCommand, { cwd });
 
   assert.strictEqual(response.stdout.toString().trim(), cwd);

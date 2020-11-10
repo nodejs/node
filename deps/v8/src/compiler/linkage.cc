@@ -74,7 +74,7 @@ MachineSignature* CallDescriptor::GetMachineSignature(Zone* zone) const {
   for (size_t i = 0; i < param_count; ++i) {
     types[current++] = GetParameterType(i);
   }
-  return zone->New<MachineSignature>(return_count, param_count, types);
+  return new (zone) MachineSignature(return_count, param_count, types);
 }
 
 int CallDescriptor::GetFirstUnusedStackSlot() const {
@@ -125,18 +125,10 @@ int CallDescriptor::GetTaggedParameterSlots() const {
 
 bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
   if (ReturnCount() != callee->ReturnCount()) return false;
-  const int stack_param_delta = callee->GetStackParameterDelta(this);
   for (size_t i = 0; i < ReturnCount(); ++i) {
-    if (GetReturnLocation(i).IsCallerFrameSlot() &&
-        callee->GetReturnLocation(i).IsCallerFrameSlot()) {
-      if (GetReturnLocation(i).AsCallerFrameSlot() - stack_param_delta !=
-          callee->GetReturnLocation(i).AsCallerFrameSlot()) {
-        return false;
-      }
-    } else if (!LinkageLocation::IsSameLocation(GetReturnLocation(i),
-                                                callee->GetReturnLocation(i))) {
+    if (!LinkageLocation::IsSameLocation(GetReturnLocation(i),
+                                         callee->GetReturnLocation(i)))
       return false;
-    }
   }
   return true;
 }
@@ -144,14 +136,14 @@ bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
 // TODO(jkummerow, sigurds): Arguably frame size calculation should be
 // keyed on code/frame type, not on CallDescriptor kind. Think about a
 // good way to organize this logic.
-int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
+int CallDescriptor::CalculateFixedFrameSize(Code::Kind code_kind) const {
   switch (kind_) {
     case kCallJSFunction:
       return PushArgumentCount()
                  ? OptimizedBuiltinFrameConstants::kFixedSlotCount
                  : StandardFrameConstants::kFixedSlotCount;
     case kCallAddress:
-      if (code_kind == CodeKind::C_WASM_ENTRY) {
+      if (code_kind == Code::C_WASM_ENTRY) {
         return CWasmEntryFrameConstants::kFixedSlotCount;
       }
       return CommonFrameConstants::kFixedSlotCountAboveFp +
@@ -170,7 +162,7 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info) {
-  DCHECK(info->IsOptimizing() || info->IsWasm());
+  DCHECK(!info->IsNotOptimizedFunctionOrWasmFunction());
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.
@@ -188,7 +180,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
   switch (function) {
     // Most runtime functions need a FrameState. A few chosen ones that we know
     // not to call into arbitrary JavaScript, not to throw, and not to lazily
-    // deoptimize are allowlisted here and can be called without a FrameState.
+    // deoptimize are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInOldGeneration:
     case Runtime::kCreateIterResultObject:
@@ -226,7 +218,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
       break;
   }
 
-  // For safety, default to needing a FrameState unless allowlisted.
+  // For safety, default to needing a FrameState unless whitelisted.
   return true;
 }
 
@@ -261,7 +253,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
     Zone* zone, int return_count, int js_parameter_count,
     const char* debug_name, Operator::Properties properties,
-    CallDescriptor::Flags flags, StackArgumentOrder stack_order) {
+    CallDescriptor::Flags flags) {
   const size_t function_count = 1;
   const size_t num_args_count = 1;
   const size_t context_count = 1;
@@ -303,7 +295,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
   MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc =
       LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
-  return zone->New<CallDescriptor>(     // --
+  return new (zone) CallDescriptor(     // --
       CallDescriptor::kCallCodeObject,  // kind
       target_type,                      // target MachineType
       target_loc,                       // target location
@@ -313,8 +305,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSaved,                   // callee-saved fp
       flags,                            // flags
-      debug_name,                       // debug name
-      stack_order);                     // stack order
+      debug_name);                      // debug name
 }
 
 CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
@@ -334,11 +325,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 
   // All parameters to JS calls go on the stack.
   for (int i = 0; i < js_parameter_count; i++) {
-#ifdef V8_REVERSE_JSARGS
-    int spill_slot_index = -i - 1;
-#else
     int spill_slot_index = i - js_parameter_count;
-#endif
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(
         spill_slot_index, MachineType::AnyTagged()));
   }
@@ -361,7 +348,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   LinkageLocation target_loc =
       is_osr ? LinkageLocation::ForSavedCallerFunction()
              : regloc(kJSFunctionRegister, MachineType::AnyTagged());
-  return zone->New<CallDescriptor>(     // --
+  return new (zone) CallDescriptor(     // --
       CallDescriptor::kCallJSFunction,  // kind
       target_type,                      // target MachineType
       target_loc,                       // target location
@@ -371,7 +358,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSaved,                   // callee-saved fp
       flags,                            // flags
-      "js-call");                       // debug name
+      "js-call");
 }
 
 // TODO(turbofan): cache call descriptors for code stub calls.
@@ -460,7 +447,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   }
 
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  return zone->New<CallDescriptor>(          // --
+  return new (zone) CallDescriptor(          // --
       kind,                                  // kind
       target_type,                           // target MachineType
       target_loc,                            // target location
@@ -471,7 +458,6 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       kNoCalleeSaved,                        // callee-saved fp
       CallDescriptor::kCanUseRoots | flags,  // flags
       descriptor.DebugName(),                // debug name
-      descriptor.GetStackArgumentOrder(),    // stack order
       descriptor.allocatable_registers());
 }
 
@@ -507,7 +493,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   const CallDescriptor::Flags kFlags =
       CallDescriptor::kCanUseRoots | CallDescriptor::kFixedTargetRegister;
-  return zone->New<CallDescriptor>(  // --
+  return new (zone) CallDescriptor(  // --
       CallDescriptor::kCallAddress,  // kind
       target_type,                   // target MachineType
       target_loc,                    // target location

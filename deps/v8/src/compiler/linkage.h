@@ -237,7 +237,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  RegList callee_saved_registers,
                  RegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "",
-                 StackArgumentOrder stack_order = StackArgumentOrder::kDefault,
                  const RegList allocatable_registers = 0,
                  size_t stack_return_count = 0)
       : kind_(kind),
@@ -251,7 +250,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         callee_saved_fp_registers_(callee_saved_fp_registers),
         allocatable_registers_(allocatable_registers),
         flags_(flags),
-        stack_order_(stack_order),
         debug_name_(debug_name) {}
 
   // Returns the kind of this call.
@@ -292,19 +290,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   size_t JSParameterCount() const {
     DCHECK(IsJSFunctionCall());
     return stack_param_count_;
-  }
-
-  int GetStackIndexFromSlot(int slot_index) const {
-#ifdef V8_REVERSE_JSARGS
-    switch (GetStackArgumentOrder()) {
-      case StackArgumentOrder::kDefault:
-        return -slot_index - 1;
-      case StackArgumentOrder::kJS:
-        return slot_index + static_cast<int>(StackParameterCount());
-    }
-#else
-    return -slot_index - 1;
-#endif
   }
 
   // The total number of inputs to this call, which includes the target,
@@ -353,8 +338,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     return location_sig_->GetParam(index).GetType();
   }
 
-  StackArgumentOrder GetStackArgumentOrder() const { return stack_order_; }
-
   // Operator properties describe how this call can be optimized, if at all.
   Operator::Properties properties() const { return properties_; }
 
@@ -377,7 +360,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool CanTailCall(const CallDescriptor* callee) const;
 
-  int CalculateFixedFrameSize(CodeKind code_kind) const;
+  int CalculateFixedFrameSize(Code::Kind code_kind) const;
 
   RegList AllocatableRegisters() const { return allocatable_registers_; }
 
@@ -408,7 +391,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // register allocator to use.
   const RegList allocatable_registers_;
   const Flags flags_;
-  const StackArgumentOrder stack_order_;
   const char* const debug_name_;
   const CFunctionInfo* c_function_info_ = nullptr;
 
@@ -456,8 +438,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static CallDescriptor* GetCEntryStubCallDescriptor(
       Zone* zone, int return_count, int js_parameter_count,
       const char* debug_name, Operator::Properties properties,
-      CallDescriptor::Flags flags,
-      StackArgumentOrder stack_order = StackArgumentOrder::kDefault);
+      CallDescriptor::Flags flags);
 
   static CallDescriptor* GetStubCallDescriptor(
       Zone* zone, const CallInterfaceDescriptor& descriptor,

@@ -22,11 +22,11 @@ class GCHeapTest : public testing::TestWithHeap {
  public:
   void ConservativeGC() {
     internal::Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::ConservativeAtomicConfig());
+        {Heap::GCConfig::StackState::kMayContainHeapPointers});
   }
   void PreciseGC() {
     internal::Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::PreciseAtomicConfig());
+        {Heap::GCConfig::StackState::kNoHeapPointers});
   }
 };
 
@@ -36,8 +36,6 @@ class Foo : public GarbageCollected<Foo> {
 
   Foo() { destructor_callcount = 0; }
   ~Foo() { destructor_callcount++; }
-
-  void Trace(cppgc::Visitor*) const {}
 };
 
 size_t Foo::destructor_callcount;
@@ -45,15 +43,14 @@ size_t Foo::destructor_callcount;
 template <size_t Size>
 class GCed : public GarbageCollected<Foo> {
  public:
-  void Trace(cppgc::Visitor*) const {}
+  void Visit(cppgc::Visitor*) {}
   char buf[Size];
 };
 
 }  // namespace
 
 TEST_F(GCHeapTest, PreciseGCReclaimsObjectOnStack) {
-  Foo* volatile do_not_access =
-      MakeGarbageCollected<Foo>(GetAllocationHandle());
+  Foo* volatile do_not_access = MakeGarbageCollected<Foo>(GetHeap());
   USE(do_not_access);
   EXPECT_EQ(0u, Foo::destructor_callcount);
   PreciseGC();
@@ -67,14 +64,14 @@ namespace {
 const void* ConservativeGCReturningObject(cppgc::Heap* heap,
                                           const void* volatile object) {
   internal::Heap::From(heap)->CollectGarbage(
-      Heap::Config::ConservativeAtomicConfig());
+      {Heap::GCConfig::StackState::kMayContainHeapPointers});
   return object;
 }
 
 }  // namespace
 
 TEST_F(GCHeapTest, ConservativeGCRetainsObjectOnStack) {
-  Foo* volatile object = MakeGarbageCollected<Foo>(GetAllocationHandle());
+  Foo* volatile object = MakeGarbageCollected<Foo>(GetHeap());
   EXPECT_EQ(0u, Foo::destructor_callcount);
   EXPECT_EQ(object, ConservativeGCReturningObject(GetHeap(), object));
   EXPECT_EQ(0u, Foo::destructor_callcount);
@@ -89,17 +86,14 @@ TEST_F(GCHeapTest, ObjectPayloadSize) {
   static constexpr size_t kObjectSizes[] = {1, 32, 64, 128,
                                             2 * kLargeObjectSizeThreshold};
 
-  Heap::From(GetHeap())->CollectGarbage(
-      GarbageCollector::Config::ConservativeAtomicConfig());
-
-  Heap::NoGCScope no_gc_scope(*Heap::From(GetHeap()));
+  Heap::From(GetHeap())->CollectGarbage();
 
   for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
-    MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[1]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[2]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[3]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[4]>>(GetAllocationHandle());
+    MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetHeap());
+    MakeGarbageCollected<GCed<kObjectSizes[1]>>(GetHeap());
+    MakeGarbageCollected<GCed<kObjectSizes[2]>>(GetHeap());
+    MakeGarbageCollected<GCed<kObjectSizes[3]>>(GetHeap());
+    MakeGarbageCollected<GCed<kObjectSizes[4]>>(GetHeap());
   }
 
   size_t aligned_object_sizes[arraysize(kObjectSizes)];

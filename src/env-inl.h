@@ -383,6 +383,10 @@ inline T* Environment::AddBindingData(
   return item.get();
 }
 
+inline Environment* Environment::GetThreadLocalEnv() {
+  return static_cast<Environment*>(uv_key_get(&thread_local_env));
+}
+
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
@@ -509,14 +513,6 @@ inline bool Environment::abort_on_uncaught_exception() const {
   return options_->abort_on_uncaught_exception;
 }
 
-inline void Environment::set_force_context_aware(bool value) {
-  options_->force_context_aware = value;
-}
-
-inline bool Environment::force_context_aware() const {
-  return options_->force_context_aware;
-}
-
 inline void Environment::set_abort_on_uncaught_exception(bool value) {
   options_->abort_on_uncaught_exception = value;
 }
@@ -608,22 +604,6 @@ inline const std::vector<std::string>& Environment::exec_argv() {
 
 inline const std::string& Environment::exec_path() const {
   return exec_path_;
-}
-
-inline std::string Environment::GetCwd() {
-  char cwd[PATH_MAX_BYTES];
-  size_t size = PATH_MAX_BYTES;
-  const int err = uv_cwd(cwd, &size);
-
-  if (err == 0) {
-    CHECK_GT(size, 0);
-    return cwd;
-  }
-
-  // This can fail if the cwd is deleted. In that case, fall back to
-  // exec_path.
-  const std::string& exec_path = exec_path_;
-  return exec_path.substr(0, exec_path.find_last_of(kPathSeparator));
 }
 
 #if HAVE_INSPECTOR
@@ -818,6 +798,14 @@ bool Environment::filehandle_close_warning() const {
 
 void Environment::set_filehandle_close_warning(bool on) {
   emit_filehandle_warning_ = on;
+}
+
+bool Environment::emit_insecure_umask_warning() const {
+  return emit_insecure_umask_warning_;
+}
+
+void Environment::set_emit_insecure_umask_warning(bool on) {
+  emit_insecure_umask_warning_ = on;
 }
 
 void Environment::set_source_maps_enabled(bool on) {

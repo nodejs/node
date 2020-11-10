@@ -63,7 +63,7 @@ class Simd128 {
   V(f64, kWasmF64, double)        \
   V(f64_boxed, kWasmF64, Float64) \
   V(s128, kWasmS128, Simd128)     \
-  V(externref, kWasmExternRef, Handle<Object>)
+  V(anyref, kWasmAnyRef, Handle<Object>)
 
 ASSERT_TRIVIALLY_COPYABLE(Handle<Object>);
 

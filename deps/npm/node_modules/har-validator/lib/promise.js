@@ -4,21 +4,14 @@ var schemas = require('har-schema')
 
 var ajv
 
-function createAjvInstance () {
-  var ajv = new Ajv({
-    allErrors: true
-  })
-  ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-06.json'))
-  ajv.addSchema(schemas)
-
-  return ajv
-}
-
 function validate (name, data) {
   data = data || {}
 
   // validator config
-  ajv = ajv || createAjvInstance()
+  ajv = ajv || new Ajv({
+    allErrors: true,
+    schemas: schemas
+  })
 
   var validate = ajv.getSchema(name + '.json')
 

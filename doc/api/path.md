@@ -87,19 +87,6 @@ path.basename('/foo/bar/baz/asdf/quux.html', '.html');
 // Returns: 'quux'
 ```
 
-Although Windows usually treats file names, including file extensions, in a
-case-insensitive manner, this function does not. For example, `C:\\foo.html` and
-`C:\\foo.HTML` refer to the same file, but `basename` treats the extension as a
-case-sensitive string:
-
-```js
-path.win32.basename('C:\\foo.html', '.html');
-// Returns: 'foo'
-
-path.win32.basename('C:\\foo.HTML', '.html');
-// Returns: 'foo.HTML'
-```
-
 A [`TypeError`][] is thrown if `path` is not a string or if `ext` is given
 and is not a string.
 
@@ -434,18 +421,12 @@ A [`TypeError`][] is thrown if `path` is not a string.
 ## `path.posix`
 <!-- YAML
 added: v0.11.15
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/34962
-    description: Exposed as `require('path/posix')`.
 -->
 
 * {Object}
 
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
-
-The API is accessible via `require('path').posix` or `require('path/posix')`.
 
 ## `path.relative(from, to)`
 <!-- YAML
@@ -501,7 +482,7 @@ For instance, given the sequence of path segments: `/foo`, `/bar`, `baz`,
 calling `path.resolve('/foo', '/bar', 'baz')` would return `/bar/baz`
 because `'baz'` is not an absolute path but `'/bar' + '/' + 'baz'` is.
 
-If, after processing all given `path` segments, an absolute path has not yet
+If after processing all given `path` segments an absolute path has not yet
 been generated, the current working directory is used.
 
 The resulting path is normalized and trailing slashes are removed unless the
@@ -568,16 +549,12 @@ On Windows systems only, returns an equivalent [namespace-prefixed path][] for
 the given `path`. If `path` is not a string, `path` will be returned without
 modifications.
 
-This method is meaningful only on Windows systems. On POSIX systems, the
+This method is meaningful only on Windows system. On POSIX systems, the
 method is non-operational and always returns `path` without modifications.
 
 ## `path.win32`
 <!-- YAML
 added: v0.11.15
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/34962
-    description: Exposed as `require('path/win32')`.
 -->
 
 * {Object}
@@ -585,12 +562,10 @@ changes:
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
 
-The API is accessible via `require('path').win32` or `require('path/win32')`.
-
-[MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
-[`TypeError`]: errors.md#errors_class_typeerror
+[`TypeError`]: errors.html#errors_class_typeerror
 [`path.parse()`]: #path_path_parse_path
 [`path.posix`]: #path_path_posix
 [`path.sep`]: #path_path_sep
 [`path.win32`]: #path_path_win32
+[MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [namespace-prefixed path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#namespaces

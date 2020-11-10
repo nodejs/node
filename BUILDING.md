@@ -24,7 +24,6 @@ file a new issue.
     * [Unix prerequisites](#unix-prerequisites)
     * [macOS prerequisites](#macos-prerequisites)
     * [Building Node.js](#building-nodejs-1)
-    * [Installing Node.js](#installing-nodejs)
     * [Running Tests](#running-tests)
     * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
@@ -111,8 +110,8 @@ platforms. This is true regardless of entries in the table below.
 | Windows          | x64, x86 (WoW64) | >= Windows 8.1/2012 R2          | Tier 1       | <sup>[4](#fn4),[5](#fn5)</sup>    |
 | Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> | |
 | Windows          | x64, x86         | Windows Server 2012 (not R2)    | Experimental |                                   |
-| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running) |    |
-| macOS            | x64              | >= 10.13                        | Tier 1       |                                   |
+| Windows          | arm64            | >= Windows 10                   | Experimental |                                   |
+| macOS            | x64              | >= 10.11                        | Tier 1       |                                   |
 | SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
 | AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
@@ -167,16 +166,16 @@ Depending on the host platform, the selection of toolchains may vary.
 
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
-| Binary package        | Platform and Toolchain                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                                                            |
-| darwin-x64 (and .pkg) | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13                                      |
-| linux-arm64           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
-| linux-armv7l          | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
-| linux-ppc64le         | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
-| linux-s390x           | RHEL 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                         |
-| linux-x64             | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
-| win-x64 and win-x86   | Windows 2012 R2 (x64) with Visual Studio 2019                                                                 |
+| Binary package        | Platform and Toolchain                                                   |
+| --------------------- | ------------------------------------------------------------------------ |
+| aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                       |
+| darwin-x64 (and .pkg) | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13 |
+| linux-arm64           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
+| linux-armv7l          | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)   |
+| linux-ppc64le         | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
+| linux-s390x           | RHEL 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                    |
+| linux-x64             | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
+| win-x64 and win-x86   | Windows 2012 R2 (x64) with Visual Studio 2019                            |
 
 <em id="fn8">8</em>: The Enterprise Linux devtoolset-8 allows us to compile
 binaries with GCC 8 but linked to the glibc and libstdc++ versions of the host
@@ -238,7 +237,7 @@ test with Python 3.
 * GNU Make 3.81 or newer
 * Python (see note above)
   * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8
+  * Python 3.5, 3.6, 3.7, and 3.8.
 
 Installation via Linux package manager can be achieved with:
 
@@ -257,7 +256,7 @@ Python 3 users may also need to install `python3-distutils`.
 * Xcode Command Line Tools >= 10 for macOS
 * Python (see note above)
   * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8
+  * Python 3.5, 3.6, 3.7, and 3.8.
 
 macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
@@ -298,14 +297,6 @@ project's root directory.
 
 ```console
 $ sudo ./tools/macos-firewall.sh
-```
-
-#### Installing Node.js
-
-To install this version of Node.js into a system directory:
-
-```bash
-[sudo] make install
 ```
 
 #### Running Tests
@@ -389,32 +380,28 @@ $ make coverage
 ```
 
 A detailed coverage report will be written to `coverage/index.html` for
-JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage.
+JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage
+(if you only want to run the JavaScript tests then you do not need to run
+the first command `./configure --coverage`).
 
-If you only want to run the JavaScript tests then you do not need to run
-the first command (`./configure --coverage`). Run `make coverage-run-js`,
-to execute JavaScript tests independently of the C++ test suite:
+_Generating a test coverage report can take several minutes._
+
+To collect coverage for a subset of tests you can set the `CI_JS_SUITES` and
+`CI_NATIVE_SUITES` variables (to run specific suites, e.g., `child-process`, in
+isolation, unset the opposing `_SUITES` variable):
 
 ```text
-$ make coverage-run-js
+$ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
 ```
 
-If you are updating tests and want to collect coverage for a single test file
-(e.g. `test/parallel/test-stream2-transform.js`):
+The above command executes tests for the `child-process` subsystem and
+outputs the resulting coverage report.
+
+Alternatively, you can run `make coverage-run-js`, to execute JavaScript tests
+independently of the C++ test suite:
 
 ```text
-$ make coverage-clean
-$ NODE_V8_COVERAGE=coverage/tmp python tools/test.py test/parallel/test-stream2-transform.js
-$ make coverage-report-js
-```
-
-You can collect coverage for the entire suite of tests for a given subsystem
-by providing the name of a subsystem:
-
-```text
-$ make coverage-clean
-$ NODE_V8_COVERAGE=coverage/tmp python tools/test.py -J --mode=release child-process
-$ make coverage-report-js
+$ CI_JS_SUITES=fs CI_NATIVE_SUITES= make coverage-run-js
 ```
 
 The `make coverage` command downloads some tools to the project root directory.
@@ -430,45 +417,41 @@ To build the documentation:
 
 This will build Node.js first (if necessary) and then use it to build the docs:
 
-```bash
-make doc
+```console
+$ make doc
 ```
 
 If you have an existing Node.js build, you can build just the docs with:
 
-```bash
-NODE=/path/to/node make doc-only
+```console
+$ NODE=/path/to/node make doc-only
 ```
 
-To read the man page:
+To read the documentation:
 
-```bash
-man doc/node.1
+```console
+$ man doc/node.1
 ```
 
-If you prefer to read the full documentation in a browser, run the following.
+If you prefer to read the documentation in a browser,
+run the following after `make doc` is finished:
 
-```bash
-make docserve
+```console
+$ make docopen
 ```
 
-This will spin up a static file server and provide a URL to where you may browse
-the documentation locally.
-
-If you're comfortable viewing the documentation using the program your operating
-system has associated with the default web browser, run the following.
-
-```bash
-make docopen
-```
-
-This will open a file URL to a one-page version of all the browsable HTML
-documents using the default browser.
+This will open a browser with the documentation.
 
 To test if Node.js was built correctly:
 
-```bash
-./node -e "console.log('Hello from Node.js ' + process.version)"
+```console
+$ ./node -e "console.log('Hello from Node.js ' + process.version)"
+```
+
+To install this version of Node.js into a system directory:
+
+```console
+$ [sudo] make install
 ```
 
 #### Building a debug build
@@ -548,7 +531,7 @@ to run it again before invoking `make -j4`.
   [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/) or
   the "Visual C++ build tools" workload from the
   [Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019),
-  with the default optional components
+  with the default optional components.
 * Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
@@ -560,12 +543,13 @@ to run it again before invoking `make -j4`.
 Optional requirements to build the MSI installer package:
 
 * The [WiX Toolset v3.11](https://wixtoolset.org/releases/) and the
-  [Wix Toolset Visual Studio 2019 Extension](https://marketplace.visualstudio.com/items?itemName=WixToolset.WixToolsetVisualStudio2019Extension)
-* The [WiX Toolset v3.14](https://wixtoolset.org/releases/) if
-  building for Windows 10 on ARM (ARM64)
+  [Wix Toolset Visual Studio 2019 Extension](https://marketplace.visualstudio.com/items?itemName=WixToolset.WixToolsetVisualStudio2019Extension).
 
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
+* ARM64 Windows build machine
+  * Due to a GYP limitation, this is required to run compiled code
+    generation tools (like V8's builtins and mksnapshot tools)
 * Visual Studio 15.9.0 or newer
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
@@ -580,7 +564,7 @@ This script will install the following [Chocolatey](https://chocolatey.org/)
 packages:
 
 * [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
-  Unix tools added to the `PATH`
+  Unix tools added to the `PATH`.
 * [Python 3.x](https://chocolatey.org/packages/python) and
   [legacy Python](https://chocolatey.org/packages/python2)
 * [Visual Studio 2019 Build Tools](https://chocolatey.org/packages/visualstudio2019buildtools)

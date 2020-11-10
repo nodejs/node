@@ -27,7 +27,8 @@ function runChecks(err, stdio, streamName, expected) {
   const cmd =
     `${process.execPath} -e "console.log('a'.repeat(1024 * 1024 - 1))"`;
 
-  cp.exec(cmd, common.mustSucceed((stdout, stderr) => {
+  cp.exec(cmd, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
     assert.strictEqual(stdout.trim(), 'a'.repeat(1024 * 1024 - 1));
     assert.strictEqual(stderr, '');
   }));
@@ -37,7 +38,8 @@ function runChecks(err, stdio, streamName, expected) {
   const cmd = `"${process.execPath}" -e "console.log('hello world');"`;
   const options = { maxBuffer: Infinity };
 
-  cp.exec(cmd, options, common.mustSucceed((stdout, stderr) => {
+  cp.exec(cmd, options, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
     assert.strictEqual(stdout.trim(), 'hello world');
     assert.strictEqual(stderr, '');
   }));
@@ -78,7 +80,8 @@ function runChecks(err, stdio, streamName, expected) {
   const cmd =
     `"${process.execPath}" -e "console.log('a'.repeat(1024 * 1024 - 1))"`;
 
-  cp.exec(cmd, common.mustSucceed((stdout, stderr) => {
+  cp.exec(cmd, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
     assert.strictEqual(stdout.trim(), 'a'.repeat(1024 * 1024 - 1));
     assert.strictEqual(stderr, '');
   }));

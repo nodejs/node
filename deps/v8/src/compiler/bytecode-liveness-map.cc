@@ -9,8 +9,8 @@ namespace internal {
 namespace compiler {
 
 BytecodeLiveness::BytecodeLiveness(int register_count, Zone* zone)
-    : in(zone->New<BytecodeLivenessState>(register_count, zone)),
-      out(zone->New<BytecodeLivenessState>(register_count, zone)) {}
+    : in(new (zone) BytecodeLivenessState(register_count, zone)),
+      out(new (zone) BytecodeLivenessState(register_count, zone)) {}
 
 BytecodeLivenessMap::BytecodeLivenessMap(int bytecode_size, Zone* zone)
     : liveness_map_(base::bits::RoundUpToPowerOfTwo32(bytecode_size / 4 + 1),
@@ -24,7 +24,8 @@ BytecodeLiveness& BytecodeLivenessMap::InitializeLiveness(int offset,
                                                           Zone* zone) {
   return liveness_map_
       .LookupOrInsert(offset, OffsetHash(offset),
-                      [&]() { return BytecodeLiveness(register_count, zone); })
+                      [&]() { return BytecodeLiveness(register_count, zone); },
+                      ZoneAllocationPolicy(zone))
       ->value;
 }
 

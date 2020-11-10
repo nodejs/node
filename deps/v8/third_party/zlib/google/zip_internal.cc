@@ -10,7 +10,6 @@
 #include <algorithm>
 
 #include "base/logging.h"
-#include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 
 #if defined(USE_SYSTEM_MINIZIP)

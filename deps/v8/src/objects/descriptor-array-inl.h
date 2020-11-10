@@ -55,19 +55,17 @@ void DescriptorArray::CopyEnumCacheFrom(DescriptorArray array) {
   set_enum_cache(array.enum_cache());
 }
 
-InternalIndex DescriptorArray::Search(Name name, int valid_descriptors,
-                                      bool concurrent_search) {
+InternalIndex DescriptorArray::Search(Name name, int valid_descriptors) {
   DCHECK(name.IsUniqueName());
-  return InternalIndex(internal::Search<VALID_ENTRIES>(
-      this, name, valid_descriptors, nullptr, concurrent_search));
+  return InternalIndex(
+      internal::Search<VALID_ENTRIES>(this, name, valid_descriptors, nullptr));
 }
 
-InternalIndex DescriptorArray::Search(Name name, Map map,
-                                      bool concurrent_search) {
+InternalIndex DescriptorArray::Search(Name name, Map map) {
   DCHECK(name.IsUniqueName());
   int number_of_own_descriptors = map.NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
-  return Search(name, number_of_own_descriptors, concurrent_search);
+  return Search(name, number_of_own_descriptors);
 }
 
 InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate, Name name,

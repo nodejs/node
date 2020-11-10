@@ -128,7 +128,7 @@ class GeneratedCode {
 #if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
     FATAL("Generated code execution not possible during cross-compilation.");
 #endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
-#if ABI_USES_FUNCTION_DESCRIPTORS
+#if V8_OS_AIX
     // AIX ABI requires function descriptors (FD).  Artificially create a pseudo
     // FD to ensure correct dispatch to generated code.  The 'volatile'
     // declaration is required to avoid the compiler from not observing the
@@ -140,7 +140,7 @@ class GeneratedCode {
     return fn(args...);
 #else
     return fn_ptr_(args...);
-#endif  // ABI_USES_FUNCTION_DESCRIPTORS
+#endif  // V8_OS_AIX
   }
 #endif  // USE_SIMULATOR
 

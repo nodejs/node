@@ -36,11 +36,8 @@
 
   literal = { __proto__: class {} };
   assertEquals('', literal.__proto__.name);
-  var nameDescr = Object.getOwnPropertyDescriptor(literal.__proto__, 'name');
-  assertEquals('', nameDescr.value);
-  assertFalse(nameDescr.writable);
-  assertFalse(nameDescr.enumerable);
-  assertTrue(nameDescr.configurable);
+  assertEquals(
+      undefined, Object.getOwnPropertyDescriptor(literal.__proto__, 'name'));
 
   literal = { __proto__: class F {} };
   assertEquals('F', literal.__proto__.name);

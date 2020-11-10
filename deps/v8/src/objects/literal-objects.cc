@@ -10,7 +10,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/heap/local-factory-inl.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
@@ -133,7 +133,7 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
                              int key_index,
                              ClassBoilerplate::ValueKind value_kind,
                              Smi value) {
-  InternalIndex entry = dictionary->FindEntry(isolate, key);
+  InternalIndex entry = dictionary->FindEntry(ReadOnlyRoots(isolate), key);
 
   if (entry.is_not_found()) {
     // Entry not found, add new one.
@@ -412,8 +412,9 @@ template void ClassBoilerplate::AddToPropertiesTemplate(
     Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
     int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
 template void ClassBoilerplate::AddToPropertiesTemplate(
-    LocalIsolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
-    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
+    OffThreadIsolate* isolate, Handle<NameDictionary> dictionary,
+    Handle<Name> name, int key_index, ClassBoilerplate::ValueKind value_kind,
+    Smi value);
 
 template <typename LocalIsolate>
 void ClassBoilerplate::AddToElementsTemplate(
@@ -426,8 +427,9 @@ template void ClassBoilerplate::AddToElementsTemplate(
     Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
     int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
 template void ClassBoilerplate::AddToElementsTemplate(
-    LocalIsolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
-    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
+    OffThreadIsolate* isolate, Handle<NumberDictionary> dictionary,
+    uint32_t key, int key_index, ClassBoilerplate::ValueKind value_kind,
+    Smi value);
 
 template <typename LocalIsolate>
 Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
@@ -551,24 +553,32 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     }
   }
 
-  // All classes, even anonymous ones, have a name accessor. If static_desc is
-  // in dictionary mode, the name accessor is installed at runtime in
-  // DefineClass.
+  // Add name accessor to the class object if necessary.
+  bool install_class_name_accessor = false;
   if (!expr->has_name_static_property() &&
-      !static_desc.HasDictionaryProperties()) {
-    // Set class name accessor if the "name" method was not added yet.
-    PropertyAttributes attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-    static_desc.AddConstant(isolate, factory->name_string(),
-                            factory->function_name_accessor(), attribs);
+      expr->constructor()->has_shared_name()) {
+    if (static_desc.HasDictionaryProperties()) {
+      // Install class name accessor if necessary during class literal
+      // instantiation.
+      install_class_name_accessor = true;
+    } else {
+      // Set class name accessor if the "name" method was not added yet.
+      PropertyAttributes attribs =
+          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+      static_desc.AddConstant(isolate, factory->name_string(),
+                              factory->function_name_accessor(), attribs);
+    }
   }
 
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
   Handle<ClassBoilerplate> class_boilerplate = Handle<ClassBoilerplate>::cast(
-      factory->NewFixedArray(kBoilerplateLength, AllocationType::kOld));
+      factory->NewFixedArray(kBoileplateLength, AllocationType::kOld));
 
+  class_boilerplate->set_flags(0);
+  class_boilerplate->set_install_class_name_accessor(
+      install_class_name_accessor);
   class_boilerplate->set_arguments_count(dynamic_argument_index);
 
   class_boilerplate->set_static_properties_template(
@@ -591,7 +601,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
 template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     Isolate* isolate, ClassLiteral* expr);
 template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
-    LocalIsolate* isolate, ClassLiteral* expr);
+    OffThreadIsolate* isolate, ClassLiteral* expr);
 
 }  // namespace internal
 }  // namespace v8

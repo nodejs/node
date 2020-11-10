@@ -112,13 +112,13 @@ var {{=$valid}};
   {{# def.storeDefOut:def_callRuleValidate }}
 
   {{? $rDef.errors === false }}
-    {{=$valid}} = {{? $asyncKeyword }}await {{?}}{{= def_callRuleValidate }};
+    {{=$valid}} = {{? $asyncKeyword }}{{=it.yieldAwait}}{{?}}{{= def_callRuleValidate }};
   {{??}}
     {{? $asyncKeyword }}
       {{ $ruleErrs = 'customErrors' + $lvl; }}
       var {{=$ruleErrs}} = null;
       try {
-        {{=$valid}} = await {{= def_callRuleValidate }};
+        {{=$valid}} = {{=it.yieldAwait}}{{= def_callRuleValidate }};
       } catch (e) {
         {{=$valid}} = false;
         if (e instanceof ValidationError) {{=$ruleErrs}} = e.errors;

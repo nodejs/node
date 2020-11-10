@@ -4,6 +4,6 @@
 //
 // MODULE
 //
-// Flags: --harmony-top-level-await --ignore-unhandled-promises
+// Flags: --harmony-top-level-await
 
 import "modules-skip-2-top-level-await-fail.mjs"

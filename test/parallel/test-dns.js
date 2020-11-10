@@ -207,18 +207,20 @@ assert.deepStrictEqual(dns.getServers(), []);
 }
 
 {
-  // Make sure that dns.lookup throws if hints does not represent a valid flag.
-  // (dns.V4MAPPED | dns.ADDRCONFIG | dns.ALL) + 1 is invalid because:
-  // - it's different from dns.V4MAPPED and dns.ADDRCONFIG and dns.ALL.
-  // - it's different from any subset of them bitwise ored.
-  // - it's different from 0.
-  // - it's an odd number different than 1, and thus is invalid, because
-  // flags are either === 1 or even.
+  /*
+  * Make sure that dns.lookup throws if hints does not represent a valid flag.
+  * (dns.V4MAPPED | dns.ADDRCONFIG | dns.ALL) + 1 is invalid because:
+  * - it's different from dns.V4MAPPED and dns.ADDRCONFIG and dns.ALL.
+  * - it's different from any subset of them bitwise ored.
+  * - it's different from 0.
+  * - it's an odd number different than 1, and thus is invalid, because
+  * flags are either === 1 or even.
+  */
   const hints = (dns.V4MAPPED | dns.ADDRCONFIG | dns.ALL) + 1;
   const err = {
-    code: 'ERR_INVALID_ARG_VALUE',
+    code: 'ERR_INVALID_OPT_VALUE',
     name: 'TypeError',
-    message: /The argument 'hints' is invalid\. Received \d+/
+    message: /The value "\d+" is invalid for option "hints"/
   };
 
   assert.throws(() => {
@@ -292,9 +294,9 @@ dns.lookup('', {
 {
   const invalidAddress = 'fasdfdsaf';
   const err = {
-    code: 'ERR_INVALID_ARG_VALUE',
+    code: 'ERR_INVALID_OPT_VALUE',
     name: 'TypeError',
-    message: `The argument 'address' is invalid. Received '${invalidAddress}'`
+    message: `The value "${invalidAddress}" is invalid for option "address"`
   };
 
   assert.throws(() => {
@@ -442,7 +444,8 @@ assert.throws(() => {
 
       validateResults(await dnsPromises[method]('example.org', options));
 
-      dns[method]('example.org', options, common.mustSucceed((res) => {
+      dns[method]('example.org', options, common.mustCall((err, res) => {
+        assert.ifError(err);
         validateResults(res);
         cases.shift();
         nextCase();

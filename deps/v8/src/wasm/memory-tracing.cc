@@ -14,9 +14,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void TraceMemoryOperation(base::Optional<ExecutionTier> tier,
-                          const MemoryTracingInfo* info, int func_index,
-                          int position, uint8_t* mem_start) {
+void TraceMemoryOperation(ExecutionTier tier, const MemoryTracingInfo* info,
+                          int func_index, int position, uint8_t* mem_start) {
   EmbeddedVector<char, 91> value;
   auto mem_rep = static_cast<MachineRepresentation>(info->mem_rep);
   switch (mem_rep) {
@@ -57,8 +56,7 @@ void TraceMemoryOperation(base::Optional<ExecutionTier> tier,
     default:
       SNPrintF(value, "???");
   }
-  const char* eng =
-      tier.has_value() ? ExecutionTierToString(tier.value()) : "?";
+  const char* eng = ExecutionTierToString(tier);
   printf("%-11s func:%6d+0x%-6x%s %08x val: %s\n", eng, func_index, position,
          info->is_store ? " store to" : "load from", info->address,
          value.begin());

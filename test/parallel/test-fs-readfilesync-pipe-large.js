@@ -29,7 +29,8 @@ const cmd = `cat ${filename} | ${node} ${f} child`;
 exec(
   cmd,
   { maxBuffer: 1000000 },
-  common.mustSucceed((stdout, stderr) => {
+  common.mustCall(function(err, stdout, stderr) {
+    assert.ifError(err);
     assert.strictEqual(stdout, dataExpected);
     assert.strictEqual(stderr, '');
     console.log('ok');

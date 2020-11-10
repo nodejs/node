@@ -124,7 +124,8 @@ module.exports = {
                         }
                     ]
                 }
-            ]
+            ],
+            additionalItems: false
         },
 
         messages: {

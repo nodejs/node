@@ -1,8 +1,5 @@
----
-title: semver
-section: 7
-description: The semantic versioner for npm
----
+semver(7) -- The semantic versioner for npm
+===========================================
 
 ## Install
 

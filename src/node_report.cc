@@ -12,8 +12,8 @@
 #ifdef _WIN32
 #include <Windows.h>
 #else  // !_WIN32
-#include <cxxabi.h>
 #include <sys/resource.h>
+#include <cxxabi.h>
 #include <dlfcn.h>
 #endif
 
@@ -43,11 +43,13 @@ using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Isolate;
 using v8::Local;
+using v8::Number;
 using v8::Object;
+using v8::StackTrace;
 using v8::String;
 using v8::TryCatch;
-using v8::V8;
 using v8::Value;
+using v8::V8;
 
 namespace per_process = node::per_process;
 

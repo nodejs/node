@@ -34,7 +34,8 @@ const cmd = common.isLinux ?
   `ps -o pid,args | grep '${process.pid} ${title}' | grep -v grep` :
   `ps -p ${process.pid} -o args=`;
 
-exec(cmd, common.mustSucceed((stdout, stderr) => {
+exec(cmd, common.mustCall((error, stdout, stderr) => {
+  assert.ifError(error);
   assert.strictEqual(stderr, '');
 
   // Freebsd always add ' (procname)' to the process title

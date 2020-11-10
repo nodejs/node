@@ -43,17 +43,17 @@ class MapProcessor extends LogReader {
         processor: this.processFunctionMove
       },
       'map-create': {
-        parsers: [parseInt, parseString],
+        parsers: [parseInt, parseInt, parseString],
         processor: this.processMapCreate
       },
       'map': {
-        parsers: [parseString, parseInt, parseString, parseString, parseInt, parseInt,
+        parsers: [parseString, parseInt, parseInt, parseInt, parseInt, parseInt,
           parseString, parseString, parseString
         ],
         processor: this.processMap
       },
       'map-details': {
-        parsers: [parseInt, parseString, parseString],
+        parsers: [parseInt, parseInt, parseString],
         processor: this.processMapDetails
       }
     };
@@ -183,16 +183,19 @@ class MapProcessor extends LogReader {
     this.getExistingMap(id, time).deprecate();
   }
 
-  processMapCreate(time, id) {
+  processMapCreate(time, id, string) {
     // map-create events might override existing maps if the addresses get
-    // recycled. Hence we do not check for existing maps.
+    // rcycled. Hence we do not check for existing maps.
     let map = this.createMap(id, time);
+    map.description = string;
   }
 
   processMapDetails(time, id, string) {
     //TODO(cbruni): fix initial map logging.
     let map = this.getExistingMap(id, time);
-    map.description = string;
+    if (!map.description) {
+      //map.description = string;
+    }
   }
 
   createMap(id, time) {
@@ -202,8 +205,8 @@ class MapProcessor extends LogReader {
   }
 
   getExistingMap(id, time) {
-    if (id === "0x000000000000") return undefined;
-    let map = V8Map.get(id, time);
+    if (id === 0) return undefined;
+    let map = V8Map.get(id);
     if (map === undefined) {
       console.error("No map details provided: id=" + id);
       // Manually patch in a map to continue running.
@@ -331,32 +334,16 @@ class V8Map {
     return parents;
   }
 
-
-  static get(id, time = undefined) {
-    let maps = this.cache.get(id);
-    if(maps){
-      for (let i = 0; i < maps.length; i++) {
-        //TODO: Implement time based map search
-        if(maps[i].time === time){
-          return maps[i];
-        }
-      }
-      // default return the latest
-      return maps[maps.length-1];
-    }
+  static get(id) {
+    return this.cache.get(id);
   }
 
   static set(id, map) {
-    if(this.cache.has(id)){
-      this.cache.get(id).push(map);
-    } else {
-      this.cache.set(id, [map]);
-    }
+    this.cache.set(id, map);
   }
 }
 
 V8Map.cache = new Map();
-
 
 
 // ===========================================================================

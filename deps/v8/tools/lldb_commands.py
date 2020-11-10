@@ -21,17 +21,8 @@ def current_frame(debugger):
   return current_thread(debugger).GetSelectedFrame()
 
 def no_arg_cmd(debugger, cmd):
-  evaluate_result = current_frame(debugger).EvaluateExpression(cmd)
-  # When a void function is called the return value type is 0x1001 which
-  # is specified in http://tiny.cc/bigskz. This does not indicate
-  # an error so we check for that value below.
-  kNoResult = 0x1001
-  error = evaluate_result.GetError()
-  if error.fail and error.value != kNoResult:
-      print("Failed to evaluate command {} :".format(cmd))
-      print(error.description)
-  else:
-    print("")
+  current_frame(debugger).EvaluateExpression(cmd)
+  print("")
 
 def ptr_arg_cmd(debugger, name, param, cmd):
   if not param:
@@ -50,7 +41,7 @@ def job(debugger, param, *args):
 def jlh(debugger, param, *args):
   """Print v8::Local handle value"""
   ptr_arg_cmd(debugger, 'jlh', param,
-              "_v8_internal_Print_Object(*(v8::internal::Object**)({}.val_))")
+              "_v8_internal_Print_Object(*(v8::internal::Object**)(*{}))")
 
 def jco(debugger, param, *args):
   """Print the code object at the given pc (default: current pc)"""

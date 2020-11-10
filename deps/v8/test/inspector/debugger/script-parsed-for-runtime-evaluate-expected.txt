@@ -3,7 +3,6 @@ Runtime.evaluate with valid expression
 {
     method : Debugger.scriptParsed
     params : {
-        embedderName : 
         endColumn : 29
         endLine : 0
         executionContextId : <executionContextId>
@@ -24,7 +23,6 @@ Runtime.evaluate with syntax error
 {
     method : Debugger.scriptFailedToParse
     params : {
-        embedderName : 
         endColumn : 39
         endLine : 0
         executionContextId : <executionContextId>
@@ -44,7 +42,6 @@ Runtime.callFunctionOn with valid functionDeclaration
 {
     method : Debugger.scriptParsed
     params : {
-        embedderName : 
         endColumn : 18
         endLine : 0
         executionContextId : <executionContextId>
@@ -65,7 +62,6 @@ Runtime.callFunctionOn with syntax error
 {
     method : Debugger.scriptFailedToParse
     params : {
-        embedderName : 
         endColumn : 3
         endLine : 0
         executionContextId : <executionContextId>
@@ -85,7 +81,6 @@ Runtime.compileScript with valid expression
 {
     method : Debugger.scriptParsed
     params : {
-        embedderName : compile-script.js
         endColumn : 4
         endLine : 0
         executionContextId : <executionContextId>
@@ -106,7 +101,6 @@ Runtime.compileScript with syntax error
 {
     method : Debugger.scriptFailedToParse
     params : {
-        embedderName : compile-script-syntax-error.js
         endColumn : 1
         endLine : 0
         executionContextId : <executionContextId>
@@ -127,7 +121,6 @@ Runtime.evaluate compiled script with stack trace
 {
     method : Debugger.scriptParsed
     params : {
-        embedderName : 
         endColumn : 8
         endLine : 0
         executionContextId : <executionContextId>
@@ -147,7 +140,6 @@ Runtime.evaluate compiled script with stack trace
 {
     method : Debugger.scriptParsed
     params : {
-        embedderName : 
         endColumn : 39
         endLine : 4
         executionContextId : <executionContextId>
@@ -178,7 +170,6 @@ Runtime.evaluate compiled script with stack trace
 {
     method : Debugger.scriptParsed
     params : {
-        embedderName : 
         endColumn : 4
         endLine : 0
         executionContextId : <executionContextId>
@@ -210,7 +201,6 @@ Runtime.evaluate compile script error with stack trace
 {
     method : Debugger.scriptParsed
     params : {
-        embedderName : 
         endColumn : 12
         endLine : 0
         executionContextId : <executionContextId>
@@ -230,7 +220,6 @@ Runtime.evaluate compile script error with stack trace
 {
     method : Debugger.scriptParsed
     params : {
-        embedderName : 
         endColumn : 48
         endLine : 4
         executionContextId : <executionContextId>
@@ -261,7 +250,6 @@ Runtime.evaluate compile script error with stack trace
 {
     method : Debugger.scriptFailedToParse
     params : {
-        embedderName : 
         endColumn : 3
         endLine : 0
         executionContextId : <executionContextId>

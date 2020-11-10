@@ -52,7 +52,6 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   void SetCurrentPosition(const SourcePosition& pos) {
     current_position_ = pos;
   }
-  SourcePosition GetCurrentPosition() const { return current_position_; }
 
   void PrintJson(std::ostream& os) const;
 

@@ -20,6 +20,7 @@
 #include "src/objects/bigint.h"
 
 #include "src/execution/isolate-inl.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
@@ -417,10 +418,10 @@ template <typename LocalIsolate>
 Handle<BigInt> BigInt::Zero(LocalIsolate* isolate, AllocationType allocation) {
   return MutableBigInt::Zero(isolate, allocation);
 }
-template Handle<BigInt> BigInt::Zero(Isolate* isolate,
-                                     AllocationType allocation);
-template Handle<BigInt> BigInt::Zero(LocalIsolate* isolate,
-                                     AllocationType allocation);
+template Handle<BigInt> BigInt::Zero<Isolate>(Isolate* isolate,
+                                              AllocationType allocation);
+template Handle<BigInt> BigInt::Zero<OffThreadIsolate>(
+    OffThreadIsolate* isolate, AllocationType allocation);
 
 Handle<BigInt> BigInt::UnaryMinus(Isolate* isolate, Handle<BigInt> x) {
   // Special case: There is no -0n.
@@ -1124,7 +1125,7 @@ double MutableBigInt::ToDouble(Handle<BigIntBase> x) {
   return bit_cast<double>(double_bits);
 }
 
-// This is its own function to simplify control flow. The meaning of the
+// This is its own function to keep control flow sane. The meaning of the
 // parameters is defined by {ToDouble}'s local variable usage.
 MutableBigInt::Rounding MutableBigInt::DecideRounding(Handle<BigIntBase> x,
                                                       int mantissa_bits_unset,
@@ -1951,12 +1952,13 @@ MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
     return MaybeHandle<FreshlyAllocatedBigInt>();
   }
 }
-template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
+template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor<Isolate>(
     Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
     AllocationType allocation);
-template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
-    LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
-    AllocationType allocation);
+template MaybeHandle<FreshlyAllocatedBigInt>
+BigInt::AllocateFor<OffThreadIsolate>(OffThreadIsolate* isolate, int radix,
+                                      int charcount, ShouldThrow should_throw,
+                                      AllocationType allocation);
 
 template <typename LocalIsolate>
 Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
@@ -1967,7 +1969,7 @@ Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
 
 template Handle<BigInt> BigInt::Finalize<Isolate>(
     Handle<FreshlyAllocatedBigInt>, bool);
-template Handle<BigInt> BigInt::Finalize<LocalIsolate>(
+template Handle<BigInt> BigInt::Finalize<OffThreadIsolate>(
     Handle<FreshlyAllocatedBigInt>, bool);
 
 // The serialization format MUST NOT CHANGE without updating the format

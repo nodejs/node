@@ -23,8 +23,7 @@ typedef struct BrotliHasherParams {
 typedef struct BrotliDistanceParams {
   uint32_t distance_postfix_bits;
   uint32_t num_direct_distance_codes;
-  uint32_t alphabet_size_max;
-  uint32_t alphabet_size_limit;
+  uint32_t alphabet_size;
   size_t max_distance;
 } BrotliDistanceParams;
 
@@ -34,7 +33,6 @@ typedef struct BrotliEncoderParams {
   int quality;
   int lgwin;
   int lgblock;
-  size_t stream_offset;
   size_t size_hint;
   BROTLI_BOOL disable_literal_context_modeling;
   BROTLI_BOOL large_window;

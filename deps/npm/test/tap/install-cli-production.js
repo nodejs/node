@@ -1,0 +1,79 @@
+var fs = require('graceful-fs')
+var path = require('path')
+var existsSync = fs.existsSync || path.existsSync
+
+var mkdirp = require('mkdirp')
+var test = require('tap').test
+
+var common = require('../common-tap.js')
+
+var pkg = common.pkg
+
+var EXEC_OPTS = { cwd: pkg }
+
+var json = {
+  name: 'install-cli-production',
+  description: 'fixture',
+  version: '0.0.0',
+  scripts: {
+    prepublish: 'exit 123'
+  },
+  dependencies: {
+    dependency: 'file:./dependency'
+  },
+  devDependencies: {
+    'dev-dependency': 'file:./dev-dependency'
+  }
+}
+
+var dependency = {
+  name: 'dependency',
+  description: 'fixture',
+  version: '0.0.0'
+}
+
+var devDependency = {
+  name: 'dev-dependency',
+  description: 'fixture',
+  version: '0.0.0'
+}
+
+test('setup', function (t) {
+  mkdirp.sync(path.join(pkg, 'dependency'))
+  fs.writeFileSync(
+    path.join(pkg, 'dependency', 'package.json'),
+    JSON.stringify(dependency, null, 2)
+  )
+
+  mkdirp.sync(path.join(pkg, 'dev-dependency'))
+  fs.writeFileSync(
+    path.join(pkg, 'dev-dependency', 'package.json'),
+    JSON.stringify(devDependency, null, 2)
+  )
+
+  mkdirp.sync(path.join(pkg, 'node_modules'))
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+
+  t.end()
+})
+
+test('\'npm install --production\' should only install dependencies', function (t) {
+  common.npm(['install', '--production'], EXEC_OPTS, function (err, code) {
+    t.ifError(err, 'install production successful')
+    t.equal(code, 0, 'npm install did not raise error code')
+    t.ok(
+      JSON.parse(fs.readFileSync(
+        path.resolve(pkg, 'node_modules/dependency/package.json'), 'utf8')
+      ),
+      'dependency was installed'
+    )
+    t.notOk(
+      existsSync(path.resolve(pkg, 'node_modules/dev-dependency/package.json')),
+      'devDependency was NOT installed'
+    )
+    t.end()
+  })
+})

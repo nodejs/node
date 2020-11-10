@@ -9,7 +9,7 @@
 %NeverOptimizeFunction(true);
 %NeverOptimizeFunction(1);
 %NeverOptimizeFunction({});
-%NeverOptimizeFunction();
+assertThrows("%NeverOptimizeFunction()", SyntaxError);
 
 %PrepareFunctionForOptimization(print);
 %OptimizeFunctionOnNextCall(print);

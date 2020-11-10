@@ -98,7 +98,9 @@ testCipher2(Buffer.from('0123456789abcdef'));
     () => crypto.createCipher('aes-256-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
+      message: 'The "password" argument must be of type string or an instance' +
+               ' of Buffer, TypedArray, or DataView. Received null'
     });
 
   assert.throws(
@@ -106,6 +108,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "data" argument must be of type string or an instance' +
+               ' of Buffer, TypedArray, or DataView. Received null'
     });
 
   assert.throws(
@@ -113,6 +117,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "buffer" argument must be an instance' +
+               ' of Buffer, TypedArray, or DataView. Received null'
     });
 }
 
@@ -136,6 +142,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "buffer" argument must be an instance of Buffer, ' +
+               'TypedArray, or DataView. Received null'
     });
 
   assert.throws(
@@ -143,6 +151,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "password" argument must be of type string or an ' +
+               'instance of Buffer, TypedArray, or DataView. Received null'
     });
 }
 

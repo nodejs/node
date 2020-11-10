@@ -7,8 +7,8 @@
 
 #include "include/cppgc/heap.h"
 #include "include/cppgc/platform.h"
+#include "src/base/page-allocator.h"
 #include "src/heap/cppgc/heap.h"
-#include "test/unittests/heap/cppgc/test-platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
@@ -20,12 +20,8 @@ class TestWithPlatform : public ::testing::Test {
   static void SetUpTestSuite();
   static void TearDownTestSuite();
 
-  TestPlatform& GetPlatform() const { return *platform_; }
-
-  std::shared_ptr<TestPlatform> GetPlatformHandle() const { return platform_; }
-
- protected:
-  static std::shared_ptr<TestPlatform> platform_;
+ private:
+  static std::unique_ptr<cppgc::PageAllocator> page_allocator_;
 };
 
 class TestWithHeap : public TestWithPlatform {
@@ -33,25 +29,14 @@ class TestWithHeap : public TestWithPlatform {
   TestWithHeap();
 
   void PreciseGC() {
-    heap_->ForceGarbageCollectionSlow("TestWithHeap", "Testing",
-                                      cppgc::Heap::StackState::kNoHeapPointers);
+    heap_->ForceGarbageCollectionSlow(
+        "TestWithHeap", "Testing", Heap::GCConfig::StackState::kNoHeapPointers);
   }
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }
 
-  cppgc::AllocationHandle& GetAllocationHandle() const {
-    return allocation_handle_;
-  }
-
-  std::unique_ptr<MarkerBase>& GetMarkerRef() {
-    return Heap::From(GetHeap())->marker_;
-  }
-
-  void ResetLinearAllocationBuffers();
-
  private:
   std::unique_ptr<cppgc::Heap> heap_;
-  cppgc::AllocationHandle& allocation_handle_;
 };
 
 // Restrictive test fixture that supports allocation but will make sure no

@@ -82,7 +82,7 @@ const char* ICStats::GetOrCacheFunctionName(JSFunction function) {
     return function_name_map_[function_ptr].get();
   }
   SharedFunctionInfo shared = function.shared();
-  ic_infos_[pos_].is_optimized = function.HasAttachedOptimizedCode();
+  ic_infos_[pos_].is_optimized = function.IsOptimized();
   char* function_name = shared.DebugName().ToCString().release();
   function_name_map_.insert(
       std::make_pair(function_ptr, std::unique_ptr<char[]>(function_name)));

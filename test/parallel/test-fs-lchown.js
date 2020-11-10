@@ -58,7 +58,8 @@ if (!common.isWindows) {
   tmpdir.refresh();
   fs.copyFileSync(__filename, testFile);
   fs.lchownSync(testFile, uid, gid);
-  fs.lchown(testFile, uid, gid, common.mustSucceed(async (err) => {
+  fs.lchown(testFile, uid, gid, common.mustCall(async (err) => {
+    assert.ifError(err);
     await promises.lchown(testFile, uid, gid);
   }));
 }

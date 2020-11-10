@@ -101,6 +101,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "key" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, DataView, or KeyObject. Received null'
     });
 
   assert.throws(
@@ -108,6 +110,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "iv" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, or DataView. Received type number (10)'
     });
 }
 
@@ -134,6 +138,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "key" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, DataView, or KeyObject. Received null'
     });
 
   assert.throws(
@@ -141,6 +147,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "iv" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, or DataView. Received type number (10)'
     });
 }
 
@@ -159,7 +167,7 @@ if (!common.hasFipsCrypto) {
 crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), Buffer.alloc(0));
 crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), null);
 
-const errMessage = /Invalid initialization vector/;
+const errMessage = /Invalid IV length/;
 
 // But non-empty IVs should be rejected.
 for (let n = 1; n < 256; n += 1) {
@@ -184,7 +192,7 @@ for (let n = 0; n < 256; n += 1) {
 // And so should null be.
 assert.throws(() => {
   crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16), null);
-}, /Invalid initialization vector/);
+}, /Missing IV for cipher aes-128-cbc/);
 
 // Zero-sized IV should be rejected in GCM mode.
 assert.throws(

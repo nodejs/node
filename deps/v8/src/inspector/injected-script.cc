@@ -247,7 +247,8 @@ class InjectedScript::ProtocolPromiseHandler {
     // we try to capture a fresh stack trace.
     if (maybeMessage.ToLocal(&message)) {
       v8::Local<v8::Value> exception = result;
-      protocol::PtrMaybe<protocol::Runtime::ExceptionDetails> exceptionDetails;
+      protocol::detail::PtrMaybe<protocol::Runtime::ExceptionDetails>
+          exceptionDetails;
       response = scope.injectedScript()->createExceptionDetails(
           message, exception, m_objectGroup, &exceptionDetails);
       if (!response.IsSuccess()) {

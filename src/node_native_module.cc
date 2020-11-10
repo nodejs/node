@@ -78,9 +78,6 @@ void NativeModuleLoader::InitializeModuleCategories() {
     "internal/main/"
   };
 
-  module_categories_.can_be_required.emplace(
-      "internal/deps/cjs-module-lexer/lexer");
-
   module_categories_.cannot_be_required = std::set<std::string> {
 #if !HAVE_INSPECTOR
       "inspector",
@@ -93,7 +90,6 @@ void NativeModuleLoader::InitializeModuleCategories() {
 
 #if !HAVE_OPENSSL
       "crypto",
-      "crypto/promises",
       "https",
       "http2",
       "tls",
@@ -122,8 +118,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
       if (prefix.length() > id.length()) {
         continue;
       }
-      if (id.find(prefix) == 0 &&
-          module_categories_.can_be_required.count(id) == 0) {
+      if (id.find(prefix) == 0) {
         module_categories_.cannot_be_required.emplace(id);
       }
     }
@@ -261,7 +256,7 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
     return {};
   }
 
-  std::string filename_s = std::string("node:") + id;
+  std::string filename_s = id + std::string(".js");
   Local<String> filename =
       OneByteString(isolate, filename_s.c_str(), filename_s.size());
   Local<Integer> line_offset = Integer::New(isolate, 0);

@@ -10,7 +10,7 @@ Addons provide an interface between JavaScript and C/C++ libraries.
 There are three options for implementing addons: N-API, nan, or direct
 use of internal V8, libuv and Node.js libraries. Unless there is a need for
 direct access to functionality which is not exposed by N-API, use N-API.
-Refer to [C/C++ addons with N-API](n-api.md) for more information on N-API.
+Refer to [C/C++ addons with N-API](n-api.html) for more information on N-API.
 
 When not using N-API, implementing addons is complicated,
 involving knowledge of several components and APIs:
@@ -232,14 +232,6 @@ NODE_MODULE_INIT(/* exports, module, context */) {
 ```
 
 #### Worker support
-<!-- YAML
-changes:
-  - version:
-    - v14.8.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34572
-    description: Cleanup hooks may now be asynchronous.
--->
 
 In order to be loaded from multiple Node.js environments,
 such as a main thread and a Worker thread, an add-on needs to either:
@@ -258,22 +250,17 @@ void AddEnvironmentCleanupHook(v8::Isolate* isolate,
 ```
 
 This function adds a hook that will run before a given Node.js instance shuts
-down. If necessary, such hooks can be removed before they are run using
-`RemoveEnvironmentCleanupHook()`, which has the same signature. Callbacks are
-run in last-in first-out order.
-
-If necessary, there is an additional pair of `AddEnvironmentCleanupHook()`
-and `RemoveEnvironmentCleanupHook()` overloads, where the cleanup hook takes a
-callback function. This can be used for shutting down asynchronous resources,
-such as any libuv handles registered by the addon.
+down. If necessary, such hooks can be removed using
+`RemoveEnvironmentCleanupHook()` before they are run, which has the same
+signature. Callbacks are run in last-in first-out order.
 
 The following `addon.cc` uses `AddEnvironmentCleanupHook`:
 
 ```cpp
 // addon.cc
-#include <node.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <node.h>
 
 using node::AddEnvironmentCleanupHook;
 using v8::HandleScope;
@@ -423,7 +410,7 @@ and load it instead.
 
 ## Native abstractions for Node.js
 
-Each of the examples illustrated in this document directly use the
+Each of the examples illustrated in this document make direct use of the
 Node.js and V8 APIs for implementing addons. The V8 API can, and has, changed
 dramatically from one V8 release to the next (and one major Node.js release to
 the next). With each change, addons may need to be updated and recompiled in
@@ -454,7 +441,7 @@ in the N-API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
 provided by N-API carries with it certain
-[implementation considerations](n-api.md#n_api_implications_of_abi_stability).
+[implementation considerations](n-api.html#n_api_implications_of_abi_stability).
 
 To use N-API in the above "Hello world" example, replace the content of
 `hello.cc` with the following. All other instructions remain the same.
@@ -492,12 +479,12 @@ NAPI_MODULE(NODE_GYP_MODULE_NAME, init)
 ```
 
 The functions available and how to use them are documented in
-[C/C++ addons with N-API](n-api.md).
+[C/C++ addons with N-API](n-api.html).
 
 ## Addon examples
 
 Following are some example addons intended to help developers get started. The
-examples use the V8 APIs. Refer to the online [V8 reference][v8-docs]
+examples make use of the V8 APIs. Refer to the online [V8 reference][v8-docs]
 for help with the various V8 calls, and V8's [Embedder's Guide][] for an
 explanation of several concepts used such as handles, scopes, function
 templates, etc.
@@ -1358,16 +1345,16 @@ console.log(result);
 // Prints: 30
 ```
 
+[`Worker`]: worker_threads.html#worker_threads_class_worker
 [Electron]: https://electronjs.org/
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
-[`Worker`]: worker_threads.md#worker_threads_class_worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
 [examples]: https://github.com/nodejs/nan/tree/master/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
-[require]: modules.md#modules_require_id
+[require]: modules.html#modules_require_id
 [v8-docs]: https://v8docs.nodesource.com/

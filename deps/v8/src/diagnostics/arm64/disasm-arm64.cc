@@ -1377,10 +1377,6 @@ void DisassemblingDecoder::VisitFPIntegerConvert(Instruction* instr) {
       mnemonic = "ucvtf";
       form = form_fr;
       break;
-    case FJCVTZS:
-      mnemonic = "fjcvtzs";
-      form = form_rf;
-      break;
   }
   Format(instr, mnemonic, form);
 }
@@ -1423,10 +1419,10 @@ void DisassemblingDecoder::VisitFPFixedPointConvert(Instruction* instr) {
 
 // clang-format off
 #define PAUTH_SYSTEM_MNEMONICS(V) \
-  V(PACIB1716, "pacib1716")       \
-  V(AUTIB1716, "autib1716")       \
-  V(PACIBSP,   "pacibsp")         \
-  V(AUTIBSP,   "autibsp")
+  V(PACIA1716, "pacia1716")       \
+  V(AUTIA1716, "autia1716")       \
+  V(PACIASP,   "paciasp")         \
+  V(AUTIASP,   "autiasp")
 // clang-format on
 
 void DisassemblingDecoder::VisitSystem(Instruction* instr) {

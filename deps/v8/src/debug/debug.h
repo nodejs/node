@@ -215,7 +215,7 @@ class DebugFeatureTracker {
 class V8_EXPORT_PRIVATE Debug {
  public:
   // Debug event triggers.
-  void OnDebugBreak(Handle<FixedArray> break_points_hit, StepAction stepAction);
+  void OnDebugBreak(Handle<FixedArray> break_points_hit);
 
   base::Optional<Object> OnThrow(Handle<Object> exception)
       V8_WARN_UNUSED_RESULT;
@@ -274,7 +274,6 @@ class V8_EXPORT_PRIVATE Debug {
                               std::vector<BreakLocation>* locations);
 
   bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
-  bool ShouldBeSkipped();
 
   bool CanBreakAtEntry(Handle<SharedFunctionInfo> shared);
 

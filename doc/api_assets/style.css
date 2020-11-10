@@ -64,9 +64,9 @@ a.type {
   position: relative;
 }
 
+a,
 a:link,
-a:active,
-a:visited {
+a:active {
   color: #43853d;
   text-decoration: none;
   border-radius: 2px;
@@ -145,7 +145,7 @@ ol.version-picker {
   list-style: none;
   position: absolute;
   right: 0;
-  top: 100%;
+  top: 1.25rem;
   width: 100%;
 }
 
@@ -204,11 +204,11 @@ ol.version-picker li:last-child a {
 }
 
 .api_stability_1 {
-  background-color: #ca5010;
+  background-color: #ec5315;
 }
 
 .api_stability_2 {
-  background-color: #5a8147;
+  background-color: #4eba0f;
 }
 
 .api_metadata {
@@ -524,7 +524,7 @@ a code {
 
 #column2 .line {
   margin: 0 .5rem;
-  border-color: #707070;
+  background-color: #707070;
 }
 
 #column2 ul li:last-child {
@@ -539,8 +539,9 @@ a code {
 #column2 ul li a.active,
 #column2 ul li a.active:hover,
 #column2 ul li a.active:focus {
-  font-weight: 700;
-  color: #fff;
+  color: #43853d;
+  border-radius: 0;
+  border-bottom: 1px solid #43853d;
   background-color: transparent;
 }
 
@@ -571,20 +572,6 @@ th > *:last-child,
 td > *:last-child {
   margin-bottom: 0;
 }
-
-kbd {
-  background-color: #eee;
-  border-radius: 3px;
-  border: 1px solid #b4b4b4;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, .2);
-  color: #333;
-  display: inline-block;
-  font-size: .85em;
-  font-weight: 700;
-  padding: 2px 4px;
-  white-space: nowrap;
-  vertical-align: middle;
- }
 
 .changelog > summary {
   margin: .5rem 0;
@@ -624,6 +611,7 @@ kbd {
   }
   .apidoc #column2 > ul > li > a[href] {
     padding: .5rem 1.4375rem;
+    padding-right: 0;
     display: block;
   }
   .apidoc #column2 > ul > :first-child > a[href] {

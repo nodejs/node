@@ -67,11 +67,10 @@ class MapInference {
   // checks. Does nothing if maps were already reliable. Returns true iff
   // dependencies were taken.
   bool RelyOnMapsPreferStability(CompilationDependencies* dependencies,
-                                 JSGraph* jsgraph, Effect* effect,
-                                 Control control,
+                                 JSGraph* jsgraph, Node** effect, Node* control,
                                  const FeedbackSource& feedback);
   // Inserts map checks even if maps were already reliable.
-  void InsertMapChecks(JSGraph* jsgraph, Effect* effect, Control control,
+  void InsertMapChecks(JSGraph* jsgraph, Node** effect, Node* control,
                        const FeedbackSource& feedback);
 
   // Internally marks the maps as reliable (thus bypassing the safety check) and
@@ -99,8 +98,8 @@ class MapInference {
   V8_WARN_UNUSED_RESULT bool AnyOfInstanceTypesUnsafe(
       std::function<bool(InstanceType)> f) const;
   V8_WARN_UNUSED_RESULT bool RelyOnMapsHelper(
-      CompilationDependencies* dependencies, JSGraph* jsgraph, Effect* effect,
-      Control control, const FeedbackSource& feedback);
+      CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
+      Node* control, const FeedbackSource& feedback);
 };
 
 }  // namespace compiler

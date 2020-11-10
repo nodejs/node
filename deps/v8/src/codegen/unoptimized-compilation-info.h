@@ -43,7 +43,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
     DCHECK_NOT_NULL(literal);
     literal_ = literal;
   }
-  void ClearLiteral() { literal_ = nullptr; }
 
   DeclarationScope* scope() const;
 

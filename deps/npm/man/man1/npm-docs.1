@@ -1,38 +1,34 @@
-.TH "NPM\-DOCS" "1" "November 2020" "" ""
+.TH "NPM\-DOCS" "1" "July 2020" "" ""
 .SH "NAME"
-\fBnpm-docs\fR \- Open documentation for a package in a web browser
+\fBnpm-docs\fR \- Docs for a package in a web browser maybe
 .SS Synopsis
 .P
 .RS 2
 .nf
 npm docs [<pkgname> [<pkgname> \.\.\.]]
-
-aliases: home
+npm docs \.
+npm home [<pkgname> [<pkgname> \.\.\.]]
+npm home \.
 .fi
 .RE
 .SS Description
 .P
 This command tries to guess at the likely location of a package's
-documentation URL, and then tries to open it using the \fB\-\-browser\fP config
-param\. You can pass multiple package names at once\. If no package name is
-provided, it will search for a \fBpackage\.json\fP in the current folder and use
-the \fBname\fP property\.
+documentation URL, and then tries to open it using the \fB\-\-browser\fP
+config param\. You can pass multiple package names at once\. If no
+package name is provided, it will search for a \fBpackage\.json\fP in
+the current folder and use the \fBname\fP property\.
 .SS Configuration
 .SS browser
 .RS 0
 .IP \(bu 2
 Default: OS X: \fB"open"\fP, Windows: \fB"start"\fP, Others: \fB"xdg\-open"\fP
 .IP \(bu 2
-Type: String or Boolean
+Type: String
 
 .RE
 .P
 The browser that is called by the \fBnpm docs\fP command to open websites\.
-.P
-Set to \fBfalse\fP to suppress browser behavior and instead print urls to
-terminal\.
-.P
-Set to \fBtrue\fP to use default system URL opener\.
 .SS registry
 .RS 0
 .IP \(bu 2

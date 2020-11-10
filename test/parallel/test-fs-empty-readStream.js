@@ -27,7 +27,10 @@ const fixtures = require('../common/fixtures');
 
 const emptyFile = fixtures.path('empty.txt');
 
-fs.open(emptyFile, 'r', common.mustSucceed((fd) => {
+fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
+
+  assert.ifError(error);
+
   const read = fs.createReadStream(emptyFile, { fd });
 
   read.once('data', common.mustNotCall('data event should not emit'));
@@ -35,7 +38,10 @@ fs.open(emptyFile, 'r', common.mustSucceed((fd) => {
   read.once('end', common.mustCall());
 }));
 
-fs.open(emptyFile, 'r', common.mustSucceed((fd) => {
+fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
+
+  assert.ifError(error);
+
   const read = fs.createReadStream(emptyFile, { fd });
 
   read.pause();

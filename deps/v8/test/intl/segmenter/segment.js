@@ -8,34 +8,32 @@ assertEquals("function", typeof Intl.Segmenter.prototype.segment);
 assertEquals(1, Intl.Segmenter.prototype.segment.length);
 
 let seg = new Intl.Segmenter("en", {granularity: "word"})
-let segments;
+let res;
 
 // test with 0 args
-assertDoesNotThrow(() => segments = seg.segment())
+assertDoesNotThrow(() => res = seg.segment())
 // test with 1 arg
-assertDoesNotThrow(() => segments = seg.segment("hello"))
-assertEquals("hello", segments.containing(0).input);
+assertDoesNotThrow(() => res = seg.segment("hello"))
+assertEquals("hello", res.next().value.segment);
 // test with 2 args
-assertDoesNotThrow(() => segments = seg.segment("hello world"))
-assertEquals("hello world", segments.containing(0).input);
+assertDoesNotThrow(() => res = seg.segment("hello world"))
+assertEquals("hello", res.next().value.segment);
 
 // test with other types
-assertDoesNotThrow(() => segments = seg.segment(undefined))
-assertEquals("undefined", segments.containing(0).input);
-assertDoesNotThrow(() => segments = seg.segment(null))
-assertEquals("null", segments.containing(0).input);
-assertDoesNotThrow(() => segments = seg.segment(true))
-assertEquals("true", segments.containing(0).input);
-assertDoesNotThrow(() => segments = seg.segment(false))
-assertEquals("false", segments.containing(0).input);
-assertDoesNotThrow(() => segments = seg.segment(1234))
-assertEquals("1234", segments.containing(0).input);
-assertDoesNotThrow(() => segments = seg.segment(3.1415926))
-assertEquals("3.1415926", segments.containing(0).input);
-assertDoesNotThrow(() => segments = seg.segment(98765432109876543210987654321n))
-assertEquals("98765432109876543210987654321", segments.containing(0).input);
-assertDoesNotThrow(() => segments = seg.segment(["hello","world"]))
-assertEquals("hello,world", segments.containing(0).input);
-assertDoesNotThrow(() => segments = seg.segment({k: 'v'}))
-assertEquals("[object Object]", segments.containing(0).input);
-assertThrows(() => segments = seg.segment(Symbol()), TypeError)
+assertDoesNotThrow(() => res = seg.segment(undefined))
+assertEquals("undefined", res.next().value.segment);
+assertDoesNotThrow(() => res = seg.segment(null))
+assertEquals("null", res.next().value.segment);
+assertDoesNotThrow(() => res = seg.segment(true))
+assertEquals("true", res.next().value.segment);
+assertDoesNotThrow(() => res = seg.segment(false))
+assertEquals("false", res.next().value.segment);
+assertDoesNotThrow(() => res = seg.segment(1234))
+assertEquals("1234", res.next().value.segment);
+assertDoesNotThrow(() => res = seg.segment(3.1415926))
+assertEquals("3.1415926", res.next().value.segment);
+assertDoesNotThrow(() => res = seg.segment(["hello","world"]))
+assertEquals("hello", res.next().value.segment);
+assertDoesNotThrow(() => res = seg.segment({k: 'v'}))
+assertEquals("[", res.next().value.segment);
+assertThrows(() => res = seg.segment(Symbol()), TypeError)

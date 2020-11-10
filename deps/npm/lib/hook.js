@@ -1,43 +1,68 @@
-const hookApi = require('libnpmhook')
-const npm = require('./npm.js')
+'use strict'
+
+const BB = require('bluebird')
+
+const hookApi = require('libnpm/hook')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
+const pudding = require('figgy-pudding')
 const relativeDate = require('tiny-relative-date')
 const Table = require('cli-table3')
+const validate = require('aproba')
 
-const usageUtil = require('./utils/usage.js')
-const usage = usageUtil('hook', [
+hook.usage = [
   'npm hook add <pkg> <url> <secret> [--type=<type>]',
   'npm hook ls [pkg]',
   'npm hook rm <id>',
-  'npm hook update <id> <url> <secret>',
-].join('\n'))
+  'npm hook update <id> <url> <secret>'
+].join('\n')
 
-const completion = require('./utils/completion/none.js')
+hook.completion = (opts, cb) => {
+  validate('OF', [opts, cb])
+  return cb(null, []) // fill in this array with completion values
+}
 
-const cmd = (args, cb) => hook(args).then(() => cb()).catch(cb)
-
-const hook = async (args) => otplease(npm.flatOptions, opts => {
-  switch (args[0]) {
-    case 'add':
-      return add(args[1], args[2], args[3], opts)
-    case 'ls':
-      return ls(args[1], opts)
-    case 'rm':
-      return rm(args[1], opts)
-    case 'update':
-    case 'up':
-      return update(args[1], args[2], args[3], opts)
-    default:
-      throw usage
-  }
+const HookConfig = pudding({
+  json: {},
+  loglevel: {},
+  parseable: {},
+  silent: {},
+  unicode: {}
 })
 
-const add = (pkg, uri, secret, opts) => {
-  hookApi.add(pkg, uri, secret, opts).then(hook => {
-    if (opts.json)
+function UsageError () {
+  throw Object.assign(new Error(hook.usage), {code: 'EUSAGE'})
+}
+
+module.exports = (args, cb) => BB.try(() => hook(args)).then(
+  val => cb(null, val),
+  err => err.code === 'EUSAGE' ? cb(err.message) : cb(err)
+)
+function hook (args) {
+  return otplease(npmConfig(), opts => {
+    opts = HookConfig(opts)
+    switch (args[0]) {
+      case 'add':
+        return add(args[1], args[2], args[3], opts)
+      case 'ls':
+        return ls(args[1], opts)
+      case 'rm':
+        return rm(args[1], opts)
+      case 'update':
+      case 'up':
+        return update(args[1], args[2], args[3], opts)
+      default:
+        UsageError()
+    }
+  })
+}
+
+function add (pkg, uri, secret, opts) {
+  return hookApi.add(pkg, uri, secret, opts).then(hook => {
+    if (opts.json) {
       output(JSON.stringify(hook, null, 2))
-    else if (opts.parseable) {
+    } else if (opts.parseable) {
       output(Object.keys(hook).join('\t'))
       output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
@@ -48,51 +73,52 @@ const add = (pkg, uri, secret, opts) => {
   })
 }
 
-const ls = (pkg, opts) => {
-  return hookApi.ls({ ...opts, package: pkg }).then(hooks => {
-    if (opts.json)
+function ls (pkg, opts) {
+  return hookApi.ls(opts.concat({package: pkg})).then(hooks => {
+    if (opts.json) {
       output(JSON.stringify(hooks, null, 2))
-    else if (opts.parseable) {
+    } else if (opts.parseable) {
       output(Object.keys(hooks[0]).join('\t'))
       hooks.forEach(hook => {
         output(Object.keys(hook).map(k => hook[k]).join('\t'))
       })
-    } else if (!hooks.length)
+    } else if (!hooks.length) {
       output("You don't have any hooks configured yet.")
-    else if (!opts.silent && opts.loglevel !== 'silent') {
-      if (hooks.length === 1)
+    } else if (!opts.silent && opts.loglevel !== 'silent') {
+      if (hooks.length === 1) {
         output('You have one hook configured.')
-      else
+      } else {
         output(`You have ${hooks.length} hooks configured.`)
-
-      const table = new Table({ head: ['id', 'target', 'endpoint'] })
+      }
+      const table = new Table({head: ['id', 'target', 'endpoint']})
       hooks.forEach((hook) => {
         table.push([
-          { rowSpan: 2, content: hook.id },
+          {rowSpan: 2, content: hook.id},
           hookName(hook),
-          hook.endpoint,
+          hook.endpoint
         ])
         if (hook.last_delivery) {
           table.push([
             {
               colSpan: 1,
-              content: `triggered ${relativeDate(hook.last_delivery)}`,
+              content: `triggered ${relativeDate(hook.last_delivery)}`
             },
-            hook.response_code,
+            hook.response_code
           ])
-        } else
-          table.push([{ colSpan: 2, content: 'never triggered' }])
+        } else {
+          table.push([{colSpan: 2, content: 'never triggered'}])
+        }
       })
       output(table.toString())
     }
   })
 }
 
-const rm = (id, opts) => {
+function rm (id, opts) {
   return hookApi.rm(id, opts).then(hook => {
-    if (opts.json)
+    if (opts.json) {
       output(JSON.stringify(hook, null, 2))
-    else if (opts.parseable) {
+    } else if (opts.parseable) {
       output(Object.keys(hook).join('\t'))
       output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
@@ -103,11 +129,11 @@ const rm = (id, opts) => {
   })
 }
 
-const update = (id, uri, secret, opts) => {
+function update (id, uri, secret, opts) {
   return hookApi.update(id, uri, secret, opts).then(hook => {
-    if (opts.json)
+    if (opts.json) {
       output(JSON.stringify(hook, null, 2))
-    else if (opts.parseable) {
+    } else if (opts.parseable) {
       output(Object.keys(hook).join('\t'))
       output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
@@ -118,13 +144,9 @@ const update = (id, uri, secret, opts) => {
   })
 }
 
-const hookName = (hook) => {
+function hookName (hook) {
   let target = hook.name
-  if (hook.type === 'scope')
-    target = '@' + target
-  if (hook.type === 'owner')
-    target = '~' + target
+  if (hook.type === 'scope') { target = '@' + target }
+  if (hook.type === 'owner') { target = '~' + target }
   return target
 }
-
-module.exports = Object.assign(cmd, { usage, completion })

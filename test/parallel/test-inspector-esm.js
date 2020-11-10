@@ -78,7 +78,7 @@ async function testBreakpoint(session) {
 
   let { result } = await session.send({
     'method': 'Debugger.evaluateOnCallFrame', 'params': {
-      'callFrameId': session.pausedDetails().callFrames[0].callFrameId,
+      'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
       'expression': 'k + t',
       'objectGroup': 'console',
       'includeCommandLineAPI': true,

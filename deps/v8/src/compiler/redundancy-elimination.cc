@@ -65,13 +65,13 @@ Reduction RedundancyElimination::Reduce(Node* node) {
 RedundancyElimination::EffectPathChecks*
 RedundancyElimination::EffectPathChecks::Copy(Zone* zone,
                                               EffectPathChecks const* checks) {
-  return zone->New<EffectPathChecks>(*checks);
+  return new (zone->New(sizeof(EffectPathChecks))) EffectPathChecks(*checks);
 }
 
 // static
 RedundancyElimination::EffectPathChecks const*
 RedundancyElimination::EffectPathChecks::Empty(Zone* zone) {
-  return zone->New<EffectPathChecks>(nullptr, 0);
+  return new (zone->New(sizeof(EffectPathChecks))) EffectPathChecks(nullptr, 0);
 }
 
 bool RedundancyElimination::EffectPathChecks::Equals(
@@ -119,8 +119,9 @@ void RedundancyElimination::EffectPathChecks::Merge(
 RedundancyElimination::EffectPathChecks const*
 RedundancyElimination::EffectPathChecks::AddCheck(Zone* zone,
                                                   Node* node) const {
-  Check* head = zone->New<Check>(node, head_);
-  return zone->New<EffectPathChecks>(head, size_ + 1);
+  Check* head = new (zone->New(sizeof(Check))) Check(node, head_);
+  return new (zone->New(sizeof(EffectPathChecks)))
+      EffectPathChecks(head, size_ + 1);
 }
 
 namespace {

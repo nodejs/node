@@ -19,9 +19,11 @@ child.on('close', mustCall((code, signal) => {
   strictEqual(signal, null);
   ok(
     stderr.includes(
-      `[ERR_INVALID_PACKAGE_CONFIG]: Invalid package config ${invalidJson} ` +
-      `while importing "invalid-pjson" from ${entry}. ` +
-      `Unexpected token } in JSON at position ${isWindows ? 16 : 14}`
+      [
+        '[ERR_INVALID_PACKAGE_CONFIG]: ',
+        `Invalid package config ${invalidJson}, `,
+        `Unexpected token } in JSON at position ${isWindows ? 16 : 14}`
+      ].join(''),
     ),
     stderr);
 }));

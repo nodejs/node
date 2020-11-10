@@ -220,8 +220,6 @@ class RefBase : protected Finalizer, RefTracker {
                        finalize_hint);
   }
 
-  virtual ~RefBase() { Unlink(); }
-
   inline void* Data() {
     return _finalize_data;
   }
@@ -242,6 +240,7 @@ class RefBase : protected Finalizer, RefTracker {
   // the finalizer and _delete_self is set. In this case we
   // know we need to do the deletion so just do it.
   static inline void Delete(RefBase* reference) {
+    reference->Unlink();
     if ((reference->RefCount() != 0) ||
         (reference->_delete_self) ||
         (reference->_finalize_ran)) {
@@ -1357,42 +1356,6 @@ napi_status napi_define_properties(napi_env env,
       }
     }
   }
-
-  return GET_RETURN_STATUS(env);
-}
-
-napi_status napi_object_freeze(napi_env env,
-                               napi_value object) {
-  NAPI_PREAMBLE(env);
-
-  v8::Local<v8::Context> context = env->context();
-  v8::Local<v8::Object> obj;
-
-  CHECK_TO_OBJECT(env, context, obj, object);
-
-  v8::Maybe<bool> set_frozen =
-    obj->SetIntegrityLevel(context, v8::IntegrityLevel::kFrozen);
-
-  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env,
-    set_frozen.FromMaybe(false), napi_generic_failure);
-
-  return GET_RETURN_STATUS(env);
-}
-
-napi_status napi_object_seal(napi_env env,
-                             napi_value object) {
-  NAPI_PREAMBLE(env);
-
-  v8::Local<v8::Context> context = env->context();
-  v8::Local<v8::Object> obj;
-
-  CHECK_TO_OBJECT(env, context, obj, object);
-
-  v8::Maybe<bool> set_sealed =
-    obj->SetIntegrityLevel(context, v8::IntegrityLevel::kSealed);
-
-  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env,
-    set_sealed.FromMaybe(false), napi_generic_failure);
 
   return GET_RETURN_STATUS(env);
 }

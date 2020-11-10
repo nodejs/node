@@ -137,7 +137,7 @@ class LocationReference {
     return *bit_field_;
   }
 
-  base::Optional<const Type*> ReferencedType() const {
+  const Type* ReferencedType() const {
     if (IsHeapReference()) {
       return *TypeOracle::MatchReferenceGeneric(heap_reference().type());
     }
@@ -148,10 +148,7 @@ class LocationReference {
     if (IsBitFieldAccess()) {
       return bit_field_->name_and_type.type;
     }
-    if (IsVariableAccess() || IsHeapSlice() || IsTemporary()) {
-      return GetVisitResult().type();
-    }
-    return base::nullopt;
+    return GetVisitResult().type();
   }
 
   const VisitResult& GetVisitResult() const {
@@ -501,7 +498,6 @@ class ImplementationVisitor {
   VisitResult GetBuiltinCode(Builtin* builtin);
 
   VisitResult Visit(LocationExpression* expr);
-  VisitResult Visit(FieldAccessExpression* expr);
 
   void VisitAllDeclarables();
   void Visit(Declarable* delarable);
@@ -682,10 +678,6 @@ class ImplementationVisitor {
                        const Arguments& arguments,
                        const TypeVector& specialization_types);
 
-  TypeArgumentInference InferSpecializationTypes(
-      GenericCallable* generic, const TypeVector& explicit_specialization_types,
-      const TypeVector& explicit_arguments);
-
   const Type* GetCommonType(const Type* left, const Type* right);
 
   VisitResult GenerateCopy(const VisitResult& to_copy);
@@ -697,8 +689,7 @@ class ImplementationVisitor {
                         const Type* parameter_type,
                         std::vector<VisitResult>* converted_arguments,
                         StackRange* argument_range,
-                        std::vector<std::string>* constexpr_arguments,
-                        bool inline_macro);
+                        std::vector<std::string>* constexpr_arguments);
 
   VisitResult GenerateCall(Callable* callable,
                            base::Optional<LocationReference> this_parameter,
@@ -792,32 +783,9 @@ class ImplementationVisitor {
     ReplaceFileContentsIfDifferent(file, content);
   }
 
-  const Identifier* TryGetSourceForBitfieldExpression(
-      const Expression* expr) const {
-    auto it = bitfield_expressions_.find(expr);
-    if (it == bitfield_expressions_.end()) return nullptr;
-    return it->second;
-  }
-
-  void PropagateBitfieldMark(const Expression* original,
-                             const Expression* derived) {
-    if (const Identifier* source =
-            TryGetSourceForBitfieldExpression(original)) {
-      bitfield_expressions_[derived] = source;
-    }
-  }
-
   base::Optional<CfgAssembler> assembler_;
   NullOStream null_stream_;
   bool is_dry_run_;
-
-  // Just for allowing us to emit warnings. After visiting an Expression, if
-  // that Expression is a bitfield load, plus an optional inversion or an
-  // equality check with a constant, then that Expression will be present in
-  // this map. The Identifier associated is the bitfield struct that contains
-  // the value to load.
-  std::unordered_map<const Expression*, const Identifier*>
-      bitfield_expressions_;
 };
 
 void ReportAllUnusedMacros();

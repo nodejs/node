@@ -1,10 +1,5 @@
 'use strict';
 const common = require('../../common');
-
-// Refs: https://github.com/nodejs/node/issues/34731
-// Refs: https://github.com/nodejs/node/pull/35777
-// Refs: https://github.com/nodejs/node/issues/35778
-
 const { Worker, isMainThread } = require('worker_threads');
 
 if (isMainThread) {

@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/handles/maybe-handles.h"
+#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {

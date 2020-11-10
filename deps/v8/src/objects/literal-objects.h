@@ -77,6 +77,14 @@ class ClassBoilerplate : public FixedArray {
  public:
   enum ValueKind { kData, kGetter, kSetter };
 
+  struct Flags {
+#define FLAGS_BIT_FIELDS(V, _)               \
+  V(InstallClassNameAccessorBit, bool, 1, _) \
+  V(ArgumentsCountBits, int, 30, _)
+    DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
+#undef FLAGS_BIT_FIELDS
+  };
+
   struct ComputedEntryFlags {
 #define COMPUTED_ENTRY_BIT_FIELDS(V, _) \
   V(ValueKindBits, ValueKind, 2, _)     \
@@ -125,14 +133,14 @@ class ClassBoilerplate : public FixedArray {
                                                         ClassLiteral* expr);
 
   enum {
-    kArgumentsCountIndex,
+    kFlagsIndex,
     kClassPropertiesTemplateIndex,
     kClassElementsTemplateIndex,
     kClassComputedPropertiesIndex,
     kPrototypePropertiesTemplateIndex,
     kPrototypeElementsTemplateIndex,
     kPrototypeComputedPropertiesIndex,
-    kBoilerplateLength  // last element
+    kBoileplateLength  // last element
   };
 
  private:

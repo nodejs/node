@@ -1,4 +1,5 @@
 'use strict'
+const Buffer = require('./buffer.js')
 
 // tar -r
 const hlo = require('./high-level-opt.js')

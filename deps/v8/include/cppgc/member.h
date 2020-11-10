@@ -19,43 +19,19 @@ class Visitor;
 
 namespace internal {
 
-class MemberBase {
- protected:
-  MemberBase() = default;
-  explicit MemberBase(void* value) : raw_(value) {}
-
-  void* const* GetRawSlot() const { return &raw_; }
-  void* GetRaw() const { return raw_; }
-  void SetRaw(void* value) { raw_ = value; }
-
-  void* GetRawAtomic() const {
-    return reinterpret_cast<const std::atomic<void*>*>(&raw_)->load(
-        std::memory_order_relaxed);
-  }
-  void SetRawAtomic(void* value) {
-    reinterpret_cast<std::atomic<void*>*>(&raw_)->store(
-        value, std::memory_order_relaxed);
-  }
-
-  void ClearFromGC() const { raw_ = nullptr; }
-
- private:
-  mutable void* raw_ = nullptr;
-};
-
 // The basic class from which all Member classes are 'generated'.
 template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
           typename CheckingPolicy>
-class BasicMember final : private MemberBase, private CheckingPolicy {
+class BasicMember : private CheckingPolicy {
  public:
   using PointeeType = T;
 
   constexpr BasicMember() = default;
   constexpr BasicMember(std::nullptr_t) {}     // NOLINT
-  BasicMember(SentinelPointer s) : MemberBase(s) {}  // NOLINT
-  BasicMember(T* raw) : MemberBase(raw) {            // NOLINT
+  BasicMember(SentinelPointer s) : raw_(s) {}  // NOLINT
+  BasicMember(T* raw) : raw_(raw) {            // NOLINT
     InitializingWriteBarrier();
-    this->CheckPointer(Get());
+    this->CheckPointer(raw_);
   }
   BasicMember(T& raw) : BasicMember(&raw) {}  // NOLINT
   BasicMember(const BasicMember& other) : BasicMember(other.Get()) {}
@@ -130,12 +106,9 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }
 
-  // CFI cast exemption to allow passing SentinelPointer through T* and support
-  // heterogeneous assignments between different Member and Persistent handles
-  // based on their actual types.
-  V8_CLANG_NO_SANITIZE("cfi-unrelated-cast") T* Get() const {
+  T* Get() const {
     // Executed by the mutator, hence non atomic load.
-    return static_cast<T*>(MemberBase::GetRaw());
+    return raw_;
   }
 
   void Clear() { SetRawAtomic(nullptr); }
@@ -147,18 +120,25 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   }
 
  private:
+  void SetRawAtomic(T* raw) {
+    reinterpret_cast<std::atomic<T*>*>(&raw_)->store(raw,
+                                                     std::memory_order_relaxed);
+  }
   T* GetRawAtomic() const {
-    return static_cast<T*>(MemberBase::GetRawAtomic());
+    return reinterpret_cast<const std::atomic<T*>*>(&raw_)->load(
+        std::memory_order_relaxed);
   }
 
   void InitializingWriteBarrier() const {
-    WriteBarrierPolicy::InitializingBarrier(GetRawSlot(), GetRaw());
+    WriteBarrierPolicy::InitializingBarrier(
+        reinterpret_cast<const void*>(&raw_), static_cast<const void*>(raw_));
   }
   void AssigningWriteBarrier() const {
-    WriteBarrierPolicy::AssigningBarrier(GetRawSlot(), GetRaw());
+    WriteBarrierPolicy::AssigningBarrier(reinterpret_cast<const void*>(&raw_),
+                                         static_cast<const void*>(raw_));
   }
 
-  void ClearFromGC() const { MemberBase::ClearFromGC(); }
+  T* raw_ = nullptr;
 
   friend class cppgc::Visitor;
 };

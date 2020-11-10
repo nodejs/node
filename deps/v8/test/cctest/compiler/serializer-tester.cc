@@ -37,17 +37,14 @@ SerializerTester::SerializerTester(const char* source)
   function_string += " })();";
   Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(function_string.c_str()))));
-  uint32_t flags = i::OptimizedCompilationInfo::kInlining |
+  uint32_t flags = i::OptimizedCompilationInfo::kInliningEnabled |
                    i::OptimizedCompilationInfo::kFunctionContextSpecializing |
-                   i::OptimizedCompilationInfo::kLoopPeeling |
+                   i::OptimizedCompilationInfo::kLoopPeelingEnabled |
                    i::OptimizedCompilationInfo::kBailoutOnUninitialized |
-                   i::OptimizedCompilationInfo::kAllocationFolding |
-                   i::OptimizedCompilationInfo::kSplitting |
+                   i::OptimizedCompilationInfo::kAllocationFoldingEnabled |
+                   i::OptimizedCompilationInfo::kSplittingEnabled |
                    i::OptimizedCompilationInfo::kAnalyzeEnvironmentLiveness;
   Optimize(function, main_zone(), main_isolate(), flags, &broker_);
-  // Update handle to the corresponding serialized Handle in the broker.
-  function =
-      broker_->FindCanonicalPersistentHandleForTesting<JSFunction>(*function);
   function_ = JSFunctionRef(broker(), function);
 }
 
@@ -80,16 +77,10 @@ void CheckForSerializedInlinee(const char* source, int argc = 0,
       "The return value of the outer function must be a function too");
   Handle<JSFunction> g_func = Handle<JSFunction>::cast(g);
 
-  // Look up corresponding serialized Handles in the broker.
-  Handle<SharedFunctionInfo> sfi(
-      tester.broker()
-          ->FindCanonicalPersistentHandleForTesting<SharedFunctionInfo>(
-              g_func->shared()));
-  SharedFunctionInfoRef g_sfi(tester.broker(), sfi);
-  Handle<FeedbackVector> fv(
-      tester.broker()->FindCanonicalPersistentHandleForTesting<FeedbackVector>(
-          g_func->feedback_vector()));
-  FeedbackVectorRef g_fv(tester.broker(), fv);
+  SharedFunctionInfoRef g_sfi(tester.broker(),
+                              handle(g_func->shared(), tester.isolate()));
+  FeedbackVectorRef g_fv(tester.broker(),
+                         handle(g_func->feedback_vector(), tester.isolate()));
   CHECK(tester.broker()->IsSerializedForCompilation(g_sfi, g_fv));
 }
 

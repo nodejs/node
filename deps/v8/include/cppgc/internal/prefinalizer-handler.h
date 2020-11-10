@@ -15,13 +15,14 @@ class V8_EXPORT PreFinalizerRegistrationDispatcher final {
  public:
   using PreFinalizerCallback = bool (*)(const LivenessBroker&, void*);
   struct PreFinalizer {
-    void* object;
-    PreFinalizerCallback callback;
+    void* object_;
+    PreFinalizerCallback callback_;
 
     bool operator==(const PreFinalizer& other);
   };
 
-  static void RegisterPrefinalizer(PreFinalizer pre_finalizer);
+  static void RegisterPrefinalizer(cppgc::Heap* heap,
+                                   PreFinalizer prefinalzier);
 };
 
 }  // namespace internal

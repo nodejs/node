@@ -24,8 +24,8 @@ void IdentityMapBase::Clear() {
   if (keys_) {
     DCHECK(!is_iterable());
     heap_->UnregisterStrongRoots(FullObjectSlot(keys_));
-    DeletePointerArray(reinterpret_cast<void**>(keys_), capacity_);
-    DeletePointerArray(values_, capacity_);
+    DeleteArray(keys_);
+    DeleteArray(values_);
     keys_ = nullptr;
     values_ = nullptr;
     size_ = 0;
@@ -289,8 +289,8 @@ void IdentityMapBase::Resize(int new_capacity) {
                              FullObjectSlot(keys_ + capacity_));
 
   // Delete old storage;
-  DeletePointerArray(reinterpret_cast<void**>(old_keys), old_capacity);
-  DeletePointerArray(old_values, old_capacity);
+  DeleteArray(old_keys);
+  DeleteArray(old_values);
 }
 
 }  // namespace internal

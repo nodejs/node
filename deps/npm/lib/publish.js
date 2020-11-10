@@ -1,127 +1,167 @@
 'use strict'
 
-const util = require('util')
-const log = require('npmlog')
-const semver = require('semver')
-const pack = require('libnpmpack')
-const libpub = require('libnpmpublish').publish
-const runScript = require('@npmcli/run-script')
-const pacote = require('pacote')
-const npa = require('npm-package-arg')
+const BB = require('bluebird')
 
-const npm = require('./npm.js')
+const cacache = require('cacache')
+const figgyPudding = require('figgy-pudding')
+const libpub = require('libnpm/publish')
+const libunpub = require('libnpm/unpublish')
+const lifecycle = BB.promisify(require('./utils/lifecycle.js'))
+const log = require('npmlog')
+const npa = require('libnpm/parse-arg')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const { getContents, logTar } = require('./utils/tar.js')
+const pack = require('./pack')
+const { tarball, extract } = require('libnpm')
+const path = require('path')
+const readFileAsync = BB.promisify(require('graceful-fs').readFile)
+const readJson = BB.promisify(require('read-package-json'))
+const semver = require('semver')
+const statAsync = BB.promisify(require('graceful-fs').stat)
 
-// this is the only case in the CLI where we use the old full slow
-// 'read-package-json' module, because we want to pull in all the
-// defaults and metadata, like git sha's and default scripts and all that.
-const readJson = util.promisify(require('read-package-json'))
+publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]' +
+                "\n\nPublishes '.' if no argument supplied" +
+                '\n\nSets tag `latest` if no --tag specified'
 
-const completion = require('./utils/completion/none.js')
-const usageUtil = require('./utils/usage.js')
-const usage = usageUtil('publish',
-  'npm publish [<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]' +
-  '\n\nPublishes \'.\' if no argument supplied' +
-  '\nSets tag `latest` if no --tag specified')
+publish.completion = function (opts, cb) {
+  // publish can complete to a folder with a package.json
+  // or a tarball, or a tarball url.
+  // for now, not yet implemented.
+  return cb()
+}
 
-const cmd = (args, cb) => publish(args).then(() => cb()).catch(cb)
+const PublishConfig = figgyPudding({
+  dryRun: 'dry-run',
+  'dry-run': { default: false },
+  force: { default: false },
+  json: { default: false },
+  Promise: { default: () => Promise },
+  tag: { default: 'latest' },
+  tmp: {}
+})
 
-const publish = async args => {
-  if (args.length === 0)
-    args = ['.']
-  if (args.length !== 1)
-    throw usage
+module.exports = publish
+function publish (args, isRetry, cb) {
+  if (typeof cb !== 'function') {
+    cb = isRetry
+    isRetry = false
+  }
+  if (args.length === 0) args = ['.']
+  if (args.length !== 1) return cb(publish.usage)
 
   log.verbose('publish', args)
 
-  const opts = { ...npm.flatOptions }
-  const { json, defaultTag } = opts
-  if (semver.validRange(defaultTag))
-    throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
+  const opts = PublishConfig(npmConfig())
+  const t = opts.tag.trim()
+  if (semver.validRange(t)) {
+    return cb(new Error('Tag name must not be a valid SemVer range: ' + t))
+  }
 
-  const tarball = await publish_(args[0], opts)
-  const silent = log.level === 'silent'
-  if (!silent && json)
-    output(JSON.stringify(tarball, null, 2))
-  else if (!silent)
-    output(`+ ${tarball.id}`)
-
-  return tarball
+  return publish_(args[0], opts)
+    .then((tarball) => {
+      const silent = log.level === 'silent'
+      if (!silent && opts.json) {
+        output(JSON.stringify(tarball, null, 2))
+      } else if (!silent) {
+        output(`+ ${tarball.id}`)
+      }
+    })
+    .nodeify(cb)
 }
 
-// if it's a directory, read it from the file system
-// otherwise, get the full metadata from whatever it is
-const getManifest = (spec, opts) =>
-  spec.type === 'directory' ? readJson(`${spec.fetchSpec}/package.json`)
-  : pacote.manifest(spec, { ...opts, fullMetadata: true })
-
-// for historical reasons, publishConfig in package.json can contain
-// ANY config keys that npm supports in .npmrc files and elsewhere.
-// We *may* want to revisit this at some point, and have a minimal set
-// that's a SemVer-major change that ought to get a RFC written on it.
-const { flatten } = require('./utils/flat-options.js')
-const publishConfigToOpts = publishConfig =>
-  // create a new object that inherits from the config stack
-  // then squash the css-case into camelCase opts, like we do
-  flatten(Object.assign(Object.create(npm.config.list[0]), publishConfig))
-
-const publish_ = async (arg, opts) => {
-  const { unicode, dryRun, json } = opts
-  // you can publish name@version, ./foo.tgz, etc.
-  // even though the default is the 'file:.' cwd.
-  const spec = npa(arg)
-  const manifest = await getManifest(spec, opts)
-
-  if (manifest.publishConfig)
-    Object.assign(opts, publishConfigToOpts(manifest.publishConfig))
-
-  // only run scripts for directory type publishes
-  if (spec.type === 'directory') {
-    await runScript({
-      event: 'prepublishOnly',
-      path: spec.fetchSpec,
-      stdio: 'inherit',
-      pkg: manifest,
-    })
-  }
-
-  const tarballData = await pack(spec, opts)
-  const pkgContents = await getContents(manifest, tarballData)
-
-  // note that logTar calls npmlog.notice(), so if we ARE in silent mode,
-  // this will do nothing, but we still want it in the debuglog if it fails.
-  if (!json)
-    logTar(pkgContents, { log, unicode })
-
-  if (!dryRun) {
-    // The purpose of re-reading the manifest is in case it changed,
-    // so that we send the latest and greatest thing to the registry
-    // note that publishConfig might have changed as well!
-    const manifest = await getManifest(spec, opts)
-    if (manifest.publishConfig)
-      Object.assign(opts, publishConfigToOpts(manifest.publishConfig))
-    await otplease(opts, opts => libpub(manifest, tarballData, opts))
-  }
-
-  if (spec.type === 'directory') {
-    await runScript({
-      event: 'publish',
-      path: spec.fetchSpec,
-      stdio: 'inherit',
-      pkg: manifest,
-    })
-
-    await runScript({
-      event: 'postpublish',
-      path: spec.fetchSpec,
-      stdio: 'inherit',
-      pkg: manifest,
-    })
-  }
-
-  return pkgContents
+function publish_ (arg, opts) {
+  return statAsync(arg).then((stat) => {
+    if (stat.isDirectory()) {
+      return stat
+    } else {
+      const err = new Error('not a directory')
+      err.code = 'ENOTDIR'
+      throw err
+    }
+  }).then(() => {
+    return publishFromDirectory(arg, opts)
+  }, (err) => {
+    if (err.code !== 'ENOENT' && err.code !== 'ENOTDIR') {
+      throw err
+    } else {
+      return publishFromPackage(arg, opts)
+    }
+  })
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+function publishFromDirectory (arg, opts) {
+  // All this readJson is because any of the given scripts might modify the
+  // package.json in question, so we need to refresh after every step.
+  let contents
+  return pack.prepareDirectory(arg).then(() => {
+    return readJson(path.join(arg, 'package.json'))
+  }).then((pkg) => {
+    return lifecycle(pkg, 'prepublishOnly', arg)
+  }).then(() => {
+    return readJson(path.join(arg, 'package.json'))
+  }).then((pkg) => {
+    return cacache.tmp.withTmp(opts.tmp, {tmpPrefix: 'fromDir'}, (tmpDir) => {
+      const target = path.join(tmpDir, 'package.tgz')
+      return pack.packDirectory(pkg, arg, target, null, true)
+        .tap((c) => { contents = c })
+        .then((c) => !opts.json && pack.logContents(c))
+        .then(() => upload(pkg, false, target, opts))
+    })
+  }).then(() => {
+    return readJson(path.join(arg, 'package.json'))
+  }).tap((pkg) => {
+    return lifecycle(pkg, 'publish', arg)
+  }).tap((pkg) => {
+    return lifecycle(pkg, 'postpublish', arg)
+  })
+    .then(() => contents)
+}
+
+function publishFromPackage (arg, opts) {
+  return cacache.tmp.withTmp(opts.tmp, {tmpPrefix: 'fromPackage'}, tmp => {
+    const extracted = path.join(tmp, 'package')
+    const target = path.join(tmp, 'package.json')
+    return tarball.toFile(arg, target, opts)
+      .then(() => extract(arg, extracted, opts))
+      .then(() => readJson(path.join(extracted, 'package.json')))
+      .then((pkg) => {
+        return BB.resolve(pack.getContents(pkg, target))
+          .tap((c) => !opts.json && pack.logContents(c))
+          .tap(() => upload(pkg, false, target, opts))
+      })
+  })
+}
+
+function upload (pkg, isRetry, cached, opts) {
+  if (!opts.dryRun) {
+    return readFileAsync(cached).then(tarball => {
+      return otplease(opts, opts => {
+        return libpub(pkg, tarball, opts)
+      }).catch(err => {
+        if (
+          err.code === 'EPUBLISHCONFLICT' &&
+          opts.force &&
+          !isRetry
+        ) {
+          log.warn('publish', 'Forced publish over ' + pkg._id)
+          return otplease(opts, opts => libunpub(
+            npa.resolve(pkg.name, pkg.version), opts
+          )).finally(() => {
+            // ignore errors.  Use the force.  Reach out with your feelings.
+            return otplease(opts, opts => {
+              return upload(pkg, true, tarball, opts)
+            }).catch(() => {
+              // but if it fails again, then report the first error.
+              throw err
+            })
+          })
+        } else {
+          throw err
+        }
+      })
+    })
+  } else {
+    return opts.Promise.resolve(true)
+  }
+}

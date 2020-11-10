@@ -11,8 +11,9 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
 
-// Implement Atomic accesses to ArrayBuffers and SharedArrayBuffers.
-// https://tc39.es/ecma262/#sec-atomics
+// Implement Atomic accesses to SharedArrayBuffers as defined in the
+// SharedArrayBuffer draft spec, found here
+// https://github.com/tc39/ecmascript_sharedmem
 
 namespace v8 {
 namespace internal {
@@ -340,27 +341,17 @@ struct Xor {
   V(Uint32, uint32, UINT32, uint32_t) \
   V(Int32, int32, INT32, int32_t)
 
-#define THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name)      \
-  do {                                                                         \
-    if (V8_UNLIKELY(sta->WasDetached())) {                                     \
-      THROW_NEW_ERROR_RETURN_FAILURE(                                          \
-          isolate, NewTypeError(MessageTemplate::kDetachedOperation,           \
-                                isolate->factory()->NewStringFromAsciiChecked( \
-                                    method_name)));                            \
-    }                                                                          \
-  } while (false)
-
 // This is https://tc39.github.io/ecma262/#sec-getmodifysetvalueinbuffer
 // but also includes the ToInteger/ToBigInt conversion that's part of
 // https://tc39.github.io/ecma262/#sec-atomicreadmodifywrite
 template <template <typename> class Op>
-Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
-                                 const char* method_name) {
+Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value_obj, 2);
+  CHECK(sta->GetBuffer()->is_shared());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -369,9 +360,7 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
     Handle<BigInt> bigint;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                        BigInt::FromObject(isolate, value_obj));
-
-    THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name);
-
+    // SharedArrayBuffers are not detachable.
     CHECK_LT(index, sta->length());
     if (sta->type() == kExternalBigInt64Array) {
       return Op<int64_t>::Do(isolate, source, index, bigint);
@@ -383,9 +372,7 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
   Handle<Object> value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value_obj));
-
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name);
-
+  // SharedArrayBuffers are not detachable.
   CHECK_LT(index, sta->length());
 
   switch (sta->type()) {
@@ -408,13 +395,14 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CHECK(sta->GetBuffer()->is_shared());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
 
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
-  DCHECK(!sta->WasDetached());
+  // SharedArrayBuffers are not detachable.
   CHECK_LT(index, sta->length());
   if (sta->type() == kExternalBigInt64Array) {
     return Load<int64_t>::Do(isolate, source, index);
@@ -429,6 +417,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value_obj, 2);
+  CHECK(sta->GetBuffer()->is_shared());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -437,10 +426,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, value_obj));
 
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, "Atomics.store");
-
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
+  // SharedArrayBuffers are not detachable.
   CHECK_LT(index, sta->length());
   if (sta->type() == kExternalBigInt64Array) {
     Store<int64_t>::Do(isolate, source, index, bigint);
@@ -452,7 +440,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
 }
 
 RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
-  return GetModifySetValueInBuffer<Exchange>(args, isolate, "Atomics.exchange");
+  return GetModifySetValueInBuffer<Exchange>(args, isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
@@ -462,6 +450,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, old_value_obj, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, new_value_obj, 3);
+  CHECK(sta->GetBuffer()->is_shared());
   CHECK_LT(index, sta->length());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
@@ -474,10 +463,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
         isolate, old_bigint, BigInt::FromObject(isolate, old_value_obj));
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, new_bigint, BigInt::FromObject(isolate, new_value_obj));
-
-    THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta,
-                                           "Atomics.compareExchange");
-
+    // SharedArrayBuffers are not detachable.
     CHECK_LT(index, sta->length());
     if (sta->type() == kExternalBigInt64Array) {
       return DoCompareExchange<int64_t>(isolate, source, index, old_bigint,
@@ -494,9 +480,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
                                      Object::ToInteger(isolate, old_value_obj));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_value,
                                      Object::ToInteger(isolate, new_value_obj));
-
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta,
-                                         "Atomics.compareExchange");
+  // SharedArrayBuffers are not detachable.
+  CHECK_LT(index, sta->length());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype)                  \
@@ -517,31 +502,31 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
 // ES #sec-atomics.add
 // Atomics.add( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
-  return GetModifySetValueInBuffer<Add>(args, isolate, "Atomics.add");
+  return GetModifySetValueInBuffer<Add>(args, isolate);
 }
 
 // ES #sec-atomics.sub
 // Atomics.sub( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsSub) {
-  return GetModifySetValueInBuffer<Sub>(args, isolate, "Atomics.sub");
+  return GetModifySetValueInBuffer<Sub>(args, isolate);
 }
 
 // ES #sec-atomics.and
 // Atomics.and( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
-  return GetModifySetValueInBuffer<And>(args, isolate, "Atomics.and");
+  return GetModifySetValueInBuffer<And>(args, isolate);
 }
 
 // ES #sec-atomics.or
 // Atomics.or( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsOr) {
-  return GetModifySetValueInBuffer<Or>(args, isolate, "Atomics.or");
+  return GetModifySetValueInBuffer<Or>(args, isolate);
 }
 
 // ES #sec-atomics.xor
 // Atomics.xor( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsXor) {
-  return GetModifySetValueInBuffer<Xor>(args, isolate, "Atomics.xor");
+  return GetModifySetValueInBuffer<Xor>(args, isolate);
 }
 
 #undef INTEGER_TYPED_ARRAYS

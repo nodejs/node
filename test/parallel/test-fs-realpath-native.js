@@ -12,7 +12,8 @@ assert.strictEqual(
 
 fs.realpath.native(
   './test/parallel/test-fs-realpath-native.js',
-  common.mustSucceed(function(res) {
+  common.mustCall(function(err, res) {
+    assert.ifError(err);
     assert.strictEqual(res.toLowerCase(), filename);
     assert.strictEqual(this, undefined);
   }));

@@ -549,6 +549,12 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   });
 })();
 
+(function TestFunctionConstructedIncompatibleSig() {
+  let fun = new WebAssembly.Function({parameters:["i64"], results:[]}, _ => 0);
+  assertThrows(() => fun(), TypeError,
+    /wasm function signature contains illegal type/);
+})();
+
 (function TestFunctionTableSetAndCall() {
   let builder = new WasmModuleBuilder();
   let fun1 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
@@ -572,9 +578,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(1));
 })();
 
-(function TestFunctionTableSetI64() {
+(function TestFunctionTableSetIncompatibleSig() {
   let builder = new WasmModuleBuilder();
-  let fun = new WebAssembly.Function({parameters:[], results:["i64"]}, _ => 0n);
+  let fun = new WebAssembly.Function({parameters:[], results:["i64"]}, _ => 0);
   let table = new WebAssembly.Table({element: "anyfunc", initial: 2});
   let table_index = builder.addImportedTable("m", "table", 2);
   let sig_index = builder.addType(kSig_l_v);
@@ -587,10 +593,14 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
       ])
       .exportFunc();
   let instance = builder.instantiate({ m: { table: table }});
-  assertDoesNotThrow(() => instance.exports.main(0));
+  assertThrows(
+    () => instance.exports.main(0), TypeError,
+    /wasm function signature contains illegal type/);
   assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(1));
   table.set(1, fun);
-  assertDoesNotThrow(() => instance.exports.main(1));
+  assertThrows(
+    () => instance.exports.main(1), TypeError,
+    /wasm function signature contains illegal type/);
 })();
 
 (function TestFunctionModuleImportMatchingSig() {

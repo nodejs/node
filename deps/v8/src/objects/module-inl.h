@@ -36,9 +36,8 @@ ACCESSORS(Module, exception, Object, kExceptionOffset)
 SMI_ACCESSORS(Module, status, kStatusOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
-BOOL_ACCESSORS(SourceTextModule, flags, async, AsyncBit::kShift)
-BOOL_ACCESSORS(SourceTextModule, flags, async_evaluating,
-               AsyncEvaluatingBit::kShift)
+BOOL_ACCESSORS(SourceTextModule, flags, async, kAsyncBit)
+BOOL_ACCESSORS(SourceTextModule, flags, async_evaluating, kAsyncEvaluatingBit)
 ACCESSORS(SourceTextModule, async_parent_modules, ArrayList,
           kAsyncParentModulesOffset)
 ACCESSORS(SourceTextModule, top_level_capability, HeapObject,

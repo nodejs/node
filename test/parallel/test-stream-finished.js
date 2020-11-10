@@ -20,7 +20,9 @@ const http = require('http');
     read() {}
   });
 
-  finished(rs, common.mustSucceed());
+  finished(rs, common.mustCall((err) => {
+    assert(!err, 'no error');
+  }));
 
   rs.push(null);
   rs.resume();
@@ -33,7 +35,9 @@ const http = require('http');
     }
   });
 
-  finished(ws, common.mustSucceed());
+  finished(ws, common.mustCall((err) => {
+    assert(!err, 'no error');
+  }));
 
   ws.end();
 }
@@ -56,7 +60,8 @@ const http = require('http');
     finish = true;
   });
 
-  finished(tr, common.mustSucceed(() => {
+  finished(tr, common.mustCall((err) => {
+    assert(!err, 'no error');
     assert(finish);
     assert(ended);
   }));
@@ -103,7 +108,9 @@ const http = require('http');
 {
   const rs = new Readable();
 
-  finished(rs, common.mustSucceed());
+  finished(rs, common.mustCall((err) => {
+    assert(!err, 'no error');
+  }));
 
   rs.push(null);
   rs.emit('close'); // Should not trigger an error

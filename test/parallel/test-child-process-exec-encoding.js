@@ -15,7 +15,8 @@ if (process.argv[2] === 'child') {
   function run(options, callback) {
     const cmd = `"${process.execPath}" "${__filename}" child`;
 
-    cp.exec(cmd, options, common.mustSucceed((stdout, stderr) => {
+    cp.exec(cmd, options, common.mustCall((err, stdout, stderr) => {
+      assert.ifError(err);
       callback(stdout, stderr);
     }));
   }

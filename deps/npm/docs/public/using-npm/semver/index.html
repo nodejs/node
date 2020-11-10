@@ -1,0 +1,438 @@
+<!DOCTYPE html><html><head><script>"use strict";!function(){var i=(window.location.pathname.match(/^(\/(?:ipfs|ipns)\/[^/]+)/)||[])[1]||"";window.__GATSBY_IPFS_PATH_PREFIX__=i}();</script><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="ie=edge"/><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/><style data-href="../../styles.e93b5499b63484750fba.css">code[class*=language-],pre[class*=language-]{color:#ccc;background:none;font-family:Consolas,Monaco,Andale Mono,Ubuntu Mono,monospace;font-size:1em;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-hyphens:none;-ms-hyphens:none;hyphens:none}pre[class*=language-]{padding:1em;margin:.5em 0;overflow:auto}:not(pre)>code[class*=language-],pre[class*=language-]{background:#2d2d2d}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal}.token.block-comment,.token.cdata,.token.comment,.token.doctype,.token.prolog{color:#999}.token.punctuation{color:#ccc}.token.attr-name,.token.deleted,.token.namespace,.token.tag{color:#e2777a}.token.function-name{color:#6196cc}.token.boolean,.token.function,.token.number{color:#f08d49}.token.class-name,.token.constant,.token.property,.token.symbol{color:#f8c555}.token.atrule,.token.builtin,.token.important,.token.keyword,.token.selector{color:#cc99cd}.token.attr-value,.token.char,.token.regex,.token.string,.token.variable{color:#7ec699}.token.entity,.token.operator,.token.url{color:#67cdcc}.token.bold,.token.important{font-weight:700}.token.italic{font-style:italic}.token.entity{cursor:help}.token.inserted{color:green}a,abbr,acronym,address,applet,article,aside,audio,b,big,blockquote,body,canvas,caption,center,cite,code,dd,del,details,dfn,div,dl,dt,em,embed,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,html,i,iframe,img,ins,kbd,label,legend,li,mark,menu,nav,object,ol,output,p,pre,q,ruby,s,samp,section,small,span,strike,strong,sub,summary,sup,table,tbody,td,tfoot,th,thead,time,tr,tt,u,ul,var,video{margin:0;padding:0;border:0;font-size:100%;font:inherit;vertical-align:baseline}article,aside,details,figcaption,figure,footer,header,hgroup,menu,nav,section{display:block}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:after,blockquote:before,q:after,q:before{content:"";content:none}table{border-collapse:collapse;border-spacing:0}[hidden]{display:none}html{font-family:Poppins,sans-serif}*{box-sizing:border-box}li,p{font-size:15px;line-height:1.7;font-weight:300}p,ul{padding:10px 0}strong{font-weight:700;color:#c3f}li{list-style-type:disc;list-style-position:inside;padding:8px 0}.documentation h1{font-size:42px;font-weight:600;padding:30px 0 10px}.documentation h2{font-size:22px;font-weight:300}.documentation h3{color:#c3f;font-size:22px;padding:30px 0 5px;font-weight:500}.documentation h4{font-weight:600;padding:20px 0 5px}.documentation p{display:inline-block}:not(pre)>code[class*=language-],pre[class*=language-]{border-radius:4px;background-color:#413844;font-size:13px}:not(pre)>code[class*=language-text]{background-color:rgba(204,139,216,.1);color:#413844;padding:2px 6px;border-radius:0;font-size:14px;font-weight:700;border-radius:1px;display:inline-block}.documentation a,a>code[class*=language-text]{color:#fb3b49;font-weight:600}p>code[class*=language-text]{display:inline-block}.documentation h1:before{content:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 27 26'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='18.13' x2='25.6' y1='13.48' y2='13.48' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb8817'/%3E%3Cstop offset='.37' stop-color='%23fb8719'/%3E%3Cstop offset='.51' stop-color='%23fa8420'/%3E%3Cstop offset='.61' stop-color='%23f9802c'/%3E%3Cstop offset='.69' stop-color='%23f7793d'/%3E%3Cstop offset='.76' stop-color='%23f47053'/%3E%3Cstop offset='.82' stop-color='%23f1656e'/%3E%3Cstop offset='.87' stop-color='%23ed578f'/%3E%3Cstop offset='.92' stop-color='%23e948b5'/%3E%3Cstop offset='.97' stop-color='%23e437de'/%3E%3Cstop offset='1' stop-color='%23e02aff'/%3E%3C/linearGradient%3E%3ClinearGradient id='b' x1='17.89' x2='25.84' y1='13.48' y2='13.48' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb8817'/%3E%3Cstop offset='1' stop-color='%23e02aff'/%3E%3C/linearGradient%3E%3ClinearGradient id='c' x1='1' x2='18.69' y1='17.84' y2='17.84' xlink:href='%23a'/%3E%3ClinearGradient id='d' x1='.76' x2='18.93' y1='17.84' y2='17.84' xlink:href='%23b'/%3E%3ClinearGradient id='e' x1='1' x2='20.48' y1='7.33' y2='7.33' xlink:href='%23a'/%3E%3ClinearGradient id='f' x1='.76' x2='20.72' y1='7.33' y2='7.33' xlink:href='%23b'/%3E%3C/defs%3E%3Cpath fill='url(%23a)' stroke='url(%23b)' stroke-miterlimit='10' stroke-width='.48' d='M18.53 24.24a.28.28 0 01-.34-.41L25 14.06l-5-11a.28.28 0 11.5-.23L25.58 14a.28.28 0 010 .28l-6.91 9.9a.28.28 0 01-.14.06z'/%3E%3Cpath fill='url(%23c)' stroke='url(%23d)' stroke-miterlimit='10' stroke-width='.48' d='M18.53 24.24a.28.28 0 01-.14 0l-12-1.15a.28.28 0 01-.23-.09L1 11.81a.28.28 0 11.5-.23l5.07 11L18 23.68 13 13a.28.28 0 11.5-.23l5.12 11.12a.28.28 0 01-.09.35z'/%3E%3Cpath fill='url(%23e)' stroke='url(%23f)' stroke-miterlimit='10' stroke-width='.48' d='M13.4 13.12a.25.25 0 01-.14 0L1.25 12a.28.28 0 01-.2-.44L8 1.64a.28.28 0 01.25-.12l12 1.18a.28.28 0 01.2.44L13.51 13a.25.25 0 01-.11.12z'/%3E%3C/svg%3E");position:relative;display:inline-block;padding-right:8px;top:3px;width:28px}.active-sidebar-link{background-color:#ffebff}.active-navbar-link{border-bottom:3px solid #c3f}.header-link-class{margin-left:-24px}.disabled-body{overflow:hidden}</style><meta name="generator" content="Gatsby 2.18.18"/><title data-react-helmet="true"></title><style data-styled="UihHA jAtLxz bCnUTx bAGJfc hJcdbU kOyZtC eCQAUi fsnHHg bXQeSB dsecBh iPgskl bNiGAM gJQTGP fMOzaj" data-styled-version="4.4.1">
+/* sc-component-id: links__NavLink-sc-19vgq0o-1 */
+.kOyZtC{font-weight:500;-webkit-text-decoration:none;text-decoration:none;-webkit-letter-spacing:.3px;-moz-letter-spacing:.3px;-ms-letter-spacing:.3px;letter-spacing:.3px;font-size:14px;color:#231f20;-webkit-transition:opacity .5s;transition:opacity .5s;margin:0 10px;} .kOyZtC:hover{opacity:.5;}
+/* sc-component-id: links__BasicNavLink-sc-19vgq0o-2 */
+.eCQAUi{font-weight:500;-webkit-text-decoration:none;text-decoration:none;-webkit-letter-spacing:.3px;-moz-letter-spacing:.3px;-ms-letter-spacing:.3px;letter-spacing:.3px;font-size:14px;color:#231f20;-webkit-transition:opacity .5s;transition:opacity .5s;margin:0 10px;} .eCQAUi:hover{opacity:.5;}
+/* sc-component-id: links__SidebarLink-sc-19vgq0o-3 */
+.iPgskl{font-weight:500;-webkit-text-decoration:none;text-decoration:none;-webkit-letter-spacing:.3px;-moz-letter-spacing:.3px;-ms-letter-spacing:.3px;letter-spacing:.3px;font-size:14px;color:#fb3b49;padding:10px;-webkit-transition:background-color .3s;transition:background-color .3s;} .iPgskl:hover{background-color:#ffebff;}
+/* sc-component-id: Accordion__SectionButton-i8yhwx-0 */
+.dsecBh{outline:none;background-color:transparent;cursor:pointer;color:red;border:none;font-size:18px;font-weight:bold;padding:5px 0;-webkit-transition:opacity .5s;transition:opacity .5s;} .dsecBh:after{background:center / contain no-repeat url(data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNi41IDEwIj48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2ZiM2I0OTt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPnVwLWNhcnJvdDwvdGl0bGU+PHBhdGggY2xhc3M9ImNscy0xIiBkPSJNOC4yNS44NWExLjE1LDEuMTUsMCwwLDAtLjgxLjM0bC02LDZBMS4xNSwxLjE1LDAsMCwwLDMuMDYsOC44MUw4LjI1LDMuNjNsNS4xOSw1LjE5YTEuMTUsMS4xNSwwLDAsMCwxLjYzLTEuNjNsLTYtNkExLjE1LDEuMTUsMCwwLDAsOC4yNS44NVoiLz48L3N2Zz4=);content:'';height:11px;width:28px;display:inline-block;} .dsecBh:hover{opacity:.6;}
+/* sc-component-id: DocLinks__LinkDesc-sc-1vrw6od-0 */
+.bNiGAM{font-size:11px;line-height:1.5;text-transform:lowercase;display:block;font-weight:400;color:#767676;}
+/* sc-component-id: Sidebar__Container-gs0c67-0 */
+.bXQeSB{border-right:1px solid #86838333;padding:30px;height:100vh;display:none;width:380px;position:-webkit-sticky;position:sticky;overflow:scroll;padding-bottom:200px;top:54px;background-color:#ffffff;} @media screen and (min-width:48em){.bXQeSB{display:block;}}
+/* sc-component-id: navbar__Container-kjuegf-0 */
+.UihHA{width:100%;border-bottom:1px solid #86838333;position:-webkit-sticky;position:sticky;top:0;background-color:#ffffff;z-index:1;}
+/* sc-component-id: navbar__Inner-kjuegf-1 */
+.jAtLxz{border-top:3px solid;border-image:linear-gradient(139deg,#fb8817,#ff4b01,#c12127,#e02aff) 3;margin:auto;height:53px;padding:0 30px;-webkit-align-items:center;-webkit-box-align:center;-ms-flex-align:center;align-items:center;width:100%;}
+/* sc-component-id: navbar__Logo-kjuegf-2 */
+.bAGJfc{width:120px;padding:0px 5px;height:18px;vertical-align:middle;display:inline-block;-webkit-transition:opacity .5s;transition:opacity .5s;} .bAGJfc:hover{opacity:.8;}
+/* sc-component-id: navbar__Links-kjuegf-3 */
+.hJcdbU{display:none;} @media screen and (min-width:48em){.hJcdbU{display:block;margin-left:auto;}}
+/* sc-component-id: navbar__Heart-kjuegf-4 */
+.bCnUTx{font-size:15px;display:inline-block;}
+/* sc-component-id: navbar__Hamburger-kjuegf-5 */
+.fsnHHg{border:none;background:center no-repeat url(data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2aWV3Qm94PSIwIDAgMzUgMjMiPjxkZWZzPjxzdHlsZT4uY2xzLTF7ZmlsbDp1cmwoI2xpbmVhci1ncmFkaWVudCk7fS5jbHMtMntmaWxsOnVybCgjbGluZWFyLWdyYWRpZW50LTIpO30uY2xzLTN7ZmlsbDp1cmwoI2xpbmVhci1ncmFkaWVudC0zKTt9PC9zdHlsZT48bGluZWFyR3JhZGllbnQgaWQ9ImxpbmVhci1ncmFkaWVudCIgeTE9IjIiIHgyPSIzNSIgeTI9IjIiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNmYjg4MTciLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlMDJhZmYiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0ibGluZWFyLWdyYWRpZW50LTIiIHkxPSIxMS41IiB5Mj0iMTEuNSIgeGxpbms6aHJlZj0iI2xpbmVhci1ncmFkaWVudCIvPjxsaW5lYXJHcmFkaWVudCBpZD0ibGluZWFyLWdyYWRpZW50LTMiIHkxPSIyMSIgeTI9IjIxIiB4bGluazpocmVmPSIjbGluZWFyLWdyYWRpZW50Ii8+PC9kZWZzPjx0aXRsZT5oYW1idXJnZXI8L3RpdGxlPjxyZWN0IGNsYXNzPSJjbHMtMSIgd2lkdGg9IjM1IiBoZWlnaHQ9IjQiIHJ4PSIyIiByeT0iMiIvPjxyZWN0IGNsYXNzPSJjbHMtMiIgeT0iOS41IiB3aWR0aD0iMzUiIGhlaWdodD0iNCIgcng9IjIiIHJ5PSIyIi8+PHJlY3QgY2xhc3M9ImNscy0zIiB5PSIxOSIgd2lkdGg9IjM1IiBoZWlnaHQ9IjQiIHJ4PSIyIiByeT0iMiIvPjwvc3ZnPg==);height:30px;width:30px;display:block;margin-left:auto;-webkit-transition:opacity .5s;transition:opacity .5s;cursor:pointer;} .fsnHHg:hover{opacity:.6;} @media screen and (min-width:48em){.fsnHHg{display:none;}}
+/* sc-component-id: FoundTypo__Container-sc-1e373sc-0 */
+.fMOzaj{margin:80px 0;border-top:1px solid black;padding:20px 0;}
+/* sc-component-id: Page__Content-sc-4b62ym-0 */
+.gJQTGP{max-width:760px;margin:auto;padding:0 30px 120px;}</style><link rel="icon" href="../../icons/icon-48x48.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="manifest" href="../../manifest.webmanifest"/><meta name="theme-color" content="#663399"/><link rel="apple-touch-icon" sizes="48x48" href="../../icons/icon-48x48.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="apple-touch-icon" sizes="72x72" href="../../icons/icon-72x72.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="apple-touch-icon" sizes="96x96" href="../../icons/icon-96x96.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="apple-touch-icon" sizes="144x144" href="../../icons/icon-144x144.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="apple-touch-icon" sizes="192x192" href="../../icons/icon-192x192.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="apple-touch-icon" sizes="256x256" href="../../icons/icon-256x256.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="apple-touch-icon" sizes="384x384" href="../../icons/icon-384x384.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="apple-touch-icon" sizes="512x512" href="../../icons/icon-512x512.png?v=7a2e468321d0881d02a038e839dfc4a3"/><link rel="preload" as="font" type="font/woff2" crossorigin="anonymous" href="../../google-fonts/s/poppins/v12/pxiByp8kv8JHgFVrLDz8Z1xlFQ.woff2"/><link rel="preload" as="font" type="font/woff2" crossorigin="anonymous" href="../../google-fonts/s/poppins/v12/pxiByp8kv8JHgFVrLGT9Z1xlFQ.woff2"/><link rel="preload" as="font" type="font/woff2" crossorigin="anonymous" href="../../google-fonts/s/poppins/v12/pxiEyp8kv8JHgFVrJJfecg.woff2"/><style type="text/css">@font-face{font-family:Poppins;font-style:normal;font-weight:300;src:local('Poppins Light'),local('Poppins-Light'),url(../../google-fonts/s/poppins/v12/pxiByp8kv8JHgFVrLDz8Z1xlFQ.woff2) format('woff2'),url(../../google-fonts/s/poppins/v12/pxiByp8kv8JHgFVrLDz8Z1xlEw.woff) format('woff');font-display: swap;}@font-face{font-family:Poppins;font-style:normal;font-weight:400;src:local('Poppins Regular'),local('Poppins-Regular'),url(../../google-fonts/s/poppins/v12/pxiEyp8kv8JHgFVrJJfecg.woff2) format('woff2'),url(../../google-fonts/s/poppins/v12/pxiEyp8kv8JHgFVrJJfedA.woff) format('woff');font-display: swap;}@font-face{font-family:Poppins;font-style:normal;font-weight:500;src:local('Poppins Medium'),local('Poppins-Medium'),url(../../google-fonts/s/poppins/v12/pxiByp8kv8JHgFVrLGT9Z1xlFQ.woff2) format('woff2'),url(../../google-fonts/s/poppins/v12/pxiByp8kv8JHgFVrLGT9Z1xlEw.woff) format('woff');font-display: swap;}@font-face{font-family:Inconsolata;font-style:normal;font-weight:400;font-stretch:normal;font-display: swap;}</style><style type="text/css">
+    .header-link-class.before {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: translateX(-100%);
+      padding-right: 4px;
+    }
+    .header-link-class.after {
+      display: inline-block;
+      padding-left: 4px;
+    }
+    h1 .header-link-class svg,
+    h2 .header-link-class svg,
+    h3 .header-link-class svg,
+    h4 .header-link-class svg,
+    h5 .header-link-class svg,
+    h6 .header-link-class svg {
+      visibility: hidden;
+    }
+    h1:hover .header-link-class svg,
+    h2:hover .header-link-class svg,
+    h3:hover .header-link-class svg,
+    h4:hover .header-link-class svg,
+    h5:hover .header-link-class svg,
+    h6:hover .header-link-class svg,
+    h1 .header-link-class:focus svg,
+    h2 .header-link-class:focus svg,
+    h3 .header-link-class:focus svg,
+    h4 .header-link-class:focus svg,
+    h5 .header-link-class:focus svg,
+    h6 .header-link-class:focus svg {
+      visibility: visible;
+    }
+  </style><script>
+    document.addEventListener("DOMContentLoaded", function(event) {
+      var hash = window.decodeURI(location.hash.replace('#', ''))
+      if (hash !== '') {
+        var element = document.getElementById(hash)
+        if (element) {
+          var offset = element.offsetTop
+          // Wait for the browser to finish rendering before scrolling.
+          setTimeout((function() {
+            window.scrollTo(0, offset - 100)
+          }), 0)
+        }
+      }
+    })
+  </script><link as="script" rel="preload" href="../../webpack-runtime-328575827155f0415a1d.js"/><link as="script" rel="preload" href="../../styles-de5e304580bcba768a01.js"/><link as="script" rel="preload" href="../../commons-4df35f6dbd2fdc25d817.js"/><link as="script" rel="preload" href="../../app-041f7e4f56e7debd8d98.js"/><link as="script" rel="preload" href="../../component---src-templates-page-js-394e06bae316536c8705.js"/><link as="fetch" rel="preload" href="../../page-data/using-npm/semver/page-data.json" crossorigin="anonymous"/></head><body><div id="___gatsby"><div style="outline:none" tabindex="-1" role="group" id="gatsby-focus-wrapper"><style data-emotion-css="4cffwv">.css-4cffwv{box-sizing:border-box;margin:0;min-width:0;display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;}</style><div class="navbar__Container-kjuegf-0 UihHA css-4cffwv"><div class="navbar__Inner-kjuegf-1 jAtLxz css-4cffwv"><a href="../../"><style data-emotion-css="26z63x">.css-26z63x{box-sizing:border-box;margin:0;min-width:0;margin-left:4px;margin-right:24px;}</style><div class="navbar__Heart-kjuegf-4 bCnUTx css-26z63x">❤</div><style data-emotion-css="9taffg">.css-9taffg{box-sizing:border-box;margin:0;min-width:0;max-width:100%;height:auto;}</style><img src="data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDcgMTciPjxkZWZzPjxzdHlsZT4uY2xzLTF7ZmlsbDojMjMxZjIwO30uY2xzLTJ7ZmlsbDpub25lO308L3N0eWxlPjwvZGVmcz48dGl0bGU+Y2xpLWxvZ288L3RpdGxlPjxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTS41NCwxMy40aDYuNFYzLjY3aDMuMlYxMy40aDMuMlYuNDJILjU0Wk0zMS4yNi40MnYxM2g2LjRWMy42N2gzLjJWMTMuNGgzLjJWMy42N2gzLjE5VjEzLjRoMy4yVi40MlptLTksMy4yNWgzLjJ2Ni40OUgyMi4zWm0tNi40LDEzaDYuNFYxMy40aDYuNFYuNDJIMTUuOVoiLz48cmVjdCBjbGFzcz0iY2xzLTIiIHg9IjAuNTQiIHk9IjAuNDIiIHdpZHRoPSI0OS45MSIgaGVpZ2h0PSIxNi4yMiIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtMSIgcG9pbnRzPSI2NS41OCAzLjU2IDY1LjU4IDkuODYgNzEuNjYgOS44NiA3MS42NiAxMy4wMiA2NS40NCAxMy4wMiA1OS4yIDEzLjA0IDU5LjIyIDAuNDEgNzEuNjYgMC40MSA3MS42NiAzLjU0IDY1LjU4IDMuNTYiLz48cG9seWdvbiBjbGFzcz0iY2xzLTEiIHBvaW50cz0iODAuNjIgMTAuMjMgODAuNjIgMC4zNiA3NC4yMyAwLjM2IDc0LjIzIDEzLjMgNzYuOTIgMTMuMyA4MC42MiAxMy4zIDg2LjQ3IDEzLjMgODYuNDcgMTAuMjMgODAuNjIgMTAuMjMiLz48cmVjdCBjbGFzcz0iY2xzLTEiIHg9IjEwMS4zMiIgeT0iOC4zNyIgd2lkdGg9IjEuOTkiIGhlaWdodD0iOC4yOSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTE0LjgzIC04OS43OSkgcm90YXRlKDkwKSIvPjxyZWN0IGNsYXNzPSJjbHMtMSIgeD0iODguMzMiIHk9IjAuMzYiIHdpZHRoPSI2LjM5IiBoZWlnaHQ9IjEyLjk0Ii8+PC9zdmc+" class="navbar__Logo-kjuegf-2 bAGJfc css-9taffg"/></a><ul class="navbar__Links-kjuegf-3 hJcdbU"><a class="links__NavLink-sc-19vgq0o-1 kOyZtC" href="../../cli-commands/npm/index.html">docs</a><a href="https://www.npmjs.com/" class="links__BasicNavLink-sc-19vgq0o-2 eCQAUi">npmjs.org</a></ul><button class="navbar__Hamburger-kjuegf-5 fsnHHg"></button></div></div><style data-emotion-css="4cffwv">.css-4cffwv{box-sizing:border-box;margin:0;min-width:0;display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;}</style><div class="css-4cffwv"><nav class="Sidebar__Container-gs0c67-0 bXQeSB sidebar"><div><button class="Accordion__SectionButton-i8yhwx-0 dsecBh">cli-commands</button><div><style data-emotion-css="l3rx45">.css-l3rx45{box-sizing:border-box;margin:0;min-width:0;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;}</style><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm">npm<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">javascript package manager</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-access">npm access<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Set access level on published packages</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-audit">npm audit<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Run a security audit</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-bin">npm bin<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Display npm bin folder</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-bugs">npm bugs<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Bugs for a package in a web browser maybe</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-build">npm build<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Build a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-bundle">npm bundle<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">REMOVED</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-cache">npm cache<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Manipulates packages cache</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-ci">npm ci<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Install a project with a clean slate</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-completion">npm completion<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Tab Completion for npm</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-config">npm config<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Manage the npm configuration files</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-dedupe">npm dedupe<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Reduce duplication</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-deprecate">npm deprecate<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Deprecate a version of a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-docs">npm docs<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Docs for a package in a web browser maybe</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-doctor">npm doctor<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Check your environments</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-edit">npm edit<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Edit an installed package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-fund">npm fund<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Retrieve funding information</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-help">npm help<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Get help on npm</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-help-search">npm help-search<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Search npm help documentation</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-hook">npm hook<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Manage registry hooks</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-init">npm init<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">create a package.json file</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-install">npm install<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Install a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-install-ci-test">npm install-ci-test<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Install a project with a clean slate and run tests</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-install-test">npm install-test<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Install package(s) and run tests</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-link">npm link<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Symlink a package folder</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-logout">npm logout<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Log out of the registry</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-ls">npm ls<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">List installed packages</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-org">npm org<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Manage orgs</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-outdated">npm outdated<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Check for outdated packages</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-owner">npm owner<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Manage package owners</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-pack">npm pack<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Create a tarball from a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-ping">npm ping<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Ping npm registry</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-prefix">npm prefix<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Display prefix</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-profile">npm profile<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Change settings on your registry profile</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-prune">npm prune<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Remove extraneous packages</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-publish">npm publish<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Publish a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-rebuild">npm rebuild<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Rebuild a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-repo">npm repo<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Open package repository page in the browser</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-restart">npm restart<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Restart a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-root">npm root<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Display npm root</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-run-script">npm run-script<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Run arbitrary package scripts</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-search">npm search<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Search for packages</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-shrinkwrap">npm shrinkwrap<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Lock down dependency versions for publication</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-star">npm star<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Mark your favorite packages</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-stars">npm stars<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">View packages marked as favorites</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-start">npm start<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Start a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-stop">npm stop<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Stop a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-team">npm team<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Manage organization teams and team memberships</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-test">npm test<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Test a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-token">npm token<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Manage your authentication tokens</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-uninstall">npm uninstall<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Remove a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-unpublish">npm unpublish<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Remove a package from the registry</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-update">npm update<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Update a package</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-version">npm version<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Bump a package version</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-view">npm view<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">View registry info</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../cli-commands/npm-whoami">npm whoami<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Display npm username</span></a></div></div></div><div><button class="Accordion__SectionButton-i8yhwx-0 dsecBh">configuring-npm</button><div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../configuring-npm/folders">folders<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Folder Structures Used by npm</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../configuring-npm/install">install<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Download and install node and npm</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../configuring-npm/npmrc">npmrc<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">The npm config files</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../configuring-npm/package-lock-json">package-lock.json<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">A manifestation of the manifest</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../configuring-npm/package-locks">package-locks<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">An explanation of npm lockfiles</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../configuring-npm/package-json">package.json<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Specifics of npm&#x27;s package.json handling</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../configuring-npm/shrinkwrap-json">shrinkwrap.json<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">A publishable lockfile</span></a></div></div></div><div><button class="Accordion__SectionButton-i8yhwx-0 dsecBh">using-npm</button><div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../using-npm/config">config<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">More than you probably want to know about npm configuration</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../using-npm/developers">developers<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Developer Guide</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../using-npm/disputes">disputes<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Handling Module Name Disputes</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../using-npm/orgs">orgs<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Working with Teams &amp; Orgs</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../using-npm/registry">registry<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">The JavaScript Package Registry</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../using-npm/removal">removal<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Cleaning the Slate</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../using-npm/scope">scope<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">Scoped packages</span></a></div><div class="css-l3rx45"><a class="links__SidebarLink-sc-19vgq0o-3 iPgskl" href="../../using-npm/scripts">scripts<span class="DocLinks__LinkDesc-sc-1vrw6od-0 bNiGAM">How npm handles the &quot;scripts&quot; field</span></a></div></div></div></nav><style data-emotion-css="16vu25q">.css-16vu25q{box-sizing:border-box;margin:0;min-width:0;width:100%;}</style><div class="css-16vu25q"><div class="Page__Content-sc-4b62ym-0 gJQTGP documentation"><div><h1 id="semver7----the-semantic-versioner-for-npm" style="position:relative;"><a href="#semver7----the-semantic-versioner-for-npm" aria-label="semver7    the semantic versioner for npm permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>semver(7) -- The semantic versioner for npm</h1>
+<h2 id="install" style="position:relative;"><a href="#install" aria-label="install permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install</h2>
+<div class="gatsby-highlight" data-language="bash"><pre class="language-bash"><code class="language-bash"><span class="token function">npm</span> <span class="token function">install</span> --save semver</code></pre></div>
+<h2 id="usage" style="position:relative;"><a href="#usage" aria-label="usage permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h2>
+<p>As a node module:</p>
+<div class="gatsby-highlight" data-language="js"><pre class="language-js"><code class="language-js"><span class="token keyword">const</span> semver <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span><span class="token string">'semver'</span><span class="token punctuation">)</span>
+
+semver<span class="token punctuation">.</span><span class="token function">valid</span><span class="token punctuation">(</span><span class="token string">'1.2.3'</span><span class="token punctuation">)</span> <span class="token comment">// '1.2.3'</span>
+semver<span class="token punctuation">.</span><span class="token function">valid</span><span class="token punctuation">(</span><span class="token string">'a.b.c'</span><span class="token punctuation">)</span> <span class="token comment">// null</span>
+semver<span class="token punctuation">.</span><span class="token function">clean</span><span class="token punctuation">(</span><span class="token string">'  =v1.2.3   '</span><span class="token punctuation">)</span> <span class="token comment">// '1.2.3'</span>
+semver<span class="token punctuation">.</span><span class="token function">satisfies</span><span class="token punctuation">(</span><span class="token string">'1.2.3'</span><span class="token punctuation">,</span> <span class="token string">'1.x || >=2.5.0 || 5.0.0 - 7.2.3'</span><span class="token punctuation">)</span> <span class="token comment">// true</span>
+semver<span class="token punctuation">.</span><span class="token function">gt</span><span class="token punctuation">(</span><span class="token string">'1.2.3'</span><span class="token punctuation">,</span> <span class="token string">'9.8.7'</span><span class="token punctuation">)</span> <span class="token comment">// false</span>
+semver<span class="token punctuation">.</span><span class="token function">lt</span><span class="token punctuation">(</span><span class="token string">'1.2.3'</span><span class="token punctuation">,</span> <span class="token string">'9.8.7'</span><span class="token punctuation">)</span> <span class="token comment">// true</span>
+semver<span class="token punctuation">.</span><span class="token function">minVersion</span><span class="token punctuation">(</span><span class="token string">'>=1.0.0'</span><span class="token punctuation">)</span> <span class="token comment">// '1.0.0'</span>
+semver<span class="token punctuation">.</span><span class="token function">valid</span><span class="token punctuation">(</span>semver<span class="token punctuation">.</span><span class="token function">coerce</span><span class="token punctuation">(</span><span class="token string">'v2'</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token comment">// '2.0.0'</span>
+semver<span class="token punctuation">.</span><span class="token function">valid</span><span class="token punctuation">(</span>semver<span class="token punctuation">.</span><span class="token function">coerce</span><span class="token punctuation">(</span><span class="token string">'42.6.7.9.3-alpha'</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token comment">// '42.6.7'</span></code></pre></div>
+<p>As a command-line utility:</p>
+<div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">$ semver -h
+
+A JavaScript implementation of the https://semver.org/ specification
+Copyright Isaac Z. Schlueter
+
+Usage: semver [options] &lt;version&gt; [&lt;version&gt; [...]]
+Prints valid versions sorted by SemVer precedence
+
+Options:
+-r --range &lt;range&gt;
+        Print versions that match the specified range.
+
+-i --increment [&lt;level&gt;]
+        Increment a version by the specified level.  Level can
+        be one of: major, minor, patch, premajor, preminor,
+        prepatch, or prerelease.  Default level is &#39;patch&#39;.
+        Only one version may be specified.
+
+--preid &lt;identifier&gt;
+        Identifier to be used to prefix premajor, preminor,
+        prepatch or prerelease version increments.
+
+-l --loose
+        Interpret versions and ranges loosely
+
+-p --include-prerelease
+        Always include prerelease versions in range matching
+
+-c --coerce
+        Coerce a string into SemVer if possible
+        (does not imply --loose)
+
+Program exits successfully if any valid version satisfies
+all supplied ranges, and prints all satisfying versions.
+
+If no satisfying versions are found, then exits failure.
+
+Versions are printed in ascending order, so supplying
+multiple versions to the utility will just sort them.</code></pre></div>
+<h2 id="versions" style="position:relative;"><a href="#versions" aria-label="versions permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Versions</h2>
+<p>A "version" is described by the <code class="language-text">v2.0.0</code> specification found at
+<a href="https://semver.org/">https://semver.org/</a>.</p>
+<p>A leading <code class="language-text">&quot;=&quot;</code> or <code class="language-text">&quot;v&quot;</code> character is stripped off and ignored.</p>
+<h2 id="ranges" style="position:relative;"><a href="#ranges" aria-label="ranges permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ranges</h2>
+<p>A <code class="language-text">version range</code> is a set of <code class="language-text">comparators</code> which specify versions
+that satisfy the range.</p>
+<p>A <code class="language-text">comparator</code> is composed of an <code class="language-text">operator</code> and a <code class="language-text">version</code>.  The set
+of primitive <code class="language-text">operators</code> is:</p>
+<ul>
+<li><code class="language-text">&lt;</code> Less than</li>
+<li><code class="language-text">&lt;=</code> Less than or equal to</li>
+<li><code class="language-text">&gt;</code> Greater than</li>
+<li><code class="language-text">&gt;=</code> Greater than or equal to</li>
+<li><code class="language-text">=</code> Equal.  If no operator is specified, then equality is assumed,
+so this operator is optional, but MAY be included.</li>
+</ul>
+<p>For example, the comparator <code class="language-text">&gt;=1.2.7</code> would match the versions
+<code class="language-text">1.2.7</code>, <code class="language-text">1.2.8</code>, <code class="language-text">2.5.3</code>, and <code class="language-text">1.3.9</code>, but not the versions <code class="language-text">1.2.6</code>
+or <code class="language-text">1.1.0</code>.</p>
+<p>Comparators can be joined by whitespace to form a <code class="language-text">comparator set</code>,
+which is satisfied by the <strong>intersection</strong> of all of the comparators
+it includes.</p>
+<p>A range is composed of one or more comparator sets, joined by <code class="language-text">||</code>.  A
+version matches a range if and only if every comparator in at least
+one of the <code class="language-text">||</code>-separated comparator sets is satisfied by the version.</p>
+<p>For example, the range <code class="language-text">&gt;=1.2.7 &lt;1.3.0</code> would match the versions
+<code class="language-text">1.2.7</code>, <code class="language-text">1.2.8</code>, and <code class="language-text">1.2.99</code>, but not the versions <code class="language-text">1.2.6</code>, <code class="language-text">1.3.0</code>,
+or <code class="language-text">1.1.0</code>.</p>
+<p>The range <code class="language-text">1.2.7 || &gt;=1.2.9 &lt;2.0.0</code> would match the versions <code class="language-text">1.2.7</code>,
+<code class="language-text">1.2.9</code>, and <code class="language-text">1.4.6</code>, but not the versions <code class="language-text">1.2.8</code> or <code class="language-text">2.0.0</code>.</p>
+<h3 id="prerelease-tags" style="position:relative;"><a href="#prerelease-tags" aria-label="prerelease tags permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Prerelease Tags</h3>
+<p>If a version has a prerelease tag (for example, <code class="language-text">1.2.3-alpha.3</code>) then
+it will only be allowed to satisfy comparator sets if at least one
+comparator with the same <code class="language-text">[major, minor, patch]</code> tuple also has a
+prerelease tag.</p>
+<p>For example, the range <code class="language-text">&gt;1.2.3-alpha.3</code> would be allowed to match the
+version <code class="language-text">1.2.3-alpha.7</code>, but it would <em>not</em> be satisfied by
+<code class="language-text">3.4.5-alpha.9</code>, even though <code class="language-text">3.4.5-alpha.9</code> is technically "greater
+than" <code class="language-text">1.2.3-alpha.3</code> according to the SemVer sort rules.  The version
+range only accepts prerelease tags on the <code class="language-text">1.2.3</code> version.  The
+version <code class="language-text">3.4.5</code> <em>would</em> satisfy the range, because it does not have a
+prerelease flag, and <code class="language-text">3.4.5</code> is greater than <code class="language-text">1.2.3-alpha.7</code>.</p>
+<p>The purpose for this behavior is twofold.  First, prerelease versions
+frequently are updated very quickly, and contain many breaking changes
+that are (by the author's design) not yet fit for public consumption.
+Therefore, by default, they are excluded from range matching
+semantics.</p>
+<p>Second, a user who has opted into using a prerelease version has
+clearly indicated the intent to use <em>that specific</em> set of
+alpha/beta/rc versions.  By including a prerelease tag in the range,
+the user is indicating that they are aware of the risk.  However, it
+is still not appropriate to assume that they have opted into taking a
+similar risk on the <em>next</em> set of prerelease versions.</p>
+<p>Note that this behavior can be suppressed (treating all prerelease
+versions as if they were normal versions, for the purpose of range
+matching) by setting the <code class="language-text">includePrerelease</code> flag on the options
+object to any
+<a href="https://github.com/npm/node-semver#functions">functions</a> that do
+range matching.</p>
+<h4 id="prerelease-identifiers" style="position:relative;"><a href="#prerelease-identifiers" aria-label="prerelease identifiers permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Prerelease Identifiers</h4>
+<p>The method <code class="language-text">.inc</code> takes an additional <code class="language-text">identifier</code> string argument that
+will append the value of the string as a prerelease identifier:</p>
+<div class="gatsby-highlight" data-language="javascript"><pre class="language-javascript"><code class="language-javascript">semver<span class="token punctuation">.</span><span class="token function">inc</span><span class="token punctuation">(</span><span class="token string">'1.2.3'</span><span class="token punctuation">,</span> <span class="token string">'prerelease'</span><span class="token punctuation">,</span> <span class="token string">'beta'</span><span class="token punctuation">)</span>
+<span class="token comment">// '1.2.4-beta.0'</span></code></pre></div>
+<p>command-line example:</p>
+<div class="gatsby-highlight" data-language="bash"><pre class="language-bash"><code class="language-bash">$ semver <span class="token number">1.2</span>.3 -i prerelease --preid beta
+<span class="token number">1.2</span>.4-beta.0</code></pre></div>
+<p>Which then can be used to increment further:</p>
+<div class="gatsby-highlight" data-language="bash"><pre class="language-bash"><code class="language-bash">$ semver <span class="token number">1.2</span>.4-beta.0 -i prerelease
+<span class="token number">1.2</span>.4-beta.1</code></pre></div>
+<h3 id="advanced-range-syntax" style="position:relative;"><a href="#advanced-range-syntax" aria-label="advanced range syntax permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Advanced Range Syntax</h3>
+<p>Advanced range syntax desugars to primitive comparators in
+deterministic ways.</p>
+<p>Advanced ranges may be combined in the same way as primitive
+comparators using white space or <code class="language-text">||</code>.</p>
+<h4 id="hyphen-ranges-xyz---abc" style="position:relative;"><a href="#hyphen-ranges-xyz---abc" aria-label="hyphen ranges xyz   abc permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hyphen Ranges <code class="language-text">X.Y.Z - A.B.C</code></h4>
+<p>Specifies an inclusive set.</p>
+<ul>
+<li><code class="language-text">1.2.3 - 2.3.4</code> := <code class="language-text">&gt;=1.2.3 &lt;=2.3.4</code></li>
+</ul>
+<p>If a partial version is provided as the first version in the inclusive
+range, then the missing pieces are replaced with zeroes.</p>
+<ul>
+<li><code class="language-text">1.2 - 2.3.4</code> := <code class="language-text">&gt;=1.2.0 &lt;=2.3.4</code></li>
+</ul>
+<p>If a partial version is provided as the second version in the
+inclusive range, then all versions that start with the supplied parts
+of the tuple are accepted, but nothing that would be greater than the
+provided tuple parts.</p>
+<ul>
+<li><code class="language-text">1.2.3 - 2.3</code> := <code class="language-text">&gt;=1.2.3 &lt;2.4.0</code></li>
+<li><code class="language-text">1.2.3 - 2</code> := <code class="language-text">&gt;=1.2.3 &lt;3.0.0</code></li>
+</ul>
+<h4 id="x-ranges-12x-1x-12-" style="position:relative;"><a href="#x-ranges-12x-1x-12-" aria-label="x ranges 12x 1x 12  permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>X-Ranges <code class="language-text">1.2.x</code> <code class="language-text">1.X</code> <code class="language-text">1.2.*</code> <code class="language-text">*</code></h4>
+<p>Any of <code class="language-text">X</code>, <code class="language-text">x</code>, or <code class="language-text">*</code> may be used to "stand in" for one of the
+numeric values in the <code class="language-text">[major, minor, patch]</code> tuple.</p>
+<ul>
+<li><code class="language-text">*</code> := <code class="language-text">&gt;=0.0.0</code> (Any version satisfies)</li>
+<li><code class="language-text">1.x</code> := <code class="language-text">&gt;=1.0.0 &lt;2.0.0</code> (Matching major version)</li>
+<li><code class="language-text">1.2.x</code> := <code class="language-text">&gt;=1.2.0 &lt;1.3.0</code> (Matching major and minor versions)</li>
+</ul>
+<p>A partial version range is treated as an X-Range, so the special
+character is in fact optional.</p>
+<ul>
+<li><code class="language-text">&quot;&quot;</code> (empty string) := <code class="language-text">*</code> := <code class="language-text">&gt;=0.0.0</code></li>
+<li><code class="language-text">1</code> := <code class="language-text">1.x.x</code> := <code class="language-text">&gt;=1.0.0 &lt;2.0.0</code></li>
+<li><code class="language-text">1.2</code> := <code class="language-text">1.2.x</code> := <code class="language-text">&gt;=1.2.0 &lt;1.3.0</code></li>
+</ul>
+<h4 id="tilde-ranges-123-12-1" style="position:relative;"><a href="#tilde-ranges-123-12-1" aria-label="tilde ranges 123 12 1 permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tilde Ranges <code class="language-text">~1.2.3</code> <code class="language-text">~1.2</code> <code class="language-text">~1</code></h4>
+<p>Allows patch-level changes if a minor version is specified on the
+comparator.  Allows minor-level changes if not.</p>
+<ul>
+<li><code class="language-text">~1.2.3</code> := <code class="language-text">&gt;=1.2.3 &lt;1.(2+1).0</code> := <code class="language-text">&gt;=1.2.3 &lt;1.3.0</code></li>
+<li><code class="language-text">~1.2</code> := <code class="language-text">&gt;=1.2.0 &lt;1.(2+1).0</code> := <code class="language-text">&gt;=1.2.0 &lt;1.3.0</code> (Same as <code class="language-text">1.2.x</code>)</li>
+<li><code class="language-text">~1</code> := <code class="language-text">&gt;=1.0.0 &lt;(1+1).0.0</code> := <code class="language-text">&gt;=1.0.0 &lt;2.0.0</code> (Same as <code class="language-text">1.x</code>)</li>
+<li><code class="language-text">~0.2.3</code> := <code class="language-text">&gt;=0.2.3 &lt;0.(2+1).0</code> := <code class="language-text">&gt;=0.2.3 &lt;0.3.0</code></li>
+<li><code class="language-text">~0.2</code> := <code class="language-text">&gt;=0.2.0 &lt;0.(2+1).0</code> := <code class="language-text">&gt;=0.2.0 &lt;0.3.0</code> (Same as <code class="language-text">0.2.x</code>)</li>
+<li><code class="language-text">~0</code> := <code class="language-text">&gt;=0.0.0 &lt;(0+1).0.0</code> := <code class="language-text">&gt;=0.0.0 &lt;1.0.0</code> (Same as <code class="language-text">0.x</code>)</li>
+<li><code class="language-text">~1.2.3-beta.2</code> := <code class="language-text">&gt;=1.2.3-beta.2 &lt;1.3.0</code> Note that prereleases in
+the <code class="language-text">1.2.3</code> version will be allowed, if they are greater than or
+equal to <code class="language-text">beta.2</code>.  So, <code class="language-text">1.2.3-beta.4</code> would be allowed, but
+<code class="language-text">1.2.4-beta.2</code> would not, because it is a prerelease of a
+different <code class="language-text">[major, minor, patch]</code> tuple.</li>
+</ul>
+<h4 id="caret-ranges-123-025-004" style="position:relative;"><a href="#caret-ranges-123-025-004" aria-label="caret ranges 123 025 004 permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Caret Ranges <code class="language-text">^1.2.3</code> <code class="language-text">^0.2.5</code> <code class="language-text">^0.0.4</code></h4>
+<p>Allows changes that do not modify the left-most non-zero digit in the
+<code class="language-text">[major, minor, patch]</code> tuple.  In other words, this allows patch and
+minor updates for versions <code class="language-text">1.0.0</code> and above, patch updates for
+versions <code class="language-text">0.X &gt;=0.1.0</code>, and <em>no</em> updates for versions <code class="language-text">0.0.X</code>.</p>
+<p>Many authors treat a <code class="language-text">0.x</code> version as if the <code class="language-text">x</code> were the major
+"breaking-change" indicator.</p>
+<p>Caret ranges are ideal when an author may make breaking changes
+between <code class="language-text">0.2.4</code> and <code class="language-text">0.3.0</code> releases, which is a common practice.
+However, it presumes that there will <em>not</em> be breaking changes between
+<code class="language-text">0.2.4</code> and <code class="language-text">0.2.5</code>.  It allows for changes that are presumed to be
+additive (but non-breaking), according to commonly observed practices.</p>
+<ul>
+<li><code class="language-text">^1.2.3</code> := <code class="language-text">&gt;=1.2.3 &lt;2.0.0</code></li>
+<li><code class="language-text">^0.2.3</code> := <code class="language-text">&gt;=0.2.3 &lt;0.3.0</code></li>
+<li><code class="language-text">^0.0.3</code> := <code class="language-text">&gt;=0.0.3 &lt;0.0.4</code></li>
+<li><code class="language-text">^1.2.3-beta.2</code> := <code class="language-text">&gt;=1.2.3-beta.2 &lt;2.0.0</code> Note that prereleases in
+the <code class="language-text">1.2.3</code> version will be allowed, if they are greater than or
+equal to <code class="language-text">beta.2</code>.  So, <code class="language-text">1.2.3-beta.4</code> would be allowed, but
+<code class="language-text">1.2.4-beta.2</code> would not, because it is a prerelease of a
+different <code class="language-text">[major, minor, patch]</code> tuple.</li>
+<li><code class="language-text">^0.0.3-beta</code> := <code class="language-text">&gt;=0.0.3-beta &lt;0.0.4</code>  Note that prereleases in the
+<code class="language-text">0.0.3</code> version <em>only</em> will be allowed, if they are greater than or
+equal to <code class="language-text">beta</code>.  So, <code class="language-text">0.0.3-pr.2</code> would be allowed.</li>
+</ul>
+<p>When parsing caret ranges, a missing <code class="language-text">patch</code> value desugars to the
+number <code class="language-text">0</code>, but will allow flexibility within that value, even if the
+major and minor versions are both <code class="language-text">0</code>.</p>
+<ul>
+<li><code class="language-text">^1.2.x</code> := <code class="language-text">&gt;=1.2.0 &lt;2.0.0</code></li>
+<li><code class="language-text">^0.0.x</code> := <code class="language-text">&gt;=0.0.0 &lt;0.1.0</code></li>
+<li><code class="language-text">^0.0</code> := <code class="language-text">&gt;=0.0.0 &lt;0.1.0</code></li>
+</ul>
+<p>A missing <code class="language-text">minor</code> and <code class="language-text">patch</code> values will desugar to zero, but also
+allow flexibility within those values, even if the major version is
+zero.</p>
+<ul>
+<li><code class="language-text">^1.x</code> := <code class="language-text">&gt;=1.0.0 &lt;2.0.0</code></li>
+<li><code class="language-text">^0.x</code> := <code class="language-text">&gt;=0.0.0 &lt;1.0.0</code></li>
+</ul>
+<h3 id="range-grammar" style="position:relative;"><a href="#range-grammar" aria-label="range grammar permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Range Grammar</h3>
+<p>Putting all this together, here is a Backus-Naur grammar for ranges,
+for the benefit of parser authors:</p>
+<div class="gatsby-highlight" data-language="bnf"><pre class="language-bnf"><code class="language-bnf">range-set  <span class="token operator">::=</span> range <span class="token operator">(</span> logical-or range <span class="token operator">)</span> <span class="token operator">*</span>
+logical-or <span class="token operator">::=</span> <span class="token operator">(</span> <span class="token string">' '</span> <span class="token operator">)</span> <span class="token operator">*</span> <span class="token string">'||'</span> <span class="token operator">(</span> <span class="token string">' '</span> <span class="token operator">)</span> <span class="token operator">*</span>
+range      <span class="token operator">::=</span> hyphen <span class="token operator">|</span> simple <span class="token operator">(</span> <span class="token string">' '</span> simple <span class="token operator">)</span> <span class="token operator">*</span> <span class="token operator">|</span> <span class="token string">''</span>
+hyphen     <span class="token operator">::=</span> partial <span class="token string">' - '</span> partial
+simple     <span class="token operator">::=</span> primitive <span class="token operator">|</span> partial <span class="token operator">|</span> tilde <span class="token operator">|</span> caret
+primitive  <span class="token operator">::=</span> <span class="token operator">(</span> <span class="token string">'&lt;'</span> <span class="token operator">|</span> <span class="token string">'>'</span> <span class="token operator">|</span> <span class="token string">'>='</span> <span class="token operator">|</span> <span class="token string">'&lt;='</span> <span class="token operator">|</span> <span class="token string">'='</span> <span class="token operator">)</span> partial
+partial    <span class="token operator">::=</span> xr <span class="token operator">(</span> <span class="token string">'.'</span> xr <span class="token operator">(</span> <span class="token string">'.'</span> xr qualifier <span class="token operator">?</span> <span class="token operator">)</span><span class="token operator">?</span> <span class="token operator">)</span><span class="token operator">?</span>
+xr         <span class="token operator">::=</span> <span class="token string">'x'</span> <span class="token operator">|</span> <span class="token string">'X'</span> <span class="token operator">|</span> <span class="token string">'*'</span> <span class="token operator">|</span> nr
+nr         <span class="token operator">::=</span> <span class="token string">'0'</span> <span class="token operator">|</span> <span class="token operator">[</span><span class="token string">'1'</span>-<span class="token string">'9'</span><span class="token operator">]</span> <span class="token operator">(</span> <span class="token operator">[</span><span class="token string">'0'</span>-<span class="token string">'9'</span><span class="token operator">]</span> <span class="token operator">)</span> <span class="token operator">*</span>
+tilde      <span class="token operator">::=</span> <span class="token string">'~'</span> partial
+caret      <span class="token operator">::=</span> <span class="token string">'^'</span> partial
+qualifier  <span class="token operator">::=</span> <span class="token operator">(</span> <span class="token string">'-'</span> pre <span class="token operator">)</span><span class="token operator">?</span> <span class="token operator">(</span> <span class="token string">'+'</span> build <span class="token operator">)</span><span class="token operator">?</span>
+pre        <span class="token operator">::=</span> parts
+build      <span class="token operator">::=</span> parts
+parts      <span class="token operator">::=</span> part <span class="token operator">(</span> <span class="token string">'.'</span> part <span class="token operator">)</span> <span class="token operator">*</span>
+part       <span class="token operator">::=</span> nr <span class="token operator">|</span> <span class="token operator">[</span>-0-9A-Za-z<span class="token operator">]</span><span class="token operator">+</span></code></pre></div>
+<h2 id="functions" style="position:relative;"><a href="#functions" aria-label="functions permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions</h2>
+<p>All methods and classes take a final <code class="language-text">options</code> object argument.  All
+options in this object are <code class="language-text">false</code> by default.  The options supported
+are:</p>
+<ul>
+<li><code class="language-text">loose</code>  Be more forgiving about not-quite-valid semver strings.
+(Any resulting output will always be 100% strict compliant, of
+course.)  For backwards compatibility reasons, if the <code class="language-text">options</code>
+argument is a boolean value instead of an object, it is interpreted
+to be the <code class="language-text">loose</code> param.</li>
+<li><code class="language-text">includePrerelease</code>  Set to suppress the <a href="https://github.com/npm/node-semver#prerelease-tags">default
+behavior</a> of
+excluding prerelease tagged versions from ranges unless they are
+explicitly opted into.</li>
+</ul>
+<p>Strict-mode Comparators and Ranges will be strict about the SemVer
+strings that they parse.</p>
+<ul>
+<li><code class="language-text">valid(v)</code>: Return the parsed version, or null if it's not valid.</li>
+<li>
+<p><code class="language-text">inc(v, release)</code>: Return the version incremented by the release
+type (<code class="language-text">major</code>,   <code class="language-text">premajor</code>, <code class="language-text">minor</code>, <code class="language-text">preminor</code>, <code class="language-text">patch</code>,
+<code class="language-text">prepatch</code>, or <code class="language-text">prerelease</code>), or null if it's not valid</p>
+<ul>
+<li><code class="language-text">premajor</code> in one call will bump the version up to the next major
+version and down to a prerelease of that major version.
+<code class="language-text">preminor</code>, and <code class="language-text">prepatch</code> work the same way.</li>
+<li>If called from a non-prerelease version, the <code class="language-text">prerelease</code> will work the
+same as <code class="language-text">prepatch</code>. It increments the patch version, then makes a
+prerelease. If the input version is already a prerelease it simply
+increments it.</li>
+</ul>
+</li>
+<li><code class="language-text">prerelease(v)</code>: Returns an array of prerelease components, or null
+if none exist. Example: <code class="language-text">prerelease(&#39;1.2.3-alpha.1&#39;) -&gt; [&#39;alpha&#39;, 1]</code></li>
+<li><code class="language-text">major(v)</code>: Return the major version number.</li>
+<li><code class="language-text">minor(v)</code>: Return the minor version number.</li>
+<li><code class="language-text">patch(v)</code>: Return the patch version number.</li>
+<li><code class="language-text">intersects(r1, r2, loose)</code>: Return true if the two supplied ranges
+or comparators intersect.</li>
+<li><code class="language-text">parse(v)</code>: Attempt to parse a string as a semantic version, returning either
+a <code class="language-text">SemVer</code> object or <code class="language-text">null</code>.</li>
+</ul>
+<h3 id="comparison" style="position:relative;"><a href="#comparison" aria-label="comparison permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Comparison</h3>
+<ul>
+<li><code class="language-text">gt(v1, v2)</code>: <code class="language-text">v1 &gt; v2</code></li>
+<li><code class="language-text">gte(v1, v2)</code>: <code class="language-text">v1 &gt;= v2</code></li>
+<li><code class="language-text">lt(v1, v2)</code>: <code class="language-text">v1 &lt; v2</code></li>
+<li><code class="language-text">lte(v1, v2)</code>: <code class="language-text">v1 &lt;= v2</code></li>
+<li><code class="language-text">eq(v1, v2)</code>: <code class="language-text">v1 == v2</code> This is true if they're logically equivalent,
+even if they're not the exact same string.  You already know how to
+compare strings.</li>
+<li><code class="language-text">neq(v1, v2)</code>: <code class="language-text">v1 != v2</code> The opposite of <code class="language-text">eq</code>.</li>
+<li><code class="language-text">cmp(v1, comparator, v2)</code>: Pass in a comparison string, and it'll call
+the corresponding function above.  <code class="language-text">&quot;===&quot;</code> and <code class="language-text">&quot;!==&quot;</code> do simple
+string comparison, but are included for completeness.  Throws if an
+invalid comparison string is provided.</li>
+<li><code class="language-text">compare(v1, v2)</code>: Return <code class="language-text">0</code> if <code class="language-text">v1 == v2</code>, or <code class="language-text">1</code> if <code class="language-text">v1</code> is greater, or <code class="language-text">-1</code> if
+<code class="language-text">v2</code> is greater.  Sorts in ascending order if passed to <code class="language-text">Array.sort()</code>.</li>
+<li><code class="language-text">rcompare(v1, v2)</code>: The reverse of compare.  Sorts an array of versions
+in descending order when passed to <code class="language-text">Array.sort()</code>.</li>
+<li><code class="language-text">diff(v1, v2)</code>: Returns difference between two versions by the release type
+(<code class="language-text">major</code>, <code class="language-text">premajor</code>, <code class="language-text">minor</code>, <code class="language-text">preminor</code>, <code class="language-text">patch</code>, <code class="language-text">prepatch</code>, or <code class="language-text">prerelease</code>),
+or null if the versions are the same.</li>
+</ul>
+<h3 id="comparators" style="position:relative;"><a href="#comparators" aria-label="comparators permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Comparators</h3>
+<ul>
+<li><code class="language-text">intersects(comparator)</code>: Return true if the comparators intersect</li>
+</ul>
+<h3 id="ranges-1" style="position:relative;"><a href="#ranges-1" aria-label="ranges 1 permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ranges</h3>
+<ul>
+<li><code class="language-text">validRange(range)</code>: Return the valid range or null if it's not valid</li>
+<li><code class="language-text">satisfies(version, range)</code>: Return true if the version satisfies the
+range.</li>
+<li><code class="language-text">maxSatisfying(versions, range)</code>: Return the highest version in the list
+that satisfies the range, or <code class="language-text">null</code> if none of them do.</li>
+<li><code class="language-text">minSatisfying(versions, range)</code>: Return the lowest version in the list
+that satisfies the range, or <code class="language-text">null</code> if none of them do.</li>
+<li><code class="language-text">minVersion(range)</code>: Return the lowest version that can possibly match
+the given range.</li>
+<li><code class="language-text">gtr(version, range)</code>: Return <code class="language-text">true</code> if version is greater than all the
+versions possible in the range.</li>
+<li><code class="language-text">ltr(version, range)</code>: Return <code class="language-text">true</code> if version is less than all the
+versions possible in the range.</li>
+<li><code class="language-text">outside(version, range, hilo)</code>: Return true if the version is outside
+the bounds of the range in either the high or low direction.  The
+<code class="language-text">hilo</code> argument must be either the string <code class="language-text">&#39;&gt;&#39;</code> or <code class="language-text">&#39;&lt;&#39;</code>.  (This is
+the function called by <code class="language-text">gtr</code> and <code class="language-text">ltr</code>.)</li>
+<li><code class="language-text">intersects(range)</code>: Return true if any of the ranges comparators intersect</li>
+</ul>
+<p>Note that, since ranges may be non-contiguous, a version might not be
+greater than a range, less than a range, <em>or</em> satisfy a range!  For
+example, the range <code class="language-text">1.2 &lt;1.2.9 || &gt;2.0.0</code> would have a hole from <code class="language-text">1.2.9</code>
+until <code class="language-text">2.0.0</code>, so the version <code class="language-text">1.2.10</code> would not be greater than the
+range (because <code class="language-text">2.0.1</code> satisfies, which is higher), nor less than the
+range (since <code class="language-text">1.2.8</code> satisfies, which is lower), and it also does not
+satisfy the range.</p>
+<p>If you want to know if a version satisfies or does not satisfy a
+range, use the <code class="language-text">satisfies(version, range)</code> function.</p>
+<h3 id="coercion" style="position:relative;"><a href="#coercion" aria-label="coercion permalink" class="header-link-class before"><svg aria-hidden="true" height="20" version="1.1" viewBox="0 0 16 16" width="20"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Coercion</h3>
+<ul>
+<li><code class="language-text">coerce(version)</code>: Coerces a string to semver if possible</li>
+</ul>
+<p>This aims to provide a very forgiving translation of a non-semver string to
+semver. It looks for the first digit in a string, and consumes all
+remaining characters which satisfy at least a partial semver (e.g., <code class="language-text">1</code>,
+<code class="language-text">1.2</code>, <code class="language-text">1.2.3</code>) up to the max permitted length (256 characters).  Longer
+versions are simply truncated (<code class="language-text">4.6.3.9.2-alpha2</code> becomes <code class="language-text">4.6.3</code>).  All
+surrounding text is simply ignored (<code class="language-text">v3.4 replaces v3.3.1</code> becomes
+<code class="language-text">3.4.0</code>).  Only text which lacks digits will fail coercion (<code class="language-text">version one</code>
+is not valid).  The maximum  length for any semver component considered for
+coercion is 16 characters; longer components will be ignored
+(<code class="language-text">10000000000000000.4.7.4</code> becomes <code class="language-text">4.7.4</code>).  The maximum value for any
+semver component is <code class="language-text">Number.MAX_SAFE_INTEGER || (2**53 - 1)</code>; higher value
+components are invalid (<code class="language-text">9999999999999999.4.7.4</code> is likely invalid).</p></div><div class="FoundTypo__Container-sc-1e373sc-0 fMOzaj"><p><span role="img" aria-label="eyes-emoji">👀</span> Found a typo? <a href="https://github.com/npm/cli/">Let us know!</a></p><p>The current stable version of npm is <a href="https://github.com/npm/cli/">here</a>. To upgrade, run: <code class="language-text">npm install npm@latest -g</code></p><p>To report bugs or submit feature requests for the docs, please post <a href="https://npm.community/c/support/docs-needed">here</a>. Submit npm issues <a href="https://npm.community/c/bugs">here.</a></p></div><script>
+          var anchors = document.querySelectorAll(".sidebar a, .documentation a")
+          Array.prototype.slice.call(anchors).map(function(el) {
+            if (el.href.match(/file:\/\//)) {
+              el.href = el.href + "/index.html"
+            }
+          })
+          </script></div></div></div></div></div><script id="gatsby-script-loader">/*<![CDATA[*/window.pagePath="/using-npm/semver";/*]]>*/</script><script id="gatsby-chunk-mapping">/*<![CDATA[*/window.___chunkMapping={"app":["/app-041f7e4f56e7debd8d98.js"],"component---src-templates-page-js":["/component---src-templates-page-js-394e06bae316536c8705.js"],"component---src-pages-404-js":["/component---src-pages-404-js-6c8c4e2e908a7101a231.js"],"component---src-pages-index-js":["/component---src-pages-index-js-6b93f80c513be8d7330c.js"]};/*]]>*/</script><script src="../../component---src-templates-page-js-394e06bae316536c8705.js" async=""></script><script src="../../app-041f7e4f56e7debd8d98.js" async=""></script><script src="../../commons-4df35f6dbd2fdc25d817.js" async=""></script><script src="../../styles-de5e304580bcba768a01.js" async=""></script><script src="../../webpack-runtime-328575827155f0415a1d.js" async=""></script></body></html>

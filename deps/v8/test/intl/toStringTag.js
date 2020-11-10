@@ -4,21 +4,26 @@
 
 let descriptor;
 
-for (const [obj, tag] of
-    [[Intl, "Intl"],
-     [Intl.Collator.prototype, "Intl.Collator"],
-     [Intl.DateTimeFormat.prototype, "Intl.DateTimeFormat"],
-     [Intl.DisplayNames.prototype, "Intl.DisplayNames"],
-     [Intl.Locale.prototype, "Intl.Locale"],
-     [Intl.ListFormat.prototype, "Intl.ListFormat"],
-     [Intl.NumberFormat.prototype, "Intl.NumberFormat"],
-     [Intl.RelativeTimeFormat.prototype, "Intl.RelativeTimeFormat"],
-     [Intl.PluralRules.prototype, "Intl.PluralRules"],
-    ]) {
-  descriptor = Object.getOwnPropertyDescriptor(obj,
-                                               Symbol.toStringTag);
-  assertEquals(tag, descriptor.value);
-  assertFalse(descriptor.writable);
-  assertFalse(descriptor.enumerable);
-  assertTrue(descriptor.configurable);
-}
+descriptor = Object.getOwnPropertyDescriptor(Intl.DateTimeFormat.prototype,
+                                             Symbol.toStringTag);
+
+assertEquals("Object", descriptor.value);
+assertFalse(descriptor.writable);
+assertFalse(descriptor.enumerable);
+assertTrue(descriptor.configurable);
+
+descriptor = Object.getOwnPropertyDescriptor(Intl.NumberFormat.prototype,
+                                             Symbol.toStringTag);
+
+assertEquals("Object", descriptor.value);
+assertFalse(descriptor.writable);
+assertFalse(descriptor.enumerable);
+assertTrue(descriptor.configurable);
+
+descriptor = Object.getOwnPropertyDescriptor(Intl.Collator.prototype,
+                                             Symbol.toStringTag);
+
+assertEquals("Object", descriptor.value);
+assertFalse(descriptor.writable);
+assertFalse(descriptor.enumerable);
+assertTrue(descriptor.configurable);

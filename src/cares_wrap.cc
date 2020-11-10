@@ -22,14 +22,12 @@
 #define CARES_STATICLIB
 #include "ares.h"
 #include "async_wrap-inl.h"
-#include "base64-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 #include "uv.h"
-#include "node_errors.h"
 
 #include <cerrno>
 #include <cstring>
@@ -49,10 +47,6 @@
 # include <nameser.h>
 #else
 # include <arpa/nameser.h>
-#endif
-
-#ifndef T_CAA
-#  define T_CAA    257 /* Certification Authority Authorization */
 #endif
 
 #if defined(__OpenBSD__)
@@ -83,6 +77,13 @@ Mutex ares_library_mutex;
 
 inline uint16_t cares_get_16bit(const unsigned char* p) {
   return static_cast<uint32_t>(p[0] << 8U) | (static_cast<uint32_t>(p[1]));
+}
+
+inline uint32_t cares_get_32bit(const unsigned char* p) {
+  return static_cast<uint32_t>(p[0] << 24U) |
+         static_cast<uint32_t>(p[1] << 16U) |
+         static_cast<uint32_t>(p[2] << 8U) |
+         static_cast<uint32_t>(p[3]);
 }
 
 const int ns_t_cname_or_a = -1;
@@ -887,43 +888,6 @@ int ParseMxReply(Environment* env,
   return ARES_SUCCESS;
 }
 
-int ParseCaaReply(Environment* env,
-                  const unsigned char* buf,
-                  int len,
-                  Local<Array> ret,
-                  bool need_type = false) {
-  HandleScope handle_scope(env->isolate());
-  auto context = env->context();
-
-  struct ares_caa_reply* caa_start;
-  int status = ares_parse_caa_reply(buf, len, &caa_start);
-  if (status != ARES_SUCCESS) {
-    return status;
-  }
-
-  uint32_t offset = ret->Length();
-  ares_caa_reply* current = caa_start;
-  for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
-    Local<Object> caa_record = Object::New(env->isolate());
-
-    caa_record->Set(context,
-                    env->dns_critical_string(),
-                    Integer::New(env->isolate(), current->critical)).Check();
-    caa_record->Set(context,
-                    OneByteString(env->isolate(), current->property),
-                    OneByteString(env->isolate(), current->value)).Check();
-    if (need_type)
-      caa_record->Set(context,
-                      env->type_string(),
-                      env->dns_caa_string()).Check();
-
-    ret->Set(context, i + offset, caa_record).Check();
-  }
-
-  ares_free_data(caa_start);
-  return ARES_SUCCESS;
-}
-
 int ParseTxtReply(Environment* env,
                   const unsigned char* buf,
                   int len,
@@ -1102,15 +1066,14 @@ int ParseSoaReply(Environment* env,
   // Can't use ares_parse_soa_reply() here which can only parse single record
   const unsigned int ancount = cares_get_16bit(buf + 6);
   unsigned char* ptr = buf + NS_HFIXEDSZ;
-  char* name_temp = nullptr;
+  char* name_temp;
   long temp_len;  // NOLINT(runtime/int)
   int status = ares_expand_name(ptr, buf, len, &name_temp, &temp_len);
+  const ares_unique_ptr name(name_temp);
   if (status != ARES_SUCCESS) {
     // returns EBADRESP in case of invalid input
     return status == ARES_EBADNAME ? ARES_EBADRESP : status;
   }
-
-  const ares_unique_ptr name(name_temp);
 
   if (ptr + temp_len + NS_QFIXEDSZ > buf + len) {
     return ARES_EBADRESP;
@@ -1118,14 +1081,13 @@ int ParseSoaReply(Environment* env,
   ptr += temp_len + NS_QFIXEDSZ;
 
   for (unsigned int i = 0; i < ancount; i++) {
-    char* rr_name_temp = nullptr;
+    char* rr_name_temp;
     long rr_temp_len;  // NOLINT(runtime/int)
     int status2 = ares_expand_name(ptr, buf, len, &rr_name_temp, &rr_temp_len);
+    const ares_unique_ptr rr_name(rr_name_temp);
 
     if (status2 != ARES_SUCCESS)
       return status2 == ARES_EBADNAME ? ARES_EBADRESP : status2;
-
-    const ares_unique_ptr rr_name(rr_name_temp);
 
     ptr += rr_temp_len;
     if (ptr + NS_RRFIXEDSZ > buf + len) {
@@ -1138,38 +1100,38 @@ int ParseSoaReply(Environment* env,
 
     // only need SOA
     if (rr_type == ns_t_soa) {
-      char* nsname_temp = nullptr;
+      char* nsname_temp;
       long nsname_temp_len;  // NOLINT(runtime/int)
 
       int status3 = ares_expand_name(ptr, buf, len,
                                      &nsname_temp,
                                      &nsname_temp_len);
+      const ares_unique_ptr nsname(nsname_temp);
       if (status3 != ARES_SUCCESS) {
         return status3 == ARES_EBADNAME ? ARES_EBADRESP : status3;
       }
-      const ares_unique_ptr nsname(nsname_temp);
       ptr += nsname_temp_len;
 
-      char* hostmaster_temp = nullptr;
+      char* hostmaster_temp;
       long hostmaster_temp_len;  // NOLINT(runtime/int)
       int status4 = ares_expand_name(ptr, buf, len,
                                      &hostmaster_temp,
                                      &hostmaster_temp_len);
+      const ares_unique_ptr hostmaster(hostmaster_temp);
       if (status4 != ARES_SUCCESS) {
         return status4 == ARES_EBADNAME ? ARES_EBADRESP : status4;
       }
-      const ares_unique_ptr hostmaster(hostmaster_temp);
       ptr += hostmaster_temp_len;
 
       if (ptr + 5 * 4 > buf + len) {
         return ARES_EBADRESP;
       }
 
-      const unsigned int serial = ReadUint32BE(ptr + 0 * 4);
-      const unsigned int refresh = ReadUint32BE(ptr + 1 * 4);
-      const unsigned int retry = ReadUint32BE(ptr + 2 * 4);
-      const unsigned int expire = ReadUint32BE(ptr + 3 * 4);
-      const unsigned int minttl = ReadUint32BE(ptr + 4 * 4);
+      const unsigned int serial = cares_get_32bit(ptr + 0 * 4);
+      const unsigned int refresh = cares_get_32bit(ptr + 1 * 4);
+      const unsigned int retry = cares_get_32bit(ptr + 2 * 4);
+      const unsigned int expire = cares_get_32bit(ptr + 3 * 4);
+      const unsigned int minttl = cares_get_32bit(ptr + 4 * 4);
 
       Local<Object> soa_record = Object::New(env->isolate());
       soa_record->Set(context,
@@ -1387,13 +1349,6 @@ class QueryAnyWrap: public QueryWrap {
     if (!soa_record.IsEmpty())
       ret->Set(context, ret->Length(), soa_record).Check();
 
-    /* Parse CAA records */
-    status = ParseCaaReply(env(), buf, len, ret, true);
-    if (status != ARES_SUCCESS && status != ARES_ENODATA) {
-      ParseError(status);
-      return;
-    }
-
     CallOnComplete(ret);
   }
 };
@@ -1490,36 +1445,6 @@ class QueryAaaaWrap: public QueryWrap {
   }
 };
 
-class QueryCaaWrap: public QueryWrap {
- public:
-  QueryCaaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolveCaa") {
-  }
-
-  int Send(const char* name) override {
-    AresQuery(name, ns_c_in, T_CAA);
-    return 0;
-  }
-
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(QueryAaaaWrap)
-  SET_SELF_SIZE(QueryAaaaWrap)
-
- protected:
-  void Parse(unsigned char* buf, int len) override {
-    HandleScope handle_scope(env()->isolate());
-    Context::Scope context_scope(env()->context());
-
-    Local<Array> ret = Array::New(env()->isolate());
-    int status = ParseCaaReply(env(), buf, len, ret);
-    if (status != ARES_SUCCESS) {
-      ParseError(status);
-      return;
-    }
-
-    this->CallOnComplete(ret);
-  }
-};
 
 class QueryCnameWrap: public QueryWrap {
  public:
@@ -2228,70 +2153,6 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
-
-  CHECK_EQ(args.Length(), 2);
-  CHECK(args[0]->IsString());
-
-  Isolate* isolate = args.GetIsolate();
-  node::Utf8Value ip0(isolate, args[0]);
-
-  unsigned char addr0[sizeof(struct in6_addr)];
-  unsigned char addr1[sizeof(struct in6_addr)];
-  int type0 = 0;
-
-  // This function accepts 2 arguments.  The first may be either an IPv4
-  // address or an IPv6 address.  If present, the second argument must be the
-  // other type of address.  Otherwise, the unspecified type of IP is set
-  // to 0 (any).
-
-  if (uv_inet_pton(AF_INET, *ip0, &addr0) == 0) {
-    ares_set_local_ip4(channel->cares_channel(), ReadUint32BE(addr0));
-    type0 = 4;
-  } else if (uv_inet_pton(AF_INET6, *ip0, &addr0) == 0) {
-    ares_set_local_ip6(channel->cares_channel(), addr0);
-    type0 = 6;
-  } else {
-    THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP address.");
-    return;
-  }
-
-  if (!args[1]->IsUndefined()) {
-    CHECK(args[1]->IsString());
-    node::Utf8Value ip1(isolate, args[1]);
-
-    if (uv_inet_pton(AF_INET, *ip1, &addr1) == 0) {
-      if (type0 == 4) {
-        THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv4 addresses.");
-        return;
-      } else {
-        ares_set_local_ip4(channel->cares_channel(), ReadUint32BE(addr1));
-      }
-    } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
-      if (type0 == 6) {
-        THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv6 addresses.");
-        return;
-      } else {
-        ares_set_local_ip6(channel->cares_channel(), addr1);
-      }
-    } else {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP address.");
-      return;
-    }
-  } else {
-    // No second arg specifed
-    if (type0 == 4) {
-      memset(&addr1, 0, sizeof(addr1));
-      ares_set_local_ip6(channel->cares_channel(), addr1);
-    } else {
-      ares_set_local_ip4(channel->cares_channel(), 0);
-    }
-  }
-}
-
 void Cancel(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
@@ -2381,7 +2242,6 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
   env->SetProtoMethod(channel_wrap, "queryA", Query<QueryAWrap>);
   env->SetProtoMethod(channel_wrap, "queryAaaa", Query<QueryAaaaWrap>);
-  env->SetProtoMethod(channel_wrap, "queryCaa", Query<QueryCaaWrap>);
   env->SetProtoMethod(channel_wrap, "queryCname", Query<QueryCnameWrap>);
   env->SetProtoMethod(channel_wrap, "queryMx", Query<QueryMxWrap>);
   env->SetProtoMethod(channel_wrap, "queryNs", Query<QueryNsWrap>);
@@ -2394,7 +2254,6 @@ void Initialize(Local<Object> target,
 
   env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
-  env->SetProtoMethod(channel_wrap, "setLocalAddress", SetLocalAddress);
   env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 
   Local<String> channelWrapString =

@@ -394,7 +394,7 @@
 })();
 
 (function testClassNameOrder() {
-  assertEquals(['length', 'prototype', 'name'], Object.getOwnPropertyNames(class {}));
+  assertEquals(['length', 'prototype'], Object.getOwnPropertyNames(class {}));
 
   var tmp = {'': class {}};
   var Tmp = tmp[''];

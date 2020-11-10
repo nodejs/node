@@ -118,7 +118,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
       if (unwind_infos[i].is_leaf_function()) continue;
 
       uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
-                                      reinterpret_cast<Address>(blob->code());
+                                      reinterpret_cast<Address>(blob->data());
       uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
 
       const std::vector<int>& xdata_desc = unwind_infos[i].fp_offsets();
@@ -198,7 +198,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
     if (unwind_infos[i].is_leaf_function()) continue;
 
     uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
-                                    reinterpret_cast<Address>(blob->code());
+                                    reinterpret_cast<Address>(blob->data());
     uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
 
     const std::vector<int>& xdata_desc = unwind_infos[i].fp_offsets();
@@ -503,7 +503,7 @@ void PlatformEmbeddedFileWriterWin::SourceInfo(int fileid, const char* filename,
 void PlatformEmbeddedFileWriterWin::DeclareFunctionBegin(const char* name,
                                                          uint32_t size) {
   if (target_arch_ == EmbeddedTargetArch::kArm64) {
-    fprintf(fp_, "\n%s%s FUNCTION\n", SYMBOL_PREFIX, name);
+    fprintf(fp_, "%s%s FUNCTION\n", SYMBOL_PREFIX, name);
 
   } else {
     fprintf(fp_, "%s%s PROC\n", SYMBOL_PREFIX, name);

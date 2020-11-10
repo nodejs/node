@@ -366,7 +366,7 @@ bool IsFilePath(const std::string& path) {
 }
 #else
 bool IsFilePath(const std::string& path) {
-  return !path.empty() && path[0] == '/';
+  return path.length() && path[0] == '/';
 }
 #endif  // __POSIX__
 
@@ -640,7 +640,7 @@ class NodeInspectorClient : public V8InspectorClient {
     node::url::URL url = node::url::URL::FromFilePath(resource_name);
     // TODO(ak239spb): replace this code with url.href().
     // Refs: https://github.com/nodejs/node/issues/22610
-    return Utf8ToStringView(url.protocol() + "/" + url.path());
+    return Utf8ToStringView(url.protocol() + "//" + url.path());
   }
 
   node::Environment* env_;

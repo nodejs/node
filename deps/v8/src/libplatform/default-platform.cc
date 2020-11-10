@@ -45,13 +45,6 @@ std::unique_ptr<v8::Platform> NewDefaultPlatform(
   return platform;
 }
 
-V8_PLATFORM_EXPORT std::unique_ptr<JobHandle> NewDefaultJobHandle(
-    Platform* platform, TaskPriority priority,
-    std::unique_ptr<JobTask> job_task, size_t num_worker_threads) {
-  return std::make_unique<DefaultJobHandle>(std::make_shared<DefaultJobState>(
-      platform, std::move(job_task), priority, num_worker_threads));
-}
-
 bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
                      MessageLoopBehavior behavior) {
   return static_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate,
@@ -69,10 +62,6 @@ void SetTracingController(
     v8::platform::tracing::TracingController* tracing_controller) {
   static_cast<DefaultPlatform*>(platform)->SetTracingController(
       std::unique_ptr<v8::TracingController>(tracing_controller));
-}
-
-void NotifyIsolateShutdown(v8::Platform* platform, Isolate* isolate) {
-  static_cast<DefaultPlatform*>(platform)->NotifyIsolateShutdown(isolate);
 }
 
 namespace {
@@ -213,12 +202,20 @@ bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
 
 std::unique_ptr<JobHandle> DefaultPlatform::PostJob(
     TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-  size_t num_worker_threads = NumberOfWorkerThreads();
-  if (priority == TaskPriority::kBestEffort && num_worker_threads > 2) {
-    num_worker_threads = 2;
+  size_t num_worker_threads = 0;
+  switch (priority) {
+    case TaskPriority::kUserBlocking:
+      num_worker_threads = NumberOfWorkerThreads();
+      break;
+    case TaskPriority::kUserVisible:
+      num_worker_threads = NumberOfWorkerThreads() / 2;
+      break;
+    case TaskPriority::kBestEffort:
+      num_worker_threads = 1;
+      break;
   }
-  return NewDefaultJobHandle(this, priority, std::move(job_task),
-                             num_worker_threads);
+  return std::make_unique<DefaultJobHandle>(std::make_shared<DefaultJobState>(
+      this, std::move(job_task), priority, num_worker_threads));
 }
 
 double DefaultPlatform::MonotonicallyIncreasingTime() {
@@ -248,15 +245,6 @@ Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
 
 v8::PageAllocator* DefaultPlatform::GetPageAllocator() {
   return page_allocator_.get();
-}
-
-void DefaultPlatform::NotifyIsolateShutdown(Isolate* isolate) {
-  base::MutexGuard guard(&lock_);
-  auto it = foreground_task_runner_map_.find(isolate);
-  if (it != foreground_task_runner_map_.end()) {
-    it->second->Terminate();
-    foreground_task_runner_map_.erase(it);
-  }
 }
 
 }  // namespace platform

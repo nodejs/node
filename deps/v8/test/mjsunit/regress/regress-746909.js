@@ -4,9 +4,5 @@
 
 // Flags: --harmony-dynamic-import
 
-eval(`import('modules-skip-2.js');`).then(
-    assertUnreachable,
-    () => { /* ignore */});
-eval(`eval(import('modules-skip-2.js'));`).then(
-    assertUnreachable,
-    () => { /* ignore */});
+eval(`import('modules-skip-2.js');`);
+eval(`eval(import('modules-skip-2.js'));`);

@@ -575,7 +575,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   void PostGarbageCollectionProcessing(Isolate* isolate) {
     // This method invokes a finalizer. Updating the method name would require
-    // adjusting CFI blocklist as weak_callback_ is invoked on the wrong type.
+    // adjusting CFI blacklist as weak_callback_ is invoked on the wrong type.
     CHECK(IsPendingFinalizer());
     set_state(NEAR_DEATH);
     // Check that we are not passing a finalized external string to
@@ -966,13 +966,6 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   return global_handles->Create(*location);
 }
 
-namespace {
-void SetSlotThreadSafe(Address** slot, Address* val) {
-  reinterpret_cast<std::atomic<Address*>*>(slot)->store(
-      val, std::memory_order_relaxed);
-}
-}  // namespace
-
 // static
 void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
   DCHECK_NOT_NULL(*from);
@@ -989,7 +982,7 @@ void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
       GlobalHandles::From(const_cast<TracedNode*>(node));
   Handle<Object> o = global_handles->CreateTraced(
       node->object(), reinterpret_cast<Address*>(to), node->has_destructor());
-  SetSlotThreadSafe(to, o.location());
+  *to = o.location();
   TracedNode::Verify(global_handles, from);
   TracedNode::Verify(global_handles, to);
 #ifdef VERIFY_HEAP
@@ -1017,7 +1010,7 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
   // Fast path for moving from an empty reference.
   if (!*from) {
     DestroyTraced(*to);
-    SetSlotThreadSafe(to, nullptr);
+    *to = nullptr;
     return;
   }
 
@@ -1059,7 +1052,7 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
       Handle<Object> o = global_handles->CreateTraced(
           from_node->object(), reinterpret_cast<Address*>(to),
           from_node->has_destructor(), to_on_stack);
-      SetSlotThreadSafe(to, o.location());
+      *to = o.location();
       to_node = TracedNode::FromLocation(*to);
       DCHECK(to_node->markbit());
     } else {
@@ -1077,7 +1070,7 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
   } else {
     // Pure heap move.
     DestroyTraced(*to);
-    SetSlotThreadSafe(to, *from);
+    *to = *from;
     to_node = from_node;
     DCHECK_NOT_NULL(*from);
     DCHECK_NOT_NULL(*to);
@@ -1228,8 +1221,6 @@ void GlobalHandles::IterateWeakRootsIdentifyFinalizers(
 
 void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
-  if (!FLAG_reclaim_unmodified_wrappers) return;
-
   LocalEmbedderHeapTracer* const tracer =
       isolate()->heap()->local_embedder_heap_tracer();
   for (TracedNode* node : traced_young_nodes_) {
@@ -1263,7 +1254,7 @@ void GlobalHandles::IterateYoungStrongAndDependentRoots(RootVisitor* v) {
   }
 }
 
-void GlobalHandles::MarkYoungWeakDeadObjectsPending(
+void GlobalHandles::MarkYoungWeakUnmodifiedObjectsPending(
     WeakSlotCallbackWithHeap is_dead) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
@@ -1275,7 +1266,8 @@ void GlobalHandles::MarkYoungWeakDeadObjectsPending(
   }
 }
 
-void GlobalHandles::IterateYoungWeakDeadObjectsForFinalizers(RootVisitor* v) {
+void GlobalHandles::IterateYoungWeakUnmodifiedRootsForFinalizers(
+    RootVisitor* v) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
     if (node->IsWeakRetainer() && (node->state() == Node::PENDING)) {
@@ -1288,7 +1280,7 @@ void GlobalHandles::IterateYoungWeakDeadObjectsForFinalizers(RootVisitor* v) {
   }
 }
 
-void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
+void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
     RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
@@ -1312,8 +1304,6 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
       }
     }
   }
-
-  if (!FLAG_reclaim_unmodified_wrappers) return;
 
   LocalEmbedderHeapTracer* const tracer =
       isolate()->heap()->local_embedder_heap_tracer();

@@ -6,7 +6,6 @@
 #define V8_LOGGING_COUNTERS_INL_H_
 
 #include "src/logging/counters.h"
-#include "src/logging/tracing-flags.h"
 
 namespace v8 {
 namespace internal {

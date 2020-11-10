@@ -118,9 +118,6 @@ To begin watching an expression, type `watch('my_expression')`. The command
 functions body
 * `setBreakpoint('script.js', 1)`, `sb(...)`: Set breakpoint on first line of
 `script.js`
-* `setBreakpoint('script.js', 1, 'num < 4')`, `sb(...)`: Set conditional
-breakpoint on first line of `script.js` that only breaks when `num < 4`
-evaluates to `true`
 * `clearBreakpoint('script.js', 1)`, `cb(...)`: Clear breakpoint in `script.js`
 on line 1
 
@@ -145,42 +142,6 @@ break in mod.js:22
 >22 exports.hello = function() {
  23   return 'hello from module';
  24 };
-debug>
-```
-
-It is also possible to set a conditional breakpoint that only breaks when a
-given expression evaluates to `true`:
-
-```console
-$ node inspect main.js
-< Debugger listening on ws://127.0.0.1:9229/ce24daa8-3816-44d4-b8ab-8273c8a66d35
-< For help, see: https://nodejs.org/en/docs/inspector
-< Debugger attached.
-Break on start in main.js:7
-  5 }
-  6
-> 7 addOne(10);
-  8 addOne(-1);
-  9
-debug> setBreakpoint('main.js', 4, 'num < 0')
-  1 'use strict';
-  2
-  3 function addOne(num) {
-> 4   return num + 1;
-  5 }
-  6
-  7 addOne(10);
-  8 addOne(-1);
-  9
-debug> cont
-break in main.js:4
-  2
-  3 function addOne(num) {
-> 4   return num + 1;
-  5 }
-  6
-debug> exec('num')
--1
 debug>
 ```
 
@@ -240,5 +201,5 @@ Chrome DevTools doesn't support debugging [worker threads][] yet.
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [V8 Inspector]: #debugger_v8_inspector_integration_for_node_js
+[worker threads]: worker_threads.html
 [ndb]: https://github.com/GoogleChromeLabs/ndb/
-[worker threads]: worker_threads.md

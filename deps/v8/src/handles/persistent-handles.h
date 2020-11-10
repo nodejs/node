@@ -11,7 +11,6 @@
 #include "src/api/api.h"
 #include "src/base/macros.h"
 #include "src/objects/visitors.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
@@ -23,39 +22,24 @@ class Heap;
 // thread-safe and the isolate tracks all PersistentHandles containers.
 class PersistentHandles {
  public:
-  V8_EXPORT_PRIVATE explicit PersistentHandles(Isolate* isolate);
+  V8_EXPORT_PRIVATE explicit PersistentHandles(
+      Isolate* isolate, size_t block_size = kHandleBlockSize);
   V8_EXPORT_PRIVATE ~PersistentHandles();
 
   PersistentHandles(const PersistentHandles&) = delete;
   PersistentHandles& operator=(const PersistentHandles&) = delete;
 
-  V8_EXPORT_PRIVATE void Iterate(RootVisitor* visitor);
+  void Iterate(RootVisitor* visitor);
 
-  template <typename T>
-  Handle<T> NewHandle(T obj) {
-#ifdef DEBUG
-    CheckOwnerIsNotParked();
-#endif
-    return Handle<T>(GetHandle(obj.ptr()));
-  }
-
-  template <typename T>
-  Handle<T> NewHandle(Handle<T> obj) {
-    return NewHandle(*obj);
-  }
-
-#ifdef DEBUG
-  V8_EXPORT_PRIVATE bool Contains(Address* location);
-#endif
+  V8_EXPORT_PRIVATE Handle<Object> NewHandle(Address value);
 
  private:
   void AddBlock();
-  V8_EXPORT_PRIVATE Address* GetHandle(Address value);
+  Address* GetHandle(Address value);
 
 #ifdef DEBUG
   void Attach(LocalHeap* local_heap);
   void Detach();
-  V8_EXPORT_PRIVATE void CheckOwnerIsNotParked();
 
   LocalHeap* owner_ = nullptr;
 
@@ -66,6 +50,7 @@ class PersistentHandles {
 
   Isolate* isolate_;
   std::vector<Address*> blocks_;
+  size_t block_size_;
 
   Address* block_next_;
   Address* block_limit_;
@@ -73,52 +58,28 @@ class PersistentHandles {
   PersistentHandles* prev_;
   PersistentHandles* next_;
 
-#ifdef DEBUG
-  std::set<Address*> ordered_blocks_;
-#endif
-
-  friend class HandleScopeImplementer;
-  friend class LocalHeap;
   friend class PersistentHandlesList;
-
-  FRIEND_TEST(PersistentHandlesTest, OrderOfBlocks);
+  friend class LocalHeap;
 };
 
 class PersistentHandlesList {
  public:
-  PersistentHandlesList() : persistent_handles_head_(nullptr) {}
+  explicit PersistentHandlesList(Isolate* isolate)
+      : isolate_(isolate), persistent_handles_head_(nullptr) {}
 
-  void Iterate(RootVisitor* visitor, Isolate* isolate);
+  // Iteration is only safe during a safepoint
+  void Iterate(RootVisitor* visitor);
 
  private:
   void Add(PersistentHandles* persistent_handles);
   void Remove(PersistentHandles* persistent_handles);
 
+  Isolate* isolate_;
+
   base::Mutex persistent_handles_mutex_;
-  PersistentHandles* persistent_handles_head_;
+  PersistentHandles* persistent_handles_head_ = nullptr;
 
   friend class PersistentHandles;
-};
-
-// PersistentHandlesScope sets up a scope in which all created main thread
-// handles become persistent handles that can be sent to another thread.
-class PersistentHandlesScope {
- public:
-  V8_EXPORT_PRIVATE explicit PersistentHandlesScope(Isolate* isolate);
-  V8_EXPORT_PRIVATE ~PersistentHandlesScope();
-
-  // Moves all blocks of this scope into PersistentHandles and returns it.
-  V8_EXPORT_PRIVATE std::unique_ptr<PersistentHandles> Detach();
-
- private:
-  Address* prev_limit_;
-  Address* prev_next_;
-  HandleScopeImplementer* const impl_;
-
-#ifdef DEBUG
-  bool handles_detached_ = false;
-  int prev_level_;
-#endif
 };
 
 }  // namespace internal

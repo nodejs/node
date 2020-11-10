@@ -51,7 +51,8 @@ http.createServer(common.mustCall((req, res) => {
 })).listen(common.PIPE, common.mustCall(() => {
   http.get({ socketPath: common.PIPE, path: '/' }, common.mustCall((res) => {
     res.resume();
-    res.on('end', common.mustSucceed(() => {
+    res.on('end', common.mustCall((err) => {
+      assert.ifError(err);
       process.send('DONE');
       process.exit();
     }));

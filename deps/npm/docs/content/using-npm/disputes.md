@@ -1,8 +1,12 @@
 ---
+section: using-npm
 title: disputes
-section: 7
 description: Handling Module Name Disputes
 ---
+
+# disputes(7)
+
+## Handling Module Name Disputes
 
 This document describes the steps that you should take to resolve module name
 disputes with other npm publishers. It also describes special steps you should
@@ -130,4 +134,4 @@ License.
 ### See also
 
 * [npm registry](/using-npm/registry)
-* [npm owner](/commands/npm-owner)
+* [npm owner](/cli-commands/npm-owner)

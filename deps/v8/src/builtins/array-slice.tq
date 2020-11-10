@@ -36,18 +36,21 @@ macro HandleFastAliasedSloppyArgumentsSlice(
 
   const sloppyElements: SloppyArgumentsElements =
       Cast<SloppyArgumentsElements>(args.elements) otherwise Bailout;
-  const parameterMapLength: Smi = sloppyElements.length;
+  const sloppyElementsLength: Smi = sloppyElements.length;
+  const parameterMapLength: Smi =
+      sloppyElementsLength - kSloppyArgumentsParameterMapStart;
 
   // Check to make sure that the extraction will not access outside the
   // defined arguments
   const end: Smi = start + count;
   const unmappedElements: FixedArray =
-      Cast<FixedArray>(sloppyElements.arguments)
+      Cast<FixedArray>(sloppyElements.objects[kSloppyArgumentsArgumentsIndex])
       otherwise Bailout;
   const unmappedElementsLength: Smi = unmappedElements.length;
   if (SmiAbove(end, unmappedElementsLength)) goto Bailout;
 
-  const argumentsContext: Context = sloppyElements.context;
+  const argumentsContext: Context =
+      UnsafeCast<Context>(sloppyElements.objects[kSloppyArgumentsContextIndex]);
 
   const arrayMap: Map =
       LoadJSArrayElementsMap(ElementsKind::HOLEY_ELEMENTS, context);
@@ -60,9 +63,10 @@ macro HandleFastAliasedSloppyArgumentsSlice(
 
   // Fill in the part of the result that map to context-mapped parameters.
   for (let current: Smi = start; current < to; ++current) {
-    const e: Object = sloppyElements.mapped_entries[current];
+    const e: Object =
+        sloppyElements.objects[current + kSloppyArgumentsParameterMapStart];
     const newElement = UnsafeCast<(JSAny | TheHole)>(
-        e != TheHole ? argumentsContext.elements[UnsafeCast<Smi>(e)] :
+        e != TheHole ? argumentsContext[UnsafeCast<Smi>(e)] :
                        unmappedElements.objects[current]);
     // It is safe to skip the write barrier here because resultElements was
     // allocated together with result in a folded allocation.

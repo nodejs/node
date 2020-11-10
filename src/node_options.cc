@@ -92,7 +92,20 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     }
   }
 
-  if (!experimental_specifier_resolution.empty()) {
+  if (!es_module_specifier_resolution.empty()) {
+    if (!experimental_specifier_resolution.empty()) {
+      errors->push_back(
+        "bad option: cannot use --es-module-specifier-resolution"
+        " and --experimental-specifier-resolution at the same time");
+    } else {
+      experimental_specifier_resolution = es_module_specifier_resolution;
+      if (experimental_specifier_resolution != "node" &&
+          experimental_specifier_resolution != "explicit") {
+        errors->push_back(
+          "invalid value for --es-module-specifier-resolution");
+      }
+    }
+  } else if (!experimental_specifier_resolution.empty()) {
     if (experimental_specifier_resolution != "node" &&
         experimental_specifier_resolution != "explicit") {
       errors->push_back(
@@ -116,10 +129,6 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   if (tls_min_v1_3 && tls_max_v1_2) {
     errors->push_back("either --tls-min-v1.3 or --tls-max-v1.2 can be "
                       "used, not both");
-  }
-
-  if (heap_snapshot_near_heap_limit < 0) {
-    errors->push_back("--heap-snapshot-near-heap-limit must not be negative");
   }
 
 #if HAVE_INSPECTOR
@@ -272,10 +281,6 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
-  AddOption("--conditions",
-            "additional user conditions for conditional exports and imports",
-            &EnvironmentOptions::conditions,
-            kAllowedInEnvironment);
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",
@@ -345,12 +350,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Generate heap snapshot on specified signal",
             &EnvironmentOptions::heap_snapshot_signal,
             kAllowedInEnvironment);
-  AddOption("--heapsnapshot-near-heap-limit",
-            "Generate heap snapshots whenever V8 is approaching "
-            "the heap limit. No more than the specified number of "
-            "heap snapshots will be generated.",
-            &EnvironmentOptions::heap_snapshot_near_heap_limit,
-            kAllowedInEnvironment);
   AddOption("--http-parser", "", NoOp{}, kAllowedInEnvironment);
   AddOption("--insecure-http-parser",
             "use an insecure HTTP parser that accepts invalid HTTP headers",
@@ -365,8 +364,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "either 'explicit' (default) or 'node'",
             &EnvironmentOptions::experimental_specifier_resolution,
             kAllowedInEnvironment);
-  AddAlias("--es-module-specifier-resolution",
-           "--experimental-specifier-resolution");
+  AddOption("--es-module-specifier-resolution",
+            "",
+            &EnvironmentOptions::es_module_specifier_resolution,
+            kAllowedInEnvironment);
   AddOption("--no-deprecation",
             "silence deprecation warnings",
             &EnvironmentOptions::no_deprecation,
@@ -395,9 +396,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "preserve symbolic links when resolving the main module",
             &EnvironmentOptions::preserve_symlinks_main,
             kAllowedInEnvironment);
-  AddOption("--prof",
-            "Generate V8 profiler output.",
-            V8Option{});
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
@@ -487,10 +485,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "define unhandled rejections behavior. Options are 'strict' (raise "
             "an error), 'warn' (enforce warnings) or 'none' (silence warnings)",
             &EnvironmentOptions::unhandled_rejections,
-            kAllowedInEnvironment);
-  AddOption("--verify-base-objects",
-            "", /* undocumented, only for debugging */
-            &EnvironmentOptions::verify_base_objects,
             kAllowedInEnvironment);
 
   AddOption("--check",
@@ -775,12 +769,6 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
 
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
-
-  AddOption("--node-memory-debug",
-            "Run with extra debug checks for memory leaks in Node.js itself",
-            NoOp{}, kAllowedInEnvironment);
-  Implies("--node-memory-debug", "--debug-arraybuffer-allocations");
-  Implies("--node-memory-debug", "--verify-base-objects");
 }
 
 inline std::string RemoveBrackets(const std::string& host) {

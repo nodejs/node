@@ -3,7 +3,6 @@
 #include "async_wrap.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
-#include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
@@ -25,7 +24,6 @@
 #include <cinttypes>
 #include <cstdio>
 #include <iostream>
-#include <limits>
 #include <memory>
 
 namespace node {
@@ -227,6 +225,10 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   // TODO(joyeecheung): implement MemoryRetainer in the option classes.
 }
 
+void InitThreadLocalOnce() {
+  CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
+}
+
 void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   if (!env_->owns_process_state() || !env_->can_call_into_js()) {
     // Ideally, we’d have a consistent story that treats all threads/Environment
@@ -357,7 +359,7 @@ Environment::Environment(IsolateData* isolate_data,
   inspector_host_port_.reset(
       new ExclusiveAccess<HostPort>(options_->debug_options().host_port));
 
-  if (!(flags_ & EnvironmentFlags::kOwnsProcessState)) {
+  if (flags & EnvironmentFlags::kOwnsProcessState) {
     set_abort_on_uncaught_exception(false);
   }
 
@@ -365,6 +367,10 @@ Environment::Environment(IsolateData* isolate_data,
   // We can only create the inspector agent after having cloned the options.
   inspector_agent_ = std::make_unique<inspector::Agent>(this);
 #endif
+
+  static uv_once_t init_once = UV_ONCE_INIT;
+  uv_once(&init_once, InitThreadLocalOnce);
+  uv_key_set(&thread_local_env, this);
 
   if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
     trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
@@ -472,11 +478,6 @@ Environment::~Environment() {
 
   // FreeEnvironment() should have set this.
   CHECK(is_stopping());
-
-  if (options_->heap_snapshot_near_heap_limit > heap_limit_snapshot_taken_) {
-    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
-                                          0);
-  }
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
@@ -633,10 +634,7 @@ void Environment::RunCleanup() {
   initial_base_object_count_ = 0;
   CleanupHandles();
 
-  while (!cleanup_hooks_.empty() ||
-         native_immediates_.size() > 0 ||
-         native_immediates_threadsafe_.size() > 0 ||
-         native_immediates_interrupts_.size() > 0) {
+  while (!cleanup_hooks_.empty()) {
     // Copy into a vector, since we can't sort an unordered_set in-place.
     std::vector<CleanupHookCallback> callbacks(
         cleanup_hooks_.begin(), cleanup_hooks_.end());
@@ -1135,11 +1133,11 @@ void AsyncHooks::grow_async_ids_stack() {
       async_ids_stack_.GetJSArray()).Check();
 }
 
+uv_key_t Environment::thread_local_env = {};
+
 void Environment::Exit(int exit_code) {
   if (options()->trace_exit) {
     HandleScope handle_scope(isolate());
-    Isolate::DisallowJavascriptExecutionScope disallow_js(
-        isolate(), Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
 
     if (is_main_thread()) {
       fprintf(stderr, "(node:%d) ", uv_os_getpid());
@@ -1191,43 +1189,22 @@ void Environment::RemoveUnmanagedFd(int fd) {
   }
 }
 
-void Environment::PrintAllBaseObjects() {
+void Environment::ForEachBaseObject(BaseObjectIterator iterator) {
   size_t i = 0;
-  std::cout << "BaseObjects\n";
-  ForEachBaseObject([&](BaseObject* obj) {
-    std::cout << "#" << i++ << " " << obj << ": " <<
-      obj->MemoryInfoName() << "\n";
-  });
+  for (const auto& hook : cleanup_hooks_) {
+    BaseObject* obj = hook.GetBaseObject();
+    if (obj != nullptr) iterator(i, obj);
+    i++;
+  }
 }
 
-void Environment::VerifyNoStrongBaseObjects() {
-  // When a process exits cleanly, i.e. because the event loop ends up without
-  // things to wait for, the Node.js objects that are left on the heap should
-  // be:
-  //
-  //   1. weak, i.e. ready for garbage collection once no longer referenced, or
-  //   2. detached, i.e. scheduled for destruction once no longer referenced, or
-  //   3. an unrefed libuv handle, i.e. does not keep the event loop alive, or
-  //   4. an inactive libuv handle (essentially the same here)
-  //
-  // There are a few exceptions to this rule, but generally, if there are
-  // C++-backed Node.js objects on the heap that do not fall into the above
-  // categories, we may be looking at a potential memory leak. Most likely,
-  // the cause is a missing MakeWeak() call on the corresponding object.
-  //
-  // In order to avoid this kind of problem, we check the list of BaseObjects
-  // for these criteria. Currently, we only do so when explicitly instructed to
-  // or when in debug mode (where --verify-base-objects is always-on).
+void PrintBaseObject(size_t i, BaseObject* obj) {
+  std::cout << "#" << i << " " << obj << ": " << obj->MemoryInfoName() << "\n";
+}
 
-  if (!options()->verify_base_objects) return;
-
-  ForEachBaseObject([](BaseObject* obj) {
-    if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
-    fprintf(stderr, "Found bad BaseObject during clean exit: %s\n",
-            obj->MemoryInfoName().c_str());
-    fflush(stderr);
-    ABORT();
-  });
+void Environment::PrintAllBaseObjects() {
+  std::cout << "BaseObjects\n";
+  ForEachBaseObject(PrintBaseObject);
 }
 
 EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
@@ -1399,25 +1376,6 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   CHECK_EQ(ctx_from_snapshot, ctx);
 }
 
-uint64_t GuessMemoryAvailableToTheProcess() {
-  uint64_t free_in_system = uv_get_free_memory();
-  size_t allowed = uv_get_constrained_memory();
-  if (allowed == 0) {
-    return free_in_system;
-  }
-  size_t rss;
-  int err = uv_resident_set_memory(&rss);
-  if (err) {
-    return free_in_system;
-  }
-  if (allowed < rss) {
-    // Something is probably wrong. Fallback to the free memory.
-    return free_in_system;
-  }
-  // There may still be room for swap, but we will just leave it here.
-  return allowed - rss;
-}
-
 void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      EmbedderGraph* graph,
                                      void* data) {
@@ -1428,126 +1386,6 @@ void Environment::BuildEmbedderGraph(Isolate* isolate,
     if (obj->IsDoneInitializing())
       tracker.Track(obj);
   });
-}
-
-size_t Environment::NearHeapLimitCallback(void* data,
-                                          size_t current_heap_limit,
-                                          size_t initial_heap_limit) {
-  Environment* env = static_cast<Environment*>(data);
-
-  Debug(env,
-        DebugCategory::DIAGNOSTICS,
-        "Invoked NearHeapLimitCallback, processing=%d, "
-        "current_limit=%" PRIu64 ", "
-        "initial_limit=%" PRIu64 "\n",
-        env->is_processing_heap_limit_callback_,
-        static_cast<uint64_t>(current_heap_limit),
-        static_cast<uint64_t>(initial_heap_limit));
-
-  size_t max_young_gen_size = env->isolate_data()->max_young_gen_size;
-  size_t young_gen_size = 0;
-  size_t old_gen_size = 0;
-
-  v8::HeapSpaceStatistics stats;
-  size_t num_heap_spaces = env->isolate()->NumberOfHeapSpaces();
-  for (size_t i = 0; i < num_heap_spaces; ++i) {
-    env->isolate()->GetHeapSpaceStatistics(&stats, i);
-    if (strcmp(stats.space_name(), "new_space") == 0 ||
-        strcmp(stats.space_name(), "new_large_object_space") == 0) {
-      young_gen_size += stats.space_used_size();
-    } else {
-      old_gen_size += stats.space_used_size();
-    }
-  }
-
-  Debug(env,
-        DebugCategory::DIAGNOSTICS,
-        "max_young_gen_size=%" PRIu64 ", "
-        "young_gen_size=%" PRIu64 ", "
-        "old_gen_size=%" PRIu64 ", "
-        "total_size=%" PRIu64 "\n",
-        static_cast<uint64_t>(max_young_gen_size),
-        static_cast<uint64_t>(young_gen_size),
-        static_cast<uint64_t>(old_gen_size),
-        static_cast<uint64_t>(young_gen_size + old_gen_size));
-
-  uint64_t available = GuessMemoryAvailableToTheProcess();
-  // TODO(joyeecheung): get a better estimate about the native memory
-  // usage into the overhead, e.g. based on the count of objects.
-  uint64_t estimated_overhead = max_young_gen_size;
-  Debug(env,
-        DebugCategory::DIAGNOSTICS,
-        "Estimated available memory=%" PRIu64 ", "
-        "estimated overhead=%" PRIu64 "\n",
-        static_cast<uint64_t>(available),
-        static_cast<uint64_t>(estimated_overhead));
-
-  // This might be hit when the snapshot is being taken in another
-  // NearHeapLimitCallback invocation.
-  // When taking the snapshot, objects in the young generation may be
-  // promoted to the old generation, result in increased heap usage,
-  // but it should be no more than the young generation size.
-  // Ideally, this should be as small as possible - the heap limit
-  // can only be restored when the heap usage falls down below the
-  // new limit, so in a heap with unbounded growth the isolate
-  // may eventually crash with this new limit - effectively raising
-  // the heap limit to the new one.
-  if (env->is_processing_heap_limit_callback_) {
-    size_t new_limit = initial_heap_limit + max_young_gen_size;
-    Debug(env,
-          DebugCategory::DIAGNOSTICS,
-          "Not generating snapshots in nested callback. "
-          "new_limit=%" PRIu64 "\n",
-          static_cast<uint64_t>(new_limit));
-    return new_limit;
-  }
-
-  // Estimate whether the snapshot is going to use up all the memory
-  // available to the process. If so, just give up to prevent the system
-  // from killing the process for a system OOM.
-  if (estimated_overhead > available) {
-    Debug(env,
-          DebugCategory::DIAGNOSTICS,
-          "Not generating snapshots because it's too risky.\n");
-    env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                                initial_heap_limit);
-    return current_heap_limit;
-  }
-
-  // Take the snapshot synchronously.
-  env->is_processing_heap_limit_callback_ = true;
-
-  std::string dir = env->options()->diagnostic_dir;
-  if (dir.empty()) {
-    dir = env->GetCwd();
-  }
-  DiagnosticFilename name(env, "Heap", "heapsnapshot");
-  std::string filename = dir + kPathSeparator + (*name);
-
-  Debug(env, DebugCategory::DIAGNOSTICS, "Start generating %s...\n", *name);
-
-  // Remove the callback first in case it's triggered when generating
-  // the snapshot.
-  env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                              initial_heap_limit);
-
-  heap::WriteSnapshot(env->isolate(), filename.c_str());
-  env->heap_limit_snapshot_taken_ += 1;
-
-  // Don't take more snapshots than the number specified by
-  // --heapsnapshot-near-heap-limit.
-  if (env->heap_limit_snapshot_taken_ <
-      env->options_->heap_snapshot_near_heap_limit) {
-    env->isolate()->AddNearHeapLimitCallback(NearHeapLimitCallback, env);
-  }
-
-  FPrintF(stderr, "Wrote snapshot to %s\n", filename.c_str());
-  // Tell V8 to reset the heap limit once the heap usage falls down to
-  // 95% of the initial limit.
-  env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);
-
-  env->is_processing_heap_limit_callback_ = false;
-  return initial_heap_limit;
 }
 
 inline size_t Environment::SelfSize() const {
@@ -1628,10 +1466,6 @@ Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
     env->set_base_object_ctor_template(tmpl);
   }
   return tmpl;
-}
-
-bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {
-  return IsWeakOrDetached();
 }
 
 }  // namespace node

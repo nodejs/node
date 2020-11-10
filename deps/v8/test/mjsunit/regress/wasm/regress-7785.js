@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --experimental-wasm-reftypes
+// Flags: --allow-natives-syntax --experimental-wasm-anyref
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function testExternRefNull() {
+(function testAnyRefNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull, kWasmExternRef])
+      .addBody([kExprRefNull])
       .exportFunc();
 
   var wire_bytes = builder.toBuffer();
@@ -21,7 +21,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(null, instance.exports.main());
 })();
 
-(function testExternRefIsNull() {
+(function testAnyRefIsNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
       .addBody([kExprLocalGet, 0, kExprRefIsNull])

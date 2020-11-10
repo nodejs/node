@@ -1,8 +1,12 @@
 ---
+section: configuring-npm
 title: install
-section: 5
 description: Download and install node and npm
 ---
+
+# install(5)
+
+## Download and Install npm
 
 ### Description
 

@@ -1,11 +1,5 @@
 Hi, figured we could actually use a changelog now:
 
-## 1.1.5 2018-05-24
-
-* [#92](https://github.com/iarna/are-we-there-yet/pull/92) Fix bug where
-  `finish` would throw errors when including `TrackerStream` objects in
-  `TrackerGroup` collections.  (@brianloveswords)
-
 ## 1.1.4 2017-04-21
 
 * Fix typo in package.json

@@ -40,6 +40,13 @@ if (common.isWindows) {
   mask = '0664';
 }
 
+common.expectWarning(
+  'DeprecationWarning',
+  'Calling process.umask() with no arguments is prone to race conditions ' +
+  'and is a potential security vulnerability.',
+  'DEP0139'
+);
+
 const old = process.umask(mask);
 
 assert.strictEqual(process.umask(old), parseInt(mask, 8));

@@ -1,4 +1,5 @@
 'use strict'
+const Buffer = require('./buffer.js')
 const Header = require('./header.js')
 const path = require('path')
 

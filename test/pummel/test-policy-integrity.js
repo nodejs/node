@@ -2,7 +2,6 @@
 
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
-common.requireNoPackageJSONAbove();
 
 const { debuglog } = require('util');
 const debug = debuglog('test');
@@ -13,8 +12,6 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
-
-const cpus = require('os').cpus().length;
 
 function hash(algo, body) {
   const values = [];
@@ -85,7 +82,7 @@ function queueSpawn(opts) {
 }
 
 function drainQueue() {
-  if (spawned > cpus) {
+  if (spawned > 50) {
     return;
   }
   if (toSpawn.length) {
@@ -110,7 +107,7 @@ function drainQueue() {
       `deletable-policy-${testId}.json`
     );
     const cliPolicy = willDeletePolicy ? tmpPolicyPath : policyPath;
-    fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
+    fs.rmdirSync(configDirPath, { maxRetries: 3, recursive: true });
     fs.mkdirSync(configDirPath, { recursive: true });
     const manifest = {
       onerror: onError,
@@ -186,7 +183,7 @@ function drainQueue() {
         console.log(`stderr: ${Buffer.concat(stderr)}`);
         throw e;
       }
-      fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
+      fs.rmdirSync(configDirPath, { maxRetries: 3, recursive: true });
       drainQueue();
     });
   }
@@ -383,8 +380,11 @@ for (const permutation of permutations({
   );
 }
 debug(`spawning ${tests.size} policy integrity permutations`);
-
+debug(
+  'use NODE_DEBUG=test:policy-integrity:NUMBER to log a specific permutation'
+);
 for (const config of tests) {
   const parsed = JSON.parse(config);
+  tests.delete(config);
   queueSpawn(parsed);
 }

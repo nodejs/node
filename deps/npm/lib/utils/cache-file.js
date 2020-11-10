@@ -1,8 +1,9 @@
+// XXX use infer-owner or gentle-fs.mkdir here
 const npm = require('../npm.js')
 const path = require('path')
 const chownr = require('chownr')
 const writeFileAtomic = require('write-file-atomic')
-const mkdirp = require('mkdirp-infer-owner')
+const mkdirp = require('mkdirp')
 const fs = require('graceful-fs')
 
 let cache = null
@@ -15,9 +16,9 @@ const getCacheOwner = () => {
   try {
     st = fs.lstatSync(cache)
   } catch (er) {
-    if (er.code !== 'ENOENT')
+    if (er.code !== 'ENOENT') {
       throw er
-
+    }
     st = fs.lstatSync(path.dirname(cache))
   }
 
@@ -29,21 +30,24 @@ const getCacheOwner = () => {
 }
 
 const writeOrAppend = (method, file, data) => {
-  if (!cache)
+  if (!cache) {
     cache = npm.config.get('cache')
+  }
 
   // redundant if already absolute, but prevents non-absolute files
   // from being written as if they're part of the cache.
   file = path.resolve(cache, file)
 
-  if (cacheUid === null && needChown)
+  if (cacheUid === null && needChown) {
     getCacheOwner()
+  }
 
   const dir = path.dirname(file)
   const firstMade = mkdirp.sync(dir)
 
-  if (!needChown)
+  if (!needChown) {
     return method(file, data)
+  }
 
   let methodThrew = true
   try {
@@ -52,9 +56,9 @@ const writeOrAppend = (method, file, data) => {
   } finally {
     // always try to leave it in the right ownership state, even on failure
     // let the method error fail it instead of the chownr error, though
-    if (!methodThrew)
+    if (!methodThrew) {
       chownr.sync(firstMade || file, cacheUid, cacheGid)
-    else {
+    } else {
       try {
         chownr.sync(firstMade || file, cacheUid, cacheGid)
       } catch (_) {}

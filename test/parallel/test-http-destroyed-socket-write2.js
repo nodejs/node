@@ -64,7 +64,9 @@ server.listen(0, function() {
 
       default:
         // Write to a torn down client should RESET or ABORT
-        assert.fail(`Unexpected error code ${er.code}`);
+        assert.strictEqual(er.code,
+                           'ECONNRESET');
+        break;
     }
 
 

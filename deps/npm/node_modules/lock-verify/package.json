@@ -1,0 +1,62 @@
+{
+  "_from": "lock-verify@2.1.0",
+  "_id": "lock-verify@2.1.0",
+  "_inBundle": false,
+  "_integrity": "sha512-vcLpxnGvrqisKvLQ2C2v0/u7LVly17ak2YSgoK4PrdsYBXQIax19vhKiLfvKNFx7FRrpTnitrpzF/uuCMuorIg==",
+  "_location": "/lock-verify",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "lock-verify@2.1.0",
+    "name": "lock-verify",
+    "escapedName": "lock-verify",
+    "rawSpec": "2.1.0",
+    "saveSpec": null,
+    "fetchSpec": "2.1.0"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/",
+    "/libcipm",
+    "/libnpm"
+  ],
+  "_resolved": "https://registry.npmjs.org/lock-verify/-/lock-verify-2.1.0.tgz",
+  "_shasum": "fff4c918b8db9497af0c5fa7f6d71555de3ceb47",
+  "_spec": "lock-verify@2.1.0",
+  "_where": "/Users/zkat/Documents/code/work/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/lock-verify/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "npm-package-arg": "^6.1.0",
+    "semver": "^5.4.1"
+  },
+  "deprecated": false,
+  "description": "Report if your package.json is out of sync with your package-lock.json.",
+  "devDependencies": {
+    "@iarna/cli": "^1.2.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/iarna/lock-verify#readme",
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "lock-verify",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/lock-verify.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "2.1.0"
+}

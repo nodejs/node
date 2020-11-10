@@ -56,11 +56,6 @@ class PersistentNode final {
 
   bool IsUsed() const { return trace_; }
 
-  void* owner() const {
-    CPPGC_DCHECK(IsUsed());
-    return owner_;
-  }
-
  private:
   // PersistentNode acts as a designated union:
   // If trace_ != nullptr, owner_ points to the corresponding Persistent handle.
@@ -72,13 +67,11 @@ class PersistentNode final {
   TraceCallback trace_ = nullptr;
 };
 
-class V8_EXPORT PersistentRegion final {
+class V8_EXPORT PersistentRegion {
   using PersistentNodeSlots = std::array<PersistentNode, 256u>;
 
  public:
   PersistentRegion() = default;
-  // Clears Persistent fields to avoid stale pointers after heap teardown.
-  ~PersistentRegion();
 
   PersistentRegion(const PersistentRegion&) = delete;
   PersistentRegion& operator=(const PersistentRegion&) = delete;

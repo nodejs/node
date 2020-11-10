@@ -9,14 +9,10 @@
 
 #include <stdint.h>
 
-/* TODO(cavalcantii): remove support for Chromium ever building with a system
- * zlib.
- */
 #if defined(USE_SYSTEM_ZLIB)
 #include <zlib.h>
-/* AOSP build requires relative paths. */
 #else
-#include "zlib.h"
+#include "third_party/zlib/zlib.h"
 #endif
 
 namespace zlib_internal {

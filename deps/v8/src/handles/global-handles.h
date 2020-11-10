@@ -162,12 +162,12 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void IterateYoungStrongAndDependentRoots(RootVisitor* v);
 
   // Marks weak unmodified handles satisfying |is_dead| as pending.
-  void MarkYoungWeakDeadObjectsPending(WeakSlotCallbackWithHeap is_dead);
+  void MarkYoungWeakUnmodifiedObjectsPending(WeakSlotCallbackWithHeap is_dead);
 
   // Iterates over weak independent or unmodified handles.
   // See the note above.
-  void IterateYoungWeakDeadObjectsForFinalizers(RootVisitor* v);
-  void IterateYoungWeakObjectsForPhantomHandles(
+  void IterateYoungWeakUnmodifiedRootsForFinalizers(RootVisitor* v);
+  void IterateYoungWeakUnmodifiedRootsForPhantomHandles(
       RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle);
 
   // Identify unmodified objects that are in weak state and marks them

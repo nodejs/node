@@ -14,5 +14,4 @@ binary.emit_bytes([kUnknownSectionCode, 2, 1, 0]);
 binary.emit_bytes([kUnknownSectionCode, 2, 1, 0]);
 binary.emit_bytes([ kExprEnd]);
 let buffer = binary.trunc_buffer();
-WebAssembly.compile(buffer).then(
-    () => assertUnreachable(), () => {/* ignore */});
+WebAssembly.compile(buffer);

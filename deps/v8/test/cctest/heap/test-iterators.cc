@@ -8,7 +8,6 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
-#include "src/heap/read-only-spaces.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots-inl.h"
@@ -111,9 +110,7 @@ TEST(PagedSpaceIterator) {
 TEST(SpaceIterator) {
   auto* const read_only_space = CcTest::read_only_heap()->read_only_space();
   for (SpaceIterator it(CcTest::heap()); it.HasNext();) {
-    // ReadOnlySpace is not actually a Space but is instead a BaseSpace, but
-    // ensure it's not been inserted incorrectly.
-    CHECK_NE(it.Next(), reinterpret_cast<BaseSpace*>(read_only_space));
+    CHECK_NE(it.Next(), reinterpret_cast<Space*>(read_only_space));
   }
 }
 

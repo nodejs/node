@@ -38,30 +38,6 @@ the [event loop][] and other operation system abstractions to Node.js.
 
 There is a [reference documentation for the libuv API][].
 
-## File structure
-
-The Node.js C++ files follow this structure:
-
-The `.h` header files contain declarations, and sometimes definitions that don’t
-require including other headers (e.g. getters, setters, etc.). They should only
-include other `.h` header files and nothing else.
-
-The `-inl.h` header files contain definitions of inline functions from the
-corresponding `.h` header file (e.g. functions marked `inline` in the
-declaration or `template` functions).  They always include the corresponding
-`.h` header file, and can include other `.h` and `-inl.h` header files as
-needed.  It is not mandatory to split out the definitions from the `.h` file
-into an `-inl.h` file, but it becomes necessary when there are multiple
-definitions and contents of other `-inl.h` files start being used. Therefore, it
-is recommended to split a `-inl.h` file when inline functions become longer than
-a few lines to keep the corresponding `.h` file readable and clean. All visible
-definitions from the `-inl.h` file should be declared in the corresponding `.h`
-header file.
-
-The `.cc` files contain definitions of non-inline functions from the
-corresponding `.h` header file. They always include the corresponding `.h`
-header file, and can include other `.h` and `-inl.h` header files as needed.
-
 ## Helpful concepts
 
 A number of concepts are involved in putting together Node.js on top of V8 and
@@ -113,7 +89,7 @@ In most native Node.js objects, the first internal field is used to store a
 pointer to a [`BaseObject`][] subclass, which then contains all relevant
 information associated with the JavaScript object.
 
-Typical ways of working with internal fields are:
+The most typical way of working internal fields are:
 
 * `obj->InternalFieldCount()` to look up the number of internal fields for an
   object (`0` for regular JavaScript objects).
@@ -263,7 +239,7 @@ Node.js, and a sufficiently committed person could restructure Node.js to
 provide built-in modules inside of `vm.Context`s.
 
 Often, the `Context` is passed around for [exception handling][].
-Typical ways of accessing the current `Context` in the Node.js code are:
+Typical ways of accessing the current `Environment` in the Node.js code are:
 
 * Given an [`Isolate`][], using `isolate->GetCurrentContext()`.
 * Given an [`Environment`][], using `env->context()` to get the `Environment`’s
@@ -426,7 +402,7 @@ that state is through the use of `Environment::AddBindingData`, which gives
 binding functions access to an object for storing such state.
 That object is always a [`BaseObject`][].
 
-Its class needs to have a static `binding_data_name` field based on a
+Its class needs to have a static `binding_data_name` field that based on a
 constant string, in order to disambiguate it from other classes of this type,
 and which could e.g. match the binding’s name (in the example above, that would
 be `cares_wrap`).
@@ -519,16 +495,16 @@ The most common reasons for this are:
 holds a value of type `Local<T>`. It has methods that perform the same
 operations as the methods of `v8::Maybe`, but with different names:
 
-| `Maybe`              | `MaybeLocal`                   |
-| -------------------- | ------------------------------ |
-| `maybe.IsNothing()`  | `maybe_local.IsEmpty()`        |
-| `maybe.IsJust()`     | `!maybe_local.IsEmpty()`       |
-| `maybe.To(&value)`   | `maybe_local.ToLocal(&local)`  |
-| `maybe.ToChecked()`  | `maybe_local.ToLocalChecked()` |
-| `maybe.FromJust()`   | `maybe_local.ToLocalChecked()` |
-| `maybe.Check()`      | –                              |
-| `v8::Nothing<T>()`   | `v8::MaybeLocal<T>()`          |
-| `v8::Just<T>(value)` | `v8::MaybeLocal<T>(value)`     |
+| `Maybe`                | `MaybeLocal`                    |
+| ---------------------- | ------------------------------- |
+| `maybe.IsNothing()`    | `maybe_local.IsEmpty()`         |
+| `maybe.IsJust()`       | `!maybe_local.IsEmpty()`        |
+| `maybe.To(&value)`     | `maybe_local.ToLocal(&local)`   |
+| `maybe.ToChecked()`    | `maybe_local.ToLocalChecked()`  |
+| `maybe.FromJust()`     | `maybe_local.ToLocalChecked()`  |
+| `maybe.Check()`        | –                               |
+| `v8::Nothing<T>()`     | `v8::MaybeLocal<T>()`           |
+| `v8::Just<T>(value)`   | `v8::MaybeLocal<T>(value)`      |
 
 ##### Handling empty `Maybe`s
 
@@ -953,10 +929,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 }
 ```
 
-[C++ coding style]: ../doc/guides/cpp-style-guide.md
-[Callback scopes]: #callback-scopes
-[JavaScript value handles]: #js-handles
-[N-API]: https://nodejs.org/api/n-api.html
 [`BaseObject`]: #baseobject
 [`Context`]: #context
 [`Environment`]: #environment
@@ -979,6 +951,10 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`v8.h` in Node.js master]: https://github.com/nodejs/node/blob/master/deps/v8/include/v8.h
 [`v8.h` in V8 master]: https://github.com/v8/v8/blob/master/include/v8.h
 [`vm` module]: https://nodejs.org/api/vm.html
+[C++ coding style]: ../doc/guides/cpp-style-guide.md
+[Callback scopes]: #callback-scopes
+[JavaScript value handles]: #js-handles
+[N-API]: https://nodejs.org/api/n-api.html
 [binding function]: #binding-functions
 [cleanup hooks]: #cleanup-hooks
 [event loop]: #event-loop

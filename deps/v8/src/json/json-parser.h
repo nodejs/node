@@ -151,8 +151,7 @@ class JsonParser final {
     return result;
   }
 
-  static constexpr uc32 kEndOfString = static_cast<uc32>(-1);
-  static constexpr uc32 kInvalidUnicodeCharacter = static_cast<uc32>(-1);
+  static const int kEndOfString = -1;
 
  private:
   struct JsonContinuation {

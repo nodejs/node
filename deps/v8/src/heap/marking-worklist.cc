@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <map>
 
-#include "src/heap/marking-worklist-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
@@ -18,35 +17,27 @@
 namespace v8 {
 namespace internal {
 
-MarkingWorklists::~MarkingWorklists() {
-  DCHECK(shared_.IsEmpty());
-  DCHECK(on_hold_.IsEmpty());
-  DCHECK(other_.IsEmpty());
+MarkingWorklistsHolder::~MarkingWorklistsHolder() {
   DCHECK(worklists_.empty());
   DCHECK(context_worklists_.empty());
 }
 
-void MarkingWorklists::Clear() {
+void MarkingWorklistsHolder::Clear() {
   shared_.Clear();
   on_hold_.Clear();
   embedder_.Clear();
-  other_.Clear();
   for (auto cw : context_worklists_) {
-    if (cw.context == kSharedContext || cw.context == kOtherContext) {
-      // These contexts were cleared above.
-      continue;
-    }
     cw.worklist->Clear();
   }
   ReleaseContextWorklists();
 }
 
-void MarkingWorklists::Print() {
+void MarkingWorklistsHolder::Print() {
   PrintWorklist("shared", &shared_);
   PrintWorklist("on_hold", &on_hold_);
 }
 
-void MarkingWorklists::CreateContextWorklists(
+void MarkingWorklistsHolder::CreateContextWorklists(
     const std::vector<Address>& contexts) {
   DCHECK(worklists_.empty());
   DCHECK(context_worklists_.empty());
@@ -62,17 +53,17 @@ void MarkingWorklists::CreateContextWorklists(
   }
 }
 
-void MarkingWorklists::ReleaseContextWorklists() {
+void MarkingWorklistsHolder::ReleaseContextWorklists() {
   context_worklists_.clear();
   worklists_.clear();
 }
 
-void MarkingWorklists::PrintWorklist(const char* worklist_name,
-                                     MarkingWorklist* worklist) {
+void MarkingWorklistsHolder::PrintWorklist(const char* worklist_name,
+                                           MarkingWorklist* worklist) {
 #ifdef DEBUG
   std::map<InstanceType, int> count;
   int total_count = 0;
-  worklist->Iterate([&count, &total_count](HeapObject obj) {
+  worklist->IterateGlobalPool([&count, &total_count](HeapObject obj) {
     ++total_count;
     count[obj.map().instance_type()]++;
   });
@@ -94,128 +85,111 @@ void MarkingWorklists::PrintWorklist(const char* worklist_name,
 #endif
 }
 
-const Address MarkingWorklists::Local::kSharedContext;
-const Address MarkingWorklists::Local::kOtherContext;
-
-MarkingWorklists::Local::Local(MarkingWorklists* global)
-    : on_hold_(global->on_hold()),
-      embedder_(global->embedder()),
-      is_per_context_mode_(false) {
-  if (global->context_worklists().empty()) {
-    MarkingWorklist::Local shared(global->shared());
-    active_ = std::move(shared);
-    active_context_ = kSharedContext;
-    active_owner_ = nullptr;
-  } else {
+MarkingWorklists::MarkingWorklists(int task_id, MarkingWorklistsHolder* holder)
+    : shared_(holder->shared()),
+      on_hold_(holder->on_hold()),
+      embedder_(holder->embedder()),
+      active_(shared_),
+      active_context_(kSharedContext),
+      task_id_(task_id),
+      is_per_context_mode_(false),
+      context_worklists_(holder->context_worklists()) {
+  if (!context_worklists_.empty()) {
     is_per_context_mode_ = true;
-    worklist_by_context_.reserve(global->context_worklists().size());
-    for (auto& cw : global->context_worklists()) {
-      worklist_by_context_[cw.context] =
-          std::make_unique<MarkingWorklist::Local>(cw.worklist);
+    worklist_by_context_.reserve(context_worklists_.size());
+    for (auto& cw : context_worklists_) {
+      worklist_by_context_[cw.context] = cw.worklist;
     }
-    active_owner_ = worklist_by_context_[kSharedContext].get();
-    active_ = std::move(*active_owner_);
-    active_context_ = kSharedContext;
   }
 }
 
-MarkingWorklists::Local::~Local() {
-  DCHECK(active_.IsLocalEmpty());
+void MarkingWorklists::FlushToGlobal() {
+  shared_->FlushToGlobal(task_id_);
+  on_hold_->FlushToGlobal(task_id_);
+  embedder_->FlushToGlobal(task_id_);
   if (is_per_context_mode_) {
-    for (auto& cw : worklist_by_context_) {
-      if (cw.first != active_context_) {
-        DCHECK(cw.second->IsLocalEmpty());
-      }
+    for (auto& cw : context_worklists_) {
+      cw.worklist->FlushToGlobal(task_id_);
     }
   }
 }
 
-void MarkingWorklists::Local::Publish() {
-  active_.Publish();
-  on_hold_.Publish();
-  embedder_.Publish();
-  if (is_per_context_mode_) {
-    for (auto& cw : worklist_by_context_) {
-      if (cw.first != active_context_) {
-        cw.second->Publish();
-      }
-    }
-  }
-}
-
-bool MarkingWorklists::Local::IsEmpty() {
+bool MarkingWorklists::IsEmpty() {
   // This function checks the on_hold_ worklist, so it works only for the main
   // thread.
-  if (!active_.IsLocalEmpty() || !on_hold_.IsLocalEmpty() ||
-      !active_.IsGlobalEmpty() || !on_hold_.IsGlobalEmpty()) {
+  DCHECK_EQ(kMainThreadTask, task_id_);
+  if (!active_->IsLocalEmpty(task_id_) || !on_hold_->IsLocalEmpty(task_id_) ||
+      !active_->IsGlobalPoolEmpty() || !on_hold_->IsGlobalPoolEmpty()) {
     return false;
   }
   if (!is_per_context_mode_) {
+    DCHECK_EQ(active_, shared_);
     return true;
   }
-  for (auto& cw : worklist_by_context_) {
-    if (cw.first != active_context_ &&
-        !(cw.second->IsLocalEmpty() && cw.second->IsGlobalEmpty())) {
-      SwitchToContext(cw.first, cw.second.get());
+  for (auto& cw : context_worklists_) {
+    if (!cw.worklist->IsLocalEmpty(task_id_) ||
+        !cw.worklist->IsGlobalPoolEmpty()) {
+      active_ = cw.worklist;
+      active_context_ = cw.context;
       return false;
     }
   }
   return true;
 }
 
-bool MarkingWorklists::Local::IsEmbedderEmpty() const {
-  return embedder_.IsLocalEmpty() && embedder_.IsGlobalEmpty();
+bool MarkingWorklists::IsEmbedderEmpty() {
+  return embedder_->IsLocalEmpty(task_id_) && embedder_->IsGlobalPoolEmpty();
 }
 
-void MarkingWorklists::Local::ShareWork() {
-  if (!active_.IsLocalEmpty() && active_.IsGlobalEmpty()) {
-    active_.Publish();
+void MarkingWorklists::ShareWorkIfGlobalPoolIsEmpty() {
+  if (!shared_->IsLocalEmpty(task_id_) && shared_->IsGlobalPoolEmpty()) {
+    shared_->FlushToGlobal(task_id_);
   }
-  if (is_per_context_mode_ && active_context_ != kSharedContext) {
-    MarkingWorklist::Local* shared = worklist_by_context_[kSharedContext].get();
-    if (!shared->IsLocalEmpty() && shared->IsGlobalEmpty()) {
-      shared->Publish();
+  if (is_per_context_mode_ && shared_ != active_) {
+    if (!active_->IsLocalEmpty(task_id_) && active_->IsGlobalPoolEmpty()) {
+      active_->FlushToGlobal(task_id_);
     }
   }
 }
 
-void MarkingWorklists::Local::MergeOnHold() {
-  MarkingWorklist::Local* shared =
-      active_context_ == kSharedContext
-          ? &active_
-          : worklist_by_context_[kSharedContext].get();
-  shared->Merge(&on_hold_);
+void MarkingWorklists::MergeOnHold() {
+  DCHECK_EQ(kMainThreadTask, task_id_);
+  shared_->MergeGlobalPool(on_hold_);
 }
 
-bool MarkingWorklists::Local::PopContext(HeapObject* object) {
+bool MarkingWorklists::PopContext(HeapObject* object) {
   DCHECK(is_per_context_mode_);
   // As an optimization we first check only the local segments to avoid locks.
-  for (auto& cw : worklist_by_context_) {
-    if (cw.first != active_context_ && !cw.second->IsLocalEmpty()) {
-      SwitchToContext(cw.first, cw.second.get());
-      return active_.Pop(object);
+  for (auto& cw : context_worklists_) {
+    if (!cw.worklist->IsLocalEmpty(task_id_)) {
+      active_ = cw.worklist;
+      active_context_ = cw.context;
+      return active_->Pop(task_id_, object);
     }
   }
   // All local segments are empty. Check global segments.
-  for (auto& cw : worklist_by_context_) {
-    if (cw.first != active_context_ && cw.second->Pop(object)) {
-      SwitchToContext(cw.first, cw.second.get());
+  for (auto& cw : context_worklists_) {
+    if (cw.worklist->Pop(task_id_, object)) {
+      active_ = cw.worklist;
+      active_context_ = cw.context;
       return true;
     }
   }
   // All worklists are empty. Switch to the default shared worklist.
-  SwitchToContext(kSharedContext);
+  SwitchToShared();
   return false;
 }
 
-Address MarkingWorklists::Local::SwitchToContextSlow(Address context) {
+Address MarkingWorklists::SwitchToContextSlow(Address context) {
   const auto& it = worklist_by_context_.find(context);
   if (V8_UNLIKELY(it == worklist_by_context_.end())) {
     // This context was created during marking or is not being measured,
     // so we don't have a specific worklist for it.
-    SwitchToContext(kOtherContext, worklist_by_context_[kOtherContext].get());
+    active_context_ = kOtherContext;
+    active_ = worklist_by_context_[active_context_];
   } else {
-    SwitchToContext(it->first, it->second.get());
+    active_ = it->second;
+    active_context_ = context;
   }
   return active_context_;
 }

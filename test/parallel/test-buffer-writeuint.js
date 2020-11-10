@@ -3,11 +3,13 @@
 require('../common');
 const assert = require('assert');
 
-// We need to check the following things:
-//  - We are correctly resolving big endian (doesn't mean anything for 8 bit)
-//  - Correctly resolving little endian (doesn't mean anything for 8 bit)
-//  - Correctly using the offsets
-//  - Correctly interpreting values that are beyond the signed range as unsigned
+/*
+ * We need to check the following things:
+ *  - We are correctly resolving big endian (doesn't mean anything for 8 bit)
+ *  - Correctly resolving little endian (doesn't mean anything for 8 bit)
+ *  - Correctly using the offsets
+ *  - Correctly interpreting values that are beyond the signed range as unsigned
+ */
 
 { // OOB
   const data = Buffer.alloc(8);
@@ -217,14 +219,4 @@ const assert = require('assert');
 
     val *= 0x100;
   }
-}
-
-for (const fn of [
-  'UInt8', 'UInt16LE', 'UInt16BE', 'UInt32LE', 'UInt32BE', 'UIntLE', 'UIntBE',
-  'BigUInt64LE', 'BigUInt64BE',
-]) {
-  const p = Buffer.prototype;
-  const lowerFn = fn.replace(/UInt/, 'Uint');
-  assert.strictEqual(p[`write${fn}`], p[`write${lowerFn}`]);
-  assert.strictEqual(p[`read${fn}`], p[`read${lowerFn}`]);
 }

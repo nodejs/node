@@ -23,7 +23,7 @@ ProxySetProperty(implicit context: Context)(
     receiverValue: JSAny): JSAny {
   // 1. Assert: IsPropertyKey(P) is true.
   assert(TaggedIsNotSmi(name));
-  assert(Is<Name>(name));
+  assert(IsName(name));
 
   let key: PropertyKey;
   typeswitch (name) {

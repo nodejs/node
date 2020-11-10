@@ -31,7 +31,8 @@ function test(mode, asString) {
 
   {
     const dir = path.join(tmpdir.path, `mkdir-${suffix}`);
-    fs.mkdir(dir, input, common.mustSucceed(() => {
+    fs.mkdir(dir, input, common.mustCall((err) => {
+      assert.ifError(err);
       assert.strictEqual(fs.statSync(dir).mode & 0o777, mode);
     }));
   }

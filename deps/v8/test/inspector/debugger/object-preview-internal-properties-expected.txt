@@ -40,24 +40,24 @@ expression: Object(BigInt(2))
 Running test: promise
 expression: Promise.resolve(42)
 {
-    name : [[PromiseState]]
+    name : [[PromiseStatus]]
     type : string
     value : fulfilled
 }
 {
-    name : [[PromiseResult]]
+    name : [[PromiseValue]]
     type : number
     value : 42
 }
 
 expression: new Promise(() => undefined)
 {
-    name : [[PromiseState]]
+    name : [[PromiseStatus]]
     type : string
     value : pending
 }
 {
-    name : [[PromiseResult]]
+    name : [[PromiseValue]]
     type : undefined
     value : undefined
 }
@@ -66,7 +66,7 @@ expression: new Promise(() => undefined)
 Running test: generatorObject
 expression: (function* foo() { yield 1 })()
 {
-    name : [[GeneratorState]]
+    name : [[GeneratorStatus]]
     type : string
     value : suspended
 }
@@ -249,12 +249,12 @@ expression: ({})
 Running test: overridenArrayGetter
 expression: Promise.resolve(42)
 {
-    name : [[PromiseState]]
+    name : [[PromiseStatus]]
     type : string
     value : fulfilled
 }
 {
-    name : [[PromiseResult]]
+    name : [[PromiseValue]]
     type : number
     value : 42
 }

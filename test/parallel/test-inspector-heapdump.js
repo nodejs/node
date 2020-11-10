@@ -18,7 +18,8 @@ session.on('HeapProfiler.addHeapSnapshotChunk', (m) => {
   chunks.push(m.params.chunk);
 });
 
-session.post('HeapProfiler.takeHeapSnapshot', null, common.mustSucceed((r) => {
+session.post('HeapProfiler.takeHeapSnapshot', null, common.mustCall((e, r) => {
+  assert.ifError(e);
   assert.deepStrictEqual(r, {});
   session.disconnect();
 

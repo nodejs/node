@@ -92,14 +92,8 @@ signed by someone who has been authorized to create a release.
 
 The GPG keys should be fetchable from a known third-party keyserver. The SKS
 Keyservers at <https://sks-keyservers.net> are recommended. Use the
-[submission](https://pgp.mit.edu/) form to submit a new GPG key. You'll need to
-do an ASCII-armored export of your key first:
-
-```console
-$ gpg --armor --export email@server.com > ~/nodekey.asc
-```
-
-Keys should be fetchable via:
+[submission](https://pgp.mit.edu/) form to submit a new GPG key. Keys should be
+fetchable via:
 
 ```console
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys <FINGERPRINT>
@@ -604,8 +598,6 @@ $ ./tools/release.sh -i ~/.ssh/node_id_rsa
 
 `tools/release.sh` will perform the following actions when run:
 
-<details>
-
 **a.** Select a GPG key from your private keys. It will use a command similar
 to: `gpg --list-secret-keys` to list your keys. If you don't have any keys, it
 will bail. If you have only one key, it will use that. If you have more than
@@ -639,7 +631,6 @@ SHASUMS256.txt.sig.
 
 **g.** Upload the `SHASUMS256.txt` files back to the server into the release
 directory.
-</details>
 
 If you didn't wait for ARM builds in the previous step before promoting the
 release, you should re-run `tools/release.sh` after the ARM builds have
@@ -756,14 +747,6 @@ For example:
 
 The changes must be made as part of a new semver-minor release.
 
-### Update release labels
-
-The `lts-watch-vN.x` issue label must be created, with the same color as other
-existing labels for that release line, such as `vN.x`.
-
-If the release is transitioning from Active LTS to Maintenance, the
-`backport-requested-vN.x` label must be deleted.
-
 ## Major Releases
 
 The process for cutting a new Node.js major release has a number of differences
@@ -799,21 +782,6 @@ up until the date of release.
 One month or less before the release date, commits must be cherry-picked into
 the two branches. To land `SEMVER-MAJOR` at this time requires no objections
 from the TSC.
-
-### Create release labels
-
-The following issue labels must be created:
-
-* `vN.x`
-* `backport-blocked-vN.x`
-* `backport-open-vN.x`
-* `backport-requested-vN.x`
-* `backported-to-vN.x`
-* `dont-land-on-vN.x`
-
-The label description can be copied from existing labels of previous releases.
-The label color must be the same for all new labels, but different from the
-labels of previous releases.
 
 ### Release Proposal
 
@@ -875,9 +843,9 @@ test, or doc-related are to be listed as notable changes. Some SEMVER-MINOR
 commits may be listed as notable changes on a case-by-case basis. Use your
 judgment there.
 
-[Build issue tracker]: https://github.com/nodejs/build/issues/new
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
-[Partner Communities]: https://github.com/nodejs/community-committee/blob/master/governance/PARTNER_COMMUNITIES.md
+[Build issue tracker]: https://github.com/nodejs/build/issues/new
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
+[Partner Communities]: https://github.com/nodejs/community-committee/blob/master/governance/PARTNER_COMMUNITIES.md
 [webchat.freenode.net]: https://webchat.freenode.net/

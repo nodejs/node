@@ -3,16 +3,6 @@
 #include "env-inl.h"
 #include "gtest/gtest.h"
 
-using node::Calloc;
-using node::Malloc;
-using node::MaybeStackBuffer;
-using node::SPrintF;
-using node::StringEqualNoCase;
-using node::StringEqualNoCaseN;
-using node::ToLower;
-using node::UncheckedCalloc;
-using node::UncheckedMalloc;
-
 TEST(UtilTest, ListHead) {
   struct Item { node::ListNode<Item> node_; };
   typedef node::ListHead<Item, &Item::node_> List;
@@ -68,6 +58,7 @@ TEST(UtilTest, ListHead) {
 }
 
 TEST(UtilTest, StringEqualNoCase) {
+  using node::StringEqualNoCase;
   EXPECT_FALSE(StringEqualNoCase("a", "b"));
   EXPECT_TRUE(StringEqualNoCase("", ""));
   EXPECT_TRUE(StringEqualNoCase("equal", "equal"));
@@ -78,6 +69,7 @@ TEST(UtilTest, StringEqualNoCase) {
 }
 
 TEST(UtilTest, StringEqualNoCaseN) {
+  using node::StringEqualNoCaseN;
   EXPECT_FALSE(StringEqualNoCaseN("a", "b", strlen("a")));
   EXPECT_TRUE(StringEqualNoCaseN("", "", strlen("")));
   EXPECT_TRUE(StringEqualNoCaseN("equal", "equal", strlen("equal")));
@@ -92,6 +84,7 @@ TEST(UtilTest, StringEqualNoCaseN) {
 }
 
 TEST(UtilTest, ToLower) {
+  using node::ToLower;
   EXPECT_EQ('0', ToLower('0'));
   EXPECT_EQ('a', ToLower('a'));
   EXPECT_EQ('a', ToLower('A'));
@@ -105,6 +98,7 @@ TEST(UtilTest, ToLower) {
   } while (0)
 
 TEST(UtilTest, Malloc) {
+  using node::Malloc;
   TEST_AND_FREE(Malloc<char>(0));
   TEST_AND_FREE(Malloc<char>(1));
   TEST_AND_FREE(Malloc(0));
@@ -112,6 +106,7 @@ TEST(UtilTest, Malloc) {
 }
 
 TEST(UtilTest, Calloc) {
+  using node::Calloc;
   TEST_AND_FREE(Calloc<char>(0));
   TEST_AND_FREE(Calloc<char>(1));
   TEST_AND_FREE(Calloc(0));
@@ -119,6 +114,7 @@ TEST(UtilTest, Calloc) {
 }
 
 TEST(UtilTest, UncheckedMalloc) {
+  using node::UncheckedMalloc;
   TEST_AND_FREE(UncheckedMalloc<char>(0));
   TEST_AND_FREE(UncheckedMalloc<char>(1));
   TEST_AND_FREE(UncheckedMalloc(0));
@@ -126,6 +122,7 @@ TEST(UtilTest, UncheckedMalloc) {
 }
 
 TEST(UtilTest, UncheckedCalloc) {
+  using node::UncheckedCalloc;
   TEST_AND_FREE(UncheckedCalloc<char>(0));
   TEST_AND_FREE(UncheckedCalloc<char>(1));
   TEST_AND_FREE(UncheckedCalloc(0));
@@ -134,31 +131,33 @@ TEST(UtilTest, UncheckedCalloc) {
 
 template <typename T>
 static void MaybeStackBufferBasic() {
+  using node::MaybeStackBuffer;
+
   MaybeStackBuffer<T> buf;
   size_t old_length;
   size_t old_capacity;
 
-  // Default constructor.
+  /* Default constructor */
   EXPECT_EQ(0U, buf.length());
   EXPECT_FALSE(buf.IsAllocated());
   EXPECT_GT(buf.capacity(), buf.length());
 
-  // SetLength() expansion.
+  /* SetLength() expansion */
   buf.SetLength(buf.capacity());
   EXPECT_EQ(buf.capacity(), buf.length());
   EXPECT_FALSE(buf.IsAllocated());
 
-  // Means of accessing raw buffer.
+  /* Means of accessing raw buffer */
   EXPECT_EQ(buf.out(), *buf);
   EXPECT_EQ(&buf[0], *buf);
 
-  // Basic I/O.
+  /* Basic I/O */
   for (size_t i = 0; i < buf.length(); i++)
     buf[i] = static_cast<T>(i);
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
-  // SetLengthAndZeroTerminate().
+  /* SetLengthAndZeroTerminate() */
   buf.SetLengthAndZeroTerminate(buf.capacity() - 1);
   EXPECT_EQ(buf.capacity() - 1, buf.length());
   for (size_t i = 0; i < buf.length(); i++)
@@ -166,7 +165,7 @@ static void MaybeStackBufferBasic() {
   buf.SetLength(buf.capacity());
   EXPECT_EQ(0, buf[buf.length() - 1]);
 
-  // Initial Realloc.
+  /* Initial Realloc */
   old_length = buf.length() - 1;
   old_capacity = buf.capacity();
   buf.AllocateSufficientStorage(buf.capacity() * 2);
@@ -176,7 +175,7 @@ static void MaybeStackBufferBasic() {
     EXPECT_EQ(static_cast<T>(i), buf[i]);
   EXPECT_EQ(0, buf[old_length]);
 
-  // SetLength() reduction and expansion.
+  /* SetLength() reduction and expansion */
   for (size_t i = 0; i < buf.length(); i++)
     buf[i] = static_cast<T>(i);
   buf.SetLength(10);
@@ -186,7 +185,7 @@ static void MaybeStackBufferBasic() {
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
-  // Subsequent Realloc.
+  /* Subsequent Realloc */
   old_length = buf.length();
   old_capacity = buf.capacity();
   buf.AllocateSufficientStorage(old_capacity * 1.5);
@@ -196,13 +195,13 @@ static void MaybeStackBufferBasic() {
   for (size_t i = 0; i < old_length; i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
-  // Basic I/O on Realloc'd buffer.
+  /* Basic I/O on Realloc'd buffer */
   for (size_t i = 0; i < buf.length(); i++)
     buf[i] = static_cast<T>(i);
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
-  // Release().
+  /* Release() */
   T* rawbuf = buf.out();
   buf.Release();
   EXPECT_EQ(0U, buf.length());
@@ -212,10 +211,12 @@ static void MaybeStackBufferBasic() {
 }
 
 TEST(UtilTest, MaybeStackBuffer) {
+  using node::MaybeStackBuffer;
+
   MaybeStackBufferBasic<uint8_t>();
   MaybeStackBufferBasic<uint16_t>();
 
-  // Constructor with size parameter.
+  // Constructor with size parameter
   {
     MaybeStackBuffer<unsigned char> buf(100);
     EXPECT_EQ(100U, buf.length());
@@ -239,7 +240,7 @@ TEST(UtilTest, MaybeStackBuffer) {
       EXPECT_EQ(static_cast<unsigned char>(i), bigbuf[i]);
   }
 
-  // Invalidated buffer.
+  // Invalidated buffer
   {
     MaybeStackBuffer<char> buf;
     buf.Invalidate();
@@ -253,6 +254,8 @@ TEST(UtilTest, MaybeStackBuffer) {
 }
 
 TEST(UtilTest, SPrintF) {
+  using node::SPrintF;
+
   // %d, %u and %s all do the same thing. The actual C++ type is used to infer
   // the right representation.
   EXPECT_EQ(SPrintF("%s", false), "false");

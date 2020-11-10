@@ -37,6 +37,8 @@
 #ifndef __NR_recvmmsg
 # if defined(__x86_64__)
 #  define __NR_recvmmsg 299
+# elif defined(__i386__)
+#  define __NR_recvmmsg 337
 # elif defined(__arm__)
 #  define __NR_recvmmsg (UV_SYSCALL_BASE + 365)
 # endif
@@ -45,6 +47,8 @@
 #ifndef __NR_sendmmsg
 # if defined(__x86_64__)
 #  define __NR_sendmmsg 307
+# elif defined(__i386__)
+#  define __NR_sendmmsg 345
 # elif defined(__arm__)
 #  define __NR_sendmmsg (UV_SYSCALL_BASE + 374)
 # endif
@@ -90,24 +94,6 @@
 # endif
 #endif /* __NR_pwritev */
 
-#ifndef __NR_copy_file_range
-# if defined(__x86_64__)
-#  define __NR_copy_file_range 326
-# elif defined(__i386__)
-#  define __NR_copy_file_range 377
-# elif defined(__s390__)
-#  define __NR_copy_file_range 375
-# elif defined(__arm__)
-#  define __NR_copy_file_range (UV_SYSCALL_BASE + 391)
-# elif defined(__aarch64__)
-#  define __NR_copy_file_range 285
-# elif defined(__powerpc__)
-#  define __NR_copy_file_range 379
-# elif defined(__arc__)
-#  define __NR_copy_file_range 285
-# endif
-#endif /* __NR_copy_file_range */
-
 #ifndef __NR_statx
 # if defined(__x86_64__)
 #  define __NR_statx 332
@@ -142,51 +128,25 @@
 
 struct uv__mmsghdr;
 
-int uv__sendmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen) {
-#if defined(__i386__)
-  unsigned long args[4];
-  int rc;
-
-  args[0] = (unsigned long) fd;
-  args[1] = (unsigned long) mmsg;
-  args[2] = (unsigned long) vlen;
-  args[3] = /* flags */ 0;
-
-  /* socketcall() raises EINVAL when SYS_SENDMMSG is not supported. */
-  rc = syscall(/* __NR_socketcall */ 102, 20 /* SYS_SENDMMSG */, args);
-  if (rc == -1)
-    if (errno == EINVAL)
-      errno = ENOSYS;
-
-  return rc;
-#elif defined(__NR_sendmmsg)
-  return syscall(__NR_sendmmsg, fd, mmsg, vlen, /* flags */ 0);
+int uv__sendmmsg(int fd,
+                 struct uv__mmsghdr* mmsg,
+                 unsigned int vlen,
+                 unsigned int flags) {
+#if defined(__NR_sendmmsg)
+  return syscall(__NR_sendmmsg, fd, mmsg, vlen, flags);
 #else
   return errno = ENOSYS, -1;
 #endif
 }
 
 
-int uv__recvmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen) {
-#if defined(__i386__)
-  unsigned long args[5];
-  int rc;
-
-  args[0] = (unsigned long) fd;
-  args[1] = (unsigned long) mmsg;
-  args[2] = (unsigned long) vlen;
-  args[3] = /* flags */ 0;
-  args[4] = /* timeout */ 0;
-
-  /* socketcall() raises EINVAL when SYS_RECVMMSG is not supported. */
-  rc = syscall(/* __NR_socketcall */ 102, 19 /* SYS_RECVMMSG */, args);
-  if (rc == -1)
-    if (errno == EINVAL)
-      errno = ENOSYS;
-
-  return rc;
-#elif defined(__NR_recvmmsg)
-  return syscall(__NR_recvmmsg, fd, mmsg, vlen, /* flags */ 0, /* timeout */ 0);
+int uv__recvmmsg(int fd,
+                 struct uv__mmsghdr* mmsg,
+                 unsigned int vlen,
+                 unsigned int flags,
+                 struct timespec* timeout) {
+#if defined(__NR_recvmmsg)
+  return syscall(__NR_recvmmsg, fd, mmsg, vlen, flags, timeout);
 #else
   return errno = ENOSYS, -1;
 #endif
@@ -214,28 +174,6 @@ ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset)
 int uv__dup3(int oldfd, int newfd, int flags) {
 #if defined(__NR_dup3)
   return syscall(__NR_dup3, oldfd, newfd, flags);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-ssize_t
-uv__fs_copy_file_range(int fd_in,
-                       ssize_t* off_in,
-                       int fd_out,
-                       ssize_t* off_out,
-                       size_t len,
-                       unsigned int flags)
-{
-#ifdef __NR_copy_file_range
-  return syscall(__NR_copy_file_range,
-                 fd_in,
-                 off_in,
-                 fd_out,
-                 off_out,
-                 len,
-                 flags);
 #else
   return errno = ENOSYS, -1;
 #endif

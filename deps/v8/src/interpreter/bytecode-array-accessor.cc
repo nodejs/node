@@ -190,18 +190,6 @@ FeedbackSlot BytecodeArrayAccessor::GetSlotOperand(int operand_index) const {
   return FeedbackVector::ToSlot(index);
 }
 
-Register BytecodeArrayAccessor::GetReceiver() const {
-  return Register::FromParameterIndex(0, bytecode_array()->parameter_count());
-}
-
-Register BytecodeArrayAccessor::GetParameter(int parameter_index) const {
-  DCHECK_GE(parameter_index, 0);
-  // The parameter indices are shifted by 1 (receiver is the
-  // first entry).
-  return Register::FromParameterIndex(parameter_index + 1,
-                                      bytecode_array()->parameter_count());
-}
-
 Register BytecodeArrayAccessor::GetRegisterOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
@@ -273,24 +261,20 @@ Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
   return GetConstantAtIndex(GetIndexOperand(operand_index), isolate);
 }
 
-int BytecodeArrayAccessor::GetRelativeJumpTargetOffset() const {
+int BytecodeArrayAccessor::GetJumpTargetOffset() const {
   Bytecode bytecode = current_bytecode();
   if (interpreter::Bytecodes::IsJumpImmediate(bytecode)) {
     int relative_offset = GetUnsignedImmediateOperand(0);
     if (bytecode == Bytecode::kJumpLoop) {
       relative_offset = -relative_offset;
     }
-    return relative_offset;
+    return GetAbsoluteOffset(relative_offset);
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
     Smi smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
-    return smi.value();
+    return GetAbsoluteOffset(smi.value());
   } else {
     UNREACHABLE();
   }
-}
-
-int BytecodeArrayAccessor::GetJumpTargetOffset() const {
-  return GetAbsoluteOffset(GetRelativeJumpTargetOffset());
 }
 
 JumpTableTargetOffsets BytecodeArrayAccessor::GetJumpTableTargetOffsets()

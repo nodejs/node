@@ -1,40 +1,38 @@
-## iconv-lite: Pure JS character encoding conversion
+## Pure JS character encoding conversion [![Build Status](https://travis-ci.org/ashtuchkin/iconv-lite.svg?branch=master)](https://travis-ci.org/ashtuchkin/iconv-lite)
 
- * No need for native code compilation. Quick to install, works on Windows and in sandboxed environments like [Cloud9](http://c9.io).
+ * Doesn't need native code compilation. Works on Windows and in sandboxed environments like [Cloud9](http://c9.io).
  * Used in popular projects like [Express.js (body_parser)](https://github.com/expressjs/body-parser), 
    [Grunt](http://gruntjs.com/), [Nodemailer](http://www.nodemailer.com/), [Yeoman](http://yeoman.io/) and others.
  * Faster than [node-iconv](https://github.com/bnoordhuis/node-iconv) (see below for performance comparison).
- * Intuitive encode/decode API, including Streaming support.
- * In-browser usage via [browserify](https://github.com/substack/node-browserify) or [webpack](https://webpack.js.org/) (~180kb gzip compressed with Buffer shim included).
+ * Intuitive encode/decode API
+ * Streaming support for Node v0.10+
+ * [Deprecated] Can extend Node.js primitives (buffers, streams) to support all iconv-lite encodings.
+ * In-browser usage via [Browserify](https://github.com/substack/node-browserify) (~180k gzip compressed with Buffer shim included).
  * Typescript [type definition file](https://github.com/ashtuchkin/iconv-lite/blob/master/lib/index.d.ts) included.
- * React Native is supported (need to install `stream` module to enable Streaming API).
+ * React Native is supported (need to explicitly `npm install` two more modules: `buffer` and `stream`).
  * License: MIT.
 
-[![NPM Stats](https://nodei.co/npm/iconv-lite.png)](https://npmjs.org/package/iconv-lite/)  
-[![Build Status](https://travis-ci.org/ashtuchkin/iconv-lite.svg?branch=master)](https://travis-ci.org/ashtuchkin/iconv-lite)
-[![npm](https://img.shields.io/npm/v/iconv-lite.svg)](https://npmjs.org/package/iconv-lite/)
-[![npm downloads](https://img.shields.io/npm/dm/iconv-lite.svg)](https://npmjs.org/package/iconv-lite/)
-[![npm bundle size](https://img.shields.io/bundlephobia/min/iconv-lite.svg)](https://npmjs.org/package/iconv-lite/)
+[![NPM Stats](https://nodei.co/npm/iconv-lite.png?downloads=true&downloadRank=true)](https://npmjs.org/packages/iconv-lite/)
 
 ## Usage
 ### Basic API
 ```javascript
 var iconv = require('iconv-lite');
 
-// Convert from an encoded buffer to a js string.
+// Convert from an encoded buffer to js string.
 str = iconv.decode(Buffer.from([0x68, 0x65, 0x6c, 0x6c, 0x6f]), 'win1251');
 
-// Convert from a js string to an encoded buffer.
+// Convert from js string to an encoded buffer.
 buf = iconv.encode("Sample input string", 'win1251');
 
 // Check if encoding is supported
 iconv.encodingExists("us-ascii")
 ```
 
-### Streaming API
+### Streaming API (Node v0.10+)
 ```javascript
 
-// Decode stream (from binary data stream to js strings)
+// Decode stream (from binary stream to js strings)
 http.createServer(function(req, res) {
     var converterStream = iconv.decodeStream('win1251');
     req.pipe(converterStream);
@@ -59,10 +57,44 @@ http.createServer(function(req, res) {
 });
 ```
 
+### [Deprecated] Extend Node.js own encodings
+> NOTE: This doesn't work on latest Node versions. See [details](https://github.com/ashtuchkin/iconv-lite/wiki/Node-v4-compatibility).
+
+```javascript
+// After this call all Node basic primitives will understand iconv-lite encodings.
+iconv.extendNodeEncodings();
+
+// Examples:
+buf = new Buffer(str, 'win1251');
+buf.write(str, 'gbk');
+str = buf.toString('latin1');
+assert(Buffer.isEncoding('iso-8859-15'));
+Buffer.byteLength(str, 'us-ascii');
+
+http.createServer(function(req, res) {
+    req.setEncoding('big5');
+    req.collect(function(err, body) {
+        console.log(body);
+    });
+});
+
+fs.createReadStream("file.txt", "shift_jis");
+
+// External modules are also supported (if they use Node primitives, which they probably do).
+request = require('request');
+request({
+    url: "http://github.com/", 
+    encoding: "cp932"
+});
+
+// To remove extensions
+iconv.undoExtendNodeEncodings();
+```
+
 ## Supported encodings
 
  *  All node.js native encodings: utf8, ucs2 / utf16-le, ascii, binary, base64, hex.
- *  Additional unicode encodings: utf16, utf16-be, utf-7, utf-7-imap, utf32, utf32-le, and utf32-be.
+ *  Additional unicode encodings: utf16, utf16-be, utf-7, utf-7-imap.
  *  All widespread singlebyte encodings: Windows 125x family, ISO-8859 family, 
     IBM/DOS codepages, Macintosh family, KOI8 family, all others supported by iconv library. 
     Aliases like 'latin1', 'us-ascii' also supported.
@@ -100,12 +132,6 @@ smart about endianness in the following ways:
  * Decoding: uses BOM and 'spaces heuristic' to determine input endianness. Default is UTF-16LE, but can be 
    overridden with `defaultEncoding: 'utf-16be'` option. Strips BOM unless `stripBOM: false`.
  * Encoding: uses UTF-16LE and writes BOM by default. Use `addBOM: false` to override.
-
-## UTF-32 Encodings
-
-This library supports UTF-32LE, UTF-32BE and UTF-32 encodings. Like the UTF-16 encoding above, UTF-32 defaults to UTF-32LE, but uses BOM and 'spaces heuristics' to determine input endianness. 
- * The default of UTF-32LE can be overridden with the `defaultEncoding: 'utf-32be'` option. Strips BOM unless `stripBOM: false`.
- * Encoding: uses UTF-32LE and writes BOM by default. Use `addBOM: false` to override. (`defaultEncoding: 'utf-32be'` can also be used here to change encoding.)
 
 ## Other notes
 

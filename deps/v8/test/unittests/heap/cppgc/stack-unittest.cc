@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/base/stack.h"
+#include "src/heap/cppgc/stack.h"
 
 #include <memory>
 #include <ostream>
@@ -17,9 +17,6 @@
 
 namespace cppgc {
 namespace internal {
-
-using heap::base::Stack;
-using heap::base::StackVisitor;
 
 namespace {
 

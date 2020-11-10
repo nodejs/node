@@ -16,11 +16,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Guard equality of these constants. Ideally they should be merged at
-// some point.
-STATIC_ASSERT(kFrameStateOuterStateInput ==
-              FrameState::kFrameStateOuterStateInput);
-
 size_t hash_value(OutputFrameStateCombine const& sc) {
   return base::hash_value(sc.parameter_);
 }
@@ -106,7 +101,7 @@ uint8_t DeoptimizerParameterCountFor(ContinuationFrameStateMode mode) {
   UNREACHABLE();
 }
 
-FrameState CreateBuiltinContinuationFrameStateCommon(
+Node* CreateBuiltinContinuationFrameStateCommon(
     JSGraph* jsgraph, FrameStateType frame_type, Builtins::Name name,
     Node* closure, Node* context, Node** parameters, int parameter_count,
     Node* outer_frame_state,
@@ -124,14 +119,14 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
                                            shared);
   const Operator* op = common->FrameState(
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
-  return FrameState(graph->NewNode(op, params_node, jsgraph->EmptyStateValues(),
-                                   jsgraph->EmptyStateValues(), context,
-                                   closure, outer_frame_state));
+  return graph->NewNode(op, params_node, jsgraph->EmptyStateValues(),
+                        jsgraph->EmptyStateValues(), context, closure,
+                        outer_frame_state);
 }
 
 }  // namespace
 
-FrameState CreateStubBuiltinContinuationFrameState(
+Node* CreateStubBuiltinContinuationFrameState(
     JSGraph* jsgraph, Builtins::Name name, Node* context,
     Node* const* parameters, int parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode) {
@@ -169,7 +164,7 @@ FrameState CreateStubBuiltinContinuationFrameState(
       static_cast<int>(actual_parameters.size()), outer_frame_state);
 }
 
-FrameState CreateJavaScriptBuiltinContinuationFrameState(
+Node* CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* jsgraph, const SharedFunctionInfoRef& shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
@@ -207,7 +202,7 @@ FrameState CreateJavaScriptBuiltinContinuationFrameState(
       shared.object());
 }
 
-FrameState CreateGenericLazyDeoptContinuationFrameState(
+Node* CreateGenericLazyDeoptContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
     Node* context, Node* receiver, Node* outer_frame_state) {
   Node* stack_parameters[]{receiver};

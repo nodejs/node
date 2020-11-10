@@ -1,8 +1,12 @@
 ---
+section: using-npm
 title: developers
-section: 7
 description: Developer Guide
 ---
+
+# developers(7)
+
+## Developer Guide
 
 ### Description
 
@@ -96,8 +100,8 @@ least, you need:
   they'll get installed just like these ones.
 
 You can use `npm init` in the root of your package in order to get you
-started with a pretty basic package.json file.  See
-[`npm init`](/commands/npm-init) for more info.
+started with a pretty basic package.json file.  See [`npm init`](/cli-commands/npm-init) for
+more info.
 
 ### Keeping files *out* of your package
 
@@ -148,8 +152,8 @@ The following paths and files are never ignored, so adding them to
 If, given the structure of your project, you find `.npmignore` to be a
 maintenance headache, you might instead try populating the `files`
 property of `package.json`, which is an array of file or directory names
-that should be included in your package. Sometimes manually picking
-which items to allow is easier to manage than building a block list.
+that should be included in your package. Sometimes a whitelist is easier
+to manage than a blacklist.
 
 #### Testing whether your `.npmignore` or `files` config works
 
@@ -165,7 +169,7 @@ changes in real time without having to keep re-installing it.  (You do
 need to either re-link or `npm rebuild -g` to update compiled packages,
 of course.)
 
-More info at [`npm link`](/commands/npm-link).
+More info at [`npm link`](/cli-commands/npm-link).
 
 ### Before Publishing: Make Sure Your Package Installs and Works
 
@@ -213,7 +217,7 @@ npm adduser
 
 and then follow the prompts.
 
-This is documented better in [npm adduser](/commands/npm-adduser).
+This is documented better in [npm adduser](/cli-commands/npm-adduser).
 
 ### Publish your package
 
@@ -239,10 +243,10 @@ Tell the world how easy it is to install your program!
 
 ### See also
 
-* [npm](/commands/npm)
-* [npm init](/commands/npm-init)
+* [npm](/cli-commands/npm)
+* [npm init](/cli-commands/npm-init)
 * [package.json](/configuring-npm/package-json)
 * [npm scripts](/using-npm/scripts)
-* [npm publish](/commands/npm-publish)
-* [npm adduser](/commands/npm-adduser)
+* [npm publish](/cli-commands/npm-publish)
+* [npm adduser](/cli-commands/npm-adduser)
 * [npm registry](/using-npm/registry)

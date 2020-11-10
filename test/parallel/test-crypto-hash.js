@@ -129,6 +129,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
+    message: 'The "data" argument must be of type string or an instance of ' +
+      'Buffer, TypedArray, or DataView. Received undefined'
   });
 
 // Default UTF-8 encoding

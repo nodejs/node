@@ -1,12 +1,18 @@
-// The implementation of commands that are just "run a script"
-// test, start, stop, restart
+exports = module.exports = cmd
 
-const npm = require('../npm.js')
-const usageUtil = require('./usage.js')
+var npm = require('../npm.js')
+var usage = require('./usage.js')
 
-module.exports = stage => {
-  const cmd = (args, cb) => npm.commands.run([stage, ...args], cb)
-  const usage = usageUtil(stage, `npm ${stage} [-- <args>]`)
-  const completion = require('./completion/none.js')
-  return Object.assign(cmd, { usage, completion })
+function cmd (stage) {
+  function CMD (args, cb) {
+    npm.commands['run-script']([stage].concat(args), cb)
+  }
+  CMD.usage = usage(stage, 'npm ' + stage + ' [-- <args>]')
+  var installedShallow = require('./completion/installed-shallow.js')
+  CMD.completion = function (opts, cb) {
+    installedShallow(opts, function (d) {
+      return d.scripts && d.scripts[stage]
+    }, cb)
+  }
+  return CMD
 }

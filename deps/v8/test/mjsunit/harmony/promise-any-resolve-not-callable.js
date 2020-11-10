@@ -8,10 +8,14 @@ load('test/mjsunit/test-async.js');
 
 // Promise.any should call IteratorClose if Promise.resolve is not callable.
 
-let getIteratorCount = 0;
+let returnCount = 0;
 let iter = {
-  get [Symbol.iterator]() {
-    ++getIteratorCount;
+  [Symbol.iterator]() {
+    return {
+      return() {
+        returnCount++;
+      }
+    };
   }
 };
 
@@ -21,6 +25,6 @@ testAsync(assert => {
   assert.plan(2);
   Promise.any(iter).then(assert.unreachable, reason => {
     assert.equals(true, reason instanceof TypeError);
-    assert.equals(0, getIteratorCount);
+    assert.equals(1, returnCount);
   });
 });

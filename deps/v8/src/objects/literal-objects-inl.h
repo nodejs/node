@@ -95,8 +95,14 @@ void ObjectBoilerplateDescription::set_backing_store_size(
 OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArray)
 CAST_ACCESSOR(ClassBoilerplate)
 
-SMI_ACCESSORS(ClassBoilerplate, arguments_count,
-              FixedArray::OffsetOfElementAt(kArgumentsCountIndex))
+BIT_FIELD_ACCESSORS(ClassBoilerplate, flags, install_class_name_accessor,
+                    ClassBoilerplate::Flags::InstallClassNameAccessorBit)
+
+BIT_FIELD_ACCESSORS(ClassBoilerplate, flags, arguments_count,
+                    ClassBoilerplate::Flags::ArgumentsCountBits)
+
+SMI_ACCESSORS(ClassBoilerplate, flags,
+              FixedArray::OffsetOfElementAt(kFlagsIndex))
 
 ACCESSORS(ClassBoilerplate, static_properties_template, Object,
           FixedArray::OffsetOfElementAt(kClassPropertiesTemplateIndex))

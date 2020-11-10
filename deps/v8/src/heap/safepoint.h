@@ -47,7 +47,7 @@ class GlobalSafepoint {
   void Start();
   void End();
 
-  bool IsActive() { return active_safepoint_scopes_ > 0; }
+  bool IsActive() { return is_active_; }
 
  private:
   class Barrier {
@@ -63,8 +63,8 @@ class GlobalSafepoint {
     void Wait();
   };
 
-  void EnterSafepointScope();
-  void LeaveSafepointScope();
+  void StopThreads();
+  void ResumeThreads();
 
   void AddLocalHeap(LocalHeap* local_heap);
   void RemoveLocalHeap(LocalHeap* local_heap);
@@ -75,9 +75,7 @@ class GlobalSafepoint {
   base::Mutex local_heaps_mutex_;
   LocalHeap* local_heaps_head_;
 
-  int active_safepoint_scopes_;
-
-  LocalHeap* local_heap_of_this_thread_;
+  bool is_active_;
 
   friend class SafepointScope;
   friend class LocalHeap;

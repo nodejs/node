@@ -49,8 +49,6 @@ class CSignature : public MachineSignature {
       : MachineSignature(return_count, parameter_count, reps) {}
 
  public:
-  friend Zone;
-
   template <typename... Params>
   static void VerifyParams(MachineSignature* sig) {
     // Verifies the C signature against the machine types.
@@ -85,7 +83,7 @@ class CSignature : public MachineSignature {
       buffer[pos++] = p;
     }
     DCHECK_EQ(buffer_size, pos);
-    return zone->New<CSignature>(return_count, param_count, buffer);
+    return new (zone) CSignature(return_count, param_count, buffer);
   }
 };
 

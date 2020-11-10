@@ -1,4 +1,3 @@
-
 prefix known_issues
 
 # If a known issue does not apply to a platform, list the test name in the
@@ -28,3 +27,5 @@ test-vm-timeout-escape-queuemicrotask: SKIP
 # The Raspberry Pis are too slow to run this test.
 # See https://github.com/nodejs/build/issues/2227#issuecomment-608334574
 test-crypto-authenticated-stream: SKIP
+# The bug being checked is that the test never exits.
+test-fs-open-no-close: TIMEOUT

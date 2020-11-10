@@ -409,9 +409,6 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
                                    InternalCallbackScope::kNoFlags);
     task->Run();
   } else {
-    // The task is moved out of InternalCallbackScope if env is not available.
-    // This is a required else block, and should not be removed.
-    // See comment: https://github.com/nodejs/node/pull/34688#pullrequestreview-463867489
     task->Run();
   }
 }
@@ -511,12 +508,6 @@ bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
   std::shared_ptr<PerIsolatePlatformData> per_isolate = ForNodeIsolate(isolate);
   if (!per_isolate) return false;
   return per_isolate->FlushForegroundTasksInternal();
-}
-
-std::unique_ptr<v8::JobHandle> NodePlatform::PostJob(v8::TaskPriority priority,
-                                       std::unique_ptr<v8::JobTask> job_task) {
-  return v8::platform::NewDefaultJobHandle(
-      this, priority, std::move(job_task), NumberOfWorkerThreads());
 }
 
 bool NodePlatform::IdleTasksEnabled(Isolate* isolate) {

@@ -5,10 +5,11 @@
 #ifndef V8_ZONE_ZONE_LIST_INL_H_
 #define V8_ZONE_ZONE_LIST_INL_H_
 
+#include "src/zone/zone.h"
+
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/utils/memcopy.h"
-#include "src/zone/zone-list.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +19,7 @@ void ZoneList<T>::Add(const T& element, Zone* zone) {
   if (length_ < capacity_) {
     data_[length_++] = element;
   } else {
-    ZoneList<T>::ResizeAdd(element, zone);
+    ZoneList<T>::ResizeAdd(element, ZoneAllocationPolicy(zone));
   }
 }
 
@@ -28,16 +29,14 @@ void ZoneList<T>::AddAll(const ZoneList<T>& other, Zone* zone) {
 }
 
 template <typename T>
-void ZoneList<T>::AddAll(const Vector<const T>& other, Zone* zone) {
-  int length = other.length();
-  if (length == 0) return;
-
-  int result_length = length_ + length;
-  if (capacity_ < result_length) Resize(result_length, zone);
-  if (std::is_trivially_copyable<T>::value) {
-    memcpy(&data_[length_], other.begin(), sizeof(T) * length);
+void ZoneList<T>::AddAll(const Vector<T>& other, Zone* zone) {
+  int result_length = length_ + other.length();
+  if (capacity_ < result_length)
+    Resize(result_length, ZoneAllocationPolicy(zone));
+  if (std::is_fundamental<T>()) {
+    memcpy(data_ + length_, other.begin(), sizeof(*data_) * other.length());
   } else {
-    std::copy(other.begin(), other.end(), &data_[length_]);
+    for (int i = 0; i < other.length(); i++) data_[length_ + i] = other.at(i);
   }
   length_ = result_length;
 }
@@ -45,12 +44,13 @@ void ZoneList<T>::AddAll(const Vector<const T>& other, Zone* zone) {
 // Use two layers of inlining so that the non-inlined function can
 // use the same implementation as the inlined version.
 template <typename T>
-void ZoneList<T>::ResizeAdd(const T& element, Zone* zone) {
-  ResizeAddInternal(element, zone);
+void ZoneList<T>::ResizeAdd(const T& element, ZoneAllocationPolicy alloc) {
+  ResizeAddInternal(element, alloc);
 }
 
 template <typename T>
-void ZoneList<T>::ResizeAddInternal(const T& element, Zone* zone) {
+void ZoneList<T>::ResizeAddInternal(const T& element,
+                                    ZoneAllocationPolicy alloc) {
   DCHECK(length_ >= capacity_);
   // Grow the list capacity by 100%, but make sure to let it grow
   // even when the capacity is zero (possible initial case).
@@ -58,22 +58,18 @@ void ZoneList<T>::ResizeAddInternal(const T& element, Zone* zone) {
   // Since the element reference could be an element of the list, copy
   // it out of the old backing storage before resizing.
   T temp = element;
-  Resize(new_capacity, zone);
+  Resize(new_capacity, alloc);
   data_[length_++] = temp;
 }
 
 template <typename T>
-void ZoneList<T>::Resize(int new_capacity, Zone* zone) {
+void ZoneList<T>::Resize(int new_capacity, ZoneAllocationPolicy alloc) {
   DCHECK_LE(length_, new_capacity);
-  T* new_data = zone->NewArray<T>(new_capacity);
+  T* new_data = NewData(new_capacity, alloc);
   if (length_ > 0) {
-    if (std::is_trivially_copyable<T>::value) {
-      MemCopy(new_data, data_, length_ * sizeof(T));
-    } else {
-      std::copy(&data_[0], &data_[length_], &new_data[0]);
-    }
+    MemCopy(new_data, data_, length_ * sizeof(T));
   }
-  if (data_) zone->DeleteArray<T>(data_, capacity_);
+  ZoneList<T>::DeleteData(data_);
   data_ = new_data;
   capacity_ = new_capacity;
 }
@@ -113,9 +109,13 @@ T ZoneList<T>::Remove(int i) {
 }
 
 template <typename T>
-void ZoneList<T>::Clear(Zone* zone) {
-  if (data_) zone->DeleteArray<T>(data_, capacity_);
-  DropAndClear();
+void ZoneList<T>::Clear() {
+  DeleteData(data_);
+  // We don't call Initialize(0) since that requires passing a Zone,
+  // which we don't really need.
+  data_ = nullptr;
+  capacity_ = 0;
+  length_ = 0;
 }
 
 template <typename T>

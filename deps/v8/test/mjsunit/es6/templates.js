@@ -506,9 +506,9 @@ var obj = {
 })();
 
 
-(function testInvalidNumericEscapes() {
-  assertThrows(function() { eval("`\\8`"); }, SyntaxError)
-  assertThrows(function() { eval("`\\9`"); }, SyntaxError)
+(function testValidNumericEscapes() {
+  assertEquals("8", `\8`);
+  assertEquals("9", `\9`);
 })();
 
 

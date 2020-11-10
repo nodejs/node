@@ -184,7 +184,9 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
       assert(!stream.serverInitiated);
 
       let data = '';
-      pipeline(createReadStream(__filename), stream, common.mustSucceed());
+      pipeline(createReadStream(__filename), stream, common.mustCall((err) => {
+        assert.ifError(err);
+      }));
 
       stream.setEncoding('utf8');
       stream.on('blocked', common.mustNotCall());
@@ -344,7 +346,9 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
   }
 
   const stream = await req.openStream();
-  pipeline(createReadStream(__filename), stream, common.mustSucceed());
+  pipeline(createReadStream(__filename), stream, common.mustCall((err) => {
+    assert.ifError(err);
+  }));
   let data = '';
   stream.resume();
   stream.setEncoding('utf8');

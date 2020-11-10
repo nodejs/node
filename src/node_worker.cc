@@ -2,7 +2,6 @@
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
-#include "node_external_reference.h"
 #include "node_buffer.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
@@ -27,7 +26,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
-using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
@@ -137,7 +135,6 @@ class WorkerThreadData {
       return;
     }
     loop_init_failed_ = false;
-    uv_loop_configure(&loop_, UV_METRICS_IDLE_TIME);
 
     std::shared_ptr<ArrayBufferAllocator> allocator =
         ArrayBufferAllocator::Create();
@@ -159,9 +156,6 @@ class WorkerThreadData {
     Isolate::Initialize(isolate, params);
     SetIsolateUpForNode(isolate);
 
-    // Be sure it's called before Environment::InitializeDiagnostics()
-    // so that this callback stays when the callback of
-    // --heapsnapshot-near-heap-limit gets is popped.
     isolate->AddNearHeapLimitCallback(Worker::NearHeapLimit, w);
 
     {
@@ -180,8 +174,6 @@ class WorkerThreadData {
       if (w_->per_isolate_opts_)
         isolate_data_->set_options(std::move(w_->per_isolate_opts_));
       isolate_data_->set_worker_context(w_);
-      isolate_data_->max_young_gen_size =
-          params.constraints.max_young_generation_size_in_bytes();
     }
 
     Mutex::ScopedLock lock(w_->mutex_);
@@ -338,14 +330,42 @@ void Worker::Run() {
 
         Debug(this, "Loaded environment for worker %llu", thread_id_.id);
       }
+
+      if (is_stopped()) return;
+      {
+        SealHandleScope seal(isolate_);
+        bool more;
+        env_->performance_state()->Mark(
+            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
+        do {
+          if (is_stopped()) break;
+          uv_run(&data.loop_, UV_RUN_DEFAULT);
+          if (is_stopped()) break;
+
+          platform_->DrainTasks(isolate_);
+
+          more = uv_loop_alive(&data.loop_);
+          if (more && !is_stopped()) continue;
+
+          EmitBeforeExit(env_.get());
+
+          // Emit `beforeExit` if the loop became alive either after emitting
+          // event, or after running some callbacks.
+          more = uv_loop_alive(&data.loop_);
+        } while (more == true && !is_stopped());
+        env_->performance_state()->Mark(
+            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
+      }
     }
 
     {
-      Maybe<int> exit_code = SpinEventLoop(env_.get());
+      int exit_code;
+      bool stopped = is_stopped();
+      if (!stopped)
+        exit_code = EmitExit(env_.get());
       Mutex::ScopedLock lock(mutex_);
-      if (exit_code_ == 0 && exit_code.IsJust()) {
-        exit_code_ = exit_code.FromJust();
-      }
+      if (exit_code_ == 0 && !stopped)
+        exit_code_ = exit_code;
 
       Debug(this, "Exiting thread for worker %llu with exit code %d",
             thread_id_.id, exit_code_);
@@ -477,7 +497,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                             per_isolate_opts.get(),
                             kAllowedInEnvironment,
                             &errors);
-      if (!errors.empty() && args[1]->IsObject()) {
+      if (errors.size() > 0 && args[1]->IsObject()) {
         // Only fail for explicitly provided env, this protects from failures
         // when NODE_OPTIONS from parent's env is used (which is the default).
         Local<Value> error;
@@ -693,12 +713,6 @@ void Worker::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("parent_port", parent_port_);
 }
 
-bool Worker::IsNotIndicativeOfMemoryLeakAtExit() const {
-  // Worker objects always stay alive as long as the child thread, regardless
-  // of whether they are being referenced in the parent thread.
-  return true;
-}
-
 class WorkerHeapSnapshotTaker : public AsyncWrap {
  public:
   WorkerHeapSnapshotTaker(Environment* env, Local<Object> obj)
@@ -746,39 +760,6 @@ void Worker::TakeHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(scheduled ? taker->object() : Local<Object>());
 }
 
-void Worker::LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
-  Worker* w;
-  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-
-  Mutex::ScopedLock lock(w->mutex_);
-  // Using w->is_stopped() here leads to a deadlock, and checking is_stopped()
-  // before locking the mutex is a race condition. So manually do the same
-  // check.
-  if (w->stopped_ || w->env_ == nullptr)
-    return args.GetReturnValue().Set(-1);
-
-  uint64_t idle_time = uv_metrics_idle_time(w->env_->event_loop());
-  args.GetReturnValue().Set(1.0 * idle_time / 1e6);
-}
-
-void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
-  Worker* w;
-  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-
-  Mutex::ScopedLock lock(w->mutex_);
-  // Using w->is_stopped() here leads to a deadlock, and checking is_stopped()
-  // before locking the mutex is a race condition. So manually do the same
-  // check.
-  if (w->stopped_ || w->env_ == nullptr)
-    return args.GetReturnValue().Set(-1);
-
-  double loop_start_time = w->env_->performance_state()->milestones[
-      node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START];
-  CHECK_GE(loop_start_time, 0);
-  args.GetReturnValue().Set(
-      (loop_start_time - node::performance::timeOrigin) / 1e6);
-}
-
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates
@@ -812,8 +793,6 @@ void InitWorker(Local<Object> target,
     env->SetProtoMethod(w, "unref", Worker::Unref);
     env->SetProtoMethod(w, "getResourceLimits", Worker::GetResourceLimits);
     env->SetProtoMethod(w, "takeHeapSnapshot", Worker::TakeHeapSnapshot);
-    env->SetProtoMethod(w, "loopIdleTime", Worker::LoopIdleTime);
-    env->SetProtoMethod(w, "loopStartTime", Worker::LoopStartTime);
 
     Local<String> workerString =
         FIXED_ONE_BYTE_STRING(env->isolate(), "Worker");
@@ -871,22 +850,9 @@ void InitWorker(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kTotalResourceLimitCount);
 }
 
-void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(GetEnvMessagePort);
-  registry->Register(Worker::New);
-  registry->Register(Worker::StartThread);
-  registry->Register(Worker::StopThread);
-  registry->Register(Worker::Ref);
-  registry->Register(Worker::Unref);
-  registry->Register(Worker::GetResourceLimits);
-  registry->Register(Worker::TakeHeapSnapshot);
-  registry->Register(Worker::LoopIdleTime);
-  registry->Register(Worker::LoopStartTime);
-}
-
 }  // anonymous namespace
+
 }  // namespace worker
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(worker, node::worker::InitWorker)
-NODE_MODULE_EXTERNAL_REFERENCE(worker, node::worker::RegisterExternalReferences)

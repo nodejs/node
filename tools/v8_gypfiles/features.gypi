@@ -128,9 +128,6 @@
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
-    # Reverse JS arguments order in the stack (sets -dV8_REVERSE_JSARGS).
-    'v8_enable_reverse_jsargs%': 0,
-
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
 
@@ -148,6 +145,9 @@
 
     # Sets -dV8_CONCURRENT_MARKING
     'v8_enable_concurrent_marking%': 1,
+
+    # Sets -dV8_ARRAY_BUFFER_EXTENSION
+    'v8_enable_array_buffer_extension%': 1,
 
     # Enables various testing features.
     'v8_enable_test_features%': 0,
@@ -212,13 +212,9 @@
     # for ARM64.
     'v8_control_flow_integrity%': 0,
 
-    # Enable V8 zone compression experimental feature.
-    # Sets -DV8_COMPRESS_ZONES.
-    'v8_enable_zone_compression%': 0,
-
-    # Experimental feature for collecting per-class zone memory stats.
-    # Requires use_rtti = true
-    'v8_enable_precise_zone_stats%': 0,
+    # Experimental support for native context independent code.
+    # https://crbug.com/v8/8888
+    'v8_enable_nci_code%': 0,
 
     # Variables from v8.gni
 
@@ -259,9 +255,6 @@
       ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
       }],
-      ['v8_enable_zone_compression==1', {
-        'defines': ['V8_COMPRESS_ZONES',],
-      }],
       ['v8_enable_object_print==1', {
         'defines': ['OBJECT_PRINT',],
       }],
@@ -300,9 +293,6 @@
       },{
         'defines!': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
       }],
-      ['v8_enable_reverse_jsargs==1', {
-        'defines': ['V8_REVERSE_JSARGS',],
-      }],
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_INTL_SUPPORT',],
       }],
@@ -324,6 +314,9 @@
       }],
       ['v8_enable_concurrent_marking==1', {
         'defines': ['V8_CONCURRENT_MARKING',],
+      }],
+      ['v8_enable_array_buffer_extension==1', {
+        'defines': ['V8_ARRAY_BUFFER_EXTENSION',],
       }],
       ['v8_enable_lazy_source_positions==1', {
         'defines': ['V8_ENABLE_LAZY_SOURCE_POSITIONS',],
@@ -358,8 +351,8 @@
       ['v8_control_flow_integrity==1', {
         'defines': ['V8_ENABLE_CONTROL_FLOW_INTEGRITY',],
       }],
-      ['v8_enable_precise_zone_stats==1', {
-        'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
+      ['v8_enable_nci_code==1', {
+        'defines': ['V8_ENABLE_NCI_CODE',],
       }],
     ],  # conditions
     'defines': [

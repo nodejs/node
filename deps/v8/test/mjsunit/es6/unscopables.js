@@ -525,7 +525,7 @@ function TestUnscopablesGetter2() {
 TestUnscopablesGetter2();
 
 
-function TestSetterOnBlocklisted(object, proto) {
+function TestSetterOnBlacklisted(object, proto) {
   var x = 'local';
   Object.defineProperty(proto, 'x', {
     set: function(x) {
@@ -564,7 +564,7 @@ function TestSetterOnBlocklisted(object, proto) {
 
   assertEquals(2, object.x);
 }
-runTest(TestSetterOnBlocklisted);
+runTest(TestSetterOnBlacklisted);
 
 
 function TestObjectsAsUnscopables(object, unscopables) {

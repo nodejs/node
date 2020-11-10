@@ -36,7 +36,7 @@ properties:
 The N-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. A C++ API can be easier to use.
 To support using C++, the project maintains a
-C++ wrapper module called [`node-addon-api`][].
+C++ wrapper module called [node-addon-api][].
 This wrapper provides an inlineable C++ API. Binaries built
 with `node-addon-api` will depend on the symbols for the N-API C-based
 functions exported by Node.js. `node-addon-api` is a more
@@ -78,10 +78,6 @@ it still gets the benefits of the ABI stability provided by the C API.
 When using `node-addon-api` instead of the C APIs, start with the API [docs][]
 for `node-addon-api`.
 
-The [N-API Resource](https://nodejs.github.io/node-addon-examples/) offers an
-excellent orientation and tips for developers just getting started with N-API
-and `node-addon-api`.
-
 ## Implications of ABI stability
 
 Although N-API provides an ABI stability guarantee, other parts of Node.js do
@@ -111,7 +107,7 @@ versions:
     ```
 
 Thus, for an addon to remain ABI-compatible across Node.js major versions, it
-must use N-API exclusively by restricting itself to using
+must make use exclusively of N-API by restricting itself to using
 
 ```c
 #include <node_api.h>
@@ -147,7 +143,7 @@ tools. However, it is not necessary to install the entire Visual Studio
 IDE. The following command installs the necessary toolchain:
 
 ```bash
-npm install --global windows-build-tools
+npm install --global --production windows-build-tools
 ```
 
 The sections below describe the additional tools available for developing
@@ -244,104 +240,22 @@ from version 3 with some additions. This means that it is not necessary
 to recompile for new versions of Node.js which are
 listed as supporting a later version.
 
-<!-- For accessibility purposes, this table needs row headers. That means we
-     can't do it in markdown. Hence, the raw HTML. -->
-
-<table>
-  <tr>
-    <td></td>
-    <th scope="col">1</th>
-    <th scope="col">2</th>
-    <th scope="col">3</th>
-  </tr>
-  <tr>
-    <th scope="row">v6.x</th>
-    <td></td>
-    <td></td>
-    <td>v6.14.2*</td>
-  </tr>
-  <tr>
-    <th scope="row">v8.x</th>
-    <td>v8.6.0**</td>
-    <td>v8.10.0*</td>
-    <td>v8.11.2</td>
-  </tr>
-  <tr>
-    <th scope="row">v9.x</th>
-    <td>v9.0.0*</td>
-    <td>v9.3.0*</td>
-    <td>v9.11.0*</td>
-  </tr>
-  <tr>
-    <th scope="row">≥ v10.x</th>
-    <td>all releases</td>
-    <td>all releases</td>
-    <td>all releases</td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td></td>
-    <th scope="col">4</th>
-    <th scope="col">5</th>
-    <th scope="col">6</th>
-    <th scope="col">7</th>
-  </tr>
-  <tr>
-    <th scope="row">v10.x</th>
-    <td>v10.16.0</td>
-    <td>v10.17.0</td>
-    <td>v10.20.0</td>
-    <td></td>
-  </tr>
-  <tr>
-    <th scope="row">v11.x</th>
-    <td>v11.8.0</td>
-    <td></td>
-    <td></td>
-    <td></td>
-  </tr>
-  <tr>
-    <th scope="row">v12.x</th>
-    <td>v12.0.0</td>
-    <td>v12.11.0</td>
-    <td>v12.17.0</td>
-    <td>v12.19.0</td>
-  </tr>
-  <tr>
-    <th scope="row">v13.x</th>
-    <td>v13.0.0</td>
-    <td>v13.0.0</td>
-    <td></td>
-    <td></td>
-  </tr>
-  <tr>
-    <th scope="row">v14.x</th>
-    <td>v14.0.0</td>
-    <td>v14.0.0</td>
-    <td>v14.0.0</td>
-    <td>v14.12.0</td>
-  </tr>
-</table>
+|       | 1        | 2        | 3        | 4        | 5         | 6         |
+|-------|----------|----------|----------|----------|-----------|-----------|
+| v6.x  |          |          | v6.14.2* |          |           |           |
+| v8.x  | v8.6.0** | v8.10.0* | v8.11.2  | v8.16.0  |           |           |
+| v9.x  | v9.0.0*  | v9.3.0*  | v9.11.0* |          |           |           |
+| v10.x | v10.0.0  | v10.0.0  | v10.0.0  | v10.16.0 | v10.17.0  | v10.20.0  |
+| v11.x | v11.0.0  | v11.0.0  | v11.0.0  | v11.8.0  |           |           |
+| v12.x | v12.0.0  | v12.0.0  | v12.0.0  | v12.0.0  | v12.11.0  | v12.17.0  |
+| v13.x | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0   |           |
+| v14.x | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0   | v14.0.0   |
 
 \* N-API was experimental.
 
 \*\* Node.js 8.0.0 included N-API as experimental. It was released as N-API
 version 1 but continued to evolve until Node.js 8.6.0. The API is different in
 versions prior to Node.js 8.6.0. We recommend N-API version 3 or later.
-
-Each API documented for N-API will have a header named `added in:`, and APIs
-which are stable will have the additional header `N-API version:`.
-APIs are directly usable when using a Node.js version which supports
-the N-API version shown in `N-API version:` or higher.
-When using a Node.js version that does not support the
-`N-API version:` listed or if there is no `N-API version:` listed,
-then the API will only be available if
-`#define NAPI_EXPERIMENTAL` precedes the inclusion of `node_api.h`
-or `js_native_api.h`. If an API appears not to be available on
-a version of Node.js which is later than the one shown in `added in:` then
-this is most likely the reason for the apparent absence.
 
 The N-APIs associated strictly with accessing ECMAScript features from native
 code can be found separately in `js_native_api.h` and `js_native_api_types.h`.
@@ -434,6 +348,8 @@ NAPI_MODULE_INIT() {
 
 ## Environment life cycle APIs
 
+> Stability: 1 - Experimental
+
 [Section 8.7][] of the [ECMAScript Language Specification][] defines the concept
 of an "Agent" as a self-contained environment in which JavaScript code runs.
 Multiple such Agents may be started and terminated either concurrently or in
@@ -452,7 +368,7 @@ From the perspective of a native addon this means that the bindings it provides
 may be called multiple times, from multiple contexts, and even concurrently from
 multiple threads.
 
-Native addons may need to allocate global state which they use during
+Native addons may need to allocate global state of which they make use during
 their entire life cycle such that the state must be unique to each instance of
 the addon.
 
@@ -686,9 +602,7 @@ For more details, review the [Object lifetime management][].
 
 #### napi_type_tag
 <!-- YAML
-added:
-  - v14.8.0
-  - v12.19.0
+added: REPLACEME
 -->
 
 A 128-bit value stored as two unsigned 64-bit integers. It serves as a UUID
@@ -706,17 +620,6 @@ typedef struct {
   uint64_t upper;
 } napi_type_tag;
 ```
-
-#### napi_async_cleanup_hook_handle
-<!-- YAML
-added:
-  - v14.10.0
-  - v12.19.0
--->
-
-An opaque value returned by [`napi_add_async_cleanup_hook`][]. It must be passed
-to [`napi_remove_async_cleanup_hook`][] when the chain of asynchronous cleanup
-events completes.
 
 ### N-API callback types
 
@@ -845,32 +748,6 @@ typedef void (*napi_threadsafe_function_call_js)(napi_env env,
 
 Unless for reasons discussed in [Object Lifetime Management][], creating a
 handle and/or callback scope inside the function body is not necessary.
-
-#### napi_async_cleanup_hook
-<!-- YAML
-added:
-  - v14.10.0
-  - v12.19.0
--->
-
-Function pointer used with [`napi_add_async_cleanup_hook`][]. It will be called
-when the environment is being torn down.
-
-Callback functions must satisfy the following signature:
-
-```c
-typedef void (*napi_async_cleanup_hook)(napi_async_cleanup_hook_handle handle,
-                                        void* data);
-```
-
-* `[in] handle`: The handle that must be passed to
-[`napi_remove_async_cleanup_hook`][] after completion of the asynchronous
-cleanup.
-* `[in] data`: The data that was passed to [`napi_add_async_cleanup_hook`][].
-
-The body of the function should initiate the asynchronous cleanup actions at the
-end of which `handle` must be passed in a call to
-[`napi_remove_async_cleanup_hook`][].
 
 ## Error handling
 
@@ -1517,11 +1394,11 @@ for a reference is 0, all subsequent calls to
 get the object associated with the reference [`napi_get_reference_value`][]
 will return `NULL` for the returned `napi_value`. An attempt to call
 [`napi_reference_ref`][] for a reference whose object has been collected
-results in an error.
+will result in an error.
 
 References must be deleted once they are no longer required by the addon. When
-a reference is deleted, it will no longer prevent the corresponding object from
-being collected. Failure to delete a persistent reference results in
+a reference is deleted it will no longer prevent the corresponding object from
+being collected. Failure to delete a persistent reference will result in
 a 'memory leak' with both the native memory for the persistent reference and
 the corresponding object on the heap being retained forever.
 
@@ -1673,11 +1550,9 @@ and will lead the process to abort.
 The hooks will be called in reverse order, i.e. the most recently added one
 will be called first.
 
-Removing this hook can be done by using [`napi_remove_env_cleanup_hook`][].
+Removing this hook can be done by using `napi_remove_env_cleanup_hook`.
 Typically, that happens when the resource for which this hook was added
 is being torn down anyway.
-
-For asynchronous cleanup, [`napi_add_async_cleanup_hook`][] is available.
 
 #### napi_remove_env_cleanup_hook
 <!-- YAML
@@ -1697,77 +1572,6 @@ need to be exact matches.
 
 The function must have originally been registered
 with `napi_add_env_cleanup_hook`, otherwise the process will abort.
-
-#### napi_add_async_cleanup_hook
-<!-- YAML
-added:
-  - v14.8.0
-  - v12.19.0
-changes:
-  - version:
-    - v14.10.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34819
-    description: Changed signature of the `hook` callback.
--->
-
-> Stability: 1 - Experimental
-
-```c
-NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
-    napi_env env,
-    napi_async_cleanup_hook hook,
-    void* arg,
-    napi_async_cleanup_hook_handle* remove_handle);
-```
-
-* `[in] env`: The environment that the API is invoked under.
-* `[in] hook`: The function pointer to call at environment teardown.
-* `[in] arg`: The pointer to pass to `hook` when it gets called.
-* `[out] remove_handle`: Optional handle that refers to the asynchronous cleanup
-hook.
-
-Registers `hook`, which is a function of type [`napi_async_cleanup_hook`][], as
-a function to be run with the `remove_handle` and `arg` parameters once the
-current Node.js environment exits.
-
-Unlike [`napi_add_env_cleanup_hook`][], the hook is allowed to be asynchronous.
-
-Otherwise, behavior generally matches that of [`napi_add_env_cleanup_hook`][].
-
-If `remove_handle` is not `NULL`, an opaque value will be stored in it
-that must later be passed to [`napi_remove_async_cleanup_hook`][],
-regardless of whether the hook has already been invoked.
-Typically, that happens when the resource for which this hook was added
-is being torn down anyway.
-
-#### napi_remove_async_cleanup_hook
-<!-- YAML
-added:
-  - v14.8.0
-  - v12.19.0
-changes:
-  - version:
-    - v14.10.0
-    - v12.19.0
-    pr-url: https://github.com/nodejs/node/pull/34819
-    description: Removed `env` parameter.
--->
-
-> Stability: 1 - Experimental
-
-```c
-NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
-    napi_async_cleanup_hook_handle remove_handle);
-```
-
-* `[in] remove_handle`: The handle to an asynchronous cleanup hook that was
-created with [`napi_add_async_cleanup_hook`][].
-
-Unregisters the cleanup hook corresponding to `remove_handle`. This will prevent
-the hook from being executed, unless it has already started executing.
-This must be called on any `napi_async_cleanup_hook_handle` value obtained
-from [`napi_add_async_cleanup_hook`][].
 
 ## Module registration
 N-API modules are registered in a manner similar to other modules
@@ -1797,16 +1601,8 @@ provided by the addon:
 ```c
 napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
-  napi_property_descriptor desc = {
-    "hello",
-    NULL,
-    Method,
-    NULL,
-    NULL,
-    NULL,
-    napi_writable | napi_enumerable | napi_configurable,
-    NULL
-  };
+  napi_property_descriptor desc =
+    {"hello", NULL, Method, NULL, NULL, NULL, napi_default, NULL};
   status = napi_define_properties(env, exports, 1, &desc);
   if (status != napi_ok) return NULL;
   return exports;
@@ -1833,7 +1629,7 @@ To define a class so that new instances can be created (often used with
 napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor properties[] = {
-    { "value", NULL, NULL, GetValue, SetValue, NULL, napi_writable | napi_configurable, NULL },
+    { "value", NULL, NULL, GetValue, SetValue, NULL, napi_default, NULL },
     DECLARE_NAPI_METHOD("plusOne", PlusOne),
     DECLARE_NAPI_METHOD("multiply", Multiply),
   };
@@ -2489,8 +2285,8 @@ This API is used to convert from the C `int64_t` type to the JavaScript
 The JavaScript `Number` type is described in [Section 6.1.6][]
 of the ECMAScript Language Specification. Note the complete range of `int64_t`
 cannot be represented with full precision in JavaScript. Integer values
-outside the range of [`Number.MIN_SAFE_INTEGER`][] `-(2**53 - 1)` -
-[`Number.MAX_SAFE_INTEGER`][] `(2**53 - 1)` will lose precision.
+outside the range of [`Number.MIN_SAFE_INTEGER`][] `-(2^53 - 1)` -
+[`Number.MAX_SAFE_INTEGER`][] `(2^53 - 1)` will lose precision.
 
 #### napi_create_double
 <!-- YAML
@@ -3036,7 +2832,7 @@ of the given JavaScript `Number`.
 
 If the number exceeds the range of the 32 bit integer, then the result is
 truncated to the equivalent of the bottom 32 bits. This can result in a large
-positive number becoming a negative number if the value is > 2<sup>31</sup> - 1.
+positive number becoming a negative number if the value is > 2^31 -1.
 
 Non-finite number values (`NaN`, `+Infinity`, or `-Infinity`) set the
 result to zero.
@@ -3065,8 +2861,7 @@ This API returns the C `int64` primitive equivalent of the given JavaScript
 `Number`.
 
 `Number` values outside the range of [`Number.MIN_SAFE_INTEGER`][]
-`-(2**53 - 1)` - [`Number.MAX_SAFE_INTEGER`][] `(2**53 - 1)` will lose
-precision.
+`-(2^53 - 1)` - [`Number.MAX_SAFE_INTEGER`][] `(2^53 - 1)` will lose precision.
 
 Non-finite number values (`NaN`, `+Infinity`, or `-Infinity`) set the
 result to zero.
@@ -3088,10 +2883,9 @@ napi_status napi_get_value_string_latin1(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: `napi_value` representing JavaScript string.
 * `[in] buf`: Buffer to write the ISO-8859-1-encoded string into. If `NULL` is
-  passed in, the length of the string in bytes and excluding the null terminator
-  is returned in `result`.
+  passed in, the length of the string (in bytes) is returned.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string is truncated and null-terminated.
+  insufficient, the returned string will be truncated.
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
@@ -3118,10 +2912,9 @@ napi_status napi_get_value_string_utf8(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: `napi_value` representing JavaScript string.
 * `[in] buf`: Buffer to write the UTF8-encoded string into. If `NULL` is passed
-  in, the length of the string in bytes and excluding the null terminator is
-  returned in `result`.
+  in, the length of the string (in bytes) is returned.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string is truncated and null-terminated.
+  insufficient, the returned string will be truncated.
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
@@ -3147,10 +2940,9 @@ napi_status napi_get_value_string_utf16(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: `napi_value` representing JavaScript string.
 * `[in] buf`: Buffer to write the UTF16-LE-encoded string into. If `NULL` is
-  passed in, the length of the string in 2-byte code units and excluding the
-  null terminator is returned.
+  passed in, the length of the string (in 2-byte code units) is returned.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string is truncated and null-terminated.
+  insufficient, the returned string will be truncated.
 * `[out] result`: Number of 2-byte code units copied into the buffer, excluding
   the null terminator.
 
@@ -3569,8 +3361,9 @@ added:
  - v13.0.0
  - v12.16.0
  - v10.22.0
-napiVersion: 7
 -->
+
+> Stability: 1 - Experimental
 
 ```c
 napi_status napi_detach_arraybuffer(napi_env env,
@@ -3597,8 +3390,9 @@ added:
  - v13.3.0
  - v12.16.0
  - v10.22.0
-napiVersion: 7
 -->
+
+> Stability: 1 - Experimental
 
 ```c
 napi_status napi_is_detached_arraybuffer(napi_env env,
@@ -3748,8 +3542,8 @@ if (status != napi_ok) return status;
 
 // Set the properties
 napi_property_descriptor descriptors[] = {
-  { "foo", NULL, NULL, NULL, NULL, fooValue, napi_writable | napi_configurable, NULL },
-  { "bar", NULL, NULL, NULL, NULL, barValue, napi_writable | napi_configurable, NULL }
+  { "foo", NULL, NULL, NULL, NULL, fooValue, napi_default, NULL },
+  { "bar", NULL, NULL, NULL, NULL, barValue, napi_default, NULL }
 }
 status = napi_define_properties(env,
                                 obj,
@@ -3760,12 +3554,6 @@ if (status != napi_ok) return status;
 
 ### Structures
 #### napi_property_attributes
-<!-- YAML
-changes:
- - version: v14.12.0
-   pr-url: https://github.com/nodejs/node/pull/35214
-   description: added `napi_default_method` and `napi_default_property`.
--->
 
 ```c
 typedef enum {
@@ -3777,14 +3565,6 @@ typedef enum {
   // Used with napi_define_class to distinguish static properties
   // from instance properties. Ignored by napi_define_properties.
   napi_static = 1 << 10,
-
-  // Default for class methods.
-  napi_default_method = napi_writable | napi_configurable,
-
-  // Default for object properties, like in JS obj[prop].
-  napi_default_property = napi_writable |
-                          napi_enumerable |
-                          napi_configurable,
 } napi_property_attributes;
 ```
 
@@ -3803,10 +3583,6 @@ They can be one or more of the following bitflags:
 * `napi_static`: The property will be defined as a static property on a class as
   opposed to an instance property, which is the default. This is used only by
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
-* `napi_default_method`: Like a method in a JS class, the property is
-  configurable and writeable, but not enumerable.
-* `napi_default_property`: Like a property set via assignment in JavaScript, the
-  property is writable, enumerable, and configurable.
 
 #### napi_property_descriptor
 
@@ -4212,53 +3988,6 @@ this API will set the properties on the object one at a time, as defined by
 `DefineOwnProperty()` (described in [Section 9.1.6][] of the ECMA-262
 specification).
 
-#### napi_object_freeze
-<!-- YAML
-added: v14.14.0
--->
-
-> Stability: 1 - Experimental
-
-```c
-napi_status napi_object_freeze(napi_env env,
-                               napi_value object);
-```
-
-* `[in] env`: The environment that the N-API call is invoked under.
-* `[in] object`: The object to freeze.
-
-Returns `napi_ok` if the API succeeded.
-
-This method freezes a given object. This prevents new properties from
-being added to it, existing properties from being removed, prevents
-changing the enumerability, configurability, or writability of existing
-properties, and prevents the values of existing properties from being changed.
-It also prevents the object's prototype from being changed. This is described
-in [Section 19.1.2.6](https://tc39.es/ecma262/#sec-object.freeze) of the
-ECMA-262 specification.
-
-#### napi_object_seal
-<!-- YAML
-added: v14.14.0
--->
-
-> Stability: 1 - Experimental
-
-```c
-napi_status napi_object_seal(napi_env env,
-                             napi_value object);
-```
-
-* `[in] env`: The environment that the N-API call is invoked under.
-* `[in] object`: The object to seal.
-
-Returns `napi_ok` if the API succeeded.
-
-This method seals a given object. This prevents new properties from being
-added to it, as well as marking all existing properties as non-configurable.
-This is described in [Section 19.1.2.20](https://tc39.es/ecma262/#sec-object.seal)
-of the ECMA-262 specification.
-
 ## Working with JavaScript functions
 
 N-API provides a set of APIs that allow JavaScript code to
@@ -4450,8 +4179,8 @@ napi_status napi_get_cb_info(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] cbinfo`: The callback info passed into the callback function.
-* `[in-out] argc`: Specifies the length of the provided `argv` array and
-  receives the actual count of arguments.
+* `[in-out] argc`: Specifies the size of the provided `argv` array and receives
+  the actual count of arguments.
 * `[out] argv`: Buffer to which the `napi_value` representing the arguments are
   copied. If there are more arguments than the provided count, only the
   requested number of arguments are copied. If there are fewer arguments
@@ -4895,9 +4624,7 @@ JavaScript object becomes garbage-collected.
 
 ### napi_type_tag_object
 <!-- YAML
-added:
-  - v14.8.0
-  - v12.19.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -4924,9 +4651,7 @@ If the object already has an associated type tag, this API will return
 
 ### napi_check_object_type_tag
 <!-- YAML
-added:
-  - v14.8.0
-  - v12.19.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -5189,30 +4914,18 @@ napi_status napi_async_init(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] async_resource`: Object associated with the async work
-  that will be passed to possible `async_hooks` [`init` hooks][] and can be
-  accessed by [`async_hooks.executionAsyncResource()`][].
-* `[in] async_resource_name`: Identifier for the kind of resource that is being
-  provided for diagnostic information exposed by the `async_hooks` API.
+  that will be passed to possible `async_hooks` [`init` hooks][].
+  In order to retain ABI compatibility with previous versions,
+  passing `NULL` for `async_resource` will not result in an error, however,
+  this will result incorrect operation of async hooks for the
+  napi_async_context created. Potential issues include
+  loss of async context when using the AsyncLocalStorage API.
+* `[in] async_resource_name`: Identifier for the kind of resource
+  that is being provided for diagnostic information exposed by the
+  `async_hooks` API.
 * `[out] result`: The initialized async context.
 
 Returns `napi_ok` if the API succeeded.
-
-The `async_resource` object needs to be kept alive until
-[`napi_async_destroy`][] to keep `async_hooks` related API acts correctly. In
-order to retain ABI compatibility with previous versions, `napi_async_context`s
-are not maintaining the strong reference to the `async_resource` objects to
-avoid introducing causing memory leaks. However, if the `async_resource` is
-garbage collected by JavaScript engine before the `napi_async_context` was
-destroyed by `napi_async_destroy`, calling `napi_async_context` related APIs
-like [`napi_open_callback_scope`][] and [`napi_make_callback`][] can cause
-problems like loss of async context when using the `AsyncLocalStoage` API.
-
-In order to retain ABI compatibility with previous versions, passing `NULL`
-for `async_resource` does not result in an error. However, this is not
-recommended as this will result poor results with  `async_hooks`
-[`init` hooks][] and `async_hooks.executionAsyncResource()` as the resource is
-now required by the underlying `async_hooks` implementation in order to provide
-the linkage between async callbacks.
 
 ### napi_async_destroy
 <!-- YAML
@@ -5238,7 +4951,6 @@ added: v8.0.0
 napiVersion: 1
 changes:
   - version: v8.6.0
-    pr-url: https://github.com/nodejs/node/pull/15189
     description: Added `async_context` parameter.
 -->
 
@@ -5255,11 +4967,9 @@ NAPI_EXTERN napi_status napi_make_callback(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] async_context`: Context for the async operation that is
    invoking the callback. This should normally be a value previously
-   obtained from [`napi_async_init`][].
-   In order to retain ABI compatibility with previous versions, passing `NULL`
-   for `async_context` does not result in an error. However, this results
-   in incorrect operation of async hooks. Potential issues include loss of
-   async context when using the `AsyncLocalStorage` API.
+   obtained from [`napi_async_init`][]. However `NULL` is also allowed,
+   which indicates the current async context (if any) is to be used
+   for the callback.
 * `[in] recv`: The `this` object passed to the called function.
 * `[in] func`: `napi_value` representing the JavaScript function to be invoked.
 * `[in] argc`: The count of elements in the `argv` array.
@@ -5300,9 +5010,7 @@ NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] resource_object`: An object associated with the async work
-  that will be passed to possible `async_hooks` [`init` hooks][]. This
-  parameter has been deprecated and is ignored at runtime. Use the
-  `async_resource` parameter in [`napi_async_init`][] instead.
+  that will be passed to possible `async_hooks` [`init` hooks][].
 * `[in] context`: Context for the async operation that is invoking the callback.
   This should be a value previously obtained from [`napi_async_init`][].
 * `[out] result`: The newly created scope.
@@ -5605,8 +5313,8 @@ a specific `napi_env`.
 ### napi_get_uv_event_loop
 <!-- YAML
 added:
-  - v9.3.0
   - v8.10.0
+  - v9.3.0
 napiVersion: 2
 -->
 
@@ -5702,7 +5410,7 @@ return status of `napi_closing` in response to a call to
 should be the last API call made in conjunction with a given
 `napi_threadsafe_function`, because after the call completes, there is no
 guarantee that the `napi_threadsafe_function` is still allocated. For the same
-reason, do not use a thread-safe function
+reason, do not make use of a thread-safe function
 after receiving a return value of `napi_closing` in response to a call to
 `napi_call_threadsafe_function`. Data associated with the
 `napi_threadsafe_function` can be freed in its `napi_finalize` callback which
@@ -5725,8 +5433,8 @@ reference count reaches zero. In particular, `napi_call_threadsafe_function()`
 will return `napi_closing`, thus informing the threads that it is no longer
 possible to make asynchronous calls to the thread-safe function. This can be
 used as a criterion for terminating the thread. **Upon receiving a return value
-of `napi_closing` from `napi_call_threadsafe_function()` a thread must not use
-the thread-safe function anymore because it is no longer guaranteed to
+of `napi_closing` from `napi_call_threadsafe_function()` a thread must make no
+further use of the thread-safe function because it is no longer guaranteed to
 be allocated.**
 
 ### Deciding whether to keep the process running
@@ -5820,12 +5528,13 @@ napiVersion: 4
 changes:
   - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33453
-    description: Support for `napi_would_deadlock` has been reverted.
+    description: >
+      Support for `napi_would_deadlock` has been reverted.
   - version: v14.1.0
     pr-url: https://github.com/nodejs/node/pull/32689
-    description: Return `napi_would_deadlock` when called with
-                 `napi_tsfn_blocking` from the main thread or a worker thread
-                 and the queue is full.
+    description: >
+      Return `napi_would_deadlock` when called with `napi_tsfn_blocking` from
+      the main thread or a worker thread and the queue is full.
 -->
 
 ```c
@@ -5953,9 +5662,9 @@ This API may only be called from the main thread.
 
 [ABI Stability]: https://nodejs.org/en/docs/guides/abi-stability/
 [AppVeyor]: https://www.appveyor.com
-[C++ Addons]: addons.md
-[CMake]: https://cmake.org
+[C++ Addons]: addons.html
 [CMake.js]: https://github.com/cmake-js/cmake-js
+[CMake]: https://cmake.org
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
 [Error handling]: #n_api_error_handling
 [GCC]: https://gcc.gnu.org
@@ -5970,44 +5679,40 @@ This API may only be called from the main thread.
 [Section 19.2]: https://tc39.github.io/ecma262/#sec-function-objects
 [Section 19.4]: https://tc39.github.io/ecma262/#sec-symbol-objects
 [Section 20.3]: https://tc39.github.io/ecma262/#sec-date-objects
-[Section 22.1]: https://tc39.github.io/ecma262/#sec-array-objects
 [Section 22.1.4.1]: https://tc39.github.io/ecma262/#sec-properties-of-array-instances-length
+[Section 22.1]: https://tc39.github.io/ecma262/#sec-array-objects
 [Section 22.2]: https://tc39.github.io/ecma262/#sec-typedarray-objects
-[Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects
-[Section 24.1.1.2]: https://tc39.es/ecma262/#sec-isdetachedbuffer
 [Section 24.1.1.3]: https://tc39.es/ecma262/#sec-detacharraybuffer
+[Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects
 [Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 [Section 25.4]: https://tc39.github.io/ecma262/#sec-promise-objects
-[Section 6]: https://tc39.github.io/ecma262/#sec-ecmascript-data-types-and-values
-[Section 6.1]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types
 [Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
 [Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
-[Section 6.1.7]: https://tc39.github.io/ecma262/#sec-object-type
 [Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
-[Section 7]: https://tc39.github.io/ecma262/#sec-abstract-operations
+[Section 6.1.7]: https://tc39.github.io/ecma262/#sec-object-type
+[Section 6.1]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types
+[Section 6]: https://tc39.github.io/ecma262/#sec-ecmascript-data-types-and-values
 [Section 7.1.13]: https://tc39.github.io/ecma262/#sec-toobject
 [Section 7.1.2]: https://tc39.github.io/ecma262/#sec-toboolean
 [Section 7.1.3]: https://tc39.github.io/ecma262/#sec-tonumber
 [Section 7.2.14]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
 [Section 7.2.2]: https://tc39.github.io/ecma262/#sec-isarray
+[Section 7]: https://tc39.github.io/ecma262/#sec-abstract-operations
 [Section 8.7]: https://tc39.es/ecma262/#sec-agents
 [Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
+[Section 24.1.1.2]: https://tc39.es/ecma262/#sec-isdetachedbuffer
 [Travis CI]: https://travis-ci.org
 [Visual Studio]: https://visualstudio.microsoft.com
 [Working with JavaScript properties]: #n_api_working_with_javascript_properties
 [Xcode]: https://developer.apple.com/xcode/
 [`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
-[`Worker`]: worker_threads.md#worker_threads_class_worker
-[`async_hooks.executionAsyncResource()`]: async_hooks.md#async_hooks_async_hooks_executionasyncresource
-[`global`]: globals.md#globals_global
-[`init` hooks]: async_hooks.md#async_hooks_init_asyncid_type_triggerasyncid_resource
-[`napi_add_async_cleanup_hook`]: #n_api_napi_add_async_cleanup_hook
+[`Worker`]: worker_threads.html#worker_threads_class_worker
+[`global`]: globals.html#globals_global
+[`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource
 [`napi_add_env_cleanup_hook`]: #n_api_napi_add_env_cleanup_hook
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
-[`napi_async_cleanup_hook`]: #n_api_napi_async_cleanup_hook
 [`napi_async_complete_callback`]: #n_api_napi_async_complete_callback
-[`napi_async_destroy`]: #n_api_napi_async_destroy
 [`napi_async_init`]: #n_api_napi_async_init
 [`napi_callback`]: #n_api_napi_callback
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
@@ -6045,8 +5750,6 @@ This API may only be called from the main thread.
 [`napi_queue_async_work`]: #n_api_napi_queue_async_work
 [`napi_reference_ref`]: #n_api_napi_reference_ref
 [`napi_reference_unref`]: #n_api_napi_reference_unref
-[`napi_remove_async_cleanup_hook`]: #n_api_napi_remove_async_cleanup_hook
-[`napi_remove_env_cleanup_hook`]: #n_api_napi_remove_env_cleanup_hook
 [`napi_set_instance_data`]: #n_api_napi_set_instance_data
 [`napi_set_property`]: #n_api_napi_set_property
 [`napi_threadsafe_function_call_js`]: #n_api_napi_threadsafe_function_call_js
@@ -6056,16 +5759,16 @@ This API may only be called from the main thread.
 [`napi_throw`]: #n_api_napi_throw
 [`napi_unwrap`]: #n_api_napi_unwrap
 [`napi_wrap`]: #n_api_napi_wrap
-[`node-addon-api`]: https://github.com/nodejs/node-addon-api
 [`node_api.h`]: https://github.com/nodejs/node/blob/master/src/node_api.h
-[`process.release`]: process.md#process_process_release
+[`process.release`]: process.html#process_process_release
 [`uv_ref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
 [`uv_unref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
-[async_hooks `type`]: async_hooks.md#async_hooks_type
-[context-aware addons]: addons.md#addons_context_aware_addons
+[async_hooks `type`]: async_hooks.html#async_hooks_type
+[context-aware addons]: addons.html#addons_context_aware_addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
-[global scope]: globals.md
-[module scope]: modules.md#modules_the_module_scope
+[global scope]: globals.html
+[module scope]: modules.html#modules_the_module_scope
+[node-addon-api]: https://github.com/nodejs/node-addon-api
 [node-gyp]: https://github.com/nodejs/node-gyp
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
 [prebuild]: https://github.com/prebuild/prebuild

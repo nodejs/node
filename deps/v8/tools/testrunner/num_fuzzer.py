@@ -5,14 +5,13 @@
 # found in the LICENSE file.
 
 # for py2/py3 compatibility
-from __future__ import absolute_import
 from __future__ import print_function
 
 import random
 import sys
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
-from . import base_runner
+import base_runner
 
 from testrunner.local import utils
 

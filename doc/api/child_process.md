@@ -6,7 +6,7 @@
 
 <!-- source_link=lib/child_process.js -->
 
-The `child_process` module provides the ability to spawn subprocesses in
+The `child_process` module provides the ability to spawn child processes in
 a manner that is similar, but not identical, to popen(3). This capability
 is primarily provided by the [`child_process.spawn()`][] function:
 
@@ -28,23 +28,20 @@ ls.on('close', (code) => {
 ```
 
 By default, pipes for `stdin`, `stdout`, and `stderr` are established between
-the parent Node.js process and the spawned subprocess. These pipes have
-limited (and platform-specific) capacity. If the subprocess writes to
-stdout in excess of that limit without the output being captured, the
-subprocess blocks waiting for the pipe buffer to accept more data. This is
+the parent Node.js process and the spawned child. These pipes have
+limited (and platform-specific) capacity. If the child process writes to
+stdout in excess of that limit without the output being captured, the child
+process will block waiting for the pipe buffer to accept more data. This is
 identical to the behavior of pipes in the shell. Use the `{ stdio: 'ignore' }`
 option if the output will not be consumed.
 
-The command lookup is performed using the `options.env.PATH` environment
-variable if it is in the `options` object. Otherwise, `process.env.PATH` is
-used.
-
-On Windows, environment variables are case-insensitive. Node.js
-lexicographically sorts the `env` keys and uses the first one that
-case-insensitively matches. Only first (in lexicographic order) entry will be
-passed to the subprocess. This might lead to issues on Windows when passing
-objects to the `env` option that have multiple variants of the same key, such as
-`PATH` and `Path`.
+The command lookup will be performed using `options.env.PATH` environment
+variable if passed in `options` object, otherwise `process.env.PATH` will be
+used. To account for the fact that Windows environment variables are
+case-insensitive Node.js will lexicographically sort all `env` keys and choose
+the first one case-insensitively matching `PATH` to perform command lookup.
+This may lead to issues on Windows when passing objects to `env` option that
+have multiple variants of `PATH` variable.
 
 The [`child_process.spawn()`][] method spawns the child process asynchronously,
 without blocking the Node.js event loop. The [`child_process.spawnSync()`][]
@@ -452,7 +449,7 @@ changes:
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
-`command`, with command-line arguments in `args`. If omitted, `args` defaults
+`command`, with command line arguments in `args`. If omitted, `args` defaults
 to an empty array.
 
 **If the `shell` option is enabled, do not pass unsanitized user input to this
@@ -729,9 +726,7 @@ changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10653
     description: The `input` option can now be a `Uint8Array`.
-  - version:
-    - v6.2.1
-    - v4.5.0
+  - version: v6.2.1, v4.5.0
     pr-url: https://github.com/nodejs/node/pull/6939
     description: The `encoding` option can now explicitly be set to `buffer`.
 -->
@@ -858,9 +853,7 @@ changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10653
     description: The `input` option can now be a `Uint8Array`.
-  - version:
-    - v6.2.1
-    - v4.5.0
+  - version: v6.2.1, v4.5.0
     pr-url: https://github.com/nodejs/node/pull/6939
     description: The `encoding` option can now explicitly be set to `buffer`.
   - version: v5.7.0
@@ -1035,21 +1028,6 @@ If the `serialization` option was set to `'advanced'` used when spawning the
 child process, the `message` argument can contain data that JSON is not able
 to represent.
 See [Advanced serialization][] for more details.
-
-### Event: `'spawn'`
-<!-- YAML
-added: v15.1.0
--->
-
-The `'spawn'` event is emitted once the child process has spawned successfully.
-
-If emitted, the `'spawn'` event comes before all other events and before any
-data is received via `stdout` or `stderr`.
-
-The `'spawn'` event will fire regardless of whether an error occurs **within**
-the spawned process. For example, if `bash some-command` spawns successfully,
-the `'spawn'` event will fire, though `bash` may fail to spawn `some-command`.
-This caveat also applies when using `{ shell: true }`.
 
 ### `subprocess.channel`
 <!-- YAML
@@ -1411,16 +1389,16 @@ connection to the child.
 
 ### `subprocess.signalCode`
 
-* {string|null}
+* {integer}
 
-The `subprocess.signalCode` property indicates the signal received by
+The `subprocess.signalCode` property indicates the signal number received by
 the child process if any, else `null`.
 
 ### `subprocess.spawnargs`
 
 * {Array}
 
-The `subprocess.spawnargs` property represents the full list of command-line
+The `subprocess.spawnargs` property represents the full list of command line
 arguments the child process was launched with.
 
 ### `subprocess.spawnfile`
@@ -1569,7 +1547,7 @@ to `stdout` although there are only 4 characters.
 ## Shell requirements
 
 The shell should understand the `-c` switch. If the shell is `'cmd.exe'`, it
-should understand the `/d /s /c` switches and command-line parsing should be
+should understand the `/d /s /c` switches and command line parsing should be
 compatible.
 
 ## Default Windows shell
@@ -1602,16 +1580,13 @@ Therefore, this feature requires opting in by setting the
 or [`child_process.fork()`][].
 
 [Advanced serialization]: #child_process_advanced_serialization
-[Default Windows shell]: #child_process_default_windows_shell
-[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
-[Shell requirements]: #child_process_shell_requirements
-[`'disconnect'`]: process.md#process_event_disconnect
+[`'disconnect'`]: process.html#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
-[`'message'`]: process.md#process_event_message
+[`'message'`]: process.html#process_event_message
 [`ChildProcess`]: #child_process_child_process
-[`Error`]: errors.md#errors_class_error
-[`EventEmitter`]: events.md#events_class_eventemitter
+[`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
 [`child_process.execFile()`]: #child_process_child_process_execfile_file_args_options_callback
 [`child_process.execFileSync()`]: #child_process_child_process_execfilesync_file_args_options
@@ -1620,13 +1595,13 @@ or [`child_process.fork()`][].
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
 [`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
-[`net.Server`]: net.md#net_class_net_server
-[`net.Socket`]: net.md#net_class_net_socket
+[`net.Server`]: net.html#net_class_net_server
+[`net.Socket`]: net.html#net_class_net_socket
 [`options.detached`]: #child_process_options_detached
-[`process.disconnect()`]: process.md#process_process_disconnect
-[`process.env`]: process.md#process_process_env
-[`process.execPath`]: process.md#process_process_execpath
-[`process.send()`]: process.md#process_process_send_message_sendhandle_options_callback
+[`process.disconnect()`]: process.html#process_process_disconnect
+[`process.env`]: process.html#process_process_env
+[`process.execPath`]: process.html#process_process_execpath
+[`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
 [`subprocess.connected`]: #child_process_subprocess_connected
 [`subprocess.disconnect()`]: #child_process_subprocess_disconnect
@@ -1636,6 +1611,9 @@ or [`child_process.fork()`][].
 [`subprocess.stdin`]: #child_process_subprocess_stdin
 [`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
-[`util.promisify()`]: util.md#util_util_promisify_original
+[`util.promisify()`]: util.html#util_util_promisify_original
+[Default Windows shell]: #child_process_default_windows_shell
+[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[Shell requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation
-[v8.serdes]: v8.md#v8_serialization_api
+[v8.serdes]: v8.html#v8_serialization_api

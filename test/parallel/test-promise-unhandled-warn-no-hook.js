@@ -3,7 +3,10 @@
 
 const common = require('../common');
 
-// Verify that --unhandled-rejections=warn works fine
+common.disableCrashOnUnhandledRejection();
+
+// Verify that ignoring unhandled rejection works fine and that no warning is
+// logged.
 
 new Promise(() => {
   throw new Error('One');

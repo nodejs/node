@@ -648,7 +648,6 @@ static void CustomCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 TEST_F(RuntimeCallStatsTest, CallbackFunction) {
   FLAG_allow_natives_syntax = true;
-  FLAG_incremental_marking = false;
 
   RuntimeCallCounter* callback_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
@@ -727,7 +726,6 @@ TEST_F(RuntimeCallStatsTest, CallbackFunction) {
 
 TEST_F(RuntimeCallStatsTest, ApiGetter) {
   FLAG_allow_natives_syntax = true;
-  FLAG_incremental_marking = false;
 
   RuntimeCallCounter* callback_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
@@ -840,7 +838,7 @@ TEST_F(SnapshotNativeCounterTest, SubStringNative) {
 TEST_F(SnapshotNativeCounterTest, WriteBarrier) {
   RunJS("let o = {a: 42};");
 
-  if (!FLAG_single_generation && SupportsNativeCounters()) {
+  if (SupportsNativeCounters()) {
     EXPECT_NE(0, write_barriers());
   } else {
     EXPECT_EQ(0, write_barriers());

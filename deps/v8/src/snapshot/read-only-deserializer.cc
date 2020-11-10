@@ -39,7 +39,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
     ReadOnlyRoots roots(isolate);
 
     roots.Iterate(this);
-    ro_heap->read_only_space()->RepairFreeSpacesAfterDeserialization();
+    ro_heap->read_only_space()->RepairFreeListsAfterDeserialization();
 
     // Deserialize the Read-only Object Cache.
     for (size_t i = 0;; ++i) {
@@ -55,7 +55,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
   }
 
   if (FLAG_rehash_snapshot && can_rehash()) {
-    isolate->heap()->InitializeHashSeed();
+    isolate_->heap()->InitializeHashSeed();
     Rehash();
   }
 }

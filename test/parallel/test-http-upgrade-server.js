@@ -78,7 +78,9 @@ function writeReq(socket, data, encoding) {
 }
 
 
-// connection: Upgrade with listener
+/*-----------------------------------------------
+  connection: Upgrade with listener
+-----------------------------------------------*/
 function test_upgrade_with_listener() {
   const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
@@ -116,7 +118,9 @@ function test_upgrade_with_listener() {
   });
 }
 
-// connection: Upgrade, no listener
+/*-----------------------------------------------
+  connection: Upgrade, no listener
+-----------------------------------------------*/
 function test_upgrade_no_listener() {
   const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
@@ -140,7 +144,9 @@ function test_upgrade_no_listener() {
   });
 }
 
-// connection: normal
+/*-----------------------------------------------
+  connection: normal
+-----------------------------------------------*/
 function test_standard_http() {
   const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
@@ -169,7 +175,9 @@ server.listen(0, function() {
 });
 
 
-// Fin.
+/*-----------------------------------------------
+  Fin.
+-----------------------------------------------*/
 process.on('exit', function() {
   assert.strictEqual(requests_recv, 3);
   assert.strictEqual(requests_sent, 3);

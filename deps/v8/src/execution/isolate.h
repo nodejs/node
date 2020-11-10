@@ -14,10 +14,8 @@
 
 #include "include/v8-inspector.h"
 #include "include/v8-internal.h"
-#include "include/v8-metrics.h"
 #include "include/v8.h"
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -49,7 +47,7 @@ namespace v8 {
 
 namespace base {
 class RandomNumberGenerator;
-}  // namespace base
+}
 
 namespace debug {
 class ConsoleDelegate;
@@ -98,7 +96,6 @@ class SetupIsolateDelegate;
 class Simulator;
 class StandardFrame;
 class StartupDeserializer;
-class StringTable;
 class StubCache;
 class ThreadManager;
 class ThreadState;
@@ -112,23 +109,19 @@ class VMState;
 
 namespace interpreter {
 class Interpreter;
-}  // namespace interpreter
+}
 
 namespace compiler {
 class PerIsolateCompilerCache;
-}  // namespace compiler
+}
 
 namespace wasm {
 class WasmEngine;
-}  // namespace wasm
+}
 
 namespace win64_unwindinfo {
 class BuiltinUnwindInfo;
-}  // namespace win64_unwindinfo
-
-namespace metrics {
-class Recorder;
-}  // namespace metrics
+}
 
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
   do {                                                 \
@@ -384,7 +377,7 @@ V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)               \
   V(CommentStatistic, paged_space_comments_statistics, \
     CommentStatistic::kMaxComments + 1)                \
-  V(int, code_kind_statistics, kCodeKindCount)
+  V(int, code_kind_statistics, AbstractCode::NUMBER_OF_KINDS)
 #else
 
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
@@ -471,8 +464,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
  public:
   using HandleScopeType = HandleScope;
-  void* operator new(size_t) = delete;
-  void operator delete(void*) = delete;
 
   // A thread has a PerIsolateThreadData instance for each isolate that it has
   // entered. That instance is allocated when the isolate is initially entered
@@ -535,9 +526,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
 
-  void SetUpFromReadOnlyArtifacts(std::shared_ptr<ReadOnlyArtifacts> artifacts,
-                                  ReadOnlyHeap* ro_heap);
-  void set_read_only_heap(ReadOnlyHeap* ro_heap) { read_only_heap_ = ro_heap; }
+  void SetUpFromReadOnlyArtifacts(std::shared_ptr<ReadOnlyArtifacts> artifacts);
 
   // Returns allocation mode of this isolate.
   V8_INLINE IsolateAllocationMode isolate_allocation_mode();
@@ -616,14 +605,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Mutex for serializing access to break control structures.
   base::RecursiveMutex* break_access() { return &break_access_; }
-
-  // Shared mutex for allowing concurrent read/writes to TransitionArrays.
-  base::SharedMutex* transition_array_access() {
-    return &transition_array_access_;
-  }
-
-  // The isolate's string table.
-  StringTable* string_table() { return string_table_.get(); }
 
   Address get_address_from_id(IsolateAddressId id);
 
@@ -734,7 +715,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Handle<Object> GetPromiseOnStackOnThrow();
 
   // Heuristically guess whether a Promise is handled by user catch handler
-  bool PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise);
+  bool PromiseHasUserDefinedRejectHandler(Handle<Object> promise);
 
   class ExceptionScope {
    public:
@@ -750,7 +731,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetCaptureStackTraceForUncaughtExceptions(
       bool capture, int frame_limit, StackTrace::StackTraceOptions options);
-  bool get_capture_stack_trace_for_uncaught_exceptions() const;
 
   void SetAbortOnUncaughtExceptionCallback(
       v8::Isolate::AbortOnUncaughtExceptionCallback callback);
@@ -931,9 +911,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_NOT_NULL(async_counters_.get());
     return async_counters_;
   }
-  const std::shared_ptr<metrics::Recorder>& metrics_recorder() {
-    return metrics_recorder_;
-  }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() {
@@ -965,7 +942,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   RootsTable& roots_table() { return isolate_data()->roots(); }
-  const RootsTable& roots_table() const { return isolate_data()->roots(); }
 
   // A sub-region of the Isolate object that has "predictable" layout which
   // depends only on the pointer size and therefore it's guaranteed that there
@@ -1224,6 +1200,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
 
+  void IterateDeferredHandles(RootVisitor* visitor);
+  void LinkDeferredHandles(DeferredHandles* deferred_handles);
+  void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
+
   std::unique_ptr<PersistentHandles> NewPersistentHandles();
 
   PersistentHandlesList* persistent_handles_list() {
@@ -1311,8 +1291,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   int GetNextScriptId();
 
-  int GetNextStackFrameInfoId();
-
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() {
     int current_id = next_unique_sfi_id_.load(std::memory_order_relaxed);
@@ -1383,18 +1361,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // builtins constants table to remain unchanged from build-time.
   size_t HashIsolateForEmbeddedBlob();
 
-  static const uint8_t* CurrentEmbeddedBlobCode();
-  static uint32_t CurrentEmbeddedBlobCodeSize();
-  static const uint8_t* CurrentEmbeddedBlobMetadata();
-  static uint32_t CurrentEmbeddedBlobMetadataSize();
+  static const uint8_t* CurrentEmbeddedBlob();
+  static uint32_t CurrentEmbeddedBlobSize();
   static bool CurrentEmbeddedBlobIsBinaryEmbedded();
 
   // These always return the same result as static methods above, but don't
   // access the global atomic variable (and thus *might be* slightly faster).
-  const uint8_t* embedded_blob_code() const;
-  uint32_t embedded_blob_code_size() const;
-  const uint8_t* embedded_blob_metadata() const;
-  uint32_t embedded_blob_metadata_size() const;
+  const uint8_t* embedded_blob() const;
+  uint32_t embedded_blob_size() const;
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
@@ -1450,7 +1424,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
-  MaybeHandle<JSObject> RunHostInitializeImportMetaObjectCallback(
+  Handle<JSObject> RunHostInitializeImportMetaObjectCallback(
       Handle<SourceTextModule> module);
 
   void RegisterEmbeddedFileWriter(EmbeddedFileWriterInterface* writer) {
@@ -1543,14 +1517,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool RequiresCodeRange() const;
 
-  static Address load_from_stack_count_address(const char* function_name);
-  static Address store_to_stack_count_address(const char* function_name);
-
-  v8::metrics::Recorder::ContextId GetOrRegisterRecorderContextId(
-      Handle<NativeContext> context);
-  MaybeLocal<v8::Context> GetContextFromRecorderContextId(
-      v8::metrics::Recorder::ContextId id);
-
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -1562,8 +1528,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
-
-  static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
 
   class ThreadDataTable {
    public:
@@ -1660,7 +1624,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
-  std::unique_ptr<StringTable> string_table_;
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;
@@ -1672,7 +1635,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   CompilationCache* compilation_cache_ = nullptr;
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
-  base::SharedMutex transition_array_access_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
@@ -1798,6 +1760,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
+  DeferredHandles* deferred_handles_head_ = nullptr;
   OptimizingCompileDispatcher* optimizing_compile_dispatcher_ = nullptr;
 
   std::unique_ptr<PersistentHandlesList> persistent_handles_list_;
@@ -1823,13 +1786,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 
-  std::shared_ptr<metrics::Recorder> metrics_recorder_;
-  uintptr_t last_recorder_context_id_ = 0;
-  std::unordered_map<
-      uintptr_t,
-      Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
-      recorder_context_id_map_;
-
   std::vector<Object> startup_object_cache_;
 
   // Used during builtins compilation to build the builtins constants table,
@@ -1840,14 +1796,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void CreateAndSetEmbeddedBlob();
   void TearDownEmbeddedBlob();
 
-  void SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
-                       const uint8_t* metadata, uint32_t metadata_size);
+  void SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size);
   void ClearEmbeddedBlob();
 
-  const uint8_t* embedded_blob_code_ = nullptr;
-  uint32_t embedded_blob_code_size_ = 0;
-  const uint8_t* embedded_blob_metadata_ = nullptr;
-  uint32_t embedded_blob_metadata_size_ = 0;
+  const uint8_t* embedded_blob_ = nullptr;
+  uint32_t embedded_blob_size_ = 0;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_ = nullptr;
   std::shared_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_shared_;
@@ -1907,6 +1860,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
   void* operator new(size_t, void* ptr) { return ptr; }
+  void* operator new(size_t) = delete;
+  void operator delete(void*) = delete;
 
   friend class heap::HeapTester;
   friend class TestSerializer;

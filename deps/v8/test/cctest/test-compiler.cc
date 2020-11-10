@@ -333,7 +333,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
-  CHECK(f->HasAttachedOptimizedCode());
+  CHECK(f->IsOptimized());
   object = f->feedback_vector().Get(slot_for_a);
   {
     HeapObject heap_object;
@@ -413,10 +413,8 @@ TEST(OptimizedCodeSharing1) {
             env->Global()
                 ->Get(env.local(), v8_str("closure2"))
                 .ToLocalChecked())));
-    CHECK(fun1->HasAttachedOptimizedCode() ||
-          !CcTest::i_isolate()->use_optimizer());
-    CHECK(fun2->HasAttachedOptimizedCode() ||
-          !CcTest::i_isolate()->use_optimizer());
+    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
+    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
     CHECK_EQ(fun1->code(), fun2->code());
   }
 }
@@ -970,11 +968,13 @@ static int AllocationSitesCount(Heap* heap) {
 TEST(DecideToPretenureDuringCompilation) {
   // The test makes use of optimization and relies on deterministic
   // compilation.
-  if (!i::FLAG_opt || i::FLAG_always_opt || i::FLAG_minor_mc ||
-      i::FLAG_stress_incremental_marking || i::FLAG_optimize_for_size ||
-      i::FLAG_turbo_nci || i::FLAG_turbo_nci_as_highest_tier) {
+  if (!i::FLAG_opt || i::FLAG_always_opt ||
+      i::FLAG_stress_incremental_marking || i::FLAG_optimize_for_size
+#ifdef ENABLE_MINOR_MC
+      || i::FLAG_minor_mc
+#endif
+  )
     return;
-  }
 
   FLAG_stress_gc_during_compilation = true;
   FLAG_allow_natives_syntax = true;
@@ -1055,7 +1055,7 @@ TEST(DecideToPretenureDuringCompilation) {
               .ToHandleChecked();
       Handle<JSFunction> bar = Handle<JSFunction>::cast(foo_obj);
 
-      CHECK(bar->HasAttachedOptimizedCode());
+      CHECK(bar->IsOptimized());
     }
   }
   isolate->Exit();

@@ -126,6 +126,7 @@ class ZoneForwardList;
   V(HandlerTable)                              \
   V(HeapNumber)                                \
   V(InternalizedString)                        \
+  V(JSAggregateError)                          \
   V(JSArgumentsObject)                         \
   V(JSArray)                                   \
   V(JSArrayBuffer)                             \
@@ -201,6 +202,7 @@ class ZoneForwardList;
   V(SharedFunctionInfo)                        \
   V(SimpleNumberDictionary)                    \
   V(SlicedString)                              \
+  V(SloppyArgumentsElements)                   \
   V(SmallOrderedHashMap)                       \
   V(SmallOrderedHashSet)                       \
   V(SmallOrderedNameDictionary)                \
@@ -209,6 +211,7 @@ class ZoneForwardList;
   V(StoreHandler)                              \
   V(String)                                    \
   V(StringSet)                                 \
+  V(StringTable)                               \
   V(StringWrapper)                             \
   V(Struct)                                    \
   V(Symbol)                                    \
@@ -231,12 +234,11 @@ class ZoneForwardList;
   V(WasmMemoryObject)                          \
   V(WasmModuleObject)                          \
   V(WasmStruct)                                \
-  V(WasmTypeInfo)                              \
   V(WasmTableObject)                           \
   V(WeakFixedArray)                            \
   V(WeakArrayList)                             \
   V(WeakCell)                                  \
-  TORQUE_DEFINED_CLASS_LIST(V)
+  TORQUE_INTERNAL_CLASS_LIST(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
@@ -251,8 +253,7 @@ class ZoneForwardList;
   V(JSPluralRules)                        \
   V(JSRelativeTimeFormat)                 \
   V(JSSegmentIterator)                    \
-  V(JSSegmenter)                          \
-  V(JSSegments)
+  V(JSSegmenter)
 #else
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
 #endif  // V8_INTL_SUPPORT

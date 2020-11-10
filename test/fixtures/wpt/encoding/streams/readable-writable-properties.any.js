@@ -1,4 +1,4 @@
-// META: global=window,worker
+// META: global=worker
 
 // This just tests that the "readable" and "writable" properties pass the brand
 // checks. All other relevant attributes are covered by the IDL tests.

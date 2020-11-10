@@ -94,9 +94,7 @@ assert.throws(() => url.fileURLToPath('https://a/b/c'), {
       // Euro sign (BMP code point)
       { path: 'C:\\€', fileURL: 'file:///C:/%E2%82%AC' },
       // Rocket emoji (non-BMP code point)
-      { path: 'C:\\🚀', fileURL: 'file:///C:/%F0%9F%9A%80' },
-      // UNC path (see https://docs.microsoft.com/en-us/archive/blogs/ie/file-uris-in-windows)
-      { path: '\\\\nas\\My Docs\\File.doc', fileURL: 'file://nas/My%20Docs/File.doc' },
+      { path: 'C:\\🚀', fileURL: 'file:///C:/%F0%9F%9A%80' }
     ];
   } else {
     testCases = [

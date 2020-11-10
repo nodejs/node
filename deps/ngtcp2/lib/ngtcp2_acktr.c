@@ -297,6 +297,8 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
       return;
     }
   }
+
+  return;
 }
 
 void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr) {

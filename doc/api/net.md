@@ -55,86 +55,6 @@ net.createServer().listen(
   path.join('\\\\?\\pipe', process.cwd(), 'myctl'));
 ```
 
-## Class: `net.BlockList`
-<!-- YAML
-added: v15.0.0
--->
-
-The `BlockList` object can be used with some network APIs to specify rules for
-disabling inbound or outbound access to specific IP addresses, IP ranges, or
-IP subnets.
-
-### `blockList.addAddress(address[, type])`
-<!-- YAML
-added: v15.0.0
--->
-
-* `address` {string} An IPv4 or IPv6 address.
-* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
-
-Adds a rule to block the given IP address.
-
-### `blockList.addRange(start, end[, type])`
-<!-- YAML
-added: v15.0.0
--->
-
-* `start` {string} The starting IPv4 or IPv6 address in the range.
-* `end` {string} The ending IPv4 or IPv6 address in the range.
-* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
-
-Adds a rule to block a range of IP addresses from `start` (inclusive) to
-`end` (inclusive).
-
-### `blockList.addSubnet(net, prefix[, type])`
-<!-- YAML
-added: v15.0.0
--->
-
-* `net` {string} The network IPv4 or IPv6 address.
-* `prefix` {number} The number of CIDR prefix bits. For IPv4, this
-  must be a value between `0` and `32`. For IPv6, this must be between
-  `0` and `128`.
-* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
-
-Adds a rule to block a range of IP addresses specified as a subnet mask.
-
-### `blockList.check(address[, type])`
-<!-- YAML
-added: v15.0.0
--->
-
-* `address` {string} The IP address to check
-* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
-* Returns: {boolean}
-
-Returns `true` if the given IP address matches any of the rules added to the
-`BlockList`.
-
-```js
-const blockList = new net.BlockList();
-blockList.addAddress('123.123.123.123');
-blockList.addRange('10.0.0.1', '10.0.0.10');
-blockList.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
-
-console.log(blockList.check('123.123.123.123'));  // Prints: true
-console.log(blockList.check('10.0.0.3'));  // Prints: true
-console.log(blockList.check('222.111.111.222'));  // Prints: false
-
-// IPv6 notation for IPv4 addresses works:
-console.log(blockList.check('::ffff:7b7b:7b7b', 'ipv6')); // Prints: true
-console.log(blockList.check('::ffff:123.123.123.123', 'ipv6')); // Prints: true
-```
-
-### `blockList.rules`
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string[]}
-
-The list of rules added to the blocklist.
-
 ## Class: `net.Server`
 <!-- YAML
 added: v0.1.90
@@ -258,7 +178,6 @@ an [IPC][] server depending on what it listens to.
 
 Possible signatures:
 
-<!--lint disable no-undefined-references-->
 * [`server.listen(handle[, backlog][, callback])`][`server.listen(handle)`]
 * [`server.listen(options[, callback])`][`server.listen(options)`]
 * [`server.listen(path[, backlog][, callback])`][`server.listen(path)`]
@@ -266,7 +185,6 @@ Possible signatures:
 * <a href="#net_server_listen_port_host_backlog_callback">
   <code>server.listen([port[, host[, backlog]]][, callback])</code></a>
   for TCP servers
-<!--lint enable no-undefined-references-->
 
 This function is asynchronous. When the server starts listening, the
 [`'listening'`][] event will be emitted. The last parameter `callback`
@@ -348,14 +266,12 @@ changes:
   functions.
 * Returns: {net.Server}
 
-<!--lint disable no-undefined-references-->
 If `port` is specified, it behaves the same as
 <a href="#net_server_listen_port_host_backlog_callback">
 <code>server.listen([port[, host[, backlog]]][, callback])</code></a>.
 Otherwise, if `path` is specified, it behaves the same as
 [`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
 If none of them is specified, an error will be thrown.
-<!--lint enable no-undefined-references-->
 
 If `exclusive` is `false` (default), then cluster workers will use the same
 underlying handle, allowing connection handling duties to be shared. When
@@ -998,16 +914,6 @@ If `timeout` is 0, then the existing idle timeout is disabled.
 The optional `callback` parameter will be added as a one-time listener for the
 [`'timeout'`][] event.
 
-### `socket.timeout`
-<!-- YAML
-added: v10.7.0
--->
-
-* {number|undefined}
-
-The socket timeout in milliseconds as set by [`socket.setTimeout()`][].
-It is `undefined` if a timeout has not been set.
-
 ### `socket.unref()`
 <!-- YAML
 added: v0.9.1
@@ -1041,20 +947,6 @@ written out, which may not be immediately.
 
 See `Writable` stream [`write()`][stream_writable_write] method for more
 information.
-
-### `socket.readyState`
-<!-- YAML
-added: v0.5.0
--->
-
-* {string}
-
-This property represents the state of the connection as a string.
-
-* If the stream is connecting `socket.readyState` is `opening`.
-* If the stream is readable and writable, it is `open`.
-* If the stream is readable and not writable, it is `readOnly`.
-* If the stream is not readable and writable, it is `writeOnly`.
 
 ## `net.connect()`
 
@@ -1221,7 +1113,7 @@ then returns the `net.Socket` that starts the connection.
 
 ## `net.createQuicSocket([options])`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 Creates and returns a new `QuicSocket`. Please refer to the [QUIC documentation][]
@@ -1334,8 +1226,8 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 
 [IPC]: #net_ipc_support
 [Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
-[QUIC documentation]: quic.md
-[Readable Stream]: stream.md#stream_class_stream_readable
+[Readable Stream]: stream.html#stream_class_stream_readable
+[QUIC documentation]: quic.html
 [`'close'`]: #net_event_close
 [`'connect'`]: #net_event_connect
 [`'connection'`]: #net_event_connection
@@ -1345,10 +1237,10 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`'error'`]: #net_event_error_1
 [`'listening'`]: #net_event_listening
 [`'timeout'`]: #net_event_timeout
-[`EventEmitter`]: events.md#events_class_eventemitter
-[`child_process.fork()`]: child_process.md#child_process_child_process_fork_modulepath_args_options
-[`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
-[`dns.lookup()` hints]: dns.md#dns_supported_getaddrinfo_flags
+[`EventEmitter`]: events.html#events_class_eventemitter
+[`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
+[`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`net.Server`]: #net_class_net_server
 [`net.Socket`]: #net_class_net_socket
 [`net.connect()`]: #net_net_connect
@@ -1361,7 +1253,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`net.createConnection(port, host)`]: #net_net_createconnection_port_host_connectlistener
 [`net.createServer()`]: #net_net_createserver_options_connectionlistener
 [`new net.Socket(options)`]: #net_new_net_socket_options
-[`readable.setEncoding()`]: stream.md#stream_readable_setencoding_encoding
+[`readable.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [`server.close()`]: #net_server_close_callback
 [`server.listen()`]: #net_server_listen
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
@@ -1380,11 +1272,11 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
-[`writable.destroy()`]: stream.md#stream_writable_destroy_error
-[`writable.destroyed`]: stream.md#stream_writable_destroyed
-[`writable.end()`]: stream.md#stream_writable_end_chunk_encoding_callback
-[`writable.writableLength`]: stream.md#stream_writable_writablelength
+[`writable.writableLength`]: stream.html#stream_writable_writablelength
+[`writable.destroyed`]: stream.html#stream_writable_destroyed
+[`writable.destroy()`]: stream.html#stream_writable_destroy_error
+[`writable.end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [half-closed]: https://tools.ietf.org/html/rfc1122
-[stream_writable_write]: stream.md#stream_writable_write_chunk_encoding_callback
+[stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address

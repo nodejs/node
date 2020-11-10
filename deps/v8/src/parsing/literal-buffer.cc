@@ -5,7 +5,7 @@
 #include "src/parsing/literal-buffer.h"
 
 #include "src/execution/isolate.h"
-#include "src/execution/local-isolate.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/heap/factory.h"
 #include "src/utils/memcopy.h"
 
@@ -21,7 +21,8 @@ Handle<String> LiteralBuffer::Internalize(LocalIsolate* isolate) const {
 }
 
 template Handle<String> LiteralBuffer::Internalize(Isolate* isolate) const;
-template Handle<String> LiteralBuffer::Internalize(LocalIsolate* isolate) const;
+template Handle<String> LiteralBuffer::Internalize(
+    OffThreadIsolate* isolate) const;
 
 int LiteralBuffer::NewCapacity(int min_capacity) {
   return min_capacity < (kMaxGrowth / (kGrowthFactor - 1))

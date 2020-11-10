@@ -4,7 +4,6 @@
 load('../base.js');
 load('toNumber.js');
 load('toLocaleString.js');
-load('toHexString.js');
 
 function PrintResult(name, result) {
   console.log(name);

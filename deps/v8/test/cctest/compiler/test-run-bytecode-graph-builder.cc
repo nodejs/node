@@ -115,15 +115,13 @@ class BytecodeGraphTester {
             .ToLocalChecked());
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
-    IsCompiledScope is_compiled_scope(
-        function->shared().is_compiled_scope(isolate_));
-    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    JSFunction::EnsureFeedbackVector(function);
     CHECK(function->shared().HasBytecodeArray());
 
     Zone zone(isolate_->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
-    OptimizedCompilationInfo compilation_info(&zone, isolate_, shared, function,
-                                              CodeKind::OPTIMIZED_FUNCTION);
+    OptimizedCompilationInfo compilation_info(&zone, isolate_, shared,
+                                              function);
 
     // Compiler relies on canonicalized handles, let's create
     // a canonicalized scope and migrate existing handles there.

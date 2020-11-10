@@ -85,12 +85,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       v8::internal::UnoptimizedCompileFlags::ForScriptCompile(i_isolate,
                                                               *script);
   v8::internal::ParseInfo info(i_isolate, flags, &state);
-  if (!v8::internal::parsing::ParseProgram(
-          &info, script, i_isolate, i::parsing::ReportStatisticsMode::kYes)) {
-    info.pending_error_handler()->PrepareErrors(i_isolate,
-                                                info.ast_value_factory());
-    info.pending_error_handler()->ReportErrors(i_isolate, script);
-
+  if (!v8::internal::parsing::ParseProgram(&info, script, i_isolate)) {
     i_isolate->OptionalRescheduleException(true);
   }
   isolate->RequestGarbageCollectionForTesting(

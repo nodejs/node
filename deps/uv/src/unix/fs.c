@@ -79,11 +79,7 @@
     defined(__NetBSD__)
 # include <sys/param.h>
 # include <sys/mount.h>
-#elif defined(__sun)      || \
-      defined(__MVS__)    || \
-      defined(__NetBSD__) || \
-      defined(__HAIKU__)  || \
-      defined(__QNX__)
+#elif defined(__sun) || defined(__MVS__) || defined(__NetBSD__) || defined(__HAIKU__)
 # include <sys/statvfs.h>
 #else
 # include <sys/statfs.h>
@@ -310,8 +306,7 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
   if (path_length < pattern_size ||
       strcmp(path + path_length - pattern_size, pattern)) {
     errno = EINVAL;
-    r = -1;
-    goto clobber;
+    return -1;
   }
 
   uv_once(&once, uv__mkostemp_initonce);
@@ -326,7 +321,7 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
     /* If mkostemp() returns EINVAL, it means the kernel doesn't
        support O_CLOEXEC, so we just fallback to mkstemp() below. */
     if (errno != EINVAL)
-      goto clobber;
+      return r;
 
     /* We set the static variable so that next calls don't even
        try to use mkostemp. */
@@ -352,9 +347,6 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
   if (req->cb != NULL)
     uv_rwlock_rdunlock(&req->loop->cloexec_lock);
 
-clobber:
-  if (r < 0)
-    path[0] = '\0';
   return r;
 }
 
@@ -633,11 +625,7 @@ static int uv__fs_closedir(uv_fs_t* req) {
 
 static int uv__fs_statfs(uv_fs_t* req) {
   uv_statfs_t* stat_fs;
-#if defined(__sun)      || \
-    defined(__MVS__)    || \
-    defined(__NetBSD__) || \
-    defined(__HAIKU__)  || \
-    defined(__QNX__)
+#if defined(__sun) || defined(__MVS__) || defined(__NetBSD__) || defined(__HAIKU__)
   struct statvfs buf;
 
   if (0 != statvfs(req->path, &buf))
@@ -654,12 +642,7 @@ static int uv__fs_statfs(uv_fs_t* req) {
     return -1;
   }
 
-#if defined(__sun)        || \
-    defined(__MVS__)      || \
-    defined(__OpenBSD__)  || \
-    defined(__NetBSD__)   || \
-    defined(__HAIKU__)    || \
-    defined(__QNX__)
+#if defined(__sun) || defined(__MVS__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__HAIKU__)
   stat_fs->f_type = 0;  /* f_type is not supported. */
 #else
   stat_fs->f_type = buf.f_type;
@@ -900,27 +883,8 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
     ssize_t r;
 
     off = req->off;
-
-#ifdef __linux__
-    {
-      static int copy_file_range_support = 1;
-
-      if (copy_file_range_support) {
-        r = uv__fs_copy_file_range(in_fd, NULL, out_fd, &off, req->bufsml[0].len, 0);
-
-        if (r == -1 && errno == ENOSYS) {
-          errno = 0;
-          copy_file_range_support = 0;
-        } else {
-          goto ok;
-        }
-      }
-    }
-#endif
-
     r = sendfile(out_fd, in_fd, &off, req->bufsml[0].len);
 
-ok:
     /* sendfile() on SunOS returns EINVAL if the target fd is not a socket but
      * it still writes out data. Fortunately, we can detect it by checking if
      * the offset has been updated.
@@ -1163,7 +1127,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     goto out;
   }
 
-  dst_flags = O_WRONLY | O_CREAT;
+  dst_flags = O_WRONLY | O_CREAT | O_TRUNC;
 
   if (req->flags & UV_FS_COPYFILE_EXCL)
     dst_flags |= O_EXCL;
@@ -1182,26 +1146,16 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     goto out;
   }
 
-  /* If the file is not being opened exclusively, verify that the source and
-     destination are not the same file. If they are the same, bail out early. */
-  if ((req->flags & UV_FS_COPYFILE_EXCL) == 0) {
-    /* Get the destination file's mode. */
-    if (fstat(dstfd, &dst_statsbuf)) {
-      err = UV__ERR(errno);
-      goto out;
-    }
+  /* Get the destination file's mode. */
+  if (fstat(dstfd, &dst_statsbuf)) {
+    err = UV__ERR(errno);
+    goto out;
+  }
 
-    /* Check if srcfd and dstfd refer to the same file */
-    if (src_statsbuf.st_dev == dst_statsbuf.st_dev &&
-        src_statsbuf.st_ino == dst_statsbuf.st_ino) {
-      goto out;
-    }
-
-    /* Truncate the file in case the destination already existed. */
-    if (ftruncate(dstfd, 0) != 0) {
-      err = UV__ERR(errno);
-      goto out;
-    }
+  /* Check if srcfd and dstfd refer to the same file */
+  if (src_statsbuf.st_dev == dst_statsbuf.st_dev &&
+      src_statsbuf.st_ino == dst_statsbuf.st_ino) {
+    goto out;
   }
 
   if (fchmod(dstfd, src_statsbuf.st_mode) == -1) {
@@ -2073,7 +2027,7 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
 
   /* Only necessary for asychronous requests, i.e., requests with a callback.
    * Synchronous ones don't copy their arguments and have req->path and
-   * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP and
+   * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP and 
    * UV_FS_MKSTEMP are the exception to the rule, they always allocate memory.
    */
   if (req->path != NULL &&

@@ -8,140 +8,112 @@
 #include <memory>
 
 #include "include/cppgc/heap.h"
+#include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
-#include "src/base/macros.h"
 #include "src/base/platform/time.h"
-#include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/marking-state.h"
-#include "src/heap/cppgc/marking-visitor.h"
-#include "src/heap/cppgc/marking-worklists.h"
 #include "src/heap/cppgc/worklist.h"
 
 namespace cppgc {
 namespace internal {
 
-class HeapBase;
+class Heap;
+class MutatorThreadMarkingVisitor;
 
-// Marking algorithm. Example for a valid call sequence creating the marking
-// phase:
-// 1. StartMarking()
-// 2. AdvanceMarkingWithDeadline() [Optional, depending on environment.]
-// 3. EnterAtomicPause()
-// 4. AdvanceMarkingWithDeadline()
-// 5. LeaveAtomicPause()
-//
-// Alternatively, FinishMarking combines steps 3.-5.
-class V8_EXPORT_PRIVATE MarkerBase {
+class V8_EXPORT_PRIVATE Marker {
+  static constexpr int kNumConcurrentMarkers = 0;
+  static constexpr int kNumMarkers = 1 + kNumConcurrentMarkers;
+
  public:
-  struct MarkingConfig {
-    enum class CollectionType : uint8_t {
-      kMinor,
-      kMajor,
-    };
-    using StackState = cppgc::Heap::StackState;
-    enum MarkingType : uint8_t {
-      kAtomic,
-      kIncremental,
-      kIncrementalAndConcurrent
-    };
+  static constexpr int kMutatorThreadId = 0;
 
-    static constexpr MarkingConfig Default() { return {}; }
-
-    CollectionType collection_type = CollectionType::kMajor;
-    StackState stack_state = StackState::kMayContainHeapPointers;
-    MarkingType marking_type = MarkingType::kAtomic;
+  using MarkingItem = cppgc::TraceDescriptor;
+  using NotFullyConstructedItem = const void*;
+  struct WeakCallbackItem {
+    cppgc::WeakCallback callback;
+    const void* parameter;
   };
 
-  virtual ~MarkerBase();
+  // Segment size of 512 entries necessary to avoid throughput regressions.
+  // Since the work list is currently a temporary object this is not a problem.
+  using MarkingWorklist =
+      Worklist<MarkingItem, 512 /* local entries */, kNumMarkers>;
+  using NotFullyConstructedWorklist =
+      Worklist<NotFullyConstructedItem, 16 /* local entries */, kNumMarkers>;
+  using WeakCallbackWorklist =
+      Worklist<WeakCallbackItem, 64 /* local entries */, kNumMarkers>;
 
-  MarkerBase(const MarkerBase&) = delete;
-  MarkerBase& operator=(const MarkerBase&) = delete;
+  struct MarkingConfig {
+    using StackState = cppgc::Heap::StackState;
+    enum class IncrementalMarking : uint8_t { kDisabled };
+    enum class ConcurrentMarking : uint8_t { kDisabled };
+
+    static MarkingConfig Default() {
+      return {StackState::kMayContainHeapPointers,
+              IncrementalMarking::kDisabled, ConcurrentMarking::kDisabled};
+    }
+
+    explicit MarkingConfig(StackState stack_state)
+        : MarkingConfig(stack_state, IncrementalMarking::kDisabled,
+                        ConcurrentMarking::kDisabled) {}
+
+    MarkingConfig(StackState stack_state,
+                  IncrementalMarking incremental_marking_state,
+                  ConcurrentMarking concurrent_marking_state)
+        : stack_state_(stack_state),
+          incremental_marking_state_(incremental_marking_state),
+          concurrent_marking_state_(concurrent_marking_state) {}
+
+    StackState stack_state_;
+    IncrementalMarking incremental_marking_state_;
+    ConcurrentMarking concurrent_marking_state_;
+  };
+
+  explicit Marker(Heap* heap);
+  virtual ~Marker();
+
+  Marker(const Marker&) = delete;
+  Marker& operator=(const Marker&) = delete;
 
   // Initialize marking according to the given config. This method will
   // trigger incremental/concurrent marking if needed.
   void StartMarking(MarkingConfig config);
-
-  // Signals entering the atomic marking pause. The method
-  // - stops incremental/concurrent marking;
-  // - flushes back any in-construction worklists if needed;
-  // - Updates the MarkingConfig if the stack state has changed;
-  void EnterAtomicPause(MarkingConfig config);
-
-  // Makes marking progress.
-  virtual bool AdvanceMarkingWithDeadline(v8::base::TimeDelta);
-
-  // Signals leaving the atomic marking pause. This method expects no more
-  // objects to be marked and merely updates marking states if needed.
-  void LeaveAtomicPause();
-
-  // Combines:
-  // - EnterAtomicPause()
-  // - AdvanceMarkingWithDeadline()
-  // - LeaveAtomicPause()
-  void FinishMarking(MarkingConfig config);
+  // Finalize marking. This method stops incremental/concurrent marking
+  // if exsists and performs atomic pause marking.
+  void FinishMarking();
 
   void ProcessWeakness();
 
-  inline void WriteBarrierForInConstructionObject(HeapObjectHeader&);
-  inline void WriteBarrierForObject(HeapObjectHeader&);
+  Heap* heap() { return heap_; }
+  MarkingWorklist* marking_worklist() { return &marking_worklist_; }
+  NotFullyConstructedWorklist* not_fully_constructed_worklist() {
+    return &not_fully_constructed_worklist_;
+  }
+  WeakCallbackWorklist* weak_callback_worklist() {
+    return &weak_callback_worklist_;
+  }
 
-  HeapBase& heap() { return heap_; }
-
-  MarkingWorklists& MarkingWorklistsForTesting() { return marking_worklists_; }
-  MarkingState& MarkingStateForTesting() { return mutator_marking_state_; }
-  cppgc::Visitor& VisitorForTesting() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
  protected:
-  explicit MarkerBase(HeapBase& heap);
-
-  virtual cppgc::Visitor& visitor() = 0;
-  virtual ConservativeTracingVisitor& conservative_visitor() = 0;
-  virtual heap::base::StackVisitor& stack_visitor() = 0;
-
-  void VisitRoots();
-
-  void MarkNotFullyConstructedObjects();
-
-  HeapBase& heap_;
-  MarkingConfig config_ = MarkingConfig::Default();
-
-  MarkingWorklists marking_worklists_;
-  MarkingState mutator_marking_state_;
-};
-
-class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
- public:
-  explicit Marker(HeapBase&);
-
- protected:
-  cppgc::Visitor& visitor() final { return marking_visitor_; }
-  ConservativeTracingVisitor& conservative_visitor() final {
-    return conservative_marking_visitor_;
-  }
-  heap::base::StackVisitor& stack_visitor() final {
-    return conservative_marking_visitor_;
-  }
+  virtual std::unique_ptr<MutatorThreadMarkingVisitor>
+  CreateMutatorThreadMarkingVisitor();
 
  private:
-  MarkingVisitor marking_visitor_;
-  ConservativeMarkingVisitor conservative_marking_visitor_;
+  void VisitRoots();
+
+  bool AdvanceMarkingWithDeadline(v8::base::TimeDelta);
+  void FlushNotFullyConstructedObjects();
+
+  Heap* const heap_;
+  MarkingConfig config_ = MarkingConfig::Default();
+
+  std::unique_ptr<MutatorThreadMarkingVisitor> marking_visitor_;
+
+  MarkingWorklist marking_worklist_;
+  NotFullyConstructedWorklist not_fully_constructed_worklist_;
+  NotFullyConstructedWorklist previously_not_fully_constructed_worklist_;
+  WeakCallbackWorklist weak_callback_worklist_;
 };
-
-void MarkerBase::WriteBarrierForInConstructionObject(HeapObjectHeader& header) {
-  MarkingWorklists::NotFullyConstructedWorklist::View
-      not_fully_constructed_worklist(
-          marking_worklists_.not_fully_constructed_worklist(),
-          MarkingWorklists::kMutatorThreadId);
-  not_fully_constructed_worklist.Push(&header);
-}
-
-void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {
-  MarkingWorklists::WriteBarrierWorklist::View write_barrier_worklist(
-      marking_worklists_.write_barrier_worklist(),
-      MarkingWorklists::kMutatorThreadId);
-  write_barrier_worklist.Push(&header);
-}
 
 }  // namespace internal
 }  // namespace cppgc

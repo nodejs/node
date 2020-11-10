@@ -1,4 +1,4 @@
-// Flags: --no-warnings --expose-internals
+// Flags: --no-warnings
 'use strict';
 const common = require('../common');
 if (!common.hasQuic)
@@ -8,7 +8,6 @@ if (!common.hasQuic)
 // well. We use Workers because they have a more clearly defined shutdown
 // sequence and we can stop execution at any point.
 
-const { kRemoveFromSocket } = require('internal/quic/core');
 const { createQuicSocket } = require('net');
 const { Worker, workerData } = require('worker_threads');
 
@@ -47,7 +46,7 @@ client.on('close', common.mustNotCall());
 
   req.on('stream', common.mustCall(() => {
     if (workerData.removeFromSocket)
-      req[kRemoveFromSocket]();
+      req.removeFromSocket();
     process.exit();  // Exits the worker thread
   }));
 

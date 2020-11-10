@@ -11,7 +11,8 @@ const server = http2.createServer();
 server.on('stream', (s) => {
   assert(s.pushAllowed);
 
-  s.pushStream({ ':path': '/file' }, common.mustSucceed((pushStream) => {
+  s.pushStream({ ':path': '/file' }, common.mustCall((err, pushStream) => {
+    assert.ifError(err);
     pushStream.respond();
     pushStream.end('a push stream');
   }));

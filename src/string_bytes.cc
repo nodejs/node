@@ -21,7 +21,7 @@
 
 #include "string_bytes.h"
 
-#include "base64-inl.h"
+#include "base64.h"
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "node_errors.h"
@@ -358,8 +358,6 @@ size_t StringBytes::Write(Isolate* isolate,
       break;
     }
 
-    case BASE64URL:
-      // Fall through
     case BASE64:
       if (str->IsExternalOneByte()) {
         auto ext = str->GetExternalOneByteStringResource();
@@ -427,8 +425,6 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       data_size = str->Length() * sizeof(uint16_t);
       break;
 
-    case BASE64URL:
-      // Fall through
     case BASE64:
       data_size = base64_decoded_size_fast(str->Length());
       break;
@@ -470,8 +466,6 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
     case UCS2:
       return Just(str->Length() * sizeof(uint16_t));
 
-    case BASE64URL:
-      // Fall through
     case BASE64: {
       String::Value value(isolate, str);
       return Just(base64_decoded_size(*value, value.length()));
@@ -692,20 +686,6 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       }
 
       size_t written = base64_encode(buf, buflen, dst, dlen);
-      CHECK_EQ(written, dlen);
-
-      return ExternOneByteString::New(isolate, dst, dlen, error);
-    }
-
-    case BASE64URL: {
-      size_t dlen = base64_encoded_size(buflen, Base64Mode::URL);
-      char* dst = node::UncheckedMalloc(dlen);
-      if (dst == nullptr) {
-        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
-        return MaybeLocal<Value>();
-      }
-
-      size_t written = base64_encode(buf, buflen, dst, dlen, Base64Mode::URL);
       CHECK_EQ(written, dlen);
 
       return ExternOneByteString::New(isolate, dst, dlen, error);

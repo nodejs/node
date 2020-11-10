@@ -49,7 +49,8 @@ server.listen(0, () => {
   req.end();
 });
 
-fs.open(pipeName, 'w', common.mustSucceed((fd) => {
+fs.open(pipeName, 'w', common.mustCall((err, fd) => {
+  assert.ifError(err);
   fs.writeSync(fd, 'Hello, world!\n');
   fs.closeSync(fd);
 }));

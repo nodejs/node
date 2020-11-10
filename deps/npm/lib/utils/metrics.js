@@ -7,30 +7,26 @@ exports.send = sendMetrics
 const fs = require('fs')
 const path = require('path')
 const npm = require('../npm.js')
-const regFetch = require('npm-registry-fetch')
-const { v4: uuidv4 } = require('uuid')
+const regFetch = require('libnpm/fetch')
+const uuid = require('uuid')
 const cacheFile = require('./cache-file.js')
 
 let inMetrics = false
 
 function startMetrics () {
-  if (inMetrics)
-    return
+  if (inMetrics) return
   // loaded on demand to avoid any recursive deps when `./metrics-launch` requires us.
   var metricsLaunch = require('./metrics-launch.js')
   npm.metricsProcess = metricsLaunch()
 }
 
 function stopMetrics () {
-  if (inMetrics)
-    return
-  if (npm.metricsProcess)
-    npm.metricsProcess.kill('SIGKILL')
+  if (inMetrics) return
+  if (npm.metricsProcess) npm.metricsProcess.kill('SIGKILL')
 }
 
 function saveMetrics (itWorked) {
-  if (inMetrics)
-    return
+  if (inMetrics) return
   // If the metrics reporter hasn't managed to PUT yet then kill it so that it doesn't
   // step on our updating the anonymous-cli-metrics json
   stopMetrics()
@@ -39,19 +35,20 @@ function saveMetrics (itWorked) {
   try {
     metrics = JSON.parse(fs.readFileSync(metricsFile))
     metrics.metrics.to = new Date().toISOString()
-    if (itWorked)
+    if (itWorked) {
       ++metrics.metrics.successfulInstalls
-    else
+    } else {
       ++metrics.metrics.failedInstalls
+    }
   } catch (ex) {
     metrics = {
-      metricId: uuidv4(),
+      metricId: uuid.v4(),
       metrics: {
         from: new Date().toISOString(),
         to: new Date().toISOString(),
         successfulInstalls: itWorked ? 1 : 0,
-        failedInstalls: itWorked ? 0 : 1,
-      },
+        failedInstalls: itWorked ? 0 : 1
+      }
     }
   }
   try {
@@ -71,7 +68,7 @@ function sendMetrics (metricsFile, metricsRegistry) {
       registry: metricsRegistry,
       method: 'PUT',
       body: cliMetrics.metrics,
-      retry: false,
+      retry: false
     }
   ).then(() => {
     fs.unlinkSync(metricsFile)

@@ -4,29 +4,20 @@
 
 // DisplayNames constructor can't be called as function.
 assertThrows(() => Intl.DisplayNames('sr'), TypeError);
-assertThrows(() => Intl.DisplayNames('sr', {}), TypeError);
-assertThrows(() => Intl.DisplayNames(undefined, {}), TypeError);
 
-assertDoesNotThrow(() =>
-    new Intl.DisplayNames('sr', {type: 'language'}));
+assertDoesNotThrow(() => new Intl.DisplayNames('sr', {}));
 
-assertDoesNotThrow(() =>
-    new Intl.DisplayNames([], {type: 'language'}));
+assertDoesNotThrow(() => new Intl.DisplayNames([], {}));
 
-assertDoesNotThrow(() =>
-    new Intl.DisplayNames(['fr', 'ar'], {type: 'language'}));
+assertDoesNotThrow(() => new Intl.DisplayNames(['fr', 'ar'], {}));
 
-assertDoesNotThrow(() =>
-    new Intl.DisplayNames({0: 'ja', 1:'fr'}, {type: 'language'}));
+assertDoesNotThrow(() => new Intl.DisplayNames({0: 'ja', 1:'fr'}, {}));
 
-assertDoesNotThrow(() =>
-    new Intl.DisplayNames({1: 'ja', 2:'fr'}, {type: 'language'}));
+assertDoesNotThrow(() => new Intl.DisplayNames({1: 'ja', 2:'fr'}, {}));
 
-assertDoesNotThrow(() =>
-    new Intl.DisplayNames('sr', {type: 'language'}));
+assertDoesNotThrow(() => new Intl.DisplayNames('sr'));
 
-assertDoesNotThrow(() =>
-    new Intl.DisplayNames(undefined, {type: 'language'}));
+assertDoesNotThrow(() => new Intl.DisplayNames());
 
 assertDoesNotThrow(
     () => new Intl.DisplayNames(
@@ -39,76 +30,59 @@ assertDoesNotThrow(
 
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {localeMatcher: 'lookup', type: 'language'}));
+    () => new Intl.DisplayNames('sr', {localeMatcher: 'lookup'}));
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {localeMatcher: 'best fit', type: 'language'}));
+    () => new Intl.DisplayNames('sr', {localeMatcher: 'best fit'}));
 
 assertThrows(
-    () => new Intl.DisplayNames(
-        'sr', {localeMatcher: 'hello', type: 'language'}),
+    () => new Intl.DisplayNames('sr', {localeMatcher: 'hello'}),
     RangeError);
 
 assertThrows(
-    () => new Intl.DisplayNames(
-        'sr', {localeMatcher: 'look up', type: 'language'}),
+    () => new Intl.DisplayNames('sr', {localeMatcher: 'look up'}),
     RangeError);
 
 assertThrows(
-    () => new Intl.DisplayNames(
-        'sr', {localeMatcher: 'bestfit', type: 'language'}),
+    () => new Intl.DisplayNames('sr', {localeMatcher: 'bestfit'}),
     RangeError);
 
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {style: 'long', type: 'language'}));
+    () => new Intl.DisplayNames('sr', {style: 'long'}));
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {style: 'short', type: 'language'}));
+    () => new Intl.DisplayNames('sr', {style: 'short'}));
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {style: 'narrow', type: 'language'}));
+    () => new Intl.DisplayNames('sr', {style: 'narrow'}));
 
 assertThrows(
-    () => new Intl.DisplayNames(
-        'sr', {style: 'giant', type: 'language'}),
+    () => new Intl.DisplayNames('sr', {style: 'giant'}),
     RangeError);
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {fallback: 'code', type: 'language'}));
+    () => new Intl.DisplayNames('sr', {fallback: 'code'}));
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {fallback: 'none', type: 'language'}));
+    () => new Intl.DisplayNames('sr', {fallback: 'none'}));
 
 assertThrows(
-    () => new Intl.DisplayNames(
-        'sr', {fallback: 'never', type: 'language'}),
+    () => new Intl.DisplayNames('sr', {fallback: 'never'}),
     RangeError);
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {type: 'language'}));
+    () => new Intl.DisplayNames('sr', {type: 'language'}));
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {type: 'region'}));
+    () => new Intl.DisplayNames('sr', {type: 'region'}));
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {type: 'script'}));
+    () => new Intl.DisplayNames('sr', {type: 'script'}));
 
 assertDoesNotThrow(
-    () => new Intl.DisplayNames(
-        'sr', {type: 'currency'}));
+    () => new Intl.DisplayNames('sr', {type: 'currency'}));
 
 assertThrows(
-    () => new Intl.DisplayNames(
-        'sr', {type: ''}),
+    () => new Intl.DisplayNames('sr', {type: ''}),
     RangeError);

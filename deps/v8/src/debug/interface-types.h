@@ -16,7 +16,7 @@ namespace v8 {
 
 namespace internal {
 class BuiltinArguments;
-}  // namespace internal
+}  // internal
 
 namespace debug {
 

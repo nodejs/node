@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "src/ast/ast.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects-inl.h"
@@ -25,13 +24,14 @@ namespace {
 
 void MaybeReportErrorsAndStatistics(ParseInfo* info, Handle<Script> script,
                                     Isolate* isolate, Parser* parser,
-                                    ReportStatisticsMode mode) {
-  switch (mode) {
-    case ReportStatisticsMode::kYes:
-      parser->UpdateStatistics(isolate, script);
-      break;
-    case ReportStatisticsMode::kNo:
-      break;
+                                    ReportErrorsAndStatisticsMode mode) {
+  if (mode == ReportErrorsAndStatisticsMode::kYes) {
+    if (info->literal() == nullptr) {
+      info->pending_error_handler()->PrepareErrors(isolate,
+                                                   info->ast_value_factory());
+      info->pending_error_handler()->ReportErrors(isolate, script);
+    }
+    parser->UpdateStatistics(isolate, script);
   }
 }
 
@@ -39,7 +39,7 @@ void MaybeReportErrorsAndStatistics(ParseInfo* info, Handle<Script> script,
 
 bool ParseProgram(ParseInfo* info, Handle<Script> script,
                   MaybeHandle<ScopeInfo> maybe_outer_scope_info,
-                  Isolate* isolate, ReportStatisticsMode mode) {
+                  Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(info->flags().is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -62,12 +62,12 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
 }
 
 bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
-                  ReportStatisticsMode mode) {
+                  ReportErrorsAndStatisticsMode mode) {
   return ParseProgram(info, script, kNullMaybeHandle, isolate, mode);
 }
 
 bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
-                   Isolate* isolate, ReportStatisticsMode mode) {
+                   Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(!info->flags().is_toplevel());
   DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
@@ -93,7 +93,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
 }
 
 bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
-              Isolate* isolate, ReportStatisticsMode mode) {
+              Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
   if (info->flags().is_toplevel()) {
     MaybeHandle<ScopeInfo> maybe_outer_scope_info;

@@ -91,10 +91,3 @@ export function measureText(text: string) {
 export function interpolate(val: number, max: number, start: number, end: number) {
   return start + (end - start) * (val / max);
 }
-
-export function createElement(tag: string, cls: string, content?: string) {
-  const el = document.createElement(tag);
-  el.className = cls;
-  if (content != undefined) el.innerText = content;
-  return el;
-}

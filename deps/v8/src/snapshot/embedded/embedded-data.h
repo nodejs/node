@@ -30,13 +30,9 @@ class InstructionStream final : public AllStatic {
   // containing all off-heap code. The area is guaranteed to be contiguous.
   // Note that this only applies when building the snapshot, e.g. for
   // mksnapshot. Otherwise, off-heap code is embedded directly into the binary.
-  static void CreateOffHeapInstructionStream(Isolate* isolate, uint8_t** code,
-                                             uint32_t* code_size,
-                                             uint8_t** metadata,
-                                             uint32_t* metadata_size);
-  static void FreeOffHeapInstructionStream(uint8_t* code, uint32_t code_size,
-                                           uint8_t* metadata,
-                                           uint32_t metadata_size);
+  static void CreateOffHeapInstructionStream(Isolate* isolate, uint8_t** data,
+                                             uint32_t* size);
+  static void FreeOffHeapInstructionStream(uint8_t* data, uint32_t size);
 };
 
 class EmbeddedData final {
@@ -44,30 +40,19 @@ class EmbeddedData final {
   static EmbeddedData FromIsolate(Isolate* isolate);
 
   static EmbeddedData FromBlob() {
-    return EmbeddedData(Isolate::CurrentEmbeddedBlobCode(),
-                        Isolate::CurrentEmbeddedBlobCodeSize(),
-                        Isolate::CurrentEmbeddedBlobMetadata(),
-                        Isolate::CurrentEmbeddedBlobMetadataSize());
+    return EmbeddedData(Isolate::CurrentEmbeddedBlob(),
+                        Isolate::CurrentEmbeddedBlobSize());
   }
 
   static EmbeddedData FromBlob(Isolate* isolate) {
-    return EmbeddedData(isolate->embedded_blob_code(),
-                        isolate->embedded_blob_code_size(),
-                        isolate->embedded_blob_metadata(),
-                        isolate->embedded_blob_metadata_size());
+    return EmbeddedData(isolate->embedded_blob(),
+                        isolate->embedded_blob_size());
   }
 
-  const uint8_t* code() const { return code_; }
-  uint32_t code_size() const { return code_size_; }
-  const uint8_t* metadata() const { return metadata_; }
-  uint32_t metadata_size() const { return metadata_size_; }
+  const uint8_t* data() const { return data_; }
+  uint32_t size() const { return size_; }
 
-  void Dispose() {
-    delete[] code_;
-    code_ = nullptr;
-    delete[] metadata_;
-    metadata_ = nullptr;
-  }
+  void Dispose() { delete[] data_; }
 
   Address InstructionStartOfBuiltin(int i) const;
   uint32_t InstructionSizeOfBuiltin(int i) const;
@@ -78,8 +63,8 @@ class EmbeddedData final {
   bool ContainsBuiltin(int i) const { return InstructionSizeOfBuiltin(i) > 0; }
 
   uint32_t AddressForHashing(Address addr) {
-    Address start = reinterpret_cast<Address>(code_);
-    DCHECK(base::IsInRange(addr, start, start + code_size_));
+    Address start = reinterpret_cast<Address>(data_);
+    DCHECK(base::IsInRange(addr, start, start + size_));
     return static_cast<uint32_t>(addr - start);
   }
 
@@ -91,12 +76,11 @@ class EmbeddedData final {
 
   size_t CreateEmbeddedBlobHash() const;
   size_t EmbeddedBlobHash() const {
-    return *reinterpret_cast<const size_t*>(metadata_ +
-                                            EmbeddedBlobHashOffset());
+    return *reinterpret_cast<const size_t*>(data_ + EmbeddedBlobHashOffset());
   }
 
   size_t IsolateHash() const {
-    return *reinterpret_cast<const size_t*>(metadata_ + IsolateHashOffset());
+    return *reinterpret_cast<const size_t*>(data_ + IsolateHashOffset());
   }
 
   struct Metadata {
@@ -110,14 +94,10 @@ class EmbeddedData final {
 
   // The layout of the blob is as follows:
   //
-  // metadata:
   // [0] hash of the remaining blob
   // [1] hash of embedded-blob-relevant heap objects
   // [2] metadata of instruction stream 0
   // ... metadata
-  //
-  // code:
-  // [0] instruction streams 0
   // ... instruction streams
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
@@ -127,32 +107,26 @@ class EmbeddedData final {
     return EmbeddedBlobHashOffset() + EmbeddedBlobHashSize();
   }
   static constexpr uint32_t IsolateHashSize() { return kSizetSize; }
-  static constexpr uint32_t MetadataTableOffset() {
+  static constexpr uint32_t MetadataOffset() {
     return IsolateHashOffset() + IsolateHashSize();
   }
-  static constexpr uint32_t MetadataTableSize() {
+  static constexpr uint32_t MetadataSize() {
     return sizeof(struct Metadata) * kTableSize;
   }
-  static constexpr uint32_t RawCodeOffset() { return 0; }
+  static constexpr uint32_t RawDataOffset() {
+    return PadAndAlign(MetadataOffset() + MetadataSize());
+  }
 
  private:
-  EmbeddedData(const uint8_t* code, uint32_t code_size, const uint8_t* metadata,
-               uint32_t metadata_size)
-      : code_(code),
-        code_size_(code_size),
-        metadata_(metadata),
-        metadata_size_(metadata_size) {
-    DCHECK_NOT_NULL(code);
-    DCHECK_LT(0, code_size);
-    DCHECK_NOT_NULL(metadata);
-    DCHECK_LT(0, metadata_size);
+  EmbeddedData(const uint8_t* data, uint32_t size) : data_(data), size_(size) {
+    DCHECK_NOT_NULL(data);
+    DCHECK_LT(0, size);
   }
 
   const Metadata* Metadata() const {
-    return reinterpret_cast<const struct Metadata*>(metadata_ +
-                                                    MetadataTableOffset());
+    return reinterpret_cast<const struct Metadata*>(data_ + MetadataOffset());
   }
-  const uint8_t* RawCode() const { return code_ + RawCodeOffset(); }
+  const uint8_t* RawData() const { return data_ + RawDataOffset(); }
 
   static constexpr int PadAndAlign(int size) {
     // Ensure we have at least one byte trailing the actual builtin
@@ -162,14 +136,8 @@ class EmbeddedData final {
 
   void PrintStatistics() const;
 
-  // This points to code for builtins. The contents are potentially unreadable
-  // on platforms that disallow reads from the .text section.
-  const uint8_t* code_;
-  uint32_t code_size_;
-
-  // This is metadata for the code.
-  const uint8_t* metadata_;
-  uint32_t metadata_size_;
+  const uint8_t* data_;
+  uint32_t size_;
 };
 
 }  // namespace internal

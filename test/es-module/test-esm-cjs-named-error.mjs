@@ -3,25 +3,33 @@ import { rejects } from 'assert';
 
 const fixtureBase = '../fixtures/es-modules/package-cjs-named-error';
 
-const errTemplate = (specifier, name, namedImports) =>
-  `Named export '${name}' not found. The requested module` +
-  ` '${specifier}' is a CommonJS module, which may not support ` +
-  'all module.exports as named exports.\nCommonJS modules can ' +
-  'always be imported via the default export, for example using:' +
-  `\n\nimport pkg from '${specifier}';\n` + (namedImports ?
-    `const ${namedImports} = pkg;\n` : '');
+const expectedRelative = 'The requested module \'./fail.cjs\' is expected to ' +
+  'be of type CommonJS, which does not support named exports. CommonJS ' +
+  'modules can be imported by importing the default export.\n' +
+  'For example:\n' +
+  'import pkg from \'./fail.cjs\';\n' +
+  'const { comeOn } = pkg;';
 
-const expectedWithoutExample = errTemplate('./fail.cjs', 'comeOn');
+const expectedRenamed = 'The requested module \'./fail.cjs\' is expected to ' +
+  'be of type CommonJS, which does not support named exports. CommonJS ' +
+  'modules can be imported by importing the default export.\n' +
+  'For example:\n' +
+  'import pkg from \'./fail.cjs\';\n' +
+  'const { comeOn: comeOnRenamed } = pkg;';
 
-const expectedRelative = errTemplate('./fail.cjs', 'comeOn', '{ comeOn }');
+const expectedPackageHack = 'The requested module \'./json-hack/fail.js\' is ' +
+  'expected to be of type CommonJS, which does not support named exports. ' +
+  'CommonJS modules can be imported by importing the default export.\n' +
+  'For example:\n' +
+  'import pkg from \'./json-hack/fail.js\';\n' +
+  'const { comeOn } = pkg;';
 
-const expectedRenamed = errTemplate('./fail.cjs', 'comeOn',
-                                    '{ comeOn: comeOnRenamed }');
-
-const expectedPackageHack =
-    errTemplate('./json-hack/fail.js', 'comeOn', '{ comeOn }');
-
-const expectedBare = errTemplate('deep-fail', 'comeOn', '{ comeOn }');
+const expectedBare = 'The requested module \'deep-fail\' is expected to ' +
+  'be of type CommonJS, which does not support named exports. CommonJS ' +
+  'modules can be imported by importing the default export.\n' +
+  'For example:\n' +
+  'import pkg from \'deep-fail\';\n' +
+  'const { comeOn } = pkg;';
 
 rejects(async () => {
   await import(`${fixtureBase}/single-quote.mjs`);
@@ -43,13 +51,6 @@ rejects(async () => {
   name: 'SyntaxError',
   message: expectedRenamed
 }, 'should correctly format named imports with renames');
-
-rejects(async () => {
-  await import(`${fixtureBase}/multi-line.mjs`);
-}, {
-  name: 'SyntaxError',
-  message: expectedWithoutExample,
-}, 'should correctly format named imports across multiple lines');
 
 rejects(async () => {
   await import(`${fixtureBase}/json-hack.mjs`);

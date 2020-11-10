@@ -5,10 +5,6 @@ var arraySome = require('./_arraySome'),
  * Creates a function that checks if **any** of the `predicates` return
  * truthy when invoked with the arguments it receives.
  *
- * Following shorthands are possible for providing predicates.
- * Pass an `Object` and it will be used as an parameter for `_.matches` to create the predicate.
- * Pass an `Array` of parameters for `_.matchesProperty` and the predicate will be created using them.
- *
  * @static
  * @memberOf _
  * @since 4.0.0
@@ -28,9 +24,6 @@ var arraySome = require('./_arraySome'),
  *
  * func(NaN);
  * // => false
- *
- * var matchesFunc = _.overSome([{ 'a': 1 }, { 'a': 2 }])
- * var matchesPropertyFunc = _.overSome([['a', 1], ['a', 2]])
  */
 var overSome = createOver(arraySome);
 

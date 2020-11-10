@@ -47,7 +47,6 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
 
  private:
   void SerializeObject(HeapObject o) override;
-  void SerializeStringTable(StringTable* string_table);
 
   ReadOnlySerializer* read_only_serializer_;
   std::vector<AccessorInfo> accessor_infos_;

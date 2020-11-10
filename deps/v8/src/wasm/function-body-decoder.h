@@ -34,8 +34,6 @@ struct FunctionBody {
       : sig(sig), offset(offset), start(start), end(end) {}
 };
 
-enum class LoadTransformationKind : uint8_t { kSplat, kExtend, kZeroExtend };
-
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               const WasmFeatures& enabled,
                                               const WasmModule* module,
@@ -82,10 +80,9 @@ V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
 // Be cautious with control opcodes: This function only covers their immediate,
 // local stack effect (e.g. BrIf pops 1, Br pops 0). Those opcodes can have
 // non-local stack effect though, which are not covered here.
-// TODO(clemensb): This is only used by the interpreter; move there.
-V8_EXPORT_PRIVATE std::pair<uint32_t, uint32_t> StackEffect(
-    const WasmModule* module, const FunctionSig* sig, const byte* pc,
-    const byte* end);
+std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
+                                          const FunctionSig* sig,
+                                          const byte* pc, const byte* end);
 
 // A simple forward iterator for bytecodes.
 class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {

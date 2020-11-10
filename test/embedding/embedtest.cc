@@ -5,23 +5,25 @@
 // Note: This file is being referred to from doc/api/embedding.md, and excerpts
 // from it are included in the documentation. Try to keep these in sync.
 
-using node::CommonEnvironmentSetup;
+using node::ArrayBufferAllocator;
 using node::Environment;
+using node::IsolateData;
 using node::MultiIsolatePlatform;
 using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::Local;
 using v8::Locker;
 using v8::MaybeLocal;
-using v8::V8;
+using v8::SealHandleScope;
 using v8::Value;
+using v8::V8;
 
 static int RunNodeInstance(MultiIsolatePlatform* platform,
                            const std::vector<std::string>& args,
                            const std::vector<std::string>& exec_args);
 
 int main(int argc, char** argv) {
-  argv = uv_setup_args(argc, argv);
   std::vector<std::string> args(argv, argv + argc);
   std::vector<std::string> exec_args;
   std::vector<std::string> errors;
@@ -48,27 +50,46 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
                     const std::vector<std::string>& args,
                     const std::vector<std::string>& exec_args) {
   int exit_code = 0;
-
-  std::vector<std::string> errors;
-  std::unique_ptr<CommonEnvironmentSetup> setup =
-      CommonEnvironmentSetup::Create(platform, &errors, args, exec_args);
-  if (!setup) {
-    for (const std::string& err : errors)
-      fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
+  uv_loop_t loop;
+  int ret = uv_loop_init(&loop);
+  if (ret != 0) {
+    fprintf(stderr, "%s: Failed to initialize loop: %s\n",
+            args[0].c_str(),
+            uv_err_name(ret));
     return 1;
   }
 
-  Isolate* isolate = setup->isolate();
-  Environment* env = setup->env();
+  std::shared_ptr<ArrayBufferAllocator> allocator =
+      ArrayBufferAllocator::Create();
+
+  Isolate* isolate = NewIsolate(allocator, &loop, platform);
+  if (isolate == nullptr) {
+    fprintf(stderr, "%s: Failed to initialize V8 Isolate\n", args[0].c_str());
+    return 1;
+  }
 
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
+
+    std::unique_ptr<IsolateData, decltype(&node::FreeIsolateData)> isolate_data(
+        node::CreateIsolateData(isolate, &loop, platform, allocator.get()),
+        node::FreeIsolateData);
+
     HandleScope handle_scope(isolate);
-    Context::Scope context_scope(setup->context());
+    Local<Context> context = node::NewContext(isolate);
+    if (context.IsEmpty()) {
+      fprintf(stderr, "%s: Failed to initialize V8 Context\n", args[0].c_str());
+      return 1;
+    }
+
+    Context::Scope context_scope(context);
+    std::unique_ptr<Environment, decltype(&node::FreeEnvironment)> env(
+        node::CreateEnvironment(isolate_data.get(), context, args, exec_args),
+        node::FreeEnvironment);
 
     MaybeLocal<Value> loadenv_ret = node::LoadEnvironment(
-        env,
+        env.get(),
         "const publicRequire ="
         "  require('module').createRequire(process.cwd() + '/');"
         "globalThis.require = publicRequire;"
@@ -78,10 +99,38 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
       return 1;
 
-    exit_code = node::SpinEventLoop(env).FromMaybe(1);
+    {
+      SealHandleScope seal(isolate);
+      bool more;
+      do {
+        uv_run(&loop, UV_RUN_DEFAULT);
 
-    node::Stop(env);
+        platform->DrainTasks(isolate);
+        more = uv_loop_alive(&loop);
+        if (more) continue;
+
+        node::EmitBeforeExit(env.get());
+        more = uv_loop_alive(&loop);
+      } while (more == true);
+    }
+
+    exit_code = node::EmitExit(env.get());
+
+    node::Stop(env.get());
   }
+
+  bool platform_finished = false;
+  platform->AddIsolateFinishedCallback(isolate, [](void* data) {
+    *static_cast<bool*>(data) = true;
+  }, &platform_finished);
+  platform->UnregisterIsolate(isolate);
+  isolate->Dispose();
+
+  // Wait until the platform has cleaned up all relevant resources.
+  while (!platform_finished)
+    uv_run(&loop, UV_RUN_ONCE);
+  int err = uv_loop_close(&loop);
+  assert(err == 0);
 
   return exit_code;
 }

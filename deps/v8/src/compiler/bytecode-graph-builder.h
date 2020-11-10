@@ -33,7 +33,6 @@ enum class BytecodeGraphBuilderFlag : uint8_t {
   // bytecode analysis.
   kAnalyzeEnvironmentLiveness = 1 << 1,
   kBailoutOnUninitialized = 1 << 2,
-  kNativeContextIndependent = 1 << 3,
 };
 using BytecodeGraphBuilderFlags = base::Flags<BytecodeGraphBuilderFlag>;
 

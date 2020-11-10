@@ -103,6 +103,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => createPrivateKey(createPublicKey(privatePem)), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "key" argument must be of type string or an instance of ' +
+             'Buffer, TypedArray, or DataView. Received an instance of ' +
+             'PublicKeyObject'
   });
 
   // Similarly, passing an existing private key object to createPrivateKey
@@ -111,6 +114,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => createPrivateKey(privateKey), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "key" argument must be of type string or an instance of ' +
+             'Buffer, TypedArray, or DataView. Received an instance of ' +
+             'PrivateKeyObject'
   });
 }
 
@@ -206,19 +212,19 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => {
     createPrivateKey({ key: '' });
   }, {
-    message: 'error:0909006C:PEM routines:get_name:no start line',
-    code: 'ERR_OSSL_PEM_NO_START_LINE',
-    reason: 'no start line',
-    library: 'PEM routines',
-    function: 'get_name',
+    message: 'error:2007E073:BIO routines:BIO_new_mem_buf:null parameter',
+    code: 'ERR_OSSL_BIO_NULL_PARAMETER',
+    reason: 'null parameter',
+    library: 'BIO routines',
+    function: 'BIO_new_mem_buf',
   });
 
   // This should not abort either: https://github.com/nodejs/node/issues/29904
   assert.throws(() => {
     createPrivateKey({ key: Buffer.alloc(0), format: 'der', type: 'spki' });
   }, {
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.type' is invalid. Received 'spki'"
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "spki" is invalid for option "type"'
   });
 
   // Unlike SPKI, PKCS#1 is a valid encoding for private keys (and public keys),
@@ -465,7 +471,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     });
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.cipher' is invalid. Received undefined"
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "undefined" is invalid for option "cipher"'
   });
 }

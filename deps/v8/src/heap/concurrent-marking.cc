@@ -41,7 +41,10 @@ class ConcurrentMarkingState final
   explicit ConcurrentMarkingState(MemoryChunkDataMap* memory_chunk_data)
       : memory_chunk_data_(memory_chunk_data) {}
 
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const BasicMemoryChunk* chunk) {
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) {
+    DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
+                  reinterpret_cast<intptr_t>(chunk),
+              MemoryChunk::kMarkBitmapOffset);
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 
@@ -79,14 +82,13 @@ class ConcurrentMarkingVisitor final
     : public MarkingVisitorBase<ConcurrentMarkingVisitor,
                                 ConcurrentMarkingState> {
  public:
-  ConcurrentMarkingVisitor(int task_id,
-                           MarkingWorklists::Local* local_marking_worklists,
+  ConcurrentMarkingVisitor(int task_id, MarkingWorklists* marking_worklists,
                            WeakObjects* weak_objects, Heap* heap,
                            unsigned mark_compact_epoch,
                            BytecodeFlushMode bytecode_flush_mode,
                            bool embedder_tracing_enabled, bool is_forced_gc,
                            MemoryChunkDataMap* memory_chunk_data)
-      : MarkingVisitorBase(task_id, local_marking_worklists, weak_objects, heap,
+      : MarkingVisitorBase(task_id, marking_worklists, weak_objects, heap,
                            mark_compact_epoch, bytecode_flush_mode,
                            embedder_tracing_enabled, is_forced_gc),
         marking_state_(memory_chunk_data),
@@ -146,7 +148,7 @@ class ConcurrentMarkingVisitor final
   bool ProcessEphemeron(HeapObject key, HeapObject value) {
     if (marking_state_.IsBlackOrGrey(key)) {
       if (marking_state_.WhiteToGrey(value)) {
-        local_marking_worklists_->Push(value);
+        marking_worklists_->Push(value);
         return true;
       }
 
@@ -296,7 +298,7 @@ class ConcurrentMarkingVisitor final
 #ifdef THREAD_SANITIZER
     // This is needed because TSAN does not process the memory fence
     // emitted after page initialization.
-    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+    MemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
 #endif
   }
 
@@ -370,11 +372,11 @@ class ConcurrentMarking::Task : public CancelableTask {
   DISALLOW_COPY_AND_ASSIGN(Task);
 };
 
-ConcurrentMarking::ConcurrentMarking(Heap* heap,
-                                     MarkingWorklists* marking_worklists,
-                                     WeakObjects* weak_objects)
+ConcurrentMarking::ConcurrentMarking(
+    Heap* heap, MarkingWorklistsHolder* marking_worklists_holder,
+    WeakObjects* weak_objects)
     : heap_(heap),
-      marking_worklists_(marking_worklists),
+      marking_worklists_holder_(marking_worklists_holder),
       weak_objects_(weak_objects) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
@@ -387,9 +389,9 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
                       GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
-  MarkingWorklists::Local local_marking_worklists(marking_worklists_);
+  MarkingWorklists marking_worklists(task_id, marking_worklists_holder_);
   ConcurrentMarkingVisitor visitor(
-      task_id, &local_marking_worklists, weak_objects_, heap_,
+      task_id, &marking_worklists, weak_objects_, heap_,
       task_state->mark_compact_epoch, Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(), task_state->is_forced_gc,
       &task_state->memory_chunk_data);
@@ -417,7 +419,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
         }
       }
     }
-    bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
+    bool is_per_context_mode = marking_worklists.IsPerContextMode();
     bool done = false;
     while (!done) {
       size_t current_marked_bytes = 0;
@@ -425,7 +427,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       while (current_marked_bytes < kBytesUntilInterruptCheck &&
              objects_processed < kObjectsUntilInterrupCheck) {
         HeapObject object;
-        if (!local_marking_worklists.Pop(&object)) {
+        if (!marking_worklists.Pop(&object)) {
           done = true;
           break;
         }
@@ -437,19 +439,19 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
         Address addr = object.address();
         if ((new_space_top <= addr && addr < new_space_limit) ||
             addr == new_large_object) {
-          local_marking_worklists.PushOnHold(object);
+          marking_worklists.PushOnHold(object);
         } else {
           Map map = object.synchronized_map(isolate);
           if (is_per_context_mode) {
             Address context;
             if (native_context_inferrer.Infer(isolate, map, object, &context)) {
-              local_marking_worklists.SwitchToContext(context);
+              marking_worklists.SwitchToContext(context);
             }
           }
           size_t visited_size = visitor.Visit(map, object);
           if (is_per_context_mode) {
-            native_context_stats.IncrementSize(
-                local_marking_worklists.Context(), map, object, visited_size);
+            native_context_stats.IncrementSize(marking_worklists.Context(), map,
+                                               object, visited_size);
           }
           current_marked_bytes += visited_size;
         }
@@ -474,7 +476,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       }
     }
 
-    local_marking_worklists.Publish();
+    marking_worklists.FlushToGlobal();
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
     weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);
     weak_objects_->current_ephemerons.FlushToGlobal(task_id);
@@ -520,16 +522,14 @@ void ConcurrentMarking::ScheduleTasks() {
     // only use num_cores/2, leaving one of those for the main thread.
     // TODO(ulan): Use all cores on Mac 10.12+.
     total_task_count_ = Max(1, Min(kMaxTasks, (num_cores / 2) - 1));
-#else   // defined(V8_OS_MACOSX)
+#else   // defined(OS_MACOSX)
     // On other platforms use all logical cores, leaving one for the main
     // thread.
     total_task_count_ = Max(1, Min(kMaxTasks, num_cores - 2));
-#endif  // defined(V8_OS_MACOSX)
-    if (FLAG_gc_experiment_reduce_concurrent_marking_tasks) {
-      // Use at most half of the cores in the experiment.
-      total_task_count_ = Max(1, Min(kMaxTasks, (num_cores / 2) - 1));
-    }
+#endif  // defined(OS_MACOSX)
     DCHECK_LE(total_task_count_, kMaxTasks);
+    // One task is for the main thread.
+    STATIC_ASSERT(kMaxTasks + 1 <= MarkingWorklist::kMaxNumTasks);
   }
   // Task id 0 is for the main thread.
   for (int i = 1; i <= total_task_count_; i++) {
@@ -564,7 +564,7 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
       return;
     }
   }
-  if (!marking_worklists_->shared()->IsEmpty() ||
+  if (!marking_worklists_holder_->shared()->IsGlobalPoolEmpty() ||
       !weak_objects_->current_ephemerons.IsGlobalPoolEmpty() ||
       !weak_objects_->discovered_ephemerons.IsGlobalPoolEmpty()) {
     ScheduleTasks();

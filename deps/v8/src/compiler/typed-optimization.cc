@@ -181,7 +181,7 @@ Reduction TypedOptimization::ReduceMaybeGrowFastElements(Node* node) {
         simplified()->CheckBounds(FeedbackSource{},
                                   CheckBoundsFlag::kAbortOnOutOfBounds),
         index, length, effect, control);
-    ReplaceWithValue(node, elements, check_bounds);
+    ReplaceWithValue(node, elements);
     return Replace(check_bounds);
   }
 

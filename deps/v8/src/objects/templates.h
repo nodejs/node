@@ -6,7 +6,6 @@
 #define V8_OBJECTS_TEMPLATES_H_
 
 #include "src/objects/struct.h"
-#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -33,6 +32,9 @@ class FunctionTemplateRareData
     : public TorqueGeneratedFunctionTemplateRareData<FunctionTemplateRareData,
                                                      Struct> {
  public:
+  // Dispatched behavior.
+  DECL_PRINTER(FunctionTemplateRareData)
+
   TQ_OBJECT_CONSTRUCTORS(FunctionTemplateRareData)
 };
 
@@ -49,37 +51,36 @@ class FunctionTemplateInfo
 
   // ObjectTemplateInfo or Undefined, used for the prototype property of the
   // resulting JSFunction instance of this FunctionTemplate.
-  DECL_RARE_ACCESSORS(prototype_template, PrototypeTemplate, HeapObject)
+  DECL_RARE_ACCESSORS(prototype_template, PrototypeTemplate, Object)
 
   // In the case the prototype_template is Undefined we use the
   // prototype_provider_template to retrieve the instance prototype. Either
-  // contains an FunctionTemplateInfo or Undefined.
+  // contains an ObjectTemplateInfo or Undefined.
   DECL_RARE_ACCESSORS(prototype_provider_template, PrototypeProviderTemplate,
-                      HeapObject)
+                      Object)
 
   // Used to create prototype chains. The parent_template's prototype is set as
   // __proto__ of this FunctionTemplate's instance prototype. Is either a
   // FunctionTemplateInfo or Undefined.
-  DECL_RARE_ACCESSORS(parent_template, ParentTemplate, HeapObject)
+  DECL_RARE_ACCESSORS(parent_template, ParentTemplate, Object)
 
   // Returns an InterceptorInfo or Undefined for named properties.
-  DECL_RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, HeapObject)
+  DECL_RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, Object)
   // Returns an InterceptorInfo or Undefined for indexed properties/elements.
-  DECL_RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler,
-                      HeapObject)
+  DECL_RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, Object)
 
   // An ObjectTemplateInfo that is used when instantiating the JSFunction
   // associated with this FunctionTemplateInfo. Contains either an
   // ObjectTemplateInfo or Undefined. A default instance_template is assigned
   // upon first instantiation if it's Undefined.
-  DECL_RARE_ACCESSORS(instance_template, InstanceTemplate, HeapObject)
+  DECL_RARE_ACCESSORS(instance_template, InstanceTemplate, Object)
 
   // Either a CallHandlerInfo or Undefined. If an instance_call_handler is
   // provided the instances created from the associated JSFunction are marked as
   // callable.
-  DECL_RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject)
+  DECL_RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, Object)
 
-  DECL_RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject)
+  DECL_RARE_ACCESSORS(access_check_info, AccessCheckInfo, Object)
 
   DECL_RARE_ACCESSORS(c_function, CFunction, Object)
   DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
@@ -117,13 +118,12 @@ class FunctionTemplateInfo
       MaybeHandle<Name> maybe_name);
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
-      LocalIsolate* isolate, Handle<FunctionTemplateInfo> info,
+      OffThreadIsolate* isolate, Handle<FunctionTemplateInfo> info,
       Handle<Name> maybe_name) {
     // We don't support streaming compilation of scripts with natives, so we
     // don't need an off-thread implementation of this.
     UNREACHABLE();
   }
-
   // Returns parent function template or a null FunctionTemplateInfo.
   inline FunctionTemplateInfo GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.
@@ -138,7 +138,12 @@ class FunctionTemplateInfo
                                                     Handle<Object> getter);
 
   // Bit position in the flag, from least significant bit position.
-  DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()
+  static const int kUndetectableBit = 0;
+  static const int kNeedsAccessCheckBit = 1;
+  static const int kReadOnlyPrototypeBit = 2;
+  static const int kRemovePrototypeBit = 3;
+  static const int kDoNotCacheBit = 4;
+  static const int kAcceptAnyReceiver = 5;
 
  private:
   static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
@@ -165,7 +170,8 @@ class ObjectTemplateInfo
   inline ObjectTemplateInfo GetParent(Isolate* isolate);
 
  private:
-  DEFINE_TORQUE_GENERATED_OBJECT_TEMPLATE_INFO_FLAGS()
+  using IsImmutablePrototype = base::BitField<bool, 0, 1>;
+  using EmbedderFieldCount = IsImmutablePrototype::Next<int, 29>;
 
   TQ_OBJECT_CONSTRUCTORS(ObjectTemplateInfo)
 };

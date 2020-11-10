@@ -100,8 +100,7 @@ class SharedEngineIsolate {
   }
 
   int32_t Run(Handle<WasmInstanceObject> instance) {
-    return testing::CallWasmFunctionForTesting(isolate(), instance, "main", 0,
-                                               nullptr);
+    return testing::RunWasmModuleForTesting(isolate(), instance, 0, nullptr);
   }
 
  private:
@@ -133,8 +132,8 @@ namespace {
 
 ZoneBuffer* BuildReturnConstantModule(Zone* zone, int constant) {
   TestSignatures sigs;
-  ZoneBuffer* buffer = zone->New<ZoneBuffer>(zone);
-  WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
+  ZoneBuffer* buffer = new (zone) ZoneBuffer(zone);
+  WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
   f->builder()->AddExport(CStrVector("main"), f);
   byte code[] = {WASM_I32V_2(constant)};

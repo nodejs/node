@@ -44,7 +44,8 @@ process.chdir(fixtures.fixturesDir);
 const repl = require('repl');
 
 function getNoResultsFunction() {
-  return common.mustSucceed((data) => {
+  return common.mustCall((err, data) => {
+    assert.ifError(err);
     assert.deepStrictEqual(data[0], []);
   });
 }
@@ -203,7 +204,8 @@ const spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
 
-testMe.complete(' ', common.mustSucceed((data) => {
+testMe.complete(' ', common.mustCall(function(error, data) {
+  assert.ifError(error);
   assert.strictEqual(data[1], '');
   assert.ok(data[0].includes('globalThis'));
   clearTimeout(spaceTimeout);
@@ -341,7 +343,8 @@ testMe.complete("require\t( 'n", common.mustCall(function(error, data) {
 
   {
     const path = '../fixtures/repl-folder-extensions/f';
-    testMe.complete(`require('${path}`, common.mustSucceed((data) => {
+    testMe.complete(`require('${path}`, common.mustCall((err, data) => {
+      assert.ifError(err);
       assert.strictEqual(data.length, 2);
       assert.strictEqual(data[1], path);
       assert.ok(data[0].includes('../fixtures/repl-folder-extensions/foo.js'));

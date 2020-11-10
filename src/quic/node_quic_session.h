@@ -75,7 +75,6 @@ class QuicSessionConfig final : public ngtcp2_settings {
 
   QuicSessionConfig(const QuicSessionConfig& config) {
     initial_ts = uv_hrtime();
-    initial_rtt = config.initial_rtt;
     transport_params = config.transport_params;
     max_udp_payload_size = config.max_udp_payload_size;
     cc_algo = config.cc_algo;
@@ -205,10 +204,7 @@ enum QuicSessionStateFields {
   V(BLOCK_COUNT, block_count, "Block Count")                                   \
   V(MIN_RTT, min_rtt, "Minimum RTT")                                           \
   V(LATEST_RTT, latest_rtt, "Latest RTT")                                      \
-  V(SMOOTHED_RTT, smoothed_rtt, "Smoothed RTT")                                \
-  V(CWND, cwnd, "Cwnd")                                                        \
-  V(RECEIVE_RATE, receive_rate, "Receive Rate / Sec")                          \
-  V(SEND_RATE, send_rate, "Send Rate  Sec")                                    \
+  V(SMOOTHED_RTT, smoothed_rtt, "Smoothed RTT")
 
 #define V(name, _, __) IDX_QUIC_SESSION_STATS_##name,
 enum QuicSessionStatsIdx : int {
@@ -238,7 +234,7 @@ class QLogStream final : public AsyncWrap,
 
   QLogStream(Environment* env, v8::Local<v8::Object> obj);
 
-  void Emit(const uint8_t* data, size_t len, uint32_t flags);
+  void Emit(const uint8_t* data, size_t len);
 
   void End() { ended_ = true; }
 
@@ -620,17 +616,20 @@ class QuicApplication : public MemoryRetainer,
 
   virtual void ResumeStream(int64_t stream_id) {}
 
-  // Different QUIC applications may set some application data in
-  // the session ticket (e.g. http/3 would set server settings in the
-  // application data). By default, there's nothing to set.
-  virtual void SetSessionTicketAppData(const SessionTicketAppData& app_data) {}
+  virtual void SetSessionTicketAppData(const SessionTicketAppData& app_data) {
+    // TODO(@jasnell): Different QUIC applications may wish to set some
+    // application data in the session ticket (e.g. http/3 would set
+    // server settings in the application data). For now, doing nothing
+    // as I'm just adding the basic mechanism.
+  }
 
-  // Different QUIC applications may set some application data in
-  // the session ticket (e.g. http/3 would set server settings in the
-  // application data). By default, there's nothing to get.
   virtual SessionTicketAppData::Status GetSessionTicketAppData(
       const SessionTicketAppData& app_data,
       SessionTicketAppData::Flag flag) {
+    // TODO(@jasnell): Different QUIC application may wish to set some
+    // application data in the session ticket (e.g. http/3 would set
+    // server settings in the application data). For now, doing nothing
+    // as I'm just adding the basic mechanism.
     return flag == SessionTicketAppData::Flag::STATUS_RENEW ?
       SessionTicketAppData::Status::TICKET_USE_RENEW :
       SessionTicketAppData::Status::TICKET_USE;
@@ -1276,6 +1275,8 @@ class QuicSession final : public AsyncWrap,
 
   bool WritePackets(const char* diagnostic_label = nullptr);
 
+  void UpdateRecoveryStats();
+
   void UpdateConnectionID(
       int type,
       const QuicCID& cid,
@@ -1367,9 +1368,11 @@ class QuicSession final : public AsyncWrap,
       void* stream_user_data);
 
   static int OnRand(
+      ngtcp2_conn* conn,
       uint8_t* dest,
       size_t destlen,
-      ngtcp2_rand_ctx ctx);
+      ngtcp2_rand_ctx ctx,
+      void* user_data);
 
   static int OnGetNewConnectionID(
       ngtcp2_conn* conn,
@@ -1436,11 +1439,7 @@ class QuicSession final : public AsyncWrap,
       const uint8_t* token,
       void* user_data);
 
-  static void OnQlogWrite(
-      void* user_data,
-      uint32_t flags,
-      const void* data,
-      size_t len);
+  static void OnQlogWrite(void* user_data, const void* data, size_t len);
 
 #define V(id, _) QUICSESSION_FLAG_##id,
   enum QuicSessionFlags : uint32_t {

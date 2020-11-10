@@ -69,7 +69,7 @@ const testData = [
           textRaw: 'Subsection',
           name: 'subsection',
           classMethods: [{
-            textRaw: 'Static method: Buffer.from(array)',
+            textRaw: 'Class Method: Buffer.from(array)',
             type: 'classMethod',
             name: 'from',
             signatures: [
@@ -181,7 +181,7 @@ const testData = [
                   params: []
                 }
               ],
-              textRaw: 'Static method: `Fhqwhgads.again()`',
+              textRaw: 'Class Method: `Fhqwhgads.again()`',
               type: 'classMethod'
             }
           ],
@@ -229,8 +229,10 @@ const testData = [
 ];
 
 testData.forEach((item) => {
-  fs.readFile(item.file, 'utf8', common.mustSucceed((input) => {
-    toJSON(input, 'foo', common.mustSucceed((output) => {
+  fs.readFile(item.file, 'utf8', common.mustCall((err, input) => {
+    assert.ifError(err);
+    toJSON(input, 'foo', common.mustCall((err, output) => {
+      assert.ifError(err);
       assert.deepStrictEqual(output.json, item.json);
     }));
   }));

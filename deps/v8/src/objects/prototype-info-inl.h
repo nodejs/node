@@ -20,7 +20,9 @@
 namespace v8 {
 namespace internal {
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo)
+OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo, Struct)
+
+CAST_ACCESSOR(PrototypeInfo)
 
 Map PrototypeInfo::ObjectCreateMap() {
   return Map::cast(object_create_map()->GetHeapObjectAssumeWeak());
@@ -37,8 +39,14 @@ bool PrototypeInfo::HasObjectCreateMap() {
   return cache->IsWeak();
 }
 
-BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map,
-               ShouldBeFastBit::kShift)
+ACCESSORS(PrototypeInfo, module_namespace, Object, kJsModuleNamespaceOffset)
+ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
+ACCESSORS(PrototypeInfo, prototype_chain_enum_cache, Object,
+          kPrototypeChainEnumCacheOffset)
+WEAK_ACCESSORS(PrototypeInfo, object_create_map, kObjectCreateMapOffset)
+SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
+SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
+BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
 void PrototypeUsers::MarkSlotEmpty(WeakArrayList array, int index) {
   DCHECK_GT(index, 0);

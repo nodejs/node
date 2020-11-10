@@ -42,7 +42,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprEnd,
         kExprLocalGet, 0,
         kSimdPrefix, kExprI32x4Eq,
-        kSimdPrefix, kExprV8x16AllTrue,
+        kSimdPrefix, kExprS1x16AllTrue,
       ])
       .exportFunc();
   var instance = builder.instantiate();

@@ -97,7 +97,8 @@ if (process.argv[2] === 'child') {
 
     child.once('message', common.mustCall((m) => {
       assert.strictEqual(m.status, 'closed');
-      server.getConnections(common.mustSucceed((num) => {
+      server.getConnections(common.mustCall((err, num) => {
+        assert.ifError(err);
         assert.strictEqual(num, count - (i + 1));
         closeSockets(i + 1);
       }));

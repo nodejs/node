@@ -205,8 +205,7 @@ class WithInternalIsolateMixin : public TMixin {
 template <typename TMixin>
 class WithZoneMixin : public TMixin {
  public:
-  explicit WithZoneMixin(bool support_zone_compression = false)
-      : zone_(&allocator_, ZONE_NAME, support_zone_compression) {}
+  WithZoneMixin() : zone_(&allocator_, ZONE_NAME) {}
 
   Zone* zone() { return &zone_; }
 
@@ -225,11 +224,11 @@ using TestWithIsolate =         //
 
 using TestWithZone = WithZoneMixin<::testing::Test>;
 
-using TestWithIsolateAndZone =      //
-    WithZoneMixin<                  //
-        WithInternalIsolateMixin<   //
-            WithIsolateScopeMixin<  //
-                WithIsolateMixin<   //
+using TestWithIsolateAndZone =  //
+    WithInternalIsolateMixin<   //
+        WithIsolateScopeMixin<  //
+            WithIsolateMixin<   //
+                WithZoneMixin<  //
                     ::testing::Test>>>>;
 
 using TestWithNativeContext =       //

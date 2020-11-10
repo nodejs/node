@@ -109,6 +109,9 @@ for (const g of [Buffer.from([]),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
+      message: 'The "sizeOrKey" argument must be one of type number or string' +
+               ' or an instance of Buffer, TypedArray, or DataView.' +
+               common.invalidArgTypeHelper(input)
     }
   );
 });
@@ -179,9 +182,9 @@ const aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
 const bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
 assert.strictEqual(aSecret, bSecret);
 
-// Ensure specific generator (buffer) works as expected.
-// The values below (modp2/modp2buf) are for a 1024 bits long prime from
-// RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
+/* Ensure specific generator (buffer) works as expected.
+ * The values below (modp2/modp2buf) are for a 1024 bits long prime from
+ * RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
 const modp2 = crypto.createDiffieHellmanGroup('modp2');
 const modp2buf = Buffer.from([
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc9, 0x0f,
@@ -384,14 +387,14 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   assert.throws(() => {
     // Error because the public key does not match the private key anymore.
     ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
-  }, /Invalid key pair/);
+  }, /^Error: Invalid key pair$/);
 
   // Set to a valid key to show that later attempts to set an invalid key are
   // rejected.
   ecdh5.setPrivateKey(cafebabeKey, 'hex');
 
   // Some invalid private keys for the secp256k1 curve.
-  const errMessage = /Private key is not valid for specified curve/;
+  const errMessage = /^Error: Private key is not valid for specified curve\.$/;
   ['0000000000000000000000000000000000000000000000000000000000000000',
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',

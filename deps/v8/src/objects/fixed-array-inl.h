@@ -88,7 +88,6 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return get(isolate, index).IsTheHole(isolate);
 }
 
-#if !defined(_WIN32) || defined(_WIN64)
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
@@ -96,7 +95,6 @@ void FixedArray::set(int index, Smi value) {
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
-#endif
 
 void FixedArray::set(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
@@ -123,23 +121,6 @@ void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
   DCHECK(!ObjectInYoungGeneration(value));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(array, offset, value);
-}
-
-Object FixedArray::synchronized_get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return synchronized_get(isolate, index);
-}
-
-Object FixedArray::synchronized_get(const Isolate* isolate, int index) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
-}
-
-void FixedArray::synchronized_set(int index, Smi value) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(Object(value).IsSmi());
-  RELEASE_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
 }
 
 void FixedArray::set_undefined(int index) {
@@ -228,13 +209,8 @@ inline int WeakArrayList::AllocatedSize() {
 template <SearchMode search_mode, typename T>
 int BinarySearch(T* array, Name name, int valid_entries,
                  int* out_insertion_index) {
-  DCHECK_IMPLIES(search_mode == VALID_ENTRIES, out_insertion_index == nullptr);
+  DCHECK(search_mode == ALL_ENTRIES || out_insertion_index == nullptr);
   int low = 0;
-  // We have to search on all entries, even when search_mode == VALID_ENTRIES.
-  // This is because the InternalIndex might be different from the SortedIndex
-  // (i.e the first added item in {array} could be the last in the sorted
-  // index). After doing the binary search and getting the correct internal
-  // index we check to have the index lower than valid_entries, if needed.
   int high = array->number_of_entries() - 1;
   uint32_t hash = name.hash_field();
   int limit = high;
@@ -258,11 +234,6 @@ int BinarySearch(T* array, Name name, int valid_entries,
     Name entry = array->GetKey(InternalIndex(sort_index));
     uint32_t current_hash = entry.hash_field();
     if (current_hash != hash) {
-      // 'search_mode == ALL_ENTRIES' here and below is not needed since
-      // 'out_insertion_index != nullptr' implies 'search_mode == ALL_ENTRIES'.
-      // Having said that, when creating the template for <VALID_ENTRIES> these
-      // ifs can be elided by the C++ compiler if we add 'search_mode ==
-      // ALL_ENTRIES'.
       if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
         *out_insertion_index = sort_index + (current_hash > hash ? 0 : 1);
       }
@@ -313,9 +284,8 @@ int LinearSearch(T* array, Name name, int valid_entries,
 }
 
 template <SearchMode search_mode, typename T>
-int Search(T* array, Name name, int valid_entries, int* out_insertion_index,
-           bool concurrent_search) {
-  SLOW_DCHECK_IMPLIES(!concurrent_search, array->IsSortedNoDuplicates());
+int Search(T* array, Name name, int valid_entries, int* out_insertion_index) {
+  SLOW_DCHECK(array->IsSortedNoDuplicates());
 
   if (valid_entries == 0) {
     if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
@@ -324,14 +294,14 @@ int Search(T* array, Name name, int valid_entries, int* out_insertion_index,
     return T::kNotFound;
   }
 
-  // Do linear search for small arrays, and for searches in the background
-  // thread.
+  // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
-  if (valid_entries <= kMaxElementsForLinearSearch || concurrent_search) {
+  if (valid_entries <= kMaxElementsForLinearSearch) {
     return LinearSearch<search_mode>(array, name, valid_entries,
                                      out_insertion_index);
   }
 
+  // Slow case: perform binary search.
   return BinarySearch<search_mode>(array, name, valid_entries,
                                    out_insertion_index);
 }

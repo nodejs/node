@@ -1,6 +1,0 @@
-include_rules = [
-  "+include/cppgc",
-  "+src/heap/cppgc",
-  "+test/unittests/heap/cppgc",
-  "+third_party/google_benchmark/src/include/benchmark/benchmark.h",
-]

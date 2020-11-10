@@ -156,10 +156,6 @@ class JSBindingsConnection : public AsyncWrap {
   SET_MEMORY_INFO_NAME(JSBindingsConnection)
   SET_SELF_SIZE(JSBindingsConnection)
 
-  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
-    return true;  // Binding connections emit events on their own.
-  }
-
  private:
   std::unique_ptr<InspectorSession> session_;
   Global<Function> callback_;
@@ -307,7 +303,7 @@ void WaitForDebugger(const FunctionCallbackInfo<Value>& args) {
 void Url(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string url = env->inspector_agent()->GetWsUrl();
-  if (url.empty()) {
+  if (url.length() == 0) {
     return;
   }
   args.GetReturnValue().Set(OneByteString(env->isolate(), url.c_str()));

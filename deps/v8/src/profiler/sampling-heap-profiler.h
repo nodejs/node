@@ -18,9 +18,11 @@ namespace v8 {
 
 namespace base {
 class RandomNumberGenerator;
-}  // namespace base
+}
 
 namespace internal {
+
+class SamplingAllocationObserver;
 
 class AllocationProfile : public v8::AllocationProfile {
  public:

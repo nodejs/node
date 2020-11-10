@@ -19,7 +19,7 @@
         "baseline-babel-es2017.js",
         "baseline-naive-promises.js"
       ],
-      "flags": ["--allow-natives-syntax", "--ignore-unhandled-promises"],
+      "flags": ["--allow-natives-syntax"],
       "results_regexp": "^%s\\-AsyncAwait\\(Score\\): (.+)$",
       "tests": [
         {"name": "BaselineES2017"},
@@ -551,17 +551,15 @@
       "main": "run.js",
       "flags": ["--allow-natives-syntax"],
       "resources": [
-        "toNumber.js",
-        "toLocaleString.js",
-        "toHexString.js"
+	      "toNumber.js",
+	      "toLocaleString.js"
       ],
       "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
       "tests": [
         {"name": "Constructor"},
         {"name": "UnaryPlus"},
         {"name": "ParseFloat"},
-        {"name": "toLocaleString"},
-        {"name": "toHexString"}
+        {"name": "toLocaleString"}
       ]
     },
     {

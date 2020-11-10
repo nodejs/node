@@ -1,7 +1,7 @@
-#include <openssl/rand.h>
-#include <openssl/ssl.h>
 #include <node.h>
 #include <assert.h>
+#include <openssl/rand.h>
+#include <openssl/ssl.h>
 
 namespace {
 

@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/schedule.h"
-
 #include "src/compiler/node.h"
+#include "src/compiler/schedule.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -68,10 +67,7 @@ TEST_F(BasicBlockTest, GetCommonDominator3) {
   EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b3, &b1));
 }
 
-class ScheduleTest : public TestWithZone {
- public:
-  ScheduleTest() : TestWithZone(kCompressGraphZone) {}
-};
+using ScheduleTest = TestWithZone;
 
 const Operator kCallOperator(IrOpcode::kCall, Operator::kNoProperties,
                              "MockCall", 0, 0, 0, 0, 0, 0);
