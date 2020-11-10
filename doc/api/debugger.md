@@ -115,7 +115,7 @@ To begin watching an expression, type `watch('my_expression')`. The command
 * `setBreakpoint()`, `sb()`: Set breakpoint on current line
 * `setBreakpoint(line)`, `sb(line)`: Set breakpoint on specific line
 * `setBreakpoint('fn()')`, `sb(...)`: Set breakpoint on a first statement in
-  functions body
+  function's body
 * `setBreakpoint('script.js', 1)`, `sb(...)`: Set breakpoint on first line of
   `script.js`
 * `setBreakpoint('script.js', 1, 'num < 4')`, `sb(...)`: Set conditional
