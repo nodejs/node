@@ -77,6 +77,13 @@ jobs:
         run: |
           make lint-py-build || true
           NODE=$(command -v node) make lint-py
+  lint-sh:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - run: shellcheck -V
+      - name: Lint Shell scripts
+        run: tools/lint-sh.js .
 
   lint-codeowners:
     runs-on: ubuntu-latest

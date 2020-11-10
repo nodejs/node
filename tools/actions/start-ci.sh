@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -xe
 
@@ -10,15 +10,15 @@ REQUEST_CI_LABEL='request-ci'
 REQUEST_CI_FAILED_LABEL='request-ci-failed'
 shift 3
 
-function issueUrl() {
+issueUrl() {
   echo "$API_URL/repos/${OWNER}/${REPOSITORY}/issues/${1}"
 }
 
-function labelsUrl() {
+labelsUrl() {
   echo "$(issueUrl "${1}")/labels"
 }
 
-function commentsUrl() {
+commentsUrl() {
   echo "$(issueUrl "${1}")/comments"
 }
 
@@ -33,7 +33,7 @@ for pr in "$@"; do
   ncu-ci run "$pr" >output 2>&1 || ci_started=no
   cat output
 
-  if [ "$ci_started" == "no" ]; then
+  if [ "$ci_started" = "no" ]; then
     # Do we need to reset?
     curl -sL --request PUT \
        --url "$(labelsUrl "$pr")" \
