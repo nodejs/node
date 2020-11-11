@@ -126,3 +126,13 @@ process.on('warning', common.mustNotCall());
     }));
   }));
 }
+{
+  // Unhandled rejections become errors on the domain
+  const d = domain.create();
+  d.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.message, 'foo');
+  }));
+  d.run(common.mustCall(() => {
+    Promise.reject(new Error('foo'));
+  }));
+}
