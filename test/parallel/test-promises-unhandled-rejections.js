@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const domain = require('domain');
 const { inspect } = require('util');
 
 common.disableCrashOnUnhandledRejection();
