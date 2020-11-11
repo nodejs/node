@@ -1,10 +1,25 @@
 // Flags: --enable-source-maps
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { findSourceMap, SourceMap } = require('module');
 const { readFileSync } = require('fs');
+
+// It should throw with invalid args.
+{
+  [1, true, 'foo'].forEach((invalidArg) =>
+    assert.throws(
+      () => new SourceMap(invalidArg),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+        message: 'The "payload" argument must be of type object.' +
+               common.invalidArgTypeHelper(invalidArg)
+      }
+    )
+  );
+}
 
 // findSourceMap() can lookup source-maps based on URIs, in the
 // non-exceptional case.
