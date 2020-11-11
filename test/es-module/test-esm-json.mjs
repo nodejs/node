@@ -23,7 +23,7 @@ child.on('close', (code, signal) => {
   strictEqual(code, 0);
   strictEqual(signal, null);
   ok(stderr.toString().includes(
-    'ExperimentalWarning: Importing JSON modules is an experimental feature. ' +
-    'This feature could change at any time'
+    'ExperimentalWarning: [EXP0003] Importing JSON modules is an ' +
+    'experimental feature. This feature could change at any time'
   ));
 });

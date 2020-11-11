@@ -401,6 +401,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
+  AddOption("--suppress-warnings",
+            "silence warnings for specified codes",
+            &EnvironmentOptions::suppress_warnings,
+            kAllowedInEnvironment);
   // Options after --prof-process are passed through to the prof processor.
   AddAlias("--prof-process", { "--prof-process", "--" });
 #if HAVE_INSPECTOR

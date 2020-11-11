@@ -848,6 +848,13 @@ Enables report to be generated on uncaught exceptions. Useful when inspecting
 the JavaScript stack in conjunction with native stack and other runtime
 environment data.
 
+### `--suppress-warnings`
+<!-- YAML
+added: REPLACEME
+-->
+
+Silence deprecation and experimental warnings for specified codes.
+
 ### `--throw-deprecation`
 <!-- YAML
 added: v0.11.14
@@ -1358,6 +1365,7 @@ Node.js options that are allowed are:
 * `--report-signal`
 * `--report-uncaught-exception`
 * `--require`, `-r`
+* `--suppress-warnings`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`

@@ -1,4 +1,4 @@
-(node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
+(node:*) ExperimentalWarning: [EXP0002] --experimental-loader is an experimental feature. This feature could change at any time
 (Use `* --trace-warnings ...` to show where the warning was created)
 node:internal/process/esm_loader:*
     internalBinding('errors').triggerUncaughtException(
