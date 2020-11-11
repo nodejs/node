@@ -858,8 +858,8 @@ const { getEventListeners, EventEmitter } = require('events');
 {
   const et = new EventTarget();
   const listener = () => console.log('Events are fun');
-  ee.addEventListener('foo', listener);
-  getEventListeners(ee, 'foo'); // [listener]
+  et.addEventListener('foo', listener);
+  getEventListeners(et, 'foo'); // [listener]
 }
 ```
 
