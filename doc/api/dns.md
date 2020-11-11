@@ -730,6 +730,14 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.reverse()`][`dnsPromises.reverse()`]
 * [`resolver.setServers()`][`dnsPromises.setServers()`]
 
+### `resolver.cancel()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Cancel all outstanding DNS queries made by this resolver. The corresponding
+promises will be rejected with an error with code `ECANCELLED`.
+
 ### `dnsPromises.getServers()`
 <!-- YAML
 added: v10.6.0
