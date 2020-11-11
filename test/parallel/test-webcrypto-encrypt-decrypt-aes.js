@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { getRandomValues, subtle } = require('crypto').webcrypto;
 
 async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
   const key = await subtle.importKey(
@@ -194,5 +194,43 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
     });
 
     await Promise.all(variations);
+  })().then(common.mustCall());
+}
+
+{
+  (async function() {
+    const secretKey = await subtle.generateKey(
+      {
+        name: 'AES-GCM',
+        length: 256,
+      },
+      false,
+      ['encrypt', 'decrypt'],
+    );
+
+    const iv = getRandomValues(new Uint8Array(12));
+    const aad = getRandomValues(new Uint8Array(32));
+
+    const encrypted = await subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv,
+        additionalData: aad,
+        tagLength: 128
+      },
+      secretKey,
+      getRandomValues(new Uint8Array(32))
+    );
+
+    await subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv,
+        additionalData: aad,
+        tagLength: 128,
+      },
+      secretKey,
+      new Uint8Array(encrypted),
+    );
   })().then(common.mustCall());
 }
