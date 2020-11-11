@@ -2906,6 +2906,7 @@ assert.strictEqual(
     util.inspect(x, { maxStringLength: 4 }),
     "'aaaa'... 999996 more characters"
   );
+  assert.match(util.inspect(x, { maxStringLength: null }), /a'$/);
 }
 
 {
