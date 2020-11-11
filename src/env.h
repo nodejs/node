@@ -520,6 +520,8 @@ constexpr size_t kFsStatsBufferLength =
   V(domexception_function, v8::Function)                                       \
   V(enhance_fatal_stack_after_inspector, v8::Function)                         \
   V(enhance_fatal_stack_before_inspector, v8::Function)                        \
+  V(event_constructor, v8::Function)                                           \
+  V(eventtarget_constructor, v8::Function)                                     \
   V(fs_use_promises_symbol, v8::Symbol)                                        \
   V(host_import_module_dynamically_callback, v8::Function)                     \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \

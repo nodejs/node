@@ -195,6 +195,16 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
 }
 
+void StoreEventTargetConstructors(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());  // EventTarget
+  CHECK(args[1]->IsFunction());  // Event
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->eventtarget_constructor().IsEmpty());
+  CHECK(env->event_constructor().IsEmpty());
+  env->set_eventtarget_constructor(args[0].As<v8::Function>());
+  env->set_event_constructor(args[1].As<v8::Function>());
+}
+
 class WeakReference : public BaseObject {
  public:
   WeakReference(Environment* env, Local<Object> object, Local<Object> target)
@@ -293,6 +303,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WeakReference::IncRef);
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
+  registry->Register(StoreEventTargetConstructors);
 }
 
 void Initialize(Local<Object> target,
@@ -367,6 +378,9 @@ void Initialize(Local<Object> target,
               weak_ref->GetFunction(context).ToLocalChecked()).Check();
 
   env->SetMethod(target, "guessHandleType", GuessHandleType);
+
+  env->SetMethod(target, "storeEventTargetConstructors",
+                 StoreEventTargetConstructors);
 }
 
 }  // namespace util
