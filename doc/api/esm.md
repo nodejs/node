@@ -246,6 +246,11 @@ syncBuiltinESMExports();
 fs.readFileSync === readFileSync;
 ```
 
+## `import()` expressions
+
+[Dynamic `import()`][] is supported in both CommonJS and ES modules. In CommonJS
+modules it can be used to load ES modules.
+
 ## `import.meta`
 
 * {Object}
@@ -276,6 +281,9 @@ const buffer = readFileSync(new URL('./data.proto', import.meta.url));
   is specified, the value of `import.meta.url` is used as the default.
 * Returns: {Promise}
 
+Provides a module-relative resolution function scoped to each module, returning
+the URL string.
+
 <!-- eslint-skip -->
 ```js
 const dependencyAsset = await import.meta.resolve('component-lib/asset.css');
@@ -290,33 +298,28 @@ await import.meta.resolve('./dep', import.meta.url);
 ```
 
 This function is asynchronous because the ES module resolver in Node.js is
-asynchronous.
-
-## `import()` expressions
-
-[Dynamic `import()`][] is supported in both CommonJS and ES modules. In CommonJS
-modules it can be used to load ES modules.
+allowed to be asynchronous.
 
 ## Interoperability with CommonJS
-
-### `require`
-
-`require` always treats the files it references as CommonJS.
-
-Using `require` to load an ES module is not supported because ES modules have
-asynchronous execution. Instead, use use [`import()`][] to load an ES module
-from a CommonJS module.
 
 ### `import` statements
 
 An `import` statement can reference an ES module or a CommonJS module.
-`import` statements are permitted only in ES modules. For similar functionality
-in CommonJS, see [`import()`][].
+`import` statements are permitted only in ES modules, but dynamic [`import()`][]
+expressions are supported in CommonJS for loading ES modules.
 
 When importing [CommonJS modules](#esm_commonjs_namespaces), the
 `module.exports` object is provided as the default export. Named exports may be
 available, provided by static analysis as a convenience for better ecosystem
 compatibility.
+
+### `require`
+
+The CommonJS module `require` always treats the files it references as CommonJS.
+
+Using `require` to load an ES module is not supported because ES modules have
+asynchronous execution. Instead, use use [`import()`][] to load an ES module
+from a CommonJS module.
 
 ### CommonJS Namespaces
 
@@ -401,52 +404,67 @@ Named exports detection covers many common export patterns, reexport patterns
 and build tool and transpiler outputs. See [cjs-module-lexer][] for the exact
 semantics implemented.
 
-### CommonJS, JSON, and native modules
+### Differences between ES modules and CommonJS
 
-CommonJS, JSON, and native modules can be used with
+#### No `require`, `exports` or `module.exports`
+
+In most cases, the ES module `import` can be used to load CommonJS modules.
+
+If needed, a `require` function can be constructed within an ES module using
 [`module.createRequire()`][].
 
+#### No `__filename` or `__dirname`
+
+These CommonJS variables are not available in ES modules.
+
+`__filename` and `__dirname` use cases can be replicated via
+[`import.meta.url`][].
+
+#### No JSON Module Loading
+
+JSON imports are still experimental and only supported via the
+`--experimental-json-modules` flag.
+
+Local JSON files can be loaded relative to `import.meta.url` with `fs` directly:
+
+<!-- eslint-skip -->
 ```js
-// cjs.cjs
-module.exports = 'cjs';
+import { promises as fs } from 'fs';
 
-// esm.mjs
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-
-const cjs = require('./cjs.cjs');
-cjs === 'cjs'; // true
+const json = JSON.parse(await fs.readFile('./data.json', import.meta.url));
 ```
 
-### Differences between ES modules and CommonJS
+Alterantively `module.createRequire()` can be used.
+
+#### No Native Module Loading
+
+Native modules are not currently supported with ES module imports.
+
+They can be loaded directly with `process.dlopen`:
+
+```js
+import process from 'process';
+import { fileURLToPath } from 'url';
+
+const module = { exports: {} };
+process.dlopen(module, fileURLToPath(new URL('./local.node', import.meta.url)));
+```
+
+Alternatively `module.createRequire()` can be used.
+
+#### No `require.resolve`
+
+Relative resolution can be handled via `new URL('./local', import.meta.url)`.
+
+For a complete `require.resolve` replacement, there is a flagged experimental
+[`import.meta.resolve`][] API.
+
+Alternatively `module.createRequire()` can be used.
 
 #### No `NODE_PATH`
 
 `NODE_PATH` is not part of resolving `import` specifiers. Please use symlinks
 if this behavior is desired.
-
-#### No `require`, `exports`, `module.exports`, `__filename`, `__dirname`
-
-These CommonJS variables are not available in ES modules.
-
-`require` can be imported into an ES module using [`module.createRequire()`][].
-
-Equivalents of `__filename` and `__dirname` can be created inside of each file
-via [`import.meta.url`][].
-
-```js
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-```
-
-#### No `require.resolve`
-
-Former use cases relying on `require.resolve` to determine the resolved path
-of a module can be supported via [`import.meta.resolve`][].
 
 #### No `require.extensions`
 
@@ -455,7 +473,8 @@ hooks can provide this workflow in the future.
 
 #### No `require.cache`
 
-`require.cache` is not used by `import`. It has a separate cache.
+`require.cache` is not used by `import` as the ES module loader has its own
+separate cache.
 
 <i id="esm_experimental_json_modules"></i>
 
