@@ -439,7 +439,8 @@ Alterantively `module.createRequire()` can be used.
 
 Native modules are not currently supported with ES module imports.
 
-The can instead be loaded with `module.createRequire()` or `process.dlopen`.
+The can instead be loaded with [`module.createRequire()`][] or
+[`process.dlopen`][].
 
 #### No `require.resolve`
 
@@ -1321,6 +1322,7 @@ success!
 [`module.createRequire()`]: module.md#module_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: module.md#module_module_syncbuiltinesmexports
 [`package.json`]: packages.md#packages_node_js_package_json_field_definitions
+[`process.dlopen`]: process.md#process_process_dlopen_module_filename_flags
 [`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#util_class_util_textdecoder
