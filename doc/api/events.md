@@ -158,11 +158,13 @@ myEmitter.emit('error', new Error('whoops!'));
 ```
 
 It is possible to monitor `'error'` events without consuming the emitted error
-by installing a listener using the symbol `errorMonitor`.
+by installing a listener using the symbol `events.errorMonitor`.
 
 ```js
-const myEmitter = new MyEmitter();
-myEmitter.on(EventEmitter.errorMonitor, (err) => {
+const { EventEmitter, errorMonitor } = require('events');
+
+const myEmitter = new EventEmitter();
+myEmitter.on(errorMonitor, (err) => {
   MyMonitoringTool.log(err);
 });
 myEmitter.emit('error', new Error('whoops!'));
@@ -205,12 +207,13 @@ ee2.on('something', async (value) => {
 ee2[Symbol.for('nodejs.rejection')] = console.log;
 ```
 
-Setting `EventEmitter.captureRejections = true` will change the default for all
+Setting `events.captureRejections = true` will change the default for all
 new instances of `EventEmitter`.
 
 ```js
-EventEmitter.captureRejections = true;
-const ee1 = new EventEmitter();
+const events = require('events');
+events.captureRejections = true;
+const ee1 = new events.EventEmitter();
 ee1.on('something', async (value) => {
   throw new Error('kaboom');
 });
@@ -306,106 +309,6 @@ changes:
 
 The `'removeListener'` event is emitted *after* the `listener` is removed.
 
-### `EventEmitter.listenerCount(emitter, eventName)`
-<!-- YAML
-added: v0.9.12
-deprecated: v3.2.0
--->
-
-> Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
-
-* `emitter` {EventEmitter} The emitter to query
-* `eventName` {string|symbol} The event name
-
-A class method that returns the number of listeners for the given `eventName`
-registered on the given `emitter`.
-
-```js
-const myEmitter = new EventEmitter();
-myEmitter.on('event', () => {});
-myEmitter.on('event', () => {});
-console.log(EventEmitter.listenerCount(myEmitter, 'event'));
-// Prints: 2
-```
-
-### `EventEmitter.defaultMaxListeners`
-<!-- YAML
-added: v0.11.2
--->
-
-By default, a maximum of `10` listeners can be registered for any single
-event. This limit can be changed for individual `EventEmitter` instances
-using the [`emitter.setMaxListeners(n)`][] method. To change the default
-for *all* `EventEmitter` instances, the `EventEmitter.defaultMaxListeners`
-property can be used. If this value is not a positive number, a `RangeError`
-is thrown.
-
-Take caution when setting the `EventEmitter.defaultMaxListeners` because the
-change affects *all* `EventEmitter` instances, including those created before
-the change is made. However, calling [`emitter.setMaxListeners(n)`][] still has
-precedence over `EventEmitter.defaultMaxListeners`.
-
-This is not a hard limit. The `EventEmitter` instance will allow
-more listeners to be added but will output a trace warning to stderr indicating
-that a "possible EventEmitter memory leak" has been detected. For any single
-`EventEmitter`, the `emitter.getMaxListeners()` and `emitter.setMaxListeners()`
-methods can be used to temporarily avoid this warning:
-
-```js
-emitter.setMaxListeners(emitter.getMaxListeners() + 1);
-emitter.once('event', () => {
-  // do stuff
-  emitter.setMaxListeners(Math.max(emitter.getMaxListeners() - 1, 0));
-});
-```
-
-The [`--trace-warnings`][] command-line flag can be used to display the
-stack trace for such warnings.
-
-The emitted warning can be inspected with [`process.on('warning')`][] and will
-have the additional `emitter`, `type` and `count` properties, referring to
-the event emitter instance, the event’s name and the number of attached
-listeners, respectively.
-Its `name` property is set to `'MaxListenersExceededWarning'`.
-
-### `EventEmitter.errorMonitor`
-<!-- YAML
-added:
- - v13.6.0
- - v12.17.0
--->
-
-This symbol shall be used to install a listener for only monitoring `'error'`
-events. Listeners installed using this symbol are called before the regular
-`'error'` listeners are called.
-
-Installing a listener using this symbol does not change the behavior once an
-`'error'` event is emitted, therefore the process will still crash if no
-regular `'error'` listener is installed.
-
-### `EventEmitter.setMaxListeners(n[, ...eventTargets])`
-<!-- YAML
-added: REPLACEME
--->
-
-* `n` {number} A non-negative number. The maximum number of listeners per
-  `EventTarget` event.
-* `...eventsTargets` {EventTarget[]|EventEmitter[]} Zero or more {EventTarget}
-  or {EventEmitter} instances. If none are specified, `n` is set as the default
-  max for all newly created {EventTarget} and {EventEmitter} objects.
-
-```js
-const {
-  setMaxListeners,
-  EventEmitter
-} = require('events');
-
-const target = new EventTarget();
-const emitter = new EventEmitter();
-
-setMaxListeners(5, target, emitter);
-```
-
 ### `emitter.addListener(eventName, listener)`
 <!-- YAML
 added: v0.1.26
@@ -496,7 +399,7 @@ added: v1.0.0
 
 Returns the current max listener value for the `EventEmitter` which is either
 set by [`emitter.setMaxListeners(n)`][] or defaults to
-[`EventEmitter.defaultMaxListeners`][].
+[`events.defaultMaxListeners`][].
 
 ### `emitter.listenerCount(eventName)`
 <!-- YAML
@@ -852,6 +755,61 @@ class MyClass extends EventEmitter {
 }
 ```
 
+## `events.defaultMaxListeners`
+<!-- YAML
+added: v0.11.2
+-->
+
+By default, a maximum of `10` listeners can be registered for any single
+event. This limit can be changed for individual `EventEmitter` instances
+using the [`emitter.setMaxListeners(n)`][] method. To change the default
+for *all* `EventEmitter` instances, the `events.defaultMaxListeners`
+property can be used. If this value is not a positive number, a `RangeError`
+is thrown.
+
+Take caution when setting the `events.defaultMaxListeners` because the
+change affects *all* `EventEmitter` instances, including those created before
+the change is made. However, calling [`emitter.setMaxListeners(n)`][] still has
+precedence over `events.defaultMaxListeners`.
+
+This is not a hard limit. The `EventEmitter` instance will allow
+more listeners to be added but will output a trace warning to stderr indicating
+that a "possible EventEmitter memory leak" has been detected. For any single
+`EventEmitter`, the `emitter.getMaxListeners()` and `emitter.setMaxListeners()`
+methods can be used to temporarily avoid this warning:
+
+```js
+emitter.setMaxListeners(emitter.getMaxListeners() + 1);
+emitter.once('event', () => {
+  // do stuff
+  emitter.setMaxListeners(Math.max(emitter.getMaxListeners() - 1, 0));
+});
+```
+
+The [`--trace-warnings`][] command-line flag can be used to display the
+stack trace for such warnings.
+
+The emitted warning can be inspected with [`process.on('warning')`][] and will
+have the additional `emitter`, `type` and `count` properties, referring to
+the event emitter instance, the event’s name and the number of attached
+listeners, respectively.
+Its `name` property is set to `'MaxListenersExceededWarning'`.
+
+## `events.errorMonitor`
+<!-- YAML
+added:
+ - v13.6.0
+ - v12.17.0
+-->
+
+This symbol shall be used to install a listener for only monitoring `'error'`
+events. Listeners installed using this symbol are called before the regular
+`'error'` listeners are called.
+
+Installing a listener using this symbol does not change the behavior once an
+`'error'` event is emitted, therefore the process will still crash if no
+regular `'error'` listener is installed.
+
 ## `events.getEventListeners(emitterOrTarget, eventName)`
 <!-- YAML
 added:
@@ -1061,6 +1019,29 @@ Value: `Symbol.for('nodejs.rejection')`
 
 See how to write a custom [rejection handler][rejection].
 
+## `events.listenerCount(emitter, eventName)`
+<!-- YAML
+added: v0.9.12
+deprecated: v3.2.0
+-->
+
+> Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
+
+* `emitter` {EventEmitter} The emitter to query
+* `eventName` {string|symbol} The event name
+
+A class method that returns the number of listeners for the given `eventName`
+registered on the given `emitter`.
+
+```js
+const { EventEmitter, listenerCount } = require('events');
+const myEmitter = new EventEmitter();
+myEmitter.on('event', () => {});
+myEmitter.on('event', () => {});
+console.log(listenerCount(myEmitter, 'event'));
+// Prints: 2
+```
+
 ## `events.on(emitter, eventName[, options])`
 <!-- YAML
 added:
@@ -1126,6 +1107,29 @@ const ac = new AbortController();
 })();
 
 process.nextTick(() => ac.abort());
+```
+
+## `events.setMaxListeners(n[, ...eventTargets])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `n` {number} A non-negative number. The maximum number of listeners per
+  `EventTarget` event.
+* `...eventsTargets` {EventTarget[]|EventEmitter[]} Zero or more {EventTarget}
+  or {EventEmitter} instances. If none are specified, `n` is set as the default
+  max for all newly created {EventTarget} and {EventEmitter} objects.
+
+```js
+const {
+  setMaxListeners,
+  EventEmitter
+} = require('events');
+
+const target = new EventTarget();
+const emitter = new EventEmitter();
+
+setMaxListeners(5, target, emitter);
 ```
 
 <a id="event-target-and-event-api"></a>
@@ -1606,7 +1610,6 @@ to the `EventTarget`.
 
 [WHATWG-EventTarget]: https://dom.spec.whatwg.org/#interface-eventtarget
 [`--trace-warnings`]: cli.md#cli_trace_warnings
-[`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
 [`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
 [`EventTarget` error handling]: #events_eventtarget_error_handling
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
@@ -1614,6 +1617,7 @@ to the `EventTarget`.
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
+[`events.defaultMaxListeners`]: #events_events_defaultmaxlisteners
 [`fs.ReadStream`]: fs.md#fs_class_fs_readstream
 [`net.Server`]: net.md#net_class_net_server
 [`process.on('warning')`]: process.md#process_event_warning
