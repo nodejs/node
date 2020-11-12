@@ -429,9 +429,8 @@ Local JSON files can be loaded relative to `import.meta.url` with `fs` directly:
 
 <!-- eslint-skip -->
 ```js
-import { promises as fs } from 'fs';
-
-const json = JSON.parse(await fs.readFile('./data.json', import.meta.url));
+import { readFile } from 'fs/promises';
+const json = JSON.parse(await readFile(new URL('./dat.json', import.meta.url)));
 ```
 
 Alterantively `module.createRequire()` can be used.
