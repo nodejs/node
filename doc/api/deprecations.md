@@ -710,7 +710,7 @@ changes:
 
 Type: Documentation-only
 
-The [`EventEmitter.listenerCount(emitter, eventName)`][] API is
+The [`events.listenerCount(emitter, eventName)`][] API is
 deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
 
 ### DEP0034: `fs.exists(path, callback)`
@@ -2665,7 +2665,6 @@ Use `fs.rm(path, { recursive: true, force: true })` instead.
 [`Buffer.isBuffer()`]: buffer.md#buffer_static_method_buffer_isbuffer_obj
 [`Cipher`]: crypto.md#crypto_class_cipher
 [`Decipher`]: crypto.md#crypto_class_decipher
-[`EventEmitter.listenerCount(emitter, eventName)`]: events.md#events_eventemitter_listenercount_emitter_eventname
 [`REPLServer.clearBufferedCommand()`]: repl.md#repl_replserver_clearbufferedcommand
 [`ReadStream.open()`]: fs.md#fs_class_fs_readstream
 [`Server.connections`]: net.md#net_server_connections
@@ -2695,6 +2694,7 @@ Use `fs.rm(path, { recursive: true, force: true })` instead.
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.md#events_emitter_listenercount_eventname
+[`events.listenerCount(emitter, eventName)`]: events.md#events_events_listenercount_emitter_eventname
 [`fs.FileHandle`]: fs.md#fs_class_filehandle
 [`fs.access()`]: fs.md#fs_fs_access_path_mode_callback
 [`fs.createReadStream()`]: fs.md#fs_fs_createreadstream_path_options
