@@ -87,7 +87,7 @@ fs.open(filename4, 'w+', common.mustSucceed((fd) => {
   // After the operation has started
   const controller = new AbortController();
   const signal = controller.signal;
-  const filename4 = join(tmpdir.path, 'test4.txt');
+  const filename4 = join(tmpdir.path, 'test5.txt');
 
   fs.writeFile(filename4, s, { signal }, common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');
