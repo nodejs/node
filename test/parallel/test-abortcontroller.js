@@ -3,7 +3,7 @@
 
 const common = require('../common');
 
-const { ok, strictEqual } = require('assert');
+const { ok, strictEqual, throws } = require('assert');
 
 {
   // Tests that abort is fired with the correct event type on AbortControllers
@@ -50,4 +50,13 @@ const { ok, strictEqual } = require('assert');
   const untrusted = Reflect.getOwnPropertyDescriptor(ev3, 'isTrusted').get;
   strictEqual(firstTrusted, secondTrusted);
   strictEqual(untrusted, firstTrusted);
+}
+
+{
+  // Tests that AbortSignal is impossible to construct manually
+  const ac = new AbortController();
+  throws(
+    () => new ac.signal.constructor(),
+    /^TypeError: Illegal constructor$/
+  );
 }
