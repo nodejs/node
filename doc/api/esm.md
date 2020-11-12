@@ -439,17 +439,7 @@ Alterantively `module.createRequire()` can be used.
 
 Native modules are not currently supported with ES module imports.
 
-They can be loaded directly with `process.dlopen`:
-
-```js
-import process from 'process';
-import { fileURLToPath } from 'url';
-
-const module = { exports: {} };
-process.dlopen(module, fileURLToPath(new URL('./local.node', import.meta.url)));
-```
-
-Alternatively `module.createRequire()` can be used.
+The can instead be loaded with `module.createRequire()` or `process.dlopen`.
 
 #### No `require.resolve`
 
