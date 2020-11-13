@@ -64,7 +64,7 @@ const explainDependents = ({ name, dependents }, depth, color) => {
     const maxLen = 50
     const showNames = []
     for (let i = max; i < dependents.length; i++) {
-      const { from: { name } } = dependents[i]
+      const { from: { name = 'the root project' } } = dependents[i]
       len += name.length
       if (len >= maxLen && i < dependents.length - 1) {
         showNames.push('...')

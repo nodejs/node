@@ -54,7 +54,8 @@ the package specifier provided as the first positional argument according
 to the following heuristic:
 
 - If the package has a single entry in its `bin` field in `package.json`,
-  then that command will be used.
+  or if all entries are aliases of the same command, then that command
+  will be used.
 - If the package has multiple `bin` entries, and one of them matches the
   unscoped portion of the `name` field, then that command will be used.
 - If this does not result in exactly one option (either because there are

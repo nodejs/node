@@ -22,10 +22,11 @@ const usage = usageUtil('cache',
 const completion = (opts, cb) => {
   const argv = opts.conf.argv.remain
   if (argv.length === 2)
-    return cb(null, ['add', 'clean'])
+    return cb(null, ['add', 'clean', 'verify'])
 
   // TODO - eventually...
   switch (argv[2]) {
+    case 'verify':
     case 'clean':
     case 'add':
       return cb(null, [])
@@ -40,11 +41,11 @@ const cache = async (args) => {
     case 'rm': case 'clear': case 'clean':
       return await clean(args)
     case 'add':
-      return await add(args, npm.prefix)
+      return await add(args)
     case 'verify': case 'check':
       return await verify()
     default:
-      throw usage
+      throw Object.assign(new Error(usage), { code: 'EUSAGE' })
   }
 }
 
@@ -77,22 +78,21 @@ with --force.`)
 // npm cache add <pkg> <ver>
 // npm cache add <tarball>
 // npm cache add <folder>
-const add = async (args, where) => {
+const add = async (args) => {
   const usage = 'Usage:\n' +
     '    npm cache add <tarball-url>\n' +
     '    npm cache add <pkg>@<ver>\n' +
     '    npm cache add <tarball>\n' +
     '    npm cache add <folder>\n'
   log.silly('cache add', 'args', args)
-  const spec = args[0] +
+  const spec = args[0] && args[0] +
     (args[1] === undefined || args[1] === null ? '' : `@${args[1]}`)
 
-  log.verbose('cache add', 'spec', spec)
   if (!spec)
-    throw new Error(usage)
+    throw Object.assign(new Error(usage), { code: 'EUSAGE' })
 
-  log.silly('cache add', 'parsed spec', spec)
-  const opts = { ...npm.flatOptions, where }
+  log.silly('cache add', 'spec', spec)
+  const opts = { ...npm.flatOptions }
 
   // we ask pacote for the thing, and then just throw the data
   // away so that it tee-pipes it into the cache like it does
@@ -109,7 +109,7 @@ const verify = async () => {
     ? `~${cache.substr(process.env.HOME.length)}`
     : cache
   const stats = await cacache.verify(cache)
-  output(`Cache verified and compressed (${prefix}):`)
+  output(`Cache verified and compressed (${prefix})`)
   output(`Content verified: ${stats.verifiedContent} (${stats.keptSize} bytes)`)
   stats.badContentCount && output(`Corrupted content removed: ${stats.badContentCount}`)
   stats.reclaimedCount && output(`Content garbage-collected: ${stats.reclaimedCount} (${stats.reclaimedSize} bytes)`)

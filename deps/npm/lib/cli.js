@@ -1,5 +1,7 @@
 // Separated out for easier unit testing
 module.exports = (process) => {
+  // set it here so that regardless of what happens later, we don't
+  // leak any private CLI configs to other programs
   process.title = 'npm'
 
   const {

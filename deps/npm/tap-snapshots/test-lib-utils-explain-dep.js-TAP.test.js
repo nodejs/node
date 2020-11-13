@@ -10,7 +10,7 @@ manydep@1.0.0
   manydep@"1.0.0" from prod-dep@1.2.3
   node_modules/prod-dep
     prod-dep@"1.x" from the root project
-  6 more (optdep, extra-neos, deep-dev, peer, ...)
+  7 more (optdep, extra-neos, deep-dev, peer, the root project, ...)
 `
 
 exports[`test/lib/utils/explain-dep.js TAP > ellipses test two 1`] = `
@@ -18,7 +18,7 @@ manydep@1.0.0
   manydep@"1.0.0" from prod-dep@1.2.3
   node_modules/prod-dep
     prod-dep@"1.x" from the root project
-  5 more (optdep, extra-neos, deep-dev, peer, a package with a pretty long name)
+  6 more (optdep, extra-neos, deep-dev, peer, the root project, a package with a pretty long name)
 `
 
 exports[`test/lib/utils/explain-dep.js TAP deepDev > explain color deep 1`] = `
@@ -90,6 +90,7 @@ exports[`test/lib/utils/explain-dep.js TAP manyDeps > explain color deep 1`] = `
   [35mpeer[39m [1mmanydep[22m@"[1m>1.0.0-beta <1.0.1[22m" from [1mpeer[22m@[1m1.0.0[22m [1m[35mpeer[39m[22m[2m[22m
   [2mnode_modules/peer[22m
     [35mpeer[39m [1mpeer[22m@"[1m1.0.0[22m" from the root project
+  [1mmanydep[22m@"[1m>1.0.0-beta <1.0.1[22m" from the root project
   [1mmanydep[22m@"[1m1[22m" from [1ma package with a pretty long name[22m@[1m1.2.3[22m
   [1mmanydep[22m@"[1m1[22m" from [1manother package with a pretty long name[22m@[1m1.2.3[22m
   [1mmanydep[22m@"[1m1[22m" from [1myet another a package with a pretty long name[22m@[1m1.2.3[22m
@@ -100,7 +101,7 @@ manydep@1.0.0
   manydep@"1.0.0" from prod-dep@1.2.3
   node_modules/prod-dep
     prod-dep@"1.x" from the root project
-  7 more (optdep, extra-neos, deep-dev, peer, ...)
+  8 more (optdep, extra-neos, deep-dev, peer, the root project, ...)
 `
 
 exports[`test/lib/utils/explain-dep.js TAP manyDeps > print color 1`] = `

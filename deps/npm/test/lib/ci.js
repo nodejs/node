@@ -42,6 +42,25 @@ test('should use Arborist', (t) => {
   })
 })
 
+test('should pass flatOptions to Arborist.reify', (t) => {
+  const ci = requireInject('../../lib/ci.js', {
+    '../../lib/npm.js': {
+      prefix: 'foo',
+      flatOptions: {
+        production: true
+      }
+    },
+    '@npmcli/arborist': function () {
+      this.loadVirtual = () => Promise.resolve(true)
+      this.reify = async (options) => {
+        t.equal(options.production, true, 'should pass flatOptions to Arborist.reify')
+        t.end()
+      }
+    }
+  })
+  ci(null, () => {})
+})
+
 test('should throw if package-lock.json or npm-shrinkwrap missing', (t) => {
   const testDir = t.testdir({
     'index.js': 'some contents',

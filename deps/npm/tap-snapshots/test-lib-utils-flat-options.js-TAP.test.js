@@ -7,6 +7,7 @@
 'use strict'
 exports[`test/lib/utils/flat-options.js TAP basic > flat options 1`] = `
 Object {
+  "_auth": undefined,
   "@scope:registry": "@scope:registry",
   "//nerf.dart:_authToken": "//nerf.dart:_authToken",
   "access": "access",

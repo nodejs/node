@@ -186,7 +186,8 @@ the package specifier provided as the first positional argument according
 to the following heuristic:</p>
 <ul>
 <li>If the package has a single entry in its <code>bin</code> field in <code>package.json</code>,
-then that command will be used.</li>
+or if all entries are aliases of the same command, then that command
+will be used.</li>
 <li>If the package has multiple <code>bin</code> entries, and one of them matches the
 unscoped portion of the <code>name</code> field, then that command will be used.</li>
 <li>If this does not result in exactly one option (either because there are

@@ -182,7 +182,7 @@ const errorHandler = (er) => {
         detail: messageText(msg.detail),
       },
     }
-    console.log(JSON.stringify(error, null, 2))
+    console.error(JSON.stringify(error, null, 2))
   }
 
   exit(typeof er.errno === 'number' ? er.errno : typeof er.code === 'number' ? er.code : 1)

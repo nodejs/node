@@ -54,6 +54,7 @@ const _runCmd = Symbol('_runCmd')
 const _load = Symbol('_load')
 const _flatOptions = Symbol('_flatOptions')
 const _tmpFolder = Symbol('_tmpFolder')
+const _title = Symbol('_title')
 const npm = module.exports = new class extends EventEmitter {
   constructor () {
     super()
@@ -75,6 +76,7 @@ const npm = module.exports = new class extends EventEmitter {
       defaults,
       shorthands,
     })
+    this[_title] = process.title
     this.updateNotification = null
   }
 
@@ -156,6 +158,15 @@ const npm = module.exports = new class extends EventEmitter {
     return this.config.loaded
   }
 
+  get title () {
+    return this[_title]
+  }
+
+  set title (t) {
+    process.title = t
+    this[_title] = t
+  }
+
   async [_load] () {
     const node = await which(process.argv[0]).catch(er => null)
     if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
@@ -166,6 +177,15 @@ const npm = module.exports = new class extends EventEmitter {
 
     await this.config.load()
     this.argv = this.config.parsedArgv.remain
+    // note: this MUST be shorter than the actual argv length, because it
+    // uses the same memory, so node will truncate it if it's too long.
+    // if it's a token revocation, then the argv contains a secret, so
+    // don't show that.  (Regrettable historical choice to put it there.)
+    // Any other secrets are configs only, so showing only the positional
+    // args keeps those from being leaked.
+    const tokrev = deref(this.argv[0]) === 'token' && this.argv[1] === 'revoke'
+    this.title = tokrev ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
+      : ['npm', ...this.argv].join(' ')
 
     this.color = setupLog(this.config, this)
     process.env.COLOR = this.color ? '1' : '0'
