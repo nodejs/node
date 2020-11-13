@@ -9,7 +9,7 @@ const input = 'hello world';
 
 tmpdir.refresh();
 
-fs.promises.open(file, 'w+').then((handle) => {
+fs.promises.open(file, 'w+').then(common.mustCall((handle) => {
   handle.on('close', common.mustCall());
   const stream = fs.createWriteStream(null, { fd: handle });
 
@@ -18,4 +18,4 @@ fs.promises.open(file, 'w+').then((handle) => {
     const output = fs.readFileSync(file, 'utf-8');
     assert.strictEqual(output, input);
   }));
-});
+}));

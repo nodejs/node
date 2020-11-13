@@ -4720,7 +4720,7 @@ rejected.
 added: REPLACEME
 -->
 
-The `'close'` event is emitted when the FileHandle and any of its underlying
+The `'close'` event is emitted when the `FileHandle` and any of its underlying
 resources (a file descriptor, for example) have been closed.
 
 #### `filehandle.appendFile(data, options)`
