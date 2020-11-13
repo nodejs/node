@@ -337,4 +337,10 @@ class TryCatch : public v8::TryCatch {
 
 }  // end of namespace v8impl
 
+#define STATUS_CALL(call)                 \
+  do {                                    \
+    napi_status status = (call);          \
+    if (status != napi_ok) return status; \
+  } while (0)
+
 #endif  // SRC_JS_NATIVE_API_V8_H_
