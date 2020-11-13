@@ -1130,11 +1130,8 @@ napi_status napi_queue_async_work(napi_env env, napi_async_work work) {
   CHECK_ENV(env);
   CHECK_ARG(env, work);
 
-  napi_status status;
   uv_loop_t* event_loop = nullptr;
-  status = napi_get_uv_event_loop(env, &event_loop);
-  if (status != napi_ok)
-    return napi_set_last_error(env, status);
+  STATUS_CALL(napi_get_uv_event_loop(env, &event_loop));
 
   uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
 
