@@ -34,7 +34,7 @@ module.exports = async (newversion, opts) => {
   } = opts
 
   const { valid, clean, inc } = semver
-  const current = pkg.version
+  const current = pkg.version || '0.0.0'
   const currentClean = clean(current)
 
   const newV = valid(newversion, { loose: true }) ? clean(newversion, { loose: true })

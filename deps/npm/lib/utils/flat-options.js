@@ -50,6 +50,7 @@ const flatten = obj => ({
   alwaysAuth: obj['always-auth'],
   audit: obj.audit,
   auditLevel: obj['audit-level'],
+  _auth: obj._auth,
   authType: obj['auth-type'],
   ssoType: obj['sso-type'],
   ssoPollFrequency: obj['sso-poll-frequency'],

@@ -3,7 +3,7 @@
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
 .P
-The \fB"scripts"\fP property of of your \fBpackage\.json\fP file supports a number of built\-in scripts and their preset life cycle events as well as arbitrary scripts\. These all can be executed by running \fBnpm run\-script <stage>\fP or \fBnpm run <stage>\fP for short\. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP, \fBpostmyscript\fP)\. Scripts from dependencies can be run with \fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
+The \fB"scripts"\fP property of your \fBpackage\.json\fP file supports a number of built\-in scripts and their preset life cycle events as well as arbitrary scripts\. These all can be executed by running \fBnpm run\-script <stage>\fP or \fBnpm run <stage>\fP for short\. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP, \fBpostmyscript\fP)\. Scripts from dependencies can be run with \fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
 .SS Pre & Post Scripts
 .P
 To create "pre" or "post" scripts for any scripts defined in the \fB"scripts"\fP section of the \fBpackage\.json\fP, simply create another script \fIwith a matching name\fR and add "pre" or "post" to the beginning of them\.

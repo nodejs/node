@@ -1,5 +1,5 @@
 {
-  "version": "7.0.8",
+  "version": "7.0.11",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -42,10 +42,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^1.0.8",
+    "@npmcli/arborist": "^1.0.11",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^1.2.1",
-    "@npmcli/run-script": "^1.7.4",
+    "@npmcli/run-script": "^1.7.5",
     "abbrev": "~1.1.1",
     "ansicolors": "~0.3.2",
     "ansistyles": "~0.1.3",
@@ -76,7 +76,7 @@
     "libnpmpublish": "^4.0.0",
     "libnpmsearch": "^3.0.1",
     "libnpmteam": "^2.0.2",
-    "libnpmversion": "^1.0.6",
+    "libnpmversion": "^1.0.7",
     "make-fetch-happen": "^8.0.9",
     "mkdirp": "^1.0.4",
     "mkdirp-infer-owner": "^2.0.0",
@@ -92,7 +92,7 @@
     "npm-user-validate": "^1.0.1",
     "npmlog": "~4.1.2",
     "opener": "^1.5.2",
-    "pacote": "^11.1.12",
+    "pacote": "^11.1.13",
     "parse-conflict-json": "^1.1.1",
     "qrcode-terminal": "^0.12.0",
     "read": "~1.0.7",
@@ -180,12 +180,12 @@
     "write-file-atomic"
   ],
   "devDependencies": {
-    "cmark-gfm": "^0.8.3",
-    "eslint": "^7.12.1",
+    "cmark-gfm": "^0.8.4",
+    "eslint": "^7.13.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.2",
+    "eslint-plugin-standard": "^4.1.0",
     "jsdom": "^16.4.0",
     "marked-man": "^0.7.0",
     "require-inject": "^1.4.4",
