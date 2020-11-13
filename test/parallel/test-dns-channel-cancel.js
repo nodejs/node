@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const dnstools = require('../common/dns');
 const { Resolver } = require('dns');
 const assert = require('assert');
 const dgram = require('dgram');

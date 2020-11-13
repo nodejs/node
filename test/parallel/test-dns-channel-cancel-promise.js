@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const dnstools = require('../common/dns');
 const { promises: dnsPromises } = require('dns');
 const assert = require('assert');
 const dgram = require('dgram');
@@ -8,26 +7,36 @@ const dgram = require('dgram');
 const server = dgram.createSocket('udp4');
 const resolver = new dnsPromises.Resolver();
 
-const receivedDomains = [];
-const expectedDomains = [];
+const addMessageListener = () => {
+  server.removeAllListeners('message');
+
+  server.once('message', () => {
+    server.once('message', common.mustNotCall);
+
+    resolver.cancel();
+  });
+};
 
 server.bind(0, common.mustCall(async () => {
   resolver.setServers([`127.0.0.1:${server.address().port}`]);
 
+  addMessageListener();
+
   // Single promise
   {
     const hostname = 'example0.org';
-    expectedDomains.push(hostname);
 
     await assert.rejects(
       resolver.resolve4(hostname),
       {
         code: 'ECANCELLED',
         syscall: 'queryA',
-        hostname: 'example0.org'
+        hostname
       }
     );
   }
+
+  addMessageListener();
 
   // Multiple promises
   {
@@ -36,8 +45,6 @@ server.bind(0, common.mustCall(async () => {
 
     for (let i = 1; i <= assertionCount; i++) {
       const hostname = `example${i}.org`;
-
-      expectedDomains.push(hostname);
 
       assertions.push(
         assert.rejects(
@@ -54,18 +61,5 @@ server.bind(0, common.mustCall(async () => {
     await Promise.all(assertions);
   }
 
-  assert.deepStrictEqual(expectedDomains.sort(), receivedDomains.sort());
-
   server.close();
 }));
-
-server.on('message', (msg, { address, port }) => {
-  const parsed = dnstools.parseDNSPacket(msg);
-
-  for (const question of parsed.questions) {
-    receivedDomains.push(question.domain);
-  }
-
-  // Do not send a reply.
-  resolver.cancel();
-});
