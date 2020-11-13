@@ -4,6 +4,7 @@ const log = require('npmlog')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const usageUtil = require('./utils/usage.js')
+const replaceInfo = require('./utils/replace-info.js')
 const authTypes = {
   legacy: require('./auth/legacy.js'),
   oauth: require('./auth/oauth.js'),
@@ -56,6 +57,8 @@ const adduser = async (args) => {
   const creds = npm.config.getCredentialsByURI(registry)
 
   log.disableProgress()
+
+  log.notice('', `Log in on ${replaceInfo(registry)}`)
 
   const { message, newCreds } = await auth({
     creds,

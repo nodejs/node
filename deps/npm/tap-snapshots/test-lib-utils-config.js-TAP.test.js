@@ -8,6 +8,7 @@
 exports[`test/lib/utils/config.js TAP no process.umask() method > must match snapshot 1`] = `
 Object {
   "defaults": Object {
+    "_auth": null,
     "access": null,
     "all": false,
     "allow-same-version": false,
@@ -267,6 +268,10 @@ Object {
     ],
   },
   "types": Object {
+    "_auth": Array [
+      null,
+      "{String TYPE}",
+    ],
     "access": Array [
       null,
       "restricted",
@@ -537,6 +542,7 @@ Object {
 exports[`test/lib/utils/config.js TAP no working network interfaces, on windows > must match snapshot 1`] = `
 Object {
   "defaults": Object {
+    "_auth": null,
     "access": null,
     "all": false,
     "allow-same-version": false,
@@ -796,6 +802,10 @@ Object {
     ],
   },
   "types": Object {
+    "_auth": Array [
+      null,
+      "{String TYPE}",
+    ],
     "access": Array [
       null,
       "restricted",
@@ -1066,6 +1076,7 @@ Object {
 exports[`test/lib/utils/config.js TAP working network interfaces, not windows > must match snapshot 1`] = `
 Object {
   "defaults": Object {
+    "_auth": null,
     "access": null,
     "all": false,
     "allow-same-version": false,
@@ -1325,6 +1336,10 @@ Object {
     ],
   },
   "types": Object {
+    "_auth": Array [
+      null,
+      "{String TYPE}",
+    ],
     "access": Array [
       null,
       "restricted",

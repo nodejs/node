@@ -226,15 +226,15 @@ const manifestMissing = (tree, mani) => {
 
 const getBinFromManifest = mani => {
   // if we have a bin matching (unscoped portion of) packagename, use that
-  // otherwise if there's 1 bin, use that,
+  // otherwise if there's 1 bin or all bin value is the same (alias), use that,
   // otherwise fail
-  const bins = Object.entries(mani.bin || {})
-  if (bins.length === 1)
-    return bins[0][0]
+  const bin = mani.bin || {}
+  if (new Set(Object.values(bin)).size === 1)
+    return Object.keys(bin)[0]
 
   // XXX probably a util to parse this better?
   const name = mani.name.replace(/^@[^/]+\//, '')
-  if (mani.bin && mani.bin[name])
+  if (bin[name])
     return name
 
   // XXX need better error message

@@ -13,6 +13,7 @@ const _flatOptions = {
 
 let failSave = false
 let deletedConfig = {}
+let registryOutput = ''
 let setConfig = {}
 const authDummy = () => Promise.resolve({
   message: 'success',
@@ -32,7 +33,10 @@ const deleteMock = (key, where) => {
 }
 const adduser = requireInject('../../lib/adduser.js', {
   npmlog: {
-    disableProgress: () => null
+    disableProgress: () => null,
+    notice: (_, msg) => {
+      registryOutput = msg
+    },
   },
   '../../lib/npm.js': {
     flatOptions: _flatOptions,
@@ -69,6 +73,12 @@ test('simple login', (t) => {
   adduser([], (err) => {
     t.ifError(err, 'npm adduser')
 
+    t.equal(
+      registryOutput,
+      'Log in on https://registry.npmjs.org/',
+      'should have correct message result'
+    )
+
     t.deepEqual(
       deletedConfig,
       {
@@ -102,6 +112,7 @@ test('simple login', (t) => {
       'should output auth success msg'
     )
 
+    registryOutput = ''
     deletedConfig = {}
     setConfig = {}
     result = ''

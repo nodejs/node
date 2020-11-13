@@ -386,6 +386,75 @@ t.test('npm exec @foo/bar -- --some=arg, locally installed', async t => {
   }])
 })
 
+t.test('npm exec @foo/bar, with same bin alias and no unscoped named bin, locally installed', async t => {
+  const foobarManifest = {
+    name: '@foo/bar',
+    version: '1.2.3',
+    bin: {
+      baz: 'corge', // pick the first one
+      qux: 'corge',
+      quux: 'corge',
+    }
+  }
+  const path = t.testdir({
+    node_modules: {
+      '@foo/bar': {
+        'package.json': JSON.stringify(foobarManifest)
+      }
+    }
+  })
+  npm.localPrefix = path
+  ARB_ACTUAL_TREE[path] = {
+    children: new Map([['@foo/bar', { name: '@foo/bar', version: '1.2.3' }]])
+  }
+  MANIFESTS['@foo/bar'] = foobarManifest
+  await exec(['@foo/bar'], er => {
+    if (er) {
+      throw er
+    }
+  })
+  t.strictSame(MKDIRPS, [], 'no need to make any dirs')
+  t.match(ARB_CTOR, [ { package: ['@foo/bar'], path } ])
+  t.strictSame(ARB_REIFY, [], 'no need to reify anything')
+  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+  t.match(RUN_SCRIPTS, [{
+    pkg: { scripts: { npx: 'baz' } },
+    banner: false,
+    path: process.cwd(),
+    stdioString: true,
+    event: 'npx',
+    env: { PATH: process.env.PATH },
+    stdio: 'inherit'
+  }])
+})
+
+t.test('npm exec @foo/bar, with different bin alias and no unscoped named bin, locally installed', t => {
+  const path = t.testdir()
+  npm.localPrefix = path
+  ARB_ACTUAL_TREE[path] = {
+    children: new Map([['@foo/bar', { name: '@foo/bar', version: '1.2.3' }]])
+  }
+  MANIFESTS['@foo/bar'] = {
+    name: '@foo/bar',
+    version: '1.2.3',
+    bin: {
+      foo: 'qux',
+      corge: 'qux',
+      baz: 'quux',
+    },
+    _from: 'foo@',
+    _id: '@foo/bar@1.2.3'
+  }
+  return t.rejects(exec(['@foo/bar'], er => {
+    if (er) {
+      throw er
+    }
+  }), {
+    message: 'could not determine executable to run',
+    pkgid: '@foo/bar@1.2.3'
+  })
+})
+
 t.test('run command with 2 packages, need install, verify sort', t => {
   // test both directions, should use same install dir both times
   // also test the read() call here, verify that the prompts match

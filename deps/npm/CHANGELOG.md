@@ -1,3 +1,115 @@
+## 7.0.11 (2020-11-13)
+
+### DEPENDENCIES
+
+* [`629a667a9`](https://github.com/npm/cli/commit/629a667a9b30b0b870075da965606979622a5e2e)
+  `eslint@7.13.0`
+* [`de9891bd2`](https://github.com/npm/cli/commit/de9891bd2a16fe890ff5cfb140c7b1209aeac0de)
+  `eslint-plugin-standard@4.1.0`
+* [`c3e7aa31c`](https://github.com/npm/cli/commit/c3e7aa31c565dfe21cd1f55a8433bfbcf58aa289)
+  [#2123](https://github.com/npm/cli/issues/2123)
+  [#1957](https://github.com/npm/cli/issues/1957)
+  `@npmcli/arborist@1.0.11`
+
+### BUG FIXES
+
+* [`a8aa38513`](https://github.com/npm/cli/commit/a8aa38513ad5c4ad44e6bb3e1499bfc40c31e213)
+  [#2134](https://github.com/npm/cli/issues/2134)
+  [#2156](https://github.com/npm/cli/issues/2156)
+  Fix `cannot read property length of undefined` in `ERESOLVE` explanation code
+  ([@isaacs](https://github.com/isaacs))
+* [`1dbf0f9bb`](https://github.com/npm/cli/commit/1dbf0f9bb26ba70f4c6d0a807701d7652c31d7d4)
+  [#2150](https://github.com/npm/cli/issues/2150)
+  [#2155](https://github.com/npm/cli/issues/2155)
+  send json errors to stderr, not stdout
+  ([@isaacs](https://github.com/isaacs))
+* [`fd1d7a21b`](https://github.com/npm/cli/commit/fd1d7a21b247bb35d112c51ff8d8a06fd83c8b44)
+  [#1927](https://github.com/npm/cli/issues/1927)
+  [#2154](https://github.com/npm/cli/issues/2154)
+  Set process.title a bit more usefully
+  ([@isaacs](https://github.com/isaacs))
+* [`2a80c67ef`](https://github.com/npm/cli/commit/2a80c67ef8c12c3d9d254f5be6293a6461067d99)
+  [#2008](https://github.com/npm/cli/issues/2008)
+  [#2153](https://github.com/npm/cli/issues/2153)
+  Support legacy auth tokens for registries that use them
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`786e36404`](https://github.com/npm/cli/commit/786e36404068fd51657ddac766e066a98754edbf)
+  [#2017](https://github.com/npm/cli/issues/2017)
+  [#2159](https://github.com/npm/cli/issues/2159)
+  pass all options to Arborist for `npm ci`
+  ([@darcyclarke](https://github.com/darcyclarke))
+* [`b47ada7d1`](https://github.com/npm/cli/commit/b47ada7d1623e9ee586ee0cf781ee3ac5ea3c223)
+  [#2161](https://github.com/npm/cli/issues/2161)
+  fixed typo
+  ([@scarabedore](https://github.com/scarabedore))
+
+## 7.0.10 (2020-11-10)
+
+### DOCUMENTATION
+
+* [`e48badb03`](https://github.com/npm/cli/commit/e48badb03058286a557584d7319db4143049cc6b)
+  [#2148](https://github.com/npm/cli/issues/2148)
+  Fix link in documentation
+  ([@gurdiga](https://github.com/gurdiga))
+
+### BUG FIXES
+
+* [`8edbbdc70`](https://github.com/npm/cli/commit/8edbbdc706694fa32f52d0991c76ae9f207b7bbc)
+  [#1972](https://github.com/npm/cli/issues/1972)
+  Support exec auto pick bin when all bin is alias
+  ([@dr-js](https://github.com/dr-js))
+
+### DEPENDENCIES
+
+* [`04a3e8c10`](https://github.com/npm/cli/commit/04a3e8c10c3f38e1c7a35976d77c2929bdc39868)
+  [#1962](https://github.com/npm/cli/issues/1962)
+  `@npmcli/arborist@1.0.10`:
+    * prevent self-assignment of parent/fsParent
+    * Support update options in global package space
+
+## 7.0.9 (2020-11-06)
+
+### BUG FIXES
+
+* [`96a0d2802`](https://github.com/npm/cli/commit/96a0d2802d3e619c6ea47290f5c460edfe94070a)
+  default the 'start' script when server.js present
+  ([@isaacs](https://github.com/isaacs))
+* [`7716e423e`](https://github.com/npm/cli/commit/7716e423ee92a81730c0dfe5b9ecb4bb41a3f947)
+  [#2075](https://github.com/npm/cli/issues/2075)
+  [#2071](https://github.com/npm/cli/issues/2071) print the registry when
+  using 'npm login' ([@Wicked7000](https://github.com/Wicked7000))
+* [`7046fe10c`](https://github.com/npm/cli/commit/7046fe10c5035ac57246a31ca8a6b09e3f5562bf)
+  [#2122](https://github.com/npm/cli/issues/2122) tests for `npm cache`
+  command ([@nlf](https://github.com/nlf))
+
+### DEPENDENCIES
+
+* [`74325f53b`](https://github.com/npm/cli/commit/74325f53b9d813b0e42203c037189418fad2f64a)
+  [#2124](https://github.com/npm/cli/issues/2124)
+  `@npmcli/run-script@1.7.5`:
+    * Export the `isServerPackage` method
+    * Proxy signals to and from foreground child processes
+* [`0e58e6f6b`](https://github.com/npm/cli/commit/0e58e6f6b8f0cd62294642a502c17561aaf46553)
+  [#1984](https://github.com/npm/cli/issues/1984)
+  [#2079](https://github.com/npm/cli/issues/2079)
+  [#1923](https://github.com/npm/cli/issues/1923)
+  [#606](https://github.com/npm/cli/issues/606)
+  [#2031](https://github.com/npm/cli/issues/2031) `@npmcli/arborist@1.0.9`:
+    * Process deps for all link nodes
+    * Use junctions instead of symlinks
+    * Use @npmcli/move-file instead of fs.rename
+* [`1dad328a1`](https://github.com/npm/cli/commit/1dad328a17d93def7799545596b4eba9833b35aa)
+  [#1865](https://github.com/npm/cli/issues/1865)
+  [#2106](https://github.com/npm/cli/issues/2106)
+  [#2084](https://github.com/npm/cli/issues/2084) `pacote@11.1.13`:
+    * Properly set the installation command for `prepare` scripts when
+      installing git/dir deps
+* [`e090d706c`](https://github.com/npm/cli/commit/e090d706ca637d4df96d28bff1660590aa3f3b62)
+  [#2097](https://github.com/npm/cli/issues/2097) `libnpmversion@1.0.7`:
+    * Do not crash when the package.json file lacks a 'version' field
+* [`8fa541a10`](https://github.com/npm/cli/commit/8fa541a10dbdc09376175db7a378cc9b33e8b17b)
+  `cmark-gfm@0.8.4`
+
 ## 7.0.8 (2020-11-03)
 
 ### DOCUMENTATION

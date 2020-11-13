@@ -53,7 +53,8 @@ to the following heuristic:
 .RS 0
 .IP \(bu 2
 If the package has a single entry in its \fBbin\fP field in \fBpackage\.json\fP,
-then that command will be used\.
+or if all entries are aliases of the same command, then that command
+will be used\.
 .IP \(bu 2
 If the package has multiple \fBbin\fP entries, and one of them matches the
 unscoped portion of the \fBname\fP field, then that command will be used\.

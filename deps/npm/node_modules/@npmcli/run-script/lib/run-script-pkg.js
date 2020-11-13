@@ -20,6 +20,9 @@ const runScriptPkg = async options => {
     stdioString = false,
     // note: only used when stdio:inherit
     banner = true,
+    // how long to wait for a process.kill signal
+    // only exposed here so that we can make the test go a bit faster.
+    signalTimeout = 500,
   } = options
 
   const {scripts = {}, gypfile} = pkg
@@ -68,7 +71,17 @@ const runScriptPkg = async options => {
   if (p.stdin)
     p.stdin.end()
 
-  return p
+  return p.catch(er => {
+    const { signal } = er
+    if (stdio === 'inherit' && signal) {
+      process.kill(process.pid, signal)
+      // just in case we don't die, reject after 500ms
+      // this also keeps the node process open long enough to actually
+      // get the signal, rather than terminating gracefully.
+      return new Promise((res, rej) => setTimeout(() => rej(er), signalTimeout))
+    } else
+      throw er
+  })
 }
 
 module.exports = runScriptPkg

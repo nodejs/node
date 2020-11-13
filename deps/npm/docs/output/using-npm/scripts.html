@@ -145,7 +145,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
-<p>The <code>"scripts"</code> property of of your <code>package.json</code> file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running <code>npm run-script &lt;stage&gt;</code> or <code>npm run &lt;stage&gt;</code> for short. <em>Pre</em> and <em>post</em> commands with matching names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>, <code>postmyscript</code>). Scripts from dependencies can be run with <code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
+<p>The <code>"scripts"</code> property of your <code>package.json</code> file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running <code>npm run-script &lt;stage&gt;</code> or <code>npm run &lt;stage&gt;</code> for short. <em>Pre</em> and <em>post</em> commands with matching names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>, <code>postmyscript</code>). Scripts from dependencies can be run with <code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
 <h3 id="pre--post-scripts">Pre &amp; Post Scripts</h3>
 <p>To create “pre” or “post” scripts for any scripts defined in the <code>"scripts"</code> section of the <code>package.json</code>, simply create another script <em>with a matching name</em> and add “pre” or “post” to the beginning of them.</p>
 <pre lang="json"><code>{

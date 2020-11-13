@@ -218,8 +218,8 @@ t.test('console.log output using --json', (t) => {
 
   config.values.json = true
 
-  const _log = console.log
-  console.log = (jsonOutput) => {
+  const _error = console.error
+  console.error = (jsonOutput) => {
     t.deepEqual(
       JSON.parse(jsonOutput),
       {
@@ -236,7 +236,7 @@ t.test('console.log output using --json', (t) => {
   errorHandler(new Error('Error: EBADTHING Something happened'))
 
   t.teardown(() => {
-    console.log = _log
+    console.error = _error
     delete config.values.json
   })
 })
