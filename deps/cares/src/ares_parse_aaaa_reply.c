@@ -200,7 +200,8 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
 
   if (naddrttls)
     {
-      *naddrttls = naddrs;
+      /* Truncated to at most *naddrttls entries */
+      *naddrttls = (naddrs > *naddrttls)?*naddrttls:naddrs;
     }
 
   ares__freeaddrinfo_cnames(ai.cnames);
