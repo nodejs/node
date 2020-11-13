@@ -146,9 +146,9 @@ npm command-line interface
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre lang="bash"><code>npm exec -- &lt;pkg&gt;[@&lt;version&gt;] [args...]
-npm exec -p &lt;pkg&gt;[@&lt;version&gt;] -- &lt;cmd&gt; [args...]
+npm exec --package=&lt;pkg&gt;[@&lt;version&gt;] -- &lt;cmd&gt; [args...]
 npm exec -c '&lt;cmd&gt; [args...]'
-npm exec -p foo -c '&lt;cmd&gt; [args...]'
+npm exec --package=foo -c '&lt;cmd&gt; [args...]'
 
 npx &lt;pkg&gt;[@&lt;specifier&gt;] [args...]
 npx -p &lt;pkg&gt;[@&lt;specifier&gt;] &lt;cmd&gt; [args...]
@@ -157,16 +157,17 @@ npx -p &lt;pkg&gt;[@&lt;specifier&gt;] -c '&lt;cmd&gt; [args...]'
 
 alias: npm x, npx
 
--p &lt;pkg&gt; --package=&lt;pkg&gt; (may be specified multiple times)
+--package=&lt;pkg&gt; (may be specified multiple times)
+-p is a shorthand for --package only when using npx executable
 -c &lt;cmd&gt; --call=&lt;cmd&gt; (may not be mixed with positional arguments)
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command allows you to run an arbitrary command from an npm package
 (either one installed locally, or fetched remotely), in a similar context
 as running it via <code>npm run</code>.</p>
-<p>Whatever packages are specified by the <code>--package</code> or <code>-p</code> option will be
+<p>Whatever packages are specified by the <code>--package</code> option will be
 provided in the <code>PATH</code> of the executed command, along with any locally
-installed package executables.  The <code>--package</code> or <code>-p</code> option may be
+installed package executables.  The <code>--package</code> option may be
 specified multiple times, to execute the supplied command in an environment
 where all specified packages are available.</p>
 <p>If any requested packages are not present in the local project
@@ -179,13 +180,14 @@ version exists in the local project.  Package names with a specifier will
 only be considered a match if they have the exact same name and version as
 the local dependency.</p>
 <p>If no <code>-c</code> or <code>--call</code> option is provided, then the positional arguments
-are used to generate the command string.  If no <code>-p</code> or <code>--package</code> options
+are used to generate the command string.  If no <code>--package</code> options
 are provided, then npm will attempt to determine the executable name from
 the package specifier provided as the first positional argument according
 to the following heuristic:</p>
 <ul>
 <li>If the package has a single entry in its <code>bin</code> field in <code>package.json</code>,
-then that command will be used.</li>
+or if all entries are aliases of the same command, then that command
+will be used.</li>
 <li>If the package has multiple <code>bin</code> entries, and one of them matches the
 unscoped portion of the <code>name</code> field, then that command will be used.</li>
 <li>If this does not result in exactly one option (either because there are

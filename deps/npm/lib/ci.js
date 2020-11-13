@@ -34,7 +34,7 @@ const ci = async () => {
     rimraf(`${where}/node_modules/*`, { glob: { dot: true, nosort: true, silent: true } }),
   ])
   // npm ci should never modify the lockfile or package.json
-  await arb.reify({ save: false })
+  await arb.reify({ ...npm.flatOptions, save: false })
   reifyOutput(arb)
 }
 

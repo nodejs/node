@@ -256,7 +256,10 @@ t.test('npm.load', t => {
       '--prefix', dir,
       '--userconfig', `${dir}/.npmrc`,
       '--usage',
-      '--scope=foo'
+      '--scope=foo',
+      'token',
+      'revoke',
+      'blergggg',
     ]
 
     freshConfig()
@@ -352,4 +355,92 @@ t.test('loading as main will load the cli', t => {
     t.equal(Buffer.concat(out).toString().trim(), require('../../lib/ls.js').usage)
     t.end()
   })
+})
+
+t.test('set process.title', t => {
+  const { execPath, argv: processArgv } = process
+  const { log } = console
+  const titleDesc = Object.getOwnPropertyDescriptor(process, 'title')
+  Object.defineProperty(process, 'title', {
+    value: '',
+    settable: true,
+    enumerable: true,
+    configurable: true,
+  })
+  const consoleLogs = []
+  console.log = (...msg) => consoleLogs.push(msg)
+
+  t.teardown(() => {
+    console.log = log
+    process.argv = processArgv
+    Object.defineProperty(process, 'title', titleDesc)
+    freshConfig()
+  })
+
+  t.afterEach(cb => {
+    consoleLogs.length = 0
+    cb()
+  })
+
+  t.test('basic title setting', async t => {
+    freshConfig({
+      argv: [
+        process.execPath,
+        process.argv[1],
+        '--metrics-registry', 'http://example.com',
+        '--usage',
+        '--scope=foo',
+        'ls',
+      ],
+    })
+    await npm.load(er => {
+      if (er)
+        throw er
+      t.equal(npm.title, 'npm ls')
+      t.equal(process.title, 'npm ls')
+    })
+  })
+
+  t.test('do not expose token being revoked', async t => {
+    freshConfig({
+      argv: [
+        process.execPath,
+        process.argv[1],
+        '--metrics-registry', 'http://example.com',
+        '--usage',
+        '--scope=foo',
+        'token',
+        'revoke',
+        'deadbeefcafebad',
+      ],
+    })
+    await npm.load(er => {
+      if (er)
+        throw er
+      t.equal(npm.title, 'npm token revoke ***')
+      t.equal(process.title, 'npm token revoke ***')
+    })
+  })
+
+  t.test('do show *** unless a token is actually being revoked', async t => {
+    freshConfig({
+      argv: [
+        process.execPath,
+        process.argv[1],
+        '--metrics-registry', 'http://example.com',
+        '--usage',
+        '--scope=foo',
+        'token',
+        'revoke',
+      ],
+    })
+    await npm.load(er => {
+      if (er)
+        throw er
+      t.equal(npm.title, 'npm token revoke')
+      t.equal(process.title, 'npm token revoke')
+    })
+  })
+
+  t.end()
 })

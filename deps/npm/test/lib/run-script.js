@@ -25,9 +25,11 @@ const output = []
 
 const npmlog = { level: 'warn' }
 const getRS = windows => requireInject('../../lib/run-script.js', {
-  '@npmcli/run-script': async opts => {
+  '@npmcli/run-script': Object.assign(async opts => {
     RUN_SCRIPTS.push(opts)
-  },
+  }, {
+    isServerPackage: require('@npmcli/run-script').isServerPackage,
+  }),
   npmlog,
   '../../lib/npm.js': npm,
   '../../lib/utils/is-windows-shell.js': windows,
@@ -90,10 +92,29 @@ t.test('fail if no package.json', async t => {
   await runScript(['test'], er => t.match(er, { code: 'ENOENT' }))
 })
 
-t.test('default env and restart scripts', async t => {
+t.test('default env, start, and restart scripts', async t => {
   npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({ name: 'x', version: '1.2.3' })
+    'package.json': JSON.stringify({ name: 'x', version: '1.2.3' }),
+    'server.js': 'console.log("hello, world")',
   })
+
+  await runScript(['start'], er => {
+    if (er) {
+      throw er
+    }
+    t.match(RUN_SCRIPTS, [
+      {
+        path: npm.localPrefix,
+        args: [],
+        scriptShell: undefined,
+        stdio: 'inherit',
+        stdioString: true,
+        pkg: { name: 'x', version: '1.2.3', _id: 'x@1.2.3', scripts: {}},
+        event: 'start'
+      }
+    ])
+  })
+  RUN_SCRIPTS.length = 0
 
   await runScript(['env'], er => {
     if (er) {

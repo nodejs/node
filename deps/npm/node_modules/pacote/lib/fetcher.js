@@ -91,18 +91,11 @@ class FetcherBase {
 
     // command to run 'prepare' scripts on directories and git dirs
     // To use pacote with yarn, for example, set npmBin to 'yarn'
-    // and npmInstallCmd to ['add'], and npmCliConfig with yarn's equivalents.
+    // and npmCliConfig with yarn's equivalents.
     this.npmBin = opts.npmBin || 'npm'
 
     // command to install deps for preparing
-    this.npmInstallCmd = opts.npmInstallCmd || [
-      'install',
-      '--only=dev',
-      '--prod',
-      '--ignore-prepublish',
-      '--no-progress',
-      '--no-save',
-    ]
+    this.npmInstallCmd = opts.npmInstallCmd || [ 'install' ]
 
     // XXX fill more of this in based on what we know from this.opts
     // we explicitly DO NOT fill in --tag, though, since we are often
@@ -113,7 +106,10 @@ class FetcherBase {
       `--prefer-offline=${!!this.preferOffline}`,
       `--prefer-online=${!!this.preferOnline}`,
       `--offline=${!!this.offline}`,
-      `--before=${this.before ? this.before.toISOString() : ''}`,
+      ...(this.before ? [`--before=${this.before.toISOString()}`] : []),
+      '--no-progress',
+      '--no-save',
+      '--no-audit',
     ]
   }
 

@@ -291,6 +291,18 @@ t.test('various default values and falsey fallbacks', t => {
   t.end()
 })
 
+t.test('legacy _auth token', t => {
+  const npm = new Mocknpm({
+    _auth: 'asdfasdf',
+  })
+  t.strictSame(
+    flatOptions(npm)._auth,
+    'asdfasdf',
+    'should set legacy _auth token',
+  )
+  t.end()
+})
+
 t.test('save-type', t => {
   const base = {
     'save-optional': false,

@@ -8,7 +8,7 @@
 # shell living at /bin/sh.
 #
 # See this helpful document on writing portable shell scripts:
-# https://www.gnu.org/s/hello/manual/autoconf/Portable-Shell.html
+# http://www.gnu.org/s/hello/manual/autoconf/Portable-Shell.html
 #
 # The only shell it won't ever work on is cmd.exe.
 
@@ -23,32 +23,27 @@ if [ "x$0" = "xsh" ]; then
   if [ $ret -eq 0 ]; then
     (exit 0)
   else
-    echo "Uninstalling npm-install-$$.sh" >&2
     rm npm-install-$$.sh
-    echo "Failed to download script" >&2
+    echo "failed to download script" >&2
     exit $ret
   fi
   sh npm-install-$$.sh
   ret=$?
-  echo "Uninstalling npm-install-$$.sh" >&2
   rm npm-install-$$.sh
   exit $ret
 fi
 
-# See what "npm_config_*" things there are in the env,
-# and make them permanent.
-# If this fails, it's not such a big deal.
-configures="`env | grep 'npm_config_' | sed -e 's|^npm_config_||g'`"
-
+debug=0
 npm_config_loglevel="error"
 if [ "x$npm_debug" = "x" ]; then
   (exit 0)
 else
-  echo "Running in debug mode."
-  echo "Note that this requires bash or zsh."
+  echo "running in debug mode."
+  echo "note that this requires bash or zsh."
   set -o xtrace
   set -o pipefail
   npm_config_loglevel="verbose"
+  debug=1
 fi
 export npm_config_loglevel
 
@@ -61,16 +56,60 @@ if [ $ret -ne 0 ]; then
   ret=$?
 fi
 if [ $ret -eq 0 ] && [ -x "$node" ]; then
+  if [ $debug -eq 1 ]; then
+    echo "found 'node' at: $node"
+    echo -n "version: "
+    $node --version
+    echo ""
+  fi
   (exit 0)
 else
   echo "npm cannot be installed without node.js." >&2
-  echo "Install node first, and then try again." >&2
+  echo "install node first, and then try again." >&2
   echo "" >&2
-  echo "Maybe node is installed, but not in the PATH?" >&2
-  echo "Note that running as sudo can change envs." >&2
-  echo ""
-  echo "PATH=$PATH" >&2
   exit $ret
+fi
+
+ret=0
+tar="${TAR}"
+if [ -z "$tar" ]; then
+  tar="${npm_config_tar}"
+fi
+if [ -z "$tar" ]; then
+  tar=`which tar 2>&1`
+  ret=$?
+fi
+
+if [ $ret -eq 0 ] && [ -x "$tar" ]; then
+  if [ $debug -eq 1 ]; then
+    echo "found 'tar' at: $tar"
+    echo -n "version: "
+    $tar --version
+    echo ""
+  fi
+  ret=$?
+fi
+
+if [ $ret -eq 0 ]; then
+  (exit 0)
+else
+  echo "this script requires 'tar', please install it and try again."
+  exit 1
+fi
+
+curl=`which curl 2>&1`
+ret=$?
+if [ $ret -eq 0 ]; then
+  if [ $debug -eq 1 ]; then
+    echo "found 'curl' at: $curl"
+    echo -n "version: "
+    $curl --version | head -n 1
+    echo ""
+  fi
+  (exit 0)
+else
+  echo "this script requires 'curl', please install it and try again."
+  exit 1
 fi
 
 # set the temp dir
@@ -88,98 +127,9 @@ fi
 
 BACK="$PWD"
 
-ret=0
-tar="${TAR}"
-if [ -z "$tar" ]; then
-  tar="${npm_config_tar}"
-fi
-if [ -z "$tar" ]; then
-  tar=`which tar 2>&1`
-  ret=$?
-fi
-
-if [ $ret -eq 0 ] && [ -x "$tar" ]; then
-  echo "tar=$tar"
-  if [ $tar --version > /dev/null 2>&1 ]; then
-    echo "version:"
-    $tar --version
-  fi
-  ret=$?
-fi
-
-if [ $ret -eq 0 ]; then
-  (exit 0)
-else
-  echo "No suitable tar program found."
-  exit 1
-fi
-
-
-
-# Try to find a suitable make
-# If the MAKE environment var is set, use that.
-# otherwise, try to find gmake, and then make.
-# If no make is found, then just execute the necessary commands.
-
-# XXX For some reason, make is building all the docs every time.  This
-# is an annoying source of bugs. Figure out why this happens.
-MAKE=NOMAKE
-
-if [ "x$MAKE" = "x" ]; then
-  make=`which gmake 2>&1`
-  if [ $? -eq 0 ] && [ -x "$make" ]; then
-    (exit 0)
-  else
-    make=`which make 2>&1`
-    if [ $? -eq 0 ] && [ -x "$make" ]; then
-      (exit 0)
-    else
-      make=NOMAKE
-    fi
-  fi
-else
-  make="$MAKE"
-fi
-
-if [ -x "$make" ]; then
-  (exit 0)
-else
-  # echo "Installing without make. This may fail." >&2
-  make=NOMAKE
-fi
-
-# If there's no bash, then don't even try to clean
-if [ -x "/bin/bash" ]; then
-  (exit 0)
-else
-  clean="no"
-fi
-
-node_version=`"$node" --version 2>&1`
-ret=$?
-if [ $ret -ne 0 ]; then
-  echo "You need node to run this program." >&2
-  echo "node --version reports: $node_version" >&2
-  echo "with exit code = $ret" >&2
-  echo "Please install node before continuing." >&2
-  exit $ret
-fi
-
 t="${npm_install}"
 if [ -z "$t" ]; then
-  # switch based on node version.
-  # note that we can only use strict sh-compatible patterns here.
-  case $node_version in
-    0.[01234567].* | v0.[01234567].*)
-      echo "You are using an outdated and unsupported version of" >&2
-      echo "node ($node_version).  Please update node and try again." >&2
-      exit 99
-      ;;
-    *)
-      echo "install npm@latest"
-      t="latest"
-      ;;
-  esac
+  t="latest"
 fi
 
 # need to echo "" after, because Posix sed doesn't treat EOF
@@ -201,7 +151,7 @@ if [ "x$url" = "x" ]; then
   fi
 fi
 if [ $ret -ne 0 ]; then
-  echo "Failed to get tarball url for npm/$t" >&2
+  echo "failed to get tarball url for npm/$t" >&2
   exit $ret
 fi
 
@@ -209,37 +159,19 @@ fi
 echo "fetching: $url" >&2
 
 cd "$TMP" \
-  && curl -SsL "$url" \
-     | $tar -xzf - \
-  && cd "$TMP"/* \
-  && (ret=0
-      if [ $ret -ne 0 ]; then
-        echo "Aborted 0.x cleanup.  Exiting." >&2
-        exit $ret
-      fi) \
-  && (if [ "x$configures" = "x" ]; then
-        (exit 0)
-      else
-        echo "./configure $configures"
-        echo "$configures" > npmrc
-      fi) \
-  && (if [ "$make" = "NOMAKE" ]; then
-        (exit 0)
-      elif "$make" uninstall install; then
-        (exit 0)
-      else
-        make="NOMAKE"
-      fi
-      if [ "$make" = "NOMAKE" ]; then
-        "$node" bin/npm-cli.js rm npm -gf
-        "$node" bin/npm-cli.js install -gf $("$node" bin/npm-cli.js pack | tail -1)
-      fi) \
+  && curl -SsL -o npm.tgz "$url" \
+  && $tar -xzf npm.tgz \
+  && cd "$TMP"/package \
+  && echo "removing existing npm" \
+  && "$node" bin/npm-cli.js rm npm -gf --loglevel=silent \
+  && echo "installing npm@$t" \
+  && "$node" bin/npm-cli.js install -gf ../npm.tgz \
   && cd "$BACK" \
   && rm -rf "$TMP" \
-  && echo "It worked"
+  && echo "successfully installed npm@$t"
 
 ret=$?
 if [ $ret -ne 0 ]; then
-  echo "It failed" >&2
+  echo "failed!" >&2
 fi
 exit $ret
