@@ -816,12 +816,7 @@ napi_status napi_define_class(napi_env env,
     }
 
     v8::Local<v8::Name> property_name;
-    napi_status status =
-        v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
-
-    if (status != napi_ok) {
-      return napi_set_last_error(env, status);
-    }
+    STATUS_CALL(v8impl::V8NameFromPropertyDescriptor(env, p, &property_name));
 
     v8::PropertyAttribute attributes =
         v8impl::V8PropertyAttributesFromDescriptor(p);
@@ -888,12 +883,10 @@ napi_status napi_define_class(napi_env env,
       }
     }
 
-    napi_status status =
-        napi_define_properties(env,
-                               *result,
-                               static_descriptors.size(),
-                               static_descriptors.data());
-    if (status != napi_ok) return status;
+    STATUS_CALL(napi_define_properties(env,
+                                       *result,
+                                       static_descriptors.size(),
+                                       static_descriptors.data()));
   }
 
   return GET_RETURN_STATUS(env);
@@ -1268,12 +1261,7 @@ napi_status napi_define_properties(napi_env env,
     const napi_property_descriptor* p = &properties[i];
 
     v8::Local<v8::Name> property_name;
-    napi_status status =
-        v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
-
-    if (status != napi_ok) {
-      return napi_set_last_error(env, status);
-    }
+    STATUS_CALL(v8impl::V8NameFromPropertyDescriptor(env, p, &property_name));
 
     if (p->getter != nullptr || p->setter != nullptr) {
       v8::Local<v8::Value> local_getter;
@@ -1724,8 +1712,7 @@ napi_status napi_create_error(napi_env env,
 
   v8::Local<v8::Value> error_obj =
       v8::Exception::Error(message_value.As<v8::String>());
-  napi_status status = set_error_code(env, error_obj, code, nullptr);
-  if (status != napi_ok) return status;
+  STATUS_CALL(set_error_code(env, error_obj, code, nullptr));
 
   *result = v8impl::JsValueFromV8LocalValue(error_obj);
 
@@ -1745,8 +1732,7 @@ napi_status napi_create_type_error(napi_env env,
 
   v8::Local<v8::Value> error_obj =
       v8::Exception::TypeError(message_value.As<v8::String>());
-  napi_status status = set_error_code(env, error_obj, code, nullptr);
-  if (status != napi_ok) return status;
+  STATUS_CALL(set_error_code(env, error_obj, code, nullptr));
 
   *result = v8impl::JsValueFromV8LocalValue(error_obj);
 
@@ -1766,8 +1752,7 @@ napi_status napi_create_range_error(napi_env env,
 
   v8::Local<v8::Value> error_obj =
       v8::Exception::RangeError(message_value.As<v8::String>());
-  napi_status status = set_error_code(env, error_obj, code, nullptr);
-  if (status != napi_ok) return status;
+  STATUS_CALL(set_error_code(env, error_obj, code, nullptr));
 
   *result = v8impl::JsValueFromV8LocalValue(error_obj);
 
@@ -1947,8 +1932,7 @@ napi_status napi_throw_error(napi_env env,
   CHECK_NEW_FROM_UTF8(env, str, msg);
 
   v8::Local<v8::Value> error_obj = v8::Exception::Error(str);
-  napi_status status = set_error_code(env, error_obj, nullptr, code);
-  if (status != napi_ok) return status;
+  STATUS_CALL(set_error_code(env, error_obj, nullptr, code));
 
   isolate->ThrowException(error_obj);
   // any VM calls after this point and before returning
@@ -1966,8 +1950,7 @@ napi_status napi_throw_type_error(napi_env env,
   CHECK_NEW_FROM_UTF8(env, str, msg);
 
   v8::Local<v8::Value> error_obj = v8::Exception::TypeError(str);
-  napi_status status = set_error_code(env, error_obj, nullptr, code);
-  if (status != napi_ok) return status;
+  STATUS_CALL(set_error_code(env, error_obj, nullptr, code));
 
   isolate->ThrowException(error_obj);
   // any VM calls after this point and before returning
@@ -1985,8 +1968,7 @@ napi_status napi_throw_range_error(napi_env env,
   CHECK_NEW_FROM_UTF8(env, str, msg);
 
   v8::Local<v8::Value> error_obj = v8::Exception::RangeError(str);
-  napi_status status = set_error_code(env, error_obj, nullptr, code);
-  if (status != napi_ok) return status;
+  STATUS_CALL(set_error_code(env, error_obj, nullptr, code));
 
   isolate->ThrowException(error_obj);
   // any VM calls after this point and before returning
@@ -2785,15 +2767,13 @@ napi_status napi_create_external_arraybuffer(napi_env env,
   // and is able to use napi_env. Implementing that properly is hard, so use the
   // `Buffer` variant for easier implementation.
   napi_value buffer;
-  napi_status status;
-  status = napi_create_external_buffer(
+  STATUS_CALL(napi_create_external_buffer(
       env,
       byte_length,
       external_data,
       finalize_cb,
       finalize_hint,
-      &buffer);
-  if (status != napi_ok) return status;
+      &buffer));
   return napi_get_typedarray_info(
       env,
       buffer,
