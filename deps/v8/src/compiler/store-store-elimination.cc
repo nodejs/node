@@ -396,7 +396,8 @@ UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
     // Everything is observable after these opcodes; return the empty set.
     DCHECK_EXTRA(
         opcode == IrOpcode::kReturn || opcode == IrOpcode::kTerminate ||
-            opcode == IrOpcode::kDeoptimize || opcode == IrOpcode::kThrow,
+            opcode == IrOpcode::kDeoptimize || opcode == IrOpcode::kThrow ||
+            opcode == IrOpcode::kTailCall,
         "for #%d:%s", node->id(), node->op()->mnemonic());
     USE(opcode);
 

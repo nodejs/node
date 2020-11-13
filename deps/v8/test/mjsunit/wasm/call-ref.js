@@ -7,72 +7,72 @@
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function Test1() {
+  var exporting_instance = (function () {
+    var builder = new WasmModuleBuilder();
+
+    builder.addFunction("addition", kSig_i_ii)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
+      .exportFunc();
+
+    return builder.instantiate({});
+  })();
+
   var instance = (function () {
     var builder = new WasmModuleBuilder();
 
     var sig_index = builder.addType(kSig_i_ii);
 
-    var imported_webassembly_function_index =
+    var imported_type_reflection_function_index =
       builder.addImport("imports", "mul", sig_index);
 
     var imported_js_function_index =
-      builder.addImport("imports", "add", sig_index);
+      builder.addImport("imports", "js_add", sig_index);
 
-    builder.addExport("reexported_js_function",
-                      imported_js_function_index);
+    var imported_wasm_function_index =
+      builder.addImport("imports", "wasm_add", sig_index);
+
+    builder.addExport("unused", imported_wasm_function_index);
+    builder.addExport("reexported_js_function", imported_js_function_index);
     builder.addExport("reexported_webassembly_function",
-                      imported_webassembly_function_index);
+                      imported_type_reflection_function_index);
 
     var locally_defined_function =
       builder.addFunction("sub", sig_index)
-        .addBody([
-          kExprLocalGet, 0,
-          kExprLocalGet, 1,
-          kExprI32Sub
-        ])
+        .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Sub])
         .exportFunc();
 
-    builder.addFunction("main", makeSig([kWasmAnyFunc, kWasmI32, kWasmI32],
-                                        [kWasmI32]))
-      .addBody([
-        kExprLocalGet, 1,
-        kExprLocalGet, 2,
-        kExprLocalGet, 0,
-        kGCPrefix, kExprRttCanon, 0,
-        kGCPrefix, kExprRefCast, kWasmAnyFunc, 0,
-        kExprCallRef
-      ])
+    builder.addFunction("main", makeSig(
+      [wasmRefType(sig_index), kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 0,
+                kExprCallRef])
       .exportFunc();
 
-    builder.addFunction("test_local", makeSig([], [kWasmI32]))
-    .addBody([
-      kExprI32Const, 55,
-      kExprI32Const, 42,
-      kExprRefFunc, locally_defined_function.index,
-      kExprCallRef
-    ])
-    .exportFunc();
-
-    builder.addFunction("test_js_import", makeSig([], [kWasmI32]))
-      .addBody([
-        kExprI32Const, 15,
-        kExprI32Const, 42,
-        kExprRefFunc, imported_js_function_index,
-        kExprCallRef
-      ])
+    builder.addFunction("test_local", kSig_i_v)
+      .addBody([kExprI32Const, 55, kExprI32Const, 42,
+                kExprRefFunc, locally_defined_function.index, kExprCallRef])
       .exportFunc();
 
-    builder.addFunction("test_webassembly_import", makeSig([], [kWasmI32]))
-      .addBody([
-        kExprI32Const, 3,
-        kExprI32Const, 7,
-        kExprRefFunc, imported_webassembly_function_index,
-        kExprCallRef
-      ])
+    builder.addFunction("test_js_import", kSig_i_v)
+      .addBody([kExprI32Const, 15, kExprI32Const, 42,
+                kExprRefFunc, imported_js_function_index, kExprCallRef])
       .exportFunc();
+
+      builder.addFunction("test_wasm_import", kSig_i_v)
+        .addBody([kExprI32Const, 15, kExprI32Const, 42,
+                  kExprRefFunc, imported_wasm_function_index, kExprCallRef])
+        .exportFunc();
+
+    /* Future use
+    builder.addFunction("test_webassembly_import", kSig_i_v)
+      .addBody([kExprI32Const, 3, kExprI32Const, 7,
+                kExprRefFunc, imported_type_reflection_function_index,
+                kExprCallRef])
+      .exportFunc();
+    */
 
     return builder.instantiate({imports: {
-      add: function(a, b) { return a + b; },
+      js_add: function(a, b) { return a + b; },
+      wasm_add: exporting_instance.exports.addition,
       mul: new WebAssembly.Function({parameters:['i32', 'i32'],
                                      results: ['i32']},
                                     function(a, b) { return a * b; })
@@ -97,9 +97,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(19, instance.exports.main(
     instance.exports.reexported_js_function, 12, 7));
 
-  // TODO(7748): Make this work.
+  print("--imported function from another module--");
+  assertEquals(57, instance.exports.test_wasm_import());
+  print("--not imported function defined in another module--");
+  assertEquals(19, instance.exports.main(
+    exporting_instance.exports.addition, 12, 7));
+
+  // TODO(7748): Make these work once we know how we interact
+  //             with the 'type reflection' proposal.
   //print("--imported WebAssembly.Function--")
   //assertEquals(21, instance.exports.test_webassembly_import());
-
   //print(" --not imported WebAssembly.Function--")
 })();

@@ -144,10 +144,15 @@ struct ObjectPropertiesResult {
   const char** guessed_types;
 };
 
+struct StackFrameResult {
+  size_t num_properties;
+  ObjectProperty** properties;
+};
+
 // Copies byte_count bytes of memory from the given address in the debuggee to
 // the destination buffer.
 typedef MemoryAccessResult (*MemoryAccessor)(uintptr_t address,
-                                             uint8_t* destination,
+                                             void* destination,
                                              size_t byte_count);
 
 // Additional data that can help GetObjectProperties to be more accurate. Any
@@ -193,6 +198,11 @@ _v8_debug_helper_GetObjectProperties(
     const char* type_hint);
 V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_ObjectPropertiesResult(
     v8::debug_helper::ObjectPropertiesResult* result);
+V8_DEBUG_HELPER_EXPORT v8::debug_helper::StackFrameResult*
+_v8_debug_helper_GetStackFrame(
+    uintptr_t frame_pointer, v8::debug_helper::MemoryAccessor memory_accessor);
+V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_StackFrameResult(
+    v8::debug_helper::StackFrameResult* result);
 V8_DEBUG_HELPER_EXPORT const v8::debug_helper::ClassList*
 _v8_debug_helper_ListObjectClasses();
 V8_DEBUG_HELPER_EXPORT const char* _v8_debug_helper_BitsetName(
@@ -235,6 +245,20 @@ inline const ClassList* ListObjectClasses() {
 // if the payload is not a bitset.
 inline const char* BitsetName(uint64_t payload) {
   return _v8_debug_helper_BitsetName(payload);
+}
+
+struct DebugHelperStackFrameResultDeleter {
+  void operator()(v8::debug_helper::StackFrameResult* ptr) {
+    _v8_debug_helper_Free_StackFrameResult(ptr);
+  }
+};
+using StackFrameResultPtr =
+    std::unique_ptr<StackFrameResult, DebugHelperStackFrameResultDeleter>;
+
+inline StackFrameResultPtr GetStackFrame(
+    uintptr_t frame_pointer, v8::debug_helper::MemoryAccessor memory_accessor) {
+  return StackFrameResultPtr(
+      _v8_debug_helper_GetStackFrame(frame_pointer, memory_accessor));
 }
 
 }  // namespace debug_helper

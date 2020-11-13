@@ -8,6 +8,7 @@
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -178,6 +179,13 @@ class FieldRepresentationDependency final : public CompilationDependency {
     DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
                                      DependentCode::kFieldRepresentationGroup);
   }
+
+#ifdef DEBUG
+  bool IsFieldRepresentationDependencyOnMap(
+      Handle<Map> const& receiver_map) const override {
+    return owner_.object().equals(receiver_map);
+  }
+#endif
 
  private:
   MapRef owner_;

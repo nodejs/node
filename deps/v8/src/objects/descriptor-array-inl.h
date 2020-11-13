@@ -228,7 +228,7 @@ void DescriptorArray::Append(Descriptor* desc) {
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
     Name key = GetSortedKey(insertion - 1);
-    if (key.Hash() <= hash) break;
+    if (key.hash() <= hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
 

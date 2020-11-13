@@ -186,6 +186,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
 
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, has_optimized_at_least_once,
+                    SharedFunctionInfo::HasOptimizedAtLeastOnceBit)
+
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, may_have_cached_code,
                     SharedFunctionInfo::MayHaveCachedCodeBit)
 

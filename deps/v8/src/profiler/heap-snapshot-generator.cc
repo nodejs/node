@@ -8,6 +8,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
@@ -187,10 +188,14 @@ HeapSnapshot::HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots)
       treat_global_objects_as_roots_(global_objects_as_roots) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
-  STATIC_ASSERT((kSystemPointerSize == 4 && sizeof(HeapGraphEdge) == 12) ||
-                (kSystemPointerSize == 8 && sizeof(HeapGraphEdge) == 24));
-  STATIC_ASSERT((kSystemPointerSize == 4 && sizeof(HeapEntry) == 28) ||
-                (kSystemPointerSize == 8 && sizeof(HeapEntry) == 40));
+  STATIC_ASSERT(kSystemPointerSize != 4 || sizeof(HeapGraphEdge) == 12);
+  STATIC_ASSERT(kSystemPointerSize != 8 || sizeof(HeapGraphEdge) == 24);
+  STATIC_ASSERT(kSystemPointerSize != 4 || sizeof(HeapEntry) == 32);
+#if V8_CC_MSVC
+  STATIC_ASSERT(kSystemPointerSize != 8 || sizeof(HeapEntry) == 48);
+#else   // !V8_CC_MSVC
+  STATIC_ASSERT(kSystemPointerSize != 8 || sizeof(HeapEntry) == 40);
+#endif  // !V8_CC_MSVC
   memset(&gc_subroot_entries_, 0, sizeof(gc_subroot_entries_));
 }
 
@@ -1937,9 +1942,11 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
       (lookup_address) ? heap_object_map_->FindOrAddEntry(lookup_address, 0)
                        : static_cast<SnapshotObjectId>(
                              reinterpret_cast<uintptr_t>(node) << 1);
-  return snapshot_->AddEntry(EmbedderGraphNodeType(node),
-                             EmbedderGraphNodeName(names_, node), id,
-                             static_cast<int>(size), 0);
+  auto* heap_entry = snapshot_->AddEntry(EmbedderGraphNodeType(node),
+                                         EmbedderGraphNodeName(names_, node),
+                                         id, static_cast<int>(size), 0);
+  heap_entry->set_detachedness(node->GetDetachedness());
+  return heap_entry;
 }
 
 NativeObjectsExplorer::NativeObjectsExplorer(
@@ -1952,32 +1959,49 @@ NativeObjectsExplorer::NativeObjectsExplorer(
       embedder_graph_entries_allocator_(
           new EmbedderGraphEntriesAllocator(snapshot)) {}
 
+void NativeObjectsExplorer::MergeNodeIntoEntry(
+    HeapEntry* entry, EmbedderGraph::Node* original_node,
+    EmbedderGraph::Node* wrapper_node) {
+  // The wrapper node may be an embedder node (for testing purposes) or a V8
+  // node (production code).
+  if (!wrapper_node->IsEmbedderNode()) {
+    // For V8 nodes only we can add a lookup.
+    EmbedderGraphImpl::V8NodeImpl* v8_node =
+        static_cast<EmbedderGraphImpl::V8NodeImpl*>(wrapper_node);
+    Object object = v8_node->GetObject();
+    DCHECK(!object.IsSmi());
+    if (original_node->GetNativeObject()) {
+      HeapObject heap_object = HeapObject::cast(object);
+      heap_object_map_->AddMergedNativeEntry(original_node->GetNativeObject(),
+                                             heap_object.address());
+      DCHECK_EQ(entry->id(), heap_object_map_->FindMergedNativeEntry(
+                                 original_node->GetNativeObject()));
+    }
+  }
+  entry->set_detachedness(original_node->GetDetachedness());
+  entry->set_name(MergeNames(
+      names_, EmbedderGraphNodeName(names_, original_node), entry->name()));
+  entry->set_type(EmbedderGraphNodeType(original_node));
+}
+
 HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
     EmbedderGraphImpl::Node* node) {
-  EmbedderGraphImpl::Node* wrapper = node->WrapperNode();
-  NativeObject native_object = node->GetNativeObject();
-  if (wrapper) {
-    node = wrapper;
+  // Return the entry for the wrapper node if present.
+  if (node->WrapperNode()) {
+    node = node->WrapperNode();
   }
+  // Node is EmbedderNode.
   if (node->IsEmbedderNode()) {
     return generator_->FindOrAddEntry(node,
                                       embedder_graph_entries_allocator_.get());
-  } else {
-    EmbedderGraphImpl::V8NodeImpl* v8_node =
-        static_cast<EmbedderGraphImpl::V8NodeImpl*>(node);
-    Object object = v8_node->GetObject();
-    if (object.IsSmi()) return nullptr;
-    HeapEntry* entry = generator_->FindEntry(
-        reinterpret_cast<void*>(Object::cast(object).ptr()));
-    if (native_object) {
-      HeapObject heap_object = HeapObject::cast(object);
-      heap_object_map_->AddMergedNativeEntry(native_object,
-                                             heap_object.address());
-      DCHECK_EQ(entry->id(),
-                heap_object_map_->FindMergedNativeEntry(native_object));
-    }
-    return entry;
   }
+  // Node is V8NodeImpl.
+  Object object =
+      static_cast<EmbedderGraphImpl::V8NodeImpl*>(node)->GetObject();
+  if (object.IsSmi()) return nullptr;
+  auto* entry = generator_->FindEntry(
+      reinterpret_cast<void*>(Object::cast(object).ptr()));
+  return entry;
 }
 
 bool NativeObjectsExplorer::IterateAndExtractReferences(
@@ -1991,25 +2015,25 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     EmbedderGraphImpl graph;
     snapshot_->profiler()->BuildEmbedderGraph(isolate_, &graph);
     for (const auto& node : graph.nodes()) {
-      if (node->IsRootNode()) {
-        snapshot_->root()->SetIndexedAutoIndexReference(
-            HeapGraphEdge::kElement, EntryForEmbedderGraphNode(node.get()));
-      }
-      // Adjust the name and the type of the V8 wrapper node.
-      auto wrapper = node->WrapperNode();
-      if (wrapper) {
-        HeapEntry* wrapper_entry = EntryForEmbedderGraphNode(wrapper);
-        wrapper_entry->set_name(
-            MergeNames(names_, EmbedderGraphNodeName(names_, node.get()),
-                       wrapper_entry->name()));
-        wrapper_entry->set_type(EmbedderGraphNodeType(node.get()));
+      // Only add embedder nodes as V8 nodes have been added already by the
+      // V8HeapExplorer.
+      if (!node->IsEmbedderNode()) continue;
+
+      if (auto* entry = EntryForEmbedderGraphNode(node.get())) {
+        if (node->IsRootNode()) {
+          snapshot_->root()->SetIndexedAutoIndexReference(
+              HeapGraphEdge::kElement, entry);
+        }
+        if (node->WrapperNode()) {
+          MergeNodeIntoEntry(entry, node.get(), node->WrapperNode());
+        }
       }
     }
     // Fill edges of the graph.
     for (const auto& edge : graph.edges()) {
-      HeapEntry* from = EntryForEmbedderGraphNode(edge.from);
       // |from| and |to| can be nullptr if the corresponding node is a V8 node
       // pointing to a Smi.
+      HeapEntry* from = EntryForEmbedderGraphNode(edge.from);
       if (!from) continue;
       HeapEntry* to = EntryForEmbedderGraphNode(edge.to);
       if (!to) continue;
@@ -2125,6 +2149,11 @@ bool HeapSnapshotGenerator::FillReferences() {
 }
 
 template<int bytes> struct MaxDecimalDigitsIn;
+template <>
+struct MaxDecimalDigitsIn<1> {
+  static const int kSigned = 3;
+  static const int kUnsigned = 3;
+};
 template<> struct MaxDecimalDigitsIn<4> {
   static const int kSigned = 11;
   static const int kUnsigned = 10;
@@ -2224,8 +2253,8 @@ class OutputStreamWriter {
 
 // type, name|index, to_node.
 const int HeapSnapshotJSONSerializer::kEdgeFieldsCount = 3;
-// type, name, id, self_size, edge_count, trace_node_id.
-const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 6;
+// type, name, id, self_size, edge_count, trace_node_id, detachedness.
+const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 7;
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   if (AllocationTracker* allocation_tracker =
@@ -2297,6 +2326,11 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
 namespace {
 
 template<size_t size> struct ToUnsigned;
+
+template <>
+struct ToUnsigned<1> {
+  using Type = uint8_t;
+};
 
 template<> struct ToUnsigned<4> {
   using Type = uint32_t;
@@ -2371,11 +2405,12 @@ void HeapSnapshotJSONSerializer::SerializeEdges() {
 }
 
 void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
-  // The buffer needs space for 4 unsigned ints, 1 size_t, 5 commas, \n and \0
+  // The buffer needs space for 5 unsigned ints, 1 size_t, 1 uint8_t, 7 commas,
+  // \n and \0
   static const int kBufferSize =
       5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + MaxDecimalDigitsIn<sizeof(size_t)>::kUnsigned  // NOLINT
-      + 6 + 1 + 1;
+      + MaxDecimalDigitsIn<sizeof(size_t)>::kUnsigned      // NOLINT
+      + MaxDecimalDigitsIn<sizeof(uint8_t)>::kUnsigned + 7 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
   if (to_node_index(entry) != 0) {
@@ -2392,6 +2427,8 @@ void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
   buffer_pos = utoa(entry->children_count(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
   buffer_pos = utoa(entry->trace_node_id(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = utoa(entry->detachedness(), buffer, buffer_pos);
   buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.begin());
@@ -2421,7 +2458,8 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
         JSON_S("id") ","
         JSON_S("self_size") ","
         JSON_S("edge_count") ","
-        JSON_S("trace_node_id")) ","
+        JSON_S("trace_node_id") ","
+        JSON_S("detachedness")) ","
     JSON_S("node_types") ":" JSON_A(
         JSON_A(
             JSON_S("hidden") ","

@@ -57,10 +57,17 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
       std::unique_ptr<protocol::Array<protocol::Profiler::ScriptTypeProfile>>*
           out_result) override;
 
+  Response enableCounters() override;
+  Response disableCounters() override;
+  Response getCounters(
+      std::unique_ptr<protocol::Array<protocol::Profiler::CounterInfo>>*
+          out_result) override;
+
   Response enableRuntimeCallStats() override;
   Response disableRuntimeCallStats() override;
   Response getRuntimeCallStats(
-      std::unique_ptr<protocol::Array<protocol::Profiler::CounterInfo>>*
+      std::unique_ptr<
+          protocol::Array<protocol::Profiler::RuntimeCallCounterInfo>>*
           out_result) override;
 
   void consoleProfile(const String16& title);
@@ -87,6 +94,7 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
   String16 m_frontendInitiatedProfileId;
   int m_startedProfilesCount = 0;
   std::shared_ptr<V8Inspector::Counters> m_counters;
+  bool m_runtime_call_stats_enabled = false;
 
   DISALLOW_COPY_AND_ASSIGN(V8ProfilerAgentImpl);
 };

@@ -18,7 +18,6 @@ namespace cppgc {
 namespace internal {
 
 namespace {
-
 class MarkerTest : public testing::TestWithHeap {
  public:
   using MarkingConfig = Marker::MarkingConfig;
@@ -27,14 +26,24 @@ class MarkerTest : public testing::TestWithHeap {
     const MarkingConfig config = {MarkingConfig::CollectionType::kMajor,
                                   stack_state};
     auto* heap = Heap::From(GetHeap());
-    Marker marker(heap->AsBase());
-    marker.StartMarking(config);
-    marker.FinishMarking(config);
-    marker.ProcessWeakness();
+    InitializeMarker(*heap, GetPlatformHandle().get(), config);
+    marker_->FinishMarking(stack_state);
+    marker_->ProcessWeakness();
     // Pretend do finish sweeping as StatsCollector verifies that Notify*
     // methods are called in the right order.
     heap->stats_collector()->NotifySweepingCompleted();
   }
+
+  void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,
+                        MarkingConfig config) {
+    marker_ =
+        MarkerFactory::CreateAndStartMarking<Marker>(heap, platform, config);
+  }
+
+  Marker* marker() const { return marker_.get(); }
+
+ private:
+  std::unique_ptr<Marker> marker_;
 };
 
 class GCed : public GarbageCollected<GCed> {
@@ -216,49 +225,165 @@ class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
 }  // namespace
 
 TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
-  Marker marker(Heap::From(GetHeap())->AsBase());
-  marker.StartMarking({MarkingConfig::CollectionType::kMajor,
-                       MarkingConfig::StackState::kMayContainHeapPointers});
+  static const Marker::MarkingConfig config = {
+      MarkingConfig::CollectionType::kMajor,
+      MarkingConfig::StackState::kMayContainHeapPointers};
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(), config);
   GCedWithCallback* object = MakeGarbageCollected<GCedWithCallback>(
-      GetAllocationHandle(), [&marker](GCedWithCallback* obj) {
+      GetAllocationHandle(), [marker = marker()](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
-        marker.VisitorForTesting().Trace(member);
+        marker->VisitorForTesting().Trace(member);
       });
   EXPECT_TRUE(HeapObjectHeader::FromPayload(object).IsMarked());
-  marker.FinishMarking({MarkingConfig::CollectionType::kMajor,
-                        MarkingConfig::StackState::kMayContainHeapPointers});
+  marker()->FinishMarking(MarkingConfig::StackState::kMayContainHeapPointers);
   EXPECT_TRUE(HeapObjectHeader::FromPayload(object).IsMarked());
 }
 
 TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
-  Marker marker(Heap::From(GetHeap())->AsBase());
   static const Marker::MarkingConfig config = {
       MarkingConfig::CollectionType::kMajor,
       MarkingConfig::StackState::kMayContainHeapPointers};
-  marker.StartMarking(config);
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(), config);
   MakeGarbageCollected<GCedWithCallback>(
-      GetAllocationHandle(), [&marker](GCedWithCallback* obj) {
+      GetAllocationHandle(), [marker = marker()](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
-        marker.VisitorForTesting().Trace(member);
+        marker->VisitorForTesting().Trace(member);
         EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());
-        marker.FinishMarking(config);
+        marker->FinishMarking(
+            MarkingConfig::StackState::kMayContainHeapPointers);
         EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());
       });
 }
 
 TEST_F(MarkerTest, SentinelNotClearedOnWeakPersistentHandling) {
-  Marker marker(Heap::From(GetHeap())->AsBase());
-  Persistent<GCed> root = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  auto* tmp = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  root->SetWeakChild(tmp);
   static const Marker::MarkingConfig config = {
       MarkingConfig::CollectionType::kMajor,
       MarkingConfig::StackState::kNoHeapPointers};
-  marker.StartMarking(config);
-  marker.FinishMarking(config);
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(), config);
+  Persistent<GCed> root = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* tmp = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  root->SetWeakChild(tmp);
+  marker()->FinishMarking(MarkingConfig::StackState::kNoHeapPointers);
   root->SetWeakChild(kSentinelPointer);
-  marker.ProcessWeakness();
+  marker()->ProcessWeakness();
   EXPECT_EQ(kSentinelPointer, root->weak_child());
+}
+
+// Incremental Marking
+
+class IncrementalMarkingTest : public testing::TestWithHeap {
+ public:
+  using MarkingConfig = Marker::MarkingConfig;
+
+  static constexpr MarkingConfig IncrementalPreciseMarkingConfig = {
+      MarkingConfig::CollectionType::kMajor,
+      MarkingConfig::StackState::kNoHeapPointers,
+      MarkingConfig::MarkingType::kIncremental};
+  static constexpr MarkingConfig IncrementalConservativeMarkingConfig = {
+      MarkingConfig::CollectionType::kMajor,
+      MarkingConfig::StackState::kMayContainHeapPointers,
+      MarkingConfig::MarkingType::kIncremental};
+
+  void FinishSteps(MarkingConfig::StackState stack_state) {
+    while (!SingleStep(stack_state)) {}
+  }
+
+  void FinishMarking() {
+    marker_->FinishMarking(MarkingConfig::StackState::kMayContainHeapPointers);
+    marker_->ProcessWeakness();
+    // Pretend do finish sweeping as StatsCollector verifies that Notify*
+    // methods are called in the right order.
+    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted();
+  }
+
+  void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,
+                        MarkingConfig config) {
+    marker_ =
+        MarkerFactory::CreateAndStartMarking<Marker>(heap, platform, config);
+  }
+
+  Marker* marker() const { return marker_.get(); }
+
+ private:
+  bool SingleStep(MarkingConfig::StackState stack_state) {
+    return marker_->IncrementalMarkingStepForTesting(stack_state);
+  }
+
+  std::unique_ptr<Marker> marker_;
+};
+
+constexpr IncrementalMarkingTest::MarkingConfig
+    IncrementalMarkingTest::IncrementalPreciseMarkingConfig;
+constexpr IncrementalMarkingTest::MarkingConfig
+    IncrementalMarkingTest::IncrementalConservativeMarkingConfig;
+
+TEST_F(IncrementalMarkingTest, RootIsMarkedAfterMarkingStarted) {
+  Persistent<GCed> root = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  EXPECT_FALSE(HeapObjectHeader::FromPayload(root).IsMarked());
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(),
+                   IncrementalPreciseMarkingConfig);
+  EXPECT_TRUE(HeapObjectHeader::FromPayload(root).IsMarked());
+  FinishMarking();
+}
+
+TEST_F(IncrementalMarkingTest, MemberIsMarkedAfterMarkingSteps) {
+  Persistent<GCed> root = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  root->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  HeapObjectHeader& header = HeapObjectHeader::FromPayload(root->child());
+  EXPECT_FALSE(header.IsMarked());
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(),
+                   IncrementalPreciseMarkingConfig);
+  FinishSteps(MarkingConfig::StackState::kNoHeapPointers);
+  EXPECT_TRUE(header.IsMarked());
+  FinishMarking();
+}
+
+TEST_F(IncrementalMarkingTest,
+       MemberWithWriteBarrierIsMarkedAfterMarkingSteps) {
+  Persistent<GCed> root = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(),
+                   IncrementalPreciseMarkingConfig);
+  root->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  HeapObjectHeader& header = HeapObjectHeader::FromPayload(root->child());
+  EXPECT_FALSE(header.IsMarked());
+  FinishSteps(MarkingConfig::StackState::kNoHeapPointers);
+  EXPECT_TRUE(header.IsMarked());
+  FinishMarking();
+}
+
+namespace {
+class Holder : public GarbageCollected<Holder> {
+ public:
+  void Trace(Visitor* visitor) const { visitor->Trace(member_); }
+
+  Member<GCedWithCallback> member_;
+};
+}  // namespace
+
+TEST_F(IncrementalMarkingTest, IncrementalStepDuringAllocation) {
+  Persistent<Holder> holder =
+      MakeGarbageCollected<Holder>(GetAllocationHandle());
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(),
+                   IncrementalPreciseMarkingConfig);
+  const HeapObjectHeader* header;
+  MakeGarbageCollected<GCedWithCallback>(
+      GetAllocationHandle(), [this, &holder, &header](GCedWithCallback* obj) {
+        header = &HeapObjectHeader::FromPayload(obj);
+        holder->member_ = obj;
+        EXPECT_FALSE(header->IsMarked());
+        FinishSteps(MarkingConfig::StackState::kMayContainHeapPointers);
+        EXPECT_TRUE(header->IsMarked());
+      });
+  FinishSteps(MarkingConfig::StackState::kNoHeapPointers);
+  EXPECT_TRUE(header->IsMarked());
+  FinishMarking();
+}
+
+TEST_F(IncrementalMarkingTest, MarkingRunsOutOfWorkEventually) {
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(),
+                IncrementalPreciseMarkingConfig);
+  FinishSteps(MarkingConfig::StackState::kNoHeapPointers);
+  FinishMarking();
 }
 
 }  // namespace internal

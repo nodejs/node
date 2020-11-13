@@ -6,6 +6,7 @@
 #define V8_COMPILER_SIMD_SCALAR_LOWERING_H_
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/machine-operator.h"
@@ -73,12 +74,16 @@ class SimdScalarLowering {
   bool HasReplacement(size_t index, Node* node);
   Node** GetReplacements(Node* node);
   int ReplacementCount(Node* node);
+  void Float64ToInt64(Node** replacements, Node** result);
   void Float32ToInt32(Node** replacements, Node** result);
   void Int32ToFloat32(Node** replacements, Node** result);
+  void Int64ToFloat64(Node** replacements, Node** result);
+  void Int64ToInt32(Node** replacements, Node** result);
   template <typename T>
   void Int32ToSmallerInt(Node** replacements, Node** result);
   template <typename T>
   void SmallerIntToInt32(Node** replacements, Node** result);
+  void Int32ToInt64(Node** replacements, Node** result);
   Node** GetReplacementsWithType(Node* node, SimdType type);
   SimdType ReplacementType(Node* node);
   void PreparePhiReplacement(Node* phi);
@@ -89,6 +94,8 @@ class SimdScalarLowering {
   void LowerStoreOp(Node* node);
   void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
                      bool not_horizontal = true);
+  Node* ConstructPhiForComparison(Diamond d, SimdType rep_type, int true_value,
+                                  int false_value);
   void LowerCompareOp(Node* node, SimdType input_rep_type, const Operator* op,
                       bool invert_inputs = false);
   Node* FixUpperBits(Node* input, int32_t shift);
@@ -111,6 +118,7 @@ class SimdScalarLowering {
   void LowerNotEqual(Node* node, SimdType input_rep_type, const Operator* op);
   MachineType MachineTypeFrom(SimdType simdType);
   void LowerBitMaskOp(Node* node, SimdType rep_type, int msb_index);
+  void LowerAllTrueOp(Node* node, SimdType rep_type);
 
   MachineGraph* const mcgraph_;
   NodeMarker<State> state_;

@@ -18,8 +18,8 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime-utils.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
-#include "torque-generated/exported-class-definitions-tq.h"
+#include "torque-generated/exported-class-definitions-inl.h"
+#include "torque-generated/exported-class-definitions.h"
 
 namespace v8 {
 namespace internal {
@@ -379,12 +379,16 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
 
     return param_data;
   } else {
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+    int args_count = frame->GetActualArgumentCount();
+#else
     if (it.frame()->has_adapted_arguments()) {
       it.AdvanceOneFrame();
       DCHECK(it.frame()->is_arguments_adaptor());
     }
     frame = it.frame();
     int args_count = frame->ComputeParametersCount();
+#endif
 
     *total_argc = args_count;
     std::unique_ptr<Handle<Object>[]> param_data(

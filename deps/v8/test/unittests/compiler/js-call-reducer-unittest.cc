@@ -34,9 +34,7 @@ class JSCallReducerTest : public TypedGraphTest {
     SimplifiedOperatorBuilder simplified(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
-    // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph(), tick_counter());
-
+    GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
     JSCallReducer reducer(&graph_reducer, &jsgraph, broker(), zone(),
                           JSCallReducer::kNoFlags, &deps_);
     return reducer.Reduce(node);

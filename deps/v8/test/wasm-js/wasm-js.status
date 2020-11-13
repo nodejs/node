@@ -35,11 +35,11 @@
   'constructor/instantiate': [SKIP],
 }],  # 'arch == s390 or arch == s390x or system == aix'
 
-['mode == debug or simulator_run or variant != default or arch == arm', {
+['mode == debug or simulator_run or variant != default or arch == arm or tsan or msan or asan', {
   # Slow, and we always have the same limits anyway.
   # ODroid bots don't have enough memory to run the test.
   'limits': [SKIP],
-}],  # mode == debug or simulator_run or variant != default or arch == arm
+}],  # mode == debug or simulator_run or variant != default or arch == arm or tsan or msan or asan
 
 ##############################################################################
 ['lite_mode or variant == jitless', {

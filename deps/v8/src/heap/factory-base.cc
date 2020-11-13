@@ -195,7 +195,8 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance->set_constant_pool(*constant_pool);
   instance->set_handler_table(read_only_roots().empty_byte_array());
-  instance->set_source_position_table(read_only_roots().undefined_value());
+  instance->set_synchronized_source_position_table(
+      read_only_roots().undefined_value());
   CopyBytes(reinterpret_cast<byte*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance->clear_padding();

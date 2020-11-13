@@ -9,6 +9,10 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/condition_variable.h"
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -64,6 +68,8 @@ class V8_BASE_EXPORT ConditionVariable final {
   using NativeHandle = pthread_cond_t;
 #elif V8_OS_WIN
   using NativeHandle = CONDITION_VARIABLE;
+#elif V8_OS_STARBOARD
+  using NativeHandle = SbConditionVariable;
 #endif
 
   NativeHandle& native_handle() {

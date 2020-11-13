@@ -4,7 +4,7 @@
 
 // Flags:  --allow-natives-syntax --stress-compaction
 
-// To reliably reproduce the crash use --verify-heap --random-seed=-133185440
+// To reliably reproduce the crash use --verify-heap
 
 function __f_2(o) {
   return o.field.b.x;

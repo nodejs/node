@@ -10,6 +10,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/paged-spaces.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 
@@ -417,6 +418,7 @@ void NewSpace::TearDown() {
 void NewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
 
 void NewSpace::Grow() {
+  DCHECK(heap()->safepoint()->IsActive());
   // Double the semispace size but only up to maximum capacity.
   DCHECK(TotalCapacity() < MaximumCapacity());
   size_t new_capacity =

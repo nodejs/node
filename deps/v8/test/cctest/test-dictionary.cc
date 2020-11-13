@@ -297,6 +297,8 @@ static void TestHashMapDoesNotCauseGC(Handle<HashMap> table) {
 
 TEST(ObjectHashTableCausesGC) {
   i::FLAG_stress_compaction = false;
+  // For SimulateFullSpace in TestHashMapDoesNotCauseGC.
+  i::FLAG_stress_concurrent_allocation = false;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();

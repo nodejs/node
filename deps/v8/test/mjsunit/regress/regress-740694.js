@@ -18,5 +18,5 @@ var promise = __f_0();
 promise.then(assertUnreachable,
              err => { done = true; error = err });
 %PerformMicrotaskCheckpoint();
-assertTrue(error.startsWith('Error reading'));
+assertTrue(error.startsWith('d8: Error reading'));
 assertTrue(done);

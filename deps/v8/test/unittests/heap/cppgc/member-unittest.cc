@@ -147,6 +147,41 @@ TEST_F(MemberTest, Swap) {
 
 template <template <typename> class MemberType1,
           template <typename> class MemberType2>
+void MoveTest(cppgc::Heap* heap) {
+  {
+    GCed* gced1 = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+    MemberType1<GCed> member1 = gced1;
+    MemberType2<GCed> member2(std::move(member1));
+    // Move-from member must be in empty state.
+    EXPECT_FALSE(member1);
+    EXPECT_EQ(gced1, member2.Get());
+  }
+  {
+    GCed* gced1 = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+    MemberType1<GCed> member1 = gced1;
+    MemberType2<GCed> member2;
+    member2 = std::move(member1);
+    // Move-from member must be in empty state.
+    EXPECT_FALSE(member1);
+    EXPECT_EQ(gced1, member2.Get());
+  }
+}
+
+TEST_F(MemberTest, Move) {
+  cppgc::Heap* heap = GetHeap();
+  MoveTest<Member, Member>(heap);
+  MoveTest<Member, WeakMember>(heap);
+  MoveTest<Member, UntracedMember>(heap);
+  MoveTest<WeakMember, Member>(heap);
+  MoveTest<WeakMember, WeakMember>(heap);
+  MoveTest<WeakMember, UntracedMember>(heap);
+  MoveTest<UntracedMember, Member>(heap);
+  MoveTest<UntracedMember, WeakMember>(heap);
+  MoveTest<UntracedMember, UntracedMember>(heap);
+}
+
+template <template <typename> class MemberType1,
+          template <typename> class MemberType2>
 void HeterogeneousConversionTest(cppgc::Heap* heap) {
   {
     MemberType1<GCed> member1 =

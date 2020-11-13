@@ -822,32 +822,39 @@ MaybeHandle<BigInt> BigInt::Decrement(Isolate* isolate, Handle<BigInt> x) {
   return MutableBigInt::MakeImmutable(result);
 }
 
-ComparisonResult BigInt::CompareToString(Isolate* isolate, Handle<BigInt> x,
-                                         Handle<String> y) {
+Maybe<ComparisonResult> BigInt::CompareToString(Isolate* isolate,
+                                                Handle<BigInt> x,
+                                                Handle<String> y) {
   // a. Let ny be StringToBigInt(y);
   MaybeHandle<BigInt> maybe_ny = StringToBigInt(isolate, y);
   // b. If ny is NaN, return undefined.
   Handle<BigInt> ny;
   if (!maybe_ny.ToHandle(&ny)) {
-    DCHECK(!isolate->has_pending_exception());
-    return ComparisonResult::kUndefined;
+    if (isolate->has_pending_exception()) {
+      return Nothing<ComparisonResult>();
+    } else {
+      return Just(ComparisonResult::kUndefined);
+    }
   }
   // c. Return BigInt::lessThan(x, ny).
-  return CompareToBigInt(x, ny);
+  return Just(CompareToBigInt(x, ny));
 }
 
-bool BigInt::EqualToString(Isolate* isolate, Handle<BigInt> x,
-                           Handle<String> y) {
+Maybe<bool> BigInt::EqualToString(Isolate* isolate, Handle<BigInt> x,
+                                  Handle<String> y) {
   // a. Let n be StringToBigInt(y).
   MaybeHandle<BigInt> maybe_n = StringToBigInt(isolate, y);
   // b. If n is NaN, return false.
   Handle<BigInt> n;
   if (!maybe_n.ToHandle(&n)) {
-    DCHECK(!isolate->has_pending_exception());
-    return false;
+    if (isolate->has_pending_exception()) {
+      return Nothing<bool>();
+    } else {
+      return Just(false);
+    }
   }
   // c. Return the result of x == n.
-  return EqualToBigInt(*x, *n);
+  return Just(EqualToBigInt(*x, *n));
 }
 
 bool BigInt::EqualToNumber(Handle<BigInt> x, Handle<Object> y) {
@@ -1047,9 +1054,13 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   if (obj->IsString()) {
     Handle<BigInt> n;
     if (!StringToBigInt(isolate, Handle<String>::cast(obj)).ToHandle(&n)) {
-      THROW_NEW_ERROR(isolate,
-                      NewSyntaxError(MessageTemplate::kBigIntFromObject, obj),
-                      BigInt);
+      if (isolate->has_pending_exception()) {
+        return MaybeHandle<BigInt>();
+      } else {
+        THROW_NEW_ERROR(isolate,
+                        NewSyntaxError(MessageTemplate::kBigIntFromObject, obj),
+                        BigInt);
+      }
     }
     return n;
   }

@@ -19,7 +19,7 @@ ScheduledMachineLowering::ScheduledMachineLowering(
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     PoisoningMitigationLevel poison_level)
     : schedule_(schedule),
-      graph_assembler_(js_graph, temp_zone, schedule),
+      graph_assembler_(js_graph, temp_zone, base::nullopt, schedule),
       select_lowering_(&graph_assembler_, js_graph->graph()),
       memory_lowering_(js_graph, temp_zone, &graph_assembler_, poison_level),
       reducers_({&select_lowering_, &memory_lowering_}, temp_zone),

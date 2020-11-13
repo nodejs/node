@@ -470,8 +470,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       CallFrequency frequency = call.frequency();
       BuildGraphFromBytecode(broker(), zone(), *shared_info, feedback_vector,
                              BailoutId::None(), jsgraph(), frequency,
-                             source_positions_, inlining_id, flags,
-                             &info_->tick_counter());
+                             source_positions_, inlining_id, info_->code_kind(),
+                             flags, &info_->tick_counter());
     }
 
     // Extract the inlinee start/end nodes.

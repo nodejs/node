@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/base/platform/time.h"
 
 namespace cppgc {
 namespace internal {
@@ -79,6 +80,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // bytes and the bytes allocated since last marking.
   size_t allocated_object_size() const;
 
+  double GetRecentAllocationSpeedInBytesPerMs() const;
+
  private:
   enum class GarbageCollectionState : uint8_t {
     kNotRunning,
@@ -97,6 +100,7 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // an object was explicitly freed that was marked as live in the previous
   // cycle.
   int64_t allocated_bytes_since_end_of_marking_ = 0;
+  v8::base::TimeTicks time_of_last_end_of_marking_ = v8::base::TimeTicks::Now();
   // Counters for allocation and free. The individual values are never negative
   // but their delta may be because of the same reason the overall
   // allocated_bytes_since_end_of_marking_ may be negative. Keep integer

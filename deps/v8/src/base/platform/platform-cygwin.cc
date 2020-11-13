@@ -33,7 +33,6 @@ namespace {
 DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
-    case OS::MemoryPermission::kNoAccessWillJitLater:
       return PAGE_NOACCESS;
     case OS::MemoryPermission::kRead:
       return PAGE_READONLY;

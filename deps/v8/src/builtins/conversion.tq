@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 namespace runtime {
-extern transitioning runtime ToStringRT(Context, BigInt): String;
+extern transitioning runtime ToString(Context, BigInt): String;
 }
 
 extern enum OrdinaryToPrimitiveHint { kString, kNumber }
@@ -90,7 +90,7 @@ transitioning builtin ToName(implicit context: Context)(input: JSAny): Name {
       case (b: BigInt): {
         // We don't have a fast-path for BigInt currently, so just
         // tail call to the %ToString runtime function here for now.
-        tail runtime::ToStringRT(context, b);
+        tail runtime::ToString(context, b);
       }
       case (o: Oddball): {
         return o.to_string;

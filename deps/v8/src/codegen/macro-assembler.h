@@ -60,8 +60,14 @@ enum AllocationFlags {
 namespace v8 {
 namespace internal {
 
-// Simulators only support C calls with up to kMaxCParameters parameters.
+// Maximum number of parameters supported in calls to C/C++. The C++ standard
+// defines a limit of 256 parameters but in simulator builds we provide only
+// limited support.
+#ifdef USE_SIMULATOR
 static constexpr int kMaxCParameters = 10;
+#else
+static constexpr int kMaxCParameters = 256;
+#endif
 
 class FrameScope {
  public:

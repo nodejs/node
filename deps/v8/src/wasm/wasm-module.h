@@ -15,7 +15,6 @@
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-opcodes.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 
@@ -99,17 +98,6 @@ struct WasmDataSegment {
   WasmInitExpr dest_addr;  // destination memory address of the data.
   WireBytesRef source;     // start offset in the module bytes.
   bool active = true;      // true if copied automatically during instantiation.
-};
-
-// Static representation of a wasm indirect call table.
-struct WasmTable {
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmTable);
-  ValueType type = kWasmStmt;     // table type.
-  uint32_t initial_size = 0;      // initial table size.
-  uint32_t maximum_size = 0;      // maximum table size.
-  bool has_maximum_size = false;  // true if there is a maximum size.
-  bool imported = false;        // true if imported.
-  bool exported = false;        // true if exported.
 };
 
 // Static representation of wasm element segment (table initializer).
@@ -269,6 +257,8 @@ struct V8_EXPORT_PRIVATE WasmDebugSymbols {
   WireBytesRef external_url;
 };
 
+struct WasmTable;
+
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   std::unique_ptr<Zone> signature_zone;
@@ -334,28 +324,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   bool has_array(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmArrayTypeCode;
   }
-  base::RecursiveMutex* type_cache_mutex() const { return &type_cache_mutex_; }
-  bool is_cached_subtype(uint32_t subtype, uint32_t supertype) const {
-    return subtyping_cache->count(std::make_pair(subtype, supertype)) == 1;
-  }
-  void cache_subtype(uint32_t subtype, uint32_t supertype) const {
-    subtyping_cache->emplace(subtype, supertype);
-  }
-  void uncache_subtype(uint32_t subtype, uint32_t supertype) const {
-    subtyping_cache->erase(std::make_pair(subtype, supertype));
-  }
-  bool is_cached_equivalent_type(uint32_t type1, uint32_t type2) const {
-    if (type1 > type2) std::swap(type1, type2);
-    return type_equivalence_cache->count(std::make_pair(type1, type2)) == 1;
-  }
-  void cache_type_equivalence(uint32_t type1, uint32_t type2) const {
-    if (type1 > type2) std::swap(type1, type2);
-    type_equivalence_cache->emplace(type1, type2);
-  }
-  void uncache_type_equivalence(uint32_t type1, uint32_t type2) const {
-    if (type1 > type2) std::swap(type1, type2);
-    type_equivalence_cache->erase(std::make_pair(type1, type2));
-  }
 
   std::vector<WasmFunction> functions;
   std::vector<WasmDataSegment> data_segments;
@@ -378,18 +346,31 @@ struct V8_EXPORT_PRIVATE WasmModule {
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
 
  private:
-  // Cache for discovered subtyping pairs.
-  std::unique_ptr<ZoneUnorderedSet<std::pair<uint32_t, uint32_t>>>
-      subtyping_cache;
-  // Cache for discovered equivalent type pairs.
-  // Indexes are stored in increasing order.
-  std::unique_ptr<ZoneUnorderedSet<std::pair<uint32_t, uint32_t>>>
-      type_equivalence_cache;
-  // The above two caches are used from background compile jobs, so they
-  // must be protected from concurrent modifications:
-  mutable base::RecursiveMutex type_cache_mutex_;
-
   DISALLOW_COPY_AND_ASSIGN(WasmModule);
+};
+
+// Static representation of a wasm indirect call table.
+struct WasmTable {
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmTable);
+
+  // 'module' can be nullptr
+  // TODO(9495): Update this function as more table types are supported, or
+  // remove it completely when all reference types are allowed.
+  static bool IsValidTableType(ValueType type, const WasmModule* module) {
+    if (!type.is_nullable()) return false;
+    HeapType heap_type = type.heap_type();
+    return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
+           heap_type == HeapType::kExn ||
+           (module != nullptr && heap_type.is_index() &&
+            module->has_signature(heap_type.ref_index()));
+  }
+
+  ValueType type = kWasmStmt;     // table type.
+  uint32_t initial_size = 0;      // initial table size.
+  uint32_t maximum_size = 0;      // maximum table size.
+  bool has_maximum_size = false;  // true if there is a maximum size.
+  bool imported = false;          // true if imported.
+  bool exported = false;          // true if exported.
 };
 
 inline bool is_asmjs_module(const WasmModule* module) {

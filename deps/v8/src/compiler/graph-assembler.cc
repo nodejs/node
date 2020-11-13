@@ -32,6 +32,7 @@ class GraphAssembler::BasicBlockUpdater {
   void AddBranch(Node* branch, BasicBlock* tblock, BasicBlock* fblock);
   void AddGoto(BasicBlock* to);
   void AddGoto(BasicBlock* from, BasicBlock* to);
+  void AddTailCall(Node* node);
 
   void StartBlock(BasicBlock* block);
   BasicBlock* Finalize(BasicBlock* original);
@@ -267,6 +268,18 @@ void GraphAssembler::BasicBlockUpdater::AddGoto(BasicBlock* from,
   current_block_ = nullptr;
 }
 
+void GraphAssembler::BasicBlockUpdater::AddTailCall(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kTailCall);
+  DCHECK_NOT_NULL(current_block_);
+
+  if (state_ == kUnchanged) {
+    CopyForChange();
+  }
+
+  schedule_->AddTailCall(current_block_, node);
+  current_block_ = nullptr;
+}
+
 void GraphAssembler::BasicBlockUpdater::UpdateSuccessors(BasicBlock* block) {
   for (SuccessorInfo succ : saved_successors_) {
     (succ.block->predecessors())[succ.index] = block;
@@ -316,12 +329,15 @@ BasicBlock* GraphAssembler::BasicBlockUpdater::Finalize(BasicBlock* original) {
   return block;
 }
 
-GraphAssembler::GraphAssembler(MachineGraph* mcgraph, Zone* zone,
-                               Schedule* schedule, bool mark_loop_exits)
+GraphAssembler::GraphAssembler(
+    MachineGraph* mcgraph, Zone* zone,
+    base::Optional<NodeChangedCallback> node_changed_callback,
+    Schedule* schedule, bool mark_loop_exits)
     : temp_zone_(zone),
       mcgraph_(mcgraph),
       effect_(nullptr),
       control_(nullptr),
+      node_changed_callback_(node_changed_callback),
       block_updater_(schedule != nullptr
                          ? new BasicBlockUpdater(schedule, mcgraph->graph(),
                                                  mcgraph->common(), zone)
@@ -378,6 +394,11 @@ TNode<Number> JSGraphAssembler::NumberConstant(double value) {
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
   return AddClonedNode(mcgraph()->ExternalConstant(ref));
+}
+
+Node* GraphAssembler::Parameter(int index) {
+  return AddNode(
+      graph()->NewNode(common()->Parameter(index), graph()->start()));
 }
 
 Node* JSGraphAssembler::CEntryStubConstant(int result_size) {
@@ -624,7 +645,20 @@ Node* GraphAssembler::DebugBreak() {
       graph()->NewNode(machine()->DebugBreak(), effect(), control()));
 }
 
-Node* GraphAssembler::Unreachable() {
+Node* GraphAssembler::Unreachable(
+    GraphAssemblerLabel<0u>* block_updater_successor) {
+  Node* result = UnreachableWithoutConnectToEnd();
+  if (block_updater_ == nullptr) {
+    ConnectUnreachableToEnd();
+    InitializeEffectControl(nullptr, nullptr);
+  } else {
+    DCHECK_NOT_NULL(block_updater_successor);
+    Goto(block_updater_successor);
+  }
+  return result;
+}
+
+Node* GraphAssembler::UnreachableWithoutConnectToEnd() {
   return AddNode(
       graph()->NewNode(common()->Unreachable(), effect(), control()));
 }
@@ -685,9 +719,9 @@ Node* GraphAssembler::UnsafePointerAdd(Node* base, Node* external) {
 }
 
 TNode<Number> JSGraphAssembler::PlainPrimitiveToNumber(TNode<Object> value) {
-  return AddNode<Number>(graph()->NewNode(PlainPrimitiveToNumberOperator(),
-                                          ToNumberBuiltinConstant(), value,
-                                          NoContextConstant(), effect()));
+  return AddNode<Number>(graph()->NewNode(
+      PlainPrimitiveToNumberOperator(), PlainPrimitiveToNumberBuiltinConstant(),
+      value, effect()));
 }
 
 Node* GraphAssembler::BitcastWordToTaggedSigned(Node* value) {
@@ -766,6 +800,28 @@ TNode<Object> GraphAssembler::Call(const Operator* op, int inputs_size,
                                    Node** inputs) {
   DCHECK_EQ(IrOpcode::kCall, op->opcode());
   return AddNode<Object>(graph()->NewNode(op, inputs_size, inputs));
+}
+
+void GraphAssembler::TailCall(const CallDescriptor* call_descriptor,
+                              int inputs_size, Node** inputs) {
+#ifdef DEBUG
+  static constexpr int kTargetEffectControl = 3;
+  DCHECK_EQ(inputs_size,
+            call_descriptor->ParameterCount() + kTargetEffectControl);
+#endif  // DEBUG
+
+  Node* node = AddNode(graph()->NewNode(common()->TailCall(call_descriptor),
+                                        inputs_size, inputs));
+
+  if (block_updater_) block_updater_->AddTailCall(node);
+
+  // Unlike ConnectUnreachableToEnd, the TailCall node terminates a block; to
+  // keep it live, it *must* be connected to End (also in Turboprop schedules).
+  NodeProperties::MergeControlToEnd(graph(), common(), node);
+
+  // Setting effect, control to nullptr effectively terminates the current block
+  // by disallowing the addition of new nodes until a new label has been bound.
+  InitializeEffectControl(nullptr, nullptr);
 }
 
 void GraphAssembler::BranchWithCriticalSafetyCheck(
@@ -860,10 +916,13 @@ void GraphAssembler::ConnectUnreachableToEnd() {
   // to disconnect them from the graph, so we just leave the unreachable nodes
   // in the schedule.
   // TODO(9684): Add a scheduled dead-code elimination phase to remove all the
-  // subsiquent unreacahble code from the schedule.
+  // subsequent unreachable code from the schedule.
   if (!block_updater_) {
     Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
     NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+    if (node_changed_callback_.has_value()) {
+      (*node_changed_callback_)(graph()->end());
+    }
     effect_ = control_ = mcgraph()->Dead();
   }
 }
@@ -906,7 +965,8 @@ void GraphAssembler::InitializeEffectControl(Node* effect, Node* control) {
 
 Operator const* JSGraphAssembler::PlainPrimitiveToNumberOperator() {
   if (!to_number_operator_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kPlainPrimitiveToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),

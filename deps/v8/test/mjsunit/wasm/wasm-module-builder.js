@@ -99,8 +99,15 @@ let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
+let kWasmFuncRef = 0x70;
+let kWasmAnyFunc = kWasmFuncRef; // Alias named as in the JS API spec
 let kWasmExternRef = 0x6f;
-let kWasmAnyFunc = 0x70;
+function wasmOptRefType(index) { return {opcode: 0x6c, index: index}; }
+function wasmRefType(index) { return {opcode: 0x6b, index: index}; }
+let kWasmI31Ref = 0x6a;
+function wasmRtt(index, depth) {
+  return {opcode: 0x69, index: index, depth: depth};
+}
 let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
@@ -392,6 +399,7 @@ let kAtomicPrefix = 0xfe;
 // GC opcodes
 let kExprRttCanon = 0x30;
 let kExprRefCast = 0x41;
+let kExprI31New = 0x20;
 
 // Numeric opcodes.
 let kExprMemoryInit = 0x08;
@@ -476,22 +484,22 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;
-let kExprI16x8Load8x8S = 0x01;
-let kExprI16x8Load8x8U = 0x02;
-let kExprI32x4Load16x4S = 0x03;
-let kExprI32x4Load16x4U = 0x04;
-let kExprI64x2Load32x2S = 0x05;
-let kExprI64x2Load32x2U = 0x06;
-let kExprS8x16LoadSplat = 0x07;
-let kExprS16x8LoadSplat = 0x08;
-let kExprS32x4LoadSplat = 0x09;
-let kExprS64x2LoadSplat = 0x0a;
+let kExprS128Load8x8S = 0x01;
+let kExprS128Load8x8U = 0x02;
+let kExprS128Load16x4S = 0x03;
+let kExprS128Load16x4U = 0x04;
+let kExprS128Load32x2S = 0x05;
+let kExprS128Load32x2U = 0x06;
+let kExprS128Load8Splat = 0x07;
+let kExprS128Load16Splat = 0x08;
+let kExprS128Load32Splat = 0x09;
+let kExprS128Load64Splat = 0x0a;
 let kExprS128StoreMem = 0x0b;
 
 let kExprS128Const = 0x0c;
-let kExprS8x16Shuffle = 0x0d;
+let kExprI8x16Shuffle = 0x0d;
 
-let kExprS8x16Swizzle = 0x0e;
+let kExprI8x16Swizzle = 0x0e;
 let kExprI8x16Splat = 0x0f;
 let kExprI16x8Splat = 0x10;
 let kExprI32x4Splat = 0x11;
@@ -781,6 +789,15 @@ class Binary {
     }
   }
 
+  emit_type(type) {
+    if ((typeof type) == "number") this.emit_u8(type);
+    else {
+      this.emit_u8(type.opcode);
+      if ('depth' in type) this.emit_u8(type.depth);
+      this.emit_u32v(type.index);
+    }
+  }
+
   emit_header() {
     this.emit_bytes([
       kWasmH0, kWasmH1, kWasmH2, kWasmH3, kWasmV0, kWasmV1, kWasmV2, kWasmV3
@@ -802,20 +819,22 @@ class Binary {
 }
 
 class WasmFunctionBuilder {
-  constructor(module, name, type_index) {
+  // Encoding of local names: a string corresponds to a local name,
+  // a number n corresponds to n undefined names.
+  constructor(module, name, type_index, arg_names) {
     this.module = module;
     this.name = name;
     this.type_index = type_index;
     this.body = [];
     this.locals = [];
-    this.local_names = [];
+    this.local_names = arg_names;
     this.body_offset = undefined;  // Not valid until module is serialized.
   }
 
   numLocalNames() {
     let num_local_names = 0;
     for (let loc_name of this.local_names) {
-      if (loc_name !== undefined) ++num_local_names;
+      if (typeof loc_name == "string") ++num_local_names;
     }
     return num_local_names;
   }
@@ -854,20 +873,17 @@ class WasmFunctionBuilder {
   getNumLocals() {
     let total_locals = 0;
     for (let l of this.locals) {
-      for (let type of ["i32", "i64", "f32", "f64", "s128"]) {
-        total_locals += l[type + "_count"] || 0;
-      }
+      total_locals += l.count
     }
     return total_locals;
   }
 
-  addLocals(locals, names) {
-    const old_num_locals = this.getNumLocals();
-    this.locals.push(locals);
-    if (names) {
-      const missing_names = old_num_locals - this.local_names.length;
-      this.local_names.push(...new Array(missing_names), ...names);
-    }
+  addLocals(type, count, names) {
+    this.locals.push({type: type, count: count});
+    names = names || [];
+    if (names.length > count) throw new Error('too many locals names given');
+    this.local_names.push(...names);
+    if (count > names.length) this.local_names.push(count - names.length);
     return this;
   }
 
@@ -972,17 +988,17 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
-  addGlobal(local_type, mutable) {
-    let glob = new WasmGlobalBuilder(this, local_type, mutable);
+  addGlobal(type, mutable) {
+    let glob = new WasmGlobalBuilder(this, type, mutable);
     glob.index = this.globals.length + this.num_imported_globals;
     this.globals.push(glob);
     return glob;
   }
 
   addTable(type, initial_size, max_size = undefined) {
-    if (type != kWasmExternRef && type != kWasmAnyFunc && type != kWasmExnRef) {
-      throw new Error(
-          'Tables must be of type kWasmExternRef, kWasmAnyFunc or kWasmExnRef');
+    if (type == kWasmI32 || type == kWasmI64 || type == kWasmF32 ||
+        type == kWasmF64 || type == kWasmS128 || type == kWasmStmt) {
+      throw new Error('Tables must be of a reference type');
     }
     let table = new WasmTableBuilder(this, type, initial_size, max_size);
     table.index = this.tables.length + this.num_imported_tables;
@@ -997,9 +1013,13 @@ class WasmModuleBuilder {
     return except_index;
   }
 
-  addFunction(name, type) {
+  addFunction(name, type, arg_names) {
+    arg_names = arg_names || [];
     let type_index = (typeof type) == "number" ? type : this.addType(type);
-    let func = new WasmFunctionBuilder(this, name, type_index);
+    let num_args = this.types[type_index].params.length;
+    if (num_args < arg_names.length) throw new Error("too many arg names provided");
+    if (num_args > arg_names.length) arg_names.push(num_args - arg_names.length);
+    let func = new WasmFunctionBuilder(this, name, type_index, arg_names);
     func.index = this.functions.length + this.num_imported_funcs;
     this.functions.push(func);
     return func;
@@ -1011,7 +1031,7 @@ class WasmModuleBuilder {
     }
     let type_index = (typeof type) == "number" ? type : this.addType(type);
     this.imports.push({module: module, name: name, kind: kExternalFunction,
-                       type: type_index});
+                       type_index: type_index});
     return this.num_imported_funcs++;
   }
 
@@ -1047,7 +1067,8 @@ class WasmModuleBuilder {
       throw new Error('Imported exceptions must be declared before local ones');
     }
     let type_index = (typeof type) == "number" ? type : this.addType(type);
-    let o = {module: module, name: name, kind: kExternalException, type: type_index};
+    let o = {module: module, name: name, kind: kExternalException,
+             type_index: type_index};
     this.imports.push(o);
     return this.num_imported_exceptions++;
   }
@@ -1058,6 +1079,14 @@ class WasmModuleBuilder {
   }
 
   addExportOfKind(name, kind, index) {
+    if (index == undefined && kind != kExternalTable &&
+        kind != kExternalMemory) {
+      throw new Error(
+        'Index for exports other than tables/memories must be provided');
+    }
+    if (index !== undefined && (typeof index) != 'number') {
+      throw new Error('Index for exports must be a number')
+    }
     this.exports.push({name: name, kind: kind, index: index});
     return this;
   }
@@ -1155,11 +1184,11 @@ class WasmModuleBuilder {
           section.emit_u8(kWasmFunctionTypeForm);
           section.emit_u32v(type.params.length);
           for (let param of type.params) {
-            section.emit_u8(param);
+            section.emit_type(param);
           }
           section.emit_u32v(type.results.length);
           for (let result of type.results) {
-            section.emit_u8(result);
+            section.emit_type(result);
           }
         }
       });
@@ -1175,9 +1204,9 @@ class WasmModuleBuilder {
           section.emit_string(imp.name || '');
           section.emit_u8(imp.kind);
           if (imp.kind == kExternalFunction) {
-            section.emit_u32v(imp.type);
+            section.emit_u32v(imp.type_index);
           } else if (imp.kind == kExternalGlobal) {
-            section.emit_u32v(imp.type);
+            section.emit_type(imp.type);
             section.emit_u8(imp.mutable);
           } else if (imp.kind == kExternalMemory) {
             var has_max = (typeof imp.maximum) != "undefined";
@@ -1190,14 +1219,14 @@ class WasmModuleBuilder {
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalTable) {
-            section.emit_u8(imp.type);
+            section.emit_type(imp.type);
             var has_max = (typeof imp.maximum) != "undefined";
             section.emit_u8(has_max ? 1 : 0); // flags
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalException) {
             section.emit_u32v(kExceptionAttribute);
-            section.emit_u32v(imp.type);
+            section.emit_u32v(imp.type_index);
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
           }
@@ -1222,7 +1251,7 @@ class WasmModuleBuilder {
       binary.emit_section(kTableSectionCode, section => {
         section.emit_u32v(wasm.tables.length);
         for (let table of wasm.tables) {
-          section.emit_u8(table.type);
+          section.emit_type(table.type);
           section.emit_u8(table.has_max);
           section.emit_u32v(table.initial_size);
           if (table.has_max) section.emit_u32v(table.max_size);
@@ -1253,9 +1282,9 @@ class WasmModuleBuilder {
       if (debug) print("emitting events @ " + binary.length);
       binary.emit_section(kExceptionSectionCode, section => {
         section.emit_u32v(wasm.exceptions.length);
-        for (let type of wasm.exceptions) {
+        for (let type_index of wasm.exceptions) {
           section.emit_u32v(kExceptionAttribute);
-          section.emit_u32v(type);
+          section.emit_u32v(type_index);
         }
       });
     }
@@ -1266,7 +1295,7 @@ class WasmModuleBuilder {
       binary.emit_section(kGlobalSectionCode, section => {
         section.emit_u32v(wasm.globals.length);
         for (let global of wasm.globals) {
-          section.emit_u8(global.type);
+          section.emit_type(global.type);
           section.emit_u8(global.mutable);
           if ((typeof global.init_index) == "undefined") {
             // Emit a constant initializer.
@@ -1305,6 +1334,15 @@ class WasmModuleBuilder {
             case kWasmExnRef:
               section.emit_u8(kExprRefNull);
               section.emit_u8(kWasmExnRef);
+              break;
+            default:
+              if (global.function_index !== undefined) {
+                section.emit_u8(kExprRefFunc);
+                section.emit_u32v(global.function_index);
+              } else {
+                section.emit_u8(kExprRefNull);
+                section.emit_u32v(global.type.index);
+              }
               break;
             }
           } else {
@@ -1459,40 +1497,12 @@ class WasmModuleBuilder {
         for (let func of wasm.functions) {
           header.reset();
           // Function body length will be patched later.
-          let local_decls = [];
-          for (let l of func.locals || []) {
-            if (l.i32_count > 0) {
-              local_decls.push({count: l.i32_count, type: kWasmI32});
-            }
-            if (l.i64_count > 0) {
-              local_decls.push({count: l.i64_count, type: kWasmI64});
-            }
-            if (l.f32_count > 0) {
-              local_decls.push({count: l.f32_count, type: kWasmF32});
-            }
-            if (l.f64_count > 0) {
-              local_decls.push({count: l.f64_count, type: kWasmF64});
-            }
-            if (l.s128_count > 0) {
-              local_decls.push({count: l.s128_count, type: kWasmS128});
-            }
-            if (l.externref_count > 0) {
-              local_decls.push({count: l.externref_count, type: kWasmExternRef});
-            }
-            if (l.anyfunc_count > 0) {
-              local_decls.push({count: l.anyfunc_count, type: kWasmAnyFunc});
-            }
-            if (l.except_count > 0) {
-              local_decls.push({count: l.except_count, type: kWasmExnRef});
-            }
-          }
-
+          let local_decls = func.locals || [];
           header.emit_u32v(local_decls.length);
           for (let decl of local_decls) {
             header.emit_u32v(decl.count);
-            header.emit_u8(decl.type);
+            header.emit_type(decl.type);
           }
-
           section.emit_u32v(header.length + func.body.length);
           section.emit_bytes(header.trunc_buffer());
           // Set to section offset for now, will update.
@@ -1576,10 +1586,15 @@ class WasmModuleBuilder {
               if (func.numLocalNames() == 0) continue;
               name_section.emit_u32v(func.index);
               name_section.emit_u32v(func.numLocalNames());
+              let name_index = 0;
               for (let i = 0; i < func.local_names.length; ++i) {
-                if (func.local_names[i] === undefined) continue;
-                name_section.emit_u32v(i);
-                name_section.emit_string(func.local_names[i]);
+                if (typeof func.local_names[i] == "string") {
+                  name_section.emit_u32v(name_index);
+                  name_section.emit_string(func.local_names[i]);
+                  name_index++;
+                } else {
+                  name_index += func.local_names[i];
+                }
               }
             }
           });

@@ -100,7 +100,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 232
+bytecode array length: 236
 bytecodes: [
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(2),
@@ -149,6 +149,8 @@ bytecodes: [
                 B(Star), R(0),
   /*   63 S> */ B(CreateEmptyArrayLiteral), U8(15),
                 B(Star), R(11),
+                B(Ldar), R(6),
+                B(JumpIfToBooleanTrue), U8(44),
                 B(LdaZero),
                 B(Star), R(12),
                 B(LdaTrue),
@@ -211,8 +213,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
 ]
 handlers: [
-  [34, 162, 170],
-  [186, 207, 209],
+  [34, 166, 174],
+  [190, 211, 213],
 ]
 
 ---

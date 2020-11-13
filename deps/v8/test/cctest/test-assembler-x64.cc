@@ -817,7 +817,7 @@ TEST(StackAlignmentForSSE2) {
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
-  global_template->Set(v8_str("do_sse2"),
+  global_template->Set(isolate, "do_sse2",
                        v8::FunctionTemplate::New(isolate, DoSSE2));
 
   LocalContext env(nullptr, global_template);

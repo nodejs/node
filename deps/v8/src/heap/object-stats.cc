@@ -723,7 +723,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 
     // Log the monomorphic/polymorphic helper objects that this slot owns.
     for (int i = 0; i < it.entry_size(); i++) {
-      MaybeObject raw_object = vector.get(slot.ToInt() + i);
+      MaybeObject raw_object = vector.Get(slot.WithOffset(i));
       HeapObject object;
       if (raw_object->GetHeapObject(&object)) {
         if (object.IsCell() || object.IsWeakFixedArray()) {

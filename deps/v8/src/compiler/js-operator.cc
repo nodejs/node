@@ -287,6 +287,7 @@ std::ostream& operator<<(std::ostream& os, NamedAccess const& p) {
 
 NamedAccess const& NamedAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSLoadNamed ||
+         op->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
          op->opcode() == IrOpcode::kJSStoreNamed);
   return OpParameter<NamedAccess>(op);
 }
@@ -916,6 +917,19 @@ const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
       "JSLoadNamed",                                    // name
       kArity, 1, 1, 1, 1, 2,                            // counts
       access);                                          // parameter
+}
+
+const Operator* JSOperatorBuilder::LoadNamedFromSuper(Handle<Name> name) {
+  static constexpr int kReceiver = 1;
+  static constexpr int kHomeObject = 1;
+  static constexpr int kArity = kReceiver + kHomeObject;
+  // TODO(marja, v8:9237): Use real feedback.
+  NamedAccess access(LanguageMode::kSloppy, name, FeedbackSource());
+  return zone()->New<Operator1<NamedAccess>>(                    // --
+      IrOpcode::kJSLoadNamedFromSuper, Operator::kNoProperties,  // opcode
+      "JSLoadNamedFromSuper",                                    // name
+      kArity, 1, 1, 1, 1, 2,                                     // counts
+      access);                                                   // parameter
 }
 
 const Operator* JSOperatorBuilder::LoadProperty(

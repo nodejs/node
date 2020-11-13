@@ -24,7 +24,7 @@ class SanitizeNativeContextScope final {
  public:
   SanitizeNativeContextScope(Isolate* isolate, NativeContext native_context,
                              bool allow_active_isolate_for_testing,
-                             const DisallowHeapAllocation& no_gc)
+                             const DisallowGarbageCollection& no_gc)
       : isolate_(isolate),
         native_context_(native_context),
         microtask_queue_(native_context.microtask_queue()),
@@ -82,7 +82,7 @@ ContextSerializer::~ContextSerializer() {
 }
 
 void ContextSerializer::Serialize(Context* o,
-                                  const DisallowHeapAllocation& no_gc) {
+                                  const DisallowGarbageCollection& no_gc) {
   context_ = *o;
   DCHECK(context_.IsNativeContext());
 
@@ -212,7 +212,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
   CHECK_GT(embedder_fields_count, 0);
   DCHECK(!js_obj.NeedsRehashing());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
 

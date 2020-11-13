@@ -7,7 +7,7 @@
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-const num_iterations = 5;
+const num_iterations = 4;
 const num_functions = 2;
 
 const builder = new WasmModuleBuilder();

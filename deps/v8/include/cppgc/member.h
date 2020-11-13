@@ -58,6 +58,7 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
     this->CheckPointer(Get());
   }
   BasicMember(T& raw) : BasicMember(&raw) {}  // NOLINT
+  // Copy ctor.
   BasicMember(const BasicMember& other) : BasicMember(other.Get()) {}
   // Allow heterogeneous construction.
   template <typename U, typename OtherBarrierPolicy, typename OtherWeaknessTag,
@@ -67,6 +68,20 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
       const BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
                         OtherCheckingPolicy>& other)
       : BasicMember(other.Get()) {}
+  // Move ctor.
+  BasicMember(BasicMember&& other) noexcept : BasicMember(other.Get()) {
+    other.Clear();
+  }
+  // Allow heterogeneous move construction.
+  template <typename U, typename OtherBarrierPolicy, typename OtherWeaknessTag,
+            typename OtherCheckingPolicy,
+            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+  BasicMember(  // NOLINT
+      BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
+                  OtherCheckingPolicy>&& other) noexcept
+      : BasicMember(other.Get()) {
+    other.Clear();
+  }
   // Construction from Persistent.
   template <typename U, typename PersistentWeaknessPolicy,
             typename PersistentLocationPolicy,
@@ -78,10 +93,11 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
           p)
       : BasicMember(p.Get()) {}
 
+  // Copy assignment.
   BasicMember& operator=(const BasicMember& other) {
     return operator=(other.Get());
   }
-  // Allow heterogeneous assignment.
+  // Allow heterogeneous copy assignment.
   template <typename U, typename OtherWeaknessTag, typename OtherBarrierPolicy,
             typename OtherCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
@@ -89,6 +105,22 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
       const BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
                         OtherCheckingPolicy>& other) {
     return operator=(other.Get());
+  }
+  // Move assignment.
+  BasicMember& operator=(BasicMember&& other) noexcept {
+    operator=(other.Get());
+    other.Clear();
+    return *this;
+  }
+  // Heterogeneous move assignment.
+  template <typename U, typename OtherWeaknessTag, typename OtherBarrierPolicy,
+            typename OtherCheckingPolicy,
+            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+  BasicMember& operator=(BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
+                                     OtherCheckingPolicy>&& other) noexcept {
+    operator=(other.Get());
+    other.Clear();
+    return *this;
   }
   // Assignment from Persistent.
   template <typename U, typename PersistentWeaknessPolicy,

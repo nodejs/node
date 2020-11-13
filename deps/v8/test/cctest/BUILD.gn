@@ -60,6 +60,12 @@ v8_header_set("cctest_headers") {
   sources = [ "cctest.h" ]
 }
 
+config("cctest_sources_config") {
+  if (is_clang) {
+    cflags = [ "-Wno-string-concatenation" ]
+  }
+}
+
 v8_source_set("cctest_sources") {
   testonly = true
 
@@ -209,6 +215,7 @@ v8_source_set("cctest_sources") {
     "test-debug.cc",
     "test-decls.cc",
     "test-deoptimization.cc",
+    "test-descriptor-array.cc",
     "test-dictionary.cc",
     "test-diy-fp.cc",
     "test-double.cc",
@@ -267,7 +274,6 @@ v8_source_set("cctest_sources") {
     "test-unboxed-doubles.cc",
     "test-unscopables-hidden-prototype.cc",
     "test-unwinder-code-pages.cc",
-    "test-unwinder.cc",
     "test-usecounters.cc",
     "test-utils.cc",
     "test-version.cc",
@@ -304,6 +310,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-wasm-debug-evaluate.cc",
     "wasm/test-wasm-debug-evaluate.h",
     "wasm/test-wasm-import-wrapper-cache.cc",
+    "wasm/test-wasm-metrics.cc",
     "wasm/test-wasm-serialization.cc",
     "wasm/test-wasm-shared-engine.cc",
     "wasm/test-wasm-stack.cc",
@@ -402,6 +409,7 @@ v8_source_set("cctest_sources") {
     "../..:external_config",
     "../..:internal_config_base",
     "../..:v8_tracing_config",
+    ":cctest_sources_config",
   ]
 
   public_deps = [

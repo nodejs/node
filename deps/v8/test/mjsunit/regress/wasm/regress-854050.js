@@ -6,7 +6,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addFunction(undefined, makeSig([kWasmI32, kWasmF32], []))
-    .addLocals({i32_count: 7})
+    .addLocals(kWasmI32, 7)
     .addBody([
       kExprLocalGet,    0,          // get_local
       kExprI32Const,    0,          // i32.const 0

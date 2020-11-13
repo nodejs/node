@@ -2551,18 +2551,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(1).V16B(), i.InputInt4(2));
       break;
     }
-    case kArm64S8x16Swizzle: {
+    case kArm64I8x16Swizzle: {
       __ Tbl(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
              i.InputSimd128Register(1).V16B());
       break;
     }
-    case kArm64S8x16Shuffle: {
+    case kArm64I8x16Shuffle: {
       Simd128Register dst = i.OutputSimd128Register().V16B(),
                       src0 = i.InputSimd128Register(0).V16B(),
                       src1 = i.InputSimd128Register(1).V16B();
       // Unary shuffle table is in src0, binary shuffle table is in src0, src1,
       // which must be consecutive.
-      int64_t mask = 0;
+      uint32_t mask = 0;
       if (src0 == src1) {
         mask = 0x0F0F0F0F;
       } else {
@@ -2601,20 +2601,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(i.OutputRegister32(), i.OutputRegister32(), 1);
       break;
     }
-    case kArm64S8x16LoadSplat: {
-      __ ld1r(i.OutputSimd128Register().V16B(), i.MemoryOperand(0));
-      break;
-    }
-    case kArm64S16x8LoadSplat: {
-      __ ld1r(i.OutputSimd128Register().V8H(), i.MemoryOperand(0));
-      break;
-    }
-    case kArm64S32x4LoadSplat: {
-      __ ld1r(i.OutputSimd128Register().V4S(), i.MemoryOperand(0));
-      break;
-    }
-    case kArm64S64x2LoadSplat: {
-      __ ld1r(i.OutputSimd128Register().V2D(), i.MemoryOperand(0));
+    case kArm64LoadSplat: {
+      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      __ ld1r(i.OutputSimd128Register().Format(f), i.MemoryOperand(0));
       break;
     }
     case kArm64I16x8Load8x8S: {
@@ -2647,6 +2636,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;
     }
+    case kArm64S128LoadMem32Zero: {
+      __ Ldr(i.OutputSimd128Register().S(), i.MemoryOperand(0));
+      break;
+    }
+    case kArm64S128LoadMem64Zero: {
+      __ Ldr(i.OutputSimd128Register().D(), i.MemoryOperand(0));
+      break;
+    }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
   case Op: {                                               \
     UseScratchRegisterScope scope(tasm());                 \
@@ -2657,13 +2654,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ Cset(i.OutputRegister32(), ne);                     \
     break;                                                 \
   }
-      // for AnyTrue, the format does not matter, umaxv does not support 2D
-      SIMD_REDUCE_OP_CASE(kArm64V64x2AnyTrue, Umaxv, kFormatS, 4S);
-      SIMD_REDUCE_OP_CASE(kArm64V32x4AnyTrue, Umaxv, kFormatS, 4S);
+      // For AnyTrue, the format does not matter.
+      SIMD_REDUCE_OP_CASE(kArm64V128AnyTrue, Umaxv, kFormatS, 4S);
       SIMD_REDUCE_OP_CASE(kArm64V32x4AllTrue, Uminv, kFormatS, 4S);
-      SIMD_REDUCE_OP_CASE(kArm64V16x8AnyTrue, Umaxv, kFormatH, 8H);
       SIMD_REDUCE_OP_CASE(kArm64V16x8AllTrue, Uminv, kFormatH, 8H);
-      SIMD_REDUCE_OP_CASE(kArm64V8x16AnyTrue, Umaxv, kFormatB, 16B);
       SIMD_REDUCE_OP_CASE(kArm64V8x16AllTrue, Uminv, kFormatB, 16B);
   }
   return kSuccess;
@@ -2911,7 +2905,12 @@ void CodeGenerator::AssembleConstructFrame() {
   if (frame_access_state()->has_frame()) {
     // Link the frame
     if (call_descriptor->IsJSFunctionCall()) {
+      STATIC_ASSERT(InterpreterFrameConstants::kFixedFrameSize % 16 == 8);
+      DCHECK_EQ(required_slots % 2, 1);
       __ Prologue();
+      // Update required_slots count since we have just claimed one extra slot.
+      STATIC_ASSERT(TurboAssembler::kExtraSlotClaimedByPrologue == 1);
+      required_slots -= TurboAssembler::kExtraSlotClaimedByPrologue;
     } else {
       __ Push<TurboAssembler::kSignLR>(lr, fp);
       __ Mov(fp, sp);
@@ -2929,7 +2928,13 @@ void CodeGenerator::AssembleConstructFrame() {
       // to allocate the remaining stack slots.
       if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
       osr_pc_offset_ = __ pc_offset();
-      required_slots -= osr_helper()->UnoptimizedFrameSlots();
+      size_t unoptimized_frame_slots = osr_helper()->UnoptimizedFrameSlots();
+      DCHECK(call_descriptor->IsJSFunctionCall());
+      DCHECK_EQ(unoptimized_frame_slots % 2, 1);
+      // One unoptimized frame slot has already been claimed when the actual
+      // arguments count was pushed.
+      required_slots -=
+          unoptimized_frame_slots - TurboAssembler::kExtraSlotClaimedByPrologue;
       ResetSpeculationPoison();
     }
 
@@ -2984,13 +2989,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // recording their argument count.
     switch (call_descriptor->kind()) {
       case CallDescriptor::kCallJSFunction:
-        if (call_descriptor->PushArgumentCount()) {
-          __ Claim(required_slots + 1);  // Claim extra slot for argc.
-          __ Str(kJavaScriptCallArgCountRegister,
-                 MemOperand(fp, OptimizedBuiltinFrameConstants::kArgCOffset));
-        } else {
-          __ Claim(required_slots);
-        }
+        __ Claim(required_slots);
         break;
       case CallDescriptor::kCallCodeObject: {
         UseScratchRegisterScope temps(tasm());

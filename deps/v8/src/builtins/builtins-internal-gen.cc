@@ -738,15 +738,39 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
   // ConstructStubs implemented in C++ will be run in the context of the caller
   // instead of the callee, due to the way that [[Construct]] is defined for
   // ordinary functions).
-  TNode<Context> context =
-      CAST(LoadObjectField(target, JSFunction::kContextOffset));
+  TNode<Context> context = LoadJSFunctionContext(target);
+
+  TNode<Int32T> actual_argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+
+  TVARIABLE(Int32T, pushed_argc, actual_argc);
+
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(target);
+
+  TNode<Int32T> formal_count =
+      UncheckedCast<Int32T>(LoadSharedFunctionInfoFormalParameterCount(shared));
+
+  // The number of arguments pushed is the maximum of actual arguments count
+  // and formal parameters count. Except when the formal parameters count is
+  // the sentinel.
+  Label check_argc(this), update_argc(this), done_argc(this);
+
+  Branch(Word32Equal(formal_count, Int32Constant(kDontAdaptArgumentsSentinel)),
+         &done_argc, &check_argc);
+  BIND(&check_argc);
+  Branch(Int32GreaterThan(formal_count, pushed_argc.value()), &update_argc,
+         &done_argc);
+  BIND(&update_argc);
+  pushed_argc = formal_count;
+  Goto(&done_argc);
+  BIND(&done_argc);
+#endif
 
   // Update arguments count for CEntry to contain the number of arguments
   // including the receiver and the extra arguments.
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  argc = Int32Add(
-      argc,
+  TNode<Int32T> argc = Int32Add(
+      pushed_argc.value(),
       Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
   const bool builtin_exit_frame = true;

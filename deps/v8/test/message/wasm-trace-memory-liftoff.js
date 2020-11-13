@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-stress-opt --trace-wasm-memory --liftoff --no-future
+// Flags: --no-stress-opt --trace-wasm-memory --liftoff
 // Flags: --no-wasm-tier-up --experimental-wasm-simd
 // Flags: --enable-sse3 --enable-sse4-1
 

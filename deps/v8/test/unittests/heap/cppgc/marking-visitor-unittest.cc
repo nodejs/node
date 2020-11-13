@@ -23,7 +23,8 @@ namespace {
 class MarkingVisitorTest : public testing::TestWithHeap {
  public:
   MarkingVisitorTest()
-      : marker_(std::make_unique<Marker>(Heap::From(GetHeap())->AsBase())) {}
+      : marker_(MarkerFactory::CreateAndStartMarking<Marker>(
+            *Heap::From(GetHeap()), GetPlatformHandle().get())) {}
   ~MarkingVisitorTest() override { marker_->ClearAllWorklistsForTesting(); }
 
   Marker* GetMarker() { return marker_.get(); }
@@ -47,6 +48,7 @@ class TestMarkingVisitor : public MarkingVisitor {
  public:
   explicit TestMarkingVisitor(Marker* marker)
       : MarkingVisitor(marker->heap(), marker->MarkingStateForTesting()) {}
+  ~TestMarkingVisitor() { marking_state_.Publish(); }
 };
 
 }  // namespace

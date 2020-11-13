@@ -111,7 +111,7 @@ bytecodes: [
                 B(Star), R(2),
   /*  101 S> */ B(CreateArrayLiteral), U8(5), U8(1), U8(37),
                 B(Star), R(6),
-                B(GetIterator), R(6), U8(2), U8(4),
+  /*  101 E> */ B(GetIterator), R(6), U8(2), U8(4),
                 B(Mov), R(4), R(1),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),

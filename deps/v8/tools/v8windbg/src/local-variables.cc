@@ -4,7 +4,11 @@
 
 #include "tools/v8windbg/src/local-variables.h"
 
+#include <vector>
+
 #include "tools/v8windbg/base/utilities.h"
+#include "tools/v8windbg/src/object-inspection.h"
+#include "tools/v8windbg/src/v8-debug-helper-interop.h"
 #include "tools/v8windbg/src/v8windbg-extension.h"
 
 V8LocalVariables::V8LocalVariables(WRL::ComPtr<IModelPropertyAccessor> original,
@@ -109,6 +113,14 @@ IFACEMETHODIMP V8LocalVariables::GetValue(PCWSTR key, IModelObject* context,
       host_context.Get(), stack_offset, object_array_type.Get(), &array));
   RETURN_IF_FAIL(
       result->SetKey(L"memory interpreted as Objects", array.Get(), nullptr));
+
+  std::vector<Property> properties = GetStackFrame(host_context, frame_offset);
+  for (const auto& prop : properties) {
+    WRL::ComPtr<IModelObject> property;
+    RETURN_IF_FAIL(GetModelForProperty(prop, host_context, &property));
+    result->SetKey(reinterpret_cast<const wchar_t*>(prop.name.c_str()),
+                   property.Get(), nullptr);
+  }
 
   *value = result.Detach();
   return S_OK;

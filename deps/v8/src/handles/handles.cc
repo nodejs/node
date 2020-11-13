@@ -43,7 +43,7 @@ bool HandleBase::IsDereferenceAllowed() const {
   }
 
   LocalHeap* local_heap = LocalHeap::Current();
-  if (V8_UNLIKELY(local_heap)) {
+  if (FLAG_local_heaps && local_heap) {
     // Local heap can't access handles when parked
     if (!local_heap->IsHandleDereferenceAllowed()) return false;
 

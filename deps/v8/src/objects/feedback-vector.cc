@@ -266,7 +266,6 @@ Handle<FeedbackVector> FeedbackVector::New(
   for (int i = 0; i < slot_count;) {
     FeedbackSlot slot(i);
     FeedbackSlotKind kind = feedback_metadata->GetKind(slot);
-    int index = FeedbackVector::GetIndex(slot);
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
 
     Object extra_value = *uninitialized_sentinel;
@@ -275,19 +274,19 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
-        vector->set(index, HeapObjectReference::ClearedValue(isolate),
+        vector->Set(slot, HeapObjectReference::ClearedValue(isolate),
                     SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
-        vector->set(index, Smi::zero(), SKIP_WRITE_BARRIER);
+        vector->Set(slot, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kLiteral:
-        vector->set(index, Smi::zero(), SKIP_WRITE_BARRIER);
+        vector->Set(slot, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCall:
-        vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        vector->Set(slot, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         extra_value = Smi::zero();
         break;
       case FeedbackSlotKind::kCloneObject:
@@ -303,7 +302,7 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile:
       case FeedbackSlotKind::kInstanceOf:
-        vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        vector->Set(slot, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
 
       case FeedbackSlotKind::kInvalid:
@@ -312,7 +311,7 @@ Handle<FeedbackVector> FeedbackVector::New(
         break;
     }
     for (int j = 1; j < entry_size; j++) {
-      vector->set(index + j, extra_value, SKIP_WRITE_BARRIER);
+      vector->Set(slot.WithOffset(j), extra_value, SKIP_WRITE_BARRIER);
     }
     i += entry_size;
   }
@@ -374,6 +373,11 @@ void FeedbackVector::AddToVectorsForProfilingTools(
   isolate->SetFeedbackVectorsForProfilingTools(*list);
 }
 
+void FeedbackVector::SaturatingIncrementProfilerTicks() {
+  int ticks = profiler_ticks();
+  if (ticks < Smi::kMaxValue) set_profiler_ticks(ticks + 1);
+}
+
 // static
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
                                       Handle<Code> code) {
@@ -409,14 +413,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
 
   Code code = Code::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
-    if (FLAG_trace_deopt) {
-      CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
-      PrintF(scope.file(),
-             "[evicting optimized code marked for deoptimization (%s) for ",
-             reason);
-      shared.ShortPrint(scope.file());
-      PrintF(scope.file(), "]\n");
-    }
+    Deoptimizer::TraceEvictFromOptimizedCodeCache(shared, reason);
     if (!code.deopt_already_counted()) {
       code.set_deopt_already_counted(true);
     }

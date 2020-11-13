@@ -1629,7 +1629,6 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
                    bool is_declaration_scope) {
   switch (scope_type) {
     case EVAL_SCOPE: return "eval";
-    // TODO(adamk): Should we print concise method scopes specially?
     case FUNCTION_SCOPE:
       if (IsGeneratorFunction(function_kind)) return "function*";
       if (IsAsyncFunction(function_kind)) return "async function";

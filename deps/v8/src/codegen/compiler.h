@@ -44,10 +44,6 @@ class WorkerThreadRuntimeCallStats;
 using UnoptimizedCompilationJobList =
     std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>;
 
-inline bool ShouldSpawnExtraNativeContextIndependentCompilationJob() {
-  return FLAG_turbo_nci && !FLAG_turbo_nci_as_highest_tier;
-}
-
 // The V8 compiler API.
 //
 // This is the central hub for dispatching to the various compilers within V8.

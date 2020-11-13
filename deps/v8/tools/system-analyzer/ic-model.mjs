@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import CustomIcProcessor from "./ic-processor.mjs";
+import Processor from "./processor.mjs";
 
 // For compatibility with console scripts:
 print = console.log;
@@ -24,8 +24,8 @@ export class Group {
 
   createSubGroups() {
     this.groups = {};
-    for (let i = 0; i < CustomIcProcessor.kProperties.length; i++) {
-      let subProperty = CustomIcProcessor.kProperties[i];
+    for (let i = 0; i < Processor.kProperties.length; i++) {
+      let subProperty = Processor.kProperties[i];
       if (this.property == subProperty) continue;
       this.groups[subProperty] = Group.groupBy(this.entries, subProperty);
     }
@@ -51,7 +51,7 @@ export class Group {
       group.percentage = Math.round(group.count / length * 100 * 100) / 100;
       result.push(group);
     }
-    result.sort((a, b) => {return b.count - a.count});
+    result.sort((a, b) => { return b.count - a.count });
     return result;
   }
 

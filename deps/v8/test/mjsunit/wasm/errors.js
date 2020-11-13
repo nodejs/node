@@ -110,7 +110,8 @@ function import_error(index, module, func, msg) {
   b = builder();
   msg = import_error(
       0, 'foo', 'bar',
-      'global import must be a number or WebAssembly.Global object');
+      'global import must be a number, valid Wasm reference, '
+        + 'or WebAssembly.Global object');
   b.addImportedGlobal('foo', 'bar', kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {}}, msg);
   b = builder();

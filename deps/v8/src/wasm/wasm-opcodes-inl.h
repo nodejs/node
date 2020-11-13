@@ -35,7 +35,6 @@ namespace wasm {
 #define CASE_S64x2_OP(name, str) CASE_OP(S64x2##name, "s64x2." str)
 #define CASE_S32x4_OP(name, str) CASE_OP(S32x4##name, "s32x4." str)
 #define CASE_S16x8_OP(name, str) CASE_OP(S16x8##name, "s16x8." str)
-#define CASE_S8x16_OP(name, str) CASE_OP(S8x16##name, "s8x16." str)
 #define CASE_V64x2_OP(name, str) CASE_OP(V64x2##name, "v64x2." str)
 #define CASE_V32x4_OP(name, str) CASE_OP(V32x4##name, "v32x4." str)
 #define CASE_V16x8_OP(name, str) CASE_OP(V16x8##name, "v16x8." str)
@@ -295,8 +294,8 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S128_OP(Not, "not")
     CASE_S128_OP(Select, "select")
     CASE_S128_OP(AndNot, "andnot")
-    CASE_S8x16_OP(Swizzle, "swizzle")
-    CASE_S8x16_OP(Shuffle, "shuffle")
+    CASE_I8x16_OP(Swizzle, "swizzle")
+    CASE_I8x16_OP(Shuffle, "shuffle")
     CASE_SIMDV_OP(AnyTrue, "any_true")
     CASE_SIMDV_OP(AllTrue, "all_true")
     CASE_V64x2_OP(AnyTrue, "any_true")
@@ -306,16 +305,16 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 
     CASE_S128_OP(LoadMem32Zero, "load32_zero")
     CASE_S128_OP(LoadMem64Zero, "load64_zero")
-    CASE_S8x16_OP(LoadSplat, "load_splat")
-    CASE_S16x8_OP(LoadSplat, "load_splat")
-    CASE_S32x4_OP(LoadSplat, "load_splat")
-    CASE_S64x2_OP(LoadSplat, "load_splat")
-    CASE_I16x8_OP(Load8x8S, "load8x8_s")
-    CASE_I16x8_OP(Load8x8U, "load8x8_u")
-    CASE_I32x4_OP(Load16x4S, "load16x4_s")
-    CASE_I32x4_OP(Load16x4U, "load16x4_u")
-    CASE_I64x2_OP(Load32x2S, "load32x2_s")
-    CASE_I64x2_OP(Load32x2U, "load32x2_u")
+    CASE_S128_OP(Load8Splat, "load8_splat")
+    CASE_S128_OP(Load16Splat, "load16_splat")
+    CASE_S128_OP(Load32Splat, "load32_splat")
+    CASE_S128_OP(Load64Splat, "load64_splat")
+    CASE_S128_OP(Load8x8S, "load8x8_s")
+    CASE_S128_OP(Load8x8U, "load8x8_u")
+    CASE_S128_OP(Load16x4S, "load16x4_s")
+    CASE_S128_OP(Load16x4U, "load16x4_u")
+    CASE_S128_OP(Load32x2S, "load32x2_s")
+    CASE_S128_OP(Load32x2U, "load32x2_u")
 
     CASE_I8x16_OP(RoundingAverageU, "avgr_u")
     CASE_I16x8_OP(RoundingAverageU, "avgr_u")
@@ -413,7 +412,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_S64x2_OP
 #undef CASE_S32x4_OP
 #undef CASE_S16x8_OP
-#undef CASE_S8x16_OP
 #undef CASE_INT_OP
 #undef CASE_FLOAT_OP
 #undef CASE_ALL_OP

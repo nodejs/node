@@ -4,7 +4,7 @@
 
 #include "debug-helper-internal.h"
 #include "src/common/ptr-compr-inl.h"
-#include "torque-generated/class-debug-readers-tq.h"
+#include "torque-generated/class-debug-readers.h"
 
 namespace i = v8::internal;
 

@@ -258,13 +258,6 @@ void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::NativeContextMoveEvent(Address from, Address to) {
-  CodeEventsContainer evt_rec(CodeEventRecord::NATIVE_CONTEXT_MOVE);
-  evt_rec.NativeContextMoveEventRecord_.from_address = from;
-  evt_rec.NativeContextMoveEventRecord_.to_address = to;
-  DispatchCodeEvent(evt_rec);
-}
-
 void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
                                            Handle<SharedFunctionInfo> shared) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);

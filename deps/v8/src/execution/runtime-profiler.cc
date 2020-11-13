@@ -74,24 +74,52 @@ std::ostream& operator<<(std::ostream& os, OptimizationReason reason) {
   return os << OptimizationReasonToString(reason);
 }
 
-RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
-    : isolate_(isolate), any_ic_changed_(false) {}
+namespace {
 
-static void TraceRecompile(JSFunction function, const char* reason,
-                           const char* type, Isolate* isolate) {
+void TraceInOptimizationQueue(JSFunction function) {
+  if (FLAG_trace_opt_verbose) {
+    PrintF("[function ");
+    function.PrintName();
+    PrintF(" is already in optimization queue]\n");
+  }
+}
+
+void TraceHeuristicOptimizationDisallowed(JSFunction function) {
+  if (FLAG_trace_opt_verbose) {
+    PrintF("[function ");
+    function.PrintName();
+    PrintF(" has been marked manually for optimization]\n");
+  }
+}
+
+void TraceRecompile(JSFunction function, OptimizationReason reason,
+                    Isolate* isolate) {
   if (FLAG_trace_opt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[marking ");
     function.ShortPrint(scope.file());
-    PrintF(scope.file(), " for %s recompilation, reason: %s", type, reason);
+    PrintF(scope.file(), " for optimized recompilation, reason: %s",
+           OptimizationReasonToString(reason));
     PrintF(scope.file(), "]\n");
   }
 }
 
+void TraceNCIRecompile(JSFunction function, OptimizationReason reason) {
+  if (FLAG_trace_turbo_nci) {
+    StdoutStream os;
+    os << "NCI tierup mark: " << Brief(function) << ", "
+       << OptimizationReasonToString(reason) << std::endl;
+  }
+}
+
+}  // namespace
+
+RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
+    : isolate_(isolate), any_ic_changed_(false) {}
+
 void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason) {
   DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
-  TraceRecompile(function, OptimizationReasonToString(reason), "optimized",
-                 isolate_);
+  TraceRecompile(function, reason, isolate_);
   function.MarkForOptimization(ConcurrencyMode::kConcurrent);
 }
 
@@ -122,27 +150,20 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
       Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
 }
 
-void RuntimeProfiler::MaybeOptimize(JSFunction function,
-                                    InterpretedFrame* frame) {
+void RuntimeProfiler::MaybeOptimizeInterpretedFrame(JSFunction function,
+                                                    InterpretedFrame* frame) {
   if (function.IsInOptimizationQueue()) {
-    if (FLAG_trace_opt_verbose) {
-      PrintF("[function ");
-      function.PrintName();
-      PrintF(" is already in optimization queue]\n");
-    }
+    TraceInOptimizationQueue(function);
     return;
   }
-  if (FLAG_testing_d8_test_runner) {
-    if (!PendingOptimizationTable::IsHeuristicOptimizationAllowed(isolate_,
-                                                                  function)) {
-      if (FLAG_trace_opt_verbose) {
-        PrintF("[function ");
-        function.PrintName();
-        PrintF(" has been marked manually for optimization]\n");
-      }
-      return;
-    }
+  if (FLAG_testing_d8_test_runner &&
+      !PendingOptimizationTable::IsHeuristicOptimizationAllowed(isolate_,
+                                                                function)) {
+    TraceHeuristicOptimizationDisallowed(function);
+    return;
   }
+
+  if (function.shared().optimization_disabled()) return;
 
   if (FLAG_always_osr) {
     AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
@@ -151,12 +172,38 @@ void RuntimeProfiler::MaybeOptimize(JSFunction function,
     return;
   }
 
+  OptimizationReason reason =
+      ShouldOptimize(function, function.shared().GetBytecodeArray());
+
+  if (reason != OptimizationReason::kDoNotOptimize) {
+    Optimize(function, reason);
+  }
+}
+
+void RuntimeProfiler::MaybeOptimizeNCIFrame(JSFunction function) {
+  DCHECK_EQ(function.code().kind(), CodeKind::NATIVE_CONTEXT_INDEPENDENT);
+
+  if (function.IsInOptimizationQueue()) {
+    TraceInOptimizationQueue(function);
+    return;
+  }
+  if (FLAG_testing_d8_test_runner &&
+      !PendingOptimizationTable::IsHeuristicOptimizationAllowed(isolate_,
+                                                                function)) {
+    TraceHeuristicOptimizationDisallowed(function);
+    return;
+  }
+
   if (function.shared().optimization_disabled()) return;
+
+  // Note: We currently do not trigger OSR compilation from NCI code.
+  // TODO(jgruber,v8:8888): But we should.
 
   OptimizationReason reason =
       ShouldOptimize(function, function.shared().GetBytecodeArray());
 
   if (reason != OptimizationReason::kDoNotOptimize) {
+    TraceNCIRecompile(function, reason);
     Optimize(function, reason);
   }
 }
@@ -190,7 +237,7 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
-  if (function.HasAvailableOptimizedCode()) {
+  if (function.ActiveTierIsTurbofan()) {
     return OptimizationReason::kDoNotOptimize;
   }
   int ticks = function.feedback_vector().profiler_ticks();
@@ -219,22 +266,24 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   return OptimizationReason::kDoNotOptimize;
 }
 
-void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
-  HandleScope scope(isolate_);
-
-  if (!isolate_->use_optimizer()) return;
-
-  DisallowHeapAllocation no_gc;
+RuntimeProfiler::MarkCandidatesForOptimizationScope::
+    MarkCandidatesForOptimizationScope(RuntimeProfiler* profiler)
+    : handle_scope_(profiler->isolate_), profiler_(profiler) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.MarkCandidatesForOptimization");
+}
 
-  // Run through the JavaScript frames and collect them. If we already
-  // have a sample of the function, we mark it for optimizations
-  // (eagerly or lazily).
-  int frame_count = 0;
-  int frame_count_limit = FLAG_frame_count;
-  for (JavaScriptFrameIterator it(isolate_);
-       frame_count++ < frame_count_limit && !it.done(); it.Advance()) {
+RuntimeProfiler::MarkCandidatesForOptimizationScope::
+    ~MarkCandidatesForOptimizationScope() {
+  profiler_->any_ic_changed_ = false;
+}
+
+void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
+  if (!isolate_->use_optimizer()) return;
+  MarkCandidatesForOptimizationScope scope(this);
+  int i = 0;
+  for (JavaScriptFrameIterator it(isolate_); i < FLAG_frame_count && !it.done();
+       i++, it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     if (!frame->is_interpreted()) continue;
 
@@ -244,24 +293,35 @@ void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
 
     if (!function.has_feedback_vector()) continue;
 
-    MaybeOptimize(function, InterpretedFrame::cast(frame));
+    MaybeOptimizeInterpretedFrame(function, InterpretedFrame::cast(frame));
 
     // TODO(leszeks): Move this increment to before the maybe optimize checks,
     // and update the tests to assume the increment has already happened.
-    int ticks = function.feedback_vector().profiler_ticks();
-    if (ticks < Smi::kMaxValue) {
-      function.feedback_vector().set_profiler_ticks(ticks + 1);
-    }
+    function.feedback_vector().SaturatingIncrementProfilerTicks();
   }
-  any_ic_changed_ = false;
 }
 
 void RuntimeProfiler::MarkCandidatesForOptimizationFromCode() {
-  if (FLAG_trace_turbo_nci) {
-    StdoutStream os;
-    os << "NCI tier-up: Marking candidates for optimization" << std::endl;
+  if (!isolate_->use_optimizer()) return;
+  MarkCandidatesForOptimizationScope scope(this);
+  int i = 0;
+  for (JavaScriptFrameIterator it(isolate_); i < FLAG_frame_count && !it.done();
+       i++, it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    if (!frame->is_optimized()) continue;
+
+    JSFunction function = frame->function();
+    if (function.code().kind() != CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
+      continue;
+    }
+
+    DCHECK(function.shared().is_compiled());
+    DCHECK(function.has_feedback_vector());
+
+    function.feedback_vector().SaturatingIncrementProfilerTicks();
+
+    MaybeOptimizeNCIFrame(function);
   }
-  // TODO(jgruber,v8:8888): Implement.
 }
 
 }  // namespace internal

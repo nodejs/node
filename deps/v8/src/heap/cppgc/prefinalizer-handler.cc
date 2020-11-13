@@ -25,7 +25,7 @@ void PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
 }
 
 bool PreFinalizerRegistrationDispatcher::PreFinalizer::operator==(
-    const PreFinalizer& other) {
+    const PreFinalizer& other) const {
   return (object == other.object) && (callback == other.callback);
 }
 

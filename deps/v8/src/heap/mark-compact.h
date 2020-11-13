@@ -395,8 +395,7 @@ class MainMarkingVisitor final
            V8_UNLIKELY(revisiting_object_);
   }
 
-  void MarkDescriptorArrayFromWriteBarrier(HeapObject host,
-                                           DescriptorArray descriptors,
+  void MarkDescriptorArrayFromWriteBarrier(DescriptorArray descriptors,
                                            int number_of_own_descriptors);
 
  private:
@@ -583,8 +582,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void RevisitObject(HeapObject obj);
   // Ensures that all descriptors int range [0, number_of_own_descripts)
   // are visited.
-  void MarkDescriptorArrayFromWriteBarrier(HeapObject host,
-                                           DescriptorArray array,
+  void MarkDescriptorArrayFromWriteBarrier(DescriptorArray array,
                                            int number_of_own_descriptors);
 
   // Drains the main thread marking worklist until the specified number of

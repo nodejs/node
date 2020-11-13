@@ -386,6 +386,10 @@ int Sweeper::RawSweep(
   // The free ranges map is used for filtering typed slots.
   FreeRangesMap free_ranges_map;
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  p->object_start_bitmap()->Clear();
+#endif
+
   // Iterate over the page using the live objects and free the memory before
   // the given live object.
   Address free_start = p->area_start();
@@ -410,6 +414,10 @@ int Sweeper::RawSweep(
     int size = object.SizeFromMap(map);
     live_bytes += size;
     free_start = free_end + size;
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    p->object_start_bitmap()->SetBit(object.address());
+#endif
   }
 
   // If there is free memory after the last live object also free that.

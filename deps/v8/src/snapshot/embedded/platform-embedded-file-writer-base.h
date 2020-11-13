@@ -9,6 +9,8 @@
 #include <cstdio>  // For FILE.
 #include <memory>
 
+#include "src/flags/flags.h"  // For ENABLE_CONTROL_FLOW_INTEGRITY_BOOL
+
 namespace v8 {
 namespace internal {
 
@@ -60,6 +62,7 @@ class PlatformEmbeddedFileWriterBase {
   virtual void DeclareUint32(const char* name, uint32_t value) = 0;
   virtual void DeclarePointerToSymbol(const char* name, const char* target) = 0;
 
+  virtual void DeclareSymbolGlobal(const char* name) = 0;
   virtual void DeclareLabel(const char* name) = 0;
 
   virtual void SourceInfo(int fileid, const char* filename, int line) = 0;

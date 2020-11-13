@@ -27,6 +27,9 @@ void StressConcurrentAllocatorTask::RunInternal() {
                        MemoryChunkLayout::ObjectStartOffsetInDataPage());
 
   for (int i = 0; i < kNumIterations; i++) {
+    // Isolate tear down started, stop allocation...
+    if (heap->gc_state() == Heap::TEAR_DOWN) return;
+
     Address address = local_heap.AllocateRawOrFail(
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
         AllocationAlignment::kWordAligned);
@@ -60,27 +63,6 @@ void StressConcurrentAllocatorTask::Schedule(Isolate* isolate) {
   const double kDelayInSeconds = 0.1;
   V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(std::move(task),
                                                       kDelayInSeconds);
-}
-
-Address ConcurrentAllocator::PerformCollectionAndAllocateAgain(
-    int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
-  Heap* heap = local_heap_->heap();
-  local_heap_->allocation_failed_ = true;
-
-  for (int i = 0; i < 3; i++) {
-    {
-      ParkedScope scope(local_heap_);
-      heap->RequestAndWaitForCollection();
-    }
-
-    AllocationResult result = AllocateRaw(object_size, alignment, origin);
-    if (!result.IsRetry()) {
-      local_heap_->allocation_failed_ = false;
-      return result.ToObjectChecked().address();
-    }
-  }
-
-  heap->FatalProcessOutOfMemory("ConcurrentAllocator: allocation failed");
 }
 
 void ConcurrentAllocator::FreeLinearAllocationArea() {

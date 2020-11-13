@@ -202,9 +202,14 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
-  DCHECK(-1 <= index &&
-         (index < ComputeParametersCount() ||
-          ComputeParametersCount() == kDontAdaptArgumentsSentinel));
+  DCHECK_LE(-1, index);
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  DCHECK_LT(index,
+            std::max(GetActualArgumentsCount(), ComputeParametersCount()));
+#else
+  DCHECK(index < ComputeParametersCount() ||
+         ComputeParametersCount() == kDontAdaptArgumentsSentinel);
+#endif
 #ifdef V8_REVERSE_JSARGS
   int parameter_offset = (index + 1) * kSystemPointerSize;
 #else
@@ -335,7 +340,7 @@ inline StackFrame* SafeStackFrameIterator::frame() const {
   DCHECK(!done());
   DCHECK(frame_->is_java_script() || frame_->is_exit() ||
          frame_->is_builtin_exit() || frame_->is_wasm() ||
-         frame_->is_wasm_to_js());
+         frame_->is_wasm_to_js() || frame_->is_js_to_wasm());
   return frame_;
 }
 

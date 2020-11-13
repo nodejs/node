@@ -41,23 +41,29 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
+  //  -- eax : actual argument count
   //  -- edx : new target (preserved for callee)
   //  -- edi : target function (preserved for callee)
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Push a copy of the target function and the new target.
-    __ push(edi);
-    __ push(edx);
+    // Push a copy of the target function, the new target and the actual
+    // argument count.
+    __ push(kJavaScriptCallTargetRegister);
+    __ push(kJavaScriptCallNewTargetRegister);
+    __ SmiTag(kJavaScriptCallArgCountRegister);
+    __ push(kJavaScriptCallArgCountRegister);
     // Function is also the parameter to the runtime call.
-    __ push(edi);
+    __ push(kJavaScriptCallTargetRegister);
 
     __ CallRuntime(function_id, 1);
     __ mov(ecx, eax);
 
-    // Restore target function and new target.
-    __ pop(edx);
-    __ pop(edi);
+    // Restore target function, new target and actual argument count.
+    __ pop(kJavaScriptCallArgCountRegister);
+    __ SmiUntag(kJavaScriptCallArgCountRegister);
+    __ pop(kJavaScriptCallNewTargetRegister);
+    __ pop(kJavaScriptCallTargetRegister);
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
@@ -831,6 +837,7 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
 static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       Register optimized_code_entry) {
   // ----------- S t a t e -------------
+  //  -- eax : actual argument count
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
   // -----------------------------------
@@ -868,6 +875,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 static void MaybeOptimizeCode(MacroAssembler* masm,
                               Register optimization_marker) {
   // ----------- S t a t e -------------
+  //  -- eax : actual argument count
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
   //  -- optimization_marker : a Smi containing a non-zero optimization marker.
@@ -985,10 +993,10 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
-// stack left to right.  The actual argument count matches the formal parameter
-// count expected by the function.
+// stack left to right.
 //
 // The live registers are:
+//   o eax: actual argument count (not including the receiver)
 //   o edi: the JS function object being called
 //   o edx: the incoming new target or generator object
 //   o esi: our context
@@ -999,6 +1007,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // frames.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = edi;
+
+  __ movd(xmm0, eax);  // Spill actual argument count.
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
@@ -1050,8 +1060,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
-  __ push(esi);  // Callee's context.
-  __ push(edi);  // Callee's JS function.
+  __ push(kContextRegister);               // Callee's context.
+  __ push(kJavaScriptCallTargetRegister);  // Callee's JS function.
+  __ movd(kJavaScriptCallArgCountRegister, xmm0);
+  __ push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
@@ -1204,6 +1216,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ bind(&optimized_code_slot_not_empty);
   Label maybe_has_optimized_code;
+  // Restore actual argument count.
+  __ movd(eax, xmm0);
   // Check if optimized code marker is actually a weak reference to the
   // optimized code as opposed to an optimization marker.
   __ JumpIfNotSmi(optimized_code_entry, &maybe_has_optimized_code);
@@ -1218,6 +1232,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   TailCallOptimizedCodeSlot(masm, optimized_code_entry);
 
   __ bind(&compile_lazy);
+  // Restore actual argument count.
+  __ movd(eax, xmm0);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
 
   __ bind(&stack_overflow);
@@ -2266,38 +2282,88 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ sub(edx, ecx);
   __ j(less_equal, &stack_done);
   {
-    Generate_StackOverflowCheck(masm, edx, ecx, &stack_overflow);
+    // ----------- S t a t e -------------
+    //  -- eax : the number of arguments already in the stack (not including the
+    //  receiver)
+    //  -- ecx : start index (to support rest parameters)
+    //  -- edx : number of arguments to copy, i.e. arguments count - start index
+    //  -- edi : the target to call (can be any Object)
+    //  -- esi : point to the caller stack frame
+    //  -- xmm0 : context for the Call / Construct builtin
+    //  -- xmm1 : the new target (for [[Construct]] calls)
+    // -----------------------------------
 
     // Forward the arguments from the caller frame.
+#ifdef V8_REVERSE_JSARGS
+    __ movd(xmm2, edi);  // Preserve the target to call.
+    Generate_StackOverflowCheck(masm, edx, edi, &stack_overflow);
+    __ movd(xmm3, ebx);  // Preserve root register.
+
+    Register scratch = ebx;
+
+    // Point to the first argument to copy (skipping receiver).
+    __ lea(ecx, Operand(ecx, times_system_pointer_size,
+                        CommonFrameConstants::kFixedFrameSizeAboveFp +
+                            kSystemPointerSize));
+    __ add(esi, ecx);
+
+    // Move the arguments already in the stack,
+    // including the receiver and the return address.
     {
-      Label loop;
-      __ add(eax, edx);
-      __ PopReturnAddressTo(ecx);
-#ifdef V8_REVERSE_JSARGS
-      // TODO(victor): When we remove the arguments adaptor machinery above,
-      // we can free the scratch register and avoid this move.
-      __ movd(xmm2, ebx);  // Save root register.
-      __ Pop(ebx);         // Save new receiver.
-#endif
-      __ bind(&loop);
-      {
-        __ dec(edx);
-#ifdef V8_REVERSE_JSARGS
-        // Skips old receiver.
-        __ Push(Operand(scratch, edx, times_system_pointer_size,
-                        kFPOnStackSize + kPCOnStackSize + kSystemPointerSize));
-#else
-        __ Push(Operand(scratch, edx, times_system_pointer_size,
-                        kFPOnStackSize + kPCOnStackSize));
-#endif
-        __ j(not_zero, &loop);
-      }
-#ifdef V8_REVERSE_JSARGS
-      __ Push(ebx);        // Push new receiver.
-      __ movd(ebx, xmm2);  // Recover root register.
-#endif
-      __ PushReturnAddressFrom(ecx);
+      Label copy, check;
+      Register src = ecx, current = edi;
+      // Update stack pointer.
+      __ mov(src, esp);
+      __ lea(scratch, Operand(edx, times_system_pointer_size, 0));
+      __ AllocateStackSpace(scratch);
+      // Include return address and receiver.
+      __ add(eax, Immediate(2));
+      __ Set(current, 0);
+      __ jmp(&check);
+      // Loop.
+      __ bind(&copy);
+      __ mov(scratch, Operand(src, current, times_system_pointer_size, 0));
+      __ mov(Operand(esp, current, times_system_pointer_size, 0), scratch);
+      __ inc(current);
+      __ bind(&check);
+      __ cmp(current, eax);
+      __ j(less, &copy);
+      __ lea(ecx, Operand(esp, eax, times_system_pointer_size, 0));
     }
+
+    // Update total number of arguments.
+    __ sub(eax, Immediate(2));
+    __ add(eax, edx);
+
+    // Copy the additional caller arguments onto the stack.
+    // TODO(victorgomes): Consider using forward order as potentially more cache
+    // friendly.
+    {
+      Register src = esi, dest = ecx, num = edx;
+      Label loop;
+      __ bind(&loop);
+      __ dec(num);
+      __ mov(scratch, Operand(src, num, times_system_pointer_size, 0));
+      __ mov(Operand(dest, num, times_system_pointer_size, 0), scratch);
+      __ j(not_zero, &loop);
+    }
+
+    __ movd(ebx, xmm3);  // Restore root register.
+    __ movd(edi, xmm2);  // Restore the target to call.
+#else
+    Generate_StackOverflowCheck(masm, edx, ecx, &stack_overflow);
+    Label loop;
+    __ add(eax, edx);
+    __ PopReturnAddressTo(ecx);
+    __ bind(&loop);
+    {
+      __ dec(edx);
+      __ Push(Operand(scratch, edx, times_system_pointer_size,
+                      kFPOnStackSize + kPCOnStackSize));
+      __ j(not_zero, &loop);
+    }
+    __ PushReturnAddressFrom(ecx);
+#endif
   }
   __ bind(&stack_done);
 
@@ -2308,6 +2374,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ Jump(code, RelocInfo::CODE_TARGET);
 
   __ bind(&stack_overflow);
+#ifdef V8_REVERSE_JSARGS
+  __ movd(edi, xmm2);  // Restore the target to call.
+#endif
   __ movd(esi, xmm0);  // Restore the context.
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
 }

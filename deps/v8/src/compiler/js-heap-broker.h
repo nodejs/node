@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
 #include "src/compiler/serializer-hints.h"
@@ -102,6 +103,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
   bool is_native_context_independent() const {
     return is_native_context_independent_;
+  }
+  bool generate_full_feedback_collection() const {
+    // NCI code currently collects full feedback.
+    DCHECK_IMPLIES(is_native_context_independent(),
+                   CollectFeedbackInGenericLowering());
+    return is_native_context_independent();
   }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
@@ -363,7 +370,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
-  ZoneUnorderedMap<int, MinimorphicLoadPropertyAccessInfo>
+  ZoneUnorderedMap<FeedbackSource, MinimorphicLoadPropertyAccessInfo,
+                   FeedbackSource::Hash, FeedbackSource::Equal>
       minimorphic_property_access_infos_;
 
   ZoneVector<ObjectData*> typed_array_string_tags_;
@@ -439,6 +447,27 @@ class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
 
  private:
   BytecodeArrayRef array_;
+};
+
+// Scope that unparks the LocalHeap, if:
+//   a) We have a JSHeapBroker,
+//   b) Said JSHeapBroker has a LocalHeap, and
+//   c) Said LocalHeap has been parked.
+// Used, for example, when printing the graph with --trace-turbo with a
+// previously parked LocalHeap.
+class UnparkedScopeIfNeeded {
+ public:
+  explicit UnparkedScopeIfNeeded(JSHeapBroker* broker) {
+    if (broker != nullptr) {
+      LocalHeap* local_heap = broker->local_heap();
+      if (local_heap != nullptr && local_heap->IsParked()) {
+        unparked_scope.emplace(local_heap);
+      }
+    }
+  }
+
+ private:
+  base::Optional<UnparkedScope> unparked_scope;
 };
 
 }  // namespace compiler

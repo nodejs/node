@@ -13,7 +13,7 @@
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/smi.h"
 
 namespace v8 {
@@ -827,6 +827,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
     Register object, const AstRawString* name, int feedback_slot) {
   size_t name_index = GetConstantPoolEntry(name);
   OutputLdaNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyFromSuper(
+    Register object, const AstRawString* name, int feedback_slot) {
+  size_t name_index = GetConstantPoolEntry(name);
+  OutputLdaNamedPropertyFromSuper(object, name_index, feedback_slot);
   return *this;
 }
 

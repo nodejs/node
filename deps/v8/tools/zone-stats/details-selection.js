@@ -262,14 +262,10 @@ defineCustomElement('details-selection', (templateText) =>
       const zone_name = checkbox.value;
       const zone_data = zones_data.get(zone_name);
       const zone_allocated = zone_data === undefined ? 0 : zone_data.allocated;
-      if (zone_allocated == 0) {
-        checkbox.parentNode.style.display = 'none';
-      } else {
-        const percents = zone_allocated / total_allocated;
-        const percent_div = checkbox.parentNode.querySelector('.percentBackground');
-        percent_div.style.left = (percents * 100) + '%';
-        checkbox.parentNode.style.display = 'block';
-      }
+      const percents = zone_allocated / total_allocated;
+      const percent_div = checkbox.parentNode.querySelector('.percentBackground');
+      percent_div.style.left = (percents * 100) + '%';
+      checkbox.parentNode.style.display = 'block';
     });
   }
 

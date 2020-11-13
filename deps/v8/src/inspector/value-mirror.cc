@@ -54,6 +54,15 @@ ResultType unpackWasmValue(v8::Local<v8::Context> context,
   return result;
 }
 
+String16 descriptionForWasmS128(std::array<uint8_t, 16> arr) {
+  String16Builder builder;
+  for (int i = 0; i < 16; i++) {
+    builder.appendUnsignedAsHex(arr.at(i));
+    builder.append(" ");
+  }
+  return builder.toString();
+}
+
 // Partial list of Wasm's ValueType, copied here to avoid including internal
 // header. Using an unscoped enumeration here to allow implicit conversions from
 // int. Keep in sync with ValueType::Kind in wasm/value-type.h.
@@ -174,6 +183,14 @@ Response toProtocolValue(v8::Local<v8::Context> context,
       case kF64: {
         *result = protocol::FundamentalValue::create(
             unpackWasmValue<double>(context, wasmValue->bytes()));
+        break;
+      }
+      case kS128: {
+        auto bytes = wasmValue->bytes();
+        DCHECK_EQ(16, bytes->Length());
+        auto s128 = unpackWasmValue<std::array<uint8_t, 16>>(context, bytes);
+        String16 desc = descriptionForWasmS128(s128);
+        *result = protocol::StringValue::create(desc);
         break;
       }
       case kExternRef: {
@@ -525,6 +542,8 @@ class WasmValueMirror final : public ValueMirror {
         return RemoteObject::SubtypeEnum::F32;
       case kF64:
         return RemoteObject::SubtypeEnum::F64;
+      case kS128:
+        return RemoteObject::SubtypeEnum::V128;
       case kExternRef:
         return RemoteObject::SubtypeEnum::Externref;
       default:
@@ -552,6 +571,13 @@ class WasmValueMirror final : public ValueMirror {
       case kF64: {
         return String16::fromDouble(
             unpackWasmValue<double>(context, m_value->bytes()));
+      }
+      case kS128: {
+        *serializable = false;
+        auto bytes = m_value->bytes();
+        DCHECK_EQ(16, bytes->Length());
+        auto s128 = unpackWasmValue<std::array<uint8_t, 16>>(context, bytes);
+        return descriptionForWasmS128(s128);
       }
       case kExternRef: {
         return descriptionForObject(context->GetIsolate(),

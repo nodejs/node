@@ -384,14 +384,14 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   cppgc::Platform* platform_;
 };
 
-class ConcurrentSweepTask final : public v8::JobTask,
+class ConcurrentSweepTask final : public cppgc::JobTask,
                                   private HeapVisitor<ConcurrentSweepTask> {
   friend class HeapVisitor<ConcurrentSweepTask>;
 
  public:
   explicit ConcurrentSweepTask(SpaceStates* states) : states_(states) {}
 
-  void Run(v8::JobDelegate* delegate) final {
+  void Run(cppgc::JobDelegate* delegate) final {
     for (SpaceState& state : *states_) {
       while (auto page = state.unswept_pages.Pop()) {
         Traverse(*page);
@@ -401,7 +401,7 @@ class ConcurrentSweepTask final : public v8::JobTask,
     is_completed_.store(true, std::memory_order_relaxed);
   }
 
-  size_t GetMaxConcurrency() const final {
+  size_t GetMaxConcurrency(size_t /* active_worker_count */) const final {
     return is_completed_.load(std::memory_order_relaxed) ? 0 : 1;
   }
 
@@ -499,8 +499,14 @@ class Sweeper::SweeperImpl final {
     }
   }
 
-  void Finish() {
+  void FinishIfRunning() {
     if (!is_in_progress_) return;
+
+    Finish();
+  }
+
+  void Finish() {
+    DCHECK(is_in_progress_);
 
     // First, call finalizers on the mutator thread.
     SweepFinalizer finalizer(platform_);
@@ -519,14 +525,14 @@ class Sweeper::SweeperImpl final {
   }
 
  private:
-  class IncrementalSweepTask : public v8::IdleTask {
+  class IncrementalSweepTask : public cppgc::IdleTask {
    public:
     using Handle = SingleThreadedHandle;
 
     explicit IncrementalSweepTask(SweeperImpl* sweeper)
         : sweeper_(sweeper), handle_(Handle::NonEmptyTag{}) {}
 
-    static Handle Post(SweeperImpl* sweeper, v8::TaskRunner* runner) {
+    static Handle Post(SweeperImpl* sweeper, cppgc::TaskRunner* runner) {
       auto task = std::make_unique<IncrementalSweepTask>(sweeper);
       auto handle = task->GetHandle();
       runner->PostIdleTask(std::move(task));
@@ -567,7 +573,7 @@ class Sweeper::SweeperImpl final {
     if (!platform_) return;
 
     concurrent_sweeper_handle_ = platform_->PostJob(
-        v8::TaskPriority::kUserVisible,
+        cppgc::TaskPriority::kUserVisible,
         std::make_unique<ConcurrentSweepTask>(&space_states_));
   }
 
@@ -587,9 +593,9 @@ class Sweeper::SweeperImpl final {
   StatsCollector* stats_collector_;
   SpaceStates space_states_;
   cppgc::Platform* platform_;
-  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  std::shared_ptr<cppgc::TaskRunner> foreground_task_runner_;
   IncrementalSweepTask::Handle incremental_sweeper_handle_;
-  std::unique_ptr<v8::JobHandle> concurrent_sweeper_handle_;
+  std::unique_ptr<cppgc::JobHandle> concurrent_sweeper_handle_;
   bool is_in_progress_ = false;
 };
 
@@ -600,7 +606,7 @@ Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform,
 Sweeper::~Sweeper() = default;
 
 void Sweeper::Start(Config config) { impl_->Start(config); }
-void Sweeper::Finish() { impl_->Finish(); }
+void Sweeper::FinishIfRunning() { impl_->FinishIfRunning(); }
 
 }  // namespace internal
 }  // namespace cppgc

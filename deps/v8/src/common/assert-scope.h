@@ -28,6 +28,7 @@ struct PointerWithPayloadTraits<PerThreadAssertData> {
 };
 
 enum PerThreadAssertType {
+  GARBAGE_COLLECTION_ASSERT,
   HEAP_ALLOCATION_ASSERT,
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
@@ -126,7 +127,17 @@ using DisallowHandleAllocation =
 using AllowHandleAllocation =
     PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>;
 
-// Scope to document where we do not expect any allocation and GC.
+// Scope to document where we do not expect garbage collections. It differs from
+// DisallowHeapAllocation by also forbiding safepoints.
+using DisallowGarbageCollection =
+    PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, false>;
+
+// Scope to introduce an exception to DisallowGarbageCollection.
+using AllowGarbageCollection =
+    PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, true>;
+
+// Scope to document where we do not expect any allocation and GC. Deprecated
+// and will eventually be removed, use DisallowGarbageCollection instead.
 using DisallowHeapAllocation =
     PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>;
 #ifdef DEBUG

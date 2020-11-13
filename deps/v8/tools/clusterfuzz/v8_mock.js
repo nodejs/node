@@ -197,3 +197,10 @@ FinalizationRegistry.prototype.register = function(target, holdings) { };
 FinalizationRegistry.prototype.unregister = function(unregisterToken) { };
 FinalizationRegistry.prototype.cleanupSome = function() { };
 FinalizationRegistry.prototype[Symbol.toStringTag] = "FinalizationRegistry";
+
+// Mock the nondeterministic Atomics.waitAsync.
+Atomics.waitAsync = function() {
+  // Return a mock "Promise" whose "then" function will call the callback
+  // immediately.
+  return {'value': {'then': function (f) { f(); }}};
+}

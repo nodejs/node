@@ -13,7 +13,7 @@
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/templates.h"
-#include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/class-definitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

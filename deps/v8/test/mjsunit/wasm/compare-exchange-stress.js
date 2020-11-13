@@ -126,9 +126,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
     builder.addFunction(functionName, makeSig([kWasmI32, kWasmI32, kWasmI32,
             kWasmI32, kWasmI32
         ], []))
-        .addLocals({
-            i32_count: 3
-        })
+        .addLocals(kWasmI32, 3)
         .addBody(body)
         .exportAs(functionName);
 }
@@ -147,8 +145,8 @@ function spawnWorker(module, memory, address, sequence) {
             `onmessage = function(msg) {
                 this.instance = new WebAssembly.Instance(msg.module,
                     {m: {imported_mem: msg.memory}});
-                instance.exports.worker(msg.address, msg.sequence, msg.sequenceLength, msg.workerId,
-                    msg.bitMask);
+                instance.exports.worker(msg.address, msg.sequence,
+                    msg.sequenceLength, msg.workerId, msg.bitMask);
                 postMessage({workerId: msg.workerId});
             }`,
             {type: 'string'}

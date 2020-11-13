@@ -505,8 +505,10 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
       return expression;
     }
     this->mark_verified();
+    const bool early_error = false;
     return this->parser()->RewriteInvalidReferenceExpression(
-        expression, beg_pos, end_pos, MessageTemplate::kInvalidLhsInFor);
+        expression, beg_pos, end_pos, MessageTemplate::kInvalidLhsInFor,
+        early_error);
   }
 
   void RecordExpressionError(const Scanner::Location& loc,

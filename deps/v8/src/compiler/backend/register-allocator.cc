@@ -300,7 +300,6 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
       next_(nullptr),
       current_interval_(nullptr),
       last_processed_use_(nullptr),
-      splitting_pointer_(nullptr),
       current_hint_position_(nullptr) {
   DCHECK(AllocatedOperand::IsSupportedRepresentation(rep));
   bits_ = AssignedRegisterField::encode(kUnassignedRegister) |
@@ -597,10 +596,7 @@ UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
 
   // Find the last use position before the split and the first use
   // position after it.
-  UsePosition* use_after =
-      splitting_pointer_ == nullptr || splitting_pointer_->pos() > position
-          ? first_pos()
-          : splitting_pointer_;
+  UsePosition* use_after = first_pos();
   UsePosition* use_before = nullptr;
   if (split_at_start) {
     // The split position coincides with the beginning of a use interval (the
@@ -819,23 +815,15 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep)
     : LiveRange(0, rep, this),
       vreg_(vreg),
       last_child_id_(0),
-      splintered_from_(nullptr),
       spill_operand_(nullptr),
       spill_move_insertion_locations_(nullptr),
       spilled_in_deferred_blocks_(false),
       has_preassigned_slot_(false),
       spill_start_index_(kMaxInt),
       last_pos_(nullptr),
-      last_child_covers_(this),
-      splinter_(nullptr) {
+      last_child_covers_(this) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
 }
-
-#if DEBUG
-int TopLevelLiveRange::debug_virt_reg() const {
-  return IsSplinter() ? splintered_from()->vreg() : vreg();
-}
-#endif
 
 void TopLevelLiveRange::RecordSpillLocation(Zone* zone, int gap_index,
                                             InstructionOperand* operand) {
@@ -923,157 +911,6 @@ AllocatedOperand TopLevelLiveRange::GetSpillRangeOperand() const {
   SpillRange* spill_range = GetSpillRange();
   int index = spill_range->assigned_slot();
   return AllocatedOperand(LocationOperand::STACK_SLOT, representation(), index);
-}
-
-void TopLevelLiveRange::Splinter(LifetimePosition start, LifetimePosition end,
-                                 Zone* zone) {
-  DCHECK(start != Start() || end != End());
-  DCHECK(start < end);
-
-  TopLevelLiveRange splinter_temp(-1, representation());
-  UsePosition* last_in_splinter = nullptr;
-  // Live ranges defined in deferred blocks stay in deferred blocks, so we
-  // don't need to splinter them. That means that start should always be
-  // after the beginning of the range.
-  DCHECK(start > Start());
-
-  if (end >= End()) {
-    DCHECK(start > Start());
-    DetachAt(start, &splinter_temp, zone, ConnectHints);
-    next_ = nullptr;
-  } else {
-    DCHECK(start < End() && Start() < end);
-
-    const int kInvalidId = std::numeric_limits<int>::max();
-
-    UsePosition* last = DetachAt(start, &splinter_temp, zone, ConnectHints);
-
-    LiveRange end_part(kInvalidId, this->representation(), nullptr);
-    // The last chunk exits the deferred region, and we don't want to connect
-    // hints here, because the non-deferred region shouldn't be affected
-    // by allocation decisions on the deferred path.
-    last_in_splinter =
-        splinter_temp.DetachAt(end, &end_part, zone, DoNotConnectHints);
-
-    next_ = end_part.next_;
-    last_interval_->set_next(end_part.first_interval_);
-    // The next splinter will happen either at or after the current interval.
-    // We can optimize DetachAt by setting current_interval_ accordingly,
-    // which will then be picked up by FirstSearchIntervalForPosition.
-    current_interval_ = last_interval_;
-    last_interval_ = end_part.last_interval_;
-
-    if (first_pos_ == nullptr) {
-      first_pos_ = end_part.first_pos_;
-    } else {
-      splitting_pointer_ = last;
-      if (last != nullptr) last->set_next(end_part.first_pos_);
-    }
-  }
-
-  if (splinter()->IsEmpty()) {
-    splinter()->first_interval_ = splinter_temp.first_interval_;
-    splinter()->last_interval_ = splinter_temp.last_interval_;
-  } else {
-    splinter()->last_interval_->set_next(splinter_temp.first_interval_);
-    splinter()->last_interval_ = splinter_temp.last_interval_;
-  }
-  if (splinter()->first_pos() == nullptr) {
-    splinter()->first_pos_ = splinter_temp.first_pos_;
-  } else {
-    splinter()->last_pos_->set_next(splinter_temp.first_pos_);
-  }
-  if (last_in_splinter != nullptr) {
-    splinter()->last_pos_ = last_in_splinter;
-  } else {
-    if (splinter()->first_pos() != nullptr &&
-        splinter()->last_pos_ == nullptr) {
-      splinter()->last_pos_ = splinter()->first_pos();
-      for (UsePosition* pos = splinter()->first_pos(); pos != nullptr;
-           pos = pos->next()) {
-        splinter()->last_pos_ = pos;
-      }
-    }
-  }
-#if DEBUG
-  Verify();
-  splinter()->Verify();
-#endif
-}
-
-void TopLevelLiveRange::SetSplinteredFrom(TopLevelLiveRange* splinter_parent) {
-  splintered_from_ = splinter_parent;
-  if (!HasSpillOperand() && splinter_parent->spill_range_ != nullptr) {
-    SetSpillRange(splinter_parent->spill_range_);
-  }
-}
-
-void TopLevelLiveRange::UpdateSpillRangePostMerge(TopLevelLiveRange* merged) {
-  DCHECK(merged->TopLevel() == this);
-
-  if (HasNoSpillType() && merged->HasSpillRange()) {
-    set_spill_type(merged->spill_type());
-    DCHECK_LT(0, GetSpillRange()->live_ranges().size());
-    merged->spill_range_ = nullptr;
-    merged->bits_ =
-        SpillTypeField::update(merged->bits_, SpillType::kNoSpillType);
-  }
-}
-
-void TopLevelLiveRange::Merge(TopLevelLiveRange* other, Zone* zone) {
-  DCHECK(Start() < other->Start());
-  DCHECK(other->splintered_from() == this);
-
-  LiveRange* first = this;
-  LiveRange* second = other;
-  DCHECK(first->Start() < second->Start());
-  while (first != nullptr && second != nullptr) {
-    DCHECK(first != second);
-    // Make sure the ranges are in order each time we iterate.
-    if (second->Start() < first->Start()) {
-      LiveRange* tmp = second;
-      second = first;
-      first = tmp;
-      continue;
-    }
-
-    if (first->End() <= second->Start()) {
-      if (first->next() == nullptr ||
-          first->next()->Start() > second->Start()) {
-        // First is in order before second.
-        LiveRange* temp = first->next();
-        first->next_ = second;
-        first = temp;
-      } else {
-        // First is in order before its successor (or second), so advance first.
-        first = first->next();
-      }
-      continue;
-    }
-
-    DCHECK(first->Start() < second->Start());
-    // If first and second intersect, split first.
-    if (first->Start() < second->End() && second->Start() < first->End()) {
-      LiveRange* temp = first->SplitAt(second->Start(), zone);
-      CHECK(temp != first);
-      temp->set_spilled(first->spilled());
-      if (!temp->spilled())
-        temp->set_assigned_register(first->assigned_register());
-
-      first->next_ = second;
-      first = temp;
-      continue;
-    }
-    DCHECK(first->End() <= second->Start());
-  }
-
-  TopLevel()->UpdateParentForAllChildren(TopLevel());
-  TopLevel()->UpdateSpillRangePostMerge(other);
-  TopLevel()->register_slot_use(other->slot_use_kind());
-
-#if DEBUG
-  Verify();
-#endif
 }
 
 void TopLevelLiveRange::VerifyChildrenInOrder() const {
@@ -1271,8 +1108,7 @@ void PrintBlockRow(std::ostream& os, const InstructionBlocks& blocks) {
 void LinearScanAllocator::PrintRangeRow(std::ostream& os,
                                         const TopLevelLiveRange* toplevel) {
   int position = 0;
-  os << std::setw(3) << toplevel->vreg()
-     << (toplevel->IsSplinter() ? "s:" : ": ");
+  os << std::setw(3) << toplevel->vreg() << ": ";
 
   const char* kind_string;
   switch (toplevel->spill_type()) {
@@ -1340,10 +1176,9 @@ SpillRange::SpillRange(TopLevelLiveRange* parent, Zone* zone)
     : live_ranges_(zone),
       assigned_slot_(kUnassignedSlot),
       byte_width_(ByteWidthForStackSlot(parent->representation())) {
-  // Spill ranges are created for top level, non-splintered ranges. This is so
-  // that, when merging decisions are made, we consider the full extent of the
-  // virtual register, and avoid clobbering it.
-  DCHECK(!parent->IsSplinter());
+  // Spill ranges are created for top level. This is so that, when merging
+  // decisions are made, we consider the full extent of the virtual register,
+  // and avoid clobbering it.
   UseInterval* result = nullptr;
   UseInterval* node = nullptr;
   // Copy the intervals for all ranges.
@@ -1646,32 +1481,16 @@ SpillRange* TopTierRegisterAllocationData::AssignSpillRangeToLiveRange(
 
   SpillRange* spill_range = range->GetAllocatedSpillRange();
   if (spill_range == nullptr) {
-    DCHECK(!range->IsSplinter());
     spill_range = allocation_zone()->New<SpillRange>(range, allocation_zone());
   }
   if (spill_mode == SpillMode::kSpillDeferred &&
       (range->spill_type() != SpillType::kSpillRange)) {
-    DCHECK(is_turbo_control_flow_aware_allocation());
     range->set_spill_type(SpillType::kDeferredSpillRange);
   } else {
     range->set_spill_type(SpillType::kSpillRange);
   }
 
-  int spill_range_index =
-      range->IsSplinter() ? range->splintered_from()->vreg() : range->vreg();
-
-  spill_ranges()[spill_range_index] = spill_range;
-
-  return spill_range;
-}
-
-SpillRange* TopTierRegisterAllocationData::CreateSpillRangeForLiveRange(
-    TopLevelLiveRange* range) {
-  DCHECK(is_turbo_preprocess_ranges());
-  DCHECK(!range->HasSpillOperand());
-  DCHECK(!range->IsSplinter());
-  SpillRange* spill_range =
-      allocation_zone()->New<SpillRange>(range, allocation_zone());
+  spill_ranges()[range->vreg()] = spill_range;
   return spill_range;
 }
 
@@ -2337,15 +2156,10 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         int vreg = unalloc->virtual_register();
         live->Add(vreg);
         if (unalloc->HasSlotPolicy()) {
-          if (data()->is_turbo_control_flow_aware_allocation()) {
-            data()->GetOrCreateLiveRangeFor(vreg)->register_slot_use(
-                block->IsDeferred()
-                    ? TopLevelLiveRange::SlotUseKind::kDeferredSlotUse
-                    : TopLevelLiveRange::SlotUseKind::kGeneralSlotUse);
-          } else {
-            data()->GetOrCreateLiveRangeFor(vreg)->register_slot_use(
-                TopLevelLiveRange::SlotUseKind::kGeneralSlotUse);
-          }
+          data()->GetOrCreateLiveRangeFor(vreg)->register_slot_use(
+              block->IsDeferred()
+                  ? TopLevelLiveRange::SlotUseKind::kDeferredSlotUse
+                  : TopLevelLiveRange::SlotUseKind::kGeneralSlotUse);
         }
       }
       Use(block_start_position, use_pos, input, spill_mode);
@@ -2917,12 +2731,7 @@ void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
       next_pos = next_pos.NextStart();
     }
 
-    // With splinters, we can be more strict and skip over positions
-    // not strictly needing registers.
-    UsePosition* pos =
-        range->IsSplinter()
-            ? range->NextRegisterPosition(next_pos)
-            : range->NextUsePositionRegisterIsBeneficial(next_pos);
+    UsePosition* pos = range->NextUsePositionRegisterIsBeneficial(next_pos);
     // If the range already has a spill operand and it doesn't need a
     // register immediately, split it and spill the first part of the range.
     if (pos == nullptr) {
@@ -3025,66 +2834,42 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
       block->IsLoopHeader() ? block : GetContainingLoop(code(), block);
   if (loop_header == nullptr) return pos;
 
-  if (data()->is_turbo_control_flow_aware_allocation()) {
-    while (loop_header != nullptr) {
-      // We are going to spill live range inside the loop.
-      // If possible try to move spilling position backwards to loop header.
-      // This will reduce number of memory moves on the back edge.
-      LifetimePosition loop_start = LifetimePosition::GapFromInstructionIndex(
-          loop_header->first_instruction_index());
-      // Stop if we moved to a loop header before the value is defined or
-      // at the define position that is not beneficial to spill.
-      if (range->TopLevel()->Start() > loop_start ||
-          (range->TopLevel()->Start() == loop_start &&
-           range->TopLevel()->SpillAtLoopHeaderNotBeneficial()))
-        return pos;
+  while (loop_header != nullptr) {
+    // We are going to spill live range inside the loop.
+    // If possible try to move spilling position backwards to loop header.
+    // This will reduce number of memory moves on the back edge.
+    LifetimePosition loop_start = LifetimePosition::GapFromInstructionIndex(
+        loop_header->first_instruction_index());
+    // Stop if we moved to a loop header before the value is defined or
+    // at the define position that is not beneficial to spill.
+    if (range->TopLevel()->Start() > loop_start ||
+        (range->TopLevel()->Start() == loop_start &&
+         range->TopLevel()->SpillAtLoopHeaderNotBeneficial()))
+      return pos;
 
-      LiveRange* live_at_header = range->TopLevel()->GetChildCovers(loop_start);
+    LiveRange* live_at_header = range->TopLevel()->GetChildCovers(loop_start);
 
-      if (live_at_header != nullptr && !live_at_header->spilled()) {
-        for (LiveRange* check_use = live_at_header;
-             check_use != nullptr && check_use->Start() < pos;
-             check_use = check_use->next()) {
-          // If we find a use for which spilling is detrimental, don't spill
-          // at the loop header
-          UsePosition* next_use =
-              check_use->NextUsePositionSpillDetrimental(loop_start);
-          // UsePosition at the end of a UseInterval may
-          // have the same value as the start of next range.
-          if (next_use != nullptr && next_use->pos() <= pos) {
-            return pos;
-          }
-        }
-        // No register beneficial use inside the loop before the pos.
-        *begin_spill_out = live_at_header;
-        pos = loop_start;
-      }
-
-      // Try hoisting out to an outer loop.
-      loop_header = GetContainingLoop(code(), loop_header);
-    }
-  } else {
-    const UsePosition* prev_use =
-        range->PreviousUsePositionRegisterIsBeneficial(pos);
-
-    while (loop_header != nullptr) {
-      // We are going to spill live range inside the loop.
-      // If possible try to move spilling position backwards to loop header
-      // inside the current range. This will reduce number of memory moves on
-      // the back edge.
-      LifetimePosition loop_start = LifetimePosition::GapFromInstructionIndex(
-          loop_header->first_instruction_index());
-
-      if (range->Covers(loop_start)) {
-        if (prev_use == nullptr || prev_use->pos() < loop_start) {
-          // No register beneficial use inside the loop before the pos.
-          pos = loop_start;
+    if (live_at_header != nullptr && !live_at_header->spilled()) {
+      for (LiveRange* check_use = live_at_header;
+           check_use != nullptr && check_use->Start() < pos;
+           check_use = check_use->next()) {
+        // If we find a use for which spilling is detrimental, don't spill
+        // at the loop header
+        UsePosition* next_use =
+            check_use->NextUsePositionSpillDetrimental(loop_start);
+        // UsePosition at the end of a UseInterval may
+        // have the same value as the start of next range.
+        if (next_use != nullptr && next_use->pos() <= pos) {
+          return pos;
         }
       }
-
-      // Try hoisting out to an outer loop.
-      loop_header = GetContainingLoop(code(), loop_header);
+      // No register beneficial use inside the loop before the pos.
+      *begin_spill_out = live_at_header;
+      pos = loop_start;
     }
+
+    // Try hoisting out to an outer loop.
+    loop_header = GetContainingLoop(code(), loop_header);
   }
   return pos;
 }
@@ -3761,9 +3546,7 @@ void LinearScanAllocator::AllocateRegisters() {
   // those. Not only does this produce a potentially bad assignment, it also
   // breaks with the invariant that we undo spills that happen in deferred code
   // when crossing a deferred/non-deferred boundary.
-  while (!unhandled_live_ranges().empty() ||
-         (data()->is_turbo_control_flow_aware_allocation() &&
-          last_block < max_blocks)) {
+  while (!unhandled_live_ranges().empty() || last_block < max_blocks) {
     data()->tick_counter()->TickAndMaybeEnterSafepoint();
     LiveRange* current = unhandled_live_ranges().empty()
                              ? nullptr
@@ -3773,160 +3556,155 @@ void LinearScanAllocator::AllocateRegisters() {
 #ifdef DEBUG
     allocation_finger_ = position;
 #endif
-    if (data()->is_turbo_control_flow_aware_allocation()) {
-      // Splintering is not supported.
-      CHECK(!data()->is_turbo_preprocess_ranges());
-      // Check whether we just moved across a block boundary. This will trigger
-      // for the first range that is past the current boundary.
-      if (position >= next_block_boundary) {
-        TRACE("Processing boundary at %d leaving %d\n",
-              next_block_boundary.value(), last_block.ToInt());
+    // Check whether we just moved across a block boundary. This will trigger
+    // for the first range that is past the current boundary.
+    if (position >= next_block_boundary) {
+      TRACE("Processing boundary at %d leaving %d\n",
+            next_block_boundary.value(), last_block.ToInt());
 
-        // Forward state to before block boundary
-        LifetimePosition end_of_block = next_block_boundary.PrevStart().End();
-        ForwardStateTo(end_of_block);
+      // Forward state to before block boundary
+      LifetimePosition end_of_block = next_block_boundary.PrevStart().End();
+      ForwardStateTo(end_of_block);
 
-        // Remember this state.
-        InstructionBlock* current_block = data()->code()->GetInstructionBlock(
-            next_block_boundary.ToInstructionIndex());
+      // Remember this state.
+      InstructionBlock* current_block = data()->code()->GetInstructionBlock(
+          next_block_boundary.ToInstructionIndex());
 
-        // Store current spill state (as the state at end of block). For
-        // simplicity, we store the active ranges, e.g., the live ranges that
-        // are not spilled.
-        data()->RememberSpillState(last_block, active_live_ranges());
+      // Store current spill state (as the state at end of block). For
+      // simplicity, we store the active ranges, e.g., the live ranges that
+      // are not spilled.
+      data()->RememberSpillState(last_block, active_live_ranges());
 
-        // Only reset the state if this was not a direct fallthrough. Otherwise
-        // control flow resolution will get confused (it does not expect changes
-        // across fallthrough edges.).
-        bool fallthrough = (current_block->PredecessorCount() == 1) &&
-                           current_block->predecessors()[0].IsNext(
-                               current_block->rpo_number());
+      // Only reset the state if this was not a direct fallthrough. Otherwise
+      // control flow resolution will get confused (it does not expect changes
+      // across fallthrough edges.).
+      bool fallthrough =
+          (current_block->PredecessorCount() == 1) &&
+          current_block->predecessors()[0].IsNext(current_block->rpo_number());
 
-        // When crossing a deferred/non-deferred boundary, we have to load or
-        // remove the deferred fixed ranges from inactive.
-        if ((spill_mode == SpillMode::kSpillDeferred) !=
-            current_block->IsDeferred()) {
-          // Update spill mode.
-          spill_mode = current_block->IsDeferred()
-                           ? SpillMode::kSpillDeferred
-                           : SpillMode::kSpillAtDefinition;
+      // When crossing a deferred/non-deferred boundary, we have to load or
+      // remove the deferred fixed ranges from inactive.
+      if ((spill_mode == SpillMode::kSpillDeferred) !=
+          current_block->IsDeferred()) {
+        // Update spill mode.
+        spill_mode = current_block->IsDeferred()
+                         ? SpillMode::kSpillDeferred
+                         : SpillMode::kSpillAtDefinition;
 
-          ForwardStateTo(next_block_boundary);
+        ForwardStateTo(next_block_boundary);
 
 #ifdef DEBUG
-          // Allow allocation at current position.
-          allocation_finger_ = next_block_boundary;
+        // Allow allocation at current position.
+        allocation_finger_ = next_block_boundary;
 #endif
-          UpdateDeferredFixedRanges(spill_mode, current_block);
-        }
-
-        // Allocation relies on the fact that each non-deferred block has at
-        // least one non-deferred predecessor. Check this invariant here.
-        DCHECK_IMPLIES(!current_block->IsDeferred(),
-                       HasNonDeferredPredecessor(current_block));
-
-        if (!fallthrough) {
-#ifdef DEBUG
-          // Allow allocation at current position.
-          allocation_finger_ = next_block_boundary;
-#endif
-
-          // We are currently at next_block_boundary - 1. Move the state to the
-          // actual block boundary position. In particular, we have to
-          // reactivate inactive ranges so that they get rescheduled for
-          // allocation if they were not live at the predecessors.
-          ForwardStateTo(next_block_boundary);
-
-          RangeWithRegisterSet to_be_live(data()->allocation_zone());
-
-          // If we end up deciding to use the state of the immediate
-          // predecessor, it is better not to perform a change. It would lead to
-          // the same outcome anyway.
-          // This may never happen on boundaries between deferred and
-          // non-deferred code, as we rely on explicit respill to ensure we
-          // spill at definition.
-          bool no_change_required = false;
-
-          auto pick_state_from = [this, current_block](
-                                     RpoNumber pred,
-                                     RangeWithRegisterSet* to_be_live) -> bool {
-            TRACE("Using information from B%d\n", pred.ToInt());
-            // If this is a fall-through that is not across a deferred
-            // boundary, there is nothing to do.
-            bool is_noop = pred.IsNext(current_block->rpo_number());
-            if (!is_noop) {
-              auto& spill_state = data()->GetSpillState(pred);
-              TRACE("Not a fallthrough. Adding %zu elements...\n",
-                    spill_state.size());
-              LifetimePosition pred_end =
-                  LifetimePosition::GapFromInstructionIndex(
-                      this->code()->InstructionBlockAt(pred)->code_end());
-              for (const auto range : spill_state) {
-                // Filter out ranges that were split or had their register
-                // stolen by backwards working spill heuristics. These have
-                // been spilled after the fact, so ignore them.
-                if (range->End() < pred_end || !range->HasRegisterAssigned())
-                  continue;
-                to_be_live->emplace(range);
-              }
-            }
-            return is_noop;
-          };
-
-          // Multiple cases here:
-          // 1) We have a single predecessor => this is a control flow split, so
-          //     just restore the predecessor state.
-          // 2) We have two predecessors => this is a conditional, so break ties
-          //     based on what to do based on forward uses, trying to benefit
-          //     the same branch if in doubt (make one path fast).
-          // 3) We have many predecessors => this is a switch. Compute union
-          //     based on majority, break ties by looking forward.
-          if (current_block->PredecessorCount() == 1) {
-            TRACE("Single predecessor for B%d\n",
-                  current_block->rpo_number().ToInt());
-            no_change_required =
-                pick_state_from(current_block->predecessors()[0], &to_be_live);
-          } else if (current_block->PredecessorCount() == 2) {
-            TRACE("Two predecessors for B%d\n",
-                  current_block->rpo_number().ToInt());
-            // If one of the branches does not contribute any information,
-            // e.g. because it is deferred or a back edge, we can short cut
-            // here right away.
-            RpoNumber chosen_predecessor = RpoNumber::Invalid();
-            if (!ConsiderBlockForControlFlow(
-                    current_block, current_block->predecessors()[0])) {
-              chosen_predecessor = current_block->predecessors()[1];
-            } else if (!ConsiderBlockForControlFlow(
-                           current_block, current_block->predecessors()[1])) {
-              chosen_predecessor = current_block->predecessors()[0];
-            } else {
-              chosen_predecessor = ChooseOneOfTwoPredecessorStates(
-                  current_block, next_block_boundary);
-            }
-            no_change_required =
-                pick_state_from(chosen_predecessor, &to_be_live);
-
-          } else {
-            // Merge at the end of, e.g., a switch.
-            ComputeStateFromManyPredecessors(current_block, &to_be_live);
-          }
-
-          if (!no_change_required) {
-            SpillNotLiveRanges(&to_be_live, next_block_boundary, spill_mode);
-            ReloadLiveRanges(to_be_live, next_block_boundary);
-          }
-        }
-        // Update block information
-        last_block = current_block->rpo_number();
-        next_block_boundary = LifetimePosition::InstructionFromInstructionIndex(
-                                  current_block->last_instruction_index())
-                                  .NextFullStart();
-
-        // We might have created new unhandled live ranges, so cycle around the
-        // loop to make sure we pick the top most range in unhandled for
-        // processing.
-        continue;
+        UpdateDeferredFixedRanges(spill_mode, current_block);
       }
+
+      // Allocation relies on the fact that each non-deferred block has at
+      // least one non-deferred predecessor. Check this invariant here.
+      DCHECK_IMPLIES(!current_block->IsDeferred(),
+                     HasNonDeferredPredecessor(current_block));
+
+      if (!fallthrough) {
+#ifdef DEBUG
+        // Allow allocation at current position.
+        allocation_finger_ = next_block_boundary;
+#endif
+
+        // We are currently at next_block_boundary - 1. Move the state to the
+        // actual block boundary position. In particular, we have to
+        // reactivate inactive ranges so that they get rescheduled for
+        // allocation if they were not live at the predecessors.
+        ForwardStateTo(next_block_boundary);
+
+        RangeWithRegisterSet to_be_live(data()->allocation_zone());
+
+        // If we end up deciding to use the state of the immediate
+        // predecessor, it is better not to perform a change. It would lead to
+        // the same outcome anyway.
+        // This may never happen on boundaries between deferred and
+        // non-deferred code, as we rely on explicit respill to ensure we
+        // spill at definition.
+        bool no_change_required = false;
+
+        auto pick_state_from = [this, current_block](
+                                   RpoNumber pred,
+                                   RangeWithRegisterSet* to_be_live) -> bool {
+          TRACE("Using information from B%d\n", pred.ToInt());
+          // If this is a fall-through that is not across a deferred
+          // boundary, there is nothing to do.
+          bool is_noop = pred.IsNext(current_block->rpo_number());
+          if (!is_noop) {
+            auto& spill_state = data()->GetSpillState(pred);
+            TRACE("Not a fallthrough. Adding %zu elements...\n",
+                  spill_state.size());
+            LifetimePosition pred_end =
+                LifetimePosition::GapFromInstructionIndex(
+                    this->code()->InstructionBlockAt(pred)->code_end());
+            for (const auto range : spill_state) {
+              // Filter out ranges that were split or had their register
+              // stolen by backwards working spill heuristics. These have
+              // been spilled after the fact, so ignore them.
+              if (range->End() < pred_end || !range->HasRegisterAssigned())
+                continue;
+              to_be_live->emplace(range);
+            }
+          }
+          return is_noop;
+        };
+
+        // Multiple cases here:
+        // 1) We have a single predecessor => this is a control flow split, so
+        //     just restore the predecessor state.
+        // 2) We have two predecessors => this is a conditional, so break ties
+        //     based on what to do based on forward uses, trying to benefit
+        //     the same branch if in doubt (make one path fast).
+        // 3) We have many predecessors => this is a switch. Compute union
+        //     based on majority, break ties by looking forward.
+        if (current_block->PredecessorCount() == 1) {
+          TRACE("Single predecessor for B%d\n",
+                current_block->rpo_number().ToInt());
+          no_change_required =
+              pick_state_from(current_block->predecessors()[0], &to_be_live);
+        } else if (current_block->PredecessorCount() == 2) {
+          TRACE("Two predecessors for B%d\n",
+                current_block->rpo_number().ToInt());
+          // If one of the branches does not contribute any information,
+          // e.g. because it is deferred or a back edge, we can short cut
+          // here right away.
+          RpoNumber chosen_predecessor = RpoNumber::Invalid();
+          if (!ConsiderBlockForControlFlow(current_block,
+                                           current_block->predecessors()[0])) {
+            chosen_predecessor = current_block->predecessors()[1];
+          } else if (!ConsiderBlockForControlFlow(
+                         current_block, current_block->predecessors()[1])) {
+            chosen_predecessor = current_block->predecessors()[0];
+          } else {
+            chosen_predecessor = ChooseOneOfTwoPredecessorStates(
+                current_block, next_block_boundary);
+          }
+          no_change_required = pick_state_from(chosen_predecessor, &to_be_live);
+
+        } else {
+          // Merge at the end of, e.g., a switch.
+          ComputeStateFromManyPredecessors(current_block, &to_be_live);
+        }
+
+        if (!no_change_required) {
+          SpillNotLiveRanges(&to_be_live, next_block_boundary, spill_mode);
+          ReloadLiveRanges(to_be_live, next_block_boundary);
+        }
+      }
+      // Update block information
+      last_block = current_block->rpo_number();
+      next_block_boundary = LifetimePosition::InstructionFromInstructionIndex(
+                                current_block->last_instruction_index())
+                                .NextFullStart();
+
+      // We might have created new unhandled live ranges, so cycle around the
+      // loop to make sure we pick the top most range in unhandled for
+      // processing.
+      continue;
     }
 
     DCHECK_NOT_NULL(current);
@@ -3950,28 +3728,6 @@ void LinearScanAllocator::AllocateRegisters() {
   if (data()->is_trace_alloc()) {
     PrintRangeOverview(std::cout);
   }
-}
-
-bool LinearScanAllocator::TrySplitAndSpillSplinter(LiveRange* range) {
-  DCHECK(!data()->is_turbo_control_flow_aware_allocation());
-  DCHECK(range->TopLevel()->IsSplinter());
-  // If we can spill the whole range, great. Otherwise, split above the
-  // first use needing a register and spill the top part.
-  const UsePosition* next_reg = range->NextRegisterPosition(range->Start());
-  if (next_reg == nullptr) {
-    Spill(range, SpillMode::kSpillAtDefinition);
-    return true;
-  } else if (range->FirstHintPosition() == nullptr) {
-    // If there was no hint, but we have a use position requiring a
-    // register, apply the hot path heuristics.
-    return false;
-  } else if (next_reg->pos().PrevStart() > range->Start()) {
-    LiveRange* tail = SplitRangeAt(range, next_reg->pos().PrevStart());
-    AddToUnhandled(tail);
-    Spill(range, SpillMode::kSpillAtDefinition);
-    return true;
-  }
-  return false;
 }
 
 void LinearScanAllocator::SetLiveRangeAssignedRegister(LiveRange* range,
@@ -4198,49 +3954,17 @@ void LinearScanAllocator::FindFreeRegistersForRange(
 
 // High-level register allocation summary:
 //
-// For regular, or hot (i.e. not splinter) ranges, we attempt to first
-// allocate first the preferred (hint) register. If that is not possible,
-// we find a register that's free, and allocate that. If that's not possible,
-// we search for a register to steal from a range that was allocated. The
-// goal is to optimize for throughput by avoiding register-to-memory
-// moves, which are expensive.
-//
-// For splinters, the goal is to minimize the number of moves. First we try
-// to allocate the preferred register (more discussion follows). Failing that,
-// we bail out and spill as far as we can, unless the first use is at start,
-// case in which we apply the same behavior as we do for regular ranges.
-// If there is no hint, we apply the hot-path behavior.
-//
-// For the splinter, the hint register may come from:
-//
-// - the hot path (we set it at splintering time with SetHint). In this case, if
-// we cannot offer the hint register, spilling is better because it's at most
-// 1 move, while trying to find and offer another register is at least 1 move.
-//
-// - a constraint. If we cannot offer that register, it's because  there is some
-// interference. So offering the hint register up to the interference would
-// result
-// in a move at the interference, plus a move to satisfy the constraint. This is
-// also the number of moves if we spill, with the potential of the range being
-// already spilled and thus saving a move (the spill).
-// Note that this can only be an input constraint, if it were an output one,
-// the range wouldn't be a splinter because it means it'd be defined in a
-// deferred
-// block, and we don't mark those as splinters (they live in deferred blocks
-// only).
-//
-// - a phi. The same analysis as in the case of the input constraint applies.
-//
+// We attempt to first allocate the preferred (hint) register. If that is not
+// possible, we find a register that's free, and allocate that. If that's not
+// possible, we search for a register to steal from a range that was allocated.
+// The goal is to optimize for throughput by avoiding register-to-memory moves,
+// which are expensive.
 void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
                                               SpillMode spill_mode) {
   EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
       free_until_pos;
   FindFreeRegistersForRange(current, free_until_pos);
   if (!TryAllocatePreferredReg(current, free_until_pos)) {
-    if (current->TopLevel()->IsSplinter()) {
-      DCHECK(!data()->is_turbo_control_flow_aware_allocation());
-      if (TrySplitAndSpillSplinter(current)) return;
-    }
     if (!TryAllocateFreeReg(current, free_until_pos)) {
       AllocateBlockedReg(current, spill_mode);
     }
@@ -4725,30 +4449,26 @@ OperandAssigner::OperandAssigner(TopTierRegisterAllocationData* data)
     : data_(data) {}
 
 void OperandAssigner::DecideSpillingMode() {
-  if (data()->is_turbo_control_flow_aware_allocation()) {
-    for (auto range : data()->live_ranges()) {
-      data()->tick_counter()->TickAndMaybeEnterSafepoint();
-      int max_blocks = data()->code()->InstructionBlockCount();
-      if (range != nullptr && range->IsSpilledOnlyInDeferredBlocks(data())) {
-        // If the range is spilled only in deferred blocks and starts in
-        // a non-deferred block, we transition its representation here so
-        // that the LiveRangeConnector processes them correctly. If,
-        // however, they start in a deferred block, we uograde them to
-        // spill at definition, as that definition is in a deferred block
-        // anyway. While this is an optimization, the code in LiveRangeConnector
-        // relies on it!
-        if (GetInstructionBlock(data()->code(), range->Start())->IsDeferred()) {
-          TRACE("Live range %d is spilled and alive in deferred code only\n",
-                range->vreg());
-          range->TransitionRangeToSpillAtDefinition();
-        } else {
-          TRACE(
-              "Live range %d is spilled deferred code only but alive outside\n",
+  for (auto range : data()->live_ranges()) {
+    data()->tick_counter()->TickAndMaybeEnterSafepoint();
+    int max_blocks = data()->code()->InstructionBlockCount();
+    if (range != nullptr && range->IsSpilledOnlyInDeferredBlocks(data())) {
+      // If the range is spilled only in deferred blocks and starts in
+      // a non-deferred block, we transition its representation here so
+      // that the LiveRangeConnector processes them correctly. If,
+      // however, they start in a deferred block, we uograde them to
+      // spill at definition, as that definition is in a deferred block
+      // anyway. While this is an optimization, the code in LiveRangeConnector
+      // relies on it!
+      if (GetInstructionBlock(data()->code(), range->Start())->IsDeferred()) {
+        TRACE("Live range %d is spilled and alive in deferred code only\n",
               range->vreg());
-          DCHECK(data()->is_turbo_control_flow_aware_allocation());
-          range->TransitionRangeToDeferredSpill(data()->allocation_zone(),
-                                                max_blocks);
-        }
+        range->TransitionRangeToSpillAtDefinition();
+      } else {
+        TRACE("Live range %d is spilled deferred code only but alive outside\n",
+              range->vreg());
+        range->TransitionRangeToDeferredSpill(data()->allocation_zone(),
+                                              max_blocks);
       }
     }
   }

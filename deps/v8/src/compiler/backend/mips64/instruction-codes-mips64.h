@@ -342,8 +342,8 @@ namespace compiler {
   V(Mips64S8x16PackOdd)                      \
   V(Mips64S8x16InterleaveEven)               \
   V(Mips64S8x16InterleaveOdd)                \
-  V(Mips64S8x16Shuffle)                      \
-  V(Mips64S8x16Swizzle)                      \
+  V(Mips64I8x16Shuffle)                      \
+  V(Mips64I8x16Swizzle)                      \
   V(Mips64S8x16Concat)                       \
   V(Mips64S8x8Reverse)                       \
   V(Mips64S8x4Reverse)                       \

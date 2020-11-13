@@ -860,6 +860,7 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
     kStoreNamedStrict,
     kStoreNamedSloppy,
     kLoadProperty,
+    kLoadSuperProperty,
     kLoadGlobalNotInsideTypeof,
     kLoadGlobalInsideTypeof,
     kClosureFeedbackCell
@@ -877,6 +878,9 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
            int slot_index) {
     PutImpl(slot_kind, variable_index, name, slot_index);
   }
+  void Put(SlotKind slot_kind, const AstRawString* name, int slot_index) {
+    PutImpl(slot_kind, 0, name, slot_index);
+  }
 
   int Get(SlotKind slot_kind, Variable* variable) const {
     return GetImpl(slot_kind, 0, variable);
@@ -887,6 +891,9 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
   int Get(SlotKind slot_kind, int variable_index,
           const AstRawString* name) const {
     return GetImpl(slot_kind, variable_index, name);
+  }
+  int Get(SlotKind slot_kind, const AstRawString* name) const {
+    return GetImpl(slot_kind, 0, name);
   }
 
  private:
@@ -2921,6 +2928,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     // If we have a leading spread, use CreateArrayFromIterable to create
     // an array from it and then add the remaining components to that array.
     VisitForAccumulatorValue(*current);
+    builder()->SetExpressionPosition((*current)->AsSpread()->expression());
     builder()->CreateArrayFromIterable().StoreAccumulatorInRegister(array);
 
     if (++current != end) {
@@ -3021,6 +3029,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       builder()->SetExpressionAsStatementPosition(
           subexpr->AsSpread()->expression());
       VisitForAccumulatorValue(subexpr->AsSpread()->expression());
+      builder()->SetExpressionPosition(subexpr->AsSpread()->expression());
       IteratorRecord iterator = BuildGetIteratorRecord(IteratorType::kNormal);
 
       Register value = register_allocator()->NewRegister();
@@ -3784,6 +3793,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
 
         if (spread) {
           RegisterAllocationScope scope(this);
+          BytecodeLabel is_done;
 
           // A spread is turned into a loop over the remainer of the iterator.
           Expression* target = spread->expression();
@@ -3799,6 +3809,10 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
           builder()->CreateEmptyArrayLiteral(
               feedback_index(feedback_spec()->AddLiteralSlot()));
           builder()->StoreAccumulatorInRegister(array);
+
+          // If done, jump to assigning empty array
+          builder()->LoadAccumulatorWithRegister(done);
+          builder()->JumpIfTrue(ToBooleanMode::kConvertToBoolean, &is_done);
 
           // var index = 0;
           Register index = register_allocator()->NewRegister();
@@ -3817,6 +3831,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
                                      next_value_load_slot, next_done_load_slot,
                                      index_slot, element_slot);
 
+          builder()->Bind(&is_done);
           // Assign the array to the LHS.
           builder()->LoadAccumulatorWithRegister(array);
           BuildAssignment(lhs_data, op, lookup_hoisting_mode);
@@ -4718,19 +4733,33 @@ void BytecodeGenerator::VisitNamedSuperPropertyLoad(Property* property,
   RegisterAllocationScope register_scope(this);
   SuperPropertyReference* super_property =
       property->obj()->AsSuperPropertyReference();
-  RegisterList args = register_allocator()->NewRegisterList(3);
-  BuildThisVariableLoad();
-  builder()->StoreAccumulatorInRegister(args[0]);
-  VisitForRegisterValue(super_property->home_object(), args[1]);
+  if (FLAG_super_ic) {
+    Register receiver = register_allocator()->NewRegister();
+    BuildThisVariableLoad();
+    builder()->StoreAccumulatorInRegister(receiver);
+    VisitForAccumulatorValue(super_property->home_object());
+    builder()->SetExpressionPosition(property);
+    auto name = property->key()->AsLiteral()->AsRawPropertyName();
+    FeedbackSlot slot = GetCachedLoadSuperICSlot(name);
+    builder()->LoadNamedPropertyFromSuper(receiver, name, feedback_index(slot));
+    if (opt_receiver_out.is_valid()) {
+      builder()->MoveRegister(receiver, opt_receiver_out);
+    }
+  } else {
+    RegisterList args = register_allocator()->NewRegisterList(3);
+    BuildThisVariableLoad();
+    builder()->StoreAccumulatorInRegister(args[0]);
+    VisitForRegisterValue(super_property->home_object(), args[1]);
 
-  builder()->SetExpressionPosition(property);
-  builder()
-      ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
-      .StoreAccumulatorInRegister(args[2])
-      .CallRuntime(Runtime::kLoadFromSuper, args);
+    builder()->SetExpressionPosition(property);
+    builder()
+        ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
+        .StoreAccumulatorInRegister(args[2])
+        .CallRuntime(Runtime::kLoadFromSuper, args);
 
-  if (opt_receiver_out.is_valid()) {
-    builder()->MoveRegister(args[0], opt_receiver_out);
+    if (opt_receiver_out.is_valid()) {
+      builder()->MoveRegister(args[0], opt_receiver_out);
+    }
   }
 }
 
@@ -6553,6 +6582,7 @@ FeedbackSlot BytecodeGenerator::GetCachedStoreGlobalICSlot(
 
 FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
                                                     const AstRawString* name) {
+  DCHECK(!expr->IsSuperPropertyReference());
   if (!FLAG_ignition_share_named_property_feedback) {
     return feedback_spec()->AddLoadICSlot();
   }
@@ -6570,6 +6600,23 @@ FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
   slot = feedback_spec()->AddLoadICSlot();
   feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name,
                              feedback_index(slot));
+  return slot;
+}
+
+FeedbackSlot BytecodeGenerator::GetCachedLoadSuperICSlot(
+    const AstRawString* name) {
+  if (!FLAG_ignition_share_named_property_feedback) {
+    return feedback_spec()->AddLoadICSlot();
+  }
+  FeedbackSlotCache::SlotKind slot_kind =
+      FeedbackSlotCache::SlotKind::kLoadSuperProperty;
+
+  FeedbackSlot slot(feedback_slot_cache()->Get(slot_kind, name));
+  if (!slot.IsInvalid()) {
+    return slot;
+  }
+  slot = feedback_spec()->AddLoadICSlot();
+  feedback_slot_cache()->Put(slot_kind, name, feedback_index(slot));
   return slot;
 }
 

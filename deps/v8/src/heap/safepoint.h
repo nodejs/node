@@ -43,10 +43,6 @@ class GlobalSafepoint {
     }
   }
 
-  // Use these methods now instead of the more intrusive SafepointScope
-  void Start();
-  void End();
-
   bool IsActive() { return active_safepoint_scopes_ > 0; }
 
  private:

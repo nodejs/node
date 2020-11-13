@@ -12,7 +12,7 @@ var builder = new WasmModuleBuilder();
 
 // clang-format off
 var func_idx = builder.addFunction('helper', kSig_v_v)
-    .addLocals({ i32_count: 1 })
+    .addLocals(kWasmI32, 1 )
     .addBody([
         kExprNop,
         kExprI32Const, 12,

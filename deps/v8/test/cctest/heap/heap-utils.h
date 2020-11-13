@@ -66,9 +66,15 @@ void GcAndSweep(Heap* heap, AllocationSpace space);
 
 void ForceEvacuationCandidate(Page* page);
 
-void InvokeScavenge();
+void InvokeScavenge(Isolate* isolate = nullptr);
 
-void InvokeMarkSweep();
+void InvokeMarkSweep(Isolate* isolate = nullptr);
+
+void EnsureFlagLocalHeapsEnabled();
+
+void GrowNewSpace(Heap* heap);
+
+void GrowNewSpaceToMaximumCapacity(Heap* heap);
 
 template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {

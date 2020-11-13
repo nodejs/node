@@ -196,8 +196,26 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
   //    [[Collation]]            "collation"
   //    [[Numeric]]              "numeric"              kn
   //    [[CaseFirst]]            "caseFirst"            kf
-  CreateDataPropertyForOptions(
-      isolate, options, isolate->factory()->locale_string(), locale.c_str());
+
+  // If the collator return the locale differ from what got requested, we stored
+  // it in the collator->locale. Otherwise, we just use the one from the
+  // collator.
+  if (collator->locale().length() != 0) {
+    // Get the locale from collator->locale() since we know in some cases
+    // collator won't be able to return the requested one, such as zh_CN.
+    Handle<String> locale_from_collator(collator->locale(), isolate);
+    Maybe<bool> maybe = JSReceiver::CreateDataProperty(
+        isolate, options, isolate->factory()->locale_string(),
+        locale_from_collator, Just(kDontThrow));
+    DCHECK(maybe.FromJust());
+    USE(maybe);
+  } else {
+    // Just return from the collator for most of the cases that we can recover
+    // from the collator.
+    CreateDataPropertyForOptions(
+        isolate, options, isolate->factory()->locale_string(), locale.c_str());
+  }
+
   CreateDataPropertyForOptions(isolate, options,
                                isolate->factory()->usage_string(), usage);
   CreateDataPropertyForOptions(
@@ -424,6 +442,9 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   }
   DCHECK(U_SUCCESS(status));
 
+  icu::Locale collator_locale(
+      icu_collator->getLocale(ULOC_VALID_LOCALE, status));
+
   // 22. If relevantExtensionKeys contains "kn", then
   //     a. Set collator.[[Numeric]] to ! SameValue(r.[[kn]], "true").
   //
@@ -521,11 +542,15 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
       Managed<icu::Collator>::FromUniquePtr(isolate, 0,
                                             std::move(icu_collator));
 
+  // We only need to do so if it is different from the collator would return.
+  Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
+      (collator_locale != icu_locale) ? r.locale.c_str() : "");
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSCollator> collator = Handle<JSCollator>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowHeapAllocation no_gc;
   collator->set_icu_collator(*managed_collator);
+  collator->set_locale(*locale_str);
 
   // 29. Return collator.
   return collator;

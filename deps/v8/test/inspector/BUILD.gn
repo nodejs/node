@@ -32,6 +32,7 @@ v8_executable("inspector-test") {
 
   data = [
     "console/",
+    "counters/",
     "cpu-profiler/",
     "debugger/",
     "heap-profiler/",

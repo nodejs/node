@@ -1038,7 +1038,8 @@ namespace {
 // where "p2A" and "p2B" differ only in the attributes.
 //
 void TestReconfigureDataFieldAttribute_GeneralizeField(
-    const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
+    const CRFTData& from, const CRFTData& to, const CRFTData& expected,
+    bool expected_deprecation) {
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations(isolate);
@@ -1107,24 +1108,29 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
   CHECK_NE(*map2, *new_map);
   CHECK(expectations2.Check(*map2));
 
-  // |map| should be deprecated and |new_map| should match new expectations.
   for (int i = kSplitProp; i < kPropCount; i++) {
     expectations.SetDataField(i, expected.constness, expected.representation,
                               expected.type);
   }
-  CHECK(map->is_deprecated());
-  CHECK(!code_field_type->marked_for_deoptimization());
-  CHECK(!code_field_repr->marked_for_deoptimization());
-  CHECK(!code_field_const->marked_for_deoptimization());
-  CHECK_NE(*map, *new_map);
+  if (expected_deprecation) {
+    // |map| should be deprecated and |new_map| should match new expectations.
+    CHECK(map->is_deprecated());
+    CHECK(!code_field_type->marked_for_deoptimization());
+    CHECK(!code_field_repr->marked_for_deoptimization());
+    CHECK(!code_field_const->marked_for_deoptimization());
+    CHECK_NE(*map, *new_map);
 
-  CHECK(!new_map->is_deprecated());
-  CHECK(expectations.Check(*new_map));
+    CHECK(!new_map->is_deprecated());
+    CHECK(expectations.Check(*new_map));
 
-  // Update deprecated |map|, it should become |new_map|.
-  Handle<Map> updated_map = Map::Update(isolate, map);
-  CHECK_EQ(*new_map, *updated_map);
-  CheckMigrationTarget(isolate, *map, *updated_map);
+    // Update deprecated |map|, it should become |new_map|.
+    Handle<Map> updated_map = Map::Update(isolate, map);
+    CHECK_EQ(*new_map, *updated_map);
+    CheckMigrationTarget(isolate, *map, *updated_map);
+  } else {
+    CHECK(!map->is_deprecated());
+    CHECK(expectations.Check(*map));
+  }
 }
 
 // This test ensures that trivial field generalization (from HeapObject to
@@ -1240,22 +1246,22 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToDouble) {
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::Double(), any_type},
-      {PropertyConstness::kConst, Representation::Double(), any_type});
+      {PropertyConstness::kConst, Representation::Double(), any_type}, true);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::Double(), any_type},
-      {PropertyConstness::kMutable, Representation::Double(), any_type});
+      {PropertyConstness::kMutable, Representation::Double(), any_type}, true);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::Double(), any_type},
-      {PropertyConstness::kMutable, Representation::Double(), any_type});
+      {PropertyConstness::kMutable, Representation::Double(), any_type}, true);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::Double(), any_type},
-      {PropertyConstness::kMutable, Representation::Double(), any_type});
+      {PropertyConstness::kMutable, Representation::Double(), any_type}, true);
 }
 
 TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToTagged) {
@@ -1270,22 +1276,26 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToTagged) {
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-      {PropertyConstness::kConst, Representation::Tagged(), any_type});
+      {PropertyConstness::kConst, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace);
 }
 
 TEST(ReconfigureDataFieldAttribute_GeneralizeDoubleFieldToTagged) {
@@ -1300,22 +1310,26 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeDoubleFieldToTagged) {
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kConst, Representation::Double(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-      {PropertyConstness::kConst, Representation::Tagged(), any_type});
+      {PropertyConstness::kConst, Representation::Tagged(), any_type},
+      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kConst, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
 }
 
 TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
@@ -1401,7 +1415,8 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjectFieldToTagged) {
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace);
 }
 
 // Checks that given |map| is deprecated and that it updates to given |new_map|

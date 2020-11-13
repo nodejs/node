@@ -259,6 +259,12 @@ class OutOfLineCode : public ZoneObject {
 
 inline bool HasCallDescriptorFlag(Instruction* instr,
                                   CallDescriptor::Flag flag) {
+  STATIC_ASSERT(CallDescriptor::kFlagsBitsEncodedInInstructionCode == 10);
+#ifdef DEBUG
+  static constexpr int kInstructionCodeFlagsMask =
+      ((1 << CallDescriptor::kFlagsBitsEncodedInInstructionCode) - 1);
+  DCHECK_EQ(static_cast<int>(flag) & kInstructionCodeFlagsMask, flag);
+#endif
   return MiscField::decode(instr->opcode()) & flag;
 }
 

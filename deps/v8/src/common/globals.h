@@ -186,14 +186,13 @@ constexpr int kElidedFrameSlots = 0;
 #endif
 
 constexpr int kDoubleSizeLog2 = 3;
-constexpr size_t kMaxWasmCodeMB = 1024;
+
+// Total wasm code space per engine (i.e. per process) is limited to make
+// certain attacks that rely on heap spraying harder.
+// This limit was increased to 2GB in August 2020 and we have security clearance
+// to increase to 4GB if needed.
+constexpr size_t kMaxWasmCodeMB = 2048;
 constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
-#if V8_TARGET_ARCH_ARM64
-// ARM64 only supports direct calls within a 128 MB range.
-constexpr size_t kMaxWasmCodeSpaceSize = 128 * MB;
-#else
-constexpr size_t kMaxWasmCodeSpaceSize = kMaxWasmCodeMemory;
-#endif
 
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;
@@ -747,20 +746,20 @@ using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
 enum AllocationSpace {
-  RO_SPACE,    // Immortal, immovable and immutable objects,
-  NEW_SPACE,   // Young generation semispaces for regular objects collected with
-               // Scavenger.
-  OLD_SPACE,   // Old generation regular object space.
-  CODE_SPACE,  // Old generation code object space, marked executable.
-  MAP_SPACE,   // Old generation map object space, non-movable.
-  LO_SPACE,    // Old generation large object space.
+  RO_SPACE,       // Immortal, immovable and immutable objects,
+  OLD_SPACE,      // Old generation regular object space.
+  CODE_SPACE,     // Old generation code object space, marked executable.
+  MAP_SPACE,      // Old generation map object space, non-movable.
+  LO_SPACE,       // Old generation large object space.
   CODE_LO_SPACE,  // Old generation large code object space.
   NEW_LO_SPACE,   // Young generation large object space.
+  NEW_SPACE,  // Young generation semispaces for regular objects collected with
+              // Scavenger.
 
   FIRST_SPACE = RO_SPACE,
-  LAST_SPACE = NEW_LO_SPACE,
-  FIRST_MUTABLE_SPACE = NEW_SPACE,
-  LAST_MUTABLE_SPACE = NEW_LO_SPACE,
+  LAST_SPACE = NEW_SPACE,
+  FIRST_MUTABLE_SPACE = OLD_SPACE,
+  LAST_MUTABLE_SPACE = NEW_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
   LAST_GROWABLE_PAGED_SPACE = MAP_SPACE
 };
@@ -1628,6 +1627,7 @@ enum class LoadSensitivity {
   V(TrapRethrowNull)               \
   V(TrapNullDereference)           \
   V(TrapIllegalCast)               \
+  V(TrapWasmJSFunction)            \
   V(TrapArrayOutOfBounds)
 
 enum KeyedAccessLoadMode {

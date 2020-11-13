@@ -112,7 +112,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return handle(obj, isolate());
   }
 
-#include "torque-generated/factory-tq.inc"
+#include "torque-generated/factory.inc"
 
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,

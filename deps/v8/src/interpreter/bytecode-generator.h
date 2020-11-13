@@ -422,6 +422,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                           Variable* variable);
   FeedbackSlot GetCachedLoadICSlot(const Expression* expr,
                                    const AstRawString* name);
+  FeedbackSlot GetCachedLoadSuperICSlot(const AstRawString* name);
   FeedbackSlot GetCachedStoreICSlot(const Expression* expr,
                                     const AstRawString* name);
   FeedbackSlot GetDummyCompareICSlot();

@@ -69,14 +69,8 @@ inline constexpr uc32 ToAsciiLower(uc32 c) {
   return c | (IsAsciiUpper(c) << 5);
 }
 
-inline constexpr bool IsRegExpWord(uc16 c) {
-  return base::IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c) ||
-         (c == '_');
-}
-
-inline constexpr bool IsRegExpNewline(uc16 c) {
-  //          CR             LF             LS             PS
-  return c != 0x000A && c != 0x000D && c != 0x2028 && c != 0x2029;
+inline constexpr bool IsRegExpWord(uc32 c) {
+  return IsAlphaNumeric(c) || c == '_';
 }
 
 // Constexpr cache table for character flags.

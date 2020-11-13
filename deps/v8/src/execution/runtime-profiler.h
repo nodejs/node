@@ -5,6 +5,8 @@
 #ifndef V8_EXECUTION_RUNTIME_PROFILER_H_
 #define V8_EXECUTION_RUNTIME_PROFILER_H_
 
+#include "src/common/assert-scope.h"
+#include "src/handles/handles.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -31,7 +33,11 @@ class RuntimeProfiler {
                                  int nesting_levels = 1);
 
  private:
-  void MaybeOptimize(JSFunction function, InterpretedFrame* frame);
+  // Make the decision whether to optimize the given function, and mark it for
+  // optimization if the decision was 'yes'.
+  void MaybeOptimizeNCIFrame(JSFunction function);
+  void MaybeOptimizeInterpretedFrame(JSFunction function,
+                                     InterpretedFrame* frame);
   // Potentially attempts OSR from and returns whether no other
   // optimization attempts should be made.
   bool MaybeOSR(JSFunction function, InterpretedFrame* frame);
@@ -39,6 +45,17 @@ class RuntimeProfiler {
                                     BytecodeArray bytecode_array);
   void Optimize(JSFunction function, OptimizationReason reason);
   void Baseline(JSFunction function, OptimizationReason reason);
+
+  class MarkCandidatesForOptimizationScope final {
+   public:
+    explicit MarkCandidatesForOptimizationScope(RuntimeProfiler* profiler);
+    ~MarkCandidatesForOptimizationScope();
+
+   private:
+    HandleScope handle_scope_;
+    RuntimeProfiler* const profiler_;
+    DisallowHeapAllocation no_gc;
+  };
 
   Isolate* isolate_;
   bool any_ic_changed_;

@@ -20,6 +20,40 @@ if (is_fuchsia) {
   }
 }
 
+v8_executable("v8_cppgc_shared_unittests") {
+  testonly = true
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  sources = [ "heap/base/run-all-unittests.cc" ]
+
+  deps = [
+    ":v8_cppgc_shared_unittests_sources",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+v8_source_set("v8_cppgc_shared_unittests_sources") {
+  testonly = true
+
+  sources = [ "heap/base/worklist-unittest.cc" ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    "../..:v8_cppgc_shared_for_testing",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
 # Stand-alone target for C++ GC unittests. This is used to ensure that it
 # builds without V8 as well. They are also included in the regular unittests
 # target for simplicity.
@@ -35,6 +69,7 @@ v8_executable("cppgc_unittests") {
 
   deps = [
     ":cppgc_unittests_sources",
+    ":v8_cppgc_shared_unittests_sources",
     "../..:cppgc_for_testing",
     "//testing/gmock",
     "//testing/gtest",
@@ -45,6 +80,7 @@ v8_source_set("cppgc_unittests_sources") {
   testonly = true
 
   sources = [
+    "heap/cppgc/concurrent-marking-unittest.cc",
     "heap/cppgc/concurrent-sweeper-unittest.cc",
     "heap/cppgc/custom-spaces-unittest.cc",
     "heap/cppgc/finalizer-trait-unittest.cc",
@@ -56,6 +92,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/heap-object-header-unittest.cc",
     "heap/cppgc/heap-page-unittest.cc",
     "heap/cppgc/heap-unittest.cc",
+    "heap/cppgc/incremental-marking-schedule-unittest.cc",
     "heap/cppgc/logging-unittest.cc",
     "heap/cppgc/marker-unittest.cc",
     "heap/cppgc/marking-verifier-unittest.cc",
@@ -75,7 +112,6 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/tests.cc",
     "heap/cppgc/tests.h",
     "heap/cppgc/visitor-unittest.cc",
-    "heap/cppgc/worklist-unittest.cc",
     "heap/cppgc/write-barrier-unittest.cc",
   ]
 
@@ -102,6 +138,7 @@ v8_executable("unittests") {
   deps = [
     ":cppgc_unittests_sources",
     ":unittests_sources",
+    ":v8_cppgc_shared_unittests_sources",
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
@@ -243,6 +280,7 @@ v8_source_set("unittests_sources") {
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
     "heap/heap-utils.h",
+    "heap/index-generator-unittest.cc",
     "heap/item-parallel-job-unittest.cc",
     "heap/js-member-unittest.cc",
     "heap/list-unittest.cc",
@@ -318,6 +356,7 @@ v8_source_set("unittests_sources") {
     "wasm/function-body-decoder-unittest.cc",
     "wasm/leb-helper-unittest.cc",
     "wasm/loop-assignment-analysis-unittest.cc",
+    "wasm/module-decoder-memory64-unittest.cc",
     "wasm/module-decoder-unittest.cc",
     "wasm/simd-shuffle-unittest.cc",
     "wasm/streaming-decoder-unittest.cc",
@@ -334,6 +373,10 @@ v8_source_set("unittests_sources") {
 
   if (v8_enable_wasm_gdb_remote_debugging) {
     sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
+  }
+
+  if (v8_enable_conservative_stack_scanning) {
+    sources += [ "heap/object-start-bitmap-unittest.cc" ]
   }
 
   if (v8_current_cpu == "arm") {

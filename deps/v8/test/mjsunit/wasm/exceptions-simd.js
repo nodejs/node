@@ -13,7 +13,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   var kSig_v_s = makeSig([kWasmS128], []);
   var except = builder.addException(kSig_v_s);
   builder.addFunction("throw_simd", kSig_v_v)
-      .addLocals({s128_count: 1})
+      .addLocals(kWasmS128, 1)
       .addBody([
         kExprLocalGet, 0,
         kExprThrow, 0,
@@ -31,7 +31,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   var kSig_v_s = makeSig([kWasmS128], []);
   var except = builder.addException(kSig_v_s);
   builder.addFunction("throw_catch_simd", kSig_i_v)
-      .addLocals({s128_count: 1})
+      .addLocals(kWasmS128, 1)
       .addBody([
         kExprTry, kWasmS128,
           kExprLocalGet, 0,

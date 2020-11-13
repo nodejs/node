@@ -28,6 +28,8 @@ include_rules = [
   "+src/heap/read-only-heap-inl.h",
   "+src/heap/read-only-heap.h",
   "+src/heap/safepoint.h",
+  "+src/heap/base/stack.h",
+  "+src/heap/conservative-stack-visitor.h",
   "-src/inspector",
   "-src/interpreter",
   "+src/interpreter/bytecode-array-accessor.h",
@@ -52,7 +54,8 @@ include_rules = [
   "-src/libplatform",
   "-include/libplatform",
   "+builtins-generated",
-  "+torque-generated"
+  "+torque-generated",
+  "+starboard",
 ]
 
 specific_include_rules = {

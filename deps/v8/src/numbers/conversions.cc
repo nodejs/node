@@ -209,6 +209,7 @@ class StringToIntHelper {
   void ParseInt();
 
   // Subclasses may override this.
+  virtual bool CheckTermination() { return false; }
   virtual void HandleSpecialCases() {}
 
   // Subclass constructors should call these for configuration before calling
@@ -249,7 +250,7 @@ class StringToIntHelper {
   template <class Char>
   void DetectRadixInternal(Char current, int length);
   template <class Char>
-  void ParseInternal(Char start);
+  bool ParseChunkInternal(Char start);
 
   LocalIsolate* isolate_;
   Handle<String> subject_;
@@ -280,18 +281,31 @@ void StringToIntHelper<LocalIsolate>::ParseInt() {
   AllocateResult();
   HandleSpecialCases();
   if (state_ != State::kRunning) return;
-  {
-    DisallowHeapAllocation no_gc;
-    if (IsOneByte()) {
-      Vector<const uint8_t> vector = GetOneByteVector();
-      DCHECK_EQ(length_, vector.length());
-      ParseInternal(vector.begin());
-    } else {
-      Vector<const uc16> vector = GetTwoByteVector();
-      DCHECK_EQ(length_, vector.length());
-      ParseInternal(vector.begin());
+  do {
+    {
+      DisallowHeapAllocation no_gc;
+      if (IsOneByte()) {
+        Vector<const uint8_t> vector = GetOneByteVector();
+        DCHECK_EQ(length_, vector.length());
+        if (ParseChunkInternal(vector.begin())) {
+          break;
+        }
+      } else {
+        Vector<const uc16> vector = GetTwoByteVector();
+        DCHECK_EQ(length_, vector.length());
+        if (ParseChunkInternal(vector.begin())) {
+          break;
+        }
+      }
     }
-  }
+
+    // The flat vector handle is temporarily released after parsing 10kb
+    // in order to invoke interrupts which may in turn invoke GC.
+    if (CheckTermination()) {
+      set_state(State::kError);
+      break;
+    }
+  } while (true);
   DCHECK_NE(state_, State::kRunning);
 }
 
@@ -377,9 +391,11 @@ void StringToIntHelper<LocalIsolate>::DetectRadixInternal(Char current,
 
 template <typename LocalIsolate>
 template <class Char>
-void StringToIntHelper<LocalIsolate>::ParseInternal(Char start) {
+bool StringToIntHelper<LocalIsolate>::ParseChunkInternal(Char start) {
+  const int kChunkSize = 10240;
   Char current = start + cursor_;
   Char end = start + length_;
+  Char break_pos = current + kChunkSize;
 
   // The following code causes accumulating rounding error for numbers greater
   // than ~2^56. It's explicitly allowed in the spec: "if R is not 2, 4, 8, 10,
@@ -433,13 +449,20 @@ void StringToIntHelper<LocalIsolate>::ParseInternal(Char start) {
 
     // Update the value and skip the part in the string.
     ResultMultiplyAdd(multiplier, part);
-  } while (!done);
 
-  if (!allow_trailing_junk_ && AdvanceToNonspace(&current, end)) {
-    return set_state(State::kJunk);
-  }
+    // Set final state
+    if (done) {
+      if (!allow_trailing_junk_ && AdvanceToNonspace(&current, end)) {
+        set_state(State::kJunk);
+      } else {
+        set_state(State::kDone);
+      }
+      return true;
+    }
+  } while (current < break_pos);
 
-  return set_state(State::kDone);
+  cursor_ = static_cast<int>(current - start);
+  return false;
 }
 
 class NumberParseIntHelper : public StringToIntHelper<Isolate> {
@@ -904,6 +927,8 @@ class StringToBigIntHelper : public StringToIntHelper<LocalIsolate> {
                                static_cast<uintptr_t>(part));
   }
 
+  bool CheckTermination() override;
+
   AllocationType allocation_type() {
     // For literals, we pretenure the allocated BigInt, since it's about
     // to be stored in the interpreter's constants array.
@@ -915,6 +940,18 @@ class StringToBigIntHelper : public StringToIntHelper<LocalIsolate> {
   Handle<FreshlyAllocatedBigInt> result_;
   Behavior behavior_;
 };
+
+template <typename LocalIsolate>
+bool StringToBigIntHelper<LocalIsolate>::CheckTermination() {
+  return false;
+}
+
+template <>
+bool StringToBigIntHelper<Isolate>::CheckTermination() {
+  StackLimitCheck interrupt_check(isolate());
+  return interrupt_check.InterruptRequested() &&
+         isolate()->stack_guard()->HandleInterrupts().IsException(isolate());
+}
 
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
   string = String::Flatten(isolate, string);

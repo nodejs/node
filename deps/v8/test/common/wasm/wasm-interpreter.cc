@@ -847,7 +847,7 @@ class SideTable : public ZoneObject {
           Control* c = &control_stack.back();
           copy_unreachable();
           TRACE("control @%u: Else\n", i.pc_offset());
-          if (!control_parent().unreachable) {
+          if (!unreachable) {
             c->end_label->Ref(i.pc(), stack_height);
           }
           DCHECK_NOT_NULL(c->else_label);
@@ -883,7 +883,7 @@ class SideTable : public ZoneObject {
           exception_stack.pop_back();
           copy_unreachable();
           TRACE("control @%u: Catch\n", i.pc_offset());
-          if (!control_parent().unreachable) {
+          if (!unreachable) {
             c->end_label->Ref(i.pc(), stack_height);
           }
           DCHECK_NOT_NULL(c->else_label);
@@ -2562,7 +2562,7 @@ class WasmInterpreterInternals {
         *len += 16;
         return true;
       }
-      case kExprS8x16Swizzle: {
+      case kExprI8x16Swizzle: {
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
         int16 res;
@@ -2574,7 +2574,7 @@ class WasmInterpreterInternals {
         Push(WasmValue(Simd128(res)));
         return true;
       }
-      case kExprS8x16Shuffle: {
+      case kExprI8x16Shuffle: {
         Simd128Immediate<Decoder::kNoValidate> imm(decoder,
                                                    code->at(pc + *len));
         *len += 16;
@@ -2631,43 +2631,43 @@ class WasmInterpreterInternals {
         QFM_CASE(F64x2Qfma, f64x2, float2, 2, +)
         QFM_CASE(F64x2Qfms, f64x2, float2, 2, -)
 #undef QFM_CASE
-      case kExprS8x16LoadSplat: {
+      case kExprS128Load8Splat: {
         return DoSimdLoadSplat<int16, int32_t, int8_t>(
             decoder, code, pc, len, MachineRepresentation::kWord8);
       }
-      case kExprS16x8LoadSplat: {
+      case kExprS128Load16Splat: {
         return DoSimdLoadSplat<int8, int32_t, int16_t>(
             decoder, code, pc, len, MachineRepresentation::kWord16);
       }
-      case kExprS32x4LoadSplat: {
+      case kExprS128Load32Splat: {
         return DoSimdLoadSplat<int4, int32_t, int32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord32);
       }
-      case kExprS64x2LoadSplat: {
+      case kExprS128Load64Splat: {
         return DoSimdLoadSplat<int2, int64_t, int64_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI16x8Load8x8S: {
+      case kExprS128Load8x8S: {
         return DoSimdLoadExtend<int8, int16_t, int8_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI16x8Load8x8U: {
+      case kExprS128Load8x8U: {
         return DoSimdLoadExtend<int8, uint16_t, uint8_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI32x4Load16x4S: {
+      case kExprS128Load16x4S: {
         return DoSimdLoadExtend<int4, int32_t, int16_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI32x4Load16x4U: {
+      case kExprS128Load16x4U: {
         return DoSimdLoadExtend<int4, uint32_t, uint16_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI64x2Load32x2S: {
+      case kExprS128Load32x2S: {
         return DoSimdLoadExtend<int2, int64_t, int32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI64x2Load32x2U: {
+      case kExprS128Load32x2U: {
         return DoSimdLoadExtend<int2, uint64_t, uint32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
@@ -3268,6 +3268,9 @@ class WasmInterpreterInternals {
         } break;
 
         case kExprReturnCall: {
+          // Make return calls more expensive, so that return call recursions
+          // don't cause a timeout.
+          if (max > 0) max = std::max(0, max - 100);
           CallFunctionImmediate<Decoder::kNoValidate> imm(&decoder,
                                                           code->at(pc + 1));
           InterpreterCode* target = codemap_.GetCode(imm.index);
@@ -3280,6 +3283,9 @@ class WasmInterpreterInternals {
         } break;
 
         case kExprReturnCallIndirect: {
+          // Make return calls more expensive, so that return call recursions
+          // don't cause a timeout.
+          if (max > 0) max = std::max(0, max - 100);
           CallIndirectImmediate<Decoder::kNoValidate> imm(
               WasmFeatures::All(), &decoder, code->at(pc + 1));
           uint32_t entry_index = Pop().to<uint32_t>();

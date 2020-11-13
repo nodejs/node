@@ -100,6 +100,7 @@ class MockPlatform : public TestPlatform {
 
 TEST(IncrementalMarkingUsingTasks) {
   if (!i::FLAG_incremental_marking) return;
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   MockPlatform platform;

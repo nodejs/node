@@ -129,6 +129,9 @@ DEFINE_GETTER(BooleanMapConstant, HeapConstant(factory()->boolean_map()))
 DEFINE_GETTER(ToNumberBuiltinConstant,
               HeapConstant(BUILTIN_CODE(isolate(), ToNumber)))
 
+DEFINE_GETTER(PlainPrimitiveToNumberBuiltinConstant,
+              HeapConstant(BUILTIN_CODE(isolate(), PlainPrimitiveToNumber)))
+
 DEFINE_GETTER(EmptyFixedArrayConstant,
               HeapConstant(factory()->empty_fixed_array()))
 

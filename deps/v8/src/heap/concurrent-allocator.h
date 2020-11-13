@@ -63,9 +63,6 @@ class ConcurrentAllocator {
   V8_EXPORT_PRIVATE AllocationResult AllocateOutsideLab(
       int object_size, AllocationAlignment alignment, AllocationOrigin origin);
 
-  V8_EXPORT_PRIVATE Address PerformCollectionAndAllocateAgain(
-      int object_size, AllocationAlignment alignment, AllocationOrigin origin);
-
   LocalHeap* const local_heap_;
   PagedSpace* const space_;
   LocalAllocationBuffer lab_;

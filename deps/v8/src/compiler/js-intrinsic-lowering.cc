@@ -82,7 +82,7 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToLength(node);
     case Runtime::kInlineToObject:
       return ReduceToObject(node);
-    case Runtime::kInlineToStringRT:
+    case Runtime::kInlineToString:
       return ReduceToString(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);

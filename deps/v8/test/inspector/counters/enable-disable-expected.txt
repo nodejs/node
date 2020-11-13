@@ -1,0 +1,6 @@
+Test Counters collection enabling and disabling.
+Expected error: "Counters collection is not enabled."
+Expected error: "Counters collection already enabled."
+Some counters reported
+Expected error: "Counters collection is not enabled."
+Less counters reported

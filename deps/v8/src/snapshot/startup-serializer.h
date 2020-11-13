@@ -27,7 +27,7 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   // 2) Builtins and bytecode handlers
   // 3) Startup object cache
   // 4) Weak references (e.g. the string table)
-  void SerializeStrongReferences(const DisallowHeapAllocation& no_gc);
+  void SerializeStrongReferences(const DisallowGarbageCollection& no_gc);
   void SerializeWeakReferencesAndDeferred();
 
   // If |obj| can be serialized in the read-only snapshot then add it to the

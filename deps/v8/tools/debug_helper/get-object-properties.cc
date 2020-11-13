@@ -8,10 +8,12 @@
 #include "heap-constants.h"
 #include "include/v8-internal.h"
 #include "src/common/external-pointer.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-utils.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/unicode-inl.h"
-#include "torque-generated/class-debug-readers-tq.h"
+#include "torque-generated/class-debug-readers.h"
 
 namespace i = v8::internal;
 
@@ -331,7 +333,7 @@ class ReadStringVisitor : public TqObjectVisitor {
           Isolate::FromRoot(GetIsolateRoot(heap_addresses_.any_heap_pointer)),
           resource_data));
 #else
-      uintptr_t data_address = reinterpret_cast<uintptr_t>(resource_data);
+      uintptr_t data_address = static_cast<uintptr_t>(resource_data);
 #endif  // V8_COMPRESS_POINTERS
       if (done_) return;
       ReadStringCharacters<TChar>(object, data_address);
@@ -437,7 +439,7 @@ class ReadStringVisitor : public TqObjectVisitor {
 class AddInfoVisitor : public TqObjectVisitor {
  public:
   // Returns a descriptive string and a list of properties for the given object.
-  // Both may be empty, and are meant as an addition to, not a replacement for,
+  // Both may be empty, and are meant as an addition or a replacement for,
   // the Torque-generated data about the object.
   static std::pair<std::string, std::vector<std::unique_ptr<ObjectProperty>>>
   Visit(const TqObject* object, d::MemoryAccessor accessor,
@@ -452,6 +454,22 @@ class AddInfoVisitor : public TqObjectVisitor {
     if (str.has_value()) {
       brief_ = "\"" + *str + "\"";
     }
+  }
+
+  void VisitExternalString(const TqExternalString* object) override {
+    VisitString(object);
+    // Cast resource field to v8::String::ExternalStringResourceBase* would add
+    // more info.
+    properties_.push_back(std::make_unique<ObjectProperty>(
+        "resource",
+        CheckTypeName<v8::String::ExternalStringResourceBase*>(
+            "v8::String::ExternalStringResourceBase*"),
+        CheckTypeName<v8::String::ExternalStringResourceBase*>(
+            "v8::String::ExternalStringResourceBase*"),
+        object->GetResourceAddress(), 1,
+        sizeof(v8::String::ExternalStringResourceBase*),
+        std::vector<std::unique_ptr<StructProperty>>(),
+        d::PropertyKind::kSingle));
   }
 
   void VisitJSObject(const TqJSObject* object) override {
@@ -524,8 +542,21 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesNotCompressed(
   auto extra_info =
       AddInfoVisitor::Visit(typed.object.get(), accessor, heap_addresses);
   brief = JoinWithSpace(brief, extra_info.first);
-  props.insert(props.end(), std::make_move_iterator(extra_info.second.begin()),
-               std::make_move_iterator(extra_info.second.end()));
+
+  // Overwrite existing properties if they have the same name.
+  for (size_t i = 0; i < extra_info.second.size(); i++) {
+    bool overwrite = false;
+    for (size_t j = 0; j < props.size(); j++) {
+      if (strcmp(props[j]->GetPublicView()->name,
+                 extra_info.second[i]->GetPublicView()->name) == 0) {
+        props[j] = std::move(extra_info.second[i]);
+        overwrite = true;
+        break;
+      }
+    }
+    if (overwrite) continue;
+    props.push_back(std::move(extra_info.second[i]));
+  }
 
   brief = AppendAddressAndType(brief, address, typed.object->GetName());
 
@@ -601,6 +632,32 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectProperties(
                                                   stream.str(), kSmi);
 }
 
+std::unique_ptr<StackFrameResult> GetStackFrame(
+    uintptr_t frame_pointer, d::MemoryAccessor memory_accessor) {
+  // Read the data at frame_pointer + kContextOrFrameTypeOffset.
+  intptr_t context_or_frame_type = 0;
+  d::MemoryAccessResult validity = memory_accessor(
+      frame_pointer + CommonFrameConstants::kContextOrFrameTypeOffset,
+      reinterpret_cast<void*>(&context_or_frame_type), sizeof(intptr_t));
+  auto props = std::vector<std::unique_ptr<ObjectProperty>>();
+  if (validity == d::MemoryAccessResult::kOk) {
+    // If it is context, not frame marker then add new property
+    // "currently_executing_function".
+    if (!StackFrame::IsTypeMarker(context_or_frame_type)) {
+      props.push_back(std::make_unique<ObjectProperty>(
+          "currently_executing_jsfunction",
+          CheckTypeName<v8::internal::JSFunction>("v8::internal::JSFunction"),
+          CheckTypeName<v8::internal::JSFunction*>("v8::internal::JSFunction"),
+          frame_pointer + StandardFrameConstants::kFunctionOffset, 1,
+          sizeof(v8::internal::JSFunction),
+          std::vector<std::unique_ptr<StructProperty>>(),
+          d::PropertyKind::kSingle));
+    }
+  }
+
+  return std::make_unique<StackFrameResult>(std::move(props));
+}
+
 }  // namespace debug_helper_internal
 }  // namespace internal
 }  // namespace v8
@@ -622,5 +679,17 @@ V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_ObjectPropertiesResult(
     d::ObjectPropertiesResult* result) {
   std::unique_ptr<di::ObjectPropertiesResult> ptr(
       static_cast<di::ObjectPropertiesResultExtended*>(result)->base);
+}
+
+V8_DEBUG_HELPER_EXPORT d::StackFrameResult* _v8_debug_helper_GetStackFrame(
+    uintptr_t frame_pointer, d::MemoryAccessor memory_accessor) {
+  return di::GetStackFrame(frame_pointer, memory_accessor)
+      .release()
+      ->GetPublicView();
+}
+V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_StackFrameResult(
+    d::StackFrameResult* result) {
+  std::unique_ptr<di::StackFrameResult> ptr(
+      static_cast<di::StackFrameResultExtended*>(result)->base);
 }
 }

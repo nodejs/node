@@ -111,12 +111,6 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     default:
       break;
   }
-
-  if (FLAG_turbo_control_flow_aware_allocation) {
-    set_turbo_control_flow_aware_allocation();
-  } else {
-    set_turbo_preprocess_ranges();
-  }
 }
 
 OptimizedCompilationInfo::~OptimizedCompilationInfo() {

@@ -11,6 +11,7 @@
   --error-color: #cf6679;
   --map-background-color: #5e5454;
   --timeline-background-color: #1f1f1f;
+  --file-reader-background-color: #ffffff80;
   --red: #dc6eae;
   --green: #aedc6e;
   --yellow: #eeff41;
@@ -32,6 +33,7 @@
   --error-color: #b00020;
   --map-background-color: #5e5454;
   --timeline-background-color: #fdfcfc;
+  --file-reader-background-color: #887e8b80;
   --red: #b71c1c;
   --green: #7db300;
   --yellow: #ffff00;
@@ -132,6 +134,20 @@ button {
 .failure {
   background-color: var(--error-color);
 }
+
+.highlight {
+  background-color: var(--primary-color);
+  color: var(--on-primary-color);
+}
+.clickable:hover,
+.mark:hover,
+.clickable:active,
+.mark:active {
+  background-color: var(--primary-color);
+  color: var(--on-primary-color);
+  cursor: pointer;
+}
+
 a:link {
   color: var(--secondary-color);
   background-color: transparent;

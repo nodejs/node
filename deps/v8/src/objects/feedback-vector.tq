@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@generateBodyDescriptor
+@generateCppClass
 extern class FeedbackVector extends HeapObject {
-  shared_function_info: SharedFunctionInfo;
-  optimized_code_weak_or_smi: Weak<Code>|Smi;
-  closure_feedback_cell_array: FixedArray;
   const length: int32;
   invocation_count: int32;
   profiler_ticks: int32;
@@ -13,8 +12,10 @@ extern class FeedbackVector extends HeapObject {
   // tagged pointers, we should make it conditional; however, platform-specific
   // interacts badly with GCMole, so we need to address that first.
   padding: uint32;
-  // TODO(tebbi): The variable-length feedback_slots field should be declared
-  // here once it is possible to declare tagged slots after untagged slots.
+  shared_function_info: SharedFunctionInfo;
+  optimized_code_weak_or_smi: Weak<Code>|Smi;
+  closure_feedback_cell_array: ClosureFeedbackCellArray;
+  raw_feedback_slots[length]: MaybeObject;
 }
 
 extern class FeedbackMetadata extends HeapObject;

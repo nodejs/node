@@ -1108,9 +1108,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Handle<i::FixedArray> fixed_array;
-  i::Handle<i::JSObject> table_obj = i::WasmTableObject::New(
-      i_isolate, type, static_cast<uint32_t>(initial), has_maximum,
-      static_cast<uint32_t>(maximum), &fixed_array);
+  i::Handle<i::JSObject> table_obj =
+      i::WasmTableObject::New(i_isolate, i::Handle<i::WasmInstanceObject>(),
+                              type, static_cast<uint32_t>(initial), has_maximum,
+                              static_cast<uint32_t>(maximum), &fixed_array);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(table_obj));
 }
@@ -1133,15 +1134,14 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
-                                   &initial, 0,
-                                   i::wasm::max_initial_mem_pages())) {
+                                   &initial, 0, i::wasm::max_mem_pages())) {
     return;
   }
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
-                                  initial, i::wasm::max_maximum_mem_pages())) {
+                                  initial, i::wasm::max_mem_pages())) {
     return;
   }
 
@@ -1213,9 +1213,9 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "externref"))) {
     *type = i::wasm::kWasmExternRef;
-    // The JS api spec uses 'anyfunc' instead of 'funcref'.
   } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
+    // The JS api spec uses 'anyfunc' instead of 'funcref'.
     *type = i::wasm::kWasmFuncRef;
   } else if (enabled_features.has_eh() &&
              string->StringEquals(v8_str(isolate, "exnref"))) {
@@ -1279,7 +1279,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   const uint32_t offset = 0;
   i::MaybeHandle<i::WasmGlobalObject> maybe_global_obj =
-      i::WasmGlobalObject::New(i_isolate, i::MaybeHandle<i::JSArrayBuffer>(),
+      i::WasmGlobalObject::New(i_isolate, i::Handle<i::WasmInstanceObject>(),
+                               i::MaybeHandle<i::JSArrayBuffer>(),
                                i::MaybeHandle<i::FixedArray>(), type, offset,
                                is_mutable);
 
@@ -1684,7 +1685,9 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   i::Handle<i::Object> element = Utils::OpenHandle(*args[1]);
   if (!i::WasmTableObject::IsValidElement(i_isolate, table_object, element)) {
-    thrower.TypeError("Argument 1 must be null or a WebAssembly function");
+    thrower.TypeError(
+        "Argument 1 must be null or a WebAssembly function of type compatible "
+        "to 'this'");
     return;
   }
   i::WasmTableObject::Set(i_isolate, table_object, index, element);
@@ -1726,8 +1729,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   uint64_t max_size64 = receiver->maximum_pages();
-  if (max_size64 > uint64_t{i::wasm::max_maximum_mem_pages()}) {
-    max_size64 = i::wasm::max_maximum_mem_pages();
+  if (max_size64 > uint64_t{i::wasm::max_mem_pages()}) {
+    max_size64 = i::wasm::max_mem_pages();
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
 
@@ -1820,7 +1823,6 @@ void WebAssemblyGlobalGetValueCommon(
       auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
       if (enabled_features.has_bigint()) {
         Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
-
         return_value.Set(value);
       } else {
         thrower.TypeError("Can't get the value of i64 WebAssembly.Global");

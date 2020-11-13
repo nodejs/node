@@ -2216,7 +2216,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int32_t ra_val = (get_register(ra) & 0xFFFFFFFF);
       int32_t rb_val = (get_register(rb) & 0xFFFFFFFF);
       int64_t alu_out = (int64_t)ra_val * (int64_t)rb_val;
-      alu_out >>= 32;
+      // High 32 bits of the result is undefined,
+      // Which is simulated here by adding random bits.
+      alu_out = (alu_out >> 32) | 0x421000000000000;
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(static_cast<intptr_t>(alu_out));
@@ -2230,7 +2232,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uint32_t ra_val = (get_register(ra) & 0xFFFFFFFF);
       uint32_t rb_val = (get_register(rb) & 0xFFFFFFFF);
       uint64_t alu_out = (uint64_t)ra_val * (uint64_t)rb_val;
-      alu_out >>= 32;
+      // High 32 bits of the result is undefined,
+      // Which is simulated here by adding random bits.
+      alu_out = (alu_out >> 32) | 0x421000000000000;
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(static_cast<intptr_t>(alu_out));

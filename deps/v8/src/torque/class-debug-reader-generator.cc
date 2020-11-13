@@ -532,7 +532,7 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
 
 void ImplementationVisitor::GenerateClassDebugReaders(
     const std::string& output_directory) {
-  const std::string file_name = "class-debug-readers-tq";
+  const std::string file_name = "class-debug-readers";
   std::stringstream h_contents;
   std::stringstream cc_contents;
   h_contents << "// Provides the ability to read object properties in\n";

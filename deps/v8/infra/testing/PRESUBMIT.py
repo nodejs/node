@@ -30,6 +30,7 @@ SUPPORTED_SWARMING_DIMENSIONS = [
   'device_os',
   'device_type',
   'os',
+  'pool',
 ]
 
 # This is not an exhaustive list. It only reflects what we currently use. If
@@ -121,9 +122,9 @@ def _check_test(error_msg, test):
   if not all(isinstance(x, basestring) for x in test_args):
     errors += error_msg('If specified, all test_args must be strings')
 
-  # Limit shards to 12 to avoid erroneous resource exhaustion.
+  # Limit shards to 14 to avoid erroneous resource exhaustion.
   errors += _check_int_range(
-      error_msg, test, 'shards', lower_bound=1, upper_bound=12)
+      error_msg, test, 'shards', lower_bound=1, upper_bound=14)
 
   variant = test.get('variant', 'default')
   if not variant or not isinstance(variant, basestring):

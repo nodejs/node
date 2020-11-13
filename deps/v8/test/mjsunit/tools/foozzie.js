@@ -107,3 +107,8 @@ function callPow(v) {
 const unoptimized = callPow(6996);
 %OptimizeFunctionOnNextCall(callPow);
 assertEquals(unoptimized, callPow(6996));
+
+// Test mocked Atomics.waitAsync.
+let then_called = false;
+Atomics.waitAsync().value.then(() => {then_called = true;});
+assertEquals(true, then_called);

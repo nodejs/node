@@ -2214,9 +2214,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ psrld(kScratchDoubleReg, 1);
         __ andps(dst, kScratchDoubleReg);
       } else {
+        // TODO(zhin) Improve codegen for this case.
         __ pcmpeqd(dst, dst);
+        __ movups(kScratchDoubleReg, src);
         __ psrld(dst, 1);
-        __ andps(dst, src);
+        __ andps(dst, kScratchDoubleReg);
       }
       break;
     }
@@ -2236,9 +2238,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ pslld(kScratchDoubleReg, 31);
         __ xorps(dst, kScratchDoubleReg);
       } else {
+        // TODO(zhin) Improve codegen for this case.
         __ pcmpeqd(dst, dst);
+        __ movups(kScratchDoubleReg, src);
         __ pslld(dst, 31);
-        __ xorps(dst, src);
+        __ xorps(dst, kScratchDoubleReg);
       }
       break;
     }
@@ -2251,7 +2255,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEF32x4Sqrt: {
-      __ sqrtps(i.OutputSimd128Register(), i.InputOperand(0));
+      // TODO(zhin) Improve codegen for this case.
+      __ movups(kScratchDoubleReg, i.InputOperand(0));
+      __ sqrtps(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
     case kAVXF32x4Sqrt: {
@@ -2348,7 +2354,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of minps.
       __ movups(kScratchDoubleReg, src1);
-      __ vminps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vminps(kScratchDoubleReg, kScratchDoubleReg, src0);
       __ vminps(dst, src0, src1);
       __ vorps(dst, dst, kScratchDoubleReg);
       __ vcmpneqps(kScratchDoubleReg, dst, dst);
@@ -2381,11 +2387,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAVXF32x4Max: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src0 = i.InputSimd128Register(0);
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of maxps.
       __ vmovups(kScratchDoubleReg, src1);
-      __ vmaxps(kScratchDoubleReg, kScratchDoubleReg, dst);
-      __ vmaxps(dst, dst, src1);
+      __ vmaxps(kScratchDoubleReg, kScratchDoubleReg, src0);
+      __ vmaxps(dst, src0, src1);
       __ vxorps(dst, dst, kScratchDoubleReg);
       __ vorps(kScratchDoubleReg, kScratchDoubleReg, dst);
       __ vsubps(kScratchDoubleReg, kScratchDoubleReg, dst);
@@ -3643,8 +3650,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ pxor(dst, kScratchDoubleReg);
       } else {
+        // TODO(zhin) Improve codegen for this case.
         __ pcmpeqd(dst, dst);
-        __ pxor(dst, src);
+        __ movups(kScratchDoubleReg, src);
+        __ pxor(dst, kScratchDoubleReg);
       }
       break;
     }
@@ -3715,7 +3724,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Andnps(dst, src1);
       break;
     }
-    case kIA32S8x16Swizzle: {
+    case kIA32I8x16Swizzle: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister mask = i.TempSimd128Register(0);
@@ -3728,7 +3737,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufb(dst, mask);
       break;
     }
-    case kIA32S8x16Shuffle: {
+    case kIA32I8x16Shuffle: {
       XMMRegister dst = i.OutputSimd128Register();
       Operand src0 = i.InputOperand(0);
       Register tmp = i.TempRegister(0);
@@ -4690,9 +4699,6 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (call_descriptor->PushArgumentCount()) {
-        __ push(kJavaScriptCallArgCountRegister);
-      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
@@ -4836,10 +4842,11 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   } else {
     Register pop_reg = g.ToRegister(pop);
     Register scratch_reg = pop_reg == ecx ? edx : ecx;
-    __ pop(scratch_reg);
+    __ PopReturnAddressTo(scratch_reg);
     __ lea(esp, Operand(esp, pop_reg, times_system_pointer_size,
                         static_cast<int>(pop_size)));
-    __ jmp(scratch_reg);
+    __ PushReturnAddressFrom(scratch_reg);
+    __ Ret();
   }
 }
 

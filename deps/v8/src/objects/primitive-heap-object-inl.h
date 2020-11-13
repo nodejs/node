@@ -8,7 +8,7 @@
 #include "src/objects/primitive-heap-object.h"
 
 #include "src/objects/heap-object-inl.h"
-#include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/class-definitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

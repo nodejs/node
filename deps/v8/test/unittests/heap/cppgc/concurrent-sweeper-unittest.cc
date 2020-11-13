@@ -79,7 +79,7 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
   void FinishSweeping() {
     Heap* heap = Heap::From(GetHeap());
     Sweeper& sweeper = heap->sweeper();
-    sweeper.Finish();
+    sweeper.FinishIfRunning();
   }
 
   const RawHeap& GetRawHeap() const {

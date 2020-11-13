@@ -248,7 +248,7 @@ void ArmDebugger::Debug() {
                 PrintF("\n");
               }
             }
-            for (int i = 0; i < DwVfpRegister::NumRegisters(); i++) {
+            for (int i = 0; i < DwVfpRegister::SupportedRegisterCount(); i++) {
               dvalue = GetVFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%3s: %f 0x%08x %08x\n", VFPRegisters::Name(i, true),
@@ -753,22 +753,22 @@ void Simulator::set_dw_register(int dreg, const int* dbl) {
 }
 
 void Simulator::get_d_register(int dreg, uint64_t* value) {
-  DCHECK((dreg >= 0) && (dreg < DwVfpRegister::NumRegisters()));
+  DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
   memcpy(value, vfp_registers_ + dreg * 2, sizeof(*value));
 }
 
 void Simulator::set_d_register(int dreg, const uint64_t* value) {
-  DCHECK((dreg >= 0) && (dreg < DwVfpRegister::NumRegisters()));
+  DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
   memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value));
 }
 
 void Simulator::get_d_register(int dreg, uint32_t* value) {
-  DCHECK((dreg >= 0) && (dreg < DwVfpRegister::NumRegisters()));
+  DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
   memcpy(value, vfp_registers_ + dreg * 2, sizeof(*value) * 2);
 }
 
 void Simulator::set_d_register(int dreg, const uint32_t* value) {
-  DCHECK((dreg >= 0) && (dreg < DwVfpRegister::NumRegisters()));
+  DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
   memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value) * 2);
 }
 
@@ -818,7 +818,8 @@ void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
   DCHECK_EQ(sizeof(InputType), bytes);
   DCHECK_GE(reg_index, 0);
   if (register_size == 1) DCHECK(reg_index < num_s_registers);
-  if (register_size == 2) DCHECK(reg_index < DwVfpRegister::NumRegisters());
+  if (register_size == 2)
+    DCHECK(reg_index < DwVfpRegister::SupportedRegisterCount());
 
   memcpy(&vfp_registers_[reg_index * register_size], &value, bytes);
 }
@@ -829,7 +830,8 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
   DCHECK_EQ(sizeof(ReturnType), bytes);
   DCHECK_GE(reg_index, 0);
   if (register_size == 1) DCHECK(reg_index < num_s_registers);
-  if (register_size == 2) DCHECK(reg_index < DwVfpRegister::NumRegisters());
+  if (register_size == 2)
+    DCHECK(reg_index < DwVfpRegister::SupportedRegisterCount());
 
   ReturnType value;
   memcpy(&value, &vfp_registers_[register_size * reg_index], bytes);
@@ -4610,9 +4612,13 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             } else {
               // vmin/vmax.f32 Qd, Qm, Qn.
               bool min = instr->Bit(21) == 1;
+              bool saved = FPSCR_default_NaN_mode_;
+              FPSCR_default_NaN_mode_ = true;
               for (int i = 0; i < 4; i++) {
-                src1[i] = MinMax(src1[i], src2[i], min);
+                // vmin returns default NaN if any input is NaN.
+                src1[i] = canonicalizeNaN(MinMax(src1[i], src2[i], min));
               }
+              FPSCR_default_NaN_mode_ = saved;
             }
             set_neon_register(Vd, src1);
           } else {

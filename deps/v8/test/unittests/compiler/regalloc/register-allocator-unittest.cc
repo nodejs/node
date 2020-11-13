@@ -634,63 +634,7 @@ TEST_F(RegisterAllocatorTest, SingleDeferredBlockSpill) {
                                     Reg(0), Slot(0)));
 }
 
-TEST_F(RegisterAllocatorTest, MultipleDeferredBlockSpills) {
-  if (FLAG_turbo_control_flow_aware_allocation) return;
-
-  StartBlock();  // B0
-  auto var1 = EmitOI(Reg(0));
-  auto var2 = EmitOI(Reg(1));
-  auto var3 = EmitOI(Reg(2));
-  EndBlock(Branch(Reg(var1, 0), 1, 2));
-
-  StartBlock(true);  // B1
-  EmitCall(Slot(-2), Slot(var1));
-  EndBlock(Jump(2));
-
-  StartBlock(true);  // B2
-  EmitCall(Slot(-1), Slot(var2));
-  EndBlock();
-
-  StartBlock();  // B3
-  EmitNop();
-  EndBlock();
-
-  StartBlock();  // B4
-  Return(Reg(var3, 2));
-  EndBlock();
-
-  const int def_of_v2 = 3;
-  const int call_in_b1 = 4;
-  const int call_in_b2 = 6;
-  const int end_of_b1 = 5;
-  const int end_of_b2 = 7;
-  const int start_of_b3 = 8;
-
-  Allocate();
-  // TODO(mtrofin): at the moment, the linear allocator spills var1 and var2,
-  // so only var3 is spilled in deferred blocks.
-  const int var3_reg = 2;
-  const int var3_slot = 2;
-
-  EXPECT_FALSE(IsParallelMovePresent(def_of_v2, Instruction::START, sequence(),
-                                     Reg(var3_reg), Slot()));
-  EXPECT_TRUE(IsParallelMovePresent(call_in_b1, Instruction::START, sequence(),
-                                    Reg(var3_reg), Slot(var3_slot)));
-  EXPECT_TRUE(IsParallelMovePresent(end_of_b1, Instruction::START, sequence(),
-                                    Slot(var3_slot), Reg()));
-
-  EXPECT_TRUE(IsParallelMovePresent(call_in_b2, Instruction::START, sequence(),
-                                    Reg(var3_reg), Slot(var3_slot)));
-  EXPECT_TRUE(IsParallelMovePresent(end_of_b2, Instruction::START, sequence(),
-                                    Slot(var3_slot), Reg()));
-
-  EXPECT_EQ(0,
-            GetParallelMoveCount(start_of_b3, Instruction::START, sequence()));
-}
-
 TEST_F(RegisterAllocatorTest, ValidMultipleDeferredBlockSpills) {
-  if (!FLAG_turbo_control_flow_aware_allocation) return;
-
   StartBlock();  // B0
   auto var1 = EmitOI(Reg(0));
   auto var2 = EmitOI(Reg(1));

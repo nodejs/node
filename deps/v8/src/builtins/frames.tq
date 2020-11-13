@@ -49,6 +49,9 @@ macro LoadPointerFromFrame(f: Frame, o: constexpr int32): RawPtr {
 macro LoadSmiFromFrame(f: Frame, o: constexpr int32): Smi {
   return LoadBufferSmi(f, o);
 }
+macro LoadIntptrFromFrame(f: Frame, o: constexpr int32): intptr {
+  return LoadBufferIntptr(f, o);
+}
 
 const kStandardFrameFunctionOffset: constexpr int31
     generates 'StandardFrameConstants::kFunctionOffset';
@@ -65,6 +68,12 @@ const kStandardFrameCallerFPOffset: constexpr int31
 operator '.caller' macro LoadCallerFromFrame(f: Frame): Frame {
   const result: RawPtr = LoadPointerFromFrame(f, kStandardFrameCallerFPOffset);
   return %RawDownCast<Frame>(result);
+}
+
+const kStandardFrameArgCOffset: constexpr int31
+    generates 'StandardFrameConstants::kArgCOffset';
+operator '.argument_count' macro LoadArgCFromFrame(f: Frame): intptr {
+  return LoadIntptrFromFrame(f, kStandardFrameArgCOffset);
 }
 
 type ContextOrFrameType = Context|FrameType;

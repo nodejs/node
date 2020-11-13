@@ -74,10 +74,7 @@ std::string Type::SimpleName() const {
 std::string Type::HandlifiedCppTypeName() const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
   if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    base::Optional<const ClassType*> class_type = ClassSupertype();
-    std::string type =
-        class_type ? (*class_type)->GetGeneratedTNodeTypeName() : "Object";
-    return "Handle<" + type + ">";
+    return "Handle<" + ConstexprVersion()->GetGeneratedTypeName() + ">";
   } else {
     return ConstexprVersion()->GetGeneratedTypeName();
   }

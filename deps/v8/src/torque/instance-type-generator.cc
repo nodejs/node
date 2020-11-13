@@ -372,7 +372,7 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
 void ImplementationVisitor::GenerateInstanceTypes(
     const std::string& output_directory) {
   std::stringstream header;
-  std::string file_name = "instance-types-tq.h";
+  std::string file_name = "instance-types.h";
   {
     IncludeGuardScope guard(header, file_name);
 

@@ -315,6 +315,13 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   }
 }
 
+void JSGenericLowering::LowerJSLoadNamedFromSuper(Node* node) {
+  JSLoadNamedFromSuperNode n(node);
+  NamedAccess const& p = n.Parameters();
+  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.name()));
+  ReplaceWithRuntimeCall(node, Runtime::kLoadFromSuper);
+}
+
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   JSLoadGlobalNode n(node);
   const LoadGlobalParameters& p = n.Parameters();
@@ -522,9 +529,14 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
 void JSGenericLowering::LowerJSCreateArray(Node* node) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
+  auto interface_descriptor = ArrayConstructorDescriptor{};
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      zone(), ArrayConstructorDescriptor{}, arity + 1,
-      CallDescriptor::kNeedsFrameState, node->op()->properties());
+      zone(), interface_descriptor, arity + 1, CallDescriptor::kNeedsFrameState,
+      node->op()->properties());
+  // If this fails, we might need to update the parameter reordering code
+  // to ensure that the additional arguments passed via stack are pushed
+  // between top of stack and JS arguments.
+  DCHECK_EQ(interface_descriptor.GetStackParameterCount(), 0);
   Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
   Node* stub_arity = jsgraph()->Int32Constant(arity);
   MaybeHandle<AllocationSite> const maybe_site = p.site();
@@ -773,6 +785,10 @@ void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   int const arg_count = static_cast<int>(p.arity() - 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = CodeFactory::ConstructForwardVarargs(isolate());
+  // If this fails, we might need to update the parameter reordering code
+  // to ensure that the additional arguments passed via stack are pushed
+  // between top of stack and JS arguments.
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), arg_count + 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
@@ -801,12 +817,20 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
         arg_count + kReceiver + kMaybeFeedbackVector;
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kConstruct_WithFeedback);
+    // If this fails, we might need to update the parameter reordering code
+    // to ensure that the additional arguments passed via stack are pushed
+    // between top of stack and JS arguments.
+    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
+              kMaybeFeedbackVector);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
     Node* receiver = jsgraph()->UndefinedConstant();
+#ifdef V8_REVERSE_JSARGS
+    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
+#endif
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
     // the receiver is implicitly placed on the stack and is thus inserted
@@ -815,10 +839,16 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
+#ifdef V8_REVERSE_JSARGS
+    node->InsertInput(zone(), 5, feedback_vector);
+    node->InsertInput(zone(), 6, receiver);
+    // After: {code, target, new_target, arity, slot, vector, receiver,
+    // ...args}.
+#else
     node->InsertInput(zone(), 5, receiver);
-
     // After: {code, target, new_target, arity, slot, receiver, ...args,
     // vector}.
+#endif
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
@@ -857,12 +887,19 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
         arg_count - kArgumentList + kReceiver + kMaybeFeedbackVector;
     Callable callable = Builtins::CallableFor(
         isolate(), Builtins::kConstructWithArrayLike_WithFeedback);
+    // If this fails, we might need to update the parameter reordering code
+    // to ensure that the additional arguments passed via stack are pushed
+    // between top of stack and JS arguments.
+    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
+              kMaybeFeedbackVector);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* receiver = jsgraph()->UndefinedConstant();
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
-
+#ifdef V8_REVERSE_JSARGS
+    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
+#endif
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
     // the receiver is implicitly placed on the stack and is thus inserted
@@ -870,16 +907,26 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
     // TODO(jgruber): Implement a simpler way to specify these mutations.
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 4, slot);
+#ifdef V8_REVERSE_JSARGS
+    node->InsertInput(zone(), 5, feedback_vector);
+    node->InsertInput(zone(), 6, receiver);
+    // After: {code, target, new_target, arguments_list, slot, vector,
+    // receiver}.
+#else
     node->InsertInput(zone(), 5, receiver);
-
     // After: {code, target, new_target, arguments_list, slot, receiver,
     // vector}.
+#endif
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
     const int stack_argument_count = arg_count - kArgumentList + kReceiver;
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kConstructWithArrayLike);
+    // If this fails, we might need to update the parameter reordering code
+    // to ensure that the additional arguments passed via stack are pushed
+    // between top of stack and JS arguments.
+    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
@@ -911,6 +958,11 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
         arg_count + kReceiver + kMaybeFeedbackVector;
     Callable callable = Builtins::CallableFor(
         isolate(), Builtins::kConstructWithSpread_WithFeedback);
+    // If this fails, we might need to update the parameter reordering code
+    // to ensure that the additional arguments passed via stack are pushed
+    // between top of stack and JS arguments.
+    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
+              kTheSpread + kMaybeFeedbackVector);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
@@ -920,6 +972,10 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     // on the stack here.
     Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
     Node* receiver = jsgraph()->UndefinedConstant();
+#ifdef V8_REVERSE_JSARGS
+    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
+    Node* spread = node->RemoveInput(n.LastArgumentIndex());
+#endif
 
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
@@ -929,15 +985,26 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
+#ifdef V8_REVERSE_JSARGS
+    node->InsertInput(zone(), 5, spread);
+    node->InsertInput(zone(), 6, feedback_vector);
+    node->InsertInput(zone(), 7, receiver);
+    // After: {code, target, new_target, arity, slot, spread, vector, receiver,
+    // ...args}.
+#else
     node->InsertInput(zone(), 5, receiver);
-
     // After: {code, target, new_target, arity, slot, receiver, ...args, spread,
     // vector}.
+#endif
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
     const int stack_argument_count = arg_count + kReceiver - kTheSpread;
     Callable callable = CodeFactory::ConstructWithSpread(isolate());
+    // If this fails, we might need to update the parameter reordering code
+    // to ensure that the additional arguments passed via stack are pushed
+    // between top of stack and JS arguments.
+    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
@@ -1091,6 +1158,11 @@ void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
         arg_count - kTheSpread + kReceiver + kMaybeFeedbackVector;
     Callable callable = Builtins::CallableFor(
         isolate(), Builtins::kCallWithSpread_WithFeedback);
+    // If this fails, we might need to update the parameter reordering code
+    // to ensure that the additional arguments passed via stack are pushed
+    // between top of stack and JS arguments.
+    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
+              kMaybeFeedbackVector);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
@@ -1107,22 +1179,29 @@ void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
 
     // Shuffling inputs.
     // Before: {target, receiver, ...args, spread, vector}.
-
+#ifdef V8_REVERSE_JSARGS
+    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
+#endif
     Node* spread = node->RemoveInput(n.LastArgumentIndex());
-
-    // Now: {target, receiver, ...args, vector}.
-
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 2, stub_arity);
     node->InsertInput(zone(), 3, spread);
     node->InsertInput(zone(), 4, slot);
-
+#ifdef V8_REVERSE_JSARGS
+    node->InsertInput(zone(), 5, feedback_vector);
+    // After: {code, target, arity, spread, slot, vector, receiver, ...args}.
+#else
     // After: {code, target, arity, spread, slot, receiver, ...args, vector}.
+#endif
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
     const int stack_argument_count = arg_count - kTheSpread + kReceiver;
     Callable callable = CodeFactory::CallWithSpread(isolate());
+    // If this fails, we might need to update the parameter reordering code
+    // to ensure that the additional arguments passed via stack are pushed
+    // between top of stack and JS arguments.
+    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());

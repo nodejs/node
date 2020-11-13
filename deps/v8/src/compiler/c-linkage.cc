@@ -31,6 +31,7 @@ namespace {
 // == x64 windows ============================================================
 #define STACK_SHADOW_WORDS 4
 #define PARAM_REGISTERS rcx, rdx, r8, r9
+#define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3
 #define CALLEE_SAVE_REGISTERS                                             \
   rbx.bit() | rdi.bit() | rsi.bit() | r12.bit() | r13.bit() | r14.bit() | \
       r15.bit()
@@ -42,6 +43,7 @@ namespace {
 #else  // V8_TARGET_OS_WIN
 // == x64 other ==============================================================
 #define PARAM_REGISTERS rdi, rsi, rdx, rcx, r8, r9
+#define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
 #define CALLEE_SAVE_REGISTERS \
   rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit()
 #endif  // V8_TARGET_OS_WIN
@@ -137,38 +139,116 @@ namespace {
 #endif
 }  // namespace
 
+#ifdef V8_TARGET_OS_WIN
+// As defined in
+// https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention?view=vs-2019#parameter-passing,
+// Windows calling convention doesn't differentiate between GP and FP params
+// when counting how many of them should be placed in registers. That's why
+// we use the same counter {i} for both types here.
+void BuildParameterLocations(const MachineSignature* msig,
+                             size_t kFPParamRegisterCount,
+                             size_t kParamRegisterCount,
+                             const DoubleRegister* kFPParamRegisters,
+                             const v8::internal::Register* kParamRegisters,
+                             LocationSignature::Builder* out_locations) {
+#ifdef STACK_SHADOW_WORDS
+  int stack_offset = STACK_SHADOW_WORDS;
+#else
+  int stack_offset = 0;
+#endif
+  CHECK_EQ(kFPParamRegisterCount, kParamRegisterCount);
+
+  for (size_t i = 0; i < msig->parameter_count(); i++) {
+    MachineType type = msig->GetParam(i);
+    bool spill = (i >= kParamRegisterCount);
+    if (spill) {
+      out_locations->AddParam(
+          LinkageLocation::ForCallerFrameSlot(-1 - stack_offset, type));
+      stack_offset++;
+    } else {
+      if (IsFloatingPoint(type.representation())) {
+        out_locations->AddParam(
+            LinkageLocation::ForRegister(kFPParamRegisters[i].code(), type));
+      } else {
+        out_locations->AddParam(
+            LinkageLocation::ForRegister(kParamRegisters[i].code(), type));
+      }
+    }
+  }
+}
+#else  // V8_TARGET_OS_WIN
+// As defined in https://www.agner.org/optimize/calling_conventions.pdf,
+// Section 7, Linux and Mac place parameters in consecutive registers,
+// differentiating between GP and FP params. That's why we maintain two
+// separate counters here.
+void BuildParameterLocations(const MachineSignature* msig,
+                             size_t kFPParamRegisterCount,
+                             size_t kParamRegisterCount,
+                             const DoubleRegister* kFPParamRegisters,
+                             const v8::internal::Register* kParamRegisters,
+                             LocationSignature::Builder* out_locations) {
+#ifdef STACK_SHADOW_WORDS
+  int stack_offset = STACK_SHADOW_WORDS;
+#else
+  int stack_offset = 0;
+#endif
+  size_t num_params = 0;
+  size_t num_fp_params = 0;
+  for (size_t i = 0; i < msig->parameter_count(); i++) {
+    MachineType type = msig->GetParam(i);
+    bool spill = IsFloatingPoint(type.representation())
+                     ? (num_fp_params >= kFPParamRegisterCount)
+                     : (num_params >= kParamRegisterCount);
+    if (spill) {
+      out_locations->AddParam(
+          LinkageLocation::ForCallerFrameSlot(-1 - stack_offset, type));
+      stack_offset++;
+    } else {
+      if (IsFloatingPoint(type.representation())) {
+        out_locations->AddParam(LinkageLocation::ForRegister(
+            kFPParamRegisters[num_fp_params].code(), type));
+        ++num_fp_params;
+      } else {
+        out_locations->AddParam(LinkageLocation::ForRegister(
+            kParamRegisters[num_params].code(), type));
+        ++num_params;
+      }
+    }
+  }
+}
+#endif  // V8_TARGET_OS_WIN
 
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
                                                   const MachineSignature* msig,
                                                   CallDescriptor::Flags flags) {
-  DCHECK_LE(msig->parameter_count(), static_cast<size_t>(kMaxCParameters));
-
-  LocationSignature::Builder locations(zone, msig->return_count(),
-                                       msig->parameter_count());
-  // Check the types of the signature.
-  // Currently no floating point parameters or returns are allowed because
-  // on ia32, the FP top of stack is involved.
-  for (size_t i = 0; i < msig->return_count(); i++) {
-    MachineRepresentation rep = msig->GetReturn(i).representation();
-    CHECK_NE(MachineRepresentation::kFloat32, rep);
-    CHECK_NE(MachineRepresentation::kFloat64, rep);
-  }
-  for (size_t i = 0; i < msig->parameter_count(); i++) {
-    MachineRepresentation rep = msig->GetParam(i).representation();
-    CHECK_NE(MachineRepresentation::kFloat32, rep);
-    CHECK_NE(MachineRepresentation::kFloat64, rep);
-  }
-
 #ifdef UNSUPPORTED_C_LINKAGE
   // This method should not be called on unknown architectures.
   FATAL("requested C call descriptor on unsupported architecture");
   return nullptr;
 #endif
 
-  // Add return location(s).
-  CHECK_GE(2, locations.return_count_);
+  DCHECK_LE(msig->parameter_count(), static_cast<size_t>(kMaxCParameters));
 
+  LocationSignature::Builder locations(zone, msig->return_count(),
+                                       msig->parameter_count());
+
+#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  // Check the types of the signature.
+  for (size_t i = 0; i < msig->parameter_count(); i++) {
+    MachineRepresentation rep = msig->GetParam(i).representation();
+    CHECK_NE(MachineRepresentation::kFloat32, rep);
+    CHECK_NE(MachineRepresentation::kFloat64, rep);
+  }
+#endif
+
+  // Add return location(s). We don't support FP returns for now.
+  for (size_t i = 0; i < locations.return_count_; i++) {
+    MachineType type = msig->GetReturn(i);
+    CHECK(!IsFloatingPoint(type.representation()));
+  }
+
+  CHECK_GE(2, locations.return_count_);
   if (locations.return_count_ > 0) {
     locations.AddReturn(LinkageLocation::ForRegister(kReturnRegister0.code(),
                                                      msig->GetReturn(0)));
@@ -178,8 +258,6 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
                                                      msig->GetReturn(1)));
   }
 
-  const int parameter_count = static_cast<int>(msig->parameter_count());
-
 #ifdef PARAM_REGISTERS
   const v8::internal::Register kParamRegisters[] = {PARAM_REGISTERS};
   const int kParamRegisterCount = static_cast<int>(arraysize(kParamRegisters));
@@ -188,22 +266,17 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
   const int kParamRegisterCount = 0;
 #endif
 
-#ifdef STACK_SHADOW_WORDS
-  int stack_offset = STACK_SHADOW_WORDS;
+#ifdef FP_PARAM_REGISTERS
+  const DoubleRegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
+  const size_t kFPParamRegisterCount = arraysize(kFPParamRegisters);
 #else
-  int stack_offset = 0;
+  const DoubleRegister* kFPParamRegisters = nullptr;
+  const size_t kFPParamRegisterCount = 0;
 #endif
+
   // Add register and/or stack parameter(s).
-  for (int i = 0; i < parameter_count; i++) {
-    if (i < kParamRegisterCount) {
-      locations.AddParam(LinkageLocation::ForRegister(kParamRegisters[i].code(),
-                                                      msig->GetParam(i)));
-    } else {
-      locations.AddParam(LinkageLocation::ForCallerFrameSlot(
-          -1 - stack_offset, msig->GetParam(i)));
-      stack_offset++;
-    }
-  }
+  BuildParameterLocations(msig, kFPParamRegisterCount, kParamRegisterCount,
+                          kFPParamRegisters, kParamRegisters, &locations);
 
 #ifdef CALLEE_SAVE_REGISTERS
   const RegList kCalleeSaveRegisters = CALLEE_SAVE_REGISTERS;

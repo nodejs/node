@@ -11,11 +11,13 @@
 #include "src/base/template-utils.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/libsampler/sampler.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/profiler/cpu-profiler-inl.h"
+#include "src/profiler/profiler-stats.h"
 #include "src/utils/locked-queue-inl.h"
 #include "src/wasm/wasm-engine.h"
 
@@ -28,12 +30,25 @@ class CpuSampler : public sampler::Sampler {
  public:
   CpuSampler(Isolate* isolate, SamplingEventsProcessor* processor)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
-        processor_(processor) {}
+        processor_(processor),
+        threadId_(ThreadId::Current()) {}
 
   void SampleStack(const v8::RegisterState& regs) override {
-    TickSample* sample = processor_->StartTickSample();
-    if (sample == nullptr) return;
     Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
+    if (v8::Locker::IsActive() &&
+        !isolate->thread_manager()->IsLockedByThread(threadId_)) {
+      ProfilerStats::Instance()->AddReason(
+          ProfilerStats::Reason::kIsolateNotLocked);
+      return;
+    }
+    TickSample* sample = processor_->StartTickSample();
+    if (sample == nullptr) {
+      ProfilerStats::Instance()->AddReason(
+          ProfilerStats::Reason::kTickBufferFull);
+      return;
+    }
+    // Every bailout up until here resulted in a dropped sample. From now on,
+    // the sample is created in the buffer.
     sample->Init(isolate, regs, TickSample::kIncludeCEntryFrame,
                  /* update_stats */ true,
                  /* use_simulator_reg_state */ true, processor_->period());
@@ -46,6 +61,7 @@ class CpuSampler : public sampler::Sampler {
 
  private:
   SamplingEventsProcessor* processor_;
+  ThreadId threadId_;
 };
 
 ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
@@ -164,14 +180,7 @@ void ProfilerEventsProcessor::StopSynchronously() {
 bool ProfilerEventsProcessor::ProcessCodeEvent() {
   CodeEventsContainer record;
   if (events_buffer_.Dequeue(&record)) {
-    if (record.generic.type == CodeEventRecord::NATIVE_CONTEXT_MOVE) {
-      NativeContextMoveEventRecord& nc_record =
-          record.NativeContextMoveEventRecord_;
-      generator_->UpdateNativeContextAddress(nc_record.from_address,
-                                             nc_record.to_address);
-    } else {
-      code_observer_->CodeEventHandlerInternal(record);
-    }
+    code_observer_->CodeEventHandlerInternal(record);
     last_processed_code_event_id_ = record.generic.order;
     return true;
   }
@@ -184,7 +193,6 @@ void ProfilerEventsProcessor::CodeEventHandler(
     case CodeEventRecord::CODE_CREATION:
     case CodeEventRecord::CODE_MOVE:
     case CodeEventRecord::CODE_DISABLE_OPT:
-    case CodeEventRecord::NATIVE_CONTEXT_MOVE:
       Enqueue(evt_rec);
       break;
     case CodeEventRecord::CODE_DEOPT: {
@@ -351,7 +359,9 @@ void ProfilerCodeObserver::LogBuiltins() {
     CodeEventsContainer evt_rec(CodeEventRecord::REPORT_BUILTIN);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
     Builtins::Name id = static_cast<Builtins::Name>(i);
-    rec->instruction_start = builtins->builtin(id).InstructionStart();
+    Code code = builtins->builtin(id);
+    rec->instruction_start = code.InstructionStart();
+    rec->instruction_size = code.InstructionSize();
     rec->builtin_id = id;
     CodeEventHandlerInternal(evt_rec);
   }

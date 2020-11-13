@@ -51,7 +51,7 @@ bool CpuFeatures::SupportsOptimizer() { return true; }
 
 bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(NEON); }
 
-int DoubleRegister::NumRegisters() {
+int DoubleRegister::SupportedRegisterCount() {
   return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
 }
 

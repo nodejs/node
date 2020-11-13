@@ -64,6 +64,9 @@ static inline constexpr RegClass reg_class_for(ValueType::Kind kind) {
       return kNeedI64RegPair ? kGpRegPair : kGpReg;
     case ValueType::kS128:
       return kNeedS128RegPair ? kFpRegPair : kFpReg;
+    case ValueType::kRef:
+    case ValueType::kOptRef:
+      return kGpReg;
     default:
       return kNoReg;  // unsupported type
   }

@@ -25,7 +25,7 @@ void SerializedData::AllocateData(uint32_t size) {
 constexpr uint32_t SerializedData::kMagicNumber;
 
 SnapshotData::SnapshotData(const Serializer* serializer) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   std::vector<Reservation> reservations = serializer->EncodeReservations();
   const std::vector<byte>* payload = serializer->Payload();
 

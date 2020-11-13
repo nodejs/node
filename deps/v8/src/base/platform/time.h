@@ -91,6 +91,9 @@ class V8_BASE_EXPORT TimeDelta final {
     return TimeDelta(nanoseconds / TimeConstants::kNanosecondsPerMicrosecond);
   }
 
+  static TimeDelta FromSecondsD(double seconds) {
+    return FromDouble(seconds * TimeConstants::kMicrosecondsPerSecond);
+  }
   static TimeDelta FromMillisecondsD(double milliseconds) {
     return FromDouble(milliseconds *
                       TimeConstants::kMicrosecondsPerMillisecond);

@@ -44,9 +44,9 @@
 #include "src/objects/template-objects-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/wasm/wasm-objects.h"
-#include "torque-generated/class-definitions-tq.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
-#include "torque-generated/internal-class-definitions-tq-inl.h"
+#include "torque-generated/class-definitions.h"
+#include "torque-generated/exported-class-definitions-inl.h"
+#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {

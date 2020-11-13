@@ -237,7 +237,7 @@ void IncrementalMarking::StartMarking() {
 
   SetState(MARKING);
 
-  heap_->marking_barrier()->Activate(is_compacting_);
+  MarkingBarrier::ActivateAll(heap(), is_compacting_);
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
@@ -412,6 +412,8 @@ void IncrementalMarking::FinalizeIncrementally() {
   // so we can do it only once at the beginning of the finalization.
   RetainMaps();
 
+  MarkingBarrier::PublishAll(heap());
+
   finalize_marking_completed_ = true;
 
   if (FLAG_trace_incremental_marking) {
@@ -433,6 +435,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 #endif  // ENABLE_MINOR_MC
 
   collector_->local_marking_worklists()->Publish();
+  MarkingBarrier::PublishAll(heap());
   collector_->marking_worklists()->Update(
       [
 #ifdef DEBUG
@@ -1080,6 +1083,9 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
       embedder_deadline =
           Min(max_step_size_in_ms,
               static_cast<double>(bytes_to_process) / marking_speed);
+      // TODO(chromium:1056170): Replace embedder_deadline with bytes_to_process
+      // after migrating blink to the cppgc library and after v8 can directly
+      // push objects to Oilpan.
       embedder_result = EmbedderStep(embedder_deadline, &embedder_duration);
     }
     bytes_marked_ += v8_bytes_processed;

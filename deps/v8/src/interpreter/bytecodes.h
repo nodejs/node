@@ -100,6 +100,8 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx)                                      \
   V(LdaNamedPropertyNoFeedback, AccumulatorUse::kWrite, OperandType::kReg,     \
     OperandType::kIdx)                                                         \
+  V(LdaNamedPropertyFromSuper, AccumulatorUse::kReadWrite, OperandType::kReg,  \
+    OperandType::kIdx, OperandType::kIdx)                                      \
   V(LdaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,           \
     OperandType::kIdx)                                                         \
                                                                                \

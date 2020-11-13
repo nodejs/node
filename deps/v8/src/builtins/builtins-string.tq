@@ -6,8 +6,9 @@
 
 namespace string {
 
-// TODO(bbudge) Remove the 'RT' suffix on this runtime function.
-extern transitioning runtime ToStringRT(Context, JSAny): String;
+namespace runtime {
+extern transitioning runtime ToString(Context, JSAny): String;
+}
 
 @export
 transitioning macro ToStringImpl(context: Context, o: JSAny): String {
@@ -31,7 +32,7 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
         ThrowTypeError(MessageTemplate::kSymbolToString);
       }
       case (JSAny): {
-        return ToStringRT(context, o);
+        return runtime::ToString(context, o);
       }
     }
   }

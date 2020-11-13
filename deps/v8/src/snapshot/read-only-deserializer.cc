@@ -35,7 +35,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
   DCHECK(!isolate->builtins()->is_initialized());
 
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     ReadOnlyRoots roots(isolate);
 
     roots.Iterate(this);

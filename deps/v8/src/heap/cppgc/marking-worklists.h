@@ -6,7 +6,7 @@
 #define V8_HEAP_CPPGC_MARKING_WORKLISTS_H_
 
 #include "include/cppgc/visitor.h"
-#include "src/heap/cppgc/worklist.h"
+#include "src/heap/base/worklist.h"
 
 namespace cppgc {
 namespace internal {
@@ -14,9 +14,6 @@ namespace internal {
 class HeapObjectHeader;
 
 class MarkingWorklists {
-  static constexpr int kNumConcurrentMarkers = 0;
-  static constexpr int kNumMarkers = 1 + kNumConcurrentMarkers;
-
  public:
   static constexpr int kMutatorThreadId = 0;
 
@@ -29,13 +26,13 @@ class MarkingWorklists {
   // Segment size of 512 entries necessary to avoid throughput regressions.
   // Since the work list is currently a temporary object this is not a problem.
   using MarkingWorklist =
-      Worklist<MarkingItem, 512 /* local entries */, kNumMarkers>;
+      heap::base::Worklist<MarkingItem, 512 /* local entries */>;
   using NotFullyConstructedWorklist =
-      Worklist<HeapObjectHeader*, 16 /* local entries */, kNumMarkers>;
+      heap::base::Worklist<HeapObjectHeader*, 16 /* local entries */>;
   using WeakCallbackWorklist =
-      Worklist<WeakCallbackItem, 64 /* local entries */, kNumMarkers>;
+      heap::base::Worklist<WeakCallbackItem, 64 /* local entries */>;
   using WriteBarrierWorklist =
-      Worklist<HeapObjectHeader*, 64 /*local entries */, kNumMarkers>;
+      heap::base::Worklist<HeapObjectHeader*, 64 /*local entries */>;
 
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
   NotFullyConstructedWorklist* not_fully_constructed_worklist() {
@@ -50,10 +47,6 @@ class MarkingWorklists {
   WeakCallbackWorklist* weak_callback_worklist() {
     return &weak_callback_worklist_;
   }
-
-  // Moves objects in not_fully_constructed_worklist_ to
-  // previously_not_full_constructed_worklists_.
-  void FlushNotFullyConstructedObjects();
 
   void ClearForTesting();
 

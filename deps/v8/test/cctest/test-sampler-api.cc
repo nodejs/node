@@ -45,7 +45,7 @@ class SamplingTestHelper {
     instance_ = this;
     v8::HandleScope scope(isolate_);
     v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
-    global->Set(v8_str("CollectSample"),
+    global->Set(isolate_, "CollectSample",
                 v8::FunctionTemplate::New(isolate_, CollectSample));
     LocalContext env(isolate_, nullptr, global);
     isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault,

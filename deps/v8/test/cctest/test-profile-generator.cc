@@ -200,9 +200,7 @@ TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileTreeTestHelper helper(&tree);
 
-  ProfileStackTrace path = {{{&c, 5}, kNullAddress, false},
-                            {{&b, 3}, kNullAddress, false},
-                            {{&a, 1}, kNullAddress, false}};
+  ProfileStackTrace path = {{{&c, 5}}, {{&b, 3}}, {{&a, 1}}};
   tree.AddPathFromEnd(path, v8::CpuProfileNode::kNoLineNumberInfo, true,
                       v8::CpuProfilingMode::kCallerLineNumbers);
 

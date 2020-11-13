@@ -450,8 +450,7 @@ class ProfilerHelper {
       v8::Local<v8::Function> function, v8::Local<v8::Value> argv[], int argc,
       unsigned min_js_samples = 0, unsigned min_external_samples = 0,
       ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
-      unsigned max_samples = v8::CpuProfilingOptions::kNoSampleLimit,
-      v8::Local<v8::Context> context = v8::Local<v8::Context>());
+      unsigned max_samples = v8::CpuProfilingOptions::kNoSampleLimit);
 
   v8::CpuProfiler* profiler() { return profiler_; }
 
@@ -464,12 +463,11 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
                                     v8::Local<v8::Value> argv[], int argc,
                                     unsigned min_js_samples,
                                     unsigned min_external_samples,
-                                    ProfilingMode mode, unsigned max_samples,
-                                    v8::Local<v8::Context> context) {
+                                    ProfilingMode mode, unsigned max_samples) {
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
   profiler_->SetSamplingInterval(100);
-  profiler_->StartProfiling(profile_name, {mode, max_samples, 0, context});
+  profiler_->StartProfiling(profile_name, {mode, max_samples, 0});
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
@@ -996,7 +994,7 @@ TEST(NativeMethodUninitializedIC) {
   v8::Local<v8::Signature> signature =
       v8::Signature::New(isolate, func_template);
   proto_template->Set(
-      v8_str("fooMethod"),
+      isolate, "fooMethod",
       v8::FunctionTemplate::New(isolate, &TestApiCallbacks::Callback, data,
                                 signature, 0));
 
@@ -1037,7 +1035,7 @@ TEST(NativeMethodMonomorphicIC) {
   v8::Local<v8::Signature> signature =
       v8::Signature::New(isolate, func_template);
   proto_template->Set(
-      v8_str("fooMethod"),
+      isolate, "fooMethod",
       v8::FunctionTemplate::New(isolate, &TestApiCallbacks::Callback, data,
                                 signature, 0));
 
@@ -1245,7 +1243,7 @@ static const char* call_function_test_source =
     "  } while (Date.now() - start < duration);\n"
     "}";
 
-// Test that if we sampled thread when it was inside FunctionCall buitin then
+// Test that if we sampled thread when it was inside FunctionCall builtin then
 // its caller frame will be '(unresolved function)' as we have no reliable way
 // to resolve it.
 //
@@ -2111,9 +2109,7 @@ TEST(FunctionDetails) {
       "script_b", true);
   script_b->Run(env).ToLocalChecked();
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
-  const v8::CpuProfileNode* current = profile->GetTopDownRoot();
-  reinterpret_cast<ProfileNode*>(const_cast<v8::CpuProfileNode*>(current))
-      ->Print(0);
+  reinterpret_cast<const i::CpuProfile*>(profile)->Print();
   // The tree should look like this:
   //  0   (root) 0 #1
   //  0    "" 19 #2 no reason script_b:1
@@ -2189,9 +2185,7 @@ TEST(FunctionDetailsInlining) {
   script_a->Run(env).ToLocalChecked();
 
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
-  const v8::CpuProfileNode* current = profile->GetTopDownRoot();
-  reinterpret_cast<ProfileNode*>(const_cast<v8::CpuProfileNode*>(current))
-      ->Print(0);
+  reinterpret_cast<const i::CpuProfile*>(profile)->Print();
   //   The tree should look like this:
   //  0  (root) 0 #1
   //  5    (program) 0 #6
@@ -2216,6 +2210,84 @@ TEST(FunctionDetailsInlining) {
   if (!beta) return;
   CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b", true,
                        script_b->GetUnboundScript()->GetId(), 1, 14, alpha);
+}
+
+static const char* pre_profiling_osr_script = R"(
+    function whenPass(pass, optDuration) {
+      if (pass == 5) startProfiling();
+    }
+    function hot(optDuration, deoptDuration) {
+      const startTime = Date.now();
+      %PrepareFunctionForOptimization(hot);
+      for (let pass = 0; pass <= optDuration + deoptDuration; pass++) {
+        // Let a few passes go by to ensure we have enough feeback info
+        if (pass == 3) %OptimizeOsr();
+        // Force deoptimization. %DeoptimizeNow and %DeoptimizeFunction don't
+        // doptimize OSRs.
+        if (pass == optDuration) whenPass = () => {};
+        whenPass(pass, optDuration);
+        for (let i = 0; i < 1e5; i++) {
+          for (let j = 0; j < 1000; j++) {
+            x = Math.random() * j;
+          }
+          if ((Date.now() - startTime) > pass) break;
+        }
+      }
+    }
+    function notHot(optDuration, deoptDuration) {
+      hot(optDuration, deoptDuration);
+      stopProfiling()
+    }
+  )";
+
+// Testing profiling of OSR code that was OSR optimized before profiling
+// started. Currently the behavior is not quite right so we're currently
+// testing a deopt event being sent to the sampling thread for a function
+// it knows nothing about. This deopt does mean we start getting samples
+// for hot so we expect some samples, just fewer than for notHot.
+//
+// We should get something like:
+//     0  (root):0 3 0 #1
+//    12    (garbage collector):0 3 0 #5
+//     5    notHot:22 0 4 #2
+//    85      hot:5 0 4 #6
+//     0      whenPass:2 0 4 #3
+//     0        startProfiling:0 2 0 #4
+//
+// But currently get something like:
+//     0  (root):0 3 0 #1
+//    12    (garbage collector):0 3 0 #5
+//    57    notHot:22 0 4 #2
+//    33      hot:5 0 4 #6
+//     0      whenPass:2 0 4 #3
+//     0        startProfiling:0 2 0 #4
+
+TEST(StartProfilingAfterOsr) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+  ProfilerHelper helper(env);
+  CompileRun(pre_profiling_osr_script);
+  v8::Local<v8::Function> function = GetFunction(env, "notHot");
+
+  int32_t profiling_optimized_ms = 80;
+  int32_t profiling_deoptimized_ms = 40;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), profiling_optimized_ms),
+      v8::Integer::New(env->GetIsolate(), profiling_deoptimized_ms)};
+  function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
+  CHECK(profile);
+  reinterpret_cast<const i::CpuProfile*>(profile)->Print();
+
+  const CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* notHotNode = GetChild(env, root, "notHot");
+  const v8::CpuProfileNode* hotNode = GetChild(env, notHotNode, "hot");
+  USE(hotNode);
+  // If/when OSR sampling is fixed the following CHECK_GT could/should be
+  // uncommented and the node = node line deleted.
+  // CHECK_GT(hotNode->GetHitCount(), notHotNode->GetHitCount());
 }
 
 TEST(DontStopOnFinishedProfileDelete) {
@@ -3096,6 +3168,99 @@ TEST(MultipleIsolates) {
   thread2.Join();
 }
 
+// Varying called function frame sizes increases the chance of something going
+// wrong if sampling an unlocked frame. We also prevent optimization to prevent
+// inlining so each function call has its own frame.
+const char* varying_frame_size_script = R"(
+    %NeverOptimizeFunction(maybeYield);
+    %NeverOptimizeFunction(bar);
+    %NeverOptimizeFunction(foo);
+    function maybeYield(n) {
+      YieldIsolate(Math.random() > yieldLimit);
+    }
+    function bar(a, b, c, d) {
+      maybeYield(Math.random());
+      return a.length + b.length + c.length + d.length;
+    }
+    function foo(timeLimit, yieldProbability) {
+      yieldLimit = 1 - yieldProbability;
+      const startTime = Date.now();
+      for (let i = 0; i < 1e6; i++) {
+        maybeYield(1);
+        bar("Hickory", "Dickory", "Doc", "Mouse");
+        YieldIsolate(Math.random() > 0.999);
+        if ((Date.now() - startTime) > timeLimit) break;
+      }
+    }
+  )";
+
+class UnlockingThread : public v8::base::Thread {
+ public:
+  explicit UnlockingThread(v8::Local<v8::Context> env)
+      : Thread(Options("UnlockingThread")), env_(CcTest::isolate(), env) {}
+
+  void Run() override {
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> env = v8::Local<v8::Context>::New(isolate, env_);
+    Profile(env);
+  }
+
+  static void Profile(v8::Local<v8::Context> env) {
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Context::Scope context_scope(env);
+    v8::CpuProfiler* profiler = v8::CpuProfiler::New(isolate);
+    profiler->SetSamplingInterval(200);
+    v8::Local<v8::String> profile_name = v8_str("1");
+    profiler->StartProfiling(profile_name);
+    int32_t time_limit = 200;
+    double yield_probability = 0.001;
+    v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, time_limit),
+                                   v8::Number::New(isolate, yield_probability)};
+    v8::Local<v8::Function> function = GetFunction(env, "foo");
+    function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+    profiler->StopProfiling(profile_name);
+    profiler->Dispose();
+  }
+
+ private:
+  v8::Persistent<v8::Context> env_;
+};
+
+// Checking for crashes with multiple thread/single Isolate profiling.
+TEST(MultipleThreadsSingleIsolate) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+  CcTest::AddGlobalFunction(
+      env, "YieldIsolate", [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        v8::Isolate* isolate = info.GetIsolate();
+        if (!info[0]->IsTrue()) return;
+        v8::Unlocker unlocker(isolate);
+        v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
+      });
+
+  CompileRun(varying_frame_size_script);
+  UnlockingThread thread1(env);
+  UnlockingThread thread2(env);
+
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
+
+  // For good measure, profile on our own thread
+  UnlockingThread::Profile(env);
+  {
+    v8::Unlocker unlocker(isolate);
+    thread1.Join();
+    thread2.Join();
+  }
+}
+
 // Tests that StopProfiling doesn't wait for the next sample tick in order to
 // stop, but rather exits early before a given wait threshold.
 TEST(FastStopProfiling) {
@@ -3448,140 +3613,6 @@ TEST(Bug9151StaleCodeEntries) {
 
   auto* callback = FindChild(env.local(), start, "CallCollectSample");
   CHECK(callback);
-}
-
-// Tests that functions from other contexts aren't recorded when filtering for
-// another context.
-TEST(ContextIsolation) {
-  i::FLAG_allow_natives_syntax = true;
-  LocalContext execution_env;
-  i::HandleScope scope(CcTest::i_isolate());
-
-  // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
-      execution_env.local()->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
-
-  ProfilerHelper helper(execution_env.local());
-  CompileRun(R"(
-    function optimized() {
-      CallCollectSample();
-    }
-
-    function unoptimized() {
-      CallCollectSample();
-    }
-
-    function start() {
-      // Test optimized functions
-      %PrepareFunctionForOptimization(optimized);
-      optimized();
-      optimized();
-      %OptimizeFunctionOnNextCall(optimized);
-      optimized();
-
-      // Test unoptimized functions
-      %NeverOptimizeFunction(unoptimized);
-      unoptimized();
-
-      // Test callback
-      CallCollectSample();
-    }
-  )");
-  v8::Local<v8::Function> function =
-      GetFunction(execution_env.local(), "start");
-
-  v8::CpuProfile* same_context_profile = helper.Run(
-      function, nullptr, 0, 0, 0, v8::CpuProfilingMode::kLeafNodeLineNumbers,
-      v8::CpuProfilingOptions::kNoSampleLimit, execution_env.local());
-  const v8::CpuProfileNode* root = same_context_profile->GetTopDownRoot();
-  const v8::CpuProfileNode* start_node = FindChild(root, "start");
-  CHECK(start_node);
-  const v8::CpuProfileNode* optimized_node = FindChild(start_node, "optimized");
-  CHECK(optimized_node);
-  const v8::CpuProfileNode* unoptimized_node =
-      FindChild(start_node, "unoptimized");
-  CHECK(unoptimized_node);
-  const v8::CpuProfileNode* callback_node =
-      FindChild(start_node, "CallCollectSample");
-  CHECK(callback_node);
-
-  {
-    LocalContext filter_env;
-    v8::CpuProfile* diff_context_profile = helper.Run(
-        function, nullptr, 0, 0, 0, v8::CpuProfilingMode::kLeafNodeLineNumbers,
-        v8::CpuProfilingOptions::kNoSampleLimit, filter_env.local());
-    const v8::CpuProfileNode* diff_root =
-        diff_context_profile->GetTopDownRoot();
-    // Ensure that no children were recorded (including callbacks, builtins).
-    CHECK(!FindChild(diff_root, "start"));
-  }
-}
-
-// Tests that when a native context that's being filtered is moved, we continue
-// to track its execution.
-TEST(ContextFilterMovedNativeContext) {
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_manual_evacuation_candidates_selection = true;
-  LocalContext env;
-  i::HandleScope scope(CcTest::i_isolate());
-
-  {
-    // Install CollectSample callback for more deterministic sampling.
-    v8::Local<v8::FunctionTemplate> sample_func_template =
-        v8::FunctionTemplate::New(env.local()->GetIsolate(), CallCollectSample);
-    v8::Local<v8::Function> sample_func =
-        sample_func_template->GetFunction(env.local()).ToLocalChecked();
-    sample_func->SetName(v8_str("CallCollectSample"));
-    env->Global()
-        ->Set(env.local(), v8_str("CallCollectSample"), sample_func)
-        .FromJust();
-
-    // Install a function that triggers the native context to be moved.
-    v8::Local<v8::FunctionTemplate> move_func_template =
-        v8::FunctionTemplate::New(
-            env.local()->GetIsolate(),
-            [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-              i::Isolate* isolate =
-                  reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              i::heap::ForceEvacuationCandidate(
-                  i::Page::FromHeapObject(isolate->raw_native_context()));
-              CcTest::CollectAllGarbage();
-            });
-    v8::Local<v8::Function> move_func =
-        move_func_template->GetFunction(env.local()).ToLocalChecked();
-    move_func->SetName(v8_str("ForceNativeContextMove"));
-    env->Global()
-        ->Set(env.local(), v8_str("ForceNativeContextMove"), move_func)
-        .FromJust();
-
-    ProfilerHelper helper(env.local());
-    CompileRun(R"(
-      function start() {
-        ForceNativeContextMove();
-        CallCollectSample();
-      }
-    )");
-    v8::Local<v8::Function> function = GetFunction(env.local(), "start");
-
-    v8::CpuProfile* profile = helper.Run(
-        function, nullptr, 0, 0, 0, v8::CpuProfilingMode::kLeafNodeLineNumbers,
-        v8::CpuProfilingOptions::kNoSampleLimit, env.local());
-    const v8::CpuProfileNode* root = profile->GetTopDownRoot();
-    const v8::CpuProfileNode* start_node = FindChild(root, "start");
-    CHECK(start_node);
-
-    // Verify that after moving the native context, CallCollectSample is still
-    // recorded.
-    const v8::CpuProfileNode* callback_node =
-        FindChild(start_node, "CallCollectSample");
-    CHECK(callback_node);
-  }
 }
 
 enum class EntryCountMode { kAll, kOnlyInlined };

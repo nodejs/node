@@ -36,9 +36,25 @@
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "starboard/atomic.h"
+
+#if SB_API_VERSION < 10
+#error Your version of Starboard must support SbAtomic8 in order to use V8.
+#endif  // SB_API_VERSION < 10
+#endif  // V8_OS_STARBOARD
+
 namespace v8 {
 namespace base {
 
+#ifdef V8_OS_STARBOARD
+using Atomic8 = SbAtomic8;
+using Atomic16 = int16_t;
+using Atomic32 = SbAtomic32;
+#if SB_IS_64_BIT
+using Atomic64 = SbAtomic64;
+#endif
+#else
 using Atomic8 = char;
 using Atomic16 = int16_t;
 using Atomic32 = int32_t;
@@ -51,10 +67,15 @@ using Atomic64 = int64_t;
 using Atomic64 = intptr_t;
 #endif  // defined(__ILP32__)
 #endif  // defined(V8_HOST_ARCH_64_BIT)
+#endif  // V8_OS_STARBOARD
 
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
+#if defined(V8_OS_STARBOARD)
+using AtomicWord = SbAtomicPtr;
+#else
 using AtomicWord = intptr_t;
+#endif
 
 // Atomically execute:
 //   result = *ptr;
@@ -126,7 +147,7 @@ Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 }  // namespace base
 }  // namespace v8
 
-#if defined(V8_OS_WIN)
+#if defined(V8_OS_WIN) || defined(V8_OS_STARBOARD)
 #include "src/base/atomicops_internals_std.h"
 #else
 // TODO(ulan): Switch to std version after performance regression with Wheezy

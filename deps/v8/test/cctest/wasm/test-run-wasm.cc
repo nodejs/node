@@ -600,28 +600,28 @@ WASM_EXEC_TEST(IfElse_P) {
 
 WASM_EXEC_TEST(If_empty1) {
   WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
-  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kLocalVoid, kExprEnd, WASM_GET_LOCAL(1));
+  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kVoidCode, kExprEnd, WASM_GET_LOCAL(1));
   FOR_UINT32_INPUTS(i) { CHECK_EQ(i, r.Call(i - 9, i)); }
 }
 
 WASM_EXEC_TEST(IfElse_empty1) {
   WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
-  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kLocalVoid, kExprElse, kExprEnd,
+  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kVoidCode, kExprElse, kExprEnd,
         WASM_GET_LOCAL(1));
   FOR_UINT32_INPUTS(i) { CHECK_EQ(i, r.Call(i - 8, i)); }
 }
 
 WASM_EXEC_TEST(IfElse_empty2) {
   WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
-  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kLocalVoid, WASM_NOP, kExprElse,
-        kExprEnd, WASM_GET_LOCAL(1));
+  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kVoidCode, WASM_NOP, kExprElse, kExprEnd,
+        WASM_GET_LOCAL(1));
   FOR_UINT32_INPUTS(i) { CHECK_EQ(i, r.Call(i - 7, i)); }
 }
 
 WASM_EXEC_TEST(IfElse_empty3) {
   WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
-  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kLocalVoid, kExprElse, WASM_NOP,
-        kExprEnd, WASM_GET_LOCAL(1));
+  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kVoidCode, kExprElse, WASM_NOP, kExprEnd,
+        WASM_GET_LOCAL(1));
   FOR_UINT32_INPUTS(i) { CHECK_EQ(i, r.Call(i - 6, i)); }
 }
 
@@ -1226,7 +1226,7 @@ WASM_EXEC_TEST(BrIfEmpty) {
 
 WASM_EXEC_TEST(Block_empty) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  BUILD(r, kExprBlock, kLocalVoid, kExprEnd, WASM_GET_LOCAL(0));
+  BUILD(r, kExprBlock, kVoidCode, kExprEnd, WASM_GET_LOCAL(0));
   FOR_INT32_INPUTS(i) { CHECK_EQ(i, r.Call(i)); }
 }
 
@@ -1287,7 +1287,7 @@ WASM_EXEC_TEST(Block_If_P) {
 
 WASM_EXEC_TEST(Loop_empty) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  BUILD(r, kExprLoop, kLocalVoid, kExprEnd, WASM_GET_LOCAL(0));
+  BUILD(r, kExprLoop, kVoidCode, kExprEnd, WASM_GET_LOCAL(0));
   FOR_INT32_INPUTS(i) { CHECK_EQ(i, r.Call(i)); }
 }
 
@@ -1817,12 +1817,12 @@ WASM_EXEC_TEST(CheckMachIntsZero) {
   r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
 
   BUILD(r,                               // --
-        /**/ kExprLoop, kLocalVoid,      // --
+        /**/ kExprLoop, kVoidCode,       // --
         /*  */ kExprLocalGet, 0,         // --
-        /*  */ kExprIf, kLocalVoid,      // --
+        /*  */ kExprIf, kVoidCode,       // --
         /*    */ kExprLocalGet, 0,       // --
         /*    */ kExprI32LoadMem, 0, 0,  // --
-        /*    */ kExprIf, kLocalVoid,    // --
+        /*    */ kExprIf, kVoidCode,     // --
         /*      */ kExprI32Const, 127,   // --
         /*      */ kExprReturn,          // --
         /*    */ kExprEnd,               // --
@@ -3374,7 +3374,7 @@ WASM_EXEC_TEST(BrToLoopWithValue) {
   // Subtracts <1> times 3 from <0> and returns the result.
   BUILD(r,
         // loop i32
-        kExprLoop, kLocalI32,
+        kExprLoop, kI32Code,
         // decrement <0> by 3.
         WASM_SET_LOCAL(0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V_1(3))),
         // decrement <1> by 1.
@@ -3392,7 +3392,7 @@ WASM_EXEC_TEST(BrToLoopWithoutValue) {
   // This was broken in the interpreter, see http://crbug.com/715454
   WasmRunner<int32_t, int32_t> r(execution_tier);
   BUILD(
-      r, kExprLoop, kLocalI32,                                       // loop i32
+      r, kExprLoop, kI32Code,                                        // loop i32
       WASM_SET_LOCAL(0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_ONE)),  // dec <0>
       WASM_BR_IF(0, WASM_GET_LOCAL(0)),  // br_if <0> != 0
       kExprUnreachable,                  // unreachable
@@ -3778,7 +3778,7 @@ TEST(Regression_1085507) {
   WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
   TestSignatures sigs;
   uint32_t sig_v_i = r.builder().AddSignature(sigs.v_i());
-  BUILD(r, WASM_I32V_1(0), kExprIf, kLocalVoid, WASM_UNREACHABLE,
+  BUILD(r, WASM_I32V_1(0), kExprIf, kVoidCode, WASM_UNREACHABLE,
         WASM_BLOCK_X(sig_v_i, kExprDrop), kExprElse, kExprEnd, WASM_I32V_1(0));
 }
 

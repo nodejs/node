@@ -20,12 +20,11 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
   if (integer > 0xFFFF) bytes = 3;
   if (integer > 0xFFFFFF) bytes = 4;
   integer |= (bytes - 1);
-  Put(static_cast<int>(integer & 0xFF), "IntPart1");
-  if (bytes > 1) Put(static_cast<int>((integer >> 8) & 0xFF), "IntPart2");
-  if (bytes > 2) Put(static_cast<int>((integer >> 16) & 0xFF), "IntPart3");
-  if (bytes > 3) Put(static_cast<int>((integer >> 24) & 0xFF), "IntPart4");
+  Put(static_cast<byte>(integer & 0xFF), "IntPart1");
+  if (bytes > 1) Put(static_cast<byte>((integer >> 8) & 0xFF), "IntPart2");
+  if (bytes > 2) Put(static_cast<byte>((integer >> 16) & 0xFF), "IntPart3");
+  if (bytes > 3) Put(static_cast<byte>((integer >> 24) & 0xFF), "IntPart4");
 }
-
 
 void SnapshotByteSink::PutRaw(const byte* data, int number_of_bytes,
                               const char* description) {

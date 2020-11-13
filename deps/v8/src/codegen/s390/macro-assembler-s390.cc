@@ -379,6 +379,37 @@ void TurboAssembler::BranchRelativeOnIdxHighP(Register dst, Register inc,
 #endif  // V8_TARGET_ARCH_S390X
 }
 
+void TurboAssembler::PushArray(Register array, Register size, Register scratch,
+                               Register scratch2, PushArrayOrder order) {
+  Label loop, done;
+
+  if (order == kNormal) {
+    ShiftLeftP(scratch, size, Operand(kSystemPointerSizeLog2));
+    lay(scratch, MemOperand(array, scratch));
+    bind(&loop);
+    CmpP(array, scratch);
+    bge(&done);
+    lay(scratch, MemOperand(scratch, -kSystemPointerSize));
+    lay(sp, MemOperand(sp, -kSystemPointerSize));
+    MoveChar(MemOperand(sp), MemOperand(scratch), Operand(kSystemPointerSize));
+    b(&loop);
+    bind(&done);
+  } else {
+    DCHECK_NE(scratch2, r0);
+    ShiftLeftP(scratch, size, Operand(kSystemPointerSizeLog2));
+    lay(scratch, MemOperand(array, scratch));
+    LoadRR(scratch2, array);
+    bind(&loop);
+    CmpP(scratch2, scratch);
+    bge(&done);
+    lay(sp, MemOperand(sp, -kSystemPointerSize));
+    MoveChar(MemOperand(sp), MemOperand(scratch2), Operand(kSystemPointerSize));
+    lay(scratch2, MemOperand(scratch2, kSystemPointerSize));
+    b(&loop);
+    bind(&done);
+  }
+}
+
 void TurboAssembler::MultiPush(RegList regs, Register location) {
   int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kSystemPointerSize;
@@ -759,6 +790,7 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
     fp_delta = 1;
   }
   la(fp, MemOperand(sp, fp_delta * kSystemPointerSize));
+  Push(kJavaScriptCallArgCountRegister);
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
@@ -1379,8 +1411,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
-    ShiftLeftP(r6, actual_parameter_count, Operand(kSystemPointerSizeLog2));
-    LoadP(r6, MemOperand(sp, r6));
+    LoadReceiver(r6, actual_parameter_count);
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
 

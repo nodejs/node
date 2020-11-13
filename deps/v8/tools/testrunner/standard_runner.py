@@ -28,8 +28,6 @@ from testrunner.testproc.seed import SeedProc
 from testrunner.testproc.variant import VariantProc
 
 
-ARCH_GUESS = utils.DefaultArch()
-
 VARIANTS = ['default']
 
 MORE_VARIANTS = [
@@ -109,11 +107,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                       help='Regard pass|fail tests (run|skip|dontcare)')
     parser.add_option('--quickcheck', default=False, action='store_true',
                       help=('Quick check mode (skip slow tests)'))
-    parser.add_option('--dont-skip-slow-simulator-tests',
-                      help='Don\'t skip more slow tests when using a'
-                      ' simulator.',
-                      default=False, action='store_true',
-                      dest='dont_skip_simulator_slow_tests')
 
     # Stress modes
     parser.add_option('--gc-stress',
@@ -282,19 +275,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     variables = (
         super(StandardTestRunner, self)._get_statusfile_variables(options))
 
-    simulator_run = (
-      not options.dont_skip_simulator_slow_tests and
-      self.build_config.arch in [
-        'arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', 'ppc',
-        'ppc64', 's390', 's390x'] and
-      bool(ARCH_GUESS) and
-      self.build_config.arch != ARCH_GUESS)
-
     variables.update({
       'gc_stress': options.gc_stress or options.random_gc_stress,
       'gc_fuzzer': options.random_gc_stress,
       'novfp3': options.novfp3,
-      'simulator_run': simulator_run,
     })
     return variables
 

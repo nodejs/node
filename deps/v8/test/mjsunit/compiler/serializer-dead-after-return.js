@@ -15,6 +15,7 @@ function main(b, ret) {
   if (b) return ret;
 
   x.foo = 42;
+  out = x;  // Prevent x's new map from dying too early.
   return f(y);
 }
 

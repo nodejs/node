@@ -10,6 +10,7 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
@@ -151,6 +152,7 @@ TEST_F(HeapWithPointerCompressionTest, HeapLayout) {
   // Check that all memory chunks belong this region.
   base::AddressRegion heap_reservation(isolate_root, size_t{4} * GB);
 
+  SafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
   for (;;) {
     MemoryChunk* chunk = iter.next();

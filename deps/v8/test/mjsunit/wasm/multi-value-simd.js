@@ -33,7 +33,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // For each v128 on the stack, we return the first and last lane. This help
   // catch bugs with reading/writing the wrong stack slots.
   builder.addFunction("main", sig_iiiiiiiiii_v)
-    .addLocals({"i32_count": 10, "s128_count": 1})
+    .addLocals(kWasmI32, 10).addLocals(kWasmS128, 1)
     .addBody([
       kExprCallFunction, callee.index,
 

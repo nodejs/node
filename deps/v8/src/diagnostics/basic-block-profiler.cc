@@ -10,7 +10,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/heap/heap-inl.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -598,7 +598,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_size(tables_.size());
     for (const WasmTable& table : tables_) {
       buffer->write_u8(table.type.value_type_code());
-      buffer->write_u8(table.has_maximum ? kHasMaximumFlag : kNoMaximumFlag);
+      buffer->write_u8(table.has_maximum ? kWithMaximum : kNoMaximum);
       buffer->write_size(table.min_size);
       if (table.has_maximum) buffer->write_size(table.max_size);
     }
@@ -610,11 +610,10 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kMemorySectionCode, buffer);
     buffer->write_u8(1);  // memory count
     if (has_shared_memory_) {
-      buffer->write_u8(has_max_memory_size_ ? MemoryFlags::kSharedAndMaximum
-                                            : MemoryFlags::kSharedNoMaximum);
+      buffer->write_u8(has_max_memory_size_ ? kSharedWithMaximum
+                                            : kSharedNoMaximum);
     } else {
-      buffer->write_u8(has_max_memory_size_ ? MemoryFlags::kMaximum
-                                            : MemoryFlags::kNoMaximum);
+      buffer->write_u8(has_max_memory_size_ ? kWithMaximum : kNoMaximum);
     }
     buffer->write_u32v(min_memory_size_);
     if (has_max_memory_size_) {

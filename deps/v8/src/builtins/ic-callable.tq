@@ -53,6 +53,12 @@ macro TransitionToMegamorphic(implicit context: Context)(
 macro CollectCallFeedback(
     maybeTarget: JSAny, context: Context,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
+  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
+  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  assert(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
   const feedbackVector =
       Cast<FeedbackVector>(maybeFeedbackVector) otherwise return;
   IncrementCallCount(feedbackVector, slotId);
@@ -97,6 +103,12 @@ macro CollectCallFeedback(
 macro CollectInstanceOfFeedback(
     maybeTarget: JSAny, context: Context,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
+  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
+  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  assert(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
   const feedbackVector =
       Cast<FeedbackVector>(maybeFeedbackVector) otherwise return;
   // Note: The call count is not incremented.
@@ -134,6 +146,12 @@ macro CollectConstructFeedback(implicit context: Context)(
     maybeFeedbackVector: Undefined|FeedbackVector,
     slotId: uintptr): never labels ConstructGeneric,
     ConstructArray(AllocationSite) {
+  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
+  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  assert(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
   const feedbackVector = Cast<FeedbackVector>(maybeFeedbackVector)
       otherwise goto ConstructGeneric;
   IncrementCallCount(feedbackVector, slotId);

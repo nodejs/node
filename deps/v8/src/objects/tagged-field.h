@@ -45,11 +45,11 @@ class TaggedField : public AllStatic {
 
   static inline T Relaxed_Load(HeapObject host, int offset = 0);
   template <typename LocalIsolate>
-  static T Relaxed_Load(const LocalIsolate* isolate, HeapObject host,
-                        int offset = 0);
+  static inline T Relaxed_Load(const LocalIsolate* isolate, HeapObject host,
+                               int offset = 0);
 
   static inline void Relaxed_Store(HeapObject host, T value);
-  static void Relaxed_Store(HeapObject host, int offset, T value);
+  static inline void Relaxed_Store(HeapObject host, int offset, T value);
 
   static inline T Acquire_Load(HeapObject host, int offset = 0);
   template <typename LocalIsolate>

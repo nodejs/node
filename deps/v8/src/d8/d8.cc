@@ -43,6 +43,7 @@
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
+#include "src/logging/log-utils.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -100,7 +101,7 @@ namespace {
 const int kMB = 1024 * 1024;
 
 #ifdef V8_FUZZILLI
-// REPRL = read-eval-print-loop
+// REPRL = read-eval-print-reset-loop
 // These file descriptors are being opened when Fuzzilli uses fork & execve to
 // run V8.
 #define REPRL_CRFD 100  // Control read file decriptor
@@ -472,6 +473,7 @@ std::atomic<int> Shell::unhandled_promise_rejections_{0};
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
+bool check_d8_flag_contradictions = true;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
@@ -712,7 +714,7 @@ std::string ToSTLString(Isolate* isolate, Local<String> v8_str) {
 
 bool IsAbsolutePath(const std::string& path) {
 #if defined(_WIN32) || defined(_WIN64)
-  // TODO(adamk): This is an incorrect approximation, but should
+  // This is an incorrect approximation, but should
   // work for all our test-running cases.
   return path.find(':') != std::string::npos;
 #else
@@ -723,7 +725,8 @@ bool IsAbsolutePath(const std::string& path) {
 std::string GetWorkingDirectory() {
 #if defined(_WIN32) || defined(_WIN64)
   char system_buffer[MAX_PATH];
-  // TODO(adamk): Support Unicode paths.
+  // Unicode paths are unsupported, which is fine as long as
+  // the test directory doesn't include any such paths.
   DWORD len = GetCurrentDirectoryA(MAX_PATH, system_buffer);
   CHECK_GT(len, 0);
   return system_buffer;
@@ -846,7 +849,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
     }
   }
   if (source_text.IsEmpty()) {
-    std::string msg = "Error reading: " + file_name;
+    std::string msg = "d8: Error reading module from " + file_name;
     Throw(isolate, msg.c_str());
     return MaybeLocal<Module>();
   }
@@ -1140,6 +1143,7 @@ PerIsolateData::PerIsolateData(Isolate* isolate)
   if (i::FLAG_expose_async_hooks) {
     async_hooks_wrapper_ = new AsyncHooks(isolate);
   }
+  ignore_unhandled_promises_ = false;
 }
 
 PerIsolateData::~PerIsolateData() {
@@ -1170,6 +1174,7 @@ MaybeLocal<Context> PerIsolateData::GetTimeoutContext() {
 }
 
 void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
+  if (ignore_unhandled_promises_) return;
   // Remove handled promises from the list
   DCHECK_EQ(promise->GetIsolate(), isolate_);
   for (auto it = unhandled_promises_.begin(); it != unhandled_promises_.end();
@@ -1184,28 +1189,28 @@ void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
 void PerIsolateData::AddUnhandledPromise(Local<Promise> promise,
                                          Local<Message> message,
                                          Local<Value> exception) {
+  if (ignore_unhandled_promises_) return;
   DCHECK_EQ(promise->GetIsolate(), isolate_);
   unhandled_promises_.emplace_back(v8::Global<v8::Promise>(isolate_, promise),
                                    v8::Global<v8::Message>(isolate_, message),
                                    v8::Global<v8::Value>(isolate_, exception));
 }
 
-size_t PerIsolateData::GetUnhandledPromiseCount() {
-  return unhandled_promises_.size();
-}
-
 int PerIsolateData::HandleUnhandledPromiseRejections() {
+  // Avoid recursive calls to HandleUnhandledPromiseRejections.
+  if (ignore_unhandled_promises_) return 0;
+  ignore_unhandled_promises_ = true;
   v8::HandleScope scope(isolate_);
   // Ignore promises that get added during error reporting.
-  size_t unhandled_promises_count = unhandled_promises_.size();
-  for (size_t i = 0; i < unhandled_promises_count; i++) {
+  size_t i = 0;
+  for (; i < unhandled_promises_.size(); i++) {
     const auto& tuple = unhandled_promises_[i];
     Local<v8::Message> message = std::get<1>(tuple).Get(isolate_);
     Local<v8::Value> value = std::get<2>(tuple).Get(isolate_);
     Shell::ReportException(isolate_, message, value);
   }
   unhandled_promises_.clear();
-  return static_cast<int>(unhandled_promises_count);
+  return static_cast<int>(i);
 }
 
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
@@ -1501,6 +1506,41 @@ void Shell::RealmSharedSet(Local<String> property, Local<Value> value,
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   data->realm_shared_.Reset(isolate, value);
+}
+
+void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope handle_scope(isolate);
+
+  std::string file_name = i_isolate->logger()->file_name();
+  if (!i::Log::IsLoggingToTemporaryFile(file_name)) {
+    Throw(isolate, "Only capturing from temporary files is supported.");
+    return;
+  }
+  if (!i_isolate->logger()->is_logging()) {
+    Throw(isolate, "Logging not enabled.");
+    return;
+  }
+
+  std::string raw_log;
+  FILE* log_file = i_isolate->logger()->TearDownAndGetLogFile();
+  CHECK_NOT_NULL(log_file);
+
+  bool exists = false;
+  raw_log = i::ReadFile(log_file, &exists, true);
+  fclose(log_file);
+
+  if (!exists) {
+    Throw(isolate, "Unable to read log file.");
+    return;
+  }
+  Local<String> result =
+      String::NewFromUtf8(isolate, raw_log.c_str(), NewStringType::kNormal,
+                          static_cast<int>(raw_log.size()))
+          .ToLocalChecked();
+
+  args.GetReturnValue().Set(result);
 }
 
 // async_hooks.createHook() registers functions to be called for different
@@ -2071,6 +2111,11 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
 
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
+  global_template->Set(Symbol::GetToStringTag(isolate),
+                       String::NewFromUtf8Literal(isolate, "global"));
+  global_template->Set(isolate, "version",
+                       FunctionTemplate::New(isolate, Version));
+
   global_template->Set(isolate, "print", FunctionTemplate::New(isolate, Print));
   global_template->Set(isolate, "printErr",
                        FunctionTemplate::New(isolate, PrintErr));
@@ -2089,57 +2134,37 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   if (!options.omit_quit) {
     global_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
   }
-  Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
-  global_template->Set(isolate, "testRunner", test_template);
-  test_template->Set(isolate, "notifyDone",
-                     FunctionTemplate::New(isolate, NotifyDone));
-  test_template->Set(isolate, "waitUntilDone",
-                     FunctionTemplate::New(isolate, WaitUntilDone));
-  // Reliable access to quit functionality. The "quit" method function
-  // installed on the global object can be hidden with the --omit-quit flag
-  // (e.g. on asan bots).
-  test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
+  global_template->Set(isolate, "testRunner",
+                       Shell::CreateTestRunnerTemplate(isolate));
+  global_template->Set(isolate, "Realm", Shell::CreateRealmTemplate(isolate));
+  global_template->Set(isolate, "performance",
+                       Shell::CreatePerformanceTemplate(isolate));
+  global_template->Set(isolate, "Worker", Shell::CreateWorkerTemplate(isolate));
+  global_template->Set(isolate, "os", Shell::CreateOSTemplate(isolate));
+  global_template->Set(isolate, "d8", Shell::CreateD8Template(isolate));
 
-  global_template->Set(isolate, "version",
-                       FunctionTemplate::New(isolate, Version));
-  global_template->Set(Symbol::GetToStringTag(isolate),
-                       String::NewFromUtf8Literal(isolate, "global"));
+#ifdef V8_FUZZILLI
+  global_template->Set(
+      String::NewFromUtf8(isolate, "fuzzilli", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, Fuzzilli), PropertyAttribute::DontEnum);
+#endif  // V8_FUZZILLI
 
-  // Bind the Realm object.
-  Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
-  realm_template->Set(isolate, "current",
-                      FunctionTemplate::New(isolate, RealmCurrent));
-  realm_template->Set(isolate, "owner",
-                      FunctionTemplate::New(isolate, RealmOwner));
-  realm_template->Set(isolate, "global",
-                      FunctionTemplate::New(isolate, RealmGlobal));
-  realm_template->Set(isolate, "create",
-                      FunctionTemplate::New(isolate, RealmCreate));
-  realm_template->Set(
-      isolate, "createAllowCrossRealmAccess",
-      FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
-  realm_template->Set(isolate, "navigate",
-                      FunctionTemplate::New(isolate, RealmNavigate));
-  realm_template->Set(isolate, "detachGlobal",
-                      FunctionTemplate::New(isolate, RealmDetachGlobal));
-  realm_template->Set(isolate, "dispose",
-                      FunctionTemplate::New(isolate, RealmDispose));
-  realm_template->Set(isolate, "switch",
-                      FunctionTemplate::New(isolate, RealmSwitch));
-  realm_template->Set(isolate, "eval",
-                      FunctionTemplate::New(isolate, RealmEval));
-  realm_template->SetAccessor(String::NewFromUtf8Literal(isolate, "shared"),
-                              RealmSharedGet, RealmSharedSet);
-  global_template->Set(isolate, "Realm", realm_template);
+  if (i::FLAG_expose_async_hooks) {
+    global_template->Set(isolate, "async_hooks",
+                         Shell::CreateAsyncHookTemplate(isolate));
+  }
 
-  Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
-  performance_template->Set(isolate, "now",
-                            FunctionTemplate::New(isolate, PerformanceNow));
-  performance_template->Set(
-      isolate, "measureMemory",
-      FunctionTemplate::New(isolate, PerformanceMeasureMemory));
-  global_template->Set(isolate, "performance", performance_template);
+  return global_template;
+}
 
+Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> os_template = ObjectTemplate::New(isolate);
+  AddOSMethods(isolate, os_template);
+  return os_template;
+}
+
+Local<FunctionTemplate> Shell::CreateWorkerTemplate(Isolate* isolate) {
   Local<FunctionTemplate> worker_fun_template =
       FunctionTemplate::New(isolate, WorkerNew);
   Local<Signature> worker_signature =
@@ -2164,34 +2189,83 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
                             worker_signature));
   worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
-  global_template->Set(isolate, "Worker", worker_fun_template);
+  return worker_fun_template;
+}
 
-  Local<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
-  AddOSMethods(isolate, os_templ);
-  global_template->Set(isolate, "os", os_templ);
+Local<ObjectTemplate> Shell::CreateAsyncHookTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
+  async_hooks_templ->Set(isolate, "createHook",
+                         FunctionTemplate::New(isolate, AsyncHooksCreateHook));
+  async_hooks_templ->Set(
+      isolate, "executionAsyncId",
+      FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
+  async_hooks_templ->Set(
+      isolate, "triggerAsyncId",
+      FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
+  return async_hooks_templ;
+}
 
-#ifdef V8_FUZZILLI
-  global_template->Set(
-      String::NewFromUtf8(isolate, "fuzzilli", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Fuzzilli), PropertyAttribute::DontEnum);
-#endif  // V8_FUZZILLI
+Local<ObjectTemplate> Shell::CreateTestRunnerTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
+  test_template->Set(isolate, "notifyDone",
+                     FunctionTemplate::New(isolate, NotifyDone));
+  test_template->Set(isolate, "waitUntilDone",
+                     FunctionTemplate::New(isolate, WaitUntilDone));
+  // Reliable access to quit functionality. The "quit" method function
+  // installed on the global object can be hidden with the --omit-quit flag
+  // (e.g. on asan bots).
+  test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
+  return test_template;
+}
 
-  if (i::FLAG_expose_async_hooks) {
-    Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
-    async_hooks_templ->Set(
-        isolate, "createHook",
-        FunctionTemplate::New(isolate, AsyncHooksCreateHook));
-    async_hooks_templ->Set(
-        isolate, "executionAsyncId",
-        FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
-    async_hooks_templ->Set(
-        isolate, "triggerAsyncId",
-        FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
-    global_template->Set(isolate, "async_hooks", async_hooks_templ);
+Local<ObjectTemplate> Shell::CreatePerformanceTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
+  performance_template->Set(isolate, "now",
+                            FunctionTemplate::New(isolate, PerformanceNow));
+  performance_template->Set(
+      isolate, "measureMemory",
+      FunctionTemplate::New(isolate, PerformanceMeasureMemory));
+  return performance_template;
+}
+
+Local<ObjectTemplate> Shell::CreateRealmTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
+  realm_template->Set(isolate, "current",
+                      FunctionTemplate::New(isolate, RealmCurrent));
+  realm_template->Set(isolate, "owner",
+                      FunctionTemplate::New(isolate, RealmOwner));
+  realm_template->Set(isolate, "global",
+                      FunctionTemplate::New(isolate, RealmGlobal));
+  realm_template->Set(isolate, "create",
+                      FunctionTemplate::New(isolate, RealmCreate));
+  realm_template->Set(
+      isolate, "createAllowCrossRealmAccess",
+      FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
+  realm_template->Set(isolate, "navigate",
+                      FunctionTemplate::New(isolate, RealmNavigate));
+  realm_template->Set(isolate, "detachGlobal",
+                      FunctionTemplate::New(isolate, RealmDetachGlobal));
+  realm_template->Set(isolate, "dispose",
+                      FunctionTemplate::New(isolate, RealmDispose));
+  realm_template->Set(isolate, "switch",
+                      FunctionTemplate::New(isolate, RealmSwitch));
+  realm_template->Set(isolate, "eval",
+                      FunctionTemplate::New(isolate, RealmEval));
+  realm_template->SetAccessor(String::NewFromUtf8Literal(isolate, "shared"),
+                              RealmSharedGet, RealmSharedSet);
+  return realm_template;
+}
+
+Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
+  Local<ObjectTemplate> d8_template = ObjectTemplate::New(isolate);
+  {
+    Local<ObjectTemplate> log_template = ObjectTemplate::New(isolate);
+    log_template->Set(isolate, "getAndStop",
+                      FunctionTemplate::New(isolate, LogGetAndStop));
+
+    d8_template->Set(isolate, "log", log_template);
   }
-
-  return global_template;
+  return d8_template;
 }
 
 static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
@@ -2794,33 +2868,35 @@ bool ends_with(const char* input, const char* suffix) {
 bool SourceGroup::Execute(Isolate* isolate) {
   bool success = true;
 #ifdef V8_FUZZILLI
-  HandleScope handle_scope(isolate);
-  Local<String> file_name =
-      String::NewFromUtf8(isolate, "fuzzcode.js", NewStringType::kNormal)
-          .ToLocalChecked();
+  if (fuzzilli_reprl) {
+    HandleScope handle_scope(isolate);
+    Local<String> file_name =
+        String::NewFromUtf8(isolate, "fuzzcode.js", NewStringType::kNormal)
+            .ToLocalChecked();
 
-  size_t script_size;
-  CHECK_EQ(read(REPRL_CRFD, &script_size, 8), 8);
-  char* buffer = new char[script_size + 1];
-  char* ptr = buffer;
-  size_t remaining = script_size;
-  while (remaining > 0) {
-    ssize_t rv = read(REPRL_DRFD, ptr, remaining);
-    CHECK_GE(rv, 0);
-    remaining -= rv;
-    ptr += rv;
-  }
-  buffer[script_size] = 0;
+    size_t script_size;
+    CHECK_EQ(read(REPRL_CRFD, &script_size, 8), 8);
+    char* buffer = new char[script_size + 1];
+    char* ptr = buffer;
+    size_t remaining = script_size;
+    while (remaining > 0) {
+      ssize_t rv = read(REPRL_DRFD, ptr, remaining);
+      CHECK_GE(rv, 0);
+      remaining -= rv;
+      ptr += rv;
+    }
+    buffer[script_size] = 0;
 
-  Local<String> source =
-      String::NewFromUtf8(isolate, buffer, NewStringType::kNormal)
-          .ToLocalChecked();
-  delete[] buffer;
-  Shell::set_script_executed();
-  if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
-                            Shell::kReportExceptions,
-                            Shell::kNoProcessMessageQueue)) {
-    return false;
+    Local<String> source =
+        String::NewFromUtf8(isolate, buffer, NewStringType::kNormal)
+            .ToLocalChecked();
+    delete[] buffer;
+    Shell::set_script_executed();
+    if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
+                              Shell::kReportExceptions,
+                              Shell::kNoProcessMessageQueue)) {
+      return false;
+    }
   }
 #endif  // V8_FUZZILLI
   for (int i = begin_offset_; i < end_offset_; ++i) {
@@ -3233,6 +3309,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 bool Shell::SetOptions(int argc, char* argv[]) {
   bool logfile_per_isolate = false;
+  bool no_always_opt = false;
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--") == 0) {
       argv[i] = nullptr;
@@ -3253,6 +3330,18 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-snapshot") == 0) {
       options.stress_snapshot = true;
+      // Incremental marking is incompatible with the stress_snapshot mode;
+      // specifically, serialization may clear bytecode arrays from shared
+      // function infos which the MarkCompactCollector (running concurrently)
+      // may still need. See also https://crbug.com/v8/10882.
+      //
+      // We thus force the implication
+      //
+      //   --stress-snapshot ~~> --no-incremental-marking
+      //
+      // Note: This is not an issue in production because we don't clear SFI's
+      // there (that only happens in mksnapshot and in --stress-snapshot mode).
+      i::FLAG_incremental_marking = false;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--nostress-snapshot") == 0 ||
                strcmp(argv[i], "--no-stress-snapshot") == 0) {
@@ -3260,8 +3349,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
-      // No support for stressing if we can't use --always-opt.
-      options.stress_opt = false;
+      no_always_opt = true;
+    } else if (strcmp(argv[i], "--fuzzing") == 0 ||
+               strcmp(argv[i], "--no-abort-on-contradictory-flags") == 0 ||
+               strcmp(argv[i], "--noabort-on-contradictory-flags") == 0) {
+      check_d8_flag_contradictions = false;
+    } else if (strcmp(argv[i], "--abort-on-contradictory-flags") == 0) {
+      check_d8_flag_contradictions = true;
     } else if (strcmp(argv[i], "--logfile-per-isolate") == 0) {
       logfile_per_isolate = true;
       argv[i] = nullptr;
@@ -3402,6 +3496,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
 
+  if (options.stress_opt && no_always_opt && check_d8_flag_contradictions) {
+    FATAL("Flag --no-always-opt is incompatible with --stress-opt.");
+  }
+
   const char* usage =
       "Synopsis:\n"
       "  shell [options] [--shell] [<file>...]\n"
@@ -3410,6 +3508,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       "  --shell   run an interactive JavaScript shell\n"
       "  --module  execute a file as a JavaScript module\n\n";
   using HelpOptions = i::FlagList::HelpOptions;
+  i::FLAG_abort_on_contradictory_flags = true;
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
                                        HelpOptions(HelpOptions::kExit, usage));
   options.mock_arraybuffer_allocator = i::FLAG_mock_arraybuffer_allocator;
@@ -3870,12 +3969,11 @@ class D8Testing {
         "--max-inlined-bytecode-size=999999 "
         "--max-inlined-bytecode-size-cumulative=999999 "
         "--noalways-opt";
-    static const char* kForcedOptimizations = "--always-opt";
 
-    if (run == GetStressRuns() - 1) {
-      V8::SetFlagsFromString(kForcedOptimizations);
-    } else {
+    if (run == 0) {
       V8::SetFlagsFromString(kLazyOptimizations);
+    } else if (run == GetStressRuns() - 1) {
+      i::FLAG_always_opt = true;
     }
   }
 
@@ -4117,7 +4215,7 @@ int Shell::Main(int argc, char* argv[]) {
         options.stress_runs = D8Testing::GetStressRuns();
         for (int i = 0; i < options.stress_runs && result == 0; i++) {
           printf("============ Stress %d/%d ============\n", i + 1,
-                 options.stress_runs);
+                 options.stress_runs.get());
           D8Testing::PrepareStressRun(i);
           bool last_run = i == options.stress_runs - 1;
           result = RunMain(isolate, last_run);
@@ -4128,7 +4226,7 @@ int Shell::Main(int argc, char* argv[]) {
         options.stress_runs = i::FLAG_stress_runs;
         for (int i = 0; i < options.stress_runs && result == 0; i++) {
           printf("============ Run %d/%d ============\n", i + 1,
-                 options.stress_runs);
+                 options.stress_runs.get());
           bool last_run = i == options.stress_runs - 1;
           result = RunMain(isolate, last_run);
         }
@@ -4155,14 +4253,16 @@ int Shell::Main(int argc, char* argv[]) {
         DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
                options.compile_options ==
                    v8::ScriptCompiler::kNoCompileOptions);
-        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-        options.code_cache_options =
-            ShellOptions::CodeCacheOptions::kNoProduceCache;
+        options.compile_options.Overwrite(
+            v8::ScriptCompiler::kConsumeCodeCache);
+        options.code_cache_options.Overwrite(
+            ShellOptions::CodeCacheOptions::kNoProduceCache);
 
         printf("============ Run: Consume code cache ============\n");
         // Second run to consume the cache in current isolate
         result = RunMain(isolate, true);
-        options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
+        options.compile_options.Overwrite(
+            v8::ScriptCompiler::kNoCompileOptions);
       } else {
         bool last_run = true;
         result = RunMain(isolate, last_run);
@@ -4219,6 +4319,10 @@ int Shell::Main(int argc, char* argv[]) {
                  << bitmap.size() << std::endl;
           iteration_counter++;
         }
+        // In REPRL mode, stdout and stderr can be regular files, so they need
+        // to be flushed after every execution
+        fflush(stdout);
+        fflush(stderr);
         CHECK_EQ(write(REPRL_CWFD, &status, 4), 4);
         sanitizer_cov_reset_edgeguards();
         if (options.fuzzilli_enable_builtins_coverage) {

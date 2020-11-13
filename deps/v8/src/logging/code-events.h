@@ -94,7 +94,6 @@ class CodeEventListener {
   // Not handlified as this happens during GC. No allocation allowed.
   virtual void CodeMoveEvent(AbstractCode from, AbstractCode to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
-  virtual void NativeContextMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
   virtual void CodeDisableOptEvent(Handle<AbstractCode> code,
                                    Handle<SharedFunctionInfo> shared) = 0;
@@ -203,11 +202,6 @@ class CodeEventDispatcher : public CodeEventListener {
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
       listener->SharedFunctionInfoMoveEvent(from, to);
-    });
-  }
-  void NativeContextMoveEvent(Address from, Address to) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->NativeContextMoveEvent(from, to);
     });
   }
   void CodeMovingGCEvent() override {

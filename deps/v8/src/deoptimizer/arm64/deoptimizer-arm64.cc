@@ -308,14 +308,9 @@ Float32 RegisterValues::GetFloatRegister(unsigned n) const {
 }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
-  // TODO(v8:10026): check that the pointer is still in the list of allowed
-  // builtins.
   Address new_context =
       static_cast<Address>(GetTop()) + offset + kPCOnStackSize;
-  uint64_t old_context = GetTop() + GetFrameSize();
-  PointerAuthentication::ReplaceContext(reinterpret_cast<Address*>(&value),
-                                        old_context, new_context);
-
+  value = PointerAuthentication::SignAndCheckPC(value, new_context);
   SetFrameSlot(offset, value);
 }
 
@@ -329,9 +324,11 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
 }
 
 void FrameDescription::SetPc(intptr_t pc) {
-  // TODO(v8:10026): we should only accept a specific list of allowed builtins
-  // here.
-  pc_ = PointerAuthentication::SignPCWithSP(pc, GetTop());
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+    CHECK(
+        Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc)));
+  }
+  pc_ = pc;
 }
 
 #undef __

@@ -32,7 +32,7 @@ const gen_i32_code = [
   kExprI32Const, 1,  // i32.const 1
   kExprI32Add        // i32.add     --> 2nd param
 ];
-builder.addFunction(undefined, kSig_v_v).addLocals({i32_count: 1}).addBody([
+builder.addFunction(undefined, kSig_v_v).addLocals(kWasmI32, 1).addBody([
   // Generate six values on the stack, then six more to force the other six on
   // the stack.
   ...wasmI32Const(0),    // i32.const 0

@@ -54,7 +54,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
   // I64 for the instruction parameter.
   builder.addFunction("main",
     makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmF64], [kWasmI32]))
-    .addLocals({i64_count: 1}) // local that is passed as value param to wait
+    .addLocals(kWasmI64, 1) // local that is passed as value param to wait
     .addBody([
       kExprLocalGet, 1,
       kExprI64UConvertI32,

@@ -3,15 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-proxy-gen.h"
+
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
-
 #include "src/logging/counters.h"
 #include "src/objects/js-proxy.h"
 #include "src/objects/objects-inl.h"
-
-#include "torque-generated/exported-macros-assembler-tq.h"
+#include "torque-generated/exported-macros-assembler.h"
 
 namespace v8 {
 namespace internal {

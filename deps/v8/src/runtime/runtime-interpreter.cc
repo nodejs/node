@@ -60,7 +60,7 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
   if ((is_input && interpreter::Bytecodes::ReadsAccumulator(bytecode)) ||
       (!is_input && interpreter::Bytecodes::WritesAccumulator(bytecode))) {
     os << "      [ " << kAccumulator << kArrowDirection;
-    accumulator->ShortPrint();
+    accumulator->ShortPrint(os);
     os << " ]" << std::endl;
   }
 

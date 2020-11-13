@@ -67,6 +67,9 @@ void PlatformEmbeddedFileWriterGeneric::DeclarePointerToSymbol(
 
 void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
   fprintf(fp_, ".global %s%s\n", SYMBOL_PREFIX, name);
+  // These symbols are not visible outside of the final binary, this allows for
+  // reduced binary size, and less work for the dynamic linker.
+  fprintf(fp_, ".hidden %s\n", name);
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
@@ -97,6 +100,10 @@ void PlatformEmbeddedFileWriterGeneric::SourceInfo(int fileid,
 
 void PlatformEmbeddedFileWriterGeneric::DeclareFunctionBegin(const char* name,
                                                              uint32_t size) {
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+    DeclareSymbolGlobal(name);
+  }
+
   DeclareLabel(name);
 
   if (target_arch_ == EmbeddedTargetArch::kArm ||

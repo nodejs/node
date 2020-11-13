@@ -49,7 +49,7 @@ class SweeperTest : public testing::TestWithHeap {
     heap->stats_collector()->NotifyMarkingStarted();
     heap->stats_collector()->NotifyMarkingCompleted(0);
     sweeper.Start(Sweeper::Config::kAtomic);
-    sweeper.Finish();
+    sweeper.FinishIfRunning();
   }
 
   void MarkObject(void* payload) {

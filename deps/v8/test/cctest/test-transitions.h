@@ -27,6 +27,8 @@ class TestTransitionsAccessor : public TransitionsAccessor {
   }
 
   int Capacity() { return TransitionsAccessor::Capacity(); }
+
+  TransitionArray transitions() { return TransitionsAccessor::transitions(); }
 };
 
 }  // namespace internal

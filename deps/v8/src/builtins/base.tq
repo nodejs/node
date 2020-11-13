@@ -330,6 +330,7 @@ extern enum MessageTemplate {
   kWasmTrapNullDereference,
   kWasmTrapIllegalCast,
   kWasmTrapArrayOutOfBounds,
+  kWasmTrapWasmJSFunction,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kWeakRefsRegisterTargetMustBeObject,
   kWeakRefsUnregisterTokenMustBeObject,
@@ -608,6 +609,7 @@ extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
 
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;
+extern macro IsUndefined(Object): bool;
 extern macro IsNullOrUndefined(Object): bool;
 extern macro IsString(HeapObject): bool;
 extern macro IsSeqOneByteString(HeapObject): bool;
@@ -635,6 +637,7 @@ extern transitioning runtime TransitionElementsKindWithKind(
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
 extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
+extern macro LoadBufferIntptr(RawPtr, constexpr int32): intptr;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
@@ -1035,6 +1038,12 @@ const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
 const kOneByteStringMap: Map = OneByteStringMapConstant();
 // The map of a non-internalized internal SeqTwoByteString.
 const kStringMap: Map = StringMapConstant();
+
+macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
+  return UintPtrGreaterThanOrEqual(
+      Convert<uintptr>(Convert<intptr>(index)),
+      Convert<uintptr>(Convert<intptr>(length)));
+}
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;
@@ -1632,14 +1641,15 @@ macro IsIntegerOrSomeInfinity(o: Object): bool {
 }
 
 builtin CheckNumberInRange(implicit context: Context)(
-    value: Number, min: Number, max: Number): Undefined {
+    value: Number, min: Number, max: Number, nodeId: Smi): Undefined {
   if (IsIntegerOrSomeInfinity(value) && min <= value && value <= max) {
     return Undefined;
   } else {
-    Print('Range type assertion failed! (value/min/max)');
+    Print('Range type assertion failed! (value/min/max/nodeId)');
     Print(value);
     Print(min);
     Print(max);
+    Print(nodeId);
     unreachable;
   }
 }

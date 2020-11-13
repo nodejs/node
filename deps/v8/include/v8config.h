@@ -70,6 +70,7 @@
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
 //  V8_OS_QNX           - QNX Neutrino
 //  V8_OS_SOLARIS       - Sun Solaris and OpenSolaris
+//  V8_OS_STARBOARD     - Starboard (platform abstraction for Cobalt)
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
 
@@ -93,6 +94,8 @@
 #elif defined(__sun)
 # define V8_OS_POSIX 1
 # define V8_OS_SOLARIS 1
+#elif defined(STARBOARD)
+# define V8_OS_STARBOARD 1
 #elif defined(_AIX)
 #define V8_OS_POSIX 1
 #define V8_OS_AIX 1
@@ -478,6 +481,15 @@ V8 shared library set USING_V8_SHARED.
 #endif
 
 #endif  // V8_OS_WIN
+
+// Support for floating point parameters in calls to C.
+// It's currently enabled only for the platforms listed below. We don't plan
+// to add support for IA32, because it has a totally different approach
+// (using FP stack). As support is added to more platforms, please make sure
+// to list them here in order to enable tests of this functionality.
+#if defined(V8_TARGET_ARCH_X64)
+#define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+#endif
 
 // clang-format on
 

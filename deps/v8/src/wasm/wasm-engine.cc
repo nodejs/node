@@ -117,15 +117,9 @@ class WasmGCForegroundTask : public CancelableTask {
 
   void RunInternal() final {
     WasmEngine* engine = isolate_->wasm_engine();
-    // If the foreground task is executing, there is no wasm code active. Just
-    // report an empty set of live wasm code.
-#ifdef ENABLE_SLOW_DCHECKS
-    for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
-      DCHECK_NE(StackFrame::WASM, it.frame()->type());
-    }
-#endif
-    CheckNoArchivedThreads(isolate_);
-    engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
+    // The stack can contain live frames, for instance when this is invoked
+    // during a pause or a breakpoint.
+    engine->ReportLiveCodeFromStackForGC(isolate_);
   }
 
  private:
@@ -865,9 +859,10 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
-  AsyncCompileJob* job =
-      new AsyncCompileJob(isolate, enabled, std::move(bytes_copy), length,
-                          context, api_method_name, std::move(resolver));
+  Handle<Context> incumbent_context = isolate->GetIncumbentContext();
+  AsyncCompileJob* job = new AsyncCompileJob(
+      isolate, enabled, std::move(bytes_copy), length, context,
+      incumbent_context, api_method_name, std::move(resolver));
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
   async_compile_jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
@@ -1041,6 +1036,8 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
     DCHECK_EQ(1, isolates_.count(isolate));
     code_to_log.swap(isolates_[isolate]->code_to_log);
   }
+  TRACE_EVENT1("v8.wasm", "wasm.LogCode", "num_code_objects",
+               code_to_log.size());
   if (code_to_log.empty()) return;
   for (WasmCode* code : code_to_log) {
     code->LogCode(isolate);
@@ -1372,8 +1369,8 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
     }
   }
   TRACE_CODE_GC(
-      "Starting GC. Total number of potentially dead code objects: %zu\n",
-      current_gc_info_->dead_code.size());
+      "Starting GC (nr %d). Number of potentially dead code objects: %zu\n",
+      current_gc_info_->gc_sequence_index, current_gc_info_->dead_code.size());
   // Ensure that there are outstanding isolates that will eventually finish this
   // GC. If there are no outstanding isolates, we finish the GC immediately.
   PotentiallyFinishCurrentGC();
@@ -1448,16 +1445,10 @@ std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   return *GetSharedWasmEngine();
 }
 
-// {max_initial_mem_pages} is declared in wasm-limits.h.
-uint32_t max_initial_mem_pages() {
+// {max_mem_pages} is declared in wasm-limits.h.
+uint32_t max_mem_pages() {
   STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
   return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
-}
-
-uint32_t max_maximum_mem_pages() {
-  STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
-  return std::min(uint32_t{kV8MaxWasmMemoryPages},
-                  FLAG_wasm_max_mem_pages_growth);
 }
 
 // {max_table_init_entries} is declared in wasm-limits.h.

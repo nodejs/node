@@ -395,7 +395,7 @@ int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
   int tasks = FLAG_parallel_compaction ? Min(NumberOfAvailableCores(),
                                              pages / (MB / Page::kPageSize) + 1)
                                        : 1;
-  if (!heap_->CanExpandOldGeneration(
+  if (!heap_->CanPromoteYoungAndExpandOldGeneration(
           static_cast<size_t>(tasks * Page::kPageSize))) {
     // Optimize for memory usage near the heap limit.
     tasks = 1;
@@ -456,6 +456,8 @@ void MarkCompactCollector::TearDown() {
   AbortWeakObjects();
   if (heap()->incremental_marking()->IsMarking()) {
     local_marking_worklists()->Publish();
+    heap()->marking_barrier()->Publish();
+    // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists()->Clear();
   }
 }
@@ -508,9 +510,6 @@ bool MarkCompactCollector::StartCompaction() {
 }
 
 void MarkCompactCollector::StartMarking() {
-  if (FLAG_concurrent_marking || FLAG_parallel_marking) {
-    heap_->new_lo_space()->ResetPendingObject();
-  }
   std::vector<Address> contexts =
       heap()->memory_measurement()->StartProcessing();
   if (FLAG_stress_per_context_marking_worklist) {
@@ -747,6 +746,11 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     } else {
       pages.push_back(std::make_pair(p->allocated_bytes(), p));
     }
+
+    // Unpin pages for the next GC
+    if (p->IsFlagSet(MemoryChunk::PINNED)) {
+      p->ClearFlag(MemoryChunk::PINNED);
+    }
   }
 
   int candidate_count = 0;
@@ -895,6 +899,11 @@ void MarkCompactCollector::Prepare() {
     heap_->safepoint()->IterateLocalHeaps(
         [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
   }
+
+  // All objects are guaranteed to be initialized in atomic pause
+  heap()->new_lo_space()->ResetPendingObject();
+  DCHECK_EQ(heap()->new_space()->top(),
+            heap()->new_space()->original_top_acquire());
 }
 
 void MarkCompactCollector::FinishConcurrentMarking(
@@ -1627,10 +1636,9 @@ void MarkCompactCollector::RevisitObject(HeapObject obj) {
 }
 
 void MarkCompactCollector::MarkDescriptorArrayFromWriteBarrier(
-    HeapObject host, DescriptorArray descriptors,
-    int number_of_own_descriptors) {
+    DescriptorArray descriptors, int number_of_own_descriptors) {
   marking_visitor_->MarkDescriptorArrayFromWriteBarrier(
-      host, descriptors, number_of_own_descriptors);
+      descriptors, number_of_own_descriptors);
 }
 
 void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
@@ -1953,6 +1961,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     IncrementalMarking* incremental_marking = heap_->incremental_marking();
     if (was_marked_incrementally_) {
       incremental_marking->Finalize();
+      MarkingBarrier::PublishAll(heap());
     } else {
       CHECK(incremental_marking->IsStopped());
     }
@@ -2056,9 +2065,8 @@ void MarkCompactCollector::MarkLiveObjects() {
           &IsUnmarkedHeapObject);
     }
   }
-
   if (was_marked_incrementally_) {
-    heap()->marking_barrier()->Deactivate();
+    MarkingBarrier::DeactivateAll(heap());
   }
 
   epoch_++;
@@ -3210,11 +3218,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                                  &page_parallel_job_semaphore_);
   intptr_t live_bytes = 0;
 
-  for (Page* page : old_space_evacuation_pages_) {
-    live_bytes += non_atomic_marking_state()->live_bytes(page);
-    evacuation_job.AddItem(new EvacuationItem(page));
-  }
-
+  // Evacuation of new space pages cannot be aborted, so it needs to run
+  // before old space evacuation.
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
     if (live_bytes_on_page == 0) continue;
@@ -3233,6 +3238,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
+    evacuation_job.AddItem(new EvacuationItem(page));
+  }
+
+  for (Page* page : old_space_evacuation_pages_) {
+    live_bytes += non_atomic_marking_state()->live_bytes(page);
     evacuation_job.AddItem(new EvacuationItem(page));
   }
 

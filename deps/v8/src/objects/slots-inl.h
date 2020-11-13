@@ -39,6 +39,10 @@ Object FullObjectSlot::Acquire_Load() const {
   return Object(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
+Object FullObjectSlot::Acquire_Load(const Isolate* isolate) const {
+  return Acquire_Load();
+}
+
 Object FullObjectSlot::Relaxed_Load() const {
   return Object(base::AsAtomicPointer::Relaxed_Load(location()));
 }

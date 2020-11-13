@@ -9,7 +9,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/objects/objects-inl.h"
-#include "torque-generated/exported-macros-assembler-tq.h"
+#include "torque-generated/exported-macros-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -40,122 +40,7 @@ class HandlerBuiltinsAssembler : public CodeStubAssembler {
 
   void Generate_ElementsTransitionAndStore(KeyedAccessStoreMode store_mode);
   void Generate_StoreFastElementIC(KeyedAccessStoreMode store_mode);
-
-  enum class ArgumentsAccessMode { kLoad, kStore, kHas };
-
-  // Emits keyed sloppy arguments has. Returns whether the key is in the
-  // arguments.
-  TNode<Object> HasKeyedSloppyArguments(TNode<JSObject> receiver,
-                                        TNode<Object> key, Label* bailout) {
-    return EmitKeyedSloppyArguments(receiver, key, base::nullopt, bailout,
-                                    ArgumentsAccessMode::kHas);
-  }
-
-  // Emits keyed sloppy arguments load. Returns either the loaded value.
-  TNode<Object> LoadKeyedSloppyArguments(TNode<JSObject> receiver,
-                                         TNode<Object> key, Label* bailout) {
-    return EmitKeyedSloppyArguments(receiver, key, base::nullopt, bailout,
-                                    ArgumentsAccessMode::kLoad);
-  }
-
-  // Emits keyed sloppy arguments store.
-  void StoreKeyedSloppyArguments(TNode<JSObject> receiver, TNode<Object> key,
-                                 TNode<Object> value, Label* bailout) {
-    EmitKeyedSloppyArguments(receiver, key, value, bailout,
-                             ArgumentsAccessMode::kStore);
-  }
-
- private:
-  // Emits keyed sloppy arguments load if the |value| is nullopt or store
-  // otherwise. Returns either the loaded value or |value|.
-  TNode<Object> EmitKeyedSloppyArguments(TNode<JSObject> receiver,
-                                         TNode<Object> key,
-                                         base::Optional<TNode<Object>> value,
-                                         Label* bailout,
-                                         ArgumentsAccessMode access_mode);
 };
-
-TNode<Object> HandlerBuiltinsAssembler::EmitKeyedSloppyArguments(
-    TNode<JSObject> receiver, TNode<Object> tagged_key,
-    base::Optional<TNode<Object>> value, Label* bailout,
-    ArgumentsAccessMode access_mode) {
-  GotoIfNot(TaggedIsSmi(tagged_key), bailout);
-  TNode<IntPtrT> key = SmiUntag(CAST(tagged_key));
-  GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
-
-  TNode<SloppyArgumentsElements> elements = CAST(LoadElements(receiver));
-  TNode<IntPtrT> elements_length = LoadAndUntagFixedArrayBaseLength(elements);
-
-  TVARIABLE(Object, var_result);
-  if (access_mode == ArgumentsAccessMode::kStore) {
-    var_result = *value;
-  } else {
-    DCHECK(access_mode == ArgumentsAccessMode::kLoad ||
-           access_mode == ArgumentsAccessMode::kHas);
-  }
-  Label if_mapped(this), if_unmapped(this), end(this, &var_result);
-
-  GotoIf(UintPtrGreaterThanOrEqual(key, elements_length), &if_unmapped);
-
-  TNode<Object> mapped_index =
-      LoadSloppyArgumentsElementsMappedEntries(elements, key);
-  Branch(TaggedEqual(mapped_index, TheHoleConstant()), &if_unmapped,
-         &if_mapped);
-
-  BIND(&if_mapped);
-  {
-    TNode<IntPtrT> mapped_index_intptr = SmiUntag(CAST(mapped_index));
-    TNode<Context> the_context = LoadSloppyArgumentsElementsContext(elements);
-    if (access_mode == ArgumentsAccessMode::kLoad) {
-      TNode<Object> result =
-          LoadContextElement(the_context, mapped_index_intptr);
-      CSA_ASSERT(this, TaggedNotEqual(result, TheHoleConstant()));
-      var_result = result;
-    } else if (access_mode == ArgumentsAccessMode::kHas) {
-      CSA_ASSERT(this, Word32BinaryNot(IsTheHole(LoadContextElement(
-                           the_context, mapped_index_intptr))));
-      var_result = TrueConstant();
-    } else {
-      StoreContextElement(the_context, mapped_index_intptr, *value);
-    }
-    Goto(&end);
-  }
-
-  BIND(&if_unmapped);
-  {
-    TNode<HeapObject> backing_store_ho =
-        LoadSloppyArgumentsElementsArguments(elements);
-    GotoIf(TaggedNotEqual(LoadMap(backing_store_ho), FixedArrayMapConstant()),
-           bailout);
-    TNode<FixedArray> backing_store = CAST(backing_store_ho);
-
-    TNode<IntPtrT> backing_store_length =
-        LoadAndUntagFixedArrayBaseLength(backing_store);
-
-    // Out-of-bounds access may involve prototype chain walk and is handled
-    // in runtime.
-    GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length), bailout);
-
-    // The key falls into unmapped range.
-    if (access_mode == ArgumentsAccessMode::kStore) {
-      StoreFixedArrayElement(backing_store, key, *value);
-    } else {
-      TNode<Object> value = LoadFixedArrayElement(backing_store, key);
-      GotoIf(TaggedEqual(value, TheHoleConstant()), bailout);
-
-      if (access_mode == ArgumentsAccessMode::kHas) {
-        var_result = TrueConstant();
-      } else {
-        DCHECK_EQ(access_mode, ArgumentsAccessMode::kLoad);
-        var_result = value;
-      }
-    }
-    Goto(&end);
-  }
-
-  BIND(&end);
-  return var_result.value();
-}
 
 TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
   TNode<String> string = CAST(Parameter(Descriptor::kReceiver));
@@ -463,7 +348,7 @@ TF_BUILTIN(KeyedLoadIC_SloppyArguments, HandlerBuiltinsAssembler) {
 
   Label miss(this);
 
-  TNode<Object> result = LoadKeyedSloppyArguments(receiver, key, &miss);
+  TNode<Object> result = SloppyArgumentsLoad(receiver, key, &miss);
   Return(result);
 
   BIND(&miss);
@@ -485,7 +370,7 @@ void HandlerBuiltinsAssembler::Generate_KeyedStoreIC_SloppyArguments() {
 
   Label miss(this);
 
-  StoreKeyedSloppyArguments(receiver, key, value, &miss);
+  SloppyArgumentsStore(receiver, key, value, &miss);
   Return(value);
 
   BIND(&miss);
@@ -538,7 +423,7 @@ TF_BUILTIN(KeyedHasIC_SloppyArguments, HandlerBuiltinsAssembler) {
 
   Label miss(this);
 
-  TNode<Object> result = HasKeyedSloppyArguments(receiver, key, &miss);
+  TNode<Object> result = SloppyArgumentsHas(receiver, key, &miss);
   Return(result);
 
   BIND(&miss);

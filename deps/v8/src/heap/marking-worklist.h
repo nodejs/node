@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "src/heap/base/worklist.h"
 #include "src/heap/marking.h"
 #include "src/objects/heap-object.h"
 
@@ -17,120 +18,8 @@ namespace internal {
 // The index of the main thread task used by concurrent/parallel GC.
 const int kMainThreadTask = 0;
 
-// A global marking worklist that is similar the existing Worklist
-// but does not reserve space and keep track of the local segments.
-// Eventually this will replace Worklist after all its current uses
-// are migrated.
-template <typename EntryType, int SegmentSize>
-class MarkingWorklistImpl {
- public:
-  static const int kSegmentSize = SegmentSize;
-  class Segment;
-  class Local;
-
-  MarkingWorklistImpl() = default;
-  ~MarkingWorklistImpl() { CHECK(IsEmpty()); }
-
-  void Push(Segment* segment);
-  bool Pop(Segment** segment);
-
-  // Returns true if the list of segments is empty.
-  bool IsEmpty();
-  // Returns the number of segments in the list.
-  size_t Size();
-
-  // Moves the segments of the given marking worklist into this
-  // marking worklist.
-  void Merge(MarkingWorklistImpl<EntryType, SegmentSize>* other);
-
-  // These functions are not thread-safe. They should be called only
-  // if all local marking worklists that use the current worklist have
-  // been published and are empty.
-  void Clear();
-  template <typename Callback>
-  void Update(Callback callback);
-  template <typename Callback>
-  void Iterate(Callback callback);
-
- private:
-  void set_top(Segment* segment) {
-    base::AsAtomicPointer::Relaxed_Store(&top_, segment);
-  }
-  base::Mutex lock_;
-  Segment* top_ = nullptr;
-  std::atomic<size_t> size_{0};
-};
-
-template <typename EntryType, int SegmentSize>
-class MarkingWorklistImpl<EntryType, SegmentSize>::Segment {
- public:
-  static const size_t kSize = SegmentSize;
-
-  Segment() = default;
-  bool Push(EntryType entry);
-  bool Pop(EntryType* entry);
-
-  size_t Size() const { return index_; }
-  bool IsEmpty() const { return index_ == 0; }
-  bool IsFull() const { return index_ == kSize; }
-  void Clear() { index_ = 0; }
-
-  template <typename Callback>
-  void Update(Callback callback);
-  template <typename Callback>
-  void Iterate(Callback callback) const;
-
-  Segment* next() const { return next_; }
-  void set_next(Segment* segment) { next_ = segment; }
-
- private:
-  Segment* next_;
-  size_t index_;
-  EntryType entries_[kSize];
-};
-
-// A thread-local view of the marking worklist.
-template <typename EntryType, int SegmentSize>
-class MarkingWorklistImpl<EntryType, SegmentSize>::Local {
- public:
-  Local() = default;
-  explicit Local(MarkingWorklistImpl<EntryType, SegmentSize>* worklist);
-  ~Local();
-
-  Local(Local&&) V8_NOEXCEPT;
-  Local& operator=(Local&&) V8_NOEXCEPT;
-
-  // Disable copying since having multiple copies of the same
-  // local marking worklist is unsafe.
-  Local(const Local&) = delete;
-  Local& operator=(const Local& other) = delete;
-
-  void Push(EntryType entry);
-  bool Pop(EntryType* entry);
-
-  bool IsLocalEmpty() const;
-  bool IsGlobalEmpty() const;
-
-  void Publish();
-  void Merge(MarkingWorklistImpl<EntryType, SegmentSize>::Local* other);
-
-  size_t PushSegmentSize() const { return push_segment_->Size(); }
-
- private:
-  void PublishPushSegment();
-  void PublishPopSegment();
-  bool StealPopSegment();
-  Segment* NewSegment() const {
-    // Bottleneck for filtering in crash dumps.
-    return new Segment();
-  }
-  MarkingWorklistImpl<EntryType, SegmentSize>* worklist_ = nullptr;
-  Segment* push_segment_ = nullptr;
-  Segment* pop_segment_ = nullptr;
-};
-
-using MarkingWorklist = MarkingWorklistImpl<HeapObject, 64>;
-using EmbedderTracingWorklist = MarkingWorklistImpl<HeapObject, 16>;
+using MarkingWorklist = ::heap::base::Worklist<HeapObject, 64>;
+using EmbedderTracingWorklist = ::heap::base::Worklist<HeapObject, 16>;
 
 // We piggyback on marking to compute object sizes per native context that is
 // needed for the new memory measurement API. The algorithm works as follows:

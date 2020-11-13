@@ -6,29 +6,68 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/heap/cppgc/default-job.h"
 
 namespace cppgc {
 namespace internal {
 namespace testing {
 
-void TestTaskRunner::PostTask(std::unique_ptr<v8::Task> task) {
+namespace {
+class TestJobThread final : public v8::base::Thread {
+ public:
+  using id = uint8_t;
+
+  explicit TestJobThread(TestJob* job) : Thread(Options("job")), job_(job) {}
+
+  void Run() final;
+
+  static size_t GetMaxSupportedConcurrency() { return 4u; }
+
+ private:
+  TestJob* const job_;
+};
+}  // namespace
+
+// Default implementation of Jobs based on std::thread.
+class TestJob final : public DefaultJobImpl<TestJobThread> {
+ public:
+  explicit TestJob(Key key, std::unique_ptr<cppgc::JobTask> job_task)
+      : DefaultJobImpl(key, std::move(job_task)) {}
+
+  std::shared_ptr<TestJobThread> CreateThread(DefaultJobImpl* job) final {
+    std::shared_ptr<TestJobThread> thread =
+        std::make_shared<TestJobThread>(this);
+    const bool thread_started = thread->Start();
+    USE(thread_started);
+    DCHECK(thread_started);
+    return thread;
+  }
+};
+
+void TestJobThread::Run() {
+  DCHECK_NOT_NULL(job_);
+  job_->RunJobTask();
+}
+
+void TestTaskRunner::PostTask(std::unique_ptr<cppgc::Task> task) {
   tasks_.push_back(std::move(task));
 }
 
-void TestTaskRunner::PostNonNestableTask(std::unique_ptr<v8::Task> task) {
+void TestTaskRunner::PostNonNestableTask(std::unique_ptr<cppgc::Task> task) {
   PostTask(std::move(task));
 }
 
-void TestTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task, double) {
+void TestTaskRunner::PostDelayedTask(std::unique_ptr<cppgc::Task> task,
+                                     double) {
   PostTask(std::move(task));
 }
 
-void TestTaskRunner::PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
-                                                double) {
+void TestTaskRunner::PostNonNestableDelayedTask(
+    std::unique_ptr<cppgc::Task> task, double) {
   PostTask(std::move(task));
 }
 
-void TestTaskRunner::PostIdleTask(std::unique_ptr<v8::IdleTask> task) {
+void TestTaskRunner::PostIdleTask(std::unique_ptr<cppgc::IdleTask> task) {
   idle_tasks_.push_back(std::move(task));
 }
 
@@ -62,35 +101,19 @@ void TestTaskRunner::RunUntilIdle() {
   idle_tasks_.clear();
 }
 
-class TestPlatform::TestJobHandle : public v8::JobHandle {
- public:
-  explicit TestJobHandle(const std::shared_ptr<JobThread>& thread)
-      : thread_(thread) {
-    const bool success = thread_->Start();
-    USE(success);
-  }
-
-  void NotifyConcurrencyIncrease() override {}
-  void Join() override { thread_->Join(); }
-  void Cancel() override { Join(); }
-  bool IsRunning() override { return true; }
-
- private:
-  std::shared_ptr<JobThread> thread_;
-};
-
 TestPlatform::TestPlatform()
     : foreground_task_runner_(std::make_unique<TestTaskRunner>()) {}
 
 TestPlatform::~TestPlatform() V8_NOEXCEPT { WaitAllBackgroundTasks(); }
 
-std::unique_ptr<v8::JobHandle> TestPlatform::PostJob(
-    v8::TaskPriority, std::unique_ptr<v8::JobTask> job_task) {
+std::unique_ptr<cppgc::JobHandle> TestPlatform::PostJob(
+    cppgc::TaskPriority, std::unique_ptr<cppgc::JobTask> job_task) {
   if (AreBackgroundTasksDisabled()) return {};
 
-  auto thread = std::make_shared<JobThread>(std::move(job_task));
-  job_threads_.push_back(thread);
-  return std::make_unique<TestJobHandle>(std::move(thread));
+  std::shared_ptr<TestJob> job =
+      DefaultJobFactory<TestJob>::Create(std::move(job_task));
+  jobs_.push_back(job);
+  return std::make_unique<TestJob::JobHandle>(std::move(job));
 }
 
 double TestPlatform::MonotonicallyIncreasingTime() {
@@ -103,10 +126,10 @@ void TestPlatform::WaitAllForegroundTasks() {
 }
 
 void TestPlatform::WaitAllBackgroundTasks() {
-  for (auto& thread : job_threads_) {
-    thread->Join();
+  for (auto& job : jobs_) {
+    job->Join();
   }
-  job_threads_.clear();
+  jobs_.clear();
 }
 
 TestPlatform::DisableBackgroundTasksScope::DisableBackgroundTasksScope(

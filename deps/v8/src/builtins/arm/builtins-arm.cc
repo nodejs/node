@@ -45,20 +45,26 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
+  //  -- r0 : actual argument count
   //  -- r1 : target function (preserved for callee)
   //  -- r3 : new target (preserved for callee)
   // -----------------------------------
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    // Push a copy of the target function and the new target.
+    // Push a copy of the target function, the new target and the actual
+    // argument count.
     // Push function as parameter to the runtime call.
-    __ Push(r1, r3, r1);
+    __ SmiTag(kJavaScriptCallArgCountRegister);
+    __ Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+            kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
 
     __ CallRuntime(function_id, 1);
     __ mov(r2, r0);
 
-    // Restore target function and new target.
-    __ Pop(r1, r3);
+    // Restore target function, new target and actual argument count.
+    __ Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+           kJavaScriptCallArgCountRegister);
+    __ SmiUntag(kJavaScriptCallArgCountRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
   __ JumpCodeObject(r2);
@@ -532,6 +538,13 @@ constexpr int kPushedStackSpace = kNumCalleeSaved * kPointerSize +
                                   4 * kPointerSize /* r5, r6, r7, scratch */ +
                                   EntryFrameConstants::kCallerFPOffset;
 
+// Assert that the EntryFrameConstants are in sync with the builtin.
+static_assert(kPushedStackSpace == EntryFrameConstants::kDirectCallerSPOffset +
+                                       3 * kPointerSize /* r5, r6, r7*/ +
+                                       EntryFrameConstants::kCallerFPOffset,
+              "Pushed stack space and frame constants do not match. See "
+              "frame-constants-arm.h");
+
 // Called with the native C calling convention. The corresponding function
 // signature is either:
 //
@@ -896,6 +909,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       Register optimized_code_entry,
                                       Register scratch) {
   // ----------- S t a t e -------------
+  //  -- r0 : actual argument count
   //  -- r3 : new target (preserved for callee if needed, and caller)
   //  -- r1 : target function (preserved for callee if needed, and caller)
   // -----------------------------------
@@ -929,6 +943,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
                               Register optimization_marker) {
   // ----------- S t a t e -------------
+  //  -- r0 : actual argument count
   //  -- r3 : new target (preserved for callee if needed, and caller)
   //  -- r1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
@@ -1040,10 +1055,10 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
-// stack left to right.  The actual argument count matches the formal parameter
-// count expected by the function.
+// stack left to right.
 //
 // The live registers are:
+//   o r0: actual argument count (not including the receiver)
 //   o r1: the JS function object being called.
 //   o r3: the incoming new target or generator object
 //   o cp: our context
@@ -1059,15 +1074,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
-  __ ldr(r0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r4, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset));
-  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, r4);
+         FieldMemOperand(r4, SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, r8);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label compile_lazy;
-  __ CompareObjectType(kInterpreterBytecodeArrayRegister, r0, no_reg,
+  __ CompareObjectType(kInterpreterBytecodeArrayRegister, r4, no_reg,
                        BYTECODE_ARRAY_TYPE);
   __ b(ne, &compile_lazy);
 
@@ -1129,8 +1144,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
 
   // Push bytecode array and Smi tagged bytecode array offset.
-  __ SmiTag(r0, kInterpreterBytecodeOffsetRegister);
-  __ Push(kInterpreterBytecodeArrayRegister, r0);
+  __ SmiTag(r4, kInterpreterBytecodeOffsetRegister);
+  __ Push(kInterpreterBytecodeArrayRegister, r4);
 
   // Allocate the local and temporary register file on the stack.
   Label stack_overflow;
@@ -2105,31 +2120,69 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ sub(r5, r5, r2, SetCC);
   __ b(le, &stack_done);
   {
+    // ----------- S t a t e -------------
+    //  -- r0 : the number of arguments already in the stack (not including the
+    //  receiver)
+    //  -- r1 : the target to call (can be any Object)
+    //  -- r2 : start index (to support rest parameters)
+    //  -- r3 : the new.target (for [[Construct]] calls)
+    //  -- r4 : point to the caller stack frame
+    //  -- r5 : number of arguments to copy, i.e. arguments count - start index
+    // -----------------------------------
+
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, r5, r2, &stack_overflow);
+    Generate_StackOverflowCheck(masm, r5, scratch, &stack_overflow);
 
     // Forward the arguments from the caller frame.
+#ifdef V8_REVERSE_JSARGS
+    // Point to the first argument to copy (skipping the receiver).
+    __ add(r4, r4,
+           Operand(CommonFrameConstants::kFixedFrameSizeAboveFp +
+                   kSystemPointerSize));
+    __ add(r4, r4, Operand(r2, LSL, kSystemPointerSizeLog2));
+
+    // Move the arguments already in the stack,
+    // including the receiver and the return address.
+    {
+      Label copy, check;
+      Register num = r8, src = r9,
+               dest = r2;  // r7 and r10 are context and root.
+      __ mov(src, sp);
+      // Update stack pointer.
+      __ lsl(scratch, r5, Operand(kSystemPointerSizeLog2));
+      __ AllocateStackSpace(scratch);
+      __ mov(dest, sp);
+      __ mov(num, r0);
+      __ b(&check);
+      __ bind(&copy);
+      __ ldr(scratch, MemOperand(src, kSystemPointerSize, PostIndex));
+      __ str(scratch, MemOperand(dest, kSystemPointerSize, PostIndex));
+      __ sub(num, num, Operand(1), SetCC);
+      __ bind(&check);
+      __ b(ge, &copy);
+    }
+#endif
+    // Copy arguments from the caller frame.
+    // TODO(victorgomes): Consider using forward order as potentially more cache
+    // friendly.
     {
       Label loop;
-#ifdef V8_REVERSE_JSARGS
-      // Skips frame pointer and old receiver.
-      __ add(r4, r4, Operand(2 * kPointerSize));
-      __ pop(r8);  // Save new receiver.
-#else
+#ifndef V8_REVERSE_JSARGS
       // Skips frame pointer.
-      __ add(r4, r4, Operand(kPointerSize));
+      __ add(r4, r4, Operand(CommonFrameConstants::kFixedFrameSizeAboveFp));
 #endif
       __ add(r0, r0, r5);
       __ bind(&loop);
       {
-        __ ldr(scratch, MemOperand(r4, r5, LSL, kPointerSizeLog2));
-        __ push(scratch);
         __ sub(r5, r5, Operand(1), SetCC);
+        __ ldr(scratch, MemOperand(r4, r5, LSL, kSystemPointerSizeLog2));
+#ifdef V8_REVERSE_JSARGS
+        __ str(scratch, MemOperand(r2, r5, LSL, kSystemPointerSizeLog2));
+#else
+        __ push(scratch);
+#endif
         __ b(ne, &loop);
       }
-#ifdef V8_REVERSE_JSARGS
-      __ push(r8);  // Recover new receiver.
-#endif
     }
   }
   __ b(&stack_done);

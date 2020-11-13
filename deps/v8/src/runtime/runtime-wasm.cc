@@ -23,6 +23,7 @@
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
 namespace v8 {
@@ -87,20 +88,23 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmIsValidFuncRefValue) {
+RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
   // This code is called from wrappers, so the "thread is wasm" flag is not set.
   DCHECK(!trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, function, 0);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0)
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  // Make sure ValueType fits properly in a Smi.
+  STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+  CONVERT_SMI_ARG_CHECKED(raw_type, 2);
 
-  if (function->IsNull(isolate)) {
-    return Smi::FromInt(true);
-  }
-  if (WasmExternalFunction::IsWasmExternalFunction(*function)) {
-    return Smi::FromInt(true);
-  }
-  return Smi::FromInt(false);
+  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
+  const char* error_message;
+
+  bool result = internal::wasm::TypecheckJSObject(isolate, instance->module(),
+                                                  value, type, &error_message);
+  return Smi::FromInt(result);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
@@ -331,7 +335,11 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   auto table = handle(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
+  DCHECK(
+      table->instance().IsUndefined()
+          ? table->type() == wasm::kWasmFuncRef
+          : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
+                        WasmInstanceObject::cast(table->instance()).module()));
 
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -354,7 +362,11 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   auto table = handle(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
   // We only use the runtime call for function references.
-  DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
+  DCHECK(
+      table->instance().IsUndefined()
+          ? table->type() == wasm::kWasmFuncRef
+          : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
+                        WasmInstanceObject::cast(table->instance()).module()));
 
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);

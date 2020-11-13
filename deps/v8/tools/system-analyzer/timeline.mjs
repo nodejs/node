@@ -5,29 +5,30 @@
 class Timeline {
   #values;
   #selection;
+  #uniqueTypes;
   constructor() {
     this.#values = [];
     this.startTime = 0;
     this.endTime = 0;
   }
-  get all(){
+  get all() {
     return this.#values;
   }
-  get selection(){
+  get selection() {
     return this.#selection;
   }
-  set selection(value){
+  set selection(value) {
     this.#selection = value;
   }
-  selectTimeRange(start, end){
-    this.#selection =  this.filter(
+  selectTimeRange(start, end) {
+    this.#selection = this.filter(
       e => e.time >= start && e.time <= end);
   }
-  getChunks(windowSizeMs){
+  getChunks(windowSizeMs) {
     //TODO(zcankara) Fill this one
     return this.chunkSizes(windowSizeMs);
   }
-  get values(){
+  get values() {
     //TODO(zcankara) Not to break something delete later
     return this.#values;
   }
@@ -75,15 +76,33 @@ class Timeline {
   }
 
   first() {
-    return this.#values.first();
+    return this.#values[0];
   }
 
   last() {
-    return this.#values.last();
+    return this.#values[this.#values.length - 1];
   }
 
   duration() {
     return this.last().time - this.first().time;
+  }
+
+  groupByTypes() {
+    this.#uniqueTypes = new Map();
+    for (const entry of this.all) {
+      if (!this.#uniqueTypes.has(entry.type)) {
+        this.#uniqueTypes.set(entry.type, [entry]);
+      } else {
+        this.#uniqueTypes.get(entry.type).push(entry);
+      }
+    }
+  }
+
+  get uniqueTypes() {
+    if (this.#uniqueTypes === undefined) {
+      this.groupByTypes();
+    }
+    return this.#uniqueTypes;
   }
 
   forEachChunkSize(count, fn) {
@@ -216,11 +235,11 @@ class Chunk {
     return chunk;
   }
 
-  getBreakdown(event_fn){
+  getBreakdown(event_fn) {
     if (event_fn === void 0) {
       event_fn = each => each;
     }
-    let breakdown = {__proto__: null};
+    let breakdown = { __proto__: null };
     this.items.forEach(each => {
       const type = event_fn(each);
       const v = breakdown[type];
@@ -229,10 +248,10 @@ class Chunk {
     return Object.entries(breakdown).sort((a, b) => a[1] - b[1]);
   }
 
-  filter(){
+  filter() {
     return this.items.filter(map => !map.parent() || !this.has(map.parent()));
   }
 
 }
 
-export {Timeline, Chunk};
+export { Timeline, Chunk };

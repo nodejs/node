@@ -23,6 +23,11 @@ namespace internal {
 
 static constexpr char kDefaultEmbeddedVariant[] = "Default";
 
+struct LabelInfo {
+  int offset;
+  std::string name;
+};
+
 // Detailed source-code information about builtins can only be obtained by
 // registration on the isolate during compilation.
 class EmbeddedFileWriterInterface {
@@ -35,6 +40,9 @@ class EmbeddedFileWriterInterface {
   // The isolate will call the method below just prior to replacing the
   // compiled builtin Code objects with trampolines.
   virtual void PrepareBuiltinSourcePositionMap(Builtins* builtins) = 0;
+
+  virtual void PrepareBuiltinLabelInfoMap(int create_offset, int invoke_offset,
+                                          int arguments_adaptor_offset) = 0;
 
 #if defined(V8_OS_WIN64)
   virtual void SetBuiltinUnwindData(
@@ -59,6 +67,9 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   int GetExternallyCompiledFilenameCount() const override;
 
   void PrepareBuiltinSourcePositionMap(Builtins* builtins) override;
+
+  void PrepareBuiltinLabelInfoMap(int create_offset, int invoke_create,
+                                  int arguments_adaptor_offset) override;
 
 #if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
@@ -172,6 +183,9 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   void WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
                     const i::EmbeddedData* blob, const int builtin_id) const;
 
+  void WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
+                          std::string name) const;
+
   void WriteInstructionStreams(PlatformEmbeddedFileWriterBase* w,
                                const i::EmbeddedData* blob) const {
     w->Comment("The embedded blob data starts here. It contains the builtin");
@@ -210,6 +224,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
  private:
   std::vector<byte> source_positions_[Builtins::builtin_count];
+  std::vector<LabelInfo> label_info_[Builtins::builtin_count];
 
 #if defined(V8_OS_WIN64)
   win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::builtin_count];

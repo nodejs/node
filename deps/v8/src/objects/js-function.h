@@ -7,8 +7,8 @@
 
 #include "src/objects/code-kind.h"
 #include "src/objects/js-objects.h"
-#include "torque-generated/class-definitions-tq.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/class-definitions.h"
+#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -24,7 +24,7 @@ class JSFunctionOrBoundFunction
                                                       JSObject> {
  public:
   STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS_NONINLINE(JSFunctionOrBoundFunction)
+  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunction)
 };
 
 // JSBoundFunction describes a bound function exotic object.
@@ -47,18 +47,18 @@ class JSBoundFunction
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSBoundFunction> function);
 
-  TQ_OBJECT_CONSTRUCTORS_NONINLINE(JSBoundFunction)
+  TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
 
 // JSFunction describes JavaScript functions.
 class JSFunction : public JSFunctionOrBoundFunction {
  public:
   // [prototype_or_initial_map]:
-  DECL_ACCESSORS_NONINLINE(prototype_or_initial_map, HeapObject)
+  DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
 
   // [shared]: The information about the function that
   // can be shared by instances.
-  DECL_ACCESSORS_NONINLINE(shared, SharedFunctionInfo)
+  DECL_ACCESSORS(shared, SharedFunctionInfo)
 
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
@@ -68,12 +68,12 @@ class JSFunction : public JSFunctionOrBoundFunction {
   static const int kMinDescriptorsForFastBind = 2;
 
   // [context]: The context for this function.
-  V8_EXPORT_PRIVATE Context context();
-  bool has_context() const;
-  void set_context(HeapObject context);
-  JSGlobalProxy global_proxy();
-  V8_EXPORT_PRIVATE NativeContext native_context();
-  int length();
+  inline Context context();
+  inline bool has_context() const;
+  inline void set_context(HeapObject context);
+  inline JSGlobalProxy global_proxy();
+  inline NativeContext native_context();
+  inline int length();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
   static Handle<NativeContext> GetFunctionRealm(Handle<JSFunction> function);
@@ -82,13 +82,13 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
-  V8_EXPORT_PRIVATE Code code() const;
-  V8_EXPORT_PRIVATE void set_code(Code code);
-  void set_code_no_write_barrier(Code code);
+  inline Code code() const;
+  inline void set_code(Code code);
+  inline void set_code_no_write_barrier(Code code);
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  V8_EXPORT_PRIVATE AbstractCode abstract_code();
+  inline AbstractCode abstract_code();
 
   // The predicates for querying code kinds related to this function have
   // specific terminology:
@@ -110,9 +110,13 @@ class JSFunction : public JSFunctionOrBoundFunction {
   V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode() const;
   bool HasAvailableOptimizedCode() const;
 
+  bool HasAvailableCodeKind(CodeKind kind) const;
+
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsNCI() const;
+
+  CodeKind NextTier() const;
 
   // Similar to SharedFunctionInfo::CanDiscardCompiled. Returns true, if the
   // attached code can be recreated at a later point by replacing it with
@@ -121,30 +125,30 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   // Tells whether or not this function checks its optimization marker in its
   // feedback vector.
-  bool ChecksOptimizationMarker();
+  inline bool ChecksOptimizationMarker();
 
   // Tells whether or not this function has a (non-zero) optimization marker.
-  bool HasOptimizationMarker();
+  inline bool HasOptimizationMarker();
 
   // Mark this function for lazy recompilation. The function will be recompiled
   // the next time it is executed.
-  void MarkForOptimization(ConcurrencyMode mode);
+  inline void MarkForOptimization(ConcurrencyMode mode);
 
   // Tells whether or not the function is already marked for lazy recompilation.
-  bool IsMarkedForOptimization();
-  bool IsMarkedForConcurrentOptimization();
+  inline bool IsMarkedForOptimization();
+  inline bool IsMarkedForConcurrentOptimization();
 
   // Tells whether or not the function is on the concurrent recompilation queue.
-  bool IsInOptimizationQueue();
+  inline bool IsInOptimizationQueue();
 
   // Clears the optimized code slot in the function's feedback vector.
-  void ClearOptimizedCodeSlot(const char* reason);
+  inline void ClearOptimizedCodeSlot(const char* reason);
 
   // Sets the optimization marker in the function's feedback vector.
-  void SetOptimizationMarker(OptimizationMarker marker);
+  inline void SetOptimizationMarker(OptimizationMarker marker);
 
   // Clears the optimization marker in the function's feedback vector.
-  void ClearOptimizationMarker();
+  inline void ClearOptimizationMarker();
 
   // If slack tracking is active, it computes instance size of the initial map
   // with minimum permissible object slack.  If it is not active, it simply
@@ -152,28 +156,28 @@ class JSFunction : public JSFunctionOrBoundFunction {
   int ComputeInstanceSizeWithMinSlack(Isolate* isolate);
 
   // Completes inobject slack tracking on initial map if it is active.
-  void CompleteInobjectSlackTrackingIfActive();
+  inline void CompleteInobjectSlackTrackingIfActive();
 
   // [raw_feedback_cell]: Gives raw access to the FeedbackCell used to hold the
   /// FeedbackVector eventually. Generally this shouldn't be used to get the
   // feedback_vector, instead use feedback_vector() which correctly deals with
   // the JSFunction's bytecode being flushed.
-  DECL_ACCESSORS_NONINLINE(raw_feedback_cell, FeedbackCell)
+  DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
 
   // Functions related to feedback vector. feedback_vector() can be used once
   // the function has feedback vectors allocated. feedback vectors may not be
   // available after compile when lazily allocating feedback vectors.
-  V8_EXPORT_PRIVATE FeedbackVector feedback_vector() const;
-  V8_EXPORT_PRIVATE bool has_feedback_vector() const;
+  inline FeedbackVector feedback_vector() const;
+  inline bool has_feedback_vector() const;
   V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
       Handle<JSFunction> function, IsCompiledScope* compiled_scope);
 
-  // Functions related to clousre feedback cell array that holds feedback cells
+  // Functions related to closure feedback cell array that holds feedback cells
   // used to create closures from this function. We allocate closure feedback
   // cell arrays after compile, when we want to allocate feedback vectors
   // lazily.
-  V8_EXPORT_PRIVATE bool has_closure_feedback_cell_array() const;
-  ClosureFeedbackCellArray closure_feedback_cell_array() const;
+  inline bool has_closure_feedback_cell_array() const;
+  inline ClosureFeedbackCellArray closure_feedback_cell_array() const;
   static void EnsureClosureFeedbackCellArray(Handle<JSFunction> function);
 
   // Initializes the feedback cell of |function|. In lite mode, this would be
@@ -187,20 +191,20 @@ class JSFunction : public JSFunctionOrBoundFunction {
   void ClearTypeFeedbackInfo();
 
   // Resets function to clear compiled data after bytecode has been flushed.
-  bool NeedsResetDueToFlushedBytecode();
-  void ResetIfBytecodeFlushed(
+  inline bool NeedsResetDueToFlushedBytecode();
+  inline void ResetIfBytecodeFlushed(
       base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                         HeapObject target)>>
           gc_notify_updated_slot = base::nullopt);
 
-  DECL_GETTER_NONINLINE(has_prototype_slot, bool)
+  DECL_GETTER(has_prototype_slot, bool)
 
   // The initial map for an object created by this constructor.
-  DECL_GETTER_NONINLINE(initial_map, Map)
+  DECL_GETTER(initial_map, Map)
 
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<HeapObject> prototype);
-  DECL_GETTER_NONINLINE(has_initial_map, bool)
+  DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
       Handle<JSFunction> function);
 
@@ -215,16 +219,16 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // function has an initial map the prototype is set on the initial
   // map. Otherwise, the prototype is put in the initial map field
   // until an initial map is needed.
-  DECL_GETTER_NONINLINE(has_prototype, bool)
-  DECL_GETTER_NONINLINE(has_instance_prototype, bool)
-  DECL_GETTER_NONINLINE(prototype, Object)
-  DECL_GETTER_NONINLINE(instance_prototype, HeapObject)
-  DECL_GETTER_NONINLINE(has_prototype_property, bool)
-  DECL_GETTER_NONINLINE(PrototypeRequiresRuntimeLookup, bool)
+  DECL_GETTER(has_prototype, bool)
+  DECL_GETTER(has_instance_prototype, bool)
+  DECL_GETTER(prototype, Object)
+  DECL_GETTER(instance_prototype, HeapObject)
+  DECL_GETTER(has_prototype_property, bool)
+  DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
   static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
-  V8_EXPORT_PRIVATE bool is_compiled() const;
+  inline bool is_compiled() const;
 
   static int GetHeaderSize(bool function_has_prototype_slot) {
     return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
@@ -234,7 +238,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // Prints the name of the function using PrintF.
   void PrintName(FILE* out = stdout);
 
-  DECL_CAST_NONINLINE(JSFunction)
+  DECL_CAST(JSFunction)
 
   // Calculate the instance size and in-object properties count.
   // {CalculateExpectedNofProperties} can trigger compilation.
@@ -307,7 +311,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
   static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
   static constexpr int kSizeWithPrototype = FieldOffsets::kHeaderSize;
 
-  OBJECT_CONSTRUCTORS_NONINLINE(JSFunction, JSFunctionOrBoundFunction);
+  OBJECT_CONSTRUCTORS(JSFunction, JSFunctionOrBoundFunction);
 };
 
 }  // namespace internal

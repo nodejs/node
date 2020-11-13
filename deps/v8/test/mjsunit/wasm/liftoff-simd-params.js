@@ -17,7 +17,7 @@ builder.addImportedMemory('m', 'imported_mem', 1, 2);
 builder.addType(makeSig(new Array(18).fill(kWasmS128), []));
 
 builder.addFunction(undefined, makeSig([], []))
-    .addLocals({s128_count: 9})
+    .addLocals(kWasmS128, 9)
     .addBodyWithEnd([
       // These will all be args to the callee.
       // Load first arg from memory, this was written with values from JS.

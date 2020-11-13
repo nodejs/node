@@ -19,6 +19,10 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
   thread_id_ = ThreadId::Current();
   thread_in_wasm_flag_address_ = reinterpret_cast<Address>(
       trap_handler::GetThreadInWasmThreadLocalAddress());
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  stack_ = ::heap::base::Stack(base::Stack::GetStackStart());
+#endif
 }
 
 void ThreadLocalTop::Free() {

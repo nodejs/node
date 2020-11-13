@@ -2,8 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noverify-heap --noenable-slow-asserts
-// Flags: --opt --no-always-opt
+// Overwrite the value for --noverify-heap and
+// --noenable-slow-asserts, which the test runner already set to true before.
+//  Due to flag contradiction checking, this requires
+// --allow-overwriting-for-next-flag to avoid an error.
+// Flags: --allow-overwriting-for-next-flag --noverify-heap
+// Flags: --allow-overwriting-for-next-flag --noenable-slow-asserts
+// Flags: --allow-natives-syntax --opt --no-always-opt
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too
 // slow with it on.

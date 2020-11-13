@@ -17,6 +17,7 @@
 #include "src/objects/name.h"
 #include "src/objects/type-hints.h"
 #include "src/zone/zone-containers.h"
+#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -180,38 +181,17 @@ class ClosureFeedbackCellArray : public FixedArray {
 //  - optimized code cell (weak cell or Smi marker)
 // followed by an array of feedback slots, of length determined by the feedback
 // metadata.
-class FeedbackVector : public HeapObject {
+class FeedbackVector
+    : public TorqueGeneratedFeedbackVector<FeedbackVector, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
-
-  DECL_CAST(FeedbackVector)
 
   inline bool is_empty() const;
 
   inline FeedbackMetadata metadata() const;
 
-  // [shared_function_info]: The shared function info for the function with this
-  // feedback vector.
-  DECL_ACCESSORS(shared_function_info, SharedFunctionInfo)
-
-  // [optimized_code_weak_or_smi]: weak reference to optimized code or a Smi
-  // marker defining optimization behaviour.
-  DECL_ACCESSORS(optimized_code_weak_or_smi, MaybeObject)
-
-  // [feedback_cell_array]: The FixedArray to hold the feedback cells for any
-  // closures created by this function.
-  DECL_ACCESSORS(closure_feedback_cell_array, ClosureFeedbackCellArray)
-
-  // [length]: The length of the feedback vector (not including the header, i.e.
-  // the number of feedback slots).
-  DECL_INT32_ACCESSORS(length)
-
-  // [invocation_count]: The number of times this function has been invoked.
-  DECL_INT32_ACCESSORS(invocation_count)
-
-  // [profiler_ticks]: The number of times this function has been seen by the
-  // runtime profiler.
-  DECL_INT32_ACCESSORS(profiler_ticks)
+  // Increment profiler ticks, saturating at the maximal value.
+  void SaturatingIncrementProfilerTicks();
 
   // Initialize the padding if necessary.
   inline void clear_padding();
@@ -239,15 +219,9 @@ class FeedbackVector : public HeapObject {
   static inline FeedbackSlot ToSlot(intptr_t index);
   inline MaybeObject Get(FeedbackSlot slot) const;
   inline MaybeObject Get(const Isolate* isolate, FeedbackSlot slot) const;
-  inline MaybeObject get(int index) const;
-  inline MaybeObject get(const Isolate* isolate, int index) const;
   inline void Set(FeedbackSlot slot, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, MaybeObject value,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(FeedbackSlot slot, Object value,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Object value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns the feedback cell at |index| that is used to create the
@@ -300,7 +274,6 @@ class FeedbackVector : public HeapObject {
   V8_EXPORT_PRIVATE static void AssertNoLegacyTypes(MaybeObject object);
 
   DECL_PRINTER(FeedbackVector)
-  DECL_VERIFIER(FeedbackVector)
 
   void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot);  // NOLINT
 
@@ -320,28 +293,23 @@ class FeedbackVector : public HeapObject {
   // garbage collection (e.g., for patching the cache).
   static inline Symbol RawUninitializedSentinel(Isolate* isolate);
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_FEEDBACK_VECTOR_FIELDS)
-
-  static_assert(kSize % kObjectAlignment == 0,
+  static_assert(kHeaderSize % kObjectAlignment == 0,
                 "Header must be padded for alignment");
-  static const int kFeedbackSlotsOffset = kHeaderSize;
 
   class BodyDescriptor;
 
   static constexpr int OffsetOfElementAt(int index) {
-    return kFeedbackSlotsOffset + index * kTaggedSize;
+    return kRawFeedbackSlotsOffset + index * kTaggedSize;
   }
 
-  // Garbage collection support.
-  static constexpr int SizeFor(int length) { return OffsetOfElementAt(length); }
+  TQ_OBJECT_CONSTRUCTORS(FeedbackVector)
 
  private:
   static void AddToVectorsForProfilingTools(Isolate* isolate,
                                             Handle<FeedbackVector> vector);
 
-  OBJECT_CONSTRUCTORS(FeedbackVector, HeapObject);
+  // Don't expose the raw feedback slot getter/setter.
+  using TorqueGeneratedFeedbackVector::raw_feedback_slots;
 };
 
 class V8_EXPORT_PRIVATE FeedbackVectorSpec {
@@ -789,12 +757,27 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
   Map map() { return map_; }
   MaybeObject handler() { return handler_; }
 
+  static int SizeFor(int number_of_entries) {
+    CHECK_GT(number_of_entries, 0);
+    return number_of_entries * kEntrySize;
+  }
+
+  static int MapIndexForEntry(int entry) {
+    CHECK_GE(entry, 0);
+    return entry * kEntrySize;
+  }
+
+  static int HandlerIndexForEntry(int entry) {
+    CHECK_GE(entry, 0);
+    return (entry * kEntrySize) + kHandlerOffset;
+  }
+
  private:
   void AdvancePolymorphic();
   enum State { kMonomorphic, kPolymorphic, kOther };
+
   static constexpr int kEntrySize = 2;
   static constexpr int kHandlerOffset = 1;
-
   Handle<WeakFixedArray> polymorphic_feedback_;
   Map map_;
   MaybeObject handler_;

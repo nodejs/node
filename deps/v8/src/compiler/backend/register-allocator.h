@@ -175,11 +175,7 @@ class LifetimePosition final {
 
 std::ostream& operator<<(std::ostream& os, const LifetimePosition pos);
 
-enum class RegisterAllocationFlag : unsigned {
-  kTurboControlFlowAwareAllocation = 1 << 0,
-  kTurboPreprocessRanges = 1 << 1,
-  kTraceAllocation = 1 << 2
-};
+enum class RegisterAllocationFlag : unsigned { kTraceAllocation = 1 << 0 };
 
 using RegisterAllocationFlags = base::Flags<RegisterAllocationFlag>;
 
@@ -209,14 +205,6 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   // Encodes whether a spill happens in deferred code (kSpillDeferred) or
   // regular code (kSpillAtDefinition).
   enum SpillMode { kSpillAtDefinition, kSpillDeferred };
-
-  bool is_turbo_control_flow_aware_allocation() const {
-    return flags_ & RegisterAllocationFlag::kTurboControlFlowAwareAllocation;
-  }
-
-  bool is_turbo_preprocess_ranges() const {
-    return flags_ & RegisterAllocationFlag::kTurboPreprocessRanges;
-  }
 
   bool is_trace_alloc() {
     return flags_ & RegisterAllocationFlag::kTraceAllocation;
@@ -615,7 +603,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // Can this live range be spilled at this position.
   bool CanBeSpilled(LifetimePosition pos) const;
 
-  // Splitting primitive used by both splitting and splintering members.
+  // Splitting primitive used by splitting members.
   // Performs the split, but does not link the resulting ranges.
   // The given position must follow the start of the range.
   // All uses following the given position will be moved from this
@@ -708,7 +696,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   using ControlFlowRegisterHint = base::BitField<uint8_t, 22, 6>;
   // Bits 28-31 are used by TopLevelLiveRange.
 
-  // Unique among children and splinters of the same virtual register.
+  // Unique among children of the same virtual register.
   int relative_id_;
   uint32_t bits_;
   UseInterval* last_interval_;
@@ -720,8 +708,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   mutable UseInterval* current_interval_;
   // This is used as a cache, it doesn't affect correctness.
   mutable UsePosition* last_processed_use_;
-  // Cache the last position splintering stopped at.
-  mutable UsePosition* splitting_pointer_;
   // This is used as a cache in BuildLiveRanges and during register allocation.
   UsePosition* current_hint_position_;
   LiveRangeBundle* bundle_ = nullptr;
@@ -853,16 +839,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   // Shorten the most recently added interval by setting a new start.
   void ShortenTo(LifetimePosition start, bool trace_alloc);
 
-  // Detaches between start and end, and attributes the resulting range to
-  // result.
-  // The current range is pointed to as "splintered_from". No parent/child
-  // relationship is established between this and result.
-  void Splinter(LifetimePosition start, LifetimePosition end, Zone* zone);
-
-  // Assuming other was splintered from this range, embeds other and its
-  // children as part of the children sequence of this range.
-  void Merge(TopLevelLiveRange* other, Zone* zone);
-
   // Spill range management.
   void SetSpillRange(SpillRange* spill_range);
 
@@ -963,18 +939,11 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     }
   }
 
-  TopLevelLiveRange* splintered_from() const { return splintered_from_; }
-  bool IsSplinter() const { return splintered_from_ != nullptr; }
   bool MayRequireSpillRange() const {
-    DCHECK(!IsSplinter());
     return !HasSpillOperand() && spill_range_ == nullptr;
   }
   void UpdateSpillRangePostMerge(TopLevelLiveRange* merged);
   int vreg() const { return vreg_; }
-
-#if DEBUG
-  int debug_virt_reg() const;
-#endif
 
   void Verify() const;
   void VerifyChildrenInOrder() const;
@@ -985,19 +954,13 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   // if you call it with a non-decreasing sequence of positions.
   LiveRange* GetChildCovers(LifetimePosition pos);
 
-  int GetNextChildId() {
-    return IsSplinter() ? splintered_from()->GetNextChildId()
-                        : ++last_child_id_;
-  }
+  int GetNextChildId() { return ++last_child_id_; }
 
   int GetMaxChildCount() const { return last_child_id_ + 1; }
 
   bool IsSpilledOnlyInDeferredBlocks(
       const TopTierRegisterAllocationData* data) const {
-    if (data->is_turbo_control_flow_aware_allocation()) {
-      return spill_type() == SpillType::kDeferredSpillRange;
-    }
-    return spilled_in_deferred_blocks_;
+    return spill_type() == SpillType::kDeferredSpillRange;
   }
 
   struct SpillMoveInsertionList;
@@ -1006,17 +969,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
       const TopTierRegisterAllocationData* data) const {
     DCHECK(!IsSpilledOnlyInDeferredBlocks(data));
     return spill_move_insertion_locations_;
-  }
-  TopLevelLiveRange* splinter() const { return splinter_; }
-  void SetSplinter(TopLevelLiveRange* splinter) {
-    DCHECK_NULL(splinter_);
-    DCHECK_NOT_NULL(splinter);
-
-    splinter_ = splinter;
-    splinter->relative_id_ = GetNextChildId();
-    splinter->set_spill_type(spill_type());
-    splinter->SetSplinteredFrom(this);
-    if (bundle_ != nullptr) splinter->set_bundle(bundle_);
   }
 
   void MarkHasPreassignedSlot() { has_preassigned_slot_ = true; }
@@ -1056,7 +1008,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
  private:
   friend class LiveRange;
-  void SetSplinteredFrom(TopLevelLiveRange* splinter_parent);
 
   // If spill type is kSpillRange, then this value indicates whether we've
   // chosen to spill at the definition or at some later points.
@@ -1076,7 +1027,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   int vreg_;
   int last_child_id_;
-  TopLevelLiveRange* splintered_from_;
   union {
     // Correct value determined by spill_type()
     InstructionOperand* spill_operand_;
@@ -1096,7 +1046,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   int spill_start_index_;
   UsePosition* last_pos_;
   LiveRange* last_child_covers_;
-  TopLevelLiveRange* splinter_;
 
   DISALLOW_COPY_AND_ASSIGN(TopLevelLiveRange);
 };
@@ -1310,11 +1259,8 @@ class LiveRangeBuilder final : public ZoneObject {
         spill_mode);
   }
   SpillMode SpillModeForBlock(const InstructionBlock* block) const {
-    if (data()->is_turbo_control_flow_aware_allocation()) {
-      return block->IsDeferred() ? SpillMode::kSpillDeferred
-                                 : SpillMode::kSpillAtDefinition;
-    }
-    return SpillMode::kSpillAtDefinition;
+    return block->IsDeferred() ? SpillMode::kSpillDeferred
+                               : SpillMode::kSpillAtDefinition;
   }
   TopTierRegisterAllocationData* const data_;
   ZoneMap<InstructionOperand*, UsePosition*> phi_hints_;
@@ -1529,7 +1475,6 @@ class LinearScanAllocator final : public RegisterAllocator {
                                  Vector<LifetimePosition> free_until_pos);
   void ProcessCurrentRange(LiveRange* current, SpillMode spill_mode);
   void AllocateBlockedReg(LiveRange* range, SpillMode spill_mode);
-  bool TrySplitAndSpillSplinter(LiveRange* range);
 
   // Spill the given life range after position pos.
   void SpillAfter(LiveRange* range, LifetimePosition pos, SpillMode spill_mode);

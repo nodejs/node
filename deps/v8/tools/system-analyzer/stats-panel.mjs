@@ -81,7 +81,8 @@ defineCustomElement(
         let text = "";
         let tableNode = this.table("transitionType");
         tableNode.innerHTML =
-          "<thead><tr><td>Color</td><td>Type</td><td>Count</td><td>Percent</td></tr></thead>";
+          "<thead><tr><td>Color</td><td>Type</td><td>Count</td>" +
+          "<td>Percent</td></tr></thead>";
         let name, filter;
         let total = this.timeline.size();
         pairs.forEach(([name, color, filter]) => {
@@ -91,6 +92,7 @@ defineCustomElement(
           } else {
             row.appendChild(this.td(""));
           }
+          row.classList.add('clickable');
           row.onclick = (e) => {
             // lazily compute the stats
             let node = e.target.parentNode;
@@ -119,6 +121,7 @@ defineCustomElement(
           .forEach(([name, maps]) => {
             let row = this.tr();
             row.maps = maps;
+            row.classList.add('clickable');
             row.addEventListener("click", (e) =>
               this.dispatchEvent(
                 new SelectionEvent(

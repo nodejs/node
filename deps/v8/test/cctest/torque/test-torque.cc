@@ -19,7 +19,7 @@
 #include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -673,12 +673,12 @@ TEST(TestBitFieldStore) {
   Isolate* isolate(CcTest::i_isolate());
   i::HandleScope scope(isolate);
   const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   TestTorqueAssembler m(asm_tester.state());
   {
     // Untag the parameters to get a plain integer value.
-    TNode<Uint8T> val =
-        m.UncheckedCast<Uint8T>(m.Unsigned(m.SmiToInt32(m.Parameter(0))));
+    TNode<Uint8T> val = m.UncheckedCast<Uint8T>(
+        m.Unsigned(m.SmiToInt32(m.CAST(m.Parameter(1)))));
 
     m.TestBitFieldStore(val);
     m.Return(m.UndefinedConstant());

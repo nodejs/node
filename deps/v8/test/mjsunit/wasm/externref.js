@@ -53,7 +53,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const gc_index = builder.addImport("q", "gc", void_sig);
   // First call the gc, then check if the object still exists.
   builder.addFunction('main', ref_sig)
-      .addLocals({externref_count: 10})
+      .addLocals(kWasmExternRef, 10)
       .addBody([
         kExprLocalGet, 0, kExprLocalSet, 1,             // Set local
         kExprLocalGet, 0, kExprLocalSet, 2,             // Set local
@@ -209,7 +209,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
       .addBody([kExprLocalGet, 0])
-      .addLocals({externref_count: 1})
+      .addLocals(kWasmExternRef, 1)
       .exportFunc();
 
   const instance = builder.instantiate();

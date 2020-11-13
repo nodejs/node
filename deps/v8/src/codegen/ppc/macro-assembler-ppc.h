@@ -237,6 +237,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     StoreP(src1, MemOperand(sp, 4 * kSystemPointerSize));
   }
 
+  enum PushArrayOrder { kNormal, kReverse };
+  void PushArray(Register array, Register size, Register scratch,
+                 Register scratch2, PushArrayOrder order = kNormal);
+
   void Pop(Register dst) { pop(dst); }
 
   // Pop two registers. Pops rightmost register first (from lower address).
@@ -718,6 +722,28 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   using TurboAssembler::TurboAssembler;
+
+  // It assumes that the arguments are located below the stack pointer.
+  // argc is the number of arguments not including the receiver.
+  // TODO(victorgomes): Remove this function once we stick with the reversed
+  // arguments order.
+  void LoadReceiver(Register dest, Register argc) {
+#ifdef V8_REVERSE_JSARGS
+    LoadP(dest, MemOperand(sp, 0));
+#else
+    ShiftLeftImm(dest, argc, Operand(kSystemPointerSizeLog2));
+    LoadPX(dest, MemOperand(sp, dest));
+#endif
+  }
+
+  void StoreReceiver(Register rec, Register argc, Register scratch) {
+#ifdef V8_REVERSE_JSARGS
+    StoreP(rec, MemOperand(sp, 0));
+#else
+    ShiftLeftImm(scratch, argc, Operand(kSystemPointerSizeLog2));
+    StorePX(rec, MemOperand(sp, scratch));
+#endif
+  }
 
   // ---------------------------------------------------------------------------
   // GC Support

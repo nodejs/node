@@ -9,7 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestTruncatedBrOnExnInLoop() {
   let builder = new WasmModuleBuilder();
   let fun = builder.addFunction(undefined, kSig_v_v)
-      .addLocals({except_count: 1})
+      .addLocals(kWasmExnRef, 1)
       .addBody([
         kExprLoop, kWasmStmt,
           kExprLocalGet, 0,

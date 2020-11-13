@@ -45,6 +45,14 @@ class AsyncFuzzerResolver : public i::wasm::CompilationResultResolver {
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+  i::FlagScope<bool> enable_##feat(&i::FLAG_experimental_wasm_##feat, true);
+  FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
+#undef ENABLE_STAGED_FEATURES
+
   FlagScope<bool> turn_on_async_compile(
       &v8::internal::FLAG_wasm_async_compilation, true);
   FlagScope<uint32_t> max_mem_flag_scope(&v8::internal::FLAG_wasm_max_mem_pages,

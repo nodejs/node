@@ -268,7 +268,7 @@ class WasmGraphBuildingInterface {
     result->node = builder_->Simd128Constant(imm.value);
   }
 
-  void RefNull(FullDecoder* decoder, Value* result) {
+  void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
     result->node = builder_->RefNull();
   }
 
@@ -941,6 +941,7 @@ class WasmGraphBuildingInterface {
   }
 
   TFNode* DefaultValue(ValueType type) {
+    DCHECK(type.is_defaultable());
     switch (type.kind()) {
       case ValueType::kI8:
       case ValueType::kI16:

@@ -102,7 +102,6 @@ sync_file tools/logreader.js
 sync_file tools/arguments.js
 sync_file tools/tickprocessor.js
 echo ""
-sync_dir tools/profviz
 sync_dir test/intl
 sync_dir test/message
 sync_dir test/mjsunit

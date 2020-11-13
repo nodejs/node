@@ -6,13 +6,16 @@
 #define INCLUDE_CPPGC_DEFAULT_PLATFORM_H_
 
 #include <memory>
-#include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
 #include "cppgc/platform.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
+
+namespace internal {
+class DefaultJob;
+}  // namespace internal
 
 /**
  * Default task runner implementation. Keep posted tasks in a list that can be
@@ -26,8 +29,11 @@ class V8_EXPORT DefaultTaskRunner final : public cppgc::TaskRunner {
   DefaultTaskRunner& operator=(const DefaultTaskRunner&) = delete;
 
   void PostTask(std::unique_ptr<cppgc::Task> task) override;
-  void PostNonNestableTask(std::unique_ptr<cppgc::Task> task) override;
   void PostDelayedTask(std::unique_ptr<cppgc::Task> task, double) override;
+
+  bool NonNestableTasksEnabled() const final { return false; }
+  bool NonNestableDelayedTasksEnabled() const final { return false; }
+  void PostNonNestableTask(std::unique_ptr<cppgc::Task> task) override;
   void PostNonNestableDelayedTask(std::unique_ptr<cppgc::Task> task,
                                   double) override;
 
@@ -58,6 +64,8 @@ class V8_EXPORT DefaultPlatform final : public Platform {
 
   std::shared_ptr<cppgc::TaskRunner> GetForegroundTaskRunner() final;
 
+  // DefaultPlatform does not support job priorities. All jobs would be
+  // assigned the same priority regardless of the cppgc::TaskPriority parameter.
   std::unique_ptr<cppgc::JobHandle> PostJob(
       cppgc::TaskPriority priority,
       std::unique_ptr<cppgc::JobTask> job_task) final;
@@ -68,7 +76,7 @@ class V8_EXPORT DefaultPlatform final : public Platform {
  private:
   std::unique_ptr<PageAllocator> page_allocator_;
   std::shared_ptr<DefaultTaskRunner> foreground_task_runner_;
-  std::vector<std::shared_ptr<std::thread>> job_threads_;
+  std::vector<std::shared_ptr<internal::DefaultJob>> jobs_;
 };
 
 }  // namespace cppgc

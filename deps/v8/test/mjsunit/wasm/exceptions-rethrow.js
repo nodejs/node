@@ -21,7 +21,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprEnd,
   ]).exportFunc();
   builder.addFunction("rethrow1", kSig_i_i)
-      .addLocals({except_count: 1})
+      .addLocals(kWasmExnRef, 1)
       .addBody([
         kExprTry, kWasmI32,
           kExprThrow, except,
@@ -51,7 +51,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except1 = builder.addException(kSig_v_v);
   let except2 = builder.addException(kSig_v_v);
   builder.addFunction("rethrow_nested", kSig_i_i)
-      .addLocals({except_count: 2})
+      .addLocals(kWasmExnRef, 2)
       .addBody([
         kExprTry, kWasmI32,
           kExprThrow, except2,
@@ -93,7 +93,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_v);
   builder.addFunction("rethrow_recatch", kSig_i_i)
-      .addLocals({except_count: 1})
+      .addLocals(kWasmExnRef, 1)
       .addBody([
         kExprTry, kWasmI32,
           kExprThrow, except,

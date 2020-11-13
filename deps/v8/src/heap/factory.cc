@@ -206,7 +206,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         isolate_->builtins_constants_table_builder()->PatchSelfReference(
             self_reference, code);
       }
-      *(self_reference.location()) = code->ptr();
+      self_reference.PatchValue(*code);
     }
 
     // Likewise, any references to the basic block counters marker need to be
@@ -2162,7 +2162,8 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
       bytecode_array->incoming_new_target_or_generator_register());
   copy->set_constant_pool(bytecode_array->constant_pool());
   copy->set_handler_table(bytecode_array->handler_table());
-  copy->set_source_position_table(bytecode_array->source_position_table());
+  copy->set_synchronized_source_position_table(
+      bytecode_array->synchronized_source_position_table());
   copy->set_osr_loop_nesting_level(bytecode_array->osr_loop_nesting_level());
   copy->set_bytecode_age(bytecode_array->bytecode_age());
   bytecode_array->CopyBytecodesTo(*copy);
@@ -2793,7 +2794,7 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   map->set_may_have_interesting_symbols(true);
   LOG(isolate(), MapDetails(*map));
   Handle<JSGlobalProxy> proxy = Handle<JSGlobalProxy>::cast(
-      NewJSObjectFromMap(map, AllocationType::kYoung));
+      NewJSObjectFromMap(map, AllocationType::kOld));
   // Create identity hash early in case there is any JS collection containing
   // a global proxy key and needs to be rehashed after deserialization.
   proxy->GetOrCreateIdentityHash(isolate());
@@ -3099,7 +3100,6 @@ Handle<StackTraceFrame> Factory::NewStackTraceFrame(
   frame->set_frame_index(index);
   frame->set_frame_info(*undefined_value());
 
-  frame->set_id(isolate()->GetNextStackFrameInfoId());
   return frame;
 }
 
@@ -3347,7 +3347,6 @@ void Factory::SetRegExpExperimentalData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
   store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, uninitialized);
   store->set(JSRegExp::kIrregexpBacktrackLimit, uninitialized);
-  store->set(JSRegExp::kExperimentalPatternIndex, uninitialized);
   regexp->set_data(*store);
 }
 

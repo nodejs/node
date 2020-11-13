@@ -34,6 +34,10 @@ from ..outproc import base as outproc
 from ..local import command
 from ..local import statusfile
 from ..local import utils
+from ..local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
+from ..local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
+from ..local.variants import INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG
+
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
@@ -84,8 +88,10 @@ class TestCase(object):
 
     # Outcomes
     self._statusfile_outcomes = None
-    self.expected_outcomes = None
+    self._expected_outcomes = None
+    self._checked_flag_contradictions = False
     self._statusfile_flags = None
+    self.expected_failure_reason = None
 
     self._prepare_outcomes()
 
@@ -116,7 +122,7 @@ class TestCase(object):
       outcomes = self.suite.statusfile.get_outcomes(self.name, self.variant)
       self._statusfile_outcomes = filter(not_flag, outcomes)
       self._statusfile_flags = filter(is_flag, outcomes)
-    self.expected_outcomes = (
+    self._expected_outcomes = (
       self._parse_status_file_outcomes(self._statusfile_outcomes))
 
   def _parse_status_file_outcomes(self, outcomes):
@@ -140,6 +146,60 @@ class TestCase(object):
     if expected_outcomes == outproc.OUTCOMES_FAIL:
       return outproc.OUTCOMES_FAIL
     return expected_outcomes or outproc.OUTCOMES_PASS
+
+  def allow_timeouts(self):
+    if self.expected_outcomes == outproc.OUTCOMES_PASS:
+      self._expected_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
+    elif self.expected_outcomes == outproc.OUTCOMES_FAIL:
+      self._expected_outcomes = outproc.OUTCOMES_FAIL_OR_TIMEOUT
+    elif statusfile.TIMEOUT not in self.expected_outcomes:
+      self._expected_outcomes = (
+          self.expected_outcomes + [statusfile.TIMEOUT])
+
+  @property
+  def expected_outcomes(self):
+    def normalize_flag(flag):
+      return flag.replace("_", "-").replace("--no-", "--no")
+
+    def has_flag(conflicting_flag, flags):
+      conflicting_flag = normalize_flag(conflicting_flag)
+      if conflicting_flag in flags:
+        return True
+      if conflicting_flag.endswith("*"):
+        return any(flag.startswith(conflicting_flag[:-1]) for flag in flags)
+      return False
+
+    def check_flags(incompatible_flags, actual_flags, rule):
+      for incompatible_flag in incompatible_flags:
+          if has_flag(incompatible_flag, actual_flags):
+            self._statusfile_outcomes = outproc.OUTCOMES_FAIL
+            self._expected_outcomes = outproc.OUTCOMES_FAIL
+            self.expected_failure_reason = ("Rule " + rule + " in " +
+                "tools/testrunner/local/variants.py expected a flag " +
+                "contradiction error with " + incompatible_flag + ".")
+
+    if not self._checked_flag_contradictions:
+      self._checked_flag_contradictions = True
+
+      file_specific_flags = (self._get_source_flags() + self._get_suite_flags()
+                             + self._get_statusfile_flags())
+      file_specific_flags = [normalize_flag(flag) for flag in file_specific_flags]
+      extra_flags = [normalize_flag(flag) for flag in self._get_extra_flags()]
+
+      if self.variant in INCOMPATIBLE_FLAGS_PER_VARIANT:
+        check_flags(INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant], file_specific_flags,
+                    "INCOMPATIBLE_FLAGS_PER_VARIANT[\""+self.variant+"\"]")
+
+      for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
+        if self.suite.statusfile.variables[variable]:
+            check_flags(incompatible_flags, file_specific_flags,
+              "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\""+variable+"\"]")
+
+      for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
+        if has_flag(extra_flag, extra_flags):
+            check_flags(incompatible_flags, file_specific_flags,
+              "INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG[\""+extra_flag+"\"]")
+    return self._expected_outcomes
 
   @property
   def do_skip(self):
@@ -183,9 +243,9 @@ class TestCase(object):
     """Gets command parameters and combines them in the following order:
       - files [empty by default]
       - random seed
+      - mode flags (based on chosen mode)
       - extra flags (from command line)
       - user flags (variant/fuzzer flags)
-      - mode flags (based on chosen mode)
       - source flags (from source code) [empty by default]
       - test-suite flags
       - statusfile flags
@@ -196,9 +256,9 @@ class TestCase(object):
     return (
         self._get_files_params() +
         self._get_random_seed_flags() +
+        self._get_mode_flags() +
         self._get_extra_flags() +
         self._get_variant_flags() +
-        self._get_mode_flags() +
         self._get_source_flags() +
         self._get_suite_flags() +
         self._get_statusfile_flags()

@@ -25,14 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "include/v8.h"
 #include "test/cctest/cctest.h"
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
+#include "src/flags/flags.h"
 #include "src/objects/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/print-extension.h"
@@ -129,8 +130,19 @@ i::ReadOnlyHeap* CcTest::read_only_heap() {
   return i_isolate()->read_only_heap();
 }
 
-void CcTest::CollectGarbage(i::AllocationSpace space) {
-  heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
+                               v8::FunctionCallback callback) {
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate_, callback);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env).ToLocalChecked();
+  func->SetName(v8_str(name));
+  env->Global()->Set(env, v8_str(name), func).FromJust();
+}
+
+void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
 }
 
 void CcTest::CollectAllGarbage(i::Isolate* isolate) {
@@ -305,19 +317,11 @@ int main(int argc, char* argv[]) {
 #endif  // V8_CC_MSVC
 #endif  // V8_OS_WIN
 
-  // hack to print cctest specific flags
-  for (int i = 1; i < argc; i++) {
-    char* arg = argv[i];
-    if ((strcmp(arg, "--help") == 0) || (strcmp(arg, "-h") == 0)) {
-      printf("Usage: %s [--list] [[V8_FLAGS] CCTEST]\n", argv[0]);
-      printf("\n");
-      printf("Options:\n");
-      printf("  --list:   list all cctests\n");
-      printf("  CCTEST:   cctest identfier returned by --list\n");
-      printf("  D8_FLAGS: see d8 output below\n");
-      printf("\n\n");
-    }
-  }
+  std::string usage = "Usage: " + std::string(argv[0]) + " [--list]" +
+                      " [[V8_FLAGS] CCTEST]\n\n" + "Options:\n" +
+                      "  --list:   list all cctests\n" +
+                      "  CCTEST:   cctest identfier returned by --list\n" +
+                      "  V8_FLAGS: see V8 options below\n\n\n";
 
 #ifdef V8_USE_PERFETTO
   // Set up the in-process backend that the tracing controller will connect to.
@@ -329,7 +333,9 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-  v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
+  using HelpOptions = v8::internal::FlagList::HelpOptions;
+  v8::internal::FlagList::SetFlagsFromCommandLine(
+      &argc, argv, true, HelpOptions(HelpOptions::kExit, usage.c_str()));
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
 

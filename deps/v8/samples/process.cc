@@ -183,7 +183,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
   // Create a template for the global object where we set the
   // built-in global functions.
   Local<ObjectTemplate> global = ObjectTemplate::New(GetIsolate());
-  global->Set(String::NewFromUtf8Literal(GetIsolate(), "log"),
+  global->Set(GetIsolate(), "log",
               FunctionTemplate::New(GetIsolate(), LogCallback));
 
   // Each processor gets its own context so different processors don't

@@ -189,11 +189,12 @@ class BigInt : public BigIntBase {
 
   bool IsNegative() const { return sign(); }
 
-  static bool EqualToString(Isolate* isolate, Handle<BigInt> x,
-                            Handle<String> y);
+  static Maybe<bool> EqualToString(Isolate* isolate, Handle<BigInt> x,
+                                   Handle<String> y);
   static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
-  static ComparisonResult CompareToString(Isolate* isolate, Handle<BigInt> x,
-                                          Handle<String> y);
+  static Maybe<ComparisonResult> CompareToString(Isolate* isolate,
+                                                 Handle<BigInt> x,
+                                                 Handle<String> y);
   static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
   V8_EXPORT_PRIVATE static ComparisonResult CompareToDouble(Handle<BigInt> x,
@@ -203,12 +204,13 @@ class BigInt : public BigIntBase {
   static MaybeHandle<BigInt> AsUintN(Isolate* isolate, uint64_t n,
                                      Handle<BigInt> x);
 
-  static Handle<BigInt> FromInt64(Isolate* isolate, int64_t n);
+  V8_EXPORT_PRIVATE static Handle<BigInt> FromInt64(Isolate* isolate,
+                                                    int64_t n);
   static Handle<BigInt> FromUint64(Isolate* isolate, uint64_t n);
   static MaybeHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
                                          int words64_count,
                                          const uint64_t* words);
-  int64_t AsInt64(bool* lossless = nullptr);
+  V8_EXPORT_PRIVATE int64_t AsInt64(bool* lossless = nullptr);
   uint64_t AsUint64(bool* lossless = nullptr);
   int Words64Count();
   void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);

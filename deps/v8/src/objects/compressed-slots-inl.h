@@ -164,9 +164,19 @@ Object OffHeapCompressedObjectSlot::Relaxed_Load(const Isolate* isolate) const {
   return Object(DecompressTaggedAny(isolate, value));
 }
 
+Object OffHeapCompressedObjectSlot::Acquire_Load(const Isolate* isolate) const {
+  AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location());
+  return Object(DecompressTaggedAny(isolate, value));
+}
+
 void OffHeapCompressedObjectSlot::Relaxed_Store(Object value) const {
   Tagged_t ptr = CompressTagged(value.ptr());
   AsAtomicTagged::Relaxed_Store(location(), ptr);
+}
+
+void OffHeapCompressedObjectSlot::Release_Store(Object value) const {
+  Tagged_t ptr = CompressTagged(value.ptr());
+  AsAtomicTagged::Release_Store(location(), ptr);
 }
 
 void OffHeapCompressedObjectSlot::Release_CompareAndSwap(Object old,

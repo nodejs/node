@@ -281,6 +281,7 @@ VectorFormat VectorFormatDoubleLanes(VectorFormat vform);
 VectorFormat VectorFormatHalfLanes(VectorFormat vform);
 VectorFormat ScalarFormatFromLaneSize(int lanesize);
 VectorFormat VectorFormatHalfWidthDoubleLanes(VectorFormat vform);
+VectorFormat VectorFormatFillQ(int laneSize);
 VectorFormat VectorFormatFillQ(VectorFormat vform);
 VectorFormat ScalarFormatFromFormat(VectorFormat vform);
 V8_EXPORT_PRIVATE unsigned RegisterSizeInBitsFromFormat(VectorFormat vform);
@@ -343,6 +344,10 @@ class VRegister : public CPURegister {
   }
   VRegister V1D() const {
     return VRegister::Create(code(), kDRegSizeInBits, 1);
+  }
+
+  VRegister Format(VectorFormat f) const {
+    return VRegister::Create(code(), f);
   }
 
   bool Is8B() const { return (Is64Bits() && (lane_count_ == 8)); }
@@ -519,8 +524,6 @@ using Simd128Register = VRegister;
 // Lists of registers.
 class V8_EXPORT_PRIVATE CPURegList {
  public:
-  CPURegList() = default;
-
   template <typename... CPURegisters>
   explicit CPURegList(CPURegister reg0, CPURegisters... regs)
       : list_(CPURegister::ListOf(reg0, regs...)),

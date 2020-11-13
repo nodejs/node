@@ -23,7 +23,7 @@ class V8_EXPORT_PRIVATE MarkingVisitor : public VisitorBase {
   MarkingVisitor(HeapBase&, MarkingState&);
   ~MarkingVisitor() override = default;
 
- private:
+ protected:
   void Visit(const void*, TraceDescriptor) final;
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
   void VisitRoot(const void*, TraceDescriptor) final;

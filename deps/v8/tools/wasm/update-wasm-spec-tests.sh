@@ -71,7 +71,7 @@ log_and_run cp -r ${TMP_DIR}/spec/test/js-api/* ${JS_API_TEST_DIR}/tests
 # Generate the proposal tests.
 ###############################################################################
 
-repos='bulk-memory-operations reference-types js-types tail-call'
+repos='bulk-memory-operations reference-types js-types tail-call simd'
 
 for repo in ${repos}; do
   echo "Process ${repo}"
@@ -86,9 +86,8 @@ for repo in ${repos}; do
 
   # Iterate over all proposal tests. Those which differ from the spec tests are
   # copied to the output directory and converted to .js tests.
-  for abs_filename in ${TMP_DIR}/${repo}/test/core/*.wast; do
-    rel_filename="$(basename -- $abs_filename)"
-    test_name=${rel_filename%.wast}
+  for rel_filename in $(find . -name '*.wast'); do
+    abs_filename=$(realpath $rel_filename)
     spec_filename=${TMP_DIR}/spec/test/core/${rel_filename}
     if [ ! -f "$spec_filename" ] || ! cmp -s $abs_filename $spec_filename ; then
       log_and_run cp ${rel_filename} ${SPEC_TEST_DIR}/tests/proposals/${repo}/

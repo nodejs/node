@@ -11,9 +11,8 @@ session.setupScriptMap();
 const builder = new WasmModuleBuilder();
 
 // Create a function which computes the div of the first two arguments.
-builder.addFunction('div', kSig_i_iii)
-    .addLocals(
-        {i32_count: 2}, ['a', 'b', 'unused', 'local_zero', 'local_const_11'])
+builder.addFunction('div', kSig_i_iii, ['a', 'b', 'unused'])
+    .addLocals(kWasmI32, 2, ['local_zero', 'local_const_11'])
     .addBody([
       kExprI32Const, 11,  // const 11
       kExprLocalSet, 4,   // set local #4 ('local_const_11')

@@ -10,7 +10,9 @@
 #include "src/common/globals.h"
 #include "src/handles/local-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/marking-barrier.h"
 #include "src/heap/safepoint.h"
 
 namespace v8 {
@@ -32,6 +34,7 @@ LocalHeap::LocalHeap(Heap* heap,
       next_(nullptr),
       handles_(new LocalHandles),
       persistent_handles_(std::move(persistent_handles)),
+      marking_barrier_(new MarkingBarrier(this)),
       old_space_allocator_(this, heap->old_space()) {
   heap_->safepoint()->AddLocalHeap(this);
   if (persistent_handles_) {
@@ -39,9 +42,21 @@ LocalHeap::LocalHeap(Heap* heap,
   }
   DCHECK_NULL(current_local_heap);
   current_local_heap = this;
+  // TODO(ulan): Ensure that LocalHeap cannot be created without --local-heaps.
+  if (FLAG_local_heaps) {
+    WriteBarrier::SetForThread(marking_barrier_.get());
+    if (heap_->incremental_marking()->IsMarking()) {
+      marking_barrier_->Activate(heap_->incremental_marking()->IsCompacting());
+    }
+  }
 }
 
 LocalHeap::~LocalHeap() {
+  // TODO(ulan): Ensure that LocalHeap cannot be created without --local-heaps.
+  if (FLAG_local_heaps) {
+    marking_barrier_->Publish();
+    WriteBarrier::ClearForThread(marking_barrier_.get());
+  }
   // Give up LAB before parking thread
   old_space_allocator_.FreeLinearAllocationArea();
 

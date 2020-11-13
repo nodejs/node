@@ -108,7 +108,6 @@ void AccountingAllocator::ReturnSegment(Segment* segment,
   segment->ZapHeader();
   if (COMPRESS_ZONES_BOOL && supports_compression) {
     CHECK(FreePages(bounded_page_allocator_.get(), segment, segment_size));
-
   } else {
     free(segment);
   }

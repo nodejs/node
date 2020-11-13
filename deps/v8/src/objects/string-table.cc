@@ -4,11 +4,15 @@
 
 #include "src/objects/string-table.h"
 
+#include <atomic>
+
+#include "src/base/atomicops.h"
 #include "src/base/macros.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-utils-inl.h"
+#include "src/heap/safepoint.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/slots-inl.h"
@@ -87,19 +91,19 @@ bool KeyIsMatch(StringTableKey* key, String string) {
 class StringTable::Data {
  public:
   static std::unique_ptr<Data> New(int capacity);
-  static void Resize(const Isolate* isolate, std::unique_ptr<Data>& data,
-                     int capacity);
+  static std::unique_ptr<Data> Resize(const Isolate* isolate,
+                                      std::unique_ptr<Data> data, int capacity);
 
   OffHeapObjectSlot slot(InternalIndex index) const {
     return OffHeapObjectSlot(&elements_[index.as_uint32()]);
   }
 
   Object Get(const Isolate* isolate, InternalIndex index) const {
-    return slot(index).Relaxed_Load(isolate);
+    return slot(index).Acquire_Load(isolate);
   }
 
   void Set(InternalIndex index, String entry) {
-    slot(index).Relaxed_Store(entry);
+    slot(index).Release_Store(entry);
   }
 
   void ElementAdded() {
@@ -173,7 +177,7 @@ class StringTable::Data {
   std::unique_ptr<Data> previous_data_;
   int number_of_elements_;
   int number_of_deleted_elements_;
-  int capacity_;
+  const int capacity_;
   Tagged_t elements_[1];
 };
 
@@ -219,8 +223,8 @@ std::unique_ptr<StringTable::Data> StringTable::Data::New(int capacity) {
   return std::unique_ptr<Data>(new (capacity) Data(capacity));
 }
 
-void StringTable::Data::Resize(const Isolate* isolate,
-                               std::unique_ptr<Data>& data, int capacity) {
+std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
+    const Isolate* isolate, std::unique_ptr<Data> data, int capacity) {
   std::unique_ptr<Data> new_data(new (capacity) Data(capacity));
 
   DCHECK_LT(data->number_of_elements(), new_data->capacity());
@@ -239,12 +243,8 @@ void StringTable::Data::Resize(const Isolate* isolate,
   }
   new_data->number_of_elements_ = data->number_of_elements();
 
-  // unique_ptr swap dance to update `data` with `new_data`, move the old `data`
-  // to `new_data->previous_data_`, all while ensuring that `data` is never
-  // nullptr.
-  std::unique_ptr<Data>& data_storage = new_data->previous_data_;
-  data_storage = std::move(new_data);
-  std::swap(data_storage, data);
+  new_data->previous_data_ = std::move(data);
+  return new_data;
 }
 
 template <typename StringTableKey>
@@ -326,12 +326,24 @@ void StringTable::Data::Print(const Isolate* isolate) const {
   os << "}" << std::endl;
 }
 
-StringTable::StringTable() : data_(Data::New(kStringTableMinCapacity)) {}
-StringTable::~StringTable() = default;
+StringTable::StringTable(Isolate* isolate)
+    : data_(Data::New(kStringTableMinCapacity).release())
+#ifdef DEBUG
+      ,
+      isolate_(isolate)
+#endif
+{
+}
+StringTable::~StringTable() { delete data_; }
 
-int StringTable::Capacity() const { return data_->capacity(); }
+int StringTable::Capacity() const {
+  return data_.load(std::memory_order_acquire)->capacity();
+}
 int StringTable::NumberOfElements() const {
-  return data_->number_of_elements();
+  {
+    base::MutexGuard table_write_guard(&write_mutex_);
+    return data_.load(std::memory_order_relaxed)->number_of_elements();
+  }
 }
 
 // InternalizedStringKey carries a string/internalized-string object as key.
@@ -455,7 +467,7 @@ Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
   while (true) {
     // Load the current string table data, in case another thread updates the
     // data while we're reading.
-    const StringTable::Data* data = data_.get();
+    const Data* data = data_.load(std::memory_order_acquire);
 
     // First try to find the string in the table. This is safe to do even if the
     // table is now reallocated; we won't find a stale entry in the old table
@@ -478,9 +490,7 @@ Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
     {
       base::MutexGuard table_write_guard(&write_mutex_);
 
-      EnsureCapacity(ptr_cmp_isolate, 1);
-      // Reload the data pointer in case EnsureCapacity changed it.
-      StringTable::Data* data = data_.get();
+      Data* data = EnsureCapacity(ptr_cmp_isolate, 1);
 
       // Check one last time if the key is present in the table, in case it was
       // added after the check.
@@ -529,12 +539,14 @@ template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                StringTableInsertionKey* key);
 
-void StringTable::EnsureCapacity(const Isolate* isolate,
-                                 int additional_elements) {
+StringTable::Data* StringTable::EnsureCapacity(const Isolate* isolate,
+                                               int additional_elements) {
   // This call is only allowed while the write mutex is held.
   write_mutex_.AssertHeld();
 
-  StringTable::Data* data = data_.get();
+  // This load can be relaxed as the table pointer can only be modified while
+  // the lock is held.
+  Data* data = data_.load(std::memory_order_relaxed);
 
   // Grow or shrink table if needed. We first try to shrink the table, if it
   // is sufficiently empty; otherwise we make sure to grow it so that it has
@@ -556,8 +568,18 @@ void StringTable::EnsureCapacity(const Isolate* isolate,
   }
 
   if (new_capacity != -1) {
-    Data::Resize(isolate, data_, new_capacity);
+    std::unique_ptr<Data> new_data =
+        Data::Resize(isolate, std::unique_ptr<Data>(data), new_capacity);
+    // `new_data` is the new owner of `data`.
+    DCHECK_EQ(new_data->PreviousData(), data);
+    // Release-store the new data pointer as `data_`, so that it can be
+    // acquire-loaded by other threads. This string table becomes the owner of
+    // the pointer.
+    data = new_data.release();
+    data_.store(data, std::memory_order_release);
   }
+
+  return data;
 }
 
 // static
@@ -601,7 +623,8 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
     return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
   }
 
-  StringTable::Data* string_table_data = isolate->string_table()->data_.get();
+  Data* string_table_data =
+      isolate->string_table()->data_.load(std::memory_order_acquire);
 
   InternalIndex entry = string_table_data->FindEntry(isolate, &key, key.hash());
   if (entry.is_not_found()) {
@@ -646,29 +669,44 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
     }
   }
 
-  StringTable* table = isolate->string_table();
   if (source.IsOneByteRepresentation()) {
-    return table->data_->TryStringToIndexOrLookupExisting<uint8_t>(
+    return StringTable::Data::TryStringToIndexOrLookupExisting<uint8_t>(
         isolate, string, source, start);
   }
-  return table->data_->TryStringToIndexOrLookupExisting<uint16_t>(
+  return StringTable::Data::TryStringToIndexOrLookupExisting<uint16_t>(
       isolate, string, source, start);
 }
 
-void StringTable::Print(const Isolate* isolate) const { data_->Print(isolate); }
+void StringTable::Print(const Isolate* isolate) const {
+  data_.load(std::memory_order_acquire)->Print(isolate);
+}
 
 size_t StringTable::GetCurrentMemoryUsage() const {
-  return sizeof(*this) + data_->GetCurrentMemoryUsage();
+  return sizeof(*this) +
+         data_.load(std::memory_order_acquire)->GetCurrentMemoryUsage();
 }
 
 void StringTable::IterateElements(RootVisitor* visitor) {
-  data_->IterateElements(visitor);
+  // This should only happen during garbage collection when background threads
+  // are paused, so the load can be relaxed.
+  DCHECK_IMPLIES(FLAG_local_heaps, isolate_->heap()->safepoint()->IsActive());
+  data_.load(std::memory_order_relaxed)->IterateElements(visitor);
 }
 
-void StringTable::DropOldData() { data_->DropPreviousData(); }
+void StringTable::DropOldData() {
+  // This should only happen during garbage collection when background threads
+  // are paused, so the load can be relaxed.
+  DCHECK_IMPLIES(FLAG_local_heaps, isolate_->heap()->safepoint()->IsActive());
+  DCHECK_NE(isolate_->heap()->gc_state(), Heap::NOT_IN_GC);
+  data_.load(std::memory_order_relaxed)->DropPreviousData();
+}
 
 void StringTable::NotifyElementsRemoved(int count) {
-  data_->ElementsRemoved(count);
+  // This should only happen during garbage collection when background threads
+  // are paused, so the load can be relaxed.
+  DCHECK_IMPLIES(FLAG_local_heaps, isolate_->heap()->safepoint()->IsActive());
+  DCHECK_NE(isolate_->heap()->gc_state(), Heap::NOT_IN_GC);
+  data_.load(std::memory_order_relaxed)->ElementsRemoved(count);
 }
 
 }  // namespace internal

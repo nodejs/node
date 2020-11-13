@@ -40,6 +40,19 @@ bool CanInlinePropertyAccess(Handle<Map> map) {
          !map->is_access_check_needed();
 }
 
+#ifdef DEBUG
+bool HasFieldRepresentationDependenciesOnMap(
+    ZoneVector<CompilationDependency const*>& dependencies,
+    Handle<Map> const& field_owner_map) {
+  for (auto dep : dependencies) {
+    if (dep->IsFieldRepresentationDependencyOnMap(field_owner_map)) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
 }  // namespace
 
 
@@ -84,6 +97,9 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
     FieldIndex field_index, Representation field_representation,
     Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
     MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
+  DCHECK_IMPLIES(
+      field_representation.IsDouble(),
+      HasFieldRepresentationDependenciesOnMap(dependencies, field_owner_map));
   return PropertyAccessInfo(kDataField, holder, transition_map, field_index,
                             field_representation, field_type, field_owner_map,
                             field_map, {{receiver_map}, zone},

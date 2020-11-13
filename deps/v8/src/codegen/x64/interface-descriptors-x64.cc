@@ -54,6 +54,11 @@ const Register LoadDescriptor::SlotRegister() { return rax; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return rbx; }
 
+const Register
+LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister() {
+  return rdi;
+}
+
 const Register StoreDescriptor::ReceiverRegister() { return rdx; }
 const Register StoreDescriptor::NameRegister() { return rcx; }
 const Register StoreDescriptor::ValueRegister() { return rax; }

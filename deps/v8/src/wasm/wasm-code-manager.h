@@ -366,6 +366,17 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 // Manages the code reservations and allocations of a single {NativeModule}.
 class WasmCodeAllocator {
  public:
+#if V8_TARGET_ARCH_ARM64
+  // ARM64 only supports direct calls within a 128 MB range.
+  static constexpr size_t kMaxCodeSpaceSize = 128 * MB;
+#else
+  // Use 1024 MB limit for code spaces on other platforms. This is smaller than
+  // the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
+  // big reservations, and to ensure that distances within a code space fit
+  // within a 32-bit signed integer.
+  static constexpr size_t kMaxCodeSpaceSize = 1024 * MB;
+#endif
+
   // {OptionalLock} is passed between {WasmCodeAllocator} and {NativeModule} to
   // indicate that the lock on the {WasmCodeAllocator} is already taken. It's
   // optional to allow to also call methods without holding the lock.
@@ -585,6 +596,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return code_allocator_.generated_code_size();
   }
   size_t liftoff_bailout_count() const { return liftoff_bailout_count_.load(); }
+  size_t liftoff_code_size() const { return liftoff_code_size_.load(); }
+  size_t turbofan_code_size() const { return turbofan_code_size_.load(); }
   WasmEngine* engine() const { return engine_; }
 
   bool HasWireBytes() const {
@@ -686,6 +699,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int jump_table_size, base::AddressRegion,
       const WasmCodeAllocator::OptionalLock&);
 
+  void UpdateCodeSize(size_t, ExecutionTier, ForDebugging);
+
   // Hold the {allocation_mutex_} when calling one of these methods.
   // {slot_index} is the index in the declared functions, i.e. function index
   // minus the number of imported functions.
@@ -777,6 +792,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
+  std::atomic<size_t> liftoff_code_size_{0};
+  std::atomic<size_t> turbofan_code_size_{0};
 
   DISALLOW_COPY_AND_ASSIGN(NativeModule);
 };

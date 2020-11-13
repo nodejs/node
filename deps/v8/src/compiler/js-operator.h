@@ -921,6 +921,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* LoadProperty(FeedbackSource const& feedback);
   const Operator* LoadNamed(Handle<Name> name, FeedbackSource const& feedback);
+  const Operator* LoadNamedFromSuper(Handle<Name> name);
 
   const Operator* StoreProperty(LanguageMode language_mode,
                                 FeedbackSource const& feedback);
@@ -1385,6 +1386,22 @@ class JSLoadNamedNode final : public JSNodeWrapperBase {
 #define INPUTS(V)              \
   V(Object, object, 0, Object) \
   V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSLoadNamedFromSuperNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSLoadNamedFromSuperNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSLoadNamedFromSuper);
+  }
+
+  const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
+
+#define INPUTS(V)                  \
+  V(Receiver, receiver, 0, Object) \
+  V(Object, home_object, 1, Object)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

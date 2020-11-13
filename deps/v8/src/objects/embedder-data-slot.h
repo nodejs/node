@@ -75,9 +75,9 @@ class EmbedderDataSlot
                                                              void* ptr);
 
   V8_INLINE RawData load_raw(Isolate* isolate,
-                             const DisallowHeapAllocation& no_gc) const;
+                             const DisallowGarbageCollection& no_gc) const;
   V8_INLINE void store_raw(Isolate* isolate, RawData data,
-                           const DisallowHeapAllocation& no_gc);
+                           const DisallowGarbageCollection& no_gc);
 
  private:
   // Stores given value to the embedder data slot in a concurrent-marker

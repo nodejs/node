@@ -460,7 +460,7 @@ class Instruction {
   static const int ImmPCRelRangeBitwidth = 21;
   static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
   void SetPCRelImmTarget(const AssemblerOptions& options, Instruction* target);
-  void SetBranchImmTarget(Instruction* target);
+  V8_EXPORT_PRIVATE void SetBranchImmTarget(Instruction* target);
 };
 
 // Simulator/Debugger debug instructions ---------------------------------------

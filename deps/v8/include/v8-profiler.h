@@ -6,6 +6,7 @@
 #define V8_V8_PROFILER_H_
 
 #include <limits.h>
+
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -268,6 +269,8 @@ class V8_EXPORT CpuProfilingOptions {
    *                             interval, set via SetSamplingInterval(). If
    *                             zero, the sampling interval will be equal to
    *                             the profiler's sampling interval.
+   * \param filter_context Deprecated option to filter by context, currently a
+   *                       no-op.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
@@ -281,13 +284,9 @@ class V8_EXPORT CpuProfilingOptions {
  private:
   friend class internal::CpuProfile;
 
-  bool has_filter_context() const { return !filter_context_.IsEmpty(); }
-  void* raw_filter_context() const;
-
   CpuProfilingMode mode_;
   unsigned max_samples_;
   int sampling_interval_us_;
-  CopyablePersistentTraits<Context>::CopyablePersistent filter_context_;
 };
 
 /**
@@ -712,6 +711,19 @@ class V8_EXPORT EmbedderGraph {
  public:
   class Node {
    public:
+    /**
+     * Detachedness specifies whether an object is attached or detached from the
+     * main application state. While unkown in general, there may be objects
+     * that specifically know their state. V8 passes this information along in
+     * the snapshot. Users of the snapshot may use it to annotate the object
+     * graph.
+     */
+    enum class Detachedness : uint8_t {
+      kUnknown = 0,
+      kAttached = 1,
+      kDetached = 2,
+    };
+
     Node() = default;
     virtual ~Node() = default;
     virtual const char* Name() = 0;
@@ -735,6 +747,14 @@ class V8_EXPORT EmbedderGraph {
      * |HeapSnapshot|.
      */
     virtual NativeObject GetNativeObject() { return nullptr; }
+
+    /**
+     * Detachedness state of a given object. While unkown in general, there may
+     * be objects that specifically know their state. V8 passes this information
+     * along in the snapshot. Users of the snapshot may use it to annotate the
+     * object graph.
+     */
+    virtual Detachedness GetDetachedness() { return Detachedness::kUnknown; }
 
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;

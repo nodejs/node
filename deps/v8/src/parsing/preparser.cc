@@ -347,14 +347,16 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     // reconstructed from the script id and the byte range in the log processor.
     const char* name = "";
     size_t name_byte_length = 0;
+    bool is_one_byte = true;
     const AstRawString* string = function_name.string_;
     if (string != nullptr) {
       name = reinterpret_cast<const char*>(string->raw_data());
       name_byte_length = string->byte_length();
+      is_one_byte = string->is_one_byte();
     }
     logger_->FunctionEvent(
         event_name, flags().script_id(), ms, function_scope->start_position(),
-        function_scope->end_position(), name, name_byte_length);
+        function_scope->end_position(), name, name_byte_length, is_one_byte);
   }
 
   return Expression::Default();

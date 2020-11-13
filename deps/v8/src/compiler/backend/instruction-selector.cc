@@ -62,7 +62,12 @@ InstructionSelector::InstructionSelector(
       trace_turbo_(trace_turbo),
       tick_counter_(tick_counter),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
-      max_pushed_argument_count_(max_pushed_argument_count) {
+      max_pushed_argument_count_(max_pushed_argument_count)
+#if V8_TARGET_ARCH_64_BIT
+      ,
+      phi_states_(node_count, Upper32BitsState::kNotYetChecked, zone)
+#endif
+{
   DCHECK_EQ(*max_unoptimized_frame_height, 0);  // Caller-initialized.
 
   instructions_.reserve(node_count);
@@ -2214,10 +2219,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitS128Select(node);
     case IrOpcode::kS128AndNot:
       return MarkAsSimd128(node), VisitS128AndNot(node);
-    case IrOpcode::kS8x16Swizzle:
-      return MarkAsSimd128(node), VisitS8x16Swizzle(node);
-    case IrOpcode::kS8x16Shuffle:
-      return MarkAsSimd128(node), VisitS8x16Shuffle(node);
+    case IrOpcode::kI8x16Swizzle:
+      return MarkAsSimd128(node), VisitI8x16Swizzle(node);
+    case IrOpcode::kI8x16Shuffle:
+      return MarkAsSimd128(node), VisitI8x16Shuffle(node);
     case IrOpcode::kV64x2AnyTrue:
       return MarkAsWord32(node), VisitV64x2AnyTrue(node);
     case IrOpcode::kV64x2AllTrue:
@@ -2681,39 +2686,6 @@ void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32 && \
-    !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64
-// TODO(v8:10308) Bitmask operations are in prototype now, we can remove these
-// guards when they go into the proposal.
-void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
-// TODO(v8:10501) Prototyping pmin and pmax instructions.
-void InstructionSelector::VisitF32x4Pmin(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32
-        // && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X &&
-        // !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
-
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_S390X && \
-    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS &&   \
-    !V8_TARGET_ARCH_MIPS64
-// TODO(v8:10553) Prototyping floating point rounding instructions.
-void InstructionSelector::VisitF64x2Ceil(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Floor(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Trunc(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2NearestInt(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4Ceil(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4Floor(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4Trunc(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4NearestInt(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_S390X
-        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&
-        // !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
-
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
     !V8_TARGET_ARCH_ARM
 // TODO(v8:10583) Prototype i32x4.dot_i16x8_s
@@ -2737,10 +2709,20 @@ void InstructionSelector::VisitParameter(Node* node) {
 }
 
 namespace {
+
 LinkageLocation ExceptionLocation() {
   return LinkageLocation::ForRegister(kReturnRegister0.code(),
                                       MachineType::IntPtr());
 }
+
+constexpr InstructionCode EncodeCallDescriptorFlags(
+    InstructionCode opcode, CallDescriptor::Flags flags) {
+  // Note: Not all bits of `flags` are preserved.
+  STATIC_ASSERT(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
+                MiscField::kSize);
+  return opcode | MiscField::encode(flags & MiscField::kMax);
+}
+
 }  // namespace
 
 void InstructionSelector::VisitIfException(Node* node) {
@@ -2863,6 +2845,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 #if ABI_USES_FUNCTION_DESCRIPTORS
       // Highest misc_field bit is used on AIX to indicate if a CFunction call
       // has function descriptor or not.
+      STATIC_ASSERT(MiscField::kSize == kHasFunctionDescriptorBitShift + 1);
       if (!call_descriptor->NoFunctionDescriptor()) {
         misc_field |= 1 << kHasFunctionDescriptorBitShift;
       }
@@ -2871,18 +2854,18 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
       break;
     }
     case CallDescriptor::kCallCodeObject:
-      opcode = kArchCallCodeObject | MiscField::encode(flags);
+      opcode = EncodeCallDescriptorFlags(kArchCallCodeObject, flags);
       break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction | MiscField::encode(flags);
+      opcode = EncodeCallDescriptorFlags(kArchCallJSFunction, flags);
       break;
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
-      opcode = kArchCallWasmFunction | MiscField::encode(flags);
+      opcode = EncodeCallDescriptorFlags(kArchCallWasmFunction, flags);
       break;
     case CallDescriptor::kCallBuiltinPointer:
-      opcode = kArchCallBuiltinPointer | MiscField::encode(flags);
+      opcode = EncodeCallDescriptorFlags(kArchCallBuiltinPointer, flags);
       break;
   }
 
@@ -2912,9 +2895,9 @@ void InstructionSelector::VisitTailCall(Node* node) {
   auto call_descriptor = CallDescriptorOf(node->op());
 
   CallDescriptor* caller = linkage()->GetIncomingDescriptor();
-  DCHECK(caller->CanTailCall(CallDescriptorOf(node->op())));
   const CallDescriptor* callee = CallDescriptorOf(node->op());
-  int stack_param_delta = callee->GetStackParameterDelta(caller);
+  DCHECK(caller->CanTailCall(callee));
+  const int stack_param_delta = callee->GetStackParameterDelta(caller);
   CallBuffer buffer(zone(), call_descriptor, nullptr);
 
   // Compute InstructionOperands for inputs and outputs.
@@ -2931,7 +2914,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   InstructionOperandVector temps(zone());
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
+  if (caller->IsJSFunctionCall()) {
     switch (call_descriptor->kind()) {
       case CallDescriptor::kCallCodeObject:
         opcode = kArchTailCallCodeObjectFromJSFunction;
@@ -2960,7 +2943,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
         return;
     }
   }
-  opcode |= MiscField::encode(call_descriptor->flags());
+  opcode = EncodeCallDescriptorFlags(opcode, call_descriptor->flags());
 
   Emit(kArchPrepareTailCall, g.NoOutput());
 
@@ -2969,7 +2952,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   // instruction. This is used by backends that need to pad arguments for stack
   // alignment, in order to store an optional slot of padding above the
   // arguments.
-  int optional_padding_slot = callee->GetFirstUnusedStackSlot();
+  const int optional_padding_slot = callee->GetFirstUnusedStackSlot();
   buffer.instruction_args.push_back(g.TempImmediate(optional_padding_slot));
 
   const int first_unused_stack_slot =
@@ -3130,6 +3113,54 @@ bool InstructionSelector::CanProduceSignalingNaN(Node* node) {
   }
   return true;
 }
+
+#if V8_TARGET_ARCH_64_BIT
+bool InstructionSelector::ZeroExtendsWord32ToWord64(Node* node,
+                                                    int recursion_depth) {
+  // To compute whether a Node sets its upper 32 bits to zero, there are three
+  // cases.
+  // 1. Phi node, with a computed result already available in phi_states_:
+  //    Read the value from phi_states_.
+  // 2. Phi node, with no result available in phi_states_ yet:
+  //    Recursively check its inputs, and store the result in phi_states_.
+  // 3. Anything else:
+  //    Call the architecture-specific ZeroExtendsWord32ToWord64NoPhis.
+
+  // Limit recursion depth to avoid the possibility of stack overflow on very
+  // large functions.
+  const int kMaxRecursionDepth = 100;
+
+  if (node->opcode() == IrOpcode::kPhi) {
+    Upper32BitsState current = phi_states_[node->id()];
+    if (current != Upper32BitsState::kNotYetChecked) {
+      return current == Upper32BitsState::kUpperBitsGuaranteedZero;
+    }
+
+    // If further recursion is prevented, we can't make any assumptions about
+    // the output of this phi node.
+    if (recursion_depth >= kMaxRecursionDepth) {
+      return false;
+    }
+
+    // Mark the current node so that we skip it if we recursively visit it
+    // again. Or, said differently, we compute a largest fixed-point so we can
+    // be optimistic when we hit cycles.
+    phi_states_[node->id()] = Upper32BitsState::kUpperBitsGuaranteedZero;
+
+    int input_count = node->op()->ValueInputCount();
+    for (int i = 0; i < input_count; ++i) {
+      Node* input = NodeProperties::GetValueInput(node, i);
+      if (!ZeroExtendsWord32ToWord64(input, recursion_depth + 1)) {
+        phi_states_[node->id()] = Upper32BitsState::kNoGuarantee;
+        return false;
+      }
+    }
+
+    return true;
+  }
+  return ZeroExtendsWord32ToWord64NoPhis(node);
+}
+#endif  // V8_TARGET_ARCH_64_BIT
 
 namespace {
 

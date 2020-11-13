@@ -270,6 +270,8 @@ using InstructionCode = uint32_t;
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
 using ArchOpcodeField = base::BitField<ArchOpcode, 0, 9>;
+static_assert(ArchOpcodeField::is_valid(kLastArchOpcode),
+              "All opcodes must fit in the 9-bit ArchOpcodeField.");
 using AddressingModeField = base::BitField<AddressingMode, 9, 5>;
 using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
 using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;

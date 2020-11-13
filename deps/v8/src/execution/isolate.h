@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_ISOLATE_H_
 #define V8_EXECUTION_ISOLATE_H_
 
+#include <atomic>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -432,8 +433,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(int, code_and_metadata_size, 0)                                            \
   V(int, bytecode_and_metadata_size, 0)                                        \
   V(int, external_script_source_size, 0)                                       \
-  /* true if being profiled. Causes collection of extra compile info. */       \
-  V(bool, is_profiling, false)                                                 \
   /* Number of CPU profilers running on the isolate. */                        \
   V(size_t, num_cpu_profilers, 0)                                              \
   /* true if a trace is being formatted through Error.prepareStackTrace. */    \
@@ -443,7 +442,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   /* Current code coverage mode */                                             \
   V(debug::CoverageMode, code_coverage_mode, debug::CoverageMode::kBestEffort) \
   V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone)  \
-  V(int, last_stack_frame_info_id, 0)                                          \
   V(int, last_console_context_id, 0)                                           \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                            \
   V(bool, next_v8_call_is_safe_for_termination, false)                         \
@@ -1074,7 +1072,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Debug* debug() { return debug_; }
 
-  bool* is_profiling_address() { return &is_profiling_; }
+  void* is_profiling_address() { return &is_profiling_; }
+
+  bool is_profiling() const {
+    return is_profiling_.load(std::memory_order_relaxed);
+  }
+
+  void set_is_profiling(bool enabled) {
+    is_profiling_.store(enabled, std::memory_order_relaxed);
+  }
+
   CodeEventDispatcher* code_event_dispatcher() const {
     return code_event_dispatcher_.get();
   }
@@ -1311,8 +1318,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   int GetNextScriptId();
 
-  int GetNextStackFrameInfoId();
-
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() {
     int current_id = next_unique_sfi_id_.load(std::memory_order_relaxed);
@@ -1465,6 +1470,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // replaced with trampolines. Those source positions are used to
   // annotate the builtin blob with debugging information.
   void PrepareBuiltinSourcePositionMap();
+
+  // Store the position of the labels that will be used in the list of allowed
+  // return addresses.
+  void PrepareBuiltinLabelInfoMap();
 
 #if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
@@ -1730,6 +1739,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       icu_object_cache_;
 
 #endif  // V8_INTL_SUPPORT
+
+  // true if being profiled. Causes collection of extra compile info.
+  std::atomic<bool> is_profiling_{false};
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_ = false;

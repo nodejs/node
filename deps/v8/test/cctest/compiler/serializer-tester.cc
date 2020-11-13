@@ -22,6 +22,10 @@ SerializerTester::SerializerTester(const char* source)
     : canonical_(main_isolate()) {
   // The tests only make sense in the context of concurrent compilation.
   FLAG_concurrent_inlining = true;
+  // --local-heaps is enabled by default, but some bots disable it.
+  // Ensure that it is enabled here because we have reverse implication
+  // from --no-local-heaps to --no-concurrent-inlining.
+  if (!FLAG_local_heaps) FLAG_local_heaps = true;
   // The tests don't make sense when optimizations are turned off.
   FLAG_opt = true;
   // We need the IC to feed it to the serializer.
@@ -31,6 +35,7 @@ SerializerTester::SerializerTester(const char* source)
   // We need allocation of executable memory for the compilation.
   FLAG_jitless = false;
   FLAG_allow_natives_syntax = true;
+  FlagList::EnforceFlagImplications();
 
   std::string function_string = "(function() { ";
   function_string += source;

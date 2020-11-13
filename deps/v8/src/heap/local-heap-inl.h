@@ -15,13 +15,16 @@ namespace internal {
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
                                         AllocationAlignment alignment) {
+#if DEBUG
   DCHECK_EQ(LocalHeap::Current(), this);
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode,
                  alignment == AllocationAlignment::kCodeAligned);
-  DCHECK(heap()->gc_state() == Heap::TEAR_DOWN ||
-         heap()->gc_state() == Heap::NOT_IN_GC);
+  Heap::HeapState state = heap()->gc_state();
+  DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
+#endif
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
   CHECK_EQ(type, AllocationType::kOld);

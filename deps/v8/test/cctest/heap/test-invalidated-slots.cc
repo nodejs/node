@@ -48,6 +48,7 @@ Page* HeapTester::AllocateByteArraysOnPage(
 }
 
 HEAP_TEST(InvalidatedSlotsNoInvalidatedRanges) {
+  FLAG_stress_concurrent_allocation = false;  // For AllocateByteArraysOnPage.
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   std::vector<ByteArray> byte_arrays;
@@ -63,6 +64,7 @@ HEAP_TEST(InvalidatedSlotsNoInvalidatedRanges) {
 }
 
 HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
+  FLAG_stress_concurrent_allocation = false;  // For AllocateByteArraysOnPage.
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   std::vector<ByteArray> byte_arrays;
@@ -87,6 +89,7 @@ HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
 }
 
 HEAP_TEST(InvalidatedSlotsAllInvalidatedRanges) {
+  FLAG_stress_concurrent_allocation = false;  // For AllocateByteArraysOnPage.
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   std::vector<ByteArray> byte_arrays;
@@ -156,6 +159,7 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
 }
 
 HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
+  FLAG_stress_concurrent_allocation = false;  // For AllocateByteArraysOnPage.
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   std::vector<ByteArray> byte_arrays;

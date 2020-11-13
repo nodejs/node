@@ -41,6 +41,10 @@
   ##############################################################################
   # Open bugs.
 
+  # https://crbug.com/v8/10929
+  'wasm/externref-liftoff' : [SKIP],
+  'wasm/externref-globals-liftoff' : [SKIP],
+
   # BUG(v8:2989).
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['lite_mode == True', SKIP]],
 
@@ -55,9 +59,6 @@
 
   # BUG(v8:8169)
   'external-backing-store-gc': [SKIP],
-
-  # BUG(v8:9260)
-  'tools/profviz': [SKIP],
 
   # Issue 9380: Memory leaks of shared WebAssembly.Memory objects
   'wasm/shared-memory-worker-gc': [SKIP],
@@ -76,6 +77,9 @@
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, SLOW],
   'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
+
+  # https://crbug.com/1129854
+  'tools/log': ['arch == arm or arch == arm64', SKIP],
 
   ##############################################################################
   # Tests where variants make no sense.
@@ -125,13 +129,16 @@
   'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
   'compiler/regress-9017': [PASS, SLOW],
-  'es6/promise-all-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
-  'harmony/promise-any-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'copy-on-write-assert': [PASS, SLOW],
+  'es6/promise-all-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
+  'harmony/promise-any-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
+  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, SLOW],
   'harmony/futex': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'ignition/regress-672027': [PASS, SLOW],
+  'large-object-literal-slow-elements': [PASS, SLOW],
+  'math-floor-of-div': [PASS, SLOW],
   'md5': [PASS, SLOW],
   'readonly': [PASS, SLOW],
   'regress/regress-1122': [PASS, SLOW],
@@ -141,10 +148,12 @@
   'regress/regress-crbug-808192': [PASS, SLOW, NO_VARIANTS, ['arch not in (ia32, x64)', SKIP]],
   'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP], ['tsan', SKIP]],
   'regress/wasm/regress-810973': [PASS, SLOW],
+  'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
   'wasm/asm-wasm-f32': [PASS, SLOW],
   'wasm/asm-wasm-f64': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
+  'wasm/futex': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
   'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
@@ -255,6 +264,7 @@
   'regress/regress-crbug-137689': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-2249': [SKIP],
+  'regress/regress-3709': [SKIP],
   'regress/regress-4121': [SKIP],
   'regress/regress-6989': [SKIP],
   'compare-known-objects-slow': [SKIP],
@@ -278,7 +288,7 @@
   'regress/regress-91008': [PASS, NO_VARIANTS],
   'regress/regress-transcendental': [PASS, ['arch == arm64', NO_VARIANTS]],
   'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
-  'math-floor-of-div': [PASS, NO_VARIANTS],
+  'math-floor-of-div': [PASS, SLOW, NO_VARIANTS],
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 
@@ -298,8 +308,6 @@
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
-  'large-object-literal-slow-elements': [PASS, SLOW],
-  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, SLOW],
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
@@ -345,6 +353,7 @@
   'asm/call-annotation': [SKIP],
   'asm/global-imports': [SKIP],
   'asm/regress-1027595': [SKIP],
+  'asm/regress-1069173': [SKIP],
   'asm/regress-913822': [SKIP],
   'asm/regress-937650': [SKIP],
   'asm/regress-9531': [SKIP],
@@ -375,17 +384,6 @@
   'regexp-tier-up': [SKIP],
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
-
-  # Tests that depend on optimization (beyond doing assertOptimized).
-  'compiler/is-being-interpreted-*': [SKIP],
-  'compiler/serializer-accessors': [SKIP],
-  'compiler/serializer-apply': [SKIP],
-  'compiler/serializer-call': [SKIP],
-  'compiler/serializer-dead-after-jump': [SKIP],
-  'compiler/serializer-dead-after-return': [SKIP],
-  'compiler/serializer-transition-propagation': [SKIP],
-  'regress/regress-1049982-1': [SKIP],
-  'regress/regress-1049982-2': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -419,17 +417,18 @@
   # noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
 
-  # noi18n cannot turn on ICU backend for Date
-  'icu-date-to-string': [SKIP],
-  'icu-date-lord-howe': [SKIP],
-  'tzoffset-transition-apia': [SKIP],
-  'tzoffset-transition-lord-howe': [SKIP],
-  'tzoffset-transition-moscow': [SKIP],
-  'tzoffset-transition-new-york': [SKIP],
-  'tzoffset-seoul': [SKIP],
+  # noi18n cannot turn on ICU backend for Date. Anything goes as long as we
+  # don't crash.
+  'icu-date-to-string': [PASS,FAIL],
+  'icu-date-lord-howe': [PASS,FAIL],
+  'tzoffset-transition-apia': [PASS,FAIL],
+  'tzoffset-transition-lord-howe': [PASS,FAIL],
+  'tzoffset-transition-moscow': [PASS,FAIL],
+  'tzoffset-transition-new-york': [PASS,FAIL],
+  'tzoffset-seoul': [PASS,FAIL],
 
   # noi18n is required for Intl
-  'regress/regress-crbug-1052647': [SKIP],
+  'regress/regress-crbug-1052647': [PASS,FAIL],
 }],  # 'no_i18n'
 
 ##############################################################################
@@ -510,7 +509,6 @@
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
-  'math-floor-of-div': [PASS, SLOW],
   'messages': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
   'regress/regress-331444': [PASS, SLOW],
@@ -536,6 +534,7 @@
 ['arch == arm64 and simulator_run', {
   'compiler/osr-big': [PASS, SLOW],
   'regress/regress-454725': [PASS, SLOW],
+  'json': [PASS, SLOW],
   'try': [PASS, SLOW],
   'non-extensible-array-reduce': [PASS, SLOW],
 }],  # 'arch == arm64 and simulator_run'
@@ -546,7 +545,6 @@
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, SLOW],
   'regexp-global': [SKIP],
-  'math-floor-of-div': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicodelctest-no-optimization': [PASS, SLOW],
@@ -1078,6 +1076,9 @@
   # Tests that depend on optimization (beyond doing assertOptimized).
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
+  # Wasm serialization relies on TurboFan to be available, hence does not work
+  # in the 'nooptimization' variant.
+  'regress/wasm/regress-7785': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -1148,7 +1149,6 @@
 ##############################################################################
 ['variant == turboprop', {
   # Deopts differently than TurboFan.
-  'parallel-optimize-disabled': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/number-comparison-truncations': [SKIP],
   'compiler/redundancy-elimination': [SKIP],
@@ -1177,10 +1177,6 @@
   'regress/regress-1049982-2': [SKIP],
   'es6/iterator-eager-deopt': [SKIP],
 
-  # interrupt_budget overrides don't work with TurboProp.
-  'interrupt-budget-override': [SKIP],
-  'never-optimize': [SKIP],
-
   # In turboprop we reuse the optimized code on soft deopt. The following tests
   # test for a soft deopt and they won't work in TurboProp.
   'deopt-recursive-soft-once': [SKIP],
@@ -1201,6 +1197,9 @@
   # TODO(mythria): Reenable this when the cl that migrates deprecated maps
   # lands
   'regress/regress-932953': [FAIL],
+
+  # https://crbug.com/v8/10894
+  'math-floor-of-div': [SLOW],
 }],  # variant == turboprop
 
 ##############################################################################
@@ -1303,7 +1302,7 @@
 }],  # variant == slow_path
 
 ################################################################################
-['variant == nci or variant == nci_as_highest_tier', {
+['variant == nci or variant == nci_as_midtier', {
   # Deopts differently than TurboFan.
   # Deoptimization support is still incomplete in general, since deopts can
   # only happen when explicitly requested by tests. NCI code objects are then
@@ -1391,10 +1390,10 @@
   'optimized-array-some': [SKIP],
   'optimized-filter': [SKIP],
   'optimized-map': [SKIP],
-  'parallel-optimize-disabled': [SKIP],
   'regress/regress-1016450': [SKIP],
   'regress/regress-1034449': [SKIP],
   'regress/regress-1073440': [SKIP],
+  'regress/regress-1112155': [SKIP],
   'regress/regress-347914': [SKIP],
   'regress/regress-3709': [SKIP],
   'regress/regress-385565': [SKIP],
@@ -1436,6 +1435,24 @@
   'compiler/serializer-feedback-propagation-1': [SKIP],
   'compiler/serializer-feedback-propagation-2': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
-}],  # variant == nci or variant == nci_as_highest_tier
+}],  # variant == nci or variant == nci_as_midtier
+
+['((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips) or (arch in [ppc64, s390x])', {
+  # Requires scalar lowering for 64x2 SIMD instructions, which are not
+  # implemented yet.
+  # Also skip tests on archs that don't support SIMD and lowering doesn't yet work correctly.
+  # Condition copied from cctest.status.
+  'regress/wasm/regress-10831': [SKIP],
+}],  # ((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips) or (arch in [ppc64, s390x])
+
+##############################################################################
+['variant == stress_sampling', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10915
+  'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
+  'regress/regress-484544': [SKIP],
+  'regress/regress-543994': [SKIP],
+  'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-set-flags-stress-compact': [SKIP],
+}],  # variant == stress_sampling
 
 ]

@@ -48,7 +48,7 @@ async function test3() {
     let x = await import('nonexistent-file.mjs');
     %AbortJS('failure: should be unreachable');
   } catch(e) {
-    assertTrue(e.startsWith('Error reading'));
+    assertTrue(e.startsWith('d8: Error reading'));
     ran = true;
   }
 }

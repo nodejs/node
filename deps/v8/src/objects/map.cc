@@ -25,9 +25,9 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
-#include "torque-generated/exported-class-definitions-tq.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/exported-class-definitions-inl.h"
+#include "torque-generated/exported-class-definitions.h"
+#include "torque-generated/field-offsets.h"
 
 namespace v8 {
 namespace internal {
@@ -187,9 +187,6 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case FEEDBACK_METADATA_TYPE:
       return kVisitFeedbackMetadata;
-
-    case FEEDBACK_VECTOR_TYPE:
-      return kVisitFeedbackVector;
 
     case ODDBALL_TYPE:
       return kVisitOddball;
@@ -613,6 +610,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
     transitions.GetTarget(i).DeprecateTransitionTree(isolate);
   }
   DCHECK(!constructor_or_backpointer().IsFunctionTemplateInfo());
+  DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
   if (FLAG_trace_maps) {
     LOG(isolate, MapEvent("Deprecate", handle(*this, isolate), Handle<Map>()));
@@ -638,8 +636,7 @@ void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
   // all its elements.
   Map current = *this;
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(current, to_replace,
-                        to_replace.number_of_descriptors());
+  WriteBarrier::Marking(to_replace, to_replace.number_of_descriptors());
 #endif
   while (current.instance_descriptors(isolate) == to_replace) {
     Object next = current.GetBackPointer(isolate);
@@ -1136,8 +1133,7 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(*map, *descriptors,
-                        descriptors->number_of_descriptors());
+  WriteBarrier::Marking(*descriptors, descriptors->number_of_descriptors());
 #endif
 
   Map current = *map;
@@ -2580,7 +2576,7 @@ void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
   set_synchronized_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(*this, descriptors, number_of_own_descriptors);
+  WriteBarrier::Marking(descriptors, number_of_own_descriptors);
 #endif
 }
 

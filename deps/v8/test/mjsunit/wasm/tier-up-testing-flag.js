@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --liftoff --no-future --no-wasm-tier-up
+// Flags: --allow-natives-syntax --liftoff --no-wasm-tier-up
 // Compile functions 0 and 2 with Turbofan, the rest with Liftoff:
 // Flags: --wasm-tier-mask-for-testing=5
 

@@ -16,16 +16,22 @@ namespace cppgc {
 namespace internal {
 namespace testing {
 
-class TestTaskRunner : public v8::TaskRunner {
+class TestJob;
+
+class TestTaskRunner : public cppgc::TaskRunner {
  public:
-  void PostTask(std::unique_ptr<v8::Task> task) override;
-  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override;
-  void PostDelayedTask(std::unique_ptr<v8::Task> task, double) override;
-  void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
+  void PostTask(std::unique_ptr<cppgc::Task> task) override;
+  void PostDelayedTask(std::unique_ptr<cppgc::Task> task, double) override;
+
+  bool NonNestableTasksEnabled() const override { return true; }
+  void PostNonNestableTask(std::unique_ptr<cppgc::Task> task) override;
+
+  bool NonNestableDelayedTasksEnabled() const override { return true; }
+  void PostNonNestableDelayedTask(std::unique_ptr<cppgc::Task> task,
                                   double) override;
 
-  void PostIdleTask(std::unique_ptr<v8::IdleTask> task) override;
   bool IdleTasksEnabled() override { return true; }
+  void PostIdleTask(std::unique_ptr<cppgc::IdleTask> task) override;
 
   bool RunSingleTask();
   bool RunSingleIdleTask(double duration_in_seconds);
@@ -33,8 +39,8 @@ class TestTaskRunner : public v8::TaskRunner {
   void RunUntilIdle();
 
  private:
-  std::vector<std::unique_ptr<v8::Task>> tasks_;
-  std::vector<std::unique_ptr<v8::IdleTask>> idle_tasks_;
+  std::vector<std::unique_ptr<cppgc::Task>> tasks_;
+  std::vector<std::unique_ptr<cppgc::IdleTask>> idle_tasks_;
 };
 
 class TestPlatform : public Platform {
@@ -53,12 +59,14 @@ class TestPlatform : public Platform {
 
   PageAllocator* GetPageAllocator() override { return &page_allocator_; }
 
-  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() override {
+  std::shared_ptr<cppgc::TaskRunner> GetForegroundTaskRunner() override {
     return foreground_task_runner_;
   }
 
-  std::unique_ptr<v8::JobHandle> PostJob(
-      v8::TaskPriority, std::unique_ptr<v8::JobTask> job_task) override;
+  // TestPlatform does not support job priorities. All jobs would be assigned
+  // the same priority regardless of the cppgc::TaskPriority parameter.
+  std::unique_ptr<cppgc::JobHandle> PostJob(
+      cppgc::TaskPriority, std::unique_ptr<cppgc::JobTask> job_task) override;
 
   double MonotonicallyIncreasingTime() override;
 
@@ -66,47 +74,13 @@ class TestPlatform : public Platform {
   void WaitAllBackgroundTasks();
 
  private:
-  class TestJobHandle;
-
-  class WorkerThread : public v8::base::Thread {
-   public:
-    explicit WorkerThread(std::unique_ptr<v8::Task> task)
-        : Thread(Options("worker")), task_(std::move(task)) {}
-
-    void Run() override {
-      if (task_) std::move(task_)->Run();
-    }
-
-   private:
-    std::unique_ptr<v8::Task> task_;
-  };
-
-  class JobThread : public v8::base::Thread {
-   public:
-    explicit JobThread(std::unique_ptr<v8::JobTask> task)
-        : Thread(Options("job")), task_(std::move(task)) {}
-
-    void Run() override {
-      class JobDelegate : public v8::JobDelegate {
-       public:
-        bool ShouldYield() override { return false; }
-        void NotifyConcurrencyIncrease() override {}
-      } delegate;
-
-      if (task_) task_->Run(&delegate);
-    }
-
-   private:
-    std::unique_ptr<v8::JobTask> task_;
-  };
-
   bool AreBackgroundTasksDisabled() const {
     return disabled_background_tasks_ > 0;
   }
 
   v8::base::PageAllocator page_allocator_;
   std::shared_ptr<TestTaskRunner> foreground_task_runner_;
-  std::vector<std::shared_ptr<JobThread>> job_threads_;
+  std::vector<std::shared_ptr<TestJob>> jobs_;
   size_t disabled_background_tasks_ = 0;
 };
 

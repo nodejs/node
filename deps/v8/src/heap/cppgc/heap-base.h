@@ -12,6 +12,7 @@
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/macros.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
@@ -36,7 +37,6 @@ namespace testing {
 class TestWithHeap;
 }  // namespace testing
 
-class MarkerBase;
 class PageBackend;
 class PreFinalizerHandler;
 class StatsCollector;
@@ -44,6 +44,8 @@ class StatsCollector;
 // Base class for heap implementations.
 class V8_EXPORT_PRIVATE HeapBase {
  public:
+  using StackSupport = cppgc::Heap::StackSupport;
+
   // NoGCScope allows going over limits and avoids triggering garbage
   // collection triggered through allocations or even explicitly.
   class V8_EXPORT_PRIVATE NoGCScope final {
@@ -60,7 +62,8 @@ class V8_EXPORT_PRIVATE HeapBase {
     HeapBase& heap_;
   };
 
-  HeapBase(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces);
+  HeapBase(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces,
+           StackSupport stack_support);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -116,8 +119,15 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   size_t ObjectPayloadSize() const;
 
+  StackSupport stack_support() const { return stack_support_; }
+
+  void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
+
  protected:
   void VerifyMarking(cppgc::Heap::StackState);
+
+  virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
+      cppgc::Heap::StackState) = 0;
 
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
 
@@ -145,6 +155,9 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   size_t no_gc_scope_ = 0;
 
+  const StackSupport stack_support_;
+
+  friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;
 };
 

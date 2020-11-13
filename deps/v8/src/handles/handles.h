@@ -59,6 +59,8 @@ class HandleBase {
   V8_INLINE Address address() const { return bit_cast<Address>(location_); }
 
   // Returns the address to where the raw pointer is stored.
+  // TODO(leszeks): This should probably be a const Address*, to encourage using
+  // PatchValue for modifying the handle's value.
   V8_INLINE Address* location() const {
     SLOW_DCHECK(location_ == nullptr || IsDereferenceAllowed());
     return location_;
@@ -153,6 +155,13 @@ class Handle final : public HandleBase {
 
   // Location equality.
   bool equals(Handle<T> other) const { return address() == other.address(); }
+
+  // Patches this Handle's value, in-place, with a new value. All handles with
+  // the same location will see this update.
+  void PatchValue(T new_value) {
+    SLOW_DCHECK(location_ != nullptr && IsDereferenceAllowed());
+    *location_ = new_value.ptr();
+  }
 
   // Provide function object for location equality comparison.
   struct equal_to {

@@ -557,6 +557,17 @@ void RuntimeCallStats::Print(std::ostream& os) {
   entries.Print(os);
 }
 
+void RuntimeCallStats::EnumerateCounters(
+    debug::RuntimeCallCounterCallback callback) {
+  if (current_timer_.Value() != nullptr) {
+    current_timer_.Value()->Snapshot();
+  }
+  for (int i = 0; i < kNumberOfCounters; i++) {
+    RuntimeCallCounter* counter = GetCounter(i);
+    callback(counter->name(), counter->count(), counter->time());
+  }
+}
+
 void RuntimeCallStats::Reset() {
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
 

@@ -505,6 +505,10 @@ class FeedbackSlot {
   V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
                                                     FeedbackSlot);
 
+  FeedbackSlot WithOffset(int offset) const {
+    return FeedbackSlot(id_ + offset);
+  }
+
  private:
   static const int kInvalidSlot = -1;
 
