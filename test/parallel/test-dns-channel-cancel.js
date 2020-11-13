@@ -8,10 +8,18 @@ const dgram = require('dgram');
 const server = dgram.createSocket('udp4');
 const resolver = new Resolver();
 
-const expectedDomains = [];
-const receivedDomains = [];
 const desiredQueries = 11;
 let finishedQueries = 0;
+
+const addMessageListener = () => {
+  server.removeAllListeners('message');
+
+  server.once('message', () => {
+    server.once('message', common.mustNotCall);
+
+    resolver.cancel();
+  });
+};
 
 server.bind(0, common.mustCall(async () => {
   resolver.setServers([`127.0.0.1:${server.address().port}`]);
@@ -23,7 +31,6 @@ server.bind(0, common.mustCall(async () => {
 
     finishedQueries++;
     if (finishedQueries === desiredQueries) {
-      assert.deepStrictEqual(expectedDomains.sort(), receivedDomains.sort());
       server.close();
     }
   }, desiredQueries);
@@ -31,26 +38,15 @@ server.bind(0, common.mustCall(async () => {
   const next = (...args) => {
     callback(...args);
 
+    addMessageListener();
+
     // Multiple queries
     for (let i = 1; i < desiredQueries; i++) {
-      const domain = `example${i}.org`;
-      expectedDomains.push(domain);
-      resolver.resolve4(domain, callback);
+      resolver.resolve4(`example${i}.org`, callback);
     }
   };
 
   // Single query
-  expectedDomains.push('example0.org');
+  addMessageListener();
   resolver.resolve4('example0.org', next);
 }));
-
-server.on('message', (msg, { address, port }) => {
-  const parsed = dnstools.parseDNSPacket(msg);
-
-  for (const question of parsed.questions) {
-    receivedDomains.push(question.domain);
-  }
-
-  // Do not send a reply.
-  resolver.cancel();
-});
