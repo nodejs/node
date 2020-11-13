@@ -886,7 +886,7 @@ bool TLSWrap::IsClosing() {
 
 int TLSWrap::ReadStart() {
   Debug(this, "ReadStart()");
-  if (underlying_stream() != nullptr)
+  if (underlying_stream() != nullptr && !eof_)
     return underlying_stream()->ReadStart();
   return 0;
 }
@@ -1049,14 +1049,17 @@ uv_buf_t TLSWrap::OnStreamAlloc(size_t suggested_size) {
 
 void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Debug(this, "Read %zd bytes from underlying stream", nread);
+
+  // Ignore everything after close_notify (rfc5246#section-7.2.1)
+  if (eof_)
+    return;
+
   if (nread < 0)  {
     // Error should be emitted only after all data was read
     ClearOut();
 
-    // Ignore EOF if received close_notify
     if (nread == UV_EOF) {
-      if (eof_)
-        return;
+      // underlying stream already should have also called ReadStop on itself
       eof_ = true;
     }
 
