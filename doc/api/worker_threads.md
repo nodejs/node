@@ -1004,7 +1004,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`fs.close()`]: fs.md#fs_fs_close_fd_callback
 [`fs.open()`]: fs.md#fs_fs_open_path_flags_mode_callback
 [`markAsUntransferable()`]: #worker_threads_worker_markasuntransferable_object
-[`perf_hooks.performance`]: #perf_hooks.md#perf_hooks_perf_hooks_performance
+[`perf_hooks.performance`]: perf_hooks.md#perf_hooks_perf_hooks_performance
 [`perf_hooks` `eventLoopUtilization()`]: perf_hooks.md#perf_hooks_performance_eventlooputilization_utilization1_utilization2
 [`port.on('message')`]: #worker_threads_event_message
 [`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/onmessage
