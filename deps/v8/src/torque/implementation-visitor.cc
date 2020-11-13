@@ -3124,13 +3124,13 @@ std::string MachineTypeString(const Type* type) {
 void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
     const std::string& output_directory) {
   std::stringstream builtin_definitions;
-  std::string builtin_definitions_file_name = "builtin-definitions-tq.h";
+  std::string builtin_definitions_file_name = "builtin-definitions.h";
 
   // This file contains plain interface descriptor definitions and has to be
   // included in the middle of interface-descriptors.h. Thus it is not a normal
   // header file and uses the .inc suffix instead of the .h suffix.
   std::stringstream interface_descriptors;
-  std::string interface_descriptors_file_name = "interface-descriptors-tq.inc";
+  std::string interface_descriptors_file_name = "interface-descriptors.inc";
   {
     IncludeGuardScope builtin_definitions_include_guard(
         builtin_definitions, builtin_definitions_file_name);
@@ -3420,7 +3420,7 @@ void GenerateClassExport(const ClassType* type, std::ostream& header,
 void ImplementationVisitor::GenerateClassFieldOffsets(
     const std::string& output_directory) {
   std::stringstream header;
-  std::string file_name = "field-offsets-tq.h";
+  std::string file_name = "field-offsets.h";
   {
     IncludeGuardScope include_guard(header, file_name);
 
@@ -3471,7 +3471,7 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
 void ImplementationVisitor::GenerateBitFields(
     const std::string& output_directory) {
   std::stringstream header;
-  std::string file_name = "bit-fields-tq.h";
+  std::string file_name = "bit-fields.h";
   {
     IncludeGuardScope include_guard(header, file_name);
     header << "#include \"src/base/bit-field.h\"\n\n";
@@ -4037,10 +4037,10 @@ void EmitClassDefinitionHeadersIncludes(const std::string& basename,
   header << "#include \"src/objects/objects.h\"\n";
   header << "#include \"src/objects/heap-object.h\"\n";
   header << "#include \"src/objects/smi.h\"\n";
-  header << "#include \"torque-generated/field-offsets-tq.h\"\n";
+  header << "#include \"torque-generated/field-offsets.h\"\n";
   header << "#include <type_traits>\n\n";
 
-  inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+  inline_header << "#include \"torque-generated/class-definitions.h\"\n";
   inline_header << "#include \"src/objects/js-function.h\"\n";
   inline_header << "#include \"src/objects/js-objects.h\"\n";
   inline_header << "#include \"src/objects/js-promise.h\"\n";
@@ -4086,7 +4086,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
   std::stringstream implementation;
   std::stringstream factory_header;
   std::stringstream factory_impl;
-  std::string basename = "class-definitions-tq";
+  std::string basename = "class-definitions";
   std::string internal_basename = "internal-" + basename;
   std::string exported_basename = "exported-" + basename;
   std::string file_basename = output_directory + "/" + basename;
@@ -4094,7 +4094,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
       output_directory + "/" + internal_basename;
   std::string exported_file_basename =
       output_directory + "/" + exported_basename;
-  std::string factory_basename = "factory-tq";
+  std::string factory_basename = "factory";
   std::string factory_file_basename = output_directory + "/" + factory_basename;
 
   {
@@ -4115,17 +4115,17 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeGuardScope exported_inline_header_guard(
         inline_exported_header, exported_basename + "-inl.h");
 
-    internal_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+    internal_header << "#include \"torque-generated/class-definitions.h\"\n";
     internal_header << "#include \"src/objects/fixed-array.h\"\n";
     inline_internal_header
-        << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
+        << "#include \"torque-generated/internal-class-definitions.h\"\n";
     inline_internal_header
-        << "#include \"torque-generated/class-definitions-tq-inl.h\"\n";
+        << "#include \"torque-generated/class-definitions-inl.h\"\n";
 
     exported_header << "#include \"src/objects/fixed-array.h\"\n";
-    exported_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+    exported_header << "#include \"torque-generated/class-definitions.h\"\n";
     inline_exported_header
-        << "#include \"torque-generated/exported-class-definitions-tq.h\"\n";
+        << "#include \"torque-generated/exported-class-definitions.h\"\n";
     inline_exported_header << "#include \"src/objects/fixed-array-inl.h\"\n";
 
     EmitClassDefinitionHeadersIncludes(basename, external_header,
@@ -4165,26 +4165,23 @@ void ImplementationVisitor::GenerateClassDefinitions(
     factory_impl << "#include \"src/heap/heap.h\"\n";
     factory_impl << "#include \"src/heap/heap-inl.h\"\n";
     factory_impl << "#include \"src/execution/isolate.h\"\n\n";
-    factory_impl
-        << "#include "
-           "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
-    factory_impl
-        << "#include "
-           "\"torque-generated/exported-class-definitions-tq-inl.h\"\n\n";
+    factory_impl << "#include "
+                    "\"torque-generated/internal-class-definitions-inl.h\"\n\n";
+    factory_impl << "#include "
+                    "\"torque-generated/exported-class-definitions-inl.h\"\n\n";
     NamespaceScope factory_impl_namespaces(factory_impl, {"v8", "internal"});
     factory_impl << "\n";
 
-    implementation
-        << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
-    implementation << "#include \"torque-generated/class-verifiers-tq.h\"\n\n";
+    implementation << "#include \"torque-generated/class-definitions.h\"\n\n";
+    implementation << "#include \"torque-generated/class-verifiers.h\"\n\n";
     implementation
         << "#include \"src/objects/class-definitions-tq-deps-inl.h\"\n\n";
     implementation
         << "#include "
-           "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
+           "\"torque-generated/internal-class-definitions-inl.h\"\n\n";
     implementation
         << "#include "
-           "\"torque-generated/exported-class-definitions-tq-inl.h\"\n\n";
+           "\"torque-generated/exported-class-definitions-inl.h\"\n\n";
     NamespaceScope implementation_namespaces(implementation,
                                              {"v8", "internal"});
 
@@ -4339,16 +4336,16 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
 void ImplementationVisitor::GeneratePrintDefinitions(
     const std::string& output_directory) {
   std::stringstream impl;
-  std::string file_name = "objects-printer-tq.cc";
+  std::string file_name = "objects-printer.cc";
   {
     IfDefScope object_print(impl, "OBJECT_PRINT");
 
     impl << "#include \"src/objects/objects.h\"\n\n";
     impl << "#include <iosfwd>\n\n";
     impl << "#include "
-            "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
+            "\"torque-generated/internal-class-definitions-inl.h\"\n";
     impl << "#include "
-            "\"torque-generated/exported-class-definitions-tq-inl.h\"\n";
+            "\"torque-generated/exported-class-definitions-inl.h\"\n";
     impl << "#include \"src/objects/struct-inl.h\"\n\n";
     impl << "#include \"src/objects/template-objects-inl.h\"\n\n";
 
@@ -4420,7 +4417,7 @@ base::Optional<std::string> MatchSimpleBodyDescriptor(const ClassType* type) {
 
 void ImplementationVisitor::GenerateBodyDescriptors(
     const std::string& output_directory) {
-  std::string file_name = "objects-body-descriptors-tq-inl.inc";
+  std::string file_name = "objects-body-descriptors-inl.inc";
   std::stringstream h_contents;
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
@@ -4656,7 +4653,7 @@ void GenerateClassFieldVerifier(const std::string& class_name,
 
 void ImplementationVisitor::GenerateClassVerifiers(
     const std::string& output_directory) {
-  std::string file_name = "class-verifiers-tq";
+  std::string file_name = "class-verifiers";
   std::stringstream h_contents;
   std::stringstream cc_contents;
   {
@@ -4671,9 +4668,9 @@ void ImplementationVisitor::GenerateClassVerifiers(
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
     cc_contents << "#include "
-                   "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
+                   "\"torque-generated/internal-class-definitions-inl.h\"\n";
     cc_contents << "#include "
-                   "\"torque-generated/exported-class-definitions-tq-inl.h\"\n";
+                   "\"torque-generated/exported-class-definitions-inl.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 
@@ -4743,7 +4740,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
 
 void ImplementationVisitor::GenerateEnumVerifiers(
     const std::string& output_directory) {
-  std::string file_name = "enum-verifiers-tq";
+  std::string file_name = "enum-verifiers";
   std::stringstream cc_contents;
   {
     cc_contents << "#include \"src/compiler/code-assembler.h\"\n";
@@ -4775,7 +4772,7 @@ void ImplementationVisitor::GenerateEnumVerifiers(
 
 void ImplementationVisitor::GenerateExportedMacrosAssembler(
     const std::string& output_directory) {
-  std::string file_name = "exported-macros-assembler-tq";
+  std::string file_name = "exported-macros-assembler";
   std::stringstream h_contents;
   std::stringstream cc_contents;
   {
@@ -4783,11 +4780,11 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
 
     h_contents << "#include \"src/compiler/code-assembler.h\"\n";
     h_contents << "#include \"src/execution/frames.h\"\n";
-    h_contents << "#include \"torque-generated/csa-types-tq.h\"\n";
+    h_contents << "#include \"torque-generated/csa-types.h\"\n";
     h_contents
-        << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
+        << "#include \"torque-generated/internal-class-definitions.h\"\n";
     h_contents
-        << "#include \"torque-generated/exported-class-definitions-tq.h\"\n";
+        << "#include \"torque-generated/exported-class-definitions.h\"\n";
     cc_contents << "#include \"src/objects/fixed-array-inl.h\"\n";
     cc_contents << "#include \"src/objects/free-space.h\"\n";
     cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
@@ -4862,7 +4859,7 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
 
 void ImplementationVisitor::GenerateCSATypes(
     const std::string& output_directory) {
-  std::string file_name = "csa-types-tq";
+  std::string file_name = "csa-types";
   std::stringstream h_contents;
   {
     IncludeGuardScope include_guard(h_contents, file_name + ".h");

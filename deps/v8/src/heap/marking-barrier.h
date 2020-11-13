@@ -14,19 +14,28 @@ namespace internal {
 
 class Heap;
 class IncrementalMarking;
+class LocalHeap;
 class PagedSpace;
 class NewSpace;
 
 class MarkingBarrier {
  public:
-  MarkingBarrier(Heap*, MarkCompactCollector*, IncrementalMarking*);
+  explicit MarkingBarrier(Heap*);
+  explicit MarkingBarrier(LocalHeap*);
+  ~MarkingBarrier();
+
   void Activate(bool is_compacting);
   void Deactivate();
+  void Publish();
+
+  static void ActivateAll(Heap* heap, bool is_compacting);
+  static void DeactivateAll(Heap* heap);
+  static void PublishAll(Heap* heap);
 
   void Write(HeapObject host, HeapObjectSlot, HeapObject value);
   void Write(Code host, RelocInfo*, HeapObject value);
   void Write(JSArrayBuffer host, ArrayBufferExtension*);
-  void Write(Map host, DescriptorArray, int number_of_own_descriptors);
+  void Write(DescriptorArray, int number_of_own_descriptors);
 
   // Returns true if the slot needs to be recorded.
   inline bool MarkValue(HeapObject host, HeapObject value);
@@ -36,18 +45,25 @@ class MarkingBarrier {
 
   inline bool WhiteToGreyAndPush(HeapObject value);
 
-  void Activate(PagedSpace*);
-  void Activate(NewSpace*);
+  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
 
-  void Deactivate(PagedSpace*);
-  void Deactivate(NewSpace*);
+  void ActivateSpace(PagedSpace*);
+  void ActivateSpace(NewSpace*);
 
-  MarkingState marking_state_;
+  void DeactivateSpace(PagedSpace*);
+  void DeactivateSpace(NewSpace*);
+
   Heap* heap_;
   MarkCompactCollector* collector_;
   IncrementalMarking* incremental_marking_;
+  MarkingWorklist::Local worklist_;
+  MarkingState marking_state_;
+  std::unordered_map<MemoryChunk*, std::unique_ptr<TypedSlots>,
+                     MemoryChunk::Hasher>
+      typed_slots_map_;
   bool is_compacting_ = false;
   bool is_activated_ = false;
+  bool is_main_thread_barrier_;
 };
 
 }  // namespace internal

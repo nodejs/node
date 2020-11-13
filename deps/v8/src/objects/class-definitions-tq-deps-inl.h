@@ -6,7 +6,7 @@
 #define V8_OBJECTS_CLASS_DEFINITIONS_TQ_DEPS_INL_H_
 
 // This is a collection of -inl.h files required by the generated file
-// class-definitions-tq.cc. Generally, classes using @generateCppClass need an
+// class-definitions.cc. Generally, classes using @generateCppClass need an
 // entry here.
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"

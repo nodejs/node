@@ -94,6 +94,12 @@ uint32_t Name::Hash() {
   return String::cast(*this).ComputeAndSetHash();
 }
 
+uint32_t Name::hash() const {
+  uint32_t field = hash_field();
+  DCHECK(IsHashFieldComputed(field));
+  return field >> kHashShift;
+}
+
 DEF_GETTER(Name, IsInterestingSymbol, bool) {
   return IsSymbol(isolate) && Symbol::cast(*this).is_interesting_symbol();
 }

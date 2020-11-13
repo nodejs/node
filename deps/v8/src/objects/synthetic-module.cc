@@ -30,9 +30,8 @@ Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
     return Nothing<bool>();
   }
 
-  Handle<Cell> export_cell(Handle<Cell>::cast(export_object));
   // Spec step 2: Set the mutable binding of export_name to export_value
-  export_cell->set_value(*export_value);
+  Cell::cast(*export_object).set_value(*export_value);
 
   return Just(true);
 }
@@ -56,18 +55,14 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
     Handle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve) {
   Handle<Object> object(module->exports().Lookup(export_name), isolate);
-  if (object->IsCell()) {
-    return Handle<Cell>::cast(object);
-  }
+  if (object->IsCell()) return Handle<Cell>::cast(object);
 
-  if (must_resolve) {
-    return isolate->Throw<Cell>(
-        isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
-                                           module_specifier, export_name),
-        &loc);
-  }
+  if (!must_resolve) return MaybeHandle<Cell>();
 
-  return MaybeHandle<Cell>();
+  return isolate->Throw<Cell>(
+      isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
+                                         module_specifier, export_name),
+      &loc);
 }
 
 // Implements Synthetic Module Record's Instantiate concrete method :
@@ -116,7 +111,7 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
            Utils::ToLocal(Handle<Module>::cast(module)))
            .ToLocal(&result)) {
     isolate->PromoteScheduledException();
-    module->RecordErrorUsingPendingException(isolate);
+    Module::RecordErrorUsingPendingException(isolate, module);
     return MaybeHandle<Object>();
   }
 

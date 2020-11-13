@@ -260,7 +260,6 @@ class PerIsolateData {
   void AddUnhandledPromise(Local<Promise> promise, Local<Message> message,
                            Local<Value> exception);
   int HandleUnhandledPromiseRejections();
-  size_t GetUnhandledPromiseCount();
 
  private:
   friend class Shell;
@@ -273,6 +272,7 @@ class PerIsolateData {
   Global<Value> realm_shared_;
   std::queue<Global<Function>> set_timeout_callbacks_;
   std::queue<Global<Context>> set_timeout_contexts_;
+  bool ignore_unhandled_promises_;
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
       unhandled_promises_;
   AsyncHooks* async_hooks_wrapper_;
@@ -281,6 +281,8 @@ class PerIsolateData {
                         int arg_offset);
   int RealmFind(Local<Context> context);
 };
+
+extern bool check_d8_flag_contradictions;
 
 class ShellOptions {
  public:
@@ -292,47 +294,97 @@ class ShellOptions {
 
   ~ShellOptions() { delete[] isolate_sources; }
 
-  bool fuzzilli_coverage_statistics = false;
-  bool fuzzilli_enable_builtins_coverage = true;
-  bool send_idle_notification = false;
-  bool invoke_weak_callbacks = false;
-  bool omit_quit = false;
-  bool wait_for_background_tasks = true;
-  bool stress_opt = false;
-  int stress_runs = 1;
-  bool stress_snapshot = false;
-  bool interactive_shell = false;
+  // In analogy to Flag::CheckFlagChange() in src/flags/flag.cc, only allow
+  // repeated flags for identical boolean values. We allow exceptions for flags
+  // with enum-like arguments since their conflicts can also be specified
+  // completely.
+  template <class T,
+            bool kAllowIdenticalAssignment = std::is_same<T, bool>::value>
+  class DisallowReassignment {
+   public:
+    DisallowReassignment(const char* name, T value)
+        : name_(name), value_(value) {}
+
+    operator T() const { return value_; }  // NOLINT
+    T get() const { return value_; }
+    DisallowReassignment& operator=(T value) {
+      if (check_d8_flag_contradictions) {
+        if (kAllowIdenticalAssignment) {
+          if (specified_ && value_ != value) {
+            FATAL("Contradictory values for d8 flag --%s", name_);
+          }
+        } else {
+          if (specified_) {
+            FATAL("Repeated specification of d8 flag --%s", name_);
+          }
+        }
+      }
+      value_ = value;
+      specified_ = true;
+      return *this;
+    }
+    void Overwrite(T value) { value_ = value; }
+
+   private:
+    const char* name_;
+    T value_;
+    bool specified_ = false;
+  };
+
+  DisallowReassignment<bool> fuzzilli_coverage_statistics = {
+      "fuzzilli-coverage-statistics", false};
+  DisallowReassignment<bool> fuzzilli_enable_builtins_coverage = {
+      "fuzzilli-enable-builtins-coverage", true};
+  DisallowReassignment<bool> send_idle_notification = {"send-idle-notification",
+                                                       false};
+  DisallowReassignment<bool> invoke_weak_callbacks = {"invoke-weak-callbacks",
+                                                      false};
+  DisallowReassignment<bool> omit_quit = {"omit-quit", false};
+  DisallowReassignment<bool> wait_for_background_tasks = {
+      "wait-for-background-tasks", true};
+  DisallowReassignment<bool> stress_opt = {"stress-opt", false};
+  DisallowReassignment<int> stress_runs = {"stress-runs", 1};
+  DisallowReassignment<bool> stress_snapshot = {"stress-snapshot", false};
+  DisallowReassignment<bool> interactive_shell = {"shell", false};
   bool test_shell = false;
-  bool expected_to_throw = false;
-  bool ignore_unhandled_promises = false;
-  bool mock_arraybuffer_allocator = false;
-  size_t mock_arraybuffer_allocator_limit = 0;
-  bool multi_mapped_mock_allocator = false;
-  bool enable_inspector = false;
+  DisallowReassignment<bool> expected_to_throw = {"throws", false};
+  DisallowReassignment<bool> ignore_unhandled_promises = {
+      "ignore-unhandled-promises", false};
+  DisallowReassignment<bool> mock_arraybuffer_allocator = {
+      "mock-arraybuffer-allocator", false};
+  DisallowReassignment<size_t> mock_arraybuffer_allocator_limit = {
+      "mock-arraybuffer-allocator-limit", 0};
+  DisallowReassignment<bool> multi_mapped_mock_allocator = {
+      "multi-mapped-mock-allocator", false};
+  DisallowReassignment<bool> enable_inspector = {"enable-inspector", false};
   int num_isolates = 1;
-  v8::ScriptCompiler::CompileOptions compile_options =
-      v8::ScriptCompiler::kNoCompileOptions;
-  CodeCacheOptions code_cache_options = CodeCacheOptions::kNoProduceCache;
-  bool streaming_compile = false;
-  SourceGroup* isolate_sources = nullptr;
-  const char* icu_data_file = nullptr;
-  const char* icu_locale = nullptr;
-  const char* snapshot_blob = nullptr;
-  bool trace_enabled = false;
-  const char* trace_path = nullptr;
-  const char* trace_config = nullptr;
-  const char* lcov_file = nullptr;
-  bool disable_in_process_stack_traces = false;
-  int read_from_tcp_port = -1;
-  bool enable_os_system = false;
-  bool quiet_load = false;
-  int thread_pool_size = 0;
-  bool stress_delay_tasks = false;
+  DisallowReassignment<v8::ScriptCompiler::CompileOptions, true>
+      compile_options = {"cache", v8::ScriptCompiler::kNoCompileOptions};
+  DisallowReassignment<CodeCacheOptions, true> code_cache_options = {
+      "cache", CodeCacheOptions::kNoProduceCache};
+  DisallowReassignment<bool> streaming_compile = {"streaming-compile", false};
+  DisallowReassignment<SourceGroup*> isolate_sources = {"isolate-sources",
+                                                        nullptr};
+  DisallowReassignment<const char*> icu_data_file = {"icu-data-file", nullptr};
+  DisallowReassignment<const char*> icu_locale = {"icu-locale", nullptr};
+  DisallowReassignment<const char*> snapshot_blob = {"snapshot_blob", nullptr};
+  DisallowReassignment<bool> trace_enabled = {"trace-enabled", false};
+  DisallowReassignment<const char*> trace_path = {"trace-path", nullptr};
+  DisallowReassignment<const char*> trace_config = {"trace-config", nullptr};
+  DisallowReassignment<const char*> lcov_file = {"lcov", nullptr};
+  DisallowReassignment<bool> disable_in_process_stack_traces = {
+      "disable-in-process-stack-traces", false};
+  DisallowReassignment<int> read_from_tcp_port = {"read-from-tcp-port", -1};
+  DisallowReassignment<bool> enable_os_system = {"enable-os-system", false};
+  DisallowReassignment<bool> quiet_load = {"quiet-load", false};
+  DisallowReassignment<int> thread_pool_size = {"thread-pool-size", 0};
+  DisallowReassignment<bool> stress_delay_tasks = {"stress-delay-tasks", false};
   std::vector<const char*> arguments;
-  bool include_arguments = true;
-  bool cpu_profiler = false;
-  bool cpu_profiler_print = false;
-  bool fuzzy_module_file_extensions = true;
+  DisallowReassignment<bool> include_arguments = {"arguments", true};
+  DisallowReassignment<bool> cpu_profiler = {"cpu-profiler", false};
+  DisallowReassignment<bool> cpu_profiler_print = {"cpu-profiler-print", false};
+  DisallowReassignment<bool> fuzzy_module_file_extensions = {
+      "fuzzy-module-file-extensions", true};
 };
 
 class Shell : public i::AllStatic {
@@ -400,6 +452,8 @@ class Shell : public i::AllStatic {
                              const PropertyCallbackInfo<Value>& info);
   static void RealmSharedSet(Local<String> property, Local<Value> value,
                              const PropertyCallbackInfo<void>& info);
+
+  static void LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void AsyncHooksCreateHook(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -539,7 +593,16 @@ class Shell : public i::AllStatic {
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
+
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
+  static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateAsyncHookTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateTestRunnerTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreatePerformanceTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateRealmTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateD8Template(Isolate* isolate);
+
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& args, int index,
       v8::MaybeLocal<Value> global_object);

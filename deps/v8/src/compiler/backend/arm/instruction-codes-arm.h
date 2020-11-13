@@ -307,8 +307,8 @@ namespace compiler {
   V(ArmS8x16TransposeLeft)         \
   V(ArmS8x16TransposeRight)        \
   V(ArmS8x16Concat)                \
-  V(ArmS8x16Swizzle)               \
-  V(ArmS8x16Shuffle)               \
+  V(ArmI8x16Swizzle)               \
+  V(ArmI8x16Shuffle)               \
   V(ArmS32x2Reverse)               \
   V(ArmS16x4Reverse)               \
   V(ArmS16x2Reverse)               \

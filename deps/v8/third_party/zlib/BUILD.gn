@@ -29,6 +29,20 @@ config("zlib_internal_config") {
   }
 }
 
+source_set("zlib_common_headers") {
+  sources = [
+    "chromeconf.h",
+    "deflate.h",
+    "inffast.h",
+    "inffixed.h",
+    "inflate.h",
+    "inftrees.h",
+    "zconf.h",
+    "zlib.h",
+    "zutil.h",
+  ]
+}
+
 use_arm_neon_optimizations = false
 if ((current_cpu == "arm" || current_cpu == "arm64") &&
     !(is_win && !is_clang)) {
@@ -81,6 +95,8 @@ source_set("zlib_adler32_simd") {
   configs += [ ":zlib_internal_config" ]
 
   public_configs = [ ":zlib_adler32_simd_config" ]
+
+  public_deps = [ ":zlib_common_headers" ]
 }
 
 if (use_arm_neon_optimizations) {
@@ -127,6 +143,8 @@ if (use_arm_neon_optimizations) {
     configs += [ ":zlib_internal_config" ]
 
     public_configs = [ ":zlib_arm_crc32_config" ]
+
+    public_deps = [ ":zlib_common_headers" ]
   }
 }
 
@@ -170,6 +188,8 @@ source_set("zlib_inflate_chunk_simd") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   public_configs = [ ":zlib_inflate_chunk_simd_config" ]
+
+  public_deps = [ ":zlib_common_headers" ]
 }
 
 config("zlib_crc32_simd_config") {
@@ -198,6 +218,7 @@ source_set("zlib_crc32_simd") {
   configs += [ ":zlib_internal_config" ]
 
   public_configs = [ ":zlib_crc32_simd_config" ]
+  public_deps = [ ":zlib_common_headers" ]
 }
 
 config("zlib_x86_simd_config") {
@@ -229,6 +250,8 @@ source_set("zlib_x86_simd") {
   configs += [ ":zlib_internal_config" ]
 
   public_configs = [ ":zlib_x86_simd_config" ]
+
+  public_deps = [ ":zlib_common_headers" ]
 }
 
 config("zlib_warnings") {
@@ -403,6 +426,7 @@ if (build_with_chromium) {
     sources = [
       "contrib/tests/infcover.cc",
       "contrib/tests/infcover.h",
+      "contrib/tests/run_all_unittests.cc",
       "contrib/tests/utils_unittest.cc",
       "google/compression_utils_portable.cc",
       "google/compression_utils_portable.h",
@@ -410,8 +434,8 @@ if (build_with_chromium) {
 
     deps = [
       ":zlib",
+      "//base/test:test_support",
       "//testing/gtest",
-      "//testing/gtest:gtest_main",
     ]
 
     include_dirs = [

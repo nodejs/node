@@ -55,13 +55,14 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     return;
   }
 
-  std::unique_ptr<WasmValue[]> arguments =
-      testing::MakeDefaultArguments(isolate, main_function->sig());
+  OwnedVector<WasmValue> arguments =
+      testing::MakeDefaultInterpreterArguments(isolate, main_function->sig());
 
   // Now interpret.
   testing::WasmInterpretationResult interpreter_result =
-      testing::InterpretWasmModule(
-          isolate, instance, main_function->function_index(), arguments.get());
+      testing::InterpretWasmModule(isolate, instance,
+                                   main_function->function_index(),
+                                   arguments.begin());
   if (interpreter_result.failed()) return;
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
@@ -82,9 +83,13 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
               .ToHandle(&instance));
   }
 
+  OwnedVector<Handle<Object>> compiled_args =
+      testing::MakeDefaultArguments(isolate, main_function->sig());
+
   bool exception = false;
   int32_t result_compiled = testing::CallWasmFunctionForTesting(
-      isolate, instance, "main", 0, nullptr, &exception);
+      isolate, instance, "main", static_cast<int>(compiled_args.size()),
+      compiled_args.begin(), &exception);
   if (interpreter_result.trapped() != exception) {
     const char* exception_text[] = {"no exception", "exception"};
     FATAL("interpreter: %s; compiled: %s",
@@ -118,6 +123,8 @@ const char* ValueTypeToConstantName(ValueType type) {
       return "kWasmF32";
     case ValueType::kF64:
       return "kWasmF64";
+    case ValueType::kS128:
+      return "kWasmS128";
     case ValueType::kOptRef:
       switch (type.heap_representation()) {
         case HeapType::kExtern:
@@ -265,9 +272,11 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       for (size_t pos = 0, count = 1, locals = decls.type_list.size();
            pos < locals; pos += count, count = 1) {
         ValueType type = decls.type_list[pos];
-        while (pos + count < locals && decls.type_list[pos + count] == type)
+        while (pos + count < locals && decls.type_list[pos + count] == type) {
           ++count;
-        os << ".addLocals({" << type.name() << "_count: " << count << "})";
+        }
+        os << ".addLocals(" << ValueTypeToConstantName(type) << ", " << count
+           << ")";
       }
       os << "\n";
     }
@@ -305,12 +314,6 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   FlagScope<bool> enable_##feat(&FLAG_experimental_wasm_##feat, true);
   FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
-  // SIMD is not included in staging yet, so we enable it here for fuzzing.
-  EXPERIMENTAL_FLAG_SCOPE(simd);
-  // TODO(v8:10308): Bitmask was merged into proposal after 84 cut, so it was
-  // left gated by this flag. In order to fuzz it, we need this flag. This
-  // should be removed once we move bitmask out of post mvp.
-  FLAG_SCOPE(wasm_simd_post_mvp);
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all

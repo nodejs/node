@@ -2026,7 +2026,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register rhs = i.InputSimd128Register(1);
       DCHECK_EQ(dst, lhs);
 
-      // Move rhs only when rhs is strictly greater (mi).
+      // Move rhs only when rhs is strictly lesser (mi).
       __ VFPCompareAndSetFlags(rhs.low(), lhs.low());
       __ vmov(dst.low(), rhs.low(), mi);
       __ VFPCompareAndSetFlags(rhs.high(), lhs.high());
@@ -2039,7 +2039,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register rhs = i.InputSimd128Register(1);
       DCHECK_EQ(dst, lhs);
 
-      // Move rhs only when rhs is strictly greater (mi).
+      // Move rhs only when rhs is strictly greater (gt).
       __ VFPCompareAndSetFlags(rhs.low(), lhs.low());
       __ vmov(dst.low(), rhs.low(), gt);
       __ VFPCompareAndSetFlags(rhs.high(), lhs.high());
@@ -2150,7 +2150,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmI64x2Neg: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vmov(dst, uint64_t{0});
-      __ vqsub(NeonS64, dst, dst, i.InputSimd128Register(0));
+      __ vsub(Neon64, dst, dst, i.InputSimd128Register(0));
       break;
     }
     case kArmI64x2Shl: {
@@ -3097,7 +3097,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1), i.InputInt4(2));
       break;
     }
-    case kArmS8x16Swizzle: {
+    case kArmI8x16Swizzle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       tbl = i.InputSimd128Register(0),
                       src = i.InputSimd128Register(1);
@@ -3106,7 +3106,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vtbl(dst.high(), table, src.high());
       break;
     }
-    case kArmS8x16Shuffle: {
+    case kArmI8x16Shuffle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
@@ -3648,9 +3648,6 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (call_descriptor->PushArgumentCount()) {
-        __ Push(kJavaScriptCallArgCountRegister);
-      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {

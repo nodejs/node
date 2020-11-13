@@ -44,6 +44,8 @@ class Simd128 {
   FOREACH_SIMD_TYPE(DEFINE_SIMD_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_SIMD_TYPE_SPECIFIC_METHODS
 
+  const uint8_t* bytes() { return val_; }
+
  private:
   uint8_t val_[16] = {0};
 };
@@ -103,6 +105,12 @@ class WasmValue {
 
   template <typename T>
   inline T to_unchecked() const;
+
+  static WasmValue ForUintPtr(uintptr_t value) {
+    using type =
+        std::conditional<kSystemPointerSize == 8, uint64_t, uint32_t>::type;
+    return WasmValue{type{value}};
+  }
 
  private:
   ValueType type_;

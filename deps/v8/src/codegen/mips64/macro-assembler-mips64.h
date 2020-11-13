@@ -334,6 +334,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Sd(src, MemOperand(sp, 0));
   }
 
+  enum PushArrayOrder { kNormal, kReverse };
+  void PushArray(Register array, Register size, Register scratch,
+                 Register scratch2, PushArrayOrder order = kNormal);
+
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
@@ -787,6 +791,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Floor_s_s(FPURegister fd, FPURegister fs);
   void Ceil_s_s(FPURegister fd, FPURegister fs);
 
+  void MSARoundW(MSARegister dst, MSARegister src, FPURoundingMode mode);
+  void MSARoundD(MSARegister dst, MSARegister src, FPURoundingMode mode);
+
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label, Register scratch = at,
                  BranchDelaySlot bd = PROTECT);
@@ -908,6 +915,28 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   using TurboAssembler::TurboAssembler;
+
+  // It assumes that the arguments are located below the stack pointer.
+  // argc is the number of arguments not including the receiver.
+  // TODO(victorgomes): Remove this function once we stick with the reversed
+  // arguments order.
+  void LoadReceiver(Register dest, Register argc) {
+#ifdef V8_REVERSE_JSARGS
+    Ld(dest, MemOperand(sp, 0));
+#else
+    Dlsa(dest, sp, argc, kPointerSizeLog2);
+    Ld(dest, MemOperand(dest, 0));
+#endif
+  }
+
+  void StoreReceiver(Register rec, Register argc, Register scratch) {
+#ifdef V8_REVERSE_JSARGS
+    Sd(rec, MemOperand(sp, 0));
+#else
+    Dlsa(scratch, sp, argc, kPointerSizeLog2);
+    Sd(rec, MemOperand(scratch, 0));
+#endif
+  }
 
   bool IsNear(Label* L, Condition cond, int rs_reg);
 

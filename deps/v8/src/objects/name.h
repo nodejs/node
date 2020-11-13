@@ -8,7 +8,7 @@
 #include "src/base/bit-field.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,8 +23,14 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   // Tells whether the hash code has been computed.
   inline bool HasHashCode();
 
-  // Returns a hash value used for the property table
+  // Returns a hash value used for the property table. Ensures that the hash
+  // value is computed.
+  // TODO(ishell): rename to EnsureHash().
   inline uint32_t Hash();
+
+  // Returns a hash value used for the property table (same as Hash()), assumes
+  // the hash is already computed.
+  inline uint32_t hash() const;
 
   // Equality operations.
   inline bool Equals(Name other);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --no-enable-experimental-regexp-engine
 
 const kNoBacktrackLimit = 0;  // To match JSRegExp::kNoBacktrackLimit.
 const re0 = %NewRegExpWithBacktrackLimit("(\\d+)+x", "", kNoBacktrackLimit);

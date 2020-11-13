@@ -103,26 +103,22 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     text-align: right;
   }
 </style>
-<script src="./splaytree.js"></script>
-<script src="./codemap.js"></script>
-<script src="./csvparser.js"></script>
-<script src="./consarray.js"></script>
-<script src="./profile.js"></script>
-<script src="./profile_view.js"></script>
-<script src="./logreader.js"></script>
-<script src="./arguments.js"></script>
-<script src="./parse-processor.js"></script>
-<script src="./SourceMap.js"></script>
 <script src="https://www.gstatic.com/charts/loader.js"></script>
-<script>
-"use strict";
+<script type="module">
+
+import { ParseProcessor, kSecondsToMillis } from "./parse-processor.mjs";
+
 google.charts.load('current', {packages: ['corechart']});
 
 function $(query) {
   return document.querySelector(query);
 }
 
-function loadFile() {
+window.addEventListener('DOMContentLoaded', (event) => {
+  $("#uploadInput").focus();
+});
+
+document.loadFile = function() {
   let files = $('#uploadInput').files;
 
   let file = files[0];
@@ -138,10 +134,6 @@ function loadFile() {
     document.parseProcessor = parseProcessor;
   }
   reader.readAsText(file);
-}
-
-function handleOnLoad() {
-  document.querySelector("#uploadInput").focus();
 }
 
 function createNode(tag, classNames) {
@@ -395,7 +387,7 @@ function createFunktionList(metric, description, time, funktions) {
 </script>
 </head>
 
-<body onload="handleOnLoad()">
+<body>
   <h1>BEHOLD, THIS IS PARSEROR!</h1>
 
   <h2>Usage</h2>

@@ -863,6 +863,16 @@ domain Profiler
       # Counter value.
       integer value
 
+  # Runtime call counter information.
+  experimental type RuntimeCallCounterInfo extends object
+    properties
+      # Counter name.
+      string name
+      # Counter value.
+      number value
+      # Counter time in seconds.
+      number time
+
   command disable
 
   command enable
@@ -927,6 +937,18 @@ domain Profiler
       # Type profile for all scripts since startTypeProfile() was turned on.
       array of ScriptTypeProfile result
 
+  # Enable counters collection.
+  experimental command enableCounters
+
+  # Disable counters collection.
+  experimental command disableCounters
+
+  # Retrieve counters.
+  experimental command getCounters
+    returns
+      # Collected counters information.
+      array of CounterInfo result
+
   # Enable run time call stats collection.
   experimental command enableRuntimeCallStats
 
@@ -936,8 +958,8 @@ domain Profiler
   # Retrieve run time call stats.
   experimental command getRuntimeCallStats
     returns
-      # Collected counter information.
-      array of CounterInfo result
+      # Collected runtime call counter information.
+      array of RuntimeCallCounterInfo result
 
   event consoleProfileFinished
     parameters

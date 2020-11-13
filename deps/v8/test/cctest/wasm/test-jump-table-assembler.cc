@@ -42,12 +42,20 @@ constexpr size_t kThunkBufferSize = 4 * KB;
 #endif
 
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+// We need the branches (from CompileJumpTableThunk) to be within near-call
+// range of the jump table slots. The address hint to AllocateAssemblerBuffer
+// is not reliable enough to guarantee that we can always achieve this with
+// separate allocations, so we generate all code in a single
+// kMaxCodeMemory-sized chunk.
+constexpr size_t kAssemblerBufferSize = WasmCodeAllocator::kMaxCodeSpaceSize;
 constexpr uint32_t kAvailableBufferSlots =
-    (kMaxWasmCodeSpaceSize - kJumpTableSize) / kThunkBufferSize;
+    (WasmCodeAllocator::kMaxCodeSpaceSize - kJumpTableSize) / kThunkBufferSize;
 constexpr uint32_t kBufferSlotStartOffset =
     RoundUp<kThunkBufferSize>(kJumpTableSize);
 #else
+constexpr size_t kAssemblerBufferSize = kJumpTableSize;
 constexpr uint32_t kAvailableBufferSlots = 0;
+constexpr uint32_t kBufferSlotStartOffset = 0;
 #endif
 
 Address AllocateJumpTableThunk(
@@ -227,19 +235,9 @@ TEST(JumpTablePatchingStress) {
   constexpr int kNumberOfRunnerThreads = 5;
   constexpr int kNumberOfPatcherThreads = 3;
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
-  // We need the branches (from CompileJumpTableThunk) to be within near-call
-  // range of the jump table slots. The address hint to AllocateAssemblerBuffer
-  // is not reliable enough to guarantee that we can always achieve this with
-  // separate allocations, so for Arm64 we generate all code in a single
-  // kMaxMasmCodeMemory-sized chunk.
-  STATIC_ASSERT(kMaxWasmCodeSpaceSize >= kJumpTableSize);
-  auto buffer = AllocateAssemblerBuffer(kMaxWasmCodeSpaceSize);
+  STATIC_ASSERT(kAssemblerBufferSize >= kJumpTableSize);
+  auto buffer = AllocateAssemblerBuffer(kAssemblerBufferSize);
   byte* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
-#else
-  auto buffer = AllocateAssemblerBuffer(kJumpTableSize);
-  byte* thunk_slot_buffer = nullptr;
-#endif
 
   std::bitset<kAvailableBufferSlots> used_thunk_slots;
   buffer->MakeWritableAndExecutable();

@@ -4151,6 +4151,12 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
 
   JSObject::AddProperty(isolate_, global, "SharedArrayBuffer",
                         isolate()->shared_array_buffer_fun(), DONT_ENUM);
+}
+
+void Genesis::InitializeGlobal_harmony_atomics() {
+  if (!FLAG_harmony_atomics) return;
+
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
 
   JSObject::AddProperty(isolate_, global, "Atomics",
                         isolate()->atomics_object(), DONT_ENUM);
@@ -4219,7 +4225,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
                        factory->WeakRef_string());
 
     SimpleInstallFunction(isolate(), weak_ref_prototype, "deref",
-                          Builtins::kWeakRefDeref, 0, false);
+                          Builtins::kWeakRefDeref, 0, true);
   }
 }
 

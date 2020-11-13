@@ -38,7 +38,7 @@ function f() {
   arr[500] = 20;
   arr[10] = arr[50];
 }
-%EnsureFeedbackVectorForFunction(f);
+%PrepareFunctionForOptimization(f);
 
 function g() {
   f();

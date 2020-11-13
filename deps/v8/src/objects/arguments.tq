@@ -53,7 +53,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 // entry has been deleted fron the arguments object, and value is looked up in
 // the unmapped arguments array, as described above. Otherwise, t is a Smi
 // index into the context array specified at elements.context, and the return
-// value is elements.context.
+// value is elements.context[t].
 //
 // A graphic representation of a SloppyArgumentsElements object and a
 // corresponding unmapped arguments FixedArray:
@@ -79,7 +79,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 @export
 class SloppyArgumentsElements extends FixedArrayBase {
   context: Context;
-  arguments: FixedArray;
+  arguments: FixedArray|NumberDictionary;
   mapped_entries[length]: Smi|TheHole;
 }
 
@@ -315,4 +315,59 @@ builtin NewRestArgumentsElements(
     argumentCount: Smi): FixedArray {
   return arguments::NewRestArgumentsElements(
       frame, formalParameterCount, Convert<intptr>(argumentCount));
+}
+
+macro
+AccessSloppyArgumentsCommon(
+    receiver: JSObject, keyObject: Object): &Object labels Bailout {
+  const key = Cast<Smi>(keyObject) otherwise Bailout;
+  const elements =
+      Cast<SloppyArgumentsElements>(receiver.elements) otherwise Bailout;
+
+  try {
+    if (OutOfBounds(key, elements.length)) goto Unmapped;
+    const mappedIndex = elements.mapped_entries[key];
+    typeswitch (mappedIndex) {
+      case (contextIndex: Smi): {
+        return &(elements.context.elements[contextIndex]);
+      }
+      case (TheHole): {
+        goto Unmapped;
+      }
+    }
+  } label Unmapped {
+    typeswitch (elements.arguments) {
+      case (NumberDictionary): {
+        goto Bailout;
+      }
+      case (arguments: FixedArray): {
+        if (OutOfBounds(key, arguments.length)) goto Bailout;
+        if (arguments.objects[key] == TheHole) goto Bailout;
+        return &(arguments.objects[key]);
+      }
+    }
+  }
+}
+
+@export
+macro SloppyArgumentsLoad(receiver: JSObject, keyObject: Object):
+    JSAny labels Bailout {
+  return UnsafeCast<JSAny>(
+      *AccessSloppyArgumentsCommon(receiver, keyObject) otherwise Bailout);
+}
+
+@export
+macro SloppyArgumentsHas(receiver: JSObject, keyObject: Object):
+    JSAny labels Bailout {
+  AccessSloppyArgumentsCommon(receiver, keyObject) otherwise Bailout;
+  return True;
+}
+
+@export
+macro SloppyArgumentsStore(receiver: JSObject, keyObject: Object, value: JSAny):
+    JSAny labels Bailout {
+  let destination =
+      AccessSloppyArgumentsCommon(receiver, keyObject) otherwise Bailout;
+  *destination = value;
+  return value;
 }

@@ -4,6 +4,10 @@
 
 #include "src/base/cpu.h"
 
+#if defined(STARBOARD)
+#include "starboard/cpu_features.h"
+#endif
+
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif
@@ -347,6 +351,54 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
         // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
+#if defined(STARBOARD)
+
+bool CPU::StarboardDetectCPU() {
+#if (SB_API_VERSION >= 11)
+  SbCPUFeatures features;
+  if (!SbCPUFeaturesGet(&features)) {
+    return false;
+  }
+  architecture_ = features.arm.architecture_generation;
+  switch (features.architecture) {
+    case kSbCPUFeaturesArchitectureArm:
+    case kSbCPUFeaturesArchitectureArm64:
+      has_neon_ = features.arm.has_neon;
+      has_thumb2_ = features.arm.has_thumb2;
+      has_vfp_ = features.arm.has_vfp;
+      has_vfp3_ = features.arm.has_vfp3;
+      has_vfp3_d32_ = features.arm.has_vfp3_d32;
+      has_idiva_ = features.arm.has_idiva;
+      break;
+    case kSbCPUFeaturesArchitectureX86:
+    case kSbCPUFeaturesArchitectureX86_64:
+      // Following flags are mandatory for V8
+      has_cmov_ = features.x86.has_cmov;
+      has_sse2_ = features.x86.has_sse2;
+      // These flags are optional
+      has_sse3_ = features.x86.has_sse3;
+      has_ssse3_ = features.x86.has_ssse3;
+      has_sse41_ = features.x86.has_sse41;
+      has_sahf_ = features.x86.has_sahf;
+      has_avx_ = features.x86.has_avx;
+      has_fma3_ = features.x86.has_fma3;
+      has_bmi1_ = features.x86.has_bmi1;
+      has_bmi2_ = features.x86.has_bmi2;
+      has_lzcnt_ = features.x86.has_lzcnt;
+      has_popcnt_ = features.x86.has_popcnt;
+      break;
+    default:
+      return false;
+  }
+
+  return true;
+#else  // SB_API_VERSION >= 11
+  return false;
+#endif
+}
+
+#endif
+
 CPU::CPU()
     : stepping_(0),
       model_(0),
@@ -389,6 +441,13 @@ CPU::CPU()
       has_non_stop_time_stamp_counter_(false),
       has_msa_(false) {
   memcpy(vendor_, "Unknown", 8);
+
+#if defined(STARBOARD)
+  if (StarboardDetectCPU()) {
+    return;
+  }
+#endif
+
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   int cpu_info[4];
 

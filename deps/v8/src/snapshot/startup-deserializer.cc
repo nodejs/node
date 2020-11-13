@@ -31,7 +31,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   DCHECK(!isolate->builtins()->is_initialized());
 
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     isolate->heap()->IterateSmiRoots(this);
     isolate->heap()->IterateRoots(
         this,

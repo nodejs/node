@@ -18,9 +18,7 @@ namespace internal {
 // C++ marking implementation.
 class MarkingState {
  public:
-  inline MarkingState(HeapBase& heap, MarkingWorklists::MarkingWorklist*,
-                      MarkingWorklists::NotFullyConstructedWorklist*,
-                      MarkingWorklists::WeakCallbackWorklist*, int);
+  inline MarkingState(HeapBase& heap, MarkingWorklists&);
 
   MarkingState(const MarkingState&) = delete;
   MarkingState& operator=(const MarkingState&) = delete;
@@ -44,31 +42,64 @@ class MarkingState {
   inline void AccountMarkedBytes(const HeapObjectHeader&);
   size_t marked_bytes() const { return marked_bytes_; }
 
+  void Publish() {
+    marking_worklist_.Publish();
+    not_fully_constructed_worklist_.Publish();
+    previously_not_fully_constructed_worklist_.Publish();
+    weak_callback_worklist_.Publish();
+    write_barrier_worklist_.Publish();
+  }
+
+  // Moves objects in not_fully_constructed_worklist_ to
+  // previously_not_full_constructed_worklists_.
+  void FlushNotFullyConstructedObjects();
+
+  MarkingWorklists::MarkingWorklist::Local& marking_worklist() {
+    return marking_worklist_;
+  }
+  MarkingWorklists::NotFullyConstructedWorklist::Local&
+  not_fully_constructed_worklist() {
+    return not_fully_constructed_worklist_;
+  }
+  MarkingWorklists::NotFullyConstructedWorklist::Local&
+  previously_not_fully_constructed_worklist() {
+    return previously_not_fully_constructed_worklist_;
+  }
+  MarkingWorklists::WeakCallbackWorklist::Local& weak_callback_worklist() {
+    return weak_callback_worklist_;
+  }
+  MarkingWorklists::WriteBarrierWorklist::Local& write_barrier_worklist() {
+    return write_barrier_worklist_;
+  }
+
  private:
 #ifdef DEBUG
   HeapBase& heap_;
 #endif  // DEBUG
 
-  MarkingWorklists::MarkingWorklist::View marking_worklist_;
-  MarkingWorklists::NotFullyConstructedWorklist::View
+  MarkingWorklists::MarkingWorklist::Local marking_worklist_;
+  MarkingWorklists::NotFullyConstructedWorklist::Local
       not_fully_constructed_worklist_;
-  MarkingWorklists::WeakCallbackWorklist::View weak_callback_worklist_;
+  MarkingWorklists::NotFullyConstructedWorklist::Local
+      previously_not_fully_constructed_worklist_;
+  MarkingWorklists::WeakCallbackWorklist::Local weak_callback_worklist_;
+  MarkingWorklists::WriteBarrierWorklist::Local write_barrier_worklist_;
 
   size_t marked_bytes_ = 0;
 };
 
-MarkingState::MarkingState(
-    HeapBase& heap, MarkingWorklists::MarkingWorklist* marking_worklist,
-    MarkingWorklists::NotFullyConstructedWorklist*
-        not_fully_constructed_worklist,
-    MarkingWorklists::WeakCallbackWorklist* weak_callback_worklist, int task_id)
+MarkingState::MarkingState(HeapBase& heap, MarkingWorklists& marking_worklists)
     :
 #ifdef DEBUG
       heap_(heap),
 #endif  // DEBUG
-      marking_worklist_(marking_worklist, task_id),
-      not_fully_constructed_worklist_(not_fully_constructed_worklist, task_id),
-      weak_callback_worklist_(weak_callback_worklist, task_id) {
+      marking_worklist_(marking_worklists.marking_worklist()),
+      not_fully_constructed_worklist_(
+          marking_worklists.not_fully_constructed_worklist()),
+      previously_not_fully_constructed_worklist_(
+          marking_worklists.previously_not_fully_constructed_worklist()),
+      weak_callback_worklist_(marking_worklists.weak_callback_worklist()),
+      write_barrier_worklist_(marking_worklists.write_barrier_worklist()) {
 }
 
 void MarkingState::MarkAndPush(const void* object, TraceDescriptor desc) {

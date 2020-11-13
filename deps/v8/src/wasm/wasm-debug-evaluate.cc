@@ -405,8 +405,8 @@ Maybe<std::string> DebugEvaluateImpl(
       Handle<WasmExportedFunction>::cast(entry_point_obj);
 
   // TODO(wasm): Cache this code.
-  Handle<Code> wasm_entry =
-      compiler::CompileCWasmEntry(isolate, entry_point->sig());
+  Handle<Code> wasm_entry = compiler::CompileCWasmEntry(
+      isolate, entry_point->sig(), debuggee_instance->module());
 
   CWasmArgumentsPacker packer(4 /* uint32_t return value, no parameters. */);
   Execution::CallWasm(isolate, wasm_entry, entry_point->GetWasmCallTarget(),

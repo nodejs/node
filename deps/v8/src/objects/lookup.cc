@@ -14,8 +14,8 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/struct-inl.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
-#include "torque-generated/exported-class-definitions-tq.h"
+#include "torque-generated/exported-class-definitions-inl.h"
+#include "torque-generated/exported-class-definitions.h"
 
 namespace v8 {
 namespace internal {
@@ -49,26 +49,30 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
       name_(name),
       transition_(transition_map),
       receiver_(receiver),
-      initial_holder_(GetRoot(isolate, receiver)),
+      lookup_start_object_(receiver),
       index_(kInvalidIndex) {
-  holder_ = initial_holder_;
+  holder_ = GetRoot(isolate, lookup_start_object_);
 }
 
 template <bool is_element>
 void LookupIterator::Start() {
-  DisallowHeapAllocation no_gc;
+  // GetRoot might allocate if lookup_start_object_ is a string.
+  holder_ = GetRoot(isolate_, lookup_start_object_, index_);
 
-  has_property_ = false;
-  state_ = NOT_FOUND;
-  holder_ = initial_holder_;
+  {
+    DisallowHeapAllocation no_gc;
 
-  JSReceiver holder = *holder_;
-  Map map = holder.map(isolate_);
+    has_property_ = false;
+    state_ = NOT_FOUND;
 
-  state_ = LookupInHolder<is_element>(map, holder);
-  if (IsFound()) return;
+    JSReceiver holder = *holder_;
+    Map map = holder.map(isolate_);
 
-  NextInternal<is_element>(map, holder);
+    state_ = LookupInHolder<is_element>(map, holder);
+    if (IsFound()) return;
+
+    NextInternal<is_element>(map, holder);
+  }
 }
 
 template void LookupIterator::Start<true>();
@@ -127,22 +131,25 @@ template void LookupIterator::RestartInternal<false>(InterceptorState);
 
 // static
 Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
-    Isolate* isolate, Handle<Object> receiver, size_t index) {
+    Isolate* isolate, Handle<Object> lookup_start_object, size_t index) {
   // Strings are the only objects with properties (only elements) directly on
   // the wrapper. Hence we can skip generating the wrapper for all other cases.
-  if (receiver->IsString(isolate) &&
-      index < static_cast<size_t>(String::cast(*receiver).length())) {
+  if (lookup_start_object->IsString(isolate) &&
+      index <
+          static_cast<size_t>(String::cast(*lookup_start_object).length())) {
     // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the native
     // context, ensuring that we don't leak it into JS?
     Handle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-    Handle<JSPrimitiveWrapper>::cast(result)->set_value(*receiver);
+    Handle<JSPrimitiveWrapper>::cast(result)->set_value(*lookup_start_object);
     return result;
   }
   Handle<HeapObject> root(
-      receiver->GetPrototypeChainRootMap(isolate).prototype(isolate), isolate);
+      lookup_start_object->GetPrototypeChainRootMap(isolate).prototype(isolate),
+      isolate);
   if (root->IsNull(isolate)) {
-    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(receiver->ptr()));
+    isolate->PushStackTraceAndDie(
+        reinterpret_cast<void*>(lookup_start_object->ptr()));
   }
   return Handle<JSReceiver>::cast(root);
 }

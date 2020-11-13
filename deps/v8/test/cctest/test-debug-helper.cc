@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/spaces.h"
@@ -34,7 +35,7 @@ class MemoryFailureRegion {
 // Implement the memory-reading callback. This one just fetches memory from the
 // current process, but a real implementation for a debugging extension would
 // fetch memory from the debuggee process or crash dump.
-d::MemoryAccessResult ReadMemory(uintptr_t address, uint8_t* destination,
+d::MemoryAccessResult ReadMemory(uintptr_t address, void* destination,
                                  size_t byte_count) {
   if (address >= memory_fail_start && address <= memory_fail_end) {
     // Simulate failure to read debuggee memory.
@@ -408,6 +409,45 @@ TEST(ListObjectClasses) {
   CHECK_NE(class_set.find("v8::internal::HeapObject"), class_set.end());
   CHECK_NE(class_set.find("v8::internal::String"), class_set.end());
   CHECK_NE(class_set.find("v8::internal::JSRegExp"), class_set.end());
+}
+
+static void FrameIterationCheck(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
+  for (int i = 0; !iter.done(); i++) {
+    i::StackFrame* frame = iter.frame();
+    CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
+    d::StackFrameResultPtr props = d::GetStackFrame(frame->fp(), &ReadMemory);
+    if (frame->is_java_script()) {
+      JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
+      CHECK_EQ(props->num_properties, 1);
+      CheckProp(*props->properties[0], "v8::internal::JSFunction",
+                "currently_executing_jsfunction", js_frame->function().ptr());
+    } else {
+      CHECK_EQ(props->num_properties, 0);
+    }
+    iter.Advance();
+  }
+}
+
+THREADED_TEST(GetFrameStack) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = v8::ObjectTemplate::New(isolate);
+  obj->SetAccessor(v8_str("xxx"), FrameIterationCheck);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("obj"),
+                  obj->NewInstance(env.local()).ToLocalChecked())
+            .FromJust());
+  v8::Script::Compile(env.local(), v8_str("function foo() {"
+                                          "  return obj.xxx;"
+                                          "}"
+                                          "foo();"))
+      .ToLocalChecked()
+      ->Run(env.local())
+      .ToLocalChecked();
 }
 
 }  // namespace internal

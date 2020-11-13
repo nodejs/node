@@ -13,6 +13,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/platform.h"
+#include "src/common/assert-scope.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/third-party/heap-api.h"
@@ -169,6 +170,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode,
                  alignment == AllocationAlignment::kCodeAligned);
   DCHECK_EQ(gc_state(), NOT_IN_GC);
@@ -183,7 +185,12 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   IncrementObjectCounters();
 #endif
 
-  bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
+  size_t large_object_threshold =
+      AllocationType::kCode == type
+          ? std::min(kMaxRegularHeapObjectSize, code_space()->AreaSize())
+          : kMaxRegularHeapObjectSize;
+  bool large_object =
+      static_cast<size_t>(size_in_bytes) > large_object_threshold;
 
   HeapObject object;
   AllocationResult allocation;
@@ -216,10 +223,10 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
         allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
       }
     } else if (AllocationType::kCode == type) {
-      if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
-        allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
-      } else {
+      if (large_object) {
         allocation = code_lo_space_->AllocateRaw(size_in_bytes);
+      } else {
+        allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
       }
     } else if (AllocationType::kMap == type) {
       allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
@@ -246,6 +253,15 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
             ->RegisterNewlyAllocatedCodeObject(object.address());
       }
     }
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    if (AllocationType::kReadOnly != type) {
+      DCHECK_TAG_ALIGNED(object.address());
+      Page::FromHeapObject(object)->object_start_bitmap()->SetBit(
+          object.address());
+    }
+#endif
+
     OnAllocationEvent(object, size_in_bytes);
   }
 
@@ -258,6 +274,7 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
                                  AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowGarbageCollection::IsAllowed());
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     AllocationResult result = AllocateRaw(size, allocation, origin, alignment);
     DCHECK(!result.IsRetry());

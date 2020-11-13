@@ -126,9 +126,9 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/zone.h"
-#include "torque-generated/class-definitions-tq-inl.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
-#include "torque-generated/internal-class-definitions-tq-inl.h"
+#include "torque-generated/class-definitions-inl.h"
+#include "torque-generated/exported-class-definitions-inl.h"
+#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -671,12 +671,18 @@ Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
                                 Handle<String>::cast(y)));
   }
   if (x->IsBigInt() && y->IsString()) {
-    return Just(BigInt::CompareToString(isolate, Handle<BigInt>::cast(x),
-                                        Handle<String>::cast(y)));
+    return BigInt::CompareToString(isolate, Handle<BigInt>::cast(x),
+                                   Handle<String>::cast(y));
   }
   if (x->IsString() && y->IsBigInt()) {
-    return Just(Reverse(BigInt::CompareToString(
-        isolate, Handle<BigInt>::cast(y), Handle<String>::cast(x))));
+    Maybe<ComparisonResult> maybe_result = BigInt::CompareToString(
+        isolate, Handle<BigInt>::cast(y), Handle<String>::cast(x));
+    ComparisonResult result;
+    if (maybe_result.To(&result)) {
+      return Just(Reverse(result));
+    } else {
+      return Nothing<ComparisonResult>();
+    }
   }
   // ES6 section 7.2.11 Abstract Relational Comparison step 6.
   if (!Object::ToNumeric(isolate, x).ToHandle(&x) ||
@@ -735,8 +741,8 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
         return Just(
             StrictNumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsBigInt()) {
-        return Just(BigInt::EqualToString(isolate, Handle<BigInt>::cast(y),
-                                          Handle<String>::cast(x)));
+        return BigInt::EqualToString(isolate, Handle<BigInt>::cast(y),
+                                     Handle<String>::cast(x));
       } else if (y->IsJSReceiver()) {
         if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
@@ -4347,16 +4353,16 @@ void DescriptorArray::Sort() {
   // Reset sorting since the descriptor array might contain invalid pointers.
   for (int i = 0; i < len; ++i) SetSortedKey(i, i);
   // Bottom-up max-heap construction.
-  // Index of the last node with children
+  // Index of the last node with children.
   const int max_parent_index = (len / 2) - 1;
   for (int i = max_parent_index; i >= 0; --i) {
     int parent_index = i;
-    const uint32_t parent_hash = GetSortedKey(i).Hash();
+    const uint32_t parent_hash = GetSortedKey(i).hash();
     while (parent_index <= max_parent_index) {
       int child_index = 2 * parent_index + 1;
-      uint32_t child_hash = GetSortedKey(child_index).Hash();
+      uint32_t child_hash = GetSortedKey(child_index).hash();
       if (child_index + 1 < len) {
-        uint32_t right_child_hash = GetSortedKey(child_index + 1).Hash();
+        uint32_t right_child_hash = GetSortedKey(child_index + 1).hash();
         if (right_child_hash > child_hash) {
           child_index++;
           child_hash = right_child_hash;
@@ -4375,13 +4381,13 @@ void DescriptorArray::Sort() {
     SwapSortedKeys(0, i);
     // Shift down the new top element.
     int parent_index = 0;
-    const uint32_t parent_hash = GetSortedKey(parent_index).Hash();
+    const uint32_t parent_hash = GetSortedKey(parent_index).hash();
     const int max_parent_index = (i / 2) - 1;
     while (parent_index <= max_parent_index) {
       int child_index = parent_index * 2 + 1;
-      uint32_t child_hash = GetSortedKey(child_index).Hash();
+      uint32_t child_hash = GetSortedKey(child_index).hash();
       if (child_index + 1 < i) {
-        uint32_t right_child_hash = GetSortedKey(child_index + 1).Hash();
+        uint32_t right_child_hash = GetSortedKey(child_index + 1).hash();
         if (right_child_hash > child_hash) {
           child_index++;
           child_hash = right_child_hash;
@@ -6150,6 +6156,18 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutCode(
     Isolate* isolate, Handle<CompilationCacheTable> cache,
     Handle<SharedFunctionInfo> key, Handle<Code> value) {
   CodeKey k(key);
+
+  {
+    InternalIndex entry = cache->FindEntry(isolate, &k);
+    if (entry.is_found()) {
+      // Update.
+      cache->set(EntryToIndex(entry), *key);
+      cache->set(EntryToIndex(entry) + 1, *value);
+      return cache;
+    }
+  }
+
+  // Insert.
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, k.Hash());
   cache->set(EntryToIndex(entry), *key);

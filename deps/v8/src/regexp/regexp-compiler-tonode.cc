@@ -199,25 +199,24 @@ ZoneList<CharacterRange>* ToCanonicalZoneList(
 }
 
 void AddBmpCharacters(RegExpCompiler* compiler, ChoiceNode* result,
-                      RegExpNode* on_success, UnicodeRangeSplitter* splitter) {
+                      RegExpNode* on_success, UnicodeRangeSplitter* splitter,
+                      JSRegExp::Flags flags) {
   ZoneList<CharacterRange>* bmp =
       ToCanonicalZoneList(splitter->bmp(), compiler->zone());
   if (bmp == nullptr) return;
-  JSRegExp::Flags default_flags = JSRegExp::Flags();
   result->AddAlternative(GuardedAlternative(TextNode::CreateForCharacterRanges(
-      compiler->zone(), bmp, compiler->read_backward(), on_success,
-      default_flags)));
+      compiler->zone(), bmp, compiler->read_backward(), on_success, flags)));
 }
 
 void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
                              RegExpNode* on_success,
-                             UnicodeRangeSplitter* splitter) {
+                             UnicodeRangeSplitter* splitter,
+                             JSRegExp::Flags flags) {
   ZoneList<CharacterRange>* non_bmp =
       ToCanonicalZoneList(splitter->non_bmp(), compiler->zone());
   if (non_bmp == nullptr) return;
   DCHECK(!compiler->one_byte());
   Zone* zone = compiler->zone();
-  JSRegExp::Flags default_flags = JSRegExp::Flags();
   CharacterRange::Canonicalize(non_bmp);
   for (int i = 0; i < non_bmp->length(); i++) {
     // Match surrogate pair.
@@ -237,7 +236,7 @@ void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
           GuardedAlternative(TextNode::CreateForSurrogatePair(
               zone, CharacterRange::Singleton(from_l),
               CharacterRange::Range(from_t, to_t), compiler->read_backward(),
-              on_success, default_flags)));
+              on_success, flags)));
     } else {
       if (from_t != kTrailSurrogateStart) {
         // Add [from_l][from_t-\udfff]
@@ -245,7 +244,7 @@ void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
             GuardedAlternative(TextNode::CreateForSurrogatePair(
                 zone, CharacterRange::Singleton(from_l),
                 CharacterRange::Range(from_t, kTrailSurrogateEnd),
-                compiler->read_backward(), on_success, default_flags)));
+                compiler->read_backward(), on_success, flags)));
         from_l++;
       }
       if (to_t != kTrailSurrogateEnd) {
@@ -254,7 +253,7 @@ void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
             GuardedAlternative(TextNode::CreateForSurrogatePair(
                 zone, CharacterRange::Singleton(to_l),
                 CharacterRange::Range(kTrailSurrogateStart, to_t),
-                compiler->read_backward(), on_success, default_flags)));
+                compiler->read_backward(), on_success, flags)));
         to_l--;
       }
       if (from_l <= to_l) {
@@ -263,7 +262,7 @@ void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
             GuardedAlternative(TextNode::CreateForSurrogatePair(
                 zone, CharacterRange::Range(from_l, to_l),
                 CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd),
-                compiler->read_backward(), on_success, default_flags)));
+                compiler->read_backward(), on_success, flags)));
       }
     }
   }
@@ -302,8 +301,8 @@ RegExpNode* MatchAndNegativeLookaroundInReadDirection(
 
 void AddLoneLeadSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
                            RegExpNode* on_success,
-                           UnicodeRangeSplitter* splitter) {
-  JSRegExp::Flags default_flags = JSRegExp::Flags();
+                           UnicodeRangeSplitter* splitter,
+                           JSRegExp::Flags flags) {
   ZoneList<CharacterRange>* lead_surrogates =
       ToCanonicalZoneList(splitter->lead_surrogates(), compiler->zone());
   if (lead_surrogates == nullptr) return;
@@ -317,22 +316,20 @@ void AddLoneLeadSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
     // Reading backward. Assert that reading forward, there is no trail
     // surrogate, and then backward match the lead surrogate.
     match = NegativeLookaroundAgainstReadDirectionAndMatch(
-        compiler, trail_surrogates, lead_surrogates, on_success, true,
-        default_flags);
+        compiler, trail_surrogates, lead_surrogates, on_success, true, flags);
   } else {
     // Reading forward. Forward match the lead surrogate and assert that
     // no trail surrogate follows.
     match = MatchAndNegativeLookaroundInReadDirection(
-        compiler, lead_surrogates, trail_surrogates, on_success, false,
-        default_flags);
+        compiler, lead_surrogates, trail_surrogates, on_success, false, flags);
   }
   result->AddAlternative(GuardedAlternative(match));
 }
 
 void AddLoneTrailSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
                             RegExpNode* on_success,
-                            UnicodeRangeSplitter* splitter) {
-  JSRegExp::Flags default_flags = JSRegExp::Flags();
+                            UnicodeRangeSplitter* splitter,
+                            JSRegExp::Flags flags) {
   ZoneList<CharacterRange>* trail_surrogates =
       ToCanonicalZoneList(splitter->trail_surrogates(), compiler->zone());
   if (trail_surrogates == nullptr) return;
@@ -346,14 +343,12 @@ void AddLoneTrailSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
     // Reading backward. Backward match the trail surrogate and assert that no
     // lead surrogate precedes it.
     match = MatchAndNegativeLookaroundInReadDirection(
-        compiler, trail_surrogates, lead_surrogates, on_success, true,
-        default_flags);
+        compiler, trail_surrogates, lead_surrogates, on_success, true, flags);
   } else {
     // Reading forward. Assert that reading backward, there is no lead
     // surrogate, and then forward match the trail surrogate.
     match = NegativeLookaroundAgainstReadDirectionAndMatch(
-        compiler, lead_surrogates, trail_surrogates, on_success, false,
-        default_flags);
+        compiler, lead_surrogates, trail_surrogates, on_success, false, flags);
   }
   result->AddAlternative(GuardedAlternative(match));
 }
@@ -436,10 +431,10 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
     } else {
       ChoiceNode* result = zone->New<ChoiceNode>(2, zone);
       UnicodeRangeSplitter splitter(ranges);
-      AddBmpCharacters(compiler, result, on_success, &splitter);
-      AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
-      AddLoneLeadSurrogates(compiler, result, on_success, &splitter);
-      AddLoneTrailSurrogates(compiler, result, on_success, &splitter);
+      AddBmpCharacters(compiler, result, on_success, &splitter, flags_);
+      AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter, flags_);
+      AddLoneLeadSurrogates(compiler, result, on_success, &splitter, flags_);
+      AddLoneTrailSurrogates(compiler, result, on_success, &splitter, flags_);
       static constexpr int kMaxRangesToInline = 32;  // Arbitrary.
       if (ranges->length() > kMaxRangesToInline) result->SetDoNotInline();
       return result;

@@ -21,6 +21,7 @@ class Heap;
 class JSArrayBuffer;
 class Map;
 class MarkCompactCollector;
+class MarkingBarrier;
 class RelocInfo;
 
 // Note: In general it is preferred to use the macros defined in
@@ -50,10 +51,12 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                              MaybeObject value);
   static inline void Marking(Code host, RelocInfo*, HeapObject value);
   static inline void Marking(JSArrayBuffer host, ArrayBufferExtension*);
-  static inline void Marking(Map host, DescriptorArray,
-                             int number_of_own_descriptors);
+  static inline void Marking(DescriptorArray, int number_of_own_descriptors);
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
+
+  static void SetForThread(MarkingBarrier*);
+  static void ClearForThread(MarkingBarrier*);
 
  private:
   static void MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot,
@@ -61,7 +64,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void MarkingSlow(Heap* heap, Code host, RelocInfo*, HeapObject value);
   static void MarkingSlow(Heap* heap, JSArrayBuffer host,
                           ArrayBufferExtension*);
-  static void MarkingSlow(Heap* heap, Map host, DescriptorArray,
+  static void MarkingSlow(Heap* heap, DescriptorArray,
                           int number_of_own_descriptors);
   static inline base::Optional<Heap*> GetHeapIfMarking(HeapObject object);
 };

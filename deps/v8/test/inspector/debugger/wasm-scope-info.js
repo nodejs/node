@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
+// Flags: --experimental-wasm-type-reflection --experimental-wasm-simd
+// SIMD in Liftoff only works with these cpu features, force them on.
+// Flags: --enable-sse3 --enable-ssse3 --enable-sse4-1
 
 utils.load('test/inspector/wasm-inspector-test.js');
 
@@ -74,36 +76,42 @@ async function instantiateWasm() {
 
   // Add a function without breakpoint, to check that locals are shown
   // correctly in compiled code.
-  const main = builder.addFunction('call_func', kSig_v_i).addLocals({f32_count: 1}).addBody([
-    // Set local 1 to 7.2.
-    ...wasmF32Const(7.2), kExprLocalSet, 1,
-    // Call function 'func', forwarding param 0.
-    kExprLocalGet, 0, kExprCallFunction, 1
-  ]).exportAs('main');
+  const main = builder.addFunction('call_func', kSig_v_i).addLocals(kWasmF32, 1)
+    .addBody([
+      // Set local 1 to 7.2.
+      ...wasmF32Const(7.2), kExprLocalSet, 1,
+      // Call function 'func', forwarding param 0.
+      kExprLocalGet, 0, kExprCallFunction, 1
+    ]).exportAs('main');
 
   // A second function which will be stepped through.
-  const func = builder.addFunction('func', kSig_v_i)
-      .addLocals(
-          {i32_count: 1, i64_count: 1, f64_count: 3},
-          ['i32Arg', undefined, 'i64_local', 'unicode☼f64', '0', '0'])
-      .addBody([
-        // Set param 0 to 11.
-        kExprI32Const, 11, kExprLocalSet, 0,
-        // Set local 1 to 47.
-        kExprI32Const, 47, kExprLocalSet, 1,
-        // Set local 2 to 0x7FFFFFFFFFFFFFFF (max i64).
-        kExprI64Const, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
-        kExprLocalSet, 2,
-        // Set local 2 to 0x8000000000000000 (min i64).
-        kExprI64Const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
-        kExprLocalSet, 2,
-        // Set local 3 to 1/7.
-        kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
-        kExprF64UConvertI32, kExprF64Div, kExprLocalSet, 3,
+  const func = builder.addFunction('func', kSig_v_i, ['i32Arg'])
+    .addLocals(kWasmI32, 1)
+    .addLocals(kWasmI64, 1, ['i64_local'])
+    .addLocals(kWasmF64, 3, ['unicode☼f64', '0', '0'])
+    .addLocals(kWasmS128, 1)
+    .addBody([
+      // Set param 0 to 11.
+      kExprI32Const, 11, kExprLocalSet, 0,
+      // Set local 1 to 47.
+      kExprI32Const, 47, kExprLocalSet, 1,
+      // Set local 2 to 0x7FFFFFFFFFFFFFFF (max i64).
+      kExprI64Const, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
+      kExprLocalSet, 2,
+      // Set local 2 to 0x8000000000000000 (min i64).
+      kExprI64Const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
+      kExprLocalSet, 2,
+      // Set local 3 to 1/7.
+      kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
+      kExprF64UConvertI32, kExprF64Div, kExprLocalSet, 3,
+      // Set local 6 to [23, 23, 23, 23]
+      kExprI32Const, 23,
+      kSimdPrefix, kExprI32x4Splat,
+      kExprLocalSet, 6,
 
-        // Set global 0 to 15
-        kExprI32Const, 15, kExprGlobalSet, 0,
-      ]);
+      // Set global 0 to 15
+      kExprI32Const, 15, kExprGlobalSet, 0,
+    ]);
 
   // Append function to table to test function table output.
   builder.appendToTable([main.index]);
@@ -114,8 +122,10 @@ async function instantiateWasm() {
   function addWasmJSToTable() {
     // Create WasmJS functions to test the function tables output.
     const js_func = function js_func() { return 7; };
-    const wasmjs_func = new WebAssembly.Function({parameters:[], results:['i32']}, js_func);
-    const wasmjs_anonymous_func = new WebAssembly.Function({parameters:[], results:['i32']}, _ => 7);
+    const wasmjs_func = new WebAssembly.Function(
+      {parameters:[], results:['i32']}, js_func);
+    const wasmjs_anonymous_func = new WebAssembly.Function(
+      {parameters:[], results:['i32']}, _ => 7);
 
     instance.exports.exported_table.set(0, wasmjs_func);
     instance.exports.exported_table.set(1, wasmjs_anonymous_func);
@@ -123,7 +133,8 @@ async function instantiateWasm() {
 
   InspectorTest.log('Calling instantiate function.');
   await WasmInspectorTest.instantiate(moduleBytes);
-  await WasmInspectorTest.evalWithUrl(`(${addWasmJSToTable})()`, 'populateTable');
+  await WasmInspectorTest.evalWithUrl(`(${addWasmJSToTable})()`,
+                                      'populateTable');
 }
 
 function printIfFailure(message) {

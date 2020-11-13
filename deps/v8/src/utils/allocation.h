@@ -156,8 +156,6 @@ V8_EXPORT_PRIVATE bool OnCriticalMemoryPressure(size_t length);
 // Represents and controls an area of reserved memory.
 class VirtualMemory final {
  public:
-  enum JitPermission { kNoJit, kMapAsJittable };
-
   // Empty VirtualMemory object, controlling no reserved memory.
   V8_EXPORT_PRIVATE VirtualMemory();
 
@@ -166,8 +164,8 @@ class VirtualMemory final {
   // size. The |size| must be aligned with |page_allocator|'s commit page size.
   // This may not be at the position returned by address().
   V8_EXPORT_PRIVATE VirtualMemory(v8::PageAllocator* page_allocator,
-                                  size_t size, void* hint, size_t alignment = 1,
-                                  JitPermission jit = kNoJit);
+                                  size_t size, void* hint,
+                                  size_t alignment = 1);
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.

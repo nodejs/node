@@ -50,30 +50,32 @@ class LoadHandler final : public DataHandler {
   };
   using KindBits = base::BitField<Kind, 0, 4>;
 
-  // Defines whether access rights check should be done on receiver object.
+  // Defines whether access rights check should be done on lookup start object.
   // Applicable to named property kinds only when loading value from prototype
-  // chain. Ignored when loading from holder.
-  using DoAccessCheckOnReceiverBits = KindBits::Next<bool, 1>;
+  // chain. Ignored when loading from lookup start object.
+  using DoAccessCheckOnLookupStartObjectBits = KindBits::Next<bool, 1>;
 
-  // Defines whether a lookup should be done on receiver object before
+  // Defines whether a lookup should be done on lookup start object before
   // proceeding to the prototype chain. Applicable to named property kinds only
-  // when loading value from prototype chain. Ignored when loading from holder.
-  using LookupOnReceiverBits = DoAccessCheckOnReceiverBits::Next<bool, 1>;
+  // when loading value from prototype chain. Ignored when loading from lookup
+  // start object.
+  using LookupOnLookupStartObjectBits =
+      DoAccessCheckOnLookupStartObjectBits::Next<bool, 1>;
 
   //
-  // Encoding when KindBits contains kForConstants.
+  // Encoding when KindBits contains kAccessor or kNativeDataProperty.
   //
 
   // Index of a value entry in the descriptor array.
   using DescriptorBits =
-      LookupOnReceiverBits::Next<unsigned, kDescriptorIndexBitCount>;
+      LookupOnLookupStartObjectBits::Next<unsigned, kDescriptorIndexBitCount>;
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(DescriptorBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kField.
   //
-  using IsInobjectBits = LookupOnReceiverBits::Next<bool, 1>;
+  using IsInobjectBits = LookupOnLookupStartObjectBits::Next<bool, 1>;
   using IsDoubleBits = IsInobjectBits::Next<bool, 1>;
   // +1 here is to cover all possible JSObject header sizes.
   using FieldIndexBits =
@@ -85,7 +87,7 @@ class LoadHandler final : public DataHandler {
   //
   // Encoding when KindBits contains kElement or kIndexedString.
   //
-  using AllowOutOfBoundsBits = LookupOnReceiverBits::Next<bool, 1>;
+  using AllowOutOfBoundsBits = LookupOnLookupStartObjectBits::Next<bool, 1>;
 
   //
   // Encoding when KindBits contains kElement.
@@ -99,8 +101,9 @@ class LoadHandler final : public DataHandler {
   //
   // Encoding when KindBits contains kModuleExport.
   //
-  using ExportsIndexBits = LookupOnReceiverBits::Next<
-      unsigned, kSmiValueSize - LookupOnReceiverBits::kLastUsedBit - 1>;
+  using ExportsIndexBits = LookupOnLookupStartObjectBits::Next<
+      unsigned,
+      kSmiValueSize - LookupOnLookupStartObjectBits::kLastUsedBit - 1>;
 
   // Decodes kind from Smi-handler.
   static inline Kind GetHandlerKind(Smi smi_handler);
@@ -156,7 +159,6 @@ class LoadHandler final : public DataHandler {
 
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
-  // Can be used only if GetPrototypeCheckCount() returns non negative value.
   static Handle<Object> LoadFromPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
       Handle<Smi> smi_handler,
@@ -181,6 +183,10 @@ class LoadHandler final : public DataHandler {
   // Decodes the KeyedAccessLoadMode from a {handler}.
   static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
 
+#if defined(OBJECT_PRINT)
+  static void PrintHandler(Object handler, std::ostream& os);
+#endif  // defined(OBJECT_PRINT)
+
   OBJECT_CONSTRUCTORS(LoadHandler, DataHandler);
 };
 
@@ -195,7 +201,6 @@ class StoreHandler final : public DataHandler {
   DECL_VERIFIER(StoreHandler)
 
   enum Kind {
-    kElement,
     kField,
     kConstField,
     kAccessor,
@@ -213,36 +218,29 @@ class StoreHandler final : public DataHandler {
 
   // Applicable to kGlobalProxy, kProxy kinds.
 
-  // Defines whether access rights check should be done on receiver object.
-  using DoAccessCheckOnReceiverBits = KindBits::Next<bool, 1>;
+  // Defines whether access rights check should be done on lookup start object.
+  using DoAccessCheckOnLookupStartObjectBits = KindBits::Next<bool, 1>;
 
-  // Defines whether a lookup should be done on receiver object before
+  // Defines whether a lookup should be done on lookup start object before
   // proceeding to the prototype chain. Applicable to named property kinds only
   // when storing through prototype chain. Ignored when storing to holder.
-  using LookupOnReceiverBits = DoAccessCheckOnReceiverBits::Next<bool, 1>;
+  using LookupOnLookupStartObjectBits =
+      DoAccessCheckOnLookupStartObjectBits::Next<bool, 1>;
 
-  // Applicable to kField, kTransitionToField and kTransitionToConstant
-  // kinds.
+  // Applicable to kField, kAccessor and kNativeDataProperty.
 
   // Index of a value entry in the descriptor array.
   using DescriptorBits =
-      LookupOnReceiverBits::Next<unsigned, kDescriptorIndexBitCount>;
+      LookupOnLookupStartObjectBits::Next<unsigned, kDescriptorIndexBitCount>;
 
   //
-  // Encodes the bits when StoreSlow contains KeyedAccessStoreMode.
+  // Encoding when KindBits contains kStoreSlow.
   //
   using KeyedAccessStoreModeBits =
-      DescriptorBits::Next<KeyedAccessStoreMode, 2>;
+      LookupOnLookupStartObjectBits::Next<KeyedAccessStoreMode, 2>;
 
   //
-  // Encoding when KindBits contains kTransitionToConstant.
-  //
-
-  // Make sure we don't overflow the smi.
-  STATIC_ASSERT(DescriptorBits::kLastUsedBit < kSmiValueSize);
-
-  //
-  // Encoding when KindBits contains kField or kTransitionToField.
+  // Encoding when KindBits contains kField.
   //
   using IsInobjectBits = DescriptorBits::Next<bool, 1>;
   using RepresentationBits = IsInobjectBits::Next<Representation::Kind, 3>;
@@ -309,6 +307,10 @@ class StoreHandler final : public DataHandler {
 
   // Decodes the KeyedAccessStoreMode from a {handler}.
   static KeyedAccessStoreMode GetKeyedAccessStoreMode(MaybeObject handler);
+
+#if defined(OBJECT_PRINT)
+  static void PrintHandler(Object handler, std::ostream& os);
+#endif  // defined(OBJECT_PRINT)
 
  private:
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,

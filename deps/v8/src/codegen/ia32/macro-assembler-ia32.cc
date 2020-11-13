@@ -805,8 +805,9 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
 void TurboAssembler::Prologue() {
   push(ebp);  // Caller's frame pointer.
   mov(ebp, esp);
-  push(esi);  // Callee's context.
-  push(edi);  // Callee's JS function.
+  push(kContextRegister);                 // Callee's context.
+  push(kJSFunctionRegister);              // Callee's JS function.
+  push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {

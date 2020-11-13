@@ -84,7 +84,7 @@ class V8_EXPORT Heap {
     std::vector<std::unique_ptr<CustomSpaceBase>> custom_spaces;
 
     /**
-     * Specifies whether conserative stack scan is supported. When conservative
+     * Specifies whether conservative stack scan is supported. When conservative
      * stack scan is not supported, the collector may try to invoke
      * garbage collections using non-nestable task, which are guaranteed to have
      * no interesting stack, through the provided Platform. If such tasks are

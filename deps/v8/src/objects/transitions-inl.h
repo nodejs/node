@@ -169,12 +169,20 @@ int TransitionArray::SearchNameForTesting(Name name, int* out_insertion_index) {
   return SearchName(name, out_insertion_index);
 }
 
+Map TransitionArray::SearchAndGetTargetForTesting(
+    PropertyKind kind, Name name, PropertyAttributes attributes) {
+  return SearchAndGetTarget(kind, name, attributes);
+}
+
 int TransitionArray::SearchSpecial(Symbol symbol, int* out_insertion_index) {
   return SearchName(symbol, out_insertion_index);
 }
 
 int TransitionArray::SearchName(Name name, int* out_insertion_index) {
   DCHECK(name.IsUniqueName());
+  // The name is taken from DescriptorArray, so it must already has a computed
+  // hash.
+  DCHECK(name.HasHashCode());
   return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
                                        out_insertion_index);
 }

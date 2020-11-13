@@ -10,7 +10,7 @@ const builder = new WasmModuleBuilder();
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 // Generate function 1 (out of 1).
 builder.addFunction(undefined, 0 /* sig */)
-  .addLocals({i32_count: 2}).addLocals({f32_count: 2})
+  .addLocals(kWasmI32, 2).addLocals(kWasmF32, 2)
   .addBodyWithEnd([
 // signature: i_iii
 // body:

@@ -314,7 +314,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ValueUse) {
   Node* zero = graph()->NewNode(common.Int32Constant(0));
   Node* use_value = graph()->NewNode(common.Return(), zero, node, start, start);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), nullptr);
+  GraphReducer graph_reducer(zone(), graph(), nullptr, nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(replacement, use_value->InputAt(1));
@@ -331,7 +331,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_EffectUse) {
   Node* use_control = graph()->NewNode(common.Merge(1), start);
   Node* use_effect = graph()->NewNode(common.EffectPhi(1), node, use_control);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), nullptr);
+  GraphReducer graph_reducer(zone(), graph(), nullptr, nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_effect->InputAt(0));
@@ -350,7 +350,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse1) {
   Node* success = graph()->NewNode(common.IfSuccess(), node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), nullptr);
+  GraphReducer graph_reducer(zone(), graph(), nullptr, nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_control->InputAt(0));
@@ -371,7 +371,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse2) {
   Node* exception = graph()->NewNode(common.IfException(), effect, node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), tick_counter(), dead);
+  GraphReducer graph_reducer(zone(), graph(), tick_counter(), nullptr, dead);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_control->InputAt(0));
@@ -395,7 +395,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse3) {
   Node* exception = graph()->NewNode(common.IfException(), effect, node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), tick_counter(), dead);
+  GraphReducer graph_reducer(zone(), graph(), tick_counter(), nullptr, dead);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_control->InputAt(0));
@@ -425,20 +425,20 @@ class GraphReducerTest : public TestWithZone {
 
  protected:
   void ReduceNode(Node* node, Reducer* r) {
-    GraphReducer reducer(zone(), graph(), tick_counter());
+    GraphReducer reducer(zone(), graph(), tick_counter(), nullptr);
     reducer.AddReducer(r);
     reducer.ReduceNode(node);
   }
 
   void ReduceNode(Node* node, Reducer* r1, Reducer* r2) {
-    GraphReducer reducer(zone(), graph(), tick_counter());
+    GraphReducer reducer(zone(), graph(), tick_counter(), nullptr);
     reducer.AddReducer(r1);
     reducer.AddReducer(r2);
     reducer.ReduceNode(node);
   }
 
   void ReduceNode(Node* node, Reducer* r1, Reducer* r2, Reducer* r3) {
-    GraphReducer reducer(zone(), graph(), tick_counter());
+    GraphReducer reducer(zone(), graph(), tick_counter(), nullptr);
     reducer.AddReducer(r1);
     reducer.AddReducer(r2);
     reducer.AddReducer(r3);
@@ -446,20 +446,20 @@ class GraphReducerTest : public TestWithZone {
   }
 
   void ReduceGraph(Reducer* r1) {
-    GraphReducer reducer(zone(), graph(), tick_counter());
+    GraphReducer reducer(zone(), graph(), tick_counter(), nullptr);
     reducer.AddReducer(r1);
     reducer.ReduceGraph();
   }
 
   void ReduceGraph(Reducer* r1, Reducer* r2) {
-    GraphReducer reducer(zone(), graph(), tick_counter());
+    GraphReducer reducer(zone(), graph(), tick_counter(), nullptr);
     reducer.AddReducer(r1);
     reducer.AddReducer(r2);
     reducer.ReduceGraph();
   }
 
   void ReduceGraph(Reducer* r1, Reducer* r2, Reducer* r3) {
-    GraphReducer reducer(zone(), graph(), tick_counter());
+    GraphReducer reducer(zone(), graph(), tick_counter(), nullptr);
     reducer.AddReducer(r1);
     reducer.AddReducer(r2);
     reducer.AddReducer(r3);

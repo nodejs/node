@@ -37,7 +37,10 @@ action("run_mkgrokdump") {
   testonly = true
   visibility = [ ":*" ]
 
-  deps = [ "../../test/mkgrokdump:mkgrokdump($v8_generator_toolchain)" ]
+  deps = [
+    "../..:run_mksnapshot_default",
+    "../../test/mkgrokdump:mkgrokdump($v8_generator_toolchain)",
+  ]
 
   script = "../run.py"
 
@@ -72,9 +75,9 @@ v8_component("v8_debug_helper") {
   public = [ "debug-helper.h" ]
 
   sources = [
-    "$target_gen_dir/../../torque-generated/class-debug-readers-tq.cc",
-    "$target_gen_dir/../../torque-generated/class-debug-readers-tq.h",
-    "$target_gen_dir/../../torque-generated/instance-types-tq.h",
+    "$target_gen_dir/../../torque-generated/class-debug-readers.cc",
+    "$target_gen_dir/../../torque-generated/class-debug-readers.h",
+    "$target_gen_dir/../../torque-generated/instance-types.h",
     "$target_gen_dir/heap-constants-gen.cc",
     "compiler-types.cc",
     "debug-helper-internal.cc",

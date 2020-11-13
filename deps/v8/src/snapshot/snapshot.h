@@ -55,13 +55,13 @@ class Snapshot : public AllStatic {
       Isolate* isolate, std::vector<Context>* contexts,
       const std::vector<SerializeInternalFieldsCallback>&
           embedder_fields_serializers,
-      const DisallowHeapAllocation& no_gc,
+      const DisallowGarbageCollection& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 
   // Convenience helper for the above when only serializing a single context.
   static v8::StartupData Create(
       Isolate* isolate, Context default_context,
-      const DisallowHeapAllocation& no_gc,
+      const DisallowGarbageCollection& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 
   // ---------------- Deserialization -----------------------------------------

@@ -303,7 +303,8 @@ class ExternalReference {
   ExternalReference() : address_(kNullAddress) {}
   static ExternalReference Create(const SCTableReference& table_ref);
   static ExternalReference Create(StatsCounter* counter);
-  static ExternalReference Create(ApiFunction* ptr, Type type);
+  static V8_EXPORT_PRIVATE ExternalReference Create(ApiFunction* ptr,
+                                                    Type type);
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
   static ExternalReference Create(Runtime::FunctionId id);

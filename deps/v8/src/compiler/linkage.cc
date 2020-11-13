@@ -94,6 +94,12 @@ int CallDescriptor::GetFirstUnusedStackSlot() const {
 
 int CallDescriptor::GetStackParameterDelta(
     CallDescriptor const* tail_caller) const {
+  // In the IsTailCallForTierUp case, the callee has
+  // identical linkage and runtime arguments to the caller, thus the stack
+  // parameter delta is 0. We don't explicitly pass the runtime arguments as
+  // inputs to the TailCall node, since they already exist on the stack.
+  if (IsTailCallForTierUp()) return 0;
+
   int callee_slots_above_sp = GetFirstUnusedStackSlot();
   int tail_caller_slots_above_sp = tail_caller->GetFirstUnusedStackSlot();
   int stack_param_delta = callee_slots_above_sp - tail_caller_slots_above_sp;
@@ -103,6 +109,7 @@ int CallDescriptor::GetStackParameterDelta(
       // of padding.
       ++stack_param_delta;
     } else {
+      DCHECK_NE(tail_caller_slots_above_sp % 2, 0);
       // The delta is odd because of the caller. We already have one slot of
       // padding that we can reuse for arguments, so we will need one fewer
       // slot.
@@ -147,9 +154,7 @@ bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
 int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
   switch (kind_) {
     case kCallJSFunction:
-      return PushArgumentCount()
-                 ? OptimizedBuiltinFrameConstants::kFixedSlotCount
-                 : StandardFrameConstants::kFixedSlotCount;
+      return StandardFrameConstants::kFixedSlotCount;
     case kCallAddress:
       if (code_kind == CodeKind::C_WASM_ENTRY) {
         return CWasmEntryFrameConstants::kFixedSlotCount;

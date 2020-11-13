@@ -26,6 +26,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/flush-instruction-cache.h"
+#include "src/common/assert-scope.h"
 #include "src/common/ptr-compr.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
@@ -98,6 +99,10 @@
 #if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#include "src/heap/conservative-stack-visitor.h"
+#endif
 
 extern "C" const uint8_t* v8_Default_embedded_blob_code_;
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
@@ -504,6 +509,11 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
         Root::kTop, nullptr,
         FullObjectSlot(reinterpret_cast<Address>(&(block->message_obj_))));
   }
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  ConservativeStackVisitor stack_visitor(this, v);
+  thread_local_top()->stack_.IteratePointers(&stack_visitor);
+#endif
 
   // Iterate over pointers on native execution stack.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
@@ -1588,7 +1598,8 @@ Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
 // Script::GetLineNumber and Script::GetColumnNumber can allocate on the heap to
 // initialize the line_ends array, so be careful when calling them.
 #ifdef DEBUG
-      if (AllowHeapAllocation::IsAllowed()) {
+      if (AllowHeapAllocation::IsAllowed() &&
+          AllowGarbageCollection::IsAllowed()) {
 #else
       if ((false)) {
 #endif
@@ -3068,7 +3079,8 @@ void Isolate::Deinit() {
   cancelable_task_manager()->CancelAndWait();
 
   heap_.TearDown();
-  logger_->TearDown();
+  FILE* logfile = logger_->TearDownAndGetLogFile();
+  if (logfile != nullptr) fclose(logfile);
 
   if (wasm_engine_) {
     wasm_engine_->RemoveIsolate(this);
@@ -3324,6 +3336,8 @@ void Isolate::CreateAndSetEmbeddedBlob() {
 
   PrepareBuiltinSourcePositionMap();
 
+  PrepareBuiltinLabelInfoMap();
+
   // If a sticky blob has been set, we reuse it.
   if (StickyEmbeddedBlobCode() != nullptr) {
     CHECK_EQ(embedded_blob_code(), StickyEmbeddedBlobCode());
@@ -3472,7 +3486,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   date_cache_ = new DateCache();
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
-  string_table_.reset(new StringTable());
+  string_table_.reset(new StringTable(this));
 
   compiler_dispatcher_ =
       new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);
@@ -4198,6 +4212,15 @@ void Isolate::PrepareBuiltinSourcePositionMap() {
   }
 }
 
+void Isolate::PrepareBuiltinLabelInfoMap() {
+  if (embedded_file_writer_ != nullptr) {
+    embedded_file_writer_->PrepareBuiltinLabelInfoMap(
+        heap()->construct_stub_create_deopt_pc_offset().value(),
+        heap()->construct_stub_invoke_deopt_pc_offset().value(),
+        heap()->arguments_adaptor_deopt_pc_offset().value());
+  }
+}
+
 #if defined(V8_OS_WIN64)
 void Isolate::SetBuiltinUnwindData(
     int builtin_index,
@@ -4361,13 +4384,6 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
 }
 
 int Isolate::GetNextScriptId() { return heap()->NextScriptId(); }
-
-int Isolate::GetNextStackFrameInfoId() {
-  int id = last_stack_frame_info_id();
-  int next_id = id == Smi::kMaxValue ? 0 : (id + 1);
-  set_last_stack_frame_info_id(next_id);
-  return next_id;
-}
 
 // static
 std::string Isolate::GetTurboCfgFileName(Isolate* isolate) {
@@ -4569,11 +4585,33 @@ SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,
 #ifdef DEBUG
 AssertNoContextChange::AssertNoContextChange(Isolate* isolate)
     : isolate_(isolate), context_(isolate->context(), isolate) {}
+
+namespace {
+
+bool Overlapping(const MemoryRange& a, const MemoryRange& b) {
+  uintptr_t a1 = reinterpret_cast<uintptr_t>(a.start);
+  uintptr_t a2 = a1 + a.length_in_bytes;
+  uintptr_t b1 = reinterpret_cast<uintptr_t>(b.start);
+  uintptr_t b2 = b1 + b.length_in_bytes;
+  // Either b1 or b2 are in the [a1, a2) range.
+  return (a1 <= b1 && b1 < a2) || (a1 <= b2 && b2 < a2);
+}
+
+}  // anonymous namespace
+
 #endif  // DEBUG
 
 void Isolate::AddCodeMemoryRange(MemoryRange range) {
   std::vector<MemoryRange>* old_code_pages = GetCodePages();
   DCHECK_NOT_NULL(old_code_pages);
+#ifdef DEBUG
+  auto overlapping = [range](const MemoryRange& a) {
+    return Overlapping(range, a);
+  };
+  DCHECK_EQ(old_code_pages->end(),
+            std::find_if(old_code_pages->begin(), old_code_pages->end(),
+                         overlapping));
+#endif
 
   std::vector<MemoryRange>* new_code_pages;
   if (old_code_pages == &code_pages_buffer1_) {
@@ -4687,7 +4725,7 @@ void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
                       [removed_page_start](const MemoryRange& range) {
                         return range.start == removed_page_start;
                       });
-
+  DCHECK_EQ(old_code_pages->size(), new_code_pages->size() + 1);
   // Atomically switch out the pointer
   SetCodePages(new_code_pages);
 #endif  // !defined(V8_TARGET_ARCH_ARM)

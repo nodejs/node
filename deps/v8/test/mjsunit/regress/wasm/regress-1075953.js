@@ -11,7 +11,7 @@ builder.addMemory(1, 1, false, true);
 const sig = builder.addType(makeSig([], [kWasmI32]));
 
 builder.addFunction(undefined, sig)
-  .addLocals({i32_count: 1002}).addLocals({i64_count: 3})
+  .addLocals(kWasmI32, 1002).addLocals(kWasmI64, 3)
   .addBodyWithEnd([
 // signature: i_v
 // body:

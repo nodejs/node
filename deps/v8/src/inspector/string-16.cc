@@ -196,6 +196,14 @@ void String16Builder::appendUnsignedAsHex(uint32_t number) {
   m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 
+void String16Builder::appendUnsignedAsHex(uint8_t number) {
+  constexpr int kBufferSize = 3;
+  char buffer[kBufferSize];
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%02" PRIx8, number);
+  DCHECK_LE(0, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
 String16 String16Builder::toString() {
   return String16(m_buffer.data(), m_buffer.size());
 }

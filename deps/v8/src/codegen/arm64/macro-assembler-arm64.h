@@ -1276,6 +1276,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Mrs(const Register& rt, SystemRegister sysreg);
   inline void Msr(SystemRegister sysreg, const Register& rt);
 
+  // Prologue claims an extra slot due to arm64's alignement constraints.
+  static constexpr int kExtraSlotClaimedByPrologue = 1;
   // Generates function prologue code.
   void Prologue();
 
@@ -1711,6 +1713,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
   inline void PopWRegList(RegList regs) {
     PopSizeRegList(regs, kWRegSizeInBits);
+  }
+  inline void PushQRegList(RegList regs) {
+    PushSizeRegList(regs, kQRegSizeInBits, CPURegister::kVRegister);
+  }
+  inline void PopQRegList(RegList regs) {
+    PopSizeRegList(regs, kQRegSizeInBits, CPURegister::kVRegister);
   }
   inline void PushDRegList(RegList regs) {
     PushSizeRegList(regs, kDRegSizeInBits, CPURegister::kVRegister);

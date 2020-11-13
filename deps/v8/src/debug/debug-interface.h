@@ -10,6 +10,7 @@
 #include "include/v8-inspector.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
+#include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
 #include "src/utils/vector.h"
@@ -250,6 +251,7 @@ Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
                                           ConsoleDelegate* delegate);
 
+V8_DEPRECATED("See http://crbug.com/v8/10566.")
 int GetStackFrameId(v8::Local<v8::StackFrame> frame);
 
 v8::Local<v8::StackTrace> GetDetailedStackTrace(Isolate* isolate,
@@ -503,6 +505,11 @@ enum class NativeAccessorType {
 };
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
+
+using RuntimeCallCounterCallback =
+    std::function<void(const char* name, int64_t count, base::TimeDelta time)>;
+void EnumerateRuntimeCallCounters(v8::Isolate* isolate,
+                                  RuntimeCallCounterCallback callback);
 
 enum class EvaluateGlobalMode {
   kDefault,

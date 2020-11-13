@@ -33,6 +33,12 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
   void EnterFinalPause(EmbedderStackState stack_state) final;
 
  private:
+  void FinalizeIncrementalGarbageCollectionIfNeeded(
+      cppgc::Heap::StackState) final {
+    // For unified heap, CppHeap shouldn't finalize independently (i.e.
+    // finalization is not needed) thus this method is left empty.
+  }
+
   Isolate& isolate_;
   bool marking_done_ = false;
 };

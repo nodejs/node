@@ -57,7 +57,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   bytes += NumRegs(list) * kPointerSize;
 
   if (fp_mode == kSaveFPRegs) {
-    bytes += DwVfpRegister::NumRegisters() * DwVfpRegister::kSizeInBytes;
+    bytes += DwVfpRegister::kNumRegisters * DwVfpRegister::kSizeInBytes;
   }
 
   return bytes;
@@ -84,7 +84,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   if (fp_mode == kSaveFPRegs) {
     SaveFPRegs(sp, lr);
-    bytes += DwVfpRegister::NumRegisters() * DwVfpRegister::kSizeInBytes;
+    bytes += DwVfpRegister::kNumRegisters * DwVfpRegister::kSizeInBytes;
   }
 
   return bytes;
@@ -95,7 +95,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   int bytes = 0;
   if (fp_mode == kSaveFPRegs) {
     RestoreFPRegs(sp, lr);
-    bytes += DwVfpRegister::NumRegisters() * DwVfpRegister::kSizeInBytes;
+    bytes += DwVfpRegister::kNumRegisters * DwVfpRegister::kSizeInBytes;
   }
 
   RegList exclusions = 0;
@@ -879,6 +879,7 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
   int offset = -StandardFrameConstants::kContextOffset;
   offset += function_reg.is_valid() ? kPointerSize : 0;
   add(fp, sp, Operand(offset));
+  Push(kJavaScriptCallArgCountRegister);
 }
 
 void TurboAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
@@ -2284,11 +2285,11 @@ int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;
   if (use_eabi_hardfloat()) {
-    // In the hard floating point calling convention, we can use
-    // all double registers to pass doubles.
-    if (num_double_arguments > DoubleRegister::NumRegisters()) {
+    // In the hard floating point calling convention, we can use all double
+    // registers to pass doubles.
+    if (num_double_arguments > DoubleRegister::SupportedRegisterCount()) {
       stack_passed_words +=
-          2 * (num_double_arguments - DoubleRegister::NumRegisters());
+          2 * (num_double_arguments - DoubleRegister::SupportedRegisterCount());
     }
   } else {
     // In the soft floating point calling convention, every double

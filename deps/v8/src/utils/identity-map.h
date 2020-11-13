@@ -14,6 +14,7 @@ namespace internal {
 
 // Forward declarations.
 class Heap;
+class StrongRootsEntry;
 
 // Base class of identity maps contains shared code for all template
 // instantions.
@@ -38,6 +39,7 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
         capacity_(0),
         mask_(0),
         keys_(nullptr),
+        strong_roots_entry_(nullptr),
         values_(nullptr),
         is_iterable_(false) {}
   virtual ~IdentityMapBase();
@@ -76,6 +78,7 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
   int capacity_;
   int mask_;
   Address* keys_;
+  StrongRootsEntry* strong_roots_entry_;
   void** values_;
   bool is_iterable_;
 

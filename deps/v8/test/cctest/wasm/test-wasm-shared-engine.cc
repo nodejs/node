@@ -26,8 +26,6 @@ namespace test_wasm_shared_engine {
 // shared between multiple Isolates, sharing the underlying generated code.
 class SharedEngine {
  public:
-  explicit SharedEngine(size_t max_committed = kMaxWasmCodeMemory)
-      : wasm_engine_(std::make_unique<WasmEngine>()) {}
   ~SharedEngine() {
     // Ensure no remaining uses exist.
     CHECK(wasm_engine_.unique());
@@ -44,7 +42,7 @@ class SharedEngine {
   std::shared_ptr<WasmEngine> ExportEngineForSharing() { return wasm_engine_; }
 
  private:
-  std::shared_ptr<WasmEngine> wasm_engine_;
+  std::shared_ptr<WasmEngine> wasm_engine_ = std::make_unique<WasmEngine>();
 };
 
 // Helper type definition representing a WebAssembly module shared between

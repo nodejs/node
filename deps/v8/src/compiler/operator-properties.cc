@@ -80,6 +80,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSLoadContext:
     case IrOpcode::kJSLoadModule:
     case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadNamedFromSuper:
     case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSStoreContext:
     case IrOpcode::kJSStoreDataPropertyInLiteral:
@@ -193,6 +194,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Property access operations
     case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadNamedFromSuper:
     case IrOpcode::kJSStoreNamed:
     case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSStoreProperty:

@@ -2,9 +2,10 @@
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
 
+<head>
+  <link href="./index.css" rel="stylesheet">
+</head>
 <style>
-  @import "./index.css";
-
   #fileReader {
     width: 100%;
     height: 100px;
@@ -18,9 +19,9 @@ found in the LICENSE file. -->
   }
 
   #fileReader.done {
-      height: 20px;
-      line-height: 20px;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+    height: 20px;
+    line-height: 20px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
   }
 
   #fileReader:hover {
@@ -32,7 +33,7 @@ found in the LICENSE file. -->
     cursor: wait;
   }
 
-  #fileReader > input {
+  #fileReader>input {
     display: none;
   }
 
@@ -47,7 +48,7 @@ found in the LICENSE file. -->
     left: 0px;
     width: 100%;
     height: 100%;
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: var(--file-reader-background-color);
   }
 
   #spinner {
@@ -64,23 +65,24 @@ found in the LICENSE file. -->
   }
 
   @keyframes spin {
-  0% {
+    0% {
       transform: rotate(0deg);
-  }
-  100% {
+    }
+
+    100% {
       transform: rotate(360deg);
-  }
+    }
   }
 </style>
 
 <section id="fileReaderSection">
-    <div id="fileReader" tabindex=1 >
-      <span id="label">
-        Drag and drop a v8.log file into this area, or click to choose from disk.
-      </span>
-      <input id="file" type="file" name="file">
-    </div>
-    <div id="loader">
-      <div id="spinner"></div>
-    </div>
+  <div id="fileReader" tabindex=1>
+    <span id="label">
+      Drag and drop a v8.log file into this area, or click to choose from disk.
+    </span>
+    <input id="file" type="file" name="file">
+  </div>
+  <div id="loader">
+    <div id="spinner"></div>
+  </div>
 </section>

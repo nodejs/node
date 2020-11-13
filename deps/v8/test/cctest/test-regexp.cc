@@ -477,35 +477,25 @@ TEST(Errors) {
   ExpectError("\\ka", kInvalidNamedReference, true);
 }
 
+static bool IsDigit(uc32 c) { return ('0' <= c && c <= '9'); }
 
-static bool IsDigit(uc16 c) {
-  return ('0' <= c && c <= '9');
-}
+static bool NotDigit(uc32 c) { return !IsDigit(c); }
 
-
-static bool NotDigit(uc16 c) {
-  return !IsDigit(c);
-}
-
-
-static bool IsWhiteSpaceOrLineTerminator(uc16 c) {
+static bool IsWhiteSpaceOrLineTerminator(uc32 c) {
   // According to ECMA 5.1, 15.10.2.12 the CharacterClassEscape \s includes
   // WhiteSpace (7.2) and LineTerminator (7.3) values.
   return v8::internal::IsWhiteSpaceOrLineTerminator(c);
 }
 
-
-static bool NotWhiteSpaceNorLineTermiantor(uc16 c) {
+static bool NotWhiteSpaceNorLineTermiantor(uc32 c) {
   return !IsWhiteSpaceOrLineTerminator(c);
 }
 
+static bool NotWord(uc32 c) { return !IsRegExpWord(c); }
 
-static bool NotWord(uc16 c) {
-  return !IsRegExpWord(c);
-}
+static bool NotLineTerminator(uc32 c) { return !unibrow::IsLineTerminator(c); }
 
-
-static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
+static void TestCharacterClassEscapes(uc32 c, bool(pred)(uc32 c)) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* ranges =
       zone.New<ZoneList<CharacterRange>>(2, &zone);
@@ -520,9 +510,8 @@ static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
   }
 }
 
-
 TEST(CharacterClassEscapes) {
-  TestCharacterClassEscapes('.', IsRegExpNewline);
+  TestCharacterClassEscapes('.', NotLineTerminator);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
   TestCharacterClassEscapes('s', IsWhiteSpaceOrLineTerminator);

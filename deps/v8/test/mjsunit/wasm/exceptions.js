@@ -12,7 +12,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction("push_and_drop_exnref", kSig_v_v)
-      .addLocals({except_count: 1})
+      .addLocals(kWasmExnRef, 1)
       .addBody([
         kExprLocalGet, 0,
         kExprDrop,
@@ -343,7 +343,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_v);
   builder.addFunction("catch_complex", kSig_i_i)
-      .addLocals({except_count: 1})
+      .addLocals(kWasmExnRef, 1)
       .addBody([
         kExprBlock, kWasmI32,
           kExprTry, kWasmStmt,
@@ -467,7 +467,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_l);
   builder.addFunction("throw_catch_param", kSig_i_i)
-      .addLocals({i64_count: 1})
+      .addLocals(kWasmI64, 1)
       .addBody([
         kExprLocalGet, 0,
         kExprI64UConvertI32,
@@ -661,7 +661,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
     .exportFunc();
 
   builder.addFunction("same_scope_multiple", kSig_i_i)
-    .addLocals({i32_count: 1, except_count: 1})
+    .addLocals(kWasmI32, 1).addLocals(kWasmExnRef, 1)
     // path = 0;
     //
     // try {

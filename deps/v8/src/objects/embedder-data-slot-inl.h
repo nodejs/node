@@ -99,7 +99,7 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
 }
 
 EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
-    Isolate* isolate, const DisallowHeapAllocation& no_gc) const {
+    Isolate* isolate, const DisallowGarbageCollection& no_gc) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only by serializer from the main thread when
   // GC is not active (concurrent marker may still look at the tagged part
@@ -120,7 +120,7 @@ EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
 
 void EmbedderDataSlot::store_raw(Isolate* isolate,
                                  EmbedderDataSlot::RawData data,
-                                 const DisallowHeapAllocation& no_gc) {
+                                 const DisallowGarbageCollection& no_gc) {
   // We currently have to treat zero as nullptr in embedder slots.
   if (data) data = EncodeExternalPointer(isolate, data);
   gc_safe_store(data);

@@ -21,7 +21,12 @@ class Signature : public ZoneObject {
                       const T* reps)
       : return_count_(return_count),
         parameter_count_(parameter_count),
-        reps_(reps) {}
+        reps_(reps) {
+    DCHECK_EQ(kReturnCountOffset, offsetof(Signature, return_count_));
+    DCHECK_EQ(kParameterCountOffset, offsetof(Signature, parameter_count_));
+    DCHECK_EQ(kRepsOffset, offsetof(Signature, reps_));
+    STATIC_ASSERT(std::is_standard_layout<Signature<T>>::value);
+  }
 
   size_t return_count() const { return return_count_; }
   size_t parameter_count() const { return parameter_count_; }
@@ -98,6 +103,11 @@ class Signature : public ZoneObject {
     size_t pcursor_;
     T* buffer_;
   };
+
+  static constexpr size_t kReturnCountOffset = 0;
+  static constexpr size_t kParameterCountOffset =
+      kReturnCountOffset + kSizetSize;
+  static constexpr size_t kRepsOffset = kParameterCountOffset + kSizetSize;
 
  protected:
   size_t return_count_;

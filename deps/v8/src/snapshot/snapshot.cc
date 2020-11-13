@@ -7,7 +7,9 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/platform.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate-inl.h"
+#include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/code-kind.h"
@@ -280,7 +282,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
   // Test serialization.
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
 
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
@@ -347,9 +349,16 @@ v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Context>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
-    const DisallowHeapAllocation& no_gc, SerializerFlags flags) {
+    const DisallowGarbageCollection& no_gc, SerializerFlags flags) {
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
+
+  // Enter a safepoint so that the heap is safe to iterate.
+  // TODO(leszeks): This safepoint's scope could be tightened to just string
+  // table iteration, as that iteration relies on there not being any concurrent
+  // threads mutating the string table. But, there's currently no harm in
+  // holding it for the entire snapshot serialization.
+  SafepointScope safepoint(isolate->heap());
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.SerializeReadOnlyRoots();
@@ -395,7 +404,7 @@ v8::StartupData Snapshot::Create(
 
 // static
 v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
-                                 const DisallowHeapAllocation& no_gc,
+                                 const DisallowGarbageCollection& no_gc,
                                  SerializerFlags flags) {
   std::vector<Context> contexts{default_context};
   std::vector<SerializeInternalFieldsCallback> callbacks{{}};

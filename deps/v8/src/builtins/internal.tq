@@ -14,11 +14,17 @@ extern runtime BytecodeBudgetInterruptFromCode(implicit context: Context)(
 builtin GetTemplateObject(
     context: Context, shared: SharedFunctionInfo,
     description: TemplateObjectDescription, slot: uintptr,
-    maybeFeedbackVector: FeedbackVector|Undefined): JSArray {
+    maybeFeedbackVector: Undefined|FeedbackVector): JSArray {
   // TODO(jgruber): Consider merging with the GetTemplateObject bytecode
   // handler; the current advantage of the split implementation is that the
   // bytecode can skip most work if feedback exists.
 
+  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
+  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  assert(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
   try {
     const vector =
         Cast<FeedbackVector>(maybeFeedbackVector) otherwise CallRuntime;

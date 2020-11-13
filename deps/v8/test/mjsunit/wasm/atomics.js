@@ -437,7 +437,7 @@ function CmpExchgLoop(opcode, alignment) {
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "imported_mem", 0, 2, "shared");
   builder.addFunction("main", makeSig([kWasmI32], []))
-      .addLocals({i64_count: 2})
+      .addLocals(kWasmI64, 2)
       .addBody([
         kExprLoop, kWasmStmt,
           kExprLocalGet, 0,

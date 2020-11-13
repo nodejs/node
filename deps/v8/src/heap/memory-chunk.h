@@ -227,6 +227,10 @@ class MemoryChunk : public BasicMemoryChunk {
   // read-only space chunks.
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  ObjectStartBitmap* object_start_bitmap() { return &object_start_bitmap_; }
+#endif
+
  protected:
   static MemoryChunk* Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
                                  Executability executable);
@@ -300,6 +304,10 @@ class MemoryChunk : public BasicMemoryChunk {
   CodeObjectRegistry* code_object_registry_;
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  ObjectStartBitmap object_start_bitmap_;
+#endif
 
  private:
   friend class ConcurrentMarkingState;

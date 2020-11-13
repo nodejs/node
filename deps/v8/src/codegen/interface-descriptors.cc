@@ -221,6 +221,16 @@ void LoadGlobalWithVectorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void LoadWithReceiverAndVectorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DCHECK(!AreAliased(ReceiverRegister(), LookupStartObjectRegister(),
+                     NameRegister(), SlotRegister(), VectorRegister()));
+  Register registers[] = {ReceiverRegister(), LookupStartObjectRegister(),
+                          NameRegister(), SlotRegister(), VectorRegister()};
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
+}
+
 void StoreGlobalDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {NameRegister(), ValueRegister(), SlotRegister()};
@@ -274,6 +284,12 @@ void StringSubstringDescriptor::InitializePlatformSpecific(
 void TypeConversionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ArgumentRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void TypeConversionNoContextDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {TypeConversionDescriptor::ArgumentRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

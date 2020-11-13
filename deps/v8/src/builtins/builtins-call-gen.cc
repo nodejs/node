@@ -176,6 +176,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   TVARIABLE(Int32T, var_length);
   BIND(&if_array);
   {
+    TNode<Int32T> kind = LoadMapElementsKind(arguments_list_map);
+    GotoIf(
+        IsElementsKindGreaterThan(kind, LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND),
+        &if_runtime);
+
     TNode<JSObject> js_object = CAST(arguments_list);
     // Try to extract the elements from a JSArray object.
     var_elements = LoadElements(js_object);
@@ -191,11 +196,6 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
     STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == HOLEY_DOUBLE_ELEMENTS);
 
-    TNode<Int32T> kind = LoadMapElementsKind(arguments_list_map);
-
-    GotoIf(
-        IsElementsKindGreaterThan(kind, LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND),
-        &if_runtime);
     Branch(Word32And(kind, Int32Constant(1)), &if_holey_array, &if_done);
   }
 
@@ -317,7 +317,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   Label if_smiorobject(this), if_double(this),
       if_generic(this, Label::kDeferred);
 
-  TVARIABLE(Int32T, var_length);
+  TVARIABLE(JSArray, var_js_array);
   TVARIABLE(FixedArrayBase, var_elements);
   TVARIABLE(Int32T, var_elements_kind);
 
@@ -342,9 +342,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   {
     // The fast-path accesses the {spread} elements directly.
     TNode<Int32T> spread_kind = LoadMapElementsKind(spread_map);
+    var_js_array = spread_array;
     var_elements_kind = spread_kind;
-    var_length =
-        LoadAndUntagToWord32ObjectField(spread_array, JSArray::kLengthOffset);
     var_elements = LoadElements(spread_array);
 
     // Check elements kind of {spread}.
@@ -372,8 +371,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<JSArray> list =
         CAST(CallBuiltin(Builtins::kIterableToListMayPreserveHoles, context,
                          spread, iterator_fn));
-    var_length = LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset);
 
+    var_js_array = list;
     var_elements = LoadElements(list);
     var_elements_kind = LoadElementsKind(list);
     Branch(Int32LessThan(var_elements_kind.value(),
@@ -398,8 +397,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_smiorobject);
   {
+    TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
+        var_js_array.value(), JSArray::kLengthOffset);
     TNode<FixedArrayBase> elements = var_elements.value();
-    TNode<Int32T> length = var_length.value();
     CSA_ASSERT(this, Int32LessThanOrEqual(
                          length, Int32Constant(FixedArray::kMaxLength)));
 
@@ -415,9 +415,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_double);
   {
-    GotoIf(Word32Equal(var_length.value(), Int32Constant(0)), &if_smiorobject);
+    TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
+        var_js_array.value(), JSArray::kLengthOffset);
+    GotoIf(Word32Equal(length, Int32Constant(0)), &if_smiorobject);
     CallOrConstructDoubleVarargs(target, new_target, CAST(var_elements.value()),
-                                 var_length.value(), args_count, context,
+                                 length, args_count, context,
                                  var_elements_kind.value());
   }
 }

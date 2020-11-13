@@ -93,8 +93,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     CHECK(!heap_copy_reducer.Reduce(node).Changed());
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &simplified,
                     &machine);
-    // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter);
+    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter,
+                               &js_heap_broker);
     JSTypedLowering reducer(&graph_reducer, &jsgraph, &js_heap_broker,
                             main_zone());
     Reduction reduction = reducer.Reduce(node);

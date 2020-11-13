@@ -12,11 +12,13 @@
 #include "src/codegen/label.h"
 #include "src/codegen/register-arch.h"
 #include "src/codegen/source-position.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/js-function.h"
 #include "src/objects/shared-function-info.h"
@@ -35,6 +37,7 @@ class TranslatedFrame;
 class TranslatedState;
 class RegisterValues;
 class MacroAssembler;
+class StrongRootsEntry;
 
 enum class BuiltinContinuationMode;
 
@@ -339,8 +342,9 @@ class TranslatedState {
   Isolate* isolate() { return isolate_; }
 
   void Init(Isolate* isolate, Address input_frame_pointer,
-            TranslationIterator* iterator, FixedArray literal_array,
-            RegisterValues* registers, FILE* trace_file, int parameter_count);
+            Address stack_frame_pointer, TranslationIterator* iterator,
+            FixedArray literal_array, RegisterValues* registers,
+            FILE* trace_file, int parameter_count, int actual_argument_count);
 
   void VerifyMaterializedObjects();
   bool DoUpdateFeedback();
@@ -408,6 +412,7 @@ class TranslatedState {
   Isolate* isolate_ = nullptr;
   Address stack_frame_pointer_ = kNullAddress;
   int formal_parameter_count_;
+  int actual_argument_count_;
 
   struct ObjectPosition {
     int frame_index_;
@@ -482,6 +487,13 @@ class Deoptimizer : public Malloced {
   // refer to that code.
   static void DeoptimizeMarkedCode(Isolate* isolate);
 
+  // Check the given address against a list of allowed addresses, to prevent a
+  // potential attacker from using the frame creation process in the
+  // deoptimizer, in particular the signing process, to gain control over the
+  // program.
+  // When building mksnapshot, always return false.
+  static bool IsValidReturnAddress(Address address);
+
   ~Deoptimizer();
 
   void MaterializeHeapObjects();
@@ -528,6 +540,11 @@ class Deoptimizer : public Malloced {
   static const int kNonLazyDeoptExitSize;
   static const int kLazyDeoptExitSize;
 
+  // Tracing.
+  static void TraceMarkForDeoptimization(Code code, const char* reason);
+  static void TraceEvictFromOptimizedCodeCache(SharedFunctionInfo sfi,
+                                               const char* reason);
+
  private:
   friend class FrameWriter;
   void QueueValueForMaterialization(Address output_address, Object obj,
@@ -536,7 +553,6 @@ class Deoptimizer : public Malloced {
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
   Code FindOptimizedCode();
-  void PrintFunctionName();
   void DeleteFrameDescriptions();
 
   static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
@@ -574,6 +590,23 @@ class Deoptimizer : public Malloced {
   // searching all code objects).
   Code FindDeoptimizingCode(Address addr);
 
+  // Tracing.
+  bool tracing_enabled() const { return static_cast<bool>(trace_scope_); }
+  bool verbose_tracing_enabled() const {
+    return FLAG_trace_deopt_verbose && trace_scope_;
+  }
+  CodeTracer::Scope* trace_scope() const { return trace_scope_.get(); }
+  CodeTracer::Scope* verbose_trace_scope() const {
+    return FLAG_trace_deopt_verbose ? trace_scope() : nullptr;
+  }
+  void TraceDeoptBegin(int optimization_id, int node_id);
+  void TraceDeoptEnd(double deopt_duration);
+#ifdef DEBUG
+  static void TraceFoundActivation(Isolate* isolate, JSFunction function);
+#endif
+  static void TraceDeoptAll(Isolate* isolate);
+  static void TraceDeoptMarked(Isolate* isolate);
+
   Isolate* isolate_;
   JSFunction function_;
   Code compiled_code_;
@@ -601,6 +634,9 @@ class Deoptimizer : public Malloced {
   intptr_t caller_constant_pool_;
   intptr_t input_frame_context_;
 
+  // The argument count of the bottom most frame.
+  int actual_argument_count_;
+
   // Key for lookup of previously materialized objects
   intptr_t stack_fp_;
 
@@ -612,10 +648,10 @@ class Deoptimizer : public Malloced {
   std::vector<ValueToMaterialize> values_to_materialize_;
 
 #ifdef DEBUG
-  DisallowHeapAllocation* disallow_heap_allocation_;
+  DisallowGarbageCollection* disallow_garbage_collection_;
 #endif  // DEBUG
 
-  CodeTracer::Scope* trace_scope_;
+  std::unique_ptr<CodeTracer::Scope> trace_scope_;
 
   static const int table_entry_size_;
 
@@ -814,6 +850,7 @@ class DeoptimizerData {
   void set_deopt_entry_code(DeoptimizeKind kind, Code code);
 
   Deoptimizer* current_;
+  StrongRootsEntry* strong_roots_entry_;
 
   friend class Deoptimizer;
 

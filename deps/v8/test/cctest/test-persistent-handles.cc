@@ -74,8 +74,8 @@ class PersistentHandlesThread final : public v8::base::Thread {
 };
 
 TEST(CreatePersistentHandles) {
+  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
-  FLAG_local_heaps = true;
   Isolate* isolate = CcTest::i_isolate();
 
   std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
@@ -110,8 +110,8 @@ TEST(CreatePersistentHandles) {
 }
 
 TEST(DereferencePersistentHandle) {
+  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
-  FLAG_local_heaps = true;
   Isolate* isolate = CcTest::i_isolate();
 
   std::unique_ptr<PersistentHandles> phs = isolate->NewPersistentHandles();

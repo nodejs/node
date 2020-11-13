@@ -51,6 +51,7 @@ class MockPlatformForUnmapper : public TestPlatform {
 };
 
 TEST(EagerUnmappingInCollectAllAvailableGarbage) {
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   CcTest::InitializeVM();
   MockPlatformForUnmapper platform;
   Heap* heap = CcTest::heap();

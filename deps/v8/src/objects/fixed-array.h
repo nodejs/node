@@ -9,7 +9,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
-#include "torque-generated/class-definitions-tq.h"
+#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -122,18 +122,7 @@ class FixedArray
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-#if defined(_WIN32) && !defined(_WIN64)
-  inline void set(int index, Smi value) {
-    DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-    DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-    DCHECK(Object(value).IsSmi());
-    int offset = OffsetOfElementAt(index);
-    RELAXED_WRITE_FIELD(*this, offset, value);
-  }
-#else
   inline void set(int index, Smi value);
-#endif
-
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
 
@@ -307,7 +296,6 @@ class WeakFixedArray
 
   int AllocatedSize();
 
- protected:
   static int OffsetOfElementAt(int index) {
     STATIC_ASSERT(kObjectsOffset == SizeFor(0));
     return SizeFor(index);

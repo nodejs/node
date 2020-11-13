@@ -365,8 +365,8 @@ namespace compiler {
   V(S390_I8x16RoundingAverageU)             \
   V(S390_I8x16Abs)                          \
   V(S390_I8x16BitMask)                      \
-  V(S390_S8x16Shuffle)                      \
-  V(S390_S8x16Swizzle)                      \
+  V(S390_I8x16Shuffle)                      \
+  V(S390_I8x16Swizzle)                      \
   V(S390_V64x2AnyTrue)                      \
   V(S390_V32x4AnyTrue)                      \
   V(S390_V16x8AnyTrue)                      \

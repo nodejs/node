@@ -31,6 +31,16 @@ class GarbageCollector {
               MarkingType::kAtomic, SweepingType::kAtomic};
     }
 
+    static constexpr Config ConservativeIncrementalConfig() {
+      return {CollectionType::kMajor, StackState::kMayContainHeapPointers,
+              MarkingType::kIncremental, SweepingType::kAtomic};
+    }
+
+    static constexpr Config PreciseIncrementalConfig() {
+      return {CollectionType::kMajor, StackState::kNoHeapPointers,
+              MarkingType::kIncremental, SweepingType::kAtomic};
+    }
+
     static constexpr Config MinorPreciseAtomicConfig() {
       return {CollectionType::kMinor, StackState::kNoHeapPointers,
               MarkingType::kAtomic, SweepingType::kAtomic};
@@ -43,7 +53,8 @@ class GarbageCollector {
   };
 
   // Executes a garbage collection specified in config.
-  virtual void CollectGarbage(Config config) = 0;
+  virtual void CollectGarbage(Config) = 0;
+  virtual void StartIncrementalGarbageCollection(Config) = 0;
 
   // The current epoch that the GC maintains. The epoch is increased on every
   // GC invocation.

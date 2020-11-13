@@ -64,6 +64,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   // and does a final attempt to reduce the nodes in the waitlist.
   void Finalize() final;
 
+  // JSCallReducer outsources much work to a graph assembler.
+  void RevisitForGraphAssembler(Node* node) { Revisit(node); }
+  Zone* ZoneForGraphAssembler() const { return temp_zone(); }
+  JSGraph* JSGraphForGraphAssembler() const { return jsgraph(); }
+
  private:
   Reduction ReduceBooleanConstructor(Node* node);
   Reduction ReduceCallApiFunction(Node* node,

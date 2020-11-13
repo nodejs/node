@@ -7,37 +7,49 @@
 #include <chrono>  // NOLINT(build/c++11)
 #include <thread>  // NOLINT(build/c++11)
 
+#include "src/base/logging.h"
 #include "src/base/page-allocator.h"
+#include "src/base/sys-info.h"
+#include "src/heap/cppgc/default-job.h"
 
 namespace cppgc {
 
+namespace internal {
+
+// Default implementation of Jobs based on std::thread.
 namespace {
-
-// Simple implementation of JobTask based on std::thread.
-class DefaultJobHandle : public JobHandle {
+class DefaultJobThread final : private std::thread {
  public:
-  explicit DefaultJobHandle(std::shared_ptr<std::thread> thread)
-      : thread_(std::move(thread)) {}
+  template <typename Function>
+  explicit DefaultJobThread(Function function)
+      : std::thread(std::move(function)) {}
+  ~DefaultJobThread() { DCHECK(!joinable()); }
 
-  void NotifyConcurrencyIncrease() override {}
-  void Join() override {
-    if (thread_->joinable()) thread_->join();
+  void Join() { join(); }
+
+  static size_t GetMaxSupportedConcurrency() {
+    return v8::base::SysInfo::NumberOfProcessors() - 1;
   }
-  void Cancel() override { Join(); }
-  bool IsRunning() override { return thread_->joinable(); }
+};
+}  // namespace
 
- private:
-  std::shared_ptr<std::thread> thread_;
+class DefaultJob final : public DefaultJobImpl<DefaultJobThread> {
+ public:
+  DefaultJob(Key key, std::unique_ptr<cppgc::JobTask> job_task)
+      : DefaultJobImpl(key, std::move(job_task)) {}
+
+  std::shared_ptr<DefaultJobThread> CreateThread(DefaultJobImpl* job) final {
+    return std::make_shared<DefaultJobThread>([job = this] {
+      DCHECK_NOT_NULL(job);
+      job->RunJobTask();
+    });
+  }
 };
 
-}  // namespace
+}  // namespace internal
 
 void DefaultTaskRunner::PostTask(std::unique_ptr<cppgc::Task> task) {
   tasks_.push_back(std::move(task));
-}
-
-void DefaultTaskRunner::PostNonNestableTask(std::unique_ptr<cppgc::Task> task) {
-  PostTask(std::move(task));
 }
 
 void DefaultTaskRunner::PostDelayedTask(std::unique_ptr<cppgc::Task> task,
@@ -45,9 +57,13 @@ void DefaultTaskRunner::PostDelayedTask(std::unique_ptr<cppgc::Task> task,
   PostTask(std::move(task));
 }
 
-void DefaultTaskRunner::PostNonNestableDelayedTask(
-    std::unique_ptr<cppgc::Task> task, double) {
-  PostTask(std::move(task));
+void DefaultTaskRunner::PostNonNestableTask(std::unique_ptr<cppgc::Task>) {
+  UNREACHABLE();
+}
+
+void DefaultTaskRunner::PostNonNestableDelayedTask(std::unique_ptr<cppgc::Task>,
+                                                   double) {
+  UNREACHABLE();
 }
 
 void DefaultTaskRunner::PostIdleTask(std::unique_ptr<cppgc::IdleTask> task) {
@@ -106,17 +122,11 @@ std::shared_ptr<cppgc::TaskRunner> DefaultPlatform::GetForegroundTaskRunner() {
 
 std::unique_ptr<cppgc::JobHandle> DefaultPlatform::PostJob(
     cppgc::TaskPriority priority, std::unique_ptr<cppgc::JobTask> job_task) {
-  auto thread = std::make_shared<std::thread>([task = std::move(job_task)] {
-    class SimpleDelegate final : public cppgc::JobDelegate {
-     public:
-      bool ShouldYield() override { return false; }
-      void NotifyConcurrencyIncrease() override {}
-    } delegate;
-
-    if (task) task->Run(&delegate);
-  });
-  job_threads_.push_back(thread);
-  return std::make_unique<DefaultJobHandle>(std::move(thread));
+  std::shared_ptr<internal::DefaultJob> job =
+      internal::DefaultJobFactory<internal::DefaultJob>::Create(
+          std::move(job_task));
+  jobs_.push_back(job);
+  return std::make_unique<internal::DefaultJob::JobHandle>(std::move(job));
 }
 
 void DefaultPlatform::WaitAllForegroundTasks() {
@@ -124,10 +134,10 @@ void DefaultPlatform::WaitAllForegroundTasks() {
 }
 
 void DefaultPlatform::WaitAllBackgroundTasks() {
-  for (auto& thread : job_threads_) {
-    thread->join();
+  for (auto& job : jobs_) {
+    job->Join();
   }
-  job_threads_.clear();
+  jobs_.clear();
 }
 
 }  // namespace cppgc

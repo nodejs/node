@@ -134,6 +134,7 @@ bitfield struct JSSegmentIteratorFlags extends uint31 {
 @generateCppClass
 extern class JSSegmentIterator extends JSObject {
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  unicode_string: Foreign;      // Managed<icu::UnicodeString>
   flags: SmiTagged<JSSegmentIteratorFlags>;
 }
 
@@ -153,4 +154,5 @@ extern class JSV8BreakIterator extends JSObject {
 extern class JSCollator extends JSObject {
   icu_collator: Foreign;  // Managed<icu::Collator>
   bound_compare: Undefined|JSFunction;
+  locale: String;
 }

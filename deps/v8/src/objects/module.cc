@@ -21,57 +21,74 @@
 namespace v8 {
 namespace internal {
 
+namespace {
 #ifdef DEBUG
-void Module::PrintStatusTransition(Status new_status) {
-  if (FLAG_trace_module_status) {
-    StdoutStream os;
-    os << "Changing module status from " << status() << " to " << new_status
-       << " for ";
-    if (this->IsSourceTextModule()) {
-      Handle<Script> script(SourceTextModule::cast(*this).script(),
-                            GetIsolate());
-      script->GetNameOrSourceURL().Print(os);
-    } else {
-      SyntheticModule::cast(*this).name().Print(os);
-    }
-#ifndef OBJECT_PRINT
-    os << "\n";
-#endif  // OBJECT_PRINT
+void PrintModuleName(Module module, std::ostream& os) {
+  if (module.IsSourceTextModule()) {
+    SourceTextModule::cast(module).script().GetNameOrSourceURL().Print(os);
+  } else {
+    SyntheticModule::cast(module).name().Print(os);
   }
+#ifndef OBJECT_PRINT
+  os << "\n";
+#endif  // OBJECT_PRINT
+}
+
+void PrintStatusTransition(Module module, Module::Status new_status) {
+  if (!FLAG_trace_module_status) return;
+  StdoutStream os;
+  os << "Changing module status from " << module.status() << " to "
+     << new_status << " for ";
+  PrintModuleName(module, os);
+}
+
+void PrintStatusMessage(Module module, const char* message) {
+  if (!FLAG_trace_module_status) return;
+  StdoutStream os;
+  os << "Instantiating module ";
+  PrintModuleName(module, os);
 }
 #endif  // DEBUG
+
+void SetStatusInternal(Module module, Module::Status new_status) {
+  DisallowHeapAllocation no_alloc;
+#ifdef DEBUG
+  PrintStatusTransition(module, new_status);
+#endif  // DEBUG
+  module.set_status(new_status);
+}
+
+}  // end namespace
 
 void Module::SetStatus(Status new_status) {
   DisallowHeapAllocation no_alloc;
   DCHECK_LE(status(), new_status);
   DCHECK_NE(new_status, Module::kErrored);
-#ifdef DEBUG
-  PrintStatusTransition(new_status);
-#endif  // DEBUG
-  set_status(new_status);
+  SetStatusInternal(*this, new_status);
 }
 
-void Module::RecordErrorUsingPendingException(Isolate* isolate) {
+// static
+void Module::RecordErrorUsingPendingException(Isolate* isolate,
+                                              Handle<Module> module) {
   Handle<Object> the_exception(isolate->pending_exception(), isolate);
-  RecordError(isolate, the_exception);
+  RecordError(isolate, module, the_exception);
 }
 
-void Module::RecordError(Isolate* isolate, Handle<Object> error) {
-  DCHECK(exception().IsTheHole(isolate));
+// static
+void Module::RecordError(Isolate* isolate, Handle<Module> module,
+                         Handle<Object> error) {
+  DCHECK(module->exception().IsTheHole(isolate));
   DCHECK(!error->IsTheHole(isolate));
-  if (this->IsSourceTextModule()) {
-    Handle<SourceTextModule> self(SourceTextModule::cast(*this), GetIsolate());
+  if (module->IsSourceTextModule()) {
+    Handle<SourceTextModule> self(SourceTextModule::cast(*module), isolate);
     self->set_code(self->info());
   }
-#ifdef DEBUG
-  PrintStatusTransition(Module::kErrored);
-#endif  // DEBUG
-  set_status(Module::kErrored);
+  SetStatusInternal(*module, Module::kErrored);
   if (isolate->is_catchable_by_javascript(*error)) {
-    set_exception(*error);
+    module->set_exception(*error);
   } else {
     // v8::TryCatch uses `null` for termination exceptions.
-    set_exception(*isolate->factory()->null_value());
+    module->set_exception(*isolate->factory()->null_value());
   }
 }
 
@@ -85,22 +102,21 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   Handle<FixedArray> requested_modules =
       module->IsSourceTextModule()
           ? Handle<FixedArray>(
-                Handle<SourceTextModule>::cast(module)->requested_modules(),
-                isolate)
+                SourceTextModule::cast(*module).requested_modules(), isolate)
           : Handle<FixedArray>();
   Reset(isolate, module);
-  if (module->IsSourceTextModule()) {
-    for (int i = 0; i < requested_modules->length(); ++i) {
-      Handle<Object> descendant(requested_modules->get(i), isolate);
-      if (descendant->IsModule()) {
-        ResetGraph(isolate, Handle<Module>::cast(descendant));
-      } else {
-        DCHECK(descendant->IsUndefined(isolate));
-      }
-    }
-  } else {
+
+  if (!module->IsSourceTextModule()) {
     DCHECK(module->IsSyntheticModule());
-    // Nothing else to do here.
+    return;
+  }
+  for (int i = 0; i < requested_modules->length(); ++i) {
+    Handle<Object> descendant(requested_modules->get(i), isolate);
+    if (descendant->IsModule()) {
+      ResetGraph(isolate, Handle<Module>::cast(descendant));
+    } else {
+      DCHECK(descendant->IsUndefined(isolate));
+    }
   }
 }
 
@@ -112,29 +128,22 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
   // by RunInitializationCode, which is called only after this module's SCC
   // succeeds instantiation.
   DCHECK(!module->module_namespace().IsJSModuleNamespace());
-
-#ifdef DEBUG
-  module->PrintStatusTransition(kUninstantiated);
-#endif  // DEBUG
-
   const int export_count =
       module->IsSourceTextModule()
-          ? Handle<SourceTextModule>::cast(module)->regular_exports().length()
-          : Handle<SyntheticModule>::cast(module)->export_names().length();
+          ? SourceTextModule::cast(*module).regular_exports().length()
+          : SyntheticModule::cast(*module).export_names().length();
   Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate, export_count);
 
   if (module->IsSourceTextModule()) {
     SourceTextModule::Reset(isolate, Handle<SourceTextModule>::cast(module));
-  } else {
-    // Nothing to do here.
   }
 
   module->set_exports(*exports);
-  module->set_status(kUninstantiated);
+  SetStatusInternal(*module, kUninstantiated);
 }
 
 Object Module::GetException() {
-  DisallowHeapAllocation no_alloc;
+  DisallowHeapAllocation no_gc;
   DCHECK_EQ(status(), Module::kErrored);
   DCHECK(!exception().IsTheHole());
   return exception();
@@ -163,21 +172,7 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
                          v8::Local<v8::Context> context,
                          v8::Module::ResolveCallback callback) {
 #ifdef DEBUG
-  if (FLAG_trace_module_status) {
-    StdoutStream os;
-    os << "Instantiating module ";
-    if (module->IsSourceTextModule()) {
-      Handle<SourceTextModule>::cast(module)
-          ->script()
-          .GetNameOrSourceURL()
-          .Print(os);
-    } else {
-      Handle<SyntheticModule>::cast(module)->name().Print(os);
-    }
-#ifndef OBJECT_PRINT
-    os << "\n";
-#endif  // OBJECT_PRINT
-  }
+  PrintStatusMessage(*module, "Instantiating module ");
 #endif  // DEBUG
 
   if (!PrepareInstantiate(isolate, module, context, callback)) {
@@ -237,21 +232,7 @@ bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
 
 MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
 #ifdef DEBUG
-  if (FLAG_trace_module_status) {
-    StdoutStream os;
-    os << "Evaluating module ";
-    if (module->IsSourceTextModule()) {
-      Handle<SourceTextModule>::cast(module)
-          ->script()
-          .GetNameOrSourceURL()
-          .Print(os);
-    } else {
-      Handle<SyntheticModule>::cast(module)->name().Print(os);
-    }
-#ifndef OBJECT_PRINT
-    os << "\n";
-#endif  // OBJECT_PRINT
-  }
+  PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
   STACK_CHECK(isolate, MaybeHandle<Object>());
   if (FLAG_harmony_top_level_await && module->IsSourceTextModule()) {
@@ -360,7 +341,7 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
     return isolate->factory()->undefined_value();
   }
 
-  Handle<Object> value(Handle<Cell>::cast(object)->value(), isolate);
+  Handle<Object> value(Cell::cast(*object).value(), isolate);
   if (value->IsTheHole(isolate)) {
     THROW_NEW_ERROR(
         isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
@@ -378,9 +359,7 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   Isolate* isolate = it->isolate();
 
   Handle<Object> lookup(object->module().exports().Lookup(name), isolate);
-  if (lookup->IsTheHole(isolate)) {
-    return Just(ABSENT);
-  }
+  if (lookup->IsTheHole(isolate)) return Just(ABSENT);
 
   Handle<Object> value(Handle<Cell>::cast(lookup)->value(), isolate);
   if (value->IsTheHole(isolate)) {

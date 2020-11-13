@@ -43,6 +43,7 @@ class JSSegmentIterator
 
   // SegmentIterator accessors.
   DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
 
   DECL_PRINTER(JSSegmentIterator)
 

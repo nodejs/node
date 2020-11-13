@@ -318,6 +318,7 @@ namespace internal {
   T(BigIntDivZero, "Division by zero")                                         \
   T(BigIntNegativeExponent, "Exponent must be positive")                       \
   T(BigIntTooBig, "Maximum BigInt size exceeded")                              \
+  T(CantSetOptionXWhenYIsUsed, "Can't set option % when % is used")            \
   T(DateRange, "Provided date is not in valid range.")                         \
   T(ExpectedLocation,                                                          \
     "Expected letters optionally connected with underscores or hyphens for "   \
@@ -562,6 +563,7 @@ namespace internal {
   T(WasmTrapNullDereference, "dereferencing a null pointer")                   \
   T(WasmTrapIllegalCast, "illegal cast")                                       \
   T(WasmTrapArrayOutOfBounds, "array element access out of bounds")            \
+  T(WasmTrapWasmJSFunction, "cannot call WebAssembly.Function with call_ref")  \
   T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \

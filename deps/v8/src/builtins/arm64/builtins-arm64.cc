@@ -45,21 +45,27 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
+  //  -- x0 : actual argument count
   //  -- x1 : target function (preserved for callee)
   //  -- x3 : new target (preserved for callee)
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Push a copy of the target function and the new target.
+    // Push a copy of the target function, the new target and the actual
+    // argument count.
+    __ SmiTag(kJavaScriptCallArgCountRegister);
+    __ Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+            kJavaScriptCallArgCountRegister, padreg);
     // Push another copy as a parameter to the runtime call.
-    __ Push(x1, x3);
-    __ PushArgument(x1);
+    __ PushArgument(kJavaScriptCallTargetRegister);
 
     __ CallRuntime(function_id, 1);
     __ Mov(x2, x0);
 
-    // Restore target function and new target.
-    __ Pop(x3, x1);
+    // Restore target function, new target and actual argument count.
+    __ Pop(padreg, kJavaScriptCallArgCountRegister,
+           kJavaScriptCallNewTargetRegister, kJavaScriptCallTargetRegister);
+    __ SmiUntag(kJavaScriptCallArgCountRegister);
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
@@ -1041,6 +1047,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       Register optimized_code_entry,
                                       Register scratch) {
   // ----------- S t a t e -------------
+  //  -- x0 : actual argument count
   //  -- x3 : new target (preserved for callee if needed, and caller)
   //  -- x1 : target function (preserved for callee if needed, and caller)
   // -----------------------------------
@@ -1081,6 +1088,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
                               Register optimization_marker) {
   // ----------- S t a t e -------------
+  //  -- x0 : actual argument count
   //  -- x3 : new target (preserved for callee if needed, and caller)
   //  -- x1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
@@ -1189,10 +1197,10 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
-// stack left to right.  The actual argument count matches the formal parameter
-// count expected by the function.
+// stack left to right.
 //
 // The live registers are:
+//   - x0: actual argument count (not including the receiver)
 //   - x1: the JS function object being called.
 //   - x3: the incoming new target or generator object
 //   - cp: our context.
@@ -1208,16 +1216,16 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
   __ LoadTaggedPointerField(
-      x0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+      x4, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ LoadTaggedPointerField(
       kInterpreterBytecodeArrayRegister,
-      FieldMemOperand(x0, SharedFunctionInfo::kFunctionDataOffset));
+      FieldMemOperand(x4, SharedFunctionInfo::kFunctionDataOffset));
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, x11);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label compile_lazy;
-  __ CompareObjectType(kInterpreterBytecodeArrayRegister, x0, x0,
+  __ CompareObjectType(kInterpreterBytecodeArrayRegister, x4, x4,
                        BYTECODE_ARRAY_TYPE);
   __ B(ne, &compile_lazy);
 
@@ -1266,8 +1274,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // the frame (that is done below).
   __ Bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ Push<TurboAssembler::kSignLR>(lr, fp, cp, closure);
-  __ Add(fp, sp, StandardFrameConstants::kFixedFrameSizeFromFp);
+  __ Push<TurboAssembler::kSignLR>(lr, fp);
+  __ mov(fp, sp);
+  __ Push(cp, closure);
 
   // Reset code age.
   // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
@@ -1283,9 +1292,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
 
-  // Push bytecode array and Smi tagged bytecode array offset.
-  __ SmiTag(x0, kInterpreterBytecodeOffsetRegister);
-  __ Push(kInterpreterBytecodeArrayRegister, x0);
+  // Push actual argument count, bytecode array, Smi tagged bytecode array
+  // offset and an undefined (to properly align the stack pointer).
+  STATIC_ASSERT(TurboAssembler::kExtraSlotClaimedByPrologue == 1);
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ SmiTag(x6, kInterpreterBytecodeOffsetRegister);
+  __ Push(kJavaScriptCallArgCountRegister, kInterpreterBytecodeArrayRegister,
+          x6, kInterpreterAccumulatorRegister);
 
   // Allocate the local and temporary register file on the stack.
   Label stack_overflow;
@@ -1308,11 +1321,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Note: there should always be at least one stack slot for the return
     // register in the register file.
     Label loop_header;
-    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
     __ Lsr(x11, x11, kSystemPointerSizeLog2);
-    // Round up the number of registers to a multiple of 2, to align the stack
-    // to 16 bytes.
-    __ Add(x11, x11, 1);
+    // Round down (since we already have an undefined in the stack) the number
+    // of registers to a multiple of 2, to align the stack to 16 bytes.
     __ Bic(x11, x11, 1);
     __ PushMultipleTimes(kInterpreterAccumulatorRegister, x11);
     __ Bind(&loop_header);
@@ -2308,6 +2319,7 @@ void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 // one slot up or one slot down, as needed.
 void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
                                        Register len) {
+  Label exit;
 #ifdef V8_REVERSE_JSARGS
   Label even;
   Register slots_to_copy = x10;
@@ -2330,6 +2342,7 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
   }
 
   __ Bind(&even);
+  __ Cbz(slots_to_claim, &exit);
   __ Claim(slots_to_claim);
 
   // Move the arguments already in the stack including the receiver.
@@ -2341,7 +2354,7 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
     __ CopyDoubleWords(dst, src, slots_to_copy);
   }
 #else   // !V8_REVERSE_JSARGS
-  Label len_odd, exit;
+  Label len_odd;
   Register slots_to_copy = x10;  // If needed.
   __ Add(slots_to_copy, argc, 1);
   __ Add(argc, argc, len);
@@ -2393,8 +2406,8 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
             Operand(scratch, LSL, kSystemPointerSizeLog2));  // Store padding.
   }
 
-  __ Bind(&exit);
 #endif  // !V8_REVERSE_JSARGS
+  __ Bind(&exit);
 }
 
 }  // namespace
@@ -2562,8 +2575,21 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   // Push varargs.
   {
     Register dst = x13;
-    __ Add(args_fp, args_fp, 2 * kSystemPointerSize);
+#ifdef V8_REVERSE_JSARGS
+    // Point to the fist argument to copy from (skipping receiver).
+    __ Add(args_fp, args_fp,
+           CommonFrameConstants::kFixedFrameSizeAboveFp + kSystemPointerSize);
+    __ lsl(start_index, start_index, kSystemPointerSizeLog2);
+    __ Add(args_fp, args_fp, start_index);
+    // Point to the position to copy to.
+    __ Add(x10, argc, 1);
+    __ SlotAddress(dst, x10);
+    // Update total number of arguments.
+    __ Add(argc, argc, len);
+#else
+    __ Add(args_fp, args_fp, CommonFrameConstants::kFixedFrameSizeAboveFp);
     __ SlotAddress(dst, 0);
+#endif
     __ CopyDoubleWords(dst, args_fp, len);
   }
   __ B(&stack_done);
@@ -3438,7 +3464,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
     __ PushXRegList(WasmDebugBreakFrameConstants::kPushedGpRegs);
-    __ PushDRegList(WasmDebugBreakFrameConstants::kPushedFpRegs);
+    __ PushQRegList(WasmDebugBreakFrameConstants::kPushedFpRegs);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -3446,7 +3472,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmDebugBreak, 0);
 
     // Restore registers.
-    __ PopDRegList(WasmDebugBreakFrameConstants::kPushedFpRegs);
+    __ PopQRegList(WasmDebugBreakFrameConstants::kPushedFpRegs);
     __ PopXRegList(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();

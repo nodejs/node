@@ -5,6 +5,7 @@
 #ifndef V8_LOGGING_LOG_H_
 #define V8_LOGGING_LOG_H_
 
+#include <atomic>
 #include <memory>
 #include <set>
 #include <string>
@@ -126,17 +127,18 @@ class Logger : public CodeEventListener {
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
 
+  // Frees resources acquired in SetUp.
+  // When a temporary file is used for the log, returns its stream descriptor,
+  // leaving the file open.
+  V8_EXPORT_PRIVATE FILE* TearDownAndGetLogFile();
+
   // Sets the current code event handler.
   void SetCodeEventHandler(uint32_t options, JitCodeEventHandler event_handler);
 
   sampler::Sampler* sampler();
+  V8_EXPORT_PRIVATE std::string file_name() const;
 
   V8_EXPORT_PRIVATE void StopProfilerThread();
-
-  // Frees resources acquired in SetUp.
-  // When a temporary file is used for the log, returns its stream descriptor,
-  // leaving the file open.
-  V8_EXPORT_PRIVATE FILE* TearDown();
 
   // Emits an event with a string value -> (name, value).
   V8_EXPORT_PRIVATE void StringEvent(const char* name, const char* value);
@@ -168,7 +170,7 @@ class Logger : public CodeEventListener {
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
                      int start_position, int end_position,
                      const char* function_name = nullptr,
-                     size_t function_name_length = 0);
+                     size_t function_name_length = 0, bool is_one_byte = true);
 
   void CompilationCacheEvent(const char* action, const char* cache_type,
                              SharedFunctionInfo sfi);
@@ -208,7 +210,6 @@ class Logger : public CodeEventListener {
                              Handle<String> source) override;
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override;
-  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
@@ -283,6 +284,8 @@ class Logger : public CodeEventListener {
   void LogCodeObject(Object code_object);
 
  private:
+  void UpdateIsLogging(bool value);
+
   // Emits the profiler's first message.
   void ProfilerBeginEvent();
 
@@ -324,7 +327,7 @@ class Logger : public CodeEventListener {
   // Internal implementation classes with access to private members.
   friend class Profiler;
 
-  bool is_logging_;
+  std::atomic<bool> is_logging_;
   std::unique_ptr<Log> log_;
 #if V8_OS_LINUX
   std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
@@ -405,7 +408,6 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta, bool reuse_code) override {}
@@ -465,7 +467,6 @@ class ExternalCodeEventListener : public CodeEventListener {
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {}

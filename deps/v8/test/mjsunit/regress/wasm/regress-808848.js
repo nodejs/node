@@ -41,7 +41,7 @@ builder.addImport('mod', 'get', kSig_i_v);
 builder.addImport('mod', 'call', kSig_v_i);
 builder.
   addFunction('main', kSig_v_v).
-  addLocals({i32_count: kNumLocals}).
+  addLocals(kWasmI32, kNumLocals).
   addBody(body).
   exportAs('main');
 let m1_bytes = builder.toBuffer();

@@ -1353,9 +1353,12 @@ class ParserBase {
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
+  // Modern language features can be exempted from this hack by passing
+  // early_error = true.
   ExpressionT RewriteInvalidReferenceExpression(ExpressionT expression,
                                                 int beg_pos, int end_pos,
-                                                MessageTemplate message);
+                                                MessageTemplate message,
+                                                bool early_error);
 
   bool IsValidReferenceExpression(ExpressionT expression);
 
@@ -2825,9 +2828,12 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
                                           end_position());
   } else {
     DCHECK(!IsValidReferenceExpression(expression));
+    // For web compatibility reasons, throw early errors only for logical
+    // assignment, not for regular assignment.
+    const bool early_error = Token::IsLogicalAssignmentOp(op);
     expression = RewriteInvalidReferenceExpression(
         expression, lhs_beg_pos, end_position(),
-        MessageTemplate::kInvalidLhsInAssignment);
+        MessageTemplate::kInvalidLhsInAssignment, early_error);
   }
 
   Consume(op);
@@ -3142,9 +3148,10 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
       expression_scope()->MarkIdentifierAsAssigned();
     }
   } else {
+    const bool early_error = false;
     expression = RewriteInvalidReferenceExpression(
         expression, expression_position, end_position(),
-        MessageTemplate::kInvalidLhsInPrefixOp);
+        MessageTemplate::kInvalidLhsInPrefixOp, early_error);
   }
 
   return factory()->NewCountOperation(op, true /* prefix */, expression,
@@ -3217,9 +3224,10 @@ typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParsePostfixContinuation(ExpressionT expression,
                                            int lhs_beg_pos) {
   if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
+    const bool early_error = false;
     expression = RewriteInvalidReferenceExpression(
         expression, lhs_beg_pos, end_position(),
-        MessageTemplate::kInvalidLhsInPostfixOp);
+        MessageTemplate::kInvalidLhsInPostfixOp, early_error);
   }
   if (impl()->IsIdentifier(expression)) {
     expression_scope()->MarkIdentifierAsAssigned();
@@ -4743,7 +4751,8 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
                                                     int beg_pos, int end_pos,
-                                                    MessageTemplate message) {
+                                                    MessageTemplate message,
+                                                    bool early_error) {
   DCHECK(!IsValidReferenceExpression(expression));
   if (impl()->IsIdentifier(expression)) {
     DCHECK(is_strict(language_mode()));
@@ -4753,7 +4762,8 @@ ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
                     MessageTemplate::kStrictEvalArguments);
     return impl()->FailureExpression();
   }
-  if (expression->IsCall() && !expression->AsCall()->is_tagged_template()) {
+  if (expression->IsCall() && !expression->AsCall()->is_tagged_template() &&
+      !early_error) {
     expression_scope()->RecordPatternError(
         Scanner::Location(beg_pos, end_pos),
         MessageTemplate::kInvalidDestructuringTarget);
@@ -4767,6 +4777,9 @@ ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
     ExpressionT error = impl()->NewThrowReferenceError(message, beg_pos);
     return factory()->NewProperty(expression, error, beg_pos);
   }
+  // Tagged templates and other modern language features (which pass early_error
+  // = true) are exempt from the web compatibility hack. Throw a regular early
+  // error.
   ReportMessageAt(Scanner::Location(beg_pos, end_pos), message);
   return impl()->FailureExpression();
 }

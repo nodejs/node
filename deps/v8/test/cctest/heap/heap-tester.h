@@ -11,6 +11,7 @@
 // Tests that should have access to private methods of {v8::internal::Heap}.
 // Those tests need to be defined using HEAP_TEST(Name) { ... }.
 #define HEAP_TEST_METHODS(V)                                \
+  V(CodeLargeObjectSpace)                                   \
   V(CompactionFullAbortedPage)                              \
   V(CompactionPartiallyAbortedPage)                         \
   V(CompactionPartiallyAbortedPageIntraAbortedPointers)     \
@@ -61,7 +62,8 @@
   V(WriteBarrier_Marking)                                   \
   V(WriteBarrier_MarkingExtension)                          \
   V(WriteBarriersInCopyJSObject)                            \
-  V(DoNotEvacuatePinnedPages)
+  V(DoNotEvacuatePinnedPages)                               \
+  V(ObjectStartBitmap)
 
 #define HEAP_TEST(Name)                                                   \
   CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \

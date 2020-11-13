@@ -6,10 +6,6 @@
 
 #include "src/base/platform/platform.h"
 
-#if V8_OS_MACOSX
-#include <sys/mman.h>  // For MAP_JIT.
-#endif
-
 namespace v8 {
 namespace base {
 
@@ -25,8 +21,6 @@ STATIC_ASSERT_ENUM(PageAllocator::kReadWriteExecute,
                    base::OS::MemoryPermission::kReadWriteExecute);
 STATIC_ASSERT_ENUM(PageAllocator::kReadExecute,
                    base::OS::MemoryPermission::kReadExecute);
-STATIC_ASSERT_ENUM(PageAllocator::kNoAccessWillJitLater,
-                   base::OS::MemoryPermission::kNoAccessWillJitLater);
 
 #undef STATIC_ASSERT_ENUM
 
@@ -44,14 +38,6 @@ void* PageAllocator::GetRandomMmapAddr() {
 
 void* PageAllocator::AllocatePages(void* hint, size_t size, size_t alignment,
                                    PageAllocator::Permission access) {
-#if !(V8_OS_MACOSX && V8_HOST_ARCH_ARM64 && defined(MAP_JIT))
-  // kNoAccessWillJitLater is only used on Apple Silicon. Map it to regular
-  // kNoAccess on other platforms, so code doesn't have to handle both enum
-  // values.
-  if (access == PageAllocator::kNoAccessWillJitLater) {
-    access = PageAllocator::kNoAccess;
-  }
-#endif
   return base::OS::Allocate(hint, size, alignment,
                             static_cast<base::OS::MemoryPermission>(access));
 }

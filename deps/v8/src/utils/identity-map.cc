@@ -5,6 +5,7 @@
 #include "src/utils/identity-map.h"
 
 #include "src/base/functional.h"
+#include "src/base/logging.h"
 #include "src/heap/heap.h"
 #include "src/roots/roots-inl.h"
 
@@ -23,10 +24,12 @@ IdentityMapBase::~IdentityMapBase() {
 void IdentityMapBase::Clear() {
   if (keys_) {
     DCHECK(!is_iterable());
-    heap_->UnregisterStrongRoots(FullObjectSlot(keys_));
+    DCHECK_NOT_NULL(strong_roots_entry_);
+    heap_->UnregisterStrongRoots(strong_roots_entry_);
     DeletePointerArray(reinterpret_cast<void**>(keys_), capacity_);
     DeletePointerArray(values_, capacity_);
     keys_ = nullptr;
+    strong_roots_entry_ = nullptr;
     values_ = nullptr;
     size_ = 0;
     capacity_ = 0;
@@ -164,8 +167,8 @@ IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Address key) {
     values_ = NewPointerArray(capacity_);
     memset(values_, 0, sizeof(void*) * capacity_);
 
-    heap_->RegisterStrongRoots(FullObjectSlot(keys_),
-                               FullObjectSlot(keys_ + capacity_));
+    strong_roots_entry_ = heap_->RegisterStrongRoots(
+        FullObjectSlot(keys_), FullObjectSlot(keys_ + capacity_));
   }
   int index = LookupOrInsert(key);
   return &values_[index];
@@ -284,9 +287,9 @@ void IdentityMapBase::Resize(int new_capacity) {
   }
 
   // Unregister old keys and register new keys.
-  heap_->UnregisterStrongRoots(FullObjectSlot(old_keys));
-  heap_->RegisterStrongRoots(FullObjectSlot(keys_),
-                             FullObjectSlot(keys_ + capacity_));
+  DCHECK_NOT_NULL(strong_roots_entry_);
+  heap_->UpdateStrongRoots(strong_roots_entry_, FullObjectSlot(keys_),
+                           FullObjectSlot(keys_ + capacity_));
 
   // Delete old storage;
   DeletePointerArray(reinterpret_cast<void**>(old_keys), old_capacity);

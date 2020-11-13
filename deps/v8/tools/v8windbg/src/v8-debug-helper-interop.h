@@ -137,4 +137,7 @@ std::vector<std::u16string> ListObjectClasses();
 
 const char* BitsetName(uint64_t payload);
 
+std::vector<Property> GetStackFrame(WRL::ComPtr<IDebugHostContext> sp_context,
+                                    uint64_t frame_pointer);
+
 #endif  // V8_TOOLS_V8WINDBG_SRC_V8_DEBUG_HELPER_INTEROP_H_

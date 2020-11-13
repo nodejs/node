@@ -128,8 +128,10 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->handle_scope_implementer()->RestoreThread(from);
   from = isolate_->RestoreThread(from);
   from = Relocatable::RestoreState(isolate_, from);
-  from = isolate_->debug()->RestoreDebug(from);
+  // Stack guard should be restored before Debug, etc. since Debug etc. might
+  // depend on a correct stack guard.
   from = isolate_->stack_guard()->RestoreStackGuard(from);
+  from = isolate_->debug()->RestoreDebug(from);
   from = isolate_->regexp_stack()->RestoreStack(from);
   from = isolate_->bootstrapper()->RestoreState(from);
   per_thread->set_thread_state(nullptr);
@@ -262,8 +264,8 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->handle_scope_implementer()->ArchiveThread(to);
   to = isolate_->ArchiveThread(to);
   to = Relocatable::ArchiveState(isolate_, to);
-  to = isolate_->debug()->ArchiveDebug(to);
   to = isolate_->stack_guard()->ArchiveStackGuard(to);
+  to = isolate_->debug()->ArchiveDebug(to);
   to = isolate_->regexp_stack()->ArchiveStack(to);
   to = isolate_->bootstrapper()->ArchiveState(to);
   lazily_archived_thread_ = ThreadId::Invalid();

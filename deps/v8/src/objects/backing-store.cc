@@ -276,9 +276,9 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
 }
 
 // Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
-// We don't lower the official max_maximum_mem_pages() limit because that
-// would be observable upon instantiation; this way the effective limit
-// on 32-bit platforms is defined by the allocator.
+// We don't lower the official max_mem_pages() limit because that would be
+// observable upon instantiation; this way the effective limit on 32-bit
+// platforms is defined by the allocator.
 constexpr size_t kPlatformMaxPages =
     std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
 
@@ -325,7 +325,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
 
   // Compute size of reserved memory.
 
-  size_t engine_max_pages = wasm::max_maximum_mem_pages();
+  size_t engine_max_pages = wasm::max_mem_pages();
   maximum_pages = std::min(engine_max_pages, maximum_pages);
   // If the platform doesn't support so many pages, attempting to allocate
   // is guaranteed to fail, so we don't even try.

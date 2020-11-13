@@ -13,6 +13,7 @@ include_rules = [
   "+src/base/safe_conversions.h",
   "+src/base/template-utils.h",
   "+src/base/v8-fallthrough.h",
+  "+src/logging/tracing-flags.h",
   "+src/numbers/conversions.h",
   "+src/inspector",
   "+src/tracing",

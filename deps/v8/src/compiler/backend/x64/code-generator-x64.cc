@@ -194,94 +194,6 @@ class OutOfLineLoadFloat64NaN final : public OutOfLineCode {
   XMMRegister const result_;
 };
 
-class OutOfLineF32x4Min final : public OutOfLineCode {
- public:
-  OutOfLineF32x4Min(CodeGenerator* gen, XMMRegister result, XMMRegister error)
-      : OutOfLineCode(gen), result_(result), error_(error) {}
-
-  void Generate() final {
-    // |result| is the partial result, |kScratchDoubleReg| is the error.
-    // propagate -0's and NaNs (possibly non-canonical) from the error.
-    __ Orps(error_, result_);
-    // Canonicalize NaNs by quieting and clearing the payload.
-    __ Cmpps(result_, error_, int8_t{3});
-    __ Orps(error_, result_);
-    __ Psrld(result_, byte{10});
-    __ Andnps(result_, error_);
-  }
-
- private:
-  XMMRegister const result_;
-  XMMRegister const error_;
-};
-
-class OutOfLineF64x2Min final : public OutOfLineCode {
- public:
-  OutOfLineF64x2Min(CodeGenerator* gen, XMMRegister result, XMMRegister error)
-      : OutOfLineCode(gen), result_(result), error_(error) {}
-
-  void Generate() final {
-    // |result| is the partial result, |kScratchDoubleReg| is the error.
-    // propagate -0's and NaNs (possibly non-canonical) from the error.
-    __ Orpd(error_, result_);
-    // Canonicalize NaNs by quieting and clearing the payload.
-    __ Cmppd(result_, error_, int8_t{3});
-    __ Orpd(error_, result_);
-    __ Psrlq(result_, 13);
-    __ Andnpd(result_, error_);
-  }
-
- private:
-  XMMRegister const result_;
-  XMMRegister const error_;
-};
-
-class OutOfLineF32x4Max final : public OutOfLineCode {
- public:
-  OutOfLineF32x4Max(CodeGenerator* gen, XMMRegister result, XMMRegister error)
-      : OutOfLineCode(gen), result_(result), error_(error) {}
-
-  void Generate() final {
-    // |result| is the partial result, |kScratchDoubleReg| is the error.
-    // Propagate NaNs (possibly non-canonical).
-    __ Orps(result_, error_);
-    // Propagate sign errors and (subtle) quiet NaNs.
-    __ Subps(result_, error_);
-    // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-    __ Cmpps(error_, result_, int8_t{3});
-    __ Psrld(error_, byte{10});
-    __ Andnps(error_, result_);
-    __ Movaps(result_, error_);
-  }
-
- private:
-  XMMRegister const result_;
-  XMMRegister const error_;
-};
-
-class OutOfLineF64x2Max final : public OutOfLineCode {
- public:
-  OutOfLineF64x2Max(CodeGenerator* gen, XMMRegister result, XMMRegister error)
-      : OutOfLineCode(gen), result_(result), error_(error) {}
-
-  void Generate() final {
-    // |result| is the partial result, |kScratchDoubleReg| is the error.
-    // Propagate NaNs (possibly non-canonical).
-    __ Orpd(result_, error_);
-    // Propagate sign errors and (subtle) quiet NaNs.
-    __ Subpd(result_, error_);
-    // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-    __ Cmppd(error_, result_, int8_t{3});
-    __ Psrlq(error_, byte{13});
-    __ Andnpd(error_, result_);
-    __ Movapd(result_, error_);
-  }
-
- private:
-  XMMRegister const result_;
-  XMMRegister const error_;
-};
-
 class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  public:
   OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
@@ -745,13 +657,33 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
 namespace {
 
-void AdjustStackPointerForTailCall(TurboAssembler* assembler,
+void AdjustStackPointerForTailCall(Instruction* instr,
+                                   TurboAssembler* assembler, Linkage* linkage,
+                                   OptimizedCompilationInfo* info,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
-  int current_sp_offset = state->GetSPToFPSlotCount() +
-                          StandardFrameConstants::kFixedSlotCountAboveFp;
-  int stack_slot_delta = new_slot_above_sp - current_sp_offset;
+  int stack_slot_delta;
+  if (HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp)) {
+    // For this special tail-call mode, the callee has the same arguments and
+    // linkage as the caller, and arguments adapter frames must be preserved.
+    // Thus we simply have reset the stack pointer register to its original
+    // value before frame construction.
+    // See also: AssembleConstructFrame.
+    DCHECK(!info->is_osr());
+    DCHECK_EQ(linkage->GetIncomingDescriptor()->CalleeSavedRegisters(), 0);
+    DCHECK_EQ(linkage->GetIncomingDescriptor()->CalleeSavedFPRegisters(), 0);
+    DCHECK_EQ(state->frame()->GetReturnSlotCount(), 0);
+    stack_slot_delta = (state->frame()->GetTotalFrameSlotCount() -
+                        kReturnAddressStackSlotCount) *
+                       -1;
+    DCHECK_LE(stack_slot_delta, 0);
+  } else {
+    int current_sp_offset = state->GetSPToFPSlotCount() +
+                            StandardFrameConstants::kFixedSlotCountAboveFp;
+    stack_slot_delta = new_slot_above_sp - current_sp_offset;
+  }
+
   if (stack_slot_delta > 0) {
     assembler->AllocateStackSpace(stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
@@ -778,12 +710,14 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
   if (!pushes.empty() &&
       (LocationOperand::cast(pushes.back()->destination()).index() + 1 ==
        first_unused_stack_slot)) {
+    DCHECK(!HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp));
     X64OperandConverter g(this, instr);
     for (auto move : pushes) {
       LocationOperand destination_location(
           LocationOperand::cast(move->destination()));
       InstructionOperand source(move->source());
-      AdjustStackPointerForTailCall(tasm(), frame_access_state(),
+      AdjustStackPointerForTailCall(instr, tasm(), linkage(), info(),
+                                    frame_access_state(),
                                     destination_location.index());
       if (source.IsStackSlot()) {
         LocationOperand source_location(LocationOperand::cast(source));
@@ -801,14 +735,15 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
       move->Eliminate();
     }
   }
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
-                                first_unused_stack_slot, false);
+  AdjustStackPointerForTailCall(instr, tasm(), linkage(), info(),
+                                frame_access_state(), first_unused_stack_slot,
+                                false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_stack_slot) {
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
-                                first_unused_stack_slot);
+  AdjustStackPointerForTailCall(instr, tasm(), linkage(), info(),
+                                frame_access_state(), first_unused_stack_slot);
 }
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
@@ -912,12 +847,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchTailCallCodeObjectFromJSFunction:
-    case kArchTailCallCodeObject: {
-      if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
+      if (!HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp)) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
                                          i.TempRegister(0), i.TempRegister(1),
                                          i.TempRegister(2));
       }
+      V8_FALLTHROUGH;
+    case kArchTailCallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = i.InputCode(0);
         __ Jump(code, RelocInfo::CODE_TARGET);
@@ -2348,6 +2284,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int slot = MiscField::decode(instr->opcode());
       if (HasImmediateInput(instr, 0)) {
         __ movq(Operand(rsp, slot * kSystemPointerSize), i.InputImmediate(0));
+      } else if (instr->InputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ Movsd(Operand(rsp, slot * kSystemPointerSize),
+                   i.InputDoubleRegister(0));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ Movss(Operand(rsp, slot * kSystemPointerSize),
+                   i.InputFloatRegister(0));
+        }
       } else {
         __ movq(Operand(rsp, slot * kSystemPointerSize), i.InputRegister(0));
       }
@@ -2419,18 +2365,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src1 = i.InputSimd128Register(1),
                   dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The minpd instruction doesn't propagate NaNs and -0's in its first
-      // operand. Perform minpd in both orders and compare results. Handle the
-      // unlikely case of discrepancies out of line.
+      // The minpd instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform minpd in both orders, merge the resuls, and adjust.
       __ Movapd(kScratchDoubleReg, src1);
       __ Minpd(kScratchDoubleReg, dst);
       __ Minpd(dst, src1);
-      // Most likely there is no difference and we're done.
-      __ Xorpd(kScratchDoubleReg, dst);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = zone()->New<OutOfLineF64x2Min>(this, dst, kScratchDoubleReg);
-      __ j(not_zero, ool->entry());
-      __ bind(ool->exit());
+      // propagate -0's and NaNs, which may be non-canonical.
+      __ Orpd(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by quieting and clearing the payload.
+      __ Cmppd(dst, kScratchDoubleReg, int8_t{3});
+      __ Orpd(kScratchDoubleReg, dst);
+      __ Psrlq(dst, 13);
+      __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
     case kX64F64x2Max: {
@@ -2438,17 +2384,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The maxpd instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform maxpd in both orders and compare results. Handle the
-      // unlikely case of discrepancies out of line.
+      // operand. Perform maxpd in both orders, merge the resuls, and adjust.
       __ Movapd(kScratchDoubleReg, src1);
       __ Maxpd(kScratchDoubleReg, dst);
       __ Maxpd(dst, src1);
-      // Most likely there is no difference and we're done.
-      __ Xorpd(kScratchDoubleReg, dst);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = zone()->New<OutOfLineF64x2Max>(this, dst, kScratchDoubleReg);
-      __ j(not_zero, ool->entry());
-      __ bind(ool->exit());
+      // Find discrepancies.
+      __ Xorpd(dst, kScratchDoubleReg);
+      // Propagate NaNs, which may be non-canonical.
+      __ Orpd(kScratchDoubleReg, dst);
+      // Propagate sign discrepancy and (subtle) quiet NaNs.
+      __ Subpd(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ Cmppd(dst, kScratchDoubleReg, int8_t{3});
+      __ Psrlq(dst, 13);
+      __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
     case kX64F64x2Eq: {
@@ -2612,18 +2561,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src1 = i.InputSimd128Register(1),
                   dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The minps instruction doesn't propagate NaNs and -0's in its first
-      // operand. Perform minps in both orders and compare results. Handle the
-      // unlikely case of discrepancies out of line.
+      // The minps instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform minps in both orders, merge the resuls, and adjust.
       __ Movaps(kScratchDoubleReg, src1);
       __ Minps(kScratchDoubleReg, dst);
       __ Minps(dst, src1);
-      // Most likely there is no difference and we're done.
-      __ Xorps(kScratchDoubleReg, dst);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = zone()->New<OutOfLineF32x4Min>(this, dst, kScratchDoubleReg);
-      __ j(not_zero, ool->entry());
-      __ bind(ool->exit());
+      // propagate -0's and NaNs, which may be non-canonical.
+      __ Orps(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by quieting and clearing the payload.
+      __ Cmpps(dst, kScratchDoubleReg, int8_t{3});
+      __ Orps(kScratchDoubleReg, dst);
+      __ Psrld(dst, byte{10});
+      __ Andnps(dst, kScratchDoubleReg);
       break;
     }
     case kX64F32x4Max: {
@@ -2631,17 +2580,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The maxps instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform maxps in both orders and compare results. Handle the
-      // unlikely case of discrepancies out of line.
+      // operand. Perform maxps in both orders, merge the resuls, and adjust.
       __ Movaps(kScratchDoubleReg, src1);
       __ Maxps(kScratchDoubleReg, dst);
       __ Maxps(dst, src1);
-      // Most likely there is no difference and we're done.
-      __ Xorps(kScratchDoubleReg, dst);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = zone()->New<OutOfLineF32x4Max>(this, dst, kScratchDoubleReg);
-      __ j(not_zero, ool->entry());
-      __ bind(ool->exit());
+      // Find discrepancies.
+      __ Xorps(dst, kScratchDoubleReg);
+      // Propagate NaNs, which may be non-canonical.
+      __ Orps(kScratchDoubleReg, dst);
+      // Propagate sign discrepancy and (subtle) quiet NaNs.
+      __ Subps(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ Cmpps(dst, kScratchDoubleReg, int8_t{3});
+      __ Psrld(dst, byte{10});
+      __ Andnps(dst, kScratchDoubleReg);
       break;
     }
     case kX64F32x4Eq: {
@@ -3724,7 +3676,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Andnps(dst, i.InputSimd128Register(1));
       break;
     }
-    case kX64S8x16Swizzle: {
+    case kX64I8x16Swizzle: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister mask = i.TempSimd128Register(0);
@@ -3737,7 +3689,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufb(dst, mask);
       break;
     }
-    case kX64S8x16Shuffle: {
+    case kX64I8x16Shuffle: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister tmp_simd = i.TempSimd128Register(0);
       if (instr->InputCount() == 5) {  // only one input operand
@@ -4454,7 +4406,7 @@ static const int kQuadWordSize = 16;
 }  // namespace
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  auto call_descriptor = linkage()->GetIncomingDescriptor();
+  CallDescriptor* call_descriptor = linkage()->GetIncomingDescriptor();
 
   const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {
@@ -4492,9 +4444,6 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (call_descriptor->PushArgumentCount()) {
-        __ pushq(kJavaScriptCallArgCountRegister);
-      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
@@ -4610,7 +4559,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
+void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   // Restore registers.
@@ -4643,39 +4592,91 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
-  // Might need rcx for scratch if pop_size is too big or if there is a variable
-  // pop count.
+  // We might need rcx and rdx for scratch.
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rcx.bit());
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rdx.bit());
-  size_t pop_size = call_descriptor->StackParameterCount() * kSystemPointerSize;
+  int parameter_count =
+      static_cast<int>(call_descriptor->StackParameterCount());
   X64OperandConverter g(this, nullptr);
+  Register pop_reg = additional_pop_count->IsImmediate()
+                         ? rcx
+                         : g.ToRegister(additional_pop_count);
+  Register scratch_reg = pop_reg == rcx ? rdx : rcx;
+  Register argc_reg =
+      additional_pop_count->IsImmediate() ? pop_reg : scratch_reg;
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  // Functions with JS linkage have at least one parameter (the receiver).
+  // If {parameter_count} == 0, it means it is a builtin with
+  // kDontAdaptArgumentsSentinel, which takes care of JS arguments popping
+  // itself.
+  const bool drop_jsargs = frame_access_state()->has_frame() &&
+                           call_descriptor->IsJSFunctionCall() &&
+                           parameter_count != 0;
+#else
+  const bool drop_jsargs = false;
+#endif
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
-    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
+    if (additional_pop_count->IsImmediate() &&
+        g.ToConstant(additional_pop_count).ToInt32() == 0) {
       // Canonicalize JSFunction return sites for now.
       if (return_label_.is_bound()) {
         __ jmp(&return_label_);
         return;
       } else {
         __ bind(&return_label_);
-        AssembleDeconstructFrame();
       }
-    } else {
-      AssembleDeconstructFrame();
     }
+    if (drop_jsargs) {
+      // Get the actual argument count.
+      __ movq(argc_reg, Operand(rbp, StandardFrameConstants::kArgCOffset));
+    }
+    AssembleDeconstructFrame();
   }
 
-  if (pop->IsImmediate()) {
-    pop_size += g.ToConstant(pop).ToInt32() * kSystemPointerSize;
-    CHECK_LT(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
-    __ Ret(static_cast<int>(pop_size), rcx);
+  if (drop_jsargs) {
+    // In addition to the slots given by {additional_pop_count}, we must pop all
+    // arguments from the stack (including the receiver). This number of
+    // arguments is given by max(1 + argc_reg, parameter_count).
+    Label argc_reg_has_final_count;
+    // Exclude the receiver to simplify the computation. We'll account for it at
+    // the end.
+    int parameter_count_withouth_receiver = parameter_count - 1;
+    if (parameter_count_withouth_receiver != 0) {
+      __ cmpq(argc_reg, Immediate(parameter_count_withouth_receiver));
+      __ j(greater_equal, &argc_reg_has_final_count, Label::kNear);
+      __ movq(argc_reg, Immediate(parameter_count_withouth_receiver));
+      __ bind(&argc_reg_has_final_count);
+    }
+    // Add additional pop count.
+    if (additional_pop_count->IsImmediate()) {
+      DCHECK_EQ(pop_reg, argc_reg);
+      int additional_count = g.ToConstant(additional_pop_count).ToInt32();
+      if (additional_count != 0) {
+        __ addq(pop_reg, Immediate(additional_count));
+      }
+    } else {
+      __ addq(pop_reg, argc_reg);
+    }
+    __ PopReturnAddressTo(scratch_reg);
+    __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
+                         kSystemPointerSize));  // Also pop the receiver.
+    // We use a return instead of a jump for better return address prediction.
+    __ PushReturnAddressFrom(scratch_reg);
+    __ Ret();
+  } else if (additional_pop_count->IsImmediate()) {
+    int additional_count = g.ToConstant(additional_pop_count).ToInt32();
+    size_t pop_size = (parameter_count + additional_count) * kSystemPointerSize;
+    CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
+    __ Ret(static_cast<int>(pop_size), scratch_reg);
   } else {
-    Register pop_reg = g.ToRegister(pop);
-    Register scratch_reg = pop_reg == rcx ? rdx : rcx;
-    __ popq(scratch_reg);
-    __ leaq(rsp, Operand(rsp, pop_reg, times_8, static_cast<int>(pop_size)));
-    __ jmp(scratch_reg);
+    int pop_size = static_cast<int>(parameter_count * kSystemPointerSize);
+    __ PopReturnAddressTo(scratch_reg);
+    __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
+                         static_cast<int>(pop_size)));
+    __ PushReturnAddressFrom(scratch_reg);
+    __ Ret();
   }
 }
 
@@ -4923,15 +4924,10 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     case MoveType::kRegisterToStack: {
       if (source->IsRegister()) {
         Register src = g.ToRegister(source);
-        __ pushq(src);
-        frame_access_state()->IncreaseSPDelta(1);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kSystemPointerSize);
-        __ movq(src, g.ToOperand(destination));
-        frame_access_state()->IncreaseSPDelta(-1);
-        __ popq(g.ToOperand(destination));
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         -kSystemPointerSize);
+        Operand dst = g.ToOperand(destination);
+        __ movq(kScratchRegister, src);
+        __ movq(src, dst);
+        __ movq(dst, kScratchRegister);
       } else {
         DCHECK(source->IsFPRegister());
         XMMRegister src = g.ToDoubleRegister(source);

@@ -91,7 +91,7 @@ extern macro StoreFixedArrayElement(
     FixedArray, intptr, Smi, constexpr WriteBarrierMode): void;
 extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, intptr, float64): void;
-extern operator '.floats[]=' macro StoreFixedDoubleArrayElementSmi(
+extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, Smi, float64): void;
 extern operator '.floats[]' macro LoadFixedDoubleArrayElement(
     FixedDoubleArray, intptr): float64;

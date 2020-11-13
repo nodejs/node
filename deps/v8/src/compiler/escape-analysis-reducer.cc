@@ -318,8 +318,13 @@ void EscapeAnalysisReducer::Finalize() {
 #ifdef V8_REVERSE_JSARGS
             Node* offset_to_first_elem = jsgraph()->Constant(
                 CommonFrameConstants::kFixedSlotCountAboveFp);
-            NodeProperties::SetType(offset_to_first_elem,
-                                    TypeCache::Get()->kArgumentsLengthType);
+            if (!NodeProperties::IsTyped(offset_to_first_elem)) {
+              NodeProperties::SetType(
+                  offset_to_first_elem,
+                  Type::Constant(CommonFrameConstants::kFixedSlotCountAboveFp,
+                                 jsgraph()->graph()->zone()));
+            }
+
             Node* offset = jsgraph()->graph()->NewNode(
                 jsgraph()->simplified()->NumberAdd(), index,
                 offset_to_first_elem);

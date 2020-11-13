@@ -1749,6 +1749,7 @@ TEST(ExternalStringIndexOf) {
 
 #define GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(NAME, STRING)                \
   TEST(GCInsideNewStringFromUtf8SubStringWith##NAME) {                         \
+    FLAG_stress_concurrent_allocation = false; /* For SimulateFullSpace. */    \
     CcTest::InitializeVM();                                                    \
     LocalContext context;                                                      \
     v8::HandleScope scope(CcTest::isolate());                                  \

@@ -330,31 +330,6 @@ HRESULT GetModelForCustomArray(const Property& prop,
       context_data.Get(), result);
 }
 
-// Creates an IModelObject representing the data in the given property.
-HRESULT GetModelForProperty(const Property& prop,
-                            WRL::ComPtr<IDebugHostContext>& sp_ctx,
-                            IModelObject** result) {
-  switch (prop.type) {
-    case PropertyType::kPointer:
-      return GetModelForBasicField(prop.addr_value, prop.type_name,
-                                   prop.uncompressed_type_name, sp_ctx, result);
-    case PropertyType::kStruct:
-      return GetModelForStruct(prop.addr_value, prop.fields, sp_ctx, result);
-    case PropertyType::kArray:
-    case PropertyType::kStructArray:
-      if (prop.type == PropertyType::kArray &&
-          prop.type_name == ConvertToU16String(prop.uncompressed_type_name)) {
-        // An array of things that are not structs or compressed tagged values
-        // is most cleanly represented by a native array.
-        return GetModelForNativeArray(prop.addr_value, prop.type_name,
-                                      prop.length, sp_ctx, result);
-      }
-      // Otherwise, we must construct a custom iterable object.
-      return GetModelForCustomArray(prop, sp_ctx, result);
-    default:
-      return E_FAIL;
-  }
-}
 
 // Creates an IModelObject representing the data in an array at the given index.
 // context_object is expected to be an object of the form created by
@@ -692,4 +667,30 @@ IFACEMETHODIMP InspectV8ObjectMethod::Call(IModelObject* p_context_object,
           /*is_compressed=*/false));
   return CreateSyntheticObjectForV8Object(sp_ctx.Get(), cached_object.Get(),
                                           pp_result);
+}
+
+// Creates an IModelObject representing the data in the given property.
+HRESULT GetModelForProperty(const Property& prop,
+                            WRL::ComPtr<IDebugHostContext>& sp_ctx,
+                            IModelObject** result) {
+  switch (prop.type) {
+    case PropertyType::kPointer:
+      return GetModelForBasicField(prop.addr_value, prop.type_name,
+                                   prop.uncompressed_type_name, sp_ctx, result);
+    case PropertyType::kStruct:
+      return GetModelForStruct(prop.addr_value, prop.fields, sp_ctx, result);
+    case PropertyType::kArray:
+    case PropertyType::kStructArray:
+      if (prop.type == PropertyType::kArray &&
+          prop.type_name == ConvertToU16String(prop.uncompressed_type_name)) {
+        // An array of things that are not structs or compressed tagged values
+        // is most cleanly represented by a native array.
+        return GetModelForNativeArray(prop.addr_value, prop.type_name,
+                                      prop.length, sp_ctx, result);
+      }
+      // Otherwise, we must construct a custom iterable object.
+      return GetModelForCustomArray(prop, sp_ctx, result);
+    default:
+      return E_FAIL;
+  }
 }

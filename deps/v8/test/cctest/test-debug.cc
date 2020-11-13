@@ -3945,34 +3945,58 @@ class ArchiveRestoreThread : public v8::base::Thread,
         break_count_(0) {}
 
   void Run() override {
-    v8::Locker locker(isolate_);
-    isolate_->Enter();
+    {
+      v8::Locker locker(isolate_);
+      v8::Isolate::Scope i_scope(isolate_);
 
-    v8::HandleScope scope(isolate_);
-    v8::Local<v8::Context> context = v8::Context::New(isolate_);
-    v8::Context::Scope context_scope(context);
+      v8::HandleScope scope(isolate_);
+      v8::Local<v8::Context> context = v8::Context::New(isolate_);
+      v8::Context::Scope context_scope(context);
+      auto callback = [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        v8::Local<v8::Value> value = info.Data();
+        CHECK(value->IsExternal());
+        auto art = static_cast<ArchiveRestoreThread*>(
+            v8::Local<v8::External>::Cast(value)->Value());
+        art->MaybeSpawnChildThread();
+      };
+      v8::Local<v8::FunctionTemplate> fun = v8::FunctionTemplate::New(
+          isolate_, callback, v8::External::New(isolate_, this));
+      CHECK(context->Global()
+                ->Set(context, v8_str("maybeSpawnChildThread"),
+                      fun->GetFunction(context).ToLocalChecked())
+                .FromJust());
 
-    v8::Local<v8::Function> test = CompileFunction(isolate_,
-                                                   "function test(n) {\n"
-                                                   "  debugger;\n"
-                                                   "  return n + 1;\n"
-                                                   "}\n",
-                                                   "test");
+      v8::Local<v8::Function> test =
+          CompileFunction(isolate_,
+                          "function test(n) {\n"
+                          "  debugger;\n"
+                          "  nest();\n"
+                          "  middle();\n"
+                          "  return n + 1;\n"
+                          "  function middle() {\n"
+                          "     debugger;\n"
+                          "     nest();\n"
+                          "     Date.now();\n"
+                          "  }\n"
+                          "  function nest() {\n"
+                          "    maybeSpawnChildThread();\n"
+                          "  }\n"
+                          "}\n",
+                          "test");
 
-    debug_->SetDebugDelegate(this);
-    v8::internal::DisableBreak enable_break(debug_, false);
+      debug_->SetDebugDelegate(this);
+      v8::internal::DisableBreak enable_break(debug_, false);
 
-    v8::Local<v8::Value> args[1] = {v8::Integer::New(isolate_, spawn_count_)};
+      v8::Local<v8::Value> args[1] = {v8::Integer::New(isolate_, spawn_count_)};
 
-    int result = test->Call(context, context->Global(), 1, args)
-                     .ToLocalChecked()
-                     ->Int32Value(context)
-                     .FromJust();
+      int result = test->Call(context, context->Global(), 1, args)
+                       .ToLocalChecked()
+                       ->Int32Value(context)
+                       .FromJust();
 
-    // Verify that test(spawn_count_) returned spawn_count_ + 1.
-    CHECK_EQ(spawn_count_ + 1, result);
-
-    isolate_->Exit();
+      // Verify that test(spawn_count_) returned spawn_count_ + 1.
+      CHECK_EQ(spawn_count_ + 1, result);
+    }
   }
 
   void BreakProgramRequested(
@@ -3985,9 +4009,12 @@ class ArchiveRestoreThread : public v8::base::Thread,
       i::PrintF("ArchiveRestoreThread #%d hit breakpoint at line %d\n",
                 spawn_count_, location.GetLineNumber());
 
-      switch (location.GetLineNumber()) {
-        case 1:  // debugger;
-          CHECK_EQ(break_count_, 0);
+      const int expectedLineNumber[] = {1, 2, 3, 6, 4};
+      CHECK_EQ(expectedLineNumber[break_count_], location.GetLineNumber());
+      switch (break_count_) {
+        case 0:  // debugger;
+        case 1:  // nest();
+        case 2:  // middle();
 
           // Attempt to stop on the next line after the first debugger
           // statement. If debug->{Archive,Restore}Debug() improperly reset
@@ -3999,12 +4026,25 @@ class ArchiveRestoreThread : public v8::base::Thread,
           // that the parent thread correctly archived and restored the
           // state necessary to stop on the next line. If not, then control
           // will simply continue past the `return n + 1` statement.
+          //
+          // A real world multi-threading app would probably never unlock the
+          // Isolate at a break point as that adds a thread switch point while
+          // debugging where none existed in the application and a
+          // multi-threaded should be able to count on not thread switching
+          // over a certain range of instructions.
           MaybeSpawnChildThread();
 
           break;
 
-        case 2:  // return n + 1;
-          CHECK_EQ(break_count_, 1);
+        case 3:  // debugger; in middle();
+          // Attempt to stop on the next line after the first debugger
+          // statement. If debug->{Archive,Restore}Debug() improperly reset
+          // thread-local debug information, the debugger will fail to stop
+          // before the test function returns.
+          debug_->PrepareStep(StepOut);
+          break;
+
+        case 4:  // return n + 1;
           break;
 
         default:
@@ -4033,8 +4073,8 @@ class ArchiveRestoreThread : public v8::base::Thread,
 
       // This is the most important check in this test, since
       // child.GetBreakCount() will return 1 if the debugger fails to stop
-      // on the `return n + 1` line after the grandchild thread returns.
-      CHECK_EQ(child.GetBreakCount(), 2);
+      // on the `next()` line after the grandchild thread returns.
+      CHECK_EQ(child.GetBreakCount(), 5);
     }
   }
 
@@ -4048,18 +4088,14 @@ class ArchiveRestoreThread : public v8::base::Thread,
 };
 
 TEST(DebugArchiveRestore) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  v8::Isolate* isolate = CcTest::isolate();
 
-  ArchiveRestoreThread thread(isolate, 5);
+  ArchiveRestoreThread thread(isolate, 4);
   // Instead of calling thread.Start() and thread.Join() here, we call
   // thread.Run() directly, to make sure we exercise archive/restore
   // logic on the *current* thread as well as other threads.
   thread.Run();
-  CHECK_EQ(thread.GetBreakCount(), 2);
-
-  isolate->Dispose();
+  CHECK_EQ(thread.GetBreakCount(), 5);
 }
 
 class DebugEventExpectNoException : public v8::debug::DebugDelegate {
@@ -4222,6 +4258,7 @@ size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
 }
 
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
+  i::FLAG_stress_concurrent_allocation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);

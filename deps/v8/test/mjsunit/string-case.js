@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --random-seed=17 --allow-natives-syntax
-// Flags: --expose-externalize-string
+// Flags: --allow-natives-syntax --expose-externalize-string
 
 assertEquals("ΚΟΣΜΟΣ ΚΟΣΜΟΣ".toLowerCase(), "κοσμος κοσμος");
 

@@ -46,29 +46,27 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
 
-#define FLAGS(V)                                                              \
-  V(FunctionContextSpecializing, function_context_specializing, 0)            \
-  V(Inlining, inlining, 1)                                                    \
-  V(DisableFutureOptimization, disable_future_optimization, 2)                \
-  V(Splitting, splitting, 3)                                                  \
-  V(SourcePositions, source_positions, 4)                                     \
-  V(BailoutOnUninitialized, bailout_on_uninitialized, 5)                      \
-  V(LoopPeeling, loop_peeling, 6)                                             \
-  V(UntrustedCodeMitigations, untrusted_code_mitigations, 7)                  \
-  V(SwitchJumpTable, switch_jump_table, 8)                                    \
-  V(CalledWithCodeStartRegister, called_with_code_start_register, 9)          \
-  V(PoisonRegisterArguments, poison_register_arguments, 10)                   \
-  V(AllocationFolding, allocation_folding, 11)                                \
-  V(AnalyzeEnvironmentLiveness, analyze_environment_liveness, 12)             \
-  V(TraceTurboJson, trace_turbo_json, 13)                                     \
-  V(TraceTurboGraph, trace_turbo_graph, 14)                                   \
-  V(TraceTurboScheduled, trace_turbo_scheduled, 15)                           \
-  V(TraceTurboAllocation, trace_turbo_allocation, 16)                         \
-  V(TraceHeapBroker, trace_heap_broker, 17)                                   \
-  V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18)          \
-  V(TurboControlFlowAwareAllocation, turbo_control_flow_aware_allocation, 19) \
-  V(TurboPreprocessRanges, turbo_preprocess_ranges, 20)                       \
-  V(ConcurrentInlining, concurrent_inlining, 21)
+#define FLAGS(V)                                                     \
+  V(FunctionContextSpecializing, function_context_specializing, 0)   \
+  V(Inlining, inlining, 1)                                           \
+  V(DisableFutureOptimization, disable_future_optimization, 2)       \
+  V(Splitting, splitting, 3)                                         \
+  V(SourcePositions, source_positions, 4)                            \
+  V(BailoutOnUninitialized, bailout_on_uninitialized, 5)             \
+  V(LoopPeeling, loop_peeling, 6)                                    \
+  V(UntrustedCodeMitigations, untrusted_code_mitigations, 7)         \
+  V(SwitchJumpTable, switch_jump_table, 8)                           \
+  V(CalledWithCodeStartRegister, called_with_code_start_register, 9) \
+  V(PoisonRegisterArguments, poison_register_arguments, 10)          \
+  V(AllocationFolding, allocation_folding, 11)                       \
+  V(AnalyzeEnvironmentLiveness, analyze_environment_liveness, 12)    \
+  V(TraceTurboJson, trace_turbo_json, 13)                            \
+  V(TraceTurboGraph, trace_turbo_graph, 14)                          \
+  V(TraceTurboScheduled, trace_turbo_scheduled, 15)                  \
+  V(TraceTurboAllocation, trace_turbo_allocation, 16)                \
+  V(TraceHeapBroker, trace_heap_broker, 17)                          \
+  V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18) \
+  V(ConcurrentInlining, concurrent_inlining, 19)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,

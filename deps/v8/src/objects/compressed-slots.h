@@ -135,7 +135,9 @@ class OffHeapCompressedObjectSlot
   inline void store(Object value) const;
 
   inline Object Relaxed_Load(const Isolate* isolate) const;
+  inline Object Acquire_Load(const Isolate* isolate) const;
   inline void Relaxed_Store(Object value) const;
+  inline void Release_Store(Object value) const;
   inline void Release_CompareAndSwap(Object old, Object target) const;
 };
 

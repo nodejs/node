@@ -69,9 +69,9 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "torque-generated/class-definitions-tq-inl.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
-#include "torque-generated/internal-class-definitions-tq-inl.h"
+#include "torque-generated/class-definitions-inl.h"
+#include "torque-generated/exported-class-definitions-inl.h"
+#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -874,7 +874,8 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {  // NOLINT
   } else {
     os << "\n - Invalid FeedbackCell map";
   }
-  os << " - value: " << Brief(value());
+  os << "\n - value: " << Brief(value());
+  os << "\n - interrupt_budget: " << interrupt_budget();
   os << "\n";
 }
 
@@ -950,8 +951,9 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     int entry_size = iter.entry_size();
     if (entry_size > 0) os << " {";
     for (int i = 0; i < entry_size; i++) {
-      int index = GetIndex(slot) + i;
-      os << "\n     [" << index << "]: " << Brief(get(index));
+      FeedbackSlot slot_with_offset = slot.WithOffset(i);
+      os << "\n     [" << slot_with_offset.ToInt()
+         << "]: " << Brief(Get(slot_with_offset));
     }
     if (entry_size > 0) os << "\n  }";
   }
@@ -2205,7 +2207,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
 void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "StackTraceFrame");
   os << "\n - frame_index: " << frame_index();
-  os << "\n - id: " << id();
   os << "\n - frame_info: " << Brief(frame_info());
   os << "\n";
 }

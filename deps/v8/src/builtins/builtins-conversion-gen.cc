@@ -14,13 +14,16 @@ namespace internal {
 
 // ES6 section 7.1.3 ToNumber ( argument )
 TF_BUILTIN(ToNumber, CodeStubAssembler) {
-  // TODO(solanes, v8:6949): Changing this to a TNode<Context> crashes with the
-  // empty context. Context might not be needed, but it is propagated all over
-  // the place and hard to pull out.
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> input = CAST(Parameter(Descriptor::kArgument));
 
   Return(ToNumber(context, input));
+}
+
+TF_BUILTIN(PlainPrimitiveToNumber, CodeStubAssembler) {
+  TNode<Object> input = CAST(Parameter(Descriptor::kArgument));
+
+  Return(PlainPrimitiveToNumber(input));
 }
 
 // Like ToNumber, but also converts BigInts.

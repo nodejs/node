@@ -22,12 +22,12 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
   // filler map.
   DCHECK(!marking_state_.IsImpossible(host) ||
          value == ReadOnlyRoots(heap_->isolate()).one_pointer_filler_map());
-  if (!V8_CONCURRENT_MARKING_BOOL && marking_state_.IsBlack(host)) {
+  if (!V8_CONCURRENT_MARKING_BOOL && !marking_state_.IsBlack(host)) {
     // The value will be marked and the slot will be recorded when the marker
     // visits the host object.
     return false;
   }
-  if (WhiteToGreyAndPush(value)) {
+  if (WhiteToGreyAndPush(value) && is_main_thread_barrier_) {
     incremental_marking_->RestartIfNotMarking();
   }
   return true;
@@ -35,7 +35,7 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
 
 bool MarkingBarrier::WhiteToGreyAndPush(HeapObject obj) {
   if (marking_state_.WhiteToGrey(obj)) {
-    collector_->local_marking_worklists()->Push(obj);
+    worklist_.Push(obj);
     return true;
   }
   return false;

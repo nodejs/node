@@ -290,4 +290,8 @@ class InspectV8ObjectMethod
    IKeyStore** pp_metadata);
 };
 
+HRESULT GetModelForProperty(const Property& prop,
+                            WRL::ComPtr<IDebugHostContext>& sp_ctx,
+                            IModelObject** result);
+
 #endif  // V8_TOOLS_V8WINDBG_SRC_OBJECT_INSPECTION_H_

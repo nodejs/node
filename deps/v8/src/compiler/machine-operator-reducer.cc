@@ -1659,7 +1659,7 @@ struct BitfieldCheck {
       Uint32BinopMatcher eq(node);
       if (eq.left().IsWord32And()) {
         Uint32BinopMatcher mand(eq.left().node());
-        if (mand.right().HasValue()) {
+        if (mand.right().HasValue() && eq.right().HasValue()) {
           BitfieldCheck result{mand.left().node(), mand.right().Value(),
                                eq.right().Value(), false};
           if (mand.left().IsTruncateInt64ToInt32()) {

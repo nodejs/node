@@ -312,6 +312,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     sw(src, MemOperand(sp, 0));
   }
 
+  enum PushArrayOrder { kNormal, kReverse };
+  void PushArray(Register array, Register size, Register scratch,
+                 Register scratch2, PushArrayOrder order = kNormal);
+
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
@@ -904,6 +908,28 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   using TurboAssembler::TurboAssembler;
+
+  // It assumes that the arguments are located below the stack pointer.
+  // argc is the number of arguments not including the receiver.
+  // TODO(victorgomes): Remove this function once we stick with the reversed
+  // arguments order.
+  void LoadReceiver(Register dest, Register argc) {
+#ifdef V8_REVERSE_JSARGS
+    Lw(dest, MemOperand(sp, 0));
+#else
+    Lsa(dest, sp, argc, kPointerSizeLog2);
+    Lw(dest, MemOperand(dest, 0));
+#endif
+  }
+
+  void StoreReceiver(Register rec, Register argc, Register scratch) {
+#ifdef V8_REVERSE_JSARGS
+    Sw(rec, MemOperand(sp, 0));
+#else
+    Lsa(scratch, sp, argc, kPointerSizeLog2);
+    Sw(rec, MemOperand(scratch, 0));
+#endif
+  }
 
   // Swap two registers.  If the scratch register is omitted then a slightly
   // less efficient form using xor instead of mov is emitted.

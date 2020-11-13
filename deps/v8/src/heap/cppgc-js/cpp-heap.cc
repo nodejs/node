@@ -65,7 +65,8 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
 
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
-  explicit UnifiedHeapMarker(Heap& v8_heap, cppgc::internal::HeapBase& heap);
+  UnifiedHeapMarker(Key, Heap& v8_heap, cppgc::internal::HeapBase& cpp_heap,
+                    cppgc::Platform* platform, MarkingConfig config);
 
   ~UnifiedHeapMarker() final = default;
 
@@ -86,9 +87,11 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   cppgc::internal::ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
-UnifiedHeapMarker::UnifiedHeapMarker(Heap& v8_heap,
-                                     cppgc::internal::HeapBase& heap)
-    : cppgc::internal::MarkerBase(heap),
+UnifiedHeapMarker::UnifiedHeapMarker(Key key, Heap& v8_heap,
+                                     cppgc::internal::HeapBase& heap,
+                                     cppgc::Platform* platform,
+                                     MarkingConfig config)
+    : cppgc::internal::MarkerBase(key, heap, platform, config),
       unified_heap_mutator_marking_state_(v8_heap),
       marking_visitor_(heap, mutator_marking_state_,
                        unified_heap_mutator_marking_state_),
@@ -104,7 +107,9 @@ void UnifiedHeapMarker::AddObject(void* object) {
 
 CppHeap::CppHeap(v8::Isolate* isolate, size_t custom_spaces)
     : cppgc::internal::HeapBase(std::make_shared<CppgcPlatformAdapter>(isolate),
-                                custom_spaces),
+                                custom_spaces,
+                                cppgc::internal::HeapBase::StackSupport::
+                                    kSupportsConservativeStackScan),
       isolate_(*reinterpret_cast<Isolate*>(isolate)) {
   CHECK(!FLAG_incremental_marking_wrappers);
 }
@@ -121,17 +126,20 @@ void CppHeap::RegisterV8References(
 }
 
 void CppHeap::TracePrologue(TraceFlags flags) {
-  marker_.reset(new UnifiedHeapMarker(*isolate_.heap(), AsBase()));
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic};
-  marker_->StartMarking(marking_config);
+      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncremental};
+  marker_ =
+      cppgc::internal::MarkerFactory::CreateAndStartMarking<UnifiedHeapMarker>(
+          *isolate_.heap(), AsBase(), platform_.get(), marking_config);
   marking_done_ = false;
 }
 
 bool CppHeap::AdvanceTracing(double deadline_in_ms) {
-  marking_done_ = marker_->AdvanceMarkingWithDeadline(
+  // TODO(chromium:1056170): Replace std::numeric_limits<size_t>::max() with a
+  // proper deadline when unified heap transitions to bytes-based deadline.
+  marking_done_ = marker_->AdvanceMarkingWithMaxDuration(
       v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms));
   return marking_done_;
 }
@@ -139,11 +147,7 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
 bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
-  const UnifiedHeapMarker::MarkingConfig marking_config{
-      UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
-      cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic};
-  marker_->EnterAtomicPause(marking_config);
+  marker_->EnterAtomicPause(cppgc::Heap::StackState::kNoHeapPointers);
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
