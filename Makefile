@@ -65,8 +65,8 @@ V ?= 0
 available-node = \
 	if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
 		$(PWD)/$(NODE) $(1); \
-	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
-		`which node` $(1); \
+	elif [ -x `command -v node` ] && [ -e `command -v node` ] && [ `command -v node` ]; then \
+		`command -v node` $(1); \
 	else \
 		echo "No available node, cannot run \"node $(1)\""; \
 		exit 1; \
@@ -898,7 +898,7 @@ BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 endif
 BINARYTAR=$(BINARYNAME).tar
 # OSX doesn't have xz installed by default, http://macpkg.sourceforge.net/
-HAS_XZ ?= $(shell which xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
+HAS_XZ ?= $(shell command -v xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 # Supply SKIP_XZ=1 to explicitly skip .tar.xz creation
 SKIP_XZ ?= 0
 XZ = $(shell [ $(HAS_XZ) -eq 1 -a $(SKIP_XZ) -eq 0 ] && echo 1 || echo 0)
@@ -1383,7 +1383,7 @@ lint-clean:
 	$(RM) tools/.*lintstamp
 	$(RM) .eslintcache
 
-HAS_DOCKER ?= $(shell which docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
+HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 
 ifeq ($(HAS_DOCKER), 1)
 DOCKER_COMMAND ?= docker run -it -v $(PWD):/node
