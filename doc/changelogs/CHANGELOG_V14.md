@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.15.1">14.15.1</a><br/>
 <a href="#14.15.0">14.15.0</a><br/>
 </td>
 <td valign="top">
@@ -51,6 +52,21 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.15.1"></a>
+## 2020-11-16, Version 14.15.1 'Fermium' (LTS), @BethGriggs
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8277**: Denial of Service through DNS request (High). A Node.js application that allows an attacker to trigger a DNS request for a host of their choice could trigger a Denial of Service by getting the application to resolve a DNS record with a larger number of responses.
+
+### Commits
+
+* [[`1fd2c8142b`](https://github.com/nodejs/node/commit/1fd2c8142b)] - **deps**: cherry-pick 0d252eb from upstream c-ares (Michael Dawson) [nodejs-private/node-private#231](https://github.com/nodejs-private/node-private/pull/231)
 
 <a id="14.15.0"></a>
 ## 2020-10-27, Version 14.15.0 'Fermium' (LTS), @richardlau
