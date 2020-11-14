@@ -61,6 +61,12 @@
 #define DECLARE_NAPI_GETTER(name, func)                                  \
   { (name), NULL, NULL, (func), NULL, NULL, napi_default, NULL }
 
+#define STATUS_CALL(call)                 \
+  do {                                    \
+    napi_status status = (call);          \
+    if (status != napi_ok) return status; \
+  } while (0)
+
 void add_returned_status(napi_env env,
                          const char* key,
                          napi_value object,

@@ -4785,6 +4785,88 @@ with the resulting JavaScript constructor (which is returned in the `result`
 parameter) and freed whenever the class is garbage-collected by passing both
 the JavaScript function and the data to [`napi_add_finalizer`][].
 
+### napi_define_subclass
+<!-- YAML
+added: REPLACEME
+-->
+
+```c
+napi_status napi_define_subclass(napi_env env,
+                                 napi_value parent_constructor,
+                                 const char* utf8name,
+                                 size_t length,
+                                 napi_callback constructor,
+                                 napi_callback get_super_params,
+                                 void* data,
+                                 size_t property_count,
+                                 const napi_property_descriptor* properties,
+                                 napi_value* result);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] parent_constructor`: Constructor of the parent class.
+* `[in] utf8name`: Name of the JavaScript constructor function; this is
+  not required to be the same as the C++ class name, though it is recommended
+  for clarity.
+* `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
+  if it is null-terminated.
+* `[in] constructor`: Callback function that handles constructing instances
+  of the subclass. This should be a static method on the class, not an actual
+  C++ constructor function. [`napi_callback`][] provides more details.
+* `[in] get_super_params`: Optional callback function that processes the
+  arguments that will be passed to the superclass before its constructor gets
+  called. It is called before the constructor and receives the parameters the
+  constructor will also receive. It must return a JavaScript array which may be
+  empty. The return value will be spread into the arguments list for the call to
+  the constructor of the superclass. Conceptually, this looks as follows:
+    ```js
+    class SubclassExample extends SuperclassExample {
+      constructor(...args) {
+        super(...get_super_params.apply(null, args));
+        constructor.apply(this, args);
+      }
+    }
+    ```
+* `[in] data`: Optional data to be passed to the constructor callback as
+  the `data` property of the callback info.
+* `[in] property_count`: Number of items in the `properties` array argument.
+* `[in] properties`: Array of property descriptors describing static and
+  instance data properties, accessors, and methods on the class
+  See `napi_property_descriptor`.
+* `[out] result`: A `napi_value` representing the constructor function for
+  the subclass.
+
+Defines a subclass of a JavaScript class that corresponds to a C++ class,
+including:
+
+* A JavaScript constructor function that has the class name and invokes the
+  provided C++ constructor callback.
+* A way to intercept and constructor parameters that will be passed to the
+  superclass constructor.
+* Properties on the constructor function corresponding to _static_ data
+  properties, accessors, and methods of the C++ class (defined by
+  property descriptors with the `napi_static` attribute).
+* Properties on the constructor function's `prototype` object corresponding to
+  _non-static_ data properties, accessors, and methods of the C++ class
+  (defined by property descriptors without the `napi_static` attribute).
+
+The C++ constructor callback should be a static method on the class that calls
+the actual class constructor, then wraps the new C++ instance in a JavaScript
+object, and returns the wrapper object. See `napi_wrap()` for details.
+
+The JavaScript constructor function returned from [`napi_define_subclass`][] is
+often saved and used later, to construct new instances of the class from native
+code, and/or to check whether provided values are instances of the class. In
+that case, to prevent the function value from being garbage-collected, create a
+persistent reference to it using [`napi_create_reference`][] and ensure the
+reference count is kept >= 1.
+
+Any non-`NULL` data which is passed to this API via the `data` parameter or via
+the `data` field of the `napi_property_descriptor` array items can be associated
+with the resulting JavaScript constructor (which is returned in the `result`
+parameter) and freed whenever the class is garbage-collected by passing both
+the JavaScript constructor and the data to [`napi_add_finalizer`][].
+
 ### napi_wrap
 <!-- YAML
 added: v8.0.0
@@ -6021,6 +6103,7 @@ This API may only be called from the main thread.
 [`napi_create_reference`]: #n_api_napi_create_reference
 [`napi_create_type_error`]: #n_api_napi_create_type_error
 [`napi_define_class`]: #n_api_napi_define_class
+[`napi_define_subclass`]: #n_api_napi_define_subclass
 [`napi_delete_async_work`]: #n_api_napi_delete_async_work
 [`napi_delete_reference`]: #n_api_napi_delete_reference
 [`napi_escape_handle`]: #n_api_napi_escape_handle

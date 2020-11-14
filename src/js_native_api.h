@@ -554,6 +554,18 @@ NAPI_EXTERN napi_status napi_object_freeze(napi_env env,
                                            napi_value object);
 NAPI_EXTERN napi_status napi_object_seal(napi_env env,
                                          napi_value object);
+
+NAPI_EXTERN napi_status
+napi_define_subclass(napi_env env,
+                     napi_value parent_constructor,
+                     const char* utf8name,
+                     size_t length,
+                     napi_callback constructor,
+                     napi_callback get_super_params,
+                     void* data,
+                     size_t property_count,
+                     const napi_property_descriptor* properties,
+                     napi_value* child_ctor);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

@@ -681,6 +681,155 @@ inline napi_status Wrap(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status DefineStaticProperties(napi_env env,
+                                   napi_value dest,
+                                   size_t static_property_count,
+                                   size_t property_count,
+                                   const napi_property_descriptor* properties) {
+  if (static_property_count > 0) {
+    std::vector<napi_property_descriptor> static_descriptors;
+    static_descriptors.reserve(static_property_count);
+
+    for (size_t i = 0; i < property_count; i++) {
+      const napi_property_descriptor* p = properties + i;
+      if ((p->attributes & napi_static) != 0) {
+        static_descriptors.push_back(*p);
+      }
+    }
+
+    STATUS_CALL(napi_define_properties(env,
+                                       dest,
+                                       static_descriptors.size(),
+                                       static_descriptors.data()));
+  }
+  return napi_clear_last_error(env);
+}
+
+class JSClassGen {
+ public:
+  JSClassGen(const char* utf8name, size_t length) {
+    if (length == NAPI_AUTO_LENGTH)
+      classname = std::string(utf8name);
+    else
+      classname = std::string(utf8name, length);
+    args.resize(3);
+  }
+
+  inline void
+  PostProcess(const std::string& key, const napi_property_descriptor* prop) {
+    if (prop->attributes == napi_default && prop->value == nullptr) return;
+
+    post_process += "    " + key + ": {\n";
+    if (prop->value != nullptr)
+      post_process += "      value: " + PushArg(prop->value) + ",\n";
+    if (prop->attributes & napi_writable)
+      post_process += "      writable: true,\n";
+    if (prop->attributes & napi_configurable)
+      post_process += "      configurable: true,\n";
+    if (prop->attributes & napi_enumerable)
+      post_process += "      enumerable: true,\n";
+    post_process += "    },\n";
+  }
+
+  inline std::string PushArg(napi_value val = nullptr) {
+    std::string propname = "prop" + std::to_string(param_idx++);
+    formal_args += ", " + propname;
+    if (val != nullptr) args.push_back(val);
+    return propname;
+  }
+
+  inline napi_status PushFunction(napi_env env,
+                                  const napi_property_descriptor* desc,
+                                  napi_callback method,
+                                  const std::string& key) {
+    if (method == nullptr) return napi_ok;
+
+    napi_value fn;
+    STATUS_CALL(napi_create_function(env,
+                             desc->utf8name,
+                             (desc->utf8name == nullptr ? 0 : NAPI_AUTO_LENGTH),
+                             method,
+                             desc->data,
+                             &fn));
+    args.push_back(fn);
+
+    class_body += "    " +
+        ((method == desc->method) ? key + "(...x)" :
+        (method == desc->getter) ? "get " + key + "()" :
+        "set " + key + "(x)") + " {\n"
+        "      if (!(this instanceof " + classname + "))\n"
+        "        throw new Error('Illegal invocation');\n"
+        "      return " + PushArg() + ".apply(this, " +
+        ((method == desc->method) ? "x" :
+        (method == desc->getter) ? "[]" : "[x]") + ");\n" +
+        "    }\n";
+
+    return napi_ok;
+  }
+
+  inline napi_status Resolve(napi_env env,
+                             napi_value parent,
+                             napi_callback constructor,
+                             napi_callback get_super_params,
+                             void* data,
+                             napi_value* child) {
+    napi_value undefined;
+    STATUS_CALL(napi_get_undefined(env, &undefined));
+
+    args[0] = (parent == nullptr) ? undefined : parent;
+    STATUS_CALL(napi_create_function(env,
+                                     classname.c_str(),
+                                     classname.size(),
+                                     constructor,
+                                     data,
+                                     &args.data()[1]));
+
+    if (get_super_params == nullptr)
+      args[2] = undefined;
+    else
+      STATUS_CALL(napi_create_function(env,
+                                       nullptr,
+                                       0,
+                                       get_super_params,
+                                       data,
+                                       &args.data()[2]));
+
+    // Assemble the text for the JS function that will perform the subclassing.
+    std::string str =
+        "(function(parent, ctor, getSuperParams" + formal_args + ") {\n"
+        "  'use strict';\n"
+        "  class " + classname + " " +
+        (parent == nullptr ? "" : "extends parent ") + "{\n"
+        "    constructor(...x) {\n" +
+        (get_super_params == nullptr ? "" :
+            "      super(...getSuperParams.apply(null, x));\n") +
+        "      ctor.apply(this, x);\n"
+        "    }\n" +
+        class_body +
+        "  }\n" +
+        ((post_process.size() == 0) ? "" :
+            "  Object.defineProperties(" + classname + ".prototype, {\n" +
+            post_process +
+            "  });\n") +
+        "  return " + classname + ";\n"
+        "})";
+
+    // Compile and call the function.
+    napi_value js_str, fn;
+    STATUS_CALL(napi_create_string_utf8(env, str.c_str(), str.size(), &js_str));
+    STATUS_CALL(napi_run_script(env, js_str, &fn));
+    return napi_call_function(env, fn, fn, args.size(), args.data(), child);
+  }
+
+ private:
+  size_t param_idx = 0;
+  std::string classname;
+  std::string post_process;
+  std::string formal_args;
+  std::string class_body;
+  std::vector<napi_value> args;
+};
+
 }  // end of anonymous namespace
 
 }  // end of namespace v8impl
@@ -872,22 +1021,11 @@ napi_status napi_define_class(napi_env env,
   *result = v8impl::JsValueFromV8LocalValue(
       scope.Escape(tpl->GetFunction(context).ToLocalChecked()));
 
-  if (static_property_count > 0) {
-    std::vector<napi_property_descriptor> static_descriptors;
-    static_descriptors.reserve(static_property_count);
-
-    for (size_t i = 0; i < property_count; i++) {
-      const napi_property_descriptor* p = properties + i;
-      if ((p->attributes & napi_static) != 0) {
-        static_descriptors.push_back(*p);
-      }
-    }
-
-    STATUS_CALL(napi_define_properties(env,
-                                       *result,
-                                       static_descriptors.size(),
-                                       static_descriptors.data()));
-  }
+  STATUS_CALL(v8impl::DefineStaticProperties(env,
+                                             *result,
+                                             static_property_count,
+                                             property_count,
+                                             properties));
 
   return GET_RETURN_STATUS(env);
 }
@@ -3245,5 +3383,61 @@ napi_status napi_is_detached_arraybuffer(napi_env env,
   *result = value->IsArrayBuffer() &&
             value.As<v8::ArrayBuffer>()->GetBackingStore()->Data() == nullptr;
 
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_define_subclass(napi_env env,
+                                 napi_value parent,
+                                 const char* utf8name,
+                                 size_t length,
+                                 napi_callback ctor,
+                                 napi_callback get_super_params,
+                                 void* data,
+                                 size_t property_count,
+                                 const napi_property_descriptor* props,
+                                 napi_value* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, utf8name);
+  CHECK_ARG(env, ctor);
+  CHECK_ARG(env, result);
+  if (property_count > 0)
+    CHECK_ARG(env, props);
+
+  size_t static_property_count = 0;
+  v8impl::JSClassGen gen(utf8name, length);
+  std::string key;
+
+  // Assemble the formal parameter list and the class body, and init the args.
+  for (size_t idx = 0; idx < property_count; idx++) {
+    if ((props[idx].attributes & napi_static) == 0) {
+      key = (props[idx].name != nullptr)
+        ? "[" + gen.PushArg(props[idx].name) + "]"
+        : std::string(props[idx].utf8name);
+
+      if (props[idx].value != nullptr) {
+        gen.PostProcess(key, &props[idx]);
+      } else if (props[idx].method != nullptr) {
+        STATUS_CALL(gen.PushFunction(env, &props[idx], props[idx].method, key));
+        gen.PostProcess(key, &props[idx]);
+      } else {
+        STATUS_CALL(gen.PushFunction(env, &props[idx], props[idx].getter, key));
+        STATUS_CALL(gen.PushFunction(env, &props[idx], props[idx].setter, key));
+      }
+    } else {
+      static_property_count++;
+    }
+  }
+
+  napi_value child;
+  STATUS_CALL(gen.Resolve(env, parent, ctor, get_super_params, data, &child));
+
+  // Attach the static properties to the resulting constructor.
+  STATUS_CALL(v8impl::DefineStaticProperties(env,
+                                             child,
+                                             static_property_count,
+                                             property_count,
+                                             props));
+
+  *result = child;
   return napi_clear_last_error(env);
 }

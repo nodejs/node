@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 #include "../common.h"
 
@@ -159,7 +160,7 @@ static napi_value NewExtra(napi_env env, napi_callback_info info) {
 
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
-  napi_value number, cons;
+  napi_value number, cons, subcons;
   NAPI_CALL(env, napi_create_double(env, value_, &number));
 
   NAPI_CALL(env, napi_define_class(
@@ -189,8 +190,21 @@ napi_value Init(napi_env env, napi_value exports) {
   };
 
   NAPI_CALL(env, napi_define_class(env, "MyObject", NAPI_AUTO_LENGTH, New,
-      NULL, sizeof(properties)/sizeof(*properties), properties, &cons));
+      NULL, sizeof(properties) / sizeof(*properties), properties, &cons));
 
-  return cons;
+  NAPI_CALL(env, napi_define_subclass(env, NULL, "MyObjectViaSubclass",
+      NAPI_AUTO_LENGTH, New, NULL, NULL,
+      sizeof(properties) / sizeof(*properties), properties, &subcons));
+
+  napi_property_descriptor export_props[] = {
+    { "MyObject", NULL, NULL, NULL, NULL, cons, napi_enumerable, NULL },
+    { "MyObjectViaSubclass", NULL, NULL, NULL, NULL, subcons, napi_enumerable,
+        NULL },
+  };
+
+  NAPI_CALL(env, napi_define_properties(env, exports,
+      sizeof(export_props) / sizeof(*export_props), export_props));
+
+  return exports;
 }
 EXTERN_C_END
