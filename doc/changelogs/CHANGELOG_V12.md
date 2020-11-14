@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.19.1">12.19.1</a><br/>
 <a href="#12.19.0">12.19.0</a><br/>
 <a href="#12.18.4">12.18.4</a><br/>
 <a href="#12.18.3">12.18.3</a><br/>
@@ -66,6 +67,21 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.19.1"></a>
+## 2020-11-16, Version 12.19.1 'Erbium' (LTS), @BethGriggs
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8277**: Denial of Service through DNS request (High). A Node.js application that allows an attacker to trigger a DNS request for a host of their choice could trigger a Denial of Service by getting the application to resolve a DNS record with a larger number of responses.
+
+### Commits
+
+* [[`022899e1d5`](https://github.com/nodejs/node/commit/022899e1d5)] - **deps**: cherry-pick 0d252eb from upstream c-ares (Michael Dawson) [nodejs-private/node-private#231](https://github.com/nodejs-private/node-private/pull/231)
 
 <a id="12.19.0"></a>
 ## 2020-10-06, Version 12.19.0 'Erbium' (LTS), @codebytere
