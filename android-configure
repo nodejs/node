@@ -50,8 +50,8 @@ esac
 
 HOST_OS="linux"
 HOST_ARCH="x86_64"
-export CC_host=$(which gcc)
-export CXX_host=$(which g++)
+export CC_host=$(command -v gcc)
+export CXX_host=$(command -v g++)
 
 host_gcc_version=$($CC_host --version | grep gcc | awk '{print $NF}')
 major=$(echo $host_gcc_version | awk -F . '{print $1}')
