@@ -21,16 +21,20 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 // Verify that ECONNRESET is raised when writing to a http request
 // where the server has ended the socket.
 
+const assert = require('assert');
 const http = require('http');
+
+const kResponseDestroyed = Symbol('kResponseDestroyed');
+
 const server = http.createServer(function(req, res) {
-  setImmediate(function() {
+  req.on('data', common.mustCall(function() {
     res.destroy();
-  });
+    server.emit(kResponseDestroyed);
+  }));
 });
 
 server.listen(0, function() {
@@ -40,11 +44,9 @@ server.listen(0, function() {
     method: 'POST'
   });
 
-  function write() {
-    req.write('hello', function() {
-      setImmediate(write);
-    });
-  }
+  server.once(kResponseDestroyed, common.mustCall(function() {
+    req.write('hello');
+  }));
 
   req.on('error', common.mustCall(function(er) {
     assert.strictEqual(req.res, null);
@@ -73,6 +75,5 @@ server.listen(0, function() {
   }));
 
   req.on('response', common.mustNotCall());
-
-  write();
+  req.write('hello', common.mustSucceed());
 });
