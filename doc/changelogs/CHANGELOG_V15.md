@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#15.2.1">15.2.1</a><br/>
 <a href="#15.2.0">15.2.0</a><br/>
 <a href="#15.1.0">15.1.0</a><br/>
 <a href="#15.0.1">15.0.1</a><br/>
@@ -34,6 +35,27 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="15.2.1"></a>
+## 2020-11-16, Version 15.2.1 (Current), @targos
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8277**: Denial of Service through DNS request (High). A Node.js application that allows an attacker to trigger a DNS request for a host of their choice could trigger a Denial of service by getting the application to resolve a DNS record with a larger number of responses.
+
+### Commits
+
+* [[`2a44836eeb`](https://github.com/nodejs/node/commit/2a44836eeb)] - **deps**: cherry-pick 0d252eb from upstream c-ares (Michael Dawson) [nodejs-private/node-private#231](https://github.com/nodejs-private/node-private/pull/231)
+* [[`b1f5518a0a`](https://github.com/nodejs/node/commit/b1f5518a0a)] - **doc**: fix `events.getEventListeners` example (Dmitry Semigradsky) [#36085](https://github.com/nodejs/node/pull/36085)
+* [[`b477447a55`](https://github.com/nodejs/node/commit/b477447a55)] - **doc**: fix `added:` info for `stream.\_construct()` (Luigi Pinca) [#36067](https://github.com/nodejs/node/pull/36067)
+* [[`df211208c0`](https://github.com/nodejs/node/commit/df211208c0)] - **test**: add missing test coverage for setLocalAddress() (Rich Trott) [#36039](https://github.com/nodejs/node/pull/36039)
+* [[`f5191f5bd2`](https://github.com/nodejs/node/commit/f5191f5bd2)] - **test**: remove flaky designation for fixed test (Rich Trott) [#35961](https://github.com/nodejs/node/pull/35961)
+* [[`a2f652f7c5`](https://github.com/nodejs/node/commit/a2f652f7c5)] - **test**: move test-worker-eventlooputil to sequential (Rich Trott) [#35996](https://github.com/nodejs/node/pull/35996)
+* [[`b0b43b27d6`](https://github.com/nodejs/node/commit/b0b43b27d6)] - **test**: fix unreliable test-fs-write-file.js (Rich Trott) [#36102](https://github.com/nodejs/node/pull/36102)
 
 <a id="15.2.0"></a>
 ## 2020-11-10, Version 15.2.0 (Current), @danielleadams
