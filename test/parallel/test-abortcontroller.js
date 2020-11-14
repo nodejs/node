@@ -61,3 +61,10 @@ const { Event } = require('internal/event_target');
     /^TypeError: Illegal constructor$/
   );
 }
+{
+  // Symbol.toStringTag
+  const toString = (o) => Object.prototype.toString.call(o);
+  const ac = new AbortController();
+  strictEqual(toString(ac), '[object AbortController]');
+  strictEqual(toString(ac.signal), '[object AbortSignal]');
+}
