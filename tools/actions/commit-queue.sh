@@ -67,10 +67,8 @@ for pr in "$@"; do
   if ! tail -n 10 output | grep '. Post "Landed in .*/pull/'"${pr}"; then
     gitHubCurl "$(labelsUrl "$pr")" POST --data '{"labels": ["'"${COMMIT_QUEUE_FAILED_LABEL}"'"]}'
 
-    # Use printf to properly escape newline symbols for jq.
-    printf -v cqurl "\n\nCommit Queue action: %s/%s/%s/actions/runs/%s" \
-      "$GITHUB_SERVER_URL" "${OWNER}" "${REPOSITORY}" "$GITHUB_RUN_ID"
-    jq -n --arg content "<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre></details>$cqurl" '{body: $content}' > output.json
+    cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+    jq -n --arg content "<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre><a href='$cqurl'>$cqurl</a></details>" '{body: $content}' > output.json
     cat output.json
 
     gitHubCurl "$(commentsUrl "$pr")" POST --data @output.json
