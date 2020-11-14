@@ -523,10 +523,8 @@ process.on('SIGTERM', handle);
 * `'SIGSTOP'` cannot have a listener installed.
 * `'SIGBUS'`, `'SIGFPE'`, `'SIGSEGV'` and `'SIGILL'`, when not raised
    artificially using kill(2), inherently leave the process in a state from
-   which it is not safe to attempt to call JS listeners. Doing so might lead to
-   the process hanging in an endless loop, since listeners attached using
-   `process.on()` are called asynchronously and therefore unable to correct the
-   underlying problem.
+   which it is not safe to call JS listeners. Doing so might cause the process
+   to stop responding.
 * `0` can be sent to test for the existence of a process, it has no effect if
    the process exists, but will throw an error if the process does not exist.
 
