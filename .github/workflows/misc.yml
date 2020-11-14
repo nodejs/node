@@ -23,7 +23,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: NODE=$(which node) make doc-only
+        run: NODE=$(command -v node) make doc-only
       - uses: actions/upload-artifact@v1
         with:
           name: docs

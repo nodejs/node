@@ -24,7 +24,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Lint addon docs
-        run: NODE=$(which node) make lint-addon-docs
+        run: NODE=$(command -v node) make lint-addon-docs
   lint-cpp:
     runs-on: ubuntu-latest
     steps:
@@ -50,7 +50,7 @@ jobs:
       - name: Lint docs
         run: |
           echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"
-          NODE=$(which node) make lint-md
+          NODE=$(command -v node) make lint-md
   lint-js:
     runs-on: ubuntu-latest
     steps:
@@ -62,7 +62,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Lint JavaScript files
-        run: NODE=$(which node) make lint-js
+        run: NODE=$(command -v node) make lint-js
   lint-py:
     runs-on: ubuntu-latest
     steps:
@@ -76,7 +76,7 @@ jobs:
       - name: Lint Python
         run: |
           make lint-py-build || true
-          NODE=$(which node) make lint-py
+          NODE=$(command -v node) make lint-py
 
   lint-codeowners:
     runs-on: ubuntu-latest
