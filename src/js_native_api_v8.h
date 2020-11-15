@@ -341,6 +341,6 @@ class TryCatch : public v8::TryCatch {
   do {                                    \
     napi_status status = (call);          \
     if (status != napi_ok) return status; \
-  } while (0);
+  } while (0)
 
 #endif  // SRC_JS_NATIVE_API_V8_H_
