@@ -676,8 +676,14 @@ CPU::CPU()
 
 #ifndef USE_SIMULATOR
 #if V8_OS_LINUX
+#if V8_GLIBC_PREREQ(2, 16)
+  // Read processor info from getauxval().
+  const char* auxv_cpu_type = reinterpret_cast<const char*>(getauxval(AT_PLATFORM));
+  icache_line_size_ = static_cast<int>(getauxval(AT_ICACHEBSIZE));
+  dcache_line_size_ = static_cast<int>(getauxval(AT_DCACHEBSIZE));
+#else
   // Read processor info from /proc/self/auxv.
-  char* auxv_cpu_type = nullptr;
+  const char* auxv_cpu_type = nullptr;
   FILE* fp = fopen("/proc/self/auxv", "r");
   if (fp != nullptr) {
 #if V8_TARGET_ARCH_PPC64
@@ -692,7 +698,7 @@ CPU::CPU()
       }
       switch (entry.a_type) {
         case AT_PLATFORM:
-          auxv_cpu_type = reinterpret_cast<char*>(entry.a_un.a_val);
+          auxv_cpu_type = reinterpret_cast<const char*>(entry.a_un.a_val);
           break;
         case AT_ICACHEBSIZE:
           icache_line_size_ = entry.a_un.a_val;
@@ -704,25 +710,36 @@ CPU::CPU()
     }
     fclose(fp);
   }
+#endif  // V8_GLIBC_PREREQ(2, 16)
 
   part_ = -1;
   if (auxv_cpu_type) {
-    if (strcmp(auxv_cpu_type, "power9") == 0) {
+    // use strncmp() in case "+" or "x" are added later.
+    if (strncmp(auxv_cpu_type, "power9", 6) == 0 ||
+        strncmp(auxv_cpu_type, "power1", 6) == 0) {     // e.g. "power10"
       part_ = PPC_POWER9;
-    } else if (strcmp(auxv_cpu_type, "power8") == 0) {
+    } else if (strncmp(auxv_cpu_type, "power8", 6) == 0) {
       part_ = PPC_POWER8;
-    } else if (strcmp(auxv_cpu_type, "power7") == 0) {
+    } else if (strncmp(auxv_cpu_type, "power7", 6) == 0) {  // or "power7+"
       part_ = PPC_POWER7;
-    } else if (strcmp(auxv_cpu_type, "power6") == 0) {
+    } else if (strncmp(auxv_cpu_type, "power6", 6) == 0) {  // or "power6x"
       part_ = PPC_POWER6;
+    // use exact strcmp() from here.
+    } else if (strcmp(auxv_cpu_type, "power5+") == 0) {     // adds FP rounding
+      part_ = PPC_POWER5_PLUS;
     } else if (strcmp(auxv_cpu_type, "power5") == 0) {
       part_ = PPC_POWER5;
-    } else if (strcmp(auxv_cpu_type, "ppc970") == 0) {
+    } else if (strcmp(auxv_cpu_type, "ppc970") == 0 ||
+               strcmp(auxv_cpu_type, "ppc-cell-be") == 0) {
       part_ = PPC_G5;
-    } else if (strcmp(auxv_cpu_type, "ppc7450") == 0) {
+    } else if (strcmp(auxv_cpu_type, "ppc7450") == 0 ||
+               strcmp(auxv_cpu_type, "ppc7400") == 0 ||
+               strcmp(auxv_cpu_type, "ppce6500") == 0) {
       part_ = PPC_G4;
     } else if (strcmp(auxv_cpu_type, "pa6t") == 0) {
       part_ = PPC_PA6T;
+    } else {
+      part_ = PPC_G3;
     }
   }
 

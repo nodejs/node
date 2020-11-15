@@ -33,7 +33,7 @@ asm(
     // At anytime, SP (r1) needs to be multiple of 16 (i.e. 16-aligned).
     "  mflr 0                                          \n"
     "  std 0, 16(1)                                    \n"
-#if defined(_AIX)
+#if ABI_USES_FUNCTION_DESCRIPTORS
     "  std 2, 40(1)                                    \n"
 #else
     "  std 2, 24(1)                                    \n"
@@ -61,10 +61,10 @@ asm(
     // Pass 2nd parameter (r4) unchanged (StackVisitor*).
     // Save 3rd parameter (r5; IterateStackCallback).
     "  mr 6, 5                                         \n"
-#if defined(_AIX)
+#if ABI_USES_FUNCTION_DESCRIPTORS
     // Set up TOC for callee.
     "  ld 2,8(5)                                       \n"
-    // AIX uses function decorators, which means that
+    // AIX/PPC64BE (ELFv1) uses function descriptors, which means that
     // pointers to functions do not point to code, but
     //  instead point to metadata about them, hence
     // need to deterrence.
@@ -72,7 +72,7 @@ asm(
 #endif
     // Pass 3rd parameter as sp (stack pointer).
     "  mr 5, 1                                         \n"
-#if !defined(_AIX)
+#if !ABI_USES_FUNCTION_DESCRIPTORS
     // Set up r12 to be equal to the callee address (in order for TOC
     // relocation). Only needed on LE Linux.
     "  mr 12, 6                                        \n"
@@ -85,7 +85,7 @@ asm(
     // Restore lr.
     "  ld 0, 16(1)                                     \n"
     "  mtlr  0                                         \n"
-#if defined(_AIX)
+#if ABI_USES_FUNCTION_DESCRIPTORS
     // Restore TOC pointer.
     "  ld 2, 40(1)                                     \n"
 #else

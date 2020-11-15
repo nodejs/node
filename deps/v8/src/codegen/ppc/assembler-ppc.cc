@@ -61,47 +61,52 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-// Detect whether frim instruction is supported (POWER5+)
-// For now we will just check for processors we know do not
-// support it
 #ifndef USE_SIMULATOR
   // Probe for additional features at runtime.
   base::CPU cpu;
-  if (cpu.part() == base::CPU::PPC_POWER9) {
+  switch (cpu.part()) {
+  case base::CPU::PPC_POWER9:
     supported_ |= (1u << MODULO);
-  }
+    // fallthrough
+
+  case base::CPU::PPC_POWER8:
 #if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::PPC_POWER8) {
     supported_ |= (1u << FPR_GPR_MOV);
-  }
 #endif
-  if (cpu.part() == base::CPU::PPC_POWER6 ||
-      cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
-    supported_ |= (1u << LWSYNC);
-  }
-  if (cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+    // fallthrough
+
+  case base::CPU::PPC_POWER7:
     supported_ |= (1u << ISELECT);
     supported_ |= (1u << VSX);
+    // fallthrough
+
+  case base::CPU::PPC_POWER6:
+    supported_ |= (1u << LWSYNC);
+    supported_ |= (1u << VMX);
+    // fallthrough
+
+  case base::CPU::PPC_POWER5_PLUS:
+  case base::CPU::PPC_PA6T:
+    supported_ |= (1u << FP_ROUND_TO_INT);
+    break;
+  }
+  // Add VMX/AltiVec feature for the non-IBM CPUs that have it.
+  if (cpu.part() == base::CPU::PPC_PA6T ||
+      cpu.part() == base::CPU::PPC_G5 ||
+      cpu.part() == base::CPU::PPC_G4) {
+    supported_ |= (1u << VMX);
   }
 #if V8_OS_LINUX
-  if (!(cpu.part() == base::CPU::PPC_G5 || cpu.part() == base::CPU::PPC_G4)) {
-    // Assume support
-    supported_ |= (1u << FPU);
-  }
   if (cpu.icache_line_size() != base::CPU::UNKNOWN_CACHE_LINE_SIZE) {
     icache_line_size_ = cpu.icache_line_size();
   }
-#elif V8_OS_AIX
-  // Assume support FP support and default cache line size
-  supported_ |= (1u << FPU);
 #endif
 #else  // Simulator
-  supported_ |= (1u << FPU);
+  supported_ |= (1u << FP_ROUND_TO_INT);
   supported_ |= (1u << LWSYNC);
   supported_ |= (1u << ISELECT);
   supported_ |= (1u << VSX);
+  supported_ |= (1u << VMX);
   supported_ |= (1u << MODULO);
 #if V8_TARGET_ARCH_PPC64
   supported_ |= (1u << FPR_GPR_MOV);
@@ -122,11 +127,12 @@ void CpuFeatures::PrintTarget() {
 }
 
 void CpuFeatures::PrintFeatures() {
-  printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
+  printf("FP_ROUND_TO_INT=%d\n", CpuFeatures::IsSupported(FP_ROUND_TO_INT));
   printf("FPR_GPR_MOV=%d\n", CpuFeatures::IsSupported(FPR_GPR_MOV));
   printf("LWSYNC=%d\n", CpuFeatures::IsSupported(LWSYNC));
   printf("ISELECT=%d\n", CpuFeatures::IsSupported(ISELECT));
   printf("VSX=%d\n", CpuFeatures::IsSupported(VSX));
+  printf("VMX=%d\n", CpuFeatures::IsSupported(VMX));
   printf("MODULO=%d\n", CpuFeatures::IsSupported(MODULO));
 }
 
@@ -1745,6 +1751,11 @@ void Assembler::fsqrt(const DoubleRegister frt, const DoubleRegister frb,
 void Assembler::fabs(const DoubleRegister frt, const DoubleRegister frb,
                      RCBit rc) {
   emit(EXT4 | FABS | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+void Assembler::fnabs(const DoubleRegister frt, const DoubleRegister frb,
+                     RCBit rc) {
+  emit(EXT4 | FNABS | frt.code() * B21 | frb.code() * B11 | rc);
 }
 
 void Assembler::fmadd(const DoubleRegister frt, const DoubleRegister fra,

@@ -203,7 +203,7 @@ constexpr bool kPlatformRequiresCodeRange = true;
 #if (V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) && \
     (V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64) && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
-constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // min OS page size
 #elif V8_TARGET_ARCH_ARM64
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
 constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
@@ -226,7 +226,7 @@ constexpr intptr_t kIntptrSignBit = 0x80000000;
 constexpr bool kPlatformRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
-constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // min OS page size
 #elif V8_TARGET_ARCH_MIPS
 constexpr bool kPlatformRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 2048LL * MB;
