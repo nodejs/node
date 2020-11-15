@@ -46,10 +46,13 @@ server.listen(0, common.mustCall(function() {
     });
     const req = client.request();
 
-    setTimeout(() => socket.destroy(), common.platformTimeout(100));
-    setTimeout(() => client.close(), common.platformTimeout(200));
-    setTimeout(() => server.close(), common.platformTimeout(300));
+    server.on('request', () => {
+      socket.destroy();
+    });
 
-    req.on('close', common.mustCall(() => { }));
+    req.on('close', common.mustCall(() => {
+      client.close();
+      server.close();
+    }));
   });
 }));
