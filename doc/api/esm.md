@@ -134,7 +134,7 @@ algorithm][]. All other specifier resolutions are always only resolved with
 the standard relative [URL][] resolution semantics.
 
 Like in CommonJS, module files within packages can be accessed by appending a
-path to the package name; unless the package’s [`package.json`][] contains an
+path to the package name unless the package’s [`package.json`][] contains an
 [`"exports"`][] field, in which case files within packages can only be accessed
 via the paths defined in [`"exports"`][].
 

@@ -895,11 +895,11 @@ The `flags` argument is an integer that allows to specify dlopen
 behavior. See the [`os.constants.dlopen`][] documentation for details.
 
 An important requirement when calling `process.dlopen()` is that the `module`
-instance must be passed. Functions exported by the C++ Addon will then be
+instance must be passed. Functions exported by the C++ Addon are then
 accessible via `module.exports`.
 
 The example below shows how to load a C++ Addon, named `local.node`,
-that exports a `foo` function. All the symbols will be loaded before
+that exports a `foo` function. All the symbols are loaded before
 the call returns, by passing the `RTLD_NOW` constant. In this example
 the constant is assumed to be available.
 
