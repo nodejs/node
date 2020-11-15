@@ -9,6 +9,8 @@ namespace node {
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::DontDelete;
+using v8::DontEnum;
 using v8::EscapableHandleScope;
 using v8::HandleScope;
 using v8::Integer;
@@ -25,6 +27,7 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
 using v8::PropertyHandlerFlags;
+using v8::ReadOnly;
 using v8::String;
 using v8::Value;
 
@@ -92,10 +95,10 @@ Maybe<std::string> RealEnvStore::Get(const char* key) const {
   }
 
   if (ret >= 0) {  // Env key value fetch success.
-    return v8::Just(std::string(*val, init_sz));
+    return Just(std::string(*val, init_sz));
   }
 
-  return v8::Nothing<std::string>();
+  return Nothing<std::string>();
 }
 
 MaybeLocal<String> RealEnvStore::Get(Isolate* isolate,
@@ -140,9 +143,9 @@ int32_t RealEnvStore::Query(const char* key) const {
 
 #ifdef _WIN32
   if (key[0] == '=') {
-    return static_cast<int32_t>(v8::ReadOnly) |
-           static_cast<int32_t>(v8::DontDelete) |
-           static_cast<int32_t>(v8::DontEnum);
+    return static_cast<int32_t>(ReadOnly) |
+           static_cast<int32_t>(DontDelete) |
+           static_cast<int32_t>(DontEnum);
   }
 #endif
 
@@ -190,7 +193,7 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   return Array::New(isolate, env_v.out(), env_v_index);
 }
 
-std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
+std::shared_ptr<KVStore> KVStore::Clone(Isolate* isolate) const {
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
 
@@ -210,7 +213,7 @@ std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
 Maybe<std::string> MapKVStore::Get(const char* key) const {
   Mutex::ScopedLock lock(mutex_);
   auto it = map_.find(key);
-  return it == map_.end() ? v8::Nothing<std::string>() : v8::Just(it->second);
+  return it == map_.end() ? Nothing<std::string>() : Just(it->second);
 }
 
 MaybeLocal<String> MapKVStore::Get(Isolate* isolate, Local<String> key) const {
