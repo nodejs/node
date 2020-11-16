@@ -207,7 +207,7 @@ http2.getPackedSettings({ enablePush: false });
       name: 'TypeError',
       message:
         'The "buf" argument must be an instance of Buffer or TypedArray.' +
-        common.invalidArgTypeHelper(input)
+        common.invalidArgTypeHelper(packed)
     });
 }
 
