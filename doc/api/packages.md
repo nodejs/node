@@ -5,6 +5,7 @@
 changes:
   - version:
     - v14.13.0
+    - v12.20.0
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Add support for `"exports"` patterns.
   - version: v14.6.0
@@ -369,7 +370,9 @@ changes:
   - version: v15.1.0
     pr-url: https://github.com/nodejs/node/pull/35746
     description: Runtime deprecation.
-  - version: v14.13.0
+  - version:
+    - v14.13.0
+    - v12.20.0
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Documentation-only deprecation.
 -->
