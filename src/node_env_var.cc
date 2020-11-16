@@ -179,9 +179,7 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   for (int i = 0; i < count; i++) {
 #ifdef _WIN32
     // If the key starts with '=' it is a hidden environment variable.
-    // The '\0' check is a workaround for the bug behind
-    // https://github.com/libuv/libuv/pull/2473 and can be removed later.
-    if (items[i].name[0] == '=' || items[i].name[0] == '\0') continue;
+    if (items[i].name[0] == '=') continue;
 #endif
     MaybeLocal<String> str = String::NewFromUtf8(isolate, items[i].name);
     if (str.IsEmpty()) {
