@@ -5459,8 +5459,6 @@ changes:
                   now supported.
 -->
 
-> Stability: 1 - Recursive removal is experimental.
-
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
