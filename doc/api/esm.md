@@ -6,10 +6,10 @@
 added: v8.5.0
 changes:
   - version:
-    - REPLACEME
+    - v12.20.0
     pr-url: https://github.com/nodejs/node/pull/35249
     description: Support for detection of CommonJS named exports.
-  - version: REPLACEME
+  - version: v12.20.0
     pr-url: https://github.com/nodejs/node/pull/31974
     description: Remove experimental modules warning.
   - version:
@@ -135,7 +135,7 @@ future use. The root of the current volume may be referenced via `file:///`.
 #### `node:` Imports
 
 <!-- YAML
-added: REPLACEME
+added: v12.20.0
 -->
 
 `node:` URLs are supported as a means to load Node.js builtin modules. This

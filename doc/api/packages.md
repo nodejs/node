@@ -3,7 +3,7 @@
 <!-- type=misc -->
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.20.0
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Add support for `"exports"` patterns.
   - version: v12.19.0
@@ -934,7 +934,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/31008
     description: Implement logical conditional exports ordering.
   - version:
-    - REPLACEME
+    - v12.20.0
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Add support for `"exports"` patterns.
 -->

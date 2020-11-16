@@ -3645,7 +3645,7 @@ if (status != napi_ok) return status;
 #### napi_property_attributes
 <!-- YAML
 changes:
- - version: REPLACEME
+ - version: v12.20.0
    pr-url: https://github.com/nodejs/node/pull/35214
    description: added `napi_default_method` and `napi_default_property`
 -->
@@ -4094,7 +4094,7 @@ specification).
 
 #### napi_object_freeze
 <!-- YAML
-added: REPLACEME
+added: v12.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -4119,7 +4119,7 @@ ECMA-262 specification.
 
 #### napi_object_seal
 <!-- YAML
-added: REPLACEME
+added: v12.20.0
 -->
 
 > Stability: 1 - Experimental
