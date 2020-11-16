@@ -6,7 +6,7 @@ const domain = require('domain');
 const binding = require(`./build/${common.buildType}/binding`);
 
 function makeCallback(object, cb) {
-  binding.makeCallback(object, () => setImmediate(cb));
+  binding.makeCallback(object, function someMethod() { setImmediate(cb); });
 }
 
 let latestWarning = null;
@@ -16,8 +16,14 @@ process.on('warning', (warning) => {
 
 const d = domain.create();
 
+class Resource {
+  constructor(domain) {
+    this.domain = domain;
+  }
+}
+
 // When domain is disabled, no warning will be emitted
-makeCallback({ domain: d }, common.mustCall(() => {
+makeCallback(new Resource(d), common.mustCall(() => {
   assert.strictEqual(latestWarning, null);
 
   d.run(common.mustCall(() => {
@@ -26,7 +32,9 @@ makeCallback({ domain: d }, common.mustCall(() => {
       assert.strictEqual(latestWarning, null);
 
       // Warning is emitted when domain property is used and domain is enabled
-      makeCallback({ domain: d }, common.mustCall(() => {
+      makeCallback(new Resource(d), common.mustCall(() => {
+        assert.match(latestWarning.message,
+                     /Triggered by calling someMethod on Resource\./);
         assert.strictEqual(latestWarning.name, 'DeprecationWarning');
         assert.strictEqual(latestWarning.code, 'DEP0097');
       }));
