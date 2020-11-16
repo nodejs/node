@@ -600,7 +600,9 @@ Stop watching for changes on the given `fs.FSWatcher`. Once stopped, the
 
 ### `watcher.ref()`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Returns: {fs.FSWatcher}
@@ -615,7 +617,9 @@ called previously.
 
 ### `watcher.unref()`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Returns: {fs.FSWatcher}
@@ -628,7 +632,9 @@ no effect.
 
 ## Class: `fs.StatWatcher`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Extends {EventEmitter}
@@ -638,7 +644,9 @@ object.
 
 ### `watcher.ref()`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Returns: {fs.StatWatcher}
@@ -653,7 +661,9 @@ called previously.
 
 ### `watcher.unref()`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Returns: {fs.StatWatcher}
