@@ -3410,10 +3410,13 @@ napi_status napi_define_subclass(napi_env env,
   // Assemble the formal parameter list and the class body, and init the args.
   for (size_t idx = 0; idx < property_count; idx++) {
     if ((props[idx].attributes & napi_static) == 0) {
-      key = (props[idx].name != nullptr)
-        ? "[" + gen.PushArg(props[idx].name) + "]"
-        : std::string(props[idx].utf8name);
-
+      napi_value name = props[idx].name;
+      if (name == nullptr)
+        STATUS_CALL(napi_create_string_utf8(env,
+                                            props[idx].utf8name,
+                                            NAPI_AUTO_LENGTH,
+                                            &name));
+      key = "[" + gen.PushArg(name) + "]";
       if (props[idx].value != nullptr) {
         gen.PostProcess(key, &props[idx]);
       } else if (props[idx].method != nullptr) {
