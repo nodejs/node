@@ -29,6 +29,9 @@ try {
 }
 const napi = napi_binding.hello;
 
+const class_instance = new napi_binding.Class();
+const subclass_instance = new napi_binding.Subclass();
+
 let c = 0;
 function js() {
   return c++;
@@ -37,15 +40,24 @@ function js() {
 assert(js() === cxx());
 
 const bench = common.createBenchmark(main, {
-  type: ['js', 'cxx', 'napi'],
-  n: [1e6, 1e7, 5e7]
+  type: ['js', 'cxx', 'napi', 'napi_define_class', 'napi_define_subclass'],
+  n: [1e6, 1e7, 5e7, 1e8]
 });
 
 function main({ n, type }) {
-  const fn = type === 'cxx' ? cxx : type === 'napi' ? napi : js;
-  bench.start();
-  for (let i = 0; i < n; i++) {
-    fn();
+  if (type.match(/napi_define/)) {
+    const instance = type == 'napi_define_class' ? class_instance : subclass_instance;
+    bench.start();
+    for (let i = 0; i < n; i++) {
+      instance.fn();
+    }
+    bench.end(n);
+  } else {
+    const fn = type === 'cxx' ? cxx : type === 'napi' ? napi : js;
+    bench.start();
+    for (let i = 0; i < n; i++) {
+      fn();
+    }
+    bench.end(n);
   }
-  bench.end(n);
 }
