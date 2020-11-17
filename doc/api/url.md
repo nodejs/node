@@ -24,7 +24,7 @@ Node.js specific, and a newer API that implements the same
 [WHATWG URL Standard][] used by web browsers.
 
 A comparison between the WHATWG and Legacy APIs is provided below. Above the URL
-`'http://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash'`, properties
+`'https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash'`, properties
 of an object returned by the legacy `url.parse()` are shown. Below it are
 properties of a WHATWG `URL` object.
 
