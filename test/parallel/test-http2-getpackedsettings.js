@@ -200,15 +200,15 @@ http2.getPackedSettings({ enablePush: false });
     0x00, 0x02, 0x00, 0x00, 0x00, 0x01,
     0x00, 0x08, 0x00, 0x00, 0x00, 0x00]).buffer);
 
-    assert.throws(() => {
-      http2.getUnpackedSettings(packed);
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-      message:
+  assert.throws(() => {
+    http2.getUnpackedSettings(packed);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message:
         'The "buf" argument must be an instance of Buffer or TypedArray.' +
         common.invalidArgTypeHelper(packed)
-    });
+  });
 }
 
 {
