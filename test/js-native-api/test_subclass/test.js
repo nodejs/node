@@ -44,4 +44,8 @@ function test(Superclass, Subclass) {
   assert.strictEqual(subItem.chainableMethod('something'), '1-something-1');
   assert.strictEqual(superItem.value, 5);
   assert.strictEqual(subItem.value, 5);
+  assert(superItem instanceof Superclass);
+  assert(subItem instanceof Subclass);
+  assert(subItem instanceof Superclass);
+  assert.strictEqual(Subclass.__proto__, Superclass);
 }
