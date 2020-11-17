@@ -22,8 +22,8 @@ test('pings', (t) => {
           t.equal(type, 'PONG', 'should log a PONG')
           t.match(spec, /\d+ms/, 'should log the elapsed milliseconds')
         }
-      }
-    }
+      },
+    },
   })
 
   ping([], (err) => {
@@ -51,7 +51,7 @@ test('pings and logs details', (t) => {
         if (noticeCalls === 1) {
           t.equal(type, 'PING', 'should log a PING')
           t.equal(spec, flatOptions.registry, 'should log the registry url')
-        } else if (noticeCalls == 2) {
+        } else if (noticeCalls === 2) {
           t.equal(type, 'PONG', 'should log a PONG')
           t.match(spec, /\d+ms/, 'should log the elapsed milliseconds')
         } else {
@@ -59,8 +59,8 @@ test('pings and logs details', (t) => {
           const parsed = JSON.parse(spec)
           t.match(parsed, details, 'should log JSON stringified details')
         }
-      }
-    }
+      },
+    },
   })
 
   ping([], (err) => {
@@ -98,8 +98,8 @@ test('pings and returns json', (t) => {
           t.equal(type, 'PONG', 'should log a PONG')
           t.match(spec, /\d+ms/, 'should log the elapsed milliseconds')
         }
-      }
-    }
+      },
+    },
   })
 
   ping([], (err) => {

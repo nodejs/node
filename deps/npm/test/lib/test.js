@@ -6,11 +6,11 @@ const npmock = {
     run: (args, cb) => {
       RUN_ARGS = args
       cb()
-    }
-  }
+    },
+  },
 }
 const test = requireInject('../../lib/test.js', {
-  '../../lib/npm.js': npmock
+  '../../lib/npm.js': npmock,
 })
 
 t.test('run a test', t => {
@@ -22,7 +22,7 @@ t.test('run a test', t => {
   })
 
   const lcErr = Object.assign(new Error('should not see this'), {
-    code: 'ELIFECYCLE'
+    code: 'ELIFECYCLE',
   })
   const otherErr = new Error('should see this')
 

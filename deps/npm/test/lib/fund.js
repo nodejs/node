@@ -6,7 +6,7 @@ const requireInject = require('require-inject')
 const version = '1.0.0'
 const funding = {
   type: 'individual',
-  url: 'http://example.com/donate'
+  url: 'http://example.com/donate',
 }
 
 const maintainerOwnsAllDeps = {
@@ -16,8 +16,8 @@ const maintainerOwnsAllDeps = {
     funding,
     dependencies: {
       'dep-foo': '*',
-      'dep-bar': '*'
-    }
+      'dep-bar': '*',
+    },
   }),
   node_modules: {
     'dep-foo': {
@@ -26,27 +26,27 @@ const maintainerOwnsAllDeps = {
         version,
         funding,
         dependencies: {
-          'dep-sub-foo': '*'
-        }
+          'dep-sub-foo': '*',
+        },
       }),
       node_modules: {
         'dep-sub-foo': {
           'package.json': JSON.stringify({
             name: 'dep-sub-foo',
             version,
-            funding
-          })
-        }
-      }
+            funding,
+          }),
+        },
+      },
     },
     'dep-bar': {
       'package.json': JSON.stringify({
         name: 'dep-bar',
         version,
-        funding
-      })
-    }
-  }
+        funding,
+      }),
+    },
+  },
 }
 
 const nestedNoFundingPackages = {
@@ -54,11 +54,11 @@ const nestedNoFundingPackages = {
     name: 'nested-no-funding-packages',
     version,
     dependencies: {
-      foo: '*'
+      foo: '*',
     },
     devDependencies: {
-      lorem: '*'
-    }
+      lorem: '*',
+    },
   }),
   node_modules: {
     foo: {
@@ -66,38 +66,38 @@ const nestedNoFundingPackages = {
         name: 'foo',
         version,
         dependencies: {
-          bar: '*'
-        }
+          bar: '*',
+        },
       }),
       node_modules: {
         bar: {
           'package.json': JSON.stringify({
             name: 'bar',
             version,
-            funding
+            funding,
           }),
           node_modules: {
             'sub-bar': {
               'package.json': JSON.stringify({
                 name: 'sub-bar',
                 version,
-                funding: 'https://example.com/sponsor'
-              })
-            }
-          }
-        }
-      }
+                funding: 'https://example.com/sponsor',
+              }),
+            },
+          },
+        },
+      },
     },
     lorem: {
       'package.json': JSON.stringify({
         name: 'lorem',
         version,
         funding: {
-          url: 'https://example.com/lorem'
-        }
-      })
-    }
-  }
+          url: 'https://example.com/lorem',
+        },
+      }),
+    },
+  },
 }
 
 const nestedMultipleFundingPackages = {
@@ -106,14 +106,14 @@ const nestedMultipleFundingPackages = {
     version,
     funding: [
       'https://one.example.com',
-      'https://two.example.com'
+      'https://two.example.com',
     ],
     dependencies: {
-      foo: '*'
+      foo: '*',
     },
     devDependencies: {
-      bar: '*'
-    }
+      bar: '*',
+    },
   }),
   node_modules: {
     foo: {
@@ -123,9 +123,9 @@ const nestedMultipleFundingPackages = {
         funding: [
           'http://example.com',
           { url: 'http://sponsors.example.com/me' },
-          'http://collective.example.com'
-        ]
-      })
+          'http://collective.example.com',
+        ],
+      }),
     },
     bar: {
       'package.json': JSON.stringify({
@@ -133,11 +133,11 @@ const nestedMultipleFundingPackages = {
         version,
         funding: [
           'http://collective.example.com',
-          { url: 'http://sponsors.example.com/you' }
-        ]
-      })
-    }
-  }
+          { url: 'http://sponsors.example.com/you' },
+        ],
+      }),
+    },
+  },
 }
 
 const conflictingFundingPackages = {
@@ -145,19 +145,19 @@ const conflictingFundingPackages = {
     name: 'conflicting-funding-packages',
     version,
     dependencies: {
-      foo: '1.0.0'
+      foo: '1.0.0',
     },
     devDependencies: {
-      bar: '1.0.0'
-    }
+      bar: '1.0.0',
+    },
   }),
   node_modules: {
     foo: {
       'package.json': JSON.stringify({
         name: 'foo',
         version: '1.0.0',
-        funding: 'http://example.com/1'
-      })
+        funding: 'http://example.com/1',
+      }),
     },
     bar: {
       node_modules: {
@@ -165,19 +165,19 @@ const conflictingFundingPackages = {
           'package.json': JSON.stringify({
             name: 'foo',
             version: '2.0.0',
-            funding: 'http://example.com/2'
-          })
-        }
+            funding: 'http://example.com/2',
+          }),
+        },
       },
       'package.json': JSON.stringify({
         name: 'bar',
         version: '1.0.0',
         dependencies: {
-          foo: '2.0.0'
-        }
-      })
-    }
-  }
+          foo: '2.0.0',
+        },
+      }),
+    },
+  },
 }
 
 let result = ''
@@ -188,7 +188,7 @@ const _flatOptions = {
   global: false,
   prefix: undefined,
   unicode: false,
-  which: undefined
+  which: undefined,
 }
 const openUrl = (url, msg, cb) => {
   if (url === 'http://npmjs.org') {
@@ -198,35 +198,39 @@ const openUrl = (url, msg, cb) => {
   if (_flatOptions.json) {
     printUrl = JSON.stringify({
       title: msg,
-      url: url
+      url: url,
     })
-  } else {
+  } else
     printUrl = `${msg}:\n  ${url}`
-  }
+
   cb()
 }
 const fund = requireInject('../../lib/fund.js', {
   '../../lib/npm.js': {
     flatOptions: _flatOptions,
-    get prefix () { return _flatOptions.prefix }
+    get prefix () {
+      return _flatOptions.prefix
+    },
   },
   '../../lib/utils/open-url.js': openUrl,
-  '../../lib/utils/output.js': msg => { result += msg + '\n' },
+  '../../lib/utils/output.js': msg => {
+    result += msg + '\n'
+  },
   pacote: {
     manifest: (arg) => arg.name === 'ntl'
       ? Promise.resolve({
-        funding: 'http://example.com/pacote'
+        funding: 'http://example.com/pacote',
       })
-      : Promise.reject(new Error('ERROR'))
-  }
+      : Promise.reject(new Error('ERROR')),
+  },
 })
 
 test('fund with no package containing funding', t => {
   _flatOptions.prefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'no-funding-package',
-      version: '0.0.0'
-    })
+      version: '0.0.0',
+    }),
   })
 
   fund([], (err) => {
@@ -264,7 +268,7 @@ test('fund in which same maintainer owns all its deps, using --json option', t =
         dependencies: {
           'dep-bar': {
             version: '1.0.0',
-            funding: { type: 'individual', url: 'http://example.com/donate' }
+            funding: { type: 'individual', url: 'http://example.com/donate' },
           },
           'dep-foo': {
             version: '1.0.0',
@@ -272,11 +276,11 @@ test('fund in which same maintainer owns all its deps, using --json option', t =
             dependencies: {
               'dep-sub-foo': {
                 version: '1.0.0',
-                funding: { type: 'individual', url: 'http://example.com/donate' }
-              }
-            }
-          }
-        }
+                funding: { type: 'individual', url: 'http://example.com/donate' },
+              },
+            },
+          },
+        },
       },
       'should print stack packages together'
     )
@@ -317,13 +321,13 @@ test('fund containing multi-level nested deps with no funding, using --json opti
         dependencies: {
           lorem: {
             version: '1.0.0',
-            funding: { url: 'https://example.com/lorem' }
+            funding: { url: 'https://example.com/lorem' },
           },
           bar: {
             version: '1.0.0',
-            funding: { type: 'individual', url: 'http://example.com/donate' }
-          }
-        }
+            funding: { type: 'individual', url: 'http://example.com/donate' },
+          },
+        },
       },
       'should omit dependencies with no funding declared in json output'
     )
@@ -348,39 +352,39 @@ test('fund containing multi-level nested deps with no funding, using --json opti
         version: '1.0.0',
         funding: [
           {
-            url: 'https://one.example.com'
+            url: 'https://one.example.com',
           },
           {
-            url: 'https://two.example.com'
-          }
+            url: 'https://two.example.com',
+          },
         ],
         dependencies: {
           bar: {
             version: '1.0.0',
             funding: [
               {
-                url: 'http://collective.example.com'
+                url: 'http://collective.example.com',
               },
               {
-                url: 'http://sponsors.example.com/you'
-              }
-            ]
+                url: 'http://sponsors.example.com/you',
+              },
+            ],
           },
           foo: {
             version: '1.0.0',
             funding: [
               {
-                url: 'http://example.com'
+                url: 'http://example.com',
               },
               {
-                url: 'http://sponsors.example.com/me'
+                url: 'http://sponsors.example.com/me',
               },
               {
-                url: 'http://collective.example.com'
-              }
-            ]
-          }
-        }
+                url: 'http://collective.example.com',
+              },
+            ],
+          },
+        },
       },
       'should list multiple funding entries in json output'
     )
@@ -440,8 +444,8 @@ test('fund using string shorthand', t => {
     'package.json': JSON.stringify({
       name: 'funding-string-shorthand',
       version: '0.0.0',
-      funding: 'https://example.com/sponsor'
-    })
+      funding: 'https://example.com/sponsor',
+    }),
   })
 
   fund(['.'], (err) => {
@@ -469,18 +473,18 @@ test('fund using symlink ref', t => {
   _flatOptions.prefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'using-symlink-ref',
-      version: '1.0.0'
+      version: '1.0.0',
     }),
     a: {
       'package.json': JSON.stringify({
         name: 'a',
         version: '1.0.0',
-        funding: 'http://example.com/a'
-      })
+        funding: 'http://example.com/a',
+      }),
     },
     node_modules: {
-      a: t.fixture('symlink', '../a')
-    }
+      a: t.fixture('symlink', '../a'),
+    },
   })
 
   // using symlinked ref
@@ -515,33 +519,33 @@ test('fund using data from actual tree', t => {
   _flatOptions.prefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'using-actual-tree',
-      version: '1.0.0'
+      version: '1.0.0',
     }),
     node_modules: {
       a: {
         'package.json': JSON.stringify({
           name: 'a',
           version: '1.0.0',
-          funding: 'http://example.com/a'
-        })
+          funding: 'http://example.com/a',
+        }),
       },
       b: {
         'package.json': JSON.stringify({
           name: 'a',
           version: '1.0.0',
-          funding: 'http://example.com/b'
+          funding: 'http://example.com/b',
         }),
         node_modules: {
           a: {
             'package.json': JSON.stringify({
               name: 'a',
               version: '1.0.1',
-              funding: 'http://example.com/_AAA'
-            })
-          }
-        }
-      }
-    }
+              funding: 'http://example.com/_AAA',
+            }),
+          },
+        },
+      },
+    },
   })
 
   // using symlinked ref
@@ -595,7 +599,7 @@ test('fund using package argument with no browser, using --json option', t => {
       JSON.parse(printUrl),
       {
         title: 'individual funding available at the following URL',
-        url: 'http://example.com/donate'
+        url: 'http://example.com/donate',
       },
       'should open funding url using json output'
     )
@@ -676,8 +680,8 @@ test('fund pkg missing version number', t => {
   _flatOptions.prefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'foo',
-      funding: 'http://example.com/foo'
-    })
+      funding: 'http://example.com/foo',
+    }),
   })
 
   fund([], (err) => {
@@ -693,8 +697,8 @@ test('fund a package throws on openUrl', t => {
     'package.json': JSON.stringify({
       name: 'foo',
       version: '1.0.0',
-      funding: 'http://npmjs.org'
-    })
+      funding: 'http://npmjs.org',
+    }),
   })
 
   fund(['.'], (err) => {
@@ -711,14 +715,14 @@ test('fund a package with type and multiple sources', t => {
       funding: [
         {
           type: 'Foo',
-          url: 'http://example.com/foo'
+          url: 'http://example.com/foo',
         },
         {
           type: 'Lorem',
-          url: 'http://example.com/foo-lorem'
-        }
-      ]
-    })
+          url: 'http://example.com/foo-lorem',
+        },
+      ],
+    }),
   })
 
   fund(['.'], (err) => {
@@ -738,16 +742,16 @@ test('fund colors', t => {
       dependencies: {
         a: '^1.0.0',
         b: '^1.0.0',
-        c: '^1.0.0'
-      }
+        c: '^1.0.0',
+      },
     }),
     node_modules: {
       a: {
         'package.json': JSON.stringify({
           name: 'a',
           version: '1.0.0',
-          funding: 'http://example.com/a'
-        })
+          funding: 'http://example.com/a',
+        }),
       },
       b: {
         'package.json': JSON.stringify({
@@ -756,32 +760,32 @@ test('fund colors', t => {
           funding: 'http://example.com/b',
           dependencies: {
             d: '^1.0.0',
-            e: '^1.0.0'
-          }
-        })
+            e: '^1.0.0',
+          },
+        }),
       },
       c: {
         'package.json': JSON.stringify({
           name: 'c',
           version: '1.0.0',
-          funding: 'http://example.com/b'
-        })
+          funding: 'http://example.com/b',
+        }),
       },
       d: {
         'package.json': JSON.stringify({
           name: 'd',
           version: '1.0.0',
-          funding: 'http://example.com/d'
-        })
+          funding: 'http://example.com/d',
+        }),
       },
       e: {
         'package.json': JSON.stringify({
           name: 'e',
           version: '1.0.0',
-          funding: 'http://example.com/e'
-        })
-      }
-    }
+          funding: 'http://example.com/e',
+        }),
+      },
+    },
   })
   _flatOptions.color = true
 
@@ -802,8 +806,8 @@ test('sub dep with fund info and a parent with no funding info', t => {
       version: '1.0.0',
       dependencies: {
         a: '^1.0.0',
-        b: '^1.0.0'
-      }
+        b: '^1.0.0',
+      },
     }),
     node_modules: {
       a: {
@@ -811,16 +815,16 @@ test('sub dep with fund info and a parent with no funding info', t => {
           name: 'a',
           version: '1.0.0',
           dependencies: {
-            c: '^1.0.0'
-          }
-        })
+            c: '^1.0.0',
+          },
+        }),
       },
       b: {
         'package.json': JSON.stringify({
           name: 'b',
           version: '1.0.0',
-          funding: 'http://example.com/b'
-        })
+          funding: 'http://example.com/b',
+        }),
       },
       c: {
         'package.json': JSON.stringify({
@@ -828,11 +832,11 @@ test('sub dep with fund info and a parent with no funding info', t => {
           version: '1.0.0',
           funding: [
             'http://example.com/c',
-            'http://example.com/c-other'
-          ]
-        })
-      }
-    }
+            'http://example.com/c-other',
+          ],
+        }),
+      },
+    },
   })
 
   fund([], (err) => {

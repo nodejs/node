@@ -3,7 +3,7 @@ const fileExists = require('../../../lib/utils/file-exists.js')
 
 test('returns true when arg is a file', async (t) => {
   const path = t.testdir({
-    foo: 'just some file'
+    foo: 'just some file',
   })
 
   const result = await fileExists(`${path}/foo`)
@@ -13,7 +13,7 @@ test('returns true when arg is a file', async (t) => {
 
 test('returns false when arg is not a file', async (t) => {
   const path = t.testdir({
-    foo: {}
+    foo: {},
   })
 
   const result = await fileExists(`${path}/foo`)

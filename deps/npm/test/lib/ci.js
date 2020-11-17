@@ -3,7 +3,6 @@ const util = require('util')
 const readdir = util.promisify(fs.readdir)
 
 const { test } = require('tap')
-const { resolve } = require('path')
 
 const requireInject = require('require-inject')
 
@@ -12,9 +11,10 @@ test('should use Arborist', (t) => {
     '../../lib/npm.js': {
       prefix: 'foo',
       flatOptions: {
-        global: false
-      }
+        global: false,
+      },
     },
+    '../../lib/utils/reify-finish.js': async () => {},
     '@npmcli/arborist': function (args) {
       t.ok(args, 'gets options object')
       this.loadVirtual = () => {
@@ -25,19 +25,21 @@ test('should use Arborist', (t) => {
         t.ok(true, 'reify is called')
       }
     },
-    'util': {
-      'inherits': () => {},
-      'promisify': (fn) => fn
+    util: {
+      inherits: () => {},
+      promisify: (fn) => fn,
     },
-    'rimraf': (path) => {
+    rimraf: (path) => {
       t.ok(path, 'rimraf called with path')
       return Promise.resolve(true)
     },
     '../../lib/utils/reify-output.js': function (arb) {
       t.ok(arb, 'gets arborist tree')
-    }
+    },
   })
-  ci(null, () => {
+  ci(null, er => {
+    if (er)
+      throw er
     t.end()
   })
 })
@@ -47,37 +49,42 @@ test('should pass flatOptions to Arborist.reify', (t) => {
     '../../lib/npm.js': {
       prefix: 'foo',
       flatOptions: {
-        production: true
-      }
+        production: true,
+      },
     },
+    '../../lib/utils/reify-finish.js': async () => {},
     '@npmcli/arborist': function () {
       this.loadVirtual = () => Promise.resolve(true)
       this.reify = async (options) => {
         t.equal(options.production, true, 'should pass flatOptions to Arborist.reify')
         t.end()
       }
-    }
+    },
   })
-  ci(null, () => {})
+  ci(null, er => {
+    if (er)
+      throw er
+  })
 })
 
 test('should throw if package-lock.json or npm-shrinkwrap missing', (t) => {
   const testDir = t.testdir({
     'index.js': 'some contents',
-    'package.json': 'some info'
+    'package.json': 'some info',
   })
 
   const ci = requireInject('../../lib/ci.js', {
     '../../lib/npm.js': {
       prefix: testDir,
       flatOptions: {
-        global: false
-      }
+        global: false,
+      },
     },
-    'npmlog': {
+    '../../lib/utils/reify-finish.js': async () => {},
+    npmlog: {
       verbose: () => {
         t.ok(true, 'log fn called')
-      }
+      },
     },
   })
   ci(null, (err, res) => {
@@ -92,9 +99,10 @@ test('should throw ECIGLOBAL', (t) => {
     '../../lib/npm.js': {
       prefix: 'foo',
       flatOptions: {
-        global: true
-      }
-    }
+        global: true,
+      },
+    },
+    '../../lib/utils/reify-finish.js': async () => {},
   })
   ci(null, (err, res) => {
     t.equals(err.code, 'ECIGLOBAL', 'throws error with global packages')
@@ -105,18 +113,19 @@ test('should throw ECIGLOBAL', (t) => {
 
 test('should remove existing node_modules before installing', (t) => {
   const testDir = t.testdir({
-    'node_modules': {
-      'some-file': 'some contents'
-    }
+    node_modules: {
+      'some-file': 'some contents',
+    },
   })
 
   const ci = requireInject('../../lib/ci.js', {
     '../../lib/npm.js': {
       prefix: testDir,
       flatOptions: {
-        global: false
-      }
+        global: false,
+      },
     },
+    '../../lib/utils/reify-finish.js': async () => {},
     '@npmcli/arborist': function () {
       this.loadVirtual = () => Promise.resolve(true)
       this.reify = async (options) => {
@@ -127,8 +136,11 @@ test('should remove existing node_modules before installing', (t) => {
         t.same(nodeModules, ['node_modules'], 'should only have the node_modules directory')
         t.end()
       }
-    }
+    },
   })
 
-  ci(null, () => {})
+  ci(null, er => {
+    if (er)
+      throw er
+  })
 })

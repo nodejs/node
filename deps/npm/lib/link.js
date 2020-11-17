@@ -10,7 +10,7 @@ const semver = require('semver')
 
 const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
-const reifyOutput = require('./utils/reify-output.js')
+const reifyFinish = require('./utils/reify-finish.js')
 
 const completion = (opts, cb) => {
   const dir = npm.globalDir
@@ -122,7 +122,7 @@ const linkInstall = async args => {
     add: names.map(l => `file:${resolve(globalTop, 'node_modules', l)}`),
   })
 
-  reifyOutput(localArb)
+  await reifyFinish(localArb)
 }
 
 const linkPkg = async () => {
@@ -133,7 +133,7 @@ const linkPkg = async () => {
     global: true,
   })
   await arb.reify({ add: [`file:${npm.prefix}`] })
-  reifyOutput(arb)
+  await reifyFinish(arb)
 }
 
 module.exports = Object.assign(cmd, { completion, usage })

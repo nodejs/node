@@ -2,7 +2,7 @@ const requireInject = require('require-inject')
 const t = require('tap')
 const getEscape = win => requireInject('../../../lib/utils/escape-arg.js', {
   '../../../lib/utils/is-windows.js': win,
-  path: require('path')[win ? 'win32' : 'posix']
+  path: require('path')[win ? 'win32' : 'posix'],
 })
 
 const winEscape = getEscape(true)

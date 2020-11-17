@@ -13,12 +13,12 @@ let SPAWN_EXIT_CODE = 0
 let SPAWN_SHELL_EXEC = null
 let SPAWN_SHELL_ARGS = null
 const mockSpawn = (sh, shellArgs, opts) => {
-  if (sh !== 'shell-command') {
+  if (sh !== 'shell-command')
     throw new Error('got wrong shell command')
-  }
-  if (SPAWN_ERROR) {
+
+  if (SPAWN_ERROR)
     return Promise.reject(SPAWN_ERROR)
-  }
+
   SPAWN_SHELL_EXEC = sh
   SPAWN_SHELL_ARGS = shellArgs
   return Promise.resolve({ code: SPAWN_EXIT_CODE })
@@ -29,28 +29,28 @@ let ERROR_HANDLER_CALLED = null
 const getExplore = windows => requireInject('../../lib/explore.js', {
   '../../lib/utils/is-windows.js': windows,
   '../../lib/utils/escape-arg.js': requireInject('../../lib/utils/escape-arg.js', {
-    '../../lib/utils/is-windows.js': windows
+    '../../lib/utils/is-windows.js': windows,
   }),
   path: require('path')[windows ? 'win32' : 'posix'],
   '../../lib/utils/escape-exec-path.js': requireInject('../../lib/utils/escape-arg.js', {
-    '../../lib/utils/is-windows.js': windows
+    '../../lib/utils/is-windows.js': windows,
   }),
   '../../lib/utils/error-handler.js': er => {
     ERROR_HANDLER_CALLED = er
   },
   fs: {
-    stat: mockStat
+    stat: mockStat,
   },
   '../../lib/npm.js': {
     dir: windows ? 'c:\\npm\\dir' : '/npm/dir',
     flatOptions: {
-      shell: 'shell-command'
-    }
+      shell: 'shell-command',
+    },
   },
   '@npmcli/promise-spawn': mockSpawn,
   '../../lib/utils/output.js': out => {
     output.push(out)
-  }
+  },
 })
 
 const windowsExplore = getExplore(true)
@@ -63,42 +63,42 @@ t.test('basic interactive', t => {
   })
 
   t.test('windows', t => windowsExplore(['pkg'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame({
       ERROR_HANDLER_CALLED,
       STAT_CALLED,
       SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS
+      SPAWN_SHELL_ARGS,
     }, {
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED: 'c:\\npm\\dir\\pkg',
       SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: []
+      SPAWN_SHELL_ARGS: [],
     })
     t.strictSame(output, [
-      "\nExploring c:\\npm\\dir\\pkg\nType 'exit' or ^D when finished\n"
+      "\nExploring c:\\npm\\dir\\pkg\nType 'exit' or ^D when finished\n",
     ])
   }))
 
   t.test('posix', t => posixExplore(['pkg'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame({
       ERROR_HANDLER_CALLED,
       STAT_CALLED,
       SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS
+      SPAWN_SHELL_ARGS,
     }, {
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED: '/npm/dir/pkg',
       SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: []
+      SPAWN_SHELL_ARGS: [],
     })
     t.strictSame(output, [
-      "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n"
+      "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n",
     ])
   }))
 
@@ -120,43 +120,43 @@ t.test('interactive tracks exit code', t => {
   })
 
   t.test('windows', t => windowsExplore(['pkg'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame({
       ERROR_HANDLER_CALLED,
       STAT_CALLED,
       SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS
+      SPAWN_SHELL_ARGS,
     }, {
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED: 'c:\\npm\\dir\\pkg',
       SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: []
+      SPAWN_SHELL_ARGS: [],
     })
     t.strictSame(output, [
-      "\nExploring c:\\npm\\dir\\pkg\nType 'exit' or ^D when finished\n"
+      "\nExploring c:\\npm\\dir\\pkg\nType 'exit' or ^D when finished\n",
     ])
     t.equal(process.exitCode, 99)
   }))
 
   t.test('posix', t => posixExplore(['pkg'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame({
       ERROR_HANDLER_CALLED,
       STAT_CALLED,
       SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS
+      SPAWN_SHELL_ARGS,
     }, {
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED: '/npm/dir/pkg',
       SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: []
+      SPAWN_SHELL_ARGS: [],
     })
     t.strictSame(output, [
-      "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n"
+      "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n",
     ])
     t.equal(process.exitCode, 99)
   }))
@@ -166,14 +166,14 @@ t.test('interactive tracks exit code', t => {
       SPAWN_ERROR = null
     })
     SPAWN_ERROR = Object.assign(new Error('glorb'), {
-      code: 33
+      code: 33,
     })
     return posixExplore(['pkg'], er => {
-      if (er) {
+      if (er)
         throw er
-      }
+
       t.strictSame(output, [
-        "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n"
+        "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n",
       ])
       t.equal(process.exitCode, 33)
     })
@@ -189,14 +189,14 @@ t.test('basic non-interactive', t => {
   })
 
   t.test('windows', t => windowsExplore(['pkg', 'ls'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame({
       ERROR_HANDLER_CALLED,
       STAT_CALLED,
       SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS
+      SPAWN_SHELL_ARGS,
     }, {
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED: 'c:\\npm\\dir\\pkg',
@@ -206,25 +206,25 @@ t.test('basic non-interactive', t => {
         '/s',
         '/c',
         '"ls"',
-      ]
+      ],
     })
     t.strictSame(output, [])
   }))
 
   t.test('posix', t => posixExplore(['pkg', 'ls'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame({
       ERROR_HANDLER_CALLED,
       STAT_CALLED,
       SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS
+      SPAWN_SHELL_ARGS,
     }, {
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED: '/npm/dir/pkg',
       SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: ['-c', 'ls']
+      SPAWN_SHELL_ARGS: ['-c', 'ls'],
     })
     t.strictSame(output, [])
   }))
@@ -239,19 +239,19 @@ t.test('usage if no pkg provided', t => {
   })
   t.plan(1)
   posixExplore([], er => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame({
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED,
       SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS
+      SPAWN_SHELL_ARGS,
     }, {
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED: '/npm/dir/pkg',
       SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: ['-c', 'ls']
+      SPAWN_SHELL_ARGS: ['-c', 'ls'],
     })
   }).catch(er => t.equal(er, 'npm explore <pkg> [ -- <command>]'))
 })
@@ -261,19 +261,19 @@ t.test('pkg not installed', t => {
   t.plan(1)
 
   posixExplore(['pkg', 'ls'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame({
       ERROR_HANDLER_CALLED,
       STAT_CALLED,
       SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS
+      SPAWN_SHELL_ARGS,
     }, {
       ERROR_HANDLER_CALLED: null,
       STAT_CALLED: '/npm/dir/pkg',
       SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: ['-c', 'ls']
+      SPAWN_SHELL_ARGS: ['-c', 'ls'],
     })
     t.strictSame(output, [])
   }).catch(er => {

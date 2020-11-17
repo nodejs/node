@@ -5,7 +5,7 @@ const npm = require('./npm.js')
 const rpj = require('read-package-json-fast')
 const { resolve } = require('path')
 const usageUtil = require('./utils/usage.js')
-const reifyOutput = require('./utils/reify-output.js')
+const reifyFinish = require('./utils/reify-finish.js')
 
 const cmd = (args, cb) => rm(args).then(() => cb()).catch(cb)
 
@@ -32,7 +32,7 @@ const rm = async args => {
     ...npm.flatOptions,
     rm: args,
   })
-  reifyOutput(arb)
+  await reifyFinish(arb)
 }
 
 const usage = usageUtil(

@@ -2,7 +2,7 @@ const Arborist = require('@npmcli/arborist')
 const auditReport = require('npm-audit-report')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
-const reifyOutput = require('./utils/reify-output.js')
+const reifyFinish = require('./utils/reify-finish.js')
 const auditError = require('./utils/audit-error.js')
 
 const audit = async args => {
@@ -14,7 +14,7 @@ const audit = async args => {
   const fix = args[0] === 'fix'
   await arb.audit({ fix })
   if (fix)
-    reifyOutput(arb)
+    await reifyFinish(arb)
   else {
     // will throw if there's an error, because this is an audit command
     auditError(arb.auditReport)

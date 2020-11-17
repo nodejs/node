@@ -9,7 +9,7 @@ test('bin', (t) => {
     '../../lib/npm.js': { bin: dir, flatOptions: { global: false } },
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
-    }
+    },
   })
 
   bin([], (err) => {
@@ -35,7 +35,7 @@ test('bin -g', (t) => {
     '../../lib/utils/path.js': [dir],
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
-    }
+    },
   })
 
   bin([], (err) => {
@@ -61,7 +61,7 @@ test('bin -g (not in path)', (t) => {
     '../../lib/utils/path.js': ['/not/my/dir'],
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
-    }
+    },
   })
 
   bin([], (err) => {

@@ -1,5 +1,5 @@
 {
-  "version": "7.0.11",
+  "version": "7.0.12",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -45,7 +45,7 @@
     "@npmcli/arborist": "^1.0.11",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^1.2.1",
-    "@npmcli/run-script": "^1.7.5",
+    "@npmcli/run-script": "^1.8.0",
     "abbrev": "~1.1.1",
     "ansicolors": "~0.3.2",
     "ansistyles": "~0.1.3",
@@ -189,7 +189,7 @@
     "jsdom": "^16.4.0",
     "marked-man": "^0.7.0",
     "require-inject": "^1.4.4",
-    "tap": "^14.10.8",
+    "tap": "^14.11.0",
     "yaml": "^1.10.0"
   },
   "scripts": {
@@ -205,9 +205,11 @@
     "posttest": "npm run lint",
     "eslint": "eslint",
     "lint": "npm run eslint -- \"lib/**/*.js\"",
+    "linttest": "npm run eslint -- test/lib test/bin --fix",
     "lintfix": "npm run lint -- --fix",
     "prelint": "rimraf test/npm_cache*",
-    "resetdeps": "bash scripts/resetdeps.sh"
+    "resetdeps": "bash scripts/resetdeps.sh",
+    "prepublishOnly": "npm run lint && npm run linttest"
   },
   "//": [
     "XXX temporarily only run unit tests while v7 beta is in progress",

@@ -14,17 +14,17 @@ test('should install using Arborist', (t) => {
       globalDir: 'path/to/node_modules/',
       prefix: 'foo',
       flatOptions: {
-        global: false
+        global: false,
       },
       config: {
-        get: () => true
-      }
+        get: () => true,
+      },
     },
     '@npmcli/run-script': ({ event }) => {
       SCRIPTS.push(event)
     },
-    'npmlog': {
-      warn: () => {}
+    npmlog: {
+      warn: () => {},
     },
     '@npmcli/arborist': function (args) {
       ARB_ARGS = args
@@ -33,15 +33,16 @@ test('should install using Arborist', (t) => {
         REIFY_CALLED = true
       }
     },
-    '../../lib/utils/reify-output.js': arb => {
-      if (arb !== ARB_OBJ) {
-        throw new Error('got wrong object passed to reify-output')
-      }
-    }
+    '../../lib/utils/reify-finish.js': arb => {
+      if (arb !== ARB_OBJ)
+        throw new Error('got wrong object passed to reify-finish')
+    },
   })
 
   t.test('with args', t => {
-    install(['fizzbuzz'], () => {
+    install(['fizzbuzz'], er => {
+      if (er)
+        throw er
       t.match(ARB_ARGS, { global: false, path: 'foo' })
       t.equal(REIFY_CALLED, true, 'called reify')
       t.strictSame(SCRIPTS, [], 'no scripts when adding dep')
@@ -50,7 +51,9 @@ test('should install using Arborist', (t) => {
   })
 
   t.test('just a local npm install', t => {
-    install([], () => {
+    install([], er => {
+      if (er)
+        throw er
       t.match(ARB_ARGS, { global: false, path: 'foo' })
       t.equal(REIFY_CALLED, true, 'called reify')
       t.strictSame(SCRIPTS, [
@@ -60,7 +63,7 @@ test('should install using Arborist', (t) => {
         'prepublish',
         'preprepare',
         'prepare',
-        'postprepare'
+        'postprepare',
       ], 'exec scripts when doing local build')
       t.end()
     })
@@ -71,42 +74,45 @@ test('should install using Arborist', (t) => {
 
 test('should install globally using Arborist', (t) => {
   const install = requireInject('../../lib/install.js', {
+    '../../lib/utils/reify-finish.js': async () => {},
     '../../lib/npm.js': {
       globalDir: 'path/to/node_modules/',
       prefix: 'foo',
       flatOptions: {
-        'global': 'true',
+        global: 'true',
       },
       config: {
-        get: () => false
-      }
+        get: () => false,
+      },
     },
     '@npmcli/arborist': function () {
       this.reify = () => {}
     },
   })
-  install([], () => {
+  install([], er => {
+    if (er)
+      throw er
     t.end()
   })
 })
 
 test('completion to folder', (t) => {
   const install = requireInject('../../lib/install.js', {
-    'util': {
-      'promisify': (fn) => fn
+    '../../lib/utils/reify-finish.js': async () => {},
+    util: {
+      promisify: (fn) => fn,
     },
-    'fs': {
-      'readdir': (path) => {
-        if (path === '/') {
+    fs: {
+      readdir: (path) => {
+        if (path === '/')
           return ['arborist']
-        } else {
+        else
           return ['package.json']
-        }
-      }
-    }
+      },
+    },
   })
   install.completion({
-    partialWord: '/ar'
+    partialWord: '/ar',
   }, (er, res) => {
     t.equal(er, null)
     const expect = process.platform === 'win32' ? '\\arborist' : '/arborist'
@@ -117,17 +123,18 @@ test('completion to folder', (t) => {
 
 test('completion to folder - invalid dir', (t) => {
   const install = requireInject('../../lib/install.js', {
-    'util': {
-      'promisify': (fn) => fn
+    '../../lib/utils/reify-finish.js': async () => {},
+    util: {
+      promisify: (fn) => fn,
     },
-    'fs': {
-      'readdir': () => {
+    fs: {
+      readdir: () => {
         throw new Error('EONT')
-      }
-    }
+      },
+    },
   })
   install.completion({
-    partialWord: 'path/to/folder'
+    partialWord: 'path/to/folder',
   }, (er, res) => {
     t.equal(er, null)
     t.strictSame(res, [], 'invalid dir: no matching')
@@ -137,17 +144,18 @@ test('completion to folder - invalid dir', (t) => {
 
 test('completion to folder - no matches', (t) => {
   const install = requireInject('../../lib/install.js', {
-    'util': {
-      'promisify': (fn) => fn
+    '../../lib/utils/reify-finish.js': async () => {},
+    util: {
+      promisify: (fn) => fn,
     },
-    'fs': {
-      'readdir': (path) => {
+    fs: {
+      readdir: (path) => {
         return ['foobar']
-      }
-    }
+      },
+    },
   })
   install.completion({
-    partialWord: '/pa'
+    partialWord: '/pa',
   }, (er, res) => {
     t.equal(er, null)
     t.strictSame(res, [], 'no name match')
@@ -157,21 +165,21 @@ test('completion to folder - no matches', (t) => {
 
 test('completion to folder - match is not a package', (t) => {
   const install = requireInject('../../lib/install.js', {
-    'util': {
-      'promisify': (fn) => fn
+    '../../lib/utils/reify-finish.js': async () => {},
+    util: {
+      promisify: (fn) => fn,
     },
-    'fs': {
-      'readdir': (path) => {
-        if (path === '/') {
+    fs: {
+      readdir: (path) => {
+        if (path === '/')
           return ['arborist']
-        } else {
+        else
           throw new Error('EONT')
-        }
-      }
-    }
+      },
+    },
   })
   install.completion({
-    partialWord: '/ar'
+    partialWord: '/ar',
   }, (er, res) => {
     t.equal(er, null)
     t.strictSame(res, [], 'no name match')
@@ -181,7 +189,7 @@ test('completion to folder - match is not a package', (t) => {
 
 test('completion to url', (t) => {
   install.completion({
-    partialWord: 'http://path/to/url'
+    partialWord: 'http://path/to/url',
   }, (er, res) => {
     t.equal(er, null)
     t.strictSame(res, [])
@@ -191,7 +199,7 @@ test('completion to url', (t) => {
 
 test('completion', (t) => {
   install.completion({
-    partialWord: 'toto'
+    partialWord: 'toto',
   }, (er, res) => {
     t.notOk(er)
     t.notOk(res)
