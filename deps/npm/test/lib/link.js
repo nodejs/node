@@ -20,8 +20,10 @@ const npm = {
   prefix: null,
   flatOptions: {},
   config: {
-    get () { return false }
-  }
+    get () {
+      return false
+    },
+  },
 }
 const printLinks = async (opts) => {
   let res = ''
@@ -30,16 +32,15 @@ const printLinks = async (opts) => {
   const linkedItems = [...tree.inventory.values()]
     .sort((a, b) => a.pkgid.localeCompare(b.pkgid))
   for (const item of linkedItems) {
-    if (item.target) {
+    if (item.target)
       res += `${item.path} -> ${item.target.path}\n`
-    }
   }
   return res
 }
 
 const mocks = {
   '../../lib/npm.js': npm,
-  '../../lib/utils/reify-output.js': () => reifyOutput()
+  '../../lib/utils/reify-output.js': () => reifyOutput(),
 }
 
 const link = requireInject('../../lib/link.js', mocks)
@@ -54,18 +55,18 @@ t.test('link to globalDir when in current working dir of pkg and no args', (t) =
           a: {
             'package.json': JSON.stringify({
               name: 'a',
-              version: '1.0.0'
-            })
-          }
-        }
-      }
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
     },
     'test-pkg-link': {
       'package.json': JSON.stringify({
         name: 'test-pkg-link',
-        version: '1.0.0'
-      })
-    }
+        version: '1.0.0',
+      }),
+    },
   })
   npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
   npm.prefix = resolve(testdir, 'test-pkg-link')
@@ -75,7 +76,7 @@ t.test('link to globalDir when in current working dir of pkg and no args', (t) =
 
     const links = await printLinks({
       path: resolve(npm.globalDir, '..'),
-      global: true
+      global: true,
     })
 
     t.matchSnapshot(links, 'should create a global link to current pkg')
@@ -97,68 +98,68 @@ t.test('link global linked pkg to local nm when using args', (t) => {
             foo: {
               'package.json': JSON.stringify({
                 name: '@myscope/foo',
-                version: '1.0.0'
-              })
+                version: '1.0.0',
+              }),
             },
             bar: {
               'package.json': JSON.stringify({
                 name: '@myscope/bar',
-                version: '1.0.0'
-              })
+                version: '1.0.0',
+              }),
             },
-            linked: t.fixture('symlink', '../../../../scoped-linked')
+            linked: t.fixture('symlink', '../../../../scoped-linked'),
           },
           a: {
             'package.json': JSON.stringify({
               name: 'a',
-              version: '1.0.0'
-            })
+              version: '1.0.0',
+            }),
           },
           b: {
             'package.json': JSON.stringify({
               name: 'b',
-              version: '1.0.0'
-            })
+              version: '1.0.0',
+            }),
           },
-          'test-pkg-link': t.fixture('symlink', '../../../test-pkg-link')
-        }
-      }
+          'test-pkg-link': t.fixture('symlink', '../../../test-pkg-link'),
+        },
+      },
     },
     'test-pkg-link': {
       'package.json': JSON.stringify({
         name: 'test-pkg-link',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     'link-me-too': {
       'package.json': JSON.stringify({
         name: 'link-me-too',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     'scoped-linked': {
       'package.json': JSON.stringify({
         name: '@myscope/linked',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     'my-project': {
       'package.json': JSON.stringify({
         name: 'my-project',
         version: '1.0.0',
         dependencies: {
-          foo: '^1.0.0'
-        }
+          foo: '^1.0.0',
+        },
       }),
       node_modules: {
         foo: {
           'package.json': JSON.stringify({
             name: 'foo',
-            version: '1.0.0'
-          })
-        }
-      }
-    }
+            version: '1.0.0',
+          }),
+        },
+      },
+    },
   })
   npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
   npm.prefix = resolve(testdir, 'my-project')
@@ -171,7 +172,7 @@ t.test('link global linked pkg to local nm when using args', (t) => {
     process.chdir(_cwd)
 
     const links = await printLinks({
-      path: npm.prefix
+      path: npm.prefix,
     })
 
     t.matchSnapshot(links, 'should create a local symlink to global pkg')
@@ -188,7 +189,7 @@ t.test('link global linked pkg to local nm when using args', (t) => {
     '@myscope/linked',
     '@myscope/bar',
     'a',
-    'file:../link-me-too'
+    'file:../link-me-too',
   ], (err) => {
     t.ifError(err, 'should not error out')
   })
@@ -202,23 +203,23 @@ t.test('link pkg already in global space', (t) => {
       lib: {
         node_modules: {
           '@myscope': {
-            linked: t.fixture('symlink', '../../../../scoped-linked')
-          }
-        }
-      }
+            linked: t.fixture('symlink', '../../../../scoped-linked'),
+          },
+        },
+      },
     },
     'scoped-linked': {
       'package.json': JSON.stringify({
         name: '@myscope/linked',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     'my-project': {
       'package.json': JSON.stringify({
         name: 'my-project',
-        version: '1.0.0'
-      })
-    }
+        version: '1.0.0',
+      }),
+    },
   })
   npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
   npm.prefix = resolve(testdir, 'my-project')
@@ -231,7 +232,7 @@ t.test('link pkg already in global space', (t) => {
     process.chdir(_cwd)
 
     const links = await printLinks({
-      path: npm.prefix
+      path: npm.prefix,
     })
 
     t.matchSnapshot(links, 'should create a local symlink to global pkg')
@@ -256,10 +257,10 @@ t.test('completion', (t) => {
           foo: {},
           bar: {},
           lorem: {},
-          ipsum: {}
-        }
-      }
-    }
+          ipsum: {},
+        },
+      },
+    },
   })
   npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
 
@@ -276,7 +277,9 @@ t.test('completion', (t) => {
 
 t.test('--global option', (t) => {
   const _config = npm.config
-  npm.config = { get () { return true } }
+  npm.config = { get () {
+    return true
+  } }
   link([], (err) => {
     npm.config = _config
 

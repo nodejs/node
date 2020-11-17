@@ -11,7 +11,7 @@ test('pings', async (t) => {
       t.equal(url, '/-/ping?write=true', 'calls the correct url')
       t.equal(opts, options, 'passes through options')
       return { json: () => Promise.resolve(response) }
-    }
+    },
   })
 
   const res = await ping(options)
@@ -28,7 +28,7 @@ test('catches errors and returns empty json', async (t) => {
       t.equal(url, '/-/ping?write=true', 'calls the correct url')
       t.equal(opts, options, 'passes through options')
       return { json: () => Promise.reject(response) }
-    }
+    },
   })
 
   const res = await ping(options)

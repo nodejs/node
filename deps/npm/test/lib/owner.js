@@ -16,17 +16,19 @@ const mocks = {
   'npm-registry-fetch': npmFetch,
   pacote,
   '../../lib/npm.js': npm,
-  '../../lib/utils/output.js': (...msg) => { result += msg.join('\n') },
+  '../../lib/utils/output.js': (...msg) => {
+    result += msg.join('\n')
+  },
   '../../lib/utils/otplease.js': async (opts, fn) => fn({ otp: '123456', opts }),
   '../../lib/utils/read-local-package.js': async () => readLocalPkgResponse,
-  '../../lib/utils/usage.js': () => 'usage instructions'
+  '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 const npmcliMaintainers = [
   { email: 'quitlahok@gmail.com', name: 'nlf' },
   { email: 'ruyadorno@hotmail.com', name: 'ruyadorno' },
   { email: 'darcy@darcyclarke.me', name: 'darcyclarke' },
-  { email: 'i@izs.me', name: 'isaacs' }
+  { email: 'i@izs.me', name: 'isaacs' },
 ]
 
 const owner = requireInject('../../lib/owner.js', mocks)
@@ -59,7 +61,7 @@ t.test('owner ls no args', t => {
       opts,
       {
         ...npm.flatOptions,
-        fullMetadata: true
+        fullMetadata: true,
       },
       'should forward expected options to pacote.packument'
     )
@@ -132,7 +134,7 @@ t.test('owner ls <pkg>', t => {
       opts,
       {
         ...npm.flatOptions,
-        fullMetadata: true
+        fullMetadata: true,
       },
       'should forward expected options to pacote.packument'
     )
@@ -178,7 +180,7 @@ t.test('owner add <user> <pkg>', t => {
       return {
         _id: 'org.couchdb.user:foo',
         email: 'foo@github.com',
-        name: 'foo'
+        name: 'foo',
       }
     } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
       t.ok('should put changed owner')
@@ -187,12 +189,12 @@ t.test('owner add <user> <pkg>', t => {
         method: 'PUT',
         body: {
           _rev: '1-foobaaa1',
-          maintainers: npmcliMaintainers
+          maintainers: npmcliMaintainers,
         },
         otp: '123456',
         spec: {
-          name: '@npmcli/map-workspaces'
-        }
+          name: '@npmcli/map-workspaces',
+        },
       }, 'should use expected opts')
       t.deepEqual(
         opts.body.maintainers,
@@ -200,15 +202,14 @@ t.test('owner add <user> <pkg>', t => {
           ...npmcliMaintainers,
           {
             name: 'foo',
-            email: 'foo@github.com'
-          }
+            email: 'foo@github.com',
+          },
         ],
         'should contain expected new owners, adding requested user'
       )
       return {}
-    } else {
+    } else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => {
     t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
@@ -216,13 +217,13 @@ t.test('owner add <user> <pkg>', t => {
       opts,
       {
         ...npm.flatOptions,
-        fullMetadata: true
+        fullMetadata: true,
       },
       'should forward expected options to pacote.packument'
     )
     return {
       _rev: '1-foobaaa1',
-      maintainers: npmcliMaintainers
+      maintainers: npmcliMaintainers,
     }
   }
   t.teardown(() => {
@@ -246,17 +247,16 @@ t.test('owner add <user> cwd package', t => {
       return {
         _id: 'org.couchdb.user:foo',
         email: 'foo@github.com',
-        name: 'foo'
+        name: 'foo',
       }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
+    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1')
       return {}
-    } else {
+    else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers
+    maintainers: npmcliMaintainers,
   })
   t.teardown(() => {
     result = ''
@@ -290,16 +290,15 @@ t.test('owner add <user> <pkg> already an owner', t => {
       return {
         _id: 'org.couchdb.user:ruyadorno',
         email: 'ruyadorno@hotmail.com',
-        name: 'ruyadorno'
+        name: 'ruyadorno',
       }
-    } else {
+    } else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => {
     return {
       _rev: '1-foobaaa1',
-      maintainers: npmcliMaintainers
+      maintainers: npmcliMaintainers,
     }
   }
   t.teardown(() => {
@@ -319,17 +318,16 @@ t.test('owner add <user> <pkg> fails to retrieve user', t => {
   readLocalPkgResponse =
   npmFetch.json = async (uri, opts) => {
     // retrieve borked user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo') {
+    if (uri === '/-/user/org.couchdb.user:foo')
       return { ok: false }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
+    else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1')
       return {}
-    } else {
+    else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers
+    maintainers: npmcliMaintainers,
   })
   t.teardown(() => {
     result = ''
@@ -357,22 +355,21 @@ t.test('owner add <user> <pkg> fails to PUT updates', t => {
       return {
         _id: 'org.couchdb.user:foo',
         email: 'foo@github.com',
-        name: 'foo'
+        name: 'foo',
       }
     } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
       return {
         error: {
           status: '418',
-          message: "I'm a teapot"
-        }
+          message: "I'm a teapot",
+        },
       }
-    } else {
+    } else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers
+    maintainers: npmcliMaintainers,
   })
   t.teardown(() => {
     result = ''
@@ -406,13 +403,12 @@ t.test('owner add <user> <pkg> fails to retrieve user info', t => {
         new Error("I'm a teapot"),
         { status: 418 }
       )
-    } else {
+    } else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers
+    maintainers: npmcliMaintainers,
   })
   t.teardown(() => {
     result = ''
@@ -438,18 +434,17 @@ t.test('owner add <user> <pkg> no previous maintainers property from server', t 
       return {
         _id: 'org.couchdb.user:foo',
         email: 'foo@github.com',
-        name: 'foo'
+        name: 'foo',
       }
-    } else if (uri === '/@npmcli%2fno-owners-pkg/-rev/1-foobaaa1') {
+    } else if (uri === '/@npmcli%2fno-owners-pkg/-rev/1-foobaaa1')
       return {}
-    } else {
+    else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => {
     return {
       _rev: '1-foobaaa1',
-      maintainers: null
+      maintainers: null,
     }
   }
   t.teardown(() => {
@@ -509,7 +504,7 @@ t.test('owner rm <user> <pkg>', t => {
       return {
         _id: 'org.couchdb.user:ruyadorno',
         email: 'ruyadorno@hotmail.com',
-        name: 'ruyadorno'
+        name: 'ruyadorno',
       }
     } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
       t.ok('should put changed owner')
@@ -517,12 +512,12 @@ t.test('owner rm <user> <pkg>', t => {
         ...npm.flatOptions,
         method: 'PUT',
         body: {
-          _rev: '1-foobaaa1'
+          _rev: '1-foobaaa1',
         },
         otp: '123456',
         spec: {
-          name: '@npmcli/map-workspaces'
-        }
+          name: '@npmcli/map-workspaces',
+        },
       }, 'should use expected opts')
       t.deepEqual(
         opts.body.maintainers,
@@ -530,9 +525,8 @@ t.test('owner rm <user> <pkg>', t => {
         'should contain expected new owners, removing requested user'
       )
       return {}
-    } else {
+    } else
       t.fail(`unexpected fetch json call to: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => {
     t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
@@ -540,13 +534,13 @@ t.test('owner rm <user> <pkg>', t => {
       opts,
       {
         ...npm.flatOptions,
-        fullMetadata: true
+        fullMetadata: true,
       },
       'should forward expected options to pacote.packument'
     )
     return {
       _rev: '1-foobaaa1',
-      maintainers: npmcliMaintainers
+      maintainers: npmcliMaintainers,
     }
   }
   t.teardown(() => {
@@ -575,18 +569,17 @@ t.test('owner rm <user> <pkg> not a current owner', t => {
       return {
         _id: 'org.couchdb.user:foo',
         email: 'foo@github.com',
-        name: 'foo'
+        name: 'foo',
       }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
+    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1')
       return {}
-    } else {
+    else
       t.fail(`unexpected fetch json call to: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => {
     return {
       _rev: '1-foobaaa1',
-      maintainers: npmcliMaintainers
+      maintainers: npmcliMaintainers,
     }
   }
   t.teardown(() => {
@@ -610,17 +603,16 @@ t.test('owner rm <user> cwd package', t => {
       return {
         _id: 'org.couchdb.user:ruyadorno',
         email: 'ruyadorno@hotmail.com',
-        name: 'ruyadorno'
+        name: 'ruyadorno',
       }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
+    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1')
       return {}
-    } else {
+    else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers
+    maintainers: npmcliMaintainers,
   })
   t.teardown(() => {
     result = ''
@@ -645,18 +637,17 @@ t.test('owner rm <user> only user', t => {
       return {
         _id: 'org.couchdb.user:ruyadorno',
         email: 'ruyadorno@hotmail.com',
-        name: 'ruyadorno'
+        name: 'ruyadorno',
       }
-    } else {
+    } else
       t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
     maintainers: [{
       name: 'ruyadorno',
-      email: 'ruyadorno@hotmail.com'
-    }]
+      email: 'ruyadorno@hotmail.com',
+    }],
   })
   t.teardown(() => {
     result = ''
@@ -722,7 +713,7 @@ t.test('completion', t => {
   testComp(['npm', 'owner'], [
     'add',
     'rm',
-    'ls'
+    'ls',
   ])
   testComp(['npm', 'owner', 'add'], [])
   testComp(['npm', 'owner', 'ls'], [])
@@ -735,7 +726,7 @@ t.test('completion', t => {
     pacote.packument = async spec => {
       t.equal(spec.name, readLocalPkgResponse, 'should use package spec')
       return {
-        maintainers: npmcliMaintainers
+        maintainers: npmcliMaintainers,
       }
     }
     t.teardown(() => {
@@ -751,7 +742,7 @@ t.test('completion', t => {
           'nlf',
           'ruyadorno',
           'darcyclarke',
-          'isaacs'
+          'isaacs',
         ],
         'should return list of current owners'
       )
@@ -772,7 +763,7 @@ t.test('completion', t => {
     pacote.packument = async spec => {
       t.equal(spec.name, readLocalPkgResponse, 'should use package spec')
       return {
-        maintainers: []
+        maintainers: [],
       }
     }
     t.teardown(() => {

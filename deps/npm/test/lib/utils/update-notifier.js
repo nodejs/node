@@ -22,15 +22,15 @@ const pacote = {
       process.exit(1)
     }
     MANIFEST_REQUEST.push(spec)
-    if (PACOTE_ERROR) {
+    if (PACOTE_ERROR)
       throw PACOTE_ERROR
-    }
+
     return {
       version: spec === 'npm@latest' ? CURRENT_VERSION
-        : /-/.test(spec) ? CURRENT_BETA
-        : NEXT_VERSION
+      : /-/.test(spec) ? CURRENT_BETA
+      : NEXT_VERSION,
     }
-  }
+  },
 }
 
 const npm = {
@@ -38,13 +38,12 @@ const npm = {
   log: { useColor: () => true },
   version: CURRENT_VERSION,
   config: { get: (k) => k !== 'global' },
-  flatOptions,
   command: 'view',
-  argv: ['npm']
+  argv: ['npm'],
 }
 const npmNoColor = {
   ...npm,
-  log: { useColor: () => false }
+  log: { useColor: () => false },
 }
 
 const { basename } = require('path')
@@ -70,16 +69,14 @@ const fs = {
       process.exit(1)
     }
     process.nextTick(() => cb(WRITE_ERROR))
-  }
+  },
 }
 
 const updateNotifier = requireInject('../../../lib/utils/update-notifier.js', {
   '@npmcli/ci-detect': () => ciMock,
   pacote,
-  fs
+  fs,
 })
-
-const semver = require('semver')
 
 t.afterEach(cb => {
   MANIFEST_REQUEST.length = 0
@@ -94,7 +91,7 @@ t.test('situations in which we do not notify', t => {
   t.test('nothing to do if notifier disabled', async t => {
     t.equal(await updateNotifier({
       ...npm,
-      config: { get: (k) => k === 'update-notifier' ? false : true }
+      config: { get: (k) => k !== 'update-notifier' },
     }), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })
@@ -104,7 +101,7 @@ t.test('situations in which we do not notify', t => {
       ...npm,
       flatOptions: { ...flatOptions, global: true },
       command: 'install',
-      argv: ['npm']
+      argv: ['npm'],
     }), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })
@@ -140,7 +137,9 @@ t.test('situations in which we do not notify', t => {
   })
 
   t.test('do not update in CI', async t => {
-    t.teardown(() => { ciMock = null })
+    t.teardown(() => {
+      ciMock = null
+    })
     ciMock = 'something'
     t.equal(await updateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
@@ -148,14 +147,14 @@ t.test('situations in which we do not notify', t => {
 
   t.test('only check weekly for GA releases', async t => {
     // the 10 is fuzz factor for test environment
-    STAT_MTIME = Date.now() - (1000*60*60*24*7) + 10
+    STAT_MTIME = Date.now() - (1000 * 60 * 60 * 24 * 7) + 10
     t.equal(await updateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })
 
   t.test('only check daily for betas', async t => {
     // the 10 is fuzz factor for test environment
-    STAT_MTIME = Date.now() - (1000*60*60*24) + 10
+    STAT_MTIME = Date.now() - (1000 * 60 * 60 * 24) + 10
     t.equal(await updateNotifier({ ...npm, version: HAVE_BETA }), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })

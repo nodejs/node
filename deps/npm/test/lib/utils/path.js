@@ -3,7 +3,7 @@ const requireInject = require('require-inject')
 const mod = '../../../lib/utils/path.js'
 const delim = require('../../../lib/utils/is-windows.js') ? ';' : ':'
 Object.defineProperty(process, 'env', {
-  value: {}
+  value: {},
 })
 process.env.path = ['foo', 'bar', 'baz'].join(delim)
 t.strictSame(requireInject(mod), ['foo', 'bar', 'baz'])

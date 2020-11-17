@@ -3,9 +3,9 @@ const requireInject = require('require-inject')
 const lifecycleCmd = requireInject('../../../lib/utils/lifecycle-cmd.js', {
   '../../../lib/npm.js': {
     commands: {
-      run: (args, cb) => cb(null, 'called npm.commands.run')
-    }
-  }
+      run: (args, cb) => cb(null, 'called npm.commands.run'),
+    },
+  },
 })
 
 t.test('create a lifecycle command', t => {

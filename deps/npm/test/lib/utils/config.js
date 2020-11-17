@@ -4,25 +4,25 @@ Object.defineProperty(process, 'umask', {
   value: () => 0o26,
   writable: true,
   configurable: true,
-  enumerable: true
+  enumerable: true,
 })
 
 // have to fake the node version, or else it'll only pass on this one
 Object.defineProperty(process, 'version', {
-  value: 'v14.8.0'
+  value: 'v14.8.0',
 })
 
 t.formatSnapshot = obj => {
-  if (typeof obj !== 'object' || !obj || !obj.types) {
+  if (typeof obj !== 'object' || !obj || !obj.types)
     return obj
-  }
+
   return {
     ...obj,
     defaults: {
       ...obj.defaults,
-      cache: '{CACHE DIR} ' + path.basename(obj.defaults.cache)
+      cache: '{CACHE DIR} ' + path.basename(obj.defaults.cache),
     },
-    types: formatTypes(obj.types)
+    types: formatTypes(obj.types),
   }
 }
 
@@ -38,19 +38,18 @@ const formatTypes = (types) => Object.entries(types).map(([key, value]) => {
 }, {})
 
 const formatTypeValue = (value) => {
-  if (Array.isArray(value)) {
+  if (Array.isArray(value))
     return value.map(formatTypeValue)
-  } else if (value === url) {
+  else if (value === url)
     return '{URL MODULE}'
-  } else if (value === path) {
+  else if (value === path)
     return '{PATH MODULE}'
-  } else if (value === semver) {
+  else if (value === semver)
     return '{SEMVER MODULE}'
-  } else if (typeof value === 'function') {
+  else if (typeof value === 'function')
     return `{${value.name} TYPE}`
-  } else {
+  else
     return value
-  }
 }
 
 process.env.ComSpec = 'cmd.exe'
@@ -65,8 +64,8 @@ const networkInterfacesThrow = () => {
   throw new Error('no network interfaces for some reason')
 }
 const networkInterfaces = () => ({
-  'eth420': [{ address: '127.0.0.1' }],
-  'eth69': [{ address: 'no place like home' }]
+  eth420: [{ address: '127.0.0.1' }],
+  eth69: [{ address: 'no place like home' }],
 })
 const tmpdir = () => '/tmp'
 const os = { networkInterfaces, tmpdir }
@@ -77,7 +76,7 @@ t.test('working network interfaces, not windows', t => {
     os,
     '@npmcli/ci-detect': () => false,
     '../../../lib/utils/is-windows.js': false,
-    '../../../package.json': pkg
+    '../../../package.json': pkg,
   })
   t.matchSnapshot(config)
   t.end()
@@ -88,7 +87,7 @@ t.test('no working network interfaces, on windows', t => {
     os: { tmpdir, networkInterfaces: networkInterfacesThrow },
     '@npmcli/ci-detect': () => false,
     '../../../lib/utils/is-windows.js': true,
-    '../../../package.json': pkg
+    '../../../package.json': pkg,
   })
   t.matchSnapshot(config)
   t.end()
@@ -99,21 +98,21 @@ t.test('no process.umask() method', t => {
     value: null,
     writable: true,
     configurable: true,
-    enumerable: true
+    enumerable: true,
   })
   t.teardown(() => {
     Object.defineProperty(process, 'umask', {
       value: () => 0o26,
       writable: true,
       configurable: true,
-      enumerable: true
+      enumerable: true,
     })
   })
   const config = requireInject('../../../lib/utils/config.js', {
     os: { tmpdir, networkInterfaces: networkInterfacesThrow },
     '@npmcli/ci-detect': () => false,
     '../../../lib/utils/is-windows.js': true,
-    '../../../package.json': pkg
+    '../../../package.json': pkg,
   })
   t.equal(config.defaults.umask, 0o22)
   t.matchSnapshot(config)
@@ -125,7 +124,7 @@ t.test('no comspec on windows', t => {
   const config = requireInject('../../../lib/utils/config.js', {
     os: { tmpdir, networkInterfaces: networkInterfacesThrow },
     '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': true
+    '../../../lib/utils/is-windows.js': true,
   })
   t.equal(config.defaults.shell, 'cmd')
   t.end()
@@ -136,7 +135,7 @@ t.test('no shell on posix', t => {
   const config = requireInject('../../../lib/utils/config.js', {
     os,
     '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': false
+    '../../../lib/utils/is-windows.js': false,
   })
   t.equal(config.defaults.shell, 'sh')
   t.end()
@@ -147,7 +146,7 @@ t.test('no EDITOR env, use VISUAL', t => {
   const config = requireInject('../../../lib/utils/config.js', {
     os,
     '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': false
+    '../../../lib/utils/is-windows.js': false,
   })
   t.equal(config.defaults.editor, 'mate')
   t.end()
@@ -158,7 +157,7 @@ t.test('no VISUAL, use system default, not windows', t => {
   const config = requireInject('../../../lib/utils/config.js', {
     os,
     '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': false
+    '../../../lib/utils/is-windows.js': false,
   })
   t.equal(config.defaults.editor, 'vi')
   t.end()
@@ -169,7 +168,7 @@ t.test('no VISUAL, use system default, not windows', t => {
   const config = requireInject('../../../lib/utils/config.js', {
     os,
     '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': true
+    '../../../lib/utils/is-windows.js': true,
   })
   t.equal(config.defaults.editor, 'notepad.exe')
   t.end()
