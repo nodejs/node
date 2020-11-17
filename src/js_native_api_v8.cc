@@ -731,10 +731,10 @@ class JSClassGen {
     post_process += "    },\n";
   }
 
-  inline std::string PushArg(napi_value val = nullptr) {
+  inline std::string PushArg(napi_value val) {
     std::string propname = "prop" + std::to_string(param_idx++);
     formal_args += ", " + propname;
-    if (val != nullptr) args.push_back(val);
+    args.push_back(val);
     return propname;
   }
 
@@ -751,7 +751,6 @@ class JSClassGen {
                              method,
                              desc->data,
                              &fn));
-    args.push_back(fn);
 
     class_body += "    " +
         ((method == desc->method) ? key + "(...x)" :
@@ -759,7 +758,7 @@ class JSClassGen {
         "set " + key + "(x)") + " {\n"
         "      if (!(this instanceof " + classname + "))\n"
         "        throw new Error('Illegal invocation');\n"
-        "      return " + PushArg() + ".apply(this, " +
+        "      return " + PushArg(fn) + ".apply(this, " +
         ((method == desc->method) ? "x" :
         (method == desc->getter) ? "[]" : "[x]") + ");\n" +
         "    }\n";
