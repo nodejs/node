@@ -211,7 +211,7 @@ console.log(myURL.hostname);
 // Setting the hostname does not change the port
 myURL.hostname = 'example.com:82';
 console.log(myURL.href);
-// Prints https://example.com:82/foo
+// Prints https://example.com:81/foo
 
 // Use, myURL.host to change the hostname and port
 myURL.host = 'example.org:82';
