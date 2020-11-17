@@ -6,13 +6,15 @@ const util = require('util')
 const readdir = util.promisify(fs.readdir)
 const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
-const reifyOutput = require('./utils/reify-output.js')
+const reifyFinish = require('./utils/reify-finish.js')
 const log = require('npmlog')
 const { resolve, join } = require('path')
 const Arborist = require('@npmcli/arborist')
 const runScript = require('@npmcli/run-script')
 
-const install = async (args, cb) => {
+const cmd = async (args, cb) => install(args).then(() => cb()).catch(cb)
+
+const install = async args => {
   // the /path/to/node_modules/..
   const globalTop = resolve(npm.globalDir, '..')
   const { ignoreScripts, global: isGlobalInstall } = npm.flatOptions
@@ -34,38 +36,33 @@ const install = async (args, cb) => {
     path: where,
   })
 
-  try {
-    await arb.reify({
-      ...npm.flatOptions,
-      add: args,
-    })
-    if (!args.length && !isGlobalInstall && !ignoreScripts) {
-      const { scriptShell } = npm.flatOptions
-      const scripts = [
-        'preinstall',
-        'install',
-        'postinstall',
-        'prepublish', // XXX should we remove this finally??
-        'preprepare',
-        'prepare',
-        'postprepare',
-      ]
-      for (const event of scripts) {
-        await runScript({
-          path: where,
-          args: [],
-          scriptShell,
-          stdio: 'inherit',
-          stdioString: true,
-          event,
-        })
-      }
+  await arb.reify({
+    ...npm.flatOptions,
+    add: args,
+  })
+  if (!args.length && !isGlobalInstall && !ignoreScripts) {
+    const { scriptShell } = npm.flatOptions
+    const scripts = [
+      'preinstall',
+      'install',
+      'postinstall',
+      'prepublish', // XXX should we remove this finally??
+      'preprepare',
+      'prepare',
+      'postprepare',
+    ]
+    for (const event of scripts) {
+      await runScript({
+        path: where,
+        args: [],
+        scriptShell,
+        stdio: 'inherit',
+        stdioString: true,
+        event,
+      })
     }
-    reifyOutput(arb)
-    cb()
-  } catch (er) {
-    cb(er)
   }
+  await reifyFinish(arb)
 }
 
 const usage = usageUtil(
@@ -144,4 +141,4 @@ const completion = async (opts, cb) => {
   cb()
 }
 
-module.exports = Object.assign(install, { usage, completion })
+module.exports = Object.assign(cmd, { usage, completion })

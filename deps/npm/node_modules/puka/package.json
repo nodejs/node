@@ -1,0 +1,38 @@
+{
+  "name": "puka",
+  "version": "1.0.1",
+  "description": "A cross-platform library for safely passing strings through shells",
+  "keywords": [
+    "args",
+    "arguments",
+    "cmd",
+    "command",
+    "command-line",
+    "cross-platform",
+    "escape",
+    "escaping",
+    "exec",
+    "linux",
+    "mac",
+    "macos",
+    "osx",
+    "quote",
+    "quoting",
+    "sh",
+    "shell",
+    "spawn",
+    "unix",
+    "win",
+    "win32",
+    "windows"
+  ],
+  "homepage": "https://gitlab.com/rhendric/puka",
+  "bugs": "https://gitlab.com/rhendric/puka/issues",
+  "license": "MIT",
+  "author": "Ryan Hendrickson <ryan.hendrickson@alum.mit.edu>",
+  "repository": "gitlab:rhendric/puka",
+  "dependencies": {},
+  "engines": {
+    "node": ">=4"
+  }
+}

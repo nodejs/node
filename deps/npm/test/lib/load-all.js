@@ -4,9 +4,9 @@ const { resolve } = require('path')
 
 const full = process.env.npm_lifecycle_event === 'check-coverage'
 
-if (!full) {
+if (!full)
   t.pass('nothing to do here, not checking for full coverage')
-} else {
+else {
   // some files do config.get() on load, so have to load npm first
   const npm = require('../../lib/npm.js')
   t.test('load npm first', t => npm.load(t.end))

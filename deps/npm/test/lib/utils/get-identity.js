@@ -4,7 +4,7 @@ const requireInject = require('require-inject')
 test('throws ENOREGISTRY when no registry option is provided', async (t) => {
   t.plan(2)
   const getIdentity = requireInject('../../../lib/utils/get-identity.js', {
-    '../../../lib/npm.js': {}
+    '../../../lib/npm.js': {},
   })
 
   try {
@@ -23,9 +23,9 @@ test('returns username from uri when provided', async (t) => {
       config: {
         getCredentialsByURI: () => {
           return { username: 'foo' }
-        }
-      }
-    }
+        },
+      },
+    },
   })
 
   const identity = await getIdentity({ registry: 'https://registry.npmjs.org' })
@@ -37,22 +37,22 @@ test('calls registry whoami when token is provided', async (t) => {
 
   const options = {
     registry: 'https://registry.npmjs.org',
-    token: 'thisisnotreallyatoken'
+    token: 'thisisnotreallyatoken',
   }
 
   const getIdentity = requireInject('../../../lib/utils/get-identity.js', {
     '../../../lib/npm.js': {
       config: {
-        getCredentialsByURI: () => options
-      }
+        getCredentialsByURI: () => options,
+      },
     },
     'npm-registry-fetch': {
       json: (path, opts) => {
         t.equal(path, '/-/whoami', 'calls whoami')
         t.same(opts, options, 'passes through provided options')
         return { username: 'foo' }
-      }
-    }
+      },
+    },
   })
 
   const identity = await getIdentity(options)
@@ -64,22 +64,22 @@ test('throws ENEEDAUTH when response does not include a username', async (t) => 
 
   const options = {
     registry: 'https://registry.npmjs.org',
-    token: 'thisisnotreallyatoken'
+    token: 'thisisnotreallyatoken',
   }
 
   const getIdentity = requireInject('../../../lib/utils/get-identity.js', {
     '../../../lib/npm.js': {
       config: {
-        getCredentialsByURI: () => options
-      }
+        getCredentialsByURI: () => options,
+      },
     },
     'npm-registry-fetch': {
       json: (path, opts) => {
         t.equal(path, '/-/whoami', 'calls whoami')
         t.same(opts, options, 'passes through provided options')
         return {}
-      }
-    }
+      },
+    },
   })
 
   try {
@@ -94,9 +94,9 @@ test('throws ENEEDAUTH when neither username nor token is configured', async (t)
   const getIdentity = requireInject('../../../lib/utils/get-identity.js', {
     '../../../lib/npm.js': {
       config: {
-        getCredentialsByURI: () => ({})
-      }
-    }
+        getCredentialsByURI: () => ({}),
+      },
+    },
   })
 
   try {

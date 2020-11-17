@@ -6,7 +6,7 @@ test('oauth login', (t) => {
   const oauthOpts = {
     creds: {},
     registry: 'https://diff-registry.npmjs.org/',
-    scope: 'myscope'
+    scope: 'myscope',
   }
 
   const oauth = requireInject('../../../lib/auth/oauth.js', {
@@ -18,9 +18,9 @@ test('oauth login', (t) => {
         set: (key, value) => {
           t.equal(key, 'sso-type', 'should define sso-type')
           t.equal(value, 'oauth', 'should set sso-type to oauth')
-        }
-      }
-    }
+        },
+      },
+    },
   })
 
   oauth(oauthOpts)

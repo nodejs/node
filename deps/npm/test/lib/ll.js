@@ -7,15 +7,15 @@ const ll = requireInject('../../lib/ll.js', {
     config: {
       set: (k, v) => {
         configs[k] = v
-      }
+      },
     },
     commands: {
       ls: (args, cb) => {
         lsCalled = true
         cb()
-      }
-    }
-  }
+      },
+    },
+  },
 })
 
 const ls = require('../../lib/ls.js')

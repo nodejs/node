@@ -25,20 +25,20 @@ const types = {
   'init-author-name': String,
   'init-version': String,
   'init.author.name': String,
-  'init.version': String
+  'init.version': String,
 }
 const defaults = {
   'init-author-name': '',
   'init-version': '1.0.0',
   'init.author.name': '',
-  'init.version': '1.0.0'
+  'init.version': '1.0.0',
 }
 
 const flatOptions = {
   editor: 'vi',
   json: false,
   long: false,
-  global: false
+  global: false,
 }
 
 const npm = {
@@ -46,17 +46,21 @@ const npm = {
   log: {
     info: () => null,
     enableProgress: () => null,
-    disableProgress: () => null
+    disableProgress: () => null,
   },
   config: {
     data: new Map(Object.entries({
       default: { data: defaults, source: 'default values' },
       global: { data: {}, source: '/etc/npmrc' },
-      cli: { data: flatOptions, source: 'command line options' }
+      cli: { data: flatOptions, source: 'command line options' },
     })),
-    get (key) { return flatOptions[key] },
-    validate () { return true }
-  }
+    get (key) {
+      return flatOptions[key]
+    },
+    validate () {
+      return true
+    },
+  },
 }
 
 const usageUtil = () => 'usage instructions'
@@ -64,8 +68,10 @@ const usageUtil = () => 'usage instructions'
 const mocks = {
   '../../lib/utils/config.js': { defaults, types },
   '../../lib/npm.js': npm,
-  '../../lib/utils/output.js': msg => { result = msg },
-  '../../lib/utils/usage.js': usageUtil
+  '../../lib/utils/output.js': msg => {
+    result = msg
+  },
+  '../../lib/utils/usage.js': usageUtil,
 }
 
 const config = requireInject('../../lib/config.js', mocks)
@@ -99,9 +105,9 @@ t.test('config list overrides', t => {
   npm.config.data.set('user', {
     data: {
       'init.author.name': 'Foo',
-      '//private-reg.npmjs.org/:_authThoken': 'f00ba1'
+      '//private-reg.npmjs.org/:_authThoken': 'f00ba1',
     },
-    source: '~/.npmrc'
+    source: '~/.npmrc',
   })
   flatOptions['init.author.name'] = 'Bar'
   npm.config.find = () => 'cli'
@@ -144,7 +150,7 @@ t.test('config list --json', t => {
   result = ''
   npm.config.list = [{
     '//private-reg.npmjs.org/:_authThoken': 'f00ba1',
-    ...npm.config.data.get('cli').data
+    ...npm.config.data.get('cli').data,
   }]
   const npmConfigGet = npm.config.get
   npm.config.get = key => npm.config.list[0][key]
@@ -164,7 +170,7 @@ t.test('config list --json', t => {
         editor: 'vi',
         json: true,
         long: false,
-        global: false
+        global: false,
       },
       'should list configs usin json'
     )
@@ -413,7 +419,7 @@ t.test('config edit', t => {
 init.author.name=Foo
 sign-git-commit=true`
   npm.config.data.set('user', {
-    source: '~/.npmrc'
+    source: '~/.npmrc',
   })
   npm.config.save = async where => {
     t.equal(where, 'user', 'should save to user config by default')
@@ -422,25 +428,29 @@ sign-git-commit=true`
     ...mocks,
     'mkdirp-infer-owner': async () => null,
     fs: {
-      readFile (path, encoding, cb) { cb(null, npmrc) },
+      readFile (path, encoding, cb) {
+        cb(null, npmrc)
+      },
       writeFile (file, data, encoding, cb) {
         t.equal(file, '~/.npmrc', 'should save to expected file location')
         t.matchSnapshot(data, 'should write config file')
         cb()
-      }
+      },
     },
     editor: (file, { editor }, cb) => {
       t.equal(file, '~/.npmrc', 'should match user source data')
       t.equal(editor, 'vi', 'should use default editor')
       cb()
-    }
+    },
   }
   const config = requireInject('../../lib/config.js', editMocks)
   config(['edit'], (err) => {
     t.ifError(err, 'npm config edit')
 
     // test no config file result
-    editMocks.fs.readFile = (p, e, cb) => { cb(new Error('ERR')) }
+    editMocks.fs.readFile = (p, e, cb) => {
+      cb(new Error('ERR'))
+    }
     const config = requireInject('../../lib/config.js', editMocks)
     config(['edit'], (err) => {
       t.ifError(err, 'npm config edit')
@@ -459,7 +469,7 @@ t.test('config edit --global', t => {
   flatOptions.global = true
   const npmrc = 'init.author.name=Foo'
   npm.config.data.set('global', {
-    source: '/etc/npmrc'
+    source: '/etc/npmrc',
   })
   npm.config.save = async where => {
     t.equal(where, 'global', 'should save to global config')
@@ -468,18 +478,20 @@ t.test('config edit --global', t => {
     ...mocks,
     'mkdirp-infer-owner': async () => null,
     fs: {
-      readFile (path, encoding, cb) { cb(null, npmrc) },
+      readFile (path, encoding, cb) {
+        cb(null, npmrc)
+      },
       writeFile (file, data, encoding, cb) {
         t.equal(file, '/etc/npmrc', 'should save to global file location')
         t.matchSnapshot(data, 'should write global config file')
         cb()
-      }
+      },
     },
     editor: (file, { editor }, cb) => {
       t.equal(file, '/etc/npmrc', 'should match global source data')
       t.equal(editor, 'vi', 'should use default editor')
       cb()
-    }
+    },
   }
   const config = requireInject('../../lib/config.js', editMocks)
   config(['edit'], (err) => {
@@ -524,7 +536,7 @@ t.test('completion', t => {
     'ls',
     'rm',
     'edit',
-    'list'
+    'list',
   ])
   testComp(['npm', 'config', 'set', 'foo'], [])
   const possibleConfigKeys = [...Object.keys(types)]
@@ -539,10 +551,10 @@ t.test('completion', t => {
   completion({
     conf: {
       argv: {
-        remain: ['npm', 'config']
-      }
+        remain: ['npm', 'config'],
+      },
     },
-    partialWord: 'l'
+    partialWord: 'l',
   }, (er, res) => {
     t.ifError(er)
     t.strictSame(res, [
@@ -551,7 +563,7 @@ t.test('completion', t => {
       'delete',
       'ls',
       'rm',
-      'edit'
+      'edit',
     ], 'npm config')
   })
 

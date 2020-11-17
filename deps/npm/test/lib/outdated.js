@@ -6,58 +6,57 @@ const packument = spec => {
     alpha: {
       name: 'alpha',
       'dist-tags': {
-        latest: '1.0.1'
+        latest: '1.0.1',
       },
       versions: {
         '1.0.1': {
           version: '1.0.1',
           dependencies: {
-            gamma: '2.0.0'
-          }
-        }
-      }
+            gamma: '2.0.0',
+          },
+        },
+      },
     },
     beta: {
       name: 'beta',
       'dist-tags': {
-        latest: '1.0.1'
+        latest: '1.0.1',
       },
       versions: {
         '1.0.1': {
-          version: '1.0.1'
-        }
-      }
+          version: '1.0.1',
+        },
+      },
     },
     gamma: {
       name: 'gamma',
       'dist-tags': {
-        latest: '2.0.0'
+        latest: '2.0.0',
       },
       versions: {
         '1.0.1': {
-          version: '1.0.1'
+          version: '1.0.1',
         },
         '2.0.0': {
-          version: '2.0.0'
-        }
-      }
+          version: '2.0.0',
+        },
+      },
     },
     theta: {
       name: 'theta',
       'dist-tags': {
-        latest: '1.0.1'
+        latest: '1.0.1',
       },
       versions: {
         '1.0.1': {
-          version: '1.0.1'
-        }
-      }
-    }
+          version: '1.0.1',
+        },
+      },
+    },
   }
 
-  if (spec.name === 'eta') {
+  if (spec.name === 'eta')
     throw new Error('There is an error with this package.')
-  }
 
   if (!mocks[spec.name]) {
     const err = new Error()
@@ -87,10 +86,10 @@ const globalDir = t.testdir({
     alpha: {
       'package.json': JSON.stringify({
         name: 'alpha',
-        version: '1.0.0'
-      }, null, 2)
-    }
-  }
+        version: '1.0.0',
+      }, null, 2),
+    },
+  },
 })
 
 const outdated = (dir, opts) => requireInject(
@@ -99,11 +98,11 @@ const outdated = (dir, opts) => requireInject(
     '../../lib/npm.js': {
       prefix: dir,
       globalDir: `${globalDir}/node_modules`,
-      flatOptions: opts
+      flatOptions: opts,
     },
     pacote: {
-      packument
-    }
+      packument,
+    },
   }
 )
 
@@ -127,14 +126,14 @@ t.test('should display outdated deps', t => {
       dependencies: {
         alpha: '^1.0.0',
         gamma: '^1.0.0',
-        theta: '^1.0.0'
+        theta: '^1.0.0',
       },
       devDependencies: {
-        zeta: '^1.0.0'
+        zeta: '^1.0.0',
       },
       peerDependencies: {
-        beta: '^1.0.0'
-      }
+        beta: '^1.0.0',
+      },
     }, null, 2),
     node_modules: {
       alpha: {
@@ -142,42 +141,42 @@ t.test('should display outdated deps', t => {
           name: 'alpha',
           version: '1.0.0',
           dependencies: {
-            gamma: '2.0.0'
-          }
+            gamma: '2.0.0',
+          },
         }, null, 2),
         node_modules: {
           gamma: {
             'package.json': JSON.stringify({
               name: 'gamma',
-              version: '2.0.0'
-            }, null, 2)
-          }
-        }
+              version: '2.0.0',
+            }, null, 2),
+          },
+        },
       },
       beta: {
         'package.json': JSON.stringify({
           name: 'beta',
-          version: '1.0.0'
-        }, null, 2)
+          version: '1.0.0',
+        }, null, 2),
       },
       gamma: {
         'package.json': JSON.stringify({
           name: 'gamma',
-          version: '1.0.1'
-        }, null, 2)
+          version: '1.0.1',
+        }, null, 2),
       },
       zeta: {
         'package.json': JSON.stringify({
           name: 'zeta',
-          version: '1.0.0'
-        }, null, 2)
-      }
-    }
+          version: '1.0.0',
+        }, null, 2),
+      },
+    },
   })
 
   t.test('outdated global', t => {
     outdated(null, {
-      global: true
+      global: true,
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -187,7 +186,7 @@ t.test('should display outdated deps', t => {
   t.test('outdated', t => {
     outdated(testDir, {
       global: false,
-      color: true
+      color: true,
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -198,7 +197,7 @@ t.test('should display outdated deps', t => {
     outdated(testDir, {
       global: false,
       color: true,
-      omit: ['dev']
+      omit: ['dev'],
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -209,7 +208,7 @@ t.test('should display outdated deps', t => {
     outdated(testDir, {
       global: false,
       color: true,
-      omit: ['dev', 'peer']
+      omit: ['dev', 'peer'],
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -220,7 +219,7 @@ t.test('should display outdated deps', t => {
     outdated(testDir, {
       global: false,
       color: true,
-      omit: ['prod']
+      omit: ['prod'],
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -230,7 +229,7 @@ t.test('should display outdated deps', t => {
   t.test('outdated --long', t => {
     outdated(testDir, {
       global: false,
-      long: true
+      long: true,
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -240,7 +239,7 @@ t.test('should display outdated deps', t => {
   t.test('outdated --json', t => {
     outdated(testDir, {
       global: false,
-      json: true
+      json: true,
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -251,7 +250,7 @@ t.test('should display outdated deps', t => {
     outdated(testDir, {
       global: false,
       json: true,
-      long: true
+      long: true,
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -261,7 +260,7 @@ t.test('should display outdated deps', t => {
   t.test('outdated --parseable', t => {
     outdated(testDir, {
       global: false,
-      parseable: true
+      parseable: true,
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -272,7 +271,7 @@ t.test('should display outdated deps', t => {
     outdated(testDir, {
       global: false,
       parseable: true,
-      long: true
+      long: true,
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -281,7 +280,7 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --all', t => {
     outdated(testDir, {
-      all: true
+      all: true,
     })([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -290,7 +289,7 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated specific dep', t => {
     outdated(testDir, {
-      global: false
+      global: false,
     })(['alpha'], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -306,21 +305,21 @@ t.test('should return if no outdated deps', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: '^1.0.0'
-      }
+        alpha: '^1.0.0',
+      },
     }, null, 2),
     node_modules: {
       alpha: {
         'package.json': JSON.stringify({
           name: 'alpha',
-          version: '1.0.1'
-        }, null, 2)
-      }
-    }
+          version: '1.0.1',
+        }, null, 2),
+      },
+    },
   })
 
   outdated(testDir, {
-    global: false
+    global: false,
   })([], () => {
     t.equals(logs.length, 0, 'no logs')
     t.end()
@@ -333,21 +332,21 @@ t.test('throws if error with a dep', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        eta: '^1.0.0'
-      }
+        eta: '^1.0.0',
+      },
     }, null, 2),
     node_modules: {
       eta: {
         'package.json': JSON.stringify({
           name: 'eta',
-          version: '1.0.1'
-        }, null, 2)
-      }
-    }
+          version: '1.0.1',
+        }, null, 2),
+      },
+    },
   })
 
   outdated(testDir, {
-    global: false
+    global: false,
   })([], (err) => {
     t.equals(err.message, 'There is an error with this package.')
     t.end()
@@ -360,14 +359,14 @@ t.test('should skip missing non-prod deps', t => {
       name: 'delta',
       version: '1.0.0',
       devDependencies: {
-        beta: '^1.0.0'
-      }
+        beta: '^1.0.0',
+      },
     }, null, 2),
-    node_modules: {}
+    node_modules: {},
   })
 
   outdated(testDir, {
-    global: false
+    global: false,
   })([], () => {
     t.equals(logs.length, 0, 'no logs')
     t.end()
@@ -380,17 +379,17 @@ t.test('should skip invalid pkg ranges', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: '>=^2'
-      }
+        alpha: '>=^2',
+      },
     }, null, 2),
     node_modules: {
       alpha: {
         'package.json': JSON.stringify({
           name: 'alpha',
-          version: '1.0.0'
-        }, null, 2)
-      }
-    }
+          version: '1.0.0',
+        }, null, 2),
+      },
+    },
   })
 
   outdated(testDir, {})([], () => {
@@ -405,17 +404,17 @@ t.test('should skip git specs', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: 'github:username/foo'
-      }
+        alpha: 'github:username/foo',
+      },
     }, null, 2),
     node_modules: {
       alpha: {
         'package.json': JSON.stringify({
           name: 'alpha',
-          version: '1.0.0'
-        }, null, 2)
-      }
-    }
+          version: '1.0.0',
+        }, null, 2),
+      },
+    },
   })
 
   outdated(testDir, {})([], () => {

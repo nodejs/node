@@ -6,7 +6,7 @@ test('saml login', (t) => {
   const samlOpts = {
     creds: {},
     registry: 'https://diff-registry.npmjs.org/',
-    scope: 'myscope'
+    scope: 'myscope',
   }
 
   const saml = requireInject('../../../lib/auth/saml.js', {
@@ -18,9 +18,9 @@ test('saml login', (t) => {
         set: (key, value) => {
           t.equal(key, 'sso-type', 'should define sso-type')
           t.equal(value, 'saml', 'should set sso-type to saml')
-        }
-      }
-    }
+        },
+      },
+    },
   })
 
   saml(samlOpts)

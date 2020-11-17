@@ -7,19 +7,25 @@ let globalDir = 'MISSING_GLOBAL_DIR'
 const _flatOptions = {
   depth: Infinity,
   global: false,
-  get prefix () { return prefix }
+  get prefix () {
+    return prefix
+  },
 }
 const installedDeep = requireInject('../../../../lib/utils/completion/installed-deep.js', {
   '../../../../lib/npm.js': {
     flatOptions: _flatOptions,
-    get prefix () { return _flatOptions.prefix },
-    get globalDir () { return globalDir },
+    get prefix () {
+      return _flatOptions.prefix
+    },
+    get globalDir () {
+      return globalDir
+    },
     config: {
       get (key) {
         return _flatOptions[key]
-      }
-    }
-  }
+      },
+    },
+  },
 })
 
 const fixture = {
@@ -29,14 +35,14 @@ const fixture = {
     dependencies: {
       a: '^1.0.0',
       b: '^1.0.0',
-      c: '^1.0.0'
+      c: '^1.0.0',
     },
     devDependencies: {
-      d: '^1.0.0'
+      d: '^1.0.0',
     },
     peerDependencies: {
-      e: '^1.0.0'
-    }
+      e: '^1.0.0',
+    },
   }),
   node_modules: {
     a: {
@@ -44,33 +50,33 @@ const fixture = {
         name: 'a',
         version: '1.0.0',
         dependencies: {
-          f: '^1.0.0'
-        }
-      })
+          f: '^1.0.0',
+        },
+      }),
     },
     b: {
       'package.json': JSON.stringify({
         name: 'b',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     c: {
       'package.json': JSON.stringify({
         name: 'c',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     d: {
       'package.json': JSON.stringify({
         name: 'd',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     e: {
       'package.json': JSON.stringify({
         name: 'e',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     f: {
       'package.json': JSON.stringify({
@@ -78,8 +84,8 @@ const fixture = {
         version: '1.0.0',
         dependencies: {
           g: '^1.0.0',
-          e: '^2.0.0'
-        }
+          e: '^2.0.0',
+        },
       }),
       node_modules: {
         e: {
@@ -87,27 +93,27 @@ const fixture = {
             name: 'e',
             version: '2.0.0',
             dependencies: {
-              bb: '^1.0.0'
-            }
+              bb: '^1.0.0',
+            },
           }),
           node_modules: {
             bb: {
               'package.json': JSON.stringify({
                 name: 'bb',
-                version: '1.0.0'
-              })
-            }
-          }
-        }
-      }
+                version: '1.0.0',
+              }),
+            },
+          },
+        },
+      },
     },
     g: {
       'package.json': JSON.stringify({
         name: 'g',
-        version: '1.0.0'
-      })
-    }
-  }
+        version: '1.0.0',
+      }),
+    },
+  },
 }
 
 const globalFixture = {
@@ -115,33 +121,33 @@ const globalFixture = {
     foo: {
       'package.json': JSON.stringify({
         name: 'foo',
-        version: '1.0.0'
-      })
+        version: '1.0.0',
+      }),
     },
     bar: {
       'package.json': JSON.stringify({
         name: 'bar',
         version: '1.0.0',
         dependencies: {
-          'a-bar': '^1.0.0'
-        }
+          'a-bar': '^1.0.0',
+        },
       }),
       node_modules: {
         'a-bar': {
           'package.json': JSON.stringify({
             name: 'a-bar',
-            version: '1.0.0'
-          })
-        }
-      }
-    }
-  }
+            version: '1.0.0',
+          }),
+        },
+      },
+    },
+  },
 }
 
 test('get list of package names', (t) => {
   const fix = t.testdir({
     local: fixture,
-    global: globalFixture
+    global: globalFixture,
   })
 
   prefix = resolve(fix, 'local')
@@ -152,12 +158,12 @@ test('get list of package names', (t) => {
     t.deepEqual(
       res,
       [
-        [ 'bar', '-g' ],
-        [ 'foo', '-g' ],
-        [ 'a-bar', '-g' ],
+        ['bar', '-g'],
+        ['foo', '-g'],
+        ['a-bar', '-g'],
         'a', 'b', 'c',
         'd', 'e', 'f',
-        'g', 'bb'
+        'g', 'bb',
       ],
       'should return list of package names and global flag'
     )
@@ -168,7 +174,7 @@ test('get list of package names', (t) => {
 test('get list of package names as global', (t) => {
   const fix = t.testdir({
     local: fixture,
-    global: globalFixture
+    global: globalFixture,
   })
 
   prefix = resolve(fix, 'local')
@@ -183,7 +189,7 @@ test('get list of package names as global', (t) => {
       [
         'bar',
         'foo',
-        'a-bar'
+        'a-bar',
       ],
       'should return list of global packages with no extra flags'
     )
@@ -195,7 +201,7 @@ test('get list of package names as global', (t) => {
 test('limit depth', (t) => {
   const fix = t.testdir({
     local: fixture,
-    global: globalFixture
+    global: globalFixture,
   })
 
   prefix = resolve(fix, 'local')
@@ -208,12 +214,12 @@ test('limit depth', (t) => {
     t.deepEqual(
       res,
       [
-        [ 'bar', '-g' ],
-        [ 'foo', '-g' ],
+        ['bar', '-g'],
+        ['foo', '-g'],
         'a', 'b',
         'c', 'd',
         'e', 'f',
-        'g'
+        'g',
       ],
       'should print only packages up to the specified depth'
     )
@@ -225,7 +231,7 @@ test('limit depth', (t) => {
 test('limit depth as global', (t) => {
   const fix = t.testdir({
     local: fixture,
-    global: globalFixture
+    global: globalFixture,
   })
 
   prefix = resolve(fix, 'local')
@@ -240,7 +246,7 @@ test('limit depth as global', (t) => {
       res,
       [
         'bar',
-        'foo'
+        'foo',
       ],
       'should reorder so that packages above that level depth goes last'
     )

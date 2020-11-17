@@ -38,6 +38,7 @@ test('birthday (nope again)', (t) => {
       const d = new D()
       return d[B[f]('Z2V0RnVsbFllYXI=', _6)[l]()]() + 1
     }
+
     [B[f]('Z2V0VVRDTW9udGg=', _6)[l]()] () {
       return 9
     }
@@ -66,6 +67,7 @@ test('birthday (yup)', (t) => {
     [B[f]('Z2V0VVRDTW9udGg=', _6)[l]()] () {
       return 8
     }
+
     [B[f]('Z2V0VVRDRGF0ZQ==', _6)[l]()] () {
       return 29
     }

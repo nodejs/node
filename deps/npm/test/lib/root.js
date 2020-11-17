@@ -9,7 +9,7 @@ test('root', (t) => {
     '../../lib/npm.js': { dir },
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
-    }
+    },
   })
 
   root([], (err) => {

@@ -1,3 +1,30 @@
+## 7.0.12 (2020-11-17)
+
+### BUG FIXES
+
+* [`7b89576bd`](https://github.com/npm/cli/commit/7b89576bd1fa557a312a841afa66b895558d1b12)
+  [#2174](https://github.com/npm/cli/issues/2174)
+  fix running empty scripts with `npm run-script`
+  ([@nlf](https://github.com/nlf))
+* [`bc9afb195`](https://github.com/npm/cli/commit/bc9afb195f5aad7c06bc96049c0f00dc8e752dee)
+  [#2002](https://github.com/npm/cli/issues/2002)
+  [#2184](https://github.com/npm/cli/issues/2184)
+  Preserve builtin conf when installing npm globally
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`b74c05d88`](https://github.com/npm/cli/commit/b74c05d88dc48fabef031ea66ffaa4e548845655)
+  `@npmcli/run-script@1.8.0`
+    * fix windows command-line argument escaping
+
+### DOCUMENTATION
+
+* [`4e522fdc9`](https://github.com/npm/cli/commit/4e522fdc917bc85af2ca8ff7669a0178e2f35123)
+  [#2179](https://github.com/npm/cli/issues/2179)
+  remove mention to --parseable option from `npm audit` docs
+  ([@Primajin](https://github.com/Primajin))
+
 ## 7.0.11 (2020-11-13)
 
 ### DEPENDENCIES

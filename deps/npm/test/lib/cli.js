@@ -8,14 +8,16 @@ const npmock = {
   config: {
     settings: {},
     get: (k) => npmock.config.settings[k],
-    set: (k, v) => { npmock.config.settings[k] = v },
+    set: (k, v) => {
+      npmock.config.settings[k] = v
+    },
   },
-  commands: {}
+  commands: {},
 }
 
 const unsupportedMock = {
   checkForBrokenNode: () => {},
-  checkForUnsupportedNode: () => {}
+  checkForUnsupportedNode: () => {},
 }
 
 let errorHandlerCalled = null
@@ -31,7 +33,7 @@ const logs = []
 const npmlogMock = {
   pause: () => logs.push('pause'),
   verbose: (...msg) => logs.push(['verbose', ...msg]),
-  info: (...msg) => logs.push(['info', ...msg])
+  info: (...msg) => logs.push(['info', ...msg]),
 }
 
 const requireInject = require('require-inject')
@@ -39,7 +41,7 @@ const cli = requireInject.installGlobally('../../lib/cli.js', {
   '../../lib/npm.js': npmock,
   '../../lib/utils/unsupported.js': unsupportedMock,
   '../../lib/utils/error-handler.js': errorHandlerMock,
-  npmlog: npmlogMock
+  npmlog: npmlogMock,
 })
 
 t.test('print the version, and treat npm_g to npm -g', t => {
@@ -50,7 +52,7 @@ t.test('print the version, and treat npm_g to npm -g', t => {
   const proc = {
     argv: ['node', 'npm_g', '-v'],
     version: '420.69.lol',
-    on: () => {}
+    on: () => {},
   }
   process.argv = proc.argv
   npmock.config.settings.version = true
@@ -58,14 +60,14 @@ t.test('print the version, and treat npm_g to npm -g', t => {
   cli(proc)
 
   t.strictSame(npmock.argv, [])
-  t.strictSame(proc.argv, [ 'node', 'npm', '-g', '-v' ])
+  t.strictSame(proc.argv, ['node', 'npm', '-g', '-v'])
   t.strictSame(logs, [
     'pause',
-    [ 'verbose', 'cli', [ 'node', 'npm', '-g', '-v' ] ],
-    [ 'info', 'using', 'npm@%s', '99.99.99' ],
-    [ 'info', 'using', 'node@%s', '420.69.lol' ]
+    ['verbose', 'cli', ['node', 'npm', '-g', '-v']],
+    ['info', 'using', 'npm@%s', '99.99.99'],
+    ['info', 'using', 'node@%s', '420.69.lol'],
   ])
-  t.strictSame(consoleLogs, [ [ '99.99.99' ] ])
+  t.strictSame(consoleLogs, [['99.99.99']])
   t.strictSame(errorHandlerExitCalled, 0)
 
   delete npmock.config.settings.version
@@ -87,7 +89,7 @@ t.test('calling with --versions calls npm version with no args', t => {
   const processArgv = process.argv
   const proc = {
     argv: ['node', 'npm', 'install', 'or', 'whatever', '--versions'],
-    on: () => {}
+    on: () => {},
   }
   process.argv = proc.argv
   npmock.config.set('versions', true)
@@ -107,12 +109,12 @@ t.test('calling with --versions calls npm version with no args', t => {
   npmock.commands.version = (args, cb) => {
     t.equal(proc.title, 'npm')
     t.strictSame(npmock.argv, [])
-    t.strictSame(proc.argv, [ 'node', 'npm', 'install', 'or', 'whatever', '--versions' ])
+    t.strictSame(proc.argv, ['node', 'npm', 'install', 'or', 'whatever', '--versions'])
     t.strictSame(logs, [
       'pause',
-      [ 'verbose', 'cli', [ 'node', 'npm', 'install', 'or', 'whatever', '--versions' ] ],
-      [ 'info', 'using', 'npm@%s', '99.99.99' ],
-      [ 'info', 'using', 'node@%s', undefined ]
+      ['verbose', 'cli', ['node', 'npm', 'install', 'or', 'whatever', '--versions']],
+      ['info', 'using', 'npm@%s', '99.99.99'],
+      ['info', 'using', 'node@%s', undefined],
     ])
 
     t.strictSame(consoleLogs, [])
@@ -131,7 +133,7 @@ t.test('print usage if -h provided', t => {
   console.log = (...msg) => consoleLogs.push(msg)
   const proc = {
     argv: ['node', 'npm', 'asdf'],
-    on: () => {}
+    on: () => {},
   }
   npmock.argv = ['asdf']
 
@@ -150,12 +152,12 @@ t.test('print usage if -h provided', t => {
     t.equal(proc.title, 'npm')
     t.strictSame(args, ['asdf'])
     t.strictSame(npmock.argv, ['asdf'])
-    t.strictSame(proc.argv, [ 'node', 'npm', 'asdf' ])
+    t.strictSame(proc.argv, ['node', 'npm', 'asdf'])
     t.strictSame(logs, [
       'pause',
-      [ 'verbose', 'cli', [ 'node', 'npm', 'asdf' ] ],
-      [ 'info', 'using', 'npm@%s', '99.99.99' ],
-      [ 'info', 'using', 'node@%s', undefined ]
+      ['verbose', 'cli', ['node', 'npm', 'asdf']],
+      ['info', 'using', 'npm@%s', '99.99.99'],
+      ['info', 'using', 'node@%s', undefined],
     ])
     t.strictSame(consoleLogs, [])
     t.strictSame(errorHandlerExitCalled, null)
@@ -170,11 +172,10 @@ t.test('load error calls error handler', t => {
   LOAD_ERROR = er
   const proc = {
     argv: ['node', 'npm', 'asdf'],
-    on: () => {}
+    on: () => {},
   }
   cli(proc)
   t.strictSame(errorHandlerCalled, [er])
   LOAD_ERROR = null
   t.end()
 })
-

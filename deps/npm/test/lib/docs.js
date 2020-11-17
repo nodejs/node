@@ -5,30 +5,30 @@ const pacote = {
   manifest: async (spec, options) => {
     return spec === 'nodocs' ? {
       name: 'nodocs',
-      version: '1.2.3'
-    }
-    : spec === 'docsurl' ? {
-      name: 'docsurl',
       version: '1.2.3',
-      homepage: 'https://bugzilla.localhost/docsurl'
     }
-    : spec === 'repourl' ? {
-      name: 'repourl',
-      version: '1.2.3',
-      repository: 'https://github.com/foo/repourl'
-    }
-    : spec === 'repoobj' ? {
-      name: 'repoobj',
-      version: '1.2.3',
-      repository: { url: 'https://github.com/foo/repoobj' }
-    }
-    : spec === '.' ? {
-      name: 'thispkg',
-      version: '1.2.3',
-      homepage: 'https://example.com'
-    }
-    : null
-  }
+      : spec === 'docsurl' ? {
+        name: 'docsurl',
+        version: '1.2.3',
+        homepage: 'https://bugzilla.localhost/docsurl',
+      }
+      : spec === 'repourl' ? {
+        name: 'repourl',
+        version: '1.2.3',
+        repository: 'https://github.com/foo/repourl',
+      }
+      : spec === 'repoobj' ? {
+        name: 'repoobj',
+        version: '1.2.3',
+        repository: { url: 'https://github.com/foo/repoobj' },
+      }
+      : spec === '.' ? {
+        name: 'thispkg',
+        version: '1.2.3',
+        homepage: 'https://example.com',
+      }
+      : null
+  },
 }
 
 // keep a tally of which urls got opened
@@ -41,7 +41,7 @@ const openUrl = (url, errMsg, cb) => {
 
 const docs = requireInject('../../lib/docs.js', {
   pacote,
-  '../../lib/utils/open-url.js': openUrl
+  '../../lib/utils/open-url.js': openUrl,
 })
 
 t.test('completion', t => {
@@ -58,7 +58,7 @@ t.test('open docs urls', t => {
     docsurl: 'https://bugzilla.localhost/docsurl',
     repourl: 'https://github.com/foo/repourl#readme',
     repoobj: 'https://github.com/foo/repoobj#readme',
-    '.': 'https://example.com'
+    '.': 'https://example.com',
   }
   const keys = Object.keys(expect)
   t.plan(keys.length)

@@ -1,5 +1,4 @@
 const { test } = require('tap')
-const prune = require('../../lib/prune.js')
 const requireInject = require('require-inject')
 
 test('should prune using Arborist', (t) => {
@@ -7,8 +6,8 @@ test('should prune using Arborist', (t) => {
     '../../lib/npm.js': {
       prefix: 'foo',
       flatOptions: {
-        'foo': 'bar'
-      }
+        foo: 'bar',
+      },
     },
     '@npmcli/arborist': function (args) {
       t.ok(args, 'gets options object')
@@ -17,13 +16,14 @@ test('should prune using Arborist', (t) => {
         t.ok(true, 'prune is called')
       }
     },
-    '../../lib/utils/reify-output.js': (arb) => {
+    '../../lib/utils/reify-finish.js': (arb) => {
       t.ok(arb, 'gets arborist tree')
-    }
+    },
   })
-  prune(null, () => {
+  prune(null, er => {
+    if (er)
+      throw er
     t.ok(true, 'callback is called')
     t.end()
   })
 })
-

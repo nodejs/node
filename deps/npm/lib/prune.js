@@ -3,7 +3,7 @@ const npm = require('./npm.js')
 const Arborist = require('@npmcli/arborist')
 const usageUtil = require('./utils/usage.js')
 
-const reifyOutput = require('./utils/reify-output.js')
+const reifyFinish = require('./utils/reify-finish.js')
 
 const usage = usageUtil('prune',
   'npm prune [[<@scope>/]<pkg>...] [--production]'
@@ -19,7 +19,7 @@ const prune = async () => {
     path: where,
   })
   await arb.prune(npm.flatOptions)
-  reifyOutput(arb)
+  await reifyFinish(arb)
 }
 
 module.exports = Object.assign(cmd, { usage, completion })

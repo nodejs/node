@@ -26,23 +26,23 @@ t.cleanSnapshot = (str) => redactCwd(str)
 // internal modules mocks
 const cacheFile = {
   append: () => null,
-  write: () => null
+  write: () => null,
 }
 const config = {
   values: {
     cache: 'cachefolder',
-    timing: true
+    timing: true,
   },
   loaded: true,
   updateNotification: null,
   get (key) {
     return this.values[key]
-  }
+  },
 }
 
 const npm = {
   version: '1.0.0',
-  config
+  config,
 }
 
 const npmlog = {
@@ -52,26 +52,34 @@ const npmlog = {
       id: this.record.length,
       level,
       message: args.reduce((res, i) => `${res} ${i.message ? i.message : i}`, ''),
-      prefix: level !== 'verbose' ? 'foo' : ''
+      prefix: level !== 'verbose' ? 'foo' : '',
     })
   },
-  error (...args) { this.log('error', ...args) },
-  info (...args) { this.log('info', ...args) },
+  error (...args) {
+    this.log('error', ...args)
+  },
+  info (...args) {
+    this.log('info', ...args)
+  },
   level: 'silly',
   levels: {
     silly: 0,
     verbose: 1,
     info: 2,
     error: 3,
-    silent: 4
+    silent: 4,
   },
-  notice (...args) { this.log('notice', ...args) },
+  notice (...args) {
+    this.log('notice', ...args)
+  },
   record: [],
-  verbose (...args) { this.log('verbose', ...args) }
+  verbose (...args) {
+    this.log('verbose', ...args)
+  },
 }
 
 const metrics = {
-  stop: () => null
+  stop: () => null,
 }
 
 // overrides OS type/release for cross platform snapshots
@@ -96,8 +104,10 @@ process = Object.assign(
     exit () {},
     exitCode: 0,
     version: 'v1.0.0',
-    stdout: { write (_, cb) { cb() } },
-    stderr: { write () {} }
+    stdout: { write (_, cb) {
+      cb()
+    } },
+    stderr: { write () {} },
   }
 )
 // needs to put process back in its place
@@ -112,10 +122,10 @@ const mocks = {
   '../../../lib/utils/error-message.js': (err) => ({
     ...err,
     summary: [['ERR', err.message]],
-    detail: [['ERR', err.message]]
+    detail: [['ERR', err.message]],
   }),
   '../../../lib/utils/metrics.js': metrics,
-  '../../../lib/utils/cache-file.js': cacheFile
+  '../../../lib/utils/cache-file.js': cacheFile,
 }
 
 requireInject.installGlobally('../../../lib/utils/error-handler.js', mocks)
@@ -226,8 +236,8 @@ t.test('console.log output using --json', (t) => {
         error: {
           code: 'EBADTHING', // should default error code to E[A-Z]+
           summary: 'Error: EBADTHING Something happened',
-          detail: 'Error: EBADTHING Something happened'
-        }
+          detail: 'Error: EBADTHING Something happened',
+        },
       },
       'should output expected json output'
     )
@@ -246,7 +256,7 @@ t.test('throw a non-error obj', (t) => {
 
   const weirdError = {
     code: 'ESOMETHING',
-    message: 'foo bar'
+    message: 'foo bar',
   }
 
   const _logError = npmlog.error
@@ -379,7 +389,7 @@ t.test('uses code from errno', (t) => {
   errorHandler(Object.assign(
     new Error('Error with errno'),
     {
-      errno: 127
+      errno: 127,
     }
   ))
 
@@ -408,7 +418,7 @@ t.test('uses exitCode as code if using a number', (t) => {
   errorHandler(Object.assign(
     new Error('Error with code type number'),
     {
-      code: 404
+      code: 404,
     }
   ))
 
@@ -464,7 +474,7 @@ t.test('defaults to log error msg if stack is missing', (t) => {
     new Error('Error with no stack'),
     {
       code: 'ENOSTACK',
-      errno: 127
+      errno: 127,
     }
   )
   delete noStackErr.stack

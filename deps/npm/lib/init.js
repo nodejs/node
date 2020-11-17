@@ -1,11 +1,11 @@
-// initialize a package.json file
+'use strict'
 
+const initJson = require('init-package-json')
+const npa = require('npm-package-arg')
+
+const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
 const completion = require('./utils/completion/none.js')
-
-const npa = require('npm-package-arg')
-const npm = require('./npm.js')
-const initJson = require('init-package-json')
 const output = require('./utils/output.js')
 
 const usage = usageUtil(
@@ -78,11 +78,12 @@ const init = async args => {
         npm.log.warn('init', 'canceled')
         return res()
       }
-      npm.log.info('init', 'written successfully')
       if (er)
         rej(er)
-      else
+      else {
+        npm.log.info('init', 'written successfully')
         res(data)
+      }
     })
   })
 }

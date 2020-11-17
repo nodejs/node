@@ -8,13 +8,13 @@ const isWindowsBash = () => {
 
 Object.defineProperty(process, 'platform', {
   value: 'posix',
-  configurable: true
+  configurable: true,
 })
 t.equal(isWindowsBash(), false, 'false when not windows')
 
 Object.defineProperty(process, 'platform', {
   value: 'win32',
-  configurable: true
+  configurable: true,
 })
 process.env.MSYSTEM = 'not ming'
 process.env.TERM = 'dumb'

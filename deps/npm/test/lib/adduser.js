@@ -8,7 +8,7 @@ let result = ''
 const _flatOptions = {
   authType: 'legacy',
   registry: 'https://registry.npmjs.org/',
-  scope: ''
+  scope: '',
 }
 
 let failSave = false
@@ -21,14 +21,14 @@ const authDummy = () => Promise.resolve({
     username: 'u',
     password: 'p',
     email: 'u@npmjs.org',
-    alwaysAuth: false
-  }
+    alwaysAuth: false,
+  },
 })
 
 const deleteMock = (key, where) => {
   deletedConfig = {
     ...deletedConfig,
-    [key]: where
+    [key]: where,
   }
 }
 const adduser = requireInject('../../lib/adduser.js', {
@@ -43,30 +43,30 @@ const adduser = requireInject('../../lib/adduser.js', {
     config: {
       delete: deleteMock,
       get (key, where) {
-        if (!where || where === 'user') {
+        if (!where || where === 'user')
           return _flatOptions[key]
-        }
       },
       getCredentialsByURI,
       async save () {
-        if (failSave) {
+        if (failSave)
           throw new Error('error saving user config')
-        }
       },
       set (key, value, where) {
         setConfig = {
           ...setConfig,
           [key]: {
             value,
-            where
-          }
+            where,
+          },
         }
       },
-      setCredentialsByURI
-    }
+      setCredentialsByURI,
+    },
   },
-  '../../lib/utils/output.js': msg => { result = msg },
-  '../../lib/auth/legacy.js': authDummy
+  '../../lib/utils/output.js': msg => {
+    result = msg
+  },
+  '../../lib/auth/legacy.js': authDummy,
 })
 
 test('simple login', (t) => {
@@ -90,7 +90,7 @@ test('simple login', (t) => {
         _authtoken: 'user',
         _authToken: 'user',
         '//registry.npmjs.org/:-authtoken': undefined,
-        '//registry.npmjs.org/:_authToken': 'user'
+        '//registry.npmjs.org/:_authToken': 'user',
       },
       'should delete token in user config'
     )
@@ -101,7 +101,7 @@ test('simple login', (t) => {
         '//registry.npmjs.org/:_password': { value: 'cA==', where: 'user' },
         '//registry.npmjs.org/:username': { value: 'u', where: 'user' },
         '//registry.npmjs.org/:email': { value: 'u@npmjs.org', where: 'user' },
-        '//registry.npmjs.org/:always-auth': { value: false, where: 'user' }
+        '//registry.npmjs.org/:always-auth': { value: false, where: 'user' },
       },
       'should set expected user configs'
     )

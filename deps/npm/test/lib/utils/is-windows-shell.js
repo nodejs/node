@@ -1,6 +1,6 @@
 const t = require('tap')
 Object.defineProperty(process, 'platform', {
-  value: 'win32'
+  value: 'win32',
 })
 const isWindows = require('../../../lib/utils/is-windows.js')
 const isWindowsBash = require('../../../lib/utils/is-windows-bash.js')

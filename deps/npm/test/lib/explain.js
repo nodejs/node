@@ -3,7 +3,7 @@ const requireInject = require('require-inject')
 const npm = {
   prefix: null,
   color: true,
-  flatOptions: {}
+  flatOptions: {},
 }
 const { resolve } = require('path')
 
@@ -20,8 +20,8 @@ const explain = requireInject('../../lib/explain.js', {
   '../../lib/utils/explain-dep.js': {
     explainNode: (expl, depth, color) => {
       return `${expl.name}@${expl.version} depth=${depth} color=${color}`
-    }
-  }
+    },
+  },
 })
 
 t.test('no args throws usage', async t => {
@@ -68,15 +68,15 @@ t.test('explain some nodes', async t => {
           name: 'foo',
           version: '1.2.3',
           dependencies: {
-            bar: '*'
-          }
-        })
+            bar: '*',
+          },
+        }),
       },
       bar: {
         'package.json': JSON.stringify({
           name: 'bar',
-          version: '1.2.3'
-        })
+          version: '1.2.3',
+        }),
       },
       baz: {
         'package.json': JSON.stringify({
@@ -84,40 +84,39 @@ t.test('explain some nodes', async t => {
           version: '1.2.3',
           dependencies: {
             foo: '*',
-            bar: '2'
-          }
+            bar: '2',
+          },
         }),
         node_modules: {
           bar: {
             'package.json': JSON.stringify({
               name: 'bar',
-              version: '2.3.4'
-            })
+              version: '2.3.4',
+            }),
           },
           extra: {
             'package.json': JSON.stringify({
               name: 'extra',
               version: '99.9999.999999',
-              description: 'extraneous package'
-            })
-          }
-        }
-      }
+              description: 'extraneous package',
+            }),
+          },
+        },
+      },
     },
     'package.json': JSON.stringify({
       dependencies: {
-        baz: '1'
-      }
-    })
+        baz: '1',
+      },
+    }),
   })
 
   // works with either a full actual path or the location
   const p = 'node_modules/foo'
   for (const path of [p, resolve(npm.prefix, p)]) {
     await explain([path], er => {
-      if (er) {
+      if (er)
         throw er
-      }
     })
     t.strictSame(OUTPUT, [['foo@1.2.3 depth=Infinity color=true']])
     OUTPUT.length = 0
@@ -125,44 +124,40 @@ t.test('explain some nodes', async t => {
 
   // finds all nodes by name
   await explain(['bar'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
   })
   t.strictSame(OUTPUT, [[
     'bar@1.2.3 depth=Infinity color=true\n\n' +
-    'bar@2.3.4 depth=Infinity color=true'
+    'bar@2.3.4 depth=Infinity color=true',
   ]])
   OUTPUT.length = 0
 
   // finds only nodes that match the spec
   await explain(['bar@1'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
   })
   t.strictSame(OUTPUT, [['bar@1.2.3 depth=Infinity color=true']])
   OUTPUT.length = 0
 
   // finds extraneous nodes
   await explain(['extra'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
   })
   t.strictSame(OUTPUT, [['extra@99.9999.999999 depth=Infinity color=true']])
   OUTPUT.length = 0
 
   npm.flatOptions.json = true
   await explain(['node_modules/foo'], er => {
-    if (er) {
+    if (er)
       throw er
-    }
   })
   t.match(JSON.parse(OUTPUT[0][0]), [{
     name: 'foo',
     version: '1.2.3',
-    dependents: Array
+    dependents: Array,
   }])
   OUTPUT.length = 0
   npm.flatOptions.json = false
@@ -174,4 +169,3 @@ t.test('explain some nodes', async t => {
     })
   })
 })
-

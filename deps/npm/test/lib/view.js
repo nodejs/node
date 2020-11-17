@@ -13,227 +13,225 @@ const cleanLogs = (done) => {
 }
 
 const packument = (nv, opts) => {
-  if (!opts.fullMetadata) {
+  if (!opts.fullMetadata)
     throw new Error('must fetch fullMetadata')
-  }
 
-  if (!opts.preferOnline) {
+  if (!opts.preferOnline)
     throw new Error('must fetch with preferOnline')
-  }
 
   const mocks = {
-    'red': {
-      'name' : 'red',
+    red: {
+      name: 'red',
       'dist-tags': {
-        '1.0.1': {}
+        '1.0.1': {},
       },
-      'time': {
-        'unpublished': new Date()
-      }
+      time: {
+        unpublished: new Date(),
+      },
     },
-    'blue': {
-      'name': 'blue',
+    blue: {
+      name: 'blue',
       'dist-tags': {},
-      'time': {
-        '1.0.0': '2019-08-06T16:21:09.842Z'
+      time: {
+        '1.0.0': '2019-08-06T16:21:09.842Z',
       },
-      'versions': {
+      versions: {
         '1.0.0': {
-          'name': 'blue',
-          'version': '1.0.0',
-          'dist': {
-            'shasum': '123',
-            'tarball': 'http://hm.blue.com/1.0.0.tgz',
-            'integrity': '---',
-            'fileCount': 1,
-            'unpackedSize': 1              
-          }
+          name: 'blue',
+          version: '1.0.0',
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.blue.com/1.0.0.tgz',
+            integrity: '---',
+            fileCount: 1,
+            unpackedSize: 1,
+          },
         },
-        '1.0.1': {}
-      }
+        '1.0.1': {},
+      },
     },
-    'cyan': {
-      '_npmUser': {
-        'name': 'claudia',
-        'email': 'claudia@cyan.com'
-      } ,
-      'name': 'cyan',
+    cyan: {
+      _npmUser: {
+        name: 'claudia',
+        email: 'claudia@cyan.com',
+      },
+      name: 'cyan',
       'dist-tags': {},
-      'versions': {
+      versions: {
         '1.0.0': {
-          'version': '1.0.0',
-          'name': 'cyan',
-          'dist': {
-            'shasum': '123',
-            'tarball': 'http://hm.cyan.com/1.0.0.tgz',
-            'integrity': '---',
-            'fileCount': 1,
-            'unpackedSize': 1
-          }
+          version: '1.0.0',
+          name: 'cyan',
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.cyan.com/1.0.0.tgz',
+            integrity: '---',
+            fileCount: 1,
+            unpackedSize: 1,
+          },
         },
-        '1.0.1': {}
-      }
-    },
-    'brown': {
-      'name': 'brown'
-    },
-    'yellow': {
-      '_id': 'yellow',
-      'name': 'yellow',
-      'author': {
-        'name': 'foo',
-        'email': 'foo@yellow.com',
-        'twitter': 'foo'
+        '1.0.1': {},
       },
-      'readme': 'a very useful readme',
-      'versions': {
+    },
+    brown: {
+      name: 'brown',
+    },
+    yellow: {
+      _id: 'yellow',
+      name: 'yellow',
+      author: {
+        name: 'foo',
+        email: 'foo@yellow.com',
+        twitter: 'foo',
+      },
+      readme: 'a very useful readme',
+      versions: {
         '1.0.0': {
-          'version': '1.0.0',
-          'author': 'claudia',
-          'readme': 'a very useful readme',
-          'maintainers': [
-            { 'name': 'claudia', 'email': 'c@yellow.com', 'twitter': 'cyellow' },
-            { 'name': 'isaacs', 'email': 'i@yellow.com', 'twitter': 'iyellow' }
-          ]
+          version: '1.0.0',
+          author: 'claudia',
+          readme: 'a very useful readme',
+          maintainers: [
+            { name: 'claudia', email: 'c@yellow.com', twitter: 'cyellow' },
+            { name: 'isaacs', email: 'i@yellow.com', twitter: 'iyellow' },
+          ],
         },
         '1.0.1': {
-          'version': '1.0.1',
-          'author': 'claudia'
+          version: '1.0.1',
+          author: 'claudia',
         },
         '1.0.2': {
-          'version': '1.0.2',
-          'author': 'claudia'
-        }
-      }
-    },
-    'purple': {
-      'name': 'purple',
-      'versions': {
-        '1.0.0': {
-          'foo': 1,
-          'maintainers': [
-            { 'name': 'claudia' }
-          ]
+          version: '1.0.2',
+          author: 'claudia',
         },
-        '1.0.1': {}
-      }
-    },
-    'green': {
-      '_id': 'green',
-      'name': 'green',
-      'dist-tags': {
-        'latest': '1.0.0'
       },
-      'maintainers': [
-        { 'name': 'claudia', 'email': 'c@yellow.com', 'twitter': 'cyellow' },
-        { 'name': 'isaacs', 'email': 'i@yellow.com', 'twitter': 'iyellow' }
+    },
+    purple: {
+      name: 'purple',
+      versions: {
+        '1.0.0': {
+          foo: 1,
+          maintainers: [
+            { name: 'claudia' },
+          ],
+        },
+        '1.0.1': {},
+      },
+    },
+    green: {
+      _id: 'green',
+      name: 'green',
+      'dist-tags': {
+        latest: '1.0.0',
+      },
+      maintainers: [
+        { name: 'claudia', email: 'c@yellow.com', twitter: 'cyellow' },
+        { name: 'isaacs', email: 'i@yellow.com', twitter: 'iyellow' },
       ],
-      'keywords': ['colors', 'green', 'crayola'],
-      'versions': {
+      keywords: ['colors', 'green', 'crayola'],
+      versions: {
         '1.0.0': {
-          '_id': 'green',
-          'version': '1.0.0',
-          'description': 'green is a very important color',
-          'bugs': {
-            'url': 'http://bugs.green.com'
+          _id: 'green',
+          version: '1.0.0',
+          description: 'green is a very important color',
+          bugs: {
+            url: 'http://bugs.green.com',
           },
-          'deprecated': true,
-          'repository': {
-            'url': 'http://repository.green.com'
+          deprecated: true,
+          repository: {
+            url: 'http://repository.green.com',
           },
-          'license': { type: 'ACME' },
-          'bin': {
-            'green': 'bin/green.js'
+          license: { type: 'ACME' },
+          bin: {
+            green: 'bin/green.js',
           },
-          'dependencies': {
-            'red': '1.0.0',
-            'yellow': '1.0.0'
+          dependencies: {
+            red: '1.0.0',
+            yellow: '1.0.0',
           },
-          'dist': {
-            'shasum': '123',
-            'tarball': 'http://hm.green.com/1.0.0.tgz',
-            'integrity': '---',
-            'fileCount': 1,
-            'unpackedSize': 1
-          }
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.green.com/1.0.0.tgz',
+            integrity: '---',
+            fileCount: 1,
+            unpackedSize: 1,
+          },
         },
-        '1.0.1': {}
-      }
-    },
-    'black': {
-      'name': 'black',
-      'dist-tags': {
-        'latest': '1.0.0'
+        '1.0.1': {},
       },
-      'versions': {
+    },
+    black: {
+      name: 'black',
+      'dist-tags': {
+        latest: '1.0.0',
+      },
+      versions: {
         '1.0.0': {
-          'version': '1.0.0',
-          'bugs': 'http://bugs.black.com',
-          'license': {},
-          'dependencies': (() => {
+          version: '1.0.0',
+          bugs: 'http://bugs.black.com',
+          license: {},
+          dependencies: (() => {
             const deps = {}
-            for (i = 0; i < 25; i++) {
+            for (let i = 0; i < 25; i++)
               deps[i] = '1.0.0'
-            }
+
             return deps
           })(),
-          'dist': {
-            'shasum': '123',
-            'tarball': 'http://hm.black.com/1.0.0.tgz',
-            'integrity': '---',
-            'fileCount': 1,
-            'unpackedSize': 1
-          }
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.black.com/1.0.0.tgz',
+            integrity: '---',
+            fileCount: 1,
+            unpackedSize: 1,
+          },
         },
-        '1.0.1': {}
-      }
-    },
-    'pink': {
-      'name': 'pink',
-      'dist-tags': {
-        'latest': '1.0.0'
+        '1.0.1': {},
       },
-      'versions': {
+    },
+    pink: {
+      name: 'pink',
+      'dist-tags': {
+        latest: '1.0.0',
+      },
+      versions: {
         '1.0.0': {
-          'version': '1.0.0',
-          'maintainers': [
-            { 'name': 'claudia', 'url': 'http://c.pink.com' },
-            { 'name': 'isaacs', 'url': 'http://i.pink.com'  }
+          version: '1.0.0',
+          maintainers: [
+            { name: 'claudia', url: 'http://c.pink.com' },
+            { name: 'isaacs', url: 'http://i.pink.com' },
           ],
-          'repository': 'http://repository.pink.com',
-          'license': {},
-          'dist': {
-            'shasum': '123',
-            'tarball': 'http://hm.pink.com/1.0.0.tgz',
-            'integrity': '---',
-            'fileCount': 1,
-            'unpackedSize': 1
-          }
+          repository: 'http://repository.pink.com',
+          license: {},
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.pink.com/1.0.0.tgz',
+            integrity: '---',
+            fileCount: 1,
+            unpackedSize: 1,
+          },
         },
-        '1.0.1': {}
-      }
-    },
-    'orange': {
-      'name': 'orange',
-      'dist-tags': {
-        'latest': '1.0.0'
+        '1.0.1': {},
       },
-      'versions': {
+    },
+    orange: {
+      name: 'orange',
+      'dist-tags': {
+        latest: '1.0.0',
+      },
+      versions: {
         '1.0.0': {
-          'version': '1.0.0',
-          'homepage': 'http://hm.orange.com',
-          'license': {},
-          'dist': {
-            'shasum': '123',
-            'tarball': 'http://hm.orange.com/1.0.0.tgz',
-            'integrity': '---',
-            'fileCount': 1,
-            'unpackedSize': 1
-          }
+          version: '1.0.0',
+          homepage: 'http://hm.orange.com',
+          license: {},
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.orange.com/1.0.0.tgz',
+            integrity: '---',
+            fileCount: 1,
+            unpackedSize: 1,
+          },
         },
-        '1.0.1': {}
-      }
-    }
+        '1.0.1': {},
+      },
+    },
   }
   return mocks[nv.name]
 }
@@ -244,34 +242,34 @@ t.test('should log package info', t => {
     '../../lib/npm.js': {
       flatOptions: {
         global: false,
-      }
+      },
     },
-    'pacote': {
-      packument
-    }
+    pacote: {
+      packument,
+    },
   })
 
   const viewJson = requireInject('../../lib/view.js', {
     '../../lib/npm.js': {
       flatOptions: {
-        json: true
-      }
+        json: true,
+      },
     },
-    'pacote': {
-      packument
-    }
+    pacote: {
+      packument,
+    },
   })
 
   const viewUnicode = requireInject('../../lib/view.js', {
     '../../lib/npm.js': {
       flatOptions: {
         global: false,
-        unicode: true
-      }
+        unicode: true,
+      },
     },
-    'pacote': {
-      packument
-    }
+    pacote: {
+      packument,
+    },
   })
 
   t.test('package with license, bugs, repository and other fields', t => {
@@ -344,8 +342,8 @@ t.test('should log info of package in current working dir', t => {
   const testDir = t.testdir({
     'package.json': JSON.stringify({
       name: 'blue',
-      version: '1.0.0'
-    }, null, 2)
+      version: '1.0.0',
+    }, null, 2),
   })
 
   const view = requireInject('../../lib/view.js', {
@@ -353,12 +351,12 @@ t.test('should log info of package in current working dir', t => {
       prefix: testDir,
       flatOptions: {
         defaultTag: '1.0.0',
-        global: false
-      }
+        global: false,
+      },
     },
-    'pacote': {
-      packument
-    }
+    pacote: {
+      packument,
+    },
   })
 
   t.test('specific version', t => {
@@ -383,23 +381,23 @@ t.test('should log info by field name', t => {
     '../../lib/npm.js': {
       flatOptions: {
         json: true,
-        global: false
-      }
+        global: false,
+      },
     },
-    'pacote': {
-      packument
-    }
+    pacote: {
+      packument,
+    },
   })
 
   const view = requireInject('../../lib/view.js', {
     '../../lib/npm.js': {
       flatOptions: {
-        global: false
-      }
+        global: false,
+      },
     },
-    'pacote': {
-      packument
-    }
+    pacote: {
+      packument,
+    },
   })
 
   t.test('readme', t => {
@@ -452,14 +450,14 @@ t.test('should log info by field name', t => {
   })
 
   t.test('array field - 1 element', t => {
-    view(['purple@1.0.0',  'maintainers.name'], () => {
+    view(['purple@1.0.0', 'maintainers.name'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('array field - 2 elements', t => {
-    view(['yellow@1.x.x',  'maintainers.name'], () => {
+    view(['yellow@1.x.x', 'maintainers.name'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
@@ -472,9 +470,9 @@ t.test('throw error if global mode', (t) => {
   const view = requireInject('../../lib/view.js', {
     '../../lib/npm.js': {
       flatOptions: {
-        global: true
-      }
-    }
+        global: true,
+      },
+    },
   })
   view([], (err) => {
     t.equals(err.message, 'Cannot use view command in global mode.')
@@ -489,9 +487,9 @@ t.test('throw ENOENT error if package.json misisng', (t) => {
     '../../lib/npm.js': {
       prefix: testDir,
       flatOptions: {
-        global: false
-      }
-    }
+        global: false,
+      },
+    },
   })
   view([], (err) => {
     t.match(err, { code: 'ENOENT' })
@@ -501,16 +499,16 @@ t.test('throw ENOENT error if package.json misisng', (t) => {
 
 t.test('throw EJSONPARSE error if package.json not json', (t) => {
   const testDir = t.testdir({
-    'package.json': 'not json, nope, not even a little bit!'
+    'package.json': 'not json, nope, not even a little bit!',
   })
 
   const view = requireInject('../../lib/view.js', {
     '../../lib/npm.js': {
       prefix: testDir,
       flatOptions: {
-        global: false
-      }
-    }
+        global: false,
+      },
+    },
   })
   view([], (err) => {
     t.match(err, { code: 'EJSONPARSE' })
@@ -520,16 +518,16 @@ t.test('throw EJSONPARSE error if package.json not json', (t) => {
 
 t.test('throw error if package.json has no name', (t) => {
   const testDir = t.testdir({
-    'package.json': '{}'
+    'package.json': '{}',
   })
 
   const view = requireInject('../../lib/view.js', {
     '../../lib/npm.js': {
       prefix: testDir,
       flatOptions: {
-        global: false
-      }
-    }
+        global: false,
+      },
+    },
   })
   view([], (err) => {
     t.equals(err.message, 'Invalid package.json, no "name" field')
@@ -542,12 +540,12 @@ t.test('throws when unpublished', (t) => {
     '../../lib/npm.js': {
       flatOptions: {
         defaultTag: '1.0.1',
-        global: false
-      }
+        global: false,
+      },
     },
-    'pacote': {
-      packument
-    }
+    pacote: {
+      packument,
+    },
   })
   view(['red'], (err) => {
     t.equals(err.code, 'E404')
@@ -560,16 +558,18 @@ t.test('completion', (t) => {
     '../../lib/npm.js': {
       flatOptions: {
         defaultTag: '1.0.1',
-        global: false
-      }
+        global: false,
+      },
     },
-    'pacote': {
-      packument
-    }
+    pacote: {
+      packument,
+    },
   })
   view.completion({
-    conf: { argv: { remain: ['npm', 'view', 'green@1.0.0'] } }
+    conf: { argv: { remain: ['npm', 'view', 'green@1.0.0'] } },
   }, (err, res) => {
+    if (err)
+      throw err
     t.ok(res, 'returns back fields')
     t.end()
   })
@@ -580,14 +580,13 @@ t.test('no registry completion', (t) => {
     '../../lib/npm.js': {
       flatOptions: {
         defaultTag: '1.0.1',
-      }
-    }
+      },
+    },
   })
   view.completion({
-    conf: { argv: { remain: ['npm', 'view'] } }
+    conf: { argv: { remain: ['npm', 'view'] } },
   }, (err) => {
     t.notOk(err, 'there is no package completion')
     t.end()
   })
 })
-

@@ -30,7 +30,7 @@ const versions = [
   ['v10.0.0-0', false, false],
   ['v11.0.0-0', false, false],
   ['v12.0.0-0', false, false],
-  ['v13.0.0-0', false, false]
+  ['v13.0.0-0', false, false],
 ]
 
 test('versions', function (t) {
@@ -71,7 +71,7 @@ test('checkForBrokenNode', t => {
   const expectLogs = [
     'ERROR: npm is known not to run on Node.js 1.2.3',
     "You'll need to upgrade to a newer Node.js version in order to use this",
-    'version of npm. You can find the latest version at https://nodejs.org/'
+    'version of npm. You can find the latest version at https://nodejs.org/',
   ]
   console.error = msg => logs.push(msg)
   unsupported.checkForBrokenNode()
@@ -92,7 +92,7 @@ test('checkForUnsupportedNode', t => {
     'npm does not support Node.js 8.0.0',
     'You should probably upgrade to a newer version of node as we',
     "can't make any promises that npm will work with this version.",
-    'You can find the latest version at https://nodejs.org/'
+    'You can find the latest version at https://nodejs.org/',
   ]
   npmlog.warn = (section, msg) => logs.push(msg)
 

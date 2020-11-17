@@ -10,20 +10,20 @@ const legacy = requireInject('../../../lib/auth/legacy.js', {
   npmlog: {
     info: (...msgs) => {
       log += msgs.join(' ')
-    }
+    },
   },
   'npm-profile': profile,
   '../../../lib/utils/open-url.js': (url, msg, cb) => {
-    if (url) {
+    if (url)
       cb()
-    } else {
+    else {
       cb(Object.assign(
         new Error('failed open url'),
         { code: 'ERROR' }
       ))
     }
   },
-  '../../../lib/utils/read-user-info.js': read
+  '../../../lib/utils/read-user-info.js': read,
 })
 
 test('login using username/password with token result', async (t) => {
@@ -33,16 +33,16 @@ test('login using username/password with token result', async (t) => {
 
   const {
     message,
-    newCreds
+    newCreds,
   } = await legacy({
     creds: {
       username: 'u',
       password: 'p',
       email: 'u@npmjs.org',
-      alwaysAuth: false
+      alwaysAuth: false,
     },
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   t.equal(
@@ -74,16 +74,16 @@ test('login using username/password with user info result', async (t) => {
 
   const {
     message,
-    newCreds
+    newCreds,
   } = await legacy({
     creds: {
       username: 'u',
       password: 'p',
       email: 'u@npmjs.org',
-      alwaysAuth: false
+      alwaysAuth: false,
     },
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   t.equal(
@@ -98,7 +98,7 @@ test('login using username/password with user info result', async (t) => {
       username: 'u',
       password: 'p',
       email: 'u@npmjs.org',
-      alwaysAuth: false
+      alwaysAuth: false,
     },
     'should return used credentials'
   )
@@ -125,16 +125,16 @@ test('login otp requested', async (t) => {
 
   const {
     message,
-    newCreds
+    newCreds,
   } = await legacy({
     creds: {
       username: 'u',
       password: 'p',
       email: 'u@npmjs.org',
-      alwaysAuth: false
+      alwaysAuth: false,
     },
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   t.equal(
@@ -165,10 +165,10 @@ test('login missing basic credential info', async (t) => {
     legacy({
       creds: {
         username: 'u',
-        password: 'p'
+        password: 'p',
       },
       registry: 'https://registry.npmjs.org/',
-      scope: ''
+      scope: '',
     }),
     { code: 'ERROR' },
     'should throw server response error'
@@ -195,16 +195,16 @@ test('create new user when user not found', async (t) => {
 
   const {
     message,
-    newCreds
+    newCreds,
   } = await legacy({
     creds: {
       username: 'u',
       password: 'p',
       email: 'u@npmjs.org',
-      alwaysAuth: false
+      alwaysAuth: false,
     },
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   t.equal(
@@ -245,13 +245,13 @@ test('prompts for user info if required', async (t) => {
 
   const {
     message,
-    newCreds
+    newCreds,
   } = await legacy({
     creds: {
-      alwaysAuth: true
+      alwaysAuth: true,
     },
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   t.equal(
@@ -272,7 +272,7 @@ test('prompts for user info if required', async (t) => {
       username: 'foo',
       password: 'pass',
       email: 'foo@npmjs.org',
-      alwaysAuth: true
+      alwaysAuth: true,
     },
     'should return result from profile.login containing prompt info'
   )
@@ -309,10 +309,10 @@ test('request otp when creating new user', async (t) => {
       username: 'u',
       password: 'p',
       email: 'u@npmjs.org',
-      alwaysAuth: false
+      alwaysAuth: false,
     },
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   log = ''
@@ -338,10 +338,10 @@ test('unknown error during user creation', async (t) => {
         username: 'u',
         password: 'p',
         email: 'u@npmjs.org',
-        alwaysAuth: false
+        alwaysAuth: false,
       },
       registry: 'https://registry.npmjs.org/',
-      scope: ''
+      scope: '',
     }),
     { code: 'ERROR' },
     'should throw unknown error'
@@ -353,16 +353,18 @@ test('unknown error during user creation', async (t) => {
 })
 
 test('open url error', async (t) => {
-  profile.login = async (opener, prompt, opts) => { await opener() }
+  profile.login = async (opener, prompt, opts) => {
+    await opener()
+  }
 
   await t.rejects(
     legacy({
       creds: {
         username: 'u',
-        password: 'p'
+        password: 'p',
       },
       registry: 'https://registry.npmjs.org/',
-      scope: ''
+      scope: '',
     }),
     { message: 'failed open url', code: 'ERROR' },
     'should throw unknown error'
@@ -380,10 +382,10 @@ test('login no credentials provided', async (t) => {
       username: undefined,
       password: undefined,
       email: undefined,
-      alwaysAuth: undefined
+      alwaysAuth: undefined,
     },
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   t.equal(
@@ -404,10 +406,10 @@ test('scoped login', async (t) => {
       username: 'u',
       password: 'p',
       email: 'u@npmjs.org',
-      alwaysAuth: false
+      alwaysAuth: false,
     },
     registry: 'https://diff-registry.npmjs.org/',
-    scope: 'myscope'
+    scope: 'myscope',
   })
 
   t.equal(

@@ -6,7 +6,7 @@ const { resolve } = require('path')
 
 const p = '../../../../lib/utils/completion/installed-shallow.js'
 const installed = requireInject(p, {
-  '../../../../lib/npm.js': npm
+  '../../../../lib/npm.js': npm,
 })
 
 t.test('global not set, include globals with -g', t => {
@@ -15,32 +15,32 @@ t.test('global not set, include globals with -g', t => {
       node_modules: {
         x: {},
         '@scope': {
-          y: {}
-        }
-      }
+          y: {},
+        },
+      },
     },
     local: {
       node_modules: {
         a: {},
         '@scope': {
-          b: {}
-        }
-      }
-    }
+          b: {},
+        },
+      },
+    },
   })
   npm.globalDir = resolve(dir, 'global/node_modules')
   npm.localDir = resolve(dir, 'local/node_modules')
   flatOptions.global = false
   const opt = { conf: { argv: { remain: [] } } }
   installed(opt, (er, res) => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame(res.sort(), [
       '@scope/y -g',
       'x -g',
       'a',
-      '@scope/b'
+      '@scope/b',
     ].sort())
     t.end()
   })
@@ -52,18 +52,18 @@ t.test('global set, include globals and not locals', t => {
       node_modules: {
         x: {},
         '@scope': {
-          y: {}
-        }
-      }
+          y: {},
+        },
+      },
     },
     local: {
       node_modules: {
         a: {},
         '@scope': {
-          b: {}
-        }
-      }
-    }
+          b: {},
+        },
+      },
+    },
   })
   npm.globalDir = resolve(dir, 'global/node_modules')
   npm.localDir = resolve(dir, 'local/node_modules')
@@ -72,7 +72,7 @@ t.test('global set, include globals and not locals', t => {
   installed(opt, (er, res) => {
     t.strictSame(res.sort(), [
       '@scope/y',
-      'x'
+      'x',
     ].sort())
     t.end()
   })
@@ -84,27 +84,27 @@ t.test('more than 3 items in argv, skip it', t => {
       node_modules: {
         x: {},
         '@scope': {
-          y: {}
-        }
-      }
+          y: {},
+        },
+      },
     },
     local: {
       node_modules: {
         a: {},
         '@scope': {
-          b: {}
-        }
-      }
-    }
+          b: {},
+        },
+      },
+    },
   })
   npm.globalDir = resolve(dir, 'global/node_modules')
   npm.localDir = resolve(dir, 'local/node_modules')
   flatOptions.global = false
   const opt = { conf: { argv: { remain: [1, 2, 3, 4, 5, 6] } } }
   installed(opt, (er, res) => {
-    if (er) {
+    if (er)
       throw er
-    }
+
     t.strictSame(res, null)
     t.end()
   })

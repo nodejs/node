@@ -64,7 +64,7 @@ t.test('use a bunch of deprecated switches and options', t => {
     '--shell-auto-fallback',
     '--ignore-existing',
     '-q',
-    'foobar'
+    'foobar',
   ]
 
   const expect = [
@@ -78,18 +78,18 @@ t.test('use a bunch of deprecated switches and options', t => {
     '--loglevel',
     'warn',
     '--',
-    'foobar'
+    'foobar',
   ]
   requireInject(npx, { [cli]: () => {} })
   t.strictSame(process.argv, expect)
   t.strictSame(logs, [
-    [ 'npx: the --npm argument has been removed.' ],
-    [ 'npx: the --node-arg argument has been removed.' ],
-    [ 'npx: the --n argument has been removed.' ],
-    [ 'npx: the --always-spawn argument has been removed.' ],
-    [ 'npx: the --shell-auto-fallback argument has been removed.' ],
-    [ 'npx: the --ignore-existing argument has been removed.' ],
-    [ 'See `npm help exec` for more information' ]
+    ['npx: the --npm argument has been removed.'],
+    ['npx: the --node-arg argument has been removed.'],
+    ['npx: the --n argument has been removed.'],
+    ['npx: the --always-spawn argument has been removed.'],
+    ['npx: the --shell-auto-fallback argument has been removed.'],
+    ['npx: the --ignore-existing argument has been removed.'],
+    ['See `npm help exec` for more information'],
   ])
   t.end()
 })
