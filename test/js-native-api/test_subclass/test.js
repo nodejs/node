@@ -47,5 +47,5 @@ function test(Superclass, Subclass) {
   assert(superItem instanceof Superclass);
   assert(subItem instanceof Subclass);
   assert(subItem instanceof Superclass);
-  assert.strictEqual(Subclass.__proto__, Superclass);
+  assert.strictEqual(Object.getPrototypeOf(Subclass), Superclass);
 }

@@ -46,7 +46,8 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, type }) {
   if (type.match(/napi_define/)) {
-    const instance = type == 'napi_define_class' ? class_instance : subclass_instance;
+    const instance = (type === 'napi_define_class' ? class_instance :
+      subclass_instance);
     bench.start();
     for (let i = 0; i < n; i++) {
       instance.fn();
