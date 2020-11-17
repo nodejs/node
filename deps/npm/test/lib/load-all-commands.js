@@ -4,9 +4,8 @@ const t = require('tap')
 const { cmdList } = require('../../lib/utils/cmd-list.js')
 
 t.test('load npm', t => npm.load(er => {
-  if (er) {
+  if (er)
     throw er
-  }
 }))
 
 t.test('load each command', t => {

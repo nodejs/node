@@ -24,14 +24,14 @@ const actualPlatform = process.platform
 const beWindows = () => {
   Object.defineProperty(process, 'platform', {
     value: 'win32',
-    configurable: true
+    configurable: true,
   })
 }
 
 const bePosix = () => {
   Object.defineProperty(process, 'platform', {
     value: 'posix',
-    configurable: true
+    configurable: true,
   })
 }
 
@@ -41,9 +41,9 @@ const npmPath = resolve(__dirname, '..', '..')
 const Config = require('@npmcli/config')
 const { types, defaults, shorthands } = require('../../lib/utils/config.js')
 const freshConfig = (opts = {}) => {
-  for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e))) {
+  for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e)))
     delete process.env[env]
-  }
+
   process.env.npm_config_cache = CACHE
 
   npm.config = new Config({
@@ -52,14 +52,13 @@ const freshConfig = (opts = {}) => {
     shorthands,
     npmPath,
     log: npmlog,
-    ...opts
+    ...opts,
   })
 }
 
 const logs = []
-for (const level of ['silly', 'verbose', 'timing', 'notice', 'warn', 'error']) {
+for (const level of ['silly', 'verbose', 'timing', 'notice', 'warn', 'error'])
   npmlog[level] = (...msg) => logs.push([level, ...msg])
-}
 
 const npm = require('../../lib/npm.js')
 
@@ -73,7 +72,7 @@ t.test('not yet loaded', t => {
     config: {
       loaded: false,
       get: Function,
-      set: Function
+      set: Function,
     },
     version: String,
   })
@@ -103,7 +102,9 @@ t.test('npm.load', t => {
   t.test('load error', t => {
     const { load } = npm.config
     const loadError = new Error('load error')
-    npm.config.load = async () => { throw loadError }
+    npm.config.load = async () => {
+      throw loadError
+    }
     npm.load(er => {
       t.equal(er, loadError)
       t.equal(npm.loadErr, loadError)
@@ -120,13 +121,13 @@ t.test('npm.load', t => {
 
   t.test('basic loading', t => {
     const dir = t.testdir({
-      node_modules: {}
+      node_modules: {},
     })
     let firstCalled = false
     const first = (er) => {
-      if (er) {
+      if (er)
         throw er
-      }
+
       firstCalled = true
       t.equal(npm.loaded, true)
       t.equal(npm.config.loaded, true)
@@ -134,7 +135,9 @@ t.test('npm.load', t => {
     }
 
     let secondCalled = false
-    const second = () => { secondCalled = true }
+    const second = () => {
+      secondCalled = true
+    }
 
     t.equal(npm.loading, false, 'not loading yet')
     const p = npm.load(first).then(() => {
@@ -142,16 +145,18 @@ t.test('npm.load', t => {
       t.match(npm, {
         loaded: true,
         loading: false,
-        flatOptions: {}
+        flatOptions: {},
       })
       t.equal(firstCalled, true, 'first callback got called')
       t.equal(secondCalled, true, 'second callback got called')
       let thirdCalled = false
-      const third = () => { thirdCalled = true }
+      const third = () => {
+        thirdCalled = true
+      }
       npm.load(third)
       t.equal(thirdCalled, true, 'third callbback got called')
       t.match(logs, [
-        ['timing', 'npm:load', /Completed in [0-9]+ms/]
+        ['timing', 'npm:load', /Completed in [0-9]+ms/],
       ])
       logs.length = 0
 
@@ -216,22 +221,22 @@ t.test('npm.load', t => {
 
   t.test('forceful loading', t => {
     // also, don't get thrown off if argv[0] isn't found for some reason
-    const [ argv0 ] = process.argv
+    const [argv0] = process.argv
     t.teardown(() => {
       process.argv[0] = argv0
     })
     freshConfig({ argv: [...process.argv, '--force', '--color', 'always'] })
     process.argv[0] = 'this exe does not exist or else this test will fail'
     return npm.load(er => {
-      if (er) {
+      if (er)
         throw er
-      }
+
       t.match(logs.filter(l => l[0] !== 'timing'), [
         [
           'warn',
           'using --force',
-          'Recommended protections disabled.'
-        ]
+          'Recommended protections disabled.',
+        ],
       ])
       logs.length = 0
     })
@@ -240,7 +245,7 @@ t.test('npm.load', t => {
   t.test('node is a symlink', async t => {
     const node = actualPlatform === 'win32' ? 'node.exe' : 'node'
     const dir = t.testdir({
-      '.npmrc': 'foo = bar'
+      '.npmrc': 'foo = bar',
     })
 
     // create manually to set the 'file' option in windows
@@ -279,16 +284,16 @@ t.test('npm.load', t => {
     logs.length = 0
 
     await npm.load(er => {
-      if (er) {
+      if (er)
         throw er
-      }
+
       t.equal(npm.config.get('scope'), '@foo', 'added the @ sign to scope')
       t.equal(npm.config.get('metrics-registry'), 'http://example.com')
       t.match(logs.filter(l => l[0] !== 'timing' || !/^config:/.test(l[1])), [
         [
           'verbose',
           'node symlink',
-          resolve(dir, node)
+          resolve(dir, node),
         ],
         [
           'timing',
@@ -301,9 +306,9 @@ t.test('npm.load', t => {
     })
 
     await npm.commands.ll([], (er) => {
-      if (er) {
+      if (er)
         throw er
-      }
+
       t.same(consoleLogs, [[require('../../lib/ls.js').usage]], 'print usage')
       consoleLogs.length = 0
       npm.config.set('usage', false)
@@ -312,9 +317,9 @@ t.test('npm.load', t => {
     })
 
     await npm.commands.get(['scope', '\u2010not-a-dash'], (er) => {
-      if (er) {
+      if (er)
         throw er
-      }
+
       t.match(logs, [
         [
           'error',
@@ -358,7 +363,7 @@ t.test('loading as main will load the cli', t => {
 })
 
 t.test('set process.title', t => {
-  const { execPath, argv: processArgv } = process
+  const { argv: processArgv } = process
   const { log } = console
   const titleDesc = Object.getOwnPropertyDescriptor(process, 'title')
   Object.defineProperty(process, 'title', {

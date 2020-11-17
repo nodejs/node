@@ -8,7 +8,7 @@ test('whoami', (t) => {
     '../../lib/npm.js': { flatOptions: {} },
     '../../lib/utils/output.js': (output) => {
       t.equal(output, 'foo', 'should output the username')
-    }
+    },
   })
 
   whoami([], (err) => {
@@ -24,7 +24,7 @@ test('whoami json', (t) => {
     '../../lib/npm.js': { flatOptions: { json: true } },
     '../../lib/utils/output.js': (output) => {
       t.equal(output, '"foo"', 'should output the username as json')
-    }
+    },
   })
 
   whoami([], (err) => {

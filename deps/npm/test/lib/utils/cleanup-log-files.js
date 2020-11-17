@@ -6,7 +6,7 @@ const rimraf = require('rimraf')
 const mocks = { glob, rimraf }
 const cleanup = requireInject('../../../lib/utils/cleanup-log-files.js', {
   glob: (...args) => mocks.glob(...args),
-  rimraf: (...args) => mocks.rimraf(...args)
+  rimraf: (...args) => mocks.rimraf(...args),
 })
 const { basename } = require('path')
 
@@ -19,15 +19,15 @@ t.test('clean up those files', t => {
       '2-debug.log': 'hello',
       '3-debug.log': 'hello',
       '4-debug.log': 'hello',
-      '5-debug.log': 'hello'
-    }
+      '5-debug.log': 'hello',
+    },
   })
   const warn = (...warning) => t.fail('failed cleanup', { warning })
   return cleanup(cache, 3, warn).then(() => {
     t.strictSame(fs.readdirSync(cache + '/_logs').sort(), [
       '3-debug.log',
       '4-debug.log',
-      '5-debug.log'
+      '5-debug.log',
     ])
   })
 })
@@ -36,14 +36,14 @@ t.test('nothing to clean up', t => {
   const cache = t.testdir({
     _logs: {
       '4-debug.log': 'hello',
-      '5-debug.log': 'hello'
-    }
+      '5-debug.log': 'hello',
+    },
   })
   const warn = (...warning) => t.fail('failed cleanup', { warning })
   return cleanup(cache, 3, warn).then(() => {
     t.strictSame(fs.readdirSync(cache + '/_logs').sort(), [
       '4-debug.log',
-      '5-debug.log'
+      '5-debug.log',
     ])
   })
 })
@@ -66,15 +66,15 @@ t.test('rimraf fail', t => {
       '2-debug.log': 'hello',
       '3-debug.log': 'hello',
       '4-debug.log': 'hello',
-      '5-debug.log': 'hello'
-    }
+      '5-debug.log': 'hello',
+    },
   })
   const warnings = []
   const warn = (...warning) => warnings.push(basename(warning[2]))
   return cleanup(cache, 3, warn).then(() => {
     t.strictSame(warnings.sort((a, b) => a.localeCompare(b)), [
       '1-debug.log',
-      '2-debug.log'
+      '2-debug.log',
     ])
   })
 })

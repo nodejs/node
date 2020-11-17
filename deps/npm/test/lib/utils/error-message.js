@@ -7,13 +7,13 @@ process.getgid = () => 420
 
 Object.defineProperty(process, 'arch', {
   value: 'x64',
-  configurable: true
+  configurable: true,
 })
 
 const beWindows = () => {
   Object.defineProperty(process, 'platform', {
     value: 'win32',
-    configurable: true
+    configurable: true,
   })
   delete require.cache[require.resolve('../../../lib/utils/is-windows.js')]
 }
@@ -21,7 +21,7 @@ const beWindows = () => {
 const bePosix = () => {
   Object.defineProperty(process, 'platform', {
     value: 'posix',
-    configurable: true
+    configurable: true,
   })
   delete require.cache[require.resolve('../../../lib/utils/is-windows.js')]
 }
@@ -33,22 +33,21 @@ npm.config = {
   loaded: false,
   localPrefix: '/some/prefix/dir',
   get: key => {
-    if (key === 'cache') {
+    if (key === 'cache')
       return CACHE
-    } else if (key === 'node-version') {
+    else if (key === 'node-version')
       return '99.99.99'
-    } else if (key === 'global') {
+    else if (key === 'global')
       return false
-    } else {
+    else
       throw new Error('unexpected config lookup: ' + key)
-    }
-  }
+  },
 }
 
 npm.version = '123.69.420-npm'
 Object.defineProperty(process, 'version', {
   value: '123.69.420-node',
-  configurable: true
+  configurable: true,
 })
 
 const npmlog = require('npmlog')
@@ -64,8 +63,8 @@ const errorMessage = requireInject('../../../lib/utils/error-message.js', {
     report: (...args) => {
       EXPLAIN_CALLED.push(args)
       return 'explanation'
-    }
-  }
+    },
+  },
 })
 
 t.test('just simple messages', t => {
@@ -92,7 +91,7 @@ t.test('just simple messages', t => {
     'EINVALIDTYPE',
     'ETOOMANYARGS',
     'ETARGET',
-    'E403'
+    'E403',
   ]
   t.plan(codes.length)
   codes.forEach(code => {
@@ -100,13 +99,12 @@ t.test('just simple messages', t => {
     const pkgid = 'some@package'
     const file = '/some/file'
     const stack = 'dummy stack trace'
-    const required = { node: '1.2.3', npm: '4.2.0' }
     const er = Object.assign(new Error('foo'), {
       code,
       path,
       pkgid,
       file,
-      stack
+      stack,
     })
     t.matchSnapshot(errorMessage(er))
   })
@@ -132,18 +130,19 @@ t.test('replace message/stack sensistive info', t => {
 
 t.test('bad engine with config loaded', t => {
   npm.config.loaded = true
-  t.teardown(() => { npm.config.loaded = false })
+  t.teardown(() => {
+    npm.config.loaded = false
+  })
   const path = '/some/path'
   const pkgid = 'some@package'
   const file = '/some/file'
   const stack = 'dummy stack trace'
-  const required = { node: '1.2.3', npm: '4.2.0' }
   const er = Object.assign(new Error('foo'), {
     code: 'EBADENGINE',
     path,
     pkgid,
     file,
-    stack
+    stack,
   })
   t.matchSnapshot(errorMessage(er))
   t.end()
@@ -152,14 +151,12 @@ t.test('bad engine with config loaded', t => {
 t.test('enoent without a file', t => {
   const path = '/some/path'
   const pkgid = 'some@package'
-  const file = '/some/file'
   const stack = 'dummy stack trace'
-  const required = { node: '1.2.3', npm: '4.2.0' }
   const er = Object.assign(new Error('foo'), {
     code: 'ENOENT',
     path,
     pkgid,
-    stack
+    stack,
   })
   t.matchSnapshot(errorMessage(er))
   t.end()
@@ -171,13 +168,12 @@ t.test('enolock without a command', t => {
   const pkgid = 'some@package'
   const file = '/some/file'
   const stack = 'dummy stack trace'
-  const required = { node: '1.2.3', npm: '4.2.0' }
   const er = Object.assign(new Error('foo'), {
     code: 'ENOLOCK',
     path,
     pkgid,
     file,
-    stack
+    stack,
   })
   t.matchSnapshot(errorMessage(er))
   t.end()
@@ -191,18 +187,18 @@ t.test('default message', t => {
     signal: 'SIGYOLO',
     args: ['a', 'r', 'g', 's'],
     stdout: 'stdout',
-    stderr: 'stderr'
+    stderr: 'stderr',
   })))
   t.end()
 })
 
 t.test('eacces/eperm', t => {
   const runTest = (windows, loaded, cachePath, cacheDest) => t => {
-    if (windows) {
+    if (windows)
       beWindows()
-    } else {
+    else
       bePosix()
-    }
+
     npm.config.loaded = loaded
     const path = `${cachePath ? CACHE : '/not/cache/dir'}/path`
     const dest = `${cacheDest ? CACHE : '/not/cache/dir'}/dest`
@@ -210,7 +206,7 @@ t.test('eacces/eperm', t => {
       code: 'EACCES',
       path,
       dest,
-      stack: 'dummy stack trace'
+      stack: 'dummy stack trace',
     })
     verboseLogs.length = 0
     t.matchSnapshot(errorMessage(er))
@@ -272,36 +268,36 @@ t.test('json parse', t => {
     }
   }
 }
-`
+`,
     })
     const { prefix } = npm
     const { argv } = process
     t.teardown(() => {
       Object.defineProperty(npm, 'prefix', {
         value: prefix,
-        configurable: true
+        configurable: true,
       })
       process.argv = argv
     })
     Object.defineProperty(npm, 'prefix', { value: dir, configurable: true })
     process.argv = ['arg', 'v']
-    const ok = t.matchSnapshot(errorMessage(Object.assign(new Error('conflicted'), {
+    t.matchSnapshot(errorMessage(Object.assign(new Error('conflicted'), {
       code: 'EJSONPARSE',
-      file: resolve(dir, 'package.json')
+      file: resolve(dir, 'package.json'),
     })))
     t.end()
   })
 
   t.test('just regular bad json in package.json', t => {
     const dir = t.testdir({
-      'package.json': 'not even slightly json'
+      'package.json': 'not even slightly json',
     })
     const { prefix } = npm
     const { argv } = process
     t.teardown(() => {
       Object.defineProperty(npm, 'prefix', {
         value: prefix,
-        configurable: true
+        configurable: true,
       })
       process.argv = argv
     })
@@ -309,14 +305,14 @@ t.test('json parse', t => {
     process.argv = ['arg', 'v']
     t.matchSnapshot(errorMessage(Object.assign(new Error('not json'), {
       code: 'EJSONPARSE',
-      file: resolve(dir, 'package.json')
+      file: resolve(dir, 'package.json'),
     })))
     t.end()
   })
 
   t.test('json somewhere else', t => {
     const dir = t.testdir({
-      'blerg.json': 'not even slightly json'
+      'blerg.json': 'not even slightly json',
     })
     const { argv } = process
     t.teardown(() => {
@@ -325,7 +321,7 @@ t.test('json parse', t => {
     process.argv = ['arg', 'v']
     t.matchSnapshot(errorMessage(Object.assign(new Error('not json'), {
       code: 'EJSONPARSE',
-      file: `${dir}/blerg.json`
+      file: `${dir}/blerg.json`,
     })))
     t.end()
   })
@@ -336,7 +332,7 @@ t.test('json parse', t => {
 t.test('eotp/e401', t => {
   t.test('401, no auth headers', t => {
     t.matchSnapshot(errorMessage(Object.assign(new Error('nope'), {
-      code: 'E401'
+      code: 'E401',
     })))
     t.end()
   })
@@ -350,7 +346,7 @@ t.test('eotp/e401', t => {
 
   t.test('one-time pass challenge code', t => {
     t.matchSnapshot(errorMessage(Object.assign(new Error('nope'), {
-      code: 'EOTP'
+      code: 'EOTP',
     })))
     t.end()
   })
@@ -358,7 +354,7 @@ t.test('eotp/e401', t => {
   t.test('one-time pass challenge message', t => {
     const message = 'one-time pass'
     t.matchSnapshot(errorMessage(Object.assign(new Error(message), {
-      code: 'E401'
+      code: 'E401',
     })))
     t.end()
   })
@@ -368,16 +364,16 @@ t.test('eotp/e401', t => {
       'Bearer realm=do, charset="UTF-8", challenge="yourself"',
       'Basic realm=by, charset="UTF-8", challenge="your friends"',
       'PickACardAnyCard realm=friday, charset="UTF-8"',
-      'WashYourHands, charset="UTF-8"'
+      'WashYourHands, charset="UTF-8"',
     ]
     t.plan(auths.length)
     for (const auth of auths) {
       t.test(auth, t => {
         const er = Object.assign(new Error('challenge!'), {
           headers: {
-            'www-authenticate': [ auth ]
+            'www-authenticate': [auth],
           },
-          code: 'E401'
+          code: 'E401',
         })
         t.matchSnapshot(errorMessage(er))
         t.end()
@@ -397,7 +393,7 @@ t.test('404', t => {
   t.test('you should publish it', t => {
     const er = Object.assign(new Error('404 not found'), {
       pkgid: 'yolo',
-      code: 'E404'
+      code: 'E404',
     })
     t.matchSnapshot(errorMessage(er))
     t.end()
@@ -405,7 +401,7 @@ t.test('404', t => {
   t.test('name with warning', t => {
     const er = Object.assign(new Error('404 not found'), {
       pkgid: new Array(215).fill('x').join(''),
-      code: 'E404'
+      code: 'E404',
     })
     t.matchSnapshot(errorMessage(er))
     t.end()
@@ -413,7 +409,7 @@ t.test('404', t => {
   t.test('name with error', t => {
     const er = Object.assign(new Error('404 not found'), {
       pkgid: 'node_modules',
-      code: 'E404'
+      code: 'E404',
     })
     t.matchSnapshot(errorMessage(er))
     t.end()
@@ -427,13 +423,13 @@ t.test('bad platform', t => {
       pkgid: 'lodash@1.0.0',
       current: {
         os: 'posix',
-        cpu: 'x64'
+        cpu: 'x64',
       },
       required: {
         os: '!yours',
-        cpu: 'x420'
+        cpu: 'x420',
       },
-      code: 'EBADPLATFORM'
+      code: 'EBADPLATFORM',
     })
     t.matchSnapshot(errorMessage(er))
     t.end()
@@ -443,13 +439,13 @@ t.test('bad platform', t => {
       pkgid: 'lodash@1.0.0',
       current: {
         os: 'posix',
-        cpu: 'x64'
+        cpu: 'x64',
       },
       required: {
         os: ['!yours', 'mine'],
-        cpu: ['x420', 'x69']
+        cpu: ['x420', 'x69'],
       },
-      code: 'EBADPLATFORM'
+      code: 'EBADPLATFORM',
     })
     t.matchSnapshot(errorMessage(er))
     t.end()
@@ -460,7 +456,7 @@ t.test('bad platform', t => {
 
 t.test('explain ERESOLVE errors', t => {
   const er = Object.assign(new Error('could not resolve'), {
-    code: 'ERESOLVE'
+    code: 'ERESOLVE',
   })
   t.matchSnapshot(errorMessage(er))
   t.strictSame(EXPLAIN_CALLED, [[er]])

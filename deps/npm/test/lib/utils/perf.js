@@ -20,15 +20,15 @@ t.test('time some stuff', t => {
       process.emit('timeEnd', 'foo')
       process.emit('timeEnd', 'baz')
       t.match(logs, [
-        [ 'timing', 'foo', /Completed in [0-9]+ms/ ],
-        [ 'timing', 'bar', /Completed in [0-9]+ms/ ],
-        [ 'timing', 'foo', /Completed in [0-9]+ms/ ],
+        ['timing', 'foo', /Completed in [0-9]+ms/],
+        ['timing', 'bar', /Completed in [0-9]+ms/],
+        ['timing', 'foo', /Completed in [0-9]+ms/],
         [
           'silly',
           'timing',
           "Tried to end timer that doesn't exist:",
-          'baz'
-        ]
+          'baz',
+        ],
       ])
       t.match(timings, { foo: Number, bar: Number })
       t.equal(timings.foo > timings.bar, true, 'foo should be > bar')

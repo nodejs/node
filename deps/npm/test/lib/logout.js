@@ -3,7 +3,7 @@ const { test } = require('tap')
 
 const _flatOptions = {
   registry: 'https://registry.npmjs.org/',
-  scope: ''
+  scope: '',
 }
 
 const config = {}
@@ -19,8 +19,8 @@ const mocks = {
   'npm-registry-fetch': npmFetch,
   '../../lib/npm.js': {
     flatOptions: _flatOptions,
-    config
-  }
+    config,
+  },
 }
 
 const logout = requireInject('../../lib/logout.js', mocks)
@@ -64,8 +64,8 @@ test('token logout', async (t) => {
             scope: '',
             token: '@foo/',
             method: 'DELETE',
-            ignoreBody: true
-          }
+            ignoreBody: true,
+          },
         },
         'should call npm-registry-fetch with expected values'
       )
@@ -134,8 +134,8 @@ test('token scoped logout', async (t) => {
             scope: '@myscope',
             token: '@foo/',
             method: 'DELETE',
-            ignoreBody: true
-          }
+            ignoreBody: true,
+          },
         },
         'should call npm-registry-fetch with expected values'
       )
@@ -241,8 +241,8 @@ test('ignore invalid scoped registry config', async (t) => {
             '@myscope:registry': '',
             token: '@foo/',
             method: 'DELETE',
-            ignoreBody: true
-          }
+            ignoreBody: true,
+          },
         },
         'should call npm-registry-fetch with expected values'
       )

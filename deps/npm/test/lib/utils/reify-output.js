@@ -9,18 +9,18 @@ log.level = 'warn'
 t.cleanSnapshot = str => str.replace(/in [0-9]+m?s/g, 'in {TIME}')
 
 const settings = {
-  fund: true
+  fund: true,
 }
 const npmock = {
   started: Date.now(),
-  flatOptions: settings
+  flatOptions: settings,
 }
 const getReifyOutput = tester =>
   requireInject(
     '../../../lib/utils/reify-output.js',
     {
       '../../../lib/npm.js': npmock,
-      '../../../lib/utils/output.js': tester
+      '../../../lib/utils/output.js': tester,
     }
   )
 
@@ -36,11 +36,11 @@ t.test('missing info', (t) => {
 
   reifyOutput({
     actualTree: {
-      children: []
+      children: [],
     },
     diff: {
-      children: []
-    }
+      children: [],
+    },
   })
 })
 
@@ -56,11 +56,10 @@ t.test('even more missing info', t => {
 
   reifyOutput({
     actualTree: {
-      children: []
-    }
+      children: [],
+    },
   })
 })
-
 
 t.test('single package', (t) => {
   t.plan(1)
@@ -81,14 +80,14 @@ t.test('single package', (t) => {
     // the command is not 'audit'
     auditReport: {
       error: {
-        message: 'no audit for youuuuu'
-      }
+        message: 'no audit for youuuuu',
+      },
     },
     actualTree: {
       name: 'foo',
       package: {
         name: 'foo',
-        version: '1.0.0'
+        version: '1.0.0',
       },
       edgesOut: new Map([
         ['bar', {
@@ -97,26 +96,27 @@ t.test('single package', (t) => {
             package: {
               name: 'bar',
               version: '1.0.0',
-              funding: { type: 'foo', url: 'http://example.com' }
-            }
-          }
-        }]
-      ])
+              funding: { type: 'foo', url: 'http://example.com' },
+            },
+          },
+        }],
+      ]),
     },
     diff: {
-      children: []
-    }
+      children: [],
+    },
   })
 })
 
 t.test('no message when funding config is false', (t) => {
-  t.teardown(() => { settings.fund = true })
+  t.teardown(() => {
+    settings.fund = true
+  })
   settings.fund = false
   const reifyOutput = getReifyOutput(
     out => {
-      if (out.endsWith('looking for funding')) {
+      if (out.endsWith('looking for funding'))
         t.fail('should not print funding info', { actual: out })
-      }
     }
   )
 
@@ -125,7 +125,7 @@ t.test('no message when funding config is false', (t) => {
       name: 'foo',
       package: {
         name: 'foo',
-        version: '1.0.0'
+        version: '1.0.0',
       },
       edgesOut: new Map([
         ['bar', {
@@ -134,15 +134,15 @@ t.test('no message when funding config is false', (t) => {
             package: {
               name: 'bar',
               version: '1.0.0',
-              funding: { type: 'foo', url: 'http://example.com' }
-            }
-          }
-        }]
-      ])
+              funding: { type: 'foo', url: 'http://example.com' },
+            },
+          },
+        }],
+      ]),
     },
     diff: {
-      children: []
-    }
+      children: [],
+    },
   })
 
   t.end()
@@ -167,7 +167,7 @@ t.test('print appropriate message for many packages', (t) => {
       name: 'foo',
       package: {
         name: 'foo',
-        version: '1.0.0'
+        version: '1.0.0',
       },
       edgesOut: new Map([
         ['bar', {
@@ -176,9 +176,9 @@ t.test('print appropriate message for many packages', (t) => {
             package: {
               name: 'bar',
               version: '1.0.0',
-              funding: { type: 'foo', url: 'http://example.com' }
-            }
-          }
+              funding: { type: 'foo', url: 'http://example.com' },
+            },
+          },
         }],
         ['lorem', {
           to: {
@@ -186,9 +186,9 @@ t.test('print appropriate message for many packages', (t) => {
             package: {
               name: 'lorem',
               version: '1.0.0',
-              funding: { type: 'foo', url: 'http://example.com' }
-            }
-          }
+              funding: { type: 'foo', url: 'http://example.com' },
+            },
+          },
         }],
         ['ipsum', {
           to: {
@@ -196,15 +196,15 @@ t.test('print appropriate message for many packages', (t) => {
             package: {
               name: 'ipsum',
               version: '1.0.0',
-              funding: { type: 'foo', url: 'http://example.com' }
-            }
-          }
-        }]
-      ])
+              funding: { type: 'foo', url: 'http://example.com' },
+            },
+          },
+        }],
+      ]),
     },
     diff: {
-      children: []
-    }
+      children: [],
+    },
   })
 })
 
@@ -217,19 +217,21 @@ t.test('no output when silent', t => {
   reifyOutput({
     actualTree: { inventory: { size: 999 }, children: [] },
     auditReport: {
-      toJSON: () => mock.auditReport,
+      toJSON: () => {
+        throw new Error('this should not get called')
+      },
       vulnerabilities: {},
       metadata: {
         vulnerabilities: {
-          total: 99
-        }
-      }
+          total: 99,
+        },
+      },
     },
     diff: {
       children: [
-        { action: 'ADD', ideal: { location: 'loc' } }
-      ]
-    }
+        { action: 'ADD', ideal: { location: 'loc' } },
+      ],
+    },
   })
   t.end()
 })
@@ -251,22 +253,22 @@ t.test('packages changed message', t => {
         vulnerabilities: {},
         metadata: {
           vulnerabilities: {
-            total: 0
-          }
-        }
+            total: 0,
+          },
+        },
       } : null,
       diff: {
         children: [
-          { action: 'some random unexpected junk' }
-        ]
-      }
+          { action: 'some random unexpected junk' },
+        ],
+      },
     }
-    for (let i = 0; i < added; i++) {
+    for (let i = 0; i < added; i++)
       mock.diff.children.push({ action: 'ADD', ideal: { location: 'loc' } })
-    }
-    for (let i = 0; i < removed; i++) {
+
+    for (let i = 0; i < removed; i++)
       mock.diff.children.push({ action: 'REMOVE', actual: { location: 'loc' } })
-    }
+
     for (let i = 0; i < changed; i++) {
       const actual = { location: 'loc' }
       const ideal = { location: 'loc' }
@@ -279,7 +281,7 @@ t.test('packages changed message', t => {
       removed,
       changed,
       audited,
-      json
+      json,
     }))
   }
 
@@ -288,9 +290,8 @@ t.test('packages changed message', t => {
     for (const removed of [0, 1, 2]) {
       for (const changed of [0, 1, 2]) {
         for (const audited of [0, 1, 2]) {
-          for (const json of [true, false]) {
+          for (const json of [true, false])
             cases.push([added, removed, changed, audited, json, 'install'])
-          }
         }
       }
     }
@@ -301,9 +302,8 @@ t.test('packages changed message', t => {
   cases.push([0, 0, 0, 2, false, 'audit'])
 
   t.plan(cases.length)
-  for (const [added, removed, changed, audited, json, command] of cases) {
+  for (const [added, removed, changed, audited, json, command] of cases)
     testCase(t, added, removed, changed, audited, json, command)
-  }
 
   t.end()
 })
@@ -319,14 +319,14 @@ t.test('added packages should be looked up within returned tree', t => {
       actualTree: {
         name: 'foo',
         inventory: {
-          has: () => true
-        }
+          has: () => true,
+        },
       },
       diff: {
         children: [
-          { action: 'ADD', ideal: { name: 'baz' } }
-        ]
-      }
+          { action: 'ADD', ideal: { name: 'baz' } },
+        ],
+      },
     })
   })
 
@@ -340,14 +340,14 @@ t.test('added packages should be looked up within returned tree', t => {
       actualTree: {
         name: 'foo',
         inventory: {
-          has: () => false
-        }
+          has: () => false,
+        },
       },
       diff: {
         children: [
-          { action: 'ADD', ideal: { name: 'baz' } }
-        ]
-      }
+          { action: 'ADD', ideal: { name: 'baz' } },
+        ],
+      },
     })
   })
   t.end()

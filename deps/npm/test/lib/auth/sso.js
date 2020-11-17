@@ -5,7 +5,7 @@ let log = ''
 let warn = ''
 
 const _flatOptions = {
-  ssoType: 'oauth'
+  ssoType: 'oauth',
 }
 const token = '24528a24f240'
 const SSO_URL = 'https://registry.npmjs.org/{SSO_URL}'
@@ -18,17 +18,17 @@ const sso = requireInject('../../../lib/auth/sso.js', {
     },
     warn: (...msgs) => {
       warn += msgs.join(' ')
-    }
+    },
   },
   'npm-profile': profile,
   'npm-registry-fetch': npmFetch,
   '../../../lib/npm.js': {
-    flatOptions: _flatOptions
+    flatOptions: _flatOptions,
   },
   '../../../lib/utils/open-url.js': (url, msg, cb) => {
-    if (url) {
+    if (url)
       cb()
-    } else {
+    else {
       cb(Object.assign(
         new Error('failed open url'),
         { code: 'ERROR' }
@@ -36,15 +36,15 @@ const sso = requireInject('../../../lib/auth/sso.js', {
     }
   },
   '../../../lib/utils/otplease.js': (opts, fn) => {
-    if (opts) {
+    if (opts)
       return fn({ ...opts, otp: '1234' })
-    } else {
+    else {
       throw Object.assign(
         new Error('failed retrieving otp'),
         { code: 'ERROR' }
       )
     }
-  }
+  },
 })
 
 test('empty login', async (t) => {
@@ -80,7 +80,7 @@ test('simple login', async (t) => {
         otp: '1234',
         registry: 'https://registry.npmjs.org/',
         scope: '',
-        ssoType: 'oauth'
+        ssoType: 'oauth',
       },
       'should use dummy password'
     )
@@ -91,11 +91,11 @@ test('simple login', async (t) => {
 
   const {
     message,
-    newCreds
+    newCreds,
   } = await sso({
     creds: {},
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   t.equal(
@@ -160,7 +160,7 @@ test('polling retry', async (t) => {
   await sso({
     creds: {},
     registry: 'https://registry.npmjs.org/',
-    scope: ''
+    scope: '',
   })
 
   log = ''
@@ -180,7 +180,7 @@ test('polling error', async (t) => {
     sso({
       creds: {},
       registry: 'https://registry.npmjs.org/',
-      scope: ''
+      scope: '',
     }),
     { message: 'unknown error', code: 'ERROR' },
     'should throw unknown error'
@@ -199,7 +199,7 @@ test('no token retrieved from loginCouch', async (t) => {
     sso({
       creds: {},
       registry: 'https://registry.npmjs.org/',
-      scope: ''
+      scope: '',
     }),
     { message: 'no SSO token returned' },
     'should throw no SSO token returned error'
@@ -217,7 +217,7 @@ test('no sso url retrieved from loginCouch', async (t) => {
     sso({
       creds: {},
       registry: 'https://registry.npmjs.org/',
-      scope: ''
+      scope: '',
     }),
     { message: 'no SSO URL returned by services' },
     'should throw no SSO url returned error'
@@ -234,11 +234,11 @@ test('scoped login', async (t) => {
 
   const {
     message,
-    newCreds
+    newCreds,
   } = await sso({
     creds: {},
     registry: 'https://diff-registry.npmjs.org/',
-    scope: 'myscope'
+    scope: 'myscope',
   })
 
   t.equal(
