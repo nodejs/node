@@ -12,17 +12,16 @@ const fixtures = require('../common/fixtures');
 const filepath = fixtures.path('x.txt');
 
 const buf = Buffer.alloc(1);
-// Reading only one character, hence buffer of one byte is enough
+// Reading only one character, hence buffer of one byte is enough.
 
-// Test for callback api
+// Test for callback API.
 fs.open(filepath, 'r', common.mustSucceed((fd) => {
   fs.read(fd, { offset: null, buffer: buf },
           common.mustSucceed((bytesRead, buffer) => {
-            assert.strictEqual(buffer[0], 120);
             // Test is done by making sure the first letter in buffer is
             // same as first letter in file.
-            // 66 is the hex for ascii code of letter B
-
+            // 120 is the hex for ascii code of letter x.
+            assert.strictEqual(buffer[0], 120);
             fs.close(fd, common.mustSucceed(() => {}));
           }));
 }));
