@@ -39,6 +39,7 @@
       'lib/internal/bootstrap/switches/does_not_own_process_state.js',
       'lib/internal/bootstrap/switches/is_main_thread.js',
       'lib/internal/bootstrap/switches/is_not_main_thread.js',
+      'lib/internal/per_context/callunsafe.js',
       'lib/internal/per_context/primordials.js',
       'lib/internal/per_context/domexception.js',
       'lib/internal/per_context/messageport.js',
