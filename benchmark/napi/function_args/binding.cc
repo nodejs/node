@@ -123,7 +123,9 @@ void CallWithArguments(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void Initialize(Local<Object> target) {
+void Initialize(Local<Object> target,
+                Local<Value> module,
+                void* data) {
   NODE_SET_METHOD(target, "callWithString", CallWithString);
   NODE_SET_METHOD(target, "callWithLongString", CallWithString);
 
