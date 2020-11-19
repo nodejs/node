@@ -106,6 +106,7 @@ class EnvironmentOptions : public Options {
   bool experimental_modules = false;
   std::string experimental_specifier_resolution;
   bool experimental_wasm_modules = false;
+  bool experimental_wasm_threads = false;
   bool experimental_import_meta_resolve = false;
   std::string module_type;
   std::string experimental_policy;

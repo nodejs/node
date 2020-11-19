@@ -304,6 +304,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support for webassembly modules",
             &EnvironmentOptions::experimental_wasm_modules,
             kAllowedInEnvironment);
+  AddOption("--experimental-wasm-threads",
+            "experimental support for webassembly worker-based threads",
+            &EnvironmentOptions::experimental_wasm_threads,
+            kAllowedInEnvironment);
   AddOption("--experimental-import-meta-resolve",
             "experimental ES Module import.meta.resolve() support",
             &EnvironmentOptions::experimental_import_meta_resolve,

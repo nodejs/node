@@ -300,6 +300,13 @@ Enable experimental WebAssembly System Interface (WASI) support.
 added: v12.3.0
 -->
 
+### `--experimental-wasm-threads`
+<!-- YAML
+added: v12.0.0
+-->
+
+Enable experimental WebAssembly worker-based threads with SharedArrayBuffer.
+
 ### `--force-context-aware`
 <!-- YAML
 added: v12.12.0
@@ -1319,6 +1326,7 @@ Node.js options that are allowed are:
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
+* `--experimental-wasm-threads`
 * `--force-context-aware`
 * `--force-fips`
 * `--frozen-intrinsics`
