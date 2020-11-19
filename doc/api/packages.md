@@ -319,8 +319,6 @@ analogous to the exports field.
 
 ### Subpath patterns
 
-> Stability: 1 - Experimental
-
 For packages with a small number of exports or imports, we recommend
 explicitly listing each exports subpath entry. But for packages that have
 large numbers of subpaths, this might cause `package.json` bloat and
