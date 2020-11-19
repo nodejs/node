@@ -2154,6 +2154,32 @@ const struct message responses[] =
   ,.body= "2\r\nOK\r\n0\r\n\r\n"
   ,.num_chunks_complete= 0
   }
+#define HTTP_200_DUPLICATE_TE_NOT_LAST_CHUNKED 30
+, {.name= "HTTP 200 response with `chunked` and duplicate Transfer-Encoding"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.1 200 OK\r\n"
+         "Transfer-Encoding: chunked\r\n"
+         "Transfer-Encoding: identity\r\n"
+         "\r\n"
+         "2\r\n"
+         "OK\r\n"
+         "0\r\n"
+         "\r\n"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= TRUE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.status_code= 200
+  ,.response_status= "OK"
+  ,.content_length= -1
+  ,.num_headers= 2
+  ,.headers=
+    { { "Transfer-Encoding", "chunked" }
+    , { "Transfer-Encoding", "identity" }
+    }
+  ,.body= "2\r\nOK\r\n0\r\n\r\n"
+  ,.num_chunks_complete= 0
+  }
 };
 
 /* strnlen() is a POSIX.2008 addition. Can't rely on it being available so
