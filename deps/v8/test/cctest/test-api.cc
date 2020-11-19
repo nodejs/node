@@ -26759,6 +26759,42 @@ TEST(BigIntAPI) {
   }
 }
 
+TEST(TestGetUnwindState) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+// Ignore deprecation warnings so that we can keep the tests for now.
+// TODO(petermarshall): Remove this once the deprecated API is gone.
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  v8::UnwindState unwind_state = isolate->GetUnwindState();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+  v8::MemoryRange builtins_range = unwind_state.embedded_code_range;
+
+  // Check that each off-heap builtin is within the builtins code range.
+  for (int id = 0; id < i::Builtins::builtin_count; id++) {
+    if (!i::Builtins::IsIsolateIndependent(id)) continue;
+    i::Code builtin = i_isolate->builtins()->builtin(id);
+    i::Address start = builtin.InstructionStart();
+    i::Address end = start + builtin.InstructionSize();
+
+    i::Address builtins_start =
+        reinterpret_cast<i::Address>(builtins_range.start);
+    CHECK(start >= builtins_start &&
+          end < builtins_start + builtins_range.length_in_bytes);
+  }
+
+  v8::JSEntryStub js_entry_stub = unwind_state.js_entry_stub;
+
+  CHECK_EQ(i_isolate->heap()->builtin(i::Builtins::kJSEntry).InstructionStart(),
+           reinterpret_cast<i::Address>(js_entry_stub.code.start));
+}
+
 TEST(GetJSEntryStubs) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

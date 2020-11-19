@@ -8989,6 +8989,33 @@ void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   *length_in_bytes = code_range.size();
 }
 
+UnwindState Isolate::GetUnwindState() {
+  UnwindState unwind_state;
+  void* code_range_start;
+  GetCodeRange(&code_range_start, &unwind_state.code_range.length_in_bytes);
+  unwind_state.code_range.start = code_range_start;
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  unwind_state.embedded_code_range.start =
+      reinterpret_cast<const void*>(isolate->embedded_blob_code());
+  unwind_state.embedded_code_range.length_in_bytes =
+      isolate->embedded_blob_code_size();
+
+  std::array<std::pair<i::Builtins::Name, JSEntryStub*>, 3> entry_stubs = {
+      {{i::Builtins::kJSEntry, &unwind_state.js_entry_stub},
+       {i::Builtins::kJSConstructEntry, &unwind_state.js_construct_entry_stub},
+       {i::Builtins::kJSRunMicrotasksEntry,
+        &unwind_state.js_run_microtasks_entry_stub}}};
+  for (auto& pair : entry_stubs) {
+    i::Code js_entry = isolate->heap()->builtin(pair.first);
+    pair.second->code.start =
+        reinterpret_cast<const void*>(js_entry.InstructionStart());
+    pair.second->code.length_in_bytes = js_entry.InstructionSize();
+  }
+
+  return unwind_state;
+}
+
 JSEntryStubs Isolate::GetJSEntryStubs() {
   JSEntryStubs entry_stubs;
 

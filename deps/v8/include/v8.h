@@ -2294,6 +2294,14 @@ struct JSEntryStub {
   MemoryRange code;
 };
 
+struct UnwindState {
+  MemoryRange code_range;
+  MemoryRange embedded_code_range;
+  JSEntryStub js_entry_stub;
+  JSEntryStub js_construct_entry_stub;
+  JSEntryStub js_run_microtasks_entry_stub;
+};
+
 struct JSEntryStubs {
   JSEntryStub js_entry_stub;
   JSEntryStub js_construct_entry_stub;
@@ -9368,6 +9376,13 @@ class V8_EXPORT Isolate {
   void GetCodeRange(void** start, size_t* length_in_bytes);
 
   /**
+   * Returns the UnwindState necessary for use with the Unwinder API.
+   */
+  // TODO(petermarshall): Remove this API.
+  V8_DEPRECATED("Use entry_stubs + code_pages version.")
+  UnwindState GetUnwindState();
+
+  /**
    * Returns the JSEntryStubs necessary for use with the Unwinder API.
    */
   JSEntryStubs GetJSEntryStubs();
@@ -10724,14 +10739,12 @@ class V8_EXPORT Unwinder {
    *
    * The unwinder also needs the virtual memory range of all possible V8 code
    * objects. There are two ranges required - the heap code range and the range
-   * for code embedded in the binary.
+   * for code embedded in the binary. The V8 API provides all required inputs
+   * via an UnwindState object through the Isolate::GetUnwindState() API. These
+   * values will not change after Isolate initialization, so the same
+   * |unwind_state| can be used for multiple calls.
    *
-   * Available on x64, ARM64 and ARM32.
-   *
-   * \param code_pages A list of all of the ranges in which V8 has allocated
-   * executable code. The caller should obtain this list by calling
-   * Isolate::CopyCodePages() during the same interrupt/thread suspension that
-   * captures the stack.
+   * \param unwind_state Input state for the Isolate that the stack comes from.
    * \param register_state The current registers. This is an in-out param that
    * will be overwritten with the register values after unwinding, on success.
    * \param stack_base The resulting stack pointer and frame pointer values are
@@ -10742,6 +10755,20 @@ class V8_EXPORT Unwinder {
    *
    * \return True on success.
    */
+  // TODO(petermarshall): Remove this API
+  V8_DEPRECATED("Use entry_stubs + code_pages version.")
+  static bool TryUnwindV8Frames(const UnwindState& unwind_state,
+                                RegisterState* register_state,
+                                const void* stack_base);
+
+  /**
+   * The same as above, but is available on x64, ARM64 and ARM32.
+   *
+   * \param code_pages A list of all of the ranges in which V8 has allocated
+   * executable code. The caller should obtain this list by calling
+   * Isolate::CopyCodePages() during the same interrupt/thread suspension that
+   * captures the stack.
+   */
   static bool TryUnwindV8Frames(const JSEntryStubs& entry_stubs,
                                 size_t code_pages_length,
                                 const MemoryRange* code_pages,
@@ -10749,13 +10776,20 @@ class V8_EXPORT Unwinder {
                                 const void* stack_base);
 
   /**
-   * Whether the PC is within the V8 code range represented by code_pages.
+   * Whether the PC is within the V8 code range represented by code_range or
+   * embedded_code_range in |unwind_state|.
    *
    * If this returns false, then calling UnwindV8Frames() with the same PC
    * and unwind_state will always fail. If it returns true, then unwinding may
    * (but not necessarily) be successful.
-   *
-   * Available on x64, ARM64 and ARM32
+   */
+  // TODO(petermarshall): Remove this API
+  V8_DEPRECATED("Use code_pages version.")
+  static bool PCIsInV8(const UnwindState& unwind_state, void* pc);
+
+  /**
+   * The same as above, but is available on x64, ARM64 and ARM32. See the
+   * comment on TryUnwindV8Frames.
    */
   static bool PCIsInV8(size_t code_pages_length, const MemoryRange* code_pages,
                        void* pc);
