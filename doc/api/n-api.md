@@ -4739,7 +4739,7 @@ napi_status napi_define_class(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] utf8name`: Name of the JavaScript constructor function; When wrapping a
-  C++ class it is recommended for clarity that this name be the same as that of
+  C++ class, we recommend for clarity that this name be the same as that of
   the C++ class.
 * `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
   if it is null-terminated.
@@ -4761,8 +4761,8 @@ Returns `napi_ok` if the API succeeded.
 Defines a JavaScript class, including:
 
 * A JavaScript constructor function that has the class name. When wrapping a
-  corresponding C++ class, the callback passed via `constructor` may be used to
-  instantiate a new C++ class instance, which can then be placed "inside" the
+  corresponding C++ class, the callback passed via `constructor` can be used to
+  instantiate a new C++ class instance, which can then be placed inside the
   JavaScript object instance being constructed using [`napi_wrap`][].
 * Properties on the constructor function whose implementation can call
   corresponding _static_ data properties, accessors, and methods of the C++
@@ -4771,7 +4771,7 @@ Defines a JavaScript class, including:
   C++ class, _non-static_ data properties, accessors, and methods of the C++
   class can be called from the static functions given in the property
   descriptors without the `napi_static` attribute after retrieving the C++ class
-  instance placed "inside" the JavaScript object instance by using
+  instance placed inside the JavaScript object instance by using
   [`napi_unwrap`][].
 
 When wrapping a C++ class, the C++ constructor callback passed via `constructor`
