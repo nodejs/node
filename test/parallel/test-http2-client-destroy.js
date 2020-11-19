@@ -178,15 +178,15 @@ const Countdown = require('../common/countdown');
   server.listen(0, common.mustCall(() => {
     const client = h2.connect(`http://localhost:${server.address().port}`);
     client.on('close', common.mustCall());
-    
+
     const { signal } = controller;
     assert.strictEqual(signal[kEvents].get('abort'), undefined);
 
     client.on('error', common.mustCall(() => {
-      // After underlying stream dies, signal listener detached 
+      // After underlying stream dies, signal listener detached
       assert.strictEqual(signal[kEvents].get('abort'), undefined);
     }));
-    
+
     const req = client.request({}, { signal });
 
     req.on('error', common.mustCall((err) => {
@@ -194,7 +194,7 @@ const Countdown = require('../common/countdown');
       assert.strictEqual(err.name, 'AbortError');
     }));
     req.on('close', common.mustCall(() => server.close()));
-    
+
     assert.strictEqual(req.aborted, false);
     assert.strictEqual(req.destroyed, false);
     // Signal listener attached

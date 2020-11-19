@@ -887,9 +887,9 @@ close when the final `DATA` frame is transmitted. User code must call either
 `http2stream.sendTrailers()` or `http2stream.close()` to close the
 `Http2Stream`.
 
-When `options.signal` is set with an `AbortSignal` and then calling `abort` on
-the corresponding `AbortController` will behave the same way as calling
-`.destroy()` on the request itself.
+When `options.signal` is set with an `AbortSignal` and then `abort` on the
+corresponding `AbortController` is called, the request will emit an `'error'`
+event with an `AbortError` error.
 
 The `:method` and `:path` pseudo-headers are not specified within `headers`,
 they respectively default to:
