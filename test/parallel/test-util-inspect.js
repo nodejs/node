@@ -2866,6 +2866,17 @@ assert.strictEqual(
   );
 }
 
+// Check that prototypes with a null prototype are inspectable.
+// Regression test for https://github.com/nodejs/node/issues/35730
+{
+  function Func() {}
+  Func.prototype = null;
+  const object = {};
+  object.constructor = Func;
+
+  assert.strictEqual(util.inspect(object), '{ constructor: [Function: Func] }');
+}
+
 // Test changing util.inspect.colors colors and aliases.
 {
   const colors = util.inspect.colors;
