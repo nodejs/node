@@ -27,7 +27,7 @@ static napi_value MakeCallback(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, func, &func_type));
 
   napi_async_context context;
-  NAPI_CALL(env, napi_unwrap(env, async_context_wrap, &context));
+  NAPI_CALL(env, napi_unwrap(env, async_context_wrap, (void**)&context));
 
   napi_value result;
   if (func_type == napi_function) {
@@ -97,7 +97,8 @@ static napi_value DestroyAsyncResource(napi_env env, napi_callback_info info) {
   napi_value async_context_wrap = args[0];
 
   napi_async_context async_context;
-  NAPI_CALL(env, napi_remove_wrap(env, async_context_wrap, &async_context));
+  NAPI_CALL(env,
+            napi_remove_wrap(env, async_context_wrap, (void**)&async_context));
   NAPI_CALL(env, napi_async_destroy(env, async_context));
 
   return async_context_wrap;
