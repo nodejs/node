@@ -8,6 +8,7 @@ class State {
   #ic;
   #selectedMapLogEvents;
   #selectedIcLogEvents;
+  #selectedSourcePositionLogEvents;
   #nofChunks;
   #chunks;
   #icTimeline;
@@ -80,6 +81,12 @@ class State {
   set selectedMapLogEvents(value) {
     if (!value) return;
     this.#selectedMapLogEvents = value;
+  }
+  get selectedSourcePositionLogEvents() {
+    return this.#selectedSourcePositionLogEvents;
+  }
+  set selectedSourcePositionLogEvents(value) {
+    this.#selectedSourcePositionLogEvents = value;
   }
   get selectedIcLogEvents() {
     return this.#selectedIcLogEvents;

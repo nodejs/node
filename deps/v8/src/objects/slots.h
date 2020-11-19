@@ -114,6 +114,7 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   inline void store(Object value) const;
 
   inline Object Acquire_Load() const;
+  inline Object Acquire_Load(const Isolate* isolate) const;
   inline Object Relaxed_Load() const;
   inline Object Relaxed_Load(const Isolate* isolate) const;
   inline void Relaxed_Store(Object value) const;

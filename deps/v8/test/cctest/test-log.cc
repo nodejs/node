@@ -48,12 +48,10 @@ using v8::internal::Logger;
 
 namespace {
 
-
 #define SETUP_FLAGS()                            \
-  bool saved_log = i::FLAG_log;                  \
-  bool saved_prof = i::FLAG_prof;                \
   i::FLAG_log = true;                            \
   i::FLAG_prof = true;                           \
+  i::FLAG_log_code = true;                       \
   i::FLAG_logfile = i::Log::kLogToTemporaryFile; \
   i::FLAG_logfile_per_isolate = false
 
@@ -69,10 +67,8 @@ static std::vector<std::string> Split(const std::string& s, char delimiter) {
 
 class ScopedLoggerInitializer {
  public:
-  ScopedLoggerInitializer(bool saved_log, bool saved_prof, v8::Isolate* isolate)
-      : saved_log_(saved_log),
-        saved_prof_(saved_prof),
-        temp_file_(nullptr),
+  explicit ScopedLoggerInitializer(v8::Isolate* isolate)
+      : temp_file_(nullptr),
         isolate_(isolate),
         isolate_scope_(isolate),
         scope_(isolate),
@@ -83,10 +79,8 @@ class ScopedLoggerInitializer {
 
   ~ScopedLoggerInitializer() {
     env_->Exit();
-    logger_->TearDown();
-    if (temp_file_ != nullptr) fclose(temp_file_);
-    i::FLAG_prof = saved_prof_;
-    i::FLAG_log = saved_log_;
+    FILE* log_file = logger_->TearDownAndGetLogFile();
+    if (log_file != nullptr) fclose(log_file);
   }
 
   v8::Local<v8::Context>& env() { return env_; }
@@ -203,15 +197,12 @@ class ScopedLoggerInitializer {
 
  private:
   FILE* StopLoggingGetTempFile() {
-    temp_file_ = logger_->TearDown();
+    temp_file_ = logger_->TearDownAndGetLogFile();
     CHECK(temp_file_);
-    fflush(temp_file_);
     rewind(temp_file_);
     return temp_file_;
   }
 
-  const bool saved_log_;
-  const bool saved_prof_;
   FILE* temp_file_;
   v8::Isolate* isolate_;
   v8::Isolate::Scope isolate_scope_;
@@ -331,7 +322,7 @@ UNINITIALIZED_TEST(LogCallbacks) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
 
     v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
         isolate, v8::FunctionTemplate::New(isolate));
@@ -384,7 +375,7 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
 
     v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
         isolate, v8::FunctionTemplate::New(isolate));
@@ -436,7 +427,7 @@ UNINITIALIZED_TEST(LogVersion) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
     logger.StopLogging();
 
     i::EmbeddedVector<char, 100> line_buffer;
@@ -477,7 +468,7 @@ UNINITIALIZED_TEST(Issue539892) {
   FakeCodeEventLogger code_event_logger(reinterpret_cast<i::Isolate*>(isolate));
 
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
     logger.logger()->AddCodeEventListener(&code_event_logger);
 
     // Function with a really large name.
@@ -513,14 +504,16 @@ UNINITIALIZED_TEST(Issue539892) {
 UNINITIALIZED_TEST(LogAll) {
   SETUP_FLAGS();
   i::FLAG_log_all = true;
+  i::FLAG_log_api = true;
   i::FLAG_turbo_inlining = false;
+  i::FLAG_log_internal_timer_events = true;
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
 
     const char* source_text = R"(
         function testAddFn(a,b) {
@@ -574,7 +567,7 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
 
     const char* source_text =
         "function testLogInterpretedFramesNativeStack(a,b) { return a + b };"
@@ -608,7 +601,7 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
     v8::Isolate* isolate = v8::Isolate::New(create_params);
 
     {
-      ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+      ScopedLoggerInitializer logger(isolate);
 
       has_cache = cache != nullptr;
       v8::ScriptCompiler::CompileOptions options =
@@ -814,7 +807,7 @@ UNINITIALIZED_TEST(TraceMaps) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
     // Try to create many different kind of maps to make sure the logging won't
     // crash. More detailed tests are implemented separately.
     const char* source_text = R"(
@@ -907,7 +900,7 @@ UNINITIALIZED_TEST(LogMapsDetailsStartup) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
     logger.StopLogging();
     ValidateMapDetailsLogging(isolate, &logger);
   }
@@ -1003,7 +996,7 @@ UNINITIALIZED_TEST(LogMapsDetailsCode) {
     [1,2,3].helper();
   )";
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
     CompileRunChecked(isolate, source);
     logger.StopLogging();
     ValidateMapDetailsLogging(isolate, &logger);
@@ -1027,7 +1020,7 @@ UNINITIALIZED_TEST(LogMapsDetailsContexts) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
     // Use the default context.
     CompileRunChecked(isolate, "{a:1}");
     // Create additional contexts.
@@ -1055,7 +1048,7 @@ UNINITIALIZED_TEST(ConsoleTimeEvents) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
     // Test that console time events are properly logged
     const char* source_text =
         "console.time();"
@@ -1091,7 +1084,7 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
 
     // Run some warmup code to help ignoring existing log entries.
     CompileRun(
@@ -1175,7 +1168,7 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    ScopedLoggerInitializer logger(isolate);
 
     logger.LogCodeObjects();
     logger.LogCompiledFunctions();

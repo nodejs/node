@@ -226,3 +226,20 @@ assertSame(Object.assign(o, {}), o);
 
   assertEquals(log, ["get a", "get b", "get c", "get sym1", "get sym2"]);
 })();
+
+(function global_object() {
+  let source = {
+    global1: "global1",
+    get global2() { return "global2" },
+  };
+  let result = Object.assign(globalThis, source);
+  assertTrue(result === globalThis);
+  assertTrue(result.global1 === source.global1);
+  assertTrue(result.global2 === source.global2);
+
+  let target = {};
+  result = Object.assign(target, globalThis);
+  assertTrue(result === target);
+  assertTrue(result.global1 === source.global1);
+  assertTrue(result.global2 === source.global2);
+})();

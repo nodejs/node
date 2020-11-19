@@ -5,6 +5,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -59,21 +60,39 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 
 namespace {
 
+inline bool MaybeSpawnNativeContextIndependentCompilationJob() {
+  return FLAG_turbo_nci && !FLAG_turbo_nci_as_midtier;
+}
+
 Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                         ConcurrencyMode mode) {
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
-  if (!Compiler::CompileOptimized(function, mode, CodeKindForTopTier())) {
+
+  // Compile for the next tier.
+  if (!Compiler::CompileOptimized(function, mode, function->NextTier())) {
     return ReadOnlyRoots(isolate).exception();
   }
-  if (ShouldSpawnExtraNativeContextIndependentCompilationJob()) {
-    if (!Compiler::CompileOptimized(function, mode,
-                                    CodeKind::NATIVE_CONTEXT_INDEPENDENT)) {
-      return ReadOnlyRoots(isolate).exception();
+
+  // Possibly compile for NCI caching.
+  if (MaybeSpawnNativeContextIndependentCompilationJob()) {
+    // The first optimization request does not trigger NCI compilation,
+    // since we try to avoid compiling Code that remains unused in the future.
+    // Repeated optimization (possibly in different native contexts) is taken
+    // as a signal that this SFI will continue to be used in the future, thus
+    // we trigger NCI compilation.
+    if (function->shared().has_optimized_at_least_once()) {
+      if (!Compiler::CompileOptimized(function, mode,
+                                      CodeKind::NATIVE_CONTEXT_INDEPENDENT)) {
+        return ReadOnlyRoots(isolate).exception();
+      }
+    } else {
+      function->shared().set_has_optimized_at_least_once(true);
     }
   }
+
   DCHECK(function->is_compiled());
   return function->code();
 }
@@ -167,6 +186,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
   DCHECK(deoptimizer->compiled_code()->is_turbofanned());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK(isolate->context().is_null());
 
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);

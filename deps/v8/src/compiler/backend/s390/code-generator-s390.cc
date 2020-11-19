@@ -643,184 +643,184 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
   } while (0)
 
-#define ASSEMBLE_DOUBLE_MAX()                                          \
-  do {                                                                 \
-    DoubleRegister left_reg = i.InputDoubleRegister(0);                \
-    DoubleRegister right_reg = i.InputDoubleRegister(1);               \
-    DoubleRegister result_reg = i.OutputDoubleRegister();              \
-    Label check_nan_left, check_zero, return_left, return_right, done; \
-    __ cdbr(left_reg, right_reg);                                      \
-    __ bunordered(&check_nan_left, Label::kNear);                      \
-    __ beq(&check_zero);                                               \
-    __ bge(&return_left, Label::kNear);                                \
-    __ b(&return_right, Label::kNear);                                 \
-                                                                       \
-    __ bind(&check_zero);                                              \
-    __ lzdr(kDoubleRegZero);                                           \
-    __ cdbr(left_reg, kDoubleRegZero);                                 \
-    /* left == right != 0. */                                          \
-    __ bne(&return_left, Label::kNear);                                \
-    /* At this point, both left and right are either 0 or -0. */       \
-    /* N.B. The following works because +0 + -0 == +0 */               \
-    /* For max we want logical-and of sign bit: (L + R) */             \
-    __ ldr(result_reg, left_reg);                                      \
-    __ adbr(result_reg, right_reg);                                    \
-    __ b(&done, Label::kNear);                                         \
-                                                                       \
-    __ bind(&check_nan_left);                                          \
-    __ cdbr(left_reg, left_reg);                                       \
-    /* left == NaN. */                                                 \
-    __ bunordered(&return_left, Label::kNear);                         \
-                                                                       \
-    __ bind(&return_right);                                            \
-    if (right_reg != result_reg) {                                     \
-      __ ldr(result_reg, right_reg);                                   \
-    }                                                                  \
-    __ b(&done, Label::kNear);                                         \
-                                                                       \
-    __ bind(&return_left);                                             \
-    if (left_reg != result_reg) {                                      \
-      __ ldr(result_reg, left_reg);                                    \
-    }                                                                  \
-    __ bind(&done);                                                    \
+#define ASSEMBLE_DOUBLE_MAX()                                           \
+  do {                                                                  \
+    DoubleRegister left_reg = i.InputDoubleRegister(0);                 \
+    DoubleRegister right_reg = i.InputDoubleRegister(1);                \
+    DoubleRegister result_reg = i.OutputDoubleRegister();               \
+    Label check_zero, return_left, return_right, return_nan, done;      \
+    __ cdbr(left_reg, right_reg);                                       \
+    __ bunordered(&return_nan, Label::kNear);                           \
+    __ beq(&check_zero);                                                \
+    __ bge(&return_left, Label::kNear);                                 \
+    __ b(&return_right, Label::kNear);                                  \
+                                                                        \
+    __ bind(&check_zero);                                               \
+    __ lzdr(kDoubleRegZero);                                            \
+    __ cdbr(left_reg, kDoubleRegZero);                                  \
+    /* left == right != 0. */                                           \
+    __ bne(&return_left, Label::kNear);                                 \
+    /* At this point, both left and right are either 0 or -0. */        \
+    /* N.B. The following works because +0 + -0 == +0 */                \
+    /* For max we want logical-and of sign bit: (L + R) */              \
+    __ ldr(result_reg, left_reg);                                       \
+    __ adbr(result_reg, right_reg);                                     \
+    __ b(&done, Label::kNear);                                          \
+                                                                        \
+    __ bind(&return_nan);                                               \
+    /* If left or right are NaN, adbr propagates the appropriate one.*/ \
+    __ adbr(left_reg, right_reg);                                       \
+    __ b(&return_left, Label::kNear);                                   \
+                                                                        \
+    __ bind(&return_right);                                             \
+    if (right_reg != result_reg) {                                      \
+      __ ldr(result_reg, right_reg);                                    \
+    }                                                                   \
+    __ b(&done, Label::kNear);                                          \
+                                                                        \
+    __ bind(&return_left);                                              \
+    if (left_reg != result_reg) {                                       \
+      __ ldr(result_reg, left_reg);                                     \
+    }                                                                   \
+    __ bind(&done);                                                     \
   } while (0)
 
-#define ASSEMBLE_DOUBLE_MIN()                                          \
-  do {                                                                 \
-    DoubleRegister left_reg = i.InputDoubleRegister(0);                \
-    DoubleRegister right_reg = i.InputDoubleRegister(1);               \
-    DoubleRegister result_reg = i.OutputDoubleRegister();              \
-    Label check_nan_left, check_zero, return_left, return_right, done; \
-    __ cdbr(left_reg, right_reg);                                      \
-    __ bunordered(&check_nan_left, Label::kNear);                      \
-    __ beq(&check_zero);                                               \
-    __ ble(&return_left, Label::kNear);                                \
-    __ b(&return_right, Label::kNear);                                 \
-                                                                       \
-    __ bind(&check_zero);                                              \
-    __ lzdr(kDoubleRegZero);                                           \
-    __ cdbr(left_reg, kDoubleRegZero);                                 \
-    /* left == right != 0. */                                          \
-    __ bne(&return_left, Label::kNear);                                \
-    /* At this point, both left and right are either 0 or -0. */       \
-    /* N.B. The following works because +0 + -0 == +0 */               \
-    /* For min we want logical-or of sign bit: -(-L + -R) */           \
-    __ lcdbr(left_reg, left_reg);                                      \
-    __ ldr(result_reg, left_reg);                                      \
-    if (left_reg == right_reg) {                                       \
-      __ adbr(result_reg, right_reg);                                  \
-    } else {                                                           \
-      __ sdbr(result_reg, right_reg);                                  \
-    }                                                                  \
-    __ lcdbr(result_reg, result_reg);                                  \
-    __ b(&done, Label::kNear);                                         \
-                                                                       \
-    __ bind(&check_nan_left);                                          \
-    __ cdbr(left_reg, left_reg);                                       \
-    /* left == NaN. */                                                 \
-    __ bunordered(&return_left, Label::kNear);                         \
-                                                                       \
-    __ bind(&return_right);                                            \
-    if (right_reg != result_reg) {                                     \
-      __ ldr(result_reg, right_reg);                                   \
-    }                                                                  \
-    __ b(&done, Label::kNear);                                         \
-                                                                       \
-    __ bind(&return_left);                                             \
-    if (left_reg != result_reg) {                                      \
-      __ ldr(result_reg, left_reg);                                    \
-    }                                                                  \
-    __ bind(&done);                                                    \
+#define ASSEMBLE_DOUBLE_MIN()                                           \
+  do {                                                                  \
+    DoubleRegister left_reg = i.InputDoubleRegister(0);                 \
+    DoubleRegister right_reg = i.InputDoubleRegister(1);                \
+    DoubleRegister result_reg = i.OutputDoubleRegister();               \
+    Label check_zero, return_left, return_right, return_nan, done;      \
+    __ cdbr(left_reg, right_reg);                                       \
+    __ bunordered(&return_nan, Label::kNear);                           \
+    __ beq(&check_zero);                                                \
+    __ ble(&return_left, Label::kNear);                                 \
+    __ b(&return_right, Label::kNear);                                  \
+                                                                        \
+    __ bind(&check_zero);                                               \
+    __ lzdr(kDoubleRegZero);                                            \
+    __ cdbr(left_reg, kDoubleRegZero);                                  \
+    /* left == right != 0. */                                           \
+    __ bne(&return_left, Label::kNear);                                 \
+    /* At this point, both left and right are either 0 or -0. */        \
+    /* N.B. The following works because +0 + -0 == +0 */                \
+    /* For min we want logical-or of sign bit: -(-L + -R) */            \
+    __ lcdbr(left_reg, left_reg);                                       \
+    __ ldr(result_reg, left_reg);                                       \
+    if (left_reg == right_reg) {                                        \
+      __ adbr(result_reg, right_reg);                                   \
+    } else {                                                            \
+      __ sdbr(result_reg, right_reg);                                   \
+    }                                                                   \
+    __ lcdbr(result_reg, result_reg);                                   \
+    __ b(&done, Label::kNear);                                          \
+                                                                        \
+    __ bind(&return_nan);                                               \
+    /* If left or right are NaN, adbr propagates the appropriate one.*/ \
+    __ adbr(left_reg, right_reg);                                       \
+    __ b(&return_left, Label::kNear);                                   \
+                                                                        \
+    __ bind(&return_right);                                             \
+    if (right_reg != result_reg) {                                      \
+      __ ldr(result_reg, right_reg);                                    \
+    }                                                                   \
+    __ b(&done, Label::kNear);                                          \
+                                                                        \
+    __ bind(&return_left);                                              \
+    if (left_reg != result_reg) {                                       \
+      __ ldr(result_reg, left_reg);                                     \
+    }                                                                   \
+    __ bind(&done);                                                     \
   } while (0)
 
-#define ASSEMBLE_FLOAT_MAX()                                           \
-  do {                                                                 \
-    DoubleRegister left_reg = i.InputDoubleRegister(0);                \
-    DoubleRegister right_reg = i.InputDoubleRegister(1);               \
-    DoubleRegister result_reg = i.OutputDoubleRegister();              \
-    Label check_nan_left, check_zero, return_left, return_right, done; \
-    __ cebr(left_reg, right_reg);                                      \
-    __ bunordered(&check_nan_left, Label::kNear);                      \
-    __ beq(&check_zero);                                               \
-    __ bge(&return_left, Label::kNear);                                \
-    __ b(&return_right, Label::kNear);                                 \
-                                                                       \
-    __ bind(&check_zero);                                              \
-    __ lzdr(kDoubleRegZero);                                           \
-    __ cebr(left_reg, kDoubleRegZero);                                 \
-    /* left == right != 0. */                                          \
-    __ bne(&return_left, Label::kNear);                                \
-    /* At this point, both left and right are either 0 or -0. */       \
-    /* N.B. The following works because +0 + -0 == +0 */               \
-    /* For max we want logical-and of sign bit: (L + R) */             \
-    __ ldr(result_reg, left_reg);                                      \
-    __ aebr(result_reg, right_reg);                                    \
-    __ b(&done, Label::kNear);                                         \
-                                                                       \
-    __ bind(&check_nan_left);                                          \
-    __ cebr(left_reg, left_reg);                                       \
-    /* left == NaN. */                                                 \
-    __ bunordered(&return_left, Label::kNear);                         \
-                                                                       \
-    __ bind(&return_right);                                            \
-    if (right_reg != result_reg) {                                     \
-      __ ldr(result_reg, right_reg);                                   \
-    }                                                                  \
-    __ b(&done, Label::kNear);                                         \
-                                                                       \
-    __ bind(&return_left);                                             \
-    if (left_reg != result_reg) {                                      \
-      __ ldr(result_reg, left_reg);                                    \
-    }                                                                  \
-    __ bind(&done);                                                    \
+#define ASSEMBLE_FLOAT_MAX()                                            \
+  do {                                                                  \
+    DoubleRegister left_reg = i.InputDoubleRegister(0);                 \
+    DoubleRegister right_reg = i.InputDoubleRegister(1);                \
+    DoubleRegister result_reg = i.OutputDoubleRegister();               \
+    Label check_zero, return_left, return_right, return_nan, done;      \
+    __ cebr(left_reg, right_reg);                                       \
+    __ bunordered(&return_nan, Label::kNear);                           \
+    __ beq(&check_zero);                                                \
+    __ bge(&return_left, Label::kNear);                                 \
+    __ b(&return_right, Label::kNear);                                  \
+                                                                        \
+    __ bind(&check_zero);                                               \
+    __ lzdr(kDoubleRegZero);                                            \
+    __ cebr(left_reg, kDoubleRegZero);                                  \
+    /* left == right != 0. */                                           \
+    __ bne(&return_left, Label::kNear);                                 \
+    /* At this point, both left and right are either 0 or -0. */        \
+    /* N.B. The following works because +0 + -0 == +0 */                \
+    /* For max we want logical-and of sign bit: (L + R) */              \
+    __ ldr(result_reg, left_reg);                                       \
+    __ aebr(result_reg, right_reg);                                     \
+    __ b(&done, Label::kNear);                                          \
+                                                                        \
+    __ bind(&return_nan);                                               \
+    /* If left or right are NaN, aebr propagates the appropriate one.*/ \
+    __ aebr(left_reg, right_reg);                                       \
+    __ b(&return_left, Label::kNear);                                   \
+                                                                        \
+    __ bind(&return_right);                                             \
+    if (right_reg != result_reg) {                                      \
+      __ ldr(result_reg, right_reg);                                    \
+    }                                                                   \
+    __ b(&done, Label::kNear);                                          \
+                                                                        \
+    __ bind(&return_left);                                              \
+    if (left_reg != result_reg) {                                       \
+      __ ldr(result_reg, left_reg);                                     \
+    }                                                                   \
+    __ bind(&done);                                                     \
   } while (0)
 
-#define ASSEMBLE_FLOAT_MIN()                                           \
-  do {                                                                 \
-    DoubleRegister left_reg = i.InputDoubleRegister(0);                \
-    DoubleRegister right_reg = i.InputDoubleRegister(1);               \
-    DoubleRegister result_reg = i.OutputDoubleRegister();              \
-    Label check_nan_left, check_zero, return_left, return_right, done; \
-    __ cebr(left_reg, right_reg);                                      \
-    __ bunordered(&check_nan_left, Label::kNear);                      \
-    __ beq(&check_zero);                                               \
-    __ ble(&return_left, Label::kNear);                                \
-    __ b(&return_right, Label::kNear);                                 \
-                                                                       \
-    __ bind(&check_zero);                                              \
-    __ lzdr(kDoubleRegZero);                                           \
-    __ cebr(left_reg, kDoubleRegZero);                                 \
-    /* left == right != 0. */                                          \
-    __ bne(&return_left, Label::kNear);                                \
-    /* At this point, both left and right are either 0 or -0. */       \
-    /* N.B. The following works because +0 + -0 == +0 */               \
-    /* For min we want logical-or of sign bit: -(-L + -R) */           \
-    __ lcebr(left_reg, left_reg);                                      \
-    __ ldr(result_reg, left_reg);                                      \
-    if (left_reg == right_reg) {                                       \
-      __ aebr(result_reg, right_reg);                                  \
-    } else {                                                           \
-      __ sebr(result_reg, right_reg);                                  \
-    }                                                                  \
-    __ lcebr(result_reg, result_reg);                                  \
-    __ b(&done, Label::kNear);                                         \
-                                                                       \
-    __ bind(&check_nan_left);                                          \
-    __ cebr(left_reg, left_reg);                                       \
-    /* left == NaN. */                                                 \
-    __ bunordered(&return_left, Label::kNear);                         \
-                                                                       \
-    __ bind(&return_right);                                            \
-    if (right_reg != result_reg) {                                     \
-      __ ldr(result_reg, right_reg);                                   \
-    }                                                                  \
-    __ b(&done, Label::kNear);                                         \
-                                                                       \
-    __ bind(&return_left);                                             \
-    if (left_reg != result_reg) {                                      \
-      __ ldr(result_reg, left_reg);                                    \
-    }                                                                  \
-    __ bind(&done);                                                    \
+#define ASSEMBLE_FLOAT_MIN()                                            \
+  do {                                                                  \
+    DoubleRegister left_reg = i.InputDoubleRegister(0);                 \
+    DoubleRegister right_reg = i.InputDoubleRegister(1);                \
+    DoubleRegister result_reg = i.OutputDoubleRegister();               \
+    Label check_zero, return_left, return_right, return_nan, done;      \
+    __ cebr(left_reg, right_reg);                                       \
+    __ bunordered(&return_nan, Label::kNear);                           \
+    __ beq(&check_zero);                                                \
+    __ ble(&return_left, Label::kNear);                                 \
+    __ b(&return_right, Label::kNear);                                  \
+                                                                        \
+    __ bind(&check_zero);                                               \
+    __ lzdr(kDoubleRegZero);                                            \
+    __ cebr(left_reg, kDoubleRegZero);                                  \
+    /* left == right != 0. */                                           \
+    __ bne(&return_left, Label::kNear);                                 \
+    /* At this point, both left and right are either 0 or -0. */        \
+    /* N.B. The following works because +0 + -0 == +0 */                \
+    /* For min we want logical-or of sign bit: -(-L + -R) */            \
+    __ lcebr(left_reg, left_reg);                                       \
+    __ ldr(result_reg, left_reg);                                       \
+    if (left_reg == right_reg) {                                        \
+      __ aebr(result_reg, right_reg);                                   \
+    } else {                                                            \
+      __ sebr(result_reg, right_reg);                                   \
+    }                                                                   \
+    __ lcebr(result_reg, result_reg);                                   \
+    __ b(&done, Label::kNear);                                          \
+                                                                        \
+    __ bind(&return_nan);                                               \
+    /* If left or right are NaN, aebr propagates the appropriate one.*/ \
+    __ aebr(left_reg, right_reg);                                       \
+    __ b(&return_left, Label::kNear);                                   \
+                                                                        \
+    __ bind(&return_right);                                             \
+    if (right_reg != result_reg) {                                      \
+      __ ldr(result_reg, right_reg);                                    \
+    }                                                                   \
+    __ b(&done, Label::kNear);                                          \
+                                                                        \
+    __ bind(&return_left);                                              \
+    if (left_reg != result_reg) {                                       \
+      __ ldr(result_reg, left_reg);                                     \
+    }                                                                   \
+    __ bind(&done);                                                     \
   } while (0)
 //
 // Only MRI mode for these instructions available
@@ -2581,7 +2581,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_LoadReverseSimd128: {
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode);
-      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&
+          is_uint12(operand.offset())) {
         __ vlbr(i.OutputSimd128Register(), operand, Condition(4));
       } else {
         __ lrvg(r0, operand);
@@ -2643,7 +2644,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode, &index);
-      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&
+          is_uint12(operand.offset())) {
         __ vstbr(i.InputSimd128Register(index), operand, Condition(4));
       } else {
         __ vlgv(r0, i.InputSimd128Register(index), MemOperand(r0, 1),
@@ -3280,8 +3282,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch_0 = r0;
       Register scratch_1 = r1;
       for (int i = 0; i < 2; i++) {
-        __ vlgv(scratch_0, src0, MemOperand(r0, 0), Condition(3));
-        __ vlgv(scratch_1, src1, MemOperand(r0, 0), Condition(3));
+        __ vlgv(scratch_0, src0, MemOperand(r0, i), Condition(3));
+        __ vlgv(scratch_1, src1, MemOperand(r0, i), Condition(3));
         __ Mul64(scratch_0, scratch_1);
         scratch_0 = r1;
         scratch_1 = ip;
@@ -4176,7 +4178,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef BINOP_EXTRACT
-    case kS390_S8x16Shuffle: {
+    case kS390_I8x16Shuffle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
@@ -4196,7 +4198,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vperm(dst, src0, src1, kScratchDoubleReg, Condition(0), Condition(0));
       break;
     }
-    case kS390_S8x16Swizzle: {
+    case kS390_I8x16Swizzle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
@@ -4579,9 +4581,6 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue(ip);
-      if (call_descriptor->PushArgumentCount()) {
-        __ Push(kJavaScriptCallArgCountRegister);
-      }
     } else {
       StackFrame::Type type = info()->GetOutputStackFrameType();
       // TODO(mbrandy): Detect cases where ip is the entrypoint (for

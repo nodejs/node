@@ -273,14 +273,14 @@ void AsmJsParser::SkipSemicolon() {
 
 void AsmJsParser::Begin(AsmJsScanner::token_t label) {
   BareBegin(BlockKind::kRegular, label);
-  current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
 }
 
 void AsmJsParser::Loop(AsmJsScanner::token_t label) {
   BareBegin(BlockKind::kLoop, label);
   size_t position = scanner_.Position();
   current_function_builder_->AddAsmWasmOffset(position, position);
-  current_function_builder_->EmitWithU8(kExprLoop, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprLoop, kVoidCode);
 }
 
 void AsmJsParser::End() {
@@ -459,9 +459,15 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
       if (uvalue > 0x7FFFFFFF) {
         FAIL("Numeric literal out of range");
       }
-      DeclareGlobal(info, mutable_variable,
-                    mutable_variable ? AsmType::Int() : AsmType::Signed(),
-                    kWasmI32, WasmInitExpr(-static_cast<int32_t>(uvalue)));
+      if (uvalue == 0) {
+        // '-0' is treated as float.
+        DeclareGlobal(info, mutable_variable, AsmType::Float(), kWasmF32,
+                      WasmInitExpr(-0.f));
+      } else {
+        DeclareGlobal(info, mutable_variable,
+                      mutable_variable ? AsmType::Int() : AsmType::Signed(),
+                      kWasmI32, WasmInitExpr(-static_cast<int32_t>(uvalue)));
+      }
     } else {
       FAIL("Expected numeric literal");
     }
@@ -1049,7 +1055,7 @@ void AsmJsParser::Block() {
   bool can_break_to_block = pending_label_ != 0;
   if (can_break_to_block) {
     BareBegin(BlockKind::kNamed, pending_label_);
-    current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+    current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
   }
   pending_label_ = 0;
   EXPECT_TOKEN('{');
@@ -1092,7 +1098,7 @@ void AsmJsParser::IfStatement() {
   RECURSE(Expression(AsmType::Int()));
   EXPECT_TOKEN(')');
   BareBegin(BlockKind::kOther);
-  current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprIf, kVoidCode);
   RECURSE(ValidateStatement());
   if (Check(TOK(else))) {
     current_function_builder_->Emit(kExprElse);
@@ -1175,7 +1181,7 @@ void AsmJsParser::DoStatement() {
   Loop();
   //     c: block {  // but treated like loop so continue works
   BareBegin(BlockKind::kLoop, pending_label_);
-  current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
   pending_label_ = 0;
   EXPECT_TOKEN(TOK(do));
   //       BODY
@@ -1216,7 +1222,7 @@ void AsmJsParser::ForStatement() {
   Loop();
   //     c: block {  // but treated like loop so continue works
   BareBegin(BlockKind::kLoop, pending_label_);
-  current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
   pending_label_ = 0;
   if (!Peek(';')) {
     //       if (!CONDITION) break a;
@@ -1316,7 +1322,7 @@ void AsmJsParser::SwitchStatement() {
   size_t count = cases.size() + 1;
   for (size_t i = 0; i < count; ++i) {
     BareBegin(BlockKind::kOther);
-    current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+    current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
   }
   int table_pos = 0;
   for (auto c : cases) {
@@ -2057,7 +2063,7 @@ AsmType* AsmJsParser::ConditionalExpression() {
     if (!test->IsA(AsmType::Int())) {
       FAILn("Expected int in condition of ternary operator.");
     }
-    current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
+    current_function_builder_->EmitWithU8(kExprIf, kI32Code);
     size_t fixup = current_function_builder_->GetPosition() -
                    1;  // Assumes encoding knowledge.
     AsmType* cons = nullptr;
@@ -2068,13 +2074,13 @@ AsmType* AsmJsParser::ConditionalExpression() {
     RECURSEn(alt = AssignmentExpression());
     current_function_builder_->Emit(kExprEnd);
     if (cons->IsA(AsmType::Int()) && alt->IsA(AsmType::Int())) {
-      current_function_builder_->FixupByte(fixup, kLocalI32);
+      current_function_builder_->FixupByte(fixup, kI32Code);
       return AsmType::Int();
     } else if (cons->IsA(AsmType::Double()) && alt->IsA(AsmType::Double())) {
-      current_function_builder_->FixupByte(fixup, kLocalF64);
+      current_function_builder_->FixupByte(fixup, kF64Code);
       return AsmType::Double();
     } else if (cons->IsA(AsmType::Float()) && alt->IsA(AsmType::Float())) {
-      current_function_builder_->FixupByte(fixup, kLocalF32);
+      current_function_builder_->FixupByte(fixup, kF32Code);
       return AsmType::Float();
     } else {
       FAILn("Type mismatch in ternary operator.");
@@ -2331,7 +2337,7 @@ AsmType* AsmJsParser::ValidateCall() {
             } else {
               current_function_builder_->Emit(kExprI32LeS);
             }
-            current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
+            current_function_builder_->EmitWithU8(kExprIf, kI32Code);
             current_function_builder_->EmitGetLocal(tmp_x.get());
             current_function_builder_->Emit(kExprElse);
             current_function_builder_->EmitGetLocal(tmp_y.get());

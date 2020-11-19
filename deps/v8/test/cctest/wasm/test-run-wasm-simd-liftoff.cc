@@ -108,7 +108,7 @@ WASM_SIMD_LIFTOFF_TEST(REGRESS_1088273) {
 // A test to exercise logic in Liftoff's implementation of shuffle. The
 // implementation in Liftoff is a bit more tricky due to shuffle requiring
 // adjacent registers in ARM/ARM64.
-WASM_SIMD_LIFTOFF_TEST(S8x16Shuffle) {
+WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle) {
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
   // Temps to use up registers and force non-adjacent registers for shuffle.
   byte local0 = r.AllocateLocal(kWasmS128);
@@ -127,7 +127,7 @@ WASM_SIMD_LIFTOFF_TEST(S8x16Shuffle) {
   // Output global holding a kWasmS128.
   byte* output = r.builder().AddGlobal<byte>(kWasmS128);
 
-  // s8x16_shuffle(lhs, rhs, pattern) will take the last element of rhs and
+  // i8x16_shuffle(lhs, rhs, pattern) will take the last element of rhs and
   // place it into the last lane of lhs.
   std::array<byte, 16> pattern = {
       {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 31}};
@@ -137,8 +137,8 @@ WASM_SIMD_LIFTOFF_TEST(S8x16Shuffle) {
         WASM_SET_LOCAL(local1, WASM_GET_GLOBAL(0)),     // local1 is in v1
         WASM_GET_GLOBAL(0),                             // global0 is in v2
         WASM_GET_LOCAL(local0),                         // local0 is in v0
-        WASM_SET_GLOBAL(2, WASM_SIMD_S8x16_SHUFFLE_OP(
-                               kExprS8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
+        WASM_SET_GLOBAL(2, WASM_SIMD_I8x16_SHUFFLE_OP(
+                               kExprI8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
         WASM_ONE);
 
   r.Call();
@@ -153,7 +153,7 @@ WASM_SIMD_LIFTOFF_TEST(S8x16Shuffle) {
 
 // Exercise logic in Liftoff's implementation of shuffle when inputs to the
 // shuffle are the same register.
-WASM_SIMD_LIFTOFF_TEST(S8x16Shuffle_SingleOperand) {
+WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle_SingleOperand) {
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
   byte local0 = r.AllocateLocal(kWasmS128);
 
@@ -173,8 +173,8 @@ WASM_SIMD_LIFTOFF_TEST(S8x16Shuffle_SingleOperand) {
   // Set up locals so shuffle is called with non-adjacent registers v2 and v0.
   BUILD(r, WASM_SET_LOCAL(local0, WASM_GET_GLOBAL(0)), WASM_GET_LOCAL(local0),
         WASM_GET_LOCAL(local0),
-        WASM_SET_GLOBAL(1, WASM_SIMD_S8x16_SHUFFLE_OP(
-                               kExprS8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
+        WASM_SET_GLOBAL(1, WASM_SIMD_I8x16_SHUFFLE_OP(
+                               kExprI8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
         WASM_ONE);
 
   r.Call();

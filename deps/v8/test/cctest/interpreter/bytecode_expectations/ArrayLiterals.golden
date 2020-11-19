@@ -123,7 +123,7 @@ bytecode array length: 8
 bytecodes: [
   /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(0),
-  /*   52 S> */ B(CreateArrayFromIterable),
+  /*   64 S> */ B(CreateArrayFromIterable),
   /*   68 S> */ B(Return),
 ]
 constant pool: [
@@ -146,7 +146,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaConstant), U8(2),
   /*   67 S> */ B(Star), R(1),
-                B(GetIterator), R(0), U8(2), U8(4),
+  /*   67 E> */ B(GetIterator), R(0), U8(2), U8(4),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(4),
@@ -188,7 +188,7 @@ bytecode array length: 24
 bytecodes: [
   /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(0),
-  /*   52 S> */ B(CreateArrayFromIterable),
+  /*   64 S> */ B(CreateArrayFromIterable),
                 B(Star), R(2),
                 B(LdaNamedProperty), R(2), U8(1), U8(1),
                 B(Star), R(1),

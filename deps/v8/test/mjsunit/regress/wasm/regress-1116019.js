@@ -15,7 +15,7 @@ builder.addFunction(undefined, 0 /* sig */)
 // signature: i_v
 // body:
 kExprI32Const, 0x00,  // i32.const
-kSimdPrefix, kExprI16x8Load8x8U, 0x03, 0xff, 0xff, 0x3f,  // i16x8.load8x8_u
+kSimdPrefix, kExprS128Load8x8U, 0x03, 0xff, 0xff, 0x3f,  // i16x8.load8x8_u
 kSimdPrefix, kExprI16x8ExtractLaneS, 0,
 kExprEnd,  // end @371
 ]).exportAs('main');

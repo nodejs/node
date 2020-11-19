@@ -1,9 +1,11 @@
 <!-- Copyright 2020 the V8 project authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
-<style>
-  @import "./index.css";
 
+<head>
+  <link href="./index.css" rel="stylesheet">
+</head>
+<style>
   #searchBarInput {
     width: 200px;
   }
@@ -14,8 +16,7 @@ found in the LICENSE file. -->
   <map-transitions id="map-transitions"></map-transitions>
   <h3>Search Map by Address</h3>
   <section id="searchBar"></section>
-  <input type="search" id="searchBarInput" placeholder="Search maps by address.."></input>
+  <input type="search" id="searchBarInput"></input>
   <button id="searchBarBtn">Search</button>
-
   <map-details id="map-details"></map-details>
 </div>

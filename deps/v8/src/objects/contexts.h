@@ -9,7 +9,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/osr-optimized-code-cache.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/field-offsets.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 

@@ -205,6 +205,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallBuiltinPointer,     // target is a builtin pointer
   };
 
+  // NOTE: The lowest 10 bits of the Flags field are encoded in InstructionCode
+  // (for use in the code generator). All higher bits are lost.
+  static constexpr int kFlagsBitsEncodedInInstructionCode = 10;
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
@@ -214,17 +217,36 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kInitializeRootRegister = 1u << 3,
     // Does not ever try to allocate space on our heap.
     kNoAllocate = 1u << 4,
-    // Push argument count as part of function prologue.
-    kPushArgumentCount = 1u << 5,
     // Use retpoline for this call if indirect.
-    kRetpoline = 1u << 6,
+    kRetpoline = 1u << 5,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
-    kFixedTargetRegister = 1u << 7,
-    kCallerSavedRegisters = 1u << 8,
+    kFixedTargetRegister = 1u << 6,
+    kCallerSavedRegisters = 1u << 7,
     // The kCallerSavedFPRegisters only matters (and set) when the more general
     // flag for kCallerSavedRegisters above is also set.
-    kCallerSavedFPRegisters = 1u << 9,
+    kCallerSavedFPRegisters = 1u << 8,
+    // Tail calls for tier up are special (in fact they are different enough
+    // from normal tail calls to warrant a dedicated opcode; but they also have
+    // enough similar aspects that reusing the TailCall opcode is pragmatic).
+    // Specifically:
+    //
+    // 1. Caller and callee are both JS-linkage Code objects.
+    // 2. JS runtime arguments are passed unchanged from caller to callee.
+    // 3. JS runtime arguments are not attached as inputs to the TailCall node.
+    // 4. Prior to the tail call, frame and register state is torn down to just
+    //    before the caller frame was constructed.
+    // 5. Unlike normal tail calls, arguments adaptor frames (if present) are
+    //    *not* torn down.
+    //
+    // In other words, behavior is identical to a jmp instruction prior caller
+    // frame construction.
+    kIsTailCallForTierUp = 1u << 9,
+
+    // Flags past here are *not* encoded in InstructionCode and are thus not
+    // accessible from the code generator. See also
+    // kFlagsBitsEncodedInInstructionCode.
+
     // AIX has a function descriptor by default but it can be disabled for a
     // certain CFunction call (only used for Kind::kCallAddress).
     kNoFunctionDescriptor = 1u << 10,
@@ -317,7 +339,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   Flags flags() const { return flags_; }
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
-  bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;
   }
@@ -327,6 +348,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool NeedsCallerSavedFPRegisters() const {
     return flags() & kCallerSavedFPRegisters;
   }
+  bool IsTailCallForTierUp() const { return flags() & kIsTailCallForTierUp; }
   bool NoFunctionDescriptor() const { return flags() & kNoFunctionDescriptor; }
 
   LinkageLocation GetReturnLocation(size_t index) const {
@@ -511,22 +533,22 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   // A special {Parameter} index for JSCalls that represents the new target.
-  static int GetJSCallNewTargetParamIndex(int parameter_count) {
+  static constexpr int GetJSCallNewTargetParamIndex(int parameter_count) {
     return parameter_count + 0;  // Parameter (arity + 0) is special.
   }
 
   // A special {Parameter} index for JSCalls that represents the argument count.
-  static int GetJSCallArgCountParamIndex(int parameter_count) {
+  static constexpr int GetJSCallArgCountParamIndex(int parameter_count) {
     return parameter_count + 1;  // Parameter (arity + 1) is special.
   }
 
   // A special {Parameter} index for JSCalls that represents the context.
-  static int GetJSCallContextParamIndex(int parameter_count) {
+  static constexpr int GetJSCallContextParamIndex(int parameter_count) {
     return parameter_count + 2;  // Parameter (arity + 2) is special.
   }
 
   // A special {Parameter} index for JSCalls that represents the closure.
-  static const int kJSCallClosureParamIndex = -1;
+  static constexpr int kJSCallClosureParamIndex = -1;
 
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;

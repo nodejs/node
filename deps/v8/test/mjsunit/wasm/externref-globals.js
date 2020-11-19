@@ -594,3 +594,25 @@ function dummy_func() {
   assertSame(expected_wasm, instance.exports.get_global_wasm());
   assertSame(expected_val, instance.exports.get_global_js()());
 })();
+
+(function TestSetGlobalWriteBarrier() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  const global = builder.addGlobal(kWasmExternRef, true).index;
+  builder.addFunction("set_global", kSig_v_r)
+    .addBody([kExprLocalGet, 0, kExprGlobalSet, global])
+    .exportFunc();
+  builder.addFunction("get_global", kSig_r_v)
+    .addBody([kExprGlobalGet, global])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  // Trigger GC twice to make sure the instance is moved to mature space.
+  gc();
+  gc();
+  const test_value = { hello: 'world' };
+  instance.exports.set_global(test_value);
+  // Run another GC to test if the writebarrier existed.
+  gc();
+  assertSame(test_value, instance.exports.get_global());
+})();

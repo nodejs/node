@@ -62,9 +62,7 @@ class HeapObject : public Object {
   DECL_GETTER(synchronized_map_word, MapWord)
   inline void synchronized_set_map_word(MapWord map_word);
 
-  // TODO(v8:7464): Once RO_SPACE is shared between isolates, this method can be
-  // removed as ReadOnlyRoots will be accessible from a global variable. For now
-  // this method exists to help remove GetIsolate/GetHeap from HeapObject, in a
+  // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
   // way that doesn't require passing Isolate/Heap down huge call chains or to
   // places where it might not be safe to access it.
   inline ReadOnlyRoots GetReadOnlyRoots() const;

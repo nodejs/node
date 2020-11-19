@@ -34,7 +34,8 @@ class MachineOperatorReducerTest : public GraphTest {
         javascript_(zone()),
         jsgraph_(isolate(), graph(), &common_, &javascript_, nullptr,
                  &machine_),
-        graph_reducer_(zone(), graph(), tick_counter(), jsgraph_.Dead()) {}
+        graph_reducer_(zone(), graph(), tick_counter(), broker(),
+                       jsgraph_.Dead()) {}
 
  protected:
   Reduction Reduce(Node* node) {
@@ -835,6 +836,16 @@ TEST_F(MachineOperatorReducerTest, Word32AndWithBitFields) {
                         IsInt32Constant(7 | (1 << 4) | (1 << 6) | (3 << 10))),
             IsInt32Constant(5 | (1 << 4) | (2 << 10))));
   }
+}
+
+TEST_F(MachineOperatorReducerTest, Word32AndWithIncorrectBitField) {
+  Reduction const r = Reduce(graph()->NewNode(
+      machine()->Word32And(), Parameter(0),
+      graph()->NewNode(machine()->Word32Equal(),
+                       graph()->NewNode(machine()->Word32And(), Parameter(0),
+                                        Int32Constant(4)),
+                       Parameter(0))));
+  ASSERT_FALSE(r.Changed());
 }
 
 // -----------------------------------------------------------------------------

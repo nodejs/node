@@ -16,10 +16,6 @@ namespace internal {
 GlobalSafepoint::GlobalSafepoint(Heap* heap)
     : heap_(heap), local_heaps_head_(nullptr), active_safepoint_scopes_(0) {}
 
-void GlobalSafepoint::Start() { EnterSafepointScope(); }
-
-void GlobalSafepoint::End() { LeaveSafepointScope(); }
-
 void GlobalSafepoint::EnterSafepointScope() {
   if (!FLAG_local_heaps) return;
 

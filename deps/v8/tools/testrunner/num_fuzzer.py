@@ -117,6 +117,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
   def _get_default_suite_names(self):
     return DEFAULT_SUITES
 
+  def _runner_flags(self):
+    """Extra default flags specific to the test runner implementation."""
+    return ['--no-abort-on-contradictory-flags']
+
   def _get_statusfile_variables(self, options):
     variables = (
         super(NumFuzzer, self)._get_statusfile_variables(options))

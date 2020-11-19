@@ -16,17 +16,19 @@ class EntryFrameConstants : public AllStatic {
  public:
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  static constexpr int kCallerFPOffset =
-      -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+  static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
 };
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
   static constexpr int kNumberOfSavedGpParamRegs = 7;
   static constexpr int kNumberOfSavedFpParamRegs = 7;
+  static constexpr int kNumberOfSavedAllParamRegs = 14;
 
   // FP-relative.
-  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(7);
+  // See Generate_WasmCompileLazy in builtins-mips64.cc.
+  static constexpr int kWasmInstanceOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(kNumberOfSavedAllParamRegs);
   static constexpr int kFixedFrameSizeFromFp =
       TypedFrameConstants::kFixedFrameSizeFromFp +
       kNumberOfSavedGpParamRegs * kPointerSize +

@@ -196,6 +196,15 @@ inline int FindFirstCharacter(Vector<const PatternChar> pattern,
   const PatternChar pattern_first_char = pattern[0];
   const int max_n = (subject.length() - pattern.length() + 1);
 
+  if (sizeof(SubjectChar) == 2 && pattern_first_char == 0) {
+    // Special-case looking for the 0 char in other than one-byte strings.
+    // memchr mostly fails in this case due to every other byte being 0 in text
+    // that is mostly ascii characters.
+    for (int i = index; i < max_n; ++i) {
+      if (subject[i] == 0) return i;
+    }
+    return -1;
+  }
   const uint8_t search_byte = GetHighestValueByte(pattern_first_char);
   const SubjectChar search_char = static_cast<SubjectChar>(pattern_first_char);
   int pos = index;

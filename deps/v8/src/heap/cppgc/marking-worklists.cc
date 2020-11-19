@@ -18,15 +18,5 @@ void MarkingWorklists::ClearForTesting() {
   weak_callback_worklist_.Clear();
 }
 
-void MarkingWorklists::FlushNotFullyConstructedObjects() {
-  if (!not_fully_constructed_worklist_.IsLocalViewEmpty(kMutatorThreadId)) {
-    not_fully_constructed_worklist_.FlushToGlobal(kMutatorThreadId);
-    previously_not_fully_constructed_worklist_.MergeGlobalPool(
-        &not_fully_constructed_worklist_);
-  }
-  DCHECK(not_fully_constructed_worklist_.IsLocalViewEmpty(
-      MarkingWorklists::kMutatorThreadId));
-}
-
 }  // namespace internal
 }  // namespace cppgc

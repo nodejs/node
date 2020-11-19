@@ -60,24 +60,6 @@ V8_INLINE Address PointerAuthentication::StripPAC(Address pc) {
 #endif
 }
 
-// Sign {pc} using {sp}.
-V8_INLINE Address PointerAuthentication::SignPCWithSP(Address pc, Address sp) {
-#ifdef USE_SIMULATOR
-  return Simulator::AddPAC(pc, sp, Simulator::kPACKeyIB,
-                           Simulator::kInstructionPointer);
-#else
-  asm volatile(
-      "  mov x17, %[pc]\n"
-      "  mov x16, %[sp]\n"
-      "  pacib1716\n"
-      "  mov %[pc], x17\n"
-      : [pc] "+r"(pc)
-      : [sp] "r"(sp)
-      : "x16", "x17");
-  return pc;
-#endif
-}
-
 // Authenticate the address stored in {pc_address} and replace it with
 // {new_pc}, after signing it. {offset_from_sp} is the offset between
 // {pc_address} and the pointer used as a context for signing.
@@ -113,43 +95,27 @@ V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
   *pc_address = new_pc;
 }
 
-// Authenticate the address stored in {pc_address} based on {old_context} and
-// replace it with the same address signed with {new_context} instead.
-V8_INLINE void PointerAuthentication::ReplaceContext(Address* pc_address,
-                                                     Address old_context,
-                                                     Address new_context) {
-  uint64_t old_signed_pc = static_cast<uint64_t>(*pc_address);
-  uint64_t new_pc;
+
+// Sign {pc} using {sp}.
+V8_INLINE Address PointerAuthentication::SignAndCheckPC(Address pc,
+                                                          Address sp) {
 #ifdef USE_SIMULATOR
-  uint64_t auth_pc =
-      Simulator::AuthPAC(old_signed_pc, old_context, Simulator::kPACKeyIB,
-                         Simulator::kInstructionPointer);
-  uint64_t raw_pc =
-      Simulator::StripPAC(auth_pc, Simulator::kInstructionPointer);
-  // Verify that the old address is authenticated.
-  CHECK_EQ(raw_pc, auth_pc);
-  new_pc = Simulator::AddPAC(raw_pc, new_context, Simulator::kPACKeyIB,
-                             Simulator::kInstructionPointer);
+  pc = Simulator::AddPAC(pc, sp, Simulator::kPACKeyIB,
+                        Simulator::kInstructionPointer);
+  CHECK(Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc)));
+  return pc;
 #else
-  // Only store newly signed address after we have verified that the old
-  // address is authenticated.
   asm volatile(
-      "  mov x17, %[old_pc]\n"
-      "  mov x16, %[old_ctx]\n"
-      "  autib1716\n"
-      "  mov x16, %[new_ctx]\n"
-      "  pacib1716\n"
-      "  mov %[new_pc], x17\n"
-      "  mov x17, %[old_pc]\n"
-      "  mov x16, %[old_ctx]\n"
-      "  autib1716\n"
-      "  ldr xzr, [x17]\n"
-      : [new_pc] "=&r"(new_pc)
-      : [old_pc] "r"(old_signed_pc), [old_ctx] "r"(old_context),
-        [new_ctx] "r"(new_context)
-      : "x16", "x17");
+    "  mov x17, %[pc]\n"
+    "  mov x16, %[sp]\n"
+    "  pacib1716\n"
+    "  mov %[pc], x17\n"
+    : [pc] "+r"(pc)
+    : [sp] "r"(sp)
+    : "x16", "x17");
+  CHECK(Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc)));
+  return pc;
 #endif
-  *pc_address = new_pc;
 }
 
 // clang-format on

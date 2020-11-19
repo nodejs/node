@@ -10,6 +10,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type.h"
+#include "src/utils/boxed-float.h"
 
 namespace v8 {
 class CFunctionInfo;
@@ -48,56 +49,67 @@ enum class OddballType : uint8_t {
 };
 
 // This list is sorted such that subtypes appear before their supertypes.
+// This list must not contain a type if it doesn't contain all of its subtypes
+// too. For example, it CANNOT contain FixedArrayBase if it doesn't contain
+// FixedDoubleArray, BytecodeArray and FixedArray.
+// DO NOT VIOLATE THESE TWO PROPERTIES!
+// Classes on this list will skip serialization when
+// FLAG_turbo_direct_heap_access is on. Otherwise, they might get serialized.
+#define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
+  /* Subtypes of FixedArray */                      \
+  V(ObjectBoilerplateDescription)                   \
+  /* Subtypes of HeapObject */                      \
+  V(AccessorInfo)                                   \
+  V(ArrayBoilerplateDescription)                    \
+  V(Cell)                                           \
+  V(TemplateObjectDescription)
+
+// This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
-#define HEAP_BROKER_OBJECT_LIST(V) \
-  /* Subtypes of JSObject */       \
-  V(JSArray)                       \
-  V(JSBoundFunction)               \
-  V(JSDataView)                    \
-  V(JSFunction)                    \
-  V(JSGlobalObject)                \
-  V(JSGlobalProxy)                 \
-  V(JSRegExp)                      \
-  V(JSTypedArray)                  \
-  /* Subtypes of Context */        \
-  V(NativeContext)                 \
-  /* Subtypes of FixedArray */     \
-  V(Context)                       \
-  V(ObjectBoilerplateDescription)  \
-  V(ScopeInfo)                     \
-  V(ScriptContextTable)            \
-  /* Subtypes of FixedArrayBase */ \
-  V(BytecodeArray)                 \
-  V(FixedArray)                    \
-  V(FixedDoubleArray)              \
-  /* Subtypes of Name */           \
-  V(InternalizedString)            \
-  V(String)                        \
-  V(Symbol)                        \
-  /* Subtypes of JSReceiver */     \
-  V(JSObject)                      \
-  /* Subtypes of HeapObject */     \
-  V(AccessorInfo)                  \
-  V(AllocationSite)                \
-  V(ArrayBoilerplateDescription)   \
-  V(BigInt)                        \
-  V(CallHandlerInfo)               \
-  V(Cell)                          \
-  V(Code)                          \
-  V(DescriptorArray)               \
-  V(FeedbackCell)                  \
-  V(FeedbackVector)                \
-  V(FixedArrayBase)                \
-  V(FunctionTemplateInfo)          \
-  V(HeapNumber)                    \
-  V(JSReceiver)                    \
-  V(Map)                           \
-  V(Name)                          \
-  V(PropertyCell)                  \
-  V(SharedFunctionInfo)            \
-  V(SourceTextModule)              \
-  V(TemplateObjectDescription)     \
-  /* Subtypes of Object */         \
+#define HEAP_BROKER_SERIALIZED_OBJECT_LIST(V) \
+  /* Subtypes of JSObject */                  \
+  V(JSArray)                                  \
+  V(JSBoundFunction)                          \
+  V(JSDataView)                               \
+  V(JSFunction)                               \
+  V(JSGlobalObject)                           \
+  V(JSGlobalProxy)                            \
+  V(JSRegExp)                                 \
+  V(JSTypedArray)                             \
+  /* Subtypes of Context */                   \
+  V(NativeContext)                            \
+  /* Subtypes of FixedArray */                \
+  V(Context)                                  \
+  V(ScopeInfo)                                \
+  V(ScriptContextTable)                       \
+  /* Subtypes of FixedArrayBase */            \
+  V(BytecodeArray)                            \
+  V(FixedArray)                               \
+  V(FixedDoubleArray)                         \
+  /* Subtypes of Name */                      \
+  V(InternalizedString)                       \
+  V(String)                                   \
+  V(Symbol)                                   \
+  /* Subtypes of JSReceiver */                \
+  V(JSObject)                                 \
+  /* Subtypes of HeapObject */                \
+  V(AllocationSite)                           \
+  V(BigInt)                                   \
+  V(CallHandlerInfo)                          \
+  V(Code)                                     \
+  V(DescriptorArray)                          \
+  V(FeedbackCell)                             \
+  V(FeedbackVector)                           \
+  V(FixedArrayBase)                           \
+  V(FunctionTemplateInfo)                     \
+  V(HeapNumber)                               \
+  V(JSReceiver)                               \
+  V(Map)                                      \
+  V(Name)                                     \
+  V(PropertyCell)                             \
+  V(SharedFunctionInfo)                       \
+  V(SourceTextModule)                         \
+  /* Subtypes of Object */                    \
   V(HeapObject)
 
 class CompilationDependencies;
@@ -107,7 +119,8 @@ class ObjectData;
 class PerIsolateCompilerCache;
 class PropertyAccessInfo;
 #define FORWARD_DECL(Name) class Name##Ref;
-HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
+HEAP_BROKER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
+HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
 class V8_EXPORT_PRIVATE ObjectRef {
@@ -127,11 +140,13 @@ class V8_EXPORT_PRIVATE ObjectRef {
   int AsSmi() const;
 
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
-  HEAP_BROKER_OBJECT_LIST(HEAP_IS_METHOD_DECL)
+  HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
+  HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
 
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
-  HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
+  HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
+  HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
   bool IsNullOrUndefined() const;
@@ -293,7 +308,6 @@ class JSDataViewRef : public JSObjectRef {
   Handle<JSDataView> object() const;
 
   size_t byte_length() const;
-  size_t byte_offset() const;
 };
 
 class JSBoundFunctionRef : public JSObjectRef {
@@ -704,8 +718,7 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
 
   Handle<FixedDoubleArray> object() const;
 
-  double get_scalar(int i) const;
-  bool is_the_hole(int i) const;
+  Float64 get(int i) const;
 };
 
 class BytecodeArrayRef : public FixedArrayBaseRef {
@@ -722,8 +735,7 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
   uint8_t get(int index) const;
   Address GetFirstBytecodeAddress() const;
 
-  // Source position table.
-  Handle<ByteArray> source_positions() const;
+  Handle<ByteArray> SourcePositionTable() const;
 
   // Constant pool access.
   Handle<Object> GetConstantAtIndex(int index) const;
@@ -877,8 +889,6 @@ class CellRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(Cell, HeapObjectRef)
 
   Handle<Cell> object() const;
-
-  ObjectRef value() const;
 };
 
 class JSGlobalObjectRef : public JSObjectRef {

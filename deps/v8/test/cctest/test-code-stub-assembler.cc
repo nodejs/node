@@ -41,8 +41,9 @@ template <class T>
 using TVariable = TypedCodeAssemblerVariable<T>;
 using PromiseResolvingFunctions = TorqueStructPromiseResolvingFunctions;
 
-int sum10(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
-          int a8, int a9) {
+intptr_t sum10(intptr_t a0, intptr_t a1, intptr_t a2, intptr_t a3, intptr_t a4,
+               intptr_t a5, intptr_t a6, intptr_t a7, intptr_t a8,
+               intptr_t a9) {
   return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9;
 }
 
@@ -1937,12 +1938,15 @@ TEST(PopAndReturnConstant) {
 
   const int kNumParams = 4;
   const int kNumProgrammaticParams = 2;
-  CodeAssemblerTester asm_tester(isolate, kNumParams - kNumProgrammaticParams);
+  CodeAssemblerTester asm_tester(
+      isolate,
+      kNumParams - kNumProgrammaticParams + 1);  // Include receiver.
   CodeStubAssembler m(asm_tester.state());
 
   // Call a function that return |kNumProgramaticParams| parameters in addition
   // to those specified by the static descriptor. |kNumProgramaticParams| is
   // specified as a constant.
+  CSA_CHECK(&m, m.SmiEqual(m.CAST(m.Parameter(2)), m.SmiConstant(5678)));
   m.PopAndReturn(m.Int32Constant(kNumProgrammaticParams),
                  m.SmiConstant(Smi::FromInt(1234)));
 
@@ -1950,7 +1954,7 @@ TEST(PopAndReturnConstant) {
   Handle<Object> result;
   for (int test_count = 0; test_count < 100; ++test_count) {
     result = ft.Call(isolate->factory()->undefined_value(),
-                     Handle<Smi>(Smi::FromInt(1234), isolate),
+                     Handle<Smi>(Smi::FromInt(5678), isolate),
                      isolate->factory()->undefined_value(),
                      isolate->factory()->undefined_value())
                  .ToHandleChecked();
@@ -1963,22 +1967,26 @@ TEST(PopAndReturnVariable) {
 
   const int kNumParams = 4;
   const int kNumProgrammaticParams = 2;
-  CodeAssemblerTester asm_tester(isolate, kNumParams - kNumProgrammaticParams);
+  CodeAssemblerTester asm_tester(
+      isolate,
+      kNumParams - kNumProgrammaticParams + 1);  // Include receiver.
   CodeStubAssembler m(asm_tester.state());
 
   // Call a function that return |kNumProgramaticParams| parameters in addition
   // to those specified by the static descriptor. |kNumProgramaticParams| is
-  // passed in as a parameter to the function so that it can't be recongized as
+  // passed in as a parameter to the function so that it can't be recognized as
   // a constant.
-  m.PopAndReturn(m.SmiUntag(m.Parameter(1)), m.SmiConstant(Smi::FromInt(1234)));
+  CSA_CHECK(&m, m.SmiEqual(m.CAST(m.Parameter(2)), m.SmiConstant(5678)));
+  m.PopAndReturn(m.SmiUntag(m.CAST(m.Parameter(1))),
+                 m.SmiConstant(Smi::FromInt(1234)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result;
   for (int test_count = 0; test_count < 100; ++test_count) {
-    result = ft.Call(isolate->factory()->undefined_value(),
-                     Handle<Smi>(Smi::FromInt(1234), isolate),
+    result = ft.Call(Handle<Smi>(Smi::FromInt(kNumProgrammaticParams), isolate),
+                     Handle<Smi>(Smi::FromInt(5678), isolate),
                      isolate->factory()->undefined_value(),
-                     Handle<Smi>(Smi::FromInt(kNumProgrammaticParams), isolate))
+                     isolate->factory()->undefined_value())
                  .ToHandleChecked();
     CHECK_EQ(1234, Handle<Smi>::cast(result)->value());
   }

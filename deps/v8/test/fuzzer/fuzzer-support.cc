@@ -9,8 +9,8 @@
 #include <string.h>
 
 #include "include/libplatform/libplatform.h"
-
 #include "src/flags/flags.h"
+#include "src/trap-handler/trap-handler.h"
 
 namespace v8_fuzzer {
 
@@ -61,6 +61,12 @@ std::unique_ptr<FuzzerSupport> FuzzerSupport::fuzzer_support_;
 
 // static
 void FuzzerSupport::InitializeFuzzerSupport(int* argc, char*** argv) {
+  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
+    constexpr bool kUseDefaultTrapHandler = true;
+    if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {
+      FATAL("Could not register trap handler");
+    }
+  }
   DCHECK_NULL(FuzzerSupport::fuzzer_support_);
   FuzzerSupport::fuzzer_support_ =
       std::make_unique<v8_fuzzer::FuzzerSupport>(argc, argv);

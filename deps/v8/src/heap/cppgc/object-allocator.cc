@@ -110,6 +110,7 @@ void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace* space, size_t size,
                                          GCInfoIndex gcinfo) {
   void* memory = OutOfLineAllocateImpl(space, size, gcinfo);
   stats_collector_->NotifySafePointForConservativeCollection();
+  raw_heap_->heap()->AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
   return memory;
 }
 
@@ -136,7 +137,7 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
   // TODO(chromium:1056170): Add lazy sweep.
 
   // 4. Complete sweeping.
-  raw_heap_->heap()->sweeper().Finish();
+  raw_heap_->heap()->sweeper().FinishIfRunning();
 
   // 5. Add a new page to this heap.
   auto* new_page = NormalPage::Create(page_backend_, space);

@@ -213,7 +213,7 @@ TNode<Object> IntrinsicsGenerator::HasProperty(
       args, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
-TNode<Object> IntrinsicsGenerator::ToStringRT(
+TNode<Object> IntrinsicsGenerator::ToString(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
   return IntrinsicAsStubCall(
       args, context, Builtins::CallableFor(isolate(), Builtins::kToString));

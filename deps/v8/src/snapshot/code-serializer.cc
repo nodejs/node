@@ -66,7 +66,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   Handle<String> source(String::cast(script->source()), isolate);
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
                                  source, script->origin_options()));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   cs.reference_map()->AddAttachedReference(
       reinterpret_cast<void*>(source->ptr()));
   ScriptData* script_data = cs.SerializeSharedFunctionInfo(info);
@@ -88,7 +88,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
 
 ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   VisitRootPointer(Root::kHandleScope, nullptr,
                    FullObjectSlot(info.location()));
@@ -384,7 +384,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
             SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate,
                                                                shared_info);
           }
-          DisallowHeapAllocation no_gc;
+          DisallowGarbageCollection no_gc;
           int line_num =
               script->GetLineNumber(shared_info->StartPosition()) + 1;
           int column_num =
@@ -407,7 +407,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
 SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   std::vector<Reservation> reservations = cs->EncodeReservations();
 
   // Calculate sizes.
@@ -520,7 +520,7 @@ SerializedCodeData::SerializedCodeData(ScriptData* data)
 SerializedCodeData SerializedCodeData::FromCachedData(
     ScriptData* cached_data, uint32_t expected_source_hash,
     SanityCheckResult* rejection_result) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   SerializedCodeData scd(cached_data);
   *rejection_result = scd.SanityCheck(expected_source_hash);
   if (*rejection_result != CHECK_SUCCESS) {

@@ -76,6 +76,7 @@ class StatusFile(object):
     _rules:        {variant: {test name: [rule]}}
     _prefix_rules: {variant: {test name prefix: [rule]}}
     """
+    self.variables = variables
     with open(path) as f:
       self._rules, self._prefix_rules = ReadStatusFile(f.read(), variables)
 

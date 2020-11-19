@@ -488,6 +488,35 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
   *this = source;
 }
 
+void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
+  for (auto slot : stack_state) {
+    DCHECK(!slot.is_reg());
+
+    if (slot.type().is_reference_type()) {
+      // index = 0 is for the stack slot at 'fp + kFixedFrameSizeAboveFp -
+      // kSystemPointerSize', the location of the current stack slot is 'fp -
+      // slot.offset()'. The index we need is therefore '(fp +
+      // kFixedFrameSizeAboveFp - kSystemPointerSize) - (fp - slot.offset())' =
+      // 'slot.offset() + kFixedFrameSizeAboveFp - kSystemPointerSize'.
+      auto index =
+          (slot.offset() + StandardFrameConstants::kFixedFrameSizeAboveFp -
+           kSystemPointerSize) /
+          kSystemPointerSize;
+      safepoint.DefinePointerSlot(index);
+    }
+  }
+}
+
+int LiftoffAssembler::GetTotalFrameSlotCountForGC() const {
+  // The GC does not care about the actual number of spill slots, just about
+  // the number of references that could be there in the spilling area. Note
+  // that the offset of the first spill slot is kSystemPointerSize and not
+  // '0'. Therefore we don't have to add '+1' here.
+  return (max_used_spill_offset_ +
+          StandardFrameConstants::kFixedFrameSizeAboveFp) /
+         kSystemPointerSize;
+}
+
 namespace {
 
 constexpr AssemblerOptions DefaultLiftoffOptions() {
@@ -575,6 +604,28 @@ void LiftoffAssembler::PrepareLoopArgs(int num) {
     LoadConstant(reg, slot.constant());
     slot.MakeRegister(reg);
     cache_state_.inc_used(reg);
+  }
+}
+
+void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
+  // Materialize constants on top of the stack ({arity} many), and locals.
+  VarState* stack_base = cache_state_.stack_state.data();
+  for (auto slots :
+       {VectorOf(stack_base + cache_state_.stack_state.size() - arity, arity),
+        VectorOf(stack_base, num_locals())}) {
+    for (VarState& slot : slots) {
+      if (!slot.is_const()) continue;
+      RegClass rc = reg_class_for(slot.type());
+      if (cache_state_.has_unused_register(rc)) {
+        LiftoffRegister reg = cache_state_.unused_register(rc);
+        LoadConstant(reg, slot.constant());
+        cache_state_.inc_used(reg);
+        slot.MakeRegister(reg);
+      } else {
+        Spill(slot.offset(), slot.constant());
+        slot.MakeStack();
+      }
+    }
   }
 }
 
@@ -720,6 +771,7 @@ void LiftoffAssembler::PrepareBuiltinCall(
   LiftoffRegList param_regs;
   PrepareStackTransfers(sig, call_descriptor, params.begin(), &stack_slots,
                         &stack_transfers, &param_regs);
+  SpillAllRegisters();
   // Create all the slots.
   // Builtin stack parameters are pushed in reversed order.
   stack_slots.Reverse();
@@ -729,7 +781,6 @@ void LiftoffAssembler::PrepareBuiltinCall(
 
   // Reset register use counters.
   cache_state_.reset_used_registers();
-  SpillAllRegisters();
 }
 
 void LiftoffAssembler::PrepareCall(const FunctionSig* sig,

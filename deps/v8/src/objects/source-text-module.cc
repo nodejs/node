@@ -453,10 +453,9 @@ bool SourceTextModule::FinishInstantiate(
     if (requested_module->status() == kInstantiating) {
       // SyntheticModules go straight to kInstantiated so this must be a
       // SourceTextModule
-      module->set_dfs_ancestor_index(
-          std::min(module->dfs_ancestor_index(),
-                   Handle<SourceTextModule>::cast(requested_module)
-                       ->dfs_ancestor_index()));
+      module->set_dfs_ancestor_index(std::min(
+          module->dfs_ancestor_index(),
+          SourceTextModule::cast(*requested_module).dfs_ancestor_index()));
     }
   }
 
@@ -694,7 +693,7 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
       CHECK_EQ(descendant->status(), kEvaluating);
       //  ii. Set m.[[Status]] to "evaluated".
       // iii. Set m.[[EvaluationError]] to result.
-      descendant->RecordErrorUsingPendingException(isolate);
+      Module::RecordErrorUsingPendingException(isolate, descendant);
     }
 
 #ifdef DEBUG
@@ -819,7 +818,7 @@ void SourceTextModule::AsyncModuleExecutionRejected(
   }
 
   // 4. Set module.[[EvaluationError]] to ThrowCompletion(error).
-  module->RecordError(isolate, exception);
+  Module::RecordError(isolate, module, exception);
 
   // 5. Set module.[[AsyncEvaluating]] to false.
   module->set_async_evaluating(false);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --future --no-lazy-feedback-allocation
+// Flags: --no-lazy-feedback-allocation
 
 // This test ensures that KeyedAccessStoreMode gets computed correctly for cases when there are multiple Smi Handlers in the FeedbackNexus
 function __f_11(b) {

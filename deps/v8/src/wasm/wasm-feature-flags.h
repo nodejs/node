@@ -15,16 +15,6 @@
   /* V8 side owner: clemensb */                                                \
   V(eh, "exception handling opcodes", false)                                   \
                                                                                \
-  /* Fixed-width SIMD operations. */                                           \
-  /* https://github.com/webassembly/simd */                                    \
-  /* V8 side owner: gdeepti */                                                 \
-  V(simd, "SIMD opcodes", false)                                               \
-                                                                               \
-  /* Tail call / return call proposal. */                                      \
-  /* https://github.com/webassembly/tail-call */                               \
-  /* V8 side owner: fgm */                                                     \
-  V(return_call, "return call opcodes", false)                                 \
-                                                                               \
   /* No official proposal (yet?). */                                           \
   /* V8 side owner: clemensb */                                                \
   V(compilation_hints, "compilation hints section", false)                     \
@@ -38,7 +28,12 @@
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \
   /* V8 side owner: ahaas */                                                   \
-  V(typed_funcref, "typed function references", false)
+  V(typed_funcref, "typed function references", false)                         \
+                                                                               \
+  /* Memory64 proposal. */                                                     \
+  /* https://github.com/WebAssembly/memory64 */                                \
+  /* V8 side owner: clemensb */                                                \
+  V(memory64, "memory64", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -54,6 +49,18 @@
   /* V8 side owner: ahaas */                                                   \
   /* Staged in v7.8. */                                                        \
   V(reftypes, "reference type opcodes", false)                                 \
+                                                                               \
+  /* Tail call / return call proposal. */                                      \
+  /* https://github.com/webassembly/tail-call */                               \
+  /* V8 side owner: thibaudm */                                                \
+  /* Staged in v8.7 * */                                                       \
+  V(return_call, "return call opcodes", false)                                 \
+                                                                               \
+  /* Fixed-width SIMD operations. */                                           \
+  /* https://github.com/webassembly/simd */                                    \
+  /* V8 side owner: gdeepti, zhin */                                           \
+  /* Staged in v8.7 * */                                                       \
+  V(simd, "SIMD opcodes", false)                                               \
                                                                                \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \

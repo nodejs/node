@@ -55,6 +55,11 @@ const Register LoadDescriptor::SlotRegister() { return eax; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return no_reg; }
 
+const Register
+LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister() {
+  return edi;
+}
+
 const Register StoreDescriptor::ReceiverRegister() { return edx; }
 const Register StoreDescriptor::NameRegister() { return ecx; }
 const Register StoreDescriptor::ValueRegister() { return no_reg; }

@@ -12,12 +12,21 @@ namespace internal {
 
 class ExperimentalRegExp final : public AllStatic {
  public:
-  // Initialization & Compilation:
+  // Initialization & Compilation
+  // -------------------------------------------------------------------------
+  // Check whether a parsed regexp pattern can be compiled and executed by the
+  // EXPERIMENTAL engine.
+  // TODO(mbid, v8:10765): This walks the RegExpTree, but it could also be
+  // checked on the fly in the parser.  Not done currently because walking the
+  // AST again is more flexible and less error prone (but less performant).
+  static bool CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags,
+                           int capture_count);
   static void Initialize(Isolate* isolate, Handle<JSRegExp> re,
                          Handle<String> pattern, JSRegExp::Flags flags,
                          int capture_count);
-  static bool IsCompiled(Handle<JSRegExp> re);
-  static void Compile(Isolate* isolate, Handle<JSRegExp> re);
+  static bool IsCompiled(Handle<JSRegExp> re, Isolate* isolate);
+  V8_WARN_UNUSED_RESULT
+  static bool Compile(Isolate* isolate, Handle<JSRegExp> re);
 
   // Execution:
   static int32_t MatchForCallFromJs(Address subject, int32_t start_position,
@@ -30,9 +39,11 @@ class ExperimentalRegExp final : public AllStatic {
   static MaybeHandle<Object> Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                   Handle<String> subject, int index,
                                   Handle<RegExpMatchInfo> last_match_info);
-  static int32_t ExecRaw(JSRegExp regexp, String subject,
+  static int32_t ExecRaw(Isolate* isolate, JSRegExp regexp, String subject,
                          int32_t* output_registers,
                          int32_t output_register_count, int32_t subject_index);
+
+  static constexpr bool kSupportsUnicode = false;
 };
 
 }  // namespace internal

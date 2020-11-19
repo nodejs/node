@@ -19,9 +19,7 @@ def is_file_executable(fPath):
   return os.path.isfile(fPath) and os.access(fPath, os.X_OK)
 
 if __name__ == '__main__':
-  JS_FILES = ['splaytree.js', 'codemap.js', 'csvparser.js', 'consarray.js',
-              'profile.js', 'logreader.js', 'arguments.js', 'tickprocessor.js',
-              'SourceMap.js', 'dumpcpp.js', 'dumpcpp-driver.js']
+  JS_FILES = ['dumpcpp-driver.mjs']
   tools_path = os.path.dirname(os.path.realpath(__file__))
   on_windows = platform.system() == 'Windows'
   JS_FILES = [os.path.join(tools_path, f) for f in JS_FILES]
@@ -53,7 +51,7 @@ if __name__ == '__main__':
     print('No d8 binary path found in {}.'.format(log_file))
     sys.exit(-1)
 
-  args = [d8_exec] + JS_FILES + ['--'] + args
+  args = [d8_exec] + ['--module'] + JS_FILES + ['--'] + args
 
   with open(log_file) as f:
     sp = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

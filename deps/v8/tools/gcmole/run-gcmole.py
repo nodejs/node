@@ -21,7 +21,7 @@ BASE_PATH = os.path.dirname(os.path.dirname(GCMOLE_PATH))
 
 assert len(sys.argv) == 2
 
-if not os.path.isfile("out/build/gen/torque-generated/builtin-definitions-tq.h"):
+if not os.path.isfile("out/build/gen/torque-generated/builtin-definitions.h"):
   print("Expected generated headers in out/build/gen.")
   print("Either build v8 in out/build or change gcmole.lua:115")
   sys.exit(-1)

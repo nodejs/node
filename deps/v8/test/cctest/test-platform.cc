@@ -49,7 +49,7 @@ TEST(StackAlignment) {
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
-  global_template->Set(v8_str("get_stack_pointer"),
+  global_template->Set(isolate, "get_stack_pointer",
                        v8::FunctionTemplate::New(isolate, GetStackPointer));
 
   LocalContext env(nullptr, global_template);

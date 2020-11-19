@@ -54,7 +54,7 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 }  // namespace
 
 HeapBase::HeapBase(std::shared_ptr<cppgc::Platform> platform,
-                   size_t custom_spaces)
+                   size_t custom_spaces, StackSupport stack_support)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
 #if defined(CPPGC_CAGED_HEAP)
@@ -70,7 +70,8 @@ HeapBase::HeapBase(std::shared_ptr<cppgc::Platform> platform,
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()),
       object_allocator_(&raw_heap_, page_backend_.get(),
                         stats_collector_.get()),
-      sweeper_(&raw_heap_, platform_.get(), stats_collector_.get()) {
+      sweeper_(&raw_heap_, platform_.get(), stats_collector_.get()),
+      stack_support_(stack_support) {
 }
 
 HeapBase::~HeapBase() = default;
@@ -87,6 +88,10 @@ HeapBase::NoGCScope::~NoGCScope() { heap_.no_gc_scope_--; }
 
 void HeapBase::VerifyMarking(cppgc::Heap::StackState stack_state) {
   MarkingVerifier verifier(*this, stack_state);
+}
+
+void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
+  if (marker_) marker_->AdvanceMarkingOnAllocation();
 }
 
 }  // namespace internal

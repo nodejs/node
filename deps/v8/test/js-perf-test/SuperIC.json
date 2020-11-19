@@ -1,0 +1,364 @@
+{
+  "owners": ["marja@chromium.org"],
+  "name": "SuperIC",
+  "run_count": 3,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "timeout_arm64": 240,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "Monomorphic",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["monomorphic"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["monomorphic.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["monomorphic.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["monomorphic.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["monomorphic.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Monomorphic-MegaReceivers",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["monomorphic-mega-receivers"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["monomorphic-mega-receivers.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["monomorphic-mega-receivers.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["monomorphic-mega-receivers.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["monomorphic-mega-receivers.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Polymorphic-Mixin",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["polymorphic-mixin"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Polymorphic-Mixin-MegaReceivers",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["polymorphic-mixin-mega-receivers"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-mega-receivers.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-mega-receivers.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-mega-receivers.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-mega-receivers.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Megamorphic-Mixin",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["polymorphic-mixin"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["megamorphic-mixin.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["megamorphic-mixin.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["megamorphic-mixin.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["megamorphic-mixin.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Monomorphic-Getter",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["monomorphic-getter"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["monomorphic-getter.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["monomorphic-getter.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["monomorphic-getter.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["monomorphic-getter.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Monomorphic-MegaReceivers-Getter",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["monomorphic-mega-receivers-getter"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["monomorphic-mega-receivers-getter.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["monomorphic-mega-receivers-getter.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["monomorphic-mega-receivers-getter.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["monomorphic-mega-receivers-getter.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Polymorphic-Mixin-Getter",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["polymorphic-mixin-getter"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-getter.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-getter.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-getter.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-getter.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Polymorphic-Mixin-MegaReceivers-Getter",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["polymorphic-mixin-mega-receivers-getter"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-mega-receivers-getter.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-mega-receivers-getter.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-mega-receivers-getter.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["polymorphic-mixin-mega-receivers-getter.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Megamorphic-Mixin-Getter",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "test_flags": ["polymorphic-mixin-getter"],
+      "tests": [
+        {
+          "name": "baseline",
+          "main": "run.js",
+          "resources": ["megamorphic-mixin-getter.js"],
+          "test_flags": ["baseline"]
+        },
+        {
+          "name": "baseline-noopt",
+          "main": "run.js",
+          "resources": ["megamorphic-mixin-getter.js"],
+          "test_flags": ["baseline-noopt"],
+          "flags": ["--noopt"]
+        },
+        {
+          "name": "superic",
+          "main": "run.js",
+          "resources": ["megamorphic-mixin-getter.js"],
+          "test_flags": ["superic"],
+          "flags": ["--super-ic"]
+        },
+        {
+          "name": "superic-noopt",
+          "main": "run.js",
+          "resources": ["megamorphic-mixin-getter.js"],
+          "test_flags": ["superic-noopt"],
+          "flags": ["--super-ic", "--noopt"]
+        }
+      ]
+    }
+  ]
+}

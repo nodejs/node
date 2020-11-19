@@ -320,6 +320,38 @@ void TurboAssembler::Push(Smi smi) {
   push(r0);
 }
 
+void TurboAssembler::PushArray(Register array, Register size, Register scratch,
+                               Register scratch2, PushArrayOrder order) {
+  Label loop, done;
+
+  if (order == kNormal) {
+    cmpi(size, Operand::Zero());
+    beq(&done);
+    ShiftLeftImm(scratch, size, Operand(kSystemPointerSizeLog2));
+    add(scratch, array, scratch);
+    mtctr(size);
+
+    bind(&loop);
+    LoadPU(scratch2, MemOperand(scratch, -kSystemPointerSize));
+    StorePU(scratch2, MemOperand(sp, -kSystemPointerSize));
+    bdnz(&loop);
+
+    bind(&done);
+  } else {
+    cmpi(size, Operand::Zero());
+    beq(&done);
+
+    mtctr(size);
+    subi(scratch, array, Operand(kSystemPointerSize));
+
+    bind(&loop);
+    LoadPU(scratch2, MemOperand(scratch, kSystemPointerSize));
+    StorePU(scratch2, MemOperand(sp, -kSystemPointerSize));
+    bdnz(&loop);
+    bind(&done);
+  }
+}
+
 void TurboAssembler::Move(Register dst, Handle<HeapObject> value,
                           RelocInfo::Mode rmode) {
   // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
@@ -775,6 +807,7 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
     }
   }
   addi(fp, sp, Operand(fp_delta * kSystemPointerSize));
+  Push(kJavaScriptCallArgCountRegister);
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
@@ -1350,8 +1383,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
-    ShiftLeftImm(r7, actual_parameter_count, Operand(kSystemPointerSizeLog2));
-    LoadPX(r7, MemOperand(sp, r7));
+    LoadReceiver(r7, actual_parameter_count);
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
 

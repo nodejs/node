@@ -251,6 +251,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // increase chances of reusing of map transition tree in future.
   void RetainMaps();
 
+  void PublishWriteBarrierWorklists();
+
   // Updates scheduled_bytes_to_mark_ to ensure marking progress based on
   // time.
   void ScheduleBytesToMarkBasedOnTime(double time_ms);

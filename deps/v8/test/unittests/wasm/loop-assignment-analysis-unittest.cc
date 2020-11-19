@@ -38,7 +38,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Empty0) {
 }
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Empty1) {
-  byte code[] = {kExprLoop, kLocalVoid, 0};
+  byte code[] = {kExprLoop, kVoidCode, 0};
   for (int i = 0; i < 5; i++) {
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
@@ -176,9 +176,9 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
 }
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
-  byte code[] = {kExprLoop, kLocalVoid, kExprF32Neg, kExprBrTable, 0x0E, 'h',
-                 'e',       'l',        'l',         'o',          ',',  ' ',
-                 'w',       'o',        'r',         'l',          'd',  '!'};
+  byte code[] = {kExprLoop, kVoidCode, kExprF32Neg, kExprBrTable, 0x0E, 'h',
+                 'e',       'l',       'l',         'o',          ',',  ' ',
+                 'w',       'o',       'r',         'l',          'd',  '!'};
   BitVector* assigned = Analyze(code, code + arraysize(code));
   CHECK_NULL(assigned);
 }

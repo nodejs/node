@@ -177,6 +177,18 @@ enum class SkipRoot {
   kWeak
 };
 
+class StrongRootsEntry {
+  StrongRootsEntry() = default;
+
+  FullObjectSlot start;
+  FullObjectSlot end;
+
+  StrongRootsEntry* prev;
+  StrongRootsEntry* next;
+
+  friend class Heap;
+};
+
 class AllocationResult {
  public:
   static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
@@ -868,8 +880,11 @@ class Heap {
   V8_INLINE void SetMessageListeners(TemplateList value);
   V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
 
-  void RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end);
-  void UnregisterStrongRoots(FullObjectSlot start);
+  StrongRootsEntry* RegisterStrongRoots(FullObjectSlot start,
+                                        FullObjectSlot end);
+  void UnregisterStrongRoots(StrongRootsEntry* entry);
+  void UpdateStrongRoots(StrongRootsEntry* entry, FullObjectSlot start,
+                         FullObjectSlot end);
 
   void SetBuiltinsConstantsTable(FixedArray cache);
   void SetDetachedContexts(WeakArrayList detached_contexts);
@@ -1426,8 +1441,10 @@ class Heap {
   // Heap object allocation tracking. ==========================================
   // ===========================================================================
 
-  void AddHeapObjectAllocationTracker(HeapObjectAllocationTracker* tracker);
-  void RemoveHeapObjectAllocationTracker(HeapObjectAllocationTracker* tracker);
+  V8_EXPORT_PRIVATE void AddHeapObjectAllocationTracker(
+      HeapObjectAllocationTracker* tracker);
+  V8_EXPORT_PRIVATE void RemoveHeapObjectAllocationTracker(
+      HeapObjectAllocationTracker* tracker);
   bool has_heap_object_allocation_tracker() const {
     return !allocation_trackers_.empty();
   }
@@ -1572,8 +1589,6 @@ class Heap {
     void ShutdownRequested();
     void Wait();
   };
-
-  struct StrongRootsList;
 
   struct StringTypeTable {
     InstanceType type;
@@ -1800,7 +1815,7 @@ class Heap {
   void GarbageCollectionPrologue();
   void GarbageCollectionPrologueInSafepoint();
   void GarbageCollectionEpilogue();
-  void GarbageCollectionEpilogueInSafepoint();
+  void GarbageCollectionEpilogueInSafepoint(GarbageCollector collector);
 
   // Performs a major collection in the whole heap.
   void MarkCompact();
@@ -1887,12 +1902,11 @@ class Heap {
 
   V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
   V8_EXPORT_PRIVATE bool CanExpandOldGenerationBackground(size_t size);
+  V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
 
   bool ShouldExpandOldGenerationOnSlowAllocation(
       LocalHeap* local_heap = nullptr);
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
-
-  void AlwaysAllocateAfterTearDownStarted();
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
@@ -2201,7 +2215,9 @@ class Heap {
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
-  StrongRootsList* strong_roots_list_ = nullptr;
+
+  StrongRootsEntry* strong_roots_head_ = nullptr;
+  base::Mutex strong_roots_mutex_;
 
   bool need_to_remove_stress_concurrent_allocation_observer_ = false;
 
@@ -2488,7 +2504,8 @@ class VerifySmisVisitor : public RootVisitor {
 // is done.
 class V8_EXPORT_PRIVATE PagedSpaceIterator {
  public:
-  explicit PagedSpaceIterator(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
+  explicit PagedSpaceIterator(Heap* heap)
+      : heap_(heap), counter_(FIRST_GROWABLE_PAGED_SPACE) {}
   PagedSpace* Next();
 
  private:

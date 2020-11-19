@@ -5,7 +5,7 @@ import "./stats-panel.mjs";
 import "./map-panel/map-details.mjs";
 import "./map-panel/map-transitions.mjs";
 import { FocusEvent } from './events.mjs';
-import { MapLogEvent } from "./map-processor.mjs";
+import { MapLogEvent } from "./log/map.mjs";
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
 
 defineCustomElement('map-panel', (templateText) =>
@@ -50,9 +50,6 @@ defineCustomElement('map-panel', (templateText) =>
     }
 
     // send a timeline to the stats-panel
-    get timeline() {
-      return this.statsPanel.timeline;
-    }
     set timeline(value) {
       console.assert(value !== undefined, "timeline undefined!");
       this.statsPanel.timeline = value;
@@ -74,7 +71,7 @@ defineCustomElement('map-panel', (templateText) =>
       let searchBar = this.$('#searchBarInput');
       let searchBarInput = searchBar.value;
       //access the map from model cache
-      let selectedMap = MapLogEvent.get(searchBarInput);
+      let selectedMap = MapLogEvent.get(parseInt(searchBarInput));
       if (selectedMap) {
         searchBar.className = "success";
       } else {

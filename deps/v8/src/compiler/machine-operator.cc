@@ -495,7 +495,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(V16x8AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(V8x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(V8x16AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S8x16Swizzle, Operator::kNoProperties, 2, 0, 1)
+  V(I8x16Swizzle, Operator::kNoProperties, 2, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -1575,7 +1575,7 @@ std::ostream& operator<<(std::ostream& os, S128ImmediateParameter const& p) {
 }
 
 S128ImmediateParameter const& S128ImmediateParameterOf(Operator const* op) {
-  DCHECK(IrOpcode::kS8x16Shuffle == op->opcode() ||
+  DCHECK(IrOpcode::kI8x16Shuffle == op->opcode() ||
          IrOpcode::kS128Const == op->opcode());
   return OpParameter<S128ImmediateParameter>(op);
 }
@@ -1586,10 +1586,10 @@ const Operator* MachineOperatorBuilder::S128Const(const uint8_t value[16]) {
       S128ImmediateParameter(value));
 }
 
-const Operator* MachineOperatorBuilder::S8x16Shuffle(
+const Operator* MachineOperatorBuilder::I8x16Shuffle(
     const uint8_t shuffle[16]) {
   return zone_->New<Operator1<S128ImmediateParameter>>(
-      IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle", 2, 0, 0, 1, 0, 0,
+      IrOpcode::kI8x16Shuffle, Operator::kPure, "Shuffle", 2, 0, 0, 1, 0, 0,
       S128ImmediateParameter(shuffle));
 }
 

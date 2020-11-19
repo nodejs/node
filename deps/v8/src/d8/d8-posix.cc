@@ -677,7 +677,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
   if (connect(sockfd, reinterpret_cast<sockaddr*>(&serv_addr),
               sizeof(serv_addr)) < 0) {
     fprintf(stderr, "Failed to connect to localhost:%d\n",
-            Shell::options.read_from_tcp_port);
+            Shell::options.read_from_tcp_port.get());
     close(sockfd);
     return nullptr;
   }
@@ -705,7 +705,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     ssize_t sent_now = send(sockfd, name + sent_len, name_len - sent_len, 0);
     if (sent_now < 0) {
       fprintf(stderr, "Failed to send %s to localhost:%d\n", name,
-              Shell::options.read_from_tcp_port);
+              Shell::options.read_from_tcp_port.get());
       close(sockfd);
       return nullptr;
     }
@@ -722,7 +722,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
   // We need those 4 bytes to read off the file length.
   if (received < 4) {
     fprintf(stderr, "Failed to receive %s's length from localhost:%d\n", name,
-            Shell::options.read_from_tcp_port);
+            Shell::options.read_from_tcp_port.get());
     close(sockfd);
     return nullptr;
   }
@@ -731,7 +731,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
 
   if (file_length < 0) {
     fprintf(stderr, "Received length %d for %s from localhost:%d\n",
-            file_length, name, Shell::options.read_from_tcp_port);
+            file_length, name, Shell::options.read_from_tcp_port.get());
     close(sockfd);
     return nullptr;
   }
@@ -746,7 +746,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
         recv(sockfd, chars + total_received, file_length - total_received, 0);
     if (received < 0) {
       fprintf(stderr, "Failed to receive %s from localhost:%d\n", name,
-              Shell::options.read_from_tcp_port);
+              Shell::options.read_from_tcp_port.get());
       close(sockfd);
       delete[] chars;
       return nullptr;

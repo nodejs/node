@@ -47,6 +47,10 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
                                 TNode<JSFunction> target,
                                 TNode<JSReceiver> new_target,
                                 Label* call_runtime);
+
+  void CopyMutableHeapNumbersInObject(TNode<HeapObject> copy,
+                                      TNode<IntPtrT> start_offset,
+                                      TNode<IntPtrT> instance_size);
 };
 
 }  // namespace internal

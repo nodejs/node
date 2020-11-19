@@ -261,7 +261,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ToLength)                                 \
   V(ToNumber)                                 \
   V(ToObject)                                 \
-  V(ToStringRT)                               \
+  V(ToString)                                 \
   /* Type checks */                           \
   V(IsArray)                                  \
   V(IsFunction)                               \

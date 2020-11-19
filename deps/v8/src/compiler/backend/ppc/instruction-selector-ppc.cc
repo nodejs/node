@@ -1200,6 +1200,10 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
   VisitRR(this, kPPC_ExtendSignWord32, node);
 }
 
+bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.
   VisitRR(this, kPPC_Uint32ToUint64, node);
@@ -2156,6 +2160,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Ne)               \
   V(F64x2Le)               \
   V(F64x2Lt)               \
+  V(F64x2Div)              \
+  V(F64x2Min)              \
+  V(F64x2Max)              \
   V(F32x4Add)              \
   V(F32x4AddHoriz)         \
   V(F32x4Sub)              \
@@ -2164,6 +2171,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Ne)               \
   V(F32x4Lt)               \
   V(F32x4Le)               \
+  V(F32x4Div)              \
+  V(F32x4Min)              \
+  V(F32x4Max)              \
   V(I64x2Add)              \
   V(I64x2Sub)              \
   V(I64x2Mul)              \
@@ -2222,15 +2232,20 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16RoundingAverageU) \
+  V(I8x16Swizzle)          \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)               \
-  V(S8x16Swizzle)
+  V(S128AndNot)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \
   V(F64x2Neg)               \
   V(F64x2Sqrt)              \
+  V(F64x2Ceil)              \
+  V(F64x2Floor)             \
+  V(F64x2Trunc)             \
+  V(F64x2NearestInt)        \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
   V(F32x4RecipApprox)       \
@@ -2238,6 +2253,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Sqrt)              \
   V(F32x4SConvertI32x4)     \
   V(F32x4UConvertI32x4)     \
+  V(F32x4Ceil)              \
+  V(F32x4Floor)             \
+  V(F32x4Trunc)             \
+  V(F32x4NearestInt)        \
   V(I64x2Neg)               \
   V(I32x4Neg)               \
   V(I32x4Abs)               \
@@ -2361,7 +2380,7 @@ SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_BOOL_LIST
 #undef SIMD_TYPES
 
-void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
   CanonicalizeShuffle(node, shuffle, &is_swizzle);
@@ -2378,7 +2397,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
                                ? max_index - current_index
                                : total_lane_count - current_index + max_index);
   }
-  Emit(kPPC_S8x16Shuffle, g.DefineAsRegister(node), g.UseUniqueRegister(input0),
+  Emit(kPPC_I8x16Shuffle, g.DefineAsRegister(node), g.UseUniqueRegister(input0),
        g.UseUniqueRegister(input1),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
@@ -2400,7 +2419,11 @@ void InstructionSelector::VisitS128Select(Node* node) {
 
 void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
@@ -2427,19 +2450,15 @@ void InstructionSelector::EmitPrepareResults(
   }
 }
 
-void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Div(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Pmin(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
 
 // static
 MachineOperatorBuilder::Flags

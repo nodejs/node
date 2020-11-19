@@ -37,5 +37,4 @@ extern class StackTraceFrame extends Struct {
   frame_array: FrameArray|Undefined;
   frame_index: Smi;
   frame_info: StackFrameInfo|Undefined;
-  id: Smi;
 }

@@ -170,6 +170,7 @@
   JS_CREATE_OP_LIST(V)            \
   V(JSLoadProperty)               \
   V(JSLoadNamed)                  \
+  V(JSLoadNamedFromSuper)         \
   V(JSLoadGlobal)                 \
   V(JSStoreProperty)              \
   V(JSStoreNamed)                 \
@@ -482,6 +483,7 @@
   V(StringToLowerCaseIntl)              \
   V(StringToNumber)                     \
   V(StringToUpperCaseIntl)              \
+  V(TierUpCheck)                        \
   V(ToBoolean)                          \
   V(TransitionAndStoreElement)          \
   V(TransitionAndStoreNonNumberElement) \
@@ -950,8 +952,8 @@
   V(S128Xor)                    \
   V(S128Select)                 \
   V(S128AndNot)                 \
-  V(S8x16Swizzle)               \
-  V(S8x16Shuffle)               \
+  V(I8x16Swizzle)               \
+  V(I8x16Shuffle)               \
   V(V64x2AnyTrue)               \
   V(V64x2AllTrue)               \
   V(V32x4AnyTrue)               \
@@ -1067,6 +1069,55 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   static bool IsContextChainExtendingOpcode(Value value) {
     return kJSCreateFunctionContext <= value && value <= kJSCreateBlockContext;
+  }
+
+  // These opcode take the feedback vector as an input, and implement
+  // feedback-collecting logic in generic lowering.
+  static bool IsFeedbackCollectingOpcode(Value value) {
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return true;
+    switch (value) {
+      JS_ARITH_BINOP_LIST(CASE)
+      JS_ARITH_UNOP_LIST(CASE)
+      JS_BITWISE_BINOP_LIST(CASE)
+      JS_BITWISE_UNOP_LIST(CASE)
+      JS_COMPARE_BINOP_LIST(CASE)
+      case kJSCall:
+      case kJSCallWithArrayLike:
+      case kJSCallWithSpread:
+      case kJSCloneObject:
+      case kJSConstruct:
+      case kJSConstructWithArrayLike:
+      case kJSConstructWithSpread:
+      case kJSCreateEmptyLiteralArray:
+      case kJSCreateLiteralArray:
+      case kJSCreateLiteralObject:
+      case kJSCreateLiteralRegExp:
+      case kJSGetIterator:
+      case kJSGetTemplateObject:
+      case kJSHasProperty:
+      case kJSInstanceOf:
+      case kJSLoadGlobal:
+      case kJSLoadNamed:
+      case kJSLoadProperty:
+      case kJSStoreDataPropertyInLiteral:
+      case kJSStoreGlobal:
+      case kJSStoreInArrayLiteral:
+      case kJSStoreNamed:
+      case kJSStoreNamedOwn:
+      case kJSStoreProperty:
+        return true;
+      default:
+        return false;
+    }
+#undef CASE
+    UNREACHABLE();
+  }
+
+  static bool IsFeedbackCollectingOpcode(int16_t value) {
+    DCHECK(0 <= value && value <= kLast);
+    return IsFeedbackCollectingOpcode(static_cast<IrOpcode::Value>(value));
   }
 };
 

@@ -208,21 +208,12 @@ void Code::clear_padding() {
          CodeSize() - (data_end - address()));
 }
 
-ByteArray Code::SourcePositionTableIfCollected() const {
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  Object maybe_table = source_position_table();
-  if (maybe_table.IsUndefined(roots) || maybe_table.IsException(roots)) {
-    return roots.empty_byte_array();
-  }
-  DCHECK(maybe_table.IsByteArray());
-  return ByteArray::cast(maybe_table);
-}
-
 ByteArray Code::SourcePositionTable() const {
   Object maybe_table = source_position_table();
-  DCHECK(!maybe_table.IsUndefined() && !maybe_table.IsException());
-  DCHECK(maybe_table.IsByteArray());
-  return ByteArray::cast(maybe_table);
+  if (maybe_table.IsByteArray()) return ByteArray::cast(maybe_table);
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  DCHECK(maybe_table.IsUndefined(roots) || maybe_table.IsException(roots));
+  return roots.empty_byte_array();
 }
 
 Object Code::next_code_link() const {
@@ -376,7 +367,8 @@ inline bool Code::is_interpreter_trampoline_builtin() const {
 inline bool Code::checks_optimization_marker() const {
   bool checks_marker =
       (builtin_index() == Builtins::kCompileLazy ||
-       builtin_index() == Builtins::kInterpreterEntryTrampoline);
+       builtin_index() == Builtins::kInterpreterEntryTrampoline ||
+       CodeKindChecksOptimizationMarker(kind()));
   return checks_marker ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
@@ -709,8 +701,8 @@ int32_t BytecodeArray::parameter_count() const {
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
-ACCESSORS(BytecodeArray, source_position_table, Object,
-          kSourcePositionTableOffset)
+SYNCHRONIZED_ACCESSORS(BytecodeArray, synchronized_source_position_table,
+                       Object, kSourcePositionTableOffset)
 
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();
@@ -723,30 +715,26 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
 }
 
 bool BytecodeArray::HasSourcePositionTable() const {
-  Object maybe_table = source_position_table();
+  Object maybe_table = synchronized_source_position_table();
   return !(maybe_table.IsUndefined() || DidSourcePositionGenerationFail());
 }
 
 bool BytecodeArray::DidSourcePositionGenerationFail() const {
-  return source_position_table().IsException();
+  return synchronized_source_position_table().IsException();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {
-  set_source_position_table(GetReadOnlyRoots().exception());
+  set_synchronized_source_position_table(GetReadOnlyRoots().exception());
 }
 
 ByteArray BytecodeArray::SourcePositionTable() const {
-  Object maybe_table = source_position_table();
+  // WARNING: This function may be called from a background thread, hence
+  // changes to how it accesses the heap can easily lead to bugs.
+  Object maybe_table = synchronized_source_position_table();
   if (maybe_table.IsByteArray()) return ByteArray::cast(maybe_table);
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  DCHECK(maybe_table.IsException(roots));
+  DCHECK(maybe_table.IsUndefined(roots) || maybe_table.IsException(roots));
   return roots.empty_byte_array();
-}
-
-ByteArray BytecodeArray::SourcePositionTableIfCollected() const {
-  if (!HasSourcePositionTable()) return GetReadOnlyRoots().empty_byte_array();
-
-  return SourcePositionTable();
 }
 
 int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }
@@ -755,8 +743,9 @@ int BytecodeArray::SizeIncludingMetadata() {
   int size = BytecodeArraySize();
   size += constant_pool().Size();
   size += handler_table().Size();
-  if (HasSourcePositionTable()) {
-    size += SourcePositionTable().Size();
+  ByteArray table = SourcePositionTable();
+  if (table.length() != 0) {
+    size += table.Size();
   }
   return size;
 }

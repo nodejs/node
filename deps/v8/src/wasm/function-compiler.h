@@ -114,7 +114,8 @@ STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
   JSToWasmWrapperCompilationUnit(Isolate* isolate, WasmEngine* wasm_engine,
-                                 const FunctionSig* sig, bool is_import,
+                                 const FunctionSig* sig,
+                                 const wasm::WasmModule* module, bool is_import,
                                  const WasmFeatures& enabled_features);
   ~JSToWasmWrapperCompilationUnit();
 
@@ -127,6 +128,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // Run a compilation unit synchronously.
   static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
                                              const FunctionSig* sig,
+                                             const WasmModule* module,
                                              bool is_import);
 
  private:

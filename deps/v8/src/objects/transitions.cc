@@ -644,8 +644,8 @@ void TransitionArray::Sort() {
         temp_kind = details.kind();
         temp_attributes = details.attributes();
       }
-      int cmp = CompareKeys(temp_key, temp_key.Hash(), temp_kind,
-                            temp_attributes, key, key.Hash(), kind, attributes);
+      int cmp = CompareKeys(temp_key, temp_key.hash(), temp_kind,
+                            temp_attributes, key, key.hash(), kind, attributes);
       if (cmp > 0) {
         SetKey(j + 1, temp_key);
         SetRawTarget(j + 1, temp_target);

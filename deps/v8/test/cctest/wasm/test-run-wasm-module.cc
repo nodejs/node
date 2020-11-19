@@ -814,7 +814,7 @@ TEST(InitDataAtTheUpperLimit) {
         kMemorySectionCode,   // --
         U32V_1(4),            // section size
         ENTRY_COUNT(1),       // --
-        kHasMaximumFlag,      // --
+        kWithMaximum,         // --
         1,                    // initial size
         2,                    // maximum size
         kDataSectionCode,     // --
@@ -850,7 +850,7 @@ TEST(EmptyMemoryNonEmptyDataSegment) {
         kMemorySectionCode,  // --
         U32V_1(4),           // section size
         ENTRY_COUNT(1),      // --
-        kHasMaximumFlag,     // --
+        kWithMaximum,        // --
         0,                   // initial size
         0,                   // maximum size
         kDataSectionCode,    // --
@@ -884,7 +884,7 @@ TEST(EmptyMemoryEmptyDataSegment) {
         kMemorySectionCode,  // --
         U32V_1(4),           // section size
         ENTRY_COUNT(1),      // --
-        kHasMaximumFlag,     // --
+        kWithMaximum,        // --
         0,                   // initial size
         0,                   // maximum size
         kDataSectionCode,    // --
@@ -919,7 +919,7 @@ TEST(MemoryWithOOBEmptyDataSegment) {
         kMemorySectionCode,      // --
         U32V_1(4),               // section size
         ENTRY_COUNT(1),          // --
-        kHasMaximumFlag,         // --
+        kWithMaximum,            // --
         1,                       // initial size
         1,                       // maximum size
         kDataSectionCode,        // --

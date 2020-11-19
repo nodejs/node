@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-object-gen.h"
-
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
@@ -1031,7 +1029,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
   TNode<Object> prototype = args.GetOptionalArgumentValue(kPrototypeArg);
   TNode<Object> properties = args.GetOptionalArgumentValue(kPropertiesArg);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<NativeContext> native_context = CAST(Parameter(Descriptor::kContext));
 
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);
@@ -1067,14 +1065,13 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   {
     TVARIABLE(Map, map);
     TVARIABLE(HeapObject, properties);
-    Label non_null_proto(this), instantiate_map(this), good(this);
+    Label null_proto(this), non_null_proto(this), instantiate_map(this);
 
-    Branch(IsNull(prototype), &good, &non_null_proto);
+    Branch(IsNull(prototype), &null_proto, &non_null_proto);
 
-    BIND(&good);
+    BIND(&null_proto);
     {
-      map = CAST(LoadContextElement(
-          context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+      map = LoadSlowObjectWithNullPrototypeMap(native_context);
       properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
       Goto(&instantiate_map);
     }
@@ -1082,11 +1079,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&non_null_proto);
     {
       properties = EmptyFixedArrayConstant();
-      TNode<HeapObject> object_function =
-          CAST(LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX));
-      TNode<Map> object_function_map = LoadObjectField<Map>(
-          object_function, JSFunction::kPrototypeOrInitialMapOffset);
-      map = object_function_map;
+      map = LoadObjectFunctionInitialMap(native_context);
       GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
       // Try loading the prototype info.
@@ -1110,8 +1103,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
   BIND(&call_runtime);
   {
-    TNode<Object> result =
-        CallRuntime(Runtime::kObjectCreate, context, prototype, properties);
+    TNode<Object> result = CallRuntime(Runtime::kObjectCreate, native_context,
+                                       prototype, properties);
     args.PopAndReturn(result);
   }
 }

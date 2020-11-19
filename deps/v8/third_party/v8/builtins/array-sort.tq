@@ -294,7 +294,7 @@ Store<FastDoubleElements>(
   const elements = UnsafeCast<FixedDoubleArray>(object.elements);
   const heapVal = UnsafeCast<HeapNumber>(value);
   const val = Convert<float64>(heapVal);
-  StoreFixedDoubleArrayElementSmi(elements, index, val);
+  StoreFixedDoubleArrayElement(elements, index, val);
   return kSuccess;
 }
 

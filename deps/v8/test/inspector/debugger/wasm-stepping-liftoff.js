@@ -34,7 +34,7 @@ var func_b = builder.addFunction('wasm_B', kSig_v_i)
     .exportAs('main');
 
 let fact = builder.addFunction('fact', kSig_i_i)
-    .addLocals({i32_count: 1})
+    .addLocals(kWasmI32, 1)
     .addBody([
     // clang-format off
     kExprLocalGet, 0,

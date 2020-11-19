@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/build_config.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -21,6 +22,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/vector.h"
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
@@ -46,6 +48,10 @@ namespace internal {
 namespace wasm {
 
 using trap_handler::ProtectedInstructionData;
+
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+thread_local int CodeSpaceWriteScope::code_space_write_nesting_level_ = 0;
+#endif
 
 base::AddressRegion DisjointAllocationPool::Merge(
     base::AddressRegion new_region) {
@@ -495,6 +501,9 @@ void WasmCodeAllocator::OptionalLock::Lock(WasmCodeAllocator* allocator) {
   allocator->mutex_.Lock();
 }
 
+// static
+constexpr size_t WasmCodeAllocator::kMaxCodeSpaceSize;
+
 WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
                                      VirtualMemory code_space,
                                      std::shared_ptr<Counters> async_counters)
@@ -598,7 +607,7 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
                total_reserved / 4));
 
   // Limit by the maximum supported code space size.
-  return std::min(kMaxWasmCodeSpaceSize, reserve_size);
+  return std::min(WasmCodeAllocator::kMaxCodeSpaceSize, reserve_size);
 }
 
 }  // namespace
@@ -666,13 +675,13 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
   // start is already committed (or we start at the beginning of a page).
   // The end needs to be committed all through the end of the page.
   if (commit_start < commit_end) {
-    committed_code_space_.fetch_add(commit_end - commit_start);
-    // Committed code cannot grow bigger than maximum code space size.
-    DCHECK_LE(committed_code_space_.load(), kMaxWasmCodeMemory);
     for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
              {commit_start, commit_end - commit_start}, owned_code_space_)) {
       code_manager_->Commit(split_range);
     }
+    committed_code_space_.fetch_add(commit_end - commit_start);
+    // Committed code cannot grow bigger than maximum code space size.
+    DCHECK_LE(committed_code_space_.load(), FLAG_wasm_max_code_space * MB);
   }
   DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
   allocated_code_space_.Merge(code_space);
@@ -731,6 +740,7 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   // Zap code area and collect freed code regions.
   DisjointAllocationPool freed_regions;
   size_t code_size = 0;
+  CODE_SPACE_WRITE_SCOPE
   for (WasmCode* code : codes) {
     ZapCode(code->instruction_start(), code->instructions().size());
     FlushInstructionCache(code->instruction_start(),
@@ -741,25 +751,33 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   }
   freed_code_size_.fetch_add(code_size);
 
-  // Merge {freed_regions} into {freed_code_space_} and discard full pages.
-  base::MutexGuard guard(&mutex_);
+  // Merge {freed_regions} into {freed_code_space_} and put all ranges of full
+  // pages to decommit into {regions_to_decommit} (decommitting is expensive,
+  // so try to merge regions before decommitting).
+  DisjointAllocationPool regions_to_decommit;
   PageAllocator* allocator = GetPlatformPageAllocator();
   size_t commit_page_size = allocator->CommitPageSize();
-  for (auto region : freed_regions.regions()) {
-    auto merged_region = freed_code_space_.Merge(region);
-    Address discard_start =
-        std::max(RoundUp(merged_region.begin(), commit_page_size),
-                 RoundDown(region.begin(), commit_page_size));
-    Address discard_end =
-        std::min(RoundDown(merged_region.end(), commit_page_size),
-                 RoundUp(region.end(), commit_page_size));
-    if (discard_start >= discard_end) continue;
-    size_t discard_size = discard_end - discard_start;
-    size_t old_committed = committed_code_space_.fetch_sub(discard_size);
-    DCHECK_GE(old_committed, discard_size);
+  {
+    base::MutexGuard guard(&mutex_);
+    for (auto region : freed_regions.regions()) {
+      auto merged_region = freed_code_space_.Merge(region);
+      Address discard_start =
+          std::max(RoundUp(merged_region.begin(), commit_page_size),
+                   RoundDown(region.begin(), commit_page_size));
+      Address discard_end =
+          std::min(RoundDown(merged_region.end(), commit_page_size),
+                   RoundUp(region.end(), commit_page_size));
+      if (discard_start >= discard_end) continue;
+      regions_to_decommit.Merge({discard_start, discard_end - discard_start});
+    }
+  }
+
+  for (auto region : regions_to_decommit.regions()) {
+    size_t old_committed = committed_code_space_.fetch_sub(region.size());
+    DCHECK_GE(old_committed, region.size());
     USE(old_committed);
-    for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
-             {discard_start, discard_size}, owned_code_space_)) {
+    for (base::AddressRegion split_range :
+         SplitRangeByReservationsIfNeeded(region, owned_code_space_)) {
       code_manager_->Decommit(split_range);
     }
   }
@@ -800,6 +818,11 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
         std::make_unique<WasmCode*[]>(module_->num_declared_functions);
     num_liftoff_function_calls_ =
         std::make_unique<uint32_t[]>(module_->num_declared_functions);
+
+    // Start counter at 4 to avoid runtime calls for smaller numbers.
+    constexpr int kCounterStart = 4;
+    std::fill_n(num_liftoff_function_calls_.get(),
+                module_->num_declared_functions, kCounterStart);
   }
   code_allocator_.Init(this);
 }
@@ -831,10 +854,13 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
 void NativeModule::LogWasmCodes(Isolate* isolate) {
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
+  TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "num_functions",
+               module_->num_declared_functions);
+
   // TODO(titzer): we skip the logging of the import wrappers
   // here, but they should be included somehow.
-  int start = module()->num_imported_functions;
-  int end = start + module()->num_declared_functions;
+  int start = module_->num_imported_functions;
+  int end = start + module_->num_declared_functions;
   WasmCodeRefScope code_ref_scope;
   for (int func_index = start; func_index < end; ++func_index) {
     if (WasmCode* code = GetCode(func_index)) code->LogCode(isolate);
@@ -847,6 +873,7 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
+  CODE_SPACE_WRITE_SCOPE
   // For off-heap builtins, we create a copy of the off-heap instruction stream
   // instead of the on-heap code object containing the trampoline. Ensure that
   // we do not apply the on-heap reloc info to the off-heap instructions.
@@ -942,6 +969,7 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   if (!lazy_compile_table_) {
     uint32_t num_slots = module_->num_declared_functions;
     WasmCodeRefScope code_ref_scope;
+    CODE_SPACE_WRITE_SCOPE
     base::AddressRegion single_code_space_region;
     {
       base::MutexGuard guard(&allocation_mutex_);
@@ -992,6 +1020,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
   Vector<byte> reloc_info{desc.buffer + desc.buffer_size - desc.reloc_size,
                           static_cast<size_t>(desc.reloc_size)};
+  UpdateCodeSize(desc.instr_size, tier, for_debugging);
 
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // CodeDesc contains real offsets but WasmCode expects an offset of 0 to mean
@@ -1003,6 +1032,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   const int code_comments_offset = desc.code_comments_offset;
   const int instr_size = desc.instr_size;
 
+  CODE_SPACE_WRITE_SCOPE
   memcpy(dst_code_bytes.begin(), desc.buffer,
          static_cast<size_t>(desc.instr_size));
 
@@ -1034,6 +1064,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
 
   // Flush the i-cache after relocation.
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
+
+  // Liftoff code will not be relocated or serialized, thus do not store any
+  // relocation information.
+  if (tier == ExecutionTier::kLiftoff) reloc_info = {};
 
   std::unique_ptr<WasmCode> code{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
@@ -1138,8 +1172,10 @@ WasmCode* NativeModule::AddDeserializedCode(
     Vector<const byte> protected_instructions_data,
     Vector<const byte> reloc_info, Vector<const byte> source_position_table,
     WasmCode::Kind kind, ExecutionTier tier) {
+  // CodeSpaceWriteScope is provided by the caller.
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
+  UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
   memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{
@@ -1196,6 +1232,8 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
   Vector<uint8_t> code_space = code_allocator_.AllocateForCodeInRegion(
       this, jump_table_size, region, allocator_lock);
   DCHECK(!code_space.empty());
+  UpdateCodeSize(jump_table_size, ExecutionTier::kNone, kNoDebugging);
+  CODE_SPACE_WRITE_SCOPE
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{
       new WasmCode{this,                  // native_module
@@ -1217,10 +1255,20 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
   return PublishCode(std::move(code));
 }
 
+void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
+                                  ForDebugging for_debugging) {
+  if (for_debugging != kNoDebugging) return;
+  // Count jump tables (ExecutionTier::kNone) for both Liftoff and TurboFan as
+  // this is shared code.
+  if (tier != ExecutionTier::kTurbofan) liftoff_code_size_.fetch_add(size);
+  if (tier != ExecutionTier::kLiftoff) turbofan_code_size_.fetch_add(size);
+}
+
 void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
+  CODE_SPACE_WRITE_SCOPE
   for (auto& code_space_data : code_space_data_) {
     DCHECK_IMPLIES(code_space_data.jump_table, code_space_data.far_jump_table);
     if (!code_space_data.jump_table) continue;
@@ -1283,6 +1331,7 @@ void NativeModule::AddCodeSpace(
 #endif  // V8_OS_WIN64
 
   WasmCodeRefScope code_ref_scope;
+  CODE_SPACE_WRITE_SCOPE
   WasmCode* jump_table = nullptr;
   WasmCode* far_jump_table = nullptr;
   const uint32_t num_wasm_functions = module_->num_declared_functions;
@@ -1419,7 +1468,7 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegion(
     size_t max_distance = std::max(
         code_region.end() > table_start ? code_region.end() - table_start : 0,
         table_end > code_region.begin() ? table_end - code_region.begin() : 0);
-    return max_distance < kMaxWasmCodeSpaceSize;
+    return max_distance < WasmCodeAllocator::kMaxCodeSpaceSize;
   };
 
   // Fast path: Try to use {main_jump_table_} and {main_far_jump_table_}.
@@ -1487,7 +1536,8 @@ WasmCode::RuntimeStubId NativeModule::GetRuntimeStubId(Address target) const {
   base::MutexGuard guard(&allocation_mutex_);
 
   for (auto& code_space_data : code_space_data_) {
-    if (code_space_data.far_jump_table->contains(target)) {
+    if (code_space_data.far_jump_table != nullptr &&
+        code_space_data.far_jump_table->contains(target)) {
       uint32_t offset = static_cast<uint32_t>(
           target - code_space_data.far_jump_table->instruction_start());
       uint32_t index = JumpTableAssembler::FarJumpSlotOffsetToIndex(offset);
@@ -1518,7 +1568,7 @@ NativeModule::~NativeModule() {
 WasmCodeManager::WasmCodeManager(size_t max_committed)
     : max_committed_code_space_(max_committed),
       critical_committed_code_space_(max_committed / 2) {
-  DCHECK_LE(max_committed, kMaxWasmCodeMemory);
+  DCHECK_LE(max_committed, FLAG_wasm_max_code_space * MB);
 }
 
 #if defined(V8_OS_WIN64)
@@ -1843,6 +1893,7 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   generated_code.reserve(results.size());
 
   // Now copy the generated code into the code space and relocate it.
+  CODE_SPACE_WRITE_SCOPE
   for (auto& result : results) {
     DCHECK_EQ(result.code_desc.buffer, result.instr_buffer.get());
     size_t code_size = RoundUp<kCodeAlignment>(result.code_desc.instr_size);

@@ -40,8 +40,9 @@ std::unique_ptr<Heap> Heap::Create(std::shared_ptr<cppgc::Platform> platform,
 void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
                                       Heap::StackState stack_state) {
   internal::Heap::From(this)->CollectGarbage(
-      {internal::GarbageCollector::Config::CollectionType::kMajor,
-       stack_state});
+      {internal::GarbageCollector::Config::CollectionType::kMajor, stack_state,
+       internal::GarbageCollector::Config::MarkingType::kAtomic,
+       internal::GarbageCollector::Config::SweepingType::kAtomic});
 }
 
 AllocationHandle& Heap::GetAllocationHandle() {
@@ -76,7 +77,7 @@ void CheckConfig(Heap::Config config) {
 
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
-    : HeapBase(platform, options.custom_spaces.size()),
+    : HeapBase(platform, options.custom_spaces.size(), options.stack_support),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints) {}
@@ -84,14 +85,54 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
 Heap::~Heap() {
   NoGCScope no_gc(*this);
   // Finish already running GC if any, but don't finalize live objects.
-  sweeper_.Finish();
+  sweeper_.FinishIfRunning();
 }
 
 void Heap::CollectGarbage(Config config) {
+  DCHECK_EQ(Config::MarkingType::kAtomic, config.marking_type);
   CheckConfig(config);
 
   if (in_no_gc_scope()) return;
 
+  config_ = config;
+
+  if (!gc_in_progress_) StartGarbageCollection(config);
+
+  DCHECK(marker_);
+
+  FinalizeGarbageCollection(config.stack_state);
+}
+
+void Heap::StartIncrementalGarbageCollection(Config config) {
+  DCHECK_NE(Config::MarkingType::kAtomic, config.marking_type);
+  CheckConfig(config);
+
+  if (gc_in_progress_ || in_no_gc_scope()) return;
+
+  config_ = config;
+
+  StartGarbageCollection(config);
+}
+
+void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
+  if (!gc_in_progress_) return;
+
+  DCHECK(!in_no_gc_scope());
+
+  DCHECK_NE(Config::MarkingType::kAtomic, config_.marking_type);
+  config_ = config;
+  FinalizeGarbageCollection(config.stack_state);
+}
+
+void Heap::StartGarbageCollection(Config config) {
+  DCHECK(!gc_in_progress_);
+
+  DCHECK(!in_no_gc_scope());
+
+  // Finish sweeping in case it is still running.
+  sweeper_.FinishIfRunning();
+
+  gc_in_progress_ = true;
   epoch_++;
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -99,13 +140,18 @@ void Heap::CollectGarbage(Config config) {
     Unmarker unmarker(&raw_heap());
 #endif
 
-  // "Marking".
-  marker_ = std::make_unique<Marker>(AsBase());
   const Marker::MarkingConfig marking_config{
       config.collection_type, config.stack_state, config.marking_type};
-  marker_->StartMarking(marking_config);
-  marker_->FinishMarking(marking_config);
-  // "Sweeping and finalization".
+  marker_ = MarkerFactory::CreateAndStartMarking<Marker>(
+      AsBase(), platform_.get(), marking_config);
+}
+
+void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
+  DCHECK(gc_in_progress_);
+  DCHECK(!in_no_gc_scope());
+  config_.stack_state = stack_state;
+  DCHECK(marker_);
+  marker_->FinishMarking(stack_state);
   {
     // Pre finalizers are forbidden from allocating objects.
     ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
@@ -115,13 +161,16 @@ void Heap::CollectGarbage(Config config) {
   marker_.reset();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
-  VerifyMarking(config.stack_state);
+  VerifyMarking(stack_state);
 #endif
   {
     NoGCScope no_gc(*this);
-    sweeper_.Start(config.sweeping_type);
+    sweeper_.Start(config_.sweeping_type);
   }
+  gc_in_progress_ = false;
 }
+
+void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
 
 }  // namespace internal
 }  // namespace cppgc

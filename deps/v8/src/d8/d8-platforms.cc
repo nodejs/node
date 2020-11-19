@@ -276,8 +276,8 @@ class DelayedTasksPlatform final : public Platform {
       job_task_->Run(delegate);
     }
 
-    size_t GetMaxConcurrency() const override {
-      return job_task_->GetMaxConcurrency();
+    size_t GetMaxConcurrency(size_t worker_count) const override {
+      return job_task_->GetMaxConcurrency(worker_count);
     }
 
    private:

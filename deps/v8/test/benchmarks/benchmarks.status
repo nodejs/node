@@ -42,16 +42,21 @@
 ['variant in [jitless, nooptimization, stress]', {
   # Slow tests.
   'kraken/ai-astar': [PASS, SLOW],
+  'kraken/imaging-darkroom': [PASS, SLOW],
   'kraken/imaging-desaturate': [PASS, SLOW],
   'octane/code-load': [PASS, SLOW],
   'octane/crypto': [PASS, SLOW],
+  'octane/earley-boyer': [PASS, SLOW],
   'octane/gbemu-part1': [PASS, SLOW],
+  'octane/navier-stokes': [PASS, SLOW],
   'octane/pdfjs': [PASS, SLOW],
   'octane/regexp': [PASS, SLOW],
 }],
 
 ['variant == stress', {
   # Too slow for stress mode.
+  'kraken/imaging-desaturate' : [PASS, ['mode == debug', SKIP]],
+  'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
   'octane/mandreel': [SKIP],
   'octane/typescript': [SKIP],
 
@@ -61,7 +66,14 @@
 
 ['variant == jitless', {
   # Too slow for jitless mode.
+  'kraken/imaging-desaturate' : [PASS, ['mode == debug', SKIP]],
+  'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
   'octane/zlib': [SKIP],
+}],
+
+['variant == nooptimization and mode == debug', {
+  # Too slow for nooptimization mode and debug.
+  'kraken/imaging-gaussian-blur': [SKIP],
 }],
 
 ['variant == stress_incremental_marking', {

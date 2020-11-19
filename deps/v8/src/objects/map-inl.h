@@ -11,6 +11,7 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/layout-descriptor-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
@@ -697,7 +698,7 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
     descriptors.Append(desc);
     SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-    WriteBarrier::Marking(*this, descriptors, number_of_own_descriptors + 1);
+    WriteBarrier::Marking(descriptors, number_of_own_descriptors + 1);
 #endif
   }
   // Properly mark the map if the {desc} is an "interesting symbol".

@@ -45,7 +45,7 @@ StoreElement<array::FastPackedDoubleElements, float64>(
     implicit context: Context)(
     elements: FixedArrayBase, index: Smi, value: float64) {
   const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-  StoreFixedDoubleArrayElementSmi(elems, index, value);
+  StoreFixedDoubleArrayElement(elems, index, value);
 }
 
 // Fast-path for all PACKED_* elements kinds. These do not need to check

@@ -64,11 +64,8 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        int32_t builtin_index)
     : CodeAssemblerState(
           isolate, zone,
-          Linkage::GetJSCallDescriptor(
-              zone, false, parameter_count,
-              (kind == CodeKind::BUILTIN ? CallDescriptor::kPushArgumentCount
-                                         : CallDescriptor::kNoFlags) |
-                  CallDescriptor::kCanUseRoots),
+          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
+                                       CallDescriptor::kCanUseRoots),
           kind, name, poisoning_level, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,

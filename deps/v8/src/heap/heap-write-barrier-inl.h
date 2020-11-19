@@ -238,11 +238,11 @@ void WriteBarrier::Marking(JSArrayBuffer host,
   MarkingSlow(*heap, host, extension);
 }
 
-void WriteBarrier::Marking(Map host, DescriptorArray descriptor_array,
+void WriteBarrier::Marking(DescriptorArray descriptor_array,
                            int number_of_own_descriptors) {
-  auto heap = GetHeapIfMarking(host);
+  auto heap = GetHeapIfMarking(descriptor_array);
   if (!heap) return;
-  MarkingSlow(*heap, host, descriptor_array, number_of_own_descriptors);
+  MarkingSlow(*heap, descriptor_array, number_of_own_descriptors);
 }
 
 }  // namespace internal

@@ -30,4 +30,17 @@ class SelectTimeEvent extends CustomEvent {
   }
 }
 
-export { SelectionEvent, FocusEvent, SelectTimeEvent };
+class SynchronizeSelectionEvent extends CustomEvent {
+  static name = 'syncselection';
+  constructor(start, end) {
+    super(SynchronizeSelectionEvent.name, { bubbles: true, composed: true });
+    this.start = start;
+    this.end = end;
+  }
+}
+
+
+export {
+  SelectionEvent, FocusEvent, SelectTimeEvent,
+  SynchronizeSelectionEvent
+};

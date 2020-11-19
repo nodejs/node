@@ -8,7 +8,7 @@
 #include "builtins-generated/bytecodes-builtins-list.h"
 
 // include generated header
-#include "torque-generated/builtin-definitions-tq.h"
+#include "torque-generated/builtin-definitions.h"
 
 namespace v8 {
 namespace internal {
@@ -189,6 +189,7 @@ namespace internal {
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToNumber, TypeConversion)                                                \
+  TFC(PlainPrimitiveToNumber, TypeConversionNoContext)                         \
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
   TFC(Typeof, Typeof)                                                          \
   TFC(GetSuperConstructor, Typeof)                                             \
@@ -341,8 +342,6 @@ namespace internal {
   /* ES #sec-arraybuffer-constructor */                                        \
   CPP(ArrayBufferConstructor)                                                  \
   CPP(ArrayBufferConstructor_DoNotInitialize)                                  \
-  CPP(ArrayBufferPrototypeGetByteLength)                                       \
-  CPP(ArrayBufferIsView)                                                       \
   CPP(ArrayBufferPrototypeSlice)                                               \
                                                                                \
   /* AsyncFunction */                                                          \
@@ -536,6 +535,7 @@ namespace internal {
   TFH(LoadIC_Noninlined, LoadWithVector)                                       \
   TFH(LoadICTrampoline, Load)                                                  \
   TFH(LoadICTrampoline_Megamorphic, Load)                                      \
+  TFH(LoadSuperIC, LoadWithReceiverAndVector)                                  \
   TFH(KeyedLoadIC, LoadWithVector)                                             \
   TFH(KeyedLoadIC_Megamorphic, LoadWithVector)                                 \
   TFH(KeyedLoadICTrampoline, Load)                                             \
@@ -721,7 +721,6 @@ namespace internal {
   TFS(SetOrSetIteratorToList, kSource)                                         \
                                                                                \
   /* SharedArrayBuffer */                                                      \
-  CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
   CPP(SharedArrayBufferPrototypeSlice)                                         \
   TFJ(AtomicsLoad, 2, kReceiver, kArray, kIndex)                               \
   TFJ(AtomicsStore, 3, kReceiver, kArray, kIndex, kValue)                      \

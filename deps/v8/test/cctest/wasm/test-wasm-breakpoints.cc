@@ -574,6 +574,13 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
   CHECK_EQ(kReturn, GetIntReturnValue(retval));
 }
 
+WASM_COMPILED_EXEC_TEST(Regress10889) {
+  FLAG_SCOPE(print_wasm_code);
+  WasmRunner<int> runner(execution_tier);
+  BUILD(runner, WASM_I32V_1(0));
+  SetBreakpoint(&runner, runner.function_index(), 1, 1);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

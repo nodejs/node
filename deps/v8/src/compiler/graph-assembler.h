@@ -91,6 +91,7 @@ class BasicBlock;
   V(Word64Or)                             \
   V(WordAnd)                              \
   V(WordEqual)                            \
+  V(WordOr)                               \
   V(WordSar)                              \
   V(WordSarShiftOutZeros)                 \
   V(WordShl)                              \
@@ -126,6 +127,7 @@ class BasicBlock;
   V(One, Number)                                \
   V(TheHole, Oddball)                           \
   V(ToNumberBuiltin, Code)                      \
+  V(PlainPrimitiveToNumberBuiltin, Code)        \
   V(True, Boolean)                              \
   V(Undefined, Oddball)                         \
   V(Zero, Number)
@@ -182,12 +184,15 @@ class GraphAssemblerLabel {
   const std::array<MachineRepresentation, VarCount> representations_;
 };
 
+using NodeChangedCallback = std::function<void(Node*)>;
 class V8_EXPORT_PRIVATE GraphAssembler {
  public:
   // Constructs a GraphAssembler. If {schedule} is not null, the graph assembler
   // will maintain the schedule as it updates blocks.
-  GraphAssembler(MachineGraph* jsgraph, Zone* zone,
-                 Schedule* schedule = nullptr, bool mark_loop_exits = false);
+  GraphAssembler(
+      MachineGraph* jsgraph, Zone* zone,
+      base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
+      Schedule* schedule = nullptr, bool mark_loop_exits = false);
   virtual ~GraphAssembler();
 
   void Reset(BasicBlock* block);
@@ -239,6 +244,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Projection(int index, Node* value);
   Node* ExternalConstant(ExternalReference ref);
 
+  Node* Parameter(int index);
+
   Node* LoadFramePointer();
 
   Node* LoadHeapNumberValue(Node* heap_number);
@@ -252,10 +259,20 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   CHECKED_ASSEMBLER_MACH_BINOP_LIST(BINOP_DECL)
 #undef BINOP_DECL
 
-  // Debugging
   Node* DebugBreak();
 
-  Node* Unreachable();
+  // Unreachable nodes are similar to Goto in that they reset effect/control to
+  // nullptr and it's thus not possible to append other nodes without first
+  // binding a new label.
+  // The block_updater_successor label is a crutch to work around block updater
+  // weaknesses (see the related comment in ConnectUnreachableToEnd); if the
+  // block updater exists, we cannot connect unreachable to end, instead we
+  // must preserve the Goto pattern.
+  Node* Unreachable(GraphAssemblerLabel<0u>* block_updater_successor = nullptr);
+  // This special variant doesn't connect the Unreachable node to end, and does
+  // not reset current effect/control. Intended only for special use-cases like
+  // lowering DeadValue.
+  Node* UnreachableWithoutConnectToEnd();
 
   Node* IntPtrEqual(Node* left, Node* right);
   Node* TaggedEqual(Node* left, Node* right);
@@ -315,6 +332,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
                      Args... args);
   template <typename... Args>
   TNode<Object> Call(const Operator* op, Node* first_arg, Args... args);
+  void TailCall(const CallDescriptor* call_descriptor, int inputs_size,
+                Node** inputs);
 
   // Basic control operations.
   template <size_t VarCount>
@@ -350,6 +369,13 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
                  Vars...);
 
+  bool HasActiveBlock() const {
+    // This is false if the current block has been terminated (e.g. by a Goto or
+    // Unreachable). In that case, a new label must be bound before we can
+    // continue emitting nodes.
+    return control() != nullptr;
+  }
+
   // Updates current effect and control based on outputs of {node}.
   V8_INLINE void UpdateEffectControlWith(Node* node) {
     if (node->op()->EffectOutputCount() > 0) {
@@ -375,8 +401,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   void ConnectUnreachableToEnd();
 
-  Control control() { return Control(control_); }
-  Effect effect() { return Effect(effect_); }
+  Control control() const { return Control(control_); }
+  Effect effect() const { return Effect(effect_); }
 
  protected:
   class BasicBlockUpdater;
@@ -485,6 +511,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   MachineGraph* mcgraph_;
   Node* effect_;
   Node* control_;
+  // {node_changed_callback_} should be called when a node outside the
+  // subgraph created by the graph assembler changes.
+  base::Optional<NodeChangedCallback> node_changed_callback_;
   std::unique_ptr<BasicBlockUpdater> block_updater_;
 
   // Track loop information in order to properly mark loop exits with
@@ -753,9 +782,12 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
  public:
   // Constructs a JSGraphAssembler. If {schedule} is not null, the graph
   // assembler will maintain the schedule as it updates blocks.
-  JSGraphAssembler(JSGraph* jsgraph, Zone* zone, Schedule* schedule = nullptr,
-                   bool mark_loop_exits = false)
-      : GraphAssembler(jsgraph, zone, schedule, mark_loop_exits),
+  JSGraphAssembler(
+      JSGraph* jsgraph, Zone* zone,
+      base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
+      Schedule* schedule = nullptr, bool mark_loop_exits = false)
+      : GraphAssembler(jsgraph, zone, node_changed_callback, schedule,
+                       mark_loop_exits),
         jsgraph_(jsgraph) {}
 
   Node* SmiConstant(int32_t value);

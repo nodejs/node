@@ -107,7 +107,7 @@ TEST_F(ControlTransferTest, SimpleIf) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprEnd        // @4
   };
   CheckTransfers(code, {{2, 2, 0, 0}});
@@ -118,7 +118,7 @@ TEST_F(ControlTransferTest, SimpleIf1) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprNop,       // @4
       kExprEnd        // @5
   };
@@ -130,7 +130,7 @@ TEST_F(ControlTransferTest, SimpleIf2) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprNop,       // @4
       kExprNop,       // @5
       kExprEnd        // @6
@@ -143,7 +143,7 @@ TEST_F(ControlTransferTest, SimpleIfElse) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprElse,      // @4
       kExprEnd        // @5
   };
@@ -155,7 +155,7 @@ TEST_F(ControlTransferTest, SimpleIfElse_v1) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprI32Const,  // @4
       0,              // @5
       kExprElse,      // @6
@@ -171,7 +171,7 @@ TEST_F(ControlTransferTest, SimpleIfElse1) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprElse,      // @4
       kExprNop,       // @5
       kExprEnd        // @6
@@ -184,7 +184,7 @@ TEST_F(ControlTransferTest, IfBr) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprBr,        // @4
       0,              // @5
       kExprEnd        // @6
@@ -197,13 +197,13 @@ TEST_F(ControlTransferTest, IfBrElse) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprBr,        // @4
       0,              // @5
       kExprElse,      // @6
       kExprEnd        // @7
   };
-  CheckTransfers(code, {{2, 5, 0, 0}, {4, 4, 0, 0}, {6, 2, 0, 0}});
+  CheckTransfers(code, {{2, 5, 0, 0}, {4, 4, 0, 0}});
 }
 
 TEST_F(ControlTransferTest, IfElseBr) {
@@ -211,7 +211,7 @@ TEST_F(ControlTransferTest, IfElseBr) {
       kExprI32Const,  // @0
       0,              // @1
       kExprIf,        // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprElse,      // @4
       kExprBr,        // @5
       0,              // @6
@@ -223,7 +223,7 @@ TEST_F(ControlTransferTest, IfElseBr) {
 TEST_F(ControlTransferTest, BlockEmpty) {
   byte code[] = {
       kExprBlock,  // @0
-      kLocalVoid,  // @1
+      kVoidCode,   // @1
       kExprEnd     // @2
   };
   CheckTransfers(code, {});
@@ -232,7 +232,7 @@ TEST_F(ControlTransferTest, BlockEmpty) {
 TEST_F(ControlTransferTest, Br0) {
   byte code[] = {
       kExprBlock,  // @0
-      kLocalVoid,  // @1
+      kVoidCode,   // @1
       kExprBr,     // @2
       0,           // @3
       kExprEnd     // @4
@@ -243,7 +243,7 @@ TEST_F(ControlTransferTest, Br0) {
 TEST_F(ControlTransferTest, Br1) {
   byte code[] = {
       kExprBlock,  // @0
-      kLocalVoid,  // @1
+      kVoidCode,   // @1
       kExprNop,    // @2
       kExprBr,     // @3
       0,           // @4
@@ -255,7 +255,7 @@ TEST_F(ControlTransferTest, Br1) {
 TEST_F(ControlTransferTest, Br_v1a) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalVoid,     // @1
+      kVoidCode,      // @1
       kExprI32Const,  // @2
       0,              // @3
       kExprBr,        // @4
@@ -268,7 +268,7 @@ TEST_F(ControlTransferTest, Br_v1a) {
 TEST_F(ControlTransferTest, Br_v1b) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalVoid,     // @1
+      kVoidCode,      // @1
       kExprI32Const,  // @2
       0,              // @3
       kExprBr,        // @4
@@ -283,7 +283,7 @@ TEST_F(ControlTransferTest, Br_v1c) {
       kExprI32Const,  // @0
       0,              // @1
       kExprBlock,     // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprBr,        // @4
       0,              // @5
       kExprEnd        // @6
@@ -294,7 +294,7 @@ TEST_F(ControlTransferTest, Br_v1c) {
 TEST_F(ControlTransferTest, Br_v1d) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalI32,      // @1
+      kI32Code,       // @1
       kExprI32Const,  // @2
       0,              // @3
       kExprBr,        // @4
@@ -307,7 +307,7 @@ TEST_F(ControlTransferTest, Br_v1d) {
 TEST_F(ControlTransferTest, Br2) {
   byte code[] = {
       kExprBlock,  // @0
-      kLocalVoid,  // @1
+      kVoidCode,   // @1
       kExprNop,    // @2
       kExprNop,    // @3
       kExprBr,     // @4
@@ -320,7 +320,7 @@ TEST_F(ControlTransferTest, Br2) {
 TEST_F(ControlTransferTest, Br0b) {
   byte code[] = {
       kExprBlock,  // @0
-      kLocalVoid,  // @1
+      kVoidCode,   // @1
       kExprBr,     // @2
       0,           // @3
       kExprNop,    // @4
@@ -332,7 +332,7 @@ TEST_F(ControlTransferTest, Br0b) {
 TEST_F(ControlTransferTest, Br0c) {
   byte code[] = {
       kExprBlock,  // @0
-      kLocalVoid,  // @1
+      kVoidCode,   // @1
       kExprBr,     // @2
       0,           // @3
       kExprNop,    // @4
@@ -344,46 +344,46 @@ TEST_F(ControlTransferTest, Br0c) {
 
 TEST_F(ControlTransferTest, SimpleLoop1) {
   byte code[] = {
-      kExprLoop,   // @0
-      kLocalVoid,  // @1
-      kExprBr,     // @2
-      0,           // @3
-      kExprEnd     // @4
+      kExprLoop,  // @0
+      kVoidCode,  // @1
+      kExprBr,    // @2
+      0,          // @3
+      kExprEnd    // @4
   };
   CheckTransfers(code, {{2, -2, 0, 0}});
 }
 
 TEST_F(ControlTransferTest, SimpleLoop2) {
   byte code[] = {
-      kExprLoop,   // @0
-      kLocalVoid,  // @1
-      kExprNop,    // @2
-      kExprBr,     // @3
-      0,           // @4
-      kExprEnd     // @5
+      kExprLoop,  // @0
+      kVoidCode,  // @1
+      kExprNop,   // @2
+      kExprBr,    // @3
+      0,          // @4
+      kExprEnd    // @5
   };
   CheckTransfers(code, {{3, -3, 0, 0}});
 }
 
 TEST_F(ControlTransferTest, SimpleLoopExit1) {
   byte code[] = {
-      kExprLoop,   // @0
-      kLocalVoid,  // @1
-      kExprBr,     // @2
-      1,           // @3
-      kExprEnd     // @4
+      kExprLoop,  // @0
+      kVoidCode,  // @1
+      kExprBr,    // @2
+      1,          // @3
+      kExprEnd    // @4
   };
   CheckTransfers(code, {{2, 4, 0, 0}});
 }
 
 TEST_F(ControlTransferTest, SimpleLoopExit2) {
   byte code[] = {
-      kExprLoop,   // @0
-      kLocalVoid,  // @1
-      kExprNop,    // @2
-      kExprBr,     // @3
-      1,           // @4
-      kExprEnd     // @5
+      kExprLoop,  // @0
+      kVoidCode,  // @1
+      kExprNop,   // @2
+      kExprBr,    // @3
+      1,          // @4
+      kExprEnd    // @5
   };
   CheckTransfers(code, {{3, 4, 0, 0}});
 }
@@ -391,7 +391,7 @@ TEST_F(ControlTransferTest, SimpleLoopExit2) {
 TEST_F(ControlTransferTest, BrTable0) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalVoid,     // @1
+      kVoidCode,      // @1
       kExprI32Const,  // @2
       0,              // @3
       kExprBrTable,   // @4
@@ -405,7 +405,7 @@ TEST_F(ControlTransferTest, BrTable0) {
 TEST_F(ControlTransferTest, BrTable0_v1a) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalVoid,     // @1
+      kVoidCode,      // @1
       kExprI32Const,  // @2
       0,              // @3
       kExprI32Const,  // @4
@@ -421,7 +421,7 @@ TEST_F(ControlTransferTest, BrTable0_v1a) {
 TEST_F(ControlTransferTest, BrTable0_v1b) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalVoid,     // @1
+      kVoidCode,      // @1
       kExprI32Const,  // @2
       0,              // @3
       kExprI32Const,  // @4
@@ -437,7 +437,7 @@ TEST_F(ControlTransferTest, BrTable0_v1b) {
 TEST_F(ControlTransferTest, BrTable1) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalVoid,     // @1
+      kVoidCode,      // @1
       kExprI32Const,  // @2
       0,              // @3
       kExprBrTable,   // @4
@@ -452,9 +452,9 @@ TEST_F(ControlTransferTest, BrTable1) {
 TEST_F(ControlTransferTest, BrTable2) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalVoid,     // @1
+      kVoidCode,      // @1
       kExprBlock,     // @2
-      kLocalVoid,     // @3
+      kVoidCode,      // @3
       kExprI32Const,  // @4
       0,              // @5
       kExprBrTable,   // @6
@@ -471,11 +471,11 @@ TEST_F(ControlTransferTest, BrTable2) {
 TEST_F(ControlTransferTest, BiggerSpDiffs) {
   byte code[] = {
       kExprBlock,     // @0
-      kLocalI32,      // @1
+      kI32Code,       // @1
       kExprI32Const,  // @2
       0,              // @3
       kExprBlock,     // @4
-      kLocalVoid,     // @5
+      kVoidCode,      // @5
       kExprI32Const,  // @6
       0,              // @7
       kExprI32Const,  // @8
@@ -495,19 +495,19 @@ TEST_F(ControlTransferTest, BiggerSpDiffs) {
 TEST_F(ControlTransferTest, NoInfoForUnreachableCode) {
   byte code[] = {
       kExprBlock,        // @0
-      kLocalVoid,        // @1
+      kVoidCode,         // @1
       kExprBr,           // @2
       0,                 // @3
       kExprBr,           // @4 -- no control transfer entry!
       1,                 // @5
       kExprEnd,          // @6
       kExprBlock,        // @7
-      kLocalVoid,        // @8
+      kVoidCode,         // @8
       kExprUnreachable,  // @9
       kExprI32Const,     // @10
       0,                 // @11
       kExprIf,           // @12 -- no control transfer entry!
-      kLocalVoid,        // @13
+      kVoidCode,         // @13
       kExprBr,           // @14 -- no control transfer entry!
       0,                 // @15
       kExprElse,         // @16 -- no control transfer entry!

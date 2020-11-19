@@ -18,9 +18,11 @@ namespace internal {
 namespace wasm {
 
 class WasmFeatures;
+struct WasmModule;
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
-bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
+bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
+                             const WasmFeatures&);
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V)                         \
@@ -275,24 +277,24 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
 
 #define FOREACH_SIMD_MEM_OPCODE(V) \
   V(S128LoadMem, 0xfd00, s_i)      \
-  V(I16x8Load8x8S, 0xfd01, s_i)    \
-  V(I16x8Load8x8U, 0xfd02, s_i)    \
-  V(I32x4Load16x4S, 0xfd03, s_i)   \
-  V(I32x4Load16x4U, 0xfd04, s_i)   \
-  V(I64x2Load32x2S, 0xfd05, s_i)   \
-  V(I64x2Load32x2U, 0xfd06, s_i)   \
-  V(S8x16LoadSplat, 0xfd07, s_i)   \
-  V(S16x8LoadSplat, 0xfd08, s_i)   \
-  V(S32x4LoadSplat, 0xfd09, s_i)   \
-  V(S64x2LoadSplat, 0xfd0a, s_i)   \
+  V(S128Load8x8S, 0xfd01, s_i)     \
+  V(S128Load8x8U, 0xfd02, s_i)     \
+  V(S128Load16x4S, 0xfd03, s_i)    \
+  V(S128Load16x4U, 0xfd04, s_i)    \
+  V(S128Load32x2S, 0xfd05, s_i)    \
+  V(S128Load32x2U, 0xfd06, s_i)    \
+  V(S128Load8Splat, 0xfd07, s_i)   \
+  V(S128Load16Splat, 0xfd08, s_i)  \
+  V(S128Load32Splat, 0xfd09, s_i)  \
+  V(S128Load64Splat, 0xfd0a, s_i)  \
   V(S128StoreMem, 0xfd0b, v_is)
 
 #define FOREACH_SIMD_CONST_OPCODE(V) V(S128Const, 0xfd0c, _)
 
-#define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(S8x16Shuffle, 0xfd0d, s_ss)
+#define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(I8x16Shuffle, 0xfd0d, s_ss)
 
 #define FOREACH_SIMD_MVP_0_OPERAND_OPCODE(V) \
-  V(S8x16Swizzle, 0xfd0e, s_ss)              \
+  V(I8x16Swizzle, 0xfd0e, s_ss)              \
   V(I8x16Splat, 0xfd0f, s_i)                 \
   V(I16x8Splat, 0xfd10, s_i)                 \
   V(I32x4Splat, 0xfd11, s_i)                 \
@@ -351,6 +353,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I8x16Neg, 0xfd61, s_s)                   \
   V(V8x16AnyTrue, 0xfd62, i_s)               \
   V(V8x16AllTrue, 0xfd63, i_s)               \
+  V(I8x16BitMask, 0xfd64, i_s)               \
   V(I8x16SConvertI16x8, 0xfd65, s_ss)        \
   V(I8x16UConvertI16x8, 0xfd66, s_ss)        \
   V(I8x16Shl, 0xfd6b, s_si)                  \
@@ -371,6 +374,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I16x8Neg, 0xfd81, s_s)                   \
   V(V16x8AnyTrue, 0xfd82, i_s)               \
   V(V16x8AllTrue, 0xfd83, i_s)               \
+  V(I16x8BitMask, 0xfd84, i_s)               \
   V(I16x8SConvertI32x4, 0xfd85, s_ss)        \
   V(I16x8UConvertI32x4, 0xfd86, s_ss)        \
   V(I16x8SConvertI8x16Low, 0xfd87, s_s)      \
@@ -396,6 +400,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I32x4Neg, 0xfda1, s_s)                   \
   V(V32x4AnyTrue, 0xfda2, i_s)               \
   V(V32x4AllTrue, 0xfda3, i_s)               \
+  V(I32x4BitMask, 0xfda4, i_s)               \
   V(I32x4SConvertI16x8Low, 0xfda7, s_s)      \
   V(I32x4SConvertI16x8High, 0xfda8, s_s)     \
   V(I32x4UConvertI16x8Low, 0xfda9, s_s)      \
@@ -426,6 +431,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4Div, 0xfde7, s_ss)                  \
   V(F32x4Min, 0xfde8, s_ss)                  \
   V(F32x4Max, 0xfde9, s_ss)                  \
+  V(F32x4Pmin, 0xfdea, s_ss)                 \
+  V(F32x4Pmax, 0xfdeb, s_ss)                 \
   V(F64x2Abs, 0xfdec, s_s)                   \
   V(F64x2Neg, 0xfded, s_s)                   \
   V(F64x2Sqrt, 0xfdef, s_s)                  \
@@ -435,10 +442,20 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F64x2Div, 0xfdf3, s_ss)                  \
   V(F64x2Min, 0xfdf4, s_ss)                  \
   V(F64x2Max, 0xfdf5, s_ss)                  \
+  V(F64x2Pmin, 0xfdf6, s_ss)                 \
+  V(F64x2Pmax, 0xfdf7, s_ss)                 \
   V(I32x4SConvertF32x4, 0xfdf8, s_s)         \
   V(I32x4UConvertF32x4, 0xfdf9, s_s)         \
   V(F32x4SConvertI32x4, 0xfdfa, s_s)         \
-  V(F32x4UConvertI32x4, 0xfdfb, s_s)
+  V(F32x4UConvertI32x4, 0xfdfb, s_s)         \
+  V(F32x4Ceil, 0xfdd8, s_s)                  \
+  V(F32x4Floor, 0xfdd9, s_s)                 \
+  V(F32x4Trunc, 0xfdda, s_s)                 \
+  V(F32x4NearestInt, 0xfddb, s_s)            \
+  V(F64x2Ceil, 0xfddc, s_s)                  \
+  V(F64x2Floor, 0xfddd, s_s)                 \
+  V(F64x2Trunc, 0xfdde, s_s)                 \
+  V(F64x2NearestInt, 0xfddf, s_s)
 
 #define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
   V(S128LoadMem32Zero, 0xfdfc, s_i)         \
@@ -446,9 +463,6 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
 
 #define FOREACH_SIMD_POST_MVP_OPCODE(V) \
   V(I8x16Mul, 0xfd75, s_ss)             \
-  V(I8x16BitMask, 0xfd64, i_s)          \
-  V(I16x8BitMask, 0xfd84, i_s)          \
-  V(I32x4BitMask, 0xfda4, i_s)          \
   V(V64x2AnyTrue, 0xfdc2, i_s)          \
   V(V64x2AllTrue, 0xfdc3, i_s)          \
   V(I64x2Eq, 0xfdc0, s_ss)              \
@@ -474,19 +488,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I32x4DotI16x8S, 0xfdba, s_ss)       \
   V(F32x4AddHoriz, 0xfdb2, s_ss)        \
   V(F32x4RecipApprox, 0xfdb3, s_s)      \
-  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)  \
-  V(F32x4Pmin, 0xfdea, s_ss)            \
-  V(F32x4Pmax, 0xfdeb, s_ss)            \
-  V(F32x4Ceil, 0xfdd8, s_s)             \
-  V(F32x4Floor, 0xfdd9, s_s)            \
-  V(F32x4Trunc, 0xfdda, s_s)            \
-  V(F32x4NearestInt, 0xfddb, s_s)       \
-  V(F64x2Pmin, 0xfdf6, s_ss)            \
-  V(F64x2Pmax, 0xfdf7, s_ss)            \
-  V(F64x2Ceil, 0xfddc, s_s)             \
-  V(F64x2Floor, 0xfddd, s_s)            \
-  V(F64x2Trunc, 0xfdde, s_s)            \
-  V(F64x2NearestInt, 0xfddf, s_s)
+  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   V(I8x16ExtractLaneS, 0xfd15, _)                \

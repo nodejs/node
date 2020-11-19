@@ -11,6 +11,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/objects/elements-kind.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
@@ -304,7 +305,7 @@ namespace internal {
   F(GetFunctionName, 1, 1)                                      \
   F(GetOwnPropertyDescriptor, 2, 1)                             \
   F(GetOwnPropertyKeys, 2, 1)                                   \
-  F(GetProperty, 2, 1)                                          \
+  F(GetProperty, -1 /* [2, 3] */, 1)                            \
   F(HasFastPackedElements, 1, 1)                                \
   F(HasInPrototypeChain, 2, 1)                                  \
   I(HasProperty, 2, 1)                                          \
@@ -341,7 +342,7 @@ namespace internal {
   I(ToNumber, 1, 1)                                             \
   F(ToNumeric, 1, 1)                                            \
   I(ToObject, 1, 1)                                             \
-  I(ToStringRT, 1, 1)                                           \
+  I(ToString, 1, 1)                                             \
   F(TryMigrateInstance, 1, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F, I) \
@@ -516,6 +517,7 @@ namespace internal {
   F(IsWasmTrapHandlerEnabled, 0, 1)           \
   F(RegexpHasBytecode, 2, 1)                  \
   F(RegexpHasNativeCode, 2, 1)                \
+  F(RegexpTypeTag, 1, 1)                      \
   F(MapIteratorProtector, 0, 1)               \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NotifyContextDisposed, 0, 1)              \
@@ -575,7 +577,7 @@ namespace internal {
   F(WasmTableCopy, 6, 1)              \
   F(WasmTableGrow, 3, 1)              \
   F(WasmTableFill, 4, 1)              \
-  F(WasmIsValidFuncRefValue, 1, 1)    \
+  F(WasmIsValidRefValue, 3, 1)        \
   F(WasmCompileLazy, 2, 1)            \
   F(WasmTriggerTierUp, 1, 1)          \
   F(WasmDebugBreak, 0, 1)             \
@@ -603,6 +605,8 @@ namespace internal {
   F(LoadGlobalIC_Slow, 3, 1)                 \
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadNoFeedbackIC_Miss, 4, 1)             \
+  F(LoadWithReceiverIC_Miss, 5, 1)           \
+  F(LoadWithReceiverNoFeedbackIC_Miss, 3, 1) \
   F(LoadPropertyWithInterceptor, 5, 1)       \
   F(StoreCallbackProperty, 5, 1)             \
   F(StoreGlobalIC_Miss, 4, 1)                \
@@ -753,9 +757,11 @@ class Runtime : public AllStatic {
                     Handle<Object> value, StoreOrigin store_origin,
                     Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
+  // When "receiver" is not passed, it defaults to "holder".
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  GetObjectProperty(Isolate* isolate, Handle<Object> object, Handle<Object> key,
-                    bool* is_found_out = nullptr);
+  GetObjectProperty(Isolate* isolate, Handle<Object> holder, Handle<Object> key,
+                    Handle<Object> receiver = Handle<Object>(),
+                    bool* is_found = nullptr);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HasProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);

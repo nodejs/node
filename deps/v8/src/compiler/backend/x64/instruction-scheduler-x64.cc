@@ -303,8 +303,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64V32x4AllTrue:
     case kX64V16x8AnyTrue:
     case kX64V16x8AllTrue:
-    case kX64S8x16Swizzle:
-    case kX64S8x16Shuffle:
+    case kX64I8x16Swizzle:
+    case kX64I8x16Shuffle:
     case kX64S32x4Swizzle:
     case kX64S32x4Shuffle:
     case kX64S16x8Blend:

@@ -257,11 +257,15 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<FixedArray> data =
         CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
 
-    // We reach this point only if captures exist, implying that this is an
-    // IRREGEXP JSRegExp.
-    CSA_ASSERT(this,
-               SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-                        SmiConstant(JSRegExp::IRREGEXP)));
+    // We reach this point only if captures exist, implying that the assigned
+    // regexp engine must be able to handle captures.
+    CSA_ASSERT(
+        this,
+        Word32Or(
+            SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
+                     SmiConstant(JSRegExp::IRREGEXP)),
+            SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
+                     SmiConstant(JSRegExp::EXPERIMENTAL))));
 
     // The names fixed array associates names at even indices with a capture
     // index at odd indices.
@@ -284,8 +288,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
     TNode<IntPtrT> num_properties = WordSar(names_length, 1);
     TNode<NativeContext> native_context = LoadNativeContext(context);
-    TNode<Map> map = CAST(LoadContextElement(
-        native_context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+    TNode<Map> map = LoadSlowObjectWithNullPrototypeMap(native_context);
     TNode<NameDictionary> properties =
         AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
 
@@ -614,9 +617,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     GotoIf(SmiGreaterThan(register_count, available_slots), &runtime);
 
     // Fill match_info.
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kNumberOfCapturesIndex,
-                                 register_count, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kNumberOfCapturesIndex, register_count);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
                                  string);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
@@ -852,19 +854,17 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
     const TNode<Smi> match_to =
         SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
 
-    UnsafeStoreFixedArrayElement(
-        match_info, RegExpMatchInfo::kNumberOfCapturesIndex,
-        SmiConstant(kNumRegisters), SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(match_info,
+                                 RegExpMatchInfo::kNumberOfCapturesIndex,
+                                 SmiConstant(kNumRegisters));
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
                                  subject_string);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
                                  subject_string);
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kFirstCaptureIndex,
-                                 match_from, SKIP_WRITE_BARRIER);
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kFirstCaptureIndex + 1,
-                                 match_to, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kFirstCaptureIndex, match_from);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kFirstCaptureIndex + 1, match_to);
 
     Return(match_info);
   }

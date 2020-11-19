@@ -1642,7 +1642,6 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   }
 
   // Ensure the deserialized flags are valid.
-  // TODO(adamk): Can we remove this check now that dotAll is always-on?
   uint32_t flags_mask = static_cast<uint32_t>(-1) << JSRegExp::kFlagCount;
   if ((raw_flags & flags_mask) ||
       !JSRegExp::New(isolate_, pattern, static_cast<JSRegExp::Flags>(raw_flags))

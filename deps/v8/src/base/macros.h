@@ -336,14 +336,14 @@ inline T RoundDown(T x, intptr_t m) {
   STATIC_ASSERT(std::is_integral<T>::value);
   // m must be a power of two.
   DCHECK(m != 0 && ((m & (m - 1)) == 0));
-  return x & -m;
+  return x & static_cast<T>(-m);
 }
 template <intptr_t m, typename T>
 constexpr inline T RoundDown(T x) {
   STATIC_ASSERT(std::is_integral<T>::value);
   // m must be a power of two.
   STATIC_ASSERT(m != 0 && ((m & (m - 1)) == 0));
-  return x & -m;
+  return x & static_cast<T>(-m);
 }
 
 // Return the smallest multiple of m which is >= x.

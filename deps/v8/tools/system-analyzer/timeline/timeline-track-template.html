@@ -15,11 +15,6 @@ found in the LICENSE file. -->
     background-color: var(--timeline-background-color);
   }
 
-  #timeline::-webkit-scrollbar {
-    width: 0;
-    background-color: transparent;
-  }
-
   #timelineLabel {
     transform: rotate(90deg);
     transform-origin: left bottom 0;
@@ -65,29 +60,63 @@ found in the LICENSE file. -->
     opacity: 0.5;
   }
 
-  #timelineLegend {
+  #legend {
     position: relative;
     float: right;
     text-align: center;
+    width: 100%;
+    max-width: 280px;
+    padding-left: 20px;
+    padding-top: 10px;
+  }
+
+  th,
+  td {
+    width: 200px;
+    text-align: center;
+    padding: 5px;
   }
 
   .timeline {
     background-color: var(--timeline-background-color);
   }
 
-  #timelineLegendContent {
-    float: right;
-    padding: 20px;
-    width: 200px;
+  #timeline .rightHandle,
+  #timeline .leftHandle {
+    background-color: rgba(200, 200, 200, 0.5);
+    height: 100%;
+    width: 5px;
+    position: absolute;
+    z-index: 3;
+    cursor: col-resize;
+  }
+
+  #timeline .selection {
+    background-color: rgba(133, 68, 163, 0.5);
+    height: 100%;
+    position: absolute;
+    z-index: 2;
   }
 </style>
 <div class="timeline">
-  <div id="timelineLegend">
-    <p>Category</p>
-    <dl id="timelineLegendContent" style="float:right; padding:20px">
-    </dl>
+  <div id="legend">
+    <table>
+      <thead>
+        <tr>
+          <td>Color</td>
+          <td>Type</td>
+          <td>Count</td>
+          <td>Percent</td>
+        </tr>
+      </thead>
+      <tbody id="legendContent">
+      </tbody>
+    </table>
   </div>
   <div id="timeline">
+    <div class="leftHandle"></div>
+    <div class="selection"></div>
+    <div class="rightHandle"></div>
     <div id="timelineLabel">Frequency</div>
     <div id="timelineChunks"></div>
     <canvas id="timelineCanvas"></canvas>

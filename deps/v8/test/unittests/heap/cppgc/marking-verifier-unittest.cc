@@ -76,6 +76,28 @@ TEST_F(MarkingVerifierTest, DoesntDieOnMarkedWeakMember) {
   VerifyMarking(Heap::From(GetHeap())->AsBase(), StackState::kNoHeapPointers);
 }
 
+namespace {
+
+class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
+ public:
+  template <typename Callback>
+  explicit GCedWithCallback(Callback callback) {
+    callback(this);
+  }
+  void Trace(cppgc::Visitor* visitor) const {}
+};
+
+}  // namespace
+
+TEST_F(MarkingVerifierTest, DoesntDieOnInConstructionOnObject) {
+  MakeGarbageCollected<GCedWithCallback>(
+      GetAllocationHandle(), [this](GCedWithCallback* obj) {
+        HeapObjectHeader::FromPayload(obj).TryMarkAtomic();
+        VerifyMarking(Heap::From(GetHeap())->AsBase(),
+                      StackState::kMayContainHeapPointers);
+      });
+}
+
 // Death tests.
 
 namespace {

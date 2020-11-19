@@ -47,7 +47,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   HandleScope scope(isolate);
   Handle<HeapObject> result;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Object root;
     VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(&root));
     DeserializeDeferredObjects();
@@ -85,7 +85,7 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
 }
 
 void ObjectDeserializer::LinkAllocationSites() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Heap* heap = isolate()->heap();
   // Allocation sites are present in the snapshot, and must be linked into
   // a list at deserialization time.

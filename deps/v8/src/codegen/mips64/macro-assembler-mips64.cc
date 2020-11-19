@@ -144,10 +144,11 @@ void TurboAssembler::PushCommonFrame(Register marker_reg) {
 void TurboAssembler::PushStandardFrame(Register function_reg) {
   int offset = -StandardFrameConstants::kContextOffset;
   if (function_reg.is_valid()) {
-    Push(ra, fp, cp, function_reg);
-    offset += kPointerSize;
+    Push(ra, fp, cp, function_reg, kJavaScriptCallArgCountRegister);
+    offset += 2 * kPointerSize;
   } else {
-    Push(ra, fp, cp);
+    Push(ra, fp, cp, kJavaScriptCallArgCountRegister);
+    offset += kPointerSize;
   }
   Daddu(fp, sp, Operand(offset));
 }
@@ -2612,6 +2613,38 @@ void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
              });
 }
 
+void TurboAssembler::MSARoundW(MSARegister dst, MSARegister src,
+                               FPURoundingMode mode) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = t8;
+  Register scratch2 = at;
+  cfcmsa(scratch, MSACSR);
+  if (mode == kRoundToNearest) {
+    scratch2 = zero_reg;
+  } else {
+    li(scratch2, Operand(mode));
+  }
+  ctcmsa(MSACSR, scratch2);
+  frint_w(dst, src);
+  ctcmsa(MSACSR, scratch);
+}
+
+void TurboAssembler::MSARoundD(MSARegister dst, MSARegister src,
+                               FPURoundingMode mode) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = t8;
+  Register scratch2 = at;
+  cfcmsa(scratch, MSACSR);
+  if (mode == kRoundToNearest) {
+    scratch2 = zero_reg;
+  } else {
+    li(scratch2, Operand(mode));
+  }
+  ctcmsa(MSACSR, scratch2);
+  frint_d(dst, src);
+  ctcmsa(MSACSR, scratch);
+}
+
 void MacroAssembler::Madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
                             FPURegister ft, FPURegister scratch) {
   DCHECK(fr != scratch && fs != scratch && ft != scratch);
@@ -4377,13 +4410,13 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
   } else {
     // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    int64_t imm64;
-    imm64 = branch_long_offset(L);
+    int64_t imm64 = branch_long_offset(L);
     DCHECK(is_int32(imm64));
+    int32_t imm32 = static_cast<int32_t>(imm64);
     or_(t8, ra, zero_reg);
     nal();                                        // Read PC into ra register.
-    lui(t9, (imm64 & kHiMaskOf32) >> kLuiShift);  // Branch delay slot.
-    ori(t9, t9, (imm64 & kImm16Mask));
+    lui(t9, (imm32 & kHiMaskOf32) >> kLuiShift);  // Branch delay slot.
+    ori(t9, t9, (imm32 & kImm16Mask));
     daddu(t9, ra, t9);
     if (bdslot == USE_DELAY_SLOT) {
       or_(ra, t8, zero_reg);
@@ -4401,12 +4434,12 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   } else {
     // Generate position independent long branch and link.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    int64_t imm64;
-    imm64 = branch_long_offset(L);
+    int64_t imm64 = branch_long_offset(L);
     DCHECK(is_int32(imm64));
-    lui(t8, (imm64 & kHiMaskOf32) >> kLuiShift);
+    int32_t imm32 = static_cast<int32_t>(imm64);
+    lui(t8, (imm32 & kHiMaskOf32) >> kLuiShift);
     nal();                              // Read PC into ra register.
-    ori(t8, t8, (imm64 & kImm16Mask));  // Branch delay slot.
+    ori(t8, t8, (imm32 & kImm16Mask));  // Branch delay slot.
     daddu(t8, ra, t8);
     jalr(t8);
     // Emit a nop in the branch delay slot if required.
@@ -4486,6 +4519,33 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   Register scratch = temps.Acquire();
   li(scratch, Operand(handle));
   push(scratch);
+}
+
+void TurboAssembler::PushArray(Register array, Register size, Register scratch,
+                               Register scratch2, PushArrayOrder order) {
+  DCHECK(!AreAliased(array, size, scratch, scratch2));
+  Label loop, entry;
+  if (order == PushArrayOrder::kReverse) {
+    mov(scratch, zero_reg);
+    jmp(&entry);
+    bind(&loop);
+    Dlsa(scratch2, array, scratch, kPointerSizeLog2);
+    Ld(scratch2, MemOperand(scratch2));
+    push(scratch2);
+    Daddu(scratch, scratch, Operand(1));
+    bind(&entry);
+    Branch(&loop, less, scratch, Operand(size));
+  } else {
+    mov(scratch, size);
+    jmp(&entry);
+    bind(&loop);
+    Dlsa(scratch2, array, scratch, kPointerSizeLog2);
+    Ld(scratch2, MemOperand(scratch2));
+    push(scratch2);
+    bind(&entry);
+    Daddu(scratch, scratch, Operand(-1));
+    Branch(&loop, greater_equal, scratch, Operand(zero_reg));
+  }
 }
 
 void MacroAssembler::MaybeDropFrames() {
@@ -4696,8 +4756,8 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
-    Dlsa(t0, sp, actual_parameter_count, kPointerSizeLog2);
-    Ld(t0, MemOperand(t0));
+    LoadReceiver(t0, actual_parameter_count);
+
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     SmiTag(expected_parameter_count);

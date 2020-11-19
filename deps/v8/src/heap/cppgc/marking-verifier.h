@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_CPPGC_MARKING_VERIFIER_H_
 #define V8_HEAP_CPPGC_MARKING_VERIFIER_H_
 
+#include <unordered_set>
+
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
@@ -34,6 +36,11 @@ class V8_EXPORT_PRIVATE MarkingVerifier final
   void VisitPointer(const void*) final;
 
   bool VisitHeapObjectHeader(HeapObjectHeader*);
+
+  std::unordered_set<const HeapObjectHeader*> in_construction_objects_heap_;
+  std::unordered_set<const HeapObjectHeader*> in_construction_objects_stack_;
+  std::unordered_set<const HeapObjectHeader*>* in_construction_objects_ =
+      &in_construction_objects_heap_;
 };
 
 }  // namespace internal

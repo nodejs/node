@@ -30,6 +30,7 @@ namespace internal {
   V(kInvalidJumpTableIndex, "Invalid jump table index")                       \
   V(kInvalidParametersAndRegistersInGenerator,                                \
     "invalid parameters and registers in generator")                          \
+  V(kInvalidNumberOfJsArgs, "Invalid number of JS arguments")                 \
   V(kMissingBytecodeArray, "Missing bytecode array from function")            \
   V(kObjectNotTagged, "The object is not tagged")                             \
   V(kObjectTagged, "The object is tagged")                                    \

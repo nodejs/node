@@ -210,7 +210,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       // TODO(7748) Update this for gc and ref types if needed
       switch (i.pc()[1]) {
 #define CASE_LOCAL_TYPE(local_name, type_name) \
-  case kLocal##local_name:                     \
+  case k##local_name##Code:                    \
     os << " kWasm" #type_name ",";             \
     break;
 

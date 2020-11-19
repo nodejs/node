@@ -16,19 +16,6 @@
 
 #include "src/base/memory.h"
 
-// TODO(v8:10749): When we've had a chance to collect performance impact,
-// either move towards using _NONINLINE versions everywhere, or revert back to
-// inline use and remove _NONINLINE macros.
-#define OBJECT_CONSTRUCTORS_NONINLINE(Type, ...)   \
- public:                                           \
-  constexpr Type() : __VA_ARGS__() {}              \
-                                                   \
- protected:                                        \
-  template <typename TFieldType, int kFieldOffset> \
-  friend class TaggedField;                        \
-                                                   \
-  V8_EXPORT_PRIVATE explicit Type(Address ptr)
-
 // Since this changes visibility, it should always be last in a class
 // definition.
 #define OBJECT_CONSTRUCTORS(Type, ...)             \
@@ -40,9 +27,6 @@
   friend class TaggedField;                        \
                                                    \
   explicit inline Type(Address ptr)
-
-#define OBJECT_CONSTRUCTORS_IMPL_NONINLINE(Type, Super) \
-  Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
   inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }
@@ -100,10 +84,6 @@
   inline type name() const;     \
   inline type name(const Isolate* isolate) const;
 
-#define DECL_GETTER_NONINLINE(name, type) \
-  V8_EXPORT_PRIVATE type name() const;    \
-  V8_EXPORT_PRIVATE type name(const Isolate* isolate) const;
-
 #define DEF_GETTER(holder, name, type)                     \
   type holder::name() const {                              \
     const Isolate* isolate = GetIsolateForPtrCompr(*this); \
@@ -116,16 +96,11 @@
   inline void set_##name(type value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-#define DECL_ACCESSORS_NONINLINE(name, type) \
-  DECL_GETTER_NONINLINE(name, type)          \
-  V8_EXPORT_PRIVATE void set_##name(         \
+// TODO(solanes, neis): Unify naming for synchronized accessor uses.
+#define DECL_SYNCHRONIZED_ACCESSORS(name, type) \
+  DECL_GETTER(synchronized_##name, type)        \
+  inline void set_synchronized_##name(          \
       type value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-#define DECL_CAST_NONINLINE(Type)                    \
-  V8_EXPORT_PRIVATE static Type cast(Object object); \
-  inline static Type unchecked_cast(Object object) { \
-    return bit_cast<Type>(object);                   \
-  }
 
 #define DECL_CAST(Type)                                 \
   V8_INLINE static Type cast(Object object);            \
@@ -512,20 +487,6 @@
   void DeoptimizationData::Set##name(int i, type value) {       \
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }
-
-#define TQ_OBJECT_CONSTRUCTORS_NONINLINE(Type)     \
- public:                                           \
-  constexpr Type() = default;                      \
-                                                   \
- protected:                                        \
-  template <typename TFieldType, int kFieldOffset> \
-  friend class TaggedField;                        \
-                                                   \
-  V8_EXPORT_PRIVATE explicit Type(Address ptr);    \
-  friend class TorqueGenerated##Type<Type, Super>;
-
-#define TQ_OBJECT_CONSTRUCTORS_IMPL_NONINLINE(Type) \
-  Type::Type(Address ptr) : TorqueGenerated##Type<Type, Type::Super>(ptr) {}
 
 #define TQ_OBJECT_CONSTRUCTORS(Type)               \
  public:                                           \

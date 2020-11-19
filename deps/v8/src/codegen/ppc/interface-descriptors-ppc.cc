@@ -52,6 +52,11 @@ const Register LoadDescriptor::SlotRegister() { return r3; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return r6; }
 
+const Register
+LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister() {
+  return r7;
+}
+
 const Register StoreDescriptor::ReceiverRegister() { return r4; }
 const Register StoreDescriptor::NameRegister() { return r5; }
 const Register StoreDescriptor::ValueRegister() { return r3; }

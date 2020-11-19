@@ -965,8 +965,17 @@ base::Optional<ParseResult> MakeClassDeclaration(
   std::vector<Declaration*> result;
 
   result.push_back(MakeNode<ClassDeclaration>(
-      name, flags, std::move(extends), std::move(generates), std::move(methods),
-      fields, MakeInstanceTypeConstraints(annotations)));
+      name, flags, extends, std::move(generates), std::move(methods), fields,
+      MakeInstanceTypeConstraints(annotations)));
+
+  Identifier* constexpr_name =
+      MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + name->value);
+  constexpr_name->pos = name->pos;
+  TypeExpression* constexpr_extends = AddConstexpr(extends);
+  TypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
+      constexpr_name, transient, constexpr_extends, name->value);
+  constexpr_decl->pos = name->pos;
+  result.push_back(constexpr_decl);
 
   if ((flags & ClassFlag::kDoNotGenerateCast) == 0 &&
       (flags & ClassFlag::kIsShape) == 0) {

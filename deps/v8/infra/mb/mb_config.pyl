@@ -75,9 +75,13 @@
       'V8 Mac64 - debug': 'debug_x64',
       'V8 Mac64 GC Stress': 'debug_x64',
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
+      'V8 Mac - arm64 - release builder': 'release_arm64',
+      'V8 Mac - arm64 - sim - debug builder': 'debug_simulate_arm64',
+      'V8 Mac - arm64 - sim - release builder': 'release_simulate_arm64',
       # Sanitizers.
       'V8 Linux64 ASAN': 'release_x64_asan',
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
+      'V8 Linux64 TSAN - no-concurrent-marking - builder': 'release_x64_tsan_no_cm',
       'V8 Linux - arm64 - sim - CFI': 'release_simulate_arm64_cfi',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
@@ -236,6 +240,7 @@
       'v8_linux64_fuzzilli_ng': 'release_x64_fuzzilli',
       'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
+      'v8_linux64_tsan_no_cm_rel_ng': 'release_x64_tsan_no_cm',
       'v8_linux64_tsan_isolates_rel_ng':
           'release_x64_tsan_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_minimal_symbols',
@@ -253,6 +258,9 @@
       'v8_mac_arm64_rel_ng': 'release_arm64',
       'v8_mac_arm64_dbg_ng': 'debug_arm64',
       'v8_mac_arm64_full_dbg_ng': 'full_debug_arm64',
+      'v8_mac_arm64_sim_rel_ng': 'release_simulate_arm64_trybot',
+      'v8_mac_arm64_sim_dbg_ng': 'debug_simulate_arm64',
+      'v8_mac_arm64_sim_nodcheck_rel_ng': 'release_simulate_arm64',
       'v8_mac64_gc_stress_dbg_ng': 'debug_x64_trybot',
       'v8_mac64_rel_ng': 'release_x64_trybot',
       'v8_mac64_dbg': 'debug_x64',
@@ -424,15 +432,15 @@
 
     # Official configs for arm
     'official_arm': [
-      'release_bot', 'arm', 'hard_float', 'official'],
+      'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo'],
     'official_arm64': [
-      'release_bot', 'arm64', 'hard_float', 'official'],
+      'release_bot', 'arm64', 'hard_float', 'official', 'disable_pgo'],
     'official_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
-      'android_strip_outputs', 'official'],
+      'android_strip_outputs', 'official', 'disable_pgo'],
     'official_android_arm64': [
       'release_bot', 'arm64', 'android', 'minimal_symbols',
-      'android_strip_outputs', 'official'],
+      'android_strip_outputs', 'official', 'disable_pgo'],
 
     # Release configs for x64.
     'release_x64': [
@@ -488,6 +496,8 @@
       'release_trybot', 'x64', 'v8_enable_test_features'],
     'release_x64_tsan': [
       'release_bot', 'x64', 'tsan'],
+    'release_x64_tsan_no_cm': [
+      'release_bot', 'x64', 'tsan', 'disable_concurrent_marking'],
     'release_x64_tsan_minimal_symbols': [
       'release_bot', 'x64', 'tsan', 'minimal_symbols'],
     'release_x64_ubsan': [
@@ -504,7 +514,7 @@
 
     # Official configs for x64.
     'official_x64': [
-      'release_bot', 'x64', 'official'],
+      'release_bot', 'x64', 'official', 'disable_pgo'],
 
     # Debug configs for x64.
     'debug_x64': [
@@ -577,7 +587,7 @@
 
     # Official configs for x86.
     'official_x86': [
-        'release_bot', 'x86', 'official'],
+        'release_bot', 'x86', 'official', 'disable_pgo'],
 
     # Torque compare test
     'torque_compare': [
@@ -586,7 +596,7 @@
 
   'mixins': {
     'android': {
-      'gn_args': 'target_os="android" v8_android_log_stdout=true',
+      'gn_args': 'target_os="android" v8_android_log_stdout=true default_min_sdk_version=19',
     },
 
     'android_strip_outputs': {
@@ -648,6 +658,14 @@
 
     'debug_trybot': {
       'mixins': ['debug_bot', 'minimal_symbols'],
+    },
+
+    'disable_concurrent_marking': {
+      'gn_args': 'v8_enable_concurrent_marking=false',
+    },
+
+    'disable_pgo': {
+      'gn_args': 'chrome_pgo_phase=0',
     },
 
     'fuchsia': {

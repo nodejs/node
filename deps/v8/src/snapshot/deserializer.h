@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "src/common/globals.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
@@ -126,33 +127,37 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   inline TSlot Write(TSlot dest, MaybeObject value);
 
   template <typename TSlot>
+  inline TSlot Write(TSlot dest, HeapObject value,
+                     HeapObjectReferenceType type);
+
+  template <typename TSlot>
   inline TSlot WriteAddress(TSlot dest, Address value);
 
   template <typename TSlot>
   inline TSlot WriteExternalPointer(TSlot dest, Address value);
 
-  // Fills in some heap data in an area from start to end (non-inclusive).  The
-  // space id is used for the write barrier.  The object_address is the address
-  // of the object we are writing into, or nullptr if we are not writing into an
-  // object, i.e. if we are writing a series of tagged values that are not on
-  // the heap. Return false if the object content has been deferred.
+  // Fills in some heap data in an area from start to end (non-inclusive). The
+  // object_address is the address of the object we are writing into, or nullptr
+  // if we are not writing into an object, i.e. if we are writing a series of
+  // tagged values that are not on the heap.
   template <typename TSlot>
-  bool ReadData(TSlot start, TSlot end, SnapshotSpace space,
-                Address object_address);
+  void ReadData(TSlot start, TSlot end, Address object_address);
 
-  // A helper function for ReadData, templatized on the bytecode for efficiency.
-  // Returns the new value of {current}.
-  template <typename TSlot, Bytecode bytecode,
-            SnapshotSpace space_number_if_any>
-  inline TSlot ReadDataCase(TSlot current, Address current_object_address,
-                            byte data, bool write_barrier_needed);
+  // Helper for ReadData which reads the given bytecode and fills in some heap
+  // data into the given slot. May fill in zero or multiple slots, so it returns
+  // the next unfilled slot.
+  template <typename TSlot>
+  TSlot ReadSingleBytecodeData(byte data, TSlot current,
+                               Address object_address);
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
   HeapObject ReadObject(SnapshotSpace space_number);
-  void ReadCodeObjectBody(SnapshotSpace space_number,
-                          Address code_object_address);
+  HeapObject ReadMetaMap();
+  void ReadCodeObjectBody(Address code_object_address);
+
+  HeapObjectReferenceType GetAndResetNextReferenceType();
 
  protected:
   HeapObject ReadObject();
@@ -190,17 +195,32 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   std::vector<Handle<JSArrayBuffer>> new_off_heap_array_buffers_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
 
+  // Unresolved forward references (registered with kRegisterPendingForwardRef)
+  // are collected in order as (object, field offset) pairs. The subsequent
+  // forward ref resolution (with kResolvePendingForwardRef) accesses this
+  // vector by index.
+  //
+  // The vector is cleared when there are no more unresolved forward refs.
+  struct UnresolvedForwardRef {
+    UnresolvedForwardRef(HeapObject object, int offset,
+                         HeapObjectReferenceType ref_type)
+        : object(object), offset(offset), ref_type(ref_type) {}
+
+    HeapObject object;
+    int offset;
+    HeapObjectReferenceType ref_type;
+  };
+  std::vector<UnresolvedForwardRef> unresolved_forward_refs_;
+  int num_unresolved_forward_refs_ = 0;
+
   DeserializerAllocator allocator_;
   const bool deserializing_user_code_;
+
+  bool next_reference_is_weak_ = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
   std::vector<HeapObject> to_rehash_;
-  // Store the objects whose maps are deferred and thus initialized as filler
-  // maps during deserialization, so that they can be processed later when the
-  // maps become available.
-  std::unordered_map<HeapObject, SnapshotSpace, Object::Hasher>
-      fillers_to_post_process_;
 
 #ifdef DEBUG
   uint32_t num_api_references_;

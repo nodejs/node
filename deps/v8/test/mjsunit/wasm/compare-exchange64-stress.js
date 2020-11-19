@@ -131,9 +131,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
     builder.addFunction(functionName, makeSig([kWasmI32, kWasmI32, kWasmI32,
             kWasmI32, kWasmI32
         ], []))
-        .addLocals({
-            i32_count: 1, i64_count: 2
-        })
+        .addLocals(kWasmI32, 1).addLocals(kWasmI64, 2)
         .addBody(body)
         .exportAs(functionName);
 }

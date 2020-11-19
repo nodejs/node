@@ -9,6 +9,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"

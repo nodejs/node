@@ -307,8 +307,8 @@ namespace compiler {
   V(MipsS8x16PackOdd)              \
   V(MipsS8x16InterleaveEven)       \
   V(MipsS8x16InterleaveOdd)        \
-  V(MipsS8x16Shuffle)              \
-  V(MipsS8x16Swizzle)              \
+  V(MipsI8x16Shuffle)              \
+  V(MipsI8x16Swizzle)              \
   V(MipsS8x16Concat)               \
   V(MipsS8x8Reverse)               \
   V(MipsS8x4Reverse)               \

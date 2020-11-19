@@ -21,14 +21,13 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(FeedbackVector, HeapObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackVector)
 OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(ClosureFeedbackCellArray, FixedArray)
 
 NEVER_READ_ONLY_SPACE_IMPL(FeedbackVector)
 NEVER_READ_ONLY_SPACE_IMPL(ClosureFeedbackCellArray)
 
-CAST_ACCESSOR(FeedbackVector)
 CAST_ACCESSOR(FeedbackMetadata)
 CAST_ACCESSOR(ClosureFeedbackCellArray)
 
@@ -99,22 +98,7 @@ Handle<FeedbackCell> ClosureFeedbackCellArray::GetFeedbackCell(int index) {
   return handle(FeedbackCell::cast(get(index)), GetIsolate());
 }
 
-ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
-          kSharedFunctionInfoOffset)
-WEAK_ACCESSORS(FeedbackVector, optimized_code_weak_or_smi,
-               kOptimizedCodeWeakOrSmiOffset)
-ACCESSORS(FeedbackVector, closure_feedback_cell_array, ClosureFeedbackCellArray,
-          kClosureFeedbackCellArrayOffset)
-INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
-INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)
-INT32_ACCESSORS(FeedbackVector, profiler_ticks, kProfilerTicksOffset)
-
-void FeedbackVector::clear_padding() {
-  if (FIELD_SIZE(kPaddingOffset) == 0) return;
-  DCHECK_EQ(4, FIELD_SIZE(kPaddingOffset));
-  memset(reinterpret_cast<void*>(address() + kPaddingOffset), 0,
-         FIELD_SIZE(kPaddingOffset));
-}
+void FeedbackVector::clear_padding() { set_padding(0); }
 
 bool FeedbackVector::is_empty() const { return length() == 0; }
 
@@ -156,24 +140,12 @@ FeedbackSlot FeedbackVector::ToSlot(intptr_t index) {
 }
 
 MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return Get(isolate, slot);
+  return raw_feedback_slots(GetIndex(slot));
 }
 
 MaybeObject FeedbackVector::Get(const Isolate* isolate,
                                 FeedbackSlot slot) const {
-  return get(isolate, GetIndex(slot));
-}
-
-MaybeObject FeedbackVector::get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
-}
-
-MaybeObject FeedbackVector::get(const Isolate* isolate, int index) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = OffsetOfElementAt(index);
-  return RELAXED_READ_WEAK_FIELD(*this, offset);
+  return raw_feedback_slots(isolate, GetIndex(slot));
 }
 
 Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(int index) const {
@@ -185,28 +157,16 @@ Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(int index) const {
 
 void FeedbackVector::Set(FeedbackSlot slot, MaybeObject value,
                          WriteBarrierMode mode) {
-  set(GetIndex(slot), value, mode);
-}
-
-void FeedbackVector::set(int index, MaybeObject value, WriteBarrierMode mode) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_WEAK_FIELD(*this, offset, value);
-  CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);
+  set_raw_feedback_slots(GetIndex(slot), value, mode);
 }
 
 void FeedbackVector::Set(FeedbackSlot slot, Object value,
                          WriteBarrierMode mode) {
-  set(GetIndex(slot), MaybeObject::FromObject(value), mode);
-}
-
-void FeedbackVector::set(int index, Object value, WriteBarrierMode mode) {
-  set(index, MaybeObject::FromObject(value), mode);
+  set_raw_feedback_slots(GetIndex(slot), MaybeObject::FromObject(value), mode);
 }
 
 inline MaybeObjectSlot FeedbackVector::slots_start() {
-  return RawMaybeWeakField(kFeedbackSlotsOffset);
+  return RawMaybeWeakField(OffsetOfElementAt(0));
 }
 
 // Helper function to transform the feedback to BinaryOperationHint.
@@ -334,8 +294,7 @@ MaybeObject FeedbackNexus::GetFeedbackExtra() const {
   FeedbackSlotKind kind = vector().GetKind(slot());
   DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
 #endif
-  int extra_index = vector().GetIndex(slot()) + 1;
-  return vector().get(extra_index);
+  return vector().Get(slot().WithOffset(1));
 }
 
 void FeedbackNexus::SetFeedback(Object feedback, WriteBarrierMode mode) {
@@ -354,8 +313,8 @@ void FeedbackNexus::SetFeedbackExtra(Object feedback_extra,
   DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
   FeedbackVector::AssertNoLegacyTypes(MaybeObject::FromObject(feedback_extra));
 #endif
-  int index = vector().GetIndex(slot()) + 1;
-  vector().set(index, MaybeObject::FromObject(feedback_extra), mode);
+  vector().Set(slot().WithOffset(1), MaybeObject::FromObject(feedback_extra),
+               mode);
 }
 
 void FeedbackNexus::SetFeedbackExtra(MaybeObject feedback_extra,
@@ -363,8 +322,7 @@ void FeedbackNexus::SetFeedbackExtra(MaybeObject feedback_extra,
 #ifdef DEBUG
   FeedbackVector::AssertNoLegacyTypes(feedback_extra);
 #endif
-  int index = vector().GetIndex(slot()) + 1;
-  vector().set(index, feedback_extra, mode);
+  vector().Set(slot().WithOffset(1), feedback_extra, mode);
 }
 
 Isolate* FeedbackNexus::GetIsolate() const { return vector().GetIsolate(); }

@@ -26,7 +26,7 @@ namespace {
 class SanitizeIsolateScope final {
  public:
   SanitizeIsolateScope(Isolate* isolate, bool allow_active_isolate_for_testing,
-                       const DisallowHeapAllocation& no_gc)
+                       const DisallowGarbageCollection& no_gc)
       : isolate_(isolate),
         feedback_vectors_for_profiling_tools_(
             isolate->heap()->feedback_vectors_for_profiling_tools()),
@@ -239,7 +239,7 @@ void StartupSerializer::SerializeStringTable(StringTable* string_table) {
 }
 
 void StartupSerializer::SerializeStrongReferences(
-    const DisallowHeapAllocation& no_gc) {
+    const DisallowGarbageCollection& no_gc) {
   Isolate* isolate = this->isolate();
   // No active threads.
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());

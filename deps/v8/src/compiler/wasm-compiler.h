@@ -106,6 +106,7 @@ constexpr WasmImportCallKind kDefaultImportCallKind =
 // another target, which is why the ultimate target is returned as well.
 V8_EXPORT_PRIVATE std::pair<WasmImportCallKind, Handle<JSReceiver>>
 ResolveWasmImportCall(Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
+                      const wasm::WasmModule* module,
                       const wasm::WasmFeatures& enabled_features);
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
@@ -122,13 +123,14 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
 // Returns an OptimizedCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, wasm::WasmEngine* wasm_engine,
-    const wasm::FunctionSig* sig, bool is_import,
-    const wasm::WasmFeatures& enabled_features);
+    const wasm::FunctionSig* sig, const wasm::WasmModule* module,
+    bool is_import, const wasm::WasmFeatures& enabled_features);
 
 // Compiles a stub with JS linkage that serves as an adapter for function
 // objects constructed via {WebAssembly.Function}. It performs a round-trip
 // simulating a JS-to-Wasm-to-JS coercion of parameter and return values.
-MaybeHandle<Code> CompileJSToJSWrapper(Isolate*, const wasm::FunctionSig*);
+MaybeHandle<Code> CompileJSToJSWrapper(Isolate*, const wasm::FunctionSig*,
+                                       const wasm::WasmModule* module);
 
 enum CWasmEntryParameters {
   kCodeEntry,
@@ -141,8 +143,8 @@ enum CWasmEntryParameters {
 
 // Compiles a stub with C++ linkage, to be called from Execution::CallWasm,
 // which knows how to feed it its parameters.
-V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(Isolate*,
-                                                 const wasm::FunctionSig*);
+V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(
+    Isolate*, const wasm::FunctionSig*, const wasm::WasmModule* module);
 
 // Values from the instance object are cached between Wasm-level function calls.
 // This struct allows the SSA environment handling this cache to be defined
@@ -359,6 +361,9 @@ class WasmGraphBuilder {
 
   enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 
+  // Overload for when we want to provide a specific signature, rather than
+  // build one using sig_, for example after scalar lowering.
+  V8_EXPORT_PRIVATE void LowerInt64(Signature<MachineRepresentation>* sig);
   V8_EXPORT_PRIVATE void LowerInt64(CallOrigin origin);
 
   V8_EXPORT_PRIVATE void SimdScalarLoweringForTesting();
@@ -452,7 +457,7 @@ class WasmGraphBuilder {
 
   Node* MemBuffer(uint32_t offset);
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
-  Node* BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
+  Node* BoundsCheckMem(uint8_t access_size, Node* index, uint64_t offset,
                        wasm::WasmCodePosition, EnforceBoundsCheck);
   // Check that the range [start, start + size) is in the range [0, max).
   // Also updates *size with the valid range. Returns true if the range is

@@ -6,7 +6,7 @@
 #define V8_OBJECTS_JS_REGEXP_H_
 
 #include "src/objects/js-array.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -89,6 +89,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   void MarkTierUpForNextExec();
 
   inline Type TypeTag() const;
+  static bool TypeSupportsCaptures(Type t) {
+    return t == IRREGEXP || t == EXPERIMENTAL;
+  }
 
   // Maximum number of captures allowed.
   static constexpr int kMaxCaptures = 1 << 16;
@@ -105,6 +108,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   inline Object DataAt(int index) const;
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object value);
+  inline void SetCaptureNameMap(Handle<FixedArray> capture_name_map);
 
   static constexpr int code_index(bool is_latin1) {
     return is_latin1 ? kIrregexpLatin1CodeIndex : kIrregexpUC16CodeIndex;
@@ -189,18 +193,14 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static const int kIrregexpBacktrackLimit = kDataIndex + 8;
   static const int kIrregexpDataSize = kDataIndex + 9;
 
-  // TODO(mbid,v8:10765): At the moment the EXPERIMENTAL data array is an
-  // extension of IRREGEXP data, with most fields set to some
+  // TODO(mbid,v8:10765): At the moment the EXPERIMENTAL data array conforms
+  // to the format of an IRREGEXP data array, with most fields set to some
   // default/uninitialized value. This is because EXPERIMENTAL and IRREGEXP
-  // regexps take the same code path in
-  // `RegExpBuiltinsAssembler::RegExpExecInternal`, which reads off various
-  // fields from the `store` array. `RegExpExecInternal` should probably
+  // regexps take the same code path in `RegExpExecInternal`, which reads off
+  // various fields from the data array. `RegExpExecInternal` should probably
   // distinguish between EXPERIMENTAL and IRREGEXP, and then we can get rid of
   // all the IRREGEXP only fields.
-
-  // The same as kAtomPatternIndex for atom regexps.
-  static constexpr int kExperimentalPatternIndex = kIrregexpDataSize;
-  static constexpr int kExperimentalDataSize = kIrregexpDataSize + 1;
+  static constexpr int kExperimentalDataSize = kIrregexpDataSize;
 
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;

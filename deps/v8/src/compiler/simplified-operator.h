@@ -432,19 +432,26 @@ class DynamicCheckMapsParameters final {
   enum ICState { kMonomorphic, kPolymorphic };
 
   DynamicCheckMapsParameters(CheckMapsFlags flags, Handle<Object> handler,
-                             const FeedbackSource& feedback, ICState state)
-      : flags_(flags), handler_(handler), feedback_(feedback), state_(state) {}
+                             MaybeHandle<Map> maybe_map,
+                             const FeedbackSource& feedback)
+      : flags_(flags),
+        handler_(handler),
+        maybe_map_(maybe_map),
+        feedback_(feedback) {}
 
   CheckMapsFlags flags() const { return flags_; }
   Handle<Object> handler() const { return handler_; }
+  MaybeHandle<Map> map() const { return maybe_map_; }
   FeedbackSource const& feedback() const { return feedback_; }
-  ICState const& state() const { return state_; }
+  ICState state() const {
+    return maybe_map_.is_null() ? ICState::kPolymorphic : ICState::kMonomorphic;
+  }
 
  private:
   CheckMapsFlags const flags_;
   Handle<Object> const handler_;
+  MaybeHandle<Map> const maybe_map_;
   FeedbackSource const feedback_;
-  ICState const state_;
 };
 
 bool operator==(DynamicCheckMapsParameters const&,
@@ -803,6 +810,11 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // delta parameter represents the executed bytecodes since the last update.
   const Operator* UpdateInterruptBudget(int delta);
 
+  // Takes the current feedback vector as input 0, and generates a check of the
+  // vector's marker. Depending on the marker's value, we either do nothing,
+  // trigger optimized compilation, or install a finished code object.
+  const Operator* TierUpCheck();
+
   const Operator* ToBoolean();
 
   const Operator* StringConcat();
@@ -875,10 +887,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckInternalizedString();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const FeedbackSource& = FeedbackSource());
-  const Operator* DynamicCheckMaps(
-      CheckMapsFlags flags, Handle<Object> handler,
-      const FeedbackSource& feedback,
-      DynamicCheckMapsParameters::ICState ic_state);
+  const Operator* DynamicCheckMaps(CheckMapsFlags flags, Handle<Object> handler,
+                                   MaybeHandle<Map> map,
+                                   const FeedbackSource& feedback);
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
   const Operator* CheckReceiver();
@@ -1157,6 +1168,18 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
     return TNode<Object>::UncheckedCast(
         NodeProperties::GetValueInput(node(), SlowCallArgumentIndex(i)));
   }
+};
+
+class TierUpCheckNode final : public SimplifiedNodeWrapperBase {
+ public:
+  explicit constexpr TierUpCheckNode(Node* node)
+      : SimplifiedNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kTierUpCheck);
+  }
+
+#define INPUTS(V) V(FeedbackVector, feedback_vector, 0, FeedbackVector)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
 };
 
 class UpdateInterruptBudgetNode final : public SimplifiedNodeWrapperBase {

@@ -15,14 +15,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #include <poll.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -31,14 +36,13 @@
 
 #include "libreprl.h"
 
-// Well-known file descriptor numbers for fuzzer <-> fuzzee communication on child process side.
-#define CRFD 100
-#define CWFD 101
-#define DRFD 102
-#define DWFD 103
+// Well-known file descriptor numbers for reprl <-> child communication, child process side
+#define REPRL_CHILD_CTRL_IN 100
+#define REPRL_CHILD_CTRL_OUT 101
+#define REPRL_CHILD_DATA_IN 102
+#define REPRL_CHILD_DATA_OUT 103
 
-#define CHECK_SUCCESS(cond) if((cond) < 0) { perror(#cond); abort(); }
-#define CHECK(cond) if(!(cond)) { fprintf(stderr, "(" #cond ") failed!"); abort(); }
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 static uint64_t current_millis()
 {
@@ -47,173 +51,430 @@ static uint64_t current_millis()
     return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-int reprl_spawn_child(char** argv, char** envp, struct reprl_child_process* child)
+static char** copy_string_array(const char** orig)
 {
-    // We need to make sure that our fds don't end up being 100 - 104.
-    if (fcntl(CRFD, F_GETFD) == -1) {
-        int devnull = open("/dev/null", O_RDWR);
-        dup2(devnull, CRFD);
-        dup2(devnull, CWFD);
-        dup2(devnull, DRFD);
-        dup2(devnull, DWFD);
-        close(devnull);
+    size_t num_entries = 0;
+    for (const char** current = orig; *current; current++) {
+        num_entries += 1;
+    }
+    char** copy = calloc(num_entries + 1, sizeof(char*));
+    for (size_t i = 0; i < num_entries; i++) {
+        copy[i] = strdup(orig[i]);
+    }
+    return copy;
+}
+
+static void free_string_array(char** arr)
+{
+    if (!arr) return;
+    for (char** current = arr; *current; current++) {
+        free(*current);
+    }
+    free(arr);
+}
+
+// A unidirectional communication channel for larger amounts of data, up to a maximum size (REPRL_MAX_DATA_SIZE).
+// Implemented as a (RAM-backed) file for which the file descriptor is shared with the child process and which is mapped into our address space.
+struct data_channel {
+    // File descriptor of the underlying file. Directly shared with the child process.
+    int fd;
+    // Memory mapping of the file, always of size REPRL_MAX_DATA_SIZE.
+    char* mapping;
+};
+
+struct reprl_context {
+    // Whether reprl_initialize has been successfully performed on this context.
+    int initialized;
+
+    // Read file descriptor of the control pipe. Only valid if a child process is running (i.e. pid is nonzero).
+    int ctrl_in;
+    // Write file descriptor of the control pipe. Only valid if a child process is running (i.e. pid is nonzero).
+    int ctrl_out;
+
+    // Data channel REPRL -> Child
+    struct data_channel* data_in;
+    // Data channel Child -> REPRL
+    struct data_channel* data_out;
+
+    // Optional data channel for the child's stdout and stderr.
+    struct data_channel* stdout;
+    struct data_channel* stderr;
+
+    // PID of the child process. Will be zero if no child process is currently running.
+    int pid;
+
+    // Arguments and environment for the child process.
+    char** argv;
+    char** envp;
+
+    // A malloc'd string containing a description of the last error that occurred.
+    char* last_error;
+};
+
+static int reprl_error(struct reprl_context* ctx, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    free(ctx->last_error);
+    vasprintf(&ctx->last_error, format, args);
+    return -1;
+}
+
+static struct data_channel* reprl_create_data_channel(struct reprl_context* ctx)
+{
+#ifdef __linux__
+    int fd = memfd_create("REPRL_DATA_CHANNEL", MFD_CLOEXEC);
+#else
+    char path[] = "/tmp/reprl_data_channel_XXXXXXXX";
+    if (mktemp(path) < 0) {
+        reprl_error(ctx, "Failed to create temporary filename for data channel: %s", strerror(errno));
+        return NULL;
+    }
+    int fd = open(path, O_RDWR | O_CREAT| O_CLOEXEC);
+    unlink(path);
+#endif
+    if (fd == -1 || ftruncate(fd, REPRL_MAX_DATA_SIZE) != 0) {
+        reprl_error(ctx, "Failed to create data channel file: %s", strerror(errno));
+        return NULL;
+    }
+    char* mapping = mmap(0, REPRL_MAX_DATA_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mapping == MAP_FAILED) {
+        reprl_error(ctx, "Failed to mmap data channel file: %s", strerror(errno));
+        return NULL;
     }
 
-    int crpipe[2] = { 0, 0 };          // control channel child -> fuzzer
-    int cwpipe[2] = { 0, 0 };          // control channel fuzzer -> child
-    int drpipe[2] = { 0, 0 };          // data channel child -> fuzzer
-    int dwpipe[2] = { 0, 0 };          // data channel fuzzer -> child
+    struct data_channel* channel = malloc(sizeof(struct data_channel));
+    channel->fd = fd;
+    channel->mapping = mapping;
+    return channel;
+}
 
-    int res = 0;
-    res |= pipe(crpipe);
-    res |= pipe(cwpipe);
-    res |= pipe(drpipe);
-    res |= pipe(dwpipe);
-    if (res != 0) {
-        if (crpipe[0] != 0) { close(crpipe[0]); close(crpipe[1]); }
-        if (cwpipe[0] != 0) { close(cwpipe[0]); close(cwpipe[1]); }
-        if (drpipe[0] != 0) { close(drpipe[0]); close(drpipe[1]); }
-        if (dwpipe[0] != 0) { close(dwpipe[0]); close(dwpipe[1]); }
-        fprintf(stderr, "[REPRL] Could not setup pipes for communication with child: %s\n", strerror(errno));
-        return -1;
+static void reprl_destroy_data_channel(struct reprl_context* ctx, struct data_channel* channel)
+{
+    if (!channel) return;
+    close(channel->fd);
+    munmap(channel->mapping, REPRL_MAX_DATA_SIZE);
+    free(channel);
+}
+
+static void reprl_child_terminated(struct reprl_context* ctx)
+{
+    if (!ctx->pid) return;
+    ctx->pid = 0;
+    close(ctx->ctrl_in);
+    close(ctx->ctrl_out);
+}
+
+static void reprl_terminate_child(struct reprl_context* ctx)
+{
+    if (!ctx->pid) return;
+    int status;
+    kill(ctx->pid, SIGKILL);
+    waitpid(ctx->pid, &status, 0);
+    reprl_child_terminated(ctx);
+}
+
+static int reprl_spawn_child(struct reprl_context* ctx)
+{
+    // This is also a good time to ensure the data channel backing files don't grow too large.
+    ftruncate(ctx->data_in->fd, REPRL_MAX_DATA_SIZE);
+    ftruncate(ctx->data_out->fd, REPRL_MAX_DATA_SIZE);
+    if (ctx->stdout) ftruncate(ctx->stdout->fd, REPRL_MAX_DATA_SIZE);
+    if (ctx->stderr) ftruncate(ctx->stderr->fd, REPRL_MAX_DATA_SIZE);
+
+    int crpipe[2] = { 0, 0 };          // control pipe child -> reprl
+    int cwpipe[2] = { 0, 0 };          // control pipe reprl -> child
+
+    if (pipe(crpipe) != 0) {
+        return reprl_error(ctx, "Could not create pipe for REPRL communication: %s", strerror(errno));
+    }
+    if (pipe(cwpipe) != 0) {
+        close(crpipe[0]);
+        close(crpipe[1]);
+        return reprl_error(ctx, "Could not create pipe for REPRL communication: %s", strerror(errno));
     }
 
-    child->crfd = crpipe[0];
-    child->cwfd = cwpipe[1];
-    child->drfd = drpipe[0];
-    child->dwfd = dwpipe[1];
-
-    int flags;
-    flags = fcntl(child->drfd, F_GETFL, 0);
-    fcntl(child->drfd, F_SETFL, flags | O_NONBLOCK);
-
-    fcntl(child->crfd, F_SETFD, FD_CLOEXEC);
-    fcntl(child->cwfd, F_SETFD, FD_CLOEXEC);
-    fcntl(child->drfd, F_SETFD, FD_CLOEXEC);
-    fcntl(child->dwfd, F_SETFD, FD_CLOEXEC);
+    ctx->ctrl_in = crpipe[0];
+    ctx->ctrl_out = cwpipe[1];
+    fcntl(ctx->ctrl_in, F_SETFD, FD_CLOEXEC);
+    fcntl(ctx->ctrl_out, F_SETFD, FD_CLOEXEC);
 
     int pid = fork();
     if (pid == 0) {
-        dup2(cwpipe[0], CRFD);
-        dup2(crpipe[1], CWFD);
-        dup2(dwpipe[0], DRFD);
-        dup2(drpipe[1], DWFD);
+        dup2(cwpipe[0], REPRL_CHILD_CTRL_IN);
+        dup2(crpipe[1], REPRL_CHILD_CTRL_OUT);
         close(cwpipe[0]);
         close(crpipe[1]);
-        close(dwpipe[0]);
-        close(drpipe[1]);
+
+        dup2(ctx->data_out->fd, REPRL_CHILD_DATA_IN);
+        dup2(ctx->data_in->fd, REPRL_CHILD_DATA_OUT);
 
         int devnull = open("/dev/null", O_RDWR);
         dup2(devnull, 0);
-        dup2(devnull, 1);
-        dup2(devnull, 2);
+        if (ctx->stdout) dup2(ctx->stdout->fd, 1);
+        else dup2(devnull, 1);
+        if (ctx->stderr) dup2(ctx->stderr->fd, 2);
+        else dup2(devnull, 2);
         close(devnull);
 
-        execve(argv[0], argv, envp);
-        fprintf(stderr, "[REPRL] Failed to spawn child process\n");
+        // close all other FDs. We try to use FD_CLOEXEC everywhere, but let's be extra sure we don't leak any fds to the child.
+        int tablesize = getdtablesize();
+        for (int i = 3; i < tablesize; i++) {
+            if (i == REPRL_CHILD_CTRL_IN || i == REPRL_CHILD_CTRL_OUT || i == REPRL_CHILD_DATA_IN || i == REPRL_CHILD_DATA_OUT) {
+                continue;
+            }
+            close(i);
+        }
+
+        execve(ctx->argv[0], ctx->argv, ctx->envp);
+
+        fprintf(stderr, "Failed to execute child process %s: %s\n", ctx->argv[0], strerror(errno));
+        fflush(stderr);
         _exit(-1);
-    } else if (pid < 0) {
-        fprintf(stderr, "[REPRL] Failed to fork\n");
-        return -1;
     }
 
     close(crpipe[1]);
     close(cwpipe[0]);
-    close(drpipe[1]);
-    close(dwpipe[0]);
 
-    child->pid = pid;
+    if (pid < 0) {
+        close(ctx->ctrl_in);
+        close(ctx->ctrl_out);
+        return reprl_error(ctx, "Failed to fork: %s", strerror(errno));
+    }
+    ctx->pid = pid;
 
-    int helo;
-    if (read(child->crfd, &helo, 4) != 4 || write(child->cwfd, &helo, 4) != 4) {
-        fprintf(stderr, "[REPRL] Failed to communicate with child process\n");
-        close(child->crfd);
-        close(child->cwfd);
-        close(child->drfd);
-        close(child->dwfd);
+    char helo[4] = { 0 };
+    if (read(ctx->ctrl_in, helo, 4) != 4) {
+        reprl_terminate_child(ctx);
+        return reprl_error(ctx, "Did not receive HELO message from child");
+    }
+
+    if (strncmp(helo, "HELO", 4) != 0) {
+        reprl_terminate_child(ctx);
+        return reprl_error(ctx, "Received invalid HELO message from child");
+    }
+
+    if (write(ctx->ctrl_out, helo, 4) != 4) {
+        reprl_terminate_child(ctx);
+        return reprl_error(ctx, "Failed to send HELO reply message to child");
+    }
+
+    return 0;
+}
+
+struct reprl_context* reprl_create_context()
+{
+    struct reprl_context* ctx = malloc(sizeof(struct reprl_context));
+    memset(ctx, 0, sizeof(struct reprl_context));
+    return ctx;
+}
+
+int reprl_initialize_context(struct reprl_context* ctx, const char** argv, const char** envp, int capture_stdout, int capture_stderr)
+{
+    if (ctx->initialized) {
+        return reprl_error(ctx, "Context is already initialized");
+    }
+
+    // We need to ignore SIGPIPE since we could end up writing to a pipe after our child process has exited.
+    signal(SIGPIPE, SIG_IGN);
+
+    ctx->argv = copy_string_array(argv);
+    ctx->envp = copy_string_array(envp);
+
+    ctx->data_in = reprl_create_data_channel(ctx);
+    ctx->data_out = reprl_create_data_channel(ctx);
+    if (capture_stdout) {
+        ctx->stdout = reprl_create_data_channel(ctx);
+    }
+    if (capture_stderr) {
+        ctx->stderr = reprl_create_data_channel(ctx);
+    }
+    if (!ctx->data_in || !ctx->data_out || (capture_stdout && !ctx->stdout) || (capture_stderr && !ctx->stderr)) {
+        // Proper error message will have been set by reprl_create_data_channel
+        return -1;
+    }
+
+    ctx->initialized = 1;
+    return 0;
+}
+
+void reprl_destroy_context(struct reprl_context* ctx)
+{
+    reprl_terminate_child(ctx);
+
+    free_string_array(ctx->argv);
+    free_string_array(ctx->envp);
+
+    reprl_destroy_data_channel(ctx, ctx->data_in);
+    reprl_destroy_data_channel(ctx, ctx->data_out);
+    reprl_destroy_data_channel(ctx, ctx->stdout);
+    reprl_destroy_data_channel(ctx, ctx->stderr);
+
+    free(ctx->last_error);
+    free(ctx);
+}
+
+int reprl_execute(struct reprl_context* ctx, const char* script, uint64_t script_length, uint64_t timeout, uint64_t* execution_time, int fresh_instance)
+{
+    if (!ctx->initialized) {
+        return reprl_error(ctx, "REPRL context is not initialized");
+    }
+    if (script_length > REPRL_MAX_DATA_SIZE) {
+        return reprl_error(ctx, "Script too large");
+    }
+
+    // Terminate any existing instance if requested.
+    if (fresh_instance && ctx->pid) {
+        reprl_terminate_child(ctx);
+    }
+
+    // Reset file position so the child can simply read(2) and write(2) to these fds.
+    lseek(ctx->data_out->fd, 0, SEEK_SET);
+    lseek(ctx->data_in->fd, 0, SEEK_SET);
+    if (ctx->stdout) {
+        lseek(ctx->stdout->fd, 0, SEEK_SET);
+    }
+    if (ctx->stderr) {
+        lseek(ctx->stderr->fd, 0, SEEK_SET);
+    }
+
+    // Spawn a new instance if necessary.
+    if (!ctx->pid) {
+        int r = reprl_spawn_child(ctx);
+        if (r != 0) return r;
+    }
+
+    // Copy the script to the data channel.
+    memcpy(ctx->data_out->mapping, script, script_length);
+
+    // Tell child to execute the script.
+    if (write(ctx->ctrl_out, "exec", 4) != 4 ||
+        write(ctx->ctrl_out, &script_length, 8) != 8) {
+        // These can fail if the child unexpectedly terminated between executions.
+        // Check for that here to be able to provide a better error message.
         int status;
-        kill(pid, SIGKILL);
-        waitpid(pid, &status, 0);
-        return -1;
+        if (waitpid(ctx->pid, &status, WNOHANG) == ctx->pid) {
+            reprl_child_terminated(ctx);
+            if (WIFEXITED(status)) {
+                return reprl_error(ctx, "Child unexpectedly exited with status %i between executions", WEXITSTATUS(status));
+            } else {
+                return reprl_error(ctx, "Child unexpectedly terminated with signal %i between executions", WTERMSIG(status));
+            }
+        }
+        return reprl_error(ctx, "Failed to send command to child process: %s", strerror(errno));
     }
 
-    return 0;
-}
-
-static char* fetch_output(int fd, size_t* outsize)
-{
-    ssize_t rv;
-    *outsize = 0;
-    size_t remaining = 0x1000;
-    char* outbuf = malloc(remaining + 1);
-
-    do {
-        rv = read(fd, outbuf + *outsize, remaining);
-        if (rv == -1) {
-            if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                fprintf(stderr, "[REPRL] Error while receiving data: %s\n", strerror(errno));
-            }
-            break;
-        }
-
-        *outsize += rv;
-        remaining -= rv;
-
-        if (remaining == 0) {
-            remaining = *outsize;
-            outbuf = realloc(outbuf, *outsize * 2 + 1);
-            if (!outbuf) {
-                fprintf(stderr, "[REPRL] Could not allocate output buffer");
-                _exit(-1);
-            }
-        }
-    } while (rv > 0);
-
-    outbuf[*outsize] = 0;
-
-    return outbuf;
-}
-
-// Execute one script, wait for its completion, and return the result.
-int reprl_execute_script(int pid, int crfd, int cwfd, int drfd, int dwfd, int timeout, const char* script, int64_t script_length, struct reprl_result* result)
-{
+    // Wait for child to finish execution (or crash).
     uint64_t start_time = current_millis();
-
-    if (write(cwfd, "exec", 4) != 4 ||
-        write(cwfd, &script_length, 8) != 8) {
-        fprintf(stderr, "[REPRL] Failed to send command to child process\n");
-        return -1;
+    struct pollfd fds = {.fd = ctx->ctrl_in, .events = POLLIN, .revents = 0};
+    int res = poll(&fds, 1, (int)timeout);
+    *execution_time = current_millis() - start_time;
+    if (res == 0) {
+        // Execution timed out. Kill child and return a timeout status.
+        reprl_terminate_child(ctx);
+        return 1 << 16;
+    } else if (res != 1) {
+        // An error occurred.
+        // We expect all signal handlers to be installed with SA_RESTART, so receiving EINTR here is unexpected and thus also an error.
+        return reprl_error(ctx, "Failed to poll: %s", strerror(errno));
     }
 
-    int64_t remaining = script_length;
-    while (remaining > 0) {
-        ssize_t rv = write(dwfd, script, remaining);
-        if (rv <= 0) {
-            fprintf(stderr, "[REPRL] Failed to send script to child process\n");
-            return -1;
+    // Poll succeeded, so there must be something to read now (either the status or EOF).
+    int status;
+    ssize_t rv = read(ctx->ctrl_in, &status, 4);
+    if (rv < 0) {
+        return reprl_error(ctx, "Failed to read from control pipe: %s", strerror(errno));
+    } else if (rv != 4) {
+        // Most likely, the child process crashed and closed the write end of the control pipe.
+        // Unfortunately, there probably is nothing that guarantees that waitpid() will immediately succeed now,
+        // and we also don't want to block here. So just retry waitpid() a few times...
+        int success = 0;
+        do {
+            success = waitpid(ctx->pid, &status, WNOHANG) == ctx->pid;
+            if (!success) usleep(10);
+        } while (!success && current_millis() - start_time < timeout);
+
+        if (!success) {
+            // Wait failed, so something weird must have happened. Maybe somehow the control pipe was closed without the child exiting?
+            // Probably the best we can do is kill the child and return an error.
+            reprl_terminate_child(ctx);
+            return reprl_error(ctx, "Child in weird state after execution");
         }
-        remaining -= rv;
-        script += rv;
-    }
 
-    struct pollfd fds = {.fd = crfd, .events = POLLIN, .revents = 0};
-    if (poll(&fds, 1, timeout) != 1) {
-        kill(pid, SIGKILL);
-        waitpid(pid, &result->status, 0);
-        result->child_died = 1;
-    } else {
-        result->child_died = 0;
-        ssize_t rv = read(crfd, &result->status, 4);
-        if (rv != 4) {
-            // This should not happen...
-            kill(pid, SIGKILL);
-            waitpid(pid, &result->status, 0);
-            result->child_died = 1;
+        // Cleanup any state related to this child process.
+        reprl_child_terminated(ctx);
+
+        if (WIFEXITED(status)) {
+            status = WEXITSTATUS(status) << 8;
+        } else if (WIFSIGNALED(status)) {
+            status = WTERMSIG(status);
+        } else {
+            // This shouldn't happen, since we don't specify WUNTRACED for waitpid...
+            return reprl_error(ctx, "Waitpid returned unexpected child state %i", status);
         }
     }
 
-    result->output = fetch_output(drfd, &result->output_size);
-    result->exec_time = current_millis() - start_time;
+    // The status must be a positive number, see the status encoding format below.
+    // We also don't allow the child process to indicate a timeout. If we wanted,
+    // we could treat it as an error if the upper bits are set.
+    status &= 0xffff;
 
-    return 0;
+    return status;
+}
+
+/// The 32bit REPRL exit status as returned by reprl_execute has the following format:
+///     [ 00000000 | did_timeout | exit_code | terminating_signal ]
+/// Only one of did_timeout, exit_code, or terminating_signal may be set at one time.
+int RIFSIGNALED(int status)
+{
+    return (status & 0xff) != 0;
+}
+
+int RIFEXITED(int status)
+{
+    return !RIFSIGNALED(status) && !RIFTIMEDOUT(status);
+}
+
+int RIFTIMEDOUT(int status)
+{
+    return (status & 0xff0000) != 0;
+}
+
+int RTERMSIG(int status)
+{
+    return status & 0xff;
+}
+
+int REXITSTATUS(int status)
+{
+    return (status >> 8) & 0xff;
+}
+
+static const char* fetch_data_channel_content(struct data_channel* channel)
+{
+    if (!channel) return "";
+    size_t pos = lseek(channel->fd, 0, SEEK_CUR);
+    pos = MIN(pos, REPRL_MAX_DATA_SIZE - 1);
+    channel->mapping[pos] = 0;
+    return channel->mapping;
+}
+
+const char* reprl_fetch_fuzzout(struct reprl_context* ctx)
+{
+    return fetch_data_channel_content(ctx->data_in);
+}
+
+const char* reprl_fetch_stdout(struct reprl_context* ctx)
+{
+    return fetch_data_channel_content(ctx->stdout);
+}
+
+const char* reprl_fetch_stderr(struct reprl_context* ctx)
+{
+    return fetch_data_channel_content(ctx->stderr);
+}
+
+const char* reprl_get_last_error(struct reprl_context* ctx)
+{
+    return ctx->last_error;
 }

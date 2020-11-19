@@ -1071,13 +1071,10 @@ Reduction JSNativeContextSpecialization::ReduceMinimorphicPropertyAccess(
   if (feedback.has_migration_target_maps()) {
     flags |= CheckMapsFlag::kTryMigrateInstance;
   }
-  effect = graph()->NewNode(
-      simplified()->DynamicCheckMaps(
-          flags, feedback.handler(), source,
-          feedback.is_monomorphic()
-              ? DynamicCheckMapsParameters::ICState::kMonomorphic
-              : DynamicCheckMapsParameters::ICState::kPolymorphic),
-      receiver, effect, control);
+  effect =
+      graph()->NewNode(simplified()->DynamicCheckMaps(flags, feedback.handler(),
+                                                      feedback.map(), source),
+                       receiver, effect, control);
   value = access_builder.BuildMinimorphicLoadDataField(
       feedback.name(), access_info, receiver, &effect, &control);
 

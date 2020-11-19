@@ -6,6 +6,7 @@
 
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap.h"
+#include "test/unittests/heap/cppgc/test-platform.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -18,6 +19,8 @@ namespace {
 class MockGarbageCollector : public GarbageCollector {
  public:
   MOCK_METHOD(void, CollectGarbage, (GarbageCollector::Config), (override));
+  MOCK_METHOD(void, StartIncrementalGarbageCollection,
+              (GarbageCollector::Config), (override));
   MOCK_METHOD(size_t, epoch, (), (const, override));
 };
 
@@ -81,7 +84,7 @@ TEST(GCInvokerTest, ConservativeGCIsInvokedSynchronouslyWhenSupported) {
   invoker.CollectGarbage(GarbageCollector::Config::ConservativeAtomicConfig());
 }
 
-TEST(GCInvokerTest, ConservativeGCIsInvokedAsPreciseGCViaPlatform) {
+TEST(GCInvokerTest, ConservativeGCIsScheduledAsPreciseGCViaPlatform) {
   std::shared_ptr<cppgc::TaskRunner> runner =
       std::shared_ptr<cppgc::TaskRunner>(new MockTaskRunner());
   MockPlatform platform(runner);
@@ -92,6 +95,44 @@ TEST(GCInvokerTest, ConservativeGCIsInvokedAsPreciseGCViaPlatform) {
   EXPECT_CALL(*static_cast<MockTaskRunner*>(runner.get()),
               PostNonNestableTask(::testing::_));
   invoker.CollectGarbage(GarbageCollector::Config::ConservativeAtomicConfig());
+}
+
+TEST(GCInvokerTest, ConservativeGCIsInvokedAsPreciseGCViaPlatform) {
+  testing::TestPlatform platform;
+  MockGarbageCollector gc;
+  GCInvoker invoker(&gc, &platform,
+                    cppgc::Heap::StackSupport::kNoConservativeStackScan);
+  EXPECT_CALL(gc, epoch).WillRepeatedly(::testing::Return(0));
+  EXPECT_CALL(gc, CollectGarbage);
+  invoker.CollectGarbage(GarbageCollector::Config::ConservativeAtomicConfig());
+  platform.WaitAllForegroundTasks();
+}
+
+TEST(GCInvokerTest, IncrementalGCIsStarted) {
+  // Since StartIncrementalGarbageCollection doesn't scan the stack, support for
+  // conservative stack scanning should not matter.
+  MockPlatform platform(nullptr);
+  MockGarbageCollector gc;
+  // Conservative stack scanning supported.
+  GCInvoker invoker_with_support(
+      &gc, &platform,
+      cppgc::Heap::StackSupport::kSupportsConservativeStackScan);
+  EXPECT_CALL(
+      gc, StartIncrementalGarbageCollection(::testing::Field(
+              &GarbageCollector::Config::stack_state,
+              GarbageCollector::Config::StackState::kMayContainHeapPointers)));
+  invoker_with_support.StartIncrementalGarbageCollection(
+      GarbageCollector::Config::ConservativeIncrementalConfig());
+  // Conservative stack scanning *not* supported.
+  GCInvoker invoker_without_support(
+      &gc, &platform, cppgc::Heap::StackSupport::kNoConservativeStackScan);
+  EXPECT_CALL(
+      gc, StartIncrementalGarbageCollection(::testing::Field(
+              &GarbageCollector::Config::stack_state,
+              GarbageCollector::Config::StackState::kMayContainHeapPointers)))
+      .Times(0);
+  invoker_without_support.StartIncrementalGarbageCollection(
+      GarbageCollector::Config::ConservativeIncrementalConfig());
 }
 
 }  // namespace internal

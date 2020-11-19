@@ -36,14 +36,10 @@ class ProfileGenerator;
   V(CODE_DEOPT, CodeDeoptEventRecord)            \
   V(REPORT_BUILTIN, ReportBuiltinEventRecord)
 
-#define VM_EVENTS_TYPE_LIST(V) \
-  CODE_EVENTS_TYPE_LIST(V)     \
-  V(NATIVE_CONTEXT_MOVE, NativeContextMoveEventRecord)
-
 class CodeEventRecord {
  public:
 #define DECLARE_TYPE(type, ignore) type,
-  enum Type { NONE = 0, VM_EVENTS_TYPE_LIST(DECLARE_TYPE) };
+  enum Type { NONE = 0, CODE_EVENTS_TYPE_LIST(DECLARE_TYPE) };
 #undef DECLARE_TYPE
 
   Type type;
@@ -96,16 +92,10 @@ class CodeDeoptEventRecord : public CodeEventRecord {
 class ReportBuiltinEventRecord : public CodeEventRecord {
  public:
   Address instruction_start;
+  unsigned instruction_size;
   Builtins::Name builtin_id;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
-};
-
-// Signals that a native context's address has changed.
-class NativeContextMoveEventRecord : public CodeEventRecord {
- public:
-  Address from_address;
-  Address to_address;
 };
 
 // A record type for sending samples from the main thread/signal handler to the
@@ -132,7 +122,7 @@ class CodeEventsContainer {
   union  {
     CodeEventRecord generic;
 #define DECLARE_CLASS(ignore, type) type type##_;
-    VM_EVENTS_TYPE_LIST(DECLARE_CLASS)
+    CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
 #undef DECLARE_CLASS
   };
 };

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "debug-helper-internal.h"
-#include "torque-generated/class-debug-readers-tq.h"
+#include "torque-generated/class-debug-readers.h"
 
 namespace di = v8::internal::debug_helper_internal;
 

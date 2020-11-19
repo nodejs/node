@@ -29,6 +29,11 @@ class FakeGarbageCollector : public GarbageCollector {
     callcount_++;
   }
 
+  void StartIncrementalGarbageCollection(
+      GarbageCollector::Config config) override {
+    UNREACHABLE();
+  }
+
   size_t epoch() const override { return callcount_; }
 
  private:
@@ -40,6 +45,8 @@ class FakeGarbageCollector : public GarbageCollector {
 class MockGarbageCollector : public GarbageCollector {
  public:
   MOCK_METHOD(void, CollectGarbage, (GarbageCollector::Config), (override));
+  MOCK_METHOD(void, StartIncrementalGarbageCollection,
+              (GarbageCollector::Config), (override));
   MOCK_METHOD(size_t, epoch, (), (const, override));
 };
 
@@ -87,7 +94,7 @@ TEST(HeapGrowingTest, ConstantGrowingFactor) {
   gc.SetLiveBytes(kObjectSize);
   FakeAllocate(&stats_collector, kObjectSize + 1);
   EXPECT_EQ(1u, gc.epoch());
-  EXPECT_EQ(1.5 * kObjectSize, growing.limit());
+  EXPECT_EQ(1.5 * kObjectSize, growing.limit_for_atomic_gc());
 }
 
 TEST(HeapGrowingTest, SmallHeapGrowing) {
@@ -103,7 +110,35 @@ TEST(HeapGrowingTest, SmallHeapGrowing) {
   gc.SetLiveBytes(1);
   FakeAllocate(&stats_collector, kLargeAllocation);
   EXPECT_EQ(1u, gc.epoch());
-  EXPECT_EQ(1 + HeapGrowing::kMinLimitIncrease, growing.limit());
+  EXPECT_EQ(1 + HeapGrowing::kMinLimitIncrease, growing.limit_for_atomic_gc());
+}
+
+TEST(HeapGrowingTest, IncrementalGCStarted) {
+  StatsCollector stats_collector;
+  MockGarbageCollector gc;
+  cppgc::Heap::ResourceConstraints constraints;
+  HeapGrowing growing(&gc, &stats_collector, constraints);
+  EXPECT_CALL(gc, CollectGarbage(::testing::_)).Times(0);
+  EXPECT_CALL(gc, StartIncrementalGarbageCollection(::testing::_));
+  // Allocate 1 byte less the limit for atomic gc to trigger incremental gc.
+  FakeAllocate(&stats_collector, growing.limit_for_atomic_gc() - 1);
+}
+
+TEST(HeapGrowingTest, IncrementalGCFinalized) {
+  StatsCollector stats_collector;
+  MockGarbageCollector gc;
+  cppgc::Heap::ResourceConstraints constraints;
+  HeapGrowing growing(&gc, &stats_collector, constraints);
+  EXPECT_CALL(gc, CollectGarbage(::testing::_)).Times(0);
+  EXPECT_CALL(gc, StartIncrementalGarbageCollection(::testing::_));
+  // Allocate 1 byte less the limit for atomic gc to trigger incremental gc.
+  size_t bytes_for_incremental_gc = growing.limit_for_atomic_gc() - 1;
+  FakeAllocate(&stats_collector, bytes_for_incremental_gc);
+  ::testing::Mock::VerifyAndClearExpectations(&gc);
+  EXPECT_CALL(gc, CollectGarbage(::testing::_));
+  EXPECT_CALL(gc, StartIncrementalGarbageCollection(::testing::_)).Times(0);
+  // Allocate the rest needed to trigger atomic gc ().
+  FakeAllocate(&stats_collector, StatsCollector::kAllocationThresholdBytes);
 }
 
 }  // namespace internal

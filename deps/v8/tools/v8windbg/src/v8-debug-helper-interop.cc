@@ -29,7 +29,7 @@ class MemReaderScope {
  private:
   MemReaderScope(const MemReaderScope&) = delete;
   MemReaderScope& operator=(const MemReaderScope&) = delete;
-  static d::MemoryAccessResult Read(uintptr_t address, uint8_t* destination,
+  static d::MemoryAccessResult Read(uintptr_t address, void* destination,
                                     size_t byte_count) {
     ULONG64 bytes_read;
     Location loc{address};
@@ -81,26 +81,12 @@ V8HeapObject::V8HeapObject(V8HeapObject&&) = default;
 V8HeapObject& V8HeapObject::operator=(const V8HeapObject&) = default;
 V8HeapObject& V8HeapObject::operator=(V8HeapObject&&) = default;
 
-V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
-                           uint64_t tagged_ptr, uint64_t referring_pointer,
-                           const char* type_name, bool is_compressed) {
-  // Read the value at the address, and see if it is a tagged pointer
-
-  V8HeapObject obj;
-  MemReaderScope reader_scope(sp_context);
-
-  d::HeapAddresses heap_addresses = {0, 0, 0, 0};
-  // TODO ideally we'd provide real heap page pointers. For now, just testing
-  // decompression based on the pointer to wherever we found this value,
-  // which is likely (though not guaranteed) to be a heap pointer itself.
-  heap_addresses.any_heap_pointer = referring_pointer;
-
-  auto props = d::GetObjectProperties(tagged_ptr, reader_scope.GetReader(),
-                                      heap_addresses, type_name);
-  obj.friendly_name = ConvertToU16String(props->brief);
-  for (size_t property_index = 0; property_index < props->num_properties;
+std::vector<Property> GetPropertiesAsVector(size_t num_properties,
+                                            d::ObjectProperty** properties) {
+  std::vector<Property> result;
+  for (size_t property_index = 0; property_index < num_properties;
        ++property_index) {
-    const auto& source_prop = *props->properties[property_index];
+    const auto& source_prop = *(properties)[property_index];
     Property dest_prop(ConvertToU16String(source_prop.name),
                        ConvertToU16String(source_prop.type),
                        source_prop.decompressed_type, source_prop.address,
@@ -126,8 +112,30 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
                                     struct_field.shift_bits});
       }
     }
-    obj.properties.push_back(dest_prop);
+    result.push_back(dest_prop);
   }
+  return result;
+}
+
+V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
+                           uint64_t tagged_ptr, uint64_t referring_pointer,
+                           const char* type_name, bool is_compressed) {
+  // Read the value at the address, and see if it is a tagged pointer
+
+  V8HeapObject obj;
+  MemReaderScope reader_scope(sp_context);
+
+  d::HeapAddresses heap_addresses = {0, 0, 0, 0};
+  // TODO ideally we'd provide real heap page pointers. For now, just testing
+  // decompression based on the pointer to wherever we found this value,
+  // which is likely (though not guaranteed) to be a heap pointer itself.
+  heap_addresses.any_heap_pointer = referring_pointer;
+
+  auto props = d::GetObjectProperties(tagged_ptr, reader_scope.GetReader(),
+                                      heap_addresses, type_name);
+  obj.friendly_name = ConvertToU16String(props->brief);
+  obj.properties =
+      GetPropertiesAsVector(props->num_properties, props->properties);
 
   // For each guessed type, create a synthetic property that will request data
   // about the same object again but with a more specific type hint.
@@ -157,3 +165,12 @@ std::vector<std::u16string> ListObjectClasses() {
 }
 
 const char* BitsetName(uint64_t payload) { return d::BitsetName(payload); }
+
+std::vector<Property> GetStackFrame(WRL::ComPtr<IDebugHostContext> sp_context,
+
+                                    uint64_t frame_pointer) {
+  MemReaderScope reader_scope(sp_context);
+  auto props = d::GetStackFrame(static_cast<uintptr_t>(frame_pointer),
+                                reader_scope.GetReader());
+  return GetPropertiesAsVector(props->num_properties, props->properties);
+}

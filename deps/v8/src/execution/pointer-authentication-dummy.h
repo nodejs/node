@@ -27,12 +27,6 @@ V8_INLINE Address PointerAuthentication::AuthenticatePC(
 // Return {pc} unmodified.
 V8_INLINE Address PointerAuthentication::StripPAC(Address pc) { return pc; }
 
-// Return {pc} unmodified.
-V8_INLINE Address PointerAuthentication::SignPCWithSP(Address pc, Address sp) {
-  USE(sp);
-  return pc;
-}
-
 // Store {new_pc} to {pc_address} without signing.
 V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
                                                 Address new_pc,
@@ -41,13 +35,11 @@ V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
   *pc_address = new_pc;
 }
 
-// Do nothing.
-V8_INLINE void PointerAuthentication::ReplaceContext(Address* pc_address,
-                                                     Address old_context,
-                                                     Address new_context) {
-  USE(pc_address);
-  USE(old_context);
-  USE(new_context);
+// Return {pc} unmodified.
+V8_INLINE Address PointerAuthentication::SignAndCheckPC(Address pc,
+                                                        Address sp) {
+  USE(sp);
+  return pc;
 }
 
 }  // namespace internal

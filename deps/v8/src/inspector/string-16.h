@@ -128,6 +128,7 @@ class String16Builder {
   void appendNumber(size_t);
   void appendUnsignedAsHex(uint64_t);
   void appendUnsignedAsHex(uint32_t);
+  void appendUnsignedAsHex(uint8_t);
   String16 toString();
   void reserveCapacity(size_t);
 

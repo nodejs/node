@@ -70,8 +70,8 @@
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects.h"
-#include "torque-generated/exported-class-definitions-tq-inl.h"
-#include "torque-generated/exported-class-definitions-tq.h"
+#include "torque-generated/exported-class-definitions-inl.h"
+#include "torque-generated/exported-class-definitions.h"
 
 namespace v8 {
 namespace internal {
@@ -252,7 +252,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
         stable = from->map() == *map;
-        *descriptors.location() = map->instance_descriptors().ptr();
+        descriptors.PatchValue(map->instance_descriptors());
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -278,7 +278,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
       if (result.IsNothing()) return result;
       if (stable) {
         stable = from->map() == *map;
-        *descriptors.location() = map->instance_descriptors().ptr();
+        descriptors.PatchValue(map->instance_descriptors());
       }
     } else {
       if (excluded_properties != nullptr &&
@@ -309,6 +309,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   if (fast_assign.FromJust()) return Just(true);
 
   Handle<JSReceiver> from = Object::ToObject(isolate, source).ToHandleChecked();
+
   // 3b. Let keys be ? from.[[OwnPropertyKeys]]().
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -317,9 +318,25 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
                               GetKeysConversion::kKeepNumbers),
       Nothing<bool>());
 
+  if (!from->HasFastProperties() && target->HasFastProperties()) {
+    // Convert to slow properties if we're guaranteed to overflow the number of
+    // descriptors.
+    int source_length =
+        from->IsJSGlobalObject()
+            ? JSGlobalObject::cast(*from)
+                  .global_dictionary()
+                  .NumberOfEnumerableProperties()
+            : from->property_dictionary().NumberOfEnumerableProperties();
+    if (source_length > kMaxNumberOfDescriptors) {
+      JSObject::NormalizeProperties(isolate, Handle<JSObject>::cast(target),
+                                    CLEAR_INOBJECT_PROPERTIES, source_length,
+                                    "Copying data properties");
+    }
+  }
+
   // 4. Repeat for each element nextKey of keys in List order,
-  for (int j = 0; j < keys->length(); ++j) {
-    Handle<Object> next_key(keys->get(j), isolate);
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Object> next_key(keys->get(i), isolate);
     // 4a i. Let desc be ? from.[[GetOwnProperty]](nextKey).
     PropertyDescriptor desc;
     Maybe<bool> found =
@@ -1866,7 +1883,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   // side-effects.
   bool stable = *map == object->map();
   if (stable) {
-    *descriptors.location() = map->instance_descriptors().ptr();
+    descriptors.PatchValue(map->instance_descriptors());
   }
 
   for (InternalIndex index : InternalIndex::Range(number_of_own_descriptors)) {
@@ -1900,7 +1917,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
         stable = object->map() == *map;
-        *descriptors.location() = map->instance_descriptors().ptr();
+        descriptors.PatchValue(map->instance_descriptors());
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that

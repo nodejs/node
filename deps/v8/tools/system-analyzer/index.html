@@ -12,17 +12,6 @@ found in the LICENSE file. -->
   <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
   <script type="module" src="index.mjs"></script>
   <link rel="stylesheet" type="text/css" href="./index.css">
-  <script type="module" src="helper.mjs"></script>
-
-  <script src="../splaytree.js"></script>
-  <script src="../codemap.js"></script>
-  <script src="../csvparser.js"></script>
-  <script src="../consarray.js"></script>
-  <script src="../profile.js"></script>
-  <script src="../profile_view.js"></script>
-  <script src="../logreader.js"></script>
-  <script src="../arguments.js"></script>
-  <script src="../SourceMap.js"></script>
   <style>
     #instructions {
       padding: 10px 10px 60px 10px;
@@ -41,9 +30,8 @@ found in the LICENSE file. -->
       white-space: nowrap;
     }
 
-    /*Simple css to style it like a toggle switch*/
     .theme-switch-wrapper {
-      display: flex;
+      display: inline-block;
       align-items: center;
     }
 
@@ -112,22 +100,35 @@ found in the LICENSE file. -->
       grid-column: span 2;
       overflow: scroll;
     }
+
+    a {
+      color: var(--primary-color);
+    }
+
+    a:hover {
+      color: var(--secondary-color);
+    }
   </style>
   <script type="module">
     import { App } from './index.mjs';
 
-    globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel",
-      "#ic-panel", "#map-track", "#ic-track");
+    globalThis.app = new App("#log-file-reader", "#map-panel",
+      "#timeline-panel", "#ic-panel", "#map-track", "#ic-track",
+      "#source-panel");
   </script>
 </head>
 
 <body>
   <div id="content">
     <section id="file-reader">
-      <br></br>
       <log-file-reader id="log-file-reader"></log-file-reader>
-      <br></br>
     </section>
+    <div class="theme-switch-wrapper">
+      <label class="theme-switch" for="checkbox">
+        <input type="checkbox" id="checkbox" />
+        <div class="slider round"></div>
+      </label>
+    </div>
     <div id="container" class="initial">
       <timeline-panel id="timeline-panel">
         <timeline-track id="map-track"></timeline-track>
@@ -135,26 +136,42 @@ found in the LICENSE file. -->
       </timeline-panel>
       <map-panel id="map-panel"></map-panel>
       <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
+      <source-panel id="source-panel"></source-panel>
     </div>
-  </div>
-  <div class="theme-switch-wrapper">
-    <label class="theme-switch" for="checkbox">
-      <input type="checkbox" id="checkbox" />
-      <div class="slider round"></div>
-    </label>
   </div>
   <div id="instructions">
     <h2>Instructions</h2>
     <p>
-      Unified web interface for analyzing the trace information of the Maps/ICs
+      Unified web interface to analyse runtime information stored in the v8 log.
     </p>
+    For generating log file from
+    <a href="https://v8.dev/docs/build" target="_blank">d8</a>:
+    <p>
+      Log Options:
+    </p>
+    <dl>
+      <dt>--trace-maps:</dt>
+      <dd>Log<a href="https://v8.dev/blog/fast-properties" target="_blank">
+          Maps</a></dd>
+      <dt>--trace_ic:</dt>
+      <dd>Log
+        <a href="https://mathiasbynens.be/notes/shapes-ics" target="_blank">
+          ICs</a></dd>
+      <dt>--log-source-code:</dt>
+      <dd>Log source code</dd>
+    </dl>
+    Usage:
     <ul>
-      <li> Visualize Map trees that have gathered</li>
-      <li><code> /path/to/d8 --trace-maps $FILE</code></li>
-      <li> Visualize IC events that have gathered</li>
-      <li><code> /path/to/d8 --trace_ic $FILE (your_script.js) </code></li>
+      <li><code>/path/do/d8 --trace-maps --trace_ic --log-source-code $FILE
+      </code></li>
     </ul>
-    <h3>Keyboard Shortcuts</h3>
+    For generating a log file from Chrome:
+    <ul>
+      <li><code>/path/to/chrome --user-data-dir=/var/tmp/chr1 --no-sandbox
+        --js-flags='--trace-ic --trace-maps --log-source-code’
+        $WEBSITE_URL</code></li>
+    </ul>
+    <h3>Keyboard Shortcuts for Navigation</h3>
     <dl>
       <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
       <dd>Follow Map transition forward (first child)</dd>

@@ -486,7 +486,7 @@ int ScavengerCollector::NumberOfScavengeTasks() {
   static int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
   int tasks =
       Max(1, Min(Min(num_scavenge_tasks, kMaxScavengerTasks), num_cores));
-  if (!heap_->CanExpandOldGeneration(
+  if (!heap_->CanPromoteYoungAndExpandOldGeneration(
           static_cast<size_t>(tasks * Page::kPageSize))) {
     // Optimize for memory usage near the heap limit.
     tasks = 1;

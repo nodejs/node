@@ -19,11 +19,13 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 #include "src/zone/accounting-allocator.h"
 
@@ -60,7 +62,8 @@ MaybeHandle<JSObject> CreateFunctionTablesObject(
   for (int table_index = 0; table_index < tables->length(); ++table_index) {
     auto func_table =
         handle(WasmTableObject::cast(tables->get(table_index)), isolate);
-    if (!func_table->type().is_reference_to(HeapType::kFunc)) continue;
+    if (!IsSubtypeOf(func_table->type(), kWasmFuncRef, instance->module()))
+      continue;
 
     Handle<String> table_name;
     if (!WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index)
@@ -127,6 +130,12 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
       double val = value.to_f64();
       bytes = isolate->factory()->NewByteArray(sizeof(val));
       memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      break;
+    }
+    case ValueType::kS128: {
+      Simd128 s128 = value.to_s128();
+      bytes = isolate->factory()->NewByteArray(kSimd128Size);
+      memcpy(bytes->GetDataStartAddress(), s128.bytes(), kSimd128Size);
       break;
     }
     case ValueType::kOptRef: {
@@ -402,8 +411,25 @@ class DebugInfoImpl {
     return local_names_->GetName(func_index, local_index);
   }
 
-  WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
-                                            Vector<int> offsets) {
+  // If the top frame is a Wasm frame and its position is not in the list of
+  // breakpoints, return that position. Return 0 otherwise.
+  // This is used to generate a "dead breakpoint" in Liftoff, which is necessary
+  // for OSR to find the correct return address.
+  int DeadBreakpoint(int func_index, std::vector<int>& breakpoints,
+                     Isolate* isolate) {
+    StackTraceFrameIterator it(isolate);
+    if (it.done() || !it.is_wasm()) return 0;
+    WasmFrame* frame = WasmFrame::cast(it.frame());
+    const auto& function = native_module_->module()->functions[func_index];
+    int offset = frame->position() - function.code.offset();
+    if (std::binary_search(breakpoints.begin(), breakpoints.end(), offset)) {
+      return 0;
+    }
+    return offset;
+  }
+
+  WasmCode* RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
+                                            int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
@@ -422,7 +448,8 @@ class DebugInfoImpl {
     WasmFeatures unused_detected;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index,
-        for_debugging, counters, &unused_detected, offsets, &debug_sidetable);
+        for_debugging, counters, &unused_detected, offsets, &debug_sidetable,
+        dead_breakpoint);
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
@@ -432,8 +459,11 @@ class DebugInfoImpl {
         native_module_->AddCompiledCode(std::move(result)));
 
     DCHECK(new_code->is_inspectable());
-    DCHECK_EQ(0, debug_side_tables_.count(new_code));
-    debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
+    {
+      base::MutexGuard lock(&debug_side_tables_mutex_);
+      DCHECK_EQ(0, debug_side_tables_.count(new_code));
+      debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
+    }
 
     return new_code;
   }
@@ -479,8 +509,10 @@ class DebugInfoImpl {
       new_code = native_module_->GetCode(func_index);
     } else {
       all_breakpoints.insert(insertion_point, offset);
-      new_code = RecompileLiftoffWithBreakpoints(func_index,
-                                                 VectorOf(all_breakpoints));
+      int dead_breakpoint =
+          DeadBreakpoint(func_index, all_breakpoints, isolate);
+      new_code = RecompileLiftoffWithBreakpoints(
+          func_index, VectorOf(all_breakpoints), dead_breakpoint);
     }
     UpdateReturnAddresses(isolate, new_code, isolate_data.stepping_frame);
   }
@@ -497,10 +529,11 @@ class DebugInfoImpl {
   }
 
   void UpdateBreakpoints(int func_index, Vector<int> breakpoints,
-                         Isolate* isolate, StackFrameId stepping_frame) {
+                         Isolate* isolate, StackFrameId stepping_frame,
+                         int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
-    WasmCode* new_code =
-        RecompileLiftoffWithBreakpoints(func_index, breakpoints);
+    WasmCode* new_code = RecompileLiftoffWithBreakpoints(
+        func_index, breakpoints, dead_breakpoint);
     UpdateReturnAddresses(isolate, new_code, stepping_frame);
   }
 
@@ -512,7 +545,7 @@ class DebugInfoImpl {
     // Generate an additional source position for the current byte offset.
     base::MutexGuard guard(&mutex_);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
-        frame->function_index(), VectorOf(&offset, 1));
+        frame->function_index(), VectorOf(&offset, 1), 0);
     UpdateReturnAddress(frame, new_code, return_location);
   }
 
@@ -558,18 +591,6 @@ class DebugInfoImpl {
   }
 
   void RemoveBreakpoint(int func_index, int position, Isolate* isolate) {
-    // TODO(thibaudm): Cannot remove the breakpoint we are currently paused at,
-    // because the new code would be missing the call instruction and the
-    // corresponding source position that we rely on for OSR.
-    StackTraceFrameIterator it(isolate);
-    if (!it.done() && it.is_wasm()) {
-      WasmFrame* frame = WasmFrame::cast(it.frame());
-      if (static_cast<int32_t>(frame->function_index()) == func_index &&
-          frame->position() == position) {
-        return;
-      }
-    }
-
     // Put the code ref scope outside of the mutex, so we don't unnecessarily
     // hold the mutex while freeing code.
     WasmCodeRefScope wasm_code_ref_scope;
@@ -595,19 +616,20 @@ class DebugInfoImpl {
     // If the breakpoint is still set in another isolate, don't remove it.
     DCHECK(std::is_sorted(remaining.begin(), remaining.end()));
     if (std::binary_search(remaining.begin(), remaining.end(), offset)) return;
+    int dead_breakpoint = DeadBreakpoint(func_index, remaining, isolate);
     UpdateBreakpoints(func_index, VectorOf(remaining), isolate,
-                      isolate_data.stepping_frame);
+                      isolate_data.stepping_frame, dead_breakpoint);
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
-    base::MutexGuard guard(&mutex_);
+    base::MutexGuard guard(&debug_side_tables_mutex_);
     for (auto* code : codes) {
       debug_side_tables_.erase(code);
     }
   }
 
   DebugSideTable* GetDebugSideTableIfExists(const WasmCode* code) const {
-    base::MutexGuard guard(&mutex_);
+    base::MutexGuard guard(&debug_side_tables_mutex_);
     auto it = debug_side_tables_.find(code);
     return it == debug_side_tables_.end() ? nullptr : it->second.get();
   }
@@ -640,7 +662,7 @@ class DebugInfoImpl {
       std::vector<int>& removed = entry.second;
       std::vector<int> remaining = FindAllBreakpoints(func_index);
       if (HasRemovedBreakpoints(removed, remaining)) {
-        RecompileLiftoffWithBreakpoints(func_index, VectorOf(remaining));
+        RecompileLiftoffWithBreakpoints(func_index, VectorOf(remaining), 0);
       }
     }
   }
@@ -677,7 +699,7 @@ class DebugInfoImpl {
     {
       // Only hold the mutex temporarily. We can't hold it while generating the
       // debug side table, because compilation takes the {NativeModule} lock.
-      base::MutexGuard guard(&mutex_);
+      base::MutexGuard guard(&debug_side_tables_mutex_);
       auto it = debug_side_tables_.find(code);
       if (it != debug_side_tables_.end()) return it->second.get();
     }
@@ -698,7 +720,7 @@ class DebugInfoImpl {
     // Check cache again, maybe another thread concurrently generated a debug
     // side table already.
     {
-      base::MutexGuard guard(&mutex_);
+      base::MutexGuard guard(&debug_side_tables_mutex_);
       auto& slot = debug_side_tables_[code];
       if (slot != nullptr) return slot.get();
       slot = std::move(debug_side_table);
@@ -743,16 +765,26 @@ class DebugInfoImpl {
                    ? WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())))
                    : WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
       }
-      // TODO(clemensb/zhin): Fix this for SIMD.
       DCHECK(reg.is_fp() || reg.is_fp_pair());
-      if (reg.is_fp_pair()) UNIMPLEMENTED();
+      // ifdef here to workaround unreachable code for is_fp_pair.
+#ifdef V8_TARGET_ARCH_ARM
+      int code = reg.is_fp_pair() ? reg.low_fp().code() : reg.fp().code();
+#else
+      int code = reg.fp().code();
+#endif
       Address spilled_addr =
           debug_break_fp +
-          WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(
-              reg.fp().code());
-      return type == kWasmF32
-                 ? WasmValue(ReadUnalignedValue<float>(spilled_addr))
-                 : WasmValue(ReadUnalignedValue<double>(spilled_addr));
+          WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(code);
+      if (type == kWasmF32) {
+        return WasmValue(ReadUnalignedValue<float>(spilled_addr));
+      } else if (type == kWasmF64) {
+        return WasmValue(ReadUnalignedValue<double>(spilled_addr));
+      } else if (type == kWasmS128) {
+        return WasmValue(Simd128(ReadUnalignedValue<int16>(spilled_addr)));
+      } else {
+        // All other cases should have been handled above.
+        UNREACHABLE();
+      }
     }
 
     // Otherwise load the value from the stack.
@@ -767,6 +799,9 @@ class DebugInfoImpl {
         return WasmValue(ReadUnalignedValue<float>(stack_address));
       case ValueType::kF64:
         return WasmValue(ReadUnalignedValue<double>(stack_address));
+      case ValueType::kS128: {
+        return WasmValue(Simd128(ReadUnalignedValue<int16>(stack_address)));
+      }
       default:
         UNIMPLEMENTED();
     }
@@ -837,12 +872,14 @@ class DebugInfoImpl {
 
   NativeModule* const native_module_;
 
-  // {mutex_} protects all fields below.
-  mutable base::Mutex mutex_;
+  mutable base::Mutex debug_side_tables_mutex_;
 
   // DebugSideTable per code object, lazily initialized.
   std::unordered_map<const WasmCode*, std::unique_ptr<DebugSideTable>>
       debug_side_tables_;
+
+  // {mutex_} protects all fields below.
+  mutable base::Mutex mutex_;
 
   // Names of locals, lazily decoded from the wire bytes.
   std::unique_ptr<LocalNames> local_names_;

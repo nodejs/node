@@ -607,19 +607,23 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   bool require_add = false;
   switch (params.transformation) {
     case LoadTransformation::kS8x16LoadSplat:
-      opcode = kArm64S8x16LoadSplat;
+      opcode = kArm64LoadSplat;
+      opcode |= MiscField::encode(8);
       require_add = true;
       break;
     case LoadTransformation::kS16x8LoadSplat:
-      opcode = kArm64S16x8LoadSplat;
+      opcode = kArm64LoadSplat;
+      opcode |= MiscField::encode(16);
       require_add = true;
       break;
     case LoadTransformation::kS32x4LoadSplat:
-      opcode = kArm64S32x4LoadSplat;
+      opcode = kArm64LoadSplat;
+      opcode |= MiscField::encode(32);
       require_add = true;
       break;
     case LoadTransformation::kS64x2LoadSplat:
-      opcode = kArm64S64x2LoadSplat;
+      opcode = kArm64LoadSplat;
+      opcode |= MiscField::encode(64);
       require_add = true;
       break;
     case LoadTransformation::kI16x8Load8x8S:
@@ -639,6 +643,12 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
       break;
     case LoadTransformation::kI64x2Load32x2U:
       opcode = kArm64I64x2Load32x2U;
+      break;
+    case LoadTransformation::kS128LoadMem32Zero:
+      opcode = kArm64S128LoadMem32Zero;
+      break;
+    case LoadTransformation::kS128LoadMem64Zero:
+      opcode = kArm64S128LoadMem64Zero;
       break;
     default:
       UNIMPLEMENTED();
@@ -1397,7 +1407,7 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(Float64Max, kArm64Float64Max) \
   V(Float32Min, kArm64Float32Min) \
   V(Float64Min, kArm64Float64Min) \
-  V(S8x16Swizzle, kArm64S8x16Swizzle)
+  V(I8x16Swizzle, kArm64I8x16Swizzle)
 
 #define RR_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -1775,10 +1785,9 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   VisitRR(this, kArm64Sxtw, node);
 }
 
-void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  switch (value->opcode()) {
+bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
+  DCHECK_NE(node->opcode(), IrOpcode::kPhi);
+  switch (node->opcode()) {
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:
     case IrOpcode::kWord32Xor:
@@ -1805,26 +1814,31 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
       // 32-bit operations will write their result in a W register (implicitly
       // clearing the top 32-bit of the corresponding X register) so the
       // zero-extension is a no-op.
-      EmitIdentity(node);
-      return;
+      return true;
     }
     case IrOpcode::kLoad: {
       // As for the operations above, a 32-bit load will implicitly clear the
       // top 32 bits of the destination register.
-      LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+      LoadRepresentation load_rep = LoadRepresentationOf(node->op());
       switch (load_rep.representation()) {
         case MachineRepresentation::kWord8:
         case MachineRepresentation::kWord16:
         case MachineRepresentation::kWord32:
-          EmitIdentity(node);
-          return;
+          return true;
         default:
-          break;
+          return false;
       }
-      break;
     }
     default:
-      break;
+      return false;
+  }
+}
+
+void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  if (ZeroExtendsWord32ToWord64(value)) {
+    return EmitIdentity(node);
   }
   Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
 }
@@ -3225,13 +3239,13 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Neg, kArm64I8x16Neg)                             \
   V(I8x16Abs, kArm64I8x16Abs)                             \
   V(S128Not, kArm64S128Not)                               \
-  V(V64x2AnyTrue, kArm64V64x2AnyTrue)                     \
+  V(V64x2AnyTrue, kArm64V128AnyTrue)                      \
   V(V64x2AllTrue, kArm64V64x2AllTrue)                     \
-  V(V32x4AnyTrue, kArm64V32x4AnyTrue)                     \
+  V(V32x4AnyTrue, kArm64V128AnyTrue)                      \
   V(V32x4AllTrue, kArm64V32x4AllTrue)                     \
-  V(V16x8AnyTrue, kArm64V16x8AnyTrue)                     \
+  V(V16x8AnyTrue, kArm64V128AnyTrue)                      \
   V(V16x8AllTrue, kArm64V16x8AllTrue)                     \
-  V(V8x16AnyTrue, kArm64V8x16AnyTrue)                     \
+  V(V8x16AnyTrue, kArm64V128AnyTrue)                      \
   V(V8x16AllTrue, kArm64V8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
@@ -3597,7 +3611,7 @@ void ArrangeShuffleTable(Arm64OperandGenerator* g, Node* input0, Node* input1,
 
 }  // namespace
 
-void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
   CanonicalizeShuffle(node, shuffle, &is_swizzle);
@@ -3647,7 +3661,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   // Code generator uses vtbl, arrange sources to form a valid lookup table.
   InstructionOperand src0, src1;
   ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
-  Emit(kArm64S8x16Shuffle, g.DefineAsRegister(node), src0, src1,
+  Emit(kArm64I8x16Shuffle, g.DefineAsRegister(node), src0, src1,
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),

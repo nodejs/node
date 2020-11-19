@@ -175,9 +175,15 @@ class JobDelegate {
    * Returns a task_id unique among threads currently running this job, such
    * that GetTaskId() < worker count. To achieve this, the same task_id may be
    * reused by a different thread after a worker_task returns.
+   */
+  virtual uint8_t GetTaskId() = 0;
+
+  /**
+   * Returns true if the current task is called from the thread currently
+   * running JobHandle::Join().
    * TODO(etiennep): Make pure virtual once custom embedders implement it.
    */
-  virtual uint8_t GetTaskId() { return 0; }
+  virtual bool IsJoiningThread() const { return false; }
 };
 
 /**
@@ -212,9 +218,8 @@ class JobHandle {
 
   /**
    * Returns true if there's no work pending and no worker running.
-   * TODO(etiennep): Make pure virtual once custom embedders implement it.
    */
-  virtual bool IsCompleted() { return true; }
+  virtual bool IsCompleted() = 0;
 
   /**
    * Returns true if associated with a Job and other methods may be called.
@@ -233,23 +238,17 @@ class JobTask {
   virtual void Run(JobDelegate* delegate) = 0;
 
   /**
-   * Controls the maximum number of threads calling Run() concurrently. Run() is
-   * only invoked if the number of threads previously running Run() was less
-   * than the value returned. Since GetMaxConcurrency() is a leaf function, it
-   * must not call back any JobHandle methods.
+   * Controls the maximum number of threads calling Run() concurrently, given
+   * the number of threads currently assigned to this job and executing Run().
+   * Run() is only invoked if the number of threads previously running Run() was
+   * less than the value returned. Since GetMaxConcurrency() is a leaf function,
+   * it must not call back any JobHandle methods.
    */
-  virtual size_t GetMaxConcurrency() const = 0;
+  virtual size_t GetMaxConcurrency(size_t worker_count) const = 0;
 
-  /*
-   * Meant to replace the version above, given the number of threads currently
-   * assigned to this job and executing Run(). This is useful when the result
-   * must include local work items not visible globaly by other workers.
-   * TODO(etiennep): Replace the version above by this once custom embedders are
-   * migrated.
-   */
-  size_t GetMaxConcurrency(size_t worker_count) const {
-    return GetMaxConcurrency();
-  }
+  // TODO(1114823): Clean up once all overrides are removed.
+  V8_DEPRECATED("Use the version that takes |worker_count|.")
+  virtual size_t GetMaxConcurrency() const { return 0; }
 };
 
 /**

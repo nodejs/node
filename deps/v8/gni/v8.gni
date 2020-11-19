@@ -67,6 +67,9 @@ declare_args() {
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 
+  # Scan the call stack conservatively during garbage collection.
+  v8_enable_conservative_stack_scanning = false
+
   v8_enable_google_benchmark = checkout_google_benchmark
 }
 
@@ -218,7 +221,7 @@ template("v8_executable") {
       configs -= invoker.remove_configs
     }
     configs += invoker.configs
-    if (is_linux) {
+    if (is_linux || is_chromeos) {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
     }

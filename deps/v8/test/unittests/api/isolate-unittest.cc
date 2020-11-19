@@ -94,7 +94,7 @@ TEST_F(IncumbentContextTest, Basic) {
         info.GetReturnValue().Set(incumbent_context->Global());
       });
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate());
-  global_template->Set(Str("getIncumbentGlobal"), get_incumbent_global);
+  global_template->Set(isolate(), "getIncumbentGlobal", get_incumbent_global);
 
   Local<Context> context_a = Context::New(isolate(), nullptr, global_template);
   Local<Context> context_b = Context::New(isolate(), nullptr, global_template);

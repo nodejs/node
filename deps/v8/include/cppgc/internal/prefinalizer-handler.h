@@ -18,7 +18,7 @@ class V8_EXPORT PreFinalizerRegistrationDispatcher final {
     void* object;
     PreFinalizerCallback callback;
 
-    bool operator==(const PreFinalizer& other);
+    bool operator==(const PreFinalizer& other) const;
   };
 
   static void RegisterPrefinalizer(PreFinalizer pre_finalizer);

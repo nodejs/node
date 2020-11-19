@@ -220,6 +220,39 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.left().node() == m.right().node()) return ReplaceBoolean(true);
       break;
     }
+    case IrOpcode::kCheckedInt32Add: {
+      // (x + a) + b => x + (a + b) where a and b are constants and have the
+      // same sign.
+      Int32BinopMatcher m(node);
+      if (m.right().HasValue()) {
+        Node* checked_int32_add = m.left().node();
+        if (checked_int32_add->opcode() == IrOpcode::kCheckedInt32Add) {
+          Int32BinopMatcher n(checked_int32_add);
+          if (n.right().HasValue() &&
+              (n.right().Value() >= 0) == (m.right().Value() >= 0)) {
+            int32_t val;
+            bool overflow = base::bits::SignedAddOverflow32(
+                n.right().Value(), m.right().Value(), &val);
+            if (!overflow) {
+              bool has_no_other_uses = true;
+              for (Edge edge : checked_int32_add->use_edges()) {
+                if (!edge.from()->IsDead() && edge.from() != node) {
+                  has_no_other_uses = false;
+                  break;
+                }
+              }
+              if (has_no_other_uses) {
+                node->ReplaceInput(0, n.left().node());
+                node->ReplaceInput(1, jsgraph()->Int32Constant(val));
+                RelaxEffectsAndControls(checked_int32_add);
+                return Changed(node);
+              }
+            }
+          }
+        }
+      }
+      break;
+    }
     default:
       break;
   }

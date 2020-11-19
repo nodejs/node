@@ -14,6 +14,7 @@ let opt = {
   day: '2-digit',
   hour: '2-digit',
   minute: '2-digit',
+  fractionalSecondDigits: 2,
 };
 
 let keys = Object.keys(opt);
@@ -25,10 +26,10 @@ testTimeStyle.timeStyle = 'long';
 for (key of keys) {
   assertThrows(
       () => new Intl.DateTimeFormat('en', testDateStyle),
-      TypeError, "Invalid option : dateStyle");
+      TypeError, "Can't set option " +  key + " when dateStyle is used");
   assertThrows(
       () => new Intl.DateTimeFormat('en', testTimeStyle),
-      TypeError, "Invalid option : timeStyle");
+      TypeError, "Can't set option " +  key + " when timeStyle is used");
   testDateStyle[key] = undefined;
   testTimeStyle[key] = undefined;
 }

@@ -4,9 +4,11 @@
 
 #include "src/snapshot/embedded/embedded-file-writer.h"
 
+#include <algorithm>
 #include <cinttypes>
 
 #include "src/codegen/source-position-table.h"
+#include "src/flags/flags.h"  // For ENABLE_CONTROL_FLOW_INTEGRITY_BOOL
 #include "src/objects/code-inl.h"
 
 namespace v8 {
@@ -34,7 +36,6 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   w->DeclareFunctionBegin(builtin_symbol.begin(),
                           blob->InstructionSizeOfBuiltin(builtin_id));
   const std::vector<byte>& current_positions = source_positions_[builtin_id];
-
   // The code below interleaves bytes of assembly code for the builtin
   // function with source positions at the appropriate offsets.
   Vector<const byte> vpos(current_positions.data(), current_positions.size());
@@ -45,29 +46,56 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   CHECK(positions.done());  // Release builds must not contain debug infos.
 #endif
 
+  // Some builtins (ArgumentsAdaptorTrampoline and JSConstructStubGeneric) have
+  // entry points located in the middle of them, we need to store their
+  // addresses since they are part of the list of allowed return addresses in
+  // the deoptimizer.
+  const std::vector<LabelInfo>& current_labels = label_info_[builtin_id];
+  auto label = current_labels.begin();
+
   const uint8_t* data = reinterpret_cast<const uint8_t*>(
       blob->InstructionStartOfBuiltin(builtin_id));
   uint32_t size = blob->PaddedInstructionSizeOfBuiltin(builtin_id);
   uint32_t i = 0;
-  uint32_t next_offset =
+  uint32_t next_source_pos_offset =
       static_cast<uint32_t>(positions.done() ? size : positions.code_offset());
+  uint32_t next_label_offset = static_cast<uint32_t>(
+      (label == current_labels.end()) ? size : label->offset);
+  uint32_t next_offset = 0;
   while (i < size) {
-    if (i == next_offset) {
+    if (i == next_source_pos_offset) {
       // Write source directive.
       w->SourceInfo(positions.source_position().ExternalFileId(),
                     GetExternallyCompiledFilename(
                         positions.source_position().ExternalFileId()),
                     positions.source_position().ExternalLine());
       positions.Advance();
-      next_offset = static_cast<uint32_t>(
+      next_source_pos_offset = static_cast<uint32_t>(
           positions.done() ? size : positions.code_offset());
+      CHECK_GE(next_source_pos_offset, i);
     }
-    CHECK_GE(next_offset, i);
+    if (i == next_label_offset) {
+      WriteBuiltinLabels(w, label->name);
+      label++;
+      next_label_offset = static_cast<uint32_t>(
+          (label == current_labels.end()) ? size : label->offset);
+      CHECK_GE(next_label_offset, i);
+    }
+    next_offset = std::min(next_source_pos_offset, next_label_offset);
     WriteBinaryContentsAsInlineAssembly(w, data + i, next_offset - i);
     i = next_offset;
   }
 
   w->DeclareFunctionEnd(builtin_symbol.begin());
+}
+
+void EmbeddedFileWriter::WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
+                                            std::string name) const {
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+    w->DeclareSymbolGlobal(name.c_str());
+  }
+
+  w->DeclareLabel(name.c_str());
 }
 
 void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
@@ -235,6 +263,16 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
         code.SourcePositionTable().GetDataEndAddress());
     source_positions_[i] = data;
   }
+}
+
+void EmbeddedFileWriter::PrepareBuiltinLabelInfoMap(
+    int create_offset, int invoke_offset, int arguments_adaptor_offset) {
+  label_info_[Builtins::kJSConstructStubGeneric].push_back(
+      {create_offset, "construct_stub_create_deopt_addr"});
+  label_info_[Builtins::kJSConstructStubGeneric].push_back(
+      {invoke_offset, "construct_stub_invoke_deopt_addr"});
+  label_info_[Builtins::kArgumentsAdaptorTrampoline].push_back(
+      {arguments_adaptor_offset, "arguments_adaptor_deopt_addr"});
 }
 
 }  // namespace internal

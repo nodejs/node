@@ -177,19 +177,20 @@ class MinimorphicLoadPropertyAccessFeedback : public ProcessedFeedback {
  public:
   MinimorphicLoadPropertyAccessFeedback(NameRef const& name,
                                         FeedbackSlotKind slot_kind,
-                                        bool is_monomorphic,
                                         Handle<Object> handler,
+                                        MaybeHandle<Map> maybe_map,
                                         bool has_migration_target_maps);
 
   NameRef const& name() const { return name_; }
-  bool is_monomorphic() const { return is_monomorphic_; }
+  bool is_monomorphic() const { return !maybe_map_.is_null(); }
   Handle<Object> handler() const { return handler_; }
+  MaybeHandle<Map> map() const { return maybe_map_; }
   bool has_migration_target_maps() const { return has_migration_target_maps_; }
 
  private:
   NameRef const name_;
-  bool const is_monomorphic_;
   Handle<Object> const handler_;
+  MaybeHandle<Map> const maybe_map_;
   bool const has_migration_target_maps_;
 };
 

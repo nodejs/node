@@ -39,7 +39,8 @@ class CWasmEntryArgTester {
     std::vector<uint8_t> code{wasm_function_bytes};
     runner_.Build(code.data(), code.data() + code.size());
     wasm_code_ = runner_.builder().GetFunctionCode(0);
-    c_wasm_entry_ = compiler::CompileCWasmEntry(isolate_, sig_);
+    c_wasm_entry_ = compiler::CompileCWasmEntry(
+        isolate_, sig_, wasm_code_->native_module()->module());
   }
 
   template <typename... Rest>

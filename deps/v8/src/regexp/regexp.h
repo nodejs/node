@@ -74,6 +74,13 @@ class RegExp final : public AllStatic {
       Isolate* isolate, Handle<JSRegExp> re, Handle<String> pattern,
       JSRegExp::Flags flags, uint32_t backtrack_limit);
 
+  // Ensures that a regexp is fully compiled and ready to be executed on a
+  // subject string.  Returns true on success. Return false on failure, and
+  // then an exception will be pending.
+  V8_WARN_UNUSED_RESULT static bool EnsureFullyCompiled(Isolate* isolate,
+                                                        Handle<JSRegExp> re,
+                                                        Handle<String> subject);
+
   enum CallOrigin : int {
     kFromRuntime = 0,
     kFromJs = 1,
@@ -97,16 +104,6 @@ class RegExp final : public AllStatic {
     RE_EXCEPTION = kInternalRegExpException,
   };
 
-  // Prepare a RegExp for being executed one or more times (using
-  // IrregexpExecOnce) on the subject.
-  // This ensures that the regexp is compiled for the subject, and that
-  // the subject is flat.
-  // Returns the number of integer spaces required by IrregexpExecOnce
-  // as its "registers" argument.  If the regexp cannot be compiled,
-  // an exception is set as pending, and this function returns negative.
-  static int IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
-                             Handle<String> subject);
-
   // Set last match info.  If match is nullptr, then setting captures is
   // omitted.
   static Handle<RegExpMatchInfo> SetLastMatchInfo(
@@ -124,6 +121,14 @@ class RegExp final : public AllStatic {
                                                    RegExpNode* node);
 
   static const int kRegExpTooLargeToOptimize = 20 * KB;
+
+  V8_WARN_UNUSED_RESULT
+  static MaybeHandle<Object> ThrowRegExpException(Isolate* isolate,
+                                                  Handle<JSRegExp> re,
+                                                  Handle<String> pattern,
+                                                  RegExpError error);
+  static void ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
+                                   RegExpError error_text);
 };
 
 // Uses a special global mode of irregexp-generated code to perform a global

@@ -69,8 +69,8 @@ class LocalHandlesThread final : public v8::base::Thread {
 };
 
 TEST(CreateLocalHandles) {
+  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
-  FLAG_local_heaps = true;
   Isolate* isolate = CcTest::i_isolate();
 
   Address object = kNullAddress;
@@ -97,8 +97,8 @@ TEST(CreateLocalHandles) {
 }
 
 TEST(CreateLocalHandlesWithoutLocalHandleScope) {
+  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
-  FLAG_local_heaps = true;
   Isolate* isolate = CcTest::i_isolate();
 
   {
@@ -108,8 +108,8 @@ TEST(CreateLocalHandlesWithoutLocalHandleScope) {
 }
 
 TEST(DereferenceLocalHandle) {
+  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
-  FLAG_local_heaps = true;
   Isolate* isolate = CcTest::i_isolate();
 
   // Create a PersistentHandle to create the LocalHandle, and thus not have a

@@ -196,6 +196,13 @@ class Decoder {
     return read_leb<int32_t, kValidate, kAdvancePc, kTrace>(pc_, &length, name);
   }
 
+  // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
+  uint64_t consume_u64v(const char* name = nullptr) {
+    uint32_t length = 0;
+    return read_leb<uint64_t, kValidate, kAdvancePc, kTrace>(pc_, &length,
+                                                             name);
+  }
+
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
   void consume_bytes(uint32_t size, const char* name = "skip") {
     // Only trace if the name is not null.

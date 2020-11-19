@@ -37,20 +37,6 @@ class DeserializerAllocator final {
     next_alignment_ = static_cast<AllocationAlignment>(alignment);
   }
 
-  void set_next_reference_is_weak(bool next_reference_is_weak) {
-    next_reference_is_weak_ = next_reference_is_weak;
-  }
-
-  bool GetAndClearNextReferenceIsWeak() {
-    bool saved = next_reference_is_weak_;
-    next_reference_is_weak_ = false;
-    return saved;
-  }
-
-#ifdef DEBUG
-  bool next_reference_is_weak() const { return next_reference_is_weak_; }
-#endif
-
   HeapObject GetMap(uint32_t index);
   HeapObject GetLargeObject(uint32_t index);
   HeapObject GetObject(SnapshotSpace space, uint32_t chunk_index,
@@ -87,9 +73,14 @@ class DeserializerAllocator final {
   uint32_t current_chunk_[kNumberOfPreallocatedSpaces];
   Address high_water_[kNumberOfPreallocatedSpaces];
 
+#ifdef DEBUG
+  // Record the previous object allocated for DCHECKs.
+  Address previous_allocation_start_ = kNullAddress;
+  int previous_allocation_size_ = 0;
+#endif
+
   // The alignment of the next allocation.
   AllocationAlignment next_alignment_ = kWordAligned;
-  bool next_reference_is_weak_ = false;
 
   // All required maps are pre-allocated during reservation. {next_map_index_}
   // stores the index of the next map to return from allocation.

@@ -208,6 +208,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Popcnt(Register dst, Register src) { Popcnt(dst, Operand(src)); }
   void Popcnt(Register dst, Operand src);
 
+  void PushReturnAddressFrom(Register src) { push(src); }
+  void PopReturnAddressTo(Register dst) { pop(dst); }
+
   void Ret();
 
   // Root register utility functions.
@@ -820,8 +823,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void Pop(Register dst) { pop(dst); }
   void Pop(Operand dst) { pop(dst); }
-  void PushReturnAddressFrom(Register src) { push(src); }
-  void PopReturnAddressTo(Register dst) { pop(dst); }
 
   // ---------------------------------------------------------------------------
   // In-place weak references.

@@ -7,8 +7,9 @@
 
 #include "src/compiler/js-operator.h"
 #include "src/compiler/js-type-hint-lowering.h"
-#include "src/utils/utils.h"
 #include "src/handles/handles.h"
+#include "src/objects/code-kind.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 
@@ -33,7 +34,6 @@ enum class BytecodeGraphBuilderFlag : uint8_t {
   // bytecode analysis.
   kAnalyzeEnvironmentLiveness = 1 << 1,
   kBailoutOnUninitialized = 1 << 2,
-  kNativeContextIndependent = 1 << 3,
 };
 using BytecodeGraphBuilderFlags = base::Flags<BytecodeGraphBuilderFlag>;
 
@@ -45,7 +45,8 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             BailoutId osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
-                            int inlining_id, BytecodeGraphBuilderFlags flags,
+                            int inlining_id, CodeKind code_kind,
+                            BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter);
 
 }  // namespace compiler
