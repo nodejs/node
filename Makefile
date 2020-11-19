@@ -1346,7 +1346,7 @@ lint-py:
 	PYTHONPATH=tools/pip $(PYTHON) -m flake8 --count --show-source --statistics .
 else
 lint-py:
-	$(warning Python linting with flake8 is not avalible)
+	$(warning Python linting with flake8 is not available)
 	$(warning Run 'make lint-py-build')
 endif
 
