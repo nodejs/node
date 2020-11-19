@@ -11,7 +11,10 @@ const { inspect } = require('util');
   await m.link(() => 0);
   assert.strictEqual(
     inspect(m.namespace),
-    '[Module] { a: <uninitialized>, b: undefined }');
+    '[Module: null prototype] { a: <uninitialized>, b: undefined }');
   await m.evaluate();
-  assert.strictEqual(inspect(m.namespace), '[Module] { a: 1, b: 2 }');
+  assert.strictEqual(
+    inspect(m.namespace),
+    '[Module: null prototype] { a: 1, b: 2 }'
+  );
 })().then(common.mustCall());
