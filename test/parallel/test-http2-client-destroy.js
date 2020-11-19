@@ -206,3 +206,38 @@ const Countdown = require('../common/countdown');
     assert.strictEqual(req.destroyed, true);
   }));
 }
+// Pass an already destroyed signal to abort immediately.
+{
+  const server = h2.createServer();
+  const controller = new AbortController();
+
+  server.on('stream', common.mustNotCall());
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+    client.on('close', common.mustCall());
+
+    const { signal } = controller;
+    controller.abort();
+
+    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+
+    client.on('error', common.mustCall(() => {
+      // After underlying stream dies, signal listener detached
+      assert.strictEqual(signal[kEvents].get('abort'), undefined);
+    }));
+
+    const req = client.request({}, { signal });
+    // Signal already aborted, so no event listener attached.
+    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+
+    assert.strictEqual(req.aborted, false);
+    // Destroyed on same tick as request made
+    assert.strictEqual(req.destroyed, true);
+
+    req.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ABORT_ERR');
+      assert.strictEqual(err.name, 'AbortError');
+    }));
+    req.on('close', common.mustCall(() => server.close()));
+  }));
+}
