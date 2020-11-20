@@ -1358,19 +1358,21 @@ format.
 
 For public keys, the following encoding options can be used:
 
+* `format`: {string} Must be `'pem'`, `'der'`, or `'jwk'`.
 * `type`: {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
-* `format`: {string} Must be `'pem'` or `'der'`.
 
 For private keys, the following encoding options can be used:
 
+* `format`: {string} Must be `'pem'`, `'der'`, or `'jwk'`.
 * `type`: {string} Must be one of `'pkcs1'` (RSA only), `'pkcs8'` or
   `'sec1'` (EC only).
-* `format`: {string} Must be `'pem'` or `'der'`.
 * `cipher`: {string} If specified, the private key will be encrypted with
    the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
    encryption.
 * `passphrase`: {string | Buffer} The passphrase to use for encryption, see
   `cipher`.
+
+When JWK format was selected, all other options are ignored.
 
 When PEM encoding was selected, the result will be a string, otherwise it will
 be a buffer containing the data encoded as DER.

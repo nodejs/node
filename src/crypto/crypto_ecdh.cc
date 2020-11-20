@@ -596,6 +596,58 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
   }
 }
 
+// TODO: this needs a new home
+Maybe<bool> ExportJWKOkpKey(
+    Environment* env,
+    std::shared_ptr<KeyObjectData> key,
+    Local<Object> target) {
+  ManagedEVPPKey pkey = key->GetAsymmetricKey();
+  // TODO: CHECK EVP_PKEY_id(pkey.get()) is one of
+  // EVP_PKEY_X448, EVP_PKEY_ED448, EVP_PKEY_X25519, EVP_PKEY_ED25519
+
+  size_t len = 0;
+  EVP_PKEY_get_raw_public_key(pkey.get(), nullptr, &len);
+
+  uint8_t* rawX = new uint8_t[len];
+  EVP_PKEY_get_raw_public_key(pkey.get(), rawX, &len);
+
+  if (target->Set(
+          env->context(),
+          env->jwk_kty_string(),
+          env->jwk_okp_string()).IsNothing()) {
+    return Nothing<bool>();
+  }
+
+  BignumPointer x(BN_new());
+  BN_bin2bn(rawX, len, x.get());
+
+  if (SetEncodedValue(
+          env,
+          target,
+          env->jwk_x_string(),
+          x.get(),
+          len).IsNothing()) {
+    return Nothing<bool>();
+  }
+
+  if (key->GetKeyType() == kKeyTypePrivate) {
+    uint8_t* rawD = new uint8_t[len];
+    EVP_PKEY_get_raw_private_key(pkey.get(), rawD, &len);
+
+    BignumPointer d(BN_new());
+    BN_bin2bn(rawD, len, d.get());
+
+    return SetEncodedValue(
+      env,
+      target,
+      env->jwk_d_string(),
+      d.get(),
+      len);
+  }
+
+  return Just(true);
+}
+
 Maybe<bool> ExportJWKEcKey(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
@@ -680,7 +732,7 @@ std::shared_ptr<KeyObjectData> ImportJWKEcKey(
   if (!x_value->IsString() ||
       !y_value->IsString() ||
       (!d_value->IsUndefined() && !d_value->IsString())) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK EC key");
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
     return std::shared_ptr<KeyObjectData>();
   }
 
@@ -688,7 +740,7 @@ std::shared_ptr<KeyObjectData> ImportJWKEcKey(
 
   ECKeyPointer ec(EC_KEY_new_by_curve_name(nid));
   if (!ec) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK EC key");
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
     return std::shared_ptr<KeyObjectData>();
   }
 
@@ -699,14 +751,14 @@ std::shared_ptr<KeyObjectData> ImportJWKEcKey(
           ec.get(),
           x.ToBN().get(),
           y.ToBN().get())) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK EC key");
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
     return std::shared_ptr<KeyObjectData>();
   }
 
   if (type == kKeyTypePrivate) {
     ByteSource d = ByteSource::FromEncodedString(env, d_value.As<String>());
     if (!EC_KEY_set_private_key(ec.get(), d.ToBN().get())) {
-      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK EC key");
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
       return std::shared_ptr<KeyObjectData>();
     }
   }

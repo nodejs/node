@@ -286,6 +286,7 @@ constexpr size_t kFsStatsBufferLength =
   V(jwk_dsa_string, "DSA")                                                     \
   V(jwk_e_string, "e")                                                         \
   V(jwk_ec_string, "EC")                                                       \
+  V(jwk_okp_string, "OKP")                                                     \
   V(jwk_g_string, "g")                                                         \
   V(jwk_k_string, "k")                                                         \
   V(jwk_p_string, "p")                                                         \
