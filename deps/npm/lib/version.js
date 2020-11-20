@@ -1,3 +1,5 @@
+'use strict'
+
 const libversion = require('libnpmversion')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
@@ -42,7 +44,7 @@ const version = async args => {
         path: npm.prefix,
       }))
     default:
-      throw version.usage
+      throw usage
   }
 }
 
