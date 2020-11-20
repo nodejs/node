@@ -157,7 +157,7 @@ U_CFUNC const char* ures_getName(const UResourceBundle* resB);
 U_CFUNC const char* ures_getPath(const UResourceBundle* resB);
 /**
  * If anything was in the RB cache, dump it to the screen.
- * @return TRUE if there was anything into the cache
+ * @return true if there was anything into the cache
  */
 U_CAPI UBool U_EXPORT2 ures_dumpCacheContents(void);
 #endif
@@ -218,7 +218,7 @@ ures_findSubResource(const UResourceBundle *resB,
  * @param isAvailable If non-null, pointer to fillin parameter that indicates whether the
  * requested locale was available. The locale is defined as 'available' if it physically
  * exists within the specified tree.
- * @param omitDefault if TRUE, omit keyword and value if default. 'de_DE\@collation=standard' -> 'de_DE'
+ * @param omitDefault if true, omit keyword and value if default. 'de_DE\@collation=standard' -> 'de_DE'
  * @param status error code
  * @return  the actual buffer size needed for the full locale.  If it's greater
  * than resultCapacity, the returned full name will be truncated and an error code will be returned.

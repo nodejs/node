@@ -28,8 +28,11 @@
  */
 
 #include "locmap.h"
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cstring.h"
 #include "cmemory.h"
+#include "ulocimp.h"
 #include "unicode/uloc.h"
 
 #if U_PLATFORM_HAS_WIN32_API && UCONFIG_USE_WINDOWS_LCID_MAPPING_API
@@ -1167,15 +1170,18 @@ uprv_convertToLCIDPlatform(const char* localeID, UErrorCode* status)
     // conversion functionality when available.
 #if U_PLATFORM_HAS_WIN32_API && UCONFIG_USE_WINDOWS_LCID_MAPPING_API
     int32_t len;
-    char collVal[ULOC_KEYWORDS_CAPACITY] = {};
     char baseName[ULOC_FULLNAME_CAPACITY] = {};
     const char * mylocaleID = localeID;
 
     // Check any for keywords.
     if (uprv_strchr(localeID, '@'))
     {
-        len = uloc_getKeywordValue(localeID, "collation", collVal, UPRV_LENGTHOF(collVal) - 1, status);
-        if (U_SUCCESS(*status) && len > 0)
+        icu::CharString collVal;
+        {
+            icu::CharStringByteSink sink(&collVal);
+            ulocimp_getKeywordValue(localeID, "collation", sink, status);
+        }
+        if (U_SUCCESS(*status) && !collVal.isEmpty())
         {
             // If it contains the keyword collation, return 0 so that the LCID lookup table will be used.
             return 0;

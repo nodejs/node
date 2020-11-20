@@ -50,7 +50,7 @@ http://www.nicemice.net/amc/
  * @param caseFlags Vector of boolean values, one per input UChar,
  *                  indicating that the corresponding character is to be
  *                  marked for the decoder optionally
- *                  uppercasing (TRUE) or lowercasing (FALSE)
+ *                  uppercasing (true) or lowercasing (false)
  *                  the character.
  *                  ASCII characters are output directly in the case as marked.
  *                  Flags corresponding to trail surrogates are ignored.
@@ -65,7 +65,7 @@ http://www.nicemice.net/amc/
  *
  * @see u_strFromPunycode
  */
-U_CFUNC int32_t
+U_CAPI int32_t
 u_strToPunycode(const UChar *src, int32_t srcLength,
                 UChar *dest, int32_t destCapacity,
                 const UBool *caseFlags,
@@ -83,10 +83,10 @@ u_strToPunycode(const UChar *src, int32_t srcLength,
  *                     and of caseFlags in numbers of UBools.
  * @param caseFlags Output array for case flags as
  *                  defined by the Punycode string.
- *                  The caller should uppercase (TRUE) or lowercase (FASLE)
+ *                  The caller should uppercase (true) or lowercase (FASLE)
  *                  the corresponding character in dest.
  *                  For supplementary characters, only the lead surrogate
- *                  is marked, and FALSE is stored for the trail surrogate.
+ *                  is marked, and false is stored for the trail surrogate.
  *                  This is redundant and not necessary for ASCII characters
  *                  because they are already in the case indicated.
  *                  Can be NULL if the case flags are not needed.
@@ -100,7 +100,7 @@ u_strToPunycode(const UChar *src, int32_t srcLength,
  *
  * @see u_strToPunycode
  */
-U_CFUNC int32_t
+U_CAPI int32_t
 u_strFromPunycode(const UChar *src, int32_t srcLength,
                   UChar *dest, int32_t destCapacity,
                   UBool *caseFlags,

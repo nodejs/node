@@ -156,7 +156,8 @@ enum UDisplayContext {
     UDISPCTX_SUBSTITUTE = (UDISPCTX_TYPE_SUBSTITUTE_HANDLING<<8) + 0,
     /**
      * A possible setting for SUBSTITUTE_HANDLING:
-     * Returns a null value when no data is available.
+     * Returns a null value with error code set to U_ILLEGAL_ARGUMENT_ERROR when no
+     * data is available.
      * @stable ICU 58
      */
     UDISPCTX_NO_SUBSTITUTE = (UDISPCTX_TYPE_SUBSTITUTE_HANDLING<<8) + 1

@@ -22,7 +22,7 @@ static const char kDefaultCurrency8[] = "XXX";
 /**
  * A struct representing a single unit (optional SI prefix and dimensionality).
  */
-struct SingleUnitImpl : public UMemory {
+struct U_I18N_API SingleUnitImpl : public UMemory {
     /**
      * Gets a single unit from the MeasureUnit. If there are multiple single units, sets an error
      * code and returns the base dimensionless unit. Parses if necessary.
@@ -31,6 +31,16 @@ struct SingleUnitImpl : public UMemory {
 
     /** Transform this SingleUnitImpl into a MeasureUnit, simplifying if possible. */
     MeasureUnit build(UErrorCode& status) const;
+
+    /**
+     * Returns the "simple unit ID", without SI or dimensionality prefix: this
+     * instance may represent a square-kilometer, but only "meter" will be
+     * returned.
+     *
+     * The returned pointer points at memory that exists for the duration of the
+     * program's running.
+     */
+    const char *getSimpleUnitID() const;
 
     /**
      * Compare this SingleUnitImpl to another SingleUnitImpl for the sake of
@@ -110,12 +120,27 @@ struct SingleUnitImpl : public UMemory {
     int32_t dimensionality = 1;
 };
 
+// Export explicit template instantiations of MaybeStackArray, MemoryPool and
+// MaybeStackVector. This is required when building DLLs for Windows. (See
+// datefmt.h, collationiterator.h, erarules.h and others for similar examples.)
+#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
+template class U_I18N_API MaybeStackArray<SingleUnitImpl*, 8>;
+template class U_I18N_API MemoryPool<SingleUnitImpl, 8>;
+template class U_I18N_API MaybeStackVector<SingleUnitImpl, 8>;
+#endif
 
 /**
  * Internal representation of measurement units. Capable of representing all complexities of units,
  * including mixed and compound units.
  */
-struct MeasureUnitImpl : public UMemory {
+struct U_I18N_API MeasureUnitImpl : public UMemory {
+    MeasureUnitImpl() = default;
+    MeasureUnitImpl(MeasureUnitImpl &&other) = default;
+    MeasureUnitImpl(const MeasureUnitImpl &other, UErrorCode &status);
+    MeasureUnitImpl(const SingleUnitImpl &singleUnit, UErrorCode &status);
+
+    MeasureUnitImpl &operator=(MeasureUnitImpl &&other) noexcept = default;
+
     /** Extract the MeasureUnitImpl from a MeasureUnit. */
     static inline const MeasureUnitImpl* get(const MeasureUnit& measureUnit) {
         return measureUnit.fImpl;
@@ -169,13 +194,17 @@ struct MeasureUnitImpl : public UMemory {
     /**
      * Create a copy of this MeasureUnitImpl. Don't use copy constructor to make this explicit.
      */
-    inline MeasureUnitImpl copy(UErrorCode& status) const {
-        MeasureUnitImpl result;
-        result.complexity = complexity;
-        result.units.appendAll(units, status);
-        result.identifier.append(identifier, status);
-        return result;
-    }
+    MeasureUnitImpl copy(UErrorCode& status) const;
+
+    /**
+     * Extracts the list of all the individual units inside the `MeasureUnitImpl`.
+     *      For example:
+     *          -   if the `MeasureUnitImpl` is `foot-per-hour`
+     *                  it will return a list of 1 {`foot-per-hour`}
+     *          -   if the `MeasureUnitImpl` is `foot-and-inch`
+     *                  it will return a list of 2 { `foot`, `inch`}
+     */
+    MaybeStackVector<MeasureUnitImpl> extractIndividualUnits(UErrorCode &status) const;
 
     /** Mutates this MeasureUnitImpl to take the reciprocal. */
     void takeReciprocal(UErrorCode& status);
@@ -205,7 +234,6 @@ struct MeasureUnitImpl : public UMemory {
      */
     CharString identifier;
 };
-
 
 U_NAMESPACE_END
 

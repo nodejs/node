@@ -57,6 +57,16 @@ udata_create(const char *dir, const char *type, const char *name,
         return NULL;
     }
 
+    char dirSepChar = U_FILE_SEP_CHAR;
+#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
+    // We may need to append a different directory separator when building for Cygwin or MSYS2.
+    if(dir && *dir) {
+      if(!uprv_strchr(dir, U_FILE_SEP_CHAR) && uprv_strchr(dir, U_FILE_ALT_SEP_CHAR)) {
+          dirSepChar = U_FILE_ALT_SEP_CHAR;
+      }
+    }
+#endif
+
     /* Check that the full path won't be too long */
     length = 0;					/* Start with nothing */
     if(dir != NULL  && *dir !=0)	/* Add directory length if one was given */
@@ -64,7 +74,7 @@ udata_create(const char *dir, const char *type, const char *name,
 	length += static_cast<int32_t>(strlen(dir));
 
 	/* Add 1 if dir doesn't end with path sep */
-        if (dir[strlen(dir) - 1]!= U_FILE_SEP_CHAR) {
+        if (dir[strlen(dir) - 1]!= dirSepChar) {
             length++;
         }
 	}
@@ -87,8 +97,8 @@ udata_create(const char *dir, const char *type, const char *name,
     if(dir!=NULL && *dir!=0) { /* if dir has a value, we prepend it to the filename */
         char *p=filename+strlen(dir);
         uprv_strcpy(filename, dir);
-        if (*(p-1)!=U_FILE_SEP_CHAR) {
-            *p++=U_FILE_SEP_CHAR;
+        if (*(p-1)!=dirSepChar) {
+            *p++=dirSepChar;
             *p=0;
         }
     } else { /* otherwise, we'll output to the current dir */

@@ -193,7 +193,7 @@ ucfpos_close(UConstrainedFieldPosition* ptr) {
 }
 
 
-U_DRAFT const UChar* U_EXPORT2
+U_CAPI const UChar* U_EXPORT2
 ufmtval_getString(
         const UFormattedValue* ufmtval,
         int32_t* pLength,
@@ -213,7 +213,7 @@ ufmtval_getString(
 }
 
 
-U_DRAFT UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ufmtval_nextPosition(
         const UFormattedValue* ufmtval,
         UConstrainedFieldPosition* ucfpos,

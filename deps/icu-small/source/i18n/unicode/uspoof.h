@@ -22,12 +22,12 @@
 #include "unicode/utypes.h"
 #include "unicode/uset.h"
 #include "unicode/parseerr.h"
-#include "unicode/localpointer.h"
 
 #if !UCONFIG_NO_NORMALIZATION
 
 
 #if U_SHOW_CPLUSPLUS_API
+#include "unicode/localpointer.h"
 #include "unicode/unistr.h"
 #include "unicode/uniset.h"
 #endif
@@ -154,10 +154,10 @@
  *     UChar* skel = (UChar*) malloc(++len * sizeof(UChar));
  *     status = U_ZERO_ERROR;
  *     uspoof_getSkeleton(sc, 0, str, -1, skel, len, &status);
- *     UBool result = FALSE;
+ *     UBool result = false;
  *     for (size_t i=0; i<DICTIONARY_LENGTH; i++) {
  *         result = u_strcmp(skel, skeletons[i]) == 0;
- *         if (result == TRUE) { break; }
+ *         if (result == true) { break; }
  *     }
  *     // Has confusable in dictionary: 1 (status: U_ZERO_ERROR)
  *     printf("Has confusable in dictionary: %d (status: %s)\n", result, u_errorName(status));
@@ -601,7 +601,7 @@ typedef enum USpoofChecks {
  *  @return        the newly created Spoof Checker
  *  @stable ICU 4.2
  */
-U_STABLE USpoofChecker * U_EXPORT2
+U_CAPI USpoofChecker * U_EXPORT2
 uspoof_open(UErrorCode *status);
 
 
@@ -626,7 +626,7 @@ uspoof_open(UErrorCode *status);
  * @see uspoof_serialize
  * @stable ICU 4.2
  */
-U_STABLE USpoofChecker * U_EXPORT2
+U_CAPI USpoofChecker * U_EXPORT2
 uspoof_openFromSerialized(const void *data, int32_t length, int32_t *pActualLength,
                           UErrorCode *pErrorCode);
 
@@ -660,7 +660,7 @@ uspoof_openFromSerialized(const void *data, int32_t length, int32_t *pActualLeng
   * @return            A spoof checker that uses the rules from the input files.
   * @stable ICU 4.2
   */
-U_STABLE USpoofChecker * U_EXPORT2
+U_CAPI USpoofChecker * U_EXPORT2
 uspoof_openFromSource(const char *confusables,  int32_t confusablesLen,
                       const char *confusablesWholeScript, int32_t confusablesWholeScriptLen,
                       int32_t *errType, UParseError *pe, UErrorCode *status);
@@ -671,7 +671,7 @@ uspoof_openFromSource(const char *confusables,  int32_t confusablesLen,
   *   its implementation.
   * @stable ICU 4.2
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uspoof_close(USpoofChecker *sc);
 
 /**
@@ -683,7 +683,7 @@ uspoof_close(USpoofChecker *sc);
  * @return
  * @stable ICU 4.2
  */
-U_STABLE USpoofChecker * U_EXPORT2
+U_CAPI USpoofChecker * U_EXPORT2
 uspoof_clone(const USpoofChecker *sc, UErrorCode *status);
 
 
@@ -691,8 +691,10 @@ uspoof_clone(const USpoofChecker *sc, UErrorCode *status);
  * Specify the bitmask of checks that will be performed by {@link uspoof_check}. Calling this method
  * overwrites any checks that may have already been enabled. By default, all checks are enabled.
  *
- * To enable specific checks and disable all others, the "whitelisted" checks should be ORed together. For
- * example, to fail strings containing characters outside of the set specified by {@link uspoof_setAllowedChars} and
+ * To enable specific checks and disable all others,
+ * OR together only the bit constants for the desired checks.
+ * For example, to fail strings containing characters outside of
+ * the set specified by {@link uspoof_setAllowedChars} and
  * also strings that contain digits from mixed numbering systems:
  *
  * <pre>
@@ -701,8 +703,9 @@ uspoof_clone(const USpoofChecker *sc, UErrorCode *status);
  * }
  * </pre>
  *
- * To disable specific checks and enable all others, the "blacklisted" checks should be ANDed away from
- * ALL_CHECKS. For example, if you are not planning to use the {@link uspoof_areConfusable} functionality,
+ * To disable specific checks and enable all others,
+ * start with ALL_CHECKS and "AND away" the not-desired checks.
+ * For example, if you are not planning to use the {@link uspoof_areConfusable} functionality,
  * it is good practice to disable the CONFUSABLE check:
  *
  * <pre>
@@ -724,7 +727,7 @@ uspoof_clone(const USpoofChecker *sc, UErrorCode *status);
  * @stable ICU 4.2
  *
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uspoof_setChecks(USpoofChecker *sc, int32_t checks, UErrorCode *status);
 
 /**
@@ -738,7 +741,7 @@ uspoof_setChecks(USpoofChecker *sc, int32_t checks, UErrorCode *status);
  * @stable ICU 4.2
  *
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_getChecks(const USpoofChecker *sc, UErrorCode *status);
 
 /**
@@ -752,7 +755,7 @@ uspoof_getChecks(const USpoofChecker *sc, UErrorCode *status);
  * @see URestrictionLevel
  * @stable ICU 51
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uspoof_setRestrictionLevel(USpoofChecker *sc, URestrictionLevel restrictionLevel);
 
 
@@ -763,7 +766,7 @@ uspoof_setRestrictionLevel(USpoofChecker *sc, URestrictionLevel restrictionLevel
   * @see URestrictionLevel
   * @stable ICU 51
   */
-U_STABLE URestrictionLevel U_EXPORT2
+U_CAPI URestrictionLevel U_EXPORT2
 uspoof_getRestrictionLevel(const USpoofChecker *sc);
 
 /**
@@ -808,7 +811,7 @@ uspoof_getRestrictionLevel(const USpoofChecker *sc);
  * @param status       The error code, set if this function encounters a problem.
  * @stable ICU 4.2
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uspoof_setAllowedLocales(USpoofChecker *sc, const char *localesList, UErrorCode *status);
 
 /**
@@ -832,7 +835,7 @@ uspoof_setAllowedLocales(USpoofChecker *sc, const char *localesList, UErrorCode 
  *
  * @stable ICU 4.2
  */
-U_STABLE const char * U_EXPORT2
+U_CAPI const char * U_EXPORT2
 uspoof_getAllowedLocales(USpoofChecker *sc, UErrorCode *status);
 
 
@@ -854,7 +857,7 @@ uspoof_getAllowedLocales(USpoofChecker *sc, UErrorCode *status);
  * @param status   The error code, set if this function encounters a problem.
  * @stable ICU 4.2
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uspoof_setAllowedChars(USpoofChecker *sc, const USet *chars, UErrorCode *status);
 
 
@@ -878,7 +881,7 @@ uspoof_setAllowedChars(USpoofChecker *sc, const USet *chars, UErrorCode *status)
  *                 the USPOOF_CHAR_LIMIT test.
  * @stable ICU 4.2
  */
-U_STABLE const USet * U_EXPORT2
+U_CAPI const USet * U_EXPORT2
 uspoof_getAllowedChars(const USpoofChecker *sc, UErrorCode *status);
 
 
@@ -914,7 +917,7 @@ uspoof_getAllowedChars(const USpoofChecker *sc, UErrorCode *status);
  * @see uspoof_check2
  * @stable ICU 4.2
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_check(const USpoofChecker *sc,
                          const UChar *id, int32_t length,
                          int32_t *position,
@@ -953,7 +956,7 @@ uspoof_check(const USpoofChecker *sc,
  * @see uspoof_check2UTF8
  * @stable ICU 4.2
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_checkUTF8(const USpoofChecker *sc,
                  const char *id, int32_t length,
                  int32_t *position,
@@ -988,7 +991,7 @@ uspoof_checkUTF8(const USpoofChecker *sc,
  * @see uspoof_check2UnicodeString
  * @stable ICU 58
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_check2(const USpoofChecker *sc,
     const UChar* id, int32_t length,
     USpoofCheckResult* checkResult,
@@ -1025,7 +1028,7 @@ uspoof_check2(const USpoofChecker *sc,
  * @see uspoof_check2UnicodeString
  * @stable ICU 58
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_check2UTF8(const USpoofChecker *sc,
     const char *id, int32_t length,
     USpoofCheckResult* checkResult,
@@ -1049,7 +1052,7 @@ uspoof_check2UTF8(const USpoofChecker *sc,
  * @see uspoof_check2UnicodeString
  * @stable ICU 58
  */
-U_STABLE USpoofCheckResult* U_EXPORT2
+U_CAPI USpoofCheckResult* U_EXPORT2
 uspoof_openCheckResult(UErrorCode *status);
 
 /**
@@ -1059,7 +1062,7 @@ uspoof_openCheckResult(UErrorCode *status);
  * @param checkResult  The instance of USpoofCheckResult to close
  * @stable ICU 58
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uspoof_closeCheckResult(USpoofCheckResult *checkResult);
 
 /**
@@ -1076,7 +1079,7 @@ uspoof_closeCheckResult(USpoofCheckResult *checkResult);
  * @see uspoof_setChecks
  * @stable ICU 58
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_getCheckResultChecks(const USpoofCheckResult *checkResult, UErrorCode *status);
 
 /**
@@ -1089,7 +1092,7 @@ uspoof_getCheckResultChecks(const USpoofCheckResult *checkResult, UErrorCode *st
  * @see uspoof_setRestrictionLevel
  * @stable ICU 58
  */
-U_STABLE URestrictionLevel U_EXPORT2
+U_CAPI URestrictionLevel U_EXPORT2
 uspoof_getCheckResultRestrictionLevel(const USpoofCheckResult *checkResult, UErrorCode *status);
 
 /**
@@ -1103,7 +1106,7 @@ uspoof_getCheckResultRestrictionLevel(const USpoofCheckResult *checkResult, UErr
  * @param status       The error code, set if an error occurred.
  * @stable ICU 58
  */
-U_STABLE const USet* U_EXPORT2
+U_CAPI const USet* U_EXPORT2
 uspoof_getCheckResultNumerics(const USpoofCheckResult *checkResult, UErrorCode *status);
 
 
@@ -1150,7 +1153,7 @@ uspoof_getCheckResultNumerics(const USpoofCheckResult *checkResult, UErrorCode *
  *
  * @stable ICU 4.2
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_areConfusable(const USpoofChecker *sc,
                      const UChar *id1, int32_t length1,
                      const UChar *id2, int32_t length2,
@@ -1183,7 +1186,7 @@ uspoof_areConfusable(const USpoofChecker *sc,
  *
  * @see uspoof_areConfusable
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_areConfusableUTF8(const USpoofChecker *sc,
                          const char *id1, int32_t length1,
                          const char *id2, int32_t length2,
@@ -1223,7 +1226,7 @@ uspoof_areConfusableUTF8(const USpoofChecker *sc,
  * @stable ICU 4.2
  * @see uspoof_areConfusable
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_getSkeleton(const USpoofChecker *sc,
                    uint32_t type,
                    const UChar *id,  int32_t length,
@@ -1263,7 +1266,7 @@ uspoof_getSkeleton(const USpoofChecker *sc,
  *
  * @stable ICU 4.2
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_getSkeletonUTF8(const USpoofChecker *sc,
                        uint32_t type,
                        const char *id,  int32_t length,
@@ -1282,7 +1285,7 @@ uspoof_getSkeletonUTF8(const USpoofChecker *sc,
   *
   * @stable ICU 51
   */
-U_STABLE const USet * U_EXPORT2
+U_CAPI const USet * U_EXPORT2
 uspoof_getInclusionSet(UErrorCode *status);
 
 /**
@@ -1297,7 +1300,7 @@ uspoof_getInclusionSet(UErrorCode *status);
   *
   * @stable ICU 51
   */
-U_STABLE const USet * U_EXPORT2
+U_CAPI const USet * U_EXPORT2
 uspoof_getRecommendedSet(UErrorCode *status);
 
 /**
@@ -1322,7 +1325,7 @@ uspoof_getRecommendedSet(UErrorCode *status);
  * @see utrie2_openFromSerialized()
  * @stable ICU 4.2
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_serialize(USpoofChecker *sc,
                  void *data, int32_t capacity,
                  UErrorCode *status);
@@ -1388,7 +1391,7 @@ U_NAMESPACE_END
  * @param status   The error code, set if this function encounters a problem.
  * @stable ICU 4.2
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uspoof_setAllowedUnicodeSet(USpoofChecker *sc, const icu::UnicodeSet *chars, UErrorCode *status);
 
 
@@ -1412,7 +1415,7 @@ uspoof_setAllowedUnicodeSet(USpoofChecker *sc, const icu::UnicodeSet *chars, UEr
  *                 the USPOOF_CHAR_LIMIT test.
  * @stable ICU 4.2
  */
-U_STABLE const icu::UnicodeSet * U_EXPORT2
+U_CAPI const icu::UnicodeSet * U_EXPORT2
 uspoof_getAllowedUnicodeSet(const USpoofChecker *sc, UErrorCode *status);
 
 /**
@@ -1443,7 +1446,7 @@ uspoof_getAllowedUnicodeSet(const USpoofChecker *sc, UErrorCode *status);
  * @see uspoof_check2UnicodeString
  * @stable ICU 4.2
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_checkUnicodeString(const USpoofChecker *sc,
                           const icu::UnicodeString &id,
                           int32_t *position,
@@ -1474,7 +1477,7 @@ uspoof_checkUnicodeString(const USpoofChecker *sc,
  * @see uspoof_check2UTF8
  * @stable ICU 58
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_check2UnicodeString(const USpoofChecker *sc,
     const icu::UnicodeString &id,
     USpoofCheckResult* checkResult,
@@ -1501,7 +1504,7 @@ uspoof_check2UnicodeString(const USpoofChecker *sc,
  *
  * @see uspoof_areConfusable
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uspoof_areConfusableUnicodeString(const USpoofChecker *sc,
                                   const icu::UnicodeString &s1,
                                   const icu::UnicodeString &s2,
@@ -1549,7 +1552,7 @@ uspoof_getSkeletonUnicodeString(const USpoofChecker *sc,
   *
   * @stable ICU 51
   */
-U_STABLE const icu::UnicodeSet * U_EXPORT2
+U_CAPI const icu::UnicodeSet * U_EXPORT2
 uspoof_getInclusionUnicodeSet(UErrorCode *status);
 
 /**
@@ -1564,7 +1567,7 @@ uspoof_getInclusionUnicodeSet(UErrorCode *status);
   *
   * @stable ICU 51
   */
-U_STABLE const icu::UnicodeSet * U_EXPORT2
+U_CAPI const icu::UnicodeSet * U_EXPORT2
 uspoof_getRecommendedUnicodeSet(UErrorCode *status);
 
 #endif /* U_SHOW_CPLUSPLUS_API */

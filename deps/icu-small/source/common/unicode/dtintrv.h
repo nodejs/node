@@ -106,14 +106,14 @@ public:
 
     /**
      * Equality operator.
-     * @return TRUE if the two DateIntervals are the same
+     * @return true if the two DateIntervals are the same
      * @stable ICU 4.0
      */
     virtual UBool operator==(const DateInterval& other) const;
 
     /**
      * Non-equality operator
-     * @return TRUE if the two DateIntervals are not the same
+     * @return true if the two DateIntervals are not the same
      * @stable ICU 4.0
      */
     inline UBool operator!=(const DateInterval& other) const;

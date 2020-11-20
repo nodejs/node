@@ -90,7 +90,7 @@
                 {
                     "properties": {
                         "filterType": {
-                            "$ref": "#/definitions/blacklistWhitelistFilterTypes"
+                            "$ref": "#/definitions/includeExcludeFilterTypes"
                         },
                         "whitelist": { "$ref": "#/definitions/stringList" }
                     },
@@ -100,11 +100,31 @@
                 {
                     "properties": {
                         "filterType": {
-                            "$ref": "#/definitions/blacklistWhitelistFilterTypes"
+                            "$ref": "#/definitions/includeExcludeFilterTypes"
                         },
                         "blacklist": { "$ref": "#/definitions/stringList" }
                     },
                     "required": ["blacklist"],
+                    "additionalProperties": false
+                },
+                {
+                    "properties": {
+                        "filterType": {
+                            "$ref": "#/definitions/includeExcludeFilterTypes"
+                        },
+                        "includelist": { "$ref": "#/definitions/stringList" }
+                    },
+                    "required": ["includelist"],
+                    "additionalProperties": false
+                },
+                {
+                    "properties": {
+                        "filterType": {
+                            "$ref": "#/definitions/includeExcludeFilterTypes"
+                        },
+                        "excludelist": { "$ref": "#/definitions/stringList" }
+                    },
+                    "required": ["excludelist"],
                     "additionalProperties": false
                 },
                 {
@@ -138,6 +158,23 @@
                     "properties": {
                         "filterType": {
                             "type": "string",
+                            "enum": ["locale"]
+                        },
+                        "includeChildren": {
+                            "type": "boolean"
+                        },
+                        "includeScripts": {
+                            "type": "boolean"
+                        },
+                        "includelist": { "$ref": "#/definitions/stringList" }
+                    },
+                    "required": ["filterType", "includelist"],
+                    "additionalProperties": false
+                },
+                {
+                    "properties": {
+                        "filterType": {
+                            "type": "string",
                             "enum": ["union"]
                         },
                         "unionOf": {
@@ -150,7 +187,7 @@
                 }
             ]
         },
-        "blacklistWhitelistFilterTypes": {
+        "includeExcludeFilterTypes": {
             "type": "string",
             "enum": [
                 "language",

@@ -64,7 +64,7 @@ U_NAMESPACE_BEGIN
  * uses a comparison function, or "comparer."  If the comparer is not
  * set, or is set to zero, then all such methods will act as if the
  * vector contains no element.  That is, indexOf() will always return
- * -1, contains() will always return FALSE, etc.
+ * -1, contains() will always return false, etc.
  *
  * <p><b>To do</b>
  *
