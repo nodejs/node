@@ -12,7 +12,6 @@ const shorthands = {
   c: 'config',
   s: 'search',
   se: 'search',
-  unstar: 'star', // same function
   tst: 'test',
   t: 'test',
   ddp: 'dedupe',
@@ -88,6 +87,7 @@ const cmdList = [
   'publish',
   'star',
   'stars',
+  'unstar',
   'adduser',
   'login', // This is an alias for `adduser` but it can be confusing
   'logout',

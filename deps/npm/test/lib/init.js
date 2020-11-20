@@ -29,7 +29,7 @@ t.afterEach(cb => {
   result = ''
   npm.config = { get: () => '', set () {} }
   npm.commands = {}
-  npm.flatOptions = {}
+  Object.defineProperty(npm, 'flatOptions', { value: {} })
   npm.log = npmLog
   cb()
 })
@@ -52,9 +52,7 @@ t.test('classic npm init -y', t => {
   npm.config = {
     get: () => '~/.npm-init.js',
   }
-  npm.flatOptions = {
-    yes: true,
-  }
+  Object.defineProperty(npm, 'flatOptions', { value: { yes: true} })
   npm.log = { ...npm.log }
   npm.log.silly = (title, msg) => {
     t.equal(title, 'package data', 'should print title')
@@ -176,6 +174,33 @@ t.test('npm init exec error', t => {
       'should exit with exec error'
     )
     t.end()
+  })
+})
+
+t.test('should not rewrite flatOptions', t => {
+  t.plan(4)
+  Object.defineProperty(npm, 'flatOptions', {
+    get: () => ({}),
+    set () {
+      throw new Error('Should not set flatOptions')
+    },
+  })
+  npm.config = {
+    set (key, val) {
+      t.equal(key, 'package', 'should set package key')
+      t.deepEqual(val, [], 'should set empty array value')
+    },
+  }
+  npm.commands.exec = (arr, cb) => {
+    t.deepEqual(
+      arr,
+      ['create-react-app', 'my-app'],
+      'should npx with extra args'
+    )
+    cb()
+  }
+  init(['react-app', 'my-app'], err => {
+    t.ifError(err, 'npm init react-app')
   })
 })
 

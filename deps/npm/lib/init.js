@@ -43,7 +43,6 @@ const init = async args => {
       }
     }
     npm.config.set('package', [])
-    npm.flatOptions = { ...npm.flatOptions, package: [] }
     return new Promise((res, rej) => {
       npm.commands.exec([packageName, ...args.slice(1)], er => er ? rej(er) : res())
     })

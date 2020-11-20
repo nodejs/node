@@ -113,8 +113,8 @@ class Node {
       throw new TypeError('could not detect node name from path or package')
 
     // should be equal if not a link
-    this.path = path
-    this.realpath = !this.isLink ? this.path : realpath
+    this.path = path && resolve(path)
+    this.realpath = !this.isLink ? this.path : resolve(realpath)
 
     this.resolved = resolved || null
     if (!this.resolved) {
