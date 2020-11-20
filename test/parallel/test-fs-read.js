@@ -93,3 +93,9 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
   }
 );
+
+assert.throws(() => fs.read(fd, Buffer.alloc(1), 0, 1, 1n, () => {}), {
+  name: 'TypeError',
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "position" argument must be of type number. Received bigint',
+});
