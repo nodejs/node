@@ -101,9 +101,10 @@ public:
      * Multiple calls to buildStringPiece() return StringPieces referring to the
      * builder's same byte array, without rebuilding.
      * If buildStringPiece() is called after build(), the trie will be
-     * re-serialized into a new array.
-     * If build() is called after buildStringPiece(), the trie object will become
-     * the owner of the previously returned array.
+     * re-serialized into a new array (because build() passes on ownership).
+     * If build() is called after buildStringPiece(), the trie object returned
+     * by build() will become the owner of the underlying string for the
+     * previously returned StringPiece.
      * After clear() has been called, a new array will be used as well.
      * @param buildOption Build option, see UStringTrieBuildOption.
      * @param errorCode Standard ICU error code. Its input value must
@@ -139,7 +140,7 @@ private:
     virtual int32_t skipElementsBySomeUnits(int32_t i, int32_t byteIndex, int32_t count) const;
     virtual int32_t indexOfElementWithNextUnit(int32_t i, int32_t byteIndex, char16_t byte) const;
 
-    virtual UBool matchNodesCanHaveValues() const { return FALSE; }
+    virtual UBool matchNodesCanHaveValues() const { return false; }
 
     virtual int32_t getMaxBranchLinearSubNodeLength() const { return BytesTrie::kMaxBranchLinearSubNodeLength; }
     virtual int32_t getMinLinearMatch() const { return BytesTrie::kMinLinearMatch; }

@@ -44,6 +44,16 @@ UnicodeString CurrencySymbols::getNarrowCurrencySymbol(UErrorCode& status) const
     return loadSymbol(UCURR_NARROW_SYMBOL_NAME, status);
 }
 
+UnicodeString CurrencySymbols::getFormalCurrencySymbol(UErrorCode& status) const {
+    // Note: currently no override is available for formal currency symbol
+    return loadSymbol(UCURR_FORMAL_SYMBOL_NAME, status);
+}
+
+UnicodeString CurrencySymbols::getVariantCurrencySymbol(UErrorCode& status) const {
+    // Note: currently no override is available for variant currency symbol
+    return loadSymbol(UCURR_VARIANT_SYMBOL_NAME, status);
+}
+
 UnicodeString CurrencySymbols::getCurrencySymbol(UErrorCode& status) const {
     if (!fCurrencySymbol.isBogus()) {
         return fCurrencySymbol;

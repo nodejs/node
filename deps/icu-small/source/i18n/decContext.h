@@ -250,21 +250,21 @@
   #define DEC_INIT_DECQUAD    DEC_INIT_DECIMAL128
 
   /* decContext routines                                              */
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextClearStatus(decContext *, uint32_t);
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextDefault(decContext *, int32_t);
-  U_INTERNAL enum rounding U_EXPORT2 uprv_decContextGetRounding(decContext *);
-  U_INTERNAL uint32_t      U_EXPORT2 uprv_decContextGetStatus(decContext *);
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextRestoreStatus(decContext *, uint32_t, uint32_t);
-  U_INTERNAL uint32_t      U_EXPORT2 uprv_decContextSaveStatus(decContext *, uint32_t);
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextSetRounding(decContext *, enum rounding);
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextSetStatus(decContext *, uint32_t);
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextSetStatusFromString(decContext *, const char *);
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextSetStatusFromStringQuiet(decContext *, const char *);
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextSetStatusQuiet(decContext *, uint32_t);
-  U_INTERNAL const char  * U_EXPORT2 uprv_decContextStatusToString(const decContext *);
-  U_INTERNAL int32_t       U_EXPORT2 uprv_decContextTestEndian(uint8_t);
-  U_INTERNAL uint32_t      U_EXPORT2 uprv_decContextTestSavedStatus(uint32_t, uint32_t);
-  U_INTERNAL uint32_t      U_EXPORT2 uprv_decContextTestStatus(decContext *, uint32_t);
-  U_INTERNAL decContext  * U_EXPORT2 uprv_decContextZeroStatus(decContext *);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextClearStatus(decContext *, uint32_t);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextDefault(decContext *, int32_t);
+  U_CAPI enum rounding U_EXPORT2 uprv_decContextGetRounding(decContext *);
+  U_CAPI uint32_t      U_EXPORT2 uprv_decContextGetStatus(decContext *);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextRestoreStatus(decContext *, uint32_t, uint32_t);
+  U_CAPI uint32_t      U_EXPORT2 uprv_decContextSaveStatus(decContext *, uint32_t);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextSetRounding(decContext *, enum rounding);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextSetStatus(decContext *, uint32_t);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextSetStatusFromString(decContext *, const char *);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextSetStatusFromStringQuiet(decContext *, const char *);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextSetStatusQuiet(decContext *, uint32_t);
+  U_CAPI const char  * U_EXPORT2 uprv_decContextStatusToString(const decContext *);
+  U_CAPI int32_t       U_EXPORT2 uprv_decContextTestEndian(uint8_t);
+  U_CAPI uint32_t      U_EXPORT2 uprv_decContextTestSavedStatus(uint32_t, uint32_t);
+  U_CAPI uint32_t      U_EXPORT2 uprv_decContextTestStatus(decContext *, uint32_t);
+  U_CAPI decContext  * U_EXPORT2 uprv_decContextZeroStatus(decContext *);
 
 #endif

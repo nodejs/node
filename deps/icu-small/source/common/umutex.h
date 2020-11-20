@@ -262,13 +262,13 @@ private:
  *              the global ICU mutex.  Recursive locks are an error
  *              and may cause a deadlock on some platforms.
  */
-U_INTERNAL void U_EXPORT2 umtx_lock(UMutex* mutex);
+U_CAPI void U_EXPORT2 umtx_lock(UMutex* mutex);
 
 /* Unlock a mutex.
  * @param mutex The given mutex to be unlocked.  Pass NULL to specify
  *              the global ICU mutex.
  */
-U_INTERNAL void U_EXPORT2 umtx_unlock (UMutex* mutex);
+U_CAPI void U_EXPORT2 umtx_unlock (UMutex* mutex);
 
 
 U_NAMESPACE_END

@@ -217,7 +217,7 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
         if ( aliasToRegion != NULL && aliasFromRegion == NULL ) { // This is just an alias from some string to a region
             uhash_put(newRegionAliases.getAlias(),(void *)aliasFromStr.orphan(), (void *)aliasToRegion,&status);
         } else {
-            if ( aliasFromRegion == NULL ) { // Deprecated region code not in the master codes list - so need to create a deprecated region for it.
+            if ( aliasFromRegion == NULL ) { // Deprecated region code not in the primary codes list - so need to create a deprecated region for it.
                 LocalPointer<Region> newRgn(new Region, status);
                 if ( U_SUCCESS(status) ) {
                     aliasFromRegion = newRgn.orphan();

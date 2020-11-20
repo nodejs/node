@@ -96,7 +96,7 @@ private:
 
     /**
      * Extends the FCD text segment forward or normalizes around pos.
-     * @return TRUE if success
+     * @return true if success
      */
     UBool nextSegment(UErrorCode &errorCode);
 
@@ -107,7 +107,7 @@ private:
 
     /**
      * Extends the FCD text segment backward or normalizes around pos.
-     * @return TRUE if success
+     * @return true if success
      */
     UBool previousSegment(UErrorCode &errorCode);
 

@@ -69,6 +69,9 @@ U_NAMESPACE_BEGIN
 
 /**
  * Implementation of FormattedValue using FieldPositionHandler to accept fields.
+ *
+ * TODO(ICU-20897): This class is unused. If it is not needed when fixing ICU-20897,
+ * it should be deleted.
  */
 class FormattedValueFieldPositionIteratorImpl : public UMemory, public FormattedValue {
 public:
@@ -114,6 +117,18 @@ private:
 };
 
 
+// Export an explicit template instantiation of the MaybeStackArray that
+//    is used as a data member of CEBuffer.
+//
+//    When building DLLs for Windows this is required even though
+//    no direct access to the MaybeStackArray leaks out of the i18n library.
+//
+// See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.
+//
+#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
+template class U_I18N_API MaybeStackArray<int32_t, 8>;
+#endif
+
 /**
  * Implementation of FormattedValue based on FormattedStringBuilder.
  *
@@ -147,12 +162,17 @@ public:
         return fString;
     }
 
+    void appendSpanIndex(int32_t index);
+    void prependSpanIndex(int32_t index);
+
 private:
     FormattedStringBuilder fString;
     FormattedStringBuilder::Field fNumericField;
+    MaybeStackArray<int32_t, 8> spanIndices;
 
     bool nextPositionImpl(ConstrainedFieldPosition& cfpos, FormattedStringBuilder::Field numericField, UErrorCode& status) const;
     static bool isIntOrGroup(FormattedStringBuilder::Field field);
+    static bool isTrimmable(FormattedStringBuilder::Field field);
     int32_t trimBack(int32_t limit) const;
     int32_t trimFront(int32_t start) const;
 };
@@ -211,7 +231,7 @@ struct UFormattedValueImpl : public UMemory, public UFormattedValueApiHelper {
         return fData->appendTo(appendable, status); \
     } \
     UBool Name::nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const { \
-        UPRV_FORMATTED_VALUE_METHOD_GUARD(FALSE) \
+        UPRV_FORMATTED_VALUE_METHOD_GUARD(false) \
         return fData->nextPosition(cfpos, status); \
     }
 
@@ -230,7 +250,7 @@ struct UFormattedValueImpl : public UMemory, public UFormattedValueApiHelper {
         } \
         return static_cast<HelperType*>(impl)->exportForC(); \
     } \
-    U_DRAFT const UFormattedValue* U_EXPORT2 \
+    U_CAPI const UFormattedValue* U_EXPORT2 \
     Prefix ## _resultAsValue (const CType* uresult, UErrorCode* ec) { \
         const ImplType* result = HelperType::validate(uresult, *ec); \
         if (U_FAILURE(*ec)) { return nullptr; } \

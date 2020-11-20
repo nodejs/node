@@ -65,8 +65,8 @@ public:
 
     /*
      * Do the strings need to be checked in span() etc.?
-     * @return TRUE if strings need to be checked (call span() here),
-     *         FALSE if not (use a BMPSet for best performance).
+     * @return true if strings need to be checked (call span() here),
+     *         false if not (use a BMPSet for best performance).
      */
     inline UBool needsStringSpanUTF16();
     inline UBool needsStringSpanUTF8();

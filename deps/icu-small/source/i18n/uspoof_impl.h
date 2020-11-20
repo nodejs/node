@@ -222,7 +222,7 @@ class SpoofData: public UMemory {
     SpoofData(const void *serializedData, int32_t length, UErrorCode &status);
 
     //  Check raw Spoof Data Version compatibility.
-    //  Return TRUE it looks good.
+    //  Return true it looks good.
     UBool validateDataVersion(UErrorCode &status) const;
 
     ~SpoofData();                    // Destructor not normally used.

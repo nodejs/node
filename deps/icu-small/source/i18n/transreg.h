@@ -69,7 +69,7 @@ class TransliteratorAlias : public UMemory {
      * it when the registry mutex is NOT held, to prevent deadlock.
      * It may only be called once.
      *
-     * Note: Only call create() if isRuleBased() returns FALSE.
+     * Note: Only call create() if isRuleBased() returns false.
      *
      * This method must be called *outside* of the TransliteratorRegistry
      * mutex.
@@ -77,17 +77,17 @@ class TransliteratorAlias : public UMemory {
     Transliterator* create(UParseError&, UErrorCode&);
 
     /**
-     * Return TRUE if this alias is rule-based.  If so, the caller
+     * Return true if this alias is rule-based.  If so, the caller
      * must call parse() on it, then call TransliteratorRegistry::reget().
      */
     UBool isRuleBased() const;
 
     /**
-     * If isRuleBased() returns TRUE, then the caller must call this
+     * If isRuleBased() returns true, then the caller must call this
      * method, followed by TransliteratorRegistry::reget().  The latter
      * method must be called inside the TransliteratorRegistry mutex.
      *
-     * Note: Only call parse() if isRuleBased() returns TRUE.
+     * Note: Only call parse() if isRuleBased() returns true.
      *
      * This method must be called *outside* of the TransliteratorRegistry
      * mutex, because it can instantiate Transliterators embedded in

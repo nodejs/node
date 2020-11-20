@@ -64,8 +64,8 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
     /**
      * Escape unprintable characters using \uxxxx notation for U+0000 to
      * U+FFFF and \Uxxxxxxxx for U+10000 and above.  If the character is
-     * printable ASCII, then do nothing and return FALSE.  Otherwise,
-     * append the escaped notation and return TRUE.
+     * printable ASCII, then do nothing and return false.  Otherwise,
+     * append the escaped notation and return true.
      */
     static UBool escapeUnprintable(UnicodeString& result, UChar32 c);
 
@@ -95,7 +95,7 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
      * after pos, or str.length(), if there is none.
      */
     static int32_t skipWhitespace(const UnicodeString& str, int32_t& pos,
-                                  UBool advance = FALSE);
+                                  UBool advance = false);
 
     /**
      * Skip over Pattern_White_Space in a Replaceable.

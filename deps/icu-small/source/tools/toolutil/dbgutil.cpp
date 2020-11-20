@@ -29,7 +29,7 @@ static const UnicodeString&  _fieldString(UDebugEnumType type, int32_t field, Un
     if(str == NULL) {
         return fillin.remove();
     } else {
-        return fillin = UnicodeString(str, ""); // optimize?
+        return fillin = UnicodeString(str, -1, US_INV);
     }
 }
 

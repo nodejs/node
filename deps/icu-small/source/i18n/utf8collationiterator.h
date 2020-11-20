@@ -54,7 +54,7 @@ protected:
      * together with a bogus code point. The caller will ignore that code point.
      *
      * Special values may be returned for surrogate code points, which are also illegal in UTF-8,
-     * but the caller will treat them like U+FFFD because forbidSurrogateCodePoints() returns TRUE.
+     * but the caller will treat them like U+FFFD because forbidSurrogateCodePoints() returns true.
      *
      * Valid lead surrogates are returned from inside a normalized text segment,
      * where handleGetTrailSurrogate() will return the matching trail surrogate.
@@ -117,7 +117,7 @@ private:
 
     /**
      * Extends the FCD text segment forward or normalizes around pos.
-     * @return TRUE if success
+     * @return true if success
      */
     UBool nextSegment(UErrorCode &errorCode);
 
@@ -128,7 +128,7 @@ private:
 
     /**
      * Extends the FCD text segment backward or normalizes around pos.
-     * @return TRUE if success
+     * @return true if success
      */
     UBool previousSegment(UErrorCode &errorCode);
 

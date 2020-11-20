@@ -62,7 +62,7 @@ public:
      *                   weights less than this one.
      * @param n          The number of collation element weights w necessary such that
      *                   lowerLimit<w<upperLimit in lexical order.
-     * @return TRUE if it is possible to fit n elements between the limits
+     * @return true if it is possible to fit n elements between the limits
      */
     UBool allocWeights(uint32_t lowerLimit, uint32_t upperLimit, int32_t n);
 

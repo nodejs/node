@@ -292,14 +292,21 @@ public:
     /**
      * Default constructor initializes with internal T[stackCapacity] buffer.
      */
-    MaybeStackArray() : ptr(stackArray), capacity(stackCapacity), needToRelease(FALSE) {}
+    MaybeStackArray() : ptr(stackArray), capacity(stackCapacity), needToRelease(false) {}
     /**
      * Automatically allocates the heap array if the argument is larger than the stack capacity.
      * Intended for use when an approximate capacity is known at compile time but the true
      * capacity is not known until runtime.
      */
-    MaybeStackArray(int32_t newCapacity) : MaybeStackArray() {
-        if (capacity < newCapacity) { resize(newCapacity); }
+    MaybeStackArray(int32_t newCapacity, UErrorCode status) : MaybeStackArray() {
+        if (U_FAILURE(status)) {
+            return;
+        }
+        if (capacity < newCapacity) {
+            if (resize(newCapacity) == nullptr) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+            }
+        }
     }
     /**
      * Destructor deletes the array (if owned).
@@ -355,7 +362,7 @@ public:
             releaseArray();
             ptr=otherArray;
             capacity=otherCapacity;
-            needToRelease=FALSE;
+            needToRelease=false;
         }
     }
     /**
@@ -380,6 +387,20 @@ public:
      *         caller becomes responsible for deleting the array
      */
     inline T *orphanOrClone(int32_t length, int32_t &resultCapacity);
+
+protected:
+    // Resizes the array to the size of src, then copies the contents of src.
+    void copyFrom(const MaybeStackArray &src, UErrorCode &status) {
+        if (U_FAILURE(status)) {
+            return;
+        }
+        if (this->resize(src.capacity, 0) == NULL) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
+        uprv_memcpy(this->ptr, src.ptr, (size_t)capacity * sizeof(T));
+    }
+
 private:
     T *ptr;
     int32_t capacity;
@@ -393,14 +414,14 @@ private:
     void resetToStackArray() {
         ptr=stackArray;
         capacity=stackCapacity;
-        needToRelease=FALSE;
+        needToRelease=false;
     }
     /* No comparison operators with other MaybeStackArray's. */
-    bool operator==(const MaybeStackArray & /*other*/) {return FALSE;}
-    bool operator!=(const MaybeStackArray & /*other*/) {return TRUE;}
+    bool operator==(const MaybeStackArray & /*other*/) = delete;
+    bool operator!=(const MaybeStackArray & /*other*/) = delete;
     /* No ownership transfer: No copy constructor, no assignment operator. */
-    MaybeStackArray(const MaybeStackArray & /*other*/) {}
-    void operator=(const MaybeStackArray & /*other*/) {}
+    MaybeStackArray(const MaybeStackArray & /*other*/) = delete;
+    void operator=(const MaybeStackArray & /*other*/) = delete;
 };
 
 template<typename T, int32_t stackCapacity>
@@ -435,7 +456,7 @@ template<typename T, int32_t stackCapacity>
 inline T *MaybeStackArray<T, stackCapacity>::resize(int32_t newCapacity, int32_t length) {
     if(newCapacity>0) {
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)
-      ::fprintf(::stderr,"MaybeStacArray (resize) alloc %d * %lu\n", newCapacity,sizeof(T));
+        ::fprintf(::stderr, "MaybeStackArray (resize) alloc %d * %lu\n", newCapacity, sizeof(T));
 #endif
         T *p=(T *)uprv_malloc(newCapacity*sizeof(T));
         if(p!=NULL) {
@@ -451,7 +472,7 @@ inline T *MaybeStackArray<T, stackCapacity>::resize(int32_t newCapacity, int32_t
             releaseArray();
             ptr=p;
             capacity=newCapacity;
-            needToRelease=TRUE;
+            needToRelease=true;
         }
         return p;
     } else {
@@ -507,7 +528,7 @@ public:
     /**
      * Default constructor initializes with internal H+T[stackCapacity] buffer.
      */
-    MaybeStackHeaderAndArray() : ptr(&stackHeader), capacity(stackCapacity), needToRelease(FALSE) {}
+    MaybeStackHeaderAndArray() : ptr(&stackHeader), capacity(stackCapacity), needToRelease(false) {}
     /**
      * Destructor deletes the memory (if owned).
      */
@@ -556,7 +577,7 @@ public:
             releaseMemory();
             ptr=otherMemory;
             capacity=otherCapacity;
-            needToRelease=FALSE;
+            needToRelease=false;
         }
     }
     /**
@@ -595,8 +616,8 @@ private:
         }
     }
     /* No comparison operators with other MaybeStackHeaderAndArray's. */
-    bool operator==(const MaybeStackHeaderAndArray & /*other*/) {return FALSE;}
-    bool operator!=(const MaybeStackHeaderAndArray & /*other*/) {return TRUE;}
+    bool operator==(const MaybeStackHeaderAndArray & /*other*/) {return false;}
+    bool operator!=(const MaybeStackHeaderAndArray & /*other*/) {return true;}
     /* No ownership transfer: No copy constructor, no assignment operator. */
     MaybeStackHeaderAndArray(const MaybeStackHeaderAndArray & /*other*/) {}
     void operator=(const MaybeStackHeaderAndArray & /*other*/) {}
@@ -625,7 +646,7 @@ inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::resize(int32_t newCapac
             releaseMemory();
             ptr=p;
             capacity=newCapacity;
-            needToRelease=TRUE;
+            needToRelease=true;
         }
         return p;
     } else {
@@ -657,7 +678,7 @@ inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::orphanOrClone(int32_t l
     resultCapacity=length;
     ptr=&stackHeader;
     capacity=stackCapacity;
-    needToRelease=FALSE;
+    needToRelease=false;
     return p;
 }
 
@@ -728,6 +749,18 @@ public:
         return fPool[fCount++] = new T(std::forward<Args>(args)...);
     }
 
+    template <typename... Args>
+    T* createAndCheckErrorCode(UErrorCode &status, Args &&... args) {
+        if (U_FAILURE(status)) {
+            return nullptr;
+        }
+        T *pointer = this->create(args...);
+        if (U_SUCCESS(status) && pointer == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+        }
+        return pointer;
+    }
+
     /**
      * @return Number of elements that have been allocated.
      */
@@ -771,11 +804,20 @@ public:
         return this->create(args...);
     }
 
+    template <typename... Args>
+    T *emplaceBackAndCheckErrorCode(UErrorCode &status, Args &&... args) {
+        return this->createAndCheckErrorCode(status, args...);
+    }
+
     int32_t length() const {
         return this->fCount;
     }
 
     T** getAlias() {
+        return this->fPool.getAlias();
+    }
+
+    const T *const *getAlias() const {
         return this->fPool.getAlias();
     }
 
@@ -797,19 +839,6 @@ public:
      */
     T* operator[](ptrdiff_t i) {
         return this->fPool[i];
-    }
-
-    /**
-     * Append all the items from another MaybeStackVector to this one.
-     */
-    void appendAll(const MaybeStackVector& other, UErrorCode& status) {
-        for (int32_t i = 0; i < other.fCount; i++) {
-            T* item = emplaceBack(*other[i]);
-            if (!item) {
-                status = U_MEMORY_ALLOCATION_ERROR;
-                return;
-            }
-        }
     }
 };
 

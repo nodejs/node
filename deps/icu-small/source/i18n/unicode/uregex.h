@@ -30,8 +30,11 @@
 
 #if !UCONFIG_NO_REGULAR_EXPRESSIONS
 
-#include "unicode/localpointer.h"
 #include "unicode/parseerr.h"
+
+#if U_SHOW_CPLUSPLUS_API
+#include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 struct URegularExpression;
 /**
@@ -131,7 +134,7 @@ typedef enum URegexpFlag{
   * @stable ICU 3.0
   *
   */
-U_STABLE URegularExpression * U_EXPORT2
+U_CAPI URegularExpression * U_EXPORT2
 uregex_open( const  UChar          *pattern,
                     int32_t         patternLength,
                     uint32_t        flags,
@@ -161,7 +164,7 @@ uregex_open( const  UChar          *pattern,
   *
   * @stable ICU 4.6
   */
-U_STABLE URegularExpression *  U_EXPORT2
+U_CAPI URegularExpression *  U_EXPORT2
 uregex_openUText(UText          *pattern,
                  uint32_t        flags,
                  UParseError    *pe,
@@ -191,7 +194,7 @@ uregex_openUText(UText          *pattern,
   *
   * @stable ICU 3.0
   */
-U_STABLE URegularExpression * U_EXPORT2
+U_CAPI URegularExpression * U_EXPORT2
 uregex_openC( const char           *pattern,
                     uint32_t        flags,
                     UParseError    *pe,
@@ -207,7 +210,7 @@ uregex_openC( const char           *pattern,
   * @param regexp   The regular expression to be closed.
   * @stable ICU 3.0
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_close(URegularExpression *regexp);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -247,7 +250,7 @@ U_NAMESPACE_END
  * @return the cloned copy of the compiled regular expression.
  * @stable ICU 3.0
  */
-U_STABLE URegularExpression * U_EXPORT2
+U_CAPI URegularExpression * U_EXPORT2
 uregex_clone(const URegularExpression *regexp, UErrorCode *status);
 
 /**
@@ -267,7 +270,7 @@ uregex_clone(const URegularExpression *regexp, UErrorCode *status);
  *                   will remain valid until the regular expression is closed.
  * @stable ICU 3.0
  */
-U_STABLE const UChar * U_EXPORT2
+U_CAPI const UChar * U_EXPORT2
 uregex_pattern(const URegularExpression *regexp,
                      int32_t            *patLength,
                      UErrorCode         *status);
@@ -283,7 +286,7 @@ uregex_pattern(const URegularExpression *regexp,
  *
  * @stable ICU 4.6
  */
-U_STABLE UText * U_EXPORT2
+U_CAPI UText * U_EXPORT2
 uregex_patternUText(const URegularExpression *regexp,
                           UErrorCode         *status);
 
@@ -295,7 +298,7 @@ uregex_patternUText(const URegularExpression *regexp,
   * @see URegexpFlag
   * @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_flags(const  URegularExpression   *regexp,
                     UErrorCode           *status);
 
@@ -320,7 +323,7 @@ uregex_flags(const  URegularExpression   *regexp,
   * @param status     Receives errors detected by this function.
   * @stable ICU 3.0
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setText(URegularExpression *regexp,
                const UChar        *text,
                int32_t             textLength,
@@ -343,7 +346,7 @@ uregex_setText(URegularExpression *regexp,
   *
   * @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setUText(URegularExpression *regexp,
                 UText              *text,
                 UErrorCode         *status);
@@ -368,7 +371,7 @@ uregex_setUText(URegularExpression *regexp,
   *                    this regular expression.
   * @stable ICU 3.0
   */
-U_STABLE const UChar * U_EXPORT2
+U_CAPI const UChar * U_EXPORT2
 uregex_getText(URegularExpression *regexp,
                int32_t            *textLength,
                UErrorCode         *status);
@@ -389,7 +392,7 @@ uregex_getText(URegularExpression *regexp,
   *
   * @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_CAPI UText * U_EXPORT2
 uregex_getUText(URegularExpression *regexp,
                 UText              *dest,
                 UErrorCode         *status);
@@ -419,7 +422,7 @@ uregex_getUText(URegularExpression *regexp,
   *
   * @stable ICU 4.8
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_refreshUText(URegularExpression *regexp,
                     UText              *text,
                     UErrorCode         *status);
@@ -441,10 +444,10 @@ uregex_refreshUText(URegularExpression *regexp,
   *    @param  startIndex  The input string (native) index at which to begin matching, or -1
   *                        to match the input Region.
   *    @param  status      Receives errors detected by this function.
-  *    @return             TRUE if there is a match
+  *    @return             true if there is a match
   *    @stable ICU 3.0
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_matches(URegularExpression *regexp,
                 int32_t            startIndex,
                 UErrorCode        *status);
@@ -467,10 +470,10 @@ uregex_matches(URegularExpression *regexp,
   *    @param  startIndex  The input string (native) index at which to begin matching, or -1
   *                        to match the input Region.
   *    @param  status      Receives errors detected by this function.
-  *    @return             TRUE if there is a match
+  *    @return             true if there is a match
   *   @stable ICU 4.6
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_matches64(URegularExpression *regexp,
                  int64_t            startIndex,
                  UErrorCode        *status);
@@ -495,10 +498,10 @@ uregex_matches64(URegularExpression *regexp,
   *    @param   startIndex  The input string (native) index at which to begin matching, or
   *                         -1 to match the Input Region
   *    @param   status      A reference to a UErrorCode to receive any errors.
-  *    @return  TRUE if there is a match.
+  *    @return  true if there is a match.
   *    @stable ICU 3.0
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_lookingAt(URegularExpression *regexp,
                  int32_t             startIndex,
                  UErrorCode         *status);
@@ -524,10 +527,10 @@ uregex_lookingAt(URegularExpression *regexp,
   *    @param   startIndex  The input string (native) index at which to begin matching, or
   *                         -1 to match the Input Region
   *    @param   status      A reference to a UErrorCode to receive any errors.
-  *    @return  TRUE if there is a match.
+  *    @return  true if there is a match.
   *    @stable ICU 4.6
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_lookingAt64(URegularExpression *regexp,
                    int64_t             startIndex,
                    UErrorCode         *status);
@@ -548,10 +551,10 @@ uregex_lookingAt64(URegularExpression *regexp,
   *   @param   startIndex  The position (native) in the input string to begin the search, or
   *                        -1 to search within the Input Region.
   *   @param   status      A reference to a UErrorCode to receive any errors.
-  *   @return              TRUE if a match is found.
+  *   @return              true if a match is found.
   *   @stable ICU 3.0
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_find(URegularExpression *regexp,
             int32_t             startIndex,
             UErrorCode         *status);
@@ -573,10 +576,10 @@ uregex_find(URegularExpression *regexp,
   *   @param   startIndex  The position (native) in the input string to begin the search, or
   *                        -1 to search within the Input Region.
   *   @param   status      A reference to a UErrorCode to receive any errors.
-  *   @return              TRUE if a match is found.
+  *   @return              true if a match is found.
   *   @stable ICU 4.6
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_find64(URegularExpression *regexp,
               int64_t             startIndex,
               UErrorCode         *status);
@@ -590,11 +593,11 @@ uregex_find64(URegularExpression *regexp,
   *
   *  @param   regexp      The compiled regular expression.
   *  @param   status      A reference to a UErrorCode to receive any errors.
-  *  @return              TRUE if a match is found.
+  *  @return              true if a match is found.
   *  @see uregex_reset
   *  @stable ICU 3.0
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_findNext(URegularExpression *regexp,
                 UErrorCode         *status);
 
@@ -605,7 +608,7 @@ uregex_findNext(URegularExpression *regexp,
   *   @return the number of capture groups
   *   @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_groupCount(URegularExpression *regexp,
                   UErrorCode         *status);
 
@@ -625,7 +628,7 @@ uregex_groupCount(URegularExpression *regexp,
   *
   * @stable ICU 55
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_groupNumberFromName(URegularExpression *regexp,
                            const UChar        *groupName,
                            int32_t             nameLength,
@@ -649,7 +652,7 @@ uregex_groupNumberFromName(URegularExpression *regexp,
   *
   * @stable ICU 55
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_groupNumberFromCName(URegularExpression *regexp,
                             const char         *groupName,
                             int32_t             nameLength,
@@ -671,7 +674,7 @@ uregex_groupNumberFromCName(URegularExpression *regexp,
   *                         or -1 if no applicable match.
   *   @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_group(URegularExpression *regexp,
              int32_t             groupNum,
              UChar              *dest,
@@ -700,7 +703,7 @@ uregex_group(URegularExpression *regexp,
   *
   *   @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_CAPI UText * U_EXPORT2
 uregex_groupUText(URegularExpression *regexp,
                   int32_t             groupNum,
                   UText              *dest,
@@ -721,7 +724,7 @@ uregex_groupUText(URegularExpression *regexp,
   *                         by the specified group.
   *    @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_start(URegularExpression *regexp,
              int32_t             groupNum,
              UErrorCode          *status);
@@ -741,7 +744,7 @@ uregex_start(URegularExpression *regexp,
   *                         by the specified group.
   *   @stable ICU 4.6
   */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
 uregex_start64(URegularExpression *regexp,
                int32_t             groupNum,
                UErrorCode          *status);
@@ -759,7 +762,7 @@ uregex_start64(URegularExpression *regexp,
   *    @return              the (native) index of the position following the last matched character.
   *    @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_end(URegularExpression   *regexp,
            int32_t               groupNum,
            UErrorCode           *status);
@@ -778,7 +781,7 @@ uregex_end(URegularExpression   *regexp,
   *    @return              the (native) index of the position following the last matched character.
   *   @stable ICU 4.6
   */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
 uregex_end64(URegularExpression *regexp,
              int32_t               groupNum,
              UErrorCode           *status);
@@ -796,7 +799,7 @@ uregex_end64(URegularExpression *regexp,
   *    @param   status      A reference to a UErrorCode to receive any errors.
   *    @stable ICU 3.0
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_reset(URegularExpression    *regexp,
              int32_t               index,
              UErrorCode            *status);
@@ -815,7 +818,7 @@ uregex_reset(URegularExpression    *regexp,
   *    @param   status      A reference to a UErrorCode to receive any errors.
   *    @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_reset64(URegularExpression  *regexp,
                int64_t               index,
                UErrorCode            *status);
@@ -840,7 +843,7 @@ uregex_reset64(URegularExpression  *regexp,
   * @param status A pointer to a UErrorCode to receive any errors.
   * @stable ICU 4.0
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setRegion(URegularExpression   *regexp,
                  int32_t               regionStart,
                  int32_t               regionLimit,
@@ -867,7 +870,7 @@ uregex_setRegion(URegularExpression   *regexp,
   * @param status A pointer to a UErrorCode to receive any errors.
   * @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setRegion64(URegularExpression *regexp,
                  int64_t               regionStart,
                  int64_t               regionLimit,
@@ -887,7 +890,7 @@ uregex_setRegion64(URegularExpression *regexp,
   * @param status A pointer to a UErrorCode to receive any errors.
   * @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setRegionAndStart(URegularExpression *regexp,
                  int64_t               regionStart,
                  int64_t               regionLimit,
@@ -903,7 +906,7 @@ uregex_setRegionAndStart(URegularExpression *regexp,
   * @return The starting (native) index of this matcher's region.
   * @stable ICU 4.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_regionStart(const  URegularExpression   *regexp,
                           UErrorCode           *status);
 
@@ -917,7 +920,7 @@ uregex_regionStart(const  URegularExpression   *regexp,
   * @return The starting (native) index of this matcher's region.
   * @stable ICU 4.6
   */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
 uregex_regionStart64(const  URegularExpression   *regexp,
                             UErrorCode           *status);
 
@@ -931,7 +934,7 @@ uregex_regionStart64(const  URegularExpression   *regexp,
   * @return The ending point (native) of this matcher's region.
   * @stable ICU 4.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_regionEnd(const  URegularExpression   *regexp,
                         UErrorCode           *status);
 
@@ -946,7 +949,7 @@ uregex_regionEnd(const  URegularExpression   *regexp,
   * @return The ending point (native) of this matcher's region.
   * @stable ICU 4.6
   */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
 uregex_regionEnd64(const  URegularExpression   *regexp,
                           UErrorCode           *status);
 
@@ -957,18 +960,18 @@ uregex_regionEnd64(const  URegularExpression   *regexp,
   *
   * @param regexp The compiled regular expression.
   * @param status A pointer to a UErrorCode to receive any errors.
-  * @return TRUE if this matcher is using opaque bounds, false if it is not.
+  * @return true if this matcher is using opaque bounds, false if it is not.
   * @stable ICU 4.0
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_hasTransparentBounds(const  URegularExpression   *regexp,
                                    UErrorCode           *status);
 
 
 /**
   * Sets the transparency of region bounds for this URegularExpression.
-  * Invoking this function with an argument of TRUE will set matches to use transparent bounds.
-  * If the boolean argument is FALSE, then opaque bounds will be used.
+  * Invoking this function with an argument of true will set matches to use transparent bounds.
+  * If the boolean argument is false, then opaque bounds will be used.
   *
   * Using transparent bounds, the boundaries of the matching region are transparent
   * to lookahead, lookbehind, and boundary matching constructs. Those constructs can
@@ -980,11 +983,11 @@ uregex_hasTransparentBounds(const  URegularExpression   *regexp,
   * By default, opaque bounds are used.
   *
   * @param   regexp The compiled regular expression.
-  * @param   b      TRUE for transparent bounds; FALSE for opaque bounds
+  * @param   b      true for transparent bounds; false for opaque bounds
   * @param   status A pointer to a UErrorCode to receive any errors.
   * @stable ICU 4.0
   **/
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_useTransparentBounds(URegularExpression   *regexp,
                             UBool                b,
                             UErrorCode           *status);
@@ -996,10 +999,10 @@ uregex_useTransparentBounds(URegularExpression   *regexp,
   *
   * @param  regexp The compiled regular expression.
   * @param  status A pointer to a UErrorCode to receive any errors.
-  * @return TRUE if this matcher is using anchoring bounds.
+  * @return true if this matcher is using anchoring bounds.
   * @stable ICU 4.0
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_hasAnchoringBounds(const  URegularExpression   *regexp,
                                  UErrorCode           *status);
 
@@ -1013,41 +1016,41 @@ uregex_hasAnchoringBounds(const  URegularExpression   *regexp,
   * Anchoring Bounds are the default for regions.
   *
   * @param regexp The compiled regular expression.
-  * @param b      TRUE if to enable anchoring bounds; FALSE to disable them.
+  * @param b      true if to enable anchoring bounds; false to disable them.
   * @param status A pointer to a UErrorCode to receive any errors.
   * @stable ICU 4.0
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_useAnchoringBounds(URegularExpression   *regexp,
                           UBool                 b,
                           UErrorCode           *status);
 
 /**
-  * Return TRUE if the most recent matching operation touched the
+  * Return true if the most recent matching operation touched the
   *  end of the text being processed.  In this case, additional input text could
   *  change the results of that match.
   *
   *  @param regexp The compiled regular expression.
   *  @param status A pointer to a UErrorCode to receive any errors.
-  *  @return  TRUE if the most recent match hit the end of input
+  *  @return  true if the most recent match hit the end of input
   *  @stable ICU 4.0
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_hitEnd(const  URegularExpression   *regexp,
                      UErrorCode           *status);
 
 /**
-  * Return TRUE the most recent match succeeded and additional input could cause
+  * Return true the most recent match succeeded and additional input could cause
   * it to fail. If this function returns false and a match was found, then more input
   * might change the match but the match won't be lost. If a match was not found,
   * then requireEnd has no meaning.
   *
   * @param regexp The compiled regular expression.
   * @param status A pointer to a UErrorCode to receive any errors.
-  * @return TRUE  if more input could cause the most recent match to no longer match.
+  * @return true  if more input could cause the most recent match to no longer match.
   * @stable ICU 4.0
   */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uregex_requireEnd(const  URegularExpression   *regexp,
                          UErrorCode           *status);
 
@@ -1079,7 +1082,7 @@ uregex_requireEnd(const  URegularExpression   *regexp,
   *                                is still the full length of the untruncated string.
   *    @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_replaceAll(URegularExpression    *regexp,
                   const UChar           *replacementText,
                   int32_t                replacementLength,
@@ -1108,7 +1111,7 @@ uregex_replaceAll(URegularExpression    *regexp,
   *
   *    @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_CAPI UText * U_EXPORT2
 uregex_replaceAllUText(URegularExpression *regexp,
                        UText              *replacement,
                        UText              *dest,
@@ -1138,7 +1141,7 @@ uregex_replaceAllUText(URegularExpression *regexp,
   *                                is still the full length of the untruncated string.
   *    @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_replaceFirst(URegularExpression  *regexp,
                     const UChar         *replacementText,
                     int32_t              replacementLength,
@@ -1167,7 +1170,7 @@ uregex_replaceFirst(URegularExpression  *regexp,
   *
   *    @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_CAPI UText * U_EXPORT2
 uregex_replaceFirstUText(URegularExpression *regexp,
                          UText              *replacement,
                          UText              *dest,
@@ -1219,7 +1222,7 @@ uregex_replaceFirstUText(URegularExpression *regexp,
   *   @stable ICU 3.0
   *
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_appendReplacement(URegularExpression    *regexp,
                          const UChar           *replacementText,
                          int32_t                replacementLength,
@@ -1249,7 +1252,7 @@ uregex_appendReplacement(URegularExpression    *regexp,
   *
   *   @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_appendReplacementUText(URegularExpression    *regexp,
                               UText                 *replacementText,
                               UText                 *dest,
@@ -1279,7 +1282,7 @@ uregex_appendReplacementUText(URegularExpression    *regexp,
   *
   *   @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_appendTail(URegularExpression    *regexp,
                   UChar                **destBuf,
                   int32_t               *destCapacity,
@@ -1303,7 +1306,7 @@ uregex_appendTail(URegularExpression    *regexp,
   *
   *   @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_CAPI UText * U_EXPORT2
 uregex_appendTailUText(URegularExpression    *regexp,
                        UText                 *dest,
                        UErrorCode            *status);
@@ -1359,7 +1362,7 @@ uregex_appendTailUText(URegularExpression    *regexp,
    * @return        The number of fields into which the input string was split.
    * @stable ICU 3.0
    */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_split(   URegularExpression      *regexp,
                   UChar                 *destBuf,
                   int32_t                destCapacity,
@@ -1394,7 +1397,7 @@ uregex_split(   URegularExpression      *regexp,
    *
    * @stable ICU 4.6
    */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_splitUText(URegularExpression    *regexp,
                   UText                 *destFields[],
                   int32_t                destFieldsCapacity,
@@ -1422,7 +1425,7 @@ uregex_splitUText(URegularExpression    *regexp,
  * @param   status      A reference to a UErrorCode to receive any errors.
  * @stable ICU 4.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setTimeLimit(URegularExpression      *regexp,
                     int32_t                  limit,
                     UErrorCode              *status);
@@ -1436,7 +1439,7 @@ uregex_setTimeLimit(URegularExpression      *regexp,
  * @return the maximum allowed time for a match, in units of processing steps.
  * @stable ICU 4.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_getTimeLimit(const URegularExpression      *regexp,
                           UErrorCode              *status);
 
@@ -1460,7 +1463,7 @@ uregex_getTimeLimit(const URegularExpression      *regexp,
  *
  * @stable ICU 4.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setStackLimit(URegularExpression      *regexp,
                      int32_t                  limit,
                      UErrorCode              *status);
@@ -1472,7 +1475,7 @@ uregex_setStackLimit(URegularExpression      *regexp,
  *          stack size is unlimited.
  * @stable ICU 4.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uregex_getStackLimit(const URegularExpression      *regexp,
                            UErrorCode              *status);
 
@@ -1480,7 +1483,7 @@ uregex_getStackLimit(const URegularExpression      *regexp,
 /**
  * Function pointer for a regular expression matching callback function.
  * When set, a callback function will be called periodically during matching
- * operations.  If the call back function returns FALSE, the matching
+ * operations.  If the call back function returns false, the matching
  * operation will be terminated early.
  *
  * Note:  the callback function must not call other functions on this
@@ -1491,8 +1494,8 @@ uregex_getStackLimit(const URegularExpression      *regexp,
  *                 uregex_setMatchCallback() is called.
  * @param steps    the accumulated processing time, in match steps,
  *                 for this matching operation.
- * @return         TRUE to continue the matching operation.
- *                 FALSE to terminate the matching operation.
+ * @return         true to continue the matching operation.
+ *                 false to terminate the matching operation.
  * @stable ICU 4.0
  */
 U_CDECL_BEGIN
@@ -1515,7 +1518,7 @@ U_CDECL_END
  * @param   status      A reference to a UErrorCode to receive any errors.
  * @stable ICU 4.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setMatchCallback(URegularExpression      *regexp,
                         URegexMatchCallback     *callback,
                         const void              *context,
@@ -1533,7 +1536,7 @@ uregex_setMatchCallback(URegularExpression      *regexp,
  * @param   status      A reference to a UErrorCode to receive any errors.
  * @stable ICU 4.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_getMatchCallback(const URegularExpression    *regexp,
                         URegexMatchCallback        **callback,
                         const void                 **context,
@@ -1554,7 +1557,7 @@ uregex_getMatchCallback(const URegularExpression    *regexp,
  * to be attempted, giving the application the opportunity to terminate a long-running
  * find operation.
  *
- * If the call back function returns FALSE, the find operation will be terminated early.
+ * If the call back function returns false, the find operation will be terminated early.
  *
  * Note:  the callback function must not call other functions on this
  *        URegularExpression
@@ -1565,8 +1568,8 @@ uregex_getMatchCallback(const URegularExpression    *regexp,
  * @param matchIndex  the next index at which a match attempt will be attempted for this
  *                 find operation.  If this callback interrupts the search, this is the
  *                 index at which a find/findNext operation may be re-initiated.
- * @return         TRUE to continue the matching operation.
- *                 FALSE to terminate the matching operation.
+ * @return         true to continue the matching operation.
+ *                 false to terminate the matching operation.
  * @stable ICU 4.6
  */
 U_CDECL_BEGIN
@@ -1587,7 +1590,7 @@ U_CDECL_END
  * @param   status      A reference to a UErrorCode to receive any errors.
  * @stable ICU 4.6
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_setFindProgressCallback(URegularExpression              *regexp,
                                 URegexFindProgressCallback      *callback,
                                 const void                      *context,
@@ -1604,7 +1607,7 @@ uregex_setFindProgressCallback(URegularExpression              *regexp,
  * @param   status      A reference to a UErrorCode to receive any errors.
  * @stable ICU 4.6
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uregex_getFindProgressCallback(const URegularExpression          *regexp,
                                 URegexFindProgressCallback        **callback,
                                 const void                        **context,

@@ -18,6 +18,7 @@
 #include "unicode/timezone.h"
 #include "unicode/locid.h"
 #include "unicode/unistr.h"
+#include "unicode/udisplaycontext.h"
 #include "formattedval_impl.h"
 
 U_NAMESPACE_USE
@@ -116,7 +117,7 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
 }
 
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 udtitvfmt_formatToResult(
                 const UDateIntervalFormat* formatter,
                 UDate           fromDate,
@@ -134,7 +135,7 @@ udtitvfmt_formatToResult(
     }
 }
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 udtitvfmt_formatCalendarToResult(
                 const UDateIntervalFormat* formatter,
                 UCalendar*      fromCalendar,
@@ -149,6 +150,26 @@ udtitvfmt_formatCalendarToResult(
         resultImpl->fImpl = reinterpret_cast<const DateIntervalFormat*>(formatter)
             ->formatToValue(*(Calendar *)fromCalendar, *(Calendar *)toCalendar, *status);
     }
+}
+
+U_CAPI void U_EXPORT2
+udtitvfmt_setContext(UDateIntervalFormat* formatter,
+                     UDisplayContext value,
+                     UErrorCode* status) {
+    if (U_FAILURE(*status)) {
+        return;
+    }
+    reinterpret_cast<DateIntervalFormat*>(formatter)->setContext( value, *status );
+}
+
+U_CAPI UDisplayContext U_EXPORT2
+udtitvfmt_getContext(const UDateIntervalFormat* formatter,
+                     UDisplayContextType type,
+                     UErrorCode* status) {
+    if (U_FAILURE(*status)) {
+        return (UDisplayContext)0;
+    }
+    return reinterpret_cast<const DateIntervalFormat*>(formatter)->getContext( type, *status );
 }
 
 

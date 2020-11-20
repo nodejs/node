@@ -172,7 +172,7 @@ ulocdata_getDelimiter(ULocaleData *uld, ULocaleDataDelimiterType type,
         return 0;
     }
 
-    delimiter = ures_getStringByKey(delimiterBundle, delimiterKeys[type], &len, &localStatus);
+    delimiter = ures_getStringByKeyWithFallback(delimiterBundle, delimiterKeys[type], &len, &localStatus);
     ures_close(delimiterBundle);
 
     if ( (localStatus == U_USING_DEFAULT_WARNING) && uld->noSubstitute ) {

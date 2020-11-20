@@ -126,13 +126,13 @@ class RuleBasedBreakIterator::BreakCache: public UMemory {
      * Additional boundaries, either preceding or following, may be added
      * to the cache as a side effect.
      *
-     * Return FALSE if the operation failed.
+     * Return false if the operation failed.
      */
     UBool populateNear(int32_t position, UErrorCode &status);
 
     /**
      *  Add boundary(s) to the cache following the current last boundary.
-     *  Return FALSE if at the end of the text, and no more boundaries can be added.
+     *  Return false if at the end of the text, and no more boundaries can be added.
      *  Leave iteration position at the first newly added boundary, or unchanged if no boundary was added.
      */
     UBool populateFollowing();
@@ -170,7 +170,7 @@ class RuleBasedBreakIterator::BreakCache: public UMemory {
      *  Fails if the requested position is outside of the range of boundaries currently held by the cache.
      *  The startPosition must be on a code point boundary.
      *
-     *  Return TRUE if successful, FALSE if the specified position is after
+     *  Return true if successful, false if the specified position is after
      *  the last cached boundary or before the first.
      */
     UBool                   seek(int32_t startPosition);

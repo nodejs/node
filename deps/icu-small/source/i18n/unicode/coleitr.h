@@ -253,7 +253,7 @@ public:
     /**
     * Checks if a comparison order is ignorable.
     * @param order the collation order.
-    * @return TRUE if a character is ignorable, FALSE otherwise.
+    * @return true if a character is ignorable, false otherwise.
     * @stable ICU 2.0
     */
     static inline UBool isIgnorable(int32_t order);

@@ -13,7 +13,10 @@
 #include "unicode/utypes.h"
 #include "unicode/uenum.h"
 #include "unicode/uloc.h"
+
+#if U_SHOW_CPLUSPLUS_API
 #include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -32,7 +35,7 @@
  *
  * <p>
  * Types of <code>UCalendar</code> interpret a <code>UDate</code>
- * according to the rules of a specific calendar system. The U_STABLE
+ * according to the rules of a specific calendar system. The C API
  * provides the enum UCalendarType with UCAL_TRADITIONAL and
  * UCAL_GREGORIAN.
  * <p>
@@ -584,7 +587,7 @@ typedef enum USystemTimeZoneType USystemTimeZoneType;
  *          *ec will indicate the error.
  * @stable ICU 4.8
  */
-U_STABLE UEnumeration* U_EXPORT2
+U_CAPI UEnumeration* U_EXPORT2
 ucal_openTimeZoneIDEnumeration(USystemTimeZoneType zoneType, const char* region,
                                 const int32_t* rawOffset, UErrorCode* ec);
 
@@ -599,7 +602,7 @@ ucal_openTimeZoneIDEnumeration(USystemTimeZoneType zoneType, const char* region,
  *
  * @stable ICU 2.6
  */
-U_STABLE UEnumeration* U_EXPORT2
+U_CAPI UEnumeration* U_EXPORT2
 ucal_openTimeZones(UErrorCode* ec);
 
 /**
@@ -618,7 +621,7 @@ ucal_openTimeZones(UErrorCode* ec);
  *
  * @stable ICU 2.6
  */
-U_STABLE UEnumeration* U_EXPORT2
+U_CAPI UEnumeration* U_EXPORT2
 ucal_openCountryTimeZones(const char* country, UErrorCode* ec);
 
 /**
@@ -644,7 +647,7 @@ ucal_openCountryTimeZones(const char* country, UErrorCode* ec);
  *
  * @stable ICU 2.6
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getDefaultTimeZone(UChar* result, int32_t resultCapacity, UErrorCode* ec);
 
 /**
@@ -656,10 +659,8 @@ ucal_getDefaultTimeZone(UChar* result, int32_t resultCapacity, UErrorCode* ec);
  *
  * @stable ICU 2.6
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_setDefaultTimeZone(const UChar* zoneID, UErrorCode* ec);
-
-#ifndef U_HIDE_DRAFT_API
 
 /**
  * Return the current host time zone. The host time zone is detected from
@@ -688,12 +689,10 @@ ucal_setDefaultTimeZone(const UChar* zoneID, UErrorCode* ec);
  *
  * @see #UCAL_UNKNOWN_ZONE_ID
  *
- * @draft ICU 65
+ * @stable ICU 65
  */
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getHostTimeZone(UChar *result, int32_t resultCapacity, UErrorCode *ec);
-
-#endif // U_HIDE_DRAFT_API
 
 /**
  * Return the amount of time in milliseconds that the clock is
@@ -711,7 +710,7 @@ ucal_getHostTimeZone(UChar *result, int32_t resultCapacity, UErrorCode *ec);
  *
  * @stable ICU 2.6
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getDSTSavings(const UChar* zoneID, UErrorCode* ec);
 
 /**
@@ -720,7 +719,7 @@ ucal_getDSTSavings(const UChar* zoneID, UErrorCode* ec);
  * @return The current date and time.
  * @stable ICU 2.0
  */
-U_STABLE UDate U_EXPORT2
+U_CAPI UDate U_EXPORT2
 ucal_getNow(void);
 
 /**
@@ -746,7 +745,7 @@ ucal_getNow(void);
  * @see #UCAL_UNKNOWN_ZONE_ID
  * @stable ICU 2.0
  */
-U_STABLE UCalendar* U_EXPORT2
+U_CAPI UCalendar* U_EXPORT2
 ucal_open(const UChar*   zoneID,
           int32_t        len,
           const char*    locale,
@@ -759,7 +758,7 @@ ucal_open(const UChar*   zoneID,
  * @param cal The UCalendar to close.
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_close(UCalendar *cal);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -789,7 +788,7 @@ U_NAMESPACE_END
  * @return A pointer to a UCalendar identical to cal.
  * @stable ICU 4.0
  */
-U_STABLE UCalendar* U_EXPORT2
+U_CAPI UCalendar* U_EXPORT2
 ucal_clone(const UCalendar* cal,
            UErrorCode*      status);
 
@@ -802,7 +801,7 @@ ucal_clone(const UCalendar* cal,
  * @param status A pointer to an UErrorCode to receive any errors.
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_setTimeZone(UCalendar*    cal,
                  const UChar*  zoneID,
                  int32_t       len,
@@ -818,7 +817,7 @@ ucal_setTimeZone(UCalendar*    cal,
  * @return              The total buffer size needed; if greater than resultLength, the output was truncated.
  * @stable ICU 51
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getTimeZoneID(const UCalendar *cal,
                    UChar *result,
                    int32_t resultLength,
@@ -855,7 +854,7 @@ typedef enum UCalendarDisplayNameType UCalendarDisplayNameType;
  * @return             The total buffer size needed; if greater than resultLength, the output was truncated.
  * @stable ICU 2.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getTimeZoneDisplayName(const UCalendar*          cal,
                             UCalendarDisplayNameType  type,
                             const char*               locale,
@@ -868,10 +867,10 @@ ucal_getTimeZoneDisplayName(const UCalendar*          cal,
  * Daylight savings time is not used in all parts of the world.
  * @param cal The UCalendar to query.
  * @param status A pointer to an UErrorCode to receive any errors
- * @return TRUE if cal is currently in daylight savings time, FALSE otherwise
+ * @return true if cal is currently in daylight savings time, false otherwise
  * @stable ICU 2.0
  */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ucal_inDaylightTime(const UCalendar*  cal,
                     UErrorCode*       status );
 
@@ -895,7 +894,7 @@ ucal_inDaylightTime(const UCalendar*  cal,
  * @see ucal_getGregorianChange
  * @stable ICU 3.6
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_setGregorianChange(UCalendar *cal, UDate date, UErrorCode *pErrorCode);
 
 /**
@@ -918,7 +917,7 @@ ucal_setGregorianChange(UCalendar *cal, UDate date, UErrorCode *pErrorCode);
  * @see ucal_setGregorianChange
  * @stable ICU 3.6
  */
-U_STABLE UDate U_EXPORT2
+U_CAPI UDate U_EXPORT2
 ucal_getGregorianChange(const UCalendar *cal, UErrorCode *pErrorCode);
 
 /**
@@ -999,7 +998,7 @@ typedef enum UCalendarWallTimeOption UCalendarWallTimeOption;
  * @see ucal_setAttribute
  * @stable ICU 2.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getAttribute(const UCalendar*    cal,
                   UCalendarAttribute  attr);
 
@@ -1014,7 +1013,7 @@ ucal_getAttribute(const UCalendar*    cal,
  * @see ucal_getAttribute
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_setAttribute(UCalendar*          cal,
                   UCalendarAttribute  attr,
                   int32_t             newValue);
@@ -1028,7 +1027,7 @@ ucal_setAttribute(UCalendar*          cal,
  * @see ucal_countAvailable
  * @stable ICU 2.0
  */
-U_STABLE const char* U_EXPORT2
+U_CAPI const char* U_EXPORT2
 ucal_getAvailable(int32_t localeIndex);
 
 /**
@@ -1039,7 +1038,7 @@ ucal_getAvailable(int32_t localeIndex);
  * @see ucal_getAvailable
  * @stable ICU 2.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_countAvailable(void);
 
 /**
@@ -1053,7 +1052,7 @@ ucal_countAvailable(void);
  * @see ucal_setDateTime
  * @stable ICU 2.0
  */
-U_STABLE UDate U_EXPORT2
+U_CAPI UDate U_EXPORT2
 ucal_getMillis(const UCalendar*  cal,
                UErrorCode*       status);
 
@@ -1068,7 +1067,7 @@ ucal_getMillis(const UCalendar*  cal,
  * @see ucal_setDateTime
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_setMillis(UCalendar*   cal,
                UDate        dateTime,
                UErrorCode*  status );
@@ -1087,7 +1086,7 @@ ucal_setMillis(UCalendar*   cal,
  * @see ucal_setDateTime
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_setDate(UCalendar*   cal,
              int32_t      year,
              int32_t      month,
@@ -1111,7 +1110,7 @@ ucal_setDate(UCalendar*   cal,
  * @see ucal_setDate
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_setDateTime(UCalendar*   cal,
                  int32_t      year,
                  int32_t      month,
@@ -1122,15 +1121,15 @@ ucal_setDateTime(UCalendar*   cal,
                  UErrorCode*  status);
 
 /**
- * Returns TRUE if two UCalendars are equivalent.  Equivalent
+ * Returns true if two UCalendars are equivalent.  Equivalent
  * UCalendars will behave identically, but they may be set to
  * different times.
  * @param cal1 The first of the UCalendars to compare.
  * @param cal2 The second of the UCalendars to compare.
- * @return TRUE if cal1 and cal2 are equivalent, FALSE otherwise.
+ * @return true if cal1 and cal2 are equivalent, false otherwise.
  * @stable ICU 2.0
  */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ucal_equivalentTo(const UCalendar*  cal1,
                   const UCalendar*  cal2);
 
@@ -1152,7 +1151,7 @@ ucal_equivalentTo(const UCalendar*  cal1,
  * @see ucal_roll
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_add(UCalendar*           cal,
          UCalendarDateFields  field,
          int32_t              amount,
@@ -1182,7 +1181,7 @@ ucal_add(UCalendar*           cal,
  * @see ucal_add
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_roll(UCalendar*           cal,
           UCalendarDateFields  field,
           int32_t              amount,
@@ -1204,7 +1203,7 @@ ucal_roll(UCalendar*           cal,
  * @see ucal_clear
  * @stable ICU 2.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_get(const UCalendar*     cal,
          UCalendarDateFields  field,
          UErrorCode*          status );
@@ -1224,7 +1223,7 @@ ucal_get(const UCalendar*     cal,
  * @see ucal_clear
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_set(UCalendar*           cal,
          UCalendarDateFields  field,
          int32_t              value);
@@ -1237,14 +1236,14 @@ ucal_set(UCalendar*           cal,
  * UCAL_WEEK_OF_YEAR, UCAL_WEEK_OF_MONTH, UCAL_DATE, UCAL_DAY_OF_YEAR, UCAL_DAY_OF_WEEK,
  * UCAL_DAY_OF_WEEK_IN_MONTH, UCAL_AM_PM, UCAL_HOUR, UCAL_HOUR_OF_DAY, UCAL_MINUTE, UCAL_SECOND,
  * UCAL_MILLISECOND, UCAL_ZONE_OFFSET, UCAL_DST_OFFSET.
- * @return TRUE if field is set, FALSE otherwise.
+ * @return true if field is set, false otherwise.
  * @see ucal_get
  * @see ucal_set
  * @see ucal_clearField
  * @see ucal_clear
  * @stable ICU 2.0
  */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ucal_isSet(const UCalendar*     cal,
            UCalendarDateFields  field);
 
@@ -1262,7 +1261,7 @@ ucal_isSet(const UCalendar*     cal,
  * @see ucal_clear
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_clearField(UCalendar*           cal,
                 UCalendarDateFields  field);
 
@@ -1276,7 +1275,7 @@ ucal_clearField(UCalendar*           cal,
  * @see ucal_clearField
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucal_clear(UCalendar* calendar);
 
 /**
@@ -1315,7 +1314,7 @@ typedef enum UCalendarLimitType UCalendarLimitType;
  * @return The requested value.
  * @stable ICU 2.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getLimit(const UCalendar*     cal,
               UCalendarDateFields  field,
               UCalendarLimitType   type,
@@ -1328,7 +1327,7 @@ ucal_getLimit(const UCalendar*     cal,
  *  @return the locale name
  *  @stable ICU 2.8
  */
-U_STABLE const char * U_EXPORT2
+U_CAPI const char * U_EXPORT2
 ucal_getLocaleByType(const UCalendar *cal, ULocDataLocaleType type, UErrorCode* status);
 
 /**
@@ -1337,7 +1336,7 @@ ucal_getLocaleByType(const UCalendar *cal, ULocDataLocaleType type, UErrorCode* 
  * @return the version string, such as "2007f"
  * @stable ICU 3.8
  */
-U_STABLE const char * U_EXPORT2
+U_CAPI const char * U_EXPORT2
 ucal_getTZDataVersion(UErrorCode* status);
 
 /**
@@ -1358,7 +1357,7 @@ ucal_getTZDataVersion(UErrorCode* status);
  *                  null.
  * @stable ICU 4.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getCanonicalTimeZoneID(const UChar* id, int32_t len,
                             UChar* result, int32_t resultCapacity, UBool *isSystemID, UErrorCode* status);
 /**
@@ -1368,7 +1367,7 @@ ucal_getCanonicalTimeZoneID(const UChar* id, int32_t len,
  * @return The resource keyword value string.
  * @stable ICU 4.2
  */
-U_STABLE const char * U_EXPORT2
+U_CAPI const char * U_EXPORT2
 ucal_getType(const UCalendar *cal, UErrorCode* status);
 
 /**
@@ -1387,7 +1386,7 @@ ucal_getType(const UCalendar *cal, UErrorCode* status);
  * @return a string enumeration over keyword values for the given key and the locale.
  * @stable ICU 4.2
  */
-U_STABLE UEnumeration* U_EXPORT2
+U_CAPI UEnumeration* U_EXPORT2
 ucal_getKeywordValuesForLocale(const char* key,
                                const char* locale,
                                UBool commonlyUsed,
@@ -1442,7 +1441,7 @@ typedef enum UCalendarWeekdayType UCalendarWeekdayType;
  * @return The UCalendarWeekdayType for the day of the week.
  * @stable ICU 4.4
  */
-U_STABLE UCalendarWeekdayType U_EXPORT2
+U_CAPI UCalendarWeekdayType U_EXPORT2
 ucal_getDayOfWeekType(const UCalendar *cal, UCalendarDaysOfWeek dayOfWeek, UErrorCode* status);
 
 /**
@@ -1460,20 +1459,20 @@ ucal_getDayOfWeekType(const UCalendar *cal, UCalendarDaysOfWeek dayOfWeek, UErro
  * @return The milliseconds after midnight at which the weekend begins or ends.
  * @stable ICU 4.4
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getWeekendTransition(const UCalendar *cal, UCalendarDaysOfWeek dayOfWeek, UErrorCode *status);
 
 /**
- * Returns TRUE if the given UDate is in the weekend in
+ * Returns true if the given UDate is in the weekend in
  * this calendar system.
  * @param cal The UCalendar to query.
  * @param date The UDate in question.
  * @param status The error code for the operation.
- * @return TRUE if the given UDate is in the weekend in
- * this calendar system, FALSE otherwise.
+ * @return true if the given UDate is in the weekend in
+ * this calendar system, false otherwise.
  * @stable ICU 4.4
  */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ucal_isWeekend(const UCalendar *cal, UDate date, UErrorCode *status);
 
 /**
@@ -1500,7 +1499,7 @@ ucal_isWeekend(const UCalendar *cal, UDate date, UErrorCode *status);
  * @return The date difference for the specified field.
  * @stable ICU 4.8
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getFieldDifference(UCalendar* cal,
                         UDate target,
                         UCalendarDateFields field,
@@ -1544,17 +1543,17 @@ typedef enum UTimeZoneTransitionType UTimeZoneTransitionType; /**< @stable ICU 5
 * the calendar's current date, in the time zone to which the calendar
 * is currently set. If there is no known time zone transition of the
 * requested type relative to the calendar's date, the function returns
-* FALSE.
+* false.
 * @param cal The UCalendar to query.
 * @param type The type of transition desired.
 * @param transition A pointer to a UDate to be set to the transition time.
-*         If the function returns FALSE, the value set is unspecified.
+*         If the function returns false, the value set is unspecified.
 * @param status A pointer to a UErrorCode to receive any errors.
-* @return TRUE if a valid transition time is set in *transition, FALSE
+* @return true if a valid transition time is set in *transition, false
 *         otherwise.
 * @stable ICU 50
 */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ucal_getTimeZoneTransitionDate(const UCalendar* cal, UTimeZoneTransitionType type,
                                UDate* transition, UErrorCode* status);
 
@@ -1569,7 +1568,7 @@ ucal_getTimeZoneTransitionDate(const UCalendar* cal, UTimeZoneTransitionType typ
 *
 * <p>This implementation utilizes <a href="http://unicode.org/cldr/charts/supplemental/zone_tzid.html">
 * Zone-Tzid mapping data</a>. The mapping data is updated time to time. To get the latest changes,
-* please read the ICU user guide section <a href="http://userguide.icu-project.org/datetime/timezone#TOC-Updating-the-Time-Zone-Data">
+* please read the ICU user guide section <a href="https://unicode-org.github.io/icu/userguide/datetime/timezone#updating-the-time-zone-data">
 * Updating the Time Zone Data</a>.
 *
 * @param id            A system time zone ID.
@@ -1582,7 +1581,7 @@ ucal_getTimeZoneTransitionDate(const UCalendar* cal, UTimeZoneTransitionType typ
 *
 * @stable ICU 52
 */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getWindowsTimeZoneID(const UChar* id, int32_t len,
                             UChar* winid, int32_t winidCapacity, UErrorCode* status);
 
@@ -1600,7 +1599,7 @@ ucal_getWindowsTimeZoneID(const UChar* id, int32_t len,
 *
 * <p>This implementation utilizes <a href="http://unicode.org/cldr/charts/supplemental/zone_tzid.html">
 * Zone-Tzid mapping data</a>. The mapping data is updated time to time. To get the latest changes,
-* please read the ICU user guide section <a href="http://userguide.icu-project.org/datetime/timezone#TOC-Updating-the-Time-Zone-Data">
+* please read the ICU user guide section <a href="https://unicode-org.github.io/icu/userguide/datetime/timezone#updating-the-time-zone-data">
 * Updating the Time Zone Data</a>.
 *
 * @param winid         A Windows time zone ID.
@@ -1614,7 +1613,7 @@ ucal_getWindowsTimeZoneID(const UChar* id, int32_t len,
 *
 * @stable ICU 52
 */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getTimeZoneIDForWindowsID(const UChar* winid, int32_t len, const char* region,
                                 UChar* id, int32_t idCapacity, UErrorCode* status);
 

@@ -179,7 +179,7 @@ public:
      *
      * <p>
      * For more detail on rounding modes, see:
-     * http://userguide.icu-project.org/formatparse/numbers/rounding-modes
+     * https://unicode-org.github.io/icu/userguide/format_parse/numbers/rounding-modes
      *
      * @stable ICU 2.4
      */
@@ -704,8 +704,8 @@ public:
     /**
      * Sets whether lenient parsing should be enabled (it is off by default).
      *
-     * @param enable \c TRUE if lenient parsing should be used,
-     *               \c FALSE otherwise.
+     * @param enable \c true if lenient parsing should be used,
+     *               \c false otherwise.
      * @stable ICU 4.8
      */
     virtual void setLenient(UBool enable);
@@ -713,8 +713,8 @@ public:
     /**
      * Returns whether lenient parsing is enabled (it is off by default).
      *
-     * @return \c TRUE if lenient parsing is enabled,
-     *         \c FALSE otherwise.
+     * @return \c true if lenient parsing is enabled,
+     *         \c false otherwise.
      * @see #setLenient
      * @stable ICU 4.8
      */
@@ -870,7 +870,7 @@ public:
      * NumberFormat::createInstance to avoid undefined behavior.
      * @param key the registry key returned by a previous call to registerFactory
      * @param status the in/out status code, no special meanings are assigned
-     * @return TRUE if the factory for the key was successfully unregistered
+     * @return true if the factory for the key was successfully unregistered
      * @stable ICU 2.6
      */
     static UBool U_EXPORT2 unregister(URegistryKey key, UErrorCode& status);
@@ -1112,7 +1112,7 @@ protected:
 #ifndef U_HIDE_INTERNAL_API
     /**
      * Creates the specified number format style of the desired locale.
-     * If mustBeDecimalFormat is TRUE, then the returned pointer is
+     * If mustBeDecimalFormat is true, then the returned pointer is
      * either a DecimalFormat or it is NULL.
      * @internal
      */
@@ -1151,7 +1151,7 @@ private:
 
   private:
     UBool      fParseIntegerOnly;
-    UBool      fLenient; // TRUE => lenient parse is enabled
+    UBool      fLenient; // true => lenient parse is enabled
 
     // ISO currency code
     char16_t      fCurrency[4];
@@ -1228,7 +1228,7 @@ public:
     /**
      * @stable ICU 2.6
      */
-    SimpleNumberFormatFactory(const Locale& locale, UBool visible = TRUE);
+    SimpleNumberFormatFactory(const Locale& locale, UBool visible = true);
 
     /**
      * @stable ICU 3.0

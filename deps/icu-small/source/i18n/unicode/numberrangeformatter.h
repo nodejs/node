@@ -16,6 +16,7 @@
 #include "unicode/formattedvalue.h"
 #include "unicode/fpositer.h"
 #include "unicode/numberformatter.h"
+#include "unicode/unumberrangeformatter.h"
 
 /**
  * \file
@@ -31,7 +32,7 @@
  *     .numberFormatterFirst(NumberFormatter::with().adoptUnit(MeasureUnit::createMeter()))
  *     .numberFormatterSecond(NumberFormatter::with().adoptUnit(MeasureUnit::createKilometer()))
  *     .locale("en-GB")
- *     .formatRange(750, 1.2, status)
+ *     .formatFormattableRange(750, 1.2, status)
  *     .toString(status);
  * // => "750 m - 1.2 km"
  * </pre>
@@ -44,129 +45,10 @@
  */
 
 
-/**
- * Defines how to merge fields that are identical across the range sign.
- *
- * @stable ICU 63
- */
-typedef enum UNumberRangeCollapse {
-    /**
-     * Use locale data and heuristics to determine how much of the string to collapse. Could end up collapsing none,
-     * some, or all repeated pieces in a locale-sensitive way.
-     *
-     * The heuristics used for this option are subject to change over time.
-     *
-     * @stable ICU 63
-     */
-    UNUM_RANGE_COLLAPSE_AUTO,
-
-    /**
-     * Do not collapse any part of the number. Example: "3.2 thousand kilograms – 5.3 thousand kilograms"
-     *
-     * @stable ICU 63
-     */
-    UNUM_RANGE_COLLAPSE_NONE,
-
-    /**
-     * Collapse the unit part of the number, but not the notation, if present. Example: "3.2 thousand – 5.3 thousand
-     * kilograms"
-     *
-     * @stable ICU 63
-     */
-    UNUM_RANGE_COLLAPSE_UNIT,
-
-    /**
-     * Collapse any field that is equal across the range sign. May introduce ambiguity on the magnitude of the
-     * number. Example: "3.2 – 5.3 thousand kilograms"
-     *
-     * @stable ICU 63
-     */
-    UNUM_RANGE_COLLAPSE_ALL
-} UNumberRangeCollapse;
-
-/**
- * Defines the behavior when the two numbers in the range are identical after rounding. To programmatically detect
- * when the identity fallback is used, compare the lower and upper BigDecimals via FormattedNumber.
- *
- * @stable ICU 63
- * @see NumberRangeFormatter
- */
-typedef enum UNumberRangeIdentityFallback {
-    /**
-     * Show the number as a single value rather than a range. Example: "$5"
-     *
-     * @stable ICU 63
-     */
-    UNUM_IDENTITY_FALLBACK_SINGLE_VALUE,
-
-    /**
-     * Show the number using a locale-sensitive approximation pattern. If the numbers were the same before rounding,
-     * show the single value. Example: "~$5" or "$5"
-     *
-     * @stable ICU 63
-     */
-    UNUM_IDENTITY_FALLBACK_APPROXIMATELY_OR_SINGLE_VALUE,
-
-    /**
-     * Show the number using a locale-sensitive approximation pattern. Use the range pattern always, even if the
-     * inputs are the same. Example: "~$5"
-     *
-     * @stable ICU 63
-     */
-    UNUM_IDENTITY_FALLBACK_APPROXIMATELY,
-
-    /**
-     * Show the number as the range of two equal values. Use the range pattern always, even if the inputs are the
-     * same. Example (with RangeCollapse.NONE): "$5 – $5"
-     *
-     * @stable ICU 63
-     */
-    UNUM_IDENTITY_FALLBACK_RANGE
-} UNumberRangeIdentityFallback;
-
-/**
- * Used in the result class FormattedNumberRange to indicate to the user whether the numbers formatted in the range
- * were equal or not, and whether or not the identity fallback was applied.
- *
- * @stable ICU 63
- * @see NumberRangeFormatter
- */
-typedef enum UNumberRangeIdentityResult {
-    /**
-     * Used to indicate that the two numbers in the range were equal, even before any rounding rules were applied.
-     *
-     * @stable ICU 63
-     * @see NumberRangeFormatter
-     */
-    UNUM_IDENTITY_RESULT_EQUAL_BEFORE_ROUNDING,
-
-    /**
-     * Used to indicate that the two numbers in the range were equal, but only after rounding rules were applied.
-     *
-     * @stable ICU 63
-     * @see NumberRangeFormatter
-     */
-    UNUM_IDENTITY_RESULT_EQUAL_AFTER_ROUNDING,
-
-    /**
-     * Used to indicate that the two numbers in the range were not equal, even after rounding rules were applied.
-     *
-     * @stable ICU 63
-     * @see NumberRangeFormatter
-     */
-    UNUM_IDENTITY_RESULT_NOT_EQUAL,
-
-#ifndef U_HIDE_INTERNAL_API
-    /**
-     * The number of entries in this enum.
-     * @internal
-     */
-    UNUM_IDENTITY_RESULT_COUNT
-#endif
-
-} UNumberRangeIdentityResult;
-
 U_NAMESPACE_BEGIN
+
+// Forward declarations:
+class PluralRules;
 
 namespace number {  // icu::number
 
@@ -182,6 +64,7 @@ struct RangeMacroProps;
 class DecimalQuantity;
 class UFormattedNumberRangeData;
 class NumberRangeFormatterImpl;
+struct UFormattedNumberRangeImpl;
 
 } // namespace impl
 
@@ -418,8 +301,8 @@ class U_I18N_API NumberRangeFormatterSettings {
 
     /**
      * Sets the behavior when the two sides of the range are the same. This could happen if the same two numbers are
-     * passed to the formatRange function, or if different numbers are passed to the function but they become the same
-     * after rounding rules are applied. Possible values:
+     * passed to the formatFormattableRange function, or if different numbers are passed to the function but they
+     * become the same after rounding rules are applied. Possible values:
      * <p>
      * <ul>
      * <li>SINGLE_VALUE: "5 miles"</li>
@@ -474,13 +357,13 @@ class U_I18N_API NumberRangeFormatterSettings {
     /**
      * Sets the UErrorCode if an error occurred in the fluent chain.
      * Preserves older error codes in the outErrorCode.
-     * @return TRUE if U_FAILURE(outErrorCode)
+     * @return true if U_FAILURE(outErrorCode)
      * @stable ICU 63
      */
     UBool copyErrorTo(UErrorCode &outErrorCode) const {
         if (U_FAILURE(outErrorCode)) {
             // Do not overwrite the older error code
-            return TRUE;
+            return true;
         }
         fMacros.copyErrorTo(outErrorCode);
         return U_FAILURE(outErrorCode);
@@ -725,7 +608,7 @@ class U_I18N_API FormattedNumberRange : public UMemory, public FormattedValue {
     /** @copydoc FormattedValue::nextPosition() */
     UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
 
-#ifndef U_HIDE_DRAFT_API
+#ifndef U_HIDE_DEPRECATED_API
     /**
      * Export the first formatted number as a decimal number. This endpoint
      * is useful for obtaining the exact number being printed after scaling
@@ -735,8 +618,12 @@ class U_I18N_API FormattedNumberRange : public UMemory, public FormattedValue {
      * as defined in the Decimal Arithmetic Specification, available at
      * http://speleotrove.com/decimal
      *
+     * TODO(ICU-21275): This function will be removed in ICU 69.
+     * Use getDecimalNumbers() instead.
+     *
+     * @param status Set if an error occurs.
      * @return A decimal representation of the first formatted number.
-     * @draft ICU 63
+     * @deprecated ICU 68 Use getDecimalNumbers instead.
      * @see NumberRangeFormatter
      * @see #getSecondDecimal
      */
@@ -751,12 +638,41 @@ class U_I18N_API FormattedNumberRange : public UMemory, public FormattedValue {
      * as defined in the Decimal Arithmetic Specification, available at
      * http://speleotrove.com/decimal
      *
+     * TODO(ICU-21275): This function will be removed in ICU 69.
+     * Use getDecimalNumbers() instead.
+     *
+     * @param status Set if an error occurs.
      * @return A decimal representation of the second formatted number.
-     * @draft ICU 63
+     * @deprecated ICU 68 Use getDecimalNumbers instead.
      * @see NumberRangeFormatter
      * @see #getFirstDecimal
      */
     UnicodeString getSecondDecimal(UErrorCode& status) const;
+#endif // U_HIDE_DEPRECATED_API
+
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Extracts the formatted range as a pair of decimal numbers. This endpoint
+     * is useful for obtaining the exact number being printed after scaling
+     * and rounding have been applied by the number range formatting pipeline.
+     *
+     * The syntax of the unformatted numbers is a "numeric string"
+     * as defined in the Decimal Arithmetic Specification, available at
+     * http://speleotrove.com/decimal
+     *
+     * Example C++17 call site:
+     *
+     *     auto [ first, second ] = range.getDecimalNumbers<std::string>(status);
+     *
+     * @tparam StringClass A string class compatible with StringByteSink;
+     *         for example, std::string.
+     * @param status Set if an error occurs.
+     * @return A pair of StringClasses containing the numeric strings.
+     * @draft ICU 68
+     */
+    template<typename StringClass>
+    inline std::pair<StringClass, StringClass> getDecimalNumbers(UErrorCode& status) const;
 #endif // U_HIDE_DRAFT_API
 
     /**
@@ -818,9 +734,32 @@ class U_I18N_API FormattedNumberRange : public UMemory, public FormattedValue {
 
     void getAllFieldPositionsImpl(FieldPositionIteratorHandler& fpih, UErrorCode& status) const;
 
+    void getDecimalNumbers(ByteSink& sink1, ByteSink& sink2, UErrorCode& status) const;
+
+    const impl::UFormattedNumberRangeData* getData(UErrorCode& status) const;
+
+    // To allow PluralRules to access the underlying data
+    friend class ::icu::PluralRules;
+
     // To give LocalizedNumberRangeFormatter format methods access to this class's constructor:
     friend class LocalizedNumberRangeFormatter;
+
+    // To give C API access to internals
+    friend struct impl::UFormattedNumberRangeImpl;
 };
+
+#ifndef U_HIDE_DRAFT_API
+// Note: This is draft ICU 68
+template<typename StringClass>
+std::pair<StringClass, StringClass> FormattedNumberRange::getDecimalNumbers(UErrorCode& status) const {
+    StringClass str1;
+    StringClass str2;
+    StringByteSink<StringClass> sink1(&str1);
+    StringByteSink<StringClass> sink2(&str2);
+    getDecimalNumbers(sink1, sink2, status);
+    return std::make_pair(str1, str2);
+}
+#endif // U_HIDE_DRAFT_API
 
 /**
  * See the main description in numberrangeformatter.h for documentation and examples.

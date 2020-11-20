@@ -294,14 +294,20 @@ UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
         case AffixPatternType::TYPE_PERMILLE:
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kPerMillSymbol);
         case AffixPatternType::TYPE_CURRENCY_SINGLE: {
-            // UnitWidth ISO and HIDDEN overrides the singular currency symbol.
-            if (fUnitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_ISO_CODE) {
-                return fCurrencySymbols.getIntlCurrencySymbol(localStatus);
-            } else if (fUnitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_HIDDEN) {
-                return UnicodeString();
-            } else if (fUnitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW) {
+            switch (fUnitWidth) {
+            case UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW:
                 return fCurrencySymbols.getNarrowCurrencySymbol(localStatus);
-            } else {
+            case UNumberUnitWidth::UNUM_UNIT_WIDTH_SHORT:
+                return fCurrencySymbols.getCurrencySymbol(localStatus);
+            case UNumberUnitWidth::UNUM_UNIT_WIDTH_ISO_CODE:
+                return fCurrencySymbols.getIntlCurrencySymbol(localStatus);
+            case UNumberUnitWidth::UNUM_UNIT_WIDTH_FORMAL:
+                return fCurrencySymbols.getFormalCurrencySymbol(localStatus);
+            case UNumberUnitWidth::UNUM_UNIT_WIDTH_VARIANT:
+                return fCurrencySymbols.getVariantCurrencySymbol(localStatus);
+            case UNumberUnitWidth::UNUM_UNIT_WIDTH_HIDDEN:
+                return UnicodeString();
+            default:
                 return fCurrencySymbols.getCurrencySymbol(localStatus);
             }
         }

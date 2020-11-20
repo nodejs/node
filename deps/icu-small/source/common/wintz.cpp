@@ -16,11 +16,12 @@
 #if U_PLATFORM_USES_ONLY_WIN32_API
 
 #include "wintz.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
 
 #include "unicode/ures.h"
-#include "unicode/ustring.h"
+#include "unicode/unistr.h"
 #include "uresimp.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -35,89 +36,111 @@
 
 U_NAMESPACE_BEGIN
 
-// The max size of TimeZoneKeyName is 128, defined in DYNAMIC_TIME_ZONE_INFORMATION
-#define MAX_TIMEZONE_ID_LENGTH 128
-
 /**
 * Main Windows time zone detection function.
 * Returns the Windows time zone converted to an ICU time zone as a heap-allocated buffer, or nullptr upon failure.
-* Note: We use the Win32 API GetDynamicTimeZoneInformation to get the current time zone info.
-* This API returns a non-localized time zone name, which we can then map to an ICU time zone name.
+*
+* Note: We use the Win32 API GetDynamicTimeZoneInformation (available since Vista+) to get the current time zone info.
+* This API returns a non-localized time zone name, which is mapped to an ICU time zone ID (~ Olsen ID).
 */
-U_INTERNAL const char* U_EXPORT2
+U_CAPI const char* U_EXPORT2
 uprv_detectWindowsTimeZone()
 {
-    UErrorCode status = U_ZERO_ERROR;
-    char* icuid = nullptr;
-    char dynamicTZKeyName[MAX_TIMEZONE_ID_LENGTH];
-    char tmpid[MAX_TIMEZONE_ID_LENGTH];
-    int32_t len;
-    int id = GEOID_NOT_AVAILABLE;
-    int errorCode;
-    wchar_t ISOcodeW[3] = {}; /* 2 letter ISO code in UTF-16 */
-    char ISOcode[3] = {}; /* 2 letter ISO code in UTF-8 */
-
+    // Obtain the DYNAMIC_TIME_ZONE_INFORMATION info to get the non-localized time zone name.
     DYNAMIC_TIME_ZONE_INFORMATION dynamicTZI;
     uprv_memset(&dynamicTZI, 0, sizeof(dynamicTZI));
-    uprv_memset(dynamicTZKeyName, 0, sizeof(dynamicTZKeyName));
-    uprv_memset(tmpid, 0, sizeof(tmpid));
+    SYSTEMTIME systemTimeAllZero;
+    uprv_memset(&systemTimeAllZero, 0, sizeof(systemTimeAllZero));
 
-    /* Obtain TIME_ZONE_INFORMATION from the API and get the non-localized time zone name. */
-    if (TIME_ZONE_ID_INVALID == GetDynamicTimeZoneInformation(&dynamicTZI)) {
+    if (GetDynamicTimeZoneInformation(&dynamicTZI) == TIME_ZONE_ID_INVALID) {
         return nullptr;
     }
 
-    id = GetUserGeoID(GEOCLASS_NATION);
-    errorCode = GetGeoInfoW(id, GEO_ISO2, ISOcodeW, 3, 0);
+    // If the DST setting has been turned off in the Control Panel, then return "Etc/GMT<offset>".
+    //
+    // Note: This logic is based on how the Control Panel itself determines if DST is 'off' on Windows.
+    // The code is somewhat convoluted; in a sort of pseudo-code it looks like this:
+    //
+    //   IF (GetDynamicTimeZoneInformation != TIME_ZONE_ID_INVALID) && (DynamicDaylightTimeDisabled != 0) &&
+    //      (StandardDate == DaylightDate) &&
+    //      (
+    //       (TimeZoneKeyName != Empty && StandardDate == 0) ||
+    //       (TimeZoneKeyName == Empty && StandardDate != 0)
+    //      )
+    //   THEN
+    //     DST setting is "Disabled".
+    //
+    if (dynamicTZI.DynamicDaylightTimeDisabled != 0 &&
+        uprv_memcmp(&dynamicTZI.StandardDate, &dynamicTZI.DaylightDate, sizeof(dynamicTZI.StandardDate)) == 0 &&
+        ((dynamicTZI.TimeZoneKeyName[0] != L'\0' && uprv_memcmp(&dynamicTZI.StandardDate, &systemTimeAllZero, sizeof(systemTimeAllZero)) == 0) ||
+         (dynamicTZI.TimeZoneKeyName[0] == L'\0' && uprv_memcmp(&dynamicTZI.StandardDate, &systemTimeAllZero, sizeof(systemTimeAllZero)) != 0)))
+    {
+        LONG utcOffsetMins = dynamicTZI.Bias;
+        if (utcOffsetMins == 0) {
+            return uprv_strdup("Etc/UTC");
+        }
 
-    // convert from wchar_t* (UTF-16 on Windows) to char* (UTF-8).
-    u_strToUTF8(ISOcode, UPRV_LENGTHOF(ISOcode), nullptr,
-        reinterpret_cast<const UChar*>(ISOcodeW), UPRV_LENGTHOF(ISOcodeW), &status);
+        // No way to support when DST is turned off and the offset in minutes is not a multiple of 60.
+        if (utcOffsetMins % 60 == 0) {
+            char gmtOffsetTz[11] = {}; // "Etc/GMT+dd" is 11-char long with a terminal null.
+            // Note '-' before 'utcOffsetMin'. The timezone ID's sign convention
+            // is that a timezone ahead of UTC is Etc/GMT-<offset> and a timezone
+            // behind UTC is Etc/GMT+<offset>.
+            int ret = snprintf(gmtOffsetTz, UPRV_LENGTHOF(gmtOffsetTz), "Etc/GMT%+d", -utcOffsetMins / 60);
+            if (ret > 0 && ret < UPRV_LENGTHOF(gmtOffsetTz)) {
+                return uprv_strdup(gmtOffsetTz);
+            }
+        }
+    }
 
-    LocalUResourceBundlePointer bundle(ures_openDirect(nullptr, "windowsZones", &status));
-    ures_getByKey(bundle.getAlias(), "mapTimezones", bundle.getAlias(), &status);
+    // If DST is NOT disabled, but we have an empty TimeZoneKeyName, then it is unclear
+    // what we should do as this should not happen.
+    if (dynamicTZI.TimeZoneKeyName[0] == 0) {
+        return nullptr;
+    }
 
-    // convert from wchar_t* (UTF-16 on Windows) to char* (UTF-8).
-    u_strToUTF8(dynamicTZKeyName, UPRV_LENGTHOF(dynamicTZKeyName), nullptr,
-        reinterpret_cast<const UChar*>(dynamicTZI.TimeZoneKeyName), -1, &status);
+    CharString winTZ;
+    UErrorCode status = U_ZERO_ERROR;
+    winTZ.appendInvariantChars(UnicodeString(TRUE, dynamicTZI.TimeZoneKeyName, -1), status);
+
+    // Map Windows Timezone name (non-localized) to ICU timezone ID (~ Olson timezone id).
+    StackUResourceBundle winTZBundle;
+    ures_openDirectFillIn(winTZBundle.getAlias(), nullptr, "windowsZones", &status);
+    ures_getByKey(winTZBundle.getAlias(), "mapTimezones", winTZBundle.getAlias(), &status);
+    ures_getByKey(winTZBundle.getAlias(), winTZ.data(), winTZBundle.getAlias(), &status);
 
     if (U_FAILURE(status)) {
         return nullptr;
     }
 
-    if (dynamicTZI.TimeZoneKeyName[0] != 0) {
-        StackUResourceBundle winTZ;
-        ures_getByKey(bundle.getAlias(), dynamicTZKeyName, winTZ.getAlias(), &status);
+    // Note: Since the ISO 3166 country/region codes are all invariant ASCII chars, we can
+    // directly downcast from wchar_t to do the conversion.
+    // We could call the A version of the GetGeoInfo API, but that would be slightly slower than calling the W API,
+    // as the A version of the API will end up calling MultiByteToWideChar anyways internally.
+    wchar_t regionCodeW[3] = {};
+    char regionCode[3] = {}; // 2 letter ISO 3166 country/region code made entirely of invariant chars.
+    int geoId = GetUserGeoID(GEOCLASS_NATION);
+    int regionCodeLen = GetGeoInfoW(geoId, GEO_ISO2, regionCodeW, UPRV_LENGTHOF(regionCodeW), 0);
 
-        if (U_SUCCESS(status)) {
-            const UChar* icuTZ = nullptr;
-            if (errorCode != 0) {
-                icuTZ = ures_getStringByKey(winTZ.getAlias(), ISOcode, &len, &status);
-            }
-            if (errorCode == 0 || icuTZ == nullptr) {
-                /* fallback to default "001" and reset status */
-                status = U_ZERO_ERROR;
-                icuTZ = ures_getStringByKey(winTZ.getAlias(), "001", &len, &status);
-            }
+    const UChar *icuTZ16 = nullptr;
+    int32_t tzLen;
 
-            if (U_SUCCESS(status)) {
-                int index = 0;
-
-                while (!(*icuTZ == '\0' || *icuTZ == ' ')) {
-                    // time zone IDs only contain ASCII invariant characters.
-                    tmpid[index++] = (char)(*icuTZ++);
-                }
-                tmpid[index] = '\0';
-            }
+    if (regionCodeLen != 0) {
+        for (int i = 0; i < UPRV_LENGTHOF(regionCodeW); i++) {
+            regionCode[i] = static_cast<char>(regionCodeW[i]);
         }
+        icuTZ16 = ures_getStringByKey(winTZBundle.getAlias(), regionCode, &tzLen, &status);
+    }
+    if (regionCodeLen == 0 || U_FAILURE(status)) {
+        // fallback to default "001" (world)
+        status = U_ZERO_ERROR;
+        icuTZ16 = ures_getStringByKey(winTZBundle.getAlias(), "001", &tzLen, &status);
     }
 
-    // Copy the timezone ID to icuid to be returned.
-    if (tmpid[0] != 0) {
-        icuid = uprv_strdup(tmpid);
-    }
-
-    return icuid;
+    // Note: cloneData returns nullptr if the status is a failure, so this
+    // will return nullptr if the above look-up fails.
+    CharString icuTZStr;
+    return icuTZStr.appendInvariantChars(icuTZ16, tzLen, status).cloneData(status);
 }
 
 U_NAMESPACE_END

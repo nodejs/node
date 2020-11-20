@@ -263,6 +263,8 @@ UnicodeString SimpleFormatter::getTextWithNoArguments(
             sb.append(compiledPattern + i, n);
             i += n;
         } else if (n < offsetsLength) {
+            // TODO(ICU-20406): This does not distinguish between "{0}{1}" and "{1}{0}".
+            // Consider removing this function and replacing it with an iterator interface.
             offsets[n] = sb.length();
         }
     }

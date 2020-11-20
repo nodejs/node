@@ -16,8 +16,11 @@
 
 #include "unicode/unum.h"
 #include "unicode/udisplaycontext.h"
-#include "unicode/localpointer.h"
 #include "unicode/uformattedvalue.h"
+
+#if U_SHOW_CPLUSPLUS_API
+#include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -234,7 +237,7 @@ typedef struct URelativeDateTimeFormatter URelativeDateTimeFormatter;  /**< C ty
  *          or NULL if an error occurred.
  * @stable ICU 57
  */
-U_STABLE URelativeDateTimeFormatter* U_EXPORT2
+U_CAPI URelativeDateTimeFormatter* U_EXPORT2
 ureldatefmt_open( const char*          locale,
                   UNumberFormat*       nfToAdopt,
                   UDateRelativeDateTimeFormatterStyle width,
@@ -247,7 +250,7 @@ ureldatefmt_open( const char*          locale,
  *            The URelativeDateTimeFormatter object to close.
  * @stable ICU 57
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ureldatefmt_close(URelativeDateTimeFormatter *reldatefmt);
 
 struct UFormattedRelativeDateTime;
@@ -266,7 +269,7 @@ typedef struct UFormattedRelativeDateTime UFormattedRelativeDateTime;
  * @return A pointer needing ownership.
  * @stable ICU 64
  */
-U_STABLE UFormattedRelativeDateTime* U_EXPORT2
+U_CAPI UFormattedRelativeDateTime* U_EXPORT2
 ureldatefmt_openResult(UErrorCode* ec);
 
 /**
@@ -283,7 +286,7 @@ ureldatefmt_openResult(UErrorCode* ec);
  * @return A UFormattedValue owned by the input object.
  * @stable ICU 64
  */
-U_STABLE const UFormattedValue* U_EXPORT2
+U_CAPI const UFormattedValue* U_EXPORT2
 ureldatefmt_resultAsValue(const UFormattedRelativeDateTime* ufrdt, UErrorCode* ec);
 
 /**
@@ -292,7 +295,7 @@ ureldatefmt_resultAsValue(const UFormattedRelativeDateTime* ufrdt, UErrorCode* e
  * @param ufrdt The object to release.
  * @stable ICU 64
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ureldatefmt_closeResult(UFormattedRelativeDateTime* ufrdt);
 
 
@@ -354,7 +357,7 @@ U_NAMESPACE_END
  *          than resultCapacity, in which case an error is returned.
  * @stable ICU 57
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ureldatefmt_formatNumeric( const URelativeDateTimeFormatter* reldatefmt,
                     double                offset,
                     URelativeDateTimeUnit unit,
@@ -385,7 +388,7 @@ ureldatefmt_formatNumeric( const URelativeDateTimeFormatter* reldatefmt,
  *          undefined.
  * @stable ICU 64
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ureldatefmt_formatNumericToResult(
     const URelativeDateTimeFormatter* reldatefmt,
     double                            offset,
@@ -421,7 +424,7 @@ ureldatefmt_formatNumericToResult(
  *          than resultCapacity, in which case an error is returned.
  * @stable ICU 57
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ureldatefmt_format( const URelativeDateTimeFormatter* reldatefmt,
                     double                offset,
                     URelativeDateTimeUnit unit,
@@ -455,7 +458,7 @@ ureldatefmt_format( const URelativeDateTimeFormatter* reldatefmt,
  *          undefined.
  * @stable ICU 64
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ureldatefmt_formatToResult(
     const URelativeDateTimeFormatter* reldatefmt,
     double                            offset,
@@ -492,7 +495,7 @@ ureldatefmt_formatToResult(
  *          in which case an error is returned.
  * @stable ICU 57
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ureldatefmt_combineDateAndTime( const URelativeDateTimeFormatter* reldatefmt,
                     const UChar *     relativeDateString,
                     int32_t           relativeDateStringLen,

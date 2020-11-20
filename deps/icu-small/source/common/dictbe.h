@@ -59,7 +59,7 @@ class DictionaryBreakEngine : public LanguageBreakEngine {
    * a particular kind of break.</p>
    *
    * @param c A character which begins a run that the engine might handle
-   * @return TRUE if this engine handles the particular character and break
+   * @return true if this engine handles the particular character and break
    * type.
    */
   virtual UBool handles(UChar32 c) const;

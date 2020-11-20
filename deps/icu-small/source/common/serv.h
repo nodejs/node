@@ -138,16 +138,16 @@ class U_COMMON_API ICUServiceKey : public UObject {
   * must eventually return false.  This implementation has no fallbacks
   * and always returns false.</p>
   *
-  * @return TRUE if the ICUServiceKey changed to a valid fallback value.
+  * @return true if the ICUServiceKey changed to a valid fallback value.
   */
   virtual UBool fallback();
 
  /**
-  * <p>Return TRUE if a key created from id matches, or would eventually
+  * <p>Return true if a key created from id matches, or would eventually
   * fallback to match, the canonical ID of this ICUServiceKey.</p>
   *
   * @param id the id to test.
-  * @return TRUE if this ICUServiceKey's canonical ID is a fallback of id.
+  * @return true if this ICUServiceKey's canonical ID is a fallback of id.
   */
   virtual UBool isFallbackOf(const UnicodeString& id) const;
 
@@ -291,15 +291,15 @@ class U_COMMON_API SimpleFactory : public ICUServiceFactory {
  public:
   /**
    * <p>Construct a SimpleFactory that maps a single ID to a single
-   * service instance.  If visible is TRUE, the ID will be visible.
+   * service instance.  If visible is true, the ID will be visible.
    * The instance must not be NULL.  The SimpleFactory will adopt
    * the instance, which must not be changed subsequent to this call.</p>
    *
    * @param instanceToAdopt the service instance to adopt.
    * @param id the ID to assign to this service instance.
-   * @param visible if TRUE, the ID will be visible.
+   * @param visible if true, the ID will be visible.
    */
-  SimpleFactory(UObject* instanceToAdopt, const UnicodeString& id, UBool visible = TRUE);
+  SimpleFactory(UObject* instanceToAdopt, const UnicodeString& id, UBool visible = true);
 
   /**
    * <p>Destructor.</p>
@@ -318,7 +318,7 @@ class U_COMMON_API SimpleFactory : public ICUServiceFactory {
   virtual UObject* create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const;
 
   /**
-   * <p>This implementation adds a mapping from ID -> this to result if visible is TRUE,
+   * <p>This implementation adds a mapping from ID -> this to result if visible is true,
    * otherwise it removes ID from result.</p>
    *
    * @param result the mapping table to update.
@@ -327,7 +327,7 @@ class U_COMMON_API SimpleFactory : public ICUServiceFactory {
   virtual void updateVisibleIDs(Hashtable& result, UErrorCode& status) const;
 
   /**
-   * <p>This implementation returns the factory ID if it equals id and visible is TRUE,
+   * <p>This implementation returns the factory ID if it equals id and visible is true,
    * otherwise it returns the empty string.  (This implementation provides
    * no localized id information.)</p>
    *
@@ -427,8 +427,8 @@ public:
                             UErrorCode& status);
 
   /**
-   * <p>Return TRUE if either string of the pair is bogus.</p>
-   * @return TRUE if either string of the pair is bogus.
+   * <p>Return true if either string of the pair is bogus.</p>
+   * @return true if either string of the pair is bogus.
    */
   UBool isBogus() const;
 
@@ -761,7 +761,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
 
     /**
      * <p>A convenience override of registerInstance(UObject*, const UnicodeString&, UBool)
-     * that defaults visible to TRUE.</p>
+     * that defaults visible to true.</p>
      *
      * @param objToAdopt the object to register and adopt.
      * @param id the ID to assign to this object.
@@ -774,7 +774,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
     /**
      * <p>Register a service instance with the provided ID.  The ID will be
      * canonicalized.  The canonicalized ID will be returned by
-     * getVisibleIDs if visible is TRUE.  The service instance will be adopted and
+     * getVisibleIDs if visible is true.  The service instance will be adopted and
      * must not be modified subsequent to this call.</p>
      *
      * <p>This issues a serviceChanged notification to registered listeners.</p>
@@ -784,7 +784,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
      *
      * @param objToAdopt the object to register and adopt.
      * @param id the ID to assign to this object.
-     * @param visible TRUE if getVisibleIDs is to return this ID.
+     * @param visible true if getVisibleIDs is to return this ID.
      * @param status the error code status.
      * @return a registry key that can be passed to unregister() to unregister
      * (and discard) this instance.
@@ -820,7 +820,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
      *
      * @param rkey the registry key.
      * @param status the error code status.
-     * @return TRUE if the call successfully unregistered the factory.
+     * @return true if the call successfully unregistered the factory.
      */
     virtual UBool unregister(URegistryKey rkey, UErrorCode& status);
 
@@ -833,9 +833,9 @@ class U_COMMON_API ICUService : public ICUNotifier {
     virtual void reset(void);
 
     /**
-     * <p>Return TRUE if the service is in its default state.</p>
+     * <p>Return true if the service is in its default state.</p>
      *
-     * <p>The default implementation returns TRUE if there are no
+     * <p>The default implementation returns true if there are no
      * factories registered.</p>
      */
     virtual UBool isDefault(void) const;
@@ -877,7 +877,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
      *
      * @param instanceToAdopt the service instance to adopt.
      * @param id the ID to assign to this service instance.
-     * @param visible if TRUE, the ID will be visible.
+     * @param visible if true, the ID will be visible.
      * @param status the error code status.
      * @return an instance of ICUServiceFactory that maps this instance to the provided ID.
      */
@@ -885,7 +885,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
 
     /**
      * <p>Reinitialize the factory list to its default state.  After this call, isDefault()
-     * must return TRUE.</p>
+     * must return true.</p>
      *
      * <p>This issues a serviceChanged notification to registered listeners.</p>
      *
@@ -928,7 +928,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
      * different listeners.</p>
      *
      * @param l the listener to test.
-     * @return TRUE if the service accepts the listener.
+     * @return true if the service accepts the listener.
      */
     virtual UBool acceptsListener(const EventListener& l) const;
 

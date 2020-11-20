@@ -882,7 +882,7 @@ public:
      * another transliterator.
      * @param text the text to be transliterated
      * @param index the position indices
-     * @param incremental if TRUE, then assume more characters may be inserted
+     * @param incremental if true, then assume more characters may be inserted
      * at index.limit, and postpone processing to accomodate future incoming
      * characters
      * @stable ICU 2.4
@@ -897,14 +897,14 @@ private:
      * Top-level transliteration method, handling filtering, incremental and
      * non-incremental transliteration, and rollback.  All transliteration
      * public API methods eventually call this method with a rollback argument
-     * of TRUE.  Other entities may call this method but rollback should be
-     * FALSE.
+     * of true.  Other entities may call this method but rollback should be
+     * false.
      *
      * <p>If this transliterator has a filter, break up the input text into runs
      * of unfiltered characters.  Pass each run to
      * subclass.handleTransliterate().
      *
-     * <p>In incremental mode, if rollback is TRUE, perform a special
+     * <p>In incremental mode, if rollback is true, perform a special
      * incremental procedure in which several passes are made over the input
      * text, adding one character at a time, and committing successful
      * transliterations as they occur.  Unsuccessful transliterations are rolled
@@ -912,12 +912,12 @@ private:
      *
      * @param text the text to be transliterated
      * @param index the position indices
-     * @param incremental if TRUE, then assume more characters may be inserted
+     * @param incremental if true, then assume more characters may be inserted
      * at index.limit, and postpone processing to accomodate future incoming
      * characters
-     * @param rollback if TRUE and if incremental is TRUE, then perform special
+     * @param rollback if true and if incremental is true, then perform special
      * incremental processing, as described above, and undo partial
-     * transliterations where necessary.  If incremental is FALSE then this
+     * transliterations where necessary.  If incremental is false then this
      * parameter is ignored.
      */
     virtual void filteredTransliterate(Replaceable& text,
@@ -1119,7 +1119,7 @@ public:
      * to recreate this transliterator.
      * @param result the string to receive the rules.  Previous
      * contents will be deleted.
-     * @param escapeUnprintable if TRUE then convert unprintable
+     * @param escapeUnprintable if true then convert unprintable
      * character to their hex escape representations, \\uxxxx or
      * \\Uxxxxxxxx.  Unprintable characters are those other than
      * U+000A, U+0020..U+007E.

@@ -21,7 +21,10 @@
 #include "unicode/utypes.h"
 #include "unicode/ubidi.h"
 #include "unicode/uchar.h"
+
+#if U_SHOW_CPLUSPLUS_API
 #include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -147,10 +150,10 @@ typedef struct UBiDiTransform UBiDiTransform;
  * calling <code>ubidi_setPara</code> with
  * <code>paraLevel == UBIDI_DEFAULT_RTL</code>,</li>
  * <li><Visual LTR, Logical LTR>: this is equivalent to
- * calling <code>ubidi_setInverse(UBiDi*, TRUE)</code> and then
+ * calling <code>ubidi_setInverse(UBiDi*, true)</code> and then
  * <code>ubidi_setPara</code> with <code>paraLevel == UBIDI_LTR</code>,</li>
  * <li><Visual LTR, Logical RTL>: this is equivalent to
- * calling <code>ubidi_setInverse(UBiDi*, TRUE)</code> and then
+ * calling <code>ubidi_setInverse(UBiDi*, true)</code> and then
  * <code>ubidi_setPara</code> with <code>paraLevel == UBIDI_RTL</code>.</li>
  * </ul>
  * All combinations that involve the Visual RTL scheme are unsupported by
@@ -245,7 +248,7 @@ typedef struct UBiDiTransform UBiDiTransform;
  * @see u_shapeArabic
  * @stable ICU 58
  */
-U_STABLE uint32_t U_EXPORT2
+U_CAPI uint32_t U_EXPORT2
 ubiditransform_transform(UBiDiTransform *pBiDiTransform,
             const UChar *src, int32_t srcLength,
             UChar *dest, int32_t destSize,
@@ -291,14 +294,14 @@ ubiditransform_transform(UBiDiTransform *pBiDiTransform,
  * @return An empty <code>UBiDiTransform</code> object.
  * @stable ICU 58
  */
-U_STABLE UBiDiTransform* U_EXPORT2
+U_CAPI UBiDiTransform* U_EXPORT2
 ubiditransform_open(UErrorCode *pErrorCode);
 
 /**
  * Deallocates the given <code>UBiDiTransform</code> object.
  * @stable ICU 58
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ubiditransform_close(UBiDiTransform *pBidiTransform);
 
 #if U_SHOW_CPLUSPLUS_API

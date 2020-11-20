@@ -111,7 +111,6 @@ class U_COMMON_API StringPiece : public UMemory {
 #endif
 #endif  // U_HIDE_DRAFT_API
 
-#ifndef U_HIDE_DRAFT_API
   /**
    * Constructs from some other implementation of a string piece class, from any
    * C++ record type that has these two methods:
@@ -132,7 +131,7 @@ class U_COMMON_API StringPiece : public UMemory {
    * as from std::u8string_view.
    *
    * @param str the other string piece
-   * @draft ICU 65
+   * @stable ICU 65
    */
   template <typename T,
             typename = typename std::enable_if<
@@ -145,7 +144,6 @@ class U_COMMON_API StringPiece : public UMemory {
   StringPiece(T str)
       : ptr_(reinterpret_cast<const char*>(str.data())),
         length_(static_cast<int32_t>(str.size())) {}
-#endif  // U_HIDE_DRAFT_API
 
   /**
    * Constructs from a const char * pointer and a specified length.
@@ -209,7 +207,7 @@ class U_COMMON_API StringPiece : public UMemory {
   int32_t length() const { return length_; }
   /**
    * Returns whether the string is empty.
-   * @return TRUE if the string is empty
+   * @return true if the string is empty
    * @stable ICU 4.2
    */
   UBool empty() const { return length_ == 0; }
@@ -331,7 +329,7 @@ class U_COMMON_API StringPiece : public UMemory {
  * Global operator == for StringPiece
  * @param x The first StringPiece to compare.
  * @param y The second StringPiece to compare.
- * @return TRUE if the string data is equal
+ * @return true if the string data is equal
  * @stable ICU 4.8
  */
 U_EXPORT UBool U_EXPORT2
@@ -341,7 +339,7 @@ operator==(const StringPiece& x, const StringPiece& y);
  * Global operator != for StringPiece
  * @param x The first StringPiece to compare.
  * @param y The second StringPiece to compare.
- * @return TRUE if the string data is not equal
+ * @return true if the string data is not equal
  * @stable ICU 4.8
  */
 inline UBool operator!=(const StringPiece& x, const StringPiece& y) {

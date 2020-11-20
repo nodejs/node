@@ -193,7 +193,7 @@ ucsdet_getAllDetectableCharsets(const UCharsetDetector * /*ucsd*/, UErrorCode *s
     return CharsetDetector::getAllDetectableCharsets(*status);
 }
 
-U_DRAFT UEnumeration * U_EXPORT2
+U_CAPI UEnumeration * U_EXPORT2
 ucsdet_getDetectableCharsets(const UCharsetDetector *ucsd,  UErrorCode *status)
 {
     return ((CharsetDetector *)ucsd)->getDetectableCharsets(*status);

@@ -142,13 +142,15 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
 
     utext_setNativeIndex(text, rangeStart);
     UChar32     c = utext_current32(text);
-    category = UTRIE2_GET16(fBI->fData->fTrie, c);
+    category = ucptrie_get(fBI->fData->fTrie, c);
+    uint32_t dictStart = fBI->fData->fForwardTable->fDictCategoriesStart;
 
     while(U_SUCCESS(status)) {
-        while((current = (int32_t)UTEXT_GETNATIVEINDEX(text)) < rangeEnd && (category & 0x4000) == 0) {
+        while((current = (int32_t)UTEXT_GETNATIVEINDEX(text)) < rangeEnd
+                && (category < dictStart)) {
             utext_next32(text);           // TODO: cleaner loop structure.
             c = utext_current32(text);
-            category = UTRIE2_GET16(fBI->fData->fTrie, c);
+            category = ucptrie_get(fBI->fData->fTrie, c);
         }
         if (current >= rangeEnd) {
             break;
@@ -166,7 +168,7 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
 
         // Reload the loop variables for the next go-round
         c = utext_current32(text);
-        category = UTRIE2_GET16(fBI->fData->fTrie, c);
+        category = ucptrie_get(fBI->fData->fTrie, c);
     }
 
     // If we found breaks, ensure that the first and last entries are

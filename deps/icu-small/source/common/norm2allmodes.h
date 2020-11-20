@@ -65,13 +65,13 @@ public:
     normalizeSecondAndAppend(UnicodeString &first,
                              const UnicodeString &second,
                              UErrorCode &errorCode) const {
-        return normalizeSecondAndAppend(first, second, TRUE, errorCode);
+        return normalizeSecondAndAppend(first, second, true, errorCode);
     }
     virtual UnicodeString &
     append(UnicodeString &first,
            const UnicodeString &second,
            UErrorCode &errorCode) const {
-        return normalizeSecondAndAppend(first, second, FALSE, errorCode);
+        return normalizeSecondAndAppend(first, second, false, errorCode);
     }
     UnicodeString &
     normalizeSecondAndAppend(UnicodeString &first,
@@ -112,14 +112,14 @@ public:
         int32_t length;
         const UChar *d=impl.getDecomposition(c, buffer, length);
         if(d==NULL) {
-            return FALSE;
+            return false;
         }
         if(d==buffer) {
             decomposition.setTo(buffer, length);  // copy the string (Jamos from Hangul syllable c)
         } else {
-            decomposition.setTo(FALSE, d, length);  // read-only alias
+            decomposition.setTo(false, d, length);  // read-only alias
         }
-        return TRUE;
+        return true;
     }
     virtual UBool
     getRawDecomposition(UChar32 c, UnicodeString &decomposition) const {
@@ -127,14 +127,14 @@ public:
         int32_t length;
         const UChar *d=impl.getRawDecomposition(c, buffer, length);
         if(d==NULL) {
-            return FALSE;
+            return false;
         }
         if(d==buffer) {
             decomposition.setTo(buffer, length);  // copy the string (algorithmic decomposition)
         } else {
-            decomposition.setTo(FALSE, d, length);  // read-only alias
+            decomposition.setTo(false, d, length);  // read-only alias
         }
-        return TRUE;
+        return true;
     }
     virtual UChar32
     composePair(UChar32 a, UChar32 b) const {
@@ -150,12 +150,12 @@ public:
     virtual UBool
     isNormalized(const UnicodeString &s, UErrorCode &errorCode) const {
         if(U_FAILURE(errorCode)) {
-            return FALSE;
+            return false;
         }
         const UChar *sArray=s.getBuffer();
         if(sArray==NULL) {
             errorCode=U_ILLEGAL_ARGUMENT_ERROR;
-            return FALSE;
+            return false;
         }
         const UChar *sLimit=sArray+s.length();
         return sLimit==spanQuickCheckYes(sArray, sLimit, errorCode);
@@ -227,7 +227,7 @@ private:
     virtual void
     normalize(const UChar *src, const UChar *limit,
               ReorderingBuffer &buffer, UErrorCode &errorCode) const U_OVERRIDE {
-        impl.compose(src, limit, onlyContiguous, TRUE, buffer, errorCode);
+        impl.compose(src, limit, onlyContiguous, true, buffer, errorCode);
     }
     using Normalizer2WithImpl::normalize;  // Avoid warning about hiding base class function.
 
@@ -256,24 +256,24 @@ private:
     virtual UBool
     isNormalized(const UnicodeString &s, UErrorCode &errorCode) const U_OVERRIDE {
         if(U_FAILURE(errorCode)) {
-            return FALSE;
+            return false;
         }
         const UChar *sArray=s.getBuffer();
         if(sArray==NULL) {
             errorCode=U_ILLEGAL_ARGUMENT_ERROR;
-            return FALSE;
+            return false;
         }
         UnicodeString temp;
         ReorderingBuffer buffer(impl, temp);
         if(!buffer.init(5, errorCode)) {  // small destCapacity for substring normalization
-            return FALSE;
+            return false;
         }
-        return impl.compose(sArray, sArray+s.length(), onlyContiguous, FALSE, buffer, errorCode);
+        return impl.compose(sArray, sArray+s.length(), onlyContiguous, false, buffer, errorCode);
     }
     virtual UBool
     isNormalizedUTF8(StringPiece sp, UErrorCode &errorCode) const U_OVERRIDE {
         if(U_FAILURE(errorCode)) {
-            return FALSE;
+            return false;
         }
         const uint8_t *s = reinterpret_cast<const uint8_t *>(sp.data());
         return impl.composeUTF8(0, onlyContiguous, s, s + sp.length(), nullptr, nullptr, errorCode);
@@ -343,7 +343,7 @@ private:
 
 struct Norm2AllModes : public UMemory {
     Norm2AllModes(Normalizer2Impl *i)
-            : impl(i), comp(*i, FALSE), decomp(*i), fcd(*i), fcc(*i, TRUE) {}
+            : impl(i), comp(*i, false), decomp(*i), fcd(*i), fcc(*i, true) {}
     ~Norm2AllModes();
 
     static Norm2AllModes *createInstance(Normalizer2Impl *impl, UErrorCode &errorCode);

@@ -161,7 +161,7 @@ public:
     /**
      * Equality operator.
      * @param that    the object to be compared with.
-     * @return        TRUE if the two field positions are equal, FALSE otherwise.
+     * @return        true if the two field positions are equal, false otherwise.
      * @stable ICU 2.0
      */
     UBool              operator==(const FieldPosition& that) const;
@@ -169,7 +169,7 @@ public:
     /**
      * Equality operator.
      * @param that    the object to be compared with.
-     * @return        TRUE if the two field positions are not equal, FALSE otherwise.
+     * @return        true if the two field positions are not equal, false otherwise.
      * @stable ICU 2.0
      */
     UBool              operator!=(const FieldPosition& that) const;

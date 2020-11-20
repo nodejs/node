@@ -77,6 +77,13 @@ public:
 #ifndef U_HIDE_INTERNAL_API
 
     /**
+     * For ICU use only. Skips loading the standard date/time patterns (which is done via DateFormat).
+     *
+     * @internal
+     */
+    static DateTimePatternGenerator* U_EXPORT2 createInstanceNoStdPat(const Locale& uLocale, UErrorCode& status);
+
+    /**
      * For ICU use only
      *
      * @internal
@@ -526,7 +533,7 @@ private:
     /**
      * Constructor.
      */
-    DateTimePatternGenerator(const Locale& locale, UErrorCode & status);
+    DateTimePatternGenerator(const Locale& locale, UErrorCode & status, UBool skipStdPatterns = false);
 
     /**
      * Copy constructor.
@@ -573,7 +580,7 @@ private:
         // with #13183, no longer need flags for b, B
     };
 
-    void initData(const Locale &locale, UErrorCode &status);
+    void initData(const Locale &locale, UErrorCode &status, UBool skipStdPatterns = false);
     void addCanonicalItems(UErrorCode &status);
     void addICUPatterns(const Locale& locale, UErrorCode& status);
     void hackTimes(const UnicodeString& hackPattern, UErrorCode& status);

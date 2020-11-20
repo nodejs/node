@@ -147,7 +147,7 @@ public:
    * @param aLocale  The given locale.
    * @param success  Indicates the status of IndianCalendar object construction.
    *                 Returns U_ZERO_ERROR if constructed successfully.
-   * @param beCivil  Whether the calendar should be civil (default-TRUE) or religious (FALSE)
+   * @param beCivil  Whether the calendar should be civil (default-true) or religious (false)
    * @internal
    */
   IndianCalendar(const Locale& aLocale, UErrorCode &success);
@@ -303,7 +303,7 @@ protected:
 
 
   /**
-   * Returns TRUE because the Indian Calendar does have a default century
+   * Returns true because the Indian Calendar does have a default century
    * @internal
    */
   virtual UBool haveDefaultCentury() const;

@@ -267,9 +267,9 @@ public:
     /**
      * Equality operator.
      * @param that SearchIterator instance to be compared.
-     * @return TRUE if both BreakIterators are of the same class, have the
+     * @return true if both BreakIterators are of the same class, have the
      *         same behavior, terates over the same text and have the same
-     *         attributes. FALSE otherwise.
+     *         attributes. false otherwise.
      * @stable ICU 2.0
      */
     virtual UBool operator==(const SearchIterator &that) const;
@@ -277,7 +277,7 @@ public:
     /**
      * Not-equal operator.
      * @param that SearchIterator instance to be compared.
-     * @return FALSE if operator== returns TRUE, and vice versa.
+     * @return false if operator== returns true, and vice versa.
      * @stable ICU 2.0
      */
     UBool operator!=(const SearchIterator &that) const;

@@ -12,20 +12,25 @@
 // Helpful in toString methods and elsewhere.
 #define UNISTR_FROM_STRING_EXPLICIT
 
-#include <cstdlib>
+#include "charstr.h"
+#include "cmemory.h"
 #include "cstring.h"
 #include "measunit_impl.h"
+#include "resource.h"
 #include "uarrsort.h"
 #include "uassert.h"
 #include "ucln_in.h"
 #include "umutex.h"
-#include "unicode/errorcode.h"
+#include "unicode/bytestrie.h"
+#include "unicode/bytestriebuilder.h"
 #include "unicode/localpointer.h"
 #include "unicode/measunit.h"
-#include "unicode/ucharstrie.h"
-#include "unicode/ucharstriebuilder.h"
-
-#include "cstr.h"
+#include "unicode/stringpiece.h"
+#include "unicode/stringtriebuilder.h"
+#include "unicode/ures.h"
+#include "unicode/ustringtrie.h"
+#include "uresimp.h"
+#include <cstdlib>
 
 U_NAMESPACE_BEGIN
 
@@ -60,7 +65,7 @@ enum InitialCompoundPart {
     INITIAL_COMPOUND_PART_PER = kInitialCompoundPartOffset,
 };
 
-// Trie value offset for powers like "square-", "cubic-", "p2-" etc.
+// Trie value offset for powers like "square-", "cubic-", "pow2-" etc.
 constexpr int32_t kPowerPartOffset = 256;
 
 enum PowerPart {
@@ -110,119 +115,101 @@ const struct SIPrefixStrings {
     { "yocto", UMEASURE_SI_PREFIX_YOCTO },
 };
 
-// TODO(ICU-21059): Get this list from data
-const char16_t* const gSimpleUnits[] = {
-    u"candela",
-    u"carat",
-    u"gram",
-    u"ounce",
-    u"ounce-troy",
-    u"pound",
-    u"kilogram",
-    u"stone",
-    u"ton",
-    u"metric-ton",
-    u"earth-mass",
-    u"solar-mass",
-    u"point",
-    u"inch",
-    u"foot",
-    u"yard",
-    u"meter",
-    u"fathom",
-    u"furlong",
-    u"mile",
-    u"nautical-mile",
-    u"mile-scandinavian",
-    u"100-kilometer",
-    u"earth-radius",
-    u"solar-radius",
-    u"astronomical-unit",
-    u"light-year",
-    u"parsec",
-    u"second",
-    u"minute",
-    u"hour",
-    u"day",
-    u"day-person",
-    u"week",
-    u"week-person",
-    u"month",
-    u"month-person",
-    u"year",
-    u"year-person",
-    u"decade",
-    u"century",
-    u"ampere",
-    u"fahrenheit",
-    u"kelvin",
-    u"celsius",
-    u"arc-second",
-    u"arc-minute",
-    u"degree",
-    u"radian",
-    u"revolution",
-    u"item",
-    u"mole",
-    u"permillion",
-    u"permyriad",
-    u"permille",
-    u"percent",
-    u"karat",
-    u"portion",
-    u"bit",
-    u"byte",
-    u"dot",
-    u"pixel",
-    u"em",
-    u"hertz",
-    u"newton",
-    u"pound-force",
-    u"pascal",
-    u"bar",
-    u"atmosphere",
-    u"ofhg",
-    u"electronvolt",
-    u"dalton",
-    u"joule",
-    u"calorie",
-    u"british-thermal-unit",
-    u"foodcalorie",
-    u"therm-us",
-    u"watt",
-    u"horsepower",
-    u"solar-luminosity",
-    u"volt",
-    u"ohm",
-    u"dunam",
-    u"acre",
-    u"hectare",
-    u"teaspoon",
-    u"tablespoon",
-    u"fluid-ounce-imperial",
-    u"fluid-ounce",
-    u"cup",
-    u"cup-metric",
-    u"pint",
-    u"pint-metric",
-    u"quart",
-    u"liter",
-    u"gallon",
-    u"gallon-imperial",
-    u"bushel",
-    u"barrel",
-    u"knot",
-    u"g-force",
-    u"lux",
+/**
+ * A ResourceSink that collects simple unit identifiers from the keys of the
+ * convertUnits table into an array, and adds these values to a TrieBuilder,
+ * with associated values being their index into this array plus a specified
+ * offset, to a trie.
+ *
+ * Example code:
+ *
+ *     UErrorCode status = U_ZERO_ERROR;
+ *     BytesTrieBuilder b(status);
+ *     const char *unitIdentifiers[200];
+ *     SimpleUnitIdentifiersSink identifierSink(unitIdentifiers, 200, b, kTrieValueOffset);
+ *     LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
+ *     ures_getAllItemsWithFallback(unitsBundle.getAlias(), "convertUnits", identifierSink, status);
+ */
+class SimpleUnitIdentifiersSink : public icu::ResourceSink {
+  public:
+    /**
+     * Constructor.
+     * @param out Array of char* to which the simple unit identifiers will be
+     *     saved.
+     * @param outSize The size of `out`.
+     * @param trieBuilder The trie builder to which the simple unit identifier
+     *     should be added. The trie builder must outlive this resource sink.
+     * @param trieValueOffset This is added to the index of the identifier in
+     *     the `out` array, before adding to `trieBuilder` as the value
+     *     associated with the identifier.
+     */
+    explicit SimpleUnitIdentifiersSink(const char **out, int32_t outSize, BytesTrieBuilder &trieBuilder,
+                                       int32_t trieValueOffset)
+        : outArray(out), outSize(outSize), trieBuilder(trieBuilder), trieValueOffset(trieValueOffset),
+          outIndex(0) {
+    }
+
+    /**
+     * Adds the table keys found in value to the output vector.
+     * @param key The key of the resource passed to `value`: the second
+     *     parameter of the ures_getAllItemsWithFallback() call.
+     * @param value Should be a ResourceTable value, if
+     *     ures_getAllItemsWithFallback() was called correctly for this sink.
+     * @param noFallback Ignored.
+     * @param status The standard ICU error code output parameter.
+     */
+    void put(const char * /*key*/, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) {
+        ResourceTable table = value.getTable(status);
+        if (U_FAILURE(status)) return;
+
+        if (outIndex + table.getSize() > outSize) {
+            status = U_INDEX_OUTOFBOUNDS_ERROR;
+            return;
+        }
+
+        // Collect keys from the table resource.
+        const char *key;
+        for (int32_t i = 0; table.getKeyAndValue(i, key, value); ++i) {
+            U_ASSERT(i < table.getSize());
+            U_ASSERT(outIndex < outSize);
+            if (uprv_strcmp(key, "kilogram") == 0) {
+                // For parsing, we use "gram", the prefixless metric mass unit. We
+                // thus ignore the SI Base Unit of Mass: it exists due to being the
+                // mass conversion target unit, but not needed for MeasureUnit
+                // parsing.
+                continue;
+            }
+            outArray[outIndex] = key;
+            trieBuilder.add(key, trieValueOffset + outIndex, status);
+            outIndex++;
+        }
+    }
+
+  private:
+    const char **outArray;
+    int32_t outSize;
+    BytesTrieBuilder &trieBuilder;
+    int32_t trieValueOffset;
+
+    int32_t outIndex;
 };
 
 icu::UInitOnce gUnitExtrasInitOnce = U_INITONCE_INITIALIZER;
 
-char16_t* kSerializedUnitExtrasStemTrie = nullptr;
+// Array of simple unit IDs.
+//
+// The array memory itself is owned by this pointer, but the individual char* in
+// that array point at static memory. (Note that these char* are also returned
+// by SingleUnitImpl::getSimpleUnitID().)
+const char **gSimpleUnits = nullptr;
+
+char *gSerializedUnitExtrasStemTrie = nullptr;
 
 UBool U_CALLCONV cleanupUnitExtras() {
-    uprv_free(kSerializedUnitExtrasStemTrie);
-    kSerializedUnitExtrasStemTrie = nullptr;
+    uprv_free(gSerializedUnitExtrasStemTrie);
+    gSerializedUnitExtrasStemTrie = nullptr;
+    uprv_free(gSimpleUnits);
+    gSimpleUnits = nullptr;
     gUnitExtrasInitOnce.reset();
     return TRUE;
 }
@@ -230,55 +217,75 @@ UBool U_CALLCONV cleanupUnitExtras() {
 void U_CALLCONV initUnitExtras(UErrorCode& status) {
     ucln_i18n_registerCleanup(UCLN_I18N_UNIT_EXTRAS, cleanupUnitExtras);
 
-    UCharsTrieBuilder b(status);
+    BytesTrieBuilder b(status);
     if (U_FAILURE(status)) { return; }
 
     // Add SI prefixes
     for (const auto& siPrefixInfo : gSIPrefixStrings) {
-        UnicodeString uSIPrefix(siPrefixInfo.string, -1, US_INV);
-        b.add(uSIPrefix, siPrefixInfo.value + kSIPrefixOffset, status);
+        b.add(siPrefixInfo.string, siPrefixInfo.value + kSIPrefixOffset, status);
     }
     if (U_FAILURE(status)) { return; }
 
     // Add syntax parts (compound, power prefixes)
-    b.add(u"-per-", COMPOUND_PART_PER, status);
-    b.add(u"-", COMPOUND_PART_TIMES, status);
-    b.add(u"-and-", COMPOUND_PART_AND, status);
-    b.add(u"per-", INITIAL_COMPOUND_PART_PER, status);
-    b.add(u"square-", POWER_PART_P2, status);
-    b.add(u"cubic-", POWER_PART_P3, status);
-    b.add(u"p2-", POWER_PART_P2, status);
-    b.add(u"p3-", POWER_PART_P3, status);
-    b.add(u"p4-", POWER_PART_P4, status);
-    b.add(u"p5-", POWER_PART_P5, status);
-    b.add(u"p6-", POWER_PART_P6, status);
-    b.add(u"p7-", POWER_PART_P7, status);
-    b.add(u"p8-", POWER_PART_P8, status);
-    b.add(u"p9-", POWER_PART_P9, status);
-    b.add(u"p10-", POWER_PART_P10, status);
-    b.add(u"p11-", POWER_PART_P11, status);
-    b.add(u"p12-", POWER_PART_P12, status);
-    b.add(u"p13-", POWER_PART_P13, status);
-    b.add(u"p14-", POWER_PART_P14, status);
-    b.add(u"p15-", POWER_PART_P15, status);
+    b.add("-per-", COMPOUND_PART_PER, status);
+    b.add("-", COMPOUND_PART_TIMES, status);
+    b.add("-and-", COMPOUND_PART_AND, status);
+    b.add("per-", INITIAL_COMPOUND_PART_PER, status);
+    b.add("square-", POWER_PART_P2, status);
+    b.add("cubic-", POWER_PART_P3, status);
+    b.add("pow2-", POWER_PART_P2, status);
+    b.add("pow3-", POWER_PART_P3, status);
+    b.add("pow4-", POWER_PART_P4, status);
+    b.add("pow5-", POWER_PART_P5, status);
+    b.add("pow6-", POWER_PART_P6, status);
+    b.add("pow7-", POWER_PART_P7, status);
+    b.add("pow8-", POWER_PART_P8, status);
+    b.add("pow9-", POWER_PART_P9, status);
+    b.add("pow10-", POWER_PART_P10, status);
+    b.add("pow11-", POWER_PART_P11, status);
+    b.add("pow12-", POWER_PART_P12, status);
+    b.add("pow13-", POWER_PART_P13, status);
+    b.add("pow14-", POWER_PART_P14, status);
+    b.add("pow15-", POWER_PART_P15, status);
     if (U_FAILURE(status)) { return; }
 
-    // Add sanctioned simple units by offset
-    int32_t simpleUnitOffset = kSimpleUnitOffset;
-    for (auto simpleUnit : gSimpleUnits) {
-        b.add(simpleUnit, simpleUnitOffset++, status);
+    // Add sanctioned simple units by offset: simple units all have entries in
+    // units/convertUnits resources.
+    // TODO(ICU-21059): confirm whether this is clean enough, or whether we need to
+    // filter units' validity list instead.
+    LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
+    LocalUResourceBundlePointer convertUnits(
+        ures_getByKey(unitsBundle.getAlias(), "convertUnits", NULL, &status));
+    if (U_FAILURE(status)) { return; }
+
+    // Allocate enough space: with identifierSink below skipping kilogram, we're
+    // probably allocating one more than needed.
+    int32_t simpleUnitsCount = convertUnits.getAlias()->fSize;
+    int32_t arrayMallocSize = sizeof(char *) * simpleUnitsCount;
+    gSimpleUnits = static_cast<const char **>(uprv_malloc(arrayMallocSize));
+    if (gSimpleUnits == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return;
     }
+    uprv_memset(gSimpleUnits, 0, arrayMallocSize);
+
+    // Populate gSimpleUnits and build the associated trie.
+    SimpleUnitIdentifiersSink identifierSink(gSimpleUnits, simpleUnitsCount, b, kSimpleUnitOffset);
+    ures_getAllItemsWithFallback(unitsBundle.getAlias(), "convertUnits", identifierSink, status);
 
     // Build the CharsTrie
     // TODO: Use SLOW or FAST here?
-    UnicodeString result;
-    b.buildUnicodeString(USTRINGTRIE_BUILD_FAST, result, status);
+    StringPiece result = b.buildStringPiece(USTRINGTRIE_BUILD_FAST, status);
     if (U_FAILURE(status)) { return; }
 
     // Copy the result into the global constant pointer
-    size_t numBytes = result.length() * sizeof(char16_t);
-    kSerializedUnitExtrasStemTrie = static_cast<char16_t*>(uprv_malloc(numBytes));
-    uprv_memcpy(kSerializedUnitExtrasStemTrie, result.getBuffer(), numBytes);
+    size_t numBytes = result.length();
+    gSerializedUnitExtrasStemTrie = static_cast<char *>(uprv_malloc(numBytes));
+    if (gSerializedUnitExtrasStemTrie == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
+    uprv_memcpy(gSerializedUnitExtrasStemTrie, result.data(), numBytes);
 }
 
 class Token {
@@ -385,7 +392,7 @@ private:
     // should live longer than this Parser - and the parser shouldn't return any
     // references to that string.
     StringPiece fSource;
-    UCharsTrie fTrie;
+    BytesTrie fTrie;
 
     // Set to true when we've seen a "-per-" or a "per-", after which all units
     // are in the denominator. Until we find an "-and-", at which point the
@@ -395,7 +402,7 @@ private:
     Parser() : fSource(""), fTrie(u"") {}
 
     Parser(StringPiece source)
-        : fSource(source), fTrie(kSerializedUnitExtrasStemTrie) {}
+        : fSource(source), fTrie(gSerializedUnitExtrasStemTrie) {}
 
     inline bool hasNext() const {
         return fIndex < fSource.length();
@@ -640,11 +647,11 @@ void serializeSingle(const SingleUnitImpl& singleUnit, bool first, CharString& o
     } else if (posPower == 3) {
         output.append("cubic-", status);
     } else if (posPower < 10) {
-        output.append('p', status);
+        output.append("pow", status);
         output.append(posPower + '0', status);
         output.append('-', status);
     } else if (posPower <= 15) {
-        output.append("p1", status);
+        output.append("pow1", status);
         output.append('0' + (posPower % 10), status);
         output.append('-', status);
     } else {
@@ -666,7 +673,7 @@ void serializeSingle(const SingleUnitImpl& singleUnit, bool first, CharString& o
         return;
     }
 
-    output.appendInvariantChars(gSimpleUnits[singleUnit.index], status);
+    output.append(singleUnit.getSimpleUnitID(), status);
 }
 
 /**
@@ -777,6 +784,17 @@ MeasureUnit SingleUnitImpl::build(UErrorCode& status) const {
     return std::move(temp).build(status);
 }
 
+const char *SingleUnitImpl::getSimpleUnitID() const {
+    return gSimpleUnits[index];
+}
+
+MeasureUnitImpl::MeasureUnitImpl(const MeasureUnitImpl &other, UErrorCode &status) {
+    *this = other.copy(status);
+}
+
+MeasureUnitImpl::MeasureUnitImpl(const SingleUnitImpl &singleUnit, UErrorCode &status) {
+    this->append(singleUnit, status);
+}
 
 MeasureUnitImpl MeasureUnitImpl::forIdentifier(StringPiece identifier, UErrorCode& status) {
     return Parser::from(identifier, status).parse(status);
@@ -813,11 +831,25 @@ bool MeasureUnitImpl::append(const SingleUnitImpl& singleUnit, UErrorCode& statu
     return appendImpl(*this, singleUnit, status);
 }
 
+MaybeStackVector<MeasureUnitImpl> MeasureUnitImpl::extractIndividualUnits(UErrorCode &status) const {
+    MaybeStackVector<MeasureUnitImpl> result;
+
+    if (this->complexity != UMeasureUnitComplexity::UMEASURE_UNIT_MIXED) {
+        result.emplaceBackAndCheckErrorCode(status, *this, status);
+        return result;
+    }
+
+    for (int32_t i = 0; i < units.length(); i++) {
+        result.emplaceBackAndCheckErrorCode(status, *units[i], status);
+    }
+
+    return result;
+}
+
 MeasureUnit MeasureUnitImpl::build(UErrorCode& status) && {
     serialize(*this, status);
     return MeasureUnit(std::move(*this));
 }
-
 
 MeasureUnit MeasureUnit::forIdentifier(StringPiece identifier, UErrorCode& status) {
     return Parser::from(identifier, status).parse(status).build(status);
@@ -876,11 +908,15 @@ MeasureUnit MeasureUnit::product(const MeasureUnit& other, UErrorCode& status) c
     return std::move(impl).build(status);
 }
 
-LocalArray<MeasureUnit> MeasureUnit::splitToSingleUnits(int32_t& outCount, UErrorCode& status) const {
+LocalArray<MeasureUnit> MeasureUnit::splitToSingleUnitsImpl(int32_t& outCount, UErrorCode& status) const {
     MeasureUnitImpl temp;
     const MeasureUnitImpl& impl = MeasureUnitImpl::forMeasureUnit(*this, temp, status);
     outCount = impl.units.length();
     MeasureUnit* arr = new MeasureUnit[outCount];
+    if (arr == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return LocalArray<MeasureUnit>();
+    }
     for (int32_t i = 0; i < outCount; i++) {
         arr[i] = impl.units[i]->build(status);
     }
