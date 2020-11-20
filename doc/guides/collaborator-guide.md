@@ -113,7 +113,7 @@ describing a security issue, take the following steps:
   `FYI - PR deleted #YYYY`.
 * Email `tsc@iojs.org` with the link to the issues in the
   `premature-disclosures` repo so that the TSC is aware that they
-  may need to expidite handling of the issue due to premature
+  may need to expedite handling of the issue due to premature
   disclosure.
 
 ## Accepting modifications
