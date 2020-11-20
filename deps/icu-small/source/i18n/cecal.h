@@ -88,7 +88,7 @@ protected:
     virtual UBool inDaylightTime(UErrorCode&) const;
 
     /**
-     * Returns TRUE because Coptic/Ethiopic Calendar does have a default century
+     * Returns true because Coptic/Ethiopic Calendar does have a default century
      * @internal
      */
     virtual UBool haveDefaultCentury() const;

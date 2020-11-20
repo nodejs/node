@@ -20,6 +20,7 @@
 #include "unicode/unumberformatter.h"
 #include "number_decimalquantity.h"
 #include "number_utypes.h"
+#include "numrange_impl.h"
 
 U_NAMESPACE_USE
 
@@ -112,6 +113,25 @@ uplrules_selectFormatted(const UPluralRules *uplrules,
         return 0;
     }
     UnicodeString result = ((PluralRules*)uplrules)->select(*dq);
+    return result.extract(keyword, capacity, *status);
+}
+
+U_CAPI int32_t U_EXPORT2
+uplrules_selectForRange(const UPluralRules *uplrules,
+                const UFormattedNumberRange* urange,
+                UChar *keyword, int32_t capacity,
+                UErrorCode *status)
+{
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    if (keyword == NULL ? capacity != 0 : capacity < 0) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    const number::impl::UFormattedNumberRangeData* impl =
+        number::impl::validateUFormattedNumberRange(urange, *status);
+    UnicodeString result = ((PluralRules*)uplrules)->select(impl, *status);
     return result.extract(keyword, capacity, *status);
 }
 

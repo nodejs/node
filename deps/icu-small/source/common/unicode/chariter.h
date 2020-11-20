@@ -65,7 +65,7 @@ U_NAMESPACE_BEGIN
  * check for the end of the iteration. When there are no more
  * characters in the text object:
  * <ul>
- * <li>The hasNext() function returns FALSE.</li>
+ * <li>The hasNext() function returns false.</li>
  * <li>nextPostInc() and next32PostInc() return DONE
  *     when one attempts to read beyond the end of the text object.</li>
  * </ul>
@@ -165,11 +165,11 @@ public:
     virtual UChar32       next32PostInc(void) = 0;
 
     /**
-     * Returns FALSE if there are no more code units or code points
+     * Returns false if there are no more code units or code points
      * at or after the current position in the iteration range.
      * This is used with nextPostInc() or next32PostInc() in forward
      * iteration.
-     * @returns FALSE if there are no more code units or code points
+     * @returns false if there are no more code units or code points
      * at or after the current position in the iteration range.
      * @stable ICU 2.0
      */
@@ -535,12 +535,12 @@ public:
     virtual UChar32       previous32(void) = 0;
 
     /**
-     * Returns FALSE if there are no more code units or code points
+     * Returns false if there are no more code units or code points
      * before the current position in the iteration range.
      * This is used with previous() or previous32() in backward
      * iteration.
-     * @return FALSE if there are no more code units or code points
-     * before the current position in the iteration range, return TRUE otherwise.
+     * @return false if there are no more code units or code points
+     * before the current position in the iteration range, return true otherwise.
      * @stable ICU 2.0
      */
     virtual UBool        hasPrevious() = 0;

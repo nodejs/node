@@ -49,8 +49,8 @@ inline bool unitIsCurrency(const MeasureUnit& unit) {
     return uprv_strcmp("currency", unit.getType()) == 0;
 }
 
-inline bool unitIsNoUnit(const MeasureUnit& unit) {
-    return uprv_strcmp("none", unit.getType()) == 0;
+inline bool unitIsBaseUnit(const MeasureUnit& unit) {
+    return unit == MeasureUnit();
 }
 
 inline bool unitIsPercent(const MeasureUnit& unit) {

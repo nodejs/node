@@ -64,6 +64,13 @@ Grouper Grouper::forProperties(const DecimalFormatProperties& properties) {
 }
 
 void Grouper::setLocaleData(const impl::ParsedPatternInfo &patternInfo, const Locale& locale) {
+    if (fMinGrouping == -2) {
+        fMinGrouping = getMinGroupingForLocale(locale);
+    } else if (fMinGrouping == -3) {
+        fMinGrouping = static_cast<int16_t>(uprv_max(2, getMinGroupingForLocale(locale)));
+    } else {
+        // leave fMinGrouping alone
+    }
     if (fGrouping1 != -2 && fGrouping2 != -4) {
         return;
     }
@@ -75,13 +82,6 @@ void Grouper::setLocaleData(const impl::ParsedPatternInfo &patternInfo, const Lo
     }
     if (grouping3 == -1) {
         grouping2 = grouping1;
-    }
-    if (fMinGrouping == -2) {
-        fMinGrouping = getMinGroupingForLocale(locale);
-    } else if (fMinGrouping == -3) {
-        fMinGrouping = static_cast<int16_t>(uprv_max(2, getMinGroupingForLocale(locale)));
-    } else {
-        // leave fMinGrouping alone
     }
     fGrouping1 = grouping1;
     fGrouping2 = grouping2;

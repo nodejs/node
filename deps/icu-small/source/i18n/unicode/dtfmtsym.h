@@ -919,7 +919,8 @@ private:
      *                             failure code upon return.
      * @param useLastResortData    determine if use last resort data
      */
-    void initializeData(const Locale& locale, const char *type, UErrorCode& status, UBool useLastResortData = FALSE);
+    void initializeData(const Locale& locale, const char *type,
+                        UErrorCode& status, UBool useLastResortData = false);
 
     /**
      * Copy or alias an array in another object, as appropriate.
@@ -983,12 +984,12 @@ private:
     static UDateFormatField U_EXPORT2 getPatternCharIndex(char16_t c);
 
     /**
-     * Returns TRUE if f (with its pattern character repeated count times) is a numeric field.
+     * Returns true if f (with its pattern character repeated count times) is a numeric field.
      */
     static UBool U_EXPORT2 isNumericField(UDateFormatField f, int32_t count);
 
     /**
-     * Returns TRUE if c (repeated count times) is the pattern character for a numeric field.
+     * Returns true if c (repeated count times) is the pattern character for a numeric field.
      */
     static UBool U_EXPORT2 isNumericPatternChar(char16_t c, int32_t count);
 public:

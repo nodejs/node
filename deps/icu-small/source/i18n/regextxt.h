@@ -29,7 +29,7 @@ U_NAMESPACE_BEGIN
 #endif
 
 #ifdef REGEX_DISABLE_CHUNK_MODE
-#  define UTEXT_FULL_TEXT_IN_CHUNK(ut,len) (FALSE)
+#  define UTEXT_FULL_TEXT_IN_CHUNK(ut,len) (false)
 #else
 #  define UTEXT_FULL_TEXT_IN_CHUNK(ut,len) ((0==((ut)->chunkNativeStart))&&((len)==((ut)->chunkNativeLimit))&&((len)==((ut)->nativeIndexingLimit)))
 #endif

@@ -14,8 +14,11 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#include "unicode/localpointer.h"
 #include "unicode/uformattedvalue.h"
+
+#if U_SHOW_CPLUSPLUS_API
+#include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -161,7 +164,7 @@ ulistfmt_open(const char*  locale,
  *            or NULL if an error occurred.
  * @draft ICU 67
  */
-U_DRAFT UListFormatter* U_EXPORT2
+U_CAPI UListFormatter* U_EXPORT2
 ulistfmt_openForType(const char*  locale, UListFormatterType type,
                      UListFormatterWidth width, UErrorCode*  status);
 #endif /* U_HIDE_DRAFT_API */
