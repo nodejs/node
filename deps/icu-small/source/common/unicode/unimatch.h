@@ -115,11 +115,11 @@ public:
      * considered for matching will be text.charAt(limit-1) in the
      * forward direction or text.charAt(limit+1) in the backward
      * direction.
-     * @param incremental if TRUE, then assume further characters may
+     * @param incremental if true, then assume further characters may
      * be inserted at limit and check for partial matching.  Otherwise
      * assume the text as given is complete.
      * @return a match degree value indicating a full match, a partial
-     * match, or a mismatch.  If incremental is FALSE then
+     * match, or a mismatch.  If incremental is false then
      * U_PARTIAL_MATCH should never be returned.
      * @stable ICU 2.4
      */
@@ -134,17 +134,17 @@ public:
      * will produce another matcher that is equal to this one.
      * @param result the string to receive the pattern.  Previous
      * contents will be deleted.
-     * @param escapeUnprintable if TRUE then convert unprintable
+     * @param escapeUnprintable if true then convert unprintable
      * character to their hex escape representations, \\uxxxx or
      * \\Uxxxxxxxx.  Unprintable characters are those other than
      * U+000A, U+0020..U+007E.
      * @stable ICU 2.4
      */
     virtual UnicodeString& toPattern(UnicodeString& result,
-                                     UBool escapeUnprintable = FALSE) const = 0;
+                                     UBool escapeUnprintable = false) const = 0;
 
     /**
-     * Returns TRUE if this matcher will match a character c, where c
+     * Returns true if this matcher will match a character c, where c
      * & 0xFF == v, at offset, in the forward direction (with limit >
      * offset).  This is used by <tt>RuleBasedTransliterator</tt> for
      * indexing.

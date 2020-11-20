@@ -16,6 +16,7 @@
 *   01/11/02    Ram        Creation.
 *******************************************************************************
 */
+#include <stdbool.h>
 #include "rle.h"
 /**
  * The ESCAPE character is used during run-length encoding.  It signals
@@ -297,7 +298,7 @@ int32_t
 rleStringToByteArray(uint16_t* src, int32_t srcLen, uint8_t* target, int32_t tgtLen, UErrorCode* status) {
 
     int32_t length = 0;
-    UBool nextChar = TRUE;
+    UBool nextChar = true;
     uint16_t c = 0;
     int32_t node = 0;
     int32_t runLength = 0;
@@ -334,11 +335,11 @@ rleStringToByteArray(uint16_t* src, int32_t srcLen, uint8_t* target, int32_t tgt
         if (nextChar) {
             c = src[i++];
             b = (uint8_t) (c >> 8);
-            nextChar = FALSE;
+            nextChar = false;
         }
         else {
             b = (uint8_t) (c & 0xFF);
-            nextChar = TRUE;
+            nextChar = true;
         }
 
        /* This part of the loop is a tiny state machine which handles

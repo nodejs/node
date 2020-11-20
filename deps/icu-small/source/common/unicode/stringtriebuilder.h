@@ -279,10 +279,10 @@ protected:
      */
     class ValueNode : public Node {
     public:
-        ValueNode(int32_t initialHash) : Node(initialHash), hasValue(FALSE), value(0) {}
+        ValueNode(int32_t initialHash) : Node(initialHash), hasValue(false), value(0) {}
         virtual UBool operator==(const Node &other) const;
         void setValue(int32_t v) {
-            hasValue=TRUE;
+            hasValue=true;
             value=v;
             hash=hash*37u+v;
         }

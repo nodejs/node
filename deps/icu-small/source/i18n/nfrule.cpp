@@ -153,7 +153,7 @@ NFRule::makeRules(UnicodeString& description,
         if ((rule1->baseValue > 0
             && (rule1->baseValue % util64_pow(rule1->radix, rule1->exponent)) == 0)
             || rule1->getType() == kImproperFractionRule
-            || rule1->getType() == kMasterRule) {
+            || rule1->getType() == kDefaultRule) {
 
             // if it passes that test, new up the second rule.  If the
             // rule set both rules will belong to is a fraction rule
@@ -181,9 +181,9 @@ NFRule::makeRules(UnicodeString& description,
             }
 
             // if the description began with "x.0" and contains bracketed
-            // text, it describes both the master rule and the
+            // text, it describes both the default rule and the
             // improper fraction rule
-            else if (rule1->getType() == kMasterRule) {
+            else if (rule1->getType() == kDefaultRule) {
                 rule2->baseValue = rule1->baseValue;
                 rule1->setType(kImproperFractionRule);
             }
@@ -376,7 +376,7 @@ NFRule::parseRuleDescriptor(UnicodeString& description, UErrorCode& status)
                 decimalPoint = descriptor.charAt(1);
             }
             else if (firstChar == gX && lastChar == gZero) {
-                setBaseValue(kMasterRule, status);
+                setBaseValue(kDefaultRule, status);
                 decimalPoint = descriptor.charAt(1);
             }
             else if (descriptor.compare(gNaN, 3) == 0) {
@@ -663,7 +663,7 @@ NFRule::_appendRuleText(UnicodeString& result) const
     case kNegativeNumberRule: result.append(gMinusX, 2); break;
     case kImproperFractionRule: result.append(gX).append(decimalPoint == 0 ? gDot : decimalPoint).append(gX); break;
     case kProperFractionRule: result.append(gZero).append(decimalPoint == 0 ? gDot : decimalPoint).append(gX); break;
-    case kMasterRule: result.append(gX).append(decimalPoint == 0 ? gDot : decimalPoint).append(gZero); break;
+    case kDefaultRule: result.append(gX).append(decimalPoint == 0 ? gDot : decimalPoint).append(gZero); break;
     case kInfinityRule: result.append(gInf, 3); break;
     case kNaNRule: result.append(gNaN, 3); break;
     default:
@@ -1297,6 +1297,10 @@ NFRule::prefixLength(const UnicodeString& str, const UnicodeString& prefix, UErr
 #if !UCONFIG_NO_COLLATION
     // go through all this grief if we're in lenient-parse mode
     if (formatter->isLenient()) {
+        // Check if non-lenient rule finds the text before call lenient parsing
+        if (str.startsWith(prefix)) {
+            return prefix.length();
+        }
         // get the formatter's collator and use it to create two
         // collation element iterators, one over the target string
         // and another over the prefix (right now, we'll throw an
@@ -1505,9 +1509,15 @@ NFRule::findText(const UnicodeString& str,
         return str.indexOf(key, startingAt);
     }
     else {
-        // but if lenient parsing is turned ON, we've got some work
-        // ahead of us
-        return findTextLenient(str, key, startingAt, length);
+        // Check if non-lenient rule finds the text before call lenient parsing
+        *length = key.length();
+        int32_t pos = str.indexOf(key, startingAt);
+        if(pos >= 0) {
+            return pos;
+        } else {
+            // but if lenient parsing is turned ON, we've got some work ahead of us
+            return findTextLenient(str, key, startingAt, length);
+        }
     }
 }
 

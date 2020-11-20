@@ -2072,7 +2072,7 @@ int32_t  RegexMatcher::split(UText *input,
         UErrorCode      &status)
 {
     //
-    // Check arguements for validity
+    // Check arguments for validity
     //
     if (U_FAILURE(status)) {
         return 0;

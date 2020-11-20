@@ -395,7 +395,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
 
 
   /**
-   * Returns TRUE because the Islamic Calendar does have a default century
+   * Returns true because the Islamic Calendar does have a default century
    * @internal
    */
   virtual UBool haveDefaultCentury() const;

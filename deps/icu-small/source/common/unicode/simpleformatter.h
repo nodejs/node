@@ -125,7 +125,7 @@ public:
      * @param errorCode ICU error code in/out parameter.
      *                  Must fulfill U_SUCCESS before the function call.
      *                  Set to U_ILLEGAL_ARGUMENT_ERROR for bad argument syntax.
-     * @return TRUE if U_SUCCESS(errorCode).
+     * @return true if U_SUCCESS(errorCode).
      * @stable ICU 57
      */
     UBool applyPattern(const UnicodeString &pattern, UErrorCode &errorCode) {
@@ -144,7 +144,7 @@ public:
      *                  Must fulfill U_SUCCESS before the function call.
      *                  Set to U_ILLEGAL_ARGUMENT_ERROR for bad argument syntax and
      *                  too few or too many arguments.
-     * @return TRUE if U_SUCCESS(errorCode).
+     * @return true if U_SUCCESS(errorCode).
      * @stable ICU 57
      */
     UBool applyPatternMinMaxArguments(const UnicodeString &pattern,

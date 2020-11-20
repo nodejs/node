@@ -114,7 +114,7 @@ public:
      * character.
      * @param options one or more of the following options, bitwise-OR-ed
      * together: PARSE_VARIABLES, PARSE_ESCAPES, SKIP_WHITESPACE.
-     * @param isEscaped output parameter set to TRUE if the character
+     * @param isEscaped output parameter set to true if the character
      * was escaped
      * @param ec input-output error code.  An error will only be set by
      * this routing if options includes PARSE_VARIABLES and an unknown

@@ -91,7 +91,7 @@ vzone_equals(const VZone* zone1, const VZone* zone2);
  * @param zone, the vzone to use
  * @param url Receives the RFC2445 TZURL property value.
  * @param urlLength, length of the url
- * @return TRUE if TZURL attribute is available and value is set.
+ * @return true if TZURL attribute is available and value is set.
  */
 U_CAPI UBool U_EXPORT2
 vzone_getTZURL(VZone* zone, UChar* & url, int32_t & urlLength);
@@ -112,7 +112,7 @@ vzone_setTZURL(VZone* zone, UChar* url, int32_t urlLength);
  * is not set.
  * @param zone, the vzone to use
  * @param lastModified Receives the last modified date.
- * @return TRUE if lastModified attribute is available and value is set.
+ * @return true if lastModified attribute is available and value is set.
  */
 U_CAPI UBool U_EXPORT2
 vzone_getLastModified(VZone* zone, UDate& lastModified);
@@ -283,7 +283,7 @@ vzone_useDaylightTime(VZone* zone);
  * @return true if the given date is in daylight savings time,
  * false, otherwise.
  */
-U_INTERNAL UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 vzone_inDaylightTime(VZone* zone, UDate date, UErrorCode& status);
 
 /**
@@ -303,7 +303,7 @@ vzone_hasSameRules(VZone* zone, const VZone* other);
  * @param base      The base time.
  * @param inclusive Whether the base time is inclusive or not.
  * @param result    Receives the first transition after the base time.
- * @return  TRUE if the transition is found.
+ * @return  true if the transition is found.
  */
 U_CAPI UBool U_EXPORT2
 vzone_getNextTransition(VZone* zone, UDate base, UBool inclusive, ZTrans* result);
@@ -314,7 +314,7 @@ vzone_getNextTransition(VZone* zone, UDate base, UBool inclusive, ZTrans* result
  * @param base      The base time.
  * @param inclusive Whether the base time is inclusive or not.
  * @param result    Receives the most recent transition before the base time.
- * @return  TRUE if the transition is found.
+ * @return  true if the transition is found.
  */
 U_CAPI UBool U_EXPORT2
 vzone_getPreviousTransition(VZone* zone, UDate base, UBool inclusive, ZTrans* result);
