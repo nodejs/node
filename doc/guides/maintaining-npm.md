@@ -12,8 +12,10 @@ changes can be reviewed and landed via the normal consensus seeking process.
 
 ## Step 1: Run the update script
 
+In the following examples, `x.y.z` should match the npm version to update to.
+
 ```console
-$ ./tools/update-npm.sh
+$ ./tools/update-npm.sh x.y.z
 ```
 
 ## Step 2: Commit new npm
