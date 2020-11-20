@@ -266,7 +266,7 @@ static ECalType getCalendarTypeForLocale(const char *locid) {
     //TODO: ULOC_FULL_NAME is out of date and too small..
     char canonicalName[256];
 
-    // canonicalize, so grandfathered variant will be transformed to keywords
+    // Canonicalize, so that an old-style variant will be transformed to keywords.
     // e.g ja_JP_TRADITIONAL -> ja_JP@calendar=japanese
     // NOTE: Since ICU-20187, ja_JP_TRADITIONAL no longer canonicalizes, and
     // the Gregorian calendar is returned instead.
@@ -870,7 +870,7 @@ Calendar::createInstance(const TimeZone& zone, UErrorCode& success)
 Calendar* U_EXPORT2
 Calendar::createInstance(const Locale& aLocale, UErrorCode& success)
 {
-    return createInstance(TimeZone::createDefault(), aLocale, success);
+    return createInstance(TimeZone::forLocaleOrDefault(aLocale), aLocale, success);
 }
 
 // ------------------------------------- Adopting

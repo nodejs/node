@@ -82,19 +82,24 @@ static UCalendarDateFields gDateFieldMapping[] = {
     UCAL_ZONE_OFFSET,          // UDAT_TIMEZONE_ISO_FIELD = 32 (also UCAL_DST_OFFSET)
     UCAL_ZONE_OFFSET,          // UDAT_TIMEZONE_ISO_LOCAL_FIELD = 33 (also UCAL_DST_OFFSET)
     UCAL_EXTENDED_YEAR,        // UDAT_RELATED_YEAR_FIELD = 34 (not an exact match)
-    UCAL_FIELD_COUNT,          // UDAT_FIELD_COUNT = 35
+    UCAL_FIELD_COUNT,          // UDAT_AM_PM_MIDNIGHT_NOON_FIELD=35 (no match)
+    UCAL_FIELD_COUNT,          // UDAT_FLEXIBLE_DAY_PERIOD_FIELD=36 (no match)
+    UCAL_FIELD_COUNT,          // UDAT_TIME_SEPARATOR_FIELD = 37 (no match)
+                               // UDAT_FIELD_COUNT = 38 as of ICU 67
     // UCAL_IS_LEAP_MONTH is not the target of a mapping
 };
 
 U_CAPI UCalendarDateFields U_EXPORT2
 udat_toCalendarDateField(UDateFormatField field) {
-  return gDateFieldMapping[field];
+  static_assert(UDAT_FIELD_COUNT == UPRV_LENGTHOF(gDateFieldMapping),
+    "UDateFormatField and gDateFieldMapping should have the same number of entries and be kept in sync.");
+  return (field >= UDAT_ERA_FIELD && field < UPRV_LENGTHOF(gDateFieldMapping))? gDateFieldMapping[field]: UCAL_FIELD_COUNT;
 }
 
 /* For now- one opener. */
 static UDateFormatOpener gOpener = NULL;
 
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 udat_registerOpener(UDateFormatOpener opener, UErrorCode *status)
 {
   if(U_FAILURE(*status)) return;
@@ -107,7 +112,7 @@ udat_registerOpener(UDateFormatOpener opener, UErrorCode *status)
   umtx_unlock(NULL);
 }
 
-U_INTERNAL UDateFormatOpener U_EXPORT2
+U_CAPI UDateFormatOpener U_EXPORT2
 udat_unregisterOpener(UDateFormatOpener opener, UErrorCode *status)
 {
   if(U_FAILURE(*status)) return NULL;
@@ -419,7 +424,7 @@ udat_setLenient(    UDateFormat*    fmt,
     ((DateFormat*)fmt)->setLenient(isLenient);
 }
 
-U_DRAFT UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 udat_getBooleanAttribute(const UDateFormat* fmt,
                          UDateFormatBooleanAttribute attr,
                          UErrorCode* status)
@@ -429,7 +434,7 @@ udat_getBooleanAttribute(const UDateFormat* fmt,
     //return FALSE;
 }
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 udat_setBooleanAttribute(UDateFormat *fmt,
                          UDateFormatBooleanAttribute attr,
                          UBool newValue,
@@ -452,7 +457,7 @@ udat_setCalendar(UDateFormat*    fmt,
     ((DateFormat*)fmt)->setCalendar(*((Calendar*)calendarToSet));
 }
 
-U_DRAFT const UNumberFormat* U_EXPORT2
+U_CAPI const UNumberFormat* U_EXPORT2
 udat_getNumberFormatForField(const UDateFormat* fmt, UChar field)
 {
     UErrorCode status = U_ZERO_ERROR;
@@ -467,7 +472,7 @@ udat_getNumberFormat(const UDateFormat* fmt)
     return (const UNumberFormat*) ((DateFormat*)fmt)->getNumberFormat();
 }
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 udat_adoptNumberFormatForFields(           UDateFormat*    fmt,
                                     const  UChar*          fields,
                                            UNumberFormat*  numberFormatToSet,
@@ -489,7 +494,7 @@ udat_setNumberFormat(UDateFormat*    fmt,
     ((DateFormat*)fmt)->setNumberFormat(*((NumberFormat*)numberFormatToSet));
 }
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 udat_adoptNumberFormat(      UDateFormat*    fmt,
                              UNumberFormat*  numberFormatToAdopt)
 {

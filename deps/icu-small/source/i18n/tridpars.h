@@ -222,7 +222,7 @@ class TransliteratorIDParser /* not : public UObject because all methods are sta
      * @param source          the given source.
      * @param target          the given target.
      * @param variant         the given variant
-     * @param isSourcePresent If TRUE then the source is present.
+     * @param isSourcePresent If true then the source is present.
      *                        If the source is not present, ANY will be
      *                        given as the source, and isSourcePresent will be null
      * @return an array of 4 strings: source, target, variant, and
