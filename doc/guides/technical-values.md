@@ -3,6 +3,16 @@
 The project uses these technical values to establish priorities and guide
 collaboration.
 
+These are the shared values as of this writing and will
+evolve. We hope they are useful to people new
+to the project in order to better understand which contributions
+will be aligned with the current direction and as thinking
+points when trading off between conflicting goals.
+
+The factors influencing every discussion/decision are
+different and priority 1 does not always trump priority 2
+and so on.
+
 ## Values and priority level
 
 * Priority 1 - Developer experience
