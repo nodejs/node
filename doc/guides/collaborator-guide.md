@@ -820,5 +820,5 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
-[security reporting]: https://github.com/nodejs/SECURITY.md
+[security reporting]: <span class="x x-first x-last">../..</span>/SECURITY.md
 [unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
