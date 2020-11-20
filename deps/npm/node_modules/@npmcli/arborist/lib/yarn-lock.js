@@ -79,7 +79,7 @@ class YarnLock {
     const METADATA = /^ {2}[^\s]+ .+$/
     this.entries = new Map()
     this.current = null
-    const linere = /([^\n]*)\n/gm
+    const linere = /([^\r\n]*)\r?\n/gm
     let match
     let lineNum = 0
     if (!/\n$/.test(data))

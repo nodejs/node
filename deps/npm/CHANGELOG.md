@@ -1,3 +1,35 @@
+## 7.0.13 (2020-11-20)
+
+### BUG FIXES
+* [`5fc56b6db`](https://github.com/npm/cli/commit/5fc56b6dbcc7d7d1463a761abb67d2fc16ad3657)
+  [npm/statusboard#174](https://github.com/npm/statusboard/issues/174)
+  [#2204](https://github.com/npm/cli/issues/2204)
+  fix npm unstar command
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`7842b4d4d`](https://github.com/npm/cli/commit/7842b4d4dca1e076b0d26d554f9dce67484cd7be)
+  [npm/statusboard#182](https://github.com/npm/statusboard/issues/182)
+  [#2205](https://github.com/npm/cli/issues/2205)
+  fix npm version usage output
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`a0adbf9f8`](https://github.com/npm/cli/commit/a0adbf9f8f77531fcf81ae31bbc7102698765ee3)
+  [#2206](https://github.com/npm/cli/issues/2206)
+  [#2213](https://github.com/npm/cli/issues/2213)
+  fix: fix flatOptions usage in npm init
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DEPENDENCIES
+
+* [`3daaf000a`](https://github.com/npm/cli/commit/3daaf000aee0ba81af855977d7011850e79099e6)
+  `@npmcli/arborist@1.0.12`
+    - fixes some windows specific bugs in how paths are handled and compared
+
+### DOCUMENTATION
+
+* [`084a7b6ad`](https://github.com/npm/cli/commit/084a7b6ad6eaf9f2d92eb05da93e745f5357cce2)
+  [#2210](https://github.com/npm/cli/issues/2210)
+  docs: Fix typo
+  ([@HollowMan6](https://github.com/HollowMan6))
+
 ## 7.0.12 (2020-11-17)
 
 ### BUG FIXES

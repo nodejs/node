@@ -1,6 +1,6 @@
 // mix-in implementing the loadActual method
 
-const {relative, dirname, resolve, join} = require('path')
+const {relative, dirname, resolve, join, normalize} = require('path')
 
 const rpj = require('read-package-json-fast')
 const {promisify} = require('util')
@@ -209,7 +209,7 @@ module.exports = cls => class ActualLoader extends cls {
       // soldier on if read-package-json raises an error
       .then(pkg => [pkg, null], error => [null, error])
       .then(([pkg, error]) => {
-        return this[path === real ? _newNode : _newLink]({
+        return this[normalize(path) === real ? _newNode : _newLink]({
           legacyPeerDeps: this.legacyPeerDeps,
           path,
           realpath: real,
