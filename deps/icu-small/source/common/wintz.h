@@ -28,7 +28,7 @@ U_CDECL_BEGIN
 typedef struct _TIME_ZONE_INFORMATION TIME_ZONE_INFORMATION;
 U_CDECL_END
 
-U_INTERNAL const char* U_EXPORT2
+U_CAPI const char* U_EXPORT2
 uprv_detectWindowsTimeZone();
 
 #endif /* U_PLATFORM_USES_ONLY_WIN32_API  */

@@ -23,7 +23,7 @@
  * This file defines macros to deal with 8-bit Unicode (UTF-8) code units (bytes) and strings.
  *
  * For more information see utf.h and the ICU User Guide Strings chapter
- * (http://userguide.icu-project.org/strings).
+ * (https://unicode-org.github.io/icu/userguide/strings).
  *
  * <em>Usage:</em>
  * ICU coding guidelines for if() statements should be followed when using these macros.
@@ -34,6 +34,7 @@
 #ifndef __UTF8_H__
 #define __UTF8_H__
 
+#include <stdbool.h>
 #include "unicode/umachine.h"
 #ifndef __UTF_H__
 #   include "unicode/utf.h"
@@ -117,48 +118,48 @@
  * Function for handling "next code point" with error-checking.
  *
  * This is internal since it is not meant to be called directly by external clients;
- * however it is U_STABLE (not U_INTERNAL) since it is called by public macros in this
+ * however it is called by public macros in this
  * file and thus must remain stable, and should not be hidden when other internal
  * functions are hidden (otherwise public macros would fail to compile).
  * @internal
  */
-U_STABLE UChar32 U_EXPORT2
+U_CAPI UChar32 U_EXPORT2
 utf8_nextCharSafeBody(const uint8_t *s, int32_t *pi, int32_t length, UChar32 c, UBool strict);
 
 /**
  * Function for handling "append code point" with error-checking.
  *
  * This is internal since it is not meant to be called directly by external clients;
- * however it is U_STABLE (not U_INTERNAL) since it is called by public macros in this
+ * however it is called by public macros in this
  * file and thus must remain stable, and should not be hidden when other internal
  * functions are hidden (otherwise public macros would fail to compile).
  * @internal
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 utf8_appendCharSafeBody(uint8_t *s, int32_t i, int32_t length, UChar32 c, UBool *pIsError);
 
 /**
  * Function for handling "previous code point" with error-checking.
  *
  * This is internal since it is not meant to be called directly by external clients;
- * however it is U_STABLE (not U_INTERNAL) since it is called by public macros in this
+ * however it is called by public macros in this
  * file and thus must remain stable, and should not be hidden when other internal
  * functions are hidden (otherwise public macros would fail to compile).
  * @internal
  */
-U_STABLE UChar32 U_EXPORT2
+U_CAPI UChar32 U_EXPORT2
 utf8_prevCharSafeBody(const uint8_t *s, int32_t start, int32_t *pi, UChar32 c, UBool strict);
 
 /**
  * Function for handling "skip backward one code point" with error-checking.
  *
  * This is internal since it is not meant to be called directly by external clients;
- * however it is U_STABLE (not U_INTERNAL) since it is called by public macros in this
+ * however it is called by public macros in this
  * file and thus must remain stable, and should not be hidden when other internal
  * functions are hidden (otherwise public macros would fail to compile).
  * @internal
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
 
 /* single-code point definitions -------------------------------------------- */
@@ -166,7 +167,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
 /**
  * Does this code unit (byte) encode a code point by itself (US-ASCII 0..0x7f)?
  * @param c 8-bit code unit (byte)
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 2.4
  */
 #define U8_IS_SINGLE(c) (((c)&0x80)==0)
@@ -174,7 +175,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
 /**
  * Is this code unit (byte) a UTF-8 lead byte? (0xC2..0xF4)
  * @param c 8-bit code unit (byte)
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 2.4
  */
 #define U8_IS_LEAD(c) ((uint8_t)((c)-0xc2)<=0x32)
@@ -183,7 +184,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
 /**
  * Is this code unit (byte) a UTF-8 trail byte? (0x80..0xBF)
  * @param c 8-bit code unit (byte)
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 2.4
  */
 #define U8_IS_TRAIL(c) ((int8_t)(c)<-0x40)
@@ -445,13 +446,13 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * "Safe" macro, checks for a valid code point.
  * If a non-ASCII code point is written, checks for sufficient space in the string.
  * If the code point is not valid or trail bytes do not fit,
- * then isError is set to TRUE.
+ * then isError is set to true.
  *
  * @param s const uint8_t * string buffer
  * @param i int32_t string offset, must be i<capacity
  * @param capacity int32_t size of the string buffer
  * @param c UChar32 code point to append
- * @param isError output UBool set to TRUE if an error occurs, otherwise not modified
+ * @param isError output UBool set to true if an error occurs, otherwise not modified
  * @see U8_APPEND_UNSAFE
  * @stable ICU 2.4
  */
@@ -472,7 +473,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
         (s)[(i)++]=(uint8_t)(((__uc>>6)&0x3f)|0x80); \
         (s)[(i)++]=(uint8_t)((__uc&0x3f)|0x80); \
     } else { \
-        (isError)=TRUE; \
+        (isError)=true; \
     } \
 } UPRV_BLOCK_MACRO_END
 

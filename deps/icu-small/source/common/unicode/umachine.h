@@ -49,12 +49,13 @@
  * ANSI C headers:
  * stddef.h defines wchar_t
  */
+#include <stdbool.h>
 #include <stddef.h>
 
 /*==========================================================================*/
-/* For C wrappers, we use the symbol U_STABLE.                                */
+/* For C wrappers, we use the symbol U_CAPI.                                */
 /* This works properly if the includer is C or C++.                         */
-/* Functions are declared   U_STABLE return-type U_EXPORT2 function-name()... */
+/* Functions are declared   U_CAPI return-type U_EXPORT2 function-name()... */
 /*==========================================================================*/
 
 /**
@@ -107,15 +108,15 @@
 
 /** This is used to declare a function as a public ICU C API @stable ICU 2.0*/
 #define U_CAPI U_CFUNC U_EXPORT
-/** This is used to declare a function as a stable public ICU C API*/
+/** Obsolete/same as U_CAPI; was used to declare a function as a stable public ICU C API*/
 #define U_STABLE U_CAPI
-/** This is used to declare a function as a draft public ICU C API  */
+/** Obsolete/same as U_CAPI; was used to declare a function as a draft public ICU C API  */
 #define U_DRAFT  U_CAPI
 /** This is used to declare a function as a deprecated public ICU C API  */
 #define U_DEPRECATED U_CAPI U_ATTRIBUTE_DEPRECATED
-/** This is used to declare a function as an obsolete public ICU C API  */
+/** Obsolete/same as U_CAPI; was used to declare a function as an obsolete public ICU C API  */
 #define U_OBSOLETE U_CAPI
-/** This is used to declare a function as an internal ICU C API  */
+/** Obsolete/same as U_CAPI; was used to declare a function as an internal ICU C API  */
 #define U_INTERNAL U_CAPI
 
 /**
@@ -170,11 +171,11 @@
 
 /**
  * \def UPRV_BLOCK_MACRO_END
- * Defined as "while (FALSE)" by default.
+ * Defined as "while (false)" by default.
  * @internal
  */
 #ifndef UPRV_BLOCK_MACRO_END
-#define UPRV_BLOCK_MACRO_END while (FALSE)
+#define UPRV_BLOCK_MACRO_END while (false)
 #endif
 
 /*==========================================================================*/
@@ -257,18 +258,59 @@
 /* Boolean data type                                                        */
 /*==========================================================================*/
 
-/** The ICU boolean type @stable ICU 2.0 */
+/**
+ * The ICU boolean type, a signed-byte integer.
+ * ICU-specific for historical reasons: The C and C++ standards used to not define type bool.
+ * Also provides a fixed type definition, as opposed to
+ * type bool whose details (e.g., sizeof) may vary by compiler and between C and C++.
+ *
+ * @stable ICU 2.0
+ */
 typedef int8_t UBool;
 
+/**
+ * \def U_DEFINE_FALSE_AND_TRUE
+ * Normally turns off defining macros FALSE=0 & TRUE=1 in public ICU headers.
+ * These obsolete macros sometimes break compilation of other code that
+ * defines enum constants or similar with these names.
+ * C++ has long defined bool/false/true.
+ * C99 also added definitions for these, although as macros; see stdbool.h.
+ *
+ * You may transitionally define U_DEFINE_FALSE_AND_TRUE=1 if you need time to migrate code.
+ *
+ * @internal ICU 68
+ */
+#ifdef U_DEFINE_FALSE_AND_TRUE
+    // Use the predefined value.
+#elif defined(U_COMBINED_IMPLEMENTATION) || \
+        defined(U_COMMON_IMPLEMENTATION) || defined(U_I18N_IMPLEMENTATION) || \
+        defined(U_IO_IMPLEMENTATION) || defined(U_LAYOUTEX_IMPLEMENTATION) || \
+        defined(U_TOOLUTIL_IMPLEMENTATION)
+    // Inside ICU: Keep FALSE & TRUE available.
+#   define U_DEFINE_FALSE_AND_TRUE 1
+#else
+    // Outside ICU: Avoid collision with non-macro definitions of FALSE & TRUE.
+#   define U_DEFINE_FALSE_AND_TRUE 0
+#endif
+
+#if U_DEFINE_FALSE_AND_TRUE || defined(U_IN_DOXYGEN)
 #ifndef TRUE
-/** The TRUE value of a UBool @stable ICU 2.0 */
+/**
+ * The TRUE value of a UBool.
+ *
+ * @deprecated ICU 68 Use standard "true" instead.
+ */
 #   define TRUE  1
 #endif
 #ifndef FALSE
-/** The FALSE value of a UBool @stable ICU 2.0 */
+/**
+ * The FALSE value of a UBool.
+ *
+ * @deprecated ICU 68 Use standard "false" instead.
+ */
 #   define FALSE 0
 #endif
-
+#endif  // U_DEFINE_FALSE_AND_TRUE
 
 /*==========================================================================*/
 /* Unicode data types                                                       */

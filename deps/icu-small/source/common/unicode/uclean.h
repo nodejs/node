@@ -49,7 +49,7 @@
  *
  * @stable ICU 2.6
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_init(UErrorCode *status);
 
 #ifndef U_HIDE_SYSTEM_API
@@ -98,7 +98,7 @@ u_init(UErrorCode *status);
  * @stable ICU 2.0
  * @system
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_cleanup(void);
 
 U_CDECL_BEGIN
@@ -148,7 +148,7 @@ typedef void  U_CALLCONV UMemFreeFn (const void *context, void *mem);
  *  @stable ICU 2.8
  *  @system
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_setMemoryFunctions(const void *context, UMemAllocFn * U_CALLCONV_FPTR a, UMemReallocFn * U_CALLCONV_FPTR r, UMemFreeFn * U_CALLCONV_FPTR f,
                     UErrorCode *status);
 

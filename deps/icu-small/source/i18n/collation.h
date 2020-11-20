@@ -356,7 +356,7 @@ public:
     }
 
     /**
-     * @return TRUE if the ce32 yields one or more CEs without further data lookups
+     * @return true if the ce32 yields one or more CEs without further data lookups
      */
     static UBool isSelfContainedCE32(uint32_t ce32) {
         return !isSpecialCE32(ce32) ||

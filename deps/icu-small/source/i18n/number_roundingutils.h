@@ -8,6 +8,7 @@
 #define __NUMBER_ROUNDINGUTILS_H__
 
 #include "number_types.h"
+#include "string_segment.h"
 
 U_NAMESPACE_BEGIN
 namespace number {
@@ -44,6 +45,9 @@ enum Section {
 inline bool
 getRoundingDirection(bool isEven, bool isNegative, Section section, RoundingMode roundingMode,
                      UErrorCode &status) {
+    if (U_FAILURE(status)) {
+        return false;
+    }
     switch (roundingMode) {
         case RoundingMode::UNUM_ROUND_UP:
             // round away from zero
@@ -187,8 +191,22 @@ class RoundingImpl {
     Precision fPrecision;
     UNumberFormatRoundingMode fRoundingMode;
     bool fPassThrough = true;  // default value
+
+    // Permits access to fPrecision.
+    friend class units::UnitsRouter;
+
+    // Permits access to fPrecision.
+    friend class UnitConversionHandler;
 };
 
+/**
+ * Parses Precision-related skeleton strings without knowledge of MacroProps
+ * - see blueprint_helpers::parseIncrementOption().
+ *
+ * Referencing MacroProps means needing to pull in the .o files that have the
+ * destructors for the SymbolsWrapper, Usage, and Scale classes.
+ */
+void parseIncrementOption(const StringSegment &segment, Precision &outPrecision, UErrorCode &status);
 
 } // namespace impl
 } // namespace number

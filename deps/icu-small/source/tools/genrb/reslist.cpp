@@ -39,6 +39,7 @@
 #include "unicode/putil.h"
 #include "errmsg.h"
 #include "filterrb.h"
+#include "toolutil.h"
 
 #include "uarrsort.h"
 #include "uelement.h"

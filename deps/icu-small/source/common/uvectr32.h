@@ -214,7 +214,7 @@ public:
 
 inline UBool UVector32::ensureCapacity(int32_t minimumCapacity, UErrorCode &status) {
     if ((minimumCapacity >= 0) && (capacity >= minimumCapacity)) {
-        return TRUE;
+        return true;
     } else {
         return expandCapacity(minimumCapacity, status);
     }
@@ -233,7 +233,7 @@ inline void UVector32::addElement(int32_t elem, UErrorCode &status) {
 }
 
 inline int32_t *UVector32::reserveBlock(int32_t size, UErrorCode &status) {
-    if (ensureCapacity(count+size, status) == FALSE) {
+    if (ensureCapacity(count+size, status) == false) {
         return NULL;
     }
     int32_t  *rp = elements+count;

@@ -44,17 +44,17 @@ U_NAMESPACE_BEGIN
 class U_COMMON_API PatternProps {
 public:
     /**
-     * @return TRUE if c is a Pattern_Syntax code point.
+     * @return true if c is a Pattern_Syntax code point.
      */
     static UBool isSyntax(UChar32 c);
 
     /**
-     * @return TRUE if c is a Pattern_Syntax or Pattern_White_Space code point.
+     * @return true if c is a Pattern_Syntax or Pattern_White_Space code point.
      */
     static UBool isSyntaxOrWhiteSpace(UChar32 c);
 
     /**
-     * @return TRUE if c is a Pattern_White_Space character.
+     * @return true if c is a Pattern_White_Space character.
      */
     static UBool isWhiteSpace(UChar32 c);
 
@@ -78,7 +78,7 @@ public:
     /**
      * Tests whether the string contains a "pattern identifier", that is,
      * whether it contains only non-Pattern_White_Space, non-Pattern_Syntax characters.
-     * @return TRUE if there are no Pattern_White_Space or Pattern_Syntax characters in s.
+     * @return true if there are no Pattern_White_Space or Pattern_Syntax characters in s.
      */
     static UBool isIdentifier(const UChar *s, int32_t length);
 

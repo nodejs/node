@@ -441,6 +441,7 @@ ures_enumDependencies(const char *itemName, const UDataInfo *pInfo,
 
 // get dependencies from conversion tables --------------------------------- ***
 
+#if !UCONFIG_NO_CONVERSION
 /* code adapted from ucnv_swap() */
 static void
 ucnv_enumDependencies(const UDataSwapper *ds,
@@ -631,5 +632,6 @@ Package::enumDependencies(Item *pItem, void *context, CheckDependency check) {
         }
     }
 }
+#endif /* UCONFIG_NO_CONVERSION */
 
 U_NAMESPACE_END

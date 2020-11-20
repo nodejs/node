@@ -26,6 +26,14 @@
 
 /* miscellaneous definitions ---------------------------------------------- */
 
+// ICU-20853=ICU-20935 Solaris #defines CS and ES in sys/regset.h
+#ifdef CS
+#   undef CS
+#endif
+#ifdef ES
+#   undef ES
+#endif
+
 typedef uint8_t DirProp;
 typedef uint32_t Flags;
 
@@ -451,26 +459,26 @@ ubidi_getMemory(BidiMemoryForAllocation *pMemory, int32_t *pSize, UBool mayAlloc
 /* additional macros used by ubidi_open() - always allow allocation */
 #define getInitialDirPropsMemory(pBiDi, length) \
         ubidi_getMemory((BidiMemoryForAllocation *)&(pBiDi)->dirPropsMemory, &(pBiDi)->dirPropsSize, \
-                        TRUE, (length))
+                        true, (length))
 
 #define getInitialLevelsMemory(pBiDi, length) \
         ubidi_getMemory((BidiMemoryForAllocation *)&(pBiDi)->levelsMemory, &(pBiDi)->levelsSize, \
-                        TRUE, (length))
+                        true, (length))
 
 #define getInitialOpeningsMemory(pBiDi, length) \
         ubidi_getMemory((BidiMemoryForAllocation *)&(pBiDi)->openingsMemory, &(pBiDi)->openingsSize, \
-                        TRUE, (length)*sizeof(Opening))
+                        true, (length)*sizeof(Opening))
 
 #define getInitialParasMemory(pBiDi, length) \
         ubidi_getMemory((BidiMemoryForAllocation *)&(pBiDi)->parasMemory, &(pBiDi)->parasSize, \
-                        TRUE, (length)*sizeof(Para))
+                        true, (length)*sizeof(Para))
 
 #define getInitialRunsMemory(pBiDi, length) \
         ubidi_getMemory((BidiMemoryForAllocation *)&(pBiDi)->runsMemory, &(pBiDi)->runsSize, \
-                        TRUE, (length)*sizeof(Run))
+                        true, (length)*sizeof(Run))
 
 #define getInitialIsolatesMemory(pBiDi, length) \
         ubidi_getMemory((BidiMemoryForAllocation *)&(pBiDi)->isolatesMemory, &(pBiDi)->isolatesSize, \
-                        TRUE, (length)*sizeof(Isolate))
+                        true, (length)*sizeof(Isolate))
 
 #endif

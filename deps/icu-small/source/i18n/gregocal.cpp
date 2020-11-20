@@ -185,7 +185,7 @@ fIsGregorian(TRUE), fInvertGregorian(FALSE)
 // -------------------------------------
 
 GregorianCalendar::GregorianCalendar(const Locale& aLocale, UErrorCode& status)
-:   Calendar(TimeZone::createDefault(), aLocale, status),
+:   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, status),
 fGregorianCutover(kPapalCutover),
 fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
 fIsGregorian(TRUE), fInvertGregorian(FALSE)

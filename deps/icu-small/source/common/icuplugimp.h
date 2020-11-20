@@ -36,7 +36,7 @@
  * @return the library pointer, or NULL
  * @internal internal use only
  */
-U_INTERNAL void * U_EXPORT2
+U_CAPI void * U_EXPORT2
 uplug_openLibrary(const char *libName, UErrorCode *status);
 
 /**
@@ -45,7 +45,7 @@ uplug_openLibrary(const char *libName, UErrorCode *status);
  * @param status error code
  * @internal internal use only
  */
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 uplug_closeLibrary(void *lib, UErrorCode *status);
 
 /**
@@ -55,7 +55,7 @@ uplug_closeLibrary(void *lib, UErrorCode *status);
  * @return the library name, or NULL if not found.
  * @internal internal use only
  */
-U_INTERNAL  char * U_EXPORT2
+U_CAPI  char * U_EXPORT2
 uplug_findLibrary(void *lib, UErrorCode *status);
 
 /** @} */
@@ -69,21 +69,21 @@ uplug_findLibrary(void *lib, UErrorCode *status);
  * @param status error result
  * @internal - Internal use only.
  */
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 uplug_init(UErrorCode *status);
 
 /**
  * Get raw plug N
  * @internal - Internal use only
  */
-U_INTERNAL UPlugData* U_EXPORT2
+U_CAPI UPlugData* U_EXPORT2
 uplug_getPlugInternal(int32_t n);
 
 /**
  * Get the name of the plugin file.
  * @internal - Internal use only.
  */
-U_INTERNAL const char* U_EXPORT2
+U_CAPI const char* U_EXPORT2
 uplug_getPluginFile(void);
 
 /** @} */

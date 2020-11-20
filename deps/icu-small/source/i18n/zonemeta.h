@@ -59,7 +59,7 @@ public:
      * is not associated with a country, return bogus string.
      * @param tzid Zone ID
      * @param country [output] Country code
-     * @param isPrimary [output] TRUE if the zone is the primary zone for the country
+     * @param isPrimary [output] true if the zone is the primary zone for the country
      * @return A reference to the result country
      */
     static UnicodeString& U_EXPORT2 getCanonicalCountry(const UnicodeString &tzid, UnicodeString &country, UBool *isPrimary = NULL);

@@ -197,58 +197,60 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
         }
 
         // Process final rule and data, if any
-        const UChar *ruleIdUStr = ures_getStringByKey(res, kFINALRULE, &len, &ec);
-        ures_getByKey(res, kFINALRAW, r.getAlias(), &ec);
-        int32_t ruleRaw = ures_getInt(r.getAlias(), &ec);
-        ures_getByKey(res, kFINALYEAR, r.getAlias(), &ec);
-        int32_t ruleYear = ures_getInt(r.getAlias(), &ec);
         if (U_SUCCESS(ec)) {
-            UnicodeString ruleID(TRUE, ruleIdUStr, len);
-            UResourceBundle *rule = TimeZone::loadRule(top, ruleID, NULL, ec);
-            const int32_t *ruleData = ures_getIntVector(rule, &len, &ec);
-            if (U_SUCCESS(ec) && len == 11) {
-                UnicodeString emptyStr;
-                finalZone = new SimpleTimeZone(
-                    ruleRaw * U_MILLIS_PER_SECOND,
-                    emptyStr,
-                    (int8_t)ruleData[0], (int8_t)ruleData[1], (int8_t)ruleData[2],
-                    ruleData[3] * U_MILLIS_PER_SECOND,
-                    (SimpleTimeZone::TimeMode) ruleData[4],
-                    (int8_t)ruleData[5], (int8_t)ruleData[6], (int8_t)ruleData[7],
-                    ruleData[8] * U_MILLIS_PER_SECOND,
-                    (SimpleTimeZone::TimeMode) ruleData[9],
-                    ruleData[10] * U_MILLIS_PER_SECOND, ec);
-                if (finalZone == NULL) {
-                    ec = U_MEMORY_ALLOCATION_ERROR;
+            const UChar *ruleIdUStr = ures_getStringByKey(res, kFINALRULE, &len, &ec);
+            ures_getByKey(res, kFINALRAW, r.getAlias(), &ec);
+            int32_t ruleRaw = ures_getInt(r.getAlias(), &ec);
+            ures_getByKey(res, kFINALYEAR, r.getAlias(), &ec);
+            int32_t ruleYear = ures_getInt(r.getAlias(), &ec);
+            if (U_SUCCESS(ec)) {
+                UnicodeString ruleID(TRUE, ruleIdUStr, len);
+                UResourceBundle *rule = TimeZone::loadRule(top, ruleID, NULL, ec);
+                const int32_t *ruleData = ures_getIntVector(rule, &len, &ec);
+                if (U_SUCCESS(ec) && len == 11) {
+                    UnicodeString emptyStr;
+                    finalZone = new SimpleTimeZone(
+                        ruleRaw * U_MILLIS_PER_SECOND,
+                        emptyStr,
+                        (int8_t)ruleData[0], (int8_t)ruleData[1], (int8_t)ruleData[2],
+                        ruleData[3] * U_MILLIS_PER_SECOND,
+                        (SimpleTimeZone::TimeMode) ruleData[4],
+                        (int8_t)ruleData[5], (int8_t)ruleData[6], (int8_t)ruleData[7],
+                        ruleData[8] * U_MILLIS_PER_SECOND,
+                        (SimpleTimeZone::TimeMode) ruleData[9],
+                        ruleData[10] * U_MILLIS_PER_SECOND, ec);
+                    if (finalZone == NULL) {
+                        ec = U_MEMORY_ALLOCATION_ERROR;
+                    } else {
+                        finalStartYear = ruleYear;
+
+                        // Note: Setting finalStartYear to the finalZone is problematic.  When a date is around
+                        // year boundary, SimpleTimeZone may return false result when DST is observed at the
+                        // beginning of year.  We could apply safe margin (day or two), but when one of recurrent
+                        // rules falls around year boundary, it could return false result.  Without setting the
+                        // start year, finalZone works fine around the year boundary of the start year.
+
+                        // finalZone->setStartYear(finalStartYear);
+
+
+                        // Compute the millis for Jan 1, 0:00 GMT of the finalYear
+
+                        // Note: finalStartMillis is used for detecting either if
+                        // historic transition data or finalZone to be used.  In an
+                        // extreme edge case - for example, two transitions fall into
+                        // small windows of time around the year boundary, this may
+                        // result incorrect offset computation.  But I think it will
+                        // never happen practically.  Yoshito - Feb 20, 2010
+                        finalStartMillis = Grego::fieldsToDay(finalStartYear, 0, 1) * U_MILLIS_PER_DAY;
+                    }
                 } else {
-                    finalStartYear = ruleYear;
-
-                    // Note: Setting finalStartYear to the finalZone is problematic.  When a date is around
-                    // year boundary, SimpleTimeZone may return false result when DST is observed at the
-                    // beginning of year.  We could apply safe margin (day or two), but when one of recurrent
-                    // rules falls around year boundary, it could return false result.  Without setting the
-                    // start year, finalZone works fine around the year boundary of the start year.
-
-                    // finalZone->setStartYear(finalStartYear);
-
-
-                    // Compute the millis for Jan 1, 0:00 GMT of the finalYear
-
-                    // Note: finalStartMillis is used for detecting either if
-                    // historic transition data or finalZone to be used.  In an
-                    // extreme edge case - for example, two transitions fall into
-                    // small windows of time around the year boundary, this may
-                    // result incorrect offset computation.  But I think it will
-                    // never happen practically.  Yoshito - Feb 20, 2010
-                    finalStartMillis = Grego::fieldsToDay(finalStartYear, 0, 1) * U_MILLIS_PER_DAY;
+                    ec = U_INVALID_FORMAT_ERROR;
                 }
-            } else {
-                ec = U_INVALID_FORMAT_ERROR;
+                ures_close(rule);
+            } else if (ec == U_MISSING_RESOURCE_ERROR) {
+                // No final zone
+                ec = U_ZERO_ERROR;
             }
-            ures_close(rule);
-        } else if (ec == U_MISSING_RESOURCE_ERROR) {
-            // No final zone
-            ec = U_ZERO_ERROR;
         }
 
         // initialize canonical ID

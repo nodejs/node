@@ -355,7 +355,7 @@ public:
               fNumCopies(0), fNumUnitsSaved(0), fNumCharsForLength(numCharsForLength) {
         // v3 pool string encoded as string-v2 with low offset
         fRes = URES_MAKE_RESOURCE(URES_STRING_V2, poolStringIndex);
-        fWritten = TRUE;
+        fWritten = true;
     }
     virtual ~StringResource();
 

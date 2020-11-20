@@ -707,6 +707,7 @@ ucase_isCaseSensitive(UChar32 c) {
 #define is_r(c) ((c)=='r' || (c)=='R')
 #define is_t(c) ((c)=='t' || (c)=='T')
 #define is_u(c) ((c)=='u' || (c)=='U')
+#define is_y(c) ((c)=='y' || (c)=='Y')
 #define is_z(c) ((c)=='z' || (c)=='Z')
 
 /* separator? */
@@ -804,6 +805,18 @@ ucase_getCaseLocale(const char *locale) {
                     return UCASE_LOC_DUTCH;
                 }
             }
+        } else if(c=='h') {
+            /* hy or hye? *not* hyw */
+            c=*locale++;
+            if(is_y(c)) {
+                c=*locale++;
+                if(is_e(c)) {
+                    c=*locale;
+                }
+                if(is_sep(c)) {
+                    return UCASE_LOC_ARMENIAN;
+                }
+            }
         }
     } else {
         // uppercase c
@@ -866,6 +879,18 @@ ucase_getCaseLocale(const char *locale) {
                 }
                 if(is_sep(c)) {
                     return UCASE_LOC_DUTCH;
+                }
+            }
+        } else if(c=='H') {
+            /* hy or hye? *not* hyw */
+            c=*locale++;
+            if(is_y(c)) {
+                c=*locale++;
+                if(is_e(c)) {
+                    c=*locale;
+                }
+                if(is_sep(c)) {
+                    return UCASE_LOC_ARMENIAN;
                 }
             }
         }
@@ -1229,6 +1254,17 @@ toUpperOrTitle(UChar32 c,
                  */
                 *pString=nullptr;
                 return 0; /* remove the dot (continue without output) */
+            } else if(c==0x0587) {
+                // See ICU-13416:
+                // և ligature ech-yiwn
+                // uppercases to ԵՒ=ech+yiwn by default and in Western Armenian,
+                // but to ԵՎ=ech+vew in Eastern Armenian.
+                if(loc==UCASE_LOC_ARMENIAN) {
+                    *pString=upperNotTitle ? u"ԵՎ" : u"Եվ";
+                } else {
+                    *pString=upperNotTitle ? u"ԵՒ" : u"Եւ";
+                }
+                return 2;
             } else {
                 /* no known conditional special case mapping, use a normal mapping */
             }

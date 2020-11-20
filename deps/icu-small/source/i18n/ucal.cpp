@@ -91,7 +91,7 @@ ucal_setDefaultTimeZone(const UChar* zoneID, UErrorCode* ec) {
     }
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucal_getHostTimeZone(UChar* result, int32_t resultCapacity, UErrorCode* ec) {
     int32_t len = 0;
     if (ec != NULL && U_SUCCESS(*ec)) {

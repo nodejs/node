@@ -46,7 +46,7 @@ typedef union UElement UElement;
  * An element-equality (boolean) comparison function.
  * @param e1 An element (object or integer)
  * @param e2 An element (object or integer)
- * @return TRUE if the two elements are equal.
+ * @return true if the two elements are equal.
  */
 typedef UBool U_CALLCONV UElementsAreEqual(const UElement e1, const UElement e2);
 

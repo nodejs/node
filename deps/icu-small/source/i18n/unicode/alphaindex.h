@@ -549,14 +549,14 @@ public:
 
 
     /**
-     *   Advance the iteration over the Buckets of this index.  Return FALSE if
+     *   Advance the iteration over the Buckets of this index.  Return false if
      *   there are no more Buckets.
      *
      *   @param status  Error code, will be set with the reason if the operation fails.
      *   U_ENUM_OUT_OF_SYNC_ERROR will be reported if the index is modified while
      *   an enumeration of its contents are in process.
      *
-     *   @return TRUE if success, FALSE if at end of iteration
+     *   @return true if success, false if at end of iteration
      *   @stable ICU 4.8
      */
     virtual UBool nextBucket(UErrorCode &status);
@@ -609,7 +609,7 @@ public:
      *   @param status  Error code, will be set with the reason if the operation fails.
      *   U_ENUM_OUT_OF_SYNC_ERROR will be reported if the index is modified while
      *   an enumeration of its contents are in process.
-     *   @return TRUE if successful, FALSE when the iteration advances past the last item.
+     *   @return true if successful, false when the iteration advances past the last item.
      *   @stable ICU 4.8
      */
     virtual UBool nextRecord(UErrorCode &status);

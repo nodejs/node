@@ -449,7 +449,7 @@ typedef enum UTimeScaleValue {
  *
  * @stable ICU 3.2
  */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
     utmscale_getTimeScaleValue(UDateTimeScale timeScale, UTimeScaleValue value, UErrorCode *status);
 
 /* Conversion to 'universal time scale' */
@@ -465,7 +465,7 @@ U_STABLE int64_t U_EXPORT2
  *
  * @stable ICU 3.2
  */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
     utmscale_fromInt64(int64_t otherTime, UDateTimeScale timeScale, UErrorCode *status);
 
 /* Conversion from 'universal time scale' */
@@ -481,7 +481,7 @@ U_STABLE int64_t U_EXPORT2
  *
  * @stable ICU 3.2
  */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
     utmscale_toInt64(int64_t universalTime, UDateTimeScale timeScale, UErrorCode *status);
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

@@ -1600,10 +1600,7 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
     appendSubtag(result, 'Z', subtag, length, errorCode);
 
     if(U_FAILURE(errorCode)) { return 0; }
-    if(result.length() <= capacity) {
-        uprv_memcpy(buffer, result.data(), result.length());
-    }
-    return u_terminateChars(buffer, capacity, result.length(), &errorCode);
+    return result.extract(buffer, capacity, errorCode);
 }
 
 UBool

@@ -309,7 +309,7 @@ class U_I18N_API MeasureFormat : public Format {
     /**
      * ICU use only.
      * Allows subclass to change locale. Note that this method also changes
-     * the NumberFormat object. Returns TRUE if locale changed; FALSE if no
+     * the NumberFormat object. Returns true if locale changed; false if no
      * change was made.
      * @internal.
      */

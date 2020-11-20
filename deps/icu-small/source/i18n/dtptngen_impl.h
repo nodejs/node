@@ -195,7 +195,7 @@ public:
     void getQuoteLiteral(UnicodeString& quote, int32_t *itemIndex);
     UBool isPatternSeparator(const UnicodeString& field) const;
     static UBool isQuoteLiteral(const UnicodeString& s);
-    static int32_t getCanonicalIndex(const UnicodeString& s) { return getCanonicalIndex(s, TRUE); }
+    static int32_t getCanonicalIndex(const UnicodeString& s) { return getCanonicalIndex(s, true); }
     static int32_t getCanonicalIndex(const UnicodeString& s, UBool strict);
 
 private:

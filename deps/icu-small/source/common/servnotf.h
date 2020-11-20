@@ -105,7 +105,7 @@ public:
 
 protected:
     /**
-     * Subclasses implement this to return TRUE if the listener is
+     * Subclasses implement this to return true if the listener is
      * of the appropriate type.
      */
     virtual UBool acceptsListener(const EventListener& l) const = 0;

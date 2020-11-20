@@ -30,8 +30,6 @@ U_NAMESPACE_BEGIN
 // -------------------------------------
 // Creates a formattable object with a char* string.
 // This API is useless. The API that takes a UnicodeString is actually just as good.
-// This is just a grandfathered API.
-
 Formattable::Formattable(const char* stringToCopy)
 {
     init();

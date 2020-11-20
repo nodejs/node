@@ -460,13 +460,13 @@ UTrieEnumValue(const void *context, uint32_t value);
  * of code points with the same value as retrieved from the trie and
  * transformed by the UTrieEnumValue function.
  *
- * The callback function can stop the enumeration by returning FALSE.
+ * The callback function can stop the enumeration by returning false.
  *
  * @param context an opaque pointer, as passed into utrie_enum()
  * @param start the first code point in a contiguous range with value
  * @param limit one past the last code point in a contiguous range with value
  * @param value the value that is set for all code points in [start..limit[
- * @return FALSE to stop the enumeration
+ * @return false to stop the enumeration
  */
 typedef UBool U_CALLCONV
 UTrieEnumRange(const void *context, UChar32 start, UChar32 limit, uint32_t value);
@@ -667,7 +667,7 @@ utrie_getData(UNewTrie *trie, int32_t *pLength);
  * @param trie the build-time trie
  * @param c the code point
  * @param value the value
- * @return FALSE if a failure occurred (illegal argument or data array overrun)
+ * @return false if a failure occurred (illegal argument or data array overrun)
  */
 U_CAPI UBool U_EXPORT2
 utrie_set32(UNewTrie *trie, UChar32 c, uint32_t value);
@@ -677,7 +677,7 @@ utrie_set32(UNewTrie *trie, UChar32 c, uint32_t value);
  *
  * @param trie the build-time trie
  * @param c the code point
- * @param pInBlockZero if not NULL, then *pInBlockZero is set to TRUE
+ * @param pInBlockZero if not NULL, then *pInBlockZero is set to true
  *                     iff the value is retrieved from block 0;
  *                     block 0 is the all-initial-value initial block
  * @return the value
@@ -688,14 +688,14 @@ utrie_get32(UNewTrie *trie, UChar32 c, UBool *pInBlockZero);
 /**
  * Set a value in a range of code points [start..limit[.
  * All code points c with start<=c<limit will get the value if
- * overwrite is TRUE or if the old value is 0.
+ * overwrite is true or if the old value is 0.
  *
  * @param trie the build-time trie
  * @param start the first code point to get the value
  * @param limit one past the last code point to get the value
  * @param value the value
  * @param overwrite flag for whether old non-initial values are to be overwritten
- * @return FALSE if a failure occurred (illegal argument or data array overrun)
+ * @return false if a failure occurred (illegal argument or data array overrun)
  */
 U_CAPI UBool U_EXPORT2
 utrie_setRange32(UNewTrie *trie, UChar32 start, UChar32 limit, uint32_t value, UBool overwrite);

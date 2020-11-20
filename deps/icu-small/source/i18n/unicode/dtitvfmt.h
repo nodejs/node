@@ -31,6 +31,7 @@
 #include "unicode/dtitvinf.h"
 #include "unicode/dtptngen.h"
 #include "unicode/formattedvalue.h"
+#include "unicode/udisplaycontext.h"
 
 U_NAMESPACE_BEGIN
 
@@ -651,6 +652,34 @@ public:
      */
     virtual void setTimeZone(const TimeZone& zone);
 
+#ifndef U_FORCE_HIDE_DRAFT_API
+    /**
+     * Set a particular UDisplayContext value in the formatter, such as
+     * UDISPCTX_CAPITALIZATION_FOR_STANDALONE. This causes the formatted
+     * result to be capitalized appropriately for the context in which
+     * it is intended to be used, considering both the locale and the
+     * type of field at the beginning of the formatted result.
+     * @param value The UDisplayContext value to set.
+     * @param status Input/output status. If at entry this indicates a failure
+     *               status, the function will do nothing; otherwise this will be
+     *               updated with any new status from the function.
+     * @draft ICU 68
+     */
+    virtual void setContext(UDisplayContext value, UErrorCode& status);
+
+    /**
+     * Get the formatter's UDisplayContext value for the specified UDisplayContextType,
+     * such as UDISPCTX_TYPE_CAPITALIZATION.
+     * @param type The UDisplayContextType whose value to return
+     * @param status Input/output status. If at entry this indicates a failure
+     *               status, the function will do nothing; otherwise this will be
+     *               updated with any new status from the function.
+     * @return The UDisplayContextValue for the specified type.
+     * @draft ICU 68
+     */
+    virtual UDisplayContext getContext(UDisplayContextType type, UErrorCode& status) const;
+#endif  // U_FORCE_HIDE_DRAFT_API
+
     /**
      * Return the class ID for this class. This is useful only for comparing to
      * a return value from getDynamicClassID(). For example:
@@ -796,7 +825,7 @@ private:
      *                          to be formatted into date interval string
      * @param toCalendar        calendar set to the to date in date interval
      *                          to be formatted into date interval string
-     * @param fromToOnSameDay   TRUE iff from and to dates are on the same day
+     * @param fromToOnSameDay   true iff from and to dates are on the same day
      *                          (any difference is in ampm/hours or below)
      * @param appendTo          Output parameter to receive result.
      *                          Result is appended to existing contents.
@@ -868,6 +897,19 @@ private:
 
 
     /**
+     * Converts special hour metacharacters (such as 'j') in the skeleton into locale-appropriate
+     * pattern characters.
+     *
+     *
+     *  @param skeleton               The skeleton to convert
+     *  @return A copy of the skeleton, which "j" and any other special hour metacharacters converted to the regular ones.
+     *
+     */
+    UnicodeString normalizeHourMetacharacters(const UnicodeString& skeleton) const;
+
+
+
+    /**
      * get separated date and time skeleton from a combined skeleton.
      *
      * The difference between date skeleton and normalizedDateSkeleton are:
@@ -919,8 +961,8 @@ private:
      * @param dateSkeleton   normalized date skeleton
      * @param timeSkeleton   normalized time skeleton
      * @return               whether the resource is found for the skeleton.
-     *                       TRUE if interval pattern found for the skeleton,
-     *                       FALSE otherwise.
+     *                       true if interval pattern found for the skeleton,
+     *                       false otherwise.
      */
     UBool setSeparateDateTimePtn(const UnicodeString& dateSkeleton,
                                  const UnicodeString& timeSkeleton);
@@ -948,8 +990,8 @@ private:
      * @param extendedBestSkeleton  extended best match skeleton
      * @return                      whether the interval pattern is found
      *                              through extending skeleton or not.
-     *                              TRUE if interval pattern is found by
-     *                              extending skeleton, FALSE otherwise.
+     *                              true if interval pattern is found by
+     *                              extending skeleton, false otherwise.
      */
     UBool setIntervalPattern(UCalendarDateFields field,
                              const UnicodeString* skeleton,
@@ -984,6 +1026,7 @@ private:
      * @param differenceInfo           the difference between 2 skeletons
      *                                 1 means only field width differs
      *                                 2 means v/z exchange
+     * @param suppressDayPeriodField if true, remove the day period field from the pattern, if there is one
      * @param adjustedIntervalPattern  adjusted interval pattern
      */
     static void U_EXPORT2 adjustFieldWidth(
@@ -991,6 +1034,7 @@ private:
                             const UnicodeString& bestMatchSkeleton,
                             const UnicodeString& bestMatchIntervalPattern,
                             int8_t differenceInfo,
+                            UBool suppressDayPeriodField,
                             UnicodeString& adjustedIntervalPattern);
 
     /**
@@ -1137,6 +1181,11 @@ private:
     UnicodeString* fDatePattern;
     UnicodeString* fTimePattern;
     UnicodeString* fDateTimeFormat;
+
+    /**
+     * Other formatting information
+     */
+    UDisplayContext fCapitalizationContext;
 };
 
 inline UBool

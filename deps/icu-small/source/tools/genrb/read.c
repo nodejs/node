@@ -20,6 +20,7 @@
 
 #include "read.h"
 #include "errmsg.h"
+#include "toolutil.h"
 #include "unicode/ustring.h"
 #include "unicode/utf16.h"
 

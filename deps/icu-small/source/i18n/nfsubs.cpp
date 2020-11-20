@@ -342,7 +342,7 @@ NFSubstitution::makeSubstitution(int32_t pos,
         // IntegralPartSubstitution
         else if (rule->getBaseValue() == NFRule::kImproperFractionRule
             || rule->getBaseValue() == NFRule::kProperFractionRule
-            || rule->getBaseValue() == NFRule::kMasterRule) {
+            || rule->getBaseValue() == NFRule::kDefaultRule) {
             return new IntegralPartSubstitution(pos, ruleSet, description, status);
         }
 
@@ -371,7 +371,7 @@ NFSubstitution::makeSubstitution(int32_t pos,
         // FractionalPartSubstitution
         else if (rule->getBaseValue() == NFRule::kImproperFractionRule
             || rule->getBaseValue() == NFRule::kProperFractionRule
-            || rule->getBaseValue() == NFRule::kMasterRule) {
+            || rule->getBaseValue() == NFRule::kDefaultRule) {
             return new FractionalPartSubstitution(pos, ruleSet, description, status);
         }
 

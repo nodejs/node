@@ -53,10 +53,10 @@
  *
  * <h2>Architecture (User's Guide)</h2>
  * <ul>
- *   <li><a href="http://userguide.icu-project.org/">Introduction</a></li>
- *   <li><a href="http://userguide.icu-project.org/i18n">Internationalization</a></li>
- *   <li><a href="http://userguide.icu-project.org/design">Locale Model, Multithreading, Error Handling, etc.</a></li>
- *   <li><a href="http://userguide.icu-project.org/conversion">Conversion</a></li>
+ *   <li><a href="https://unicode-org.github.io/icu/userguide/">Introduction</a></li>
+ *   <li><a href="https://unicode-org.github.io/icu/userguide/i18n">Internationalization</a></li>
+ *   <li><a href="https://unicode-org.github.io/icu/userguide/design">Locale Model, Multithreading, Error Handling, etc.</a></li>
+ *   <li><a href="https://unicode-org.github.io/icu/userguide/conversion">Conversion</a></li>
  * </ul>
  *
  * <hr>
@@ -149,7 +149,7 @@
  *   </tr>
  *   <tr>
  *     <td>Number Range Formatting<br />(includes currency and unit ranges)</td>
- *     <td>(no C API)</td>
+ *     <td>unumberrangeformatter.h</td>
  *     <td>icu::number::NumberRangeFormatter</td>
  *   </tr>
  *   <tr>

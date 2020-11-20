@@ -23,7 +23,7 @@
  * This file defines macros to deal with 16-bit Unicode (UTF-16) code units and strings.
  *
  * For more information see utf.h and the ICU User Guide Strings chapter
- * (http://userguide.icu-project.org/strings).
+ * (https://unicode-org.github.io/icu/userguide/strings).
  *
  * <em>Usage:</em>
  * ICU coding guidelines for if() statements should be followed when using these macros.
@@ -34,6 +34,7 @@
 #ifndef __UTF16_H__
 #define __UTF16_H__
 
+#include <stdbool.h>
 #include "unicode/umachine.h"
 #ifndef __UTF_H__
 #   include "unicode/utf.h"
@@ -44,7 +45,7 @@
 /**
  * Does this code unit alone encode a code point (BMP, not a surrogate)?
  * @param c 16-bit code unit
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 2.4
  */
 #define U16_IS_SINGLE(c) !U_IS_SURROGATE(c)
@@ -52,7 +53,7 @@
 /**
  * Is this code unit a lead surrogate (U+d800..U+dbff)?
  * @param c 16-bit code unit
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 2.4
  */
 #define U16_IS_LEAD(c) (((c)&0xfffffc00)==0xd800)
@@ -60,7 +61,7 @@
 /**
  * Is this code unit a trail surrogate (U+dc00..U+dfff)?
  * @param c 16-bit code unit
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 2.4
  */
 #define U16_IS_TRAIL(c) (((c)&0xfffffc00)==0xdc00)
@@ -68,7 +69,7 @@
 /**
  * Is this code unit a surrogate (U+d800..U+dfff)?
  * @param c 16-bit code unit
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 2.4
  */
 #define U16_IS_SURROGATE(c) U_IS_SURROGATE(c)
@@ -77,7 +78,7 @@
  * Assuming c is a surrogate code point (U16_IS_SURROGATE(c)),
  * is it a lead surrogate?
  * @param c 16-bit code unit
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 2.4
  */
 #define U16_IS_SURROGATE_LEAD(c) (((c)&0x400)==0)
@@ -86,7 +87,7 @@
  * Assuming c is a surrogate code point (U16_IS_SURROGATE(c)),
  * is it a trail surrogate?
  * @param c 16-bit code unit
- * @return TRUE or FALSE
+ * @return true or false
  * @stable ICU 4.2
  */
 #define U16_IS_SURROGATE_TRAIL(c) (((c)&0x400)!=0)
@@ -379,13 +380,13 @@
  * "Safe" macro, checks for a valid code point.
  * If a surrogate pair is written, checks for sufficient space in the string.
  * If the code point is not valid or a trail surrogate does not fit,
- * then isError is set to TRUE.
+ * then isError is set to true.
  *
  * @param s const UChar * string buffer
  * @param i string offset, must be i<capacity
  * @param capacity size of the string buffer
  * @param c code point to append
- * @param isError output UBool set to TRUE if an error occurs, otherwise not modified
+ * @param isError output UBool set to true if an error occurs, otherwise not modified
  * @see U16_APPEND_UNSAFE
  * @stable ICU 2.4
  */
@@ -396,7 +397,7 @@
         (s)[(i)++]=(uint16_t)(((c)>>10)+0xd7c0); \
         (s)[(i)++]=(uint16_t)(((c)&0x3ff)|0xdc00); \
     } else /* c>0x10ffff or not enough space */ { \
-        (isError)=TRUE; \
+        (isError)=true; \
     } \
 } UPRV_BLOCK_MACRO_END
 

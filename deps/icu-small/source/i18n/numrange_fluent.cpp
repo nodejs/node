@@ -12,6 +12,7 @@
 #include "numrange_impl.h"
 #include "util.h"
 #include "number_utypes.h"
+#include "number_decnum.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -373,30 +374,6 @@ LocalizedNumberRangeFormatter::getFormatter(UErrorCode& status) const {
     }
 
 }
-
-
-UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(FormattedNumberRange)
-
-#define UPRV_NOARG
-
-UnicodeString FormattedNumberRange::getFirstDecimal(UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
-    return fData->quantity1.toScientificString();
-}
-
-UnicodeString FormattedNumberRange::getSecondDecimal(UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
-    return fData->quantity2.toScientificString();
-}
-
-UNumberRangeIdentityResult FormattedNumberRange::getIdentityResult(UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(UNUM_IDENTITY_RESULT_NOT_EQUAL)
-    return fData->identityResult;
-}
-
-
-UFormattedNumberRangeData::~UFormattedNumberRangeData() = default;
-
 
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

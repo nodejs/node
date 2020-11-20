@@ -248,7 +248,7 @@ u_charMirror(UChar32 c) {
     return ubidi_getMirror(c);
 }
 
-U_STABLE UChar32 U_EXPORT2
+U_CAPI UChar32 U_EXPORT2
 u_getBidiPairedBracket(UChar32 c) {
     return ubidi_getPairedBracket(c);
 }

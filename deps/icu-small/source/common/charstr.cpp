@@ -20,6 +20,7 @@
 #include "cmemory.h"
 #include "cstring.h"
 #include "uinvchar.h"
+#include "ustr_imp.h"
 
 U_NAMESPACE_BEGIN
 
@@ -44,6 +45,19 @@ char *CharString::cloneData(UErrorCode &errorCode) const {
     }
     uprv_memcpy(p, buffer.getAlias(), len + 1);
     return p;
+}
+
+int32_t CharString::extract(char *dest, int32_t capacity, UErrorCode &errorCode) const {
+    if (U_FAILURE(errorCode)) { return len; }
+    if (capacity < 0 || (capacity > 0 && dest == nullptr)) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return len;
+    }
+    const char *src = buffer.getAlias();
+    if (0 < len && len <= capacity && src != dest) {
+        uprv_memcpy(dest, src, len);
+    }
+    return u_terminateChars(dest, capacity, len, &errorCode);
 }
 
 CharString &CharString::copyFrom(const CharString &s, UErrorCode &errorCode) {
@@ -197,7 +211,7 @@ CharString &CharString::appendPathPart(StringPiece s, UErrorCode &errorCode) {
     }
     char c;
     if(len>0 && (c=buffer[len-1])!=U_FILE_SEP_CHAR && c!=U_FILE_ALT_SEP_CHAR) {
-        append(U_FILE_SEP_CHAR, errorCode);
+        append(getDirSepChar(), errorCode);
     }
     append(s, errorCode);
     return *this;
@@ -207,9 +221,19 @@ CharString &CharString::ensureEndsWithFileSeparator(UErrorCode &errorCode) {
     char c;
     if(U_SUCCESS(errorCode) && len>0 &&
             (c=buffer[len-1])!=U_FILE_SEP_CHAR && c!=U_FILE_ALT_SEP_CHAR) {
-        append(U_FILE_SEP_CHAR, errorCode);
+        append(getDirSepChar(), errorCode);
     }
     return *this;
+}
+
+char CharString::getDirSepChar() const {
+    char dirSepChar = U_FILE_SEP_CHAR;
+#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
+    // We may need to return a different directory separator when building for Cygwin or MSYS2.
+    if(len>0 && !uprv_strchr(data(), U_FILE_SEP_CHAR) && uprv_strchr(data(), U_FILE_ALT_SEP_CHAR))
+        dirSepChar = U_FILE_ALT_SEP_CHAR;
+#endif
+    return dirSepChar;
 }
 
 U_NAMESPACE_END

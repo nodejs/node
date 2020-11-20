@@ -89,7 +89,7 @@ struct UBiDiTransform {
     uint32_t                letters;            /* letter option for ArabicShaping */
 };
 
-U_DRAFT UBiDiTransform* U_EXPORT2
+U_CAPI UBiDiTransform* U_EXPORT2
 ubiditransform_open(UErrorCode *pErrorCode)
 {
     UBiDiTransform *pBiDiTransform = NULL;
@@ -102,7 +102,7 @@ ubiditransform_open(UErrorCode *pErrorCode)
     return pBiDiTransform;
 }
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 ubiditransform_close(UBiDiTransform *pBiDiTransform)
 {
     if (pBiDiTransform != NULL) {
@@ -434,7 +434,7 @@ findMatchingScheme(UBiDiLevel inLevel, UBiDiLevel outLevel,
     return NULL;
 }
 
-U_DRAFT uint32_t U_EXPORT2
+U_CAPI uint32_t U_EXPORT2
 ubiditransform_transform(UBiDiTransform *pBiDiTransform,
             const UChar *src, int32_t srcLength,
             UChar *dest, int32_t destSize,

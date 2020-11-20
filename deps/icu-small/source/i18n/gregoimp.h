@@ -148,9 +148,9 @@ class ClockMath {
 class Grego {
  public:
     /**
-     * Return TRUE if the given year is a leap year.
+     * Return true if the given year is a leap year.
      * @param year Gregorian year, with 0 == 1 BCE, -1 == 2 BCE, etc.
-     * @return TRUE if the year is a leap year
+     * @return true if the year is a leap year
      */
     static inline UBool isLeapYear(int32_t year);
 

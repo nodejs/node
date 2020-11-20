@@ -52,10 +52,12 @@ public:
 
     virtual PatternHandler* clone() const { return new PatternHandler(twoPattern, endPattern); }
 
+    /** Argument: final string in the list. */
     virtual const SimpleFormatter& getTwoPattern(const UnicodeString&) const {
         return twoPattern;
     }
 
+    /** Argument: final string in the list. */
     virtual const SimpleFormatter& getEndPattern(const UnicodeString&) const {
         return endPattern;
     }
@@ -237,9 +239,9 @@ ListFormatInternal(const ListFormatInternal &other) :
 
 
 #if !UCONFIG_NO_FORMATTING
-class FormattedListData : public FormattedValueFieldPositionIteratorImpl {
+class FormattedListData : public FormattedValueStringBuilderImpl {
 public:
-    FormattedListData(UErrorCode& status) : FormattedValueFieldPositionIteratorImpl(5, status) {}
+    FormattedListData(UErrorCode&) : FormattedValueStringBuilderImpl(kUndefinedField) {}
     virtual ~FormattedListData();
 };
 
@@ -557,50 +559,89 @@ ListFormatter::~ListFormatter() {
     delete owned;
 }
 
-/**
- * Joins first and second using the pattern pat.
- * On entry offset is an offset into first or -1 if offset unspecified.
- * On exit offset is offset of second in result if recordOffset was set
- * Otherwise if it was >=0 it is set to point into result where it used
- * to point into first. On exit, result is the join of first and second
- * according to pat. Any previous value of result gets replaced.
- */
-static void joinStringsAndReplace(
-        const SimpleFormatter& pat,
-        const UnicodeString& first,
-        const UnicodeString& second,
-        UnicodeString &result,
-        UBool recordOffset,
-        int32_t &offset,
-        int32_t *offsetFirst,
-        int32_t *offsetSecond,
-        UErrorCode& errorCode) {
-    if (U_FAILURE(errorCode)) {
-        return;
+namespace {
+
+class FormattedListBuilder {
+public:
+    LocalPointer<FormattedListData> data;
+
+    /** For lists of length 1+ */
+    FormattedListBuilder(const UnicodeString& start, UErrorCode& status)
+            : data(new FormattedListData(status), status) {
+        if (U_SUCCESS(status)) {
+            data->getStringRef().append(
+                start,
+                {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
+                status);
+            data->appendSpanIndex(0);
+        }
     }
-    const UnicodeString *params[2] = {&first, &second};
-    int32_t offsets[2];
-    pat.formatAndReplace(
-            params,
-            UPRV_LENGTHOF(params),
-            result,
-            offsets,
-            UPRV_LENGTHOF(offsets),
-            errorCode);
-    if (U_FAILURE(errorCode)) {
-        return;
+
+    /** For lists of length 0 */
+    FormattedListBuilder(UErrorCode& status)
+            : data(new FormattedListData(status), status) {
     }
-    if (offsets[0] == -1 || offsets[1] == -1) {
-        errorCode = U_INVALID_FORMAT_ERROR;
-        return;
+
+    void append(const SimpleFormatter& pattern, const UnicodeString& next, int32_t position, UErrorCode& status) {
+        if (U_FAILURE(status)) {
+            return;
+        }
+        if (pattern.getArgumentLimit() != 2) {
+            status = U_INTERNAL_PROGRAM_ERROR;
+            return;
+        }
+        // In the pattern, {0} are the pre-existing elements and {1} is the new element.
+        int32_t offsets[] = {0, 0};
+        UnicodeString temp = pattern.getTextWithNoArguments(offsets, 2);
+        if (offsets[0] <= offsets[1]) {
+            // prefix{0}infix{1}suffix
+            // Prepend prefix, then append infix, element, and suffix
+            data->getStringRef().insert(
+                0,
+                temp.tempSubStringBetween(0, offsets[0]),
+                {UFIELD_CATEGORY_LIST, ULISTFMT_LITERAL_FIELD},
+                status);
+            data->getStringRef().append(
+                temp.tempSubStringBetween(offsets[0], offsets[1]),
+                {UFIELD_CATEGORY_LIST, ULISTFMT_LITERAL_FIELD},
+                status);
+            data->getStringRef().append(
+                next,
+                {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
+                status);
+            data->appendSpanIndex(position);
+            data->getStringRef().append(
+                temp.tempSubString(offsets[1]),
+                {UFIELD_CATEGORY_LIST, ULISTFMT_LITERAL_FIELD},
+                status);
+        } else {
+            // prefix{1}infix{0}suffix
+            // Prepend infix, element, and prefix, then append suffix.
+            // (We prepend in reverse order because prepending at index 0 is fast.)
+            data->getStringRef().insert(
+                0,
+                temp.tempSubStringBetween(offsets[1], offsets[0]),
+                {UFIELD_CATEGORY_LIST, ULISTFMT_LITERAL_FIELD},
+                status);
+            data->getStringRef().insert(
+                0,
+                next,
+                {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
+                status);
+            data->prependSpanIndex(position);
+            data->getStringRef().insert(
+                0,
+                temp.tempSubStringBetween(0, offsets[1]),
+                {UFIELD_CATEGORY_LIST, ULISTFMT_LITERAL_FIELD},
+                status);
+            data->getStringRef().append(
+                temp.tempSubString(offsets[0]),
+                {UFIELD_CATEGORY_LIST, ULISTFMT_LITERAL_FIELD},
+                status);
+        }
     }
-    if (recordOffset) {
-        offset = offsets[1];
-    } else if (offset >= 0) {
-        offset += offsets[0];
-    }
-    if (offsetFirst != nullptr) *offsetFirst = offsets[0];
-    if (offsetSecond != nullptr) *offsetSecond = offsets[1];
+};
+
 }
 
 UnicodeString& ListFormatter::format(
@@ -619,7 +660,19 @@ UnicodeString& ListFormatter::format(
         int32_t index,
         int32_t &offset,
         UErrorCode& errorCode) const {
-  return format_(items, nItems, appendTo, index, offset, nullptr, errorCode);
+#if !UCONFIG_NO_FORMATTING
+    int32_t initialOffset = appendTo.length();
+    auto result = formatStringsToValue(items, nItems, errorCode);
+    UnicodeStringAppendable appendable(appendTo);
+    result.appendTo(appendable, errorCode);
+    if (index >= 0) {
+        ConstrainedFieldPosition cfpos;
+        cfpos.constrainField(UFIELD_CATEGORY_LIST_SPAN, index);
+        result.nextPosition(cfpos, errorCode);
+        offset = initialOffset + cfpos.getStart();
+    }
+#endif
+    return appendTo;
 }
 
 #if !UCONFIG_NO_FORMATTING
@@ -627,182 +680,68 @@ FormattedList ListFormatter::formatStringsToValue(
         const UnicodeString items[],
         int32_t nItems,
         UErrorCode& errorCode) const {
-    LocalPointer<FormattedListData> result(new FormattedListData(errorCode), errorCode);
-    if (U_FAILURE(errorCode)) {
-        return FormattedList(errorCode);
-    }
-    UnicodeString string;
-    int32_t offset;
-    auto handler = result->getHandler(errorCode);
-    handler.setCategory(UFIELD_CATEGORY_LIST);
-    format_(items, nItems, string, -1, offset, &handler, errorCode);
-    handler.getError(errorCode);
-    result->appendString(string, errorCode);
-    if (U_FAILURE(errorCode)) {
-        return FormattedList(errorCode);
-    }
-
-    // Add span fields and sort
-    ConstrainedFieldPosition cfpos;
-    cfpos.constrainField(UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD);
-    int32_t i = 0;
-    handler.setCategory(UFIELD_CATEGORY_LIST_SPAN);
-    while (result->nextPosition(cfpos, errorCode)) {
-        handler.addAttribute(i++, cfpos.getStart(), cfpos.getLimit());
-    }
-    handler.getError(errorCode);
-    if (U_FAILURE(errorCode)) {
-        return FormattedList(errorCode);
-    }
-    result->sort();
-
-    return FormattedList(result.orphan());
-}
-#endif
-
-UnicodeString& ListFormatter::format_(
-        const UnicodeString items[],
-        int32_t nItems,
-        UnicodeString& appendTo,
-        int32_t index,
-        int32_t &offset,
-        FieldPositionHandler* handler,
-        UErrorCode& errorCode) const {
-#if !UCONFIG_NO_FORMATTING
-    offset = -1;
-    if (U_FAILURE(errorCode)) {
-        return appendTo;
-    }
-    if (data == nullptr) {
-        errorCode = U_INVALID_STATE_ERROR;
-        return appendTo;
-    }
-
-    if (nItems <= 0) {
-        return appendTo;
-    }
-    if (nItems == 1) {
-        if (index == 0) {
-            offset = appendTo.length();
+    if (nItems == 0) {
+        FormattedListBuilder result(errorCode);
+        if (U_FAILURE(errorCode)) {
+            return FormattedList(errorCode);
+        } else {
+            return FormattedList(result.data.orphan());
         }
-        if (handler != nullptr) {
-            handler->addAttribute(ULISTFMT_ELEMENT_FIELD,
-                                  appendTo.length(),
-                                  appendTo.length() + items[0].length());
+    } else if (nItems == 1) {
+        FormattedListBuilder result(items[0], errorCode);
+        result.data->getStringRef().writeTerminator(errorCode);
+        if (U_FAILURE(errorCode)) {
+            return FormattedList(errorCode);
+        } else {
+            return FormattedList(result.data.orphan());
         }
-        appendTo.append(items[0]);
-        return appendTo;
+    } else if (nItems == 2) {
+        FormattedListBuilder result(items[0], errorCode);
+        if (U_FAILURE(errorCode)) {
+            return FormattedList(errorCode);
+        }
+        result.append(
+            data->patternHandler->getTwoPattern(items[1]),
+            items[1],
+            1,
+            errorCode);
+        result.data->getStringRef().writeTerminator(errorCode);
+        if (U_FAILURE(errorCode)) {
+            return FormattedList(errorCode);
+        } else {
+            return FormattedList(result.data.orphan());
+        }
     }
-    UnicodeString result(items[0]);
-    if (index == 0) {
-        offset = 0;
+
+    FormattedListBuilder result(items[0], errorCode);
+    if (U_FAILURE(errorCode)) {
+        return FormattedList(errorCode);
     }
-    int32_t offsetFirst = 0;
-    int32_t offsetSecond = 0;
-    int32_t prefixLength = 0;
-    // for n items, there are 2 * (n + 1) boundary including 0 and the upper
-    // edge.
-    MaybeStackArray<int32_t, 10> offsets((handler != nullptr) ? 2 * (nItems + 1): 0);
-    if (nItems == 2) {
-        joinStringsAndReplace(
-                data->patternHandler->getTwoPattern(items[1]),
-                result,
-                items[1],
-                result,
-                index == 1,
-                offset,
-                &offsetFirst,
-                &offsetSecond,
-                errorCode);
+    result.append(
+        data->startPattern,
+        items[1],
+        1,
+        errorCode);
+    for (int32_t i = 2; i < nItems - 1; i++) {
+        result.append(
+            data->middlePattern,
+            items[i],
+            i,
+            errorCode);
+    }
+    result.append(
+        data->patternHandler->getEndPattern(items[nItems-1]),
+        items[nItems-1],
+        nItems-1,
+        errorCode);
+    result.data->getStringRef().writeTerminator(errorCode);
+    if (U_FAILURE(errorCode)) {
+        return FormattedList(errorCode);
     } else {
-        joinStringsAndReplace(
-                data->startPattern,
-                result,
-                items[1],
-                result,
-                index == 1,
-                offset,
-                &offsetFirst,
-                &offsetSecond,
-                errorCode);
+        return FormattedList(result.data.orphan());
     }
-    if (handler != nullptr) {
-        offsets[0] = 0;
-        prefixLength += offsetFirst;
-        offsets[1] = offsetSecond - prefixLength;
-    }
-    if (nItems > 2) {
-        for (int32_t i = 2; i < nItems - 1; ++i) {
-             joinStringsAndReplace(
-                     data->middlePattern,
-                     result,
-                     items[i],
-                     result,
-                     index == i,
-                     offset,
-                     &offsetFirst,
-                     &offsetSecond,
-                     errorCode);
-            if (handler != nullptr) {
-                prefixLength += offsetFirst;
-                offsets[i] = offsetSecond - prefixLength;
-            }
-        }
-        joinStringsAndReplace(
-                data->patternHandler->getEndPattern(items[nItems - 1]),
-                result,
-                items[nItems - 1],
-                result,
-                index == nItems - 1,
-                offset,
-                &offsetFirst,
-                &offsetSecond,
-                errorCode);
-        if (handler != nullptr) {
-            prefixLength += offsetFirst;
-            offsets[nItems - 1] = offsetSecond - prefixLength;
-        }
-    }
-    if (handler != nullptr) {
-        // If there are already some data in appendTo, we need to adjust the index
-        // by shifting that lenght while insert into handler.
-        int32_t shift = appendTo.length() + prefixLength;
-        // Output the ULISTFMT_ELEMENT_FIELD in the order of the input elements
-        for (int32_t i = 0; i < nItems; ++i) {
-            offsets[i + nItems] = offsets[i] + items[i].length() + shift;
-            offsets[i] += shift;
-            handler->addAttribute(
-                ULISTFMT_ELEMENT_FIELD,  // id
-                offsets[i],  // index
-                offsets[i + nItems]);  // limit
-        }
-        // The locale pattern may reorder the items (such as in ur-IN locale),
-        // so we cannot assume the array is in accendning order.
-        // To handle the edging case, just insert the two ends into the array
-        // and sort. Then we output ULISTFMT_LITERAL_FIELD if the indecies
-        // between the even and odd position are not the same in the sorted array.
-        offsets[2 * nItems] = shift - prefixLength;
-        offsets[2 * nItems + 1] = result.length() + shift - prefixLength;
-        uprv_sortArray(offsets.getAlias(), 2 * (nItems + 1), sizeof(int32_t),
-               uprv_int32Comparator, nullptr,
-               false, &errorCode);
-        for (int32_t i = 0; i <= nItems; ++i) {
-          if (offsets[i * 2] != offsets[i * 2 + 1]) {
-            handler->addAttribute(
-                ULISTFMT_LITERAL_FIELD,  // id
-                offsets[i * 2],  // index
-                offsets[i * 2 + 1]);  // limit
-          }
-        }
-    }
-    if (U_SUCCESS(errorCode)) {
-        if (offset >= 0) {
-            offset += appendTo.length();
-        }
-        appendTo += result;
-    }
-#endif
-    return appendTo;
 }
+#endif
+
 
 U_NAMESPACE_END

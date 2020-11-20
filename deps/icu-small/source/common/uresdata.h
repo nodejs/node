@@ -402,7 +402,7 @@ typedef struct ResourceData {
 /*
  * Read a resource bundle from memory.
  */
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 res_read(ResourceData *pResData,
          const UDataInfo *pInfo, const void *inBytes, int32_t length,
          UErrorCode *errorCode);
@@ -422,7 +422,7 @@ res_load(ResourceData *pResData,
 U_CFUNC void
 res_unload(ResourceData *pResData);
 
-U_INTERNAL UResType U_EXPORT2
+U_CAPI UResType U_EXPORT2
 res_getPublicType(Resource res);
 
 ///////////////////////////////////////////////////////////////////////////
@@ -434,31 +434,31 @@ res_getPublicType(Resource res);
  * and set its length in *pLength.
  * Returns NULL if not found.
  */
-U_INTERNAL const UChar * U_EXPORT2
+U_CAPI const UChar * U_EXPORT2
 res_getStringNoTrace(const ResourceData *pResData, Resource res, int32_t *pLength);
 
-U_INTERNAL const uint8_t * U_EXPORT2
+U_CAPI const uint8_t * U_EXPORT2
 res_getBinaryNoTrace(const ResourceData *pResData, Resource res, int32_t *pLength);
 
-U_INTERNAL const int32_t * U_EXPORT2
+U_CAPI const int32_t * U_EXPORT2
 res_getIntVectorNoTrace(const ResourceData *pResData, Resource res, int32_t *pLength);
 
-U_INTERNAL const UChar * U_EXPORT2
+U_CAPI const UChar * U_EXPORT2
 res_getAlias(const ResourceData *pResData, Resource res, int32_t *pLength);
 
-U_INTERNAL Resource U_EXPORT2
+U_CAPI Resource U_EXPORT2
 res_getResource(const ResourceData *pResData, const char *key);
 
-U_INTERNAL int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 res_countArrayItems(const ResourceData *pResData, Resource res);
 
-U_INTERNAL Resource U_EXPORT2
+U_CAPI Resource U_EXPORT2
 res_getArrayItem(const ResourceData *pResData, Resource array, int32_t indexS);
 
-U_INTERNAL Resource U_EXPORT2
+U_CAPI Resource U_EXPORT2
 res_getTableItemByIndex(const ResourceData *pResData, Resource table, int32_t indexS, const char ** key);
 
-U_INTERNAL Resource U_EXPORT2
+U_CAPI Resource U_EXPORT2
 res_getTableItemByKey(const ResourceData *pResData, Resource table, int32_t *indexS, const char* * key);
 
 /**

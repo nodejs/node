@@ -59,7 +59,7 @@ typedef struct {
 } UConverterLoadArgs;
 
 #define UCNV_LOAD_ARGS_INITIALIZER \
-    { (int32_t)sizeof(UConverterLoadArgs), 0, FALSE, FALSE, 0, 0, NULL, NULL, NULL }
+    { (int32_t)sizeof(UConverterLoadArgs), 0, false, false, 0, 0, NULL, NULL, NULL }
 
 typedef void (*UConverterLoad) (UConverterSharedData *sharedData,
                                 UConverterLoadArgs *pArgs,
@@ -267,8 +267,8 @@ extern const UConverterSharedData
 U_CDECL_END
 
 /** Always use fallbacks from codepage to Unicode */
-#define TO_U_USE_FALLBACK(useFallback) TRUE
-#define UCNV_TO_U_USE_FALLBACK(cnv) TRUE
+#define TO_U_USE_FALLBACK(useFallback) true
+#define UCNV_TO_U_USE_FALLBACK(cnv) true
 
 /** Use fallbacks from Unicode to codepage when cnv->useFallback or for private-use code points */
 #define IS_PRIVATE_USE(c) ((uint32_t)((c)-0xe000)<0x1900 || (uint32_t)((c)-0xf0000)<0x20000)

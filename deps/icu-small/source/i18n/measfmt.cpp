@@ -861,7 +861,7 @@ UnicodeString &MeasureFormat::formatMeasuresSlowTrack(
         return appendTo;
     }
     // Fix up FieldPosition indexes if our field is found.
-    if (offset != -1) {
+    if (fieldPositionFoundIndex != -1 && offset != -1) {
         pos.setBeginIndex(fpos.getBeginIndex() + offset);
         pos.setEndIndex(fpos.getEndIndex() + offset);
     }
