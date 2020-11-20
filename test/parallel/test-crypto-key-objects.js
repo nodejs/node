@@ -70,6 +70,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(key.type, 'secret');
   assert.strictEqual(key.symmetricKeySize, 32);
   assert.strictEqual(key.asymmetricKeyType, undefined);
+  assert.strictEqual(key.asymmetricKeyDetails, undefined);
 
   const exportedKey = key.export();
   assert(keybuf.equals(exportedKey));

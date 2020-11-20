@@ -1284,6 +1284,27 @@ passing keys as strings or `Buffer`s due to improved security features.
 The receiver obtains a cloned `KeyObject`, and the `KeyObject` does not need to
 be listed in the `transferList` argument.
 
+### `keyObject.asymmetricKeyDetails`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+This property exists only on asymmetric keys. Depending on the type of the key,
+this object contains information about the key. None of the information obtained
+through this property can be used to uniquely identify a key or to compromise
+the security of the key.
+
+For `'rsa'` and `'rsa-pss'` keys, this object has the properties `modulusLength`
+and `publicExponent`.
+
+For `'dsa'` keys, this object has the properties `modulusLength` and
+`divisorLength`.
+
+For `'ec'` keys with a known curve, this object has the string property
+`namedCurve`.
+
 ### `keyObject.asymmetricKeyType`
 <!-- YAML
 added: v11.6.0
