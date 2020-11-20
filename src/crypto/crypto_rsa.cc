@@ -422,12 +422,12 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
       !jwk->Get(env->context(), env->jwk_d_string()).ToLocal(&d_value) ||
       !n_value->IsString() ||
       !e_value->IsString()) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK RSA key");
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
     return std::shared_ptr<KeyObjectData>();
   }
 
   if (!d_value->IsUndefined() && !d_value->IsString()) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK RSA key");
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
     return std::shared_ptr<KeyObjectData>();
   }
 
@@ -443,7 +443,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
           n.ToBN().release(),
           e.ToBN().release(),
           nullptr)) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK RSA key");
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
     return std::shared_ptr<KeyObjectData>();
   }
 
@@ -459,7 +459,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
         !jwk->Get(env->context(), env->jwk_dp_string()).ToLocal(&dp_value) ||
         !jwk->Get(env->context(), env->jwk_dq_string()).ToLocal(&dq_value) ||
         !jwk->Get(env->context(), env->jwk_qi_string()).ToLocal(&qi_value)) {
-      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK RSA key");
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
       return std::shared_ptr<KeyObjectData>();
     }
 
@@ -468,7 +468,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
         !dp_value->IsString() ||
         !dq_value->IsString() ||
         !qi_value->IsString()) {
-      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK RSA key");
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
       return std::shared_ptr<KeyObjectData>();
     }
 
@@ -486,7 +486,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
             dp.ToBN().release(),
             dq.ToBN().release(),
             qi.ToBN().release())) {
-      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK RSA key");
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
       return std::shared_ptr<KeyObjectData>();
     }
   }
@@ -547,4 +547,3 @@ void Initialize(Environment* env, Local<Object> target) {
 }  // namespace RSAAlg
 }  // namespace crypto
 }  // namespace node
-

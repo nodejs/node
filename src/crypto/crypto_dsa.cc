@@ -192,7 +192,7 @@ std::shared_ptr<KeyObjectData> ImportJWKDsaKey(
       !q_value->IsString() ||
       !q_value->IsString() ||
       (!x_value->IsUndefined() && !x_value->IsString())) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK DSA key");
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
     return std::shared_ptr<KeyObjectData>();
   }
 
@@ -210,14 +210,14 @@ std::shared_ptr<KeyObjectData> ImportJWKDsaKey(
                     p.ToBN().release(),
                     q.ToBN().release(),
                     g.ToBN().release())) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK DSA key");
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
     return std::shared_ptr<KeyObjectData>();
   }
 
   if (type == kKeyTypePrivate) {
     ByteSource x = ByteSource::FromEncodedString(env, x_value.As<String>());
     if (!DSA_set0_key(dsa.get(), nullptr, x.ToBN().release())) {
-      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JSK DSA key");
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
       return std::shared_ptr<KeyObjectData>();
     }
   }
