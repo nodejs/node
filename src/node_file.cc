@@ -51,6 +51,7 @@ namespace node {
 namespace fs {
 
 using v8::Array;
+using v8::BigInt;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -2038,8 +2039,10 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
   CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
-  CHECK(IsSafeJsInt(args[4]));
-  const int64_t pos = args[4].As<Integer>()->Value();
+  CHECK(IsSafeJsInt(args[4]) || args[4]->IsBigInt());
+  const int64_t pos = args[4]->IsNumber() ?
+                      args[4].As<Integer>()->Value() :
+                      args[4].As<BigInt>()->Int64Value();
 
   char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(buf, len);

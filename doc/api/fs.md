@@ -2931,7 +2931,7 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
-* `position` {integer}
+* `position` {integer|bigint}
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
@@ -2976,7 +2976,7 @@ changes:
   * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.length`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer|bigint} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
@@ -3273,7 +3273,7 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
-* `position` {integer}
+* `position` {integer|bigint}
 * Returns: {number}
 
 Returns the number of `bytesRead`.
@@ -3300,7 +3300,7 @@ changes:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.length`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer|bigint} **Default:** `null`
 * Returns: {number}
 
 Returns the number of `bytesRead`.
