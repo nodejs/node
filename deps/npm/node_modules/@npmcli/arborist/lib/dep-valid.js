@@ -112,7 +112,7 @@ const tarballValid = (child, requested, requestor) => {
     return false
 
   if (child.resolved)
-    return child.resolved === `file:${requested.fetchSpec}`
+    return child.resolved.replace(/\\/g, '/') === `file:${requested.fetchSpec.replace(/\\/g, '/')}`
 
   // if we have a legacy mutated package.json file.  we can't be 100%
   // sure that it resolved to the same file, but if it was the same
