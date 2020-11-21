@@ -1449,7 +1449,7 @@ bool QuicApplication::SendPendingData() {
   }
   return true;
 
- congestion_limited:
+congestion_limited:
   // We are either congestion limited or done.
   if (pos - packet->data()) {
     // Some data was serialized into the packet. We need to send it.
