@@ -208,7 +208,6 @@ static int file_lookup(struct ares_addr *addr, struct hostent **host)
   strcat(PATH_HOSTS, WIN_PATH_HOSTS);
 
 #elif defined(WATT32)
-  extern const char *_w32_GetHostsFile (void);
   const char *PATH_HOSTS = _w32_GetHostsFile();
 
   if (!PATH_HOSTS)
