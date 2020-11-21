@@ -150,6 +150,7 @@ module.exports = {
     'no-multiple-empty-lines': ['error', { max: 2, maxEOF: 0, maxBOF: 0 }],
     'no-new-require': 'error',
     'no-new-symbol': 'error',
+    'no-nonoctal-decimal-escape': 'error',
     'no-obj-calls': 'error',
     'no-octal': 'error',
     'no-path-concat': 'error',
