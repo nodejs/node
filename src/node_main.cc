@@ -42,11 +42,12 @@ int wmain(int argc, wchar_t* wargv[]) {
        strncmp(buf, SKIP_CHECK_VALUE, SKIP_CHECK_SIZE + 1) != 0)) {
     fprintf(stderr, "Node.js is only supported on Windows 8.1, Windows "
                     "Server 2012 R2, or higher.\n"
-                    "Setting the " SKIP_CHECK_VAR " environment variable "
-                    "to 1 skips this\ncheck, but Node.js might not execute "
-                    "correctly. Any issues encountered on\nunsupported "
+                    //"Setting the " SKIP_CHECK_VAR " environment variable "
+                    //"to 1 skips this\ncheck, but Node.js might not execute "
+                    //"correctly."
+                    "Any issues encountered on unsupported "
                     "platforms will not be fixed.");
-    exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
+    //exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
   }
 
   // Convert argv to UTF8
