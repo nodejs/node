@@ -163,6 +163,10 @@ int ares__readaddrinfo(FILE *fp,
           continue;
         }
 
+      /* Zero-out 'addr' struct, as there are members that we may not set, especially
+       * for ipv6.  We don't want garbage data */
+      memset(&addr, 0, sizeof(addr));
+
       /*
        * Convert address string to network address for the requested families.
        * Actual address family possible values are AF_INET and AF_INET6 only.
@@ -179,7 +183,7 @@ int ares__readaddrinfo(FILE *fp,
                 }
 
               node->ai_family = addr.sa.sa_family = AF_INET;
-              node->ai_addrlen = sizeof(sizeof(addr.sa4));
+              node->ai_addrlen = sizeof(addr.sa4);
               node->ai_addr = ares_malloc(sizeof(addr.sa4));
               if (!node->ai_addr)
                 {
@@ -200,7 +204,7 @@ int ares__readaddrinfo(FILE *fp,
                 }
 
               node->ai_family = addr.sa.sa_family = AF_INET6;
-              node->ai_addrlen = sizeof(sizeof(addr.sa6));
+              node->ai_addrlen = sizeof(addr.sa6);
               node->ai_addr = ares_malloc(sizeof(addr.sa6));
               if (!node->ai_addr)
                 {

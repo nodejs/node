@@ -74,6 +74,7 @@
 #elif defined(WATT32)
 
 #define PATH_RESOLV_CONF "/dev/ENV/etc/resolv.conf"
+W32_FUNC const char *_w32_GetHostsFile (void);
 
 #elif defined(NETWARE)
 
@@ -414,14 +415,5 @@ int ares__connect_socket(ares_channel channel,
     if ((c)->sock_state_cb)                                             \
       (c)->sock_state_cb((c)->sock_state_cb_data, (s), (r), (w));       \
   } WHILE_FALSE
-
-#ifdef CURLDEBUG
-/* This is low-level hard-hacking memory leak tracking and similar. Using the
-   libcurl lowlevel code from within library is ugly and only works when
-   c-ares is built and linked with a similarly curldebug-enabled libcurl,
-   but we do this anyway for convenience. */
-#define HEADER_CURL_SETUP_ONCE_H
-#include "../lib/memdebug.h"
-#endif
 
 #endif /* __ARES_PRIVATE_H */

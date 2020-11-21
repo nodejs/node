@@ -88,6 +88,7 @@ typedef enum __ns_type {
     ns_t_maila = 254,       /* Transfer mail agent records. */
     ns_t_any = 255,         /* Wildcard match. */
     ns_t_zxfr = 256,        /* BIND-specific, nonstandard. */
+    ns_t_caa = 257,         /* Certification Authority Authorization. */
     ns_t_max = 65536
 } ns_type;
 
@@ -204,8 +205,14 @@ typedef enum __ns_rcode {
 #define T_AXFR          ns_t_axfr
 #define T_MAILB         ns_t_mailb
 #define T_MAILA         ns_t_maila
+#define T_CAA           ns_t_caa
 #define T_ANY           ns_t_any
 
 #endif /* HAVE_ARPA_NAMESER_COMPAT_H */
+
+/* Android's bionic arpa/nameser_compat.h, nor glibc versions prior to 2.25 have T_OPT defined */
+#ifndef T_OPT
+#  define T_OPT ns_t_opt
+#endif
 
 #endif /* ARES_NAMESER_H */
