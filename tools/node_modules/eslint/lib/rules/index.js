@@ -169,6 +169,7 @@ module.exports = new LazyLoadingRuleMap(Object.entries({
     "no-new-require": () => require("./no-new-require"),
     "no-new-symbol": () => require("./no-new-symbol"),
     "no-new-wrappers": () => require("./no-new-wrappers"),
+    "no-nonoctal-decimal-escape": () => require("./no-nonoctal-decimal-escape"),
     "no-obj-calls": () => require("./no-obj-calls"),
     "no-octal": () => require("./no-octal"),
     "no-octal-escape": () => require("./no-octal-escape"),

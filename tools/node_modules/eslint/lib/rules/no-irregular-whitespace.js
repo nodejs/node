@@ -82,7 +82,7 @@ module.exports = {
         const commentNodes = sourceCode.getAllComments();
 
         /**
-         * Removes errors that occur inside a string node
+         * Removes errors that occur inside the given node
          * @param {ASTNode} node to check for matching errors.
          * @returns {void}
          * @private
@@ -91,14 +91,12 @@ module.exports = {
             const locStart = node.loc.start;
             const locEnd = node.loc.end;
 
-            errors = errors.filter(({ loc: { start: errorLoc } }) => {
-                if (errorLoc.line >= locStart.line && errorLoc.line <= locEnd.line) {
-                    if (errorLoc.column >= locStart.column && (errorLoc.column <= locEnd.column || errorLoc.line < locEnd.line)) {
-                        return false;
-                    }
-                }
-                return true;
-            });
+            errors = errors.filter(({ loc: { start: errorLocStart } }) => (
+                errorLocStart.line < locStart.line ||
+                errorLocStart.line === locStart.line && errorLocStart.column < locStart.column ||
+                errorLocStart.line === locEnd.line && errorLocStart.column >= locEnd.column ||
+                errorLocStart.line > locEnd.line
+            ));
         }
 
         /**
