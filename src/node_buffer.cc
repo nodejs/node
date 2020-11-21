@@ -619,7 +619,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
                                     nullptr);
   }
 
- start_fill:
+start_fill:
 
   if (str_length >= fill_length)
     return;
