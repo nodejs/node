@@ -62,13 +62,16 @@ ares_parse_soa_reply(const unsigned char *abuf, int alen,
     return ARES_EBADRESP;
   if (ancount == 0)
     return ARES_EBADRESP;
-
+  
   aptr = abuf + HFIXEDSZ;
 
   /* query name */
   status = ares__expand_name_for_response(aptr, abuf, alen, &qname, &len);
   if (status != ARES_SUCCESS)
     goto failed_stat;
+
+  if (alen <= len + HFIXEDSZ + 1)
+    goto failed;
   aptr += len;
 
   qclass = DNS_QUESTION_TYPE(aptr);
@@ -161,9 +164,9 @@ ares_parse_soa_reply(const unsigned char *abuf, int alen,
       return ARES_SUCCESS;
     }
     aptr += rr_len;
-
+    
     ares_free(rr_name);
-
+    
     if (aptr > abuf + alen)
       goto failed_stat;
   }
