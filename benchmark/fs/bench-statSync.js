@@ -21,6 +21,6 @@ function main({ n, statSyncType }) {
   }
   bench.end(n);
 
-  if (statSyncType === 'fstat')
+  if (statSyncType === 'fstatSync')
     fs.closeSync(arg);
 }
