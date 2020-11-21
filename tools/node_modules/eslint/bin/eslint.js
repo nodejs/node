@@ -14,7 +14,7 @@ require("v8-compile-cache");
 
 // must do this initialization *before* other requires in order to work
 if (process.argv.includes("--debug")) {
-    require("debug").enable("eslint:*,-eslint:code-path");
+    require("debug").enable("eslint:*,-eslint:code-path,eslintrc:*");
 }
 
 //------------------------------------------------------------------------------
