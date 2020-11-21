@@ -386,6 +386,9 @@ static int fake_addrinfo(const char *name,
         }
     }
 
+  node->ai_socktype = hints->ai_socktype;
+  node->ai_protocol = hints->ai_protocol;
+
   callback(arg, ARES_SUCCESS, 0, ai);
   return 1;
 }
@@ -406,6 +409,8 @@ static void end_hquery(struct host_query *hquery, int status)
       /* Set port into each address (resolved separately). */
       while (next)
         {
+          next->ai_socktype = hquery->hints.ai_socktype;
+          next->ai_protocol = hquery->hints.ai_protocol;
           if (next->ai_family == AF_INET)
             {
               (CARES_INADDR_CAST(struct sockaddr_in *, next->ai_addr))->sin_port = htons(hquery->port);
@@ -754,12 +759,18 @@ static int as_is_first(const struct host_query* hquery)
 {
   char* p;
   int ndots = 0;
+  size_t nname = strlen(hquery->name);
   for (p = hquery->name; *p; p++)
     {
       if (*p == '.')
         {
           ndots++;
         }
+    }
+  if (nname && hquery->name[nname-1] == '.')
+    {
+      /* prevent ARES_EBADNAME for valid FQDN, where ndots < channel->ndots  */
+      return 1;
     }
   return ndots >= hquery->channel->ndots;
 }

@@ -85,11 +85,12 @@ struct addrinfo_sort_elem
 #define ARES_IN6_IS_ADDR_6BONE(a)      \
         (((a)->s6_addr[0] == 0x3f) && ((a)->s6_addr[1] == 0xfe))
 
+
 static int get_scope(const struct sockaddr *addr)
 {
   if (addr->sa_family == AF_INET6)
     {
-      const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6 *)addr;
+      const struct sockaddr_in6 *addr6 = CARES_INADDR_CAST(const struct sockaddr_in6 *, addr);
       if (IN6_IS_ADDR_MULTICAST(&addr6->sin6_addr))
         {
           return ARES_IPV6_ADDR_MC_SCOPE(&addr6->sin6_addr);
@@ -114,7 +115,7 @@ static int get_scope(const struct sockaddr *addr)
     }
   else if (addr->sa_family == AF_INET)
     {
-      const struct sockaddr_in *addr4 = (const struct sockaddr_in *)addr;
+      const struct sockaddr_in *addr4 = CARES_INADDR_CAST(const struct sockaddr_in *, addr);
       unsigned long int na = ntohl(addr4->sin_addr.s_addr);
       if (ARES_IN_LOOPBACK(na) || /* 127.0.0.0/8 */
           (na & 0xffff0000) == 0xa9fe0000) /* 169.254.0.0/16 */
@@ -149,7 +150,7 @@ static int get_label(const struct sockaddr *addr)
     }
   else if (addr->sa_family == AF_INET6)
     {
-      const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6 *)addr;
+      const struct sockaddr_in6 *addr6 = CARES_INADDR_CAST(const struct sockaddr_in6 *, addr);
       if (IN6_IS_ADDR_LOOPBACK(&addr6->sin6_addr))
         {
           return 0;
@@ -210,7 +211,7 @@ static int get_precedence(const struct sockaddr *addr)
     }
   else if (addr->sa_family == AF_INET6)
     {
-      const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6 *)addr;
+      const struct sockaddr_in6 *addr6 = CARES_INADDR_CAST(const struct sockaddr_in6 *, addr);
       if (IN6_IS_ADDR_LOOPBACK(&addr6->sin6_addr))
         {
           return 50;
@@ -353,10 +354,10 @@ static int rfc6724_compare(const void *ptr1, const void *ptr2)
     {
       const struct sockaddr_in6 *a1_src = &a1->src_addr.sa6;
       const struct sockaddr_in6 *a1_dst =
-          (const struct sockaddr_in6 *)a1->ai->ai_addr;
+          CARES_INADDR_CAST(const struct sockaddr_in6 *, a1->ai->ai_addr);
       const struct sockaddr_in6 *a2_src = &a2->src_addr.sa6;
       const struct sockaddr_in6 *a2_dst =
-          (const struct sockaddr_in6 *)a2->ai->ai_addr;
+          CARES_INADDR_CAST(const struct sockaddr_in6 *, a2->ai->ai_addr);
       prefixlen1 = common_prefix_len(&a1_src->sin6_addr, &a1_dst->sin6_addr);
       prefixlen2 = common_prefix_len(&a2_src->sin6_addr, &a2_dst->sin6_addr);
       if (prefixlen1 != prefixlen2)
@@ -384,7 +385,7 @@ static int find_src_addr(ares_channel channel,
                          const struct sockaddr *addr,
                          struct sockaddr *src_addr)
 {
-  int sock;
+  ares_socket_t sock;
   int ret;
   ares_socklen_t len;
 
@@ -402,7 +403,7 @@ static int find_src_addr(ares_channel channel,
     }
 
   sock = ares__open_socket(channel, addr->sa_family, SOCK_DGRAM, IPPROTO_UDP);
-  if (sock == -1)
+  if (sock == ARES_SOCKET_BAD)
     {
       if (errno == EAFNOSUPPORT)
         {
@@ -426,7 +427,7 @@ static int find_src_addr(ares_channel channel,
       return 0;
     }
 
-  if (getsockname(sock, src_addr, &len) == -1)
+  if (getsockname(sock, src_addr, &len) != 0)
     {
       ares__close_socket(channel, sock);
       return -1;
