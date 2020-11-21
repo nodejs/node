@@ -258,7 +258,7 @@ static int fake_hostent(const char *name, int family,
   struct in_addr in;
   struct ares_in6_addr in6;
 
-  if (family == AF_INET || family == AF_INET6)
+  if (family == AF_INET || family == AF_UNSPEC)
     {
       /* It only looks like an IP address if it's all numbers and dots. */
       int numdots = 0, valid = 1;
@@ -276,13 +276,17 @@ static int fake_hostent(const char *name, int family,
       /* if we don't have 3 dots, it is illegal
        * (although inet_pton doesn't think so).
        */
-      if (numdots != 3 || !valid)
+      if (numdots != 3 || !valid) {
         result = 0;
-      else
+      } else {
         result = (ares_inet_pton(AF_INET, name, &in) < 1 ? 0 : 1);
+      }
 
-      if (result)
-        family = AF_INET;
+      /*
+       * Set address family in case of failure,
+       * as we will try to convert it later afterwards
+       */
+      family = result ? AF_INET : AF_INET6;
     }
   if (family == AF_INET6)
     result = (ares_inet_pton(AF_INET6, name, &in6) < 1 ? 0 : 1);
@@ -383,7 +387,6 @@ static int file_lookup(const char *name, int family, struct hostent **host)
   strcat(PATH_HOSTS, WIN_PATH_HOSTS);
 
 #elif defined(WATT32)
-  extern const char *_w32_GetHostsFile (void);
   const char *PATH_HOSTS = _w32_GetHostsFile();
 
   if (!PATH_HOSTS)
