@@ -43,6 +43,9 @@ for (const link of toc.match(/<a.*?>/g)) {
 
   for (const property in data) {
     if (results.hasOwnProperty(property)) {
+      data[property].forEach((mod) => {
+        mod.source = data.source;
+      });
       results[property].push(...data[property]);
     }
   }
