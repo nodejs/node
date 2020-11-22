@@ -695,7 +695,7 @@ doc-only: tools/doc/node_modules \
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping doc-only (no crypto)"; \
 	else \
-		$(MAKE) out/doc/api/all.html out/doc/api/all.json; \
+		$(MAKE) out/doc/api/all.html out/doc/api/all.json out/doc/api/stability; \
 	fi
 
 .PHONY: doc
@@ -747,6 +747,10 @@ out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js \
 
 out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js | out/doc/api
 	$(call available-node, tools/doc/alljson.js)
+
+.PHONY: out/doc/api/stability
+out/doc/api/stability: out/doc/api/all.json tools/doc/stability.js | out/doc/api
+	$(call available-node, tools/doc/stability.js)
 
 .PHONY: docopen
 docopen: out/doc/api/all.html
