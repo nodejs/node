@@ -2,7 +2,7 @@
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/36070
     description: It is possible to abort a request with an AbortSignal.
   - version: v15.0.0
@@ -524,7 +524,7 @@ A prototype-less object describing the current remote settings of this
 
 #### `http2session.setLocalWindowSize(windowSize)`
 <!-- YAML
-added: REPLACEME
+added: v15.3.0
 -->
 
 * `windowSize` {number}

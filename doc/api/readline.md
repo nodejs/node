@@ -285,7 +285,7 @@ whenever `rl.prompt()` is called.
 
 ### `rl.getPrompt()`
 <!-- YAML
-added: REPLACEME
+added: v15.3.0
 -->
 
 * Returns: {string} the current prompt string
