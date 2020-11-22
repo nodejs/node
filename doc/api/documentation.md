@@ -43,6 +43,9 @@ Bugs or behavior changes may surprise users when Experimental API
 modifications occur. To avoid surprises, use of an Experimental feature may need
 a command-line flag. Experimental features may also emit a [warning][].
 
+## Stability overview
+<!-- STABILITY_OVERVIEW_SLOT -->
+
 ## JSON output
 <!-- YAML
 added: v0.6.12
