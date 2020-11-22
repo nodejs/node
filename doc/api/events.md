@@ -385,7 +385,7 @@ regular `'error'` listener is installed.
 
 ### `EventEmitter.setMaxListeners(n[, ...eventTargets])`
 <!-- YAML
-added: REPLACEME
+added: v15.3.0
 -->
 
 * `n` {number} A non-negative number. The maximum number of listeners per
