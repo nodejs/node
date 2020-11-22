@@ -435,7 +435,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: REPLACEME
+  - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34962
     description: Exposed as `require('path/posix')`.
 -->
@@ -575,7 +575,7 @@ method is non-operational and always returns `path` without modifications.
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: REPLACEME
+  - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34962
     description: Exposed as `require('path/win32')`.
 -->

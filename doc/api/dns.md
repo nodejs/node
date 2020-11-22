@@ -732,7 +732,7 @@ The following methods from the `dnsPromises` API are available:
 
 ### `resolver.cancel()`
 <!-- YAML
-added: REPLACEME
+added: v15.3.0
 -->
 
 Cancel all outstanding DNS queries made by this resolver. The corresponding

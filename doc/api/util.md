@@ -1291,7 +1291,7 @@ The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34055
     description: Exposed as `require('util/types')`.
 -->
