@@ -1530,7 +1530,7 @@ added: v14.5.0
 
 * Returns: {EventTarget} this
 
-Node.js-speciic alias for `eventTarget.removeListener()`.
+Node.js-specific alias for `eventTarget.removeListener()`.
 
 #### `nodeEventTarget.on(type, listener[, options])`
 <!-- YAML
