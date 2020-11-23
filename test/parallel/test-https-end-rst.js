@@ -19,13 +19,13 @@ server.listen(0, function() {
   const socket = net.connect(options, common.mustCall(() => {
     socket.on('ready', common.mustCall(() => {
       socket.write('GET /\n\n');
-      setTimeout(() => {
+      socket.once('data', common.mustCall(() => {
         socket.write('GET /\n\n');
-        setTimeout(() => {
+        setTimeout(common.mustCall(() => {
           socket.destroy();
           server.close();
-        }, common.platformTimeout(10));
-      }, common.platformTimeout(10));
+        }), common.platformTimeout(10));
+      }));
     }));
   }));
 });
