@@ -745,21 +745,11 @@ Returns `true` if `obj` is a `Buffer`, `false` otherwise.
 
 ```js
 
-const buf1 = Buffer.alloc(10);
-console.log(Buffer.isBuffer(buf1));
-// Prints: true
-
-const buf2 = Buffer.from('this is a test');
-console.log(Buffer.isBuffer(buf2));
-// Prints: true
-
-const str = 'a string';
-console.log(Buffer.isBuffer(str));
-// Prints: false
-
-const arr = [];
-console.log(Buffer.isBuffer(arr));
-// Prints: false
+Buffer.isBuffer(Buffer.alloc(10)); // true
+Buffer.isBuffer(Buffer.from('foo')); // true
+Buffer.isBuffer('a string'); // false
+Buffer.isBuffer([]); // false
+Buffer.isBuffer(new Uint8Array(1024)); // false
 
 ```
 ### Static method: `Buffer.isEncoding(encoding)`
