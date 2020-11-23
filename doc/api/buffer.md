@@ -753,11 +753,11 @@ const buf2 = Buffer.from('this is a test');
 console.log(Buffer.isBuffer(buf2));
 // Prints: true
 
-const str = 'a string'
+const str = 'a string';
 console.log(Buffer.isBuffer(str));
 // Prints: false
 
-const arr = []
+const arr = [];
 console.log(Buffer.isBuffer(arr));
 // Prints: false
 
