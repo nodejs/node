@@ -52,7 +52,7 @@ const buf7 = Buffer.from('tést', 'latin1');
 changes:
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7111
-    description: Introduced `latin1` as an alias for `binary`.
+    descisBufferription: Introduced `latin1` as an alias for `binary`.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/2859
     description: Removed the deprecated `raw` and `raws` encodings.
@@ -743,6 +743,25 @@ added: v0.1.101
 
 Returns `true` if `obj` is a `Buffer`, `false` otherwise.
 
+```js
+
+const buf1 = Buffer.alloc(10);
+console.log(Buffer.isBuffer(buf1));
+// Prints: true
+
+const buf2 = Buffer.from('this is a test');
+console.log(Buffer.isBuffer(buf2));
+// Prints: true
+
+const str = 'a string'
+console.log(Buffer.isBuffer(str));
+// Prints: false
+
+const arr = []
+console.log(Buffer.isBuffer(arr));
+// Prints: false
+
+```
 ### Static method: `Buffer.isEncoding(encoding)`
 <!-- YAML
 added: v0.9.1
