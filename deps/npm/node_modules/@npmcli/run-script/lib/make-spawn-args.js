@@ -34,7 +34,7 @@ const makeSpawnArgs = options => {
   } = options
 
   const isCmd = /(?:^|\\)cmd(?:\.exe)?$/i.test(scriptShell)
-  const args = isCmd ? ['/d', '/s', '/c', escapeCmd(cmd)] : ['-c', escapeCmd(cmd)]
+  const args = isCmd ? ['/d', '/s', '/c', escapeCmd(cmd)] : ['-c', cmd]
 
   const spawnOpts = {
     env: setPATH(path, {

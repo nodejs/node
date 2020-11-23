@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/run-script",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Run a lifecycle script for a package (descendant of npm-lifecycle)",
   "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
   "license": "ISC",
