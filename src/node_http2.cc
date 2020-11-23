@@ -92,7 +92,8 @@ Http2Scope::~Http2Scope() {
     return;
 
   session_->flags_ &= ~SESSION_STATE_HAS_SCOPE;
-  session_->MaybeScheduleWrite();
+  if (!(session_->flags_ & SESSION_STATE_WRITE_SCHEDULED))
+    session_->MaybeScheduleWrite();
 }
 
 // The Http2Options object is used during the construction of Http2Session
