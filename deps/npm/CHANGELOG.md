@@ -1,3 +1,10 @@
+## 7.0.14 (2020-11-23)
+
+### DEPENDENCIES
+* [`09d21ab90`](https://github.com/npm/cli/commit/09d21ab903dcfebdfd446b8b29ad46c425b6510e)
+  `@npmcli/run-script@1.8.1`
+    - fix a regression in how scripts are escaped
+
 ## 7.0.13 (2020-11-20)
 
 ### BUG FIXES
