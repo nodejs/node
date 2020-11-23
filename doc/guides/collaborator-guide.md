@@ -100,7 +100,7 @@ describing a security issue, take the following steps:
 * Ask the originator to submit a report through Hacker one as outlined in
   [SECURITY.md][security reporting].
 * Move the issue to the private repo called
-[premature-disclosures](https://github.com/nodejs/premature-disclosures).
+  [premature-disclosures](https://github.com/nodejs/premature-disclosures).
 * For any related pull requests create an associated issue in the
   `premature-disclosures` repo and add a copy of the patch for the
   pull request, and screenshots of discussion on the PR to the issue.
