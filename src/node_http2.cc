@@ -88,7 +88,8 @@ Http2Scope::Http2Scope(Http2Session* session) : session_(session) {
 Http2Scope::~Http2Scope() {
   if (!session_) return;
   session_->set_in_scope(false);
-  session_->MaybeScheduleWrite();
+  if (!session_->is_write_scheduled())
+    session_->MaybeScheduleWrite();
 }
 
 // The Http2Options object is used during the construction of Http2Session
