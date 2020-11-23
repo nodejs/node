@@ -52,7 +52,7 @@ const buf7 = Buffer.from('tést', 'latin1');
 changes:
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7111
-    descisBufferription: Introduced `latin1` as an alias for `binary`.
+    description: Introduced `latin1` as an alias for `binary`.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/2859
     description: Removed the deprecated `raw` and `raws` encodings.
