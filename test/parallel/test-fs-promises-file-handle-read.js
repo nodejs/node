@@ -72,4 +72,4 @@ let useConf = false;
           .then(validateLargeRead)
           .then(common.mustCall());
   }
-});
+})().then(common.mustCall());

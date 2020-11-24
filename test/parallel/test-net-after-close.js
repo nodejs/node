@@ -32,6 +32,7 @@ const server = net.createServer(common.mustCall((s) => {
 server.listen(0, common.mustCall(() => {
   const c = net.createConnection(server.address().port);
   c.on('close', common.mustCall(() => {
+    /* eslint-disable no-unused-expressions */
     console.error('connection closed');
     assert.strictEqual(c._handle, null);
     // Calling functions / accessing properties of a closed socket should not
@@ -45,5 +46,6 @@ server.listen(0, common.mustCall(() => {
     c.remoteAddress;
     c.remotePort;
     server.close();
+    /* eslint-enable no-unused-expressions */
   }));
 }));
