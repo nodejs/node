@@ -33,7 +33,7 @@ function main({ method, n }) {
 function benchIdleTime(n) {
   bench.start();
   for (let i = 0; i < n; i++)
-    nodeTiming.idleTime;
+    nodeTiming.idleTime; // eslint-disable-line no-unused-expressions
   bench.end(n);
 }
 

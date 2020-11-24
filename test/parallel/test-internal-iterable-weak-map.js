@@ -18,7 +18,7 @@ const { IterableWeakMap } = require('internal/util/iterable_weak_map');
   wm.set(_cache.moduleC, 'goodbye');
   delete _cache.moduleB;
   setImmediate(() => {
-    _cache;
+    _cache; // eslint-disable-line no-unused-expressions
     globalThis.gc();
     const values = [...wm];
     deepStrictEqual(values, ['hello', 'goodbye']);

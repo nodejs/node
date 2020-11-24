@@ -12,11 +12,11 @@ const tls = require('tls');
   const pctx = tls.createSecureContext().context;
   const cctx = Object.create(pctx);
   assert.throws(() => cctx._external, TypeError);
-  pctx._external;
+  pctx._external; // eslint-disable-line no-unused-expressions
 }
 {
   const pctx = tls.createSecurePair().credentials.context;
   const cctx = Object.create(pctx);
   assert.throws(() => cctx._external, TypeError);
-  pctx._external;
+  pctx._external; // eslint-disable-line no-unused-expressions
 }

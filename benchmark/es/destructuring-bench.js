@@ -12,7 +12,8 @@ function runSwapManual(n) {
   let x, y, r;
   bench.start();
   for (let i = 0; i < n; i++) {
-    x = 1, y = 2;
+    x = 1;
+    y = 2;
     r = x;
     x = y;
     y = r;
@@ -26,7 +27,8 @@ function runSwapDestructured(n) {
   let x, y;
   bench.start();
   for (let i = 0; i < n; i++) {
-    x = 1, y = 2;
+    x = 1;
+    y = 2;
     [x, y] = [y, x];
     assert.strictEqual(x, 2);
     assert.strictEqual(y, 1);

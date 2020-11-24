@@ -14,4 +14,4 @@ process.on('warning', common.mustCall());
 
 Error.prepareStackTrace = (err, trace) => new Buffer(10);
 
-new Error().stack;
+new Error().stack; // eslint-disable-line no-unused-expressions
