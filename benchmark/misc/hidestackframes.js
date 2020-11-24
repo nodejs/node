@@ -36,8 +36,7 @@ function main({ n, type }) {
   for (let i = 0; i < n; i++) {
     try {
       fn(value);
-    // eslint-disable-next-line no-unused-vars
-    } catch (e) {
+    } catch {
       // No-op
     }
   }
