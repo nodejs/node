@@ -42,6 +42,15 @@ const testDir = tmpdir.path;
 
 tmpdir.refresh();
 
+// Because macOS (and possibly other operating systems) can return a watcher
+// before it is actually watching, we need to repeat the operation to avoid
+// a race condition.
+function repeat(fn) {
+  setImmediate(fn);
+  const interval = setInterval(fn, 5000);
+  return interval;
+}
+
 {
   const filepath = path.join(testDir, 'watch.txt');
 
@@ -54,12 +63,11 @@ tmpdir.refresh();
     if (expectFilePath) {
       assert.strictEqual(filename, 'watch.txt');
     }
+    clearInterval(interval);
     watcher.close();
   }));
 
-  setImmediate(function() {
-    fs.writeFileSync(filepath, 'world');
-  });
+  const interval = repeat(() => { fs.writeFileSync(filepath, 'world'); });
 }
 
 {
@@ -76,12 +84,11 @@ tmpdir.refresh();
       if (expectFilePath) {
         assert.strictEqual(filename, 'hasOwnProperty');
       }
+      clearInterval(interval);
       watcher.close();
     }));
 
-  setImmediate(function() {
-    fs.writeFileSync(filepathAbs, 'pardner');
-  });
+  const interval = repeat(() => { fs.writeFileSync(filepathAbs, 'pardner'); });
 }
 
 {
@@ -97,14 +104,15 @@ tmpdir.refresh();
       } else {
         assert.strictEqual(filename, null);
       }
+      clearInterval(interval);
       watcher.close();
     }));
 
-  setImmediate(function() {
+  const interval = repeat(() => {
+    fs.rmSync(filepath, { force: true });
     const fd = fs.openSync(filepath, 'w');
     fs.closeSync(fd);
   });
-
 }
 
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
