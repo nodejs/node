@@ -223,12 +223,11 @@ async function doAsyncIterInvalidCallbackTest() {
 }
 doAsyncIterInvalidCallbackTest().then(common.mustCall());
 
-// Check if directory already closed - throw an exception
+// Check first call to close() - should not report an error.
 async function doAsyncIterDirClosedTest() {
   const dir = await fs.promises.opendir(testDir);
   await dir.close();
-
-  assert.throws(() => dir.close(), dirclosedError);
+  await assert.rejects(() => dir.close(), dirclosedError);
 }
 doAsyncIterDirClosedTest().then(common.mustCall());
 
@@ -267,3 +266,19 @@ async function doConcurrentAsyncMixedOps() {
   await promise2;
 }
 doConcurrentAsyncMixedOps().then(common.mustCall());
+
+// Check if directory already closed - the callback should pass an error.
+{
+  const dir = fs.opendirSync(testDir);
+  dir.closeSync();
+  dir.close(common.mustCall((error) => {
+    assert.strictEqual(error.code, dirclosedError.code);
+  }));
+}
+
+// Check if directory already closed - throw an promise exception.
+{
+  const dir = fs.opendirSync(testDir);
+  dir.closeSync();
+  assert.rejects(dir.close(), dirclosedError).then(common.mustCall());
+}
