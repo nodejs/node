@@ -21,12 +21,14 @@ const names = new Set([
 ]);
 
 if (process.argv[2] === 'child') {
+  /* eslint-disable no-unused-expressions */
   // This is just so that the child has something to do.
   1 + 1;
   // These ensure that the RunTimers, CheckImmediate, and
   // RunAndClearNativeImmediates appear in the list.
   setImmediate(() => { 1 + 1; });
   setTimeout(() => { 1 + 1; }, 1);
+  /* eslint-enable no-unused-expressions */
 } else {
   tmpdir.refresh();
 
