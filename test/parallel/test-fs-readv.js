@@ -17,7 +17,7 @@ const exptectedBuff = Buffer.from(expected);
 const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = [];
   // Allocate two buffers, each half the size of exptectedBuff
-  bufferArr[0] = Buffer.alloc(Math.floor(combinedLength / 2)),
+  bufferArr[0] = Buffer.alloc(Math.floor(combinedLength / 2));
   bufferArr[1] = Buffer.alloc(combinedLength - bufferArr[0].length);
 
   return bufferArr;

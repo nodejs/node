@@ -4,6 +4,7 @@ rules:
   # ease some restrictions in doc examples
   no-restricted-properties: off
   no-undef: off
+  no-unused-expressions: off
   no-unused-vars: off
   symbol-description: off
 

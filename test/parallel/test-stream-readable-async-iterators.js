@@ -62,8 +62,7 @@ async function tests() {
     });
 
     await (async () => {
-      for await (const d of readable) {
-        d;
+      for await (const d of readable) { // eslint-disable-line no-unused-vars
         return;
       }
     })();
@@ -595,9 +594,7 @@ async function tests() {
       }
     });
 
-    for await (const chunk of r) {
-      chunk;
-    }
+    for await (const chunk of r) {} // eslint-disable-line no-unused-vars
     assert.strictEqual(r.destroyed, false);
   }
 
@@ -612,8 +609,7 @@ async function tests() {
       }
     });
 
-    for await (const chunk of r) {
-      chunk;
+    for await (const chunk of r) { // eslint-disable-line no-unused-vars
       break;
     }
     assert.strictEqual(r.destroyed, true);
@@ -631,9 +627,7 @@ async function tests() {
       assert.strictEqual(r.destroyed, false);
     });
 
-    for await (const chunk of r) {
-      chunk;
-    }
+    for await (const chunk of r) {} // eslint-disable-line no-unused-vars
 
     assert.strictEqual(r.destroyed, true);
   }
@@ -717,9 +711,8 @@ async function tests() {
 
         let _err;
         try {
-          for await (const chunk of res) {
-            chunk;
-          }
+          // eslint-disable-next-line no-unused-vars
+          for await (const chunk of res) {}
         } catch (err) {
           _err = err;
         }
