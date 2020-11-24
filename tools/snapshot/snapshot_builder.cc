@@ -25,7 +25,7 @@ void WriteVector(std::stringstream* ss, const T* vec, size_t size) {
   }
 }
 
-std::string FormatBlob(v8::StartupData* blob,
+std::string FormatBlob(StartupData* blob,
                        const std::vector<size_t>& isolate_data_indexes,
                        const EnvSerializeInfo& env_info) {
   std::stringstream ss;
@@ -75,7 +75,7 @@ const EnvSerializeInfo* NodeMainInstance::GetEnvSerializeInfo() {
   return ss.str();
 }
 
-static v8::StartupData SerializeNodeContextInternalFields(Local<Object> holder,
+static StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                                                           int index,
                                                           void* env) {
   void* ptr = holder->GetAlignedPointerFromInternalField(index);
