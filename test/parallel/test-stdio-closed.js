@@ -7,10 +7,12 @@ const fixtures = require('../common/fixtures');
 
 if (common.isWindows) {
   if (process.argv[2] === 'child') {
+    /* eslint-disable no-unused-expressions */
     process.stdin;
     process.stdout;
     process.stderr;
     return;
+    /* eslint-enable no-unused-expressions */
   }
   const python = process.env.PYTHON || 'python';
   const script = fixtures.path('spawn_closed_stdio.py');

@@ -9,5 +9,5 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
 {
   // Tests for _headerNames get method
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage._headerNames;
+  outgoingMessage._headerNames; // eslint-disable-line no-unused-expressions
 }

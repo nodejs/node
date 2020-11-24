@@ -14,7 +14,7 @@ assert.throws(function() {
 }, TypeError);
 
 assert.throws(function() {
-  +Buffer.prototype;
+  +Buffer.prototype; // eslint-disable-line no-unused-expressions
 }, TypeError);
 
 assert.throws(function() {

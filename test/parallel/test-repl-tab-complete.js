@@ -532,7 +532,7 @@ testMe.complete('obj.', common.mustCall((error, data) => {
 
 // check Buffer.prototype.length not crashing.
 // Refs: https://github.com/nodejs/node/pull/11961
-putIn.run['.clear'];
+putIn.run(['.clear']);
 testMe.complete('Buffer.prototype.', common.mustCall());
 
 const testNonGlobal = repl.start({

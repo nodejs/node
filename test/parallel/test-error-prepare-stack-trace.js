@@ -13,7 +13,7 @@ const assert = require('assert');
   try {
     throw new Error('foo');
   } catch (err) {
-    err.stack;
+    err.stack; // eslint-disable-line no-unused-expressions
   }
   assert(prepareCalled);
 }

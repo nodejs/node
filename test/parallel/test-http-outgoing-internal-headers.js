@@ -13,7 +13,7 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
   // Tests for _headers get method
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.getHeaders = common.mustCall();
-  outgoingMessage._headers;
+  outgoingMessage._headers; // eslint-disable-line no-unused-expressions
 }
 
 {

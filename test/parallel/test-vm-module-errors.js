@@ -86,7 +86,7 @@ async function checkModuleState() {
 
   assert.throws(() => {
     const m = new SourceTextModule('');
-    m.error;
+    m.error; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must be errored'
@@ -95,7 +95,7 @@ async function checkModuleState() {
   await assert.rejects(async () => {
     const m = await createEmptyLinkedModule();
     await m.evaluate();
-    m.error;
+    m.error; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must be errored'
@@ -103,7 +103,7 @@ async function checkModuleState() {
 
   assert.throws(() => {
     const m = new SourceTextModule('');
-    m.namespace;
+    m.namespace; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must not be unlinked or linking'

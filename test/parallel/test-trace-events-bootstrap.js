@@ -16,7 +16,7 @@ const names = [
 ];
 
 if (process.argv[2] === 'child') {
-  1 + 1;
+  1 + 1; // eslint-disable-line no-unused-expressions
 } else {
   tmpdir.refresh();
 
