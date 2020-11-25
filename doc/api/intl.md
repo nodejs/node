@@ -42,7 +42,7 @@ in [BUILDING.md][].
 An overview of available Node.js and JavaScript features for each `configure`
 option:
 
-|                                         | `none`                            | `system-icu`                 | `small-icu`            | `full-icu` |
+| Feature                                 | `none`                            | `system-icu`                 | `small-icu`            | `full-icu` |
 |-----------------------------------------|-----------------------------------|------------------------------|------------------------|------------|
 | [`String.prototype.normalize()`][]      | none (function is no-op)          | full                         | full                   | full       |
 | `String.prototype.to*Case()`            | full                              | full                         | full                   | full       |
