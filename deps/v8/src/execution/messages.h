@@ -86,6 +86,9 @@ class StackFrameBase {
   // Return 0-based Wasm function index. Returns -1 for non-Wasm frames.
   virtual int GetWasmFunctionIndex();
 
+  virtual int GetEnclosingColumnNumber() = 0;
+  virtual int GetEnclosingLineNumber() = 0;
+
   // Returns index for Promise.all() async frames, or -1 for other frames.
   virtual int GetPromiseIndex() const = 0;
 
@@ -129,6 +132,9 @@ class JSStackFrame : public StackFrameBase {
   int GetPosition() const override;
   int GetLineNumber() override;
   int GetColumnNumber() override;
+
+  int GetEnclosingColumnNumber() override;
+  int GetEnclosingLineNumber() override;
 
   int GetPromiseIndex() const override;
 
@@ -178,6 +184,8 @@ class WasmStackFrame : public StackFrameBase {
   int GetPosition() const override;
   int GetLineNumber() override { return 0; }
   int GetColumnNumber() override;
+  int GetEnclosingColumnNumber() override;
+  int GetEnclosingLineNumber() override { return 0; }
   int GetWasmFunctionIndex() override { return wasm_func_index_; }
 
   int GetPromiseIndex() const override { return GetPosition(); }
@@ -224,6 +232,9 @@ class AsmJsWasmStackFrame : public WasmStackFrame {
   int GetPosition() const override;
   int GetLineNumber() override;
   int GetColumnNumber() override;
+
+  int GetEnclosingColumnNumber() override;
+  int GetEnclosingLineNumber() override;
 
  private:
   friend class FrameArrayIterator;

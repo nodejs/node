@@ -376,6 +376,8 @@ namespace internal {
                                                                                \
   /* CallSite */                                                               \
   CPP(CallSitePrototypeGetColumnNumber)                                        \
+  CPP(CallSitePrototypeGetEnclosingColumnNumber)                               \
+  CPP(CallSitePrototypeGetEnclosingLineNumber)                                 \
   CPP(CallSitePrototypeGetEvalOrigin)                                          \
   CPP(CallSitePrototypeGetFileName)                                            \
   CPP(CallSitePrototypeGetFunction)                                            \
