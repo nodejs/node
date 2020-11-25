@@ -27,6 +27,19 @@ const fixtureE = fixtures.path('intrinsic-mutation.js');
 const fixtureF = fixtures.path('print-intrinsic-mutation-name.js');
 const fixtureG = fixtures.path('worker-from-argv.js');
 const fixtureThrows = fixtures.path('throws_error4.js');
+const fixtureIsPreloading = fixtures.path('ispreloading.js');
+
+// Assert that module.isPreloading is false here
+assert(!module.isPreloading);
+
+// Test that module.isPreloading is set in preloaded module
+// Test preloading a single module works
+childProcess.exec(
+  `"${nodeBinary}" ${preloadOption([fixtureIsPreloading])} "${fixtureB}"`,
+  function(err, stdout, stderr) {
+    assert.ifError(err);
+    assert.strictEqual(stdout, 'B\n');
+  });
 
 // Test preloading a single module works
 childProcess.exec(`"${nodeBinary}" ${preloadOption([fixtureA])} "${fixtureB}"`,
