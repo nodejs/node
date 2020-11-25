@@ -53,6 +53,22 @@ BUILTIN(CallSitePrototypeGetColumnNumber) {
   return PositiveNumberOrNull(it.Frame()->GetColumnNumber(), isolate);
 }
 
+BUILTIN(CallSitePrototypeGetEnclosingColumnNumber) {
+  HandleScope scope(isolate);
+  CHECK_CALLSITE(recv, "getEnclosingColumnNumber");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return PositiveNumberOrNull(it.Frame()->GetEnclosingColumnNumber(), isolate);
+}
+
+BUILTIN(CallSitePrototypeGetEnclosingLineNumber) {
+  HandleScope scope(isolate);
+  CHECK_CALLSITE(recv, "getEnclosingLineNumber");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return PositiveNumberOrNull(it.Frame()->GetEnclosingLineNumber(), isolate);
+}
+
 BUILTIN(CallSitePrototypeGetEvalOrigin) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getEvalOrigin");

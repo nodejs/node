@@ -514,6 +514,26 @@ int JSStackFrame::GetColumnNumber() {
   return kNone;
 }
 
+int JSStackFrame::GetEnclosingLineNumber() {
+  if (HasScript()) {
+    Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
+    return Script::GetLineNumber(GetScript(),
+                                 shared->function_token_position()) + 1;
+  } else {
+    return kNone;
+  }
+}
+
+int JSStackFrame::GetEnclosingColumnNumber() {
+  if (HasScript()) {
+    Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
+    return Script::GetColumnNumber(GetScript(),
+                                   shared->function_token_position()) + 1;
+  } else {
+    return kNone;
+  }
+}
+
 int JSStackFrame::GetPromiseIndex() const {
   return (is_promise_all_ || is_promise_any_) ? offset_ : kNone;
 }
@@ -602,6 +622,12 @@ int WasmStackFrame::GetPosition() const {
 
 int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }
 
+int WasmStackFrame::GetEnclosingColumnNumber() {
+  const int function_offset =
+      GetWasmFunctionOffset(wasm_instance_->module(), wasm_func_index_);
+  return function_offset;
+}
+
 int WasmStackFrame::GetModuleOffset() const {
   const int function_offset =
       GetWasmFunctionOffset(wasm_instance_->module(), wasm_func_index_);
@@ -670,6 +696,26 @@ int AsmJsWasmStackFrame::GetColumnNumber() {
   Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return Script::GetColumnNumber(script, GetPosition()) + 1;
+}
+
+int AsmJsWasmStackFrame::GetEnclosingLineNumber() {
+  DCHECK_LE(0, GetPosition());
+  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
+  DCHECK(script->IsUserJavaScript());
+  int byte_offset = GetSourcePosition(wasm_instance_->module(),
+                                      wasm_func_index_, 0,
+                                      is_at_number_conversion_);
+  return Script::GetLineNumber(script, byte_offset) + 1;
+}
+
+int AsmJsWasmStackFrame::GetEnclosingColumnNumber() {
+  DCHECK_LE(0, GetPosition());
+  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
+  DCHECK(script->IsUserJavaScript());
+  int byte_offset = GetSourcePosition(wasm_instance_->module(),
+                                      wasm_func_index_, 0,
+                                      is_at_number_conversion_);
+  return Script::GetColumnNumber(script, byte_offset) + 1;
 }
 
 FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
