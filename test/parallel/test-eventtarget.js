@@ -532,3 +532,12 @@ let asyncTest = Promise.resolve();
   target.dispatchEvent(new Event('foo'));
   deepStrictEqual(output, [1, 2, 3, 4]);
 }
+{
+  const et = new EventTarget();
+  const listener = common.mustNotCall();
+  et.addEventListener('foo', common.mustCall((e) => {
+    et.removeEventListener('foo', listener);
+  }));
+  et.addEventListener('foo', listener);
+  et.dispatchEvent(new Event('foo'));
+}
