@@ -2534,6 +2534,9 @@ void Initialize(Local<Object> target,
               use_promises_symbol).Check();
 }
 
+BindingData* FSReqBase::binding_data() {
+  return binding_data_.get();
+}
 }  // namespace fs
 
 }  // end namespace node
