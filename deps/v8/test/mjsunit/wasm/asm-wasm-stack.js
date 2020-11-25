@@ -154,3 +154,18 @@ function generateOverflowWasmFromAsmJs() {
     ['f', 135, 12]   // --
   ]);
 })();
+
+(function EnclosingFunctionOffsets() {
+  const fun = generateWasmFromAsmJs(this, {throwFunc: throwException});
+  assertTrue(%IsWasmCode(fun));
+  let e = null;
+  try {
+    fun(0);
+  } catch (ex) {
+    e = ex;
+  }
+  assertEquals(68, e.stack[2].getLineNumber());
+  assertEquals(15, e.stack[2].getColumnNumber());
+  assertEquals(65, e.stack[2].getEnclosingLineNumber());
+  assertEquals(3, e.stack[2].getEnclosingColumnNumber());
+})();
