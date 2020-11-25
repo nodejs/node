@@ -439,3 +439,23 @@ var constructor = new Error().stack[0].constructor;
 assertThrows(() => constructor.call());
 assertThrows(() => constructor.call(
     null, {}, () => undefined, {valueOf() { return 0 }}, false));
+
+// Test stack frames populated with line/column information for both call site
+// and enclosing function:
+Error.prepareStackTrace = function(e, frames) {
+  assertMatches(/stack-traces\.js/, frames[0].getFileName());
+  assertEquals(3, frames[0].getEnclosingColumnNumber());
+  assertEquals(11, frames[0].getColumnNumber());
+  assertTrue(frames[0].getEnclosingLineNumber() < frames[0].getLineNumber());
+}
+try {
+  function a() {
+    b();
+  }
+  function b() {
+    throw Error('hello world');
+  }
+  a();
+} catch (err) {
+  err.stack;
+}
