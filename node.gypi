@@ -204,6 +204,10 @@
       ],
     }],
 
+    [ 'node_shared_uvwasi=="false"', {
+      'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
+    }],
+
     [ 'node_shared_nghttp2=="false"', {
       'dependencies': [ 'deps/nghttp2/nghttp2.gyp:nghttp2' ],
     }],
