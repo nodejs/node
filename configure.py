@@ -382,6 +382,28 @@ shared_optgroup.add_argument('--shared-openssl-libpath',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
 
+shared_optgroup.add_argument('--shared-uvwasi',
+    action='store_true',
+    dest='shared_uvwasi',
+    default=None,
+    help='link to a shared uvwasi DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-uvwasi-includes',
+    action='store',
+    dest='shared_uvwasi_includes',
+    help='directory containing uvwasi header files')
+
+shared_optgroup.add_argument('--shared-uvwasi-libname',
+    action='store',
+    dest='shared_uvwasi_libname',
+    default='uvwasi',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_argument('--shared-uvwasi-libpath',
+    action='store',
+    dest='shared_uvwasi_libpath',
+    help='a directory to search for the shared uvwasi DLL')
+
 shared_optgroup.add_argument('--shared-zlib',
     action='store_true',
     dest='shared_zlib',
@@ -2122,6 +2144,7 @@ configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
+configure_library('uvwasi', output, pkgname='libuvwasi')
 configure_v8(output)
 configure_openssl(output)
 configure_intl(output)
