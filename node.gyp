@@ -20,6 +20,7 @@
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_libuv%': 'false',
+    'node_shared_uvwasi%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_shared_ngtcp2%': 'false',
     'node_shared_nghttp3%': 'false',
@@ -390,7 +391,14 @@
 
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [
+            'deps/uvwasi/uvwasi.gyp:uvwasi'
+          ],
+        }],
       ],
 
       'msvs_settings': {
@@ -573,7 +581,14 @@
       ],
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [
+            'deps/uvwasi/uvwasi.gyp:uvwasi'
+          ],
+        }],
       ],
 
       'sources': [
@@ -1267,11 +1282,19 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
       ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [
+            'deps/uvwasi/uvwasi.gyp:uvwasi'
+          ],
+        }],
+      ],
+
       'includes': [
         'node.gypi'
       ],
@@ -1281,9 +1304,17 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'include_dirs': [
+            'deps/uvwasi/include',
+          ],
+        }],
+      ],
+
       'defines': [
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
@@ -1311,10 +1342,17 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [
+            'deps/uvwasi/uvwasi.gyp:uvwasi'
+          ],
+        }],
       ],
 
       'includes': [
@@ -1327,8 +1365,15 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'include_dirs': [
+            'deps/uvwasi/include',
+          ],
+        }],
       ],
 
       'defines': [
@@ -1419,10 +1464,17 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [
+            'deps/uvwasi/uvwasi.gyp:uvwasi'
+          ],
+        }],
       ],
 
       'includes': [
@@ -1435,8 +1487,15 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/embedding',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'include_dirs': [
+            'deps/uvwasi/include',
+          ],
+        }],
       ],
 
       'sources': [
@@ -1481,7 +1540,14 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [
+            'deps/uvwasi/uvwasi.gyp:uvwasi'
+          ],
+        }],
       ],
 
       'includes': [
@@ -1494,7 +1560,14 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'include_dirs': [
+            'deps/uvwasi/include',
+          ],
+        }],
       ],
 
       'defines': [
@@ -1541,7 +1614,14 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
+ 
+     'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [
+            'deps/uvwasi/uvwasi.gyp:uvwasi'
+          ],
+        }],
       ],
 
       'includes': [
@@ -1554,7 +1634,14 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
+      ],
+
+      'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'include_dirs': [
+            'deps/uvwasi/include',
+          ],
+        }],
       ],
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
