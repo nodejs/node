@@ -9,10 +9,11 @@ const input = 'hello world';
 const { Worker, isMainThread, workerData } = require('worker_threads');
 
 let output = '';
-tmpdir.refresh();
-fs.writeFileSync(file, input);
 
 if (isMainThread) {
+  tmpdir.refresh();
+  fs.writeFileSync(file, input);
+
   fs.promises.open(file, 'r').then((handle) => {
     handle.on('close', common.mustNotCall());
     new Worker(__filename, {
