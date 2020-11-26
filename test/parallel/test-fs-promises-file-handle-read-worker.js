@@ -8,9 +8,7 @@ const file = path.join(tmpdir.path, 'read_stream_filehandle_worker.txt');
 const input = 'hello world';
 const { Worker, isMainThread, workerData } = require('worker_threads');
 
-let output = '';
-
-if (isMainThread) {
+if (isMainThread || !workerData) {
   tmpdir.refresh();
   fs.writeFileSync(file, input);
 
@@ -33,6 +31,8 @@ if (isMainThread) {
     });
   });
 } else {
+  let output = '';
+
   const handle = workerData.handle;
   handle.on('close', common.mustCall());
   const stream = fs.createReadStream(null, { fd: handle });
