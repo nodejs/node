@@ -76,8 +76,8 @@ const EnvSerializeInfo* NodeMainInstance::GetEnvSerializeInfo() {
 }
 
 static StartupData SerializeNodeContextInternalFields(Local<Object> holder,
-                                                          int index,
-                                                          void* env) {
+                                                      int index,
+                                                      void* env) {
   void* ptr = holder->GetAlignedPointerFromInternalField(index);
   if (ptr == nullptr || ptr == env) {
     return StartupData{nullptr, 0};
