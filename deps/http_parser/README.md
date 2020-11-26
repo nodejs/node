@@ -1,6 +1,9 @@
 HTTP Parser
 ===========
 
+http-parser is [**not** actively maintained](https://github.com/nodejs/http-parser/issues/522).
+New projects and projects looking to migrate should consider [llhttp](https://github.com/nodejs/llhttp).
+
 [![Build Status](https://api.travis-ci.org/nodejs/http-parser.svg?branch=master)](https://travis-ci.org/nodejs/http-parser)
 
 This is a parser for HTTP messages written in C. It parses both requests and
