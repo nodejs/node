@@ -74,6 +74,7 @@ struct message {
 
   unsigned short http_major;
   unsigned short http_minor;
+  uint64_t content_length;
 
   int message_begin_cb_called;
   int headers_complete_cb_called;
@@ -81,6 +82,7 @@ struct message {
   int status_cb_called;
   int message_complete_on_eof;
   int body_is_final;
+  int allow_chunked_length;
 };
 
 static int currently_parsing_eof;
@@ -108,6 +110,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/test"
   ,.request_url= "/test"
+  ,.content_length= -1
   ,.num_headers= 3
   ,.headers=
     { { "User-Agent", "curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1" }
@@ -139,6 +142,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/favicon.ico"
   ,.request_url= "/favicon.ico"
+  ,.content_length= -1
   ,.num_headers= 8
   ,.headers=
     { { "Host", "0.0.0.0=5000" }
@@ -168,6 +172,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/dumbluck"
   ,.request_url= "/dumbluck"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "aaaaaaaaaaaaa",  "++++++++++" }
@@ -190,6 +195,7 @@ const struct message requests[] =
   ,.request_path= "/forums/1/topics/2375"
   /* XXX request url does include fragment? */
   ,.request_url= "/forums/1/topics/2375?page=1#posts-17408"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.body= ""
   }
@@ -208,6 +214,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/get_no_headers_no_body/world"
   ,.request_url= "/get_no_headers_no_body/world"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.body= ""
   }
@@ -227,6 +234,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/get_one_header_no_body"
   ,.request_url= "/get_one_header_no_body"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Accept" , "*/*" }
@@ -250,6 +258,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/get_funky_content_length_body_hello"
   ,.request_url= "/get_funky_content_length_body_hello"
+  ,.content_length= 5
   ,.num_headers= 1
   ,.headers=
     { { "conTENT-Length" , "5" }
@@ -274,6 +283,7 @@ const struct message requests[] =
   ,.fragment= "hey"
   ,.request_path= "/post_identity_body_world"
   ,.request_url= "/post_identity_body_world?q=search#hey"
+  ,.content_length= 5
   ,.num_headers= 2
   ,.headers=
     { { "Accept", "*/*" }
@@ -300,6 +310,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/post_chunked_all_your_base"
   ,.request_url= "/post_chunked_all_your_base"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Transfer-Encoding" , "chunked" }
@@ -328,6 +339,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/two_chunks_mult_zero_end"
   ,.request_url= "/two_chunks_mult_zero_end"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Transfer-Encoding", "chunked" }
@@ -358,6 +370,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/chunked_w_trailing_headers"
   ,.request_url= "/chunked_w_trailing_headers"
+  ,.content_length= -1
   ,.num_headers= 3
   ,.headers=
     { { "Transfer-Encoding",  "chunked" }
@@ -388,6 +401,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/chunked_w_nonsense_after_length"
   ,.request_url= "/chunked_w_nonsense_after_length"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Transfer-Encoding", "chunked" }
@@ -410,6 +424,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/with_\"stupid\"_quotes"
   ,.request_url= "/with_\"stupid\"_quotes?foo=\"bar\""
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= { }
   ,.body= ""
@@ -436,6 +451,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/test"
   ,.request_url= "/test"
+  ,.content_length= -1
   ,.num_headers= 3
   ,.headers= { { "Host", "0.0.0.0:5000" }
              , { "User-Agent", "ApacheBench/2.3" }
@@ -459,6 +475,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/test.cgi"
   ,.request_url= "/test.cgi?foo=bar?baz"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= {}
   ,.body= ""
@@ -480,6 +497,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/test"
   ,.request_url= "/test"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= { }
   ,.body= ""
@@ -507,6 +525,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/demo"
   ,.request_url= "/demo"
+  ,.content_length= -1
   ,.num_headers= 7
   ,.upgrade="Hot diggity dogg"
   ,.headers= { { "Host", "example.com" }
@@ -538,6 +557,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= ""
   ,.request_url= "0-home0.netscape.com:443"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.upgrade="some data\r\nand yet even more data"
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
@@ -560,6 +580,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/test"
   ,.request_url= "/test"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= {}
   ,.body= ""
@@ -579,6 +600,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/"
   ,.request_url= "/"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= {}
   ,.body= ""
@@ -601,6 +623,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "*"
   ,.request_url= "*"
+  ,.content_length= -1
   ,.num_headers= 3
   ,.headers= { { "HOST", "239.255.255.250:1900" }
              , { "MAN", "\"ssdp:discover\"" }
@@ -636,6 +659,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/"
   ,.request_url= "/"
+  ,.content_length= -1
   ,.num_headers= 5
   ,.headers= { { "Line1", "abc\tdef ghi\t\tjkl  mno \t \tqrs" }
              , { "Line2", "line2\t" }
@@ -662,6 +686,7 @@ const struct message requests[] =
   ,.request_path= ""
   ,.request_url= "http://hypnotoad.org?hail=all"
   ,.host= "hypnotoad.org"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= { }
   ,.body= ""
@@ -683,6 +708,7 @@ const struct message requests[] =
   ,.request_url= "http://hypnotoad.org:1234?hail=all"
   ,.host= "hypnotoad.org"
   ,.port= 1234
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= { }
   ,.body= ""
@@ -704,6 +730,7 @@ const struct message requests[] =
   ,.request_url= "http://hypnotoad.org:1234"
   ,.host= "hypnotoad.org"
   ,.port= 1234
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= { }
   ,.body= ""
@@ -728,6 +755,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/file.txt"
   ,.request_url= "/file.txt"
+  ,.content_length= 10
   ,.num_headers= 4
   ,.headers= { { "Host", "www.example.com" }
              , { "Content-Type", "application/example" }
@@ -753,6 +781,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= ""
   ,.request_url= "HOME0.NETSCAPE.COM:443"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.upgrade=""
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
@@ -777,6 +806,7 @@ const struct message requests[] =
   ,.fragment= "narf"
   ,.request_path= "/δ¶/δt/pope"
   ,.request_url= "/δ¶/δt/pope?q=1#narf"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers= { {"Host", "github.com" }
              }
@@ -799,6 +829,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= ""
   ,.request_url= "home_0.netscape.com:443"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.upgrade=""
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
@@ -826,6 +857,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/"
   ,.request_url= "/"
+  ,.content_length= 4
   ,.num_headers= 3
   ,.upgrade= 0
   ,.headers= { { "Host", "www.example.com" }
@@ -854,6 +886,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/"
   ,.request_url= "/"
+  ,.content_length= 4
   ,.num_headers= 4
   ,.upgrade= 0
   ,.headers= { { "Host", "www.example.com" }
@@ -879,6 +912,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/file.txt"
   ,.request_url= "/file.txt"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers= { { "Host", "www.example.com" } }
   ,.body= ""
@@ -899,6 +933,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/"
   ,.request_url= "/"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers= { { "Host", "www.example.com" } }
   ,.body= ""
@@ -920,6 +955,7 @@ const struct message requests[] =
   ,.host= "hypnotoad.org"
   ,.userinfo= "a%12:b!&*$"
   ,.port= 1234
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= { }
   ,.body= ""
@@ -952,6 +988,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/"
   ,.request_url= "/"
+  ,.content_length= -1
   ,.num_headers= 5
   ,.headers= { { "Line1", "abc\tdef ghi\t\tjkl  mno \t \tqrs" }
              , { "Line2", "line2\t" }
@@ -985,6 +1022,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/demo"
   ,.request_url= "/demo"
+  ,.content_length= -1
   ,.num_headers= 7
   ,.upgrade="Hot diggity dogg"
   ,.headers= { { "Host", "example.com" }
@@ -1015,6 +1053,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/demo"
   ,.request_url= "/demo"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.upgrade="Hot diggity dogg"
   ,.headers= { { "Connection", "keep-alive, upgrade" }
@@ -1040,6 +1079,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/demo"
   ,.request_url= "/demo"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.upgrade="Hot diggity dogg"
   ,.headers= { { "Connection", "keep-alive,  upgrade" }
@@ -1066,6 +1106,7 @@ const struct message requests[] =
   ,.method= HTTP_POST
   ,.request_path= "/demo"
   ,.request_url= "/demo"
+  ,.content_length= 15
   ,.num_headers= 4
   ,.upgrade="Hot diggity dogg"
   ,.headers= { { "Host", "example.com" }
@@ -1091,6 +1132,7 @@ const struct message requests[] =
   ,.http_minor= 0
   ,.method= HTTP_CONNECT
   ,.request_url= "foo.bar.com:443"
+  ,.content_length= 10
   ,.num_headers= 3
   ,.upgrade="blarfcicle"
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
@@ -1121,6 +1163,7 @@ const struct message requests[] =
   ,.request_url= "/images/my_dog.jpg"
   ,.query_string= ""
   ,.fragment= ""
+  ,.content_length= -1
   ,.num_headers= 3
   ,.headers= { { "Host", "example.com" }
              , { "Link", "<http://example.com/profiles/joe>; rel=\"tag\"" }
@@ -1145,6 +1188,7 @@ const struct message requests[] =
   ,.request_url= "/images/my_dog.jpg"
   ,.query_string= ""
   ,.fragment= ""
+  ,.content_length= -1
   ,.num_headers= 2
   ,.headers= { { "Host", "example.com" }
 	     , { "Link", "<http://example.com/profiles/sally>; rel=\"tag\"" }
@@ -1167,12 +1211,13 @@ const struct message requests[] =
   ,.request_url= "/music/sweet/music"
   ,.query_string= ""
   ,.fragment= ""
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers= { { "Host", "example.com" } }
   ,.body= ""
   }
 
-#define SOURCE_ICE_REQUEST 42
+#define SOURCE_ICE_REQUEST 43
 , {.name = "source request"
   ,.type= HTTP_REQUEST
   ,.raw= "SOURCE /music/sweet/music ICE/1.0\r\n"
@@ -1187,12 +1232,13 @@ const struct message requests[] =
   ,.request_url= "/music/sweet/music"
   ,.query_string= ""
   ,.fragment= ""
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers= { { "Host", "example.com" } }
   ,.body= ""
   }
 
-#define POST_MULTI_TE_LAST_CHUNKED 43
+#define POST_MULTI_TE_LAST_CHUNKED 44
 , {.name= "post - multi coding transfer-encoding chunked body"
   ,.type= HTTP_REQUEST
   ,.raw= "POST / HTTP/1.1\r\n"
@@ -1210,6 +1256,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/"
   ,.request_url= "/"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Transfer-Encoding" , "deflate, chunked" }
@@ -1219,8 +1266,8 @@ const struct message requests[] =
   ,.chunk_lengths= { 0x1e }
   }
 
-#define POST_MULTI_LINE_TE_LAST_CHUNKED 43
-, {.name= "post - multi coding transfer-encoding chunked body"
+#define POST_MULTI_LINE_TE_LAST_CHUNKED 45
+, {.name= "post - multi line coding transfer-encoding chunked body"
   ,.type= HTTP_REQUEST
   ,.raw= "POST / HTTP/1.1\r\n"
          "Transfer-Encoding: deflate,\r\n"
@@ -1238,6 +1285,7 @@ const struct message requests[] =
   ,.fragment= ""
   ,.request_path= "/"
   ,.request_url= "/"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Transfer-Encoding" , "deflate, chunked" }
@@ -1245,6 +1293,37 @@ const struct message requests[] =
   ,.body= "all your base are belong to us"
   ,.num_chunks_complete= 2
   ,.chunk_lengths= { 0x1e }
+  }
+
+#define CHUNKED_CONTENT_LENGTH 46
+, {.name= "chunked with content-length set, allow_chunked_length flag is set"
+  ,.type= HTTP_REQUEST
+  ,.raw= "POST /chunked_w_content_length HTTP/1.1\r\n"
+         "Content-Length: 10\r\n"
+         "Transfer-Encoding: chunked\r\n"
+         "\r\n"
+         "5; ilovew3;whattheluck=aretheseparametersfor\r\nhello\r\n"
+         "6; blahblah; blah\r\n world\r\n"
+         "0\r\n"
+         "\r\n"
+  ,.allow_chunked_length = 1
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_POST
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/chunked_w_content_length"
+  ,.request_url= "/chunked_w_content_length"
+  ,.content_length= 10
+  ,.num_headers= 2
+  ,.headers={ { "Content-Length", "10"}
+            , { "Transfer-Encoding", "chunked" }
+  }
+  ,.body= "hello world"
+  ,.num_chunks_complete= 3
+  ,.chunk_lengths= { 5, 6 }
   }
 };
 
@@ -1275,6 +1354,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 301
   ,.response_status= "Moved Permanently"
+  ,.content_length= 219
   ,.num_headers= 8
   ,.headers=
     { { "Location", "http://www.google.com/" }
@@ -1324,6 +1404,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 5
   ,.headers=
     { { "Date", "Tue, 04 Aug 2009 07:59:32 GMT" }
@@ -1353,6 +1434,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 404
   ,.response_status= "Not Found"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= {}
   ,.body_size= 0
@@ -1368,6 +1450,7 @@ const struct message responses[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 301
+  ,.content_length= -1
   ,.response_status= ""
   ,.num_headers= 0
   ,.headers= {}
@@ -1395,6 +1478,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.headers=
     { {"Content-Type", "text/plain" }
@@ -1422,6 +1506,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.headers=
     { {"Content-Type", "text/html; charset=utf-8" }
@@ -1446,6 +1531,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= 11
   ,.num_headers= 4
   ,.headers=
     { {"Content-Type", "text/html; charset=UTF-8" }
@@ -1472,6 +1558,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= 0
   ,.num_headers= 4
   ,.headers=
     { {"Server", "DCLK-AdSvr" }
@@ -1505,6 +1592,7 @@ const struct message responses[] =
   ,.http_minor= 0
   ,.status_code= 301
   ,.response_status= "Moved Permanently"
+  ,.content_length= 0
   ,.num_headers= 9
   ,.headers=
     { { "Date", "Thu, 03 Jun 2010 09:56:32 GMT" }
@@ -1544,6 +1632,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 11
   ,.headers=
     { { "Date", "Tue, 28 Sep 2010 01:14:13 GMT" }
@@ -1578,6 +1667,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 500
   ,.response_status= "Oriëntatieprobleem"
+  ,.content_length= 0
   ,.num_headers= 3
   ,.headers=
     { { "Date", "Fri, 5 Nov 2010 23:07:12 GMT+2" }
@@ -1599,6 +1689,7 @@ const struct message responses[] =
   ,.http_minor= 9
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers=
     {}
@@ -1622,6 +1713,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Content-Type", "text/plain" }
@@ -1641,6 +1733,7 @@ const struct message responses[] =
   ,.http_minor= 0
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Connection", "keep-alive" }
@@ -1661,6 +1754,7 @@ const struct message responses[] =
   ,.http_minor= 0
   ,.status_code= 204
   ,.response_status= "No content"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Connection", "keep-alive" }
@@ -1680,6 +1774,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers={}
   ,.body_size= 0
@@ -1697,6 +1792,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 204
   ,.response_status= "No content"
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers={}
   ,.body_size= 0
@@ -1715,6 +1811,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 204
   ,.response_status= "No content"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Connection", "close" }
@@ -1737,6 +1834,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers=
     { { "Transfer-Encoding", "chunked" }
@@ -1767,6 +1865,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= 16
   ,.num_headers= 7
   ,.headers=
     { { "Server",  "Microsoft-IIS/6.0" }
@@ -1805,6 +1904,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 301
   ,.response_status= "MovedPermanently"
+  ,.content_length= -1
   ,.num_headers= 9
   ,.headers= { { "Date", "Wed, 15 May 2013 17:06:33 GMT" }
              , { "Server", "Server" }
@@ -1821,7 +1921,7 @@ const struct message responses[] =
   ,.chunk_lengths= { 1 }
   }
 
-#define EMPTY_REASON_PHRASE_AFTER_SPACE 20
+#define EMPTY_REASON_PHRASE_AFTER_SPACE 21
 , {.name= "empty reason phrase after space"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 \r\n"
@@ -1832,12 +1932,13 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= ""
+  ,.content_length= -1
   ,.num_headers= 0
   ,.headers= {}
   ,.body= ""
   }
 
-#define CONTENT_LENGTH_X 21
+#define CONTENT_LENGTH_X 22
 , {.name= "Content-Length-X"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 OK\r\n"
@@ -1854,6 +1955,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.headers= { { "Content-Length-X", "0" }
              , { "Transfer-Encoding", "chunked" }
@@ -1863,7 +1965,7 @@ const struct message responses[] =
   ,.chunk_lengths= { 2 }
   }
 
-#define HTTP_101_RESPONSE_WITH_UPGRADE_HEADER 22
+#define HTTP_101_RESPONSE_WITH_UPGRADE_HEADER 23
 , {.name= "HTTP 101 response with Upgrade header"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 101 Switching Protocols\r\n"
@@ -1878,6 +1980,7 @@ const struct message responses[] =
   ,.status_code= 101
   ,.response_status= "Switching Protocols"
   ,.upgrade= "proto"
+  ,.content_length= -1
   ,.num_headers= 2
   ,.headers=
     { { "Connection", "upgrade" }
@@ -1885,7 +1988,7 @@ const struct message responses[] =
     }
   }
 
-#define HTTP_101_RESPONSE_WITH_UPGRADE_HEADER_AND_CONTENT_LENGTH 23
+#define HTTP_101_RESPONSE_WITH_UPGRADE_HEADER_AND_CONTENT_LENGTH 24
 , {.name= "HTTP 101 response with Upgrade and Content-Length header"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 101 Switching Protocols\r\n"
@@ -1903,6 +2006,7 @@ const struct message responses[] =
   ,.response_status= "Switching Protocols"
   ,.body= "body"
   ,.upgrade= "proto"
+  ,.content_length= 4
   ,.num_headers= 3
   ,.headers=
     { { "Connection", "upgrade" }
@@ -1911,7 +2015,7 @@ const struct message responses[] =
     }
   }
 
-#define HTTP_101_RESPONSE_WITH_UPGRADE_HEADER_AND_TRANSFER_ENCODING 24
+#define HTTP_101_RESPONSE_WITH_UPGRADE_HEADER_AND_TRANSFER_ENCODING 25
 , {.name= "HTTP 101 response with Upgrade and Transfer-Encoding header"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 101 Switching Protocols\r\n"
@@ -1934,6 +2038,7 @@ const struct message responses[] =
   ,.response_status= "Switching Protocols"
   ,.body= "body"
   ,.upgrade= "proto"
+  ,.content_length= -1
   ,.num_headers= 3
   ,.headers=
     { { "Connection", "upgrade" }
@@ -1944,7 +2049,7 @@ const struct message responses[] =
   ,.chunk_lengths= { 2, 2 }
   }
 
-#define HTTP_200_RESPONSE_WITH_UPGRADE_HEADER 25
+#define HTTP_200_RESPONSE_WITH_UPGRADE_HEADER 26
 , {.name= "HTTP 200 response with Upgrade header"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 OK\r\n"
@@ -1960,6 +2065,7 @@ const struct message responses[] =
   ,.response_status= "OK"
   ,.body= "body"
   ,.upgrade= NULL
+  ,.content_length= -1
   ,.num_headers= 2
   ,.headers=
     { { "Connection", "upgrade" }
@@ -1967,7 +2073,7 @@ const struct message responses[] =
     }
   }
 
-#define HTTP_200_RESPONSE_WITH_UPGRADE_HEADER_AND_CONTENT_LENGTH 26
+#define HTTP_200_RESPONSE_WITH_UPGRADE_HEADER_AND_CONTENT_LENGTH 27
 , {.name= "HTTP 200 response with Upgrade and Content-Length header"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 OK\r\n"
@@ -1982,6 +2088,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= 4
   ,.num_headers= 3
   ,.body= "body"
   ,.upgrade= NULL
@@ -1992,7 +2099,7 @@ const struct message responses[] =
     }
   }
 
-#define HTTP_200_RESPONSE_WITH_UPGRADE_HEADER_AND_TRANSFER_ENCODING 27
+#define HTTP_200_RESPONSE_WITH_UPGRADE_HEADER_AND_TRANSFER_ENCODING 28
 , {.name= "HTTP 200 response with Upgrade and Transfer-Encoding header"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 OK\r\n"
@@ -2012,6 +2119,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 3
   ,.body= "body"
   ,.upgrade= NULL
@@ -2023,7 +2131,7 @@ const struct message responses[] =
   ,.num_chunks_complete= 3
   ,.chunk_lengths= { 2, 2 }
   }
-#define HTTP_200_MULTI_TE_NOT_LAST_CHUNKED 28
+#define HTTP_200_MULTI_TE_NOT_LAST_CHUNKED 29
 , {.name= "HTTP 200 response with `chunked` being *not last* Transfer-Encoding"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 OK\r\n"
@@ -2039,6 +2147,7 @@ const struct message responses[] =
   ,.http_minor= 1
   ,.status_code= 200
   ,.response_status= "OK"
+  ,.content_length= -1
   ,.num_headers= 1
   ,.headers= { { "Transfer-Encoding", "chunked, identity" }
              }
@@ -2202,6 +2311,7 @@ headers_complete_cb (http_parser *p)
   messages[num_messages].status_code = parser.status_code;
   messages[num_messages].http_major = parser.http_major;
   messages[num_messages].http_minor = parser.http_minor;
+  messages[num_messages].content_length = parser.content_length;
   messages[num_messages].headers_complete_cb_called = TRUE;
   messages[num_messages].should_keep_alive = http_should_keep_alive(&parser);
   return 0;
@@ -2650,6 +2760,7 @@ message_eq (int index, int connect, const struct message *expected)
 
   MESSAGE_CHECK_NUM_EQ(expected, m, http_major);
   MESSAGE_CHECK_NUM_EQ(expected, m, http_minor);
+  MESSAGE_CHECK_NUM_EQ(expected, m, content_length);
 
   if (expected->type == HTTP_REQUEST) {
     MESSAGE_CHECK_NUM_EQ(expected, m, method);
@@ -3503,6 +3614,9 @@ test_message (const struct message *message)
   size_t msg1len;
   for (msg1len = 0; msg1len < raw_len; msg1len++) {
     parser_init(message->type);
+    if (message->allow_chunked_length) {
+      parser.allow_chunked_length = 1;
+    }
 
     size_t read;
     const char *msg1 = message->raw;
@@ -3944,6 +4058,11 @@ test_multiple3 (const struct message *r1, const struct message *r2, const struct
   strcat(total, r3->raw);
 
   parser_init(r1->type);
+  if (r1->allow_chunked_length ||
+      r2->allow_chunked_length ||
+      r3->allow_chunked_length) {
+    parser.allow_chunked_length = 1;
+  }
 
   size_t read;
 
@@ -4146,6 +4265,9 @@ test_message_pause (const struct message *msg)
   size_t nread;
 
   parser_init(msg->type);
+  if (msg->allow_chunked_length) {
+    parser.allow_chunked_length = 1;
+  }
 
   do {
     nread = parse_pause(buf, buflen);
@@ -4221,6 +4343,13 @@ main (void)
   printf("http_parser v%u.%u.%u (0x%06lx)\n", major, minor, patch, version);
 
   printf("sizeof(http_parser) = %u\n", (unsigned int)sizeof(http_parser));
+
+#if defined(__i386__) || defined(__x86_64__)
+  /* Should be 32 on both 32 bits and 64 bits x86 because of struct padding,
+   * see https://github.com/nodejs/http-parser/issues/507.
+   */
+  assert(sizeof(http_parser) == 32);
+#endif
 
   //// API
   test_preserve_data();
@@ -4350,6 +4479,7 @@ main (void)
       ,.http_minor= 0
       ,.status_code= 200
       ,.response_status= "OK"
+      ,.content_length= -1
       ,.num_headers= 2
       ,.headers=
         { { "Transfer-Encoding", "chunked" }
