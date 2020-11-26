@@ -1,8 +1,15 @@
 'use strict';
 const common = require('../common');
 const process = require('process');
-if (process.platform !== 'linux' && process.platform !== 'darwin')
-  common.skip('This is an UNIX-only test');
+
+let defaultShell;
+if (process.platform === 'linux' || process.platform === 'darwin') {
+  defaultShell = '/bin/sh';
+} else if (process.platform === 'win32') {
+  defaultShell = 'cmd.exe';
+} else {
+  common.skip('This is test exists only on Linux/Win32/OSX');
+}
 
 const { execSync } = require('child_process');
 const fs = require('fs');
@@ -21,7 +28,8 @@ const { spawn } = require('child_process');
 process.stdin;
 setTimeout(() => {
   let ok = false;
-  const child = spawn(process.env.SHELL, [], { stdio: ['inherit', 'pipe'] });
+  const child = spawn(process.env.SHELL || '${defaultShell}',
+    [], { stdio: ['inherit', 'pipe'] });
   child.stdout.on('data', () => {
     ok = true;
   });
