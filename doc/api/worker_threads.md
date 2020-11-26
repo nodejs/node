@@ -274,6 +274,98 @@ if (isMainThread) {
 }
 ```
 
+## Class: `BroadcastChannel extends EventTarget`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Instances of `BroadcastChannel` allow asynchronous one-to-many communication
+with all other `BroadcastChannel` instances bound to the same channel name.
+
+```js
+'use strict';
+
+const {
+  isMainThread,
+  BroadcastChannel,
+  Worker
+} = require('worker_threads');
+
+const bc = new BroadcastChannel('hello');
+
+if (isMainThread) {
+  let c = 0;
+  bc.onmessage = (event) => {
+    console.log(event.data);
+    if (++c === 10) bc.close();
+  };
+  for (let n = 0; n < 10; n++)
+    new Worker(__filename);
+} else {
+  bc.postMessage('hello from every worker');
+  bc.close();
+}
+```
+
+### `new BroadcastChannel(name)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {any} The name of the channel to connect to. Any JavaScript value
+  that can be converted to a string using ``${name}`` is permitted.
+
+### `broadcastChannel.close()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes the `BroadcastChannel` connection.
+
+### `broadcastChannel.onmessage`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Function} Invoked with a single `MessageEvent` argument
+  when a message is received.
+
+### `broadcastChannel.onmessageerror`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Function} Invoked with a received message cannot be
+  deserialized.
+
+### `broadcastChannel.postMessage(message)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `message` {any} Any cloneable JavaScript value.
+
+### `broadcastChannel.ref()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Opposite of `unref()`. Calling `ref()` on a previously `unref()`ed
+BroadcastChannel will *not* let the program exit if it's the only active handle
+left (the default behavior). If the port is `ref()`ed, calling `ref()` again
+will have no effect.
+
+### `broadcastChannel.unref()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Calling `unref()` on a BroadcastChannel will allow the thread to exit if this
+is the only active handle in the event system. If the BroadcastChannel is
+already `unref()`ed calling `unref()` again will have no effect.
+
 ## Class: `MessageChannel`
 <!-- YAML
 added: v10.5.0

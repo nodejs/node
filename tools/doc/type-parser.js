@@ -40,6 +40,10 @@ const customTypesMap = {
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
 
+  'BroadcastChannel':
+    'worker_threads.html#worker_threads_class_broadcastchannel_' +
+    'extends_eventtarget',
+
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
   'Iterator':
