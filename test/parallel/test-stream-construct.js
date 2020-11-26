@@ -268,3 +268,13 @@ testDestroy((opts) => new Writable({
     assert.strictEqual(constructed, true);
   }));
 }
+
+{
+  // Construct should not cause stream to read.
+  new Readable({
+    construct: common.mustCall((callback) => {
+      callback();
+    }),
+    read: common.mustNotCall()
+  });
+}
