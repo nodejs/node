@@ -1,10 +1,13 @@
-const Arborist = require('@npmcli/arborist')
-const npm = require('./npm.js')
-const usageUtil = require('./utils/usage.js')
+'use strict'
+
 const { resolve } = require('path')
-const output = require('./utils/output.js')
+const Arborist = require('@npmcli/arborist')
 const npa = require('npm-package-arg')
 const semver = require('semver')
+
+const npm = require('./npm.js')
+const usageUtil = require('./utils/usage.js')
+const output = require('./utils/output.js')
 
 const cmd = (args, cb) => rebuild(args).then(() => cb()).catch(cb)
 

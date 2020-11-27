@@ -18,13 +18,13 @@ order to add references to packages that should be symlinked into the current
 
 We also refer to these packages being auto-symlinked during `npm install` as a
 single **workspace**, meaning it's a nested package within the current local
-file system that is explicitly defined in the [`package.json`](/using-npm/package-json)
+file system that is explicitly defined in the [`package.json`](/configuring-npm/package-json#workspaces)
 `workspaces` configuration.
 
 ### Installing workspaces
 
 Workspaces are usually defined via the `workspaces` property of the
-[`package.json`](/using-npm/package-json) file, e.g:
+[`package.json`](/configuring-npm/package-json#workspaces) file, e.g:
 
 ```json
 {

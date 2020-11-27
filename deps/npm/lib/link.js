@@ -112,14 +112,23 @@ const linkInstall = async args => {
     )
   }
 
+  // npm link should not save=true by default unless you're
+  // using any of --save-dev or other types
+  const save =
+    Boolean(npm.config.find('save') !== 'default' || npm.flatOptions.saveType)
+
   // create a new arborist instance for the local prefix and
   // reify all the pending names as symlinks there
   const localArb = new Arborist({
     ...npm.flatOptions,
     path: npm.prefix,
+    save,
   })
   await localArb.reify({
+    ...npm.flatOptions,
+    path: npm.prefix,
     add: names.map(l => `file:${resolve(globalTop, 'node_modules', l)}`),
+    save,
   })
 
   await reifyFinish(localArb)
