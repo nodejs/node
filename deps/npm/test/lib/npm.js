@@ -8,11 +8,16 @@ const event = process.env.npm_lifecycle_event
 for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e))) {
   if (env === 'npm_command') {
     // should only be running this in the 'test' or 'run-script' command!
-    // if the lifecycle event is 'test', then it'll be 'test', otherwise
-    // it should always be run-script.  Of course, it'll be missing if this
-    // test is just run directly, which is also acceptable.
-    const cmd = event === 'test' ? 'test' : 'run-script'
-    t.match(process.env[env], cmd)
+    // if the lifecycle event is 'test', then it'll be either 'test' or 'run',
+    // otherwise it should always be run-script. Of course, it'll be missing
+    // if this test is just run directly, which is also acceptable.
+    if (event === 'test') {
+      t.ok(
+        ['test', 'run-script'].some(i => i === event),
+        'should match "npm test" or "npm run test"'
+      )
+    } else
+      t.match(process.env[env], 'run-script')
   }
   delete process.env[env]
 }
