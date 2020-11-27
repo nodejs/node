@@ -70,6 +70,14 @@ assert.throws(() => {
 }, expectedError);
 
 assert.throws(() => {
+  fs.mkstemp('path', options, common.mustNotCall());
+}, expectedError);
+
+assert.throws(() => {
+  fs.mkstempSync('path', options);
+}, expectedError);
+
+assert.throws(() => {
   fs.ReadStream('path', options);
 }, expectedError);
 

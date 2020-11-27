@@ -678,6 +678,59 @@ void AfterOpenFileHandle(uv_fs_t* req) {
   }
 }
 
+void AfterMkstemp(uv_fs_t* req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+
+  if (after.Proceed()) {
+    Environment* env = req_wrap->env();
+
+    Local<Value> error;
+    MaybeLocal<Value> path = StringBytes::Encode(
+        env->isolate(), req->path, req_wrap->encoding(), &error);
+
+    if (path.IsEmpty()) {
+      req_wrap->Reject(error);
+      return;
+    }
+
+    Local<Value> result[] = {
+      path.ToLocalChecked(),
+      Integer::New(env->isolate(), req->result)
+    };
+
+    req_wrap->Resolve(Array::New(env->isolate(), result, arraysize(result)));
+  }
+}
+
+void AfterMkstempFileHandle(uv_fs_t* req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+
+  if (after.Proceed()) {
+    Environment* env = req_wrap->env();
+
+    Local<Value> error;
+    MaybeLocal<Value> path = StringBytes::Encode(
+        env->isolate(), req->path, req_wrap->encoding(), &error);
+
+    if (path.IsEmpty()) {
+      req_wrap->Reject(error);
+      return;
+    }
+
+    FileHandle* fd = FileHandle::New(req_wrap->binding_data(), req->result);
+    if (fd == nullptr) return;
+
+    Local<Value> result[] = {
+      path.ToLocalChecked(),
+      fd->object()
+    };
+
+    req_wrap->Resolve(Array::New(env->isolate(), result, arraysize(result)));
+  }
+}
+
 // Reverse the logic applied by path.toNamespacedPath() to create a
 // namespace-prefixed path.
 void FromNamespacedPath(std::string* path) {
@@ -2384,6 +2437,76 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
+  BufferValue tmpl(isolate, args[0]);
+  CHECK_NOT_NULL(*tmpl);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+
+  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
+  if (req_wrap_async != nullptr) {  // mkstemp(tmpl, encoding, req)
+    AsyncCall(env,
+              req_wrap_async,
+              args,
+              "mkstemp",
+              encoding,
+              AfterMkstemp,
+              uv_fs_mkstemp,
+              *tmpl);
+  } else {  // mkstemp(tmpl, encoding, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(mkstemp);
+    SyncCall(env, args[3], &req_wrap_sync, "mkstemp", uv_fs_mkstemp, *tmpl);
+    FS_SYNC_TRACE_END(mkstemp);
+    const char* path = req_wrap_sync.req.path;
+    int fd = req_wrap_sync.req.result;
+
+    Local<Value> error;
+    MaybeLocal<Value> rc = StringBytes::Encode(isolate, path, encoding, &error);
+    if (rc.IsEmpty()) {
+      Local<Object> ctx = args[3].As<Object>();
+      ctx->Set(env->context(), env->error_string(), error).Check();
+      return;
+    }
+
+    Local<Value> result[] = {rc.ToLocalChecked(),
+                             Integer::New(env->isolate(), fd)};
+
+    args.GetReturnValue().Set(
+        Array::New(env->isolate(), result, arraysize(result)));
+  }
+}
+
+static void MkstempFileHandle(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
+  BufferValue tmpl(isolate, args[0]);
+  CHECK_NOT_NULL(*tmpl);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+
+  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
+  AsyncCall(env,
+            req_wrap_async,
+            args,
+            "mkstemp",
+            encoding,
+            AfterMkstempFileHandle,
+            uv_fs_mkstemp,
+            *tmpl);
+}
+
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("stats_field_array", stats_field_array);
   tracker->TrackField("stats_field_bigint_array", stats_field_bigint_array);
@@ -2445,6 +2568,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "lutimes", LUTimes);
 
   env->SetMethod(target, "mkdtemp", Mkdtemp);
+  env->SetMethod(target, "mkstemp", Mkstemp);
+  env->SetMethod(target, "mkstempFileHandle", MkstempFileHandle);
 
   target
       ->Set(context,

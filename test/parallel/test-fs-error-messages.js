@@ -663,6 +663,30 @@ if (!common.isAIX) {
   );
 }
 
+// mkstemp
+{
+  const validateError = (err) => {
+    const pathPrefix = new RegExp('^' + re`${nonexistentDir}`);
+    assert.match(err.path, pathPrefix);
+
+    const prefix = new RegExp('^ENOENT: no such file or directory, mkstemp ' +
+                              re`'${nonexistentDir}`);
+    assert.match(err.message, prefix);
+
+    assert.strictEqual(err.errno, UV_ENOENT);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'mkstemp');
+    return true;
+  };
+
+  fs.mkstemp(nonexistentDir, common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.mkstempSync(nonexistentDir),
+    validateError
+  );
+}
+
 // Check copyFile with invalid modes.
 {
   const validateError = {
