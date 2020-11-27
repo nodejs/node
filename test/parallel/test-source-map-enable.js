@@ -285,8 +285,8 @@ function nextdir() {
   );
   // Rewritten stack trace:
   assert.match(output.stderr.toString(), /webpack:\/\/\/webpack\.js:14:9/);
-  assert.match(output.stderr.toString(), /at functionD/);
-  assert.match(output.stderr.toString(), /at functionC/);
+  assert.match(output.stderr.toString(), /at functionD.*14:9/);
+  assert.match(output.stderr.toString(), /at functionC.*10:3/);
 }
 
 // Stores and applies source map associated with file that throws while
