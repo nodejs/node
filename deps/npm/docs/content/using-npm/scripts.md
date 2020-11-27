@@ -122,10 +122,8 @@ npm will default some script values based on package contents.
 
 ### User
 
-If npm was invoked with root privileges, then it will change the uid
-to the user account or uid specified by the `user` config, which
-defaults to `nobody`.  Set the `unsafe-perm` flag to run scripts with
-root privileges.
+When npm is run as root, scripts are always run with the effective uid
+and gid of the working directory owner.
 
 ### Environment
 

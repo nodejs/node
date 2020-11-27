@@ -1,5 +1,5 @@
 {
-  "version": "7.0.14",
+  "version": "7.0.15",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -42,7 +42,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^1.0.12",
+    "@npmcli/arborist": "^1.0.13",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^1.2.1",
     "@npmcli/run-script": "^1.8.1",
@@ -214,6 +214,7 @@
     "Remove the 'files' below once we're done porting old tests over"
   ],
   "tap": {
+    "color": 1,
     "files": "test/{lib,bin}",
     "coverage-map": "test/coverage-map.js",
     "check-coverage": true,

@@ -2,7 +2,7 @@
 
 const pacote = require('pacote')
 const rpj = require('read-package-json-fast')
-const { orderDeps, updateDepSpec } = require('../dep-spec.js')
+const { updateDepSpec } = require('../dep-spec.js')
 const AuditReport = require('../audit-report.js')
 const {subset} = require('semver')
 
@@ -11,7 +11,6 @@ const {depth: dfwalk} = require('treeverse')
 const fs = require('fs')
 const {promisify} = require('util')
 const symlink = promisify(fs.symlink)
-const writeFile = promisify(fs.writeFile)
 const mkdirp = require('mkdirp-infer-owner')
 const moveFile = require('@npmcli/move-file')
 const rimraf = promisify(require('rimraf'))
@@ -22,6 +21,7 @@ const Diff = require('../diff.js')
 const retirePath = require('../retire-path.js')
 const promiseAllRejectLate = require('promise-all-reject-late')
 const optionalSet = require('../optional-set.js')
+const updateRootPackageJson = require('../update-root-package-json.js')
 
 const _retiredPaths = Symbol('retiredPaths')
 const _retiredUnchanged = Symbol('retiredUnchanged')
@@ -830,19 +830,10 @@ module.exports = cls => class Reifier extends cls {
     }
 
     // preserve indentation, if possible
-    const pj = resolve(this.idealTree.path, 'package.json')
     const {
       [Symbol.for('indent')]: indent,
-      [Symbol.for('newline')]: newline,
     } = this.idealTree.package
-    const pjData = orderDeps({
-      ...this.idealTree.package,
-      _id: undefined, // strip this off
-    })
     const format = indent === undefined ? '  ' : indent
-    const eol = newline === undefined ? '\n' : newline
-    const json = (JSON.stringify(pjData, null, format) + '\n')
-      .replace(/\n/g, eol)
 
     const saveOpt = {
       format: (this[_formatPackageLock] && format) ? format
@@ -851,7 +842,7 @@ module.exports = cls => class Reifier extends cls {
 
     return Promise.all([
       this[_saveLockFile](saveOpt),
-      writeFile(pj, json),
+      updateRootPackageJson({ tree: this.idealTree }),
     ]).then(() => process.emit('timeEnd', 'reify:save'))
   }
 
