@@ -23,6 +23,7 @@ const npm = {
     get () {
       return false
     },
+    find () {},
   },
 }
 const printLinks = async (opts) => {
@@ -196,7 +197,7 @@ t.test('link global linked pkg to local nm when using args', (t) => {
 })
 
 t.test('link pkg already in global space', (t) => {
-  t.plan(2)
+  t.plan(3)
 
   const testdir = t.testdir({
     'global-prefix': {
@@ -224,16 +225,25 @@ t.test('link pkg already in global space', (t) => {
   npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
   npm.prefix = resolve(testdir, 'my-project')
 
+  npm.config.find = () => 'default'
+
   const _cwd = process.cwd()
   process.chdir(npm.prefix)
 
   reifyOutput = async () => {
     reifyOutput = undefined
     process.chdir(_cwd)
+    npm.config.find = () => null
 
     const links = await printLinks({
       path: npm.prefix,
     })
+
+    t.equal(
+      require(resolve(testdir, 'my-project', 'package.json')).dependencies,
+      undefined,
+      'should not save to package.json upon linking'
+    )
 
     t.matchSnapshot(links, 'should create a local symlink to global pkg')
   }

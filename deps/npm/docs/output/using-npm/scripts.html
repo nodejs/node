@@ -254,10 +254,8 @@ default the <code>install</code> command to compile using node-gyp.</p>
 </li>
 </ul>
 <h3 id="user">User</h3>
-<p>If npm was invoked with root privileges, then it will change the uid
-to the user account or uid specified by the <code>user</code> config, which
-defaults to <code>nobody</code>.  Set the <code>unsafe-perm</code> flag to run scripts with
-root privileges.</p>
+<p>When npm is run as root, scripts are always run with the effective uid
+and gid of the working directory owner.</p>
 <h3 id="environment">Environment</h3>
 <p>Package scripts run in an environment where many pieces of information
 are made available regarding the setup of npm and the current state of

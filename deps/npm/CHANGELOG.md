@@ -1,3 +1,38 @@
+## 7.0.15 (2020-11-27)
+
+### DEPENDENCIES
+
+* [`00e6028ef`](https://github.com/npm/cli/commit/00e6028ef83bf76eaae10241fd7ba59e39768603)
+  `@npmcli/arborist@1.0.13`
+    * do not override user-defined shorthand values when saving `package.json`
+
+### BUG FIXES
+
+* [`9c3413fbc`](https://github.com/npm/cli/commit/9c3413fbcb37e79fc0b3d980e0b5810d7961277c)
+  [#2034](https://github.com/npm/cli/issues/2034)
+  [#2245](https://github.com/npm/cli/issues/2245)
+  `npm link <pkg>` should not save `package.json`
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DOCUMENTATION
+
+* [`1875347f9`](https://github.com/npm/cli/commit/1875347f9f4f2b50c28fe8857c5533eeebf42da2)
+  [#2196](https://github.com/npm/cli/issues/2196)
+  remove doc on obsolete `unsafe-perm` flag
+  ([@kaizhu256](https://github.com/kaizhu256))
+* [`f51e50603`](https://github.com/npm/cli/commit/f51e5060340c783a8a00dadd98e5786960caf43f)
+  [#2200](https://github.com/npm/cli/issues/2200)
+  `config.md` cleanup
+  ([@alexwoollam](https://github.com/alexwoollam))
+* [`997cbdb40`](https://github.com/npm/cli/commit/997cbdb400bcd22e457e8a06b69a7be697cfd66d)
+  [#2238](https://github.com/npm/cli/issues/2238)
+  Fix broken link to `package.json` documentation
+  ([@d-fischer](https://github.com/d-fischer))
+* [`9da972dc4`](https://github.com/npm/cli/commit/9da972dc44c21cf0e337f1c3fca44eb9df3e40d5)
+  [#2241](https://github.com/npm/cli/issues/2241)
+  `npm star` docs cleanup
+  ([@ruyadorno](https://github.com/ruyadorno))
+
 ## 7.0.14 (2020-11-23)
 
 ### DEPENDENCIES

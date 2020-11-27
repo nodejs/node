@@ -177,10 +177,8 @@ default the \fBinstall\fP command to compile using node\-gyp\.
 .RE
 .SS User
 .P
-If npm was invoked with root privileges, then it will change the uid
-to the user account or uid specified by the \fBuser\fP config, which
-defaults to \fBnobody\fP\|\.  Set the \fBunsafe\-perm\fP flag to run scripts with
-root privileges\.
+When npm is run as root, scripts are always run with the effective uid
+and gid of the working directory owner\.
 .SS Environment
 .P
 Package scripts run in an environment where many pieces of information

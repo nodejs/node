@@ -20,6 +20,7 @@ you will most certainly enjoy this command.
 ### See Also
 
 * [npm star](/commands/npm-star)
+* [npm unstar](/commands/npm-unstar)
 * [npm view](/commands/npm-view)
 * [npm whoami](/commands/npm-whoami)
 * [npm adduser](/commands/npm-adduser)
