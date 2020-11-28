@@ -250,6 +250,9 @@ lsExample();
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36308
+    description: AbortSignal support was added.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -277,6 +280,7 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
+  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -329,6 +333,19 @@ getVersion();
 **If the `shell` option is enabled, do not pass unsanitized user input to this
 function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
+
+If the `signal` option is enabled, calling `.abort()` on the corresponding
+`AbortController` is similar to calling `.kill()` on the child process except
+the error passed to the callback will be an `AbortError`:
+
+```js
+const controller = new AbortController();
+const { signal } = controller;
+const child = execFile('node', ['--version'], { signal }, (error) => {
+  console.log(error); // an AbortError
+});
+signal.abort();
+```
 
 ### `child_process.fork(modulePath[, args][, options])`
 <!-- YAML
