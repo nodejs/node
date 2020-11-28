@@ -7,6 +7,7 @@ const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
 
 const fixture = fixtures.path('exit.js');
+const echoFixture = fixtures.path('echo.js');
 const execOpts = { encoding: 'utf8', shell: true };
 
 {
@@ -44,4 +45,17 @@ const execOpts = { encoding: 'utf8', shell: true };
 {
   // Verify the shell option works properly
   execFile(process.execPath, [fixture, 0], execOpts, common.mustSucceed());
+}
+
+{
+  // Verify that the signal option works properly
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const callback = common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ABORT_ERR');
+    assert.strictEqual(err.name, 'AbortError');
+  });
+  execFile(process.execPath, [echoFixture, 0], { signal }, callback);
+  ac.abort();
 }
