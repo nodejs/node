@@ -716,3 +716,19 @@ kbd {
     overflow: hidden;
   }
 }
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #090c15; 
+    color: #cbd4d9;
+  }
+  a:link {
+    color: #5fa04e; 
+  }
+  #column2.interior, #column2 ul {
+    background-color: #0d111d; 
+  }
+  pre,tt,code {
+    color: #e9edf0;
+    background-color: #2c3437;
+  }
+}

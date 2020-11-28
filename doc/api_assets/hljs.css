@@ -28,3 +28,31 @@
   color: #666;
   font-weight: lighter;
 }
+
+@media (prefers-color-scheme: dark) {
+  .hljs-symbol {
+    color: #f92672;
+  }
+  .hljs-attribute,
+  .hljs-keyword {
+    color: #66d9ef;
+  }
+  .hljs-string {
+    color: #99cc7d;
+  }
+  .hljs-regexp,
+  .hljs-number {
+    color: #dbbdf9;
+  }
+  .hljs-doctag {
+    color: #040404;
+  }
+  .hljs-doctag .hljs-type,
+  .hljs-doctag .hljs-variable,
+  .hljs-comment {
+    color: #8292a2;
+  }
+  .hljs-built_in {
+    color: #f5bc75;
+  }
+}
