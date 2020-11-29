@@ -1282,7 +1282,7 @@ assert.throws(
 );
 
 assert.throws(
-  () => a.notStrictEqual(5n),
+  () => a.notStrictEqual(5n), // eslint-disable-line no-restricted-syntax
   { code: 'ERR_MISSING_ARGS' }
 );
 
