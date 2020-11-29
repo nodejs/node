@@ -16,7 +16,8 @@ const ModuleFindPath = Module._findPath;
 const hacks = [
   'eslint-plugin-node-core',
   'eslint-plugin-markdown',
-  'babel-eslint',
+  '@babel/eslint-parser',
+  '@babel/plugin-syntax-class-properties',
 ];
 Module._findPath = (request, paths, isMain) => {
   const r = ModuleFindPath(request, paths, isMain);
@@ -37,8 +38,14 @@ Module._findPath = (request, paths, isMain) => {
 module.exports = {
   root: true,
   plugins: ['markdown', 'node-core'],
-  parser: 'babel-eslint',
-  parserOptions: { sourceType: 'script' },
+  parser: '@babel/eslint-parser',
+  parserOptions: {
+    babelOptions: {
+      plugins: [Module._findPath('@babel/plugin-syntax-class-properties')],
+    },
+    requireConfigFile: false,
+    sourceType: 'script',
+  },
   overrides: [
     {
       files: [
