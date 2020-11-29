@@ -266,6 +266,34 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   return ret;
 }
 
+// Use this if you just want to safely invoke some JS callback and
+// would like to retain the currently active async_context, if any.
+// In case none is available, a fixed default context will be
+// installed otherwise.
+MaybeLocal<Value> MakeSyncCallback(Isolate* isolate,
+                                   Local<Object> recv,
+                                   Local<Function> callback,
+                                   int argc,
+                                   Local<Value> argv[]) {
+  Environment* env = Environment::GetCurrent(callback->CreationContext());
+  CHECK_NOT_NULL(env);
+  if (!env->can_call_into_js()) return Local<Value>();
+
+  Context::Scope context_scope(env->context());
+  if (env->async_callback_scope_depth()) {
+    // There's another MakeCallback() on the stack, piggy back on it.
+    // In particular, retain the current async_context.
+    return callback->Call(env->context(), recv, argc, argv);
+  }
+
+  // This is a toplevel invocation and the caller (intentionally)
+  // didn't provide any async_context to run in. Install a default context.
+  MaybeLocal<Value> ret =
+    InternalMakeCallback(env, env->process_object(), recv, callback, argc, argv,
+                         async_context{0, 0});
+  return ret;
+}
+
 // Legacy MakeCallback()s
 
 Local<Value> MakeCallback(Isolate* isolate,

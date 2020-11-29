@@ -200,6 +200,12 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
     v8::Local<v8::Value> argv[],
     async_context asyncContext);
 
+v8::MaybeLocal<v8::Value> MakeSyncCallback(v8::Isolate* isolate,
+                                           v8::Local<v8::Object> recv,
+                                           v8::Local<v8::Function> callback,
+                                           int argc,
+                                           v8::Local<v8::Value> argv[]);
+
 class InternalCallbackScope {
  public:
   enum Flags {
