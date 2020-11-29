@@ -104,3 +104,7 @@ test('AES256-SHA', ':', U, U, 'ERR_INVALID_ARG_VALUE');
 // Using '' is synonymous for "use default ciphers"
 test('TLS_AES_256_GCM_SHA384', '', 'TLS_AES_256_GCM_SHA384');
 test('', 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+
+// Using null should be treated the same as undefined.
+test(null, 'AES256-SHA', 'AES256-SHA');
+test('AES256-SHA', null, 'AES256-SHA');
