@@ -1228,6 +1228,10 @@ run-lint-js-ci = tools/node_modules/eslint/bin/eslint.js \
   --report-unused-disable-directives --ext=.js,.mjs,.md -f tap \
 	-o test-eslint.tap $(LINT_JS_TARGETS)
 
+lint-js-changed:
+	git diff --name-only -- .eslintrc.js benchmark doc lib test tools | xargs tools/node_modules/eslint/bin/eslint.js --cache \
+	--report-unused-disable-directives --ext=.js,.mjs,.md
+
 .PHONY: lint-js-ci
 # On the CI the output is emitted in the TAP format.
 lint-js-ci:
