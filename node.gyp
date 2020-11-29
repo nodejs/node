@@ -42,6 +42,7 @@
       'lib/internal/per_context/primordials.js',
       'lib/internal/per_context/domexception.js',
       'lib/internal/per_context/messageport.js',
+      'lib/internal/per_context/safethenable.js',
       'lib/async_hooks.js',
       'lib/assert.js',
       'lib/assert/strict.js',
