@@ -174,6 +174,7 @@ function drainQueue() {
         console.log('exit code:', status, 'signal:', signal);
         console.log(`stdout: ${Buffer.concat(stdout)}`);
         console.log(`stderr: ${Buffer.concat(stderr)}`);
+        process.kill(process.pid, 'SIGKILL');
         throw e;
       }
       fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
