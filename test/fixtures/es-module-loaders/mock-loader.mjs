@@ -76,7 +76,7 @@ export function globalPreload({port}) {
     let mockVersion = 0;
     /**
      * This is the value that is placed into the `node:mock` default export
-     * 
+     *
      * @example
      * ```mjs
      * import mock from 'node:mock';
@@ -86,7 +86,7 @@ export function globalPreload({port}) {
      * mutator.x = 2;
      * namespace.x; // 2;
      * ```
-     * 
+     *
      * @param {string} resolved an absolute URL HREF string
      * @param {object} replacementProperties an object to pick properties from
      *                                       to act as a module namespace
@@ -168,14 +168,14 @@ export function globalPreload({port}) {
 
 
 // Rewrites node: loading to mock-facade: so that it can be intercepted
-export function resolve(specifier, context, defaultResolve) {
+export async function resolve(specifier, context, defaultResolve) {
   if (specifier === 'node:mock') {
     return {
       url: specifier
     };
   }
   doDrainPort();
-  const def = defaultResolve(specifier, context);
+  const def = await defaultResolve(specifier, context);
   if (context.parentURL?.startsWith('mock-facade:')) {
     // Do nothing, let it get the "real" module
   } else if (mockedModuleExports.has(def.url)) {
@@ -184,11 +184,11 @@ export function resolve(specifier, context, defaultResolve) {
     };
   };
   return {
-    url: `${def.url}`
+    url: def.url,
   };
 }
 
-export function load(url, context, defaultLoad) {
+export async function load(url, context, defaultLoad) {
   doDrainPort();
   if (url === 'node:mock') {
     /**
@@ -218,7 +218,7 @@ export function load(url, context, defaultLoad) {
 }
 
 /**
- * 
+ *
  * @param {Array<string>} exports name of the exports of the module
  * @returns {string}
  */
