@@ -2326,6 +2326,17 @@ import './index.js'; // supported
 import 'package-name'; // supported
 ```
 
+<a id="ERR_UNSUPPORTED_ESM_NETWORK_BAD_RESPONSE"></a>
+### `ERR_UNSUPPORTED_ESM_NETWORK_BAD_RESPONSE`
+
+Response was received but was invalid when importing a module over the network.
+
+<a id="ERR_UNSUPPORTED_ESM_NETWORK_IMPORT_SPECIFIER"></a>
+### `ERR_UNSUPPORTED_ESM_NETWORK_IMPORT_SPECIFIER`
+
+A network module attempted to load another module that it is not allowed to
+load. Likely this restriction is for security reasons.
+
 <a id="ERR_UNSUPPORTED_ESM_URL_SCHEME"></a>
 ### `ERR_UNSUPPORTED_ESM_URL_SCHEME`
 
