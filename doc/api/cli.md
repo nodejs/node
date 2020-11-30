@@ -307,6 +307,16 @@ added: v9.0.0
 Specify the `module` of a custom experimental [ECMAScript module loader][].
 `module` may be any string accepted as an [`import` specifier][].
 
+### `--experimental-network-imports`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for the `https:` protocol in `import` specifiers.
+
 ### `--experimental-policy`
 
 <!-- YAML
@@ -1574,6 +1584,7 @@ Node.js options that are allowed are:
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
+* `--experimental-network-imports`
 * `--experimental-policy`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`

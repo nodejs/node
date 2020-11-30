@@ -8,7 +8,7 @@ await rejects(
   // This rejects because of the unsupported MIME type, not because of the
   // unsupported assertion.
   import('data:text/css,', { assert: { type: 'css' } }),
-  { code: 'ERR_INVALID_MODULE_SPECIFIER' }
+  { code: 'ERR_UNKNOWN_MODULE_FORMAT' }
 );
 
 await rejects(
