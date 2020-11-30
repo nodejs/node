@@ -115,6 +115,31 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 }
 
 {
+  // Test sync key generation with key objects with a non-standard
+  // publicExpononent
+  const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+    publicExponent: 3,
+    modulusLength: 512
+  });
+
+  assert.strictEqual(typeof publicKey, 'object');
+  assert.strictEqual(publicKey.type, 'public');
+  assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+  assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
+    modulusLength: 512,
+    publicExponent: 3n
+  });
+
+  assert.strictEqual(typeof privateKey, 'object');
+  assert.strictEqual(privateKey.type, 'private');
+  assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+  assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
+    modulusLength: 512,
+    publicExponent: 3n
+  });
+}
+
+{
   // Test sync key generation with key objects.
   const { publicKey, privateKey } = generateKeyPairSync('rsa', {
     modulusLength: 512
@@ -125,7 +150,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
   assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
     modulusLength: 512,
-    publicExponent: 65537
+    publicExponent: 65537n
   });
 
   assert.strictEqual(typeof privateKey, 'object');
@@ -133,7 +158,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
   assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
     modulusLength: 512,
-    publicExponent: 65537
+    publicExponent: 65537n
   });
 }
 
@@ -278,14 +303,14 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
     assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
       modulusLength: 512,
-      publicExponent: 65537
+      publicExponent: 65537n
     });
 
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
     assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
       modulusLength: 512,
-      publicExponent: 65537
+      publicExponent: 65537n
     });
 
     // Unlike RSA, RSA-PSS does not allow encryption.

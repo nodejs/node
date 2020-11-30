@@ -1291,7 +1291,7 @@ added: REPLACEME
 
 * {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
-  * `publicExponent`: {number} Public exponent (RSA).
+  * `publicExponent`: {bigint} Public exponent (RSA).
   * `divisorLength`: {number} Size of `q` in bits (DSA).
   * `namedCurve`: {string} Name of the curve (EC).
 
