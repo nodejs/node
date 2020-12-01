@@ -20,7 +20,7 @@ class MessagePort;
 typedef MaybeStackBuffer<v8::Local<v8::Value>, 8> TransferList;
 
 // Used to represent the in-flight structure of an object that is being
-// transfered or cloned using postMessage().
+// transferred or cloned using postMessage().
 class TransferData : public MemoryRetainer {
  public:
   // Deserialize this object on the receiving end after a .postMessage() call.
