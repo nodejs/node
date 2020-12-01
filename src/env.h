@@ -755,9 +755,9 @@ class AsyncHooks : public MemoryRetainer {
   };
 
   struct SerializeInfo {
-    AliasedBufferInfo async_ids_stack;
-    AliasedBufferInfo fields;
-    AliasedBufferInfo async_id_fields;
+    AliasedBufferIndex async_ids_stack;
+    AliasedBufferIndex fields;
+    AliasedBufferIndex async_id_fields;
     SnapshotIndex js_execution_async_resources;
     std::vector<SnapshotIndex> native_execution_async_resources;
   };
@@ -807,7 +807,7 @@ class ImmediateInfo : public MemoryRetainer {
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   struct SerializeInfo {
-    AliasedBufferInfo fields;
+    AliasedBufferIndex fields;
   };
   SerializeInfo Serialize(v8::Local<v8::Context> context,
                           v8::SnapshotCreator* creator);
@@ -839,7 +839,7 @@ class TickInfo : public MemoryRetainer {
   ~TickInfo() = default;
 
   struct SerializeInfo {
-    AliasedBufferInfo fields;
+    AliasedBufferIndex fields;
   };
   SerializeInfo Serialize(v8::Local<v8::Context> context,
                           v8::SnapshotCreator* creator);
@@ -931,8 +931,8 @@ struct EnvSerializeInfo {
   TickInfo::SerializeInfo tick_info;
   ImmediateInfo::SerializeInfo immediate_info;
   performance::PerformanceState::SerializeInfo performance_state;
-  AliasedBufferInfo stream_base_state;
-  AliasedBufferInfo should_abort_on_uncaught_toggle;
+  AliasedBufferIndex stream_base_state;
+  AliasedBufferIndex should_abort_on_uncaught_toggle;
 
   std::vector<PropInfo> persistent_templates;
   std::vector<PropInfo> persistent_values;
