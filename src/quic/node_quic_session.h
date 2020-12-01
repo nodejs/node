@@ -735,7 +735,7 @@ class QuicApplication : public MemoryRetainer,
 
 // QUIC sessions are logical connections that exchange data
 // back and forth between peer endpoints via UDP. Every QuicSession
-// has an associated TLS context and all data transfered between
+// has an associated TLS context and all data transferred between
 // the peers is always encrypted. Unlike TLS over TCP, however,
 // The QuicSession uses a session identifier that is independent
 // of both the local *and* peer IP address, allowing a QuicSession
