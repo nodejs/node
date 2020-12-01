@@ -1346,17 +1346,17 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   const std::vector<PropInfo>& templates = info->persistent_templates;
   size_t i = 0;  // index to the array
   size_t id = 0;
-#define V(PropertyName, TypeName)                                              \
+#define SetProperty(PropertyName, TypeName, vector, type, from)                \
   do {                                                                         \
-    if (templates.size() > i && id == templates[i].id) {                       \
-      const PropInfo& d = templates[i];                                        \
+    if (vector.size() > i && id == vector[i].id) {                             \
+      const PropInfo& d = vector[i];                                           \
       DCHECK_EQ(d.name, #PropertyName);                                        \
       MaybeLocal<TypeName> maybe_field =                                       \
-          isolate_->GetDataFromSnapshotOnce<TypeName>(d.index);                \
+          from->GetDataFromSnapshotOnce<TypeName>(d.index);                    \
       Local<TypeName> field;                                                   \
       if (!maybe_field.ToLocal(&field)) {                                      \
         fprintf(stderr,                                                        \
-                "Failed to deserialize environment template " #PropertyName    \
+                "Failed to deserialize environment " #type " " #PropertyName   \
                 "\n");                                                         \
       }                                                                        \
       set_##PropertyName(field);                                               \
@@ -1364,32 +1364,19 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
     }                                                                          \
   } while (0);                                                                 \
   id++;
+#define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
+                                              templates, template, isolate_)
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V);
 #undef V
 
   i = 0;  // index to the array
   id = 0;
   const std::vector<PropInfo>& values = info->persistent_values;
-#define V(PropertyName, TypeName)                                              \
-  do {                                                                         \
-    if (values.size() > i && id == values[i].id) {                             \
-      const PropInfo& d = values[i];                                           \
-      DCHECK_EQ(d.name, #PropertyName);                                        \
-      MaybeLocal<TypeName> maybe_field =                                       \
-          ctx->GetDataFromSnapshotOnce<TypeName>(d.index);                     \
-      Local<TypeName> field;                                                   \
-      if (!maybe_field.ToLocal(&field)) {                                      \
-        fprintf(stderr,                                                        \
-                "Failed to deserialize environment value " #PropertyName       \
-                "\n");                                                         \
-      }                                                                        \
-      set_##PropertyName(field);                                               \
-      i++;                                                                     \
-    }                                                                          \
-  } while (0);                                                                 \
-  id++;
+#define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
+                                              values, value, ctx)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V);
 #undef V
+#undef SetProperty
 
   MaybeLocal<Context> maybe_ctx_from_snapshot =
       ctx->GetDataFromSnapshotOnce<Context>(info->context);
