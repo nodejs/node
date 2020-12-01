@@ -110,7 +110,7 @@ class Message : public MemoryRetainer {
   friend class MessagePort;
 };
 
-class SiblingGroup {
+class SiblingGroup final : public std::enable_shared_from_this<SiblingGroup> {
  public:
   // Named SiblingGroup, Used for one-to-many BroadcastChannels.
   static std::shared_ptr<SiblingGroup> Get(const std::string& name);
@@ -134,7 +134,7 @@ class SiblingGroup {
       std::string* error = nullptr);
 
   void Entangle(MessagePortData* data);
-
+  void Entangle(std::initializer_list<MessagePortData*> data);
   void Disentangle(MessagePortData* data);
 
   const std::string& name() const { return name_; }
@@ -159,9 +159,7 @@ class SiblingGroup {
 // a specific Environment/Isolate/event loop, for easier transfer between those.
 class MessagePortData : public TransferData {
  public:
-  explicit MessagePortData(
-      MessagePort* owner,
-      const std::string& name = std::string());
+  explicit MessagePortData(MessagePort* owner);
   ~MessagePortData() override;
 
   MessagePortData(MessagePortData&& other) = delete;
@@ -203,6 +201,7 @@ class MessagePortData : public TransferData {
   MessagePort* owner_ = nullptr;
   std::shared_ptr<SiblingGroup> group_;
   friend class MessagePort;
+  friend class SiblingGroup;
 };
 
 // A message port that receives messages from other threads, including
@@ -216,8 +215,7 @@ class MessagePort : public HandleWrap {
   // creating MessagePort instances.
   MessagePort(Environment* env,
               v8::Local<v8::Context> context,
-              v8::Local<v8::Object> wrap,
-              const std::string& name = std::string());
+              v8::Local<v8::Object> wrap);
 
  public:
   ~MessagePort() override;
@@ -226,8 +224,8 @@ class MessagePort : public HandleWrap {
   // `MessagePortData` object.
   static MessagePort* New(Environment* env,
                           v8::Local<v8::Context> context,
-                          std::unique_ptr<MessagePortData> data = nullptr,
-                          const std::string& name = std::string());
+                          std::unique_ptr<MessagePortData> data = {},
+                          std::shared_ptr<SiblingGroup> sibling_group = {});
 
   // Send a message, i.e. deliver it into the sibling's incoming queue.
   // If this port is closed, or if there is no sibling, this message is
