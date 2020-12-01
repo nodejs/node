@@ -358,7 +358,7 @@ shared_optgroup.add_argument('--shared-openssl-libpath',
 shared_optgroup.add_argument('--shared-uvwasi',
     action='store_true',
     dest='shared_uvwasi',
-    help='linked to a shared uvwasi DLL instead of static linking')
+    help='link to a shared uvwasi DLL instead of static linking')
 
 shared_optgroup.add_argument('--shared-uvwasi-includes',
     action='store',
