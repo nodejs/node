@@ -933,6 +933,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
     return false;
   }
   TryCatchScope try_catch(env);
+  Isolate::SafeForTerminationScope safe_for_termination(env->isolate());
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder(), false);
   Local<UnboundScript> unbound_script =

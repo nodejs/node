@@ -549,3 +549,62 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
 
   EXPECT_EQ(called, 1);
 }
+
+#ifndef _WIN32  // No SIGINT on Windows.
+TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
+  // We need to go through the whole setup dance here because we want to
+  // set only_terminate_in_safe_scope.
+  // Allocate and initialize Isolate.
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = allocator.get();
+  create_params.only_terminate_in_safe_scope = true;
+  v8::Isolate* isolate = v8::Isolate::Allocate();
+  CHECK_NOT_NULL(isolate);
+  platform->RegisterIsolate(isolate, &current_loop);
+  v8::Isolate::Initialize(isolate, create_params);
+
+  // Try creating Context + IsolateData + Environment.
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+
+    auto context = node::NewContext(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
+
+    std::unique_ptr<node::IsolateData, decltype(&node::FreeIsolateData)>
+      isolate_data{node::CreateIsolateData(isolate,
+                                           &current_loop,
+                                           platform.get()),
+                   node::FreeIsolateData};
+    CHECK(isolate_data);
+
+    std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)>
+      environment{node::CreateEnvironment(isolate_data.get(),
+                                          context,
+                                          {},
+                                          {}),
+                  node::FreeEnvironment};
+    CHECK(environment);
+
+    v8::Local<v8::Value> main_ret =
+        node::LoadEnvironment(environment.get(),
+            "'use strict';\n"
+            "const { runInThisContext } = require('vm');\n"
+            "try {\n"
+            "  runInThisContext("
+            "    `process.kill(process.pid, 'SIGINT'); while(true){}`, "
+            "    { breakOnSigint: true });\n"
+            "  return 'unreachable';\n"
+            "} catch (err) {\n"
+            "  return err.code;\n"
+            "}").ToLocalChecked();
+    node::Utf8Value main_ret_str(isolate, main_ret);
+    EXPECT_EQ(std::string(*main_ret_str), "ERR_SCRIPT_EXECUTION_INTERRUPTED");
+  }
+
+  // Cleanup.
+  platform->UnregisterIsolate(isolate);
+  isolate->Dispose();
+}
+#endif  // _WIN32
