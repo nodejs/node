@@ -67,7 +67,7 @@ class TLSWrap : public AsyncWrap,
   ShutdownWrap* CreateShutdownWrap(
       v8::Local<v8::Object> req_wrap_object) override;
   int DoShutdown(ShutdownWrap* req_wrap) override;
-  int DoWrite(WriteWrap* w,
+  int DoWrite(std::unique_ptr<WriteWrap>& w,
               uv_buf_t* bufs,
               size_t count,
               uv_stream_t* send_handle) override;
@@ -170,7 +170,7 @@ class TLSWrap : public AsyncWrap,
   // Waiting for ClearIn() to pass to SSL_write().
   std::vector<char> pending_cleartext_input_;
   size_t write_size_ = 0;
-  WriteWrap* current_write_ = nullptr;
+  std::unique_ptr<WriteWrap> current_write_ = nullptr;
   WriteWrap* current_empty_write_ = nullptr;
   bool write_callback_scheduled_ = false;
   bool started_ = false;

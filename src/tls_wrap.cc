@@ -91,8 +91,7 @@ bool TLSWrap::InvokeQueued(int status, const char* error_str) {
     return false;
 
   if (current_write_ != nullptr) {
-    WriteWrap* w = current_write_;
-    current_write_ = nullptr;
+    WriteWrap* w = current_write_.release();
     w->Done(status, error_str);
   }
 
@@ -617,7 +616,7 @@ void TLSWrap::ClearError() {
 
 
 // Called by StreamBase::Write() to request async write of clear text into SSL.
-int TLSWrap::DoWrite(WriteWrap* w,
+int TLSWrap::DoWrite(std::unique_ptr<WriteWrap>& w,
                      uv_buf_t* bufs,
                      size_t count,
                      uv_stream_t* send_handle) {
@@ -651,7 +650,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
     if (BIO_pending(enc_out_) == 0) {
       Debug(this, "No pending encrypted output, writing to underlying stream");
       CHECK_NULL(current_empty_write_);
-      current_empty_write_ = w;
+      current_empty_write_ = w.get();
       StreamWriteResult res =
           underlying_stream()->Write(bufs, count, send_handle);
       if (!res.async) {
@@ -666,7 +665,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   // Store the current write wrap
   CHECK_NULL(current_write_);
-  current_write_ = w;
+  current_write_ = std::move(w);
 
   // Write encrypted data to underlying stream and call Done().
   if (length == 0) {
@@ -705,7 +704,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
     // If we stopped writing because of an error, it's fatal, discard the data.
     if (!arg.IsEmpty()) {
       Debug(this, "Got SSL error (%d), returning UV_EPROTO", err);
-      current_write_ = nullptr;
+      current_write_.release();
       return UV_EPROTO;
     }
 
@@ -717,6 +716,8 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   // Write any encrypted/handshake output that may be ready.
   EncOut();
+
+  w.reset(current_write_.get());
 
   return 0;
 }

@@ -2315,7 +2315,7 @@ int Http2Stream::ReadStop() {
 // chunks of data have been flushed to the underlying nghttp2_session.
 // Note that this does *not* mean that the data has been flushed
 // to the socket yet.
-int Http2Stream::DoWrite(WriteWrap* req_wrap,
+int Http2Stream::DoWrite(std::unique_ptr<WriteWrap>& req_wrap,
                          uv_buf_t* bufs,
                          size_t nbufs,
                          uv_stream_t* send_handle) {
@@ -2330,7 +2330,7 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
     // Store the req_wrap on the last write info in the queue, so that it is
     // only marked as finished once all buffers associated with it are finished.
     queue_.emplace(nghttp2_stream_write {
-      i == nbufs - 1 ? req_wrap : nullptr,
+      i == nbufs - 1 ? req_wrap.get() : nullptr,
       bufs[i]
     });
     IncrementAvailableOutboundLength(bufs[i].len);

@@ -568,7 +568,7 @@ class Http2Stream : public AsyncWrap,
 
   AsyncWrap* GetAsyncWrap() override { return this; }
 
-  int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
+  int DoWrite(std::unique_ptr<WriteWrap>& w, uv_buf_t* bufs, size_t count,
               uv_stream_t* send_handle) override;
 
   void MemoryInfo(MemoryTracker* tracker) const override {

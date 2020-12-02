@@ -215,10 +215,11 @@ class StreamResource {
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
   // Perform a write of data, and either call req_wrap->Done() when finished
   // and return 0, or return a libuv error code for synchronous failures.
-  virtual int DoWrite(WriteWrap* w,
-                      uv_buf_t* bufs,
-                      size_t count,
-                      uv_stream_t* send_handle) = 0;
+  virtual int DoWrite(
+      /* NOLINT (runtime/references) */ std::unique_ptr<WriteWrap>& w,
+      uv_buf_t* bufs,
+      size_t count,
+      uv_stream_t* send_handle) = 0;
 
   // Returns true if the stream supports the `OnStreamWantsWrite()` interface.
   virtual bool HasWantsWrite() const { return false; }

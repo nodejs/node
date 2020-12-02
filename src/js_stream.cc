@@ -105,7 +105,7 @@ int JSStream::DoShutdown(ShutdownWrap* req_wrap) {
 }
 
 
-int JSStream::DoWrite(WriteWrap* w,
+int JSStream::DoWrite(std::unique_ptr<WriteWrap>& w,
                       uv_buf_t* bufs,
                       size_t count,
                       uv_stream_t* send_handle) {
@@ -122,7 +122,7 @@ int JSStream::DoWrite(WriteWrap* w,
   }
 
   Local<Value> argv[] = {
-    w->object(),
+    w.get()->object(),
     bufs_arr
   };
 

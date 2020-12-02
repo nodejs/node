@@ -351,11 +351,11 @@ int LibuvStreamWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
 }
 
 
-int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
+int LibuvStreamWrap::DoWrite(std::unique_ptr<WriteWrap>& req_wrap,
                              uv_buf_t* bufs,
                              size_t count,
                              uv_stream_t* send_handle) {
-  LibuvWriteWrap* w = static_cast<LibuvWriteWrap*>(req_wrap);
+  LibuvWriteWrap* w = static_cast<LibuvWriteWrap*>(req_wrap.get());
   int r;
   if (send_handle == nullptr) {
     r = w->Dispatch(uv_write, stream(), bufs, count, AfterUvWrite);

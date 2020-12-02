@@ -287,7 +287,7 @@ class FileHandle : public AsyncWrap, public StreamBase {
   ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
   int DoShutdown(ShutdownWrap* req_wrap) override;
 
-  int DoWrite(WriteWrap* w,
+  int DoWrite(std::unique_ptr<WriteWrap>& w,
               uv_buf_t* bufs,
               size_t count,
               uv_stream_t* send_handle) override {

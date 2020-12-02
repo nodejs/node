@@ -216,14 +216,14 @@ inline StreamWriteResult StreamBase::Write(
   }
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(GetAsyncWrap());
-  WriteWrap* req_wrap = CreateWriteWrap(req_wrap_obj);
+  std::unique_ptr<WriteWrap> req_wrap{CreateWriteWrap(req_wrap_obj)};
 
   err = DoWrite(req_wrap, bufs, count, send_handle);
   bool async = err == 0;
 
-  if (!async) {
+  if (!async && req_wrap != nullptr) {
     req_wrap->Dispose();
-    req_wrap = nullptr;
+    req_wrap.release();
   }
 
   const char* msg = Error();
@@ -232,7 +232,7 @@ inline StreamWriteResult StreamBase::Write(
     ClearError();
   }
 
-  return StreamWriteResult { async, err, req_wrap, total_bytes };
+  return StreamWriteResult { async, err, req_wrap.release(), total_bytes };
 }
 
 template <typename OtherBase>
