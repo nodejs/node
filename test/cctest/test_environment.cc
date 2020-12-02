@@ -554,7 +554,7 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
 TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   // We need to go through the whole setup dance here because we want to
   // set only_terminate_in_safe_scope.
-  // Allocate and initialize isolate
+  // Allocate and initialize Isolate.
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
   create_params.only_terminate_in_safe_scope = true;
@@ -563,7 +563,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   platform->RegisterIsolate(isolate, &current_loop);
   v8::Isolate::Initialize(isolate, create_params);
 
-  // Try creating Context + IsolateData + Environment
+  // Try creating Context + IsolateData + Environment.
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -603,7 +603,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
     EXPECT_EQ(std::string(*main_ret_str), "ERR_SCRIPT_EXECUTION_INTERRUPTED");
   }
 
-  // Cleanup
+  // Cleanup.
   platform->UnregisterIsolate(isolate);
   isolate->Dispose();
 }
