@@ -275,6 +275,7 @@ changes:
   * `port` **Default:** `443`
   * `agent` **Default:** `https.globalAgent`
 * `callback` {Function}
+* Returns: {http.ClientRequest}
 
 Makes a request to a secure web server.
 
@@ -287,6 +288,10 @@ The following additional `options` from [`tls.connect()`][] are also accepted:
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
+
+`https.request()` returns an instance of the [`http.ClientRequest`][]
+class. The `ClientRequest` instance is a writable stream. If one needs to
+upload a file with a POST request, then write to the `ClientRequest` object.
 
 ```js
 const https = require('https');
@@ -458,6 +463,7 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`URL`]: url.md#url_the_whatwg_url_api
 [`http.Agent(options)`]: http.md#http_new_agent_options
 [`http.Agent`]: http.md#http_class_http_agent
+[`http.ClientRequest`]: http.md#http_class_http_clientrequest
 [`http.Server#headersTimeout`]: http.md#http_server_headerstimeout
 [`http.Server#keepAliveTimeout`]: http.md#http_server_keepalivetimeout
 [`http.Server#maxHeadersCount`]: http.md#http_server_maxheaderscount
