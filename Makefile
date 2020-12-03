@@ -593,7 +593,7 @@ test-known-issues: all
 
 # Related CI job: node-test-npm
 test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
-	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test-node
+	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
