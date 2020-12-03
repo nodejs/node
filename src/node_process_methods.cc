@@ -34,12 +34,17 @@ typedef int mode_t;
 
 namespace node {
 
+using v8::ApiObject;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::CFunction;
+using v8::ConstructorBehavior;
 using v8::Context;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Global;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -47,6 +52,9 @@ using v8::Local;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
+using v8::SideEffectType;
+using v8::Signature;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -406,22 +414,21 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 class FastHrtime : public BaseObject {
  public:
   static Local<Object> New(Environment* env) {
-    Local<v8::FunctionTemplate> ctor =
-        v8::FunctionTemplate::New(env->isolate());
+    Local<FunctionTemplate> ctor = FunctionTemplate::New(env->isolate());
     ctor->Inherit(BaseObject::GetConstructorTemplate(env));
-    Local<v8::ObjectTemplate> otmpl = ctor->InstanceTemplate();
+    Local<ObjectTemplate> otmpl = ctor->InstanceTemplate();
     otmpl->SetInternalFieldCount(FastHrtime::kInternalFieldCount);
 
     auto create_func = [env](auto fast_func, auto slow_func) {
-      auto cfunc = v8::CFunction::Make(fast_func);
-      return v8::FunctionTemplate::New(env->isolate(),
-                                       slow_func,
-                                       Local<Value>(),
-                                       Local<v8::Signature>(),
-                                       0,
-                                       v8::ConstructorBehavior::kThrow,
-                                       v8::SideEffectType::kHasNoSideEffect,
-                                       &cfunc);
+      auto cfunc = CFunction::Make(fast_func);
+      return FunctionTemplate::New(env->isolate(),
+                                   slow_func,
+                                   Local<Value>(),
+                                   Local<Signature>(),
+                                   0,
+                                   ConstructorBehavior::kThrow,
+                                   SideEffectType::kHasNoSideEffect,
+                                   &cfunc);
     };
 
     otmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "hrtime"),
@@ -458,8 +465,8 @@ class FastHrtime : public BaseObject {
   SET_MEMORY_INFO_NAME(FastHrtime)
   SET_SELF_SIZE(FastHrtime)
 
-  static FastHrtime* FromV8ApiObject(v8::ApiObject api_object) {
-    v8::Object* v8_object = reinterpret_cast<v8::Object*>(&api_object);
+  static FastHrtime* FromV8ApiObject(ApiObject api_object) {
+    Object* v8_object = reinterpret_cast<Object*>(&api_object);
     return static_cast<FastHrtime*>(
         v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
   }
@@ -481,7 +488,7 @@ class FastHrtime : public BaseObject {
     fields[2] = t % NANOS_PER_SEC;
   }
 
-  static void FastNumber(v8::ApiObject receiver) {
+  static void FastNumber(ApiObject receiver) {
     NumberImpl(FromV8ApiObject(receiver));
   }
 
@@ -495,7 +502,7 @@ class FastHrtime : public BaseObject {
     fields[0] = t;
   }
 
-  static void FastBigInt(v8::ApiObject receiver) {
+  static void FastBigInt(ApiObject receiver) {
     BigIntImpl(FromV8ApiObject(receiver));
   }
 
@@ -503,7 +510,7 @@ class FastHrtime : public BaseObject {
     BigIntImpl(FromJSObject<FastHrtime>(args.Holder()));
   }
 
-  v8::Global<ArrayBuffer> array_buffer_;
+  Global<ArrayBuffer> array_buffer_;
   std::shared_ptr<BackingStore> backing_store_;
 };
 
