@@ -63,6 +63,12 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   assert.strictEqual(cursorPos.cols, cols);
 }
 
+{
+  const input = new FakeInput();
+  const rl = readline.Interface({ input });
+  assert(rl instanceof readline.Interface);
+}
+
 [
   undefined,
   50,
@@ -655,6 +661,13 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   }));
   fi.emit('data', '\n');
   rli.close();
+}
+
+// Close readline interface
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('keypress', '.', { ctrl: true, name: 'c' });
+  assert(rli.closed);
 }
 
 // Multi-line input cursor position
