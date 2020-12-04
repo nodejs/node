@@ -491,6 +491,15 @@ static void EnablePromiseHook(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void SetPromiseHooks(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> ctx = env->context();
+  ctx->SetPromiseHooks(
+    args[0]->IsFunction() ? args[0].As<Function>() : Local<Function>(),
+    args[1]->IsFunction() ? args[1].As<Function>() : Local<Function>(),
+    args[2]->IsFunction() ? args[2].As<Function>() : Local<Function>(),
+    args[3]->IsFunction() ? args[3].As<Function>() : Local<Function>());
+}
 
 static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -670,6 +679,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "clearAsyncIdStack", ClearAsyncIdStack);
   env->SetMethod(target, "queueDestroyAsyncId", QueueDestroyAsyncId);
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
+  env->SetMethod(target, "setPromiseHooks", SetPromiseHooks);
   env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
   env->SetMethod(target, "registerDestroyHook", RegisterDestroyHook);
 
