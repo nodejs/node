@@ -16,9 +16,11 @@ npx <pkg>[@<specifier>] [args...]
 npx -p <pkg>[@<specifier>] <cmd> [args...]
 npx -c '<cmd> [args...]'
 npx -p <pkg>[@<specifier>] -c '<cmd> [args...]'
+Run without --call or positional args to open interactive subshell
 
 alias: npm x, npx
 
+common options:
 --package=<pkg> (may be specified multiple times)
 -p is a shorthand for --package only when using npx executable
 -c <cmd> --call=<cmd> (may not be mixed with positional arguments)
@@ -29,6 +31,11 @@ alias: npm x, npx
 This command allows you to run an arbitrary command from an npm package
 (either one installed locally, or fetched remotely), in a similar context
 as running it via `npm run`.
+
+Run without positional arguments or `--call`, this allows you to
+interactively run commands in the same sort of shell environment that
+`package.json` scripts are run.  Interactive mode is not supported in CI
+environments when standard input is a TTY, to prevent hangs.
 
 Whatever packages are specified by the `--package` option will be
 provided in the `PATH` of the executed command, along with any locally

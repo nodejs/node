@@ -1,7 +1,10 @@
-const path = require('path')
-const Arborist = require('@npmcli/arborist')
+'use strict'
 
+const path = require('path')
+
+const Arborist = require('@npmcli/arborist')
 const log = require('npmlog')
+
 const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')

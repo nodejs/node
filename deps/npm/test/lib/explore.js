@@ -1,53 +1,70 @@
 const t = require('tap')
 const requireInject = require('require-inject')
 
-let STAT_ERROR = null
-let STAT_CALLED = ''
-const mockStat = (path, cb) => {
-  STAT_CALLED = path
-  cb(STAT_ERROR, {})
+let RPJ_ERROR = null
+let RPJ_CALLED = ''
+const mockRPJ = async path => {
+  if (RPJ_ERROR) {
+    try {
+      throw RPJ_ERROR
+    } finally {
+      RPJ_ERROR = null
+    }
+  }
+  RPJ_CALLED = path
+  return {some: 'package'}
 }
 
-let SPAWN_ERROR = null
-let SPAWN_EXIT_CODE = 0
-let SPAWN_SHELL_EXEC = null
-let SPAWN_SHELL_ARGS = null
-const mockSpawn = (sh, shellArgs, opts) => {
-  if (sh !== 'shell-command')
-    throw new Error('got wrong shell command')
+let RUN_SCRIPT_ERROR = null
+let RUN_SCRIPT_EXIT_CODE = 0
+let RUN_SCRIPT_SIGNAL = null
+let RUN_SCRIPT_EXEC = null
+const mockRunScript = ({ pkg, banner, path, event, stdio }) => {
+  if (event !== '_explore')
+    throw new Error('got wrong event name')
 
-  if (SPAWN_ERROR)
-    return Promise.reject(SPAWN_ERROR)
+  RUN_SCRIPT_EXEC = pkg.scripts._explore
 
-  SPAWN_SHELL_EXEC = sh
-  SPAWN_SHELL_ARGS = shellArgs
-  return Promise.resolve({ code: SPAWN_EXIT_CODE })
+  if (RUN_SCRIPT_ERROR) {
+    try {
+      return Promise.reject(RUN_SCRIPT_ERROR)
+    } finally {
+      RUN_SCRIPT_ERROR = null
+    }
+  }
+
+  if (RUN_SCRIPT_EXIT_CODE || RUN_SCRIPT_SIGNAL) {
+    return Promise.reject(Object.assign(new Error('command failed'), {
+      code: RUN_SCRIPT_EXIT_CODE,
+      signal: RUN_SCRIPT_SIGNAL,
+    }))
+  }
+
+  return Promise.resolve({ code: 0, signal: null })
 }
 
 const output = []
 let ERROR_HANDLER_CALLED = null
+const logs = []
 const getExplore = windows => requireInject('../../lib/explore.js', {
   '../../lib/utils/is-windows.js': windows,
-  '../../lib/utils/escape-arg.js': requireInject('../../lib/utils/escape-arg.js', {
-    '../../lib/utils/is-windows.js': windows,
-  }),
   path: require('path')[windows ? 'win32' : 'posix'],
-  '../../lib/utils/escape-exec-path.js': requireInject('../../lib/utils/escape-arg.js', {
-    '../../lib/utils/is-windows.js': windows,
-  }),
   '../../lib/utils/error-handler.js': er => {
     ERROR_HANDLER_CALLED = er
   },
-  fs: {
-    stat: mockStat,
-  },
+  'read-package-json-fast': mockRPJ,
   '../../lib/npm.js': {
     dir: windows ? 'c:\\npm\\dir' : '/npm/dir',
+    log: {
+      error: (...msg) => logs.push(msg),
+      disableProgress: () => {},
+      enableProgress: () => {},
+    },
     flatOptions: {
       shell: 'shell-command',
     },
   },
-  '@npmcli/promise-spawn': mockSpawn,
+  '@npmcli/run-script': mockRunScript,
   '../../lib/utils/output.js': out => {
     output.push(out)
   },
@@ -68,14 +85,12 @@ t.test('basic interactive', t => {
 
     t.strictSame({
       ERROR_HANDLER_CALLED,
-      STAT_CALLED,
-      SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS,
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
     }, {
       ERROR_HANDLER_CALLED: null,
-      STAT_CALLED: 'c:\\npm\\dir\\pkg',
-      SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: [],
+      RPJ_CALLED: 'c:\\npm\\dir\\pkg\\package.json',
+      RUN_SCRIPT_EXEC: 'shell-command',
     })
     t.strictSame(output, [
       "\nExploring c:\\npm\\dir\\pkg\nType 'exit' or ^D when finished\n",
@@ -88,14 +103,12 @@ t.test('basic interactive', t => {
 
     t.strictSame({
       ERROR_HANDLER_CALLED,
-      STAT_CALLED,
-      SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS,
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
     }, {
       ERROR_HANDLER_CALLED: null,
-      STAT_CALLED: '/npm/dir/pkg',
-      SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: [],
+      RPJ_CALLED: '/npm/dir/pkg/package.json',
+      RUN_SCRIPT_EXEC: 'shell-command',
     })
     t.strictSame(output, [
       "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n",
@@ -109,11 +122,11 @@ t.test('interactive tracks exit code', t => {
   const { exitCode } = process
   t.beforeEach((cb) => {
     process.exitCode = exitCode
-    SPAWN_EXIT_CODE = 99
+    RUN_SCRIPT_EXIT_CODE = 99
     cb()
   })
   t.afterEach((cb) => {
-    SPAWN_EXIT_CODE = 0
+    RUN_SCRIPT_EXIT_CODE = 0
     output.length = 0
     process.exitCode = exitCode
     cb()
@@ -125,14 +138,12 @@ t.test('interactive tracks exit code', t => {
 
     t.strictSame({
       ERROR_HANDLER_CALLED,
-      STAT_CALLED,
-      SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS,
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
     }, {
       ERROR_HANDLER_CALLED: null,
-      STAT_CALLED: 'c:\\npm\\dir\\pkg',
-      SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: [],
+      RPJ_CALLED: 'c:\\npm\\dir\\pkg\\package.json',
+      RUN_SCRIPT_EXEC: 'shell-command',
     })
     t.strictSame(output, [
       "\nExploring c:\\npm\\dir\\pkg\nType 'exit' or ^D when finished\n",
@@ -146,14 +157,12 @@ t.test('interactive tracks exit code', t => {
 
     t.strictSame({
       ERROR_HANDLER_CALLED,
-      STAT_CALLED,
-      SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS,
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
     }, {
       ERROR_HANDLER_CALLED: null,
-      STAT_CALLED: '/npm/dir/pkg',
-      SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: [],
+      RPJ_CALLED: '/npm/dir/pkg/package.json',
+      RUN_SCRIPT_EXEC: 'shell-command',
     })
     t.strictSame(output, [
       "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n",
@@ -162,20 +171,41 @@ t.test('interactive tracks exit code', t => {
   }))
 
   t.test('posix spawn fail', t => {
-    t.teardown(() => {
-      SPAWN_ERROR = null
-    })
-    SPAWN_ERROR = Object.assign(new Error('glorb'), {
+    RUN_SCRIPT_ERROR = Object.assign(new Error('glorb'), {
       code: 33,
     })
     return posixExplore(['pkg'], er => {
-      if (er)
-        throw er
-
+      t.match(er, { message: 'glorb', code: 33 })
       t.strictSame(output, [
         "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n",
       ])
       t.equal(process.exitCode, 33)
+    })
+  })
+
+  t.test('posix spawn fail, 0 exit code', t => {
+    RUN_SCRIPT_ERROR = Object.assign(new Error('glorb'), {
+      code: 0,
+    })
+    return posixExplore(['pkg'], er => {
+      t.match(er, { message: 'glorb', code: 0 })
+      t.strictSame(output, [
+        "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n",
+      ])
+      t.equal(process.exitCode, 1)
+    })
+  })
+
+  t.test('posix spawn fail, no exit code', t => {
+    RUN_SCRIPT_ERROR = Object.assign(new Error('command failed'), {
+      code: 'EPROBLEM',
+    })
+    return posixExplore(['pkg'], er => {
+      t.match(er, { message: 'command failed', code: 'EPROBLEM' })
+      t.strictSame(output, [
+        "\nExploring /npm/dir/pkg\nType 'exit' or ^D when finished\n",
+      ])
+      t.equal(process.exitCode, 1)
     })
   })
 
@@ -194,19 +224,12 @@ t.test('basic non-interactive', t => {
 
     t.strictSame({
       ERROR_HANDLER_CALLED,
-      STAT_CALLED,
-      SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS,
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
     }, {
       ERROR_HANDLER_CALLED: null,
-      STAT_CALLED: 'c:\\npm\\dir\\pkg',
-      SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: [
-        '/d',
-        '/s',
-        '/c',
-        '"ls"',
-      ],
+      RPJ_CALLED: 'c:\\npm\\dir\\pkg\\package.json',
+      RUN_SCRIPT_EXEC: 'ls',
     })
     t.strictSame(output, [])
   }))
@@ -217,14 +240,66 @@ t.test('basic non-interactive', t => {
 
     t.strictSame({
       ERROR_HANDLER_CALLED,
-      STAT_CALLED,
-      SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS,
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
     }, {
       ERROR_HANDLER_CALLED: null,
-      STAT_CALLED: '/npm/dir/pkg',
-      SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: ['-c', 'ls'],
+      RPJ_CALLED: '/npm/dir/pkg/package.json',
+      RUN_SCRIPT_EXEC: 'ls',
+    })
+    t.strictSame(output, [])
+  }))
+
+  t.end()
+})
+
+t.test('signal fails non-interactive', t => {
+  const { exitCode } = process
+  t.afterEach((cb) => {
+    output.length = 0
+    logs.length = 0
+    cb()
+  })
+
+  t.beforeEach(cb => {
+    RUN_SCRIPT_SIGNAL = 'SIGPROBLEM'
+    RUN_SCRIPT_EXIT_CODE = null
+    process.exitCode = exitCode
+    cb()
+  })
+  t.afterEach(cb => {
+    process.exitCode = exitCode
+    cb()
+  })
+
+  t.test('windows', t => windowsExplore(['pkg', 'ls'], er => {
+    t.match(er, {
+      message: 'command failed',
+      signal: 'SIGPROBLEM',
+    })
+
+    t.strictSame({
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
+    }, {
+      RPJ_CALLED: 'c:\\npm\\dir\\pkg\\package.json',
+      RUN_SCRIPT_EXEC: 'ls',
+    })
+    t.strictSame(output, [])
+  }))
+
+  t.test('posix', t => posixExplore(['pkg', 'ls'], er => {
+    t.match(er, {
+      message: 'command failed',
+      signal: 'SIGPROBLEM',
+    })
+
+    t.strictSame({
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
+    }, {
+      RPJ_CALLED: '/npm/dir/pkg/package.json',
+      RUN_SCRIPT_EXEC: 'ls',
     })
     t.strictSame(output, [])
   }))
@@ -237,28 +312,34 @@ t.test('usage if no pkg provided', t => {
     output.length = 0
     ERROR_HANDLER_CALLED = null
   })
-  t.plan(1)
-  posixExplore([], er => {
-    if (er)
-      throw er
-
-    t.strictSame({
-      ERROR_HANDLER_CALLED: null,
-      STAT_CALLED,
-      SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS,
-    }, {
-      ERROR_HANDLER_CALLED: null,
-      STAT_CALLED: '/npm/dir/pkg',
-      SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: ['-c', 'ls'],
-    })
-  }).catch(er => t.equal(er, 'npm explore <pkg> [ -- <command>]'))
+  const noPkg = [
+    [],
+    ['foo/../..'],
+    ['asdf/..'],
+    ['.'],
+    ['..'],
+    ['../..'],
+  ]
+  t.plan(noPkg.length)
+  for (const args of noPkg) {
+    t.test(JSON.stringify(args), t => posixExplore(args, er => {
+      t.equal(er, 'npm explore <pkg> [ -- <command>]')
+      t.strictSame({
+        ERROR_HANDLER_CALLED: null,
+        RPJ_CALLED,
+        RUN_SCRIPT_EXEC,
+      }, {
+        ERROR_HANDLER_CALLED: null,
+        RPJ_CALLED: '/npm/dir/pkg/package.json',
+        RUN_SCRIPT_EXEC: 'ls',
+      })
+    }))
+  }
 })
 
 t.test('pkg not installed', t => {
-  STAT_ERROR = new Error('plurple')
-  t.plan(1)
+  RPJ_ERROR = new Error('plurple')
+  t.plan(2)
 
   posixExplore(['pkg', 'ls'], er => {
     if (er)
@@ -266,17 +347,17 @@ t.test('pkg not installed', t => {
 
     t.strictSame({
       ERROR_HANDLER_CALLED,
-      STAT_CALLED,
-      SPAWN_SHELL_EXEC,
-      SPAWN_SHELL_ARGS,
+      RPJ_CALLED,
+      RUN_SCRIPT_EXEC,
     }, {
       ERROR_HANDLER_CALLED: null,
-      STAT_CALLED: '/npm/dir/pkg',
-      SPAWN_SHELL_EXEC: 'shell-command',
-      SPAWN_SHELL_ARGS: ['-c', 'ls'],
+      RPJ_CALLED: '/npm/dir/pkg/package.json',
+      RUN_SCRIPT_EXEC: 'ls',
     })
     t.strictSame(output, [])
   }).catch(er => {
-    t.match(er, { message: `It doesn't look like pkg is installed.` })
+    t.match(er, { message: 'plurple' })
+    t.match(logs, [['explore', `It doesn't look like pkg is installed.`]])
+    logs.length = 0
   })
 })

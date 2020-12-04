@@ -1,4 +1,4 @@
-.TH "NPM\-EXEC" "1" "November 2020" "" ""
+.TH "NPM\-EXEC" "1" "December 2020" "" ""
 .SH "NAME"
 \fBnpm-exec\fR \- Run a command from a local or remote npm package
 .SS Synopsis
@@ -14,9 +14,11 @@ npx <pkg>[@<specifier>] [args\.\.\.]
 npx \-p <pkg>[@<specifier>] <cmd> [args\.\.\.]
 npx \-c '<cmd> [args\.\.\.]'
 npx \-p <pkg>[@<specifier>] \-c '<cmd> [args\.\.\.]'
+Run without \-\-call or positional args to open interactive subshell
 
 alias: npm x, npx
 
+common options:
 \-\-package=<pkg> (may be specified multiple times)
 \-p is a shorthand for \-\-package only when using npx executable
 \-c <cmd> \-\-call=<cmd> (may not be mixed with positional arguments)
@@ -27,6 +29,11 @@ alias: npm x, npx
 This command allows you to run an arbitrary command from an npm package
 (either one installed locally, or fetched remotely), in a similar context
 as running it via \fBnpm run\fP\|\.
+.P
+Run without positional arguments or \fB\-\-call\fP, this allows you to
+interactively run commands in the same sort of shell environment that
+\fBpackage\.json\fP scripts are run\.  Interactive mode is not supported in CI
+environments when standard input is a TTY, to prevent hangs\.
 .P
 Whatever packages are specified by the \fB\-\-package\fP option will be
 provided in the \fBPATH\fP of the executed command, along with any locally

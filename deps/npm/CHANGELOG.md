@@ -1,3 +1,37 @@
+## 7.1.0 (2020-12-04)
+
+### FEATURES
+
+* [`6b1575110`](https://github.com/npm/cli/commit/6b15751106beb99234aa4bf39ae05cf40076d42a)
+  [#2237](https://github.com/npm/cli/pull/2237)
+  add `npm set-script` command
+  ([@Yash-Singh1](https://github.com/Yash-Singh1))
+* [`15d7333f8`](https://github.com/npm/cli/commit/15d7333f832e3d68ae16895569f27a27ef86573e)
+  add interactive `npm exec`
+  ([@isaacs](https://github.com/isaacs))
+
+### BUG FIXES
+
+* [`2a1192e4b`](https://github.com/npm/cli/commit/2a1192e4b03acdf6e6e24e58de68f736ab9bb35f)
+  [#2202](https://github.com/npm/cli/pull/2202)
+  Do not run interactive `npm exec` in CI when a TTY
+  ([@isaacs](https://github.com/isaacs))
+
+### DOCUMENTATION
+
+* [`0599cc37d`](https://github.com/npm/cli/commit/0599cc37df453bf79d47490eb4fca3cd63f67f80)
+  [#2271](https://github.com/npm/cli/pull/2271)
+  don't wrap code block
+  ([@ethomson](https://github.com/ethomson))
+
+### DEPENDENCIES
+
+* [`def85c726`](https://github.com/npm/cli/commit/def85c72640ffe2d27977c56b7aa06c6f6346ca9)
+  `@npmcli/arborist@1.0.14`
+    * fixes running `npm exec` from file system root folder
+* [`4c94673ab`](https://github.com/npm/cli/commit/4c94673ab5399d27e5a48e52f7a65b038a456265)
+  `semver@7.3.4`
+
 ## 7.0.15 (2020-11-27)
 
 ### DEPENDENCIES
