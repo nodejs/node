@@ -78,8 +78,8 @@ This command used to be known as `npm tag`, which only created new tags,
 and so had a different syntax.
 
 Tags must share a namespace with version numbers, because they are
-specified in the same slot: `npm install <pkg>@<version>` vs `npm install
-<pkg>@<tag>`.
+specified in the same slot: `npm install <pkg>@<version>` vs
+`npm install <pkg>@<tag>`.
 
 Tags that can be interpreted as valid semver ranges will be rejected. For
 example, `v1.4` cannot be used as a tag, because it is interpreted by

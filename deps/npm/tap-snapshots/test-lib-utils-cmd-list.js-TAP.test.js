@@ -162,6 +162,7 @@ Object {
     "start",
     "restart",
     "run-script",
+    "set-script",
     "completion",
     "doctor",
     "exec",

@@ -4,59 +4,65 @@
 const usageUtil = require('./utils/usage.js')
 const completion = require('./utils/completion/installed-shallow.js')
 const usage = usageUtil('explore', 'npm explore <pkg> [ -- <command>]')
+const rpj = require('read-package-json-fast')
 
 const cmd = (args, cb) => explore(args).then(() => cb()).catch(cb)
 
 const output = require('./utils/output.js')
 const npm = require('./npm.js')
-const isWindows = require('./utils/is-windows.js')
-const escapeArg = require('./utils/escape-arg.js')
-const escapeExecPath = require('./utils/escape-exec-path.js')
-const log = require('npmlog')
 
-const spawn = require('@npmcli/promise-spawn')
-
-const { resolve } = require('path')
-const { promisify } = require('util')
-const stat = promisify(require('fs').stat)
+const runScript = require('@npmcli/run-script')
+const { join, resolve, relative } = require('path')
 
 const explore = async args => {
   if (args.length < 1 || !args[0])
     throw usage
 
-  const pkg = args.shift()
-  const cwd = resolve(npm.dir, pkg)
-  const opts = { cwd, stdio: 'inherit', stdioString: true }
+  const pkgname = args.shift()
 
-  const shellArgs = []
-  if (args.length) {
-    if (isWindows) {
-      const execCmd = escapeExecPath(args.shift())
-      opts.windowsVerbatimArguments = true
-      shellArgs.push('/d', '/s', '/c', execCmd, ...args.map(escapeArg))
-    } else
-      shellArgs.push('-c', args.map(escapeArg).join(' ').trim())
-  }
+  // detect and prevent any .. shenanigans
+  const path = join(npm.dir, join('/', pkgname))
+  if (relative(path, npm.dir) === '')
+    throw usage
 
-  await stat(cwd).catch(er => {
-    throw new Error(`It doesn't look like ${pkg} is installed.`)
+  // run as if running a script named '_explore', which we set to either
+  // the set of arguments, or the shell config, and let @npmcli/run-script
+  // handle all the escaping and PATH setup stuff.
+
+  const pkg = await rpj(resolve(path, 'package.json')).catch(er => {
+    npm.log.error('explore', `It doesn't look like ${pkgname} is installed.`)
+    throw er
   })
 
-  const sh = npm.flatOptions.shell
-  log.disableProgress()
+  const { shell } = npm.flatOptions
+  pkg.scripts = {
+    ...(pkg.scripts || {}),
+    _explore: args.join(' ').trim() || shell,
+  }
 
-  if (!shellArgs.length)
-    output(`\nExploring ${cwd}\nType 'exit' or ^D when finished\n`)
-
-  log.silly('explore', { sh, shellArgs, opts })
-
-  // only noisily fail if non-interactive, but still keep exit code intact
-  const proc = spawn(sh, shellArgs, opts)
+  if (!args.length)
+    output(`\nExploring ${path}\nType 'exit' or ^D when finished\n`)
+  npm.log.disableProgress()
   try {
-    const res = await (shellArgs.length ? proc : proc.catch(er => er))
-    process.exitCode = res.code
+    return await runScript({
+      ...npm.flatOptions,
+      pkg,
+      banner: false,
+      path,
+      stdioString: true,
+      event: '_explore',
+      stdio: 'inherit',
+    }).catch(er => {
+      process.exitCode = typeof er.code === 'number' && er.code !== 0 ? er.code
+        : 1
+      // if it's not an exit error, or non-interactive, throw it
+      const isProcExit = er.message === 'command failed' &&
+        (typeof er.code === 'number' || /^SIG/.test(er.signal || ''))
+      if (args.length || !isProcExit)
+        throw er
+    })
   } finally {
-    log.enableProgress()
+    npm.log.enableProgress()
   }
 }
 

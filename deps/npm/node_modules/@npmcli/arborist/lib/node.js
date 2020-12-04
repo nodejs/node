@@ -107,13 +107,15 @@ class Node {
 
     this.name = name ||
       nameFromFolder(path || pkg.name || realpath) ||
-      pkg.name
-
-    if (!this.name)
-      throw new TypeError('could not detect node name from path or package')
+      pkg.name ||
+      null
 
     // should be equal if not a link
     this.path = path && resolve(path)
+
+    if (!this.name && (!this.path || this.path !== dirname(this.path)))
+      throw new TypeError('could not detect node name from path or package')
+
     this.realpath = !this.isLink ? this.path : resolve(realpath)
 
     this.resolved = resolved || null

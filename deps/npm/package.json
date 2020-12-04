@@ -1,5 +1,5 @@
 {
-  "version": "7.0.15",
+  "version": "7.1.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -42,9 +42,9 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^1.0.13",
+    "@npmcli/arborist": "^1.0.14",
     "@npmcli/ci-detect": "^1.2.0",
-    "@npmcli/config": "^1.2.1",
+    "@npmcli/config": "^1.2.3",
     "@npmcli/run-script": "^1.8.1",
     "abbrev": "~1.1.1",
     "ansicolors": "~0.3.2",
@@ -99,7 +99,7 @@
     "read-package-json": "^3.0.0",
     "read-package-json-fast": "^1.2.1",
     "rimraf": "^3.0.2",
-    "semver": "^7.3.2",
+    "semver": "^7.3.4",
     "sorted-object": "~2.0.1",
     "ssri": "^8.0.0",
     "tar": "^6.0.5",
@@ -180,12 +180,12 @@
     "write-file-atomic"
   ],
   "devDependencies": {
-    "cmark-gfm": "^0.8.4",
-    "eslint": "^7.13.0",
+    "cmark-gfm": "^0.8.5",
+    "eslint": "^7.14.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.1.0",
+    "eslint-plugin-standard": "^5.0.0",
     "jsdom": "^16.4.0",
     "marked-man": "^0.7.0",
     "require-inject": "^1.4.4",

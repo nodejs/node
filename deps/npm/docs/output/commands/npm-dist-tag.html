@@ -201,7 +201,8 @@ versions such as prereleases.</p>
 <p>This command used to be known as <code>npm tag</code>, which only created new tags,
 and so had a different syntax.</p>
 <p>Tags must share a namespace with version numbers, because they are
-specified in the same slot: <code>npm install &lt;pkg&gt;@&lt;version&gt;</code> vs <code>npm install &lt;pkg&gt;@&lt;tag&gt;</code>.</p>
+specified in the same slot: <code>npm install &lt;pkg&gt;@&lt;version&gt;</code> vs
+<code>npm install &lt;pkg&gt;@&lt;tag&gt;</code>.</p>
 <p>Tags that can be interpreted as valid semver ranges will be rejected. For
 example, <code>v1.4</code> cannot be used as a tag, because it is interpreted by
 semver as <code>&gt;=1.4.0 &lt;1.5.0</code>.  See <a href="https://github.com/npm/npm/issues/6082">https://github.com/npm/npm/issues/6082</a>.</p>

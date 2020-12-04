@@ -1,0 +1,43 @@
+.TH "NPM\-SET\-SCRIPT" "1" "December 2020" "" ""
+.SH "NAME"
+\fBnpm-set-script\fR \- Set tasks in the scripts section of package\.json
+.SS Synopsis
+.P
+An npm command that lets you create a task in the scripts section of the package\.json\.
+.P
+.RS 2
+.nf
+npm set\-script [<script>] [<command>]
+.fi
+.RE
+.P
+\fBExample:\fR
+.RS 0
+.IP \(bu 2
+\fBnpm set\-script start "http\-server \."\fP
+
+.RE
+.P
+.RS 2
+.nf
+{
+  "name": "my\-project",
+  "scripts": {
+    "start": "http\-server \.",
+    "test": "some existing value"
+  }
+}
+.fi
+.RE
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help start
+
+.RE
