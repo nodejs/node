@@ -244,6 +244,12 @@ async function doConcurrentAsyncAndSyncOps() {
 }
 doConcurrentAsyncAndSyncOps().then(common.mustCall());
 
+// Check read throw exceptions on invalid callback
+{
+  const dir = fs.opendirSync(testDir);
+  assert.throws(() => dir.read('INVALID_CALLBACK'), /ERR_INVALID_CALLBACK/);
+}
+
 // Check that concurrent read() operations don't do weird things.
 async function doConcurrentAsyncOps() {
   const dir = await fs.promises.opendir(testDir);
