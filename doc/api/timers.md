@@ -333,6 +333,9 @@ const timersPromises = require('timers/promises');
 ```
 
 ### `timersPromises.setTimeout([delay[, value[, options]]])`
+<!-- YAML
+added: v15.0.0
+-->
 
 * `delay` {number} The number of milliseconds to wait before resolving the
   `Promise`. **Default**: `1`.
@@ -345,6 +348,9 @@ const timersPromises = require('timers/promises');
     cancel the scheduled `Timeout`.
 
 ### `timersPromises.setImmediate([value[, options]])`
+<!-- YAML
+added: v15.0.0
+-->
 
 * `value` {any} A value with which the `Promise` is resolved.
 * `options` {Object}
