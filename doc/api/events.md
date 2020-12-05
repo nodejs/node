@@ -189,7 +189,7 @@ The `captureRejections` option in the `EventEmitter` constructor or the global
 setting change this behavior, installing a `.then(undefined, handler)`
 handler on the `Promise`. This handler routes the exception
 asynchronously to the [`Symbol.for('nodejs.rejection')`][rejection] method
-if there is one, or to [`'error'`][error] event handler if there is none.
+if there is one, or to [`'error'`][error] event handler if there is one.
 
 ```js
 const ee1 = new EventEmitter({ captureRejections: true });
