@@ -45,7 +45,9 @@ There are four fundamental stream types within Node.js:
   is written and read (for example, [`zlib.createDeflate()`][]).
 
 Additionally, this module includes the utility functions
-[`stream.pipeline()`][], [`stream.finished()`][] and
+[`stream.duplexPair()`][],
+[`stream.pipeline()`][],
+[`stream.finished()`][], and
 [`stream.Readable.from()`][].
 
 ### Streams Promises API
@@ -1569,6 +1571,29 @@ unless `emitClose` is set in false.
 
 Once `destroy()` has been called, any further calls will be a no-op and no
 further errors except from `_destroy()` may be emitted as `'error'`.
+
+#### `stream.duplexPair([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} A value to pass to both [`Duplex`][] constructors,
+  to set options such as buffering.
+* Returns: {Array} of two [`Duplex`][] instances.
+
+The utility function `duplexPair` returns an Array with two items,
+each being a `Duplex` stream connected to the other side:
+
+```js
+const [ clientSide, serverSide ] = duplexPair();
+```
+
+Whatever is written to one stream is made readable on the other. It provides
+behavior analogous to a network connection, where the data written by the client
+becomes readable by the server, and vice-versa.
+
+The Duplex streams are symmetrical; one or the other may be used without any
+difference in behavior.
 
 ### `stream.finished(stream[, options], callback)`
 <!-- YAML
@@ -3120,6 +3145,7 @@ contain multi-byte characters.
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
 [`stream.cork()`]: #stream_writable_cork
+[`stream.duplexPair()`]: #stream_stream_duplexpair_options
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
 [`stream.pipe()`]: #stream_readable_pipe_destination_options
 [`stream.pipeline()`]: #stream_stream_pipeline_source_transforms_destination_callback

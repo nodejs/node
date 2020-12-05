@@ -2,13 +2,13 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
-const MakeDuplexPair = require('../common/duplexpair');
+const { duplexPair } = require('stream');
 
 // Test that setting the `maxHeaderSize` option works on a per-stream-basis.
 
 // Test 1: The server sends an invalid header.
 {
-  const { clientSide, serverSide } = MakeDuplexPair();
+  const [ clientSide, serverSide ] = duplexPair();
 
   const req = http.request({
     createConnection: common.mustCall(() => clientSide),
@@ -29,7 +29,7 @@ const MakeDuplexPair = require('../common/duplexpair');
 
 // Test 2: The same as Test 1 except without the option, to make sure it fails.
 {
-  const { clientSide, serverSide } = MakeDuplexPair();
+  const [ clientSide, serverSide ] = duplexPair();
 
   const req = http.request({
     createConnection: common.mustCall(() => clientSide)
@@ -57,7 +57,7 @@ const MakeDuplexPair = require('../common/duplexpair');
 
   server.on('clientError', common.mustNotCall());
 
-  const { clientSide, serverSide } = MakeDuplexPair();
+  const [ clientSide, serverSide ] = duplexPair();
   serverSide.server = server;
   server.emit('connection', serverSide);
 
@@ -72,7 +72,7 @@ const MakeDuplexPair = require('../common/duplexpair');
 
   server.on('clientError', common.mustCall());
 
-  const { clientSide, serverSide } = MakeDuplexPair();
+  const [ clientSide, serverSide ] = duplexPair();
   serverSide.server = server;
   server.emit('connection', serverSide);
 
