@@ -948,7 +948,7 @@ def get_gas_version(cc):
 
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
-# check involves checking the build number against a whitelist.  I'm not
+# check involves checking the build number against an allowlist.  I'm not
 # quite prepared to go that far yet.
 def check_compiler(o):
   if sys.platform == 'win32':
