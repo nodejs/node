@@ -4,7 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// Assert that whitelisted internalBinding modules are accessible via
+// Assert that allowed internalBinding modules are accessible via
 // process.binding().
 assert(process.binding('async_wrap'));
 assert(process.binding('buffer'));
