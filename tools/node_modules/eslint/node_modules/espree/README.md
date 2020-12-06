@@ -27,10 +27,10 @@ const ast = espree.parse(code);
 
 ### `parse()`
 
-`parse` parses the given code and returns a abstract syntax tree (AST). It takes two paramenter.
+`parse` parses the given code and returns a abstract syntax tree (AST). It takes two parameters.
 
 - `code` [string]() - the code which needs to be parsed. 
-- `options (Optional)` [Object]() - read more about this [here](#options)
+- `options (Optional)` [Object]() - read more about this [here](#options).
 
 ```javascript
 const espree = require("espree");
@@ -71,10 +71,10 @@ Node {
 
 ### `tokenize()`
 
-`tokenize` returns the tokens of a give code. It takes two paramenter.
+`tokenize` returns the tokens of a given code. It takes two parameters.
 
 - `code` [string]() - the code which needs to be parsed. 
-- `options (Optional)` [Object]() - read more about this [here](#options)
+- `options (Optional)` [Object]() - read more about this [here](#options).
 
 Even if `options` is empty or undefined or `options.tokens` is `false`, it assigns it to `true` in order to get the `tokens` array
 
@@ -112,7 +112,7 @@ Returns the latest ECMAScript supported by `espree`
 
 ### `supportedEcmaVersions`
 
-Returns an array of all supported ECMAScript version 
+Returns an array of all supported ECMAScript versions
 
 ## Options 
 
