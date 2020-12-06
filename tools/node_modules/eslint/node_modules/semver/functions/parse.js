@@ -2,13 +2,9 @@ const {MAX_LENGTH} = require('../internal/constants')
 const { re, t } = require('../internal/re')
 const SemVer = require('../classes/semver')
 
+const parseOptions = require('../internal/parse-options')
 const parse = (version, options) => {
-  if (!options || typeof options !== 'object') {
-    options = {
-      loose: !!options,
-      includePrerelease: false
-    }
-  }
+  options = parseOptions(options)
 
   if (version instanceof SemVer) {
     return version

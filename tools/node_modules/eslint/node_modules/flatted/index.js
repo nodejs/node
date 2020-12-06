@@ -1,113 +1,119 @@
-var Flatted = (function (Primitive, primitive) {
+self.Flatted = (function (exports) {
+  'use strict';
 
-  /*!
-   * ISC License
-   *
-   * Copyright (c) 2018, Andrea Giammarchi, @WebReflection
-   *
-   * Permission to use, copy, modify, and/or distribute this software for any
-   * purpose with or without fee is hereby granted, provided that the above
-   * copyright notice and this permission notice appear in all copies.
-   *
-   * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-   * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-   * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-   * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-   * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
-   * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-   * PERFORMANCE OF THIS SOFTWARE.
-   */
+  
 
-  var Flatted = {
+  /*! (c) 2020 Andrea Giammarchi */
+  var $parse = JSON.parse,
+      $stringify = JSON.stringify;
+  var keys = Object.keys;
+  var Primitive = String; // it could be Number
 
-    parse: function parse(text, reviver) {
-      var input = JSON.parse(text, Primitives).map(primitives);
-      var value = input[0];
-      var $ = reviver || noop;
-      var tmp = typeof value === 'object' && value ?
-                  revive(input, new Set, value, $) :
-                  value;
-      return $.call({'': tmp}, '', tmp);
-    },
+  var primitive = 'string'; // it could be 'number'
 
-    stringify: function stringify(value, replacer, space) {
-      for (var
-        firstRun,
-        known = new Map,
-        input = [],
-        output = [],
-        $ = replacer && typeof replacer === typeof input ?
-              function (k, v) {
-                if (k === '' || -1 < replacer.indexOf(k)) return v;
-              } :
-              (replacer || noop),
-        i = +set(known, input, $.call({'': value}, '', value)),
-        replace = function (key, value) {
-          if (firstRun) {
-            firstRun = !firstRun;
-            return value;
-          }
-          var after = $.call(this, key, value);
-          switch (typeof after) {
-            case 'object':
-              if (after === null) return after;
-            case primitive:
-              return known.get(after) || set(known, input, after);
-          }
-          return after;
-        };
-        i < input.length; i++
-      ) {
-        firstRun = true;
-        output[i] = JSON.stringify(input[i], replace, space);
-      }
-      return '[' + output.join(',') + ']';
-    }
+  var ignore = {};
+  var object = 'object';
 
+  var noop = function noop(_, value) {
+    return value;
   };
 
-  return Flatted;
+  var primitives = function primitives(value) {
+    return value instanceof Primitive ? Primitive(value) : value;
+  };
 
-  function noop(key, value) {
-    return value;
-  }
+  var Primitives = function Primitives(_, value) {
+    return typeof(value) === primitive ? new Primitive(value) : value;
+  };
 
-  function revive(input, parsed, output, $) {
-    return Object.keys(output).reduce(
-      function (output, key) {
-        var value = output[key];
-        if (value instanceof Primitive) {
-          var tmp = input[value];
-          if (typeof tmp === 'object' && !parsed.has(tmp)) {
-            parsed.add(tmp);
-            output[key] = $.call(output, key, revive(input, parsed, tmp, $));
-          } else {
-            output[key] = $.call(output, key, tmp);
-          }
-        } else
-          output[key] = $.call(output, key, value);
-        return output;
-      },
-      output
-    );
-  }
+  var revive = function revive(input, parsed, output, $) {
+    var lazy = [];
 
-  function set(known, input, value) {
+    for (var ke = keys(output), length = ke.length, y = 0; y < length; y++) {
+      var k = ke[y];
+      var value = output[k];
+
+      if (value instanceof Primitive) {
+        var tmp = input[value];
+
+        if (typeof(tmp) === object && !parsed.has(tmp)) {
+          parsed.add(tmp);
+          output[k] = ignore;
+          lazy.push({
+            k: k,
+            a: [input, parsed, tmp, $]
+          });
+        } else output[k] = $.call(output, k, tmp);
+      } else if (output[k] !== ignore) output[k] = $.call(output, k, value);
+    }
+
+    for (var _length = lazy.length, i = 0; i < _length; i++) {
+      var _lazy$i = lazy[i],
+          _k = _lazy$i.k,
+          a = _lazy$i.a;
+      output[_k] = $.call(output, _k, revive.apply(null, a));
+    }
+
+    return output;
+  };
+
+  var set = function set(known, input, value) {
     var index = Primitive(input.push(value) - 1);
     known.set(value, index);
     return index;
-  }
+  };
 
-  // the two kinds of primitives
-  //  1. the real one
-  //  2. the wrapped one
+  var parse = function parse(text, reviver) {
+    var input = $parse(text, Primitives).map(primitives);
+    var value = input[0];
+    var $ = reviver || noop;
+    var tmp = typeof(value) === object && value ? revive(input, new Set(), value, $) : value;
+    return $.call({
+      '': tmp
+    }, '', tmp);
+  };
+  var stringify = function stringify(value, replacer, space) {
+    var $ = replacer && typeof(replacer) === object ? function (k, v) {
+      return k === '' || -1 < replacer.indexOf(k) ? v : void 0;
+    } : replacer || noop;
+    var known = new Map();
+    var input = [];
+    var output = [];
+    var i = +set(known, input, $.call({
+      '': value
+    }, '', value));
+    var firstRun = !i;
 
-  function primitives(value) {
-    return value instanceof Primitive ? Primitive(value) : value;
-  }
+    while (i < input.length) {
+      firstRun = true;
+      output[i] = $stringify(input[i++], replace, space);
+    }
 
-  function Primitives(key, value) {
-    return typeof value === primitive ? new Primitive(value) : value;
-  }
+    return '[' + output.join(',') + ']';
 
-}(String, 'string'));
+    function replace(key, value) {
+      if (firstRun) {
+        firstRun = !firstRun;
+        return value;
+      }
+
+      var after = $.call(this, key, value);
+
+      switch (typeof(after)) {
+        case object:
+          if (after === null) return after;
+
+        case primitive:
+          return known.get(after) || set(known, input, after);
+      }
+
+      return after;
+    }
+  };
+
+  exports.parse = parse;
+  exports.stringify = stringify;
+
+  return exports;
+
+}({}));

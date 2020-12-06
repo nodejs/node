@@ -1,12 +1,7 @@
 // hoisted class for cyclic dependency
 class Range {
   constructor (range, options) {
-    if (!options || typeof options !== 'object') {
-      options = {
-        loose: !!options,
-        includePrerelease: false
-      }
-    }
+    options = parseOptions(options)
 
     if (range instanceof Range) {
       if (
@@ -46,6 +41,24 @@ class Range {
       throw new TypeError(`Invalid SemVer Range: ${range}`)
     }
 
+    // if we have any that are not the null set, throw out null sets.
+    if (this.set.length > 1) {
+      // keep the first one, in case they're all null sets
+      const first = this.set[0]
+      this.set = this.set.filter(c => !isNullSet(c[0]))
+      if (this.set.length === 0)
+        this.set = [first]
+      else if (this.set.length > 1) {
+        // if we have any that are *, then the range is just *
+        for (const c of this.set) {
+          if (c.length === 1 && isAny(c[0])) {
+            this.set = [c]
+            break
+          }
+        }
+      }
+    }
+
     this.format()
   }
 
@@ -64,8 +77,17 @@ class Range {
   }
 
   parseRange (range) {
-    const loose = this.options.loose
     range = range.trim()
+
+    // memoize range parsing for performance.
+    // this is a very hot path, and fully deterministic.
+    const memoOpts = Object.keys(this.options).join(',')
+    const memoKey = `parseRange:${memoOpts}:${range}`
+    const cached = cache.get(memoKey)
+    if (cached)
+      return cached
+
+    const loose = this.options.loose
     // `1.2.3 - 1.2.4` => `>=1.2.3 <=1.2.4`
     const hr = loose ? re[t.HYPHENRANGELOOSE] : re[t.HYPHENRANGE]
     range = range.replace(hr, hyphenReplace(this.options.includePrerelease))
@@ -87,15 +109,33 @@ class Range {
     // ready to be split into comparators.
 
     const compRe = loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR]
-    return range
+    const rangeList = range
       .split(' ')
       .map(comp => parseComparator(comp, this.options))
       .join(' ')
       .split(/\s+/)
+      // >=0.0.0 is equivalent to *
       .map(comp => replaceGTE0(comp, this.options))
       // in loose mode, throw out any that are not valid comparators
       .filter(this.options.loose ? comp => !!comp.match(compRe) : () => true)
       .map(comp => new Comparator(comp, this.options))
+
+    // if any comparators are the null set, then replace with JUST null set
+    // if more than one comparator, remove any * comparators
+    // also, don't include the same comparator more than once
+    const l = rangeList.length
+    const rangeMap = new Map()
+    for (const comp of rangeList) {
+      if (isNullSet(comp))
+        return [comp]
+      rangeMap.set(comp.value, comp)
+    }
+    if (rangeMap.size > 1 && rangeMap.has(''))
+      rangeMap.delete('')
+
+    const result = [...rangeMap.values()]
+    cache.set(memoKey, result)
+    return result
   }
 
   intersects (range, options) {
@@ -144,6 +184,10 @@ class Range {
 }
 module.exports = Range
 
+const LRU = require('lru-cache')
+const cache = new LRU({ max: 1000 })
+
+const parseOptions = require('../internal/parse-options')
 const Comparator = require('./comparator')
 const debug = require('../internal/debug')
 const SemVer = require('./semver')
@@ -154,6 +198,9 @@ const {
   tildeTrimReplace,
   caretTrimReplace
 } = require('../internal/re')
+
+const isNullSet = c => c.value === '<0.0.0-0'
+const isAny = c => c.value === ''
 
 // take a set of comparators and determine whether there
 // exists a version which can satisfy it
