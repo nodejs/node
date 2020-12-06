@@ -46,8 +46,8 @@ server.listen(0, common.mustCall(() => {
 }));
 
 const countdown = new Countdown(max, () => {
-  assert(!http.globalAgent.sockets.hasOwnProperty(name));
-  assert(!http.globalAgent.requests.hasOwnProperty(name));
+  assert(!(name in http.globalAgent.sockets));
+  assert(!(name in http.globalAgent.requests));
   server.close();
 });
 
