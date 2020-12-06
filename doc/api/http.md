@@ -262,6 +262,10 @@ terminates them.
 ### `agent.freeSockets`
 <!-- YAML
 added: v0.11.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36409
+    description: The property now has a `null` prototype.
 -->
 
 * {Object}
@@ -328,6 +332,10 @@ can have open. Unlike `maxSockets`, this parameter applies across all origins.
 ### `agent.requests`
 <!-- YAML
 added: v0.5.9
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36409
+    description: The property now has a `null` prototype.
 -->
 
 * {Object}
@@ -338,6 +346,10 @@ sockets. Do not modify.
 ### `agent.sockets`
 <!-- YAML
 added: v0.3.6
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36409
+    description: The property now has a `null` prototype.
 -->
 
 * {Object}

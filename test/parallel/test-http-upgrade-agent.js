@@ -78,7 +78,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     assert.deepStrictEqual(expectedHeaders, res.headers);
 
     // Make sure this request got removed from the pool.
-    assert(!http.globalAgent.sockets.hasOwnProperty(name));
+    assert(!(name in http.globalAgent.sockets));
 
     req.on('close', common.mustCall(function() {
       socket.end();
