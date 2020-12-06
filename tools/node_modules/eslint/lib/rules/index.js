@@ -218,6 +218,7 @@ module.exports = new LazyLoadingRuleMap(Object.entries({
     "no-unreachable-loop": () => require("./no-unreachable-loop"),
     "no-unsafe-finally": () => require("./no-unsafe-finally"),
     "no-unsafe-negation": () => require("./no-unsafe-negation"),
+    "no-unsafe-optional-chaining": () => require("./no-unsafe-optional-chaining"),
     "no-unused-expressions": () => require("./no-unused-expressions"),
     "no-unused-labels": () => require("./no-unused-labels"),
     "no-unused-vars": () => require("./no-unused-vars"),
