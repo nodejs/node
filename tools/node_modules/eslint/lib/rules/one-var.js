@@ -314,12 +314,14 @@ module.exports = {
                     return null;
                 }
 
+                const exportPlacement = declaration.parent.type === "ExportNamedDeclaration" ? "export " : "";
+
                 /*
                  * `var x,y`
                  * tokenAfterDeclarator ^^ afterComma
                  */
                 if (afterComma.range[0] === tokenAfterDeclarator.range[1]) {
-                    return fixer.replaceText(tokenAfterDeclarator, `; ${declaration.kind} `);
+                    return fixer.replaceText(tokenAfterDeclarator, `; ${exportPlacement}${declaration.kind} `);
                 }
 
                 /*
@@ -341,11 +343,11 @@ module.exports = {
 
                     return fixer.replaceTextRange(
                         [tokenAfterDeclarator.range[0], lastComment.range[0]],
-                        `;${sourceCode.text.slice(tokenAfterDeclarator.range[1], lastComment.range[0])}${declaration.kind} `
+                        `;${sourceCode.text.slice(tokenAfterDeclarator.range[1], lastComment.range[0])}${exportPlacement}${declaration.kind} `
                     );
                 }
 
-                return fixer.replaceText(tokenAfterDeclarator, `; ${declaration.kind}`);
+                return fixer.replaceText(tokenAfterDeclarator, `; ${exportPlacement}${declaration.kind}`);
             }).filter(x => x);
         }
 
