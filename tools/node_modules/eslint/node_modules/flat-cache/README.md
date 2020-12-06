@@ -2,7 +2,7 @@
 > A stupidly simple key/value storage using files to persist the data
 
 [![NPM Version](http://img.shields.io/npm/v/flat-cache.svg?style=flat)](https://npmjs.org/package/flat-cache)
-[![Build Status](http://img.shields.io/travis/royriojas/flat-cache.svg?style=flat)](https://travis-ci.org/royriojas/flat-cache)
+[![Build Status](https://api.travis-ci.org/royriojas/flat-cache.svg?branch=master)](https://travis-ci.org/royriojas/flat-cache)
 
 ## install
 
