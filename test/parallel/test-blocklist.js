@@ -4,6 +4,7 @@ require('../common');
 
 const { BlockList } = require('net');
 const assert = require('assert');
+const util = require('util');
 
 {
   const blockList = new BlockList();
@@ -134,4 +135,46 @@ const assert = require('assert');
   assert(blockList.check('8592:757c:efaf:0:0:0:0:0', 'ipv6'));
   assert(blockList.check('8592:757c:efaf:1fff:ffff:ffff:ffff:ffff', 'ipv6'));
   assert(!blockList.check('8592:757c:efaf:2fff:ffff:ffff:ffff:ffff', 'ipv6'));
+}
+
+{
+  assert.throws(() => new BlockList('NOT BLOCK LIST HANDLE'), /ERR_INVALID_ARG_TYPE/);
+}
+
+{
+  const blockList = new BlockList();
+  assert.throws(() => blockList.addRange('1.1.1.2', '1.1.1.1'), /ERR_INVALID_ARG_VALUE/);
+}
+
+{
+  const blockList = new BlockList();
+  assert.throws(() => blockList.addSubnet(1), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => blockList.addSubnet('', ''), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => blockList.addSubnet('', 1, 1), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => blockList.addSubnet('', 1, ''), /ERR_INVALID_ARG_VALUE/);
+
+  assert.throws(() => blockList.addSubnet('', -1, 'ipv4'), /ERR_OUT_OF_RANGE/);
+  assert.throws(() => blockList.addSubnet('', 33, 'ipv4'), /ERR_OUT_OF_RANGE/);
+
+  assert.throws(() => blockList.addSubnet('', -1, 'ipv6'), /ERR_OUT_OF_RANGE/);
+  assert.throws(() => blockList.addSubnet('', 129, 'ipv6'), /ERR_OUT_OF_RANGE/);
+}
+
+{
+  const blockList = new BlockList();
+  assert.throws(() => blockList.check(1), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => blockList.check('', 1), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => blockList.check('', ''), /ERR_INVALID_ARG_VALUE/);
+}
+
+{
+  const blockList = new BlockList();
+  const ret = util.inspect(blockList, { depth: -1 });
+  assert.strictEqual(ret, '[BlockList]');
+}
+
+{
+  const blockList = new BlockList();
+  const ret = util.inspect(blockList, { depth: null });
+  assert(ret.includes('rules: []'));
 }
