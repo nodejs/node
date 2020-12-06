@@ -63,7 +63,7 @@ static std::string GetErrorSource(Isolate* isolate,
   Environment* env = Environment::GetCurrent(isolate);
   const bool has_source_map_url =
       !message->GetScriptOrigin().SourceMapUrl().IsEmpty();
-  if (has_source_map_url && env->source_maps_enabled()) {
+  if (has_source_map_url && env != nullptr && env->source_maps_enabled()) {
     return sourceline;
   }
 
