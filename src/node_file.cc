@@ -288,6 +288,7 @@ inline void FileHandle::Close() {
 void FileHandle::CloseReq::Resolve() {
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
+  Context::Scope context_scope(env()->context());
   InternalCallbackScope callback_scope(this);
   Local<Promise> promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
@@ -297,6 +298,7 @@ void FileHandle::CloseReq::Resolve() {
 void FileHandle::CloseReq::Reject(Local<Value> reason) {
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
+  Context::Scope context_scope(env()->context());
   InternalCallbackScope callback_scope(this);
   Local<Promise> promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
