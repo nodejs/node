@@ -256,7 +256,8 @@ class CascadingConfigArrayFactory {
             rulePaths,
             specificConfigPath,
             useEslintrc,
-            builtInRules
+            builtInRules,
+            loadRules
         });
     }
 
