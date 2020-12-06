@@ -12,7 +12,7 @@ const agent = new https.Agent();
 // empty options
 assert.strictEqual(
   agent.getName({}),
-  'localhost:::::::::::::::::::'
+  'localhost::::::::::::::::::::::'
 );
 
 // Pass all options arguments
@@ -34,11 +34,15 @@ const options = {
   secureOptions: 0,
   secureProtocol: 'secureProtocol',
   servername: 'localhost',
-  sessionIdContext: 'sessionIdContext'
+  sessionIdContext: 'sessionIdContext',
+  sigalgs: 'sigalgs',
+  privateKeyIdentifier: 'privateKeyIdentifier',
+  privateKeyEngine: 'privateKeyEngine',
 };
 
 assert.strictEqual(
   agent.getName(options),
   '0.0.0.0:443:192.168.1.1:ca:cert:dynamic:ciphers:key:pfx:false:localhost:' +
-    '::secureProtocol:c,r,l:false:ecdhCurve:dhparam:0:sessionIdContext'
+    '::secureProtocol:c,r,l:false:ecdhCurve:dhparam:0:sessionIdContext:' +
+    '"sigalgs":privateKeyIdentifier:privateKeyEngine'
 );
