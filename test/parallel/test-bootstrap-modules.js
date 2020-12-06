@@ -114,7 +114,6 @@ if (!common.isMainThread) {
     'Internal Binding performance',
     'Internal Binding symbols',
     'Internal Binding worker',
-    'NativeModule internal/streams/add-abort-signal',
     'NativeModule internal/streams/duplex',
     'NativeModule internal/streams/passthrough',
     'NativeModule internal/streams/readable',
