@@ -21,7 +21,7 @@ accessible.
 <!--YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
@@ -175,7 +175,7 @@ Used to print to stdout and stderr. See the [`console`][] section.
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
@@ -189,7 +189,7 @@ A browser-compatible implementation of the `Event` class. See
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
