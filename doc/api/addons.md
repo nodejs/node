@@ -26,8 +26,8 @@ involving knowledge of several components and APIs:
   serves as a cross-platform abstraction library, giving easy, POSIX-like
   access across all major operating systems to many common system tasks, such
   as interacting with the filesystem, sockets, timers, and system events. libuv
-  also provides a pthreads-like threading abstraction that may be used to
-  power more sophisticated asynchronous addons that need to move beyond the
+  also provides a threading abstraction similar to POSIX threads for
+  more sophisticated asynchronous addons that need to move beyond the
   standard event loop. Addon authors are encouraged to think about how to
   avoid blocking the event loop with I/O or other time-intensive tasks by
   off-loading work via libuv to non-blocking system operations, worker threads
