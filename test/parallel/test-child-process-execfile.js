@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
+const { getEventListeners } = require('events');
 const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
 
@@ -68,5 +69,15 @@ const execOpts = { encoding: 'utf8', shell: true };
 
     execFile(process.execPath, [echoFixture, 0], { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
+}
+{
+  // Verify that the process completing removes the abort listener
+  const ac = new AbortController();
+  const { signal } = ac;
 
+  const callback = common.mustCall((err) => {
+    assert.strictEqual(getEventListeners(ac.signal).length, 0);
+    assert.strictEqual(err, null);
+  });
+  execFile(process.execPath, [fixture, 0], { signal }, callback);
 }
