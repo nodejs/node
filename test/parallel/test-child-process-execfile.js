@@ -59,3 +59,14 @@ const execOpts = { encoding: 'utf8', shell: true };
   execFile(process.execPath, [echoFixture, 0], { signal }, callback);
   ac.abort();
 }
+
+{
+  // Verify that if something different than Abortcontroller.signal
+  // is passed, ERR_INVALID_ARG_TYPE is thrown
+  assert.throws(() => {
+    const callback = common.mustNotCall(() => {});
+
+    execFile(process.execPath, [echoFixture, 0], { signal: 'hello' }, callback);
+  }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
+
+}
