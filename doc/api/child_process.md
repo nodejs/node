@@ -280,7 +280,7 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
-  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal
+  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -344,7 +344,7 @@ const { signal } = controller;
 const child = execFile('node', ['--version'], { signal }, (error) => {
   console.log(error); // an AbortError
 });
-signal.abort();
+controller.abort();
 ```
 
 ### `child_process.fork(modulePath[, args][, options])`
@@ -424,6 +424,9 @@ The `shell` option available in [`child_process.spawn()`][] is not supported by
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36432
+    description: AbortSignal support was added.
   - version:
       - v13.2.0
       - v12.16.0
@@ -466,6 +469,8 @@ changes:
     when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
+
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -571,6 +576,20 @@ Node.js currently overwrites `argv[0]` with `process.execPath` on startup, so
 `process.argv[0]` in a Node.js child process will not match the `argv0`
 parameter passed to `spawn` from the parent, retrieve it with the
 `process.argv0` property instead.
+
+If the `signal` option is enabled, calling `.abort()` on the corresponding
+`AbortController` is similar to calling `.kill()` on the child process except
+the error passed to the callback will be an `AbortError`:
+
+```js
+const controller = new AbortController();
+const { signal } = controller;
+const grep = spawn('grep', ['ssh'], { signal });
+grep.on('error', (err) => {
+  // This will be called with err being an AbortError if the controller aborts
+});
+controller.abort(); // stops the process
+```
 
 #### `options.detached`
 <!-- YAML
