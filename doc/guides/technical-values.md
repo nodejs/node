@@ -3,8 +3,7 @@
 The project uses these technical values to establish priorities and guide
 collaboration.
 
-These values reflect the shared values of the
-collaborators as of this writing and will
+These are the shared values as of this writing and will
 evolve. We hope they are useful to people new
 to the project in order to better understand which contributions
 will be aligned with the current direction and as thinking
