@@ -431,3 +431,18 @@ const assert = require('assert');
   write.write('asd');
   ac.abort();
 }
+
+{
+  const ac = new AbortController();
+  const write = new Writable({
+    signal: ac.signal,
+    write(chunk, enc, cb) { cb(); }
+  });
+
+  write.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'AbortError');
+    assert.strictEqual(write.destroyed, true);
+  }));
+  write.write('asd');
+  ac.abort();
+}
