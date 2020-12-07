@@ -11,8 +11,7 @@ points when trading off between conflicting goals.
 
 The factors influencing every discussion/decision are
 different and priority 1 does not always trump priority 2
-and so on. Instead, they reflect priorities that we
-should factor into key discussion/decisions.
+and so on.
 
 ## Values and priority level
 
