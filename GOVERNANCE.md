@@ -151,8 +151,9 @@ The nomination passes if no Collaborators oppose it after one week. Otherwise,
 the nomination fails.
 
 There are steps a nominator can take in advance to make a nomination as
-frictionless as possible. Use the [Collaborators discussion page][] to request
-feedback from other Collaborators in private. A nominator may also work with the
+frictionless as possible. To request feedback from other Collaborators in
+ private, use the [Collaborators discussion page][]
+ (which only Collaborators may view). A nominator may also work with the
 nominee to improve their contribution profile.
 
 Collaborators might overlook someone with valuable contributions. In that case,
