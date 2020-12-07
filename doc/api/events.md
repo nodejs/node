@@ -1111,7 +1111,7 @@ process.nextTick(() => ac.abort());
 
 ## `events.setMaxListeners(n[, ...eventTargets])`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 * `n` {number} A non-negative number. The maximum number of listeners per
@@ -1137,7 +1137,7 @@ setMaxListeners(5, target, emitter);
 <!-- YAML
 added: v14.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
   - version: v15.0.0

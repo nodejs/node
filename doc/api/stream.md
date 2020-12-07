@@ -1801,7 +1801,7 @@ for performance reasons.
 
 ### `stream.addAbortSignal(signal, stream)`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 * `signal` {AbortSignal} A signal representing possible cancellation
 * `stream` {Stream} a stream to attach a signal to

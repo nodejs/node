@@ -250,7 +250,7 @@ lsExample();
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/36308
     description: AbortSignal support was added.
   - version: v8.8.0
