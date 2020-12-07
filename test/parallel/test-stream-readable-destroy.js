@@ -286,6 +286,22 @@ const assert = require('assert');
 
 {
   const controller = new AbortController();
+  const read = new Readable({
+    signal: controller.signal,
+    read() {
+      this.push('asd');
+    },
+  });
+
+  read.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'AbortError');
+  }));
+  controller.abort();
+  read.on('data', common.mustNotCall());
+}
+
+{
+  const controller = new AbortController();
   const read = addAbortSignal(controller.signal, new Readable({
     objectMode: true,
     read() {
