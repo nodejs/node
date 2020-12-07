@@ -276,7 +276,7 @@ if (isMainThread) {
 
 ## Class: `BroadcastChannel extends EventTarget`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -311,7 +311,7 @@ if (isMainThread) {
 
 ### `new BroadcastChannel(name)`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 * `name` {any} The name of the channel to connect to. Any JavaScript value
@@ -319,14 +319,14 @@ added: REPLACEME
 
 ### `broadcastChannel.close()`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 Closes the `BroadcastChannel` connection.
 
 ### `broadcastChannel.onmessage`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 * Type: {Function} Invoked with a single `MessageEvent` argument
@@ -334,7 +334,7 @@ added: REPLACEME
 
 ### `broadcastChannel.onmessageerror`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 * Type: {Function} Invoked with a received message cannot be
@@ -342,14 +342,14 @@ added: REPLACEME
 
 ### `broadcastChannel.postMessage(message)`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 * `message` {any} Any cloneable JavaScript value.
 
 ### `broadcastChannel.ref()`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 Opposite of `unref()`. Calling `ref()` on a previously `unref()`ed
@@ -359,7 +359,7 @@ will have no effect.
 
 ### `broadcastChannel.unref()`
 <!-- YAML
-added: REPLACEME
+added: v15.4.0
 -->
 
 Calling `unref()` on a BroadcastChannel will allow the thread to exit if this

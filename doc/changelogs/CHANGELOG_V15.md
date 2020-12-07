@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#15.4.0">15.4.0</a><br/>
 <a href="#15.3.0">15.3.0</a><br/>
 <a href="#15.2.1">15.2.1</a><br/>
 <a href="#15.2.0">15.2.0</a><br/>
@@ -36,6 +37,125 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="15.4.0"></a>
+## 2020-12-09, Version 15.4.0 (Current), @danielleadams
+
+### Notable Changes
+
+* **child_processes**:
+  * add AbortSignal support (Benjamin Gruenbaum) [#36308](https://github.com/nodejs/node/pull/36308)
+* **deps**:
+  * update ICU to 68.1 (Michaël Zasso) [#36187](https://github.com/nodejs/node/pull/36187)
+* **events**:
+  * support signal in EventTarget (Benjamin Gruenbaum) [#36258](https://github.com/nodejs/node/pull/36258)
+  * graduate Event, EventTarget, AbortController (James M Snell) [#35949](https://github.com/nodejs/node/pull/35949)
+* **http**:
+  * enable call chaining with setHeader() (pooja d.p) [#35924](https://github.com/nodejs/node/pull/35924)
+* **module**:
+  * add isPreloading indicator (James M Snell) [#36263](https://github.com/nodejs/node/pull/36263)
+* **stream**:
+  * support abort signal (Benjamin Gruenbaum) [#36061](https://github.com/nodejs/node/pull/36061)
+  * add FileHandle support to Read/WriteStream (Momtchil Momtchev) [#35922](https://github.com/nodejs/node/pull/35922)
+* **worker**:
+  * add experimental BroadcastChannel (James M Snell) [#36271](https://github.com/nodejs/node/pull/36271)
+
+### Commits
+
+* [[`e79bdc313a`](https://github.com/nodejs/node/commit/e79bdc313a)] - **assert**: refactor to use more primordials (Antoine du Hamel) [#36234](https://github.com/nodejs/node/pull/36234)
+* [[`2344e3e360`](https://github.com/nodejs/node/commit/2344e3e360)] - **benchmark**: changed `fstat` to `fstatSync` (Narasimha Prasanna HN) [#36206](https://github.com/nodejs/node/pull/36206)
+* [[`ca8db41151`](https://github.com/nodejs/node/commit/ca8db41151)] - **benchmark,child_process**: remove failing benchmark parameter (Antoine du Hamel) [#36295](https://github.com/nodejs/node/pull/36295)
+* [[`9db9be774b`](https://github.com/nodejs/node/commit/9db9be774b)] - **buffer**: refactor to use primordials instead of Array#reduce (Antoine du Hamel) [#36392](https://github.com/nodejs/node/pull/36392)
+* [[`8d8d2261a5`](https://github.com/nodejs/node/commit/8d8d2261a5)] - **buffer**: refactor to use more primordials (Antoine du Hamel) [#36166](https://github.com/nodejs/node/pull/36166)
+* [[`74adc441c4`](https://github.com/nodejs/node/commit/74adc441c4)] - **build**: fix typo in Makefile (raisinten) [#36176](https://github.com/nodejs/node/pull/36176)
+* [[`224a6471cc`](https://github.com/nodejs/node/commit/224a6471cc)] - **(SEMVER-MINOR)** **child_process**: add AbortSignal support (Benjamin Gruenbaum) [#36308](https://github.com/nodejs/node/pull/36308)
+* [[`4ca1bd8806`](https://github.com/nodejs/node/commit/4ca1bd8806)] - **child_process**: refactor to use more primordials (Zijian Liu) [#36269](https://github.com/nodejs/node/pull/36269)
+* [[`841e8f444e`](https://github.com/nodejs/node/commit/841e8f444e)] - **crypto**: fix "Invalid JWK" error messages (Filip Skokan) [#36200](https://github.com/nodejs/node/pull/36200)
+* [[`278862aeb9`](https://github.com/nodejs/node/commit/278862aeb9)] - **deps**: upgrade npm to 7.0.15 (Ruy Adorno) [#36293](https://github.com/nodejs/node/pull/36293)
+* [[`66bc2067ce`](https://github.com/nodejs/node/commit/66bc2067ce)] - **deps**: V8: cherry-pick 86991d0587a1 (Benjamin Coe) [#36254](https://github.com/nodejs/node/pull/36254)
+* [[`095cef2c11`](https://github.com/nodejs/node/commit/095cef2c11)] - **deps**: update ICU to 68.1 (Michaël Zasso) [#36187](https://github.com/nodejs/node/pull/36187)
+* [[`8d69d8387e`](https://github.com/nodejs/node/commit/8d69d8387e)] - **dgram**: refactor to use more primordials (Antoine du Hamel) [#36286](https://github.com/nodejs/node/pull/36286)
+* [[`bef550a50c`](https://github.com/nodejs/node/commit/bef550a50c)] - **doc**: add Powershell oneliner to get Windows version (Michael Bashurov) [#30289](https://github.com/nodejs/node/pull/30289)
+* [[`2649c384c6`](https://github.com/nodejs/node/commit/2649c384c6)] - **doc**: add version metadata to timers/promises (Colin Ihrig) [#36378](https://github.com/nodejs/node/pull/36378)
+* [[`0401ffbfb6`](https://github.com/nodejs/node/commit/0401ffbfb6)] - **doc**: add process for handling premature disclosure (Michael Dawson) [#36155](https://github.com/nodejs/node/pull/36155)
+* [[`3e5fcda13e`](https://github.com/nodejs/node/commit/3e5fcda13e)] - **doc**: add table header in intl.md (Rich Trott) [#36261](https://github.com/nodejs/node/pull/36261)
+* [[`65d89fdd69`](https://github.com/nodejs/node/commit/65d89fdd69)] - **doc**: adding example to Buffer.isBuffer method (naortedgi) [#36233](https://github.com/nodejs/node/pull/36233)
+* [[`03cf8dbc0e`](https://github.com/nodejs/node/commit/03cf8dbc0e)] - **doc**: fix typo in events.md (Luigi Pinca) [#36231](https://github.com/nodejs/node/pull/36231)
+* [[`b176d61e8c`](https://github.com/nodejs/node/commit/b176d61e8c)] - **doc**: fix --experimental-wasm-modules text location (Colin Ihrig) [#36220](https://github.com/nodejs/node/pull/36220)
+* [[`44c4aaddad`](https://github.com/nodejs/node/commit/44c4aaddad)] - **doc**: stabilize subpath patterns (Guy Bedford) [#36177](https://github.com/nodejs/node/pull/36177)
+* [[`fdf5d851d0`](https://github.com/nodejs/node/commit/fdf5d851d0)] - **doc**: add missing version to update cmd (Ruy Adorno) [#36204](https://github.com/nodejs/node/pull/36204)
+* [[`186ad24fdf`](https://github.com/nodejs/node/commit/186ad24fdf)] - **doc**: cleanup events.md structure (James M Snell) [#36100](https://github.com/nodejs/node/pull/36100)
+* [[`c14512b9a5`](https://github.com/nodejs/node/commit/c14512b9a5)] - **errors**: display original symbol name (Benjamin Coe) [#36042](https://github.com/nodejs/node/pull/36042)
+* [[`855a85c124`](https://github.com/nodejs/node/commit/855a85c124)] - **(SEMVER-MINOR)** **events**: support signal in EventTarget (Benjamin Gruenbaum) [#36258](https://github.com/nodejs/node/pull/36258)
+* [[`dc1930923b`](https://github.com/nodejs/node/commit/dc1930923b)] - **(SEMVER-MINOR)** **events**: graduate Event, EventTarget, AbortController (James M Snell) [#35949](https://github.com/nodejs/node/pull/35949)
+* [[`537e5cbf51`](https://github.com/nodejs/node/commit/537e5cbf51)] - **fs**: move method definition from header (Yash Ladha) [#36256](https://github.com/nodejs/node/pull/36256)
+* [[`744b8aa807`](https://github.com/nodejs/node/commit/744b8aa807)] - **fs**: pass ERR\_DIR\_CLOSED asynchronously to dir.close (Zijian Liu) [#36243](https://github.com/nodejs/node/pull/36243)
+* [[`c04a2df185`](https://github.com/nodejs/node/commit/c04a2df185)] - **fs**: refactor to use more primordials (Antoine du Hamel) [#36196](https://github.com/nodejs/node/pull/36196)
+* [[`58abdcaceb`](https://github.com/nodejs/node/commit/58abdcaceb)] - **(SEMVER-MINOR)** **http**: enable call chaining with setHeader() (pooja d.p) [#35924](https://github.com/nodejs/node/pull/35924)
+* [[`cedf51f3ce`](https://github.com/nodejs/node/commit/cedf51f3ce)] - **http2**: refactor to use more primordials (Antoine du Hamel) [#36357](https://github.com/nodejs/node/pull/36357)
+* [[`5f41f1b19e`](https://github.com/nodejs/node/commit/5f41f1b19e)] - **http2**: check write not scheduled in scope destructor (David Halls) [#36241](https://github.com/nodejs/node/pull/36241)
+* [[`4127eb2405`](https://github.com/nodejs/node/commit/4127eb2405)] - **https**: add abortcontroller test (Benjamin Gruenbaum) [#36307](https://github.com/nodejs/node/pull/36307)
+* [[`c2938bde6c`](https://github.com/nodejs/node/commit/c2938bde6c)] - **lib**: add uncurried accessor properties to `primordials` (ExE Boss) [#36329](https://github.com/nodejs/node/pull/36329)
+* [[`f73a0a8069`](https://github.com/nodejs/node/commit/f73a0a8069)] - **lib**: fix typo in internal/errors.js (raisinten) [#36426](https://github.com/nodejs/node/pull/36426)
+* [[`617cb58cc8`](https://github.com/nodejs/node/commit/617cb58cc8)] - **lib**: refactor primordials.uncurryThis (Antoine du Hamel) [#36221](https://github.com/nodejs/node/pull/36221)
+* [[`cc18907ec4`](https://github.com/nodejs/node/commit/cc18907ec4)] - **module**: refactor to use more primordials (Antoine du Hamel) [#36348](https://github.com/nodejs/node/pull/36348)
+* [[`d4de7c7eb9`](https://github.com/nodejs/node/commit/d4de7c7eb9)] - **(SEMVER-MINOR)** **module**: add isPreloading indicator (James M Snell) [#36263](https://github.com/nodejs/node/pull/36263)
+* [[`8611b8f98a`](https://github.com/nodejs/node/commit/8611b8f98a)] - **net**: refactor to use more primordials (Antoine du Hamel) [#36303](https://github.com/nodejs/node/pull/36303)
+* [[`2a24096720`](https://github.com/nodejs/node/commit/2a24096720)] - **os**: refactor to use more primordials (Antoine du Hamel) [#36284](https://github.com/nodejs/node/pull/36284)
+* [[`0e7f0c6d27`](https://github.com/nodejs/node/commit/0e7f0c6d27)] - **path**: refactor to use more primordials (Antoine du Hamel) [#36302](https://github.com/nodejs/node/pull/36302)
+* [[`ea46ca8cbf`](https://github.com/nodejs/node/commit/ea46ca8cbf)] - **perf_hooks**: refactor to use more primordials (Antoine du Hamel) [#36297](https://github.com/nodejs/node/pull/36297)
+* [[`a9ac86d1ee`](https://github.com/nodejs/node/commit/a9ac86d1ee)] - **policy**: refactor to use more primordials (Antoine du Hamel) [#36210](https://github.com/nodejs/node/pull/36210)
+* [[`39d0ceda48`](https://github.com/nodejs/node/commit/39d0ceda48)] - **process**: refactor to use more primordials (Antoine du Hamel) [#36212](https://github.com/nodejs/node/pull/36212)
+* [[`ab084c199e`](https://github.com/nodejs/node/commit/ab084c199e)] - **querystring**: refactor to use more primordials (Antoine du Hamel) [#36315](https://github.com/nodejs/node/pull/36315)
+* [[`d29199ef82`](https://github.com/nodejs/node/commit/d29199ef82)] - **quic**: refactor to use more primordials (Antoine du Hamel) [#36211](https://github.com/nodejs/node/pull/36211)
+* [[`b885409e48`](https://github.com/nodejs/node/commit/b885409e48)] - **readline**: refactor to use more primordials (Antoine du Hamel) [#36296](https://github.com/nodejs/node/pull/36296)
+* [[`9cb53f635a`](https://github.com/nodejs/node/commit/9cb53f635a)] - **repl**: refactor to use more primordials (Antoine du Hamel) [#36264](https://github.com/nodejs/node/pull/36264)
+* [[`8dadaa652e`](https://github.com/nodejs/node/commit/8dadaa652e)] - **src**: remove some duplication in DeserializeProps (Daniel Bevenius) [#36336](https://github.com/nodejs/node/pull/36336)
+* [[`a03aa0a6b2`](https://github.com/nodejs/node/commit/a03aa0a6b2)] - **src**: rename AliasedBufferInfo-\>AliasedBufferIndex (Daniel Bevenius) [#36339](https://github.com/nodejs/node/pull/36339)
+* [[`e7b2d91e04`](https://github.com/nodejs/node/commit/e7b2d91e04)] - **src**: use transferred consistently (Daniel Bevenius) [#36340](https://github.com/nodejs/node/pull/36340)
+* [[`6ebb98af11`](https://github.com/nodejs/node/commit/6ebb98af11)] - **src**: use ToLocal in DeserializeProperties (Daniel Bevenius) [#36279](https://github.com/nodejs/node/pull/36279)
+* [[`47397ffd56`](https://github.com/nodejs/node/commit/47397ffd56)] - **src**: update node.rc file description (devsnek) [#36197](https://github.com/nodejs/node/pull/36197)
+* [[`cfc8ec18db`](https://github.com/nodejs/node/commit/cfc8ec18db)] - **src**: fix label indentation (Rich Trott) [#36213](https://github.com/nodejs/node/pull/36213)
+* [[`197ba21279`](https://github.com/nodejs/node/commit/197ba21279)] - **(SEMVER-MINOR)** **stream**: support abort signal (Benjamin Gruenbaum) [#36061](https://github.com/nodejs/node/pull/36061)
+* [[`6033d30361`](https://github.com/nodejs/node/commit/6033d30361)] - **(SEMVER-MINOR)** **stream**: add FileHandle support to Read/WriteStream (Momtchil Momtchev) [#35922](https://github.com/nodejs/node/pull/35922)
+* [[`a15addc153`](https://github.com/nodejs/node/commit/a15addc153)] - **string_decoder**: refactor to use more primordials (Antoine du Hamel) [#36358](https://github.com/nodejs/node/pull/36358)
+* [[`b39d150e60`](https://github.com/nodejs/node/commit/b39d150e60)] - **test**: fix comment misspellings of transferred (Rich Trott) [#36360](https://github.com/nodejs/node/pull/36360)
+* [[`a7e794d1bf`](https://github.com/nodejs/node/commit/a7e794d1bf)] - **test**: fix flaky test-http2-respond-file-error-pipe-offset (Rich Trott) [#36305](https://github.com/nodejs/node/pull/36305)
+* [[`1091a658e1`](https://github.com/nodejs/node/commit/1091a658e1)] - **test**: fix bootstrap test (Benjamin Gruenbaum) [#36418](https://github.com/nodejs/node/pull/36418)
+* [[`fbcb72a665`](https://github.com/nodejs/node/commit/fbcb72a665)] - **test**: increase coverage for readline (Zijian Liu) [#36389](https://github.com/nodejs/node/pull/36389)
+* [[`22028aae54`](https://github.com/nodejs/node/commit/22028aae54)] - **test**: skip flaky parts of broadcastchannel test on Windows (Rich Trott) [#36386](https://github.com/nodejs/node/pull/36386)
+* [[`faca2b829e`](https://github.com/nodejs/node/commit/faca2b829e)] - **test**: fix test-worker-broadcastchannel-wpt (Rich Trott) [#36353](https://github.com/nodejs/node/pull/36353)
+* [[`ea09da492c`](https://github.com/nodejs/node/commit/ea09da492c)] - **test**: fix typo in comment (inokawa) [#36312](https://github.com/nodejs/node/pull/36312)
+* [[`b61ca1bfe6`](https://github.com/nodejs/node/commit/b61ca1bfe6)] - **test**: replace anonymous functions by arrows (Aleksandr Krutko) [#36125](https://github.com/nodejs/node/pull/36125)
+* [[`2c7358ef43`](https://github.com/nodejs/node/commit/2c7358ef43)] - **test**: fix flaky sequential/test-fs-watch (Rich Trott) [#36249](https://github.com/nodejs/node/pull/36249)
+* [[`b613950016`](https://github.com/nodejs/node/commit/b613950016)] - **test**: increase coverage for util.inspect() (Rich Trott) [#36228](https://github.com/nodejs/node/pull/36228)
+* [[`69a8f05488`](https://github.com/nodejs/node/commit/69a8f05488)] - **test**: improve test coverage SourceMap API (Juan José Arboleda) [#36089](https://github.com/nodejs/node/pull/36089)
+* [[`44d6d0bf0d`](https://github.com/nodejs/node/commit/44d6d0bf0d)] - **test**: fix missed warning for non-experimental AbortController (James M Snell) [#36240](https://github.com/nodejs/node/pull/36240)
+* [[`29b5236256`](https://github.com/nodejs/node/commit/29b5236256)] - **timers**: reject with AbortError on cancellation (Benjamin Gruenbaum) [#36317](https://github.com/nodejs/node/pull/36317)
+* [[`b20409e985`](https://github.com/nodejs/node/commit/b20409e985)] - **tls**: refactor to use more primordials (Antoine du Hamel) [#36266](https://github.com/nodejs/node/pull/36266)
+* [[`f317bba034`](https://github.com/nodejs/node/commit/f317bba034)] - **tls**: permit null as a cipher value (Rich Trott) [#36318](https://github.com/nodejs/node/pull/36318)
+* [[`9ae59c847a`](https://github.com/nodejs/node/commit/9ae59c847a)] - **tools**: upgrade to @babel/eslint-parser 7.12.1 (Antoine du Hamel) [#36321](https://github.com/nodejs/node/pull/36321)
+* [[`e798770803`](https://github.com/nodejs/node/commit/e798770803)] - **tools**: refloat 7 Node.js patches to cpplint.py (Rich Trott) [#36324](https://github.com/nodejs/node/pull/36324)
+* [[`a8b95cfcb2`](https://github.com/nodejs/node/commit/a8b95cfcb2)] - **tools**: bump cpplint to 1.5.4 (Rich Trott) [#36324](https://github.com/nodejs/node/pull/36324)
+* [[`754b7a76b1`](https://github.com/nodejs/node/commit/754b7a76b1)] - **tools**: remove bashisms from macOS release scripts (Antoine du Hamel) [#36121](https://github.com/nodejs/node/pull/36121)
+* [[`2868ffb331`](https://github.com/nodejs/node/commit/2868ffb331)] - **tools**: remove bashisms from release script (Antoine du Hamel) [#36123](https://github.com/nodejs/node/pull/36123)
+* [[`8cf1addaa8`](https://github.com/nodejs/node/commit/8cf1addaa8)] - **tools**: update stability index linking logic (Rich Trott) [#36280](https://github.com/nodejs/node/pull/36280)
+* [[`d95ae65986`](https://github.com/nodejs/node/commit/d95ae65986)] - **tools**: update highlight.js to 10.1.2 (Myles Borins) [#36309](https://github.com/nodejs/node/pull/36309)
+* [[`5935ccc11c`](https://github.com/nodejs/node/commit/5935ccc11c)] - **tools**: fix undeclared identifier FALSE (Antoine du Hamel) [#36276](https://github.com/nodejs/node/pull/36276)
+* [[`a2da7ba914`](https://github.com/nodejs/node/commit/a2da7ba914)] - **tools**: use using-declaration consistently (Daniel Bevenius) [#36245](https://github.com/nodejs/node/pull/36245)
+* [[`82c1e39c4a`](https://github.com/nodejs/node/commit/82c1e39c4a)] - **tools**: refloat 7 Node.js patches to cpplint.py (Rich Trott) [#36235](https://github.com/nodejs/node/pull/36235)
+* [[`bcf7393412`](https://github.com/nodejs/node/commit/bcf7393412)] - **tools**: bump cpplint to 1.5.3 (Rich Trott) [#36235](https://github.com/nodejs/node/pull/36235)
+* [[`be11976407`](https://github.com/nodejs/node/commit/be11976407)] - **tools**: enable no-nonoctal-decimal-escape lint rule (Colin Ihrig) [#36217](https://github.com/nodejs/node/pull/36217)
+* [[`c86c2399a2`](https://github.com/nodejs/node/commit/c86c2399a2)] - **tools**: update ESLint to 7.14.0 (Colin Ihrig) [#36217](https://github.com/nodejs/node/pull/36217)
+* [[`cfadd82cf3`](https://github.com/nodejs/node/commit/cfadd82cf3)] - **tools**: refloat 7 Node.js patches to cpplint.py (Rich Trott) [#36213](https://github.com/nodejs/node/pull/36213)
+* [[`03e8aaf613`](https://github.com/nodejs/node/commit/03e8aaf613)] - **tools**: bump cpplint.py to 1.5.2 (Rich Trott) [#36213](https://github.com/nodejs/node/pull/36213)
+* [[`6bc007fc94`](https://github.com/nodejs/node/commit/6bc007fc94)] - **tty**: refactor to use more primordials (Zijian Liu) [#36272](https://github.com/nodejs/node/pull/36272)
+* [[`fbd5652943`](https://github.com/nodejs/node/commit/fbd5652943)] - **v8**: refactor to use more primordials (Antoine du Hamel) [#36285](https://github.com/nodejs/node/pull/36285)
+* [[`8731a80439`](https://github.com/nodejs/node/commit/8731a80439)] - **vm**: add `SafeForTerminationScope`s for SIGINT interruptions (Anna Henningsen) [#36344](https://github.com/nodejs/node/pull/36344)
+* [[`47345a1f84`](https://github.com/nodejs/node/commit/47345a1f84)] - **worker**: refactor to use more primordials (Antoine du Hamel) [#36393](https://github.com/nodejs/node/pull/36393)
+* [[`21c4704c7b`](https://github.com/nodejs/node/commit/21c4704c7b)] - **worker**: refactor to use more primordials (Antoine du Hamel) [#36267](https://github.com/nodejs/node/pull/36267)
+* [[`802d44b1a9`](https://github.com/nodejs/node/commit/802d44b1a9)] - **(SEMVER-MINOR)** **worker**: add experimental BroadcastChannel (James M Snell) [#36271](https://github.com/nodejs/node/pull/36271)
+* [[`4b4caada9f`](https://github.com/nodejs/node/commit/4b4caada9f)] - **zlib**: refactor to use more primordials (Antoine du Hamel) [#36347](https://github.com/nodejs/node/pull/36347)
 
 <a id="15.3.0"></a>
 ## 2020-11-24, Version 15.3.0 (Current), @codebytere
