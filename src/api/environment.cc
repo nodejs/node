@@ -438,6 +438,14 @@ Environment* GetCurrentEnvironment(Local<Context> context) {
   return Environment::GetCurrent(context);
 }
 
+IsolateData* GetEnvironmentIsolateData(Environment* env) {
+  return env->isolate_data();
+}
+
+ArrayBufferAllocator* GetArrayBufferAllocator(IsolateData* isolate_data) {
+  return isolate_data->node_allocator();
+}
+
 MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env) {
   return GetMultiIsolatePlatform(env->isolate_data());
 }
