@@ -28,10 +28,10 @@ involving knowledge of several components and APIs:
   as interacting with the filesystem, sockets, timers, and system events. libuv
   also provides a threading abstraction similar to POSIX threads for
   more sophisticated asynchronous addons that need to move beyond the
-  standard event loop. Addon authors are encouraged to think about how to
+  standard event loop. Addon authors should
   avoid blocking the event loop with I/O or other time-intensive tasks by
-  off-loading work via libuv to non-blocking system operations, worker threads
-  or a custom use of libuv's threads.
+  offloading work via libuv to non-blocking system operations, worker threads,
+  or a custom use of libuv threads.
 
 * Internal Node.js libraries. Node.js itself exports C++ APIs that addons can
   use, the most important of which is the `node::ObjectWrap` class.
