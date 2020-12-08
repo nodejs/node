@@ -81,7 +81,7 @@ class UnifiedHeapConcurrentMarker
         unified_heap_marking_state_(unified_heap_marking_state) {}
 
   std::unique_ptr<cppgc::Visitor> CreateConcurrentMarkingVisitor(
-      ConcurrentMarkingState&) const final;
+      cppgc::internal::ConcurrentMarkingState&) const final;
 
  private:
   UnifiedHeapMarkingState& unified_heap_marking_state_;
@@ -89,7 +89,7 @@ class UnifiedHeapConcurrentMarker
 
 std::unique_ptr<cppgc::Visitor>
 UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
-    ConcurrentMarkingState& marking_state) const {
+    cppgc::internal::ConcurrentMarkingState& marking_state) const {
   return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
       heap(), marking_state, unified_heap_marking_state_);
 }
