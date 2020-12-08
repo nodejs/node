@@ -7,6 +7,10 @@ Bug fixes and new features should include tests and possibly benchmarks.
 Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 -->
 
+#### Related Issues
+
+Fixes: https://github.com/nodejs/node/issues/<issue_number>
+
 ##### Checklist
 <!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
 
