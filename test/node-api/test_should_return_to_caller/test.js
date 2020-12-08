@@ -9,5 +9,5 @@ const { test } = require(
 assert.throws(() => {
   util.callWithTimeout(10, test);
 }, {
-  type: EvalError,
+  code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
 });
