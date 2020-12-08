@@ -96,7 +96,8 @@ static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsFunction());
 
-  isolate->EnqueueMicrotask(args[0].As<Function>());
+  isolate->GetCurrentContext()->GetMicrotaskQueue()
+      ->EnqueueMicrotask(isolate, args[0].As<Function>());
 }
 
 static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
