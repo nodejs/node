@@ -31,11 +31,16 @@
 
 namespace node {
 
+using errors::TryCatchScope;
+
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
+using v8::Undefined;
 using v8::Value;
 
 Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out)
@@ -422,12 +427,57 @@ SigintWatchdogHelper::~SigintWatchdogHelper() {
 SigintWatchdogHelper SigintWatchdogHelper::instance;
 
 namespace watchdog {
+
+static void CallWithTimeout(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  // WatchdogWrap.call(timeout, f)
+  CHECK_EQ(args.Length(), 2);
+
+  CHECK(args[0]->IsNumber());
+  int64_t timeout = args[0]->IntegerValue(env->context()).FromJust();
+
+  CHECK(args[1]->IsFunction());
+  Local<Function> f = args[1].As<Function>();
+
+  TryCatchScope try_catch(env);
+
+  bool timed_out = false;
+  MaybeLocal<Value> result;
+  {
+    Watchdog wd(env->isolate(), timeout, &timed_out);
+    result = f->Call(env->context(), Undefined(env->isolate()), 0, nullptr);
+  }
+
+  if (result.IsEmpty()) {
+    CHECK(try_catch.HasCaught());
+  }
+
+  // Convert the termination exception into a regular exception.
+  if (timed_out) {
+    if (!env->is_main_thread() && env->is_stopping()) return;
+    env->isolate()->CancelTerminateExecution();
+    // It is possible that execution was terminated by another timeout in
+    // which this timeout is nested, so check whether one of the watchdogs
+    // from this invocation is responsible for termination.
+    THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, timeout);
+  }
+
+  if (try_catch.HasCaught()) {
+    if (!try_catch.HasTerminated()) try_catch.ReThrow();
+    return;
+  }
+
+  args.GetReturnValue().Set(result.ToLocalChecked());
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
   TraceSigintWatchdog::Init(env, target);
+  env->SetMethod(target, "callWithTimeout", CallWithTimeout);
 }
 }  // namespace watchdog
 

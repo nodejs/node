@@ -70,6 +70,28 @@ callbackFunction((err, ret) => {
 });
 ```
 
+## `util.callWithTimeout(timeout, fn)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `timeout` {integer} Specifies the number of milliseconds to execute `fn`
+  before terminating execution. If execution is terminated, an Error will be
+  thrown. This value must be a strictly positive integer.
+* `fn` {Function} The function to invoke with a timeout.
+
+The `util.callWithTimeout` method allows interrupting synchronous execution
+after a set amount of time. This method should not be used to untrusted code.
+Calls into native addons may, in some cases, exceed the timeout.
+
+```js
+const { callWithTimeout } = require('util');
+
+callWithTimeout(10, () => {
+  while (true) {}
+});
+```
+
 ## `util.debuglog(section[, callback])`
 <!-- YAML
 added: v0.11.3
