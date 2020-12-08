@@ -278,7 +278,7 @@ Conversely, some files are always ignored:
 * `node_modules`
 * `config.gypi`
 * `package-lock.json` (use shrinkwrap instead)
-* All files containing a `*` character (incompatible with Windows)
+* All files containing a `*` character (incompatible with Windows) 
 
 ### main
 

@@ -145,14 +145,14 @@ suites, then those executables will be added to the `PATH` for
 executing the scripts.  So, if your package.json has this:
 
 ```json
-{
-  "name" : "foo",
-  "dependencies" : {
-    "bar" : "0.1.x"
-  },
-  "scripts": {
-    "start" : "bar ./test"
-  }
+{ 
+  "name" : "foo", 
+  "dependencies" : { 
+    "bar" : "0.1.x" 
+  }, 
+  "scripts": { 
+    "start" : "bar ./test" 
+  } 
 }
 ```
 
@@ -182,14 +182,14 @@ there is a config param of `<name>[@<version>]:<key>`.  For example,
 if the package.json has this:
 
 ```json
-{
-  "name" : "foo",
-  "config" : {
-    "port" : "8080"
-  },
-  "scripts" : {
-    "start" : "node server.js"
-  }
+{ 
+  "name" : "foo", 
+  "config" : { 
+    "port" : "8080" 
+  }, 
+  "scripts" : { 
+    "start" : "node server.js" 
+  } 
 }
 ```
 
@@ -225,10 +225,10 @@ process.env.npm_package_scripts_install === "foo.js"
 For example, if your package.json contains this:
 
 ```json
-{
-  "scripts" : {
-    "install" : "scripts/install.js",
-    "postinstall" : "scripts/install.js",
+{ 
+  "scripts" : { 
+    "install" : "scripts/install.js", 
+    "postinstall" : "scripts/install.js", 
     "uninstall" : "scripts/uninstall.js"
   }
 }
@@ -245,10 +245,10 @@ If you want to run a make command, you can do so.  This works just
 fine:
 
 ```json
-{
-  "scripts" : {
-    "preinstall" : "./configure",
-    "install" : "make && make install",
+{ 
+  "scripts" : { 
+    "preinstall" : "./configure", 
+    "install" : "make && make install", 
     "test" : "make test"
   }
 }
