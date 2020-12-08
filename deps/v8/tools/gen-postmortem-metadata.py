@@ -287,6 +287,7 @@ extras_accessors = [
     'SlicedString, offset, SMI, kOffsetOffset',
     'ThinString, actual, String, kActualOffset',
     'Symbol, name, Object, kDescriptionOffset',
+    'FixedArrayBase, length, SMI, kLengthOffset',
 ];
 
 #
