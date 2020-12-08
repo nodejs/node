@@ -2,7 +2,7 @@
 including code adapted from ES 5.1 section 15.12.3, abstract operation
 `JO`, used under the following license:
 
-Copyright (c) Ecma International 2010
+Copyright (c) Ecma International 2010 
 
 DISCLAIMER This document may be copied and furnished to others, and
 derivative works that comment on or otherwise explain it or assist in its

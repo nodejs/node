@@ -1,5 +1,5 @@
 {
-  "version": "6.14.8",
+  "version": "6.14.9",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -105,7 +105,7 @@
     "npm-pick-manifest": "^3.0.2",
     "npm-profile": "^4.0.4",
     "npm-registry-fetch": "^4.0.7",
-    "npm-user-validate": "~1.0.0",
+    "npm-user-validate": "^1.0.1",
     "npmlog": "~4.1.2",
     "once": "~1.4.0",
     "opener": "^1.5.1",
