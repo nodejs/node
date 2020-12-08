@@ -1830,7 +1830,17 @@ base::Optional<ParseResult> MakeNumberLiteralExpression(
   // Meanwhile, we type it as constexpr float64 when out of int32 range.
   double value = 0;
   try {
+#if defined(V8_OS_SOLARIS)
+    // stod() on Solaris does not currently support hex strings. Use strtol()
+    // specifically for hex literals until stod() support is available.
+    if (number.find("0x") || number.find("0X")) {
+      value = static_cast<double>(strtol(number.c_str(), nullptr, 0));
+    } else {
+      value = std::stod(number);
+    }
+#else
     value = std::stod(number);
+#endif // !defined(V8_OS_SOLARIS)
   } catch (const std::out_of_range&) {
     Error("double literal out-of-range").Throw();
   }
