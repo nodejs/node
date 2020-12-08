@@ -1024,7 +1024,7 @@ inline void Environment::SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
   t->SetClassName(name_string);
 }
 
-void Environment::AddCleanupHook(void (*fn)(void*), void* arg) {
+void Environment::AddCleanupHook(CleanupCallback fn, void* arg) {
   auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
     fn, arg, cleanup_hook_counter_++
   });
@@ -1032,7 +1032,7 @@ void Environment::AddCleanupHook(void (*fn)(void*), void* arg) {
   CHECK_EQ(insertion_info.second, true);
 }
 
-void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
+void Environment::RemoveCleanupHook(CleanupCallback fn, void* arg) {
   CleanupHookCallback search { fn, arg, 0 };
   cleanup_hooks_.erase(search);
 }
