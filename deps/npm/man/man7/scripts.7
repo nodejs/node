@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "August 2020" "" ""
+.TH "SCRIPTS" "7" "December 2020" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -194,14 +194,14 @@ executing the scripts\.  So, if your package\.json has this:
 .P
 .RS 2
 .nf
-{
-  "name" : "foo",
-  "dependencies" : {
-    "bar" : "0\.1\.x"
-  },
-  "scripts": {
-    "start" : "bar \./test"
-  }
+{ 
+  "name" : "foo", 
+  "dependencies" : { 
+    "bar" : "0\.1\.x" 
+  }, 
+  "scripts": { 
+    "start" : "bar \./test" 
+  } 
 }
 .fi
 .RE
@@ -230,14 +230,14 @@ if the package\.json has this:
 .P
 .RS 2
 .nf
-{
-  "name" : "foo",
-  "config" : {
-    "port" : "8080"
-  },
-  "scripts" : {
-    "start" : "node server\.js"
-  }
+{ 
+  "name" : "foo", 
+  "config" : { 
+    "port" : "8080" 
+  }, 
+  "scripts" : { 
+    "start" : "node server\.js" 
+  } 
 }
 .fi
 .RE
@@ -279,10 +279,10 @@ For example, if your package\.json contains this:
 .P
 .RS 2
 .nf
-{
-  "scripts" : {
-    "install" : "scripts/install\.js",
-    "postinstall" : "scripts/install\.js",
+{ 
+  "scripts" : { 
+    "install" : "scripts/install\.js", 
+    "postinstall" : "scripts/install\.js", 
     "uninstall" : "scripts/uninstall\.js"
   }
 }
@@ -301,10 +301,10 @@ fine:
 .P
 .RS 2
 .nf
-{
-  "scripts" : {
-    "preinstall" : "\./configure",
-    "install" : "make && make install",
+{ 
+  "scripts" : { 
+    "preinstall" : "\./configure", 
+    "install" : "make && make install", 
     "test" : "make test"
   }
 }

@@ -1,3 +1,17 @@
+## 6.14.9 (2020-11-20)
+
+### BUG FIXES
+* [`4a91e48aa`](https://github.com/npm/cli/commit/4a91e48aa92be5b2739ebcdd8a9a841ff5cb6817)
+  fix: docs generation breaking builds
+
+### DEPENDDENCIES
+* [`ab80a7cf0`](https://github.com/npm/cli/commit/ab80a7cf092d52f4b055cc6d03c38b6115c4b582)
+  `npm-user-validate@1.0.1`
+  * dep update to resolve security issue [GHSA-xgh6-85xh-479p](https://github.com/advisories/GHSA-xgh6-85xh-479p)
+* [`6b2ab9d53`](https://github.com/npm/cli/commit/6b2ab9d532ef8ffce326f4caa23eb27f83765acd)
+  `har-validator@5.1.5`
+  * dep update to resolve security issue [SNYK-JS-AJV-584908](https://snyk.io/vuln/SNYK-JS-AJV-584908)
+
 ## 6.14.8 (2020-08-17)
 
 ### BUG FIXES
