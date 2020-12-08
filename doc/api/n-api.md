@@ -1291,6 +1291,22 @@ The function call does not return, the process will be terminated.
 
 This API can be called even if there is a pending JavaScript exception.
 
+### napi_should_return_to_caller
+<!-- YAML
+added: REPLACEME
+napiVersion: REPLACEME
+-->
+
+```c
+NAPI_EXTERN napi_status napi_should_return_to_caller(napi_env env,
+                                                     bool* result);
+```
+
+* `[in] env`: The environment that this API is invoked under.
+* `[out] result`: If the current logic should return to the caller.
+
+Returns `napi_ok` if call succeeded.
+
 ## Object lifetime management
 
 As N-API calls are made, handles to objects in the heap for the underlying
