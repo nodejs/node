@@ -586,6 +586,9 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
                                           {}),
                   node::FreeEnvironment};
     CHECK(environment);
+    EXPECT_EQ(node::GetEnvironmentIsolateData(environment.get()),
+              isolate_data.get());
+    EXPECT_EQ(node::GetArrayBufferAllocator(isolate_data.get()), nullptr);
 
     v8::Local<v8::Value> main_ret =
         node::LoadEnvironment(environment.get(),
