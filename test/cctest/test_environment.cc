@@ -611,3 +611,58 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   isolate->Dispose();
 }
 #endif  // _WIN32
+
+TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+
+  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(isolate_);
+  v8::Local<v8::Context> context = v8::Context::New(
+      isolate_, nullptr, {}, {}, {}, queue.get());
+  node::InitializeContext(context);
+  v8::Context::Scope context_scope(context);
+
+  int callback_calls = 0;
+  v8::Local<v8::Function> must_call = v8::Function::New(
+      context,
+      [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        int* callback_calls =
+            static_cast<int*>(info.Data().As<v8::External>()->Value());
+        *callback_calls |= info[0].As<v8::Int32>()->Value();
+      },
+      v8::External::New(isolate_, static_cast<void*>(&callback_calls)))
+          .ToLocalChecked();
+  context->Global()->Set(
+      context,
+      v8::String::NewFromUtf8Literal(isolate_, "mustCall"),
+      must_call).Check();
+
+  node::IsolateData* isolate_data = node::CreateIsolateData(
+      isolate_, &NodeTestFixture::current_loop, platform.get());
+  CHECK_NE(nullptr, isolate_data);
+
+  node::Environment* env = node::CreateEnvironment(
+      isolate_data, context, {}, {});
+  CHECK_NE(nullptr, env);
+
+  node::LoadEnvironment(
+      env,
+      "Promise.resolve().then(() => mustCall(1 << 0));\n"
+      "require('vm').runInNewContext("
+      "    'Promise.resolve().then(() => mustCall(1 << 1))',"
+      "    { mustCall },"
+      "    { microtaskMode: 'afterEvaluate' }"
+      ");"
+      "require('vm').runInNewContext("
+      "    'Promise.resolve().then(() => mustCall(1 << 2))',"
+      "    { mustCall }"
+      ");").ToLocalChecked();
+  EXPECT_EQ(callback_calls, 1 << 1);
+  isolate_->PerformMicrotaskCheckpoint();
+  EXPECT_EQ(callback_calls, 1 << 1);
+  queue->PerformCheckpoint(isolate_);
+  EXPECT_EQ(callback_calls, (1 << 0) | (1 << 1) | (1 << 2));
+
+  node::FreeEnvironment(env);
+  node::FreeIsolateData(isolate_data);
+}

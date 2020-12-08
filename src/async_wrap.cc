@@ -827,7 +827,8 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
   // interrupt to get this Microtask scheduled as fast as possible.
   if (env->destroy_async_id_list()->size() == 16384) {
     env->RequestInterrupt([](Environment* env) {
-      env->isolate()->EnqueueMicrotask(
+      env->context()->GetMicrotaskQueue()->EnqueueMicrotask(
+        env->isolate(),
         [](void* arg) {
           DestroyAsyncIdsCallback(static_cast<Environment*>(arg));
         }, env);
