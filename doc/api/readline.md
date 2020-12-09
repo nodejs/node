@@ -753,6 +753,18 @@ const { createInterface } = require('readline');
 })();
 ```
 
+## Example: How to unref readline?
+
+```js
+const readline = require('readline');
+
+const input = readline.createInterface({
+	input: process.stdin
+});
+
+process.stdin.unref();
+```
+
 ## TTY keybindings
 
 <table>
