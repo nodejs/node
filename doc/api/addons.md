@@ -111,8 +111,8 @@ There are environments in which Node.js addons may need to be loaded multiple
 times in multiple contexts. For example, the [Electron][] runtime runs multiple
 instances of Node.js in a single process. Each instance will have its own
 `require()` cache, and thus each instance will need a native addon to behave
-correctly when loaded via `require()`. From the addon's perspective, this means
-that it must support multiple initializations.
+correctly when loaded via `require()`. This means that the addon
+must support multiple initializations.
 
 A context-aware addon can be constructed by using the macro
 `NODE_MODULE_INITIALIZER`, which expands to the name of a function which Node.js
