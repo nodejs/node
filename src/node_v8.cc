@@ -196,7 +196,6 @@ void Initialize(Local<Object> target,
               Uint32::NewFromUnsigned(env->isolate(), i)).Check();
 
   HEAP_STATISTICS_PROPERTIES(V)
-#undef V
 
   // Export symbols used by v8.getHeapCodeStatistics()
   env->SetMethod(
@@ -208,13 +207,7 @@ void Initialize(Local<Object> target,
             binding_data->heap_code_statistics_buffer.GetJSArray())
       .Check();
 
-#define V(i, _, name)                                                         \
-  target->Set(env->context(),                                                 \
-              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Uint32::NewFromUnsigned(env->isolate(), i)).Check();
-
   HEAP_CODE_STATISTICS_PROPERTIES(V)
-#undef V
 
   size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
@@ -243,11 +236,6 @@ void Initialize(Local<Object> target,
                                   "heapSpaceStatisticsBuffer"),
             binding_data->heap_space_statistics_buffer.GetJSArray())
       .Check();
-
-#define V(i, _, name)                                                         \
-  target->Set(env->context(),                                                 \
-              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Uint32::NewFromUnsigned(env->isolate(), i)).Check();
 
   HEAP_SPACE_STATISTICS_PROPERTIES(V)
 #undef V
