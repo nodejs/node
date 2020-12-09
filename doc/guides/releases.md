@@ -544,7 +544,13 @@ $ git cherry-pick v1.x^
 ```
 
 Git should stop to let you fix conflicts. Revert all changes that were made to
-`src/node_version.h`. If there are conflicts in `doc` due to updated `REPLACEME`
+`src/node_version.h`:
+
+```console
+$ git checkout --ours HEAD -- src/node_version.h
+```
+
+If there are conflicts in `doc` due to updated `REPLACEME`
 placeholders (that happens when a change previously landed on another release
 branch), keep both version numbers. Convert the YAML field to an array if it is
 not already one.
