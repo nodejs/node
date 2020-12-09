@@ -10,9 +10,15 @@
 //     throw new Error('expensive check should have returned false')
 // })
 
-const debug = process.env.ARBORIST_DEBUG === '1' ||
+// run in debug mode if explicitly requested, running arborist tests,
+// or working in the arborist project directory.
+const debug = process.env.ARBORIST_DEBUG !== '0' && (
+  process.env.ARBORIST_DEBUG === '1' ||
   /\barborist\b/.test(process.env.NODE_DEBUG || '') ||
   process.env.npm_package_name === '@npmcli/arborist' &&
-  ['test', 'snap'].includes(process.env.npm_lifecycle_event)
+  ['test', 'snap'].includes(process.env.npm_lifecycle_event) ||
+  process.cwd() === require('path').resolve(__dirname, '..')
+)
 
 module.exports = debug ? fn => fn() : () => {}
+module.exports.log = (...msg) => module.exports(() => console.error(...msg))
