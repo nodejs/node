@@ -1,0 +1,54 @@
+name: 'Tests: node.js'
+
+on: [pull_request, push]
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      latest: ${{ steps.set-matrix.outputs.requireds }}
+      minors: ${{ steps.set-matrix.outputs.optionals }}
+    steps:
+      - uses: ljharb/actions/node/matrix@main
+        id: set-matrix
+        with:
+          preset: '>=4'
+
+  latest:
+    needs: [matrix]
+    name: 'latest minors'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix: ${{ fromJson(needs.matrix.outputs.latest) }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ljharb/actions/node/run@main
+        name: 'npm install && npm run tests-only'
+        with:
+          node-version: ${{ matrix.node-version }}
+          command: 'tests-only'
+  minors:
+    needs: [matrix, latest]
+    name: 'non-latest minors'
+    continue-on-error: true
+    if: ${{ !github.head_ref || !startsWith(github.head_ref, 'renovate') }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix: ${{ fromJson(needs.matrix.outputs.minors) }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ljharb/actions/node/run@main
+        with:
+          node-version: ${{ matrix.node-version }}
+          command: 'tests-only'
+
+  node:
+    name: 'node 4+'
+    needs: [latest, minors]
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo tests completed'

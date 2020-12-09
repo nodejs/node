@@ -7,9 +7,9 @@ const semver = require('semver')
 const promiseCallLimit = require('promise-call-limit')
 const getPeerSet = require('../peer-set.js')
 const realpath = require('../../lib/realpath.js')
-const walkUpPath = require('walk-up-path')
-const { dirname, resolve } = require('path')
+const { resolve } = require('path')
 const { promisify } = require('util')
+const treeCheck = require('../tree-check.js')
 const readdir = promisify(require('readdir-scoped-modules'))
 
 const debug = require('../debug.js')
@@ -215,7 +215,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       this.finishTracker('idealTree')
     }
 
-    return this.idealTree
+    return treeCheck(this.idealTree)
   }
 
   [_checkEngineAndPlatform] () {
@@ -384,7 +384,8 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       await this[_add](options)
 
     // triggers a refresh of all edgesOut
-    this.idealTree.package = this.idealTree.package
+    if (options.add && options.add.length || options.rm && options.rm.length)
+      this.idealTree.package = this.idealTree.package
     process.emit('timeEnd', 'idealTree:userRequests')
   }
 
@@ -599,21 +600,29 @@ This is a one-time fix-up, please be patient...
     this.addTracker('idealTree:inflate')
     const queue = []
     for (const node of inventory.values()) {
+      if (node.isRoot)
+        continue
+
       queue.push(async () => {
         this.log.silly('inflate', node.location)
-        const id = `${node.name}@${node.version}`
-        const sloc = node.location.substr('node_modules/'.length)
+        const { resolved, version, path, name, location, integrity } = node
+        // don't try to hit the registry for linked deps
+        const useResolved = !version ||
+          resolved && resolved.startsWith('file:')
+        const id = useResolved ? resolved : version
+        const spec = npa.resolve(name, id, path)
+        const sloc = location.substr('node_modules/'.length)
         const t = `idealTree:inflate:${sloc}`
         this.addTracker(t)
-        await pacote.manifest(id, {
+        await pacote.manifest(spec, {
           ...this.options,
-          resolved: node.resolved,
-          integrity: node.integrity,
+          resolved: resolved,
+          integrity: integrity,
           fullMetadata: false,
         }).then(mani => {
           node.package = { ...mani, _id: `${mani.name}@${mani.version}` }
         }).catch((er) => {
-          const warning = `Could not fetch metadata for ${id}`
+          const warning = `Could not fetch metadata for ${name}@${id}`
           this.log.warn(heading, warning, er)
         })
         this.finishTracker(t)
@@ -825,6 +834,7 @@ This is a one-time fix-up, please be patient...
     // is requesting this one, so that we can get all the peer deps in
     // a context where they're likely to be resolvable.
     const parent = parent_ || this[_virtualRoot](edge.from)
+    const realParent = edge.peer ? edge.from.resolveParent : edge.from
 
     const spec = npa.resolve(edge.name, edge.spec, edge.from.path)
     return this[_nodeFromSpec](edge.name, spec, parent, edge)
@@ -836,7 +846,7 @@ This is a one-time fix-up, please be patient...
         // a symbolic link to the earlier instance
         for (let p = edge.from.resolveParent; p; p = p.resolveParent) {
           if (p.matches(node) && !p.isRoot)
-            return new Link({ parent, target: p })
+            return new Link({ parent: realParent, target: p })
         }
         // keep track of the thing that caused this node to be included.
         const src = parent.sourceReference
@@ -1160,7 +1170,7 @@ This is a one-time fix-up, please be patient...
       integrity: dep.integrity,
       legacyPeerDeps: this.legacyPeerDeps,
       error: dep.errors[0],
-      ...(dep.target ? { target: dep.target } : {}),
+      ...(dep.target ? { target: dep.target, realpath: dep.target.path } : {}),
     })
     if (this[_loadFailures].has(dep))
       this[_loadFailures].add(newDep)
@@ -1235,6 +1245,8 @@ This is a one-time fix-up, please be patient...
           //             +-- c2 <-- pruning this would be bad
 
           const mask = node.parent !== target &&
+            node.parent &&
+            node.parent.parent &&
             node.parent.parent !== target &&
             node.parent.parent.resolve(newDep.name)
 
@@ -1550,30 +1562,12 @@ This is a one-time fix-up, please be patient...
   [_resolveLinks] () {
     for (const link of this[_linkNodes]) {
       this[_linkNodes].delete(link)
-      const realpath = link.realpath
-      const loc = relpath(this.path, realpath)
-      const fromInv = this.idealTree.inventory.get(loc)
-      if (fromInv && fromInv !== link.target)
-        link.target = fromInv
 
-      const external = /^\.\.(\/|$)/.test(loc)
+      // link we never ended up placing, skip it
+      if (link.root !== this.idealTree)
+        continue
 
-      if (!link.target.parent && !link.target.fsParent) {
-        // the fsParent likely some node in the tree, possibly the root,
-        // unless it is external.  find it by walking up.  Note that this
-        // is where its deps may end up being installed, if possible.
-        for (const p of walkUpPath(dirname(realpath))) {
-          const path = relpath(this.path, p)
-          const node = !path ? this.idealTree
-            : this.idealTree.inventory.get(path)
-          if (node) {
-            link.target.fsParent = node
-            this.addTracker('idealTree', link.target.name, link.target.location)
-            this[_depsQueue].push(link.target)
-            break
-          }
-        }
-      }
+      const external = /^\.\.(\/|$)/.test(relpath(this.path, link.realpath))
 
       // outside the root, somebody else's problem, ignore it
       if (external && !this[_follow])
@@ -1581,12 +1575,13 @@ This is a one-time fix-up, please be patient...
 
       // didn't find a parent for it or it has not been seen yet
       // so go ahead and process it.
-      const unseenLink = (link.target.parent || link.target.fsParent)
-        && !this[_depsSeen].has(link.target)
-      if (this[_follow]
-        && !link.target.parent
-        && !link.target.fsParent
-        || unseenLink) {
+      const unseenLink = (link.target.parent || link.target.fsParent) &&
+        !this[_depsSeen].has(link.target)
+
+      if (this[_follow] &&
+          !link.target.parent &&
+          !link.target.fsParent ||
+          unseenLink) {
         this.addTracker('idealTree', link.target.name, link.target.location)
         this[_depsQueue].push(link.target)
       }
