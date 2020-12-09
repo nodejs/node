@@ -3,6 +3,7 @@
 
 const log = require('npmlog')
 const crypto = require('crypto')
+const querystring = require('querystring')
 const npmSession = crypto.randomBytes(8).toString('hex')
 log.verbose('npm-session', npmSession)
 const { join } = require('path')
@@ -92,7 +93,7 @@ const flatten = obj => ({
     description: obj.description,
     exclude: obj.searchexclude,
     limit: obj.searchlimit || 20,
-    opts: obj.searchopts,
+    opts: querystring.parse(obj.searchopts),
     staleness: obj.searchstaleness,
   },
 

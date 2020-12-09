@@ -49,7 +49,7 @@ const depValid = (child, requested, requestor) => {
       // fallthrough
     case 'version':
       // if it's a version or a range other than '*', semver it
-      return semver.satisfies(child.package.version, requested.fetchSpec, true)
+      return semver.satisfies(child.version, requested.fetchSpec, true)
 
     case 'directory':
       // directory must be a link to the specified folder

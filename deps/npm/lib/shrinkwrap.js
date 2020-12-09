@@ -1,13 +1,16 @@
-const Arborist = require('@npmcli/arborist')
-const npm = require('./npm.js')
-const usageUtil = require('./utils/usage.js')
-const usage = usageUtil('shrinkwrap', 'npm shrinkwrap')
+'use strict'
+
 const { resolve, basename } = require('path')
+const { promises: { unlink } } = require('fs')
+const Arborist = require('@npmcli/arborist')
 const log = require('npmlog')
 
-const cmd = (args, cb) => shrinkwrap().then(() => cb()).catch(cb)
-
+const npm = require('./npm.js')
 const completion = require('./utils/completion/none.js')
+const usageUtil = require('./utils/usage.js')
+const usage = usageUtil('shrinkwrap', 'npm shrinkwrap')
+
+const cmd = (args, cb) => shrinkwrap().then(() => cb()).catch(cb)
 
 const shrinkwrap = async () => {
   // if has a npm-shrinkwrap.json, nothing to do
@@ -31,7 +34,6 @@ const shrinkwrap = async () => {
   const newFile = meta.hiddenLockfile || !meta.loadedFromDisk
   const oldFilename = meta.filename
   const notSW = !newFile && basename(oldFilename) !== 'npm-shrinkwrap.json'
-  const { promises: { unlink } } = require('fs')
 
   meta.hiddenLockfile = false
   meta.filename = sw
