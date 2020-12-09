@@ -759,7 +759,7 @@ const { createInterface } = require('readline');
 const readline = require('readline');
 
 const input = readline.createInterface({
-	input: process.stdin
+  input: process.stdin
 });
 
 process.stdin.unref();
