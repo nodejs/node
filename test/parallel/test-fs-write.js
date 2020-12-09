@@ -40,7 +40,7 @@ const constants = fs.constants;
 common.allowGlobals(externalizeString, isOneByteString, x);
 
 {
-  const expected = 'ümlaut eins';  // Must be a unique string.
+  const expected = 'ümlaut sechzig';  // Must be a unique string.
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), true);
   const fd = fs.openSync(fn, 'w');
@@ -50,7 +50,7 @@ common.allowGlobals(externalizeString, isOneByteString, x);
 }
 
 {
-  const expected = 'ümlaut zwei';  // Must be a unique string.
+  const expected = 'ümlaut neunzig';  // Must be a unique string.
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), true);
   const fd = fs.openSync(fn, 'w');
@@ -60,7 +60,7 @@ common.allowGlobals(externalizeString, isOneByteString, x);
 }
 
 {
-  const expected = '中文 1';  // Must be a unique string.
+  const expected = 'Zhōngwén 1';  // Must be a unique string.
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), false);
   const fd = fs.openSync(fn, 'w');
@@ -70,7 +70,7 @@ common.allowGlobals(externalizeString, isOneByteString, x);
 }
 
 {
-  const expected = '中文 2';  // Must be a unique string.
+  const expected = 'Zhōngwén 2';  // Must be a unique string.
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), false);
   const fd = fs.openSync(fn, 'w');
