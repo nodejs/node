@@ -36,3 +36,19 @@ test('shadowed core modules return shadow when appending `/` [sync]', function (
     t.equal(res, path.join(__dirname, 'shadowed_core/node_modules/util/index.js'));
 });
 
+test('shadowed core modules return shadow with `includeCoreModules: false`', function (t) {
+    t.plan(2);
+
+    resolve('util', { basedir: path.join(__dirname, 'shadowed_core'), includeCoreModules: false }, function (err, res) {
+        t.ifError(err);
+        t.equal(res, path.join(__dirname, 'shadowed_core/node_modules/util/index.js'));
+    });
+});
+
+test('shadowed core modules return shadow with `includeCoreModules: false` [sync]', function (t) {
+    t.plan(1);
+
+    var res = resolve.sync('util', { basedir: path.join(__dirname, 'shadowed_core'), includeCoreModules: false });
+
+    t.equal(res, path.join(__dirname, 'shadowed_core/node_modules/util/index.js'));
+});

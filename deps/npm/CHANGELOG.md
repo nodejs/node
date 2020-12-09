@@ -1,3 +1,50 @@
+## 7.1.1 (2020-12-08)
+
+### DEPENDENCIES
+
+* [`bf09e719c`](https://github.com/npm/cli/commit/bf09e719c7f563a255b1e9af6b1237ebc5598db6)
+  `@npmcli/arborist@2.0.0`
+    * Much stricter tree integrity guarantees
+    * Fix issues where the root project is a symlink, or linked as a
+      workspace
+* [`7ceb5b728`](https://github.com/npm/cli/commit/7ceb5b728b9f326c567f5ffe5831c9eccf013aa0)
+  `ini@1.3.6`
+* [`77c6ced2a`](https://github.com/npm/cli/commit/77c6ced2a6daaadbff715c8f05b2e61ba76e9bab)
+  `make-fetch-happen@8.0.11`
+    * Avoid caching headers that are hazardous or unnecessary to leave
+      lying around (authorization, npm-session, etc.)
+    * [#38](https://github.com/npm/make-fetch-happen/pull/38) Include query
+      string in cache key ([@jpb](https://github.com/jpb))
+* [`0ef25b6cd`](https://github.com/npm/cli/commit/0ef25b6cd2921794d36f066e2b11c406342cf167)
+  `libnpmsearch@3.1.0`:
+    * Update to accept query params as options, so we can paginate.
+      ([@nlf](https://github.com/nlf))
+* [`518a66450`](https://github.com/npm/cli/commit/518a664500bcde30475788e8c1c3e651f23e881b)
+  `@npmcli/config@1.2.4`:
+    * Do not allow path options to be set to a boolean `false` value
+* [`3d7aff9d8`](https://github.com/npm/cli/commit/3d7aff9d8dd1cf29956aa306464cd44fbc2af426)
+  update all dependencies using latest npm to install them
+
+### TESTS
+
+* [`2848f5940`](https://github.com/npm/cli/commit/2848f594034b87939bfc5546e3e603f123d98a01)
+  [npm/statusboard#173](https://github.com/npm/statusboard/issues/173)
+  [#2293](https://github.com/npm/cli/issues/2293) npm shrinkwrap
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`f6824459a`](https://github.com/npm/cli/commit/f6824459ae0c86e2fa9c84b3dcec85f572ae8e1b)
+  [#2302](https://github.com/npm/cli/issues/2302) npm deprecate
+  ([@nlf](https://github.com/nlf))
+* [`b7d74b627`](https://github.com/npm/cli/commit/b7d74b627859f08fca23209d6e0d3ec6657a4489)
+  [npm/statusboard#180](https://github.com/npm/statusboard/issues/180)
+  [#2304](https://github.com/npm/cli/issues/2304) npm unpublish
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### FEATURES
+
+* [`3db90d944`](https://github.com/npm/cli/commit/3db90d94474f673591811fdab5eb6a5bfdeba261)
+  [#2303](https://github.com/npm/cli/issues/2303) allow for passing object
+  keys to searchopts to allow pagination ([@nlf](https://github.com/nlf))
+
 ## 7.1.0 (2020-12-04)
 
 ### FEATURES

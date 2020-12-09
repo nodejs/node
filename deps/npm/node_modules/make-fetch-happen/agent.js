@@ -38,7 +38,7 @@ function getAgent (uri, opts) {
     `cert:${(isHttps && opts.cert) || '>no-cert<'}`,
     `key:${(isHttps && opts.key) || '>no-key<'}`,
     `timeout:${agentTimeout}`,
-    `maxSockets:${agentMaxSockets}`
+    `maxSockets:${agentMaxSockets}`,
   ].join(':')
 
   if (opts.agent != null) { // `agent: false` has special behavior!
@@ -48,20 +48,18 @@ function getAgent (uri, opts) {
   // keep alive in AWS lambda makes no sense
   const lambdaAgent = !isLambda ? null
     : isHttps ? require('https').globalAgent
-      : require('http').globalAgent
+    : require('http').globalAgent
 
-  if (isLambda && !pxuri) {
+  if (isLambda && !pxuri)
     return lambdaAgent
-  }
 
-  if (AGENT_CACHE.peek(key)) {
+  if (AGENT_CACHE.peek(key))
     return AGENT_CACHE.get(key)
-  }
 
   if (pxuri) {
     const pxopts = isLambda ? {
       ...opts,
-      agent: lambdaAgent
+      agent: lambdaAgent,
     } : opts
     const proxy = getProxy(pxuri, pxopts, isHttps)
     AGENT_CACHE.set(key, proxy)
@@ -80,11 +78,11 @@ function getAgent (uri, opts) {
     key: opts.key,
     localAddress: opts.localAddress,
     rejectUnauthorized: opts.strictSSL,
-    timeout: agentTimeout
+    timeout: agentTimeout,
   }) : new HttpAgent({
     maxSockets: agentMaxSockets,
     localAddress: opts.localAddress,
-    timeout: agentTimeout
+    timeout: agentTimeout,
   })
   AGENT_CACHE.set(key, agent)
   return agent
@@ -93,16 +91,16 @@ function getAgent (uri, opts) {
 function checkNoProxy (uri, opts) {
   const host = new url.URL(uri).hostname.split('.').reverse()
   let noproxy = (opts.noProxy || getProcessEnv('no_proxy'))
-  if (typeof noproxy === 'string') {
+  if (typeof noproxy === 'string')
     noproxy = noproxy.split(/\s*,\s*/g)
-  }
+
   return noproxy && noproxy.some(no => {
     const noParts = no.split('.').filter(x => x).reverse()
-    if (!noParts.length) { return false }
+    if (!noParts.length)
+      return false
     for (let i = 0; i < noParts.length; i++) {
-      if (host[i] !== noParts[i]) {
+      if (host[i] !== noParts[i])
         return false
-      }
     }
     return true
   })
@@ -111,9 +109,8 @@ function checkNoProxy (uri, opts) {
 module.exports.getProcessEnv = getProcessEnv
 
 function getProcessEnv (env) {
-  if (!env) {
+  if (!env)
     return
-  }
 
   let value
 
@@ -122,7 +119,8 @@ function getProcessEnv (env) {
       value = process.env[e] ||
         process.env[e.toUpperCase()] ||
         process.env[e.toLowerCase()]
-      if (typeof value !== 'undefined') { break }
+      if (typeof value !== 'undefined')
+        break
     }
   }
 
@@ -148,7 +146,8 @@ function getProxyUri (uri, opts) {
       protocol === 'http:' &&
       getProcessEnv(['https_proxy', 'http_proxy', 'proxy'])
     )
-  if (!proxy) { return null }
+  if (!proxy)
+    return null
 
   const parsedProxy = (typeof proxy === 'string') ? new url.URL(proxy) : proxy
 
@@ -157,8 +156,8 @@ function getProxyUri (uri, opts) {
 
 const getAuth = u =>
   u.username && u.password ? `${u.username}:${u.password}`
-    : u.username ? u.username
-      : null
+  : u.username ? u.username
+  : null
 
 const getPath = u => u.pathname + u.search + u.hash
 
@@ -179,34 +178,31 @@ function getProxy (proxyUrl, opts, isHttps) {
     timeout: getAgentTimeout(opts.timeout),
     localAddress: opts.localAddress,
     maxSockets: getMaxSockets(opts.maxSockets),
-    rejectUnauthorized: opts.strictSSL
+    rejectUnauthorized: opts.strictSSL,
   }
 
   if (proxyUrl.protocol === 'http:' || proxyUrl.protocol === 'https:') {
     if (!isHttps) {
-      if (!HttpProxyAgent) {
+      if (!HttpProxyAgent)
         HttpProxyAgent = require('http-proxy-agent')
-      }
 
       return new HttpProxyAgent(popts)
     } else {
-      if (!HttpsProxyAgent) {
+      if (!HttpsProxyAgent)
         HttpsProxyAgent = require('https-proxy-agent')
-      }
 
       return new HttpsProxyAgent(popts)
     }
   } else if (proxyUrl.protocol.startsWith('socks')) {
-    if (!SocksProxyAgent) {
+    if (!SocksProxyAgent)
       SocksProxyAgent = require('socks-proxy-agent')
-    }
 
     return new SocksProxyAgent(popts)
   } else {
     throw Object.assign(
       new Error(`unsupported proxy protocol: '${proxyUrl.protocol}'`),
       {
-        url: proxyUrl.href
+        url: proxyUrl.href,
       }
     )
   }

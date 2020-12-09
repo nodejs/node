@@ -15,6 +15,7 @@ function searchStream (query, opts = {}) {
     quality: 0.65,
     popularity: 0.98,
     maintenance: 0.5,
+    ...opts.opts, // this is to support the cli's --searchopts parameter
     ...opts
   }
 

@@ -7,6 +7,7 @@ const {promisify} = require('util')
 const readdir = promisify(require('readdir-scoped-modules'))
 const walkUp = require('walk-up-path')
 const ancestorPath = require('common-ancestor-path')
+const treeCheck = require('../tree-check.js')
 
 const Shrinkwrap = require('../shrinkwrap.js')
 const calcDepFlags = require('../calc-dep-flags.js')
@@ -38,6 +39,7 @@ const _transplantFilter = Symbol('transplantFilter')
 
 const _filter = Symbol('filter')
 const _global = Symbol.for('global')
+const _changePath = Symbol.for('_changePath')
 
 module.exports = cls => class ActualLoader extends cls {
   constructor (options) {
@@ -85,7 +87,7 @@ module.exports = cls => class ActualLoader extends cls {
     return this.actualTree ? this.actualTree
       : this[_actualTreePromise] ? this[_actualTreePromise]
       : this[_actualTreePromise] = this[_loadActual](options)
-        .then(tree => this.actualTree = tree)
+        .then(tree => this.actualTree = treeCheck(tree))
   }
 
   async [_loadActual] (options) {
@@ -166,19 +168,15 @@ module.exports = cls => class ActualLoader extends cls {
   }
 
   [_transplant] (root) {
-    if (!root)
+    if (!root || root === this[_actualTree])
       return
-    // have to set the fsChildren first, because re-rooting a Link
-    // re-roots the target, but without updating its realpath, so
-    // we have to re-root the targets first so their location is
-    // updated appropriately.
-    for (const node of this[_actualTree].fsChildren)
-      node.fsParent = root
-
+    this[_actualTree][_changePath](root.path)
     for (const node of this[_actualTree].children.values()) {
-      if (this[_transplantFilter](node))
-        node.parent = root
+      if (!this[_transplantFilter](node))
+        node.parent = null
     }
+
+    root.replace(this[_actualTree])
     this[_actualTree] = root
   }
 
@@ -322,7 +320,7 @@ module.exports = cls => class ActualLoader extends cls {
 
       const depPromises = []
       for (const [name, edge] of node.edgesOut.entries()) {
-        if (!edge.missing && !(edge.to && edge.to.dummy))
+        if (!edge.missing && !(edge.to && (edge.to.dummy || edge.to.parent !== node)))
           continue
 
         // start the walk from the dirname, because we would have found

@@ -15,7 +15,7 @@ const parseField = (f, key, opts, listElement = false) => {
   const typeList = new Set([].concat(types[key]))
   const isPath = typeList.has(typeDefs.path.type)
   const isBool = typeList.has(typeDefs.Boolean.type)
-  const isString = typeList.has(typeDefs.String.type)
+  const isString = isPath || typeList.has(typeDefs.String.type)
   const isUmask = typeList.has(typeDefs.Umask.type)
   const isNumber = typeList.has(typeDefs.Number.type)
   const isList = !listElement && typeList.has(Array)
@@ -38,7 +38,7 @@ const parseField = (f, key, opts, listElement = false) => {
 
   // string types can be the string 'true', 'false', etc.
   // otherwise, parse these values out
-  if (!isString) {
+  if (!isString && !isPath && !isNumber) {
     switch (f) {
       case 'true': return true
       case 'false': return false

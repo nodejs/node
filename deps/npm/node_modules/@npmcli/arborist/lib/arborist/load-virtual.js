@@ -1,7 +1,6 @@
 // mixin providing the loadVirtual method
 
-const {dirname, resolve} = require('path')
-const walkUp = require('walk-up-path')
+const {resolve} = require('path')
 
 const nameFromFolder = require('@npmcli/name-from-folder')
 const consistentResolve = require('../consistent-resolve.js')
@@ -11,11 +10,12 @@ const Link = require('../link.js')
 const relpath = require('../relpath.js')
 const calcDepFlags = require('../calc-dep-flags.js')
 const rpj = require('read-package-json-fast')
+const treeCheck = require('../tree-check.js')
 
 const loadFromShrinkwrap = Symbol('loadFromShrinkwrap')
 const resolveNodes = Symbol('resolveNodes')
 const resolveLinks = Symbol('resolveLinks')
-const assignParentage = Symbol('assignParentage')
+const assignBundles = Symbol('assignBundles')
 const loadRoot = Symbol('loadRoot')
 const loadNode = Symbol('loadVirtualNode')
 const loadLink = Symbol('loadVirtualLink')
@@ -40,14 +40,16 @@ module.exports = cls => class VirtualLoader extends cls {
   // public method
   async loadVirtual (options = {}) {
     if (this.virtualTree)
-      return Promise.resolve(this.virtualTree)
+      return this.virtualTree
 
     // allow the user to set reify options on the ctor as well.
     // XXX: deprecate separate reify() options object.
     options = { ...this.options, ...options }
 
-    if (options.root && options.root.meta)
-      return this[loadFromShrinkwrap](options.root.meta, options.root)
+    if (options.root && options.root.meta) {
+      await this[loadFromShrinkwrap](options.root.meta, options.root)
+      return treeCheck(this.virtualTree)
+    }
 
     const s = await Shrinkwrap.load({ path: this.path })
     if (!s.loadedFromDisk && !options.root) {
@@ -61,7 +63,8 @@ module.exports = cls => class VirtualLoader extends cls {
       root = await this[loadRoot](s),
     } = options
 
-    return this[loadFromShrinkwrap](s, root)
+    await this[loadFromShrinkwrap](s, root)
+    return treeCheck(this.virtualTree)
   }
 
   async [loadRoot] (s) {
@@ -83,7 +86,7 @@ module.exports = cls => class VirtualLoader extends cls {
     this.virtualTree = root
     const {links, nodes} = this[resolveNodes](s, root)
     await this[resolveLinks](links, nodes)
-    this[assignParentage](nodes)
+    this[assignBundles](nodes)
     if (this[flagsSuspect])
       this[reCalcDepFlags]()
     return root
@@ -194,57 +197,43 @@ module.exports = cls => class VirtualLoader extends cls {
       nodes.set(targetLoc, link.target)
 
       // we always need to read the package.json for link targets
-      // because they can be changed by the local user
-      const pj = link.realpath + '/package.json'
-      const pkg = await rpj(pj).catch(() => null)
-      if (pkg)
-        link.target.package = pkg
+      // outside node_modules because they can be changed by the local user
+      if (!link.target.parent) {
+        const pj = link.realpath + '/package.json'
+        const pkg = await rpj(pj).catch(() => null)
+        if (pkg)
+          link.target.package = pkg
+      }
     }
   }
 
-  [assignParentage] (nodes) {
+  [assignBundles] (nodes) {
     for (const [location, node] of nodes) {
       // Skip assignment of parentage for the root package
       if (!location)
         continue
-      const { path, name } = node
-      for (const p of walkUp(dirname(path))) {
-        const ploc = relpath(this.path, p)
-        const parent = nodes.get(ploc)
-        if (!parent)
-          continue
-        // Safety check: avoid self-assigning nodes as their own parents
-        /* istanbul ignore if - should be obviated by parentage skip check */
-        if (parent === node)
-          continue
+      const { name, parent, package: { inBundle }} = node
+      if (!parent)
+        continue
 
-        const locTest = `${ploc}/node_modules/${name}`.replace(/^\//, '')
-        const ptype = location === locTest
-          ? 'parent'
-          : 'fsParent'
-        node[ptype] = parent
-        // read inBundle from package because 'package' here is
-        // actually a v2 lockfile metadata entry.
-        // If the *parent* is also bundled, though, then we assume
-        // that it's being pulled in just by virtue of that.
-        const {inBundle} = node.package
-        const ppkg = parent.package
-        const {inBundle: parentBundled} = ppkg
-        const hasEdge = parent.edgesOut.has(name)
-        if (ptype === 'parent' && inBundle && hasEdge && !parentBundled) {
-          if (!ppkg.bundleDependencies)
-            ppkg.bundleDependencies = [name]
-          else if (!ppkg.bundleDependencies.includes(name))
-            ppkg.bundleDependencies.push(name)
-        }
-
-        break
+      // read inBundle from package because 'package' here is
+      // actually a v2 lockfile metadata entry.
+      // If the *parent* is also bundled, though, then we assume
+      // that it's being pulled in just by virtue of that.
+      const { package: ppkg } = parent
+      const { inBundle: parentBundled } = ppkg
+      if (inBundle && !parentBundled) {
+        if (!ppkg.bundleDependencies)
+          ppkg.bundleDependencies = [name]
+        else if (!ppkg.bundleDependencies.includes(name))
+          ppkg.bundleDependencies.push(name)
       }
     }
   }
 
   [loadNode] (location, sw) {
-    const path = resolve(this.path, location)
+    const p = this.virtualTree ? this.virtualTree.realpath : this.path
+    const path = resolve(p, location)
     // shrinkwrap doesn't include package name unless necessary
     if (!sw.name)
       sw.name = nameFromFolder(path)

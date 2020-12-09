@@ -13,6 +13,7 @@ const readNames = async () => {
 
   const getValues = (tree) =>
     [...tree.inventory.values()]
+      .filter(i => i.location !== '' && !i.isRoot)
       .map(i => {
         return i
       })

@@ -22,13 +22,13 @@ const RETRY_ERRORS = [
   'ECONNRESET', // remote socket closed on us
   'ECONNREFUSED', // remote host refused to open connection
   'EADDRINUSE', // failed to bind to a local port (proxy?)
-  'ETIMEDOUT' // someone in the transaction is WAY TOO SLOW
+  'ETIMEDOUT', // someone in the transaction is WAY TOO SLOW
   // Known codes we do NOT retry on:
   // ENOTFOUND (getaddrinfo failure. Either bad hostname, or offline)
 ]
 
 const RETRY_TYPES = [
-  'request-timeout'
+  'request-timeout',
 ]
 
 // https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
@@ -56,16 +56,15 @@ function cacheDelete (uri, opts) {
   if (opts.cacheManager) {
     const req = new fetch.Request(uri, {
       method: opts.method,
-      headers: opts.headers
+      headers: opts.headers,
     })
     return opts.cacheManager.delete(req, opts)
   }
 }
 
 function initializeSsri () {
-  if (!ssri) {
+  if (!ssri)
     ssri = require('ssri')
-  }
 }
 
 function cachingFetch (uri, _opts) {
@@ -90,7 +89,7 @@ function cachingFetch (uri, _opts) {
   if (isCachable) {
     const req = new fetch.Request(uri, {
       method: opts.method,
-      headers: opts.headers
+      headers: opts.headers,
     })
 
     return opts.cacheManager.match(req, opts).then(res => {
@@ -110,13 +109,11 @@ function cachingFetch (uri, _opts) {
           res.headers.delete('Warning')
         }
 
-        if (opts.cache === 'default' && !isStale(req, res)) {
+        if (opts.cache === 'default' && !isStale(req, res))
           return res
-        }
 
-        if (opts.cache === 'default' || opts.cache === 'no-cache') {
+        if (opts.cache === 'default' || opts.cache === 'no-cache')
           return conditionalFetch(req, res, opts)
-        }
 
         if (opts.cache === 'force-cache' || opts.cache === 'only-if-cached') {
           //   112 Disconnected operation
@@ -150,7 +147,7 @@ function isStale (req, res) {
   const _req = {
     url: req.url,
     method: req.method,
-    headers: iterableToObject(req.headers)
+    headers: iterableToObject(req.headers),
   }
 
   const policy = makePolicy(req, res)
@@ -182,7 +179,7 @@ function conditionalFetch (req, cachedRes, opts) {
   const _req = {
     url: req.url,
     method: req.method,
-    headers: Object.assign({}, opts.headers || {})
+    headers: Object.assign({}, opts.headers || {}),
   }
 
   const policy = makePolicy(req, cachedRes)
@@ -192,7 +189,7 @@ function conditionalFetch (req, cachedRes, opts) {
     .then(condRes => {
       const revalidatedPolicy = policy.revalidatedPolicy(_req, {
         status: condRes.status,
-        headers: iterableToObject(condRes.headers)
+        headers: iterableToObject(condRes.headers),
       })
 
       if (condRes.status >= 500 && !mustRevalidate(cachedRes)) {
@@ -216,12 +213,12 @@ function conditionalFetch (req, cachedRes, opts) {
             const newHeaders = revalidatedPolicy.policy.responseHeaders()
             const toDelete = [...newRes.headers.keys()]
               .filter(k => !newHeaders[k])
-            for (const key of toDelete) {
+            for (const key of toDelete)
               newRes.headers.delete(key)
-            }
-            for (const [key, val] of Object.entries(newHeaders)) {
+
+            for (const [key, val] of Object.entries(newHeaders))
               newRes.headers.set(key, val)
-            }
+
             return newRes
           })
       }
@@ -230,9 +227,9 @@ function conditionalFetch (req, cachedRes, opts) {
     })
     .then(res => res)
     .catch(err => {
-      if (mustRevalidate(cachedRes)) {
+      if (mustRevalidate(cachedRes))
         throw err
-      } else {
+      else {
         //   111 Revalidation failed
         // MUST be included if a cache returns a stale response because an
         // attempt to revalidate the response failed, due to an inability to
@@ -256,12 +253,12 @@ function conditionalFetch (req, cachedRes, opts) {
 }
 
 function remoteFetchHandleIntegrity (res, integrity) {
-  if (res.status !== 200) {
+  if (res.status !== 200)
     return res // Error responses aren't subject to integrity checks.
-  }
+
   const oldBod = res.body
   const newBod = ssri.integrityStream({
-    integrity
+    integrity,
   })
   return new fetch.Response(new MinipassPipeline(oldBod, newBod), res)
 }
@@ -271,12 +268,11 @@ function remoteFetch (uri, opts) {
   const headers = opts.headers instanceof fetch.Headers
     ? opts.headers
     : new fetch.Headers(opts.headers)
-  if (!headers.get('connection')) {
+  if (!headers.get('connection'))
     headers.set('connection', agent ? 'keep-alive' : 'close')
-  }
-  if (!headers.get('user-agent')) {
+
+  if (!headers.get('user-agent'))
     headers.set('user-agent', USER_AGENT)
-  }
 
   const reqOpts = {
     agent,
@@ -288,7 +284,7 @@ function remoteFetch (uri, opts) {
     redirect: 'manual',
     size: opts.size,
     counter: opts.counter,
-    timeout: opts.timeout
+    timeout: opts.timeout,
   }
 
   return retry(
@@ -296,9 +292,8 @@ function remoteFetch (uri, opts) {
       const req = new fetch.Request(uri, reqOpts)
       return fetch(req)
         .then((res) => {
-          if (opts.integrity) {
+          if (opts.integrity)
             res = remoteFetchHandleIntegrity(res, opts.integrity)
-          }
 
           res.headers.set('x-fetch-attempts', attemptNum)
 
@@ -317,16 +312,14 @@ function remoteFetch (uri, opts) {
               res.status === 200 // No other statuses should be stored!
             )
 
-            if (isCachable) {
+            if (isCachable)
               return opts.cacheManager.put(req, res, opts)
-            }
 
             if (!isMethodGetHead) {
               return opts.cacheManager.delete(req).then(() => {
                 if (res.status >= 500 && req.method !== 'POST' && !isStream) {
-                  if (typeof opts.onRetry === 'function') {
+                  if (typeof opts.onRetry === 'function')
                     opts.onRetry(res)
-                  }
 
                   return retryHandler(res)
                 }
@@ -348,19 +341,18 @@ function remoteFetch (uri, opts) {
           )
 
           if (isRetriable) {
-            if (typeof opts.onRetry === 'function') {
+            if (typeof opts.onRetry === 'function')
               opts.onRetry(res)
-            }
 
             return retryHandler(res)
           }
 
-          if (!fetch.isRedirect(res.status)) {
+          if (!fetch.isRedirect(res.status))
             return res
-          }
-          if (opts.redirect === 'manual') {
+
+          if (opts.redirect === 'manual')
             return res
-          }
+
           // if (!fetch.isRedirect(res.status) || opts.redirect === 'manual') {
           //   return res
           // }
@@ -402,9 +394,8 @@ function remoteFetch (uri, opts) {
           // Remove authorization if changing hostnames (but not if just
           // changing ports or protocols).  This matches the behavior of request:
           // https://github.com/request/request/blob/b12a6245/lib/redirect.js#L134-L138
-          if (new url.URL(req.url).hostname !== redirectURL.hostname) {
+          if (new url.URL(req.url).hostname !== redirectURL.hostname)
             req.headers.delete('authorization')
-          }
 
           // for POST request with 301/302 response, or any request with 303 response,
           // use GET when following redirect
@@ -441,13 +432,11 @@ function remoteFetch (uri, opts) {
             RETRY_TYPES.indexOf(err.type) === -1
           )
 
-          if (req.method === 'POST' || isRetryError) {
+          if (req.method === 'POST' || isRetryError)
             throw err
-          }
 
-          if (typeof opts.onRetry === 'function') {
+          if (typeof opts.onRetry === 'function')
             opts.onRetry(err)
-          }
 
           return retryHandler(err)
         })

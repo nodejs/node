@@ -1,5 +1,5 @@
-var core = require('./core');
+var isCoreModule = require('is-core-module');
 
 module.exports = function isCore(x) {
-    return Object.prototype.hasOwnProperty.call(core, x);
+    return isCoreModule(x);
 };

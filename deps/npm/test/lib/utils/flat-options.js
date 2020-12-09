@@ -65,7 +65,7 @@ class MockConfig {
       description: 'description',
       searchexclude: 'searchexclude',
       searchlimit: 'searchlimit',
-      searchopts: 'searchopts',
+      searchopts: 'from=1',
       searchstaleness: 'searchstaleness',
       'dry-run': 'dry-run',
       'engine-strict': 'engine-strict',

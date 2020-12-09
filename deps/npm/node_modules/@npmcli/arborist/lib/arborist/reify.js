@@ -16,6 +16,7 @@ const moveFile = require('@npmcli/move-file')
 const rimraf = promisify(require('rimraf'))
 const packageContents = require('@npmcli/installed-package-contents')
 
+const treeCheck = require('../tree-check.js')
 const relpath = require('../relpath.js')
 const Diff = require('../diff.js')
 const retirePath = require('../retire-path.js')
@@ -128,7 +129,7 @@ module.exports = cls => class Reifier extends cls {
 
     this.finishTracker('reify')
     process.emit('timeEnd', 'reify')
-    return this.actualTree
+    return treeCheck(this.actualTree)
   }
 
   async [_reifyPackages] () {

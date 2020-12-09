@@ -26,6 +26,20 @@ function encodeRfc3986Full(str) {
   return encodeRfc3986(encodeURIComponent(str))
 }
 
+// A bit of a combination of:
+// https://github.com/aws/aws-sdk-java-v2/blob/dc695de6ab49ad03934e1b02e7263abbd2354be0/core/auth/src/main/java/software/amazon/awssdk/auth/signer/internal/AbstractAws4Signer.java#L59
+// https://github.com/aws/aws-sdk-js/blob/18cb7e5b463b46239f9fdd4a65e2ff8c81831e8f/lib/signers/v4.js#L191-L199
+// https://github.com/mhart/aws4fetch/blob/b3aed16b6f17384cf36ea33bcba3c1e9f3bdfefd/src/main.js#L25-L34
+var HEADERS_TO_IGNORE = {
+  'authorization': true,
+  'connection': true,
+  'x-amzn-trace-id': true,
+  'user-agent': true,
+  'expect': true,
+  'presigned-expires': true,
+  'range': true,
+}
+
 // request: { path | body, [host], [method], [headers], [service], [region] }
 // credentials: { accessKeyId, secretAccessKey, [sessionToken] }
 function RequestSigner(request, credentials) {
@@ -284,6 +298,7 @@ RequestSigner.prototype.canonicalHeaders = function() {
     return header.toString().trim().replace(/\s+/g, ' ')
   }
   return Object.keys(headers)
+    .filter(function(key) { return HEADERS_TO_IGNORE[key.toLowerCase()] == null })
     .sort(function(a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1 })
     .map(function(key) { return key.toLowerCase() + ':' + trimAll(headers[key]) })
     .join('\n')
@@ -292,6 +307,7 @@ RequestSigner.prototype.canonicalHeaders = function() {
 RequestSigner.prototype.signedHeaders = function() {
   return Object.keys(this.request.headers)
     .map(function(key) { return key.toLowerCase() })
+    .filter(function(key) { return HEADERS_TO_IGNORE[key] == null })
     .sort()
     .join(';')
 }

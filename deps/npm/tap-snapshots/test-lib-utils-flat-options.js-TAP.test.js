@@ -95,7 +95,9 @@ Object {
     "description": "description",
     "exclude": "searchexclude",
     "limit": "searchlimit",
-    "opts": "searchopts",
+    "opts": Null Object {
+      "from": "1",
+    },
     "staleness": "searchstaleness",
   },
   "sendMetrics": "send-metrics",

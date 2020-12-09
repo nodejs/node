@@ -1,8 +1,0 @@
-version: ~> 1.0
-language: node_js
-os:
- - linux
-import:
- - ljharb/travis-ci:node/all.yml
- - ljharb/travis-ci:node/pretest.yml
- - ljharb/travis-ci:node/posttest.yml

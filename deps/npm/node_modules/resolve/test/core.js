@@ -22,16 +22,12 @@ test('core modules', function (t) {
 
         for (var i = 0; i < cores.length; ++i) {
             var mod = cores[i];
+            var requireFunc = function () { require(mod); }; // eslint-disable-line no-loop-func
+            console.log(mod, resolve.core, resolve.core[mod]);
             if (resolve.core[mod]) {
-                st.doesNotThrow(
-                    function () { require(mod); }, // eslint-disable-line no-loop-func
-                    mod + ' supported; requiring does not throw'
-                );
+                st.doesNotThrow(requireFunc, mod + ' supported; requiring does not throw');
             } else {
-                st.throws(
-                    function () { require(mod); }, // eslint-disable-line no-loop-func
-                    mod + ' not supported; requiring throws'
-                );
+                st.throws(requireFunc, mod + ' not supported; requiring throws');
             }
         }
 

@@ -44,7 +44,7 @@ class AuditReport extends Map {
           optional: 0,
           peer: 0,
           peerOptional: 0,
-          total: this.tree.inventory.size,
+          total: this.tree.inventory.size - 1,
         },
       },
     }
@@ -281,7 +281,7 @@ class AuditReport extends Map {
 
   async [_getReport] () {
     // if we're not auditing, just return false
-    if (this.options.audit === false || this.tree.inventory.size === 0)
+    if (this.options.audit === false || this.tree.inventory.size === 1)
       return null
 
     process.emit('time', 'auditReport:getReport')
@@ -290,9 +290,10 @@ class AuditReport extends Map {
         // first try the super fast bulk advisory listing
         const body = prepareBulkData(this.tree, this[_omit])
 
-        // no sense asking if we don't have anything to audit
+        // no sense asking if we don't have anything to audit,
+        // we know it'll be empty
         if (!Object.keys(body).length)
-          return {}
+          return null
 
         const res = await fetch('/-/npm/v1/security/advisories/bulk', {
           ...this.options,

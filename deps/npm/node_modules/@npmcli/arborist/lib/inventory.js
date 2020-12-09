@@ -4,7 +4,9 @@
 // keys is the set of fields to be able to query.
 const _primaryKey = Symbol('_primaryKey')
 const _index = Symbol('_index')
-const defaultKeys = ['name', 'license', 'funding']
+const defaultKeys = ['name', 'license', 'funding', 'realpath']
+const { hasOwnProperty } = Object.prototype
+const debug = require('./debug.js')
 class Inventory extends Map {
   constructor (opt = {}) {
     const { primary, keys } = opt
@@ -32,6 +34,18 @@ class Inventory extends Map {
   }
 
   add (node) {
+    const root = super.get('')
+    if (root && node.root !== root && node.root !== root.root) {
+      debug(() => {
+        throw Object.assign(new Error('adding external node to inventory'), {
+          root: root.path,
+          node: node.path,
+          nodeRoot: node.root.path,
+        })
+      })
+      return
+    }
+
     const current = super.get(node[this.primaryKey])
     if (current) {
       if (current === node)
@@ -40,7 +54,9 @@ class Inventory extends Map {
     }
     super.set(node[this.primaryKey], node)
     for (const [key, map] of this[_index].entries()) {
-      const val_ = node[key] || (node.package && node.package[key])
+      // if the node has the value, but it's false, then use that
+      const val_ = hasOwnProperty.call(node, key) ? node[key]
+        : node[key] || (node.package && node.package[key])
       const val = typeof val_ === 'string' ? val_
         : !val_ || typeof val_ !== 'object' ? val_
         : key === 'license' ? val_.type
@@ -58,7 +74,8 @@ class Inventory extends Map {
 
     super.delete(node[this.primaryKey])
     for (const [key, map] of this[_index].entries()) {
-      const val = node[key] || (node.package && node.package[key])
+      const val = node[key] !== undefined ? node[key]
+        : (node[key] || (node.package && node.package[key]))
       const set = map.get(val)
       if (set) {
         set.delete(node)

@@ -36,22 +36,24 @@ const {getPaths: getBinPaths} = require('bin-links')
 const npa = require('npm-package-arg')
 const debug = require('./debug.js')
 const gatherDepSet = require('./gather-dep-set.js')
+const treeCheck = require('./tree-check.js')
+const walkUp = require('walk-up-path')
 
 const {resolve, relative, dirname, basename} = require('path')
 const _package = Symbol('_package')
 const _parent = Symbol('_parent')
+const _target = Symbol.for('_target')
 const _fsParent = Symbol('_fsParent')
-const _reloadEdges = Symbol('_reloadEdges')
 const _loadDepType = Symbol('_loadDepType')
 const _loadWorkspaces = Symbol('_loadWorkspaces')
 const _reloadNamedEdges = Symbol('_reloadNamedEdges')
 // overridden by Link class
 const _loadDeps = Symbol.for('Arborist.Node._loadDeps')
 const _root = Symbol('_root')
-const _refreshLocation = Symbol('_refreshLocation')
-const _refreshTopMeta = Symbol('_refreshTopMeta')
-const _refreshPath = Symbol('_refreshPath')
-const _delistFromMeta = Symbol('_delistFromMeta')
+const _refreshLocation = Symbol.for('_refreshLocation')
+const _changePath = Symbol.for('_changePath')
+// used by Link class as well
+const _delistFromMeta = Symbol.for('_delistFromMeta')
 const _global = Symbol.for('global')
 const _workspaces = Symbol('_workspaces')
 const _explain = Symbol('_explain')
@@ -111,7 +113,7 @@ class Node {
       null
 
     // should be equal if not a link
-    this.path = path && resolve(path)
+    this.path = path ? resolve(path) : null
 
     if (!this.name && (!this.path || this.path !== dirname(this.path)))
       throw new TypeError('could not detect node name from path or package')
@@ -145,6 +147,7 @@ class Node {
     this.children = new Map()
     this.fsChildren = new Set()
     this.inventory = new Inventory({})
+    this.tops = new Set()
     this.linksIn = new Set(linksIn || [])
 
     // these three are set by an Arborist taking a catalog
@@ -198,7 +201,8 @@ class Node {
     // Must be set prior to calling _loadDeps, because top-ness is relevant
 
     // will also assign root if present on the parent
-    this.parent = parent
+    this[_parent] = null
+    this.parent = parent || null
 
     this[_fsParent] = null
     this.fsParent = fsParent || null
@@ -208,9 +212,6 @@ class Node {
     // null, then it's set to the node itself.
     if (!parent && !fsParent)
       this.root = root || null
-
-    if (this.isRoot)
-      this.location = ''
 
     // mostly a convenience for testing, but also a way to create
     // trees in a more declarative way than setting parent on each
@@ -461,35 +462,244 @@ class Node {
   }
 
   set root (root) {
-    const nullRoot = root === null
-    if (nullRoot)
-      root = this
-    else {
-      // should only ever be 1 step
-      while (root.root !== root)
-        root = root.root
+    // setting to null means this is the new root
+    // should only ever be one step
+    while (root && root.root !== root)
+      root = root.root
+
+    root = root || this
+
+    // delete from current root inventory
+    this[_delistFromMeta]()
+
+    // can't set the root (yet) if there's no way to determine location
+    // this allows us to do new Node({...}) and then set the root later.
+    // just make the assignment so we don't lose it, and move on.
+    if (!this.path || !root.realpath || !root.path)
+      return this[_root] = root
+
+    // temporarily become a root node
+    this[_root] = this
+
+    // break all linksIn, we're going to re-set them if needed later
+    for (const link of this.linksIn) {
+      link[_target] = null
+      this.linksIn.delete(link)
     }
 
-    if (root === this.root)
-      return
+    // temporarily break this link as well, we'll re-set if possible later
+    const { target } = this
+    if (this.isLink) {
+      if (target) {
+        target.linksIn.delete(this)
+        if (target.root === this)
+          target[_delistFromMeta]()
+      }
+      this[_target] = null
+    }
 
-    this[_delistFromMeta]()
-    this[_root] = root
-    this[_refreshLocation]()
+    // if this is part of a cascading root set, then don't do this bit
+    // but if the parent/fsParent is in a different set, we have to break
+    // that reference before proceeding
+    if (this.parent && this.parent.root !== root) {
+      this.parent.children.delete(this.name)
+      this[_parent] = null
+    }
+    if (this.fsParent && this.fsParent.root !== root) {
+      this.fsParent.fsChildren.delete(this)
+      this[_fsParent] = null
+    }
 
-    if (this.top.meta)
-      this[_refreshTopMeta]()
+    if (root === this)
+      this[_refreshLocation]()
+    else {
+      // setting to some different node.
+      const loc = relpath(root.realpath, this.path)
+      const current = root.inventory.get(loc)
 
-    if (this.target && !nullRoot)
-      this.target.root = root
+      // clobber whatever is there now
+      if (current)
+        current.root = null
 
-    this.fsChildren.forEach(c => c.root = root)
-    this.children.forEach(c => c.root = root)
-    /* istanbul ignore next - debug check */
-    debug(() => {
-      if (this !== root && this.inventory.size !== 0)
-        throw new Error('non-root has non-zero inventory')
-    })
+      this[_root] = root
+      // set this.location and add to inventory
+      this[_refreshLocation]()
+
+      // try to find our parent/fsParent in the new root inventory
+      for (const p of walkUp(dirname(this.path))) {
+        const ploc = relpath(root.realpath, p)
+        const parent = root.inventory.get(ploc)
+        if (parent) {
+          /* istanbul ignore next - impossible */
+          if (parent.isLink) {
+            debug(() => {
+              throw Object.assign(new Error('assigning parentage to link'), {
+                path: this.path,
+                parent: parent.path,
+                parentReal: parent.realpath,
+              })
+            })
+            continue
+          }
+          const childLoc = `${ploc}${ploc ? '/' : ''}node_modules/${this.name}`
+          const isParent = this.location === childLoc
+          if (isParent) {
+            const oldChild = parent.children.get(this.name)
+            if (oldChild && oldChild !== this)
+              oldChild.root = null
+            if (this.parent) {
+              this.parent.children.delete(this.name)
+              this.parent[_reloadNamedEdges](this.name)
+            }
+            parent.children.set(this.name, this)
+            this[_parent] = parent
+            // don't do it for links, because they don't have a target yet
+            // we'll hit them up a bit later on.
+            if (!this.isLink)
+              parent[_reloadNamedEdges](this.name)
+          } else {
+            /* istanbul ignore if - should be impossible, since we break
+             * all fsParent/child relationships when moving? */
+            if (this.fsParent)
+              this.fsParent.fsChildren.delete(this)
+            parent.fsChildren.add(this)
+            this[_fsParent] = parent
+          }
+          break
+        }
+      }
+
+      // if it doesn't have a parent, it's a top node
+      if (!this.parent)
+        root.tops.add(this)
+      else
+        root.tops.delete(this)
+
+      // assign parentage for any nodes that need to have this as a parent
+      // this can happen when we have a node at nm/a/nm/b added *before*
+      // the node at nm/a, which might have the root node as a fsParent.
+      // we can't rely on the public setter here, because it calls into
+      // this function to set up these references!
+      const nmloc = `${this.location}${this.location ? '/' : ''}node_modules/`
+      const isChild = n => n.location === nmloc + n.name
+      // check dirname so that /foo isn't treated as the fsparent of /foo-bar
+      const isFsChild = n => dirname(n.path).startsWith(this.path) &&
+        n !== this &&
+        !n.parent &&
+        (!n.fsParent || n.fsParent === this || dirname(this.path).startsWith(n.fsParent.path))
+      const isKid = n => isChild(n) || isFsChild(n)
+
+      // only walk top nodes, since anything else already has a parent.
+      for (const child of root.tops) {
+        if (!isKid(child))
+          continue
+
+        // set up the internal parentage links
+        if (this.isLink)
+          child.root = null
+        else {
+          // can't possibly have a parent, because it's in tops
+          if (child.fsParent)
+            child.fsParent.fsChildren.delete(child)
+          child[_fsParent] = null
+          if (isChild(child)) {
+            this.children.set(child.name, child)
+            child[_parent] = this
+            root.tops.delete(child)
+          } else {
+            this.fsChildren.add(child)
+            child[_fsParent] = this
+          }
+        }
+      }
+
+      // look for any nodes with the same realpath.  either they're links
+      // to that realpath, or a thing at that realpath if we're adding a link
+      // (if we're adding a regular node, we already deleted the old one)
+      for (const node of root.inventory.query('realpath', this.realpath)) {
+        if (node === this)
+          continue
+
+        /* istanbul ignore next - should be impossible */
+        debug(() => {
+          if (node.root !== root)
+            throw new Error('inventory contains node from other root')
+        })
+
+        if (this.isLink) {
+          const target = node.target || node
+          this[_target] = target
+          this[_package] = target.package
+          target.linksIn.add(this)
+          // reload edges here, because now we have a target
+          if (this.parent)
+            this.parent[_reloadNamedEdges](this.name)
+          break
+        } else {
+          /* istanbul ignore else - should be impossible */
+          if (node.isLink) {
+            node[_target] = this
+            node[_package] = this.package
+            this.linksIn.add(node)
+            if (node.parent)
+              node.parent[_reloadNamedEdges](node.name)
+          } else {
+            debug(() => {
+              throw Object.assign(new Error('duplicate node in root setter'), {
+                path: this.path,
+                realpath: this.realpath,
+                root: root.realpath,
+              })
+            })
+          }
+        }
+      }
+    }
+
+    // reload all edgesIn where the root doesn't match, so we don't have
+    // cross-tree dependency graphs
+    for (const edge of this.edgesIn) {
+      if (edge.from.root !== root)
+        edge.reload()
+    }
+    // reload all edgesOut where root doens't match, or is missing, since
+    // it might not be missing in the new tree
+    for (const edge of this.edgesOut.values()) {
+      if (!edge.to || edge.to.root !== root)
+        edge.reload()
+    }
+
+    // now make sure our family comes along for the ride!
+    const family = new Set([
+      ...this.fsChildren,
+      ...this.children.values(),
+      ...this.inventory.values(),
+    ].filter(n => n !== this))
+    for (const child of family) {
+      if (child.root !== root) {
+        child[_delistFromMeta]()
+        child[_parent] = null
+        this.children.delete(child.name)
+        child[_fsParent] = null
+        this.fsChildren.delete(child)
+        for (const l of child.linksIn) {
+          l[_target] = null
+          child.linksIn.delete(l)
+        }
+      }
+    }
+    for (const child of family) {
+      if (child.root !== root)
+        child.root = root
+    }
+
+    // if we had a target, and didn't find one in the new root, then bring
+    // it over as well.
+    if (this.isLink && target && !this.target)
+      target.root = root
+
+    // tree should always be valid upon root setter completion.
+    treeCheck(this)
   }
 
   get root () {
@@ -516,7 +726,7 @@ class Node {
     // Linked targets that are disconnected from the tree are tops,
     // but don't have a 'path' field, only a 'realpath', because we
     // don't know their canonical location. We don't need their devDeps.
-    if (this.isTop && this.path)
+    if (this.isTop && this.path && !this.sourceReference)
       this[_loadDepType](this.package.devDependencies, 'dev')
 
     const pd = this.package.peerDependencies
@@ -552,19 +762,9 @@ class Node {
   }
 
   set fsParent (fsParent) {
-    fsParent = fsParent || null
-
-    if (this[_fsParent] === fsParent)
-      return
-
-    const current = this[_fsParent]
-    if (current)
-      current.fsChildren.delete(this)
-
     if (!fsParent) {
-      this[_fsParent] = null
-      // reload ALL edges, since they're now all suspect and likely invalid
-      this[_reloadEdges](e => true)
+      if (this[_fsParent])
+        this.root = null
       return
     }
 
@@ -587,47 +787,53 @@ class Node {
           },
         })
       }
-
-      if (fsParent.isLink)
-        throw new Error('setting fsParent to link node')
     })
 
+    if (fsParent.isLink)
+      fsParent = fsParent.target
+
+    // setting a thing to its own fsParent is not normal, but no-op for safety
     if (this === fsParent || fsParent.realpath === this.realpath)
       return
 
-    // prune off the original location, so we don't leave edges lying around
-    if (current)
-      this.fsParent = null
+    // nothing to do
+    if (this[_fsParent] === fsParent)
+      return
 
-    const fspp = fsParent.realpath
-    const nmPath = resolve(fspp, 'node_modules', this.name)
-    // actually in the node_modules folder!  this can happen when a link
-    // points deep within a node_modules folder, so that the target node
-    // is loaded before its parent.
-    if (nmPath === this.path) {
-      this[_fsParent] = null
+    const oldFsParent = this[_fsParent]
+    const newPath = !oldFsParent ? this.path
+      : resolve(fsParent.path, relative(oldFsParent.path, this.path))
+    const nmPath = resolve(fsParent.path, 'node_modules', this.name)
+
+    // this is actually the parent, set that instead
+    if (newPath === nmPath) {
       this.parent = fsParent
       return
     }
 
-    // ok!  have a pseudo-parent, meaning that we're contained in
-    // the parent node's fs tree, but NOT in its node_modules folder.
-    // Almost certainly due to being a linked workspace-style package.
-    this[_fsParent] = fsParent
-    fsParent.fsChildren.add(this)
-    // refresh the path BEFORE setting root, so meta gets updated properly
-    this[_refreshPath](fsParent, current && current.path)
-    this.root = fsParent.root
-    this[_reloadEdges](e => !e.to)
-  }
+    const pathChange = newPath !== this.path
 
-  // called when we find that we have an fsParent which could account
-  // for some missing edges which are actually fine and not missing at all.
-  [_reloadEdges] (filter) {
-    this[_explanation] = null
-    this.edgesOut.forEach(edge => filter(edge) && edge.reload())
-    this.fsChildren.forEach(c => c[_reloadEdges](filter))
-    this.children.forEach(c => c[_reloadEdges](filter))
+    // remove from old parent/fsParent
+    const oldParent = this.parent
+    const oldName = this.name
+    if (this.parent) {
+      this.parent.children.delete(this.name)
+      this[_parent] = null
+    }
+    if (this.fsParent) {
+      this.fsParent.fsChildren.delete(this)
+      this[_fsParent] = null
+    }
+
+    // update this.path/realpath for this and all children/fsChildren
+    if (pathChange)
+      this[_changePath](newPath)
+
+    if (oldParent)
+      oldParent[_reloadNamedEdges](oldName)
+
+    // clobbers anything at that path, resets all appropriate references
+    this.root = fsParent.root
   }
 
   // is it safe to replace one node with another?  check the edges to
@@ -668,7 +874,7 @@ class Node {
     const parsed = npa(requested)
     const { name = this.name, rawSpec: spec } = parsed
     return this.name === name && this.satisfies(new Edge({
-      from: new Node({ path: this.root.path }),
+      from: new Node({ path: this.root.realpath }),
       type: 'prod',
       name,
       spec,
@@ -713,29 +919,27 @@ class Node {
   // Useful when mutating an ideal tree, so we can avoid having to call
   // the parent/root setters more than necessary.
   replaceWith (node) {
-    node.path = this.path
-    node.name = this.name
-    if (!node.isLink)
-      node.realpath = this.path
-    node.root = this.isRoot ? node : this.root
-    // pretend to be in the tree, so top/etc refs are not changing for kids.
-    node.parent = null
-    node[_parent] = this[_parent]
-
-    // if we're replacing a non-link node with a link, then all the children
-    // and fsChildren just go along with it, because links don't have those.
-    if (!node.isLink) {
-      this.fsChildren.forEach(c => c.fsParent = node)
-      this.children.forEach(c => c.parent = node)
-    }
-
-    // now remove the hidden reference, and call parent setter to finalize.
-    node[_parent] = null
-    node.parent = this.parent
+    node.replace(this)
   }
 
   replace (node) {
-    node.replaceWith(this)
+    this[_delistFromMeta]()
+    this.path = node.path
+    this.name = node.name
+    if (!this.isLink)
+      this.realpath = this.path
+    this[_refreshLocation]()
+
+    // keep children when a node replaces another
+    if (!this.isLink) {
+      for (const kid of node.children.values())
+        kid.parent = this
+    }
+
+    if (!node.isRoot)
+      this.root = node.root
+
+    treeCheck(this)
   }
 
   get inShrinkwrap () {
@@ -757,176 +961,94 @@ class Node {
   // The only walk that starts from the parent rather than this node is
   // limited by edge name.
   set parent (parent) {
-    const oldParent = this[_parent]
+    // when setting to null, just remove it from the tree entirely
+    if (!parent) {
+      // but only delete it if we actually had a parent in the first place
+      // otherwise it's just setting to null when it's already null
+      if (this[_parent])
+        this.root = null
+      return
+    }
 
+    if (parent.isLink)
+      parent = parent.target
+
+    // setting a thing to its own parent is not normal, but no-op for safety
     if (this === parent)
       return
 
-    // link nodes can't contain children directly.
-    // children go under the link target.
-    if (parent) {
-      if (parent.isLink)
-        parent = parent.target
+    const oldParent = this[_parent]
 
-      if (oldParent === parent)
-        return
-    }
+    // nothing to do
+    if (oldParent === parent)
+      return
 
     // ok now we know something is actually changing, and parent is not a link
-
-    // check to see if the location is going to change.
-    // we can skip some of the inventory/meta stuff if not.
-    const newPath = parent ? resolve(parent.path, 'node_modules', this.name)
-      : this.path
+    const newPath = resolve(parent.path, 'node_modules', this.name)
     const pathChange = newPath !== this.path
-    const newTop = parent ? parent.top : this
-    const topChange = newTop !== this.top
-    const newRoot = parent ? parent.root : null
-    const rootChange = newRoot !== this.root
 
-    // if the path, top, or root are changing, then we need to delist
-    // from metadata and inventory where this module (and its children)
-    // are currently tracked.  Need to do this BEFORE updating the
-    // path and setting node.root.  We don't have to do this for node.target,
-    // because its path isn't changing, so everything we need will happen
-    // safely when we set this.root = parent.root.
-    if (this.path && (pathChange || topChange || rootChange)) {
-      this[_delistFromMeta]()
-      // delisting method doesn't walk children by default, since it would
-      // be excessive to do so when changing the root reference, as a
-      // root change walks children changing root as well.  But in this case,
-      // we are about to change the parent, and thus the top, so we have
-      // to delist from the metadata now to ensure we remove it from the
-      // proper top node metadata if it isn't the root.
-      this.fsChildren.forEach(c => c[_delistFromMeta]())
-      this.children.forEach(c => c[_delistFromMeta]())
-    }
-
-    // remove from former parent.
-    if (oldParent)
+    // remove from old parent/fsParent
+    if (oldParent) {
       oldParent.children.delete(this.name)
-
-    // update internal link.  at this point, the node is actually in
-    // the new location in the tree, but the paths are not updated yet.
-    this[_parent] = parent
-
-    // remove former child.  calls back into this setter to unlist
-    if (parent) {
-      const oldChild = parent.children.get(this.name)
-      if (oldChild)
-        oldChild.parent = null
-
-      parent.children.set(this.name, this)
+      this[_parent] = null
+    }
+    if (this.fsParent) {
+      this.fsParent.fsChildren.delete(this)
+      this[_fsParent] = null
     }
 
-    // this is the point of no return.  this.location is no longer valid,
-    // and this.path is no longer going to reference this node in the
-    // inventory or shrinkwrap metadata.
-    if (parent)
-      this[_refreshPath](parent, oldParent && oldParent.path)
+    // update this.path/realpath for this and all children/fsChildren
+    if (pathChange)
+      this[_changePath](newPath)
 
-    // call the root setter.  this updates this.location, and sets the
-    // root on all children, and this.target if this is a link.
-    // if the root isn't changing, then this is a no-op.
-    // the root setter is a no-op if the root didn't change, so we have
-    // to manually call the method to update location and metadata
-    if (!rootChange)
-      this[_refreshLocation]()
-    else
-      this.root = newRoot
-
-    // if the new top is not the root, and it has meta, then we're updating
-    // nodes within a link target's folder.  update it now.
-    if (newTop !== newRoot && newTop.meta)
-      this[_refreshTopMeta]()
-
-    // refresh dep links
-    // note that this is _also_ done when a node is removed from the
-    // tree by setting parent=null, so deduplication is covered.
-    this.edgesIn.forEach(edge => edge.reload())
-    this.edgesOut.forEach(edge => edge.reload())
-
-    // in case any of the parent's other descendants were resolving to
-    // a different instance of this package, walk the tree from that point
-    // reloading edges by this name.  This only walks until it stops finding
-    // changes, so if there's a portion of the tree blocked by a different
-    // instance, or already updated by the previous in/out reloading, it won't
-    // needlessly re-resolve deps that won't need to be changed.
-    if (parent)
-      parent[_reloadNamedEdges](this.name, true)
-
-    // since loading a parent can add *or change* resolutions, we also
-    // walk the tree from this point reloading all edges.
-    this[_reloadEdges](e => true)
-
-    // have to refresh the location of children and fsChildren at this point,
-    // because their paths have likely changed, and root may have been set.
-    if (!rootChange) {
-      this.children.forEach(c => c[_refreshLocation]())
-      this.fsChildren.forEach(c => c[_refreshLocation]())
-    }
-  }
-
-  // called after changing the parent (and thus the top), and after changing
-  // the path, if the top is tracking metadata, so that we update the top's
-  // metadata with the new node.  Note that we DON'T walk fsChildren here,
-  // because they do not share our top node.
-  [_refreshTopMeta] () {
-    this.top.meta.add(this)
-    this.children.forEach(c => c[_refreshTopMeta]())
+    // clobbers anything at that path, resets all appropriate references
+    this.root = parent.root
   }
 
   // Call this before changing path or updating the _root reference.
-  // Removes the node from all the metadata trackers where it might live.
+  // Removes the node from its root the metadata and inventory.
   [_delistFromMeta] () {
-    const top = this.top
     const root = this.root
-
+    if (!root.realpath || !this.path)
+      return
     root.inventory.delete(this)
+    root.tops.delete(this)
     if (root.meta)
       root.meta.delete(this.path)
-
-    // need to also remove from the top meta if that's set.  but, we only do
-    // that if the top is not the same as the root, or else we'll remove it
-    // twice unnecessarily.  If the top and this have different roots, then
-    // that means we're in the process of changing this.parent, which sets the
-    // internal _parent reference BEFORE setting the root node, because paths
-    // need to be set up before assigning root.  In that case, don't delist,
-    // or else we'll delete the metadata before we have a chance to apply it.
-    if (top.meta && top !== root && top.root === this.root)
-      top.meta.delete(this.path)
+    /* istanbul ignore next - should be impossible */
+    debug(() => {
+      if ([...root.inventory.values()].includes(this))
+        throw new Error('failed to delist')
+    })
   }
 
-  // recurse through the tree updating path when it changes.
-  // called by the parent and fsParent setters.
-  [_refreshPath] (parent, fromPath = null) {
-    const ppath = parent.path
-    const relPath = typeof fromPath === 'string'
-      ? relative(fromPath, this.path)
-      : null
-    const oldPath = this.path
-    const newPath = relPath !== null ? resolve(ppath, relPath)
-      : parent === this[_parent] ? resolve(ppath, 'node_modules', this.name)
-      // fsparent initial assignment, nothing to update here
-      : oldPath
-
-    // if no change, nothing to do!
-    if (newPath === oldPath)
-      return
-
+  // update this.path/realpath and the paths of all children/fsChildren
+  [_changePath] (newPath) {
+    // have to de-list before changing paths
     this[_delistFromMeta]()
+    const oldPath = this.path
     this.path = newPath
+    const namePattern = /(?:^|\/|\\)node_modules[\\/](@[^/\\]+[\\/][^\\/]+|[^\\/]+)$/
+    const nameChange = newPath.match(namePattern)
+    if (nameChange && this.name !== nameChange[1])
+      this.name = nameChange[1].replace(/\\/g, '/')
+
+    // if we move a link target, update link realpaths
     if (!this.isLink) {
-      this.realpath = this.path
-      if (this.linksIn.size) {
-        for (const link of this.linksIn)
-          link.realpath = newPath
+      this.realpath = newPath
+      for (const link of this.linksIn) {
+        link[_delistFromMeta]()
+        link.realpath = newPath
+        link[_refreshLocation]()
       }
     }
+    // if we move /x to /y, then a module at /x/a/b becomes /y/a/b
+    for (const child of this.fsChildren)
+      child[_changePath](resolve(newPath, relative(oldPath, child.path)))
+    for (const [name, child] of this.children.entries())
+      child[_changePath](resolve(newPath, 'node_modules', name))
 
     this[_refreshLocation]()
-    this.fsChildren.forEach(c => c[_refreshPath](this, oldPath))
-    this.children.forEach(c => c[_refreshPath](this, oldPath))
   }
 
   // Called whenever the root/parent is changed.
@@ -934,7 +1056,9 @@ class Node {
   // this.path BEFORE calling this method!
   [_refreshLocation] () {
     const root = this.root
-    this.location = relpath(root.realpath, this.path)
+    const loc = relpath(root.realpath, this.path)
+
+    this.location = loc
 
     root.inventory.add(this)
     if (root.meta)
@@ -953,42 +1077,36 @@ class Node {
       this.root.meta.addEdge(edge)
   }
 
-  [_reloadNamedEdges] (name, root) {
-    // either it's the node in question, or it's going to block it anyway
-    if (this.name === name && !this.isTop) {
-      // reload the edges in so that anything that SHOULD be blocked
-      // by this node actually will be.
-      this.edgesIn.forEach(e => e.reload())
-      return
-    }
-
+  [_reloadNamedEdges] (name, rootLoc = this.location) {
     const edge = this.edgesOut.get(name)
     // if we don't have an edge, do nothing, but keep descending
-    if (edge) {
-      const toBefore = edge.to
-      edge.reload()
-      const toAfter = edge.to
-      if (toBefore === toAfter && !root) {
-        // nothing changed, we're done here.  either it was already
-        // referring to this node (due to its edgesIn reloads), or
-        // it is blocked by another node in the tree.  So either its children
-        // have already been updated, or don't need to be.
-        //
-        // but: always descend past the _first_ node, because it's likely
-        // that this is being triggered by this node getting a new child,
-        // so the whole point is to update the rest of the family.
-        return
-      }
-    }
+    const rootLocResolved = edge && edge.to &&
+      edge.to.location === `${rootLoc}/node_modules/${edge.name}`
+    const sameResolved = edge && this.resolve(name) === edge.to
+    const recheck = rootLocResolved || !sameResolved
+    if (edge && recheck)
+      edge.reload(true)
     for (const c of this.children.values())
-      c[_reloadNamedEdges](name)
+      c[_reloadNamedEdges](name, rootLoc)
 
     for (const c of this.fsChildren)
-      c[_reloadNamedEdges](name)
+      c[_reloadNamedEdges](name, rootLoc)
   }
 
   get isLink () {
     return false
+  }
+
+  get target () {
+    return null
+  }
+
+  set target (n) {
+    debug(() => {
+      throw Object.assign(new Error('cannot set target on non-Link Nodes'), {
+        path: this.path,
+      })
+    })
   }
 
   get depth () {

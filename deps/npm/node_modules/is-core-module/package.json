@@ -1,0 +1,66 @@
+{
+	"name": "is-core-module",
+	"version": "2.2.0",
+	"description": "Is this specifier a node.js core module?",
+	"main": "index.js",
+	"exports": {
+		".": [
+			{
+				"default": "./index.js"
+			},
+			"./index.js"
+		],
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"prepublish": "safe-publish-latest",
+		"lint": "eslint .",
+		"pretest": "npm run lint",
+		"tests-only": "tape 'test/**/*.js'",
+		"test": "nyc npm run tests-only",
+		"posttest": "aud --production",
+		"version": "auto-changelog && git add CHANGELOG.md",
+		"postversion": "auto-changelog && git add CHANGELOG.md && git commit --no-edit --amend && git tag -f \"v$(node -e \"console.log(require('./package.json').version)\")\""
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/inspect-js/is-core-module.git"
+	},
+	"keywords": [
+		"core",
+		"modules",
+		"module",
+		"npm",
+		"node",
+		"dependencies"
+	],
+	"author": "Jordan Harband <ljharb@gmail.com>",
+	"funding": {
+		"url": "https://github.com/sponsors/ljharb"
+	},
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/inspect-js/is-core-module/issues"
+	},
+	"homepage": "https://github.com/inspect-js/is-core-module",
+	"dependencies": {
+		"has": "^1.0.3"
+	},
+	"devDependencies": {
+		"@ljharb/eslint-config": "^17.3.0",
+		"aud": "^1.1.3",
+		"auto-changelog": "^2.2.1",
+		"eslint": "^7.14.0",
+		"nyc": "^10.3.2",
+		"safe-publish-latest": "^1.1.4",
+		"tape": "^5.0.1"
+	},
+	"auto-changelog": {
+		"output": "CHANGELOG.md",
+		"template": "keepachangelog",
+		"unreleased": false,
+		"commitLimit": false,
+		"backfillLimit": false,
+		"hideCredit": true
+	}
+}

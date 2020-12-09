@@ -1,0 +1,58 @@
+name: 'Tests: node.js (0.x)'
+
+on: [pull_request, push]
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      stable: ${{ steps.set-matrix.outputs.requireds }}
+      unstable: ${{ steps.set-matrix.outputs.optionals }}
+    steps:
+      - uses: ljharb/actions/node/matrix@main
+        id: set-matrix
+        with:
+          preset: '0.x'
+
+  stable:
+    needs: [matrix]
+    name: 'stable minors'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix: ${{ fromJson(needs.matrix.outputs.stable) }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ljharb/actions/node/run@main
+        with:
+          node-version: ${{ matrix.node-version }}
+          command: 'tests-only'
+          cache-node-modules-key: node_modules-${{ github.workflow }}-${{ github.action }}-${{ github.run_id }}
+          skip-ls-check: true
+
+  unstable:
+    needs: [matrix, stable]
+    name: 'unstable minors'
+    continue-on-error: true
+    if: ${{ !github.head_ref || !startsWith(github.head_ref, 'renovate') }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix: ${{ fromJson(needs.matrix.outputs.unstable) }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ljharb/actions/node/run@main
+        with:
+          node-version: ${{ matrix.node-version }}
+          command: 'tests-only'
+          cache-node-modules-key: node_modules-${{ github.workflow }}-${{ github.action }}-${{ github.run_id }}
+          skip-ls-check: true
+
+  node:
+    name: 'node 0.x'
+    needs: [stable, unstable]
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo tests completed'
