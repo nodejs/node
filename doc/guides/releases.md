@@ -547,7 +547,7 @@ Git should stop to let you fix conflicts. Revert all changes that were made to
 `src/node_version.h`:
 
 ```console
-$ git checkout --ours -- src/node_version.h
+$ git checkout --ours HEAD -- src/node_version.h
 ```
 
 If there are conflicts in `doc` due to updated `REPLACEME`
