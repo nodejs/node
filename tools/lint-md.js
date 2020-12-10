@@ -8385,10 +8385,10 @@ function encode (obj, opt) {
   if (typeof opt === 'string') {
     opt = {
       section: opt,
-      whitespace: false
+      whitespace: false,
     };
   } else {
-    opt = opt || {};
+    opt = opt || Object.create(null);
     opt.whitespace = opt.whitespace === true;
   }
 
@@ -8400,27 +8400,25 @@ function encode (obj, opt) {
       val.forEach(function (item) {
         out += safe(k + '[]') + separator + safe(item) + '\n';
       });
-    } else if (val && typeof val === 'object') {
+    } else if (val && typeof val === 'object')
       children.push(k);
-    } else {
+    else
       out += safe(k) + separator + safe(val) + eol;
-    }
   });
 
-  if (opt.section && out.length) {
+  if (opt.section && out.length)
     out = '[' + safe(opt.section) + ']' + eol + out;
-  }
 
   children.forEach(function (k, _, __) {
     var nk = dotSplit(k).join('\\.');
     var section = (opt.section ? opt.section + '.' : '') + nk;
     var child = encode(obj[k], {
       section: section,
-      whitespace: opt.whitespace
+      whitespace: opt.whitespace,
     });
-    if (out.length && child.length) {
+    if (out.length && child.length)
       out += eol;
-    }
+
     out += child;
   });
 
@@ -8432,12 +8430,12 @@ function dotSplit (str) {
     .replace(/\\\./g, '\u0001')
     .split(/\./).map(function (part) {
       return part.replace(/\1/g, '\\.')
-      .replace(/\2LITERAL\\1LITERAL\2/g, '\u0001')
+        .replace(/\2LITERAL\\1LITERAL\2/g, '\u0001')
     })
 }
 
 function decode (str) {
-  var out = {};
+  var out = Object.create(null);
   var p = out;
   var section = null;
   //          section     |key      = value
@@ -8445,15 +8443,25 @@ function decode (str) {
   var lines = str.split(/[\r\n]+/g);
 
   lines.forEach(function (line, _, __) {
-    if (!line || line.match(/^\s*[;#]/)) return
+    if (!line || line.match(/^\s*[;#]/))
+      return
     var match = line.match(re);
-    if (!match) return
+    if (!match)
+      return
     if (match[1] !== undefined) {
       section = unsafe(match[1]);
-      p = out[section] = out[section] || {};
+      if (section === '__proto__') {
+        // not allowed
+        // keep parsing the section, but don't attach it.
+        p = Object.create(null);
+        return
+      }
+      p = out[section] = out[section] || Object.create(null);
       return
     }
     var key = unsafe(match[2]);
+    if (key === '__proto__')
+      return
     var value = match[3] ? unsafe(match[4]) : true;
     switch (value) {
       case 'true':
@@ -8464,20 +8472,20 @@ function decode (str) {
     // Convert keys with '[]' suffix to an array
     if (key.length > 2 && key.slice(-2) === '[]') {
       key = key.substring(0, key.length - 2);
-      if (!p[key]) {
+      if (key === '__proto__')
+        return
+      if (!p[key])
         p[key] = [];
-      } else if (!Array.isArray(p[key])) {
+      else if (!Array.isArray(p[key]))
         p[key] = [p[key]];
-      }
     }
 
     // safeguard against resetting a previously defined
     // array by accidentally forgetting the brackets
-    if (Array.isArray(p[key])) {
+    if (Array.isArray(p[key]))
       p[key].push(value);
-    } else {
+    else
       p[key] = value;
-    }
   });
 
   // {a:{y:1},"a.b":{x:2}} --> {a:{y:1,b:{x:2}}}
@@ -8485,9 +8493,9 @@ function decode (str) {
   Object.keys(out).filter(function (k, _, __) {
     if (!out[k] ||
       typeof out[k] !== 'object' ||
-      Array.isArray(out[k])) {
+      Array.isArray(out[k]))
       return false
-    }
+
     // see if the parent section is also an object.
     // if so, add it to that, and mark this one for deletion
     var parts = dotSplit(k);
@@ -8495,12 +8503,15 @@ function decode (str) {
     var l = parts.pop();
     var nl = l.replace(/\\\./g, '.');
     parts.forEach(function (part, _, __) {
-      if (!p[part] || typeof p[part] !== 'object') p[part] = {};
+      if (part === '__proto__')
+        return
+      if (!p[part] || typeof p[part] !== 'object')
+        p[part] = Object.create(null);
       p = p[part];
     });
-    if (p === out && nl === l) {
+    if (p === out && nl === l)
       return false
-    }
+
     p[nl] = out[k];
     return true
   }).forEach(function (del, _, __) {
@@ -8522,18 +8533,20 @@ function safe (val) {
     (val.length > 1 &&
      isQuoted(val)) ||
     val !== val.trim())
-      ? JSON.stringify(val)
-      : val.replace(/;/g, '\\;').replace(/#/g, '\\#')
+    ? JSON.stringify(val)
+    : val.replace(/;/g, '\\;').replace(/#/g, '\\#')
 }
 
 function unsafe (val, doUnesc) {
   val = (val || '').trim();
   if (isQuoted(val)) {
     // remove the single quotes before calling JSON.parse
-    if (val.charAt(0) === "'") {
+    if (val.charAt(0) === "'")
       val = val.substr(1, val.length - 2);
-    }
-    try { val = JSON.parse(val); } catch (_) {}
+
+    try {
+      val = JSON.parse(val);
+    } catch (_) {}
   } else {
     // walk the val to find the first not-escaped ; character
     var esc = false;
@@ -8541,23 +8554,22 @@ function unsafe (val, doUnesc) {
     for (var i = 0, l = val.length; i < l; i++) {
       var c = val.charAt(i);
       if (esc) {
-        if ('\\;#'.indexOf(c) !== -1) {
+        if ('\\;#'.indexOf(c) !== -1)
           unesc += c;
-        } else {
+        else
           unesc += '\\' + c;
-        }
+
         esc = false;
-      } else if (';#'.indexOf(c) !== -1) {
+      } else if (';#'.indexOf(c) !== -1)
         break
-      } else if (c === '\\') {
+      else if (c === '\\')
         esc = true;
-      } else {
+      else
         unesc += c;
-      }
     }
-    if (esc) {
+    if (esc)
       unesc += '\\';
-    }
+
     return unesc.trim()
   }
   return val
