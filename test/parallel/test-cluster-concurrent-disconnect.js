@@ -8,7 +8,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const os = require('os');
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
   const workers = [];
   const numCPUs = os.cpus().length;
   let waitOnline = numCPUs;

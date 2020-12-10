@@ -29,7 +29,7 @@ if (common.isWindows)
 const cluster = require('cluster');
 const dgram = require('dgram');
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
   const unbound = cluster.fork().on('online', bind);
 
   function bind() {

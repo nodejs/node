@@ -26,7 +26,7 @@ const cluster = require('cluster');
 
 const OK = 2;
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
 
   const worker = cluster.fork();
 

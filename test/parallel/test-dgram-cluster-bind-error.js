@@ -7,7 +7,7 @@ const dgram = require('dgram');
 const { internalBinding } = require('internal/test/binding');
 const { UV_UNKNOWN } = internalBinding('uv');
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
   cluster.fork();
 } else {
   // When the socket attempts to bind, it requests a handle from the cluster.

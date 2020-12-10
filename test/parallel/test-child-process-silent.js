@@ -33,7 +33,7 @@ if (process.argv[2] === 'pipe') {
   // Child IPC test
   process.send('message from child');
   process.on('message', function() {
-    process.send('got message from master');
+    process.send('got message from parent');
   });
 
 } else if (process.argv[2] === 'parent') {
@@ -80,7 +80,7 @@ if (process.argv[2] === 'pipe') {
     }
 
     if (childReceiving === false) {
-      childReceiving = (message === 'got message from master');
+      childReceiving = (message === 'got message from parent');
     }
 
     if (childReceiving === true) {

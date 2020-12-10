@@ -32,7 +32,7 @@ const fixtures = require('../common/fixtures');
 const workerCount = 4;
 const expectedReqCount = 16;
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
   let reusedCount = 0;
   let reqCount = 0;
   let lastSession = null;
@@ -40,7 +40,7 @@ if (cluster.isMaster) {
   let workerPort = null;
 
   function shoot() {
-    console.error('[master] connecting', workerPort, 'session?', !!lastSession);
+    console.error('[parent] connecting', workerPort, 'session?', !!lastSession);
     const c = tls.connect(workerPort, {
       session: lastSession,
       rejectUnauthorized: false
@@ -69,7 +69,7 @@ if (cluster.isMaster) {
   function fork() {
     const worker = cluster.fork();
     worker.on('message', ({ msg, port }) => {
-      console.error('[master] got %j', msg);
+      console.error('[parent] got %j', msg);
       if (msg === 'reused') {
         ++reusedCount;
       } else if (msg === 'listening' && !shootOnce) {
@@ -80,7 +80,7 @@ if (cluster.isMaster) {
     });
 
     worker.on('exit', () => {
-      console.error('[master] worker died');
+      console.error('[parent] worker died');
     });
   }
   for (let i = 0; i < workerCount; i++) {

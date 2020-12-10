@@ -7,7 +7,7 @@ const net = require('net');
 
 const payload = 'a'.repeat(800004);
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
   const server = net.createServer();
 
   server.on('connection', common.mustCall((socket) => { socket.unref(); }));

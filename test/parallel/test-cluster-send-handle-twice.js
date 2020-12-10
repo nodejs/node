@@ -31,7 +31,7 @@ const workers = {
   toStart: 1
 };
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
   for (let i = 0; i < workers.toStart; ++i) {
     const worker = cluster.fork();
     worker.on('exit', common.mustCall(function(code, signal) {

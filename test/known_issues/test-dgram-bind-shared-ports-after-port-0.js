@@ -13,7 +13,7 @@ const cluster = require('cluster');
 const dgram = require('dgram');
 const BYE = 'bye';
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
   const worker1 = cluster.fork();
 
   // Verify that Windows doesn't support this scenario
@@ -40,7 +40,7 @@ if (cluster.isMaster) {
       worker2.send(BYE);
     });
   });
-  // end master code
+  // end parent code
 } else {
   // worker code
   process.on('message', (msg) => msg === BYE && process.exit(0));

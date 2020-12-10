@@ -38,7 +38,7 @@ if (cluster.isWorker) {
   server.once('listening', common.mustCall(() => { }));
   server.listen(0, '127.0.0.1');
 
-} else if (cluster.isMaster) {
+} else if (cluster.isParent) {
 
   const KILL_SIGNAL = 'SIGKILL';
   const expected_results = {

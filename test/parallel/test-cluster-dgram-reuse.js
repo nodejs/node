@@ -7,7 +7,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const dgram = require('dgram');
 
-if (cluster.isMaster) {
+if (cluster.isParent) {
   cluster.fork().on('exit', common.mustCall((code) => {
     assert.strictEqual(code, 0);
   }));

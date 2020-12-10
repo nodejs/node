@@ -8,8 +8,8 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-if (!cluster.isMaster) {
-  // Exit on first received handle to leave the queue non-empty in master
+if (!cluster.isParent) {
+  // Exit on first received handle to leave the queue non-empty in parent
   process.on('message', function() {
     process.exit(1);
   });

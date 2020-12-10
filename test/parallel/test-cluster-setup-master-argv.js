@@ -36,4 +36,4 @@ cluster.on('setup', common.mustCall(function() {
 assert.notStrictEqual(process.argv[process.argv.length - 1], 'OMG,OMG');
 process.argv.push('OMG,OMG');
 process.argv.push('OMG,OMG');
-cluster.setupMaster();
+cluster.setupParent();

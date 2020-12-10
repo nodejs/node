@@ -24,14 +24,14 @@ const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
-assert(cluster.isMaster);
+assert(cluster.isParent);
 
 function emitAndCatch(next) {
   cluster.once('setup', common.mustCall(function(settings) {
     assert.strictEqual(settings.exec, 'new-exec');
     setImmediate(next);
   }));
-  cluster.setupMaster({ exec: 'new-exec' });
+  cluster.setupParent({ exec: 'new-exec' });
 }
 
 function emitAndCatch2(next) {
@@ -39,7 +39,7 @@ function emitAndCatch2(next) {
     assert('exec' in settings);
     setImmediate(next);
   }));
-  cluster.setupMaster();
+  cluster.setupParent();
 }
 
 emitAndCatch(common.mustCall(function() {

@@ -42,7 +42,7 @@ if (cluster.isWorker) {
   }));
   server.listen(0, '127.0.0.1');
 
-} else if (cluster.isMaster) {
+} else if (cluster.isParent) {
 
   const expected_results = {
     cluster_emitDisconnect: [1, "the cluster did not emit 'disconnect'"],

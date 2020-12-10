@@ -23,22 +23,22 @@
 const common = require('../common');
 
 // Test that errors propagated from cluster workers are properly
-// received in their master. Creates an EADDRINUSE condition by forking
-// a process in child cluster and propagates the error to the master.
+// received in their parent. Creates an EADDRINUSE condition by forking
+// a process in child cluster and propagates the error to the parent.
 
 const assert = require('assert');
 const cluster = require('cluster');
 const fork = require('child_process').fork;
 const net = require('net');
 
-if (cluster.isMaster && process.argv.length !== 3) {
-  // cluster.isMaster
+if (cluster.isParent && process.argv.length !== 3) {
+  // cluster.isParent
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const PIPE_NAME = common.PIPE;
   const worker = cluster.fork({ PIPE_NAME });
 
-  // Makes sure master is able to fork the worker
+  // Makes sure parent is able to fork the worker
   cluster.on('fork', common.mustCall());
 
   // Makes sure the worker is ready
@@ -59,7 +59,7 @@ if (cluster.isMaster && process.argv.length !== 3) {
     const server = net.createServer().listen(PIPE_NAME, function() {
       // Message child process so that it can exit
       cp.send('end');
-      // Inform master about the unexpected situation
+      // Inform parent about the unexpected situation
       process.send('PIPE should have been in use.');
     });
 

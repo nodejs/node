@@ -14,7 +14,7 @@ if (!process.argv[2]) {
   //   by D with `detached: true`, no console window will pop up for W.
   //
   // So, we have to spawn a detached process first to run the actual test.
-  const master = child_process.spawn(
+  const parent = child_process.spawn(
     process.argv[0],
     [process.argv[1], '--cluster'],
     { detached: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
@@ -31,19 +31,19 @@ if (!process.argv[2]) {
     })
   };
 
-  master.on('message', (msg) => {
+  parent.on('message', (msg) => {
     const handler = messageHandlers[msg.type];
     assert.ok(handler);
     handler(msg);
   });
 
-  master.on('exit', common.mustCall((code, signal) => {
+  parent.on('exit', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   }));
 
-} else if (cluster.isMaster) {
-  cluster.setupMaster({
+} else if (cluster.isParent) {
+  cluster.setupParent({
     silent: true,
     windowsHide: true
   });
