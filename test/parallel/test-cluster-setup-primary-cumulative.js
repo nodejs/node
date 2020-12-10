@@ -20,20 +20,43 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
-setTimeout(common.mustNotCall('setup not emitted'), 1000).unref();
+assert(cluster.isPrimary);
 
-cluster.on('setup', common.mustCall(function() {
-  const clusterArgs = cluster.settings.args;
-  const realArgs = process.argv;
-  assert.strictEqual(clusterArgs[clusterArgs.length - 1],
-                     realArgs[realArgs.length - 1]);
-}));
+// cluster.settings should not be initialized until needed
+assert.deepStrictEqual(cluster.settings, {});
 
-assert.notStrictEqual(process.argv[process.argv.length - 1], 'OMG,OMG');
-process.argv.push('OMG,OMG');
-process.argv.push('OMG,OMG');
-cluster.setupMaster();
+cluster.setupPrimary();
+assert.deepStrictEqual(cluster.settings, {
+  args: process.argv.slice(2),
+  exec: process.argv[1],
+  execArgv: process.execArgv,
+  silent: false,
+});
+console.log('ok sets defaults');
+
+cluster.setupPrimary({ exec: 'overridden' });
+assert.strictEqual(cluster.settings.exec, 'overridden');
+console.log('ok overrides defaults');
+
+cluster.setupPrimary({ args: ['foo', 'bar'] });
+assert.strictEqual(cluster.settings.exec, 'overridden');
+assert.deepStrictEqual(cluster.settings.args, ['foo', 'bar']);
+
+cluster.setupPrimary({ execArgv: ['baz', 'bang'] });
+assert.strictEqual(cluster.settings.exec, 'overridden');
+assert.deepStrictEqual(cluster.settings.args, ['foo', 'bar']);
+assert.deepStrictEqual(cluster.settings.execArgv, ['baz', 'bang']);
+console.log('ok preserves unchanged settings on repeated calls');
+
+cluster.setupPrimary();
+assert.deepStrictEqual(cluster.settings, {
+  args: ['foo', 'bar'],
+  exec: 'overridden',
+  execArgv: ['baz', 'bang'],
+  silent: false,
+});
+console.log('ok preserves current settings');

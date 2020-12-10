@@ -3,7 +3,7 @@ require('../common');
 const cluster = require('cluster');
 const assert = require('assert');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const worker = cluster.fork();
   let workerDead = worker.isDead();
   assert.ok(!workerDead,

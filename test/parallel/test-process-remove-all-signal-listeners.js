@@ -8,7 +8,7 @@ const assert = require('assert');
 const spawn = require('child_process').spawn;
 
 if (process.argv[2] !== '--do-test') {
-  // We are the master, fork a child so we can verify it exits with correct
+  // We are the primary, fork a child so we can verify it exits with correct
   // status.
   process.env.DOTEST = 'y';
   const child = spawn(process.execPath, [__filename, '--do-test']);

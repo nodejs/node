@@ -33,11 +33,11 @@ if (process.argv[2] === 'pipe') {
   // Child IPC test
   process.send('message from child');
   process.on('message', function() {
-    process.send('got message from master');
+    process.send('got message from primary');
   });
 
-} else if (process.argv[2] === 'parent') {
-  // Parent | start child pipe test
+} else if (process.argv[2] === 'primary') {
+  // Primary | start child pipe test
 
   const child = childProcess.fork(process.argv[1], ['pipe'], { silent: true });
 
@@ -49,19 +49,19 @@ if (process.argv[2] === 'pipe') {
   });
 
 } else {
-  // Testcase | start parent && child IPC test
+  // Testcase | start primary && child IPC test
 
-  // testing: is stderr and stdout piped to parent
-  const args = [process.argv[1], 'parent'];
-  const parent = childProcess.spawn(process.execPath, args);
+  // testing: is stderr and stdout piped to primary
+  const args = [process.argv[1], 'primary'];
+  const primary = childProcess.spawn(process.execPath, args);
 
   // Got any stderr or std data
   let stdoutData = false;
-  parent.stdout.on('data', function() {
+  primary.stdout.on('data', function() {
     stdoutData = true;
   });
   let stderrData = false;
-  parent.stderr.on('data', function() {
+  primary.stderr.on('data', function() {
     stderrData = true;
   });
 
@@ -80,7 +80,7 @@ if (process.argv[2] === 'pipe') {
     }
 
     if (childReceiving === false) {
-      childReceiving = (message === 'got message from master');
+      childReceiving = (message === 'got message from primary');
     }
 
     if (childReceiving === true) {
@@ -93,7 +93,7 @@ if (process.argv[2] === 'pipe') {
   process.on('exit', function() {
     // clean up
     child.kill();
-    parent.kill();
+    primary.kill();
 
     // Check std(out|err) pipes
     assert.ok(!stdoutData);

@@ -31,9 +31,9 @@ const spawn = require('child_process').spawn;
 if (process.argv[2] === 'worker')
   worker();
 else
-  master();
+  primary();
 
-function master() {
+function primary() {
   // spawn() can only create one IPC channel so we use stdin/stdout as an
   // ad-hoc command channel.
   const proc = spawn(process.execPath, [

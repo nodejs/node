@@ -47,7 +47,7 @@ function serialFork() {
   });
 }
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   cluster.on('online', common.mustCall((worker) => worker.send('dbgport'), 2));
 
   // Block one of the ports with a listening socket.

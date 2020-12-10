@@ -29,7 +29,7 @@
 //
 //          <supervisor>
 //         /            \
-//    <master 1>     <master 2>
+//    <primary 1>     <primary 2>
 //       /                \
 //  <worker 1>         <worker 2>
 //
@@ -78,7 +78,7 @@ if (!id) {
   }));
 
 } else if (id === 'one') {
-  if (cluster.isMaster) return startWorker();
+  if (cluster.isPrimary) return startWorker();
 
   const server = http.createServer(common.mustNotCall());
   server.listen(0, common.mustCall(() => {
@@ -89,7 +89,7 @@ if (!id) {
     if (m === 'QUIT') process.exit();
   }));
 } else if (id === 'two') {
-  if (cluster.isMaster) return startWorker();
+  if (cluster.isPrimary) return startWorker();
 
   const server = http.createServer(common.mustNotCall());
   process.on('message', common.mustCall((m) => {

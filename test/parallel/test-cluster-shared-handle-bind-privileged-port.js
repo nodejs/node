@@ -39,8 +39,8 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isMaster) {
-  // Master opens and binds the socket and shares it with the worker.
+if (cluster.isPrimary) {
+  // Primary opens and binds the socket and shares it with the worker.
   cluster.schedulingPolicy = cluster.SCHED_NONE;
   cluster.fork().on('exit', common.mustCall(function(exitCode) {
     assert.strictEqual(exitCode, 0);

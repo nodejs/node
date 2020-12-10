@@ -8,7 +8,7 @@ const cluster = require('cluster');
 
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const worker = cluster.fork();
 
   // This is the important part of the test: Confirm that `disconnect` fires.

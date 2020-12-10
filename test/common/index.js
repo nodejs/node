@@ -61,7 +61,7 @@ if (process.argv.length === 2 &&
     isMainThread &&
     hasCrypto &&
     require.main &&
-    require('cluster').isMaster) {
+    require('cluster').isPrimary) {
   // The copyright notice is relatively big and the flags could come afterwards.
   const bytesToRead = 1500;
   const buffer = Buffer.allocUnsafe(bytesToRead);

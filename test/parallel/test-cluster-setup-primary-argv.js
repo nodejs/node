@@ -24,24 +24,16 @@ const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
-assert(cluster.isMaster);
+setTimeout(common.mustNotCall('setup not emitted'), 1000).unref();
 
-function emitAndCatch(next) {
-  cluster.once('setup', common.mustCall(function(settings) {
-    assert.strictEqual(settings.exec, 'new-exec');
-    setImmediate(next);
-  }));
-  cluster.setupMaster({ exec: 'new-exec' });
-}
-
-function emitAndCatch2(next) {
-  cluster.once('setup', common.mustCall(function(settings) {
-    assert('exec' in settings);
-    setImmediate(next);
-  }));
-  cluster.setupMaster();
-}
-
-emitAndCatch(common.mustCall(function() {
-  emitAndCatch2(common.mustCall());
+cluster.on('setup', common.mustCall(function() {
+  const clusterArgs = cluster.settings.args;
+  const realArgs = process.argv;
+  assert.strictEqual(clusterArgs[clusterArgs.length - 1],
+                     realArgs[realArgs.length - 1]);
 }));
+
+assert.notStrictEqual(process.argv[process.argv.length - 1], 'OMG,OMG');
+process.argv.push('OMG,OMG');
+process.argv.push('OMG,OMG');
+cluster.setupPrimary();

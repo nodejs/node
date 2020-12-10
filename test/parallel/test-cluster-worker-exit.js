@@ -22,7 +22,7 @@
 'use strict';
 // test-cluster-worker-exit.js
 // verifies that, when a child process exits (by calling `process.exit(code)`)
-// - the parent receives the proper events in the proper order, no duplicates
+// - the primary receives the proper events in the proper order, no duplicates
 // - the exitCode and signalCode are correct in the 'exit' event
 // - the worker.exitedAfterDisconnect flag, and worker.state are correct
 // - the worker process actually goes away
@@ -42,7 +42,7 @@ if (cluster.isWorker) {
   }));
   server.listen(0, '127.0.0.1');
 
-} else if (cluster.isMaster) {
+} else if (cluster.isPrimary) {
 
   const expected_results = {
     cluster_emitDisconnect: [1, "the cluster did not emit 'disconnect'"],

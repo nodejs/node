@@ -25,7 +25,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const debug = require('util').debuglog('test');
 
-assert(cluster.isMaster);
+assert(cluster.isPrimary);
 
 // The cluster.settings object is cloned even though the current implementation
 // makes that unnecessary. This is to make the test less fragile if the
@@ -48,7 +48,7 @@ const execs = [
 ];
 
 process.on('exit', () => {
-  // Tests that "setup" is emitted for every call to setupMaster
+  // Tests that "setup" is emitted for every call to setupPrimary
   assert.strictEqual(configs.length, execs.length);
 
   assert.strictEqual(configs[0].exec, execs[0]);
@@ -59,7 +59,7 @@ process.on('exit', () => {
 // Make changes to cluster settings
 execs.forEach((v, i) => {
   setTimeout(() => {
-    cluster.setupMaster({ exec: v });
+    cluster.setupPrimary({ exec: v });
   }, i * 100);
 });
 
