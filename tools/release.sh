@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# To promote and sign a release that has been prepared by the build slaves, use:
+# To promote and sign a release that has been prepared by the build jobs, use:
 #  release.sh
 
 # To _only_ sign an existing release, use:
