@@ -126,7 +126,7 @@ When sharing a UDP socket across multiple `cluster` workers, the
 ```js
 const cluster = require('cluster');
 const dgram = require('dgram');
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   cluster.fork(); // Works ok.
   cluster.fork(); // Fails with EADDRINUSE.
 } else {

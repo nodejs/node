@@ -117,7 +117,7 @@
       'lib/internal/child_process.js',
       'lib/internal/child_process/serialization.js',
       'lib/internal/cluster/child.js',
-      'lib/internal/cluster/master.js',
+      'lib/internal/cluster/primary.js',
       'lib/internal/cluster/round_robin_handle.js',
       'lib/internal/cluster/shared_handle.js',
       'lib/internal/cluster/utils.js',

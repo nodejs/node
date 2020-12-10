@@ -8,7 +8,7 @@ cluster.schedulingPolicy = cluster.SCHED_RR;
 
 const server = http.createServer();
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   server.listen({ port: 0 }, common.mustCall(() => {
     const worker = cluster.fork({ PORT: server.address().port });
     worker.on('exit', common.mustCall(() => {

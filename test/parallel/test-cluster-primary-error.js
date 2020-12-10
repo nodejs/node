@@ -73,10 +73,10 @@ if (cluster.isWorker) {
   const workers = [];
 
   // Spawn a cluster process
-  const master = fork(process.argv[1], ['cluster'], { silent: true });
+  const primary = fork(process.argv[1], ['cluster'], { silent: true });
 
   // Handle messages from the cluster
-  master.on('message', common.mustCall((data) => {
+  primary.on('message', common.mustCall((data) => {
     // Add worker pid to list and progress tracker
     if (data.cmd === 'worker') {
       workers.push(data.workerPID);
@@ -84,7 +84,7 @@ if (cluster.isWorker) {
   }, totalWorkers));
 
   // When cluster is dead
-  master.on('exit', common.mustCall((code) => {
+  primary.on('exit', common.mustCall((code) => {
     // Check that the cluster died accidentally (non-zero exit code)
     assert.strictEqual(code, 1);
 
@@ -92,7 +92,7 @@ if (cluster.isWorker) {
     // flaky – another process might end up being started right after the
     // workers finished and receive the same PID.
     const pollWorkers = () => {
-      // When master is dead all workers should be dead too
+      // When primary is dead all workers should be dead too
       if (workers.some((pid) => common.isAlive(pid))) {
         setTimeout(pollWorkers, 50);
       }

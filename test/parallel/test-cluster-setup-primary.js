@@ -29,7 +29,7 @@ if (cluster.isWorker) {
   // Just keep the worker alive
   process.send(process.argv[2]);
 
-} else if (cluster.isMaster) {
+} else if (cluster.isPrimary) {
 
   const checks = {
     args: false,
@@ -40,8 +40,8 @@ if (cluster.isWorker) {
   const totalWorkers = 2;
   let settings;
 
-  // Setup master
-  cluster.setupMaster({
+  // Setup primary
+  cluster.setupPrimary({
     args: ['custom argument'],
     silent: true
   });

@@ -18,8 +18,8 @@ const cluster = require('cluster');
 const http = require('http');
 const numCPUs = require('os').cpus().length;
 
-if (cluster.isMaster) {
-  console.log(`Master ${process.pid} is running`);
+if (cluster.isPrimary) {
+  console.log(`Primary ${process.pid} is running`);
 
   // Fork workers.
   for (let i = 0; i < numCPUs; i++) {
@@ -45,7 +45,7 @@ Running Node.js will now share port 8000 between the workers:
 
 ```console
 $ node server.js
-Master 3596 is running
+Primary 3596 is running
 Worker 4324 started
 Worker 4520 started
 Worker 6056 started
@@ -66,12 +66,12 @@ The cluster module supports two methods of distributing incoming
 connections.
 
 The first one (and the default one on all platforms except Windows),
-is the round-robin approach, where the master process listens on a
+is the round-robin approach, where the primary process listens on a
 port, accepts new connections and distributes them across the workers
 in a round-robin fashion, with some built-in smarts to avoid
 overloading a worker process.
 
-The second approach is where the master process creates the listen
+The second approach is where the primary process creates the listen
 socket and sends it to interested workers. The workers then accept
 incoming connections directly.
 
@@ -81,16 +81,16 @@ to operating system scheduler vagaries. Loads have been observed
 where over 70% of all connections ended up in just two processes,
 out of a total of eight.
 
-Because `server.listen()` hands off most of the work to the master
+Because `server.listen()` hands off most of the work to the primary
 process, there are three cases where the behavior between a normal
 Node.js process and a cluster worker differs:
 
-1. `server.listen({fd: 7})` Because the message is passed to the master,
+1. `server.listen({fd: 7})` Because the message is passed to the primary,
    file descriptor 7 **in the parent** will be listened on, and the
    handle passed to the worker, rather than listening to the worker's
    idea of what the number 7 file descriptor references.
 2. `server.listen(handle)` Listening on handles explicitly will cause
-   the worker to use the supplied handle, rather than talk to the master
+   the worker to use the supplied handle, rather than talk to the primary
    process.
 3. `server.listen(0)` Normally, this will cause servers to listen on a
    random port. However, in a cluster, each worker will receive the
@@ -121,7 +121,7 @@ added: v0.7.0
 * Extends: {EventEmitter}
 
 A `Worker` object contains all public information and method about a worker.
-In the master it can be obtained using `cluster.workers`. In a worker
+In the primary it can be obtained using `cluster.workers`. In a worker
 it can be obtained using `cluster.worker`.
 
 ### Event: `'disconnect'`
@@ -201,14 +201,14 @@ Within a worker, `process.on('message')` may also be used.
 
 See [`process` event: `'message'`][].
 
-Here is an example using the message system. It keeps a count in the master
+Here is an example using the message system. It keeps a count in the primary
 process of the number of HTTP requests received by the workers:
 
 ```js
 const cluster = require('cluster');
 const http = require('http');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
 
   // Keep track of http requests
   let numReqs = 0;
@@ -240,7 +240,7 @@ if (cluster.isMaster) {
     res.writeHead(200);
     res.end('hello world\n');
 
-    // Notify master about the request
+    // Notify primary about the request
     process.send({ cmd: 'notifyRequest' });
   }).listen(8000);
 }
@@ -275,7 +275,7 @@ changes:
 In a worker, this function will close all servers, wait for the `'close'` event
 on those servers, and then disconnect the IPC channel.
 
-In the master, an internal message is sent to the worker causing it to call
+In the primary, an internal message is sent to the worker causing it to call
 `.disconnect()` on itself.
 
 Causes `.exitedAfterDisconnect` to be set.
@@ -299,7 +299,7 @@ close them. It also may be useful to implement a timeout, killing a worker if
 the `'disconnect'` event has not been emitted after some time.
 
 ```js
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const worker = cluster.fork();
   let timeout;
 
@@ -343,7 +343,7 @@ This property is `true` if the worker exited due to `.kill()` or
 worker has not exited, it is `undefined`.
 
 The boolean [`worker.exitedAfterDisconnect`][] allows distinguishing between
-voluntary and accidental exit, the master may choose not to respawn a worker
+voluntary and accidental exit, the primary may choose not to respawn a worker
 based on this value.
 
 ```js
@@ -375,8 +375,8 @@ While a worker is alive, this is the key that indexes it in
 added: v0.11.14
 -->
 
-This function returns `true` if the worker is connected to its master via its
-IPC channel, `false` otherwise. A worker is connected to its master after it
+This function returns `true` if the worker is connected to its primary via its
+IPC channel, `false` otherwise. A worker is connected to its primary after it
 has been created. It is disconnected after the `'disconnect'` event is emitted.
 
 ### `worker.isDead()`
@@ -392,8 +392,8 @@ const cluster = require('cluster');
 const http = require('http');
 const numCPUs = require('os').cpus().length;
 
-if (cluster.isMaster) {
-  console.log(`Master ${process.pid} is running`);
+if (cluster.isPrimary) {
+  console.log(`Primary ${process.pid} is running`);
 
   // Fork workers.
   for (let i = 0; i < numCPUs; i++) {
@@ -425,9 +425,10 @@ added: v0.9.12
 * `signal` {string} Name of the kill signal to send to the worker
   process. **Default**: `'SIGTERM'`
 
-This function will kill the worker. In the master, it does this by disconnecting
-the `worker.process`, and once disconnected, killing with `signal`. In the
-worker, it does it by disconnecting the channel, and then exiting with code `0`.
+This function will kill the worker. In the primary, it does this
+by disconnecting the `worker.process`, and once disconnected, killing
+with `signal`. In the worker, it does it by disconnecting the channel,
+and then exiting with code `0`.
 
 Because `kill()` attempts to gracefully disconnect the worker process, it is
 susceptible to waiting indefinitely for the disconnect to complete. For example,
@@ -478,18 +479,18 @@ changes:
 * `callback` {Function}
 * Returns: {boolean}
 
-Send a message to a worker or master, optionally with a handle.
+Send a message to a worker or primary, optionally with a handle.
 
-In the master this sends a message to a specific worker. It is identical to
+In the primary this sends a message to a specific worker. It is identical to
 [`ChildProcess.send()`][].
 
-In a worker this sends a message to the master. It is identical to
+In a worker this sends a message to the primary. It is identical to
 `process.send()`.
 
-This example will echo back all messages from the master:
+This example will echo back all messages from the primary:
 
 ```js
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const worker = cluster.fork();
   worker.send('hi there');
 
@@ -583,7 +584,7 @@ added: v0.7.0
 
 After calling `listen()` from a worker, when the `'listening'` event is emitted
 on the server a `'listening'` event will also be emitted on `cluster` in the
-master.
+primary.
 
 The event handler is executed with two arguments, the `worker` contains the
 worker object and the `address` object contains the following connection
@@ -617,7 +618,7 @@ changes:
 * `message` {Object}
 * `handle` {undefined|Object}
 
-Emitted when the cluster master receives a message from any worker.
+Emitted when the cluster primary receives a message from any worker.
 
 See [`child_process` event: `'message'`][].
 
@@ -629,9 +630,9 @@ added: v0.7.0
 * `worker` {cluster.Worker}
 
 After forking a new worker, the worker should respond with an online message.
-When the master receives an online message it will emit this event.
+When the primary receives an online message it will emit this event.
 The difference between `'fork'` and `'online'` is that fork is emitted when the
-master forks a worker, and `'online'` is emitted when the worker is running.
+primary forks a worker, and `'online'` is emitted when the worker is running.
 
 ```js
 cluster.on('online', (worker) => {
@@ -646,11 +647,11 @@ added: v0.7.1
 
 * `settings` {Object}
 
-Emitted every time [`.setupMaster()`][] is called.
+Emitted every time [`.setupPrimary()`][] is called.
 
 The `settings` object is the `cluster.settings` object at the time
-[`.setupMaster()`][] was called and is advisory only, since multiple calls to
-[`.setupMaster()`][] can be made in a single tick.
+[`.setupPrimary()`][] was called and is advisory only, since multiple calls to
+[`.setupPrimary()`][] can be made in a single tick.
 
 If accuracy is important, use `cluster.settings`.
 
@@ -665,12 +666,12 @@ added: v0.7.7
 Calls `.disconnect()` on each worker in `cluster.workers`.
 
 When they are disconnected all internal handles will be closed, allowing the
-master process to die gracefully if no other event is waiting.
+primary process to die gracefully if no other event is waiting.
 
 The method takes an optional callback argument which will be called when
 finished.
 
-This can only be called from the master process.
+This can only be called from the primary process.
 
 ## `cluster.fork([env])`
 <!-- YAML
@@ -682,18 +683,27 @@ added: v0.6.0
 
 Spawn a new worker process.
 
-This can only be called from the master process.
+This can only be called from the primary process.
 
 ## `cluster.isMaster`
 <!-- YAML
 added: v0.8.1
+deprecated: REPLACEME
+-->
+
+Deprecated alias for [`cluster.isPrimary`][].
+details.
+
+## `cluster.isPrimary`
+<!-- YAML
+added: REPLACEME
 -->
 
 * {boolean}
 
-True if the process is a master. This is determined
+True if the process is a primary. This is determined
 by the `process.env.NODE_UNIQUE_ID`. If `process.env.NODE_UNIQUE_ID` is
-undefined, then `isMaster` is `true`.
+undefined, then `isPrimary` is `true`.
 
 ## `cluster.isWorker`
 <!-- YAML
@@ -702,7 +712,7 @@ added: v0.6.0
 
 * {boolean}
 
-True if the process is not a master (it is the negation of `cluster.isMaster`).
+True if the process is not a primary (it is the negation of `cluster.isPrimary`).
 
 ## `cluster.schedulingPolicy`
 <!-- YAML
@@ -712,7 +722,7 @@ added: v0.11.2
 The scheduling policy, either `cluster.SCHED_RR` for round-robin or
 `cluster.SCHED_NONE` to leave it to the operating system. This is a
 global setting and effectively frozen once either the first worker is spawned,
-or [`.setupMaster()`][] is called, whichever comes first.
+or [`.setupPrimary()`][] is called, whichever comes first.
 
 `SCHED_RR` is the default on all operating systems except Windows.
 Windows will change to `SCHED_RR` once libuv is able to effectively
@@ -767,11 +777,11 @@ changes:
   * `inspectPort` {number|Function} Sets inspector port of worker.
     This can be a number, or a function that takes no arguments and returns a
     number. By default each worker gets its own port, incremented from the
-    master's `process.debugPort`.
+    primary's `process.debugPort`.
   * `windowsHide` {boolean} Hide the forked processes console window that would
     normally be created on Windows systems. **Default:** `false`.
 
-After calling [`.setupMaster()`][] (or [`.fork()`][]) this settings object will
+After calling [`.setupPrimary()`][] (or [`.fork()`][]) this settings object will
 contain the settings, including the default values.
 
 This object is not intended to be changed or set manually.
@@ -779,42 +789,50 @@ This object is not intended to be changed or set manually.
 ## `cluster.setupMaster([settings])`
 <!-- YAML
 added: v0.7.1
+deprecated: REPLACEME
 changes:
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7838
     description: The `stdio` option is supported now.
 -->
 
+Deprecated alias for [`.setupPrimary()`][].
+
+## `cluster.setupPrimary([settings])`
+<!-- YAML
+added: REPLACEME
+-->
+
 * `settings` {Object} See [`cluster.settings`][].
 
-`setupMaster` is used to change the default 'fork' behavior. Once called,
+`setupPrimary` is used to change the default 'fork' behavior. Once called,
 the settings will be present in `cluster.settings`.
 
 Any settings changes only affect future calls to [`.fork()`][] and have no
 effect on workers that are already running.
 
-The only attribute of a worker that cannot be set via `.setupMaster()` is
+The only attribute of a worker that cannot be set via `.setupPrimary()` is
 the `env` passed to [`.fork()`][].
 
 The defaults above apply to the first call only; the defaults for later
-calls are the current values at the time of `cluster.setupMaster()` is called.
+calls are the current values at the time of `cluster.setupPrimary()` is called.
 
 ```js
 const cluster = require('cluster');
-cluster.setupMaster({
+cluster.setupPrimary({
   exec: 'worker.js',
   args: ['--use', 'https'],
   silent: true
 });
 cluster.fork(); // https worker
-cluster.setupMaster({
+cluster.setupPrimary({
   exec: 'worker.js',
   args: ['--use', 'http']
 });
 cluster.fork(); // http worker
 ```
 
-This can only be called from the master process.
+This can only be called from the primary process.
 
 ## `cluster.worker`
 <!-- YAML
@@ -823,13 +841,13 @@ added: v0.7.0
 
 * {Object}
 
-A reference to the current worker object. Not available in the master process.
+A reference to the current worker object. Not available in the primary process.
 
 ```js
 const cluster = require('cluster');
 
-if (cluster.isMaster) {
-  console.log('I am master');
+if (cluster.isPrimary) {
+  console.log('I am primary');
   cluster.fork();
   cluster.fork();
 } else if (cluster.isWorker) {
@@ -845,7 +863,7 @@ added: v0.7.0
 * {Object}
 
 A hash that stores the active worker objects, keyed by `id` field. Makes it
-easy to loop through all the workers. It is only available in the master
+easy to loop through all the workers. It is only available in the primary
 process.
 
 A worker is removed from `cluster.workers` after the worker has disconnected
@@ -876,13 +894,14 @@ socket.on('data', (id) => {
 [Advanced serialization for `child_process`]: child_process.md#child_process_advanced_serialization
 [Child Process module]: child_process.md#child_process_child_process_fork_modulepath_args_options
 [`.fork()`]: #cluster_cluster_fork_env
-[`.setupMaster()`]: #cluster_cluster_setupmaster_settings
+[`.setupPrimary()`]: #cluster_cluster_setupprimary_settings
 [`ChildProcess.send()`]: child_process.md#child_process_subprocess_send_message_sendhandle_options_callback
 [`child_process.fork()`]: child_process.md#child_process_child_process_fork_modulepath_args_options
 [`child_process` event: `'exit'`]: child_process.md#child_process_event_exit
 [`child_process` event: `'message'`]: child_process.md#child_process_event_message
 [`cluster.settings`]: #cluster_cluster_settings
 [`disconnect()`]: child_process.md#child_process_subprocess_disconnect
+[`cluster.isPrimary`]: #cluster_cluster_isprimary
 [`kill()`]: process.md#process_process_kill_pid_signal
 [`process` event: `'message'`]: process.md#process_event_message
 [`server.close()`]: net.md#net_event_close
