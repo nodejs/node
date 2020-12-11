@@ -27,7 +27,10 @@ const { callCount } = workerData;
 function increaseCallCount() { callCount[0]++; }
 
 // Increase the call count when a forbidden method is called.
+Object.getPrototypeOf([][Symbol.iterator]()).next = increaseCallCount;
 Object.getPrototypeOf((new Map()).entries()).next = increaseCallCount;
+Array.prototype[Symbol.iterator] = increaseCallCount;
+Map.prototype[Symbol.iterator] = increaseCallCount;
 Map.prototype.entries = increaseCallCount;
 Object.keys = increaseCallCount;
 Object.create = increaseCallCount;
