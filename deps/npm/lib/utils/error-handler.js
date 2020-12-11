@@ -1,5 +1,3 @@
-'use strict'
-
 let cbCalled = false
 const log = require('npmlog')
 const npm = require('../npm.js')

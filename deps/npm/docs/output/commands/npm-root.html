@@ -149,6 +149,12 @@ npm command-line interface
 </code></pre>
 <h3 id="description">Description</h3>
 <p>Print the effective <code>node_modules</code> folder to standard out.</p>
+<p>Useful for using npm in shell scripts that do things with the
+<code>node_modules</code> folder.  For example:</p>
+<pre lang="bash"><code>#!/bin/bash
+global_node_modules="$(npm root --global)"
+echo "Global packages installed in: ${global_node_modules}"
+</code></pre>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-prefix.html">npm prefix</a></li>

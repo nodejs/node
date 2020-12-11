@@ -6,7 +6,16 @@ const { test } = require('tap')
 
 const requireInject = require('require-inject')
 
-test('should use Arborist', (t) => {
+test('should use Arborist and run-script', (t) => {
+  const scripts = [
+    'preinstall',
+    'install',
+    'postinstall',
+    'prepublish', // XXX should we remove this finally??
+    'preprepare',
+    'prepare',
+    'postprepare',
+  ]
   const ci = requireInject('../../lib/ci.js', {
     '../../lib/npm.js': {
       prefix: 'foo',
@@ -15,6 +24,9 @@ test('should use Arborist', (t) => {
       },
     },
     '../../lib/utils/reify-finish.js': async () => {},
+    '@npmcli/run-script': opts => {
+      t.match(opts, { event: scripts.shift() })
+    },
     '@npmcli/arborist': function (args) {
       t.ok(args, 'gets options object')
       this.loadVirtual = () => {
@@ -40,6 +52,7 @@ test('should use Arborist', (t) => {
   ci(null, er => {
     if (er)
       throw er
+    t.strictSame(scripts, [], 'called all scripts')
     t.end()
   })
 })
@@ -53,6 +66,7 @@ test('should pass flatOptions to Arborist.reify', (t) => {
       },
     },
     '../../lib/utils/reify-finish.js': async () => {},
+    '@npmcli/run-script': opts => {},
     '@npmcli/arborist': function () {
       this.loadVirtual = () => Promise.resolve(true)
       this.reify = async (options) => {
@@ -80,6 +94,7 @@ test('should throw if package-lock.json or npm-shrinkwrap missing', (t) => {
         global: false,
       },
     },
+    '@npmcli/run-script': opts => {},
     '../../lib/utils/reify-finish.js': async () => {},
     npmlog: {
       verbose: () => {
@@ -102,6 +117,7 @@ test('should throw ECIGLOBAL', (t) => {
         global: true,
       },
     },
+    '@npmcli/run-script': opts => {},
     '../../lib/utils/reify-finish.js': async () => {},
   })
   ci(null, (err, res) => {
@@ -125,6 +141,7 @@ test('should remove existing node_modules before installing', (t) => {
         global: false,
       },
     },
+    '@npmcli/run-script': opts => {},
     '../../lib/utils/reify-finish.js': async () => {},
     '@npmcli/arborist': function () {
       this.loadVirtual = () => Promise.resolve(true)

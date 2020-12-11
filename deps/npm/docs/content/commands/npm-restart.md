@@ -12,28 +12,27 @@ npm restart [-- <args>]
 
 ### Description
 
-This restarts a package.
+This restarts a project.  It is equivalent to running `npm run-script
+restart`.
 
-This runs a package's "stop", "restart", and "start" scripts, and associated
-pre- and post- scripts, in the order given below:
+If the current project has a `"restart"` script specified in
+`package.json`, then the following scripts will be run:
+
+1. prerestart
+2. restart
+3. postrestart
+
+If it does _not_ have a `"restart"` script specified, but it does have
+`stop` and/or `start` scripts, then the following scripts will be run:
 
 1. prerestart
 2. prestop
 3. stop
 4. poststop
-5. restart
 6. prestart
 7. start
 8. poststart
 9. postrestart
-
-### Note
-
-Note that the "restart" script is run **in addition to** the "stop"
-and "start" scripts, not instead of them.
-
-This is the behavior as of `npm` major version 2.  A change in this
-behavior will be accompanied by an increase in major version number
 
 ### See Also
 

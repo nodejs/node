@@ -1,5 +1,3 @@
-'use strict'
-
 const { resolve, basename } = require('path')
 const { promises: { unlink } } = require('fs')
 const Arborist = require('@npmcli/arborist')

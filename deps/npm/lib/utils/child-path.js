@@ -1,4 +1,3 @@
-'use strict'
 var path = require('path')
 var validate = require('aproba')
 var moduleName = require('../utils/module-name.js')

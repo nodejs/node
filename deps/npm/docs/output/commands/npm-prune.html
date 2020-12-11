@@ -148,23 +148,21 @@ npm command-line interface
 <pre lang="bash"><code>npm prune [[&lt;@scope&gt;/]&lt;pkg&gt;...] [--production] [--dry-run] [--json]
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This command removes “extraneous” packages.  If a package name is
-provided, then only packages matching one of the supplied names are
-removed.</p>
-<p>Extraneous packages are packages that are not listed on the parent
-package’s dependencies list.</p>
+<p>This command removes “extraneous” packages.  If a package name is provided,
+then only packages matching one of the supplied names are removed.</p>
+<p>Extraneous packages are those present in the <code>node_modules</code> folder that are
+not listed as any package’s dependency list.</p>
 <p>If the <code>--production</code> flag is specified or the <code>NODE_ENV</code> environment
 variable is set to <code>production</code>, this command will remove the packages
-specified in your <code>devDependencies</code>. Setting <code>--no-production</code> will
-negate <code>NODE_ENV</code> being set to <code>production</code>.</p>
+specified in your <code>devDependencies</code>. Setting <code>--no-production</code> will negate
+<code>NODE_ENV</code> being set to <code>production</code>.</p>
 <p>If the <code>--dry-run</code> flag is used then no changes will actually be made.</p>
-<p>If the <code>--json</code> flag is used then the changes <code>npm prune</code> made (or would
+<p>If the <code>--json</code> flag is used, then the changes <code>npm prune</code> made (or would
 have made with <code>--dry-run</code>) are printed as a JSON object.</p>
-<p>In normal operation with package-locks enabled, extraneous modules are
-pruned automatically when modules are installed and you’ll only need
-this command with the <code>--production</code> flag.</p>
-<p>If you’ve disabled package-locks then extraneous modules will not be removed
-and it’s up to you to run <code>npm prune</code> from time-to-time to remove them.</p>
+<p>In normal operation, extraneous modules are pruned automatically, so you’ll
+only need this command with the <code>--production</code> flag.  However, in the real
+world, operation is not always “normal”.  When crashes or mistakes happen,
+this command can help clean up any resulting garbage.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-uninstall.html">npm uninstall</a></li>
