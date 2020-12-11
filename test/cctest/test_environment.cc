@@ -653,8 +653,7 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
       "require('vm').runInNewContext("
       "    'Promise.resolve().then(() => mustCall(1 << 2))',"
       "    { mustCall }"
-      ");"
-      ).ToLocalChecked();
+      ");").ToLocalChecked();
   EXPECT_EQ(callback_calls, 1 << 1);
   isolate_->PerformMicrotaskCheckpoint();
   EXPECT_EQ(callback_calls, 1 << 1);
