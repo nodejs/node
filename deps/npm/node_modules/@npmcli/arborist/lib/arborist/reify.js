@@ -808,7 +808,7 @@ module.exports = cls => class Reifier extends cls {
 
         if (req.registry) {
           const version = child.version
-          const prefixRange = this[_savePrefix] + version
+          const prefixRange = version ? this[_savePrefix] + version : '*'
           // if we installed a range, then we save the range specified
           // if it is not a subset of the ^x.y.z.  eg, installing a range
           // of `1.x <1.2.3` will not be saved as `^1.2.0`, because that

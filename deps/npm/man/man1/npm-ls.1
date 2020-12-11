@@ -13,18 +13,22 @@ aliases: list, la, ll
 .SS Description
 .P
 This command will print to stdout all the versions of packages that are
-installed, as well as their dependencies, in a tree\-structure\.
+installed, as well as their dependencies when \fB\-\-all\fP is specified, in a
+tree structure\.
 .P
-Positional arguments are \fBname@version\-range\fP identifiers, which will
-limit the results to only the paths to the packages named\.  Note that
-nested packages will \fIalso\fR show the paths to the specified packages\.
-For example, running \fBnpm ls promzard\fP in npm's source tree will show:
+Note: to get a "bottoms up" view of why a given package is included in the
+tree at all, use npm help \fBexplain\fP\|\.
+.P
+Positional arguments are \fBname@version\-range\fP identifiers, which will limit
+the results to only the paths to the packages named\.  Note that nested
+packages will \fIalso\fR show the paths to the specified packages\.  For
+example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-    npm@7\.1\.1 /path/to/npm
-    └─┬ init\-package\-json@0\.0\.4
-      └── promzard@0\.1\.5
+npm@7\.1\.2 /path/to/npm
+└─┬ init\-package\-json@0\.0\.4
+  └── promzard@0\.1\.5
 .fi
 .RE
 .P
@@ -35,10 +39,49 @@ in parentheses after the name@version to make it easier for users to
 recognize potential forks of a project\.
 .P
 The tree shown is the logical dependency tree, based on package
-dependencies, not the physical layout of your node_modules folder\.
+dependencies, not the physical layout of your \fBnode_modules\fP folder\.
 .P
 When run as \fBll\fP or \fBla\fP, it shows extended information by default\.
+.SS Note: Design Changes Pending
+.P
+The \fBnpm ls\fP command's output and behavior made a \fIton\fR of sense when npm
+created a \fBnode_modules\fP folder that naively nested every dependency\.  In
+such a case, the logical dependency graph and physical tree of packages on
+disk would be roughly identical\.
+.P
+With the advent of automatic install\-time deduplication of dependencies in
+npm v3, the \fBls\fP output was modified to display the logical dependency
+graph as a tree structure, since this was more useful to most users\.
+However, without using \fBnpm ls \-l\fP, it became impossible show \fIwhere\fR a
+package was actually installed much of the time!
+.P
+With the advent of automatic installation of \fBpeerDependencies\fP in npm v7,
+this gets even more curious, as \fBpeerDependencies\fP are logically
+"underneath" their dependents in the dependency graph, but are always
+physically at or above their location on disk\.
+.P
+Also, in the years since npm got an \fBls\fP command (in version 0\.0\.2!),
+dependency graphs have gotten much larger as a general rule\.  Therefor, in
+order to avoid dumping an excessive amount of content to the terminal, \fBnpm
+ls\fP now only shows the \fItop\fR level dependencies, unless \fB\-\-all\fP is
+provided\.
+.P
+A thorough re\-examination of the use cases, intention, behavior, and output
+of this command, is currently underway\.  Expect significant changes to at
+least the default human\-readable \fBnpm ls\fP output in npm v8\.
 .SS Configuration
+.SS all
+.RS 0
+.IP \(bu 2
+Default: \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When running \fBnpm outdated\fP and \fBnpm ls\fP, setting \fB\-\-all\fP will show all
+outdated or installed packages, rather than only those directly depended
+upon by the current project\.
 .SS json
 .RS 0
 .IP \(bu 2
@@ -141,6 +184,8 @@ Whether to represent the tree structure using unicode characters\.
 Set it to false in order to use all\-ansi output\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help explain
 .IP \(bu 2
 npm help config
 .IP \(bu 2

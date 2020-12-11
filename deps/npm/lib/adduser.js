@@ -1,5 +1,3 @@
-'use strict'
-
 const log = require('npmlog')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')

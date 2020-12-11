@@ -27,6 +27,13 @@ const buildOmitList = obj => {
     omit.add('optional')
 
   obj.omit = [...omit]
+
+  // it would perhaps make more sense to put this in @npmcli/config, but
+  // since we can set dev to be omitted in multiple various legacy ways,
+  // it's better to set it here once it's all resolved.
+  if (obj.omit.includes('dev'))
+    process.env.NODE_ENV = 'production'
+
   return [...omit]
 }
 

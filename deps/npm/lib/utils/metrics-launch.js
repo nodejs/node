@@ -1,4 +1,3 @@
-'use strict'
 /* eslint-disable camelcase */
 module.exports = launchSendMetrics
 var fs = require('graceful-fs')

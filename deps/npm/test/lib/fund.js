@@ -1,5 +1,3 @@
-'use strict'
-
 const { test } = require('tap')
 const requireInject = require('require-inject')
 

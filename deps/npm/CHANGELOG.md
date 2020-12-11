@@ -1,3 +1,53 @@
+## 7.1.2 (2020-12-11)
+
+### DEPENDENCIES
+
+* [`c3ba1daf7`](https://github.com/npm/cli/commit/c3ba1daf7cd335d72aeba80ae0e9f9d215ca9ea5)
+  [#2033](https://github.com/npm/cli/issues/2033) `@npmcli/config@1.2.6`:
+    * Set `INIT_CWD` to initial current working directory
+    * Set `NODE` to initial process.execPath
+* [`8029608b9`](https://github.com/npm/cli/commit/8029608b914fe5ba35a7cd37ae95ab93b0532e2e)
+  `json-parse-even-better-errors@2.3.1`
+* [`0233818e6`](https://github.com/npm/cli/commit/0233818e606888b80881b17a2c6aca9f10a619b2)
+  [#2332](https://github.com/npm/cli/issues/2332) `treeverse@1.0.4`
+* [`e401d6bb3`](https://github.com/npm/cli/commit/e401d6bb37ffc767b4fefe89878dd3c3ef490b2c)
+  `ini@1.3.8`
+* [`011bb1220`](https://github.com/npm/cli/commit/011bb122035dcd43769ec35982662cca41635068)
+  [#2320](https://github.com/npm/cli/issues/2320) `@npmcli/arborist@2.0.1`:
+    * Do not save with `^` and no version
+
+### BUGFIXES
+
+* [`244c2069f`](https://github.com/npm/cli/commit/244c2069fd093f053d3061c85575ac13e72e2454)
+  [#2325](https://github.com/npm/cli/issues/2325) npm search
+  include/exclude ([@ruyadorno](https://github.com/ruyadorno))
+* [`d825e901e`](https://github.com/npm/cli/commit/d825e901eceea4cf8d860e35238dc30008eb4da4)
+  [#1905](https://github.com/npm/cli/issues/1905)
+  [#2316](https://github.com/npm/cli/issues/2316) run install scripts for
+  root project
+* [`315449142`](https://github.com/npm/cli/commit/31544914294948085a84097af7f0f5de2a2e8f7e)
+  [#2331](https://github.com/npm/cli/issues/2331)
+  [#2021](https://github.com/npm/cli/issues/2021) Set `NODE_ENV=production`
+  if 'dev' is on the omit list ([@isaacs](https://github.com/isaacs))
+
+### TESTING
+
+* [`c243e3b9d`](https://github.com/npm/cli/commit/c243e3b9d9bda0580a0fc1b3e230b4d47412176e)
+  [#2313](https://github.com/npm/cli/issues/2313) tests: completion
+  ([@nlf](https://github.com/nlf))
+* [`7ff6efbb8`](https://github.com/npm/cli/commit/7ff6efbb866591b2330b967215cef8146dff3ebf)
+  [#2314](https://github.com/npm/cli/issues/2314) npm team
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`7a4f0c96c`](https://github.com/npm/cli/commit/7a4f0c96c2ab9f264f7bda2caf7e72c881571270)
+  [#2323](https://github.com/npm/cli/issues/2323) npm doctor
+  ([@nlf](https://github.com/nlf))
+
+### DOCUMENTATION
+
+* [`e340cf64b`](https://github.com/npm/cli/commit/e340cf64ba31ef329a9049b60c32ffd0342cfb7d)
+  [#2330](https://github.com/npm/cli/issues/2330) explain through
+  run-script ([@isaacs](https://github.com/isaacs))
+
 ## 7.1.1 (2020-12-08)
 
 ### DEPENDENCIES

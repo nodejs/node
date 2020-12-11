@@ -25,5 +25,6 @@ Ping error: {*Detail about error}
 
 ### See Also
 
+* [npm doctor](/commands/npm-doctor)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)
