@@ -1216,3 +1216,19 @@ const net = require('net');
     assert.strictEqual(res, 'helloworld');
   }));
 }
+
+{
+  pipeline([1, 2, 3], PassThrough({ objectMode: true }),
+           common.mustSucceed(() => {}));
+
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    },
+  });
+  pipeline(['1', '2', '3'], w, common.mustSucceed(() => {
+    assert.strictEqual(res, '123');
+  }));
+}
