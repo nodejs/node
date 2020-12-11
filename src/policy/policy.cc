@@ -1,4 +1,4 @@
-#include "policy-inl.h"  // NOLINT(build/include)
+#include "policy.h"
 #include "aliased_struct-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
@@ -13,19 +13,38 @@
 
 namespace node {
 
-using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
+using v8::Just;
 using v8::Local;
-using v8::MaybeLocal;
+using v8::Maybe;
+using v8::Nothing;
 using v8::Object;
 using v8::Value;
 
+namespace per_process {
+// The root policy is establish at process start using
+// the --policy-grant and --policy-deny command line
+// arguments. Every node::Environment has it's own
+// Policy that derives from the root.
+policy::Policy root_policy;
+}  // namespace per_process
+
 namespace policy {
 
+PrivilegedScope::PrivilegedScope(Environment* env_) : env(env_) {
+  env->set_in_privileged_scope(true);
+}
+
+PrivilegedScope::~PrivilegedScope() {
+  env->set_in_privileged_scope(false);
+}
+
 namespace {
+Mutex apply_mutex_;
+
 Permission GetPermission(Local<Value> arg) {
   if (!arg->IsInt32())
     return Permission::kPermissionsCount;
@@ -36,18 +55,15 @@ Permission GetPermission(Local<Value> arg) {
   }
   return static_cast<Permission>(permission);
 }
-}  // namespace
 
 static void Deny(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
   Utf8Value list(env->isolate(), args[0]);
-  Policy::ParseStatus status = Policy::ParseStatus::OK;
-  auto permissions = Policy::Parse(*list, &status);
-  if (status != Policy::ParseStatus::OK)
-    return args.GetReturnValue().Set(static_cast<int>(status));
-  for (Permission permission : permissions)
-    env->privileged_access_context()->Deny(permission);
+  // If Apply returns Nothing<bool>, there was an error
+  // parsing the list, in which case we'll return undefined.
+  if (per_process::root_policy.Apply(*list).IsJust())
+    return args.GetReturnValue().Set(true);
 }
 
 static void FastCheck(const FunctionCallbackInfo<Value>& args) {
@@ -55,80 +71,121 @@ static void FastCheck(const FunctionCallbackInfo<Value>& args) {
   Permission permission = GetPermission(args[0]);
   CHECK_LT(permission, Permission::kPermissionsCount);
   CHECK_GT(permission, Permission::kPermissionsRoot);
-  args.GetReturnValue().Set(
-      env->privileged_access_context()->is_granted(GetPermission(args[0])));
+  args.GetReturnValue().Set(Policy::is_granted(env, GetPermission(args[0])));
 }
 
 static void Check(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
   Utf8Value list(env->isolate(), args[0]);
-  Policy::ParseStatus status = Policy::ParseStatus::OK;
-  auto permissions = Policy::Parse(*list, &status);
-  if (status != Policy::ParseStatus::OK)
-    return args.GetReturnValue().Set(static_cast<int>(status));
-  for (Permission permission : permissions) {
-    if (!env->privileged_access_context()->is_granted(permission))
-      return args.GetReturnValue().Set(false);
-  }
-  args.GetReturnValue().Set(true);
+  Maybe<PermissionSet> permissions = Policy::Parse(*list);
+  // If permissions is empty, there was an error parsing.
+  // return undefined to indicate check failure.
+  if (permissions.IsNothing()) return;
+  args.GetReturnValue().Set(Policy::is_granted(env, permissions.FromJust()));
 }
 
-namespace {
-std::vector<Permission> ToPermissions(Environment* env, Local<Array> input) {
-  std::vector<Permission> permissions;
-  for (size_t n = 0; n < input->Length(); n++) {
-    Local<Value> val = input->Get(env->context(), n).FromMaybe(Local<Value>());
-    CHECK(val->IsInt32());
-    int32_t permission = val.As<Int32>()->Value();
-    CHECK_GE(permission, static_cast<int32_t>(Permission::kPermissionsRoot));
-    CHECK_LT(permission, static_cast<int32_t>(Permission::kPermissionsCount));
-    permissions.push_back(static_cast<Permission>(permission));
-  }
-  return permissions;
+#define V(name, _, parent)                                                     \
+  if (permission == Permission::k##parent)                                     \
+    SetRecursively(set, Permission::k##name);
+void SetRecursively(PermissionSet* set, Permission permission) {
+  if (permission != Permission::kPermissionsRoot)
+    set->set(static_cast<size_t>(permission));
+  PERMISSIONS(V)
 }
+#undef V
+
 }  // namespace
 
-// The starting arguments must consist of a function along with
-// two strings identifying the permissions to deny or grant.
-// The remaining arguments will be passed on to the function,
-void PrivilegedAccessContext::Run(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK_GE(args.Length(), 3);
-  CHECK(args[0]->IsString() || args[0]->IsArray());  // The denials
-  CHECK_IMPLIES(args[0]->IsString(), args[1]->IsString());
-  CHECK_IMPLIES(args[1]->IsArray(), args[1]->IsArray());
-  CHECK(args[2]->IsFunction());  // The function to execute
-
-  Local<Function> fn = args[2].As<Function>();
-
+void RunInPrivilegedScope(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());  // The function to execute
   CHECK(!args.IsConstructCall());
+  Local<Function> fn = args[0].As<Function>();
 
-  SlicedArguments call_args(args, 3);
   Environment* env = Environment::GetCurrent(args);
-  MaybeLocal<Value> ret;
+  PrivilegedScope privileged_scope(env);
 
-  if (args[0]->IsArray()) {
-    std::vector<Permission> deny = ToPermissions(env, args[0].As<Array>());
-    std::vector<Permission> grant = ToPermissions(env, args[1].As<Array>());
-    PrivilegedAccessContext::Scope privileged_scope(env, deny, grant);
-    ret = fn->Call(
-        env->context(),
-        args.This(),
-        call_args.length(),
-        call_args.out());
-  } else {
-    Utf8Value deny(env->isolate(), args[0]);
-    Utf8Value grant(env->isolate(), args[1]);
-    PrivilegedAccessContext::Scope privileged_scope(env, *deny, *grant);
-    ret = fn->Call(
-        env->context(),
-        args.This(),
-        call_args.length(),
-        call_args.out());
+  SlicedArguments call_args(args, 1);
+
+  Local<Value> ret;
+  if (fn->Call(
+          env->context(),
+          args.This(),
+          call_args.length(),
+          call_args.out()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+bool Policy::is_granted(Environment* env, Permission permission) {
+  return env->in_privileged_scope()
+      ? true
+      : per_process::root_policy.is_granted(permission);
+}
+
+bool Policy::is_granted(Environment* env, std::string permission) {
+  return env->in_privileged_scope()
+      ? true
+      : per_process::root_policy.is_granted(permission);
+}
+
+bool Policy::is_granted(Environment* env, const PermissionSet& permissions) {
+  return env->in_privileged_scope()
+      ? true
+      : per_process::root_policy.is_granted(permissions);
+}
+
+Maybe<PermissionSet> Policy::Parse(const std::string& list) {
+  PermissionSet set;
+  for (const auto& name : SplitString(list, ',')) {
+    Permission permission = PermissionFromName(name);
+    if (permission == Permission::kPermissionsCount)
+      return Nothing<PermissionSet>();
+    SetRecursively(&set, permission);
+  }
+  return Just(set);
+}
+
+#define V(Name, label, _)                                                      \
+  if (strcmp(name.c_str(), label) == 0) return Permission::k##Name;
+Permission Policy::PermissionFromName(const std::string& name) {
+  if (strcmp(name.c_str(), "*") == 0) return Permission::kPermissionsRoot;
+  PERMISSIONS(V)
+  return Permission::kPermissionsCount;
+}
+#undef V
+
+Maybe<bool> Policy::Apply(const std::string& deny, const std::string& grant) {
+  Maybe<PermissionSet> deny_set = Parse(deny);
+  if (deny_set.IsNothing()) return Nothing<bool>();
+  Maybe<PermissionSet> grant_set = Parse(grant);
+  if (grant_set.IsNothing()) return Nothing<bool>();
+  Apply(deny_set.FromJust(), grant_set.FromJust());
+  return Just(true);;
+}
+
+void Policy::Apply(const PermissionSet& deny, const PermissionSet& grant) {
+  // permissions_ is an inverted set. If a bit is *set* in
+  // permissions_, then the permission is *denied*, otherwise
+  // it is granted.
+
+  // Just in case Deny is called from multiple Worker threads.
+  // TODO(@jasnell): Do we want to allow workers to call deny?
+  Mutex::ScopedLock lock(apply_mutex_);
+
+  if (deny.count() > 0) {
+#define V(name, _, __)                                                         \
+  permissions_.set(static_cast<size_t>(Permission::k##name));
+    SPECIAL_PERMISSIONS(V)
+#undef V
   }
 
-  args.GetReturnValue().Set(ret.FromMaybe(Local<Value>()));
+  permissions_ |= deny;
+
+  if (!locked_)
+    permissions_ &= ~grant;
+
+  locked_ = true;
 }
 
 void Initialize(Local<Object> target,
@@ -155,7 +212,7 @@ void RegisterExternalReferences(
   registry->Register(Deny);
   registry->Register(FastCheck);
   registry->Register(Check);
-  registry->Register(PrivilegedAccessContext::Run);
+  registry->Register(RunInPrivilegedScope);
 }
 
 }  // namespace policy

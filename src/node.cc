@@ -298,9 +298,7 @@ void Environment::InitializeDiagnostics() {
 bool Environment::BootstrapPrivilegedAccessContext() {
   Local<Function> run_in_privileged_scope;
   MaybeLocal<Function> maybe_run_in_privileged_scope =
-    Function::New(
-        context(),
-        policy::PrivilegedAccessContext::Run);
+    Function::New(context(), policy::RunInPrivilegedScope);
   if (!maybe_run_in_privileged_scope.ToLocal(&run_in_privileged_scope))
     return false;
   set_run_in_privileged_scope(run_in_privileged_scope);
@@ -816,6 +814,14 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
       errors->emplace_back(std::move(revert_error));
       return 12;
     }
+  }
+
+  if (per_process::root_policy.Apply(
+        per_process::cli_options->policy_deny,
+        per_process::cli_options->policy_grant).IsNothing()) {
+    errors->emplace_back(
+        "invalid permissions passed to --policy-deny or --policy-grant");
+    return 12;
   }
 
   if (per_process::cli_options->disable_proto != "delete" &&

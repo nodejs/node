@@ -93,3 +93,4 @@ globals:
   module: false
   internalBinding: false
   primordials: false
+  runInPrivilegedScope: false

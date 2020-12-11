@@ -37,7 +37,6 @@
 #include "node_main_instance.h"
 #include "node_options.h"
 #include "node_perf_common.h"
-#include "policy/policy.h"
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
@@ -1040,8 +1039,6 @@ class Environment : public MemoryRetainer {
   inline const std::vector<std::string>& argv();
   const std::string& exec_path() const;
 
-  inline policy::PrivilegedAccessContext* privileged_access_context();
-
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
                                   void* arg);
@@ -1188,6 +1185,9 @@ class Environment : public MemoryRetainer {
   inline std::list<node_module>* extra_linked_bindings();
   inline node_module* extra_linked_bindings_head();
   inline const Mutex& extra_linked_bindings_mutex() const;
+
+  inline void set_in_privileged_scope(bool on = true);
+  inline bool in_privileged_scope() const;
 
   inline bool filehandle_close_warning() const;
   inline void set_filehandle_close_warning(bool on);
@@ -1403,7 +1403,6 @@ class Environment : public MemoryRetainer {
   std::list<binding::DLib> loaded_addons_;
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
-  policy::PrivilegedAccessContext privileged_access_context_;
   uv_timer_t timer_handle_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
@@ -1424,6 +1423,8 @@ class Environment : public MemoryRetainer {
 
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
+
+  bool in_privileged_scope_ = false;
 
 #if HAVE_INSPECTOR
   std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;

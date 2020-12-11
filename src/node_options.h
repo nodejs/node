@@ -177,9 +177,6 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_modules;
 
-  std::string policy_deny;
-  std::string policy_grant;
-
   std::vector<std::string> user_argv;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
@@ -262,6 +259,9 @@ class PerProcessOptions : public Options {
   std::string use_largepages = "off";
   bool trace_sigint = false;
   std::vector<std::string> cmdline;
+
+  std::string policy_grant;
+  std::string policy_deny;
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors) override;

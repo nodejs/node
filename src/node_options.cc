@@ -322,14 +322,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_policy_integrity,
             kAllowedInEnvironment);
   Implies("--policy-integrity", "[has_policy_integrity_string]");
-  AddOption("--policy-deny",
-            "denied permissions",
-            &EnvironmentOptions::policy_deny,
-            kAllowedInEnvironment);
-  AddOption("--policy-grant",
-            "granted permissions",
-            &EnvironmentOptions::policy_grant,
-            kAllowedInEnvironment);
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,
@@ -712,6 +704,14 @@ PerProcessOptionsParser::PerProcessOptionsParser(
               "generate diagnostic report on fatal (internal) errors",
               &PerProcessOptions::report_on_fatalerror,
               kAllowedInEnvironment);
+  AddOption("--policy-deny",
+            "denied permissions",
+            &PerProcessOptions::policy_deny,
+            kAllowedInEnvironment);
+  AddOption("--policy-grant",
+            "granted permissions",
+            &PerProcessOptions::policy_grant,
+            kAllowedInEnvironment);
 
 #ifdef NODE_HAVE_I18N_SUPPORT
   AddOption("--icu-data-dir",

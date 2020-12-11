@@ -9,17 +9,18 @@
 #include <bitset>
 #include <deque>
 #include <string>
-#include <vector>
 
 namespace node {
+
+class Environment;
+
 namespace policy {
 
 // Special Permissions are denied by default if any other permission is denied.
 #define SPECIAL_PERMISSIONS(V)                                                 \
-  V(Special, "special", PermissionsRoot)                                       \
-  V(SpecialInspector, "special.inspector", Special)                            \
-  V(SpecialAddons, "special.addons", Special)                                  \
-  V(SpecialChildProcess, "special.child_process", Special)
+  V(SpecialInspector, "inspector", PermissionsRoot)                            \
+  V(SpecialAddons, "addons", PermissionsRoot)                                  \
+  V(SpecialChildProcess, "child_process", PermissionsRoot)
 
 #define FILESYSTEM_PERMISSIONS(V)                                              \
   V(FileSystem, "fs", PermissionsRoot)                                         \
@@ -28,17 +29,11 @@ namespace policy {
 
 #define NETWORKING_PERMISSIONS(V)                                              \
   V(Net, "net", PermissionsRoot)                                               \
-  V(NetUdp, "net.udp", Net)                                                    \
-  V(NetDNS, "net.dns", Net)                                                    \
-  V(NetTCP, "net.tcp", Net)                                                    \
-  V(NetTCPIn, "net.tcp.in", NetTCP)                                            \
-  V(NetTCPOut, "net.tcp.out", NetTCP)                                          \
-  V(NetTLS, "net.tls", Net)                                                    \
-  V(NetTLSLog, "net.tls.log", NetTLS)
+  V(NetIn, "net.in", Net)                                                      \
+  V(NetOut, "net.out", Net)
 
 #define EXPERIMENTAL_PERMISSIONS(V)                                            \
-  V(Experimental, "experimental", PermissionsRoot)                             \
-  V(ExperimentalWasi, "experimental.wasi", Experimental)
+  V(Experimental, "wasi", PermissionsRoot)                                     \
 
 #define PERMISSIONS(V)                                                         \
   EXPERIMENTAL_PERMISSIONS(V)                                                  \
@@ -48,8 +43,9 @@ namespace policy {
   V(Process, "process", PermissionsRoot)                                       \
   V(Signal, "signal", PermissionsRoot)                                         \
   V(Timing, "timing", PermissionsRoot)                                         \
-  V(User, "user", PermissionsRoot)                                             \
+  V(Env, "env", PermissionsRoot)                                               \
   V(Workers, "workers", PermissionsRoot)                                       \
+  V(Policy, "policy", PermissionsRoot)
 
 #define V(name, _, __) k##name,
 enum class Permission {
@@ -59,138 +55,81 @@ enum class Permission {
 };
 #undef V
 
+using PermissionSet =
+    std::bitset<static_cast<size_t>(Permission::kPermissionsCount)>;
+
+void RunInPrivilegedScope(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
+
 class Policy final {
  public:
-  enum class ParseStatus {
-    OK,
-    UNKNOWN
-  };
+  static bool is_granted(Environment* env, Permission permission);
+  static bool is_granted(Environment* env, std::string permission);
+  static bool is_granted(Environment* env, const PermissionSet& permissions);
 
-  static inline Permission PermissionFromName(const std::string& name);
+  static Permission PermissionFromName(const std::string& name);
 
-  static inline std::vector<Permission> Parse(
-      const std::string& list,
-      ParseStatus* status = nullptr);
+  static v8::Maybe<PermissionSet> Parse(const std::string& list);
 
-  inline explicit Policy(EnvironmentOptions* options);
-
-  inline Policy(
-      Policy* basis,
-      const std::string& deny,
-      const std::string& grant);
-
-  inline Policy(
-      Policy* basis,
-      const std::vector<Permission>& deny,
-      const std::vector<Permission>& grant);
+  Policy() = default;
 
   Policy(Policy&& other) = delete;
   Policy& operator=(Policy&& other) = delete;
   Policy(const Policy& other) = delete;
   Policy& operator=(const Policy& other) = delete;
 
-  inline void Deny(Permission permission);
-  inline void Deny(std::string permission);
+  // Returns true after setting the permissions. If Nothing<bool>
+  // is returned, the permissions could not be parsed successfully.
+  v8::Maybe<bool> Apply(
+      const std::string& deny,
+      const std::string& grant = std::string());
 
-  inline void Grant(Permission permission);
-  inline void Grant(std::string permission);
+  inline bool is_granted(Permission permission) const {
+    return LIKELY(permission != Permission::kPermissionsCount) &&
+        LIKELY(permission != Permission::kPermissionsRoot) &&
+        !test(permission);
+  }
 
-  // Once a policy is locked, no additional grants will be permitted.
-  inline void Lock() { locked_ = true; }
+  inline bool is_granted(std::string permission) const {
+    return is_granted(PermissionFromName(permission));
+  }
 
-  inline bool is_granted(Permission permission) const;
-  inline bool is_granted(std::string permission) const;
+  inline bool is_granted(const PermissionSet& set) const {
+    PermissionSet check = permissions_;
+    check &= set;
+    return check.none();
+  }
 
   // Once a policy is locked, no additional grants will be permitted.
   inline bool is_locked() const { return locked_; }
 
  private:
-  inline void MaybeDenySpecials(Policy* policy, Permission permission);
+  // Returns true after setting the permissions. If Nothing<bool>
+  // is returned, the permissions could not be
+  void Apply(const PermissionSet& deny, const PermissionSet& grant);
 
-  enum class ApplyFlags {
-    // When used, instructs Apply not to deny specials automatically
-    kIgnoreSpecials,
-    // When used, instructs Apply to deny specials if there are any
-    // other denials
-    kDenySpecials
-  };
-
-  inline void Apply(
-      const std::string& deny,
-      const std::string& grant,
-      ApplyFlags flags = ApplyFlags::kDenySpecials);
-
-  inline void Apply(
-      const std::vector<Permission>& deny,
-      const std::vector<Permission>& grant,
-      ApplyFlags flags = ApplyFlags::kDenySpecials);
-
-  inline bool test(Permission permission) const;
-  inline void SetRecursively(Permission permission, bool value);
+  inline bool test(Permission permission) const {
+    return UNLIKELY(permissions_.test(static_cast<size_t>(permission)));
+  }
 
   bool locked_ = false;
-  std::bitset<static_cast<size_t>(Permission::kPermissionsCount)> permissions_;
+  PermissionSet permissions_;
 };
 
-// The Environment always has exactly one PriviledgeAccessContext that covers
-// the currently active Policy. Think of the PrivilegedAccessContext as a
-// stack of Policy objects with the default or root policy as the base.
-class PrivilegedAccessContext {
- public:
-  class Scope {
-   public:
-    inline Scope(
-        Environment* env,
-        const std::string& deny,
-        const std::string& grant);
-
-    inline Scope(
-        Environment* env,
-        const std::vector<Permission>& deny,
-        const std::vector<Permission>& grant);
-
-    inline ~Scope();
-   private:
-    Environment* env_;
-  };
-
-  static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  inline explicit PrivilegedAccessContext(EnvironmentOptions* options);
-
-  PrivilegedAccessContext(
-      PrivilegedAccessContext&& other) = delete;
-  PrivilegedAccessContext& operator=(
-      PrivilegedAccessContext&& other) = delete;
-  PrivilegedAccessContext(
-      const PrivilegedAccessContext& other) = delete;
-  PrivilegedAccessContext& operator=(
-      const PrivilegedAccessContext& other) = delete;
-
-  inline void Push(
-      const std::string& deny,
-      const std::string& grant);
-
-  inline void Push(
-      const std::vector<Permission>& deny,
-      const std::vector<Permission>& grant);
-
-  inline bool Pop();
-
-  inline bool is_granted(Permission permission);
-
-  inline bool is_granted(const std::string& permission);
-
-  inline void Deny(Permission permission);
-
-  inline void Deny(const std::string& permission);
-
- private:
-  inline void Push(std::unique_ptr<Policy> policy);
-  std::deque<std::unique_ptr<Policy>> policy_stack_;
+// When code is running with the privileged scope, policy
+// permission checking should be disabled.
+struct PrivilegedScope {
+  Environment* env;
+  explicit PrivilegedScope(Environment* env_);
+  ~PrivilegedScope();
 };
 
 }  // namespace policy
+
+namespace per_process {
+extern policy::Policy root_policy;
+}  // namespace per_process
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
