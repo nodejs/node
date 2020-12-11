@@ -10494,8 +10494,11 @@ class V8_EXPORT Context {
    */
   void Exit();
 
-  /** Returns an isolate associated with a current context. */
+  /** Returns the isolate associated with a current context. */
   Isolate* GetIsolate();
+
+  /** Returns the microtask queue associated with a current context. */
+  MicrotaskQueue* GetMicrotaskQueue();
 
   /**
    * The field at kDebugIdIndex used to be reserved for the inspector.
