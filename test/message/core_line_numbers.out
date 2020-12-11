@@ -6,6 +6,7 @@ RangeError: Invalid input
     at error (node:punycode:42:8)
     at Object.decode (node:punycode:*:*)
     at Object.<anonymous> (*test*message*core_line_numbers.js:*:*)
+    at ModuleCompile (node:internal/modules/cjs/loader:*:*)
     at Module._compile (node:internal/modules/cjs/loader:*:*)
     at Object.Module._extensions..js (node:internal/modules/cjs/loader:*:*)
     at Module.load (node:internal/modules/cjs/loader:*:*)

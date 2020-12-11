@@ -5,6 +5,7 @@ throw {  // eslint-disable-line no-throw-literal
 [object Object]
 Thrown at:
     at *throw_error_with_getter_throw_traced.js:*:*
+    at ModuleCompile (node:internal/modules/cjs/loader:*)
     at Module._compile (node:internal/modules/cjs/loader:*:*)
     at Module._extensions..js (node:internal/modules/cjs/loader:*:*)
     at Module.load (node:internal/modules/cjs/loader:*:*)

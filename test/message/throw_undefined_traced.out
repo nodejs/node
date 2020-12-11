@@ -5,6 +5,7 @@ throw undefined;
 undefined
 Thrown at:
     at *throw_undefined_traced.js:*:*
+    at ModuleCompile (node:internal/modules/cjs/loader:*)
     at Module._compile (node:internal/modules/cjs/loader:*:*)
     at Module._extensions..js (node:internal/modules/cjs/loader:*:*)
     at Module.load (node:internal/modules/cjs/loader:*:*)
