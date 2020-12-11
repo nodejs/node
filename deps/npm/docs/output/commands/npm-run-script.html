@@ -145,20 +145,20 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm run-script &lt;command&gt; [--silent] [-- &lt;args&gt;...]
+<pre lang="bash"><code>npm run-script &lt;command&gt; [--if-present] [--silent] [-- &lt;args&gt;]
 
-alias: npm run
+aliases: run, rum, urn
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This runs an arbitrary command from a package’s <code>"scripts"</code> object.  If no
-<code>"command"</code> is provided, it will list the available scripts.  <code>run[-script]</code> is
-used by the test, start, restart, and stop commands, but can be called
-directly, as well. When the scripts in the package are printed out, they’re
-separated into lifecycle (test, start, restart) and directly-run scripts.</p>
-<p>As of <a href="https://blog.npmjs.org/post/98131109725/npm-2-0-0"><code>npm@2.0.0</code></a>, you can
-use custom arguments when executing scripts. The special option <code>--</code> is used by
-<a href="https://goo.gl/KxMmtG">getopt</a> to delimit the end of the options. npm will pass
-all the arguments after the <code>--</code> directly to your script:</p>
+<code>"command"</code> is provided, it will list the available scripts.</p>
+<p><code>run[-script]</code> is used by the test, start, restart, and stop commands, but
+can be called directly, as well. When the scripts in the package are
+printed out, they’re separated into lifecycle (test, start, restart) and
+directly-run scripts.</p>
+<p>Any positional arguments are passed to the specified script.  Use <code>--</code> to
+pass <code>-</code>-prefixed flags and options which would otherwise be parsed by npm.</p>
+<p>For example:</p>
 <pre lang="bash"><code>npm run test -- --grep="pattern"
 </code></pre>
 <p>The arguments will only be passed to the script specified after <code>npm run</code>
@@ -168,23 +168,21 @@ environment variables that will be available to the script at runtime. If an
 “env” command is defined in your package, it will take precedence over the
 built-in.</p>
 <p>In addition to the shell’s pre-existing <code>PATH</code>, <code>npm run</code> adds
-<code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries provided by
-locally-installed dependencies can be used without the <code>node_modules/.bin</code>
-prefix. For example, if there is a <code>devDependency</code> on <code>tap</code> in your package,
-you should write:</p>
-<pre lang="bash"><code>"scripts": {"test": "tap test/\*.js"}
+<code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries
+provided by locally-installed dependencies can be used without the
+<code>node_modules/.bin</code> prefix. For example, if there is a <code>devDependency</code> on
+<code>tap</code> in your package, you should write:</p>
+<pre lang="bash"><code>"scripts": {"test": "tap test/*.js"}
 </code></pre>
 <p>instead of</p>
-<pre lang="bash"><code>"scripts": {"test": "node_modules/.bin/tap test/\*.js"}
+<pre lang="bash"><code>"scripts": {"test": "node_modules/.bin/tap test/*.js"}
 </code></pre>
-<p>to run your tests.</p>
 <p>The actual shell your script is run within is platform dependent. By default,
 on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is the <code>cmd.exe</code>.
 The actual shell referred to by <code>/bin/sh</code> also depends on the system.
-As of <a href="https://github.com/npm/npm/releases/tag/v5.1.0"><code>npm@5.1.0</code></a> you can
-customize the shell with the <code>script-shell</code> configuration.</p>
-<p>Scripts are run from the root of the module, regardless of what your current
-working directory is when you call <code>npm run</code>. If you want your script to
+You can customize the shell with the <code>script-shell</code> configuration.</p>
+<p>Scripts are run from the root of the module, regardless of what the current
+working directory is when <code>npm run</code> is called. If you want your script to
 use different behavior based on what subdirectory you’re in, you can use the
 <code>INIT_CWD</code> environment variable, which holds the full path you were in when
 you ran <code>npm run</code>.</p>

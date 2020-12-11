@@ -2,6 +2,7 @@ const util = require('util')
 const Arborist = require('@npmcli/arborist')
 const rimraf = util.promisify(require('rimraf'))
 const reifyFinish = require('./utils/reify-finish.js')
+const runScript = require('@npmcli/run-script')
 
 const log = require('npmlog')
 const npm = require('./npm.js')
@@ -20,6 +21,7 @@ const ci = async () => {
   }
 
   const where = npm.prefix
+  const { scriptShell } = npm.flatOptions
   const arb = new Arborist({ ...npm.flatOptions, path: where })
 
   await Promise.all([
@@ -35,6 +37,27 @@ const ci = async () => {
   ])
   // npm ci should never modify the lockfile or package.json
   await arb.reify({ ...npm.flatOptions, save: false })
+
+  // run the same set of scripts that `npm install` runs.
+  const scripts = [
+    'preinstall',
+    'install',
+    'postinstall',
+    'prepublish', // XXX should we remove this finally??
+    'preprepare',
+    'prepare',
+    'postprepare',
+  ]
+  for (const event of scripts) {
+    await runScript({
+      path: where,
+      args: [],
+      scriptShell,
+      stdio: 'inherit',
+      stdioString: true,
+      event,
+    })
+  }
   await reifyFinish(arb)
 }
 

@@ -1,4 +1,3 @@
-'use strict'
 var sortedObject = require('sorted-object')
 
 module.exports = function deepSortObject (obj) {

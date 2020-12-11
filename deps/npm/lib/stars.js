@@ -1,5 +1,3 @@
-'use strict'
-
 const log = require('npmlog')
 const fetch = require('npm-registry-fetch')
 

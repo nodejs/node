@@ -1,5 +1,3 @@
-'use strict'
-
 const eu = encodeURIComponent
 const log = require('npmlog')
 const getAuth = require('npm-registry-fetch/auth.js')

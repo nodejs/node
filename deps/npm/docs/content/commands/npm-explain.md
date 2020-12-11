@@ -8,6 +8,8 @@ description: Explain installed packages
 
 ```bash
 npm explain <folder | specifier>
+
+alias: why
 ```
 
 ### Description

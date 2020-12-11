@@ -1,6 +1,7 @@
 const t = require('tap')
 
 process.env.NODE = '/path/to/some/node'
+process.env.NODE_ENV = 'development'
 
 const logs = []
 const log = require('npmlog')
@@ -195,43 +196,56 @@ t.test('tag emits warning', t => {
 
 t.test('omit/include options', t => {
   t.test('omit explicitly', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: ['dev', 'optional', 'peer'],
     })
     t.strictSame(flatOptions(npm).omit, ['dev', 'optional', 'peer'])
+    t.equal(process.env.NODE_ENV, 'production')
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('omit and include some', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: ['dev', 'optional', 'peer'],
       include: ['peer'],
     })
     t.strictSame(flatOptions(npm).omit, ['dev', 'optional'])
+    t.equal(process.env.NODE_ENV, 'production')
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('dev flag', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: ['dev', 'optional', 'peer'],
       include: [],
       dev: true,
     })
     t.strictSame(flatOptions(npm).omit, ['optional', 'peer'])
+    t.equal(process.env.NODE_ENV, NODE_ENV)
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('production flag', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: [],
       include: [],
       production: true,
     })
     t.strictSame(flatOptions(npm).omit, ['dev'])
+    t.equal(process.env.NODE_ENV, 'production')
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('only', t => {
+    const { NODE_ENV } = process.env
     const cases = ['prod', 'production']
     t.plan(cases.length)
     cases.forEach(c => t.test(c, t => {
@@ -241,26 +255,34 @@ t.test('omit/include options', t => {
         only: c,
       })
       t.strictSame(flatOptions(npm).omit, ['dev'])
+      t.equal(process.env.NODE_ENV, 'production')
+      process.env.NODE_ENV = NODE_ENV
       t.end()
     }))
   })
 
   t.test('also dev', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: ['dev', 'optional', 'peer'],
       also: 'dev',
     })
     t.strictSame(flatOptions(npm).omit, ['optional', 'peer'])
+    t.equal(process.env.NODE_ENV, NODE_ENV)
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('no-optional', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       optional: false,
       omit: null,
       include: null,
     })
     t.strictSame(flatOptions(npm).omit, ['optional'])
+    t.equal(process.env.NODE_ENV, NODE_ENV)
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 

@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#files-included-in-package">Files included in package</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -151,61 +151,95 @@ Publishes '.' if no argument supplied
 Sets tag 'latest' if no --tag specified
 </code></pre>
 <h3 id="description">Description</h3>
-<p>Publishes a package to the registry so that it can be installed by name. All
-files in the package directory are included if no local <code>.gitignore</code> or
-<code>.npmignore</code> file exists. If both files exist and a file is ignored by
-<code>.gitignore</code> but not by <code>.npmignore</code> then it will be included.  See
-<a href="../using-npm/developers.html"><code>developers</code></a> for full details on what’s included in the published package, as well as details on how the package is built.</p>
-<p>By default npm will publish to the public registry. This can be overridden by
-specifying a different default registry or using a <a href="../using-npm/scope.html"><code>scope</code></a> in the name (see <a href="../configuring-npm/package-json.html"><code>package.json</code></a>).</p>
+<p>Publishes a package to the registry so that it can be installed by name.</p>
+<p>By default npm will publish to the public registry. This can be overridden
+by specifying a different default registry or using a
+<a href="../using-npm/scope.html"><code>scope</code></a> in the name (see
+<a href="../configuring-npm/package-json.html"><code>package.json</code></a>).</p>
 <ul>
 <li>
-<p><code>&lt;folder&gt;</code>:
-A folder containing a package.json file</p>
+<p><code>&lt;folder&gt;</code>: A folder containing a package.json file</p>
 </li>
 <li>
-<p><code>&lt;tarball&gt;</code>:
-A url or file path to a gzipped tar archive containing a single folder
-with a package.json file inside.</p>
+<p><code>&lt;tarball&gt;</code>: A url or file path to a gzipped tar archive containing a
+single folder with a package.json file inside.</p>
 </li>
 <li>
-<p><code>[--tag &lt;tag&gt;]</code>
-Registers the published package with the given tag, such that
-<code>npm install &lt;name&gt;@&lt;tag&gt;</code> will install this version.  By default,
+<p><code>[--tag &lt;tag&gt;]</code>: Registers the published package with the given tag, such
+that <code>npm install &lt;name&gt;@&lt;tag&gt;</code> will install this version.  By default,
 <code>npm publish</code> updates and <code>npm install</code> installs the <code>latest</code> tag. See
 <a href="npm-dist-tag"><code>npm-dist-tag</code></a> for details about tags.</p>
 </li>
 <li>
-<p><code>[--access &lt;public|restricted&gt;]</code>
-Tells the registry whether this package should be published as public or
-restricted. Only applies to scoped packages, which default to <code>restricted</code>.
-If you don’t have a paid account, you must publish with <code>--access public</code>
-to publish scoped packages.</p>
+<p><code>[--access &lt;public|restricted&gt;]</code>: Tells the registry whether this package
+should be published as public or restricted. Only applies to scoped
+packages, which default to <code>restricted</code>.  If you don’t have a paid
+account, you must publish with <code>--access public</code> to publish scoped
+packages.</p>
 </li>
 <li>
-<p><code>[--otp &lt;otpcode&gt;]</code>
-If you have two-factor authentication enabled in <code>auth-and-writes</code> mode
-then you can provide a code from your authenticator with this. If you
-don’t include this and you’re running from a TTY then you’ll be prompted.</p>
+<p><code>[--otp &lt;otpcode&gt;]</code>: If you have two-factor authentication enabled in
+<code>auth-and-writes</code> mode then you can provide a code from your
+authenticator with this. If you don’t include this and you’re running
+from a TTY then you’ll be prompted.</p>
 </li>
 <li>
-<p><code>[--dry-run]</code>
-As of <code>npm@6</code>, does everything publish would do except actually publishing
-to the registry. Reports the details of what would have been published.</p>
+<p><code>[--dry-run]</code>: As of <code>npm@6</code>, does everything publish would do except
+actually publishing to the registry. Reports the details of what would
+have been published.</p>
 </li>
 </ul>
-<p>Fails if the package name and version combination already exists in
-the specified registry.</p>
-<p>Once a package is published with a given name and version, that
-specific name and version combination can never be used again, even if
-it is removed with <a href="../commands/npm-unpublish.html"><code>npm unpublish</code></a>.</p>
+<p>The publish will fail if the package name and version combination already
+exists in the specified registry.</p>
+<p>Once a package is published with a given name and version, that specific
+name and version combination can never be used again, even if it is removed
+with <a href="../commands/npm-unpublish.html"><code>npm unpublish</code></a>.</p>
 <p>As of <code>npm@5</code>, both a sha1sum and an integrity field with a sha512sum of the
 tarball will be submitted to the registry during publication. Subsequent
 installs will use the strongest supported algorithm to verify downloads.</p>
-<p>Similar to <code>--dry-run</code> see <a href="../commands/npm-pack.html"><code>npm pack</code></a>, which figures out the files to be
-included and packs them into a tarball to be uploaded to the registry.</p>
+<p>Similar to <code>--dry-run</code> see <a href="../commands/npm-pack.html"><code>npm pack</code></a>, which figures
+out the files to be included and packs them into a tarball to be uploaded
+to the registry.</p>
+<h3 id="files-included-in-package">Files included in package</h3>
+<p>To see what will be included in your package, run <code>npx npm-packlist</code>.  All
+files are included by default, with the following exceptions:</p>
+<ul>
+<li>
+<p>Certain files that are relevant to package installation and distribution
+are always included.  For example, <code>package.json</code>, <code>README.md</code>,
+<code>LICENSE</code>, and so on.</p>
+</li>
+<li>
+<p>If there is a “files” list in
+<a href="../configuring-npm/package-json.html"><code>package.json</code></a>, then only the files
+specified will be included.  (If directories are specified, then they
+will be walked recursively and their contents included, subject to the
+same ignore rules.)</p>
+</li>
+<li>
+<p>If there is a <code>.gitignore</code> or <code>.npmignore</code> file, then ignored files in
+that and all child directories will be excluded from the package.  If
+<em>both</em> files exist, then the <code>.gitignore</code> is ignored, and only the
+<code>.npmignore</code> is used.</p>
+<p><code>.npmignore</code> files follow the <a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring">same pattern
+rules</a>
+as <code>.gitignore</code> files</p>
+</li>
+<li>
+<p>If the file matches certain patterns, then it will <em>never</em> be included,
+unless explicitly added to the <code>"files"</code> list in <code>package.json</code>, or
+un-ignored with a <code>!</code> rule in a <code>.npmignore</code> or <code>.gitignore</code> file.</p>
+</li>
+<li>
+<p>Symbolic links are never included in npm packages.</p>
+</li>
+</ul>
+<p>See <a href="../using-npm/developers.html"><code>developers</code></a> for full details on what’s
+included in the published package, as well as details on how the package is
+built.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="http://npm.im/npm-packlist">npm-packlist package</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../using-npm/scope.html">npm scope</a></li>
 <li><a href="../commands/npm-adduser.html">npm adduser</a></li>

@@ -1,5 +1,3 @@
-'use strict'
-
 const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
 const rpj = require('read-package-json-fast')

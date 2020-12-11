@@ -1,5 +1,3 @@
-'use strict'
-
 // XXX: To date, npm Enterprise Legacy is the only system that ever
 // implemented support for this type of login.  A better way to do
 // SSO is to use the WebLogin type of login supported by the npm-login

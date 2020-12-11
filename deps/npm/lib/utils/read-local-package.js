@@ -1,5 +1,3 @@
-'use strict'
-
 const { resolve } = require('path')
 const readJson = require('read-package-json-fast')
 const npm = require('../npm.js')

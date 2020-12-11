@@ -1,4 +1,3 @@
-'use strict'
 var aliases = require('../utils/cmd-list').aliases
 
 module.exports = function usage (cmd, txt, opt) {

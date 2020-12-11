@@ -1,4 +1,3 @@
-'use strict'
 exports.start = startMetrics
 exports.stop = stopMetrics
 exports.save = saveMetrics

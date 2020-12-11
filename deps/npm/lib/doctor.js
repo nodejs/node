@@ -20,7 +20,7 @@ const checkPing = async () => {
     if (/^E\d{3}$/.test(er.code || ''))
       throw er.code.substr(1) + ' ' + er.message
     else
-      throw er
+      throw er.message
   } finally {
     tracker.finish()
   }
@@ -92,7 +92,7 @@ const lstat = promisify(fs.lstat)
 const readdir = promisify(fs.readdir)
 const access = promisify(fs.access)
 const isWindows = require('./utils/is-windows.js')
-const checkFilesPermission = async (root, shouldOwn = true, mask = null) => {
+const checkFilesPermission = async (root, shouldOwn, mask = null) => {
   if (mask === null)
     mask = shouldOwn ? R_OK | W_OK : R_OK
 

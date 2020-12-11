@@ -1,5 +1,3 @@
-'use strict'
-
 const npm = require('./npm.js')
 const fetch = require('npm-registry-fetch')
 const otplease = require('./utils/otplease.js')

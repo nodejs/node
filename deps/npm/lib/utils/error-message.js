@@ -1,5 +1,3 @@
-'use strict'
-
 const npm = require('../npm.js')
 const { format } = require('util')
 const { resolve } = require('path')

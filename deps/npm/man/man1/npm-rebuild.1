@@ -5,18 +5,24 @@
 .P
 .RS 2
 .nf
-npm rebuild [[<@scope>/<name>]\.\.\.]
+npm rebuild [[<@scope>/]<name>[@<version>] \.\.\.]
 
-alias: npm rb
+alias: rb
 .fi
 .RE
 .SS Description
 .P
-This command runs the \fBnpm build\fP command on the matched folders\.  This is useful when you install a new version of node, and must recompile all your C++ addons with the new binary\.
+This command runs the \fBnpm build\fP command on the matched folders\.  This is
+useful when you install a new version of node, and must recompile all your
+C++ addons with the new binary\.  It is also useful when installing with
+\fB\-\-ignore\-scripts\fP and \fB\-\-no\-bin\-links\fP, to explicitly choose which
+packages to build and/or link bins\.
+.P
+If one or more package names (and optionally version ranges) are provided,
+then only packages with a name and version matching one of the specifiers
+will be rebuilt\.
 .SS See Also
 .RS 0
-.IP \(bu 2
-npm help build
 .IP \(bu 2
 npm help install
 

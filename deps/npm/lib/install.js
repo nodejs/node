@@ -1,4 +1,3 @@
-'use strict'
 /* eslint-disable camelcase */
 /* eslint-disable standard/no-callback-literal */
 const fs = require('fs')

@@ -141,32 +141,33 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#note">Note</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre lang="bash"><code>npm restart [-- &lt;args&gt;]
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This restarts a package.</p>
-<p>This runs a package’s “stop”, “restart”, and “start” scripts, and associated
-pre- and post- scripts, in the order given below:</p>
+<p>This restarts a project.  It is equivalent to running <code>npm run-script restart</code>.</p>
+<p>If the current project has a <code>"restart"</code> script specified in
+<code>package.json</code>, then the following scripts will be run:</p>
+<ol>
+<li>prerestart</li>
+<li>restart</li>
+<li>postrestart</li>
+</ol>
+<p>If it does <em>not</em> have a <code>"restart"</code> script specified, but it does have
+<code>stop</code> and/or <code>start</code> scripts, then the following scripts will be run:</p>
 <ol>
 <li>prerestart</li>
 <li>prestop</li>
 <li>stop</li>
 <li>poststop</li>
-<li>restart</li>
 <li>prestart</li>
 <li>start</li>
 <li>poststart</li>
 <li>postrestart</li>
 </ol>
-<h3 id="note">Note</h3>
-<p>Note that the “restart” script is run <strong>in addition to</strong> the “stop”
-and “start” scripts, not instead of them.</p>
-<p>This is the behavior as of <code>npm</code> major version 2.  A change in this
-behavior will be accompanied by an increase in major version number</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>

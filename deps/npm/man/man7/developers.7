@@ -53,68 +53,63 @@ git+https://user@hostname/project/blah\.git#commit\-ish
 .RE
 .P
 The \fBcommit\-ish\fP can be any tag, sha, or branch which can be supplied as
-an argument to \fBgit checkout\fP\|\.  The default is \fBmaster\fP\|\.
+an argument to \fBgit checkout\fP\|\.  The default is whatever the repository uses
+as its default branch\.
 .SS The package\.json File
 .P
 You need to have a \fBpackage\.json\fP file in the root of your project to do
 much of anything with npm\.  That is basically the whole interface\.
 .P
-See npm help \fBpackage\.json\fP for details about what goes in that file\.  At the very
-least, you need:
+See npm help \fBpackage\.json\fP for details about what
+goes in that file\.  At the very least, you need:
 .RS 0
 .IP \(bu 2
-name:
-This should be a string that identifies your project\.  Please do not
-use the name to specify that it runs on node, or is in JavaScript\.
-You can use the "engines" field to explicitly state the versions of
-node (or whatever else) that your program requires, and it's pretty
-well assumed that it's JavaScript\.
+name: This should be a string that identifies your project\.  Please do
+not use the name to specify that it runs on node, or is in JavaScript\.
+You can use the "engines" field to explicitly state the versions of node
+(or whatever else) that your program requires, and it's pretty well
+assumed that it's JavaScript\.
 It does not necessarily need to match your github repository name\.
 So, \fBnode\-foo\fP and \fBbar\-js\fP are bad names\.  \fBfoo\fP or \fBbar\fP are better\.
 .IP \(bu 2
-version:
-A semver\-compatible version\.
+version: A semver\-compatible version\.
 .IP \(bu 2
-engines:
-Specify the versions of node (or whatever else) that your program
-runs on\.  The node API changes a lot, and there may be bugs or new
-functionality that you depend on\.  Be explicit\.
+engines: Specify the versions of node (or whatever else) that your
+program runs on\.  The node API changes a lot, and there may be bugs or
+new functionality that you depend on\.  Be explicit\.
 .IP \(bu 2
-author:
-Take some credit\.
+author: Take some credit\.
 .IP \(bu 2
-scripts:
-If you have a special compilation or installation script, then you
-should put it in the \fBscripts\fP object\.  You should definitely have at
-least a basic smoke\-test command as the "scripts\.test" field\.
-See npm help scripts\.
+scripts: If you have a special compilation or installation script, then
+you should put it in the \fBscripts\fP object\.  You should definitely have at
+least a basic smoke\-test command as the "scripts\.test" field\.  See
+npm help scripts\.
 .IP \(bu 2
-main:
-If you have a single module that serves as the entry point to your
-program (like what the "foo" package gives you at require("foo")),
-then you need to specify that in the "main" field\.
+main: If you have a single module that serves as the entry point to your
+program (like what the "foo" package gives you at require("foo")), then
+you need to specify that in the "main" field\.
 .IP \(bu 2
-directories:
-This is an object mapping names to folders\.  The best ones to include are
-"lib" and "doc", but if you use "man" to specify a folder full of man pages,
-they'll get installed just like these ones\.
+directories: This is an object mapping names to folders\.  The best ones
+to include are "lib" and "doc", but if you use "man" to specify a folder
+full of man pages, they'll get installed just like these ones\.
 
 .RE
 .P
 You can use \fBnpm init\fP in the root of your package in order to get you
-started with a pretty basic package\.json file\.  See
-npm help \fBinit\fP for more info\.
+started with a pretty basic package\.json file\.  See npm help \fBnpm
+init\fP for more info\.
 .SS Keeping files \fIout\fR of your package
 .P
-Use a \fB\|\.npmignore\fP file to keep stuff out of your package\.  If there's
-no \fB\|\.npmignore\fP file, but there \fIis\fR a \fB\|\.gitignore\fP file, then npm will
-ignore the stuff matched by the \fB\|\.gitignore\fP file\.  If you \fIwant\fR to
-include something that is excluded by your \fB\|\.gitignore\fP file, you can
-create an empty \fB\|\.npmignore\fP file to override it\. Like \fBgit\fP, \fBnpm\fP looks
-for \fB\|\.npmignore\fP and \fB\|\.gitignore\fP files in all subdirectories of your
-package, not only the root directory\.
+Use a \fB\|\.npmignore\fP file to keep stuff out of your package\.  If there's no
+\fB\|\.npmignore\fP file, but there \fIis\fR a \fB\|\.gitignore\fP file, then npm will ignore
+the stuff matched by the \fB\|\.gitignore\fP file\.  If you \fIwant\fR to include
+something that is excluded by your \fB\|\.gitignore\fP file, you can create an
+empty \fB\|\.npmignore\fP file to override it\. Like \fBgit\fP, \fBnpm\fP looks for
+\fB\|\.npmignore\fP and \fB\|\.gitignore\fP files in all subdirectories of your package,
+not only the root directory\.
 .P
-\fB\|\.npmignore\fP files follow the same pattern rules \fIhttps://git\-scm\.com/book/en/v2/Git\-Basics\-Recording\-Changes\-to\-the\-Repository#_ignoring\fR
+\fB\|\.npmignore\fP files follow the same pattern
+rules \fIhttps://git\-scm\.com/book/en/v2/Git\-Basics\-Recording\-Changes\-to\-the\-Repository#_ignoring\fR
 as \fB\|\.gitignore\fP files:
 .RS 0
 .IP \(bu 2

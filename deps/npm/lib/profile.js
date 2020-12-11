@@ -1,5 +1,3 @@
-'use strict'
-
 const ansistyles = require('ansistyles')
 const inspect = require('util').inspect
 const log = require('npmlog')

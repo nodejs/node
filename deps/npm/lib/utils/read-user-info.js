@@ -1,4 +1,3 @@
-'use strict'
 const { promisify } = require('util')
 const readAsync = promisify(require('read'))
 const userValidate = require('npm-user-validate')

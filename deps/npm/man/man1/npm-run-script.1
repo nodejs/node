@@ -5,23 +5,25 @@
 .P
 .RS 2
 .nf
-npm run\-script <command> [\-\-silent] [\-\- <args>\.\.\.]
+npm run\-script <command> [\-\-if\-present] [\-\-silent] [\-\- <args>]
 
-alias: npm run
+aliases: run, rum, urn
 .fi
 .RE
 .SS Description
 .P
 This runs an arbitrary command from a package's \fB"scripts"\fP object\.  If no
-\fB"command"\fP is provided, it will list the available scripts\.  \fBrun[\-script]\fP is
-used by the test, start, restart, and stop commands, but can be called
-directly, as well\. When the scripts in the package are printed out, they're
-separated into lifecycle (test, start, restart) and directly\-run scripts\.
+\fB"command"\fP is provided, it will list the available scripts\.
 .P
-As of \fBnpm@2\.0\.0\fP \fIhttps://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
-use custom arguments when executing scripts\. The special option \fB\-\-\fP is used by
-getopt \fIhttps://goo\.gl/KxMmtG\fR to delimit the end of the options\. npm will pass
-all the arguments after the \fB\-\-\fP directly to your script:
+\fBrun[\-script]\fP is used by the test, start, restart, and stop commands, but
+can be called directly, as well\. When the scripts in the package are
+printed out, they're separated into lifecycle (test, start, restart) and
+directly\-run scripts\.
+.P
+Any positional arguments are passed to the specified script\.  Use \fB\-\-\fP to
+pass \fB\-\fP\-prefixed flags and options which would otherwise be parsed by npm\.
+.P
+For example:
 .P
 .RS 2
 .nf
@@ -38,14 +40,14 @@ environment variables that will be available to the script at runtime\. If an
 built\-in\.
 .P
 In addition to the shell's pre\-existing \fBPATH\fP, \fBnpm run\fP adds
-\fBnode_modules/\.bin\fP to the \fBPATH\fP provided to scripts\. Any binaries provided by
-locally\-installed dependencies can be used without the \fBnode_modules/\.bin\fP
-prefix\. For example, if there is a \fBdevDependency\fP on \fBtap\fP in your package,
-you should write:
+\fBnode_modules/\.bin\fP to the \fBPATH\fP provided to scripts\. Any binaries
+provided by locally\-installed dependencies can be used without the
+\fBnode_modules/\.bin\fP prefix\. For example, if there is a \fBdevDependency\fP on
+\fBtap\fP in your package, you should write:
 .P
 .RS 2
 .nf
-"scripts": {"test": "tap test/\\*\.js"}
+"scripts": {"test": "tap test/*\.js"}
 .fi
 .RE
 .P
@@ -53,20 +55,17 @@ instead of
 .P
 .RS 2
 .nf
-"scripts": {"test": "node_modules/\.bin/tap test/\\*\.js"}
+"scripts": {"test": "node_modules/\.bin/tap test/*\.js"}
 .fi
 .RE
-.P
-to run your tests\.
 .P
 The actual shell your script is run within is platform dependent\. By default,
 on Unix\-like systems it is the \fB/bin/sh\fP command, on Windows it is the \fBcmd\.exe\fP\|\.
 The actual shell referred to by \fB/bin/sh\fP also depends on the system\.
-As of \fBnpm@5\.1\.0\fP \fIhttps://github\.com/npm/npm/releases/tag/v5\.1\.0\fR you can
-customize the shell with the \fBscript\-shell\fP configuration\.
+You can customize the shell with the \fBscript\-shell\fP configuration\.
 .P
-Scripts are run from the root of the module, regardless of what your current
-working directory is when you call \fBnpm run\fP\|\. If you want your script to
+Scripts are run from the root of the module, regardless of what the current
+working directory is when \fBnpm run\fP is called\. If you want your script to
 use different behavior based on what subdirectory you're in, you can use the
 \fBINIT_CWD\fP environment variable, which holds the full path you were in when
 you ran \fBnpm run\fP\|\.

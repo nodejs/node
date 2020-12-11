@@ -1,5 +1,3 @@
-'use strict'
-
 const initJson = require('init-package-json')
 const npa = require('npm-package-arg')
 

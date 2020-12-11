@@ -1,4 +1,3 @@
-'use strict'
 const validate = require('aproba')
 const log = require('npmlog')
 

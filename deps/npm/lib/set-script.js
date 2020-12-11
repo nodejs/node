@@ -1,5 +1,3 @@
-'use strict'
-
 const log = require('npmlog')
 const usageUtil = require('./utils/usage.js')
 const { localPrefix } = require('./npm.js')

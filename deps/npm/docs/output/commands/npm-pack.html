@@ -149,17 +149,19 @@ npm command-line interface
 </code></pre>
 <h3 id="description">Description</h3>
 <p>For anything that’s installable (that is, a package folder, tarball,
-tarball url, name@tag, name@version, name, or scoped name), this
-command will fetch it to the cache, and then copy the tarball to the
-current working directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write
-the filenames out to stdout.</p>
+tarball url, git url, name@tag, name@version, name, or scoped name), this
+command will fetch it to the cache, copy the tarball to the current working
+directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write the filenames out to
+stdout.</p>
 <p>If the same package is specified multiple times, then the file will be
 overwritten the second time.</p>
 <p>If no arguments are supplied, then npm packs the current package folder.</p>
 <p>The <code>--dry-run</code> argument will do everything that pack usually does without
-actually packing anything. Reports on what would have gone into the tarball.</p>
+actually packing anything.  That is, it reports on what would have gone
+into the tarball, but nothing else.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="http://npm.im/npm-packlist">npm-packlist package</a></li>
 <li><a href="../commands/npm-cache.html">npm cache</a></li>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>

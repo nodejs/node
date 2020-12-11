@@ -1,5 +1,3 @@
-'use strict'
-
 const log = require('npmlog')
 const profile = require('npm-profile')
 
