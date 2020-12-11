@@ -1,5 +1,3 @@
-'use strict'
-
 const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
 const npm = require('../../npm.js')

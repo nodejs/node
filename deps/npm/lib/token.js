@@ -1,5 +1,3 @@
-'use strict'
-
 const profile = require('npm-profile')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')

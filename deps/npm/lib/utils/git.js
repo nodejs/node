@@ -1,5 +1,3 @@
-'use strict'
-
 const exec = require('child_process').execFile
 const spawn = require('./spawn')
 const npm = require('../npm.js')

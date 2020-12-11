@@ -1,11 +1,12 @@
 const columns = require('cli-columns')
 const libteam = require('libnpmteam')
+
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const usageUtil = require('./utils/usage')
 
-const subcommands = ['create', 'destroy', 'add', 'rm', 'ls', 'edit']
+const subcommands = ['create', 'destroy', 'add', 'rm', 'ls']
 
 const usage = usageUtil(
   'team',
@@ -13,8 +14,7 @@ const usage = usageUtil(
   'npm team destroy <scope:team> [--otp <otpcode>]\n' +
   'npm team add <scope:team> <user> [--otp <otpcode>]\n' +
   'npm team rm <scope:team> <user> [--otp <otpcode>]\n' +
-  'npm team ls <scope>|<scope:team>\n' +
-  'npm team edit <scope:team>'
+  'npm team ls <scope>|<scope:team>\n'
 )
 
 const completion = (opts, cb) => {
@@ -28,7 +28,6 @@ const completion = (opts, cb) => {
     case 'destroy':
     case 'add':
     case 'rm':
-    case 'edit':
       return cb(null, [])
     default:
       return cb(new Error(argv[2] + ' not recognized'))
@@ -56,8 +55,6 @@ const team = async ([cmd, entity = '', user = '']) => {
         else
           return teamListTeams(entity, opts)
       }
-      case 'edit':
-        throw new Error('`npm team edit` is not implemented yet.')
       default:
         throw usage
     }
@@ -125,7 +122,9 @@ const teamListUsers = async (entity, opts) => {
   else if (opts.parseable)
     output(users.join('\n'))
   else if (!opts.silent && opts.loglevel !== 'silent') {
-    output(`\n@${entity} has ${users.length} user${users.length === 1 ? '' : 's'}:\n`)
+    const plural = users.length === 1 ? '' : 's'
+    const more = users.length === 0 ? '' : ':\n'
+    output(`\n@${entity} has ${users.length} user${plural}${more}`)
     output(columns(users, { padding: 1 }))
   }
 }
@@ -137,7 +136,9 @@ const teamListTeams = async (entity, opts) => {
   else if (opts.parseable)
     output(teams.join('\n'))
   else if (!opts.silent && opts.loglevel !== 'silent') {
-    output(`\n@${entity} has ${teams.length} team${teams.length === 1 ? '' : 's'}:\n`)
+    const plural = teams.length === 1 ? '' : 's'
+    const more = teams.length === 0 ? '' : ':\n'
+    output(`\n@${entity} has ${teams.length} team${plural}${more}`)
     output(columns(teams.map(t => `@${t}`), { padding: 1 }))
   }
 }

@@ -176,69 +176,63 @@ git+http://user@hostname/project/blah.git#commit-ish
 git+https://user@hostname/project/blah.git#commit-ish
 </code></pre>
 <p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
-an argument to <code>git checkout</code>.  The default is <code>master</code>.</p>
+an argument to <code>git checkout</code>.  The default is whatever the repository uses
+as its default branch.</p>
 <h3 id="the-packagejson-file">The package.json File</h3>
 <p>You need to have a <code>package.json</code> file in the root of your project to do
 much of anything with npm.  That is basically the whole interface.</p>
-<p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for details about what goes in that file.  At the very
-least, you need:</p>
+<p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for details about what
+goes in that file.  At the very least, you need:</p>
 <ul>
 <li>
-<p>name:
-This should be a string that identifies your project.  Please do not
-use the name to specify that it runs on node, or is in JavaScript.
-You can use the “engines” field to explicitly state the versions of
-node (or whatever else) that your program requires, and it’s pretty
-well assumed that it’s JavaScript.</p>
+<p>name: This should be a string that identifies your project.  Please do
+not use the name to specify that it runs on node, or is in JavaScript.
+You can use the “engines” field to explicitly state the versions of node
+(or whatever else) that your program requires, and it’s pretty well
+assumed that it’s JavaScript.</p>
 <p>It does not necessarily need to match your github repository name.</p>
 <p>So, <code>node-foo</code> and <code>bar-js</code> are bad names.  <code>foo</code> or <code>bar</code> are better.</p>
 </li>
 <li>
-<p>version:
-A semver-compatible version.</p>
+<p>version: A semver-compatible version.</p>
 </li>
 <li>
-<p>engines:
-Specify the versions of node (or whatever else) that your program
-runs on.  The node API changes a lot, and there may be bugs or new
-functionality that you depend on.  Be explicit.</p>
+<p>engines: Specify the versions of node (or whatever else) that your
+program runs on.  The node API changes a lot, and there may be bugs or
+new functionality that you depend on.  Be explicit.</p>
 </li>
 <li>
-<p>author:
-Take some credit.</p>
+<p>author: Take some credit.</p>
 </li>
 <li>
-<p>scripts:
-If you have a special compilation or installation script, then you
-should put it in the <code>scripts</code> object.  You should definitely have at
-least a basic smoke-test command as the “scripts.test” field.
-See <a href="../using-npm/scripts.html">scripts</a>.</p>
+<p>scripts: If you have a special compilation or installation script, then
+you should put it in the <code>scripts</code> object.  You should definitely have at
+least a basic smoke-test command as the “scripts.test” field.  See
+<a href="../using-npm/scripts.html">scripts</a>.</p>
 </li>
 <li>
-<p>main:
-If you have a single module that serves as the entry point to your
-program (like what the “foo” package gives you at require(“foo”)),
-then you need to specify that in the “main” field.</p>
+<p>main: If you have a single module that serves as the entry point to your
+program (like what the “foo” package gives you at require(“foo”)), then
+you need to specify that in the “main” field.</p>
 </li>
 <li>
-<p>directories:
-This is an object mapping names to folders.  The best ones to include are
-“lib” and “doc”, but if you use “man” to specify a folder full of man pages,
-they’ll get installed just like these ones.</p>
+<p>directories: This is an object mapping names to folders.  The best ones
+to include are “lib” and “doc”, but if you use “man” to specify a folder
+full of man pages, they’ll get installed just like these ones.</p>
 </li>
 </ul>
 <p>You can use <code>npm init</code> in the root of your package in order to get you
-started with a pretty basic package.json file.  See
-<a href="../commands/npm-init.html"><code>npm init</code></a> for more info.</p>
+started with a pretty basic package.json file.  See <a href="../commands/npm-init.html"><code>npm init</code></a> for more info.</p>
 <h3 id="keeping-files-out-of-your-package">Keeping files <em>out</em> of your package</h3>
-<p>Use a <code>.npmignore</code> file to keep stuff out of your package.  If there’s
-no <code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code> file, then npm will
-ignore the stuff matched by the <code>.gitignore</code> file.  If you <em>want</em> to
-include something that is excluded by your <code>.gitignore</code> file, you can
-create an empty <code>.npmignore</code> file to override it. Like <code>git</code>, <code>npm</code> looks
-for <code>.npmignore</code> and <code>.gitignore</code> files in all subdirectories of your
-package, not only the root directory.</p>
-<p><code>.npmignore</code> files follow the <a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring">same pattern rules</a>
+<p>Use a <code>.npmignore</code> file to keep stuff out of your package.  If there’s no
+<code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code> file, then npm will ignore
+the stuff matched by the <code>.gitignore</code> file.  If you <em>want</em> to include
+something that is excluded by your <code>.gitignore</code> file, you can create an
+empty <code>.npmignore</code> file to override it. Like <code>git</code>, <code>npm</code> looks for
+<code>.npmignore</code> and <code>.gitignore</code> files in all subdirectories of your package,
+not only the root directory.</p>
+<p><code>.npmignore</code> files follow the <a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring">same pattern
+rules</a>
 as <code>.gitignore</code> files:</p>
 <ul>
 <li>Blank lines or lines starting with <code>#</code> are ignored.</li>

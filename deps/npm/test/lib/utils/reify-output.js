@@ -1,5 +1,3 @@
-'use strict'
-
 const t = require('tap')
 const requireInject = require('require-inject')
 

@@ -1,5 +1,3 @@
-'use strict'
-
 const libversion = require('libnpmversion')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')

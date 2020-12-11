@@ -1,5 +1,3 @@
-'use strict'
-
 const liborg = require('libnpmorg')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
