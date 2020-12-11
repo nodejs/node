@@ -247,11 +247,16 @@ inline size_t Environment::async_callback_scope_depth() const {
 }
 
 inline void Environment::set_in_privileged_scope(bool on) {
-  in_privileged_scope_ = on;
+  if (on)
+    in_privileged_scope_++;
+  else {
+    CHECK_GT(in_privileged_scope_, 0);
+    in_privileged_scope_--;
+  }
 }
 
 inline bool Environment::in_privileged_scope() const {
-  return in_privileged_scope_;
+  return in_privileged_scope_ > 0;
 }
 
 inline void Environment::PushAsyncCallbackScope() {

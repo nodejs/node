@@ -1424,7 +1424,7 @@ class Environment : public MemoryRetainer {
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
 
-  bool in_privileged_scope_ = false;
+  size_t in_privileged_scope_ = 0;
 
 #if HAVE_INSPECTOR
   std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;
