@@ -1,5 +1,3 @@
-'use strict'
-
 const util = require('util')
 const log = require('npmlog')
 const semver = require('semver')

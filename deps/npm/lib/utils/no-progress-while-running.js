@@ -1,4 +1,3 @@
-'use strict'
 var log = require('npmlog')
 var progressEnabled
 var running = 0

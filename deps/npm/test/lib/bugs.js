@@ -5,40 +5,40 @@ const pacote = {
   manifest: async (spec, options) => {
     return spec === 'nobugs' ? {
       name: 'nobugs',
-      version: '1.2.3'
-    }
-    : spec === 'bugsurl' ? {
-      name: 'bugsurl',
       version: '1.2.3',
-      bugs: 'https://bugzilla.localhost/bugsurl'
     }
-    : spec === 'bugsobj' ? {
-      name: 'bugsobj',
-      version: '1.2.3',
-      bugs: { url: 'https://bugzilla.localhost/bugsobj' }
-    }
-    : spec === 'bugsobj-nourl' ? {
-      name: 'bugsobj-nourl',
-      version: '1.2.3',
-      bugs: { no: 'url here' }
-    }
-    : spec === 'repourl' ? {
-      name: 'repourl',
-      version: '1.2.3',
-      repository: 'https://github.com/foo/repourl'
-    }
-    : spec === 'repoobj' ? {
-      name: 'repoobj',
-      version: '1.2.3',
-      repository: { url: 'https://github.com/foo/repoobj' }
-    }
-    : spec === '.' ? {
-      name: 'thispkg',
-      version: '1.2.3',
-      bugs: 'https://example.com'
-    }
-    : null
-  }
+      : spec === 'bugsurl' ? {
+        name: 'bugsurl',
+        version: '1.2.3',
+        bugs: 'https://bugzilla.localhost/bugsurl',
+      }
+      : spec === 'bugsobj' ? {
+        name: 'bugsobj',
+        version: '1.2.3',
+        bugs: { url: 'https://bugzilla.localhost/bugsobj' },
+      }
+      : spec === 'bugsobj-nourl' ? {
+        name: 'bugsobj-nourl',
+        version: '1.2.3',
+        bugs: { no: 'url here' },
+      }
+      : spec === 'repourl' ? {
+        name: 'repourl',
+        version: '1.2.3',
+        repository: 'https://github.com/foo/repourl',
+      }
+      : spec === 'repoobj' ? {
+        name: 'repoobj',
+        version: '1.2.3',
+        repository: { url: 'https://github.com/foo/repoobj' },
+      }
+      : spec === '.' ? {
+        name: 'thispkg',
+        version: '1.2.3',
+        bugs: 'https://example.com',
+      }
+      : null
+  },
 }
 
 // keep a tally of which urls got opened
@@ -51,7 +51,7 @@ const openUrl = (url, errMsg, cb) => {
 
 const bugs = requireInject('../../lib/bugs.js', {
   pacote,
-  '../../lib/utils/open-url.js': openUrl
+  '../../lib/utils/open-url.js': openUrl,
 })
 
 t.test('completion', t => {
@@ -70,7 +70,7 @@ t.test('open bugs urls', t => {
     bugsobj: 'https://bugzilla.localhost/bugsobj',
     repourl: 'https://github.com/foo/repourl/issues',
     repoobj: 'https://github.com/foo/repoobj/issues',
-    '.': 'https://example.com'
+    '.': 'https://example.com',
   }
   const keys = Object.keys(expect)
   t.plan(keys.length)

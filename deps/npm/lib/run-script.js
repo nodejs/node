@@ -46,7 +46,7 @@ const runScript = async (args) => {
 
   pkg.scripts = scripts
 
-  if (!scripts[event] && !(event === 'start' && await isServerPackage(path))) {
+  if (!Object.prototype.hasOwnProperty.call(scripts, event) && !(event === 'start' && await isServerPackage(path))) {
     if (npm.config.get('if-present'))
       return
 

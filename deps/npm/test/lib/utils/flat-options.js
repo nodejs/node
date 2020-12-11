@@ -1,6 +1,7 @@
 const t = require('tap')
 
 process.env.NODE = '/path/to/some/node'
+process.env.NODE_ENV = 'development'
 
 const logs = []
 const log = require('npmlog')
@@ -12,7 +13,7 @@ class Mocknpm {
     this.modes = {
       exec: 0o777,
       file: 0o666,
-      umask: 0o22
+      umask: 0o22,
     }
     this.color = true
     this.projectScope = '@npmcli'
@@ -65,7 +66,7 @@ class MockConfig {
       description: 'description',
       searchexclude: 'searchexclude',
       searchlimit: 'searchlimit',
-      searchopts: 'searchopts',
+      searchopts: 'from=1',
       searchstaleness: 'searchstaleness',
       'dry-run': 'dry-run',
       'engine-strict': 'engine-strict',
@@ -110,14 +111,16 @@ class MockConfig {
       'user-agent': 'user-agent',
       '@scope:registry': '@scope:registry',
       '//nerf.dart:_authToken': '//nerf.dart:_authToken',
-      'proxy': 'proxy',
-      'noproxy': 'noproxy',
-      ...opts
+      proxy: 'proxy',
+      noproxy: 'noproxy',
+      ...opts,
     }]
   }
+
   get (key) {
     return this.list[0][key]
   }
+
   set (key, val) {
     this.list[0][key] = val
   }
@@ -127,7 +130,7 @@ const flatOptions = require('../../../lib/utils/flat-options.js')
 t.match(logs, [[
   'verbose',
   'npm-session',
-  /^[0-9a-f]{16}$/
+  /^[0-9a-f]{16}$/,
 ]], 'logged npm session verbosely')
 logs.length = 0
 
@@ -139,7 +142,7 @@ t.test('basic', t => {
     npmBin: '/path/to/npm/bin.js',
     log: {},
     npmSession: '12345',
-    cache: generatedFlat.cache.replace(/\\/g, '/')
+    cache: generatedFlat.cache.replace(/\\/g, '/'),
   }
   t.matchSnapshot(clean, 'flat options')
   t.equal(generatedFlat.npmCommand, null, 'command not set yet')
@@ -158,7 +161,7 @@ t.test('basic', t => {
 t.test('get preferOffline from cache-min', t => {
   const npm = new Mocknpm({
     'cache-min': 9999999,
-    'prefer-offline': undefined
+    'prefer-offline': undefined,
   })
   const opts = flatOptions(npm)
   t.equal(opts.preferOffline, true, 'got preferOffline from cache min')
@@ -172,7 +175,7 @@ t.test('get preferOffline from cache-min', t => {
 t.test('get preferOnline from cache-max', t => {
   const npm = new Mocknpm({
     'cache-max': -1,
-    'prefer-online': undefined
+    'prefer-online': undefined,
   })
   const opts = flatOptions(npm)
   t.equal(opts.preferOnline, true, 'got preferOnline from cache min')
@@ -193,72 +196,93 @@ t.test('tag emits warning', t => {
 
 t.test('omit/include options', t => {
   t.test('omit explicitly', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
-      omit: ['dev', 'optional', 'peer']
+      omit: ['dev', 'optional', 'peer'],
     })
     t.strictSame(flatOptions(npm).omit, ['dev', 'optional', 'peer'])
+    t.equal(process.env.NODE_ENV, 'production')
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('omit and include some', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: ['dev', 'optional', 'peer'],
-      include: ['peer']
+      include: ['peer'],
     })
     t.strictSame(flatOptions(npm).omit, ['dev', 'optional'])
+    t.equal(process.env.NODE_ENV, 'production')
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('dev flag', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: ['dev', 'optional', 'peer'],
       include: [],
-      dev: true
+      dev: true,
     })
     t.strictSame(flatOptions(npm).omit, ['optional', 'peer'])
+    t.equal(process.env.NODE_ENV, NODE_ENV)
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('production flag', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: [],
       include: [],
-      production: true
+      production: true,
     })
     t.strictSame(flatOptions(npm).omit, ['dev'])
+    t.equal(process.env.NODE_ENV, 'production')
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('only', t => {
+    const { NODE_ENV } = process.env
     const cases = ['prod', 'production']
     t.plan(cases.length)
     cases.forEach(c => t.test(c, t => {
       const npm = new Mocknpm({
         omit: [],
         include: [],
-        only: c
+        only: c,
       })
       t.strictSame(flatOptions(npm).omit, ['dev'])
+      t.equal(process.env.NODE_ENV, 'production')
+      process.env.NODE_ENV = NODE_ENV
       t.end()
     }))
   })
 
   t.test('also dev', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       omit: ['dev', 'optional', 'peer'],
-      also: 'dev'
+      also: 'dev',
     })
     t.strictSame(flatOptions(npm).omit, ['optional', 'peer'])
+    t.equal(process.env.NODE_ENV, NODE_ENV)
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
   t.test('no-optional', t => {
+    const { NODE_ENV } = process.env
     const npm = new Mocknpm({
       optional: false,
       omit: null,
-      include: null
+      include: null,
     })
     t.strictSame(flatOptions(npm).omit, ['optional'])
+    t.equal(process.env.NODE_ENV, NODE_ENV)
+    process.env.NODE_ENV = NODE_ENV
     t.end()
   })
 
@@ -276,9 +300,9 @@ t.test('various default values and falsey fallbacks', t => {
     'script-shell': false,
     registry: 'http://example.com',
     'metrics-registry': null,
-    'searchlimit': 0,
+    searchlimit: 0,
     'save-exact': false,
-    'save-prefix': '>='
+    'save-prefix': '>=',
   })
   const opts = flatOptions(npm)
   t.equal(opts.scriptShell, undefined, 'scriptShell is undefined if falsey')
@@ -298,7 +322,7 @@ t.test('legacy _auth token', t => {
   t.strictSame(
     flatOptions(npm)._auth,
     'asdfasdf',
-    'should set legacy _auth token',
+    'should set legacy _auth token'
   )
   t.end()
 })
@@ -308,7 +332,7 @@ t.test('save-type', t => {
     'save-optional': false,
     'save-peer': false,
     'save-dev': false,
-    'save-prod': false
+    'save-prod': false,
   }
   const cases = [
     ['peerOptional', {
@@ -316,23 +340,23 @@ t.test('save-type', t => {
       'save-peer': true,
     }],
     ['optional', {
-      'save-optional': true
+      'save-optional': true,
     }],
     ['dev', {
-      'save-dev': true
+      'save-dev': true,
     }],
     ['peer', {
-      'save-peer': true
+      'save-peer': true,
     }],
     ['prod', {
-      'save-prod': true
+      'save-prod': true,
     }],
-    [null, {}]
+    [null, {}],
   ]
   for (const [expect, options] of cases) {
     const opts = flatOptions(new Mocknpm({
       ...base,
-      ...options
+      ...options,
     }))
     t.equal(opts.saveType, expect, JSON.stringify(options))
   }

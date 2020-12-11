@@ -12,9 +12,9 @@ module.exports = function configureOptions (_opts) {
   } else {
     if (typeof opts.retry !== 'object') {
       // Shorthand
-      if (typeof opts.retry === 'number') {
+      if (typeof opts.retry === 'number')
         opts.retry = { retries: opts.retry }
-      }
+
       if (typeof opts.retry === 'string') {
         const value = parseInt(opts.retry, 10)
         opts.retry = (value) ? { retries: value } : { retries: 0 }
@@ -25,9 +25,8 @@ module.exports = function configureOptions (_opts) {
     }
   }
 
-  if (opts.cacheManager) {
+  if (opts.cacheManager)
     initializeCache(opts)
-  }
 
   return opts
 }

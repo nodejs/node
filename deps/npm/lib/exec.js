@@ -1,7 +1,6 @@
 const npm = require('./npm.js')
-
+const output = require('./utils/output.js')
 const usageUtil = require('./utils/usage.js')
-
 const usage = usageUtil('exec',
   'Run a command from a local or remote npm package.\n\n' +
 
@@ -13,7 +12,9 @@ const usage = usageUtil('exec',
   'npx <pkg>[@<specifier>] [args...]\n' +
   'npx -p <pkg>[@<specifier>] <cmd> [args...]\n' +
   'npx -c \'<cmd> [args...]\'\n' +
-  'npx -p <pkg>[@<specifier>] -c \'<cmd> [args...]\'',
+  'npx -p <pkg>[@<specifier>] -c \'<cmd> [args...]\'' +
+  '\n' +
+  'Run without --call or positional args to open interactive subshell\n',
 
   '\n--package=<pkg> (may be specified multiple times)\n' +
   '-p is a shorthand for --package only when using npx executable\n' +
@@ -59,15 +60,14 @@ const ciDetect = require('@npmcli/ci-detect')
 const crypto = require('crypto')
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
-const escapeArg = require('./utils/escape-arg.js')
 const fileExists = require('./utils/file-exists.js')
 const PATH = require('./utils/path.js')
 
 const cmd = (args, cb) => exec(args).then(() => cb()).catch(cb)
 
-const run = async ({ args, call, pathArr }) => {
+const run = async ({ args, call, pathArr, shell }) => {
   // turn list of args into command string
-  const script = call || args.map(escapeArg).join(' ').trim()
+  const script = call || args.join(' ').trim() || shell
 
   // do the fakey runScript dance
   // still should work if no package.json in cwd
@@ -83,7 +83,15 @@ const run = async ({ args, call, pathArr }) => {
 
   npm.log.disableProgress()
   try {
+    if (script === shell) {
+      if (process.stdin.isTTY) {
+        if (ciDetect())
+          return npm.log.warn('exec', 'Interactive mode disabled in CI environment')
+        output(`\nEntering npm script environment\nType 'exit' or ^D when finished\n`)
+      }
+    }
     return await runScript({
+      ...npm.flatOptions,
       pkg,
       banner: false,
       // we always run in cwd, not --prefix
@@ -101,12 +109,22 @@ const run = async ({ args, call, pathArr }) => {
 }
 
 const exec = async args => {
-  const { package: packages, call } = npm.flatOptions
+  const { package: packages, call, shell } = npm.flatOptions
 
   if (call && args.length)
     throw usage
 
   const pathArr = [...PATH]
+
+  // nothing to maybe install, skip the arborist dance
+  if (!call && !args.length && !packages.length) {
+    return await run({
+      args,
+      call,
+      shell,
+      pathArr,
+    })
+  }
 
   const needPackageCommandSwap = args.length && !packages.length
   // if there's an argument and no package has been explicitly asked for
@@ -126,8 +144,9 @@ const exec = async args => {
     if (binExists) {
       return await run({
         args,
-        call: [args[0], ...args.slice(1).map(escapeArg)].join(' ').trim(),
+        call: [args[0], ...args.slice(1)].join(' ').trim(),
         pathArr,
+        shell,
       })
     }
 
@@ -181,15 +200,18 @@ const exec = async args => {
 
     // no need to install if already present
     if (add.length) {
-      const isTTY = process.stdin.isTTY && process.stdout.isTTY
       if (!npm.flatOptions.yes) {
         // set -n to always say no
         if (npm.flatOptions.yes === false)
           throw 'canceled'
 
-        if (!isTTY || ciDetect())
-          npm.log.warn('exec', `The following package${add.length === 1 ? ' was' : 's were'} not found and will be installed: ${add.map((pkg) => pkg.replace(/@$/, '')).join(', ')}`)
-        else {
+        if (!process.stdin.isTTY || ciDetect()) {
+          npm.log.warn('exec', `The following package${
+            add.length === 1 ? ' was' : 's were'
+          } not found and will be installed: ${
+            add.map((pkg) => pkg.replace(/@$/, '')).join(', ')
+          }`)
+        } else {
           const addList = add.map(a => `  ${a.replace(/@$/, '')}`)
             .join('\n') + '\n'
           const prompt = `Need to install the following packages:\n${
@@ -205,7 +227,7 @@ const exec = async args => {
     pathArr.unshift(resolve(installDir, 'node_modules/.bin'))
   }
 
-  return await run({ args, call, pathArr })
+  return await run({ args, call, pathArr, shell })
 }
 
 const manifestMissing = (tree, mani) => {

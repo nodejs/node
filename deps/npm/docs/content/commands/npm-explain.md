@@ -8,6 +8,8 @@ description: Explain installed packages
 
 ```bash
 npm explain <folder | specifier>
+
+alias: why
 ```
 
 ### Description
@@ -56,7 +58,7 @@ node_modules/nyc/node_modules/find-up
 #### json
 
 * Default: false
-* Type: Bolean
+* Type: Boolean
 
 Show information in JSON format.
 

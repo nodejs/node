@@ -1,12 +1,12 @@
-.TH "NPM\-AUDIT" "1" "November 2020" "" ""
+.TH "NPM\-AUDIT" "1" "December 2020" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
 .SS Synopsis
 .P
 .RS 2
 .nf
-npm audit [\-\-json|\-\-parseable|\-\-audit\-level=(low|moderate|high|critical)]
-npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run]
+npm audit [\-\-json] [\-\-production] [\-\-audit\-level=(low|moderate|high|critical)]
+npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run|\-\-production|\-\-only=(dev|prod)]
 
 common options: [\-\-production] [\-\-only=(dev|prod)]
 .fi

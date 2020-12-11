@@ -11,9 +11,9 @@ const printLogs = (tarball, unicode) => {
     log: {
       notice: (...args) => {
         args.map(el => logs.push(el))
-      }
+      },
     },
-    unicode
+    unicode,
   })
   return logs.join('\n')
 }
@@ -24,19 +24,19 @@ test('should log tarball contents', async (t) => {
       name: 'my-cool-pkg',
       version: '1.0.0',
       bundleDependencies: [
-        'bundle-dep'
-      ]
+        'bundle-dep',
+      ],
     }, null, 2),
-    'node_modules': {
-      'bundle-dep': 'toto'
-    }
+    node_modules: {
+      'bundle-dep': 'toto',
+    },
   })
 
   const tarball = await pack(testDir)
   const tarballContents = await getContents({
     _id: '1',
     name: 'my-cool-pkg',
-    version: '1.0.0'
+    version: '1.0.0',
   }, tarball)
 
   t.matchSnapshot(printLogs(tarballContents, false))
@@ -44,36 +44,36 @@ test('should log tarball contents', async (t) => {
 
 test('should log tarball contents with unicode', async (t) => {
   const { logTar } = requireInject('../../../lib/utils/tar.js', {
-    'npmlog': {
-      'notice': (str) => {
+    npmlog: {
+      notice: (str) => {
         t.ok(true, 'defaults to npmlog')
         return str
-      }
-    }
+      },
+    },
   })
-  
-  logTar({ 
-    files: [], 
+
+  logTar({
+    files: [],
     bundled: [],
-    integrity: '' 
+    integrity: '',
   }, { unicode: true })
   t.end()
 })
 
 test('should default to npmlog', async (t) => {
   const { logTar } = requireInject('../../../lib/utils/tar.js', {
-    'npmlog': {
-      'notice': (str) => {
+    npmlog: {
+      notice: (str) => {
         t.ok(true, 'defaults to npmlog')
         return str
-      }
-    }
+      },
+    },
   })
 
   logTar({
     files: [],
     bundled: [],
-    integrity: ''
+    integrity: '',
   })
   t.end()
 })
@@ -82,19 +82,19 @@ test('should getContents of a tarball', async (t) => {
   const testDir = t.testdir({
     'package.json': JSON.stringify({
       name: 'my-cool-pkg',
-      version: '1.0.0'
-    }, null, 2)
+      version: '1.0.0',
+    }, null, 2),
   })
 
   const tarball = await pack(testDir)
 
   const tarballContents = await getContents({
     name: 'my-cool-pkg',
-    version: '1.0.0'
+    version: '1.0.0',
   }, tarball)
 
   const integrity = await ssri.fromData(tarball, {
-    algorithms: ['sha1', 'sha512']
+    algorithms: ['sha1', 'sha512'],
   })
 
   t.strictSame(tarballContents, {
@@ -106,10 +106,9 @@ test('should getContents of a tarball', async (t) => {
     shasum: 'c0bfd67a5142104e429afda09119eedd6a30d2fc',
     integrity: ssri.parse(integrity.sha512[0]),
     filename: 'my-cool-pkg-1.0.0.tgz',
-    files: [ { path: 'package.json', size: 49, mode: 420 } ],
+    files: [{ path: 'package.json', size: 49, mode: 420 }],
     entryCount: 1,
-    bundled: []
+    bundled: [],
   }, 'contents are correct')
   t.end()
-
 })

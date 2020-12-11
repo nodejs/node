@@ -1,0 +1,26 @@
+name: 'Tests: pretest/posttest'
+
+on: [pull_request, push]
+
+jobs:
+  pretest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ljharb/actions/node/run@main
+        name: 'npm install && npm run pretest'
+        with:
+          node-version: 'lts/*'
+          command: 'pretest'
+
+  posttest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ljharb/actions/node/run@main
+        name: 'npm install && npm run posttest'
+        with:
+          node-version: 'lts/*'
+          command: 'posttest'

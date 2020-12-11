@@ -6,7 +6,8 @@ const signalManager = require('./signal-manager.js')
 const isServerPackage = require('./is-server-package.js')
 
 // you wouldn't like me when I'm angry...
-const bruce = (id, event, cmd) => `\n> ${id ? id + ' ' : ''}${event}\n> ${cmd}\n`
+const bruce = (id, event, cmd) =>
+  `\n> ${id ? id + ' ' : ''}${event}\n> ${cmd.trim().replace(/\n/g, '\n> ')}\n`
 
 const runScriptPkg = async options => {
   const {

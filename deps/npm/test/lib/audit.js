@@ -5,7 +5,7 @@ const audit = require('../../lib/audit.js')
 t.test('should audit using Arborist', t => {
   let ARB_ARGS = null
   let AUDIT_CALLED = false
-  let REIFY_OUTPUT_CALLED = false
+  let REIFY_FINISH_CALLED = false
   let AUDIT_REPORT_CALLED = false
   let OUTPUT_CALLED = false
   let ARB_OBJ = null
@@ -14,14 +14,14 @@ t.test('should audit using Arborist', t => {
     '../../lib/npm.js': {
       prefix: 'foo',
       flatOptions: {
-        json: false
+        json: false,
       },
     },
     'npm-audit-report': () => {
       AUDIT_REPORT_CALLED = true
       return {
         report: 'there are vulnerabilities',
-        exitCode: 0
+        exitCode: 0,
       }
     },
     '@npmcli/arborist': function (args) {
@@ -32,15 +32,15 @@ t.test('should audit using Arborist', t => {
         this.auditReport = {}
       }
     },
-    '../../lib/utils/reify-output.js': arb => {
-      if (arb !== ARB_OBJ) {
+    '../../lib/utils/reify-finish.js': arb => {
+      if (arb !== ARB_OBJ)
         throw new Error('got wrong object passed to reify-output')
-      }
-      REIFY_OUTPUT_CALLED = true
+
+      REIFY_FINISH_CALLED = true
     },
     '../../lib/utils/output.js': () => {
       OUTPUT_CALLED = true
-    }
+    },
   })
 
   t.test('audit', t => {
@@ -55,7 +55,7 @@ t.test('should audit using Arborist', t => {
 
   t.test('audit fix', t => {
     audit(['fix'], () => {
-      t.equal(REIFY_OUTPUT_CALLED, true, 'called reify output')
+      t.equal(REIFY_FINISH_CALLED, true, 'called reify output')
       t.end()
     })
   })
@@ -68,12 +68,12 @@ t.test('should audit - json', t => {
     '../../lib/npm.js': {
       prefix: 'foo',
       flatOptions: {
-        json: true
+        json: true,
       },
     },
     'npm-audit-report': () => ({
       report: 'there are vulnerabilities',
-      exitCode: 0
+      exitCode: 0,
     }),
     '@npmcli/arborist': function () {
       this.audit = () => {
@@ -81,7 +81,7 @@ t.test('should audit - json', t => {
       }
     },
     '../../lib/utils/reify-output.js': () => {},
-    '../../lib/utils/output.js': () => {}
+    '../../lib/utils/output.js': () => {},
   })
 
   audit([], (err) => {
@@ -100,11 +100,11 @@ t.test('report endpoint error', t => {
           prefix: 'foo',
           command: 'audit',
           flatOptions: {
-            json
+            json,
           },
           log: {
-            warn: (...warning) => LOGS.push(warning)
-          }
+            warn: (...warning) => LOGS.push(warning),
+          },
         },
         'npm-audit-report': () => {
           throw new Error('should not call audit report when there are errors')
@@ -117,25 +117,25 @@ t.test('report endpoint error', t => {
                 method: 'POST',
                 uri: 'https://example.com/',
                 headers: {
-                  head: ['ers']
+                  head: ['ers'],
                 },
                 statusCode: 420,
                 body: json ? { nope: 'lol' }
-                  : Buffer.from('i had a vuln but i eated it lol')
-              }
+                : Buffer.from('i had a vuln but i eated it lol'),
+              },
             }
           }
         },
         '../../lib/utils/reify-output.js': () => {},
         '../../lib/utils/output.js': (...msg) => {
           OUTPUT.push(msg)
-        }
+        },
       }
       // have to pass mocks to both to get the npm and output set right
       const auditError = requireInject('../../lib/utils/audit-error.js', mocks)
       const audit = requireInject('../../lib/audit.js', {
         ...mocks,
-        '../../lib/utils/audit-error.js': auditError
+        '../../lib/utils/audit-error.js': auditError,
       })
 
       audit([], (err) => {
@@ -156,8 +156,8 @@ t.test('report endpoint error', t => {
               '    "nope": "lol"\n' +
               '  }\n' +
               '}'
-              : 'i had a vuln but i eated it lol'
-          ]
+            : 'i had a vuln but i eated it lol',
+          ],
         ])
         t.strictSame(LOGS, [['audit', 'hello, this didnt work']])
         t.end()
@@ -170,8 +170,10 @@ t.test('report endpoint error', t => {
 t.test('completion', t => {
   t.test('fix', t => {
     audit.completion({
-      conf: { argv: { remain: ['npm', 'audit'] } }
+      conf: { argv: { remain: ['npm', 'audit'] } },
     }, (err, res) => {
+      if (err)
+        throw err
       const subcmd = res.pop()
       t.equals('fix', subcmd, 'completes to fix')
       t.end()
@@ -180,16 +182,17 @@ t.test('completion', t => {
 
   t.test('subcommand fix', t => {
     audit.completion({
-      conf: { argv: { remain: ['npm', 'audit', 'fix'] } }
+      conf: { argv: { remain: ['npm', 'audit', 'fix'] } },
     }, (err) => {
-      t.notOk(err, 'no errors')
+      if (err)
+        throw err
       t.end()
     })
   })
 
   t.test('subcommand not recognized', t => {
     audit.completion({
-      conf: { argv: { remain: ['npm', 'audit', 'repare'] } }
+      conf: { argv: { remain: ['npm', 'audit', 'repare'] } },
     }, (err) => {
       t.ok(err, 'not recognized')
       t.end()

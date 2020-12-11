@@ -9,7 +9,7 @@ test('prefix', (t) => {
     '../../lib/npm.js': { prefix: dir },
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
-    }
+    },
   })
 
   prefix([], (err) => {

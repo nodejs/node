@@ -5,21 +5,23 @@ let prefix
 const _flatOptions = {
   json: false,
   global: false,
-  get prefix () { return prefix }
+  get prefix () {
+    return prefix
+  },
 }
 
 const readLocalPackageName = requireInject('../../../lib/utils/read-local-package.js', {
   '../../../lib/npm.js': {
-    flatOptions: _flatOptions
-  }
+    flatOptions: _flatOptions,
+  },
 })
 
 test('read local package.json', async (t) => {
   prefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'my-local-package',
-      version: '1.0.0'
-    })
+      version: '1.0.0',
+    }),
   })
   const packageName = await readLocalPackageName()
   t.equal(
@@ -33,8 +35,8 @@ test('read local scoped-package.json', async (t) => {
   prefix = t.testdir({
     'package.json': JSON.stringify({
       name: '@my-scope/my-local-package',
-      version: '1.0.0'
-    })
+      version: '1.0.0',
+    }),
   })
   const packageName = await readLocalPackageName()
   t.equal(

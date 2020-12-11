@@ -141,20 +141,27 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#more">More</a></li><ul><li><a href="#unstar">Unstar</a></li><li><a href="#listing-stars">Listing stars</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre lang="bash"><code>npm star [&lt;pkg&gt;...]
-npm unstar [&lt;pkg&gt;...]
 </code></pre>
 <h3 id="description">Description</h3>
 <p>“Starring” a package means that you have some interest in it.  It’s
 a vaguely positive way to show that you care.</p>
+<p>It’s a boolean thing. Starring repeatedly has no additional effect.</p>
+<h3 id="more">More</h3>
+<p>There’s also these extra commands to help you manage your favorite packages:</p>
+<h4 id="unstar">Unstar</h4>
+<p>You can also “unstar” a package using <a href="../commands/npm-unstar.html"><code>npm unstar</code></a></p>
 <p>“Unstarring” is the same thing, but in reverse.</p>
-<p>It’s a boolean thing.  Starring repeatedly has no additional effect.</p>
+<h4 id="listing-stars">Listing stars</h4>
+<p>You can see all your starred packages using <a href="../commands/npm-stars.html"><code>npm stars</code></a></p>
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../commands/npm-unstar.html">npm unstar</a></li>
+<li><a href="../commands/npm-stars.html">npm stars</a></li>
 <li><a href="../commands/npm-view.html">npm view</a></li>
 <li><a href="../commands/npm-whoami.html">npm whoami</a></li>
 <li><a href="../commands/npm-adduser.html">npm adduser</a></li>

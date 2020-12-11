@@ -42,7 +42,7 @@ const version = async args => {
         path: npm.prefix,
       }))
     default:
-      throw version.usage
+      throw usage
   }
 }
 

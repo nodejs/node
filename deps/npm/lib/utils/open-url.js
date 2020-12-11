@@ -1,4 +1,3 @@
-'use strict'
 const npm = require('../npm.js')
 const output = require('./output.js')
 const opener = require('opener')

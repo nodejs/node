@@ -1,10 +1,11 @@
 const path = require('path')
-const Arborist = require('@npmcli/arborist')
 
+const Arborist = require('@npmcli/arborist')
 const log = require('npmlog')
+
 const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
-const reifyOutput = require('./utils/reify-output.js')
+const reifyFinish = require('./utils/reify-finish.js')
 const completion = require('./utils/completion/installed-deep.js')
 
 const usage = usageUtil(
@@ -32,7 +33,7 @@ const update = async args => {
   })
 
   await arb.reify({ update })
-  reifyOutput(arb)
+  await reifyFinish(arb)
 }
 
 module.exports = Object.assign(cmd, { usage, completion })

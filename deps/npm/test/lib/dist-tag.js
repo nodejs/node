@@ -8,32 +8,33 @@ let log = ''
 // these declared opts are used in ./utils/read-local-package.js
 const _flatOptions = {
   global: false,
-  get prefix () { return prefix }
+  get prefix () {
+    return prefix
+  },
 }
 
 const routeMap = {
   '/-/package/@scoped%2fpkg/dist-tags': {
     latest: '1.0.0',
     a: '0.0.1',
-    b: '0.5.0'
+    b: '0.5.0',
   },
   '/-/package/@scoped%2fanother/dist-tags': {
     latest: '2.0.0',
     a: '0.0.2',
-    b: '0.6.0'
+    b: '0.6.0',
   },
   '/-/package/@scoped%2fanother/dist-tags/c': {
     latest: '7.7.7',
     a: '0.0.2',
     b: '0.6.0',
-    c: '7.7.7'
-  }
+    c: '7.7.7',
+  },
 }
 
 let npmRegistryFetchMock = (url, opts) => {
-  if (url === '/-/package/foo/dist-tags') {
+  if (url === '/-/package/foo/dist-tags')
     throw new Error('no package found')
-  }
 
   return routeMap[url]
 }
@@ -41,9 +42,9 @@ let npmRegistryFetchMock = (url, opts) => {
 npmRegistryFetchMock.json = async (url, opts) => routeMap[url]
 
 const logger = (...msgs) => {
-  for (const msg of [...msgs]) {
+  for (const msg of [...msgs])
     log += msg + ' '
-  }
+
   log += '\n'
 }
 
@@ -52,25 +53,29 @@ const distTag = requireInject('../../lib/dist-tag.js', {
     error: logger,
     info: logger,
     verbose: logger,
-    warn: logger
+    warn: logger,
   },
-  get 'npm-registry-fetch' () { return npmRegistryFetchMock },
+  get 'npm-registry-fetch' () {
+    return npmRegistryFetchMock
+  },
   '../../lib/npm.js': {
     flatOptions: _flatOptions,
     config: {
       get (key) {
         return _flatOptions[key]
-      }
-    }
+      },
+    },
   },
-  '../../lib/utils/output.js': msg => { result = msg }
+  '../../lib/utils/output.js': msg => {
+    result = msg
+  },
 })
 
 test('ls in current package', (t) => {
   prefix = t.testdir({
     'package.json': JSON.stringify({
-      name: '@scoped/pkg'
-    })
+      name: '@scoped/pkg',
+    }),
   })
   distTag(['ls'], (err) => {
     t.ifError(err, 'npm dist-tags ls')
@@ -87,8 +92,8 @@ test('ls in current package', (t) => {
 test('no args in current package', (t) => {
   prefix = t.testdir({
     'package.json': JSON.stringify({
-      name: '@scoped/pkg'
-    })
+      name: '@scoped/pkg',
+    }),
   })
   distTag([], (err) => {
     t.ifError(err, 'npm dist-tags ls')
@@ -146,8 +151,8 @@ test('ls on missing package', (t) => {
 test('ls on missing name in current package', (t) => {
   prefix = t.testdir({
     'package.json': JSON.stringify({
-      version: '1.0.0'
-    })
+      version: '1.0.0',
+    }),
   })
   distTag(['ls'], (err) => {
     t.matchSnapshot(
@@ -294,9 +299,9 @@ test('completion', t => {
   completion({
     conf: {
       argv: {
-        remain: ['npm', 'dist-tag']
-      }
-    }
+        remain: ['npm', 'dist-tag'],
+      },
+    },
   }, (err, res) => {
     t.ifError(err, 'npm dist-tags completion')
 
@@ -305,7 +310,7 @@ test('completion', t => {
       [
         'add',
         'rm',
-        'ls'
+        'ls',
       ],
       'should list npm dist-tag commands for completion'
     )
@@ -314,9 +319,9 @@ test('completion', t => {
   completion({
     conf: {
       argv: {
-        remain: ['npm', 'dist-tag', 'foobar']
-      }
-    }
+        remain: ['npm', 'dist-tag', 'foobar'],
+      },
+    },
   }, (err) => {
     t.notOk(err, 'should ignore any unkown name')
   })
