@@ -1285,3 +1285,19 @@ const net = require('net');
   });
   const pipelined = addAbortSignal(ac.signal, pipeline([r, w], cb));
 }
+
+{
+  pipeline([1, 2, 3], PassThrough({ objectMode: true }),
+           common.mustSucceed(() => {}));
+
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    },
+  });
+  pipeline(['1', '2', '3'], w, common.mustSucceed(() => {
+    assert.strictEqual(res, '123');
+  }));
+}
