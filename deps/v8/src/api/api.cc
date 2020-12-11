@@ -6118,6 +6118,12 @@ v8::Isolate* Context::GetIsolate() {
   return reinterpret_cast<Isolate*>(env->GetIsolate());
 }
 
+v8::MicrotaskQueue* Context::GetMicrotaskQueue() {
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  CHECK(env->IsNativeContext());
+  return i::Handle<i::NativeContext>::cast(env)->microtask_queue();
+}
+
 v8::Local<v8::Object> Context::Global() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* isolate = context->GetIsolate();

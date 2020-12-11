@@ -28348,3 +28348,13 @@ TEST(TriggerThreadSafeMetricsEvent) {
   CHECK_EQ(recorder->count_, 1);  // Increased.
   CHECK_EQ(recorder->module_count_, 42);
 }
+
+THREADED_TEST(MicrotaskQueueOfContext) {
+  auto microtask_queue = v8::MicrotaskQueue::New(CcTest::isolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<Context> context = Context::New(
+      CcTest::isolate(), nullptr, v8::MaybeLocal<ObjectTemplate>(),
+      v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
+      microtask_queue.get());
+  CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
+}
