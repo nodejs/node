@@ -275,3 +275,37 @@ if (!common.isWindows) {
     assert(file.destroyed);
   });
 }
+
+async function testFileHandleRef() {
+  const fd = await fs.promises.open(rangeFile);
+  let file = fs.createReadStream(null, { fd, autoClose: false });
+  fd.close();
+  let data = '';
+  file.on('data', function(chunk) { data += chunk; });
+  file.on('end', common.mustCall(function() {
+    assert.strictEqual(data, 'xyz\n');
+    process.nextTick(function() {
+      assert(!file.closed);
+      assert(!file.destroyed);
+      fileNext();
+    });
+  }));
+
+  function fileNext() {
+    // This will tell us if the fd is usable again or not.
+    file = fs.createReadStream(null, { fd: file.fd, start: 0 });
+    file.data = '';
+    file.on('data', function(data) {
+      file.data += data;
+    });
+    file.on('end', common.mustCall(function(err) {
+      assert.strictEqual(file.data, 'xyz\n');
+    }));
+    process.on('exit', function() {
+      assert(file.closed);
+      assert(file.destroyed);
+    });
+  }
+}
+
+testFileHandleRef.then(common.mustCall);
