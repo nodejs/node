@@ -3385,8 +3385,9 @@ comparing HMAC digests or secret values like authentication cookies or
 `a` and `b` must both be `Buffer`s, `TypedArray`s, or `DataView`s, and they
 must have the same byte length.
 
-If at least one of `a` and `b` is a `TypedArray`, the result may depend on
-the platform byte order.
+If at least one of `a` and `b` is a `TypedArray` with more than one byte per
+entry, such as `Uint16Array`, the result will be computed using the platform
+byte order.
 
 Use of `crypto.timingSafeEqual` does not guarantee that the *surrounding* code
 is timing-safe. Care should be taken to ensure that the surrounding code does
