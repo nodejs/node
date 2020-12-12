@@ -33,3 +33,17 @@ const { Worker } = require('worker_threads');
     new Worker(__filename, { execArgv: ['--redirect-warnings'] });
   }, expectedErr);
 }
+
+{
+  const expectedErr = {
+    code: 'ERR_WORKER_INVALID_EXEC_ARGV',
+    name: 'Error'
+  };
+  assert.throws(() => {
+    new Worker(__filename, {
+      env: {
+        NODE_OPTIONS: '--nonexistent-options'
+      }
+    });
+  }, expectedErr);
+}
