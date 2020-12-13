@@ -111,12 +111,19 @@ assert.throws(() => new BroadcastChannel(), {
 {
   const bc1 = new BroadcastChannel('channel3');
   const bc2 = new BroadcastChannel('channel3');
-  bc2.postMessage(new SharedArrayBuffer(10));
-  bc1.addEventListener('message', common.mustCall(({ data }) => {
-    assert(data instanceof SharedArrayBuffer);
-    bc1.close();
-    bc2.close();
-  }));
+  const bc3 = new BroadcastChannel('channel3');
+  bc3.postMessage(new SharedArrayBuffer(10));
+  let received = 0;
+  for (const bc of [bc1, bc2]) {
+    bc.addEventListener('message', common.mustCall(({ data }) => {
+      assert(data instanceof SharedArrayBuffer);
+      if (++received === 2) {
+        bc1.close();
+        bc2.close();
+        bc3.close();
+      }
+    }));
+  }
 }
 
 {

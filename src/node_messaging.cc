@@ -157,8 +157,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   // Attach all transferred SharedArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
     Local<SharedArrayBuffer> sab =
-        SharedArrayBuffer::New(env->isolate(),
-                               std::move(shared_array_buffers_[i]));
+        SharedArrayBuffer::New(env->isolate(), shared_array_buffers_[i]);
     shared_array_buffers.push_back(sab);
   }
 
@@ -1309,7 +1308,7 @@ Maybe<bool> SiblingGroup::Dispatch(
 
   // Transferables cannot be used when there is more
   // than a single destination.
-  if (size() > 2 && message->transferables().size()) {
+  if (size() > 2 && message->has_transferables()) {
     if (error != nullptr)
       *error = "Transferables cannot be used with multiple destinations.";
     return Nothing<bool>();
