@@ -366,14 +366,15 @@ changes:
 
 * Returns: {integer}
 
-Returns the system uptime in number of seconds. 
+Returns the system uptime in number of seconds.
 
-Please be aware that the value returned can be inaccurate in some rare virtualization cases.
-The issue arises when the virtualized guest instance shares the kernel with the host system 
-due to a bug in libuv. `os.uptime()` may thus provide the host's uptime instead of guest's.
+Please be aware that the value returned can be inaccurate in some
+rare virtualization cases. The issue arises when the virtualized
+guest instance shares the kernel with the host system due to a bug
+in libuv. `os.uptime()` may thus provide the host's uptime instead of guest's.
 
-Please refer to <https://github.com/nodejs/node/issues/36244> and 
-<https://github.com/libuv/libuv/issues/3068> for an exploration of 
+Please refer to <https://github.com/nodejs/node/issues/36244> and
+<https://github.com/libuv/libuv/issues/3068> for an exploration of
 this issue, until it is resolved by libuv.
 
 ## `os.userInfo([options])`
