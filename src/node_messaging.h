@@ -94,6 +94,9 @@ class Message : public MemoryRetainer {
   const std::vector<std::unique_ptr<TransferData>>& transferables() const {
     return transferables_;
   }
+  bool has_transferables() const {
+    return !transferables_.empty() || !array_buffers_.empty();
+  }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
 
