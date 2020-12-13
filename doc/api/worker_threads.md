@@ -320,8 +320,7 @@ The `LockManager` interface provides methods for requesting a new [`Lock`][]
 object and querying for an existing `Lock` object. To get an instance of
 `LockManager`, call `worker_threads.locks`.
 
-With the exception of `AbortController` support, this implementation matches
-the [browser `LockManager`][] API.
+This implementation matches the [browser `LockManager`][] API.
 
 #### `locks.request(name[, options], callback)`
 <!-- YAML
@@ -339,6 +338,8 @@ added: REPLACEME
   * `steal` {boolean} If `true`, then any held locks with the same name will be
     released, and the request will be granted, preempting any queued requests
     for it. **Default:** `false`.
+  * `signal` {AbortSignal} A signal that can be used to abort pending, not-yet
+    acquired lock requests.
 * `callback` {Function} The function to be invoked while the lock is acquired.
   The lock will be released when the function ends, or if the function returns
   a promise, when that promise settles.
