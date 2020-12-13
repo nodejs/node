@@ -273,6 +273,24 @@ qsWeirdObjects.forEach((testCase) => {
   assert.strictEqual(qs.stringify(testCase[0]), testCase[1]);
 });
 
+// BigInt values
+
+assert.strictEqual(qs.stringify({ foo: 2n ** 1023n }),
+                   'foo=' + 2n ** 1023n);
+assert.strictEqual(qs.stringify([0n, 1n, 2n]),
+                   '0=0&1=1&2=2');
+
+assert.strictEqual(qs.stringify({ foo: 2n ** 1023n },
+                                null,
+                                null,
+                                { encodeURIComponent: (c) => c }),
+                   'foo=' + 2n ** 1023n);
+assert.strictEqual(qs.stringify([0n, 1n, 2n],
+                                null,
+                                null,
+                                { encodeURIComponent: (c) => c }),
+                   '0=0&1=1&2=2');
+
 // Invalid surrogate pair throws URIError
 assert.throws(
   () => qs.stringify({ foo: '\udc00' }),
