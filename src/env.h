@@ -166,10 +166,12 @@ constexpr size_t kFsStatsBufferLength =
   V(messaging_transfer_symbol, "messaging_transfer_symbol")                    \
   V(messaging_clone_symbol, "messaging_clone_symbol")                          \
   V(messaging_transfer_list_symbol, "messaging_transfer_list_symbol")          \
+  V(onclose_message_symbol, "onclose_message_symbol")                          \
   V(oninit_symbol, "oninit")                                                   \
   V(owner_symbol, "owner_symbol")                                              \
   V(onpskexchange_symbol, "onpskexchange")                                     \
   V(resource_symbol, "resource_symbol")                                        \
+  V(sticky_message_symbol, "sticky_message_symbol")                            \
   V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
 
 // Strings are per-isolate primitives but Environment proxies them

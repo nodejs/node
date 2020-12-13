@@ -130,6 +130,7 @@ if (!common.isMainThread) {
     'NativeModule internal/streams/state',
     'NativeModule internal/worker',
     'NativeModule internal/worker/io',
+    'NativeModule internal/worker/locks',
     'NativeModule stream',
     'NativeModule worker_threads',
   ].forEach(expectedModules.add.bind(expectedModules));

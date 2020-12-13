@@ -808,7 +808,8 @@ BaseObjectPtr<BaseObject> MessagePortData::Deserialize(
 
 Maybe<bool> MessagePort::PostMessage(Environment* env,
                                      Local<Value> message_v,
-                                     const TransferList& transfer_v) {
+                                     const TransferList& transfer_v,
+                                     MessageMode mode) {
   Isolate* isolate = env->isolate();
   Local<Object> obj = object(isolate);
   Local<Context> context = obj->CreationContext();
@@ -827,8 +828,13 @@ Maybe<bool> MessagePort::PostMessage(Environment* env,
     return Nothing<bool>();
   }
 
+  if (mode == MessageMode::ONCLOSE) {
+    data_->close_message_ = msg;
+    return Just(true);
+  }
+
   std::string error;
-  Maybe<bool> res = data_->Dispatch(msg, &error);
+  Maybe<bool> res = data_->Dispatch(msg, mode, &error);
   if (res.IsNothing())
     return res;
 
@@ -840,13 +846,14 @@ Maybe<bool> MessagePort::PostMessage(Environment* env,
 
 Maybe<bool> MessagePortData::Dispatch(
     std::shared_ptr<Message> message,
+    MessageMode mode,
     std::string* error) {
   if (!group_) {
     if (error != nullptr)
       *error = "MessagePortData is not entangled.";
     return Nothing<bool>();
   }
-  return group_->Dispatch(this, message, error);
+  return group_->Dispatch(this, message, mode, error);
 }
 
 static Maybe<bool> ReadIterable(Environment* env,
@@ -943,6 +950,17 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  bool is_sticky = false;
+  bool is_onclose = false;
+  if (args[0]->IsObject()) {
+    if (!args[0].As<Object>()->Has(
+        context, env->sticky_message_symbol()).To(&is_sticky)) return;
+    if (!args[0].As<Object>()->Has(
+        context, env->onclose_message_symbol()).To(&is_onclose)) return;
+  }
+  MessageMode mode = is_sticky ? MessageMode::STICKY :
+      is_onclose ? MessageMode::ONCLOSE : MessageMode::NORMAL;
+
   MessagePort* port = Unwrap<MessagePort>(args.This());
   // Even if the backing MessagePort object has already been deleted, we still
   // want to serialize the message to ensure spec-compliant behavior w.r.t.
@@ -953,7 +971,7 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Maybe<bool> res = port->PostMessage(env, args[0], transfer_list);
+  Maybe<bool> res = port->PostMessage(env, args[0], transfer_list, mode);
   if (res.IsJust())
     args.GetReturnValue().Set(res.FromJust());
 }
@@ -1291,8 +1309,8 @@ SiblingGroup::~SiblingGroup() {
 Maybe<bool> SiblingGroup::Dispatch(
     MessagePortData* source,
     std::shared_ptr<Message> message,
+    MessageMode mode,
     std::string* error) {
-
   Mutex::ScopedLock lock(group_mutex_);
 
   // The source MessagePortData is not part of this group.
@@ -1302,10 +1320,6 @@ Maybe<bool> SiblingGroup::Dispatch(
     return Nothing<bool>();
   }
 
-  // There are no destination ports.
-  if (size() <= 1)
-    return Just(false);
-
   // Transferables cannot be used when there is more
   // than a single destination.
   if (size() > 2 && message->has_transferables()) {
@@ -1313,6 +1327,14 @@ Maybe<bool> SiblingGroup::Dispatch(
       *error = "Transferables cannot be used with multiple destinations.";
     return Nothing<bool>();
   }
+
+  if (mode == MessageMode::STICKY) {
+    sticky_message_ = message;
+  }
+
+  // There are no destination ports.
+  if (size() <= 1)
+    return Just(false);
 
   for (MessagePortData* port : ports_) {
     if (port == source)
@@ -1343,11 +1365,17 @@ void SiblingGroup::Entangle(std::initializer_list<MessagePortData*> ports) {
     ports_.insert(data);
     CHECK(!data->group_);
     data->group_ = shared_from_this();
+    if (sticky_message_) {
+      data->AddToIncomingQueue(sticky_message_);
+    }
   }
 }
 
 void SiblingGroup::Disentangle(MessagePortData* data) {
   auto self = shared_from_this();  // Keep alive until end of function.
+  if (data->close_message_) {
+    Dispatch(data, std::move(data->close_message_));
+  }
   Mutex::ScopedLock lock(group_mutex_);
   ports_.erase(data);
   data->group_.reset();
