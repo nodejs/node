@@ -36,8 +36,10 @@ const fn4 = path.join(tmpdir.path, 'write4.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
 
-/* eslint-disable no-undef */
-common.allowGlobals(externalizeString, isOneByteString, x);
+const { externalizeString, isOneByteString } = global;
+
+// Account for extra globals exposed by --expose_externalize_string.
+common.allowGlobals(externalizeString, isOneByteString, global.x);
 
 {
   const expected = 'ümlaut sechzig';  // Must be a unique string.
@@ -78,7 +80,6 @@ common.allowGlobals(externalizeString, isOneByteString, x);
   fs.closeSync(fd);
   assert.strictEqual(fs.readFileSync(fn, 'utf8'), expected);
 }
-/* eslint-enable no-undef */
 
 fs.open(fn, 'w', 0o644, common.mustSucceed((fd) => {
   const done = common.mustSucceed((written) => {
