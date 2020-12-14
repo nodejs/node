@@ -142,10 +142,9 @@ void InitCryptoOnce() {
     }
   }
   if (0 != err) {
-    fprintf(stderr,
-            "openssl fips failed: %s\n",
-            ERR_error_string(err, nullptr));
-    UNREACHABLE();
+    auto* isolate = Isolate::GetCurrent();
+    auto* env = Environment::GetCurrent(isolate);
+    return ThrowCryptoError(env, err);
   }
 
   // Turn off compression. Saves memory and protects against CRIME attacks.
