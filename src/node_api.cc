@@ -9,6 +9,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_process.h"
 #include "node_url.h"
 #include "threadpoolwork-inl.h"
 #include "tracing/traced_value.h"
@@ -23,6 +24,11 @@ node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(node_env());
 }
 
+node_napi_env__::~node_napi_env__() {
+  destructing = true;
+  FinalizeAll();
+}
+
 bool node_napi_env__::can_call_into_js() const {
   return node_env()->can_call_into_js();
 }
@@ -35,17 +41,62 @@ v8::Maybe<bool> node_napi_env__::mark_arraybuffer_as_untransferable(
 }
 
 void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
+  CallFinalizer<true>(cb, data, hint);
+}
+
+template <bool enforceUncaughtExceptionPolicy>
+void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
+  if (destructing) {
+    // we can not defer finalizers when the environment is being destructed.
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::Scope context_scope(context());
+    CallbackIntoModule<enforceUncaughtExceptionPolicy>(
+        [&](napi_env env) { cb(env, data, hint); });
+    return;
+  }
   // we need to keep the env live until the finalizer has been run
   // EnvRefHolder provides an exception safe wrapper to Ref and then
   // Unref once the lambda is freed
   EnvRefHolder liveEnv(static_cast<napi_env>(this));
   node_env()->SetImmediate(
       [=, liveEnv = std::move(liveEnv)](node::Environment* node_env) {
-        napi_env env = liveEnv.env();
+        node_napi_env__* env = static_cast<node_napi_env__*>(liveEnv.env());
         v8::HandleScope handle_scope(env->isolate);
         v8::Context::Scope context_scope(env->context());
-        env->CallIntoModule([&](napi_env env) { cb(env, data, hint); });
+        env->CallbackIntoModule<enforceUncaughtExceptionPolicy>(
+            [&](napi_env env) { cb(env, data, hint); });
       });
+}
+
+void node_napi_env__::trigger_fatal_exception(v8::Local<v8::Value> local_err) {
+  v8::Local<v8::Message> local_msg =
+      v8::Exception::CreateMessage(isolate, local_err);
+  node::errors::TriggerUncaughtException(isolate, local_err, local_msg);
+}
+
+// option enforceUncaughtExceptionPolicy is added for not breaking existing
+// running n-api add-ons, and should be deprecated in the next major Node.js
+// release.
+template <bool enforceUncaughtExceptionPolicy, typename T>
+void node_napi_env__::CallbackIntoModule(T&& call) {
+  CallIntoModule(call, [](napi_env env_, v8::Local<v8::Value> local_err) {
+    node_napi_env__* env = static_cast<node_napi_env__*>(env_);
+    node::Environment* node_env = env->node_env();
+    if (!node_env->options()->force_node_api_uncaught_exceptions_policy &&
+        !enforceUncaughtExceptionPolicy) {
+      ProcessEmitDeprecationWarning(
+          node_env,
+          "Uncaught N-API callback exception detected, please run node "
+          "with option --force-node-api-uncaught-exceptions-policy=true"
+          "to handle those exceptions properly.",
+          "DEP0XXX");
+      return;
+    }
+    // If there was an unhandled exception in the complete callback,
+    // report it as a fatal exception. (There is no JavaScript on the
+    // callstack that can possibly handle it.)
+    env->trigger_fatal_exception(local_err);
+  });
 }
 
 namespace v8impl {
@@ -60,20 +111,10 @@ class BufferFinalizer : private Finalizer {
         static_cast<BufferFinalizer*>(hint)};
     finalizer->_finalize_data = data;
 
-    node::Environment* node_env =
-        static_cast<node_napi_env>(finalizer->_env)->node_env();
-    node_env->SetImmediate(
-        [finalizer = std::move(finalizer)](node::Environment* env) {
-          if (finalizer->_finalize_callback == nullptr) return;
-
-          v8::HandleScope handle_scope(finalizer->_env->isolate);
-          v8::Context::Scope context_scope(finalizer->_env->context());
-
-          finalizer->_env->CallIntoModule([&](napi_env env) {
-            finalizer->_finalize_callback(
-                env, finalizer->_finalize_data, finalizer->_finalize_hint);
-          });
-        });
+    if (finalizer->_finalize_callback == nullptr) return;
+    finalizer->_env->CallFinalizer(finalizer->_finalize_callback,
+                                   finalizer->_finalize_data,
+                                   finalizer->_finalize_hint);
   }
 
   struct Deleter {
@@ -100,13 +141,6 @@ static inline napi_env NewEnv(v8::Local<v8::Context> context,
       static_cast<void*>(result));
 
   return result;
-}
-
-static inline void trigger_fatal_exception(napi_env env,
-                                           v8::Local<v8::Value> local_err) {
-  v8::Local<v8::Message> local_msg =
-      v8::Exception::CreateMessage(env->isolate, local_err);
-  node::errors::TriggerUncaughtException(env->isolate, local_err, local_msg);
 }
 
 class ThreadSafeFunction : public node::AsyncResource {
@@ -325,7 +359,7 @@ class ThreadSafeFunction : public node::AsyncResource {
             v8::Local<v8::Function>::New(env->isolate, ref);
         js_callback = v8impl::JsValueFromV8LocalValue(js_cb);
       }
-      env->CallIntoModule(
+      env->CallbackIntoModule<false>(
           [&](napi_env env) { call_js_cb(env, js_callback, context, data); });
     }
 
@@ -336,7 +370,9 @@ class ThreadSafeFunction : public node::AsyncResource {
     v8::HandleScope scope(env->isolate);
     if (finalize_cb) {
       CallbackScope cb_scope(this);
-      env->CallIntoModule(
+      // Do not use CallFinalizer since it will defer the invocation, which
+      // would lead to accessing a deleted ThreadSafeFunction.
+      env->CallbackIntoModule<false>(
           [&](napi_env env) { finalize_cb(env, finalize_data, context); });
     }
     EmptyQueueAndDelete();
@@ -719,7 +755,7 @@ napi_status NAPI_CDECL napi_fatal_exception(napi_env env, napi_value err) {
   CHECK_ARG(env, err);
 
   v8::Local<v8::Value> local_err = v8impl::V8LocalValueFromJsValue(err);
-  v8impl::trigger_fatal_exception(env, local_err);
+  static_cast<node_napi_env>(env)->trigger_fatal_exception(local_err);
 
   return napi_clear_last_error(env);
 }
@@ -1064,16 +1100,9 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
 
     CallbackScope callback_scope(this);
 
-    _env->CallIntoModule(
-        [&](napi_env env) {
-          _complete(env, ConvertUVErrorCode(status), _data);
-        },
-        [](napi_env env, v8::Local<v8::Value> local_err) {
-          // If there was an unhandled exception in the complete callback,
-          // report it as a fatal exception. (There is no JavaScript on the
-          // callstack that can possibly handle it.)
-          v8impl::trigger_fatal_exception(env, local_err);
-        });
+    _env->CallbackIntoModule<true>([&](napi_env env) {
+      _complete(env, ConvertUVErrorCode(status), _data);
+    });
 
     // Note: Don't access `work` after this point because it was
     // likely deleted by the complete callback.
