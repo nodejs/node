@@ -7,6 +7,7 @@ on:
 
 jobs:
   staleComment:
+    if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
       - name: Post comment
