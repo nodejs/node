@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Web Locks API: navigator.locks.query ordering</title>
+<link rel=help href="https://wicg.github.io/web-locks/">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+<style>iframe { display: none; }</style>
+<script>
+'use strict';
+
+// Grab a lock and hold until a release function is called. Resolves
+// to a release function.
+function getLockAndHoldUntilReleased(name, options) {
+  let release;
+  const promise = new Promise(resolve => { release = resolve; });
+  return new Promise(resolve => {
+    navigator.locks.request(name, options || {}, lock => {
+      resolve(release);
+      return promise;
+    }).catch(_ => {});
+  });
+}
+
+// Returns a promise resolved by the next message event.
+function nextMessage() {
+  return new Promise(resolve => {
+    window.addEventListener('message', event => {
+      resolve(event.data);
+    }, {once: true});
+  });
+}
+
+// Tests the ordering constraints on the requested lock state returned by
+// navigator.locks.query(). Three separate iframes are instantiated to make
+// lock requests on the same resource, first in one order and then in another,
+// different order. For each set of requests, it is verified that the requests
+// appear in the result of navigator.locks.query() in the same order in which
+// they were made.
+//
+// It is necessary to use separate iframes here so that the lock requests have
+// distinguishable client_ids (otherwise it would not be possible to
+// distinguish the requests and thus impossible to verify ordering).
+promise_test(async testCase => {
+  assert_implements(navigator.locks);
+  const resourceName = uniqueName(testCase);
+
+  // Set up clients.
+  const frame1 = await iframe('resources/iframe.html');
+  const frame2 = await iframe('resources/iframe.html');
+  const frame3 = await iframe('resources/iframe.html');
+  testCase.add_cleanup(() => { frame1.remove(); });
+  testCase.add_cleanup(() => { frame2.remove(); });
+  testCase.add_cleanup(() => { frame3.remove(); });
+
+  // Collect the client ids.
+  const clientId1 =
+      (await postToFrameAndWait(frame1, {op: 'client_id',
+                                         name: resourceName})).client_id;
+  const clientId2 =
+      (await postToFrameAndWait(frame2, {op: 'client_id',
+                                         name: resourceName})).client_id;
+  const clientId3 =
+      (await postToFrameAndWait(frame3, {op: 'client_id',
+                                         name: resourceName})).client_id;
+
+  // Preemptively take the lock.
+  const firstRequestGroupReleaseFunction =
+      await getLockAndHoldUntilReleased(resourceName);
+
+  // Queue the first group of lock requests from the different clients. These
+  // will be blocked until firstRequestGroupReleaseFunction() is called.
+  let lockId1;
+  let lockId2;
+  const lockPromise1 =
+      postToFrameAndWait(frame1, {op: 'request', name: resourceName})
+          .then(val => {lockId1 = val.lock_id;});
+  const lockPromise2 =
+      postToFrameAndWait(frame2, {op: 'request', name: resourceName})
+          .then(val => {lockId2 = val.lock_id;});
+
+  // This third request will later be granted and held in order to block a
+  // second group of requests to test a different client ordering. It is not
+  // meant to be released.
+  postToFrameAndWait(frame3, {op: 'request', name: resourceName});
+
+  // Request and wait for the release of a separate lock to ensure all previous
+  // requests are processed.
+  const checkpointName = uniqueName(testCase, 'checkpoint');
+  const checkpointId = (await postToFrameAndWait(
+                                  frame3,
+                                  {op: 'request', name: checkpointName})).lock_id;
+  await postToFrameAndWait(frame3, {op: 'release', lock_id: checkpointId});
+
+  // Query the state and test the ordering of requested locks.
+  const state = await navigator.locks.query();
+  const relevant_pending_ids = state.pending
+      .filter(lock => [clientId1, clientId2, clientId3].includes(lock.clientId))
+      .map(lock => lock.clientId);
+  assert_array_equals(
+      [clientId1, clientId2, clientId3],
+      relevant_pending_ids,
+      'Querying the state should return requested locks in the order they were '
+      + 'requested.');
+
+  // Add the second group of requests from the clients in a new order.
+  postToFrameAndWait(frame3, {op: 'request', name: resourceName});
+  postToFrameAndWait(frame1, {op: 'request', name: resourceName});
+  postToFrameAndWait(frame2, {op: 'request', name: resourceName});
+
+  // Release locks such that only the newly added locks are requested. This
+  // acts like a checkpoint for the newly queued requests.
+  firstRequestGroupReleaseFunction();
+  await lockPromise1;
+  await postToFrameAndWait(frame1, {op: 'release', lock_id: lockId1});
+  await lockPromise2;
+  await postToFrameAndWait(frame2, {op: 'release', lock_id: lockId2});
+
+  // Query the state and test the new ordering.
+  const state2 = await navigator.locks.query();
+  const relevant_pending_ids2 = state2.pending
+      .filter(lock => [clientId1, clientId2, clientId3].includes(lock.clientId))
+      .map(lock => lock.clientId);
+  assert_array_equals(
+      [clientId3, clientId1, clientId2],
+      relevant_pending_ids2,
+      'Querying the state should return requested locks in the order they were '
+      + 'requested.');
+
+}, 'Requests appear in state in order made.');
+</script>

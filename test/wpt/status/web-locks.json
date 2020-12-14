@@ -1,0 +1,26 @@
+{
+  "acquire.tentative.https.any.js": {
+    "skip": "function threw object \"Error: NotSupportedError\" that is not a DOMException"
+  },
+  "held.tentative.https.any.js": {
+    "skip": "Error: this uncaught rejection is expected"
+  },
+  "idlharness.tentative.https.any.js": {
+    "skip": "Unkexpected global object"
+  },
+  "non-secure-context.tentative.any.js": {
+    "skip": "navigator.locks is only present in secure contexts"
+  },
+  "query.tentative.https.any.js": {
+    "skip": "Uses Web Workers"
+  },
+  "resource-names.tentative.https.any.js": {
+    "skip": "function threw object \"Error: NotSupportedError\" that is not a DOMException"
+  },
+  "signal.tentative.https.any.js": {
+    "skip": "Various errors. Process hangs."
+  },
+  "steal.tentative.https.any.js": {
+    "skip": "AbortError: The operation was aborted"
+  }
+}

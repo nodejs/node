@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Web Locks API: Opaque origins</title>
+<link rel=help href="https://wicg.github.io/web-locks/">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+function load_iframe(src, sandbox) {
+  return new Promise(resolve => {
+    const iframe = document.createElement('iframe');
+    iframe.onload = () => { resolve(iframe); };
+    if (sandbox)
+      iframe.sandbox = sandbox;
+    iframe.srcdoc = src;
+    iframe.style.display = 'none';
+    document.documentElement.appendChild(iframe);
+  });
+}
+
+function wait_for_message(iframe) {
+  return new Promise(resolve => {
+    self.addEventListener('message', function listener(e) {
+      if (e.source === iframe.contentWindow) {
+        resolve(e.data);
+        self.removeEventListener('message', listener);
+      }
+    });
+  });
+}
+
+const script = `
+<script>
+  "use strict";
+  window.onmessage = async () => {
+    try {
+      await navigator.locks.request('name', lock => {});
+      window.parent.postMessage({result: "no exception"}, "*");
+    } catch (ex) {
+      window.parent.postMessage({result: ex.name}, "*");
+    };
+  };
+<\/script>
+`;
+
+promise_test(async t => {
+  const iframe = await load_iframe(script);
+  iframe.contentWindow.postMessage({}, '*');
+  const message = await wait_for_message(iframe);
+  assert_equals(message.result, 'no exception',
+                'navigator.locks.request() should not throw');
+}, 'navigator.locks.request() in non-sandboxed iframe should not throw');
+
+promise_test(async t => {
+  const iframe = await load_iframe(script, 'allow-scripts');
+  iframe.contentWindow.postMessage({}, '*');
+  const message = await wait_for_message(iframe);
+  assert_equals(message.result, 'SecurityError',
+                'Exception should be SecurityError');
+}, 'navigator.locks.request() in sandboxed iframe should throw SecurityError');
+</script>

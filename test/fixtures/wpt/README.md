@@ -13,13 +13,14 @@ Last update:
 - console: https://github.com/web-platform-tests/wpt/tree/3b1f72e99a/console
 - encoding: https://github.com/web-platform-tests/wpt/tree/1821fb5f77/encoding
 - url: https://github.com/web-platform-tests/wpt/tree/09d8830be1/url
-- resources: https://github.com/web-platform-tests/wpt/tree/001e50de41/resources
-- interfaces: https://github.com/web-platform-tests/wpt/tree/8719553b2d/interfaces
+- resources: https://github.com/web-platform-tests/wpt/tree/351a99782b/resources
+- interfaces: https://github.com/web-platform-tests/wpt/tree/c37c28b8a8/interfaces
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/264f12bc7b/html/webappapis/timers
 - hr-time: https://github.com/web-platform-tests/wpt/tree/a5d1774ecf/hr-time
 - common: https://github.com/web-platform-tests/wpt/tree/4dacb6e2ff/common
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/7caa3de747/dom/abort
+- web-locks: https://github.com/web-platform-tests/wpt/tree/e2ddf48b78/web-locks
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
