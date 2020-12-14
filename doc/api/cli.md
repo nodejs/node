@@ -361,6 +361,15 @@ reference. Code may break under this flag.
 `--require` runs prior to freezing intrinsics in order to allow polyfills to
 be added.
 
+### `--force-node-api-uncaught-exceptions-policy=bool`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enforces 'uncaughtException' event on Node-API asynchronous callbacks.
+
+Allows value of `true` and `false`.
+
 ### `--heapsnapshot-near-heap-limit=max_count`
 <!-- YAML
 added: v15.1.0
@@ -1409,6 +1418,7 @@ Node.js options that are allowed are:
 * `--experimental-wasm-modules`
 * `--force-context-aware`
 * `--force-fips`
+* `--force-node-api-uncaught-exceptions-policy`
 * `--frozen-intrinsics`
 * `--heapsnapshot-near-heap-limit`
 * `--heapsnapshot-signal`
