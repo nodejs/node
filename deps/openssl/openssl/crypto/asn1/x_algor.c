@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -91,4 +91,36 @@ int X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b)
     if (!a->parameter && !b->parameter)
         return 0;
     return ASN1_TYPE_cmp(a->parameter, b->parameter);
+}
+
+int X509_ALGOR_copy(X509_ALGOR *dest, const X509_ALGOR *src)
+{
+    if (src == NULL || dest == NULL)
+	return 0;
+
+    if (dest->algorithm)
+         ASN1_OBJECT_free(dest->algorithm);
+    dest->algorithm = NULL;
+
+    if (dest->parameter)
+        ASN1_TYPE_free(dest->parameter);
+    dest->parameter = NULL;
+
+    if (src->algorithm)
+        if ((dest->algorithm = OBJ_dup(src->algorithm)) == NULL)
+	    return 0;
+
+    if (src->parameter) {
+        dest->parameter = ASN1_TYPE_new();
+        if (dest->parameter == NULL)
+            return 0;
+
+        /* Assuming this is also correct for a BOOL.
+         * set does copy as a side effect.
+         */
+        if (ASN1_TYPE_set1(dest->parameter, 
+                src->parameter->type, src->parameter->value.ptr) == 0)
+            return 0;
+    }
+    return 1;
 }

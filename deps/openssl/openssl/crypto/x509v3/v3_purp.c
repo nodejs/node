@@ -13,6 +13,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/x509_vfy.h>
 #include "crypto/x509.h"
+#include "../x509/x509_local.h" /* for x509_signing_allowed() */
 #include "internal/tsan_assist.h"
 
 static void x509v3_cache_extensions(X509 *x);
@@ -344,6 +345,21 @@ static int setup_crldp(X509 *x)
     return 1;
 }
 
+/* Check that issuer public key algorithm matches subject signature algorithm */
+static int check_sig_alg_match(const EVP_PKEY *pkey, const X509 *subject)
+{
+    int pkey_nid;
+
+    if (pkey == NULL)
+        return X509_V_ERR_NO_ISSUER_PUBLIC_KEY;
+    if (OBJ_find_sigid_algs(OBJ_obj2nid(subject->cert_info.signature.algorithm),
+                            NULL, &pkey_nid) == 0)
+        return X509_V_ERR_UNSUPPORTED_SIGNATURE_ALGORITHM;
+    if (EVP_PKEY_type(pkey_nid) != EVP_PKEY_base_id(pkey))
+        return X509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH;
+    return X509_V_OK;
+}
+
 #define V1_ROOT (EXFLAG_V1|EXFLAG_SS)
 #define ku_reject(x, usage) \
         (((x)->ex_flags & EXFLAG_KUSAGE) && !((x)->ex_kusage & (usage)))
@@ -496,11 +512,11 @@ static void x509v3_cache_extensions(X509 *x)
         x->ex_flags |= EXFLAG_INVALID;
     /* Does subject name match issuer ? */
     if (!X509_NAME_cmp(X509_get_subject_name(x), X509_get_issuer_name(x))) {
-        x->ex_flags |= EXFLAG_SI;
-        /* If SKID matches AKID also indicate self signed */
-        if (X509_check_akid(x, x->akid) == X509_V_OK &&
-            !ku_reject(x, KU_KEY_CERT_SIGN))
-            x->ex_flags |= EXFLAG_SS;
+        x->ex_flags |= EXFLAG_SI; /* cert is self-issued */
+        if (X509_check_akid(x, x->akid) == X509_V_OK /* SKID matches AKID */
+                /* .. and the signature alg matches the PUBKEY alg: */
+                && check_sig_alg_match(X509_get0_pubkey(x), x) == X509_V_OK)
+            x->ex_flags |= EXFLAG_SS; /* indicate self-signed */
     }
     x->altname = X509_get_ext_d2i(x, NID_subject_alt_name, &i, NULL);
     if (x->altname == NULL && i != -1)
@@ -793,6 +809,23 @@ static int no_check(const X509_PURPOSE *xp, const X509 *x, int ca)
 }
 
 /*-
+ * Check if certificate I<issuer> is allowed to issue certificate I<subject>
+ * according to the B<keyUsage> field of I<issuer> if present
+ * depending on any proxyCertInfo extension of I<subject>.
+ * Returns 0 for OK, or positive for reason for rejection
+ * where reason codes match those for X509_verify_cert().
+ */
+int x509_signing_allowed(const X509 *issuer, const X509 *subject)
+{
+    if (subject->ex_flags & EXFLAG_PROXY) {
+        if (ku_reject(issuer, KU_DIGITAL_SIGNATURE))
+            return X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE;
+    } else if (ku_reject(issuer, KU_KEY_CERT_SIGN))
+        return X509_V_ERR_KEYUSAGE_NO_CERTSIGN;
+    return X509_V_OK;
+}
+
+/*-
  * Various checks to see if one certificate issued the second.
  * This can be used to prune a set of possible issuer certificates
  * which have been looked up using some simple method such as by
@@ -800,12 +833,23 @@ static int no_check(const X509_PURPOSE *xp, const X509 *x, int ca)
  * These are:
  * 1. Check issuer_name(subject) == subject_name(issuer)
  * 2. If akid(subject) exists check it matches issuer
- * 3. If key_usage(issuer) exists check it supports certificate signing
+ * 3. Check that issuer public key algorithm matches subject signature algorithm
+ * 4. If key_usage(issuer) exists check it supports certificate signing
  * returns 0 for OK, positive for reason for mismatch, reasons match
  * codes for X509_verify_cert()
  */
 
 int X509_check_issued(X509 *issuer, X509 *subject)
+{
+    int ret;
+
+    if ((ret = x509_likely_issued(issuer, subject)) != X509_V_OK)
+        return ret;
+    return x509_signing_allowed(issuer, subject);
+}
+
+/* do the checks 1., 2., and 3. as described above for X509_check_issued() */
+int x509_likely_issued(X509 *issuer, X509 *subject)
 {
     if (X509_NAME_cmp(X509_get_subject_name(issuer),
                       X509_get_issuer_name(subject)))
@@ -824,12 +868,8 @@ int X509_check_issued(X509 *issuer, X509 *subject)
             return ret;
     }
 
-    if (subject->ex_flags & EXFLAG_PROXY) {
-        if (ku_reject(issuer, KU_DIGITAL_SIGNATURE))
-            return X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE;
-    } else if (ku_reject(issuer, KU_KEY_CERT_SIGN))
-        return X509_V_ERR_KEYUSAGE_NO_CERTSIGN;
-    return X509_V_OK;
+    /* check if the subject signature alg matches the issuer's PUBKEY alg */
+    return check_sig_alg_match(X509_get0_pubkey(issuer), subject);
 }
 
 int X509_check_akid(X509 *issuer, AUTHORITY_KEYID *akid)

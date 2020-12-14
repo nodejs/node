@@ -29,7 +29,7 @@ B<u> as the callback parameters.
 
 The error strings will have the following format:
 
- [pid]:error:[error code]:[library name]:[function name]:[reason string]:[file name]:[line]:[optional text message]
+ [pid]:error:[error code]:[library name]:[function name]:[reason string]:[filename]:[line]:[optional text message]
 
 I<error code> is an 8 digit hexadecimal number. I<library name>,
 I<function name> and I<reason string> are ASCII text, as is I<optional
@@ -49,7 +49,7 @@ L<ERR_get_error(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

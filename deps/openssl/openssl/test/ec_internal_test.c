@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -183,6 +183,106 @@ static int field_tests_default(int n)
     return ret;
 }
 
+/*
+ * Tests behavior of the decoded_from_explicit_params flag and API
+ */
+static int decoded_flag_test(void)
+{
+    EC_GROUP *grp;
+    EC_GROUP *grp_copy = NULL;
+    ECPARAMETERS *ecparams = NULL;
+    ECPKPARAMETERS *ecpkparams = NULL;
+    EC_KEY *key = NULL;
+    unsigned char *encodedparams = NULL;
+    const unsigned char *encp;
+    int encodedlen;
+    int testresult = 0;
+
+    /* Test EC_GROUP_new not setting the flag */
+    grp = EC_GROUP_new(EC_GFp_simple_method());
+    if (!TEST_ptr(grp)
+        || !TEST_int_eq(grp->decoded_from_explicit_params, 0))
+        goto err;
+    EC_GROUP_free(grp);
+
+    /* Test EC_GROUP_new_by_curve_name not setting the flag */
+    grp = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    if (!TEST_ptr(grp)
+        || !TEST_int_eq(grp->decoded_from_explicit_params, 0))
+        goto err;
+
+    /* Test EC_GROUP_new_from_ecparameters not setting the flag */
+    if (!TEST_ptr(ecparams = EC_GROUP_get_ecparameters(grp, NULL))
+        || !TEST_ptr(grp_copy = EC_GROUP_new_from_ecparameters(ecparams))
+        || !TEST_int_eq(grp_copy->decoded_from_explicit_params, 0))
+        goto err;
+    EC_GROUP_free(grp_copy);
+    grp_copy = NULL;
+    ECPARAMETERS_free(ecparams);
+    ecparams = NULL;
+
+    /* Test EC_GROUP_new_from_ecpkparameters not setting the flag */
+    if (!TEST_int_eq(EC_GROUP_get_asn1_flag(grp), OPENSSL_EC_NAMED_CURVE)
+        || !TEST_ptr(ecpkparams = EC_GROUP_get_ecpkparameters(grp, NULL))
+        || !TEST_ptr(grp_copy = EC_GROUP_new_from_ecpkparameters(ecpkparams))
+        || !TEST_int_eq(grp_copy->decoded_from_explicit_params, 0)
+        || !TEST_ptr(key = EC_KEY_new())
+    /* Test EC_KEY_decoded_from_explicit_params on key without a group */
+        || !TEST_int_eq(EC_KEY_decoded_from_explicit_params(key), -1)
+        || !TEST_int_eq(EC_KEY_set_group(key, grp_copy), 1)
+    /* Test EC_KEY_decoded_from_explicit_params negative case */
+        || !TEST_int_eq(EC_KEY_decoded_from_explicit_params(key), 0))
+        goto err;
+    EC_GROUP_free(grp_copy);
+    grp_copy = NULL;
+    ECPKPARAMETERS_free(ecpkparams);
+    ecpkparams = NULL;
+
+    /* Test d2i_ECPKParameters with named params not setting the flag */
+    if (!TEST_int_gt(encodedlen = i2d_ECPKParameters(grp, &encodedparams), 0)
+        || !TEST_ptr(encp = encodedparams)
+        || !TEST_ptr(grp_copy = d2i_ECPKParameters(NULL, &encp, encodedlen))
+        || !TEST_int_eq(grp_copy->decoded_from_explicit_params, 0))
+        goto err;
+    EC_GROUP_free(grp_copy);
+    grp_copy = NULL;
+    OPENSSL_free(encodedparams);
+    encodedparams = NULL;
+
+    /* Asn1 flag stays set to explicit with EC_GROUP_new_from_ecpkparameters */
+    EC_GROUP_set_asn1_flag(grp, OPENSSL_EC_EXPLICIT_CURVE);
+    if (!TEST_ptr(ecpkparams = EC_GROUP_get_ecpkparameters(grp, NULL))
+        || !TEST_ptr(grp_copy = EC_GROUP_new_from_ecpkparameters(ecpkparams))
+        || !TEST_int_eq(EC_GROUP_get_asn1_flag(grp_copy), OPENSSL_EC_EXPLICIT_CURVE)
+        || !TEST_int_eq(grp_copy->decoded_from_explicit_params, 0))
+        goto err;
+    EC_GROUP_free(grp_copy);
+    grp_copy = NULL;
+
+    /* Test d2i_ECPKParameters with explicit params setting the flag */
+    if (!TEST_int_gt(encodedlen = i2d_ECPKParameters(grp, &encodedparams), 0)
+        || !TEST_ptr(encp = encodedparams)
+        || !TEST_ptr(grp_copy = d2i_ECPKParameters(NULL, &encp, encodedlen))
+        || !TEST_int_eq(EC_GROUP_get_asn1_flag(grp_copy), OPENSSL_EC_EXPLICIT_CURVE)
+        || !TEST_int_eq(grp_copy->decoded_from_explicit_params, 1)
+        || !TEST_int_eq(EC_KEY_set_group(key, grp_copy), 1)
+    /* Test EC_KEY_decoded_from_explicit_params positive case */
+        || !TEST_int_eq(EC_KEY_decoded_from_explicit_params(key), 1))
+        goto err;
+
+    testresult = 1;
+
+ err:
+    EC_KEY_free(key);
+    EC_GROUP_free(grp);
+    EC_GROUP_free(grp_copy);
+    ECPARAMETERS_free(ecparams);
+    ECPKPARAMETERS_free(ecpkparams);
+    OPENSSL_free(encodedparams);
+
+    return testresult;
+}
+
 int setup_tests(void)
 {
     crv_len = EC_get_builtin_curves(NULL, 0);
@@ -196,6 +296,7 @@ int setup_tests(void)
     ADD_TEST(field_tests_ec2_simple);
 #endif
     ADD_ALL_TESTS(field_tests_default, crv_len);
+    ADD_TEST(decoded_flag_test);
     return 1;
 }
 
