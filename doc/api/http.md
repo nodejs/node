@@ -1598,6 +1598,15 @@ Removes a header that's queued for implicit sending.
 response.removeHeader('Content-Encoding');
 ```
 
+### `response.req`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {http.IncomingMessage}
+
+A reference to the original HTTP `request` object.
+
 ### `response.sendDate`
 <!-- YAML
 added: v0.7.5

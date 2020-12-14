@@ -3437,6 +3437,15 @@ Removes a header that has been queued for implicit sending.
 response.removeHeader('Content-Encoding');
 ```
 
+### `response.req`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {http2.Http2ServerRequest}
+
+A reference to the original HTTP2 `request` object.
+
 #### `response.sendDate`
 <!-- YAML
 added: v8.4.0
