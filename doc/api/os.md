@@ -368,7 +368,7 @@ changes:
 
 Returns the system uptime in number of seconds.
 
-Please be aware that the value returned can be inaccurate in some
+The value returned can be inaccurate in some
 rare virtualization cases. The issue arises when the virtualized
 guest instance shares the kernel with the host system due to a bug
 in libuv. `os.uptime()` may thus provide the host's uptime instead of guest's.
