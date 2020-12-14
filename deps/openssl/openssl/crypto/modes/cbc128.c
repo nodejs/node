@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,12 @@
 
 #if !defined(STRICT_ALIGNMENT) && !defined(PEDANTIC)
 # define STRICT_ALIGNMENT 0
+#endif
+
+#if defined(__GNUC__) && !STRICT_ALIGNMENT
+typedef size_t size_t_aX __attribute((__aligned__(1)));
+#else
+typedef size_t size_t_aX;
 #endif
 
 void CRYPTO_cbc128_encrypt(const unsigned char *in, unsigned char *out,
@@ -40,8 +46,8 @@ void CRYPTO_cbc128_encrypt(const unsigned char *in, unsigned char *out,
     } else {
         while (len >= 16) {
             for (n = 0; n < 16; n += sizeof(size_t))
-                *(size_t *)(out + n) =
-                    *(size_t *)(in + n) ^ *(size_t *)(iv + n);
+                *(size_t_aX *)(out + n) =
+                    *(size_t_aX *)(in + n) ^ *(size_t_aX *)(iv + n);
             (*block) (out, out, key);
             iv = out;
             len -= 16;
@@ -96,7 +102,8 @@ void CRYPTO_cbc128_decrypt(const unsigned char *in, unsigned char *out,
             }
         } else if (16 % sizeof(size_t) == 0) { /* always true */
             while (len >= 16) {
-                size_t *out_t = (size_t *)out, *iv_t = (size_t *)iv;
+                size_t_aX *out_t = (size_t_aX *)out;
+                size_t_aX *iv_t = (size_t_aX *)iv;
 
                 (*block) (in, out, key);
                 for (n = 0; n < 16 / sizeof(size_t); n++)
@@ -125,8 +132,10 @@ void CRYPTO_cbc128_decrypt(const unsigned char *in, unsigned char *out,
             }
         } else if (16 % sizeof(size_t) == 0) { /* always true */
             while (len >= 16) {
-                size_t c, *out_t = (size_t *)out, *ivec_t = (size_t *)ivec;
-                const size_t *in_t = (const size_t *)in;
+                size_t c;
+                size_t_aX *out_t = (size_t_aX *)out;
+                size_t_aX *ivec_t = (size_t_aX *)ivec;
+                const size_t_aX *in_t = (const size_t_aX *)in;
 
                 (*block) (in, tmp.c, key);
                 for (n = 0; n < 16 / sizeof(size_t); n++) {

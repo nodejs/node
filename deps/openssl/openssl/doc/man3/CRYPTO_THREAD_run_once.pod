@@ -93,7 +93,7 @@ On Windows platforms the CRYPTO_THREAD_* types and functions in the
 openssl/crypto.h header are dependent on some of the types customarily
 made available by including windows.h. The application developer is
 likely to require control over when the latter is included, commonly as
-one of the first included headers. Therefore it is defined as an
+one of the first included headers. Therefore, it is defined as an
 application developer's responsibility to include windows.h prior to
 crypto.h where use of CRYPTO_THREAD_* types and functions is required.
 
@@ -161,7 +161,7 @@ L<crypto(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

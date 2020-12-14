@@ -20,8 +20,8 @@ socket file descriptor of a network connection.
 
 When performing the operation, a B<socket BIO> is automatically created to
 interface between the B<ssl> and B<fd>. The BIO and hence the SSL engine
-inherit the behaviour of B<fd>. If B<fd> is non-blocking, the B<ssl> will
-also have non-blocking behaviour.
+inherit the behaviour of B<fd>. If B<fd> is nonblocking, the B<ssl> will
+also have nonblocking behaviour.
 
 If there was already a BIO connected to B<ssl>, BIO_free() will be called
 (for both the reading and writing side, if different).
@@ -53,7 +53,7 @@ L<SSL_shutdown(3)>, L<ssl(7)> , L<bio(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

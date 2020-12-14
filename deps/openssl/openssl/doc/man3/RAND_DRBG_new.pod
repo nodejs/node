@@ -56,7 +56,7 @@ its type and to instantiate it.
 
 The optional B<flags> argument specifies a set of bit flags which can be
 joined using the | operator. Currently, the only flag is
-RAND_DRBG_FLAG_CTR_NO_DF, which disables the use of a the derivation function
+RAND_DRBG_FLAG_CTR_NO_DF, which disables the use of the derivation function
 ctr_df. For an explanation, see [NIST SP 800-90A Rev. 1].
 
 If a B<parent> instance is specified then this will be used instead of
@@ -117,7 +117,7 @@ The RAND_DRBG functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

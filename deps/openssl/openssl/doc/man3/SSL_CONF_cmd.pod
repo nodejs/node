@@ -79,7 +79,7 @@ B<ClientHello>.
 
 The B<value> argument is a colon separated list of groups. The group can be
 either the B<NIST> name (e.g. B<P-256>), some other commonly used name where
-applicable (e.g. B<X25519>) or an OpenSSL OID name (e.g B<prime256v1>). Group
+applicable (e.g. B<X25519>) or an OpenSSL OID name (e.g. B<prime256v1>). Group
 names are case sensitive. The list should be in order of preference with the
 most preferred group first.
 
@@ -95,7 +95,7 @@ servers
 The B<value> argument is a curve name or the special value B<auto> which
 picks an appropriate curve based on client and server preferences. The curve
 can be either the B<NIST> name (e.g. B<P-256>) or an OpenSSL OID name
-(e.g B<prime256v1>). Curve names are case sensitive.
+(e.g. B<prime256v1>). Curve names are case sensitive.
 
 =item B<-cipher>
 
@@ -147,13 +147,16 @@ B<SSL_OP_NO_RENEGOTIATION>.
 =item B<-min_protocol>, B<-max_protocol>
 
 Sets the minimum and maximum supported protocol.
-Currently supported protocol values are B<SSLv3>, B<TLSv1>,
-B<TLSv1.1>, B<TLSv1.2>, B<TLSv1.3> for TLS and B<DTLSv1>, B<DTLSv1.2> for DTLS,
-and B<None> for no limit.
-If either bound is not specified then only the other bound applies,
-if specified.
-To restrict the supported protocol versions use these commands rather
-than the deprecated alternative commands below.
+Currently supported protocol values are B<SSLv3>, B<TLSv1>, B<TLSv1.1>,
+B<TLSv1.2>, B<TLSv1.3> for TLS; B<DTLSv1>, B<DTLSv1.2> for DTLS, and B<None>
+for no limit.
+If either the lower or upper bound is not specified then only the other bound
+applies, if specified.
+If your application supports both TLS and DTLS you can specify any of these
+options twice, once with a bound for TLS and again with an appropriate bound
+for DTLS.
+To restrict the supported protocol versions use these commands rather than the
+deprecated alternative commands below.
 
 =item B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>, B<-no_tls1_3>
 
@@ -356,7 +359,7 @@ B<ClientHello>.
 
 The B<value> argument is a colon separated list of groups. The group can be
 either the B<NIST> name (e.g. B<P-256>), some other commonly used name where
-applicable (e.g. B<X25519>) or an OpenSSL OID name (e.g B<prime256v1>). Group
+applicable (e.g. B<X25519>) or an OpenSSL OID name (e.g. B<prime256v1>). Group
 names are case sensitive. The list should be in order of preference with the
 most preferred group first.
 
@@ -370,7 +373,11 @@ This sets the minimum supported SSL, TLS or DTLS version.
 
 Currently supported protocol values are B<SSLv3>, B<TLSv1>, B<TLSv1.1>,
 B<TLSv1.2>, B<TLSv1.3>, B<DTLSv1> and B<DTLSv1.2>.
-The value B<None> will disable the limit.
+The SSL and TLS bounds apply only to TLS-based contexts, while the DTLS bounds
+apply only to DTLS-based contexts.
+The command can be repeated with one instance setting a TLS bound, and the
+other setting a DTLS bound.
+The value B<None> applies to both types of contexts and disables the limits.
 
 =item B<MaxProtocol>
 
@@ -378,7 +385,11 @@ This sets the maximum supported SSL, TLS or DTLS version.
 
 Currently supported protocol values are B<SSLv3>, B<TLSv1>, B<TLSv1.1>,
 B<TLSv1.2>, B<TLSv1.3>, B<DTLSv1> and B<DTLSv1.2>.
-The value B<None> will disable the limit.
+The SSL and TLS bounds apply only to TLS-based contexts, while the DTLS bounds
+apply only to DTLS-based contexts.
+The command can be repeated with one instance setting a TLS bound, and the
+other setting a DTLS bound.
+The value B<None> applies to both types of contexts and disables the limits.
 
 =item B<Protocol>
 
@@ -537,7 +548,7 @@ The value is a string without any specific structure.
 
 =item B<SSL_CONF_TYPE_FILE>
 
-The value is a file name.
+The value is a filename.
 
 =item B<SSL_CONF_TYPE_DIR>
 
@@ -683,7 +694,7 @@ B<AllowNoDHEKEX> and B<PrioritizeChaCha> were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2012-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

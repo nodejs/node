@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -284,6 +284,18 @@ void X509_REQ_get0_signature(const X509_REQ *req, const ASN1_BIT_STRING **psig,
         *psig = req->signature;
     if (palg != NULL)
         *palg = &req->sig_alg;
+}
+
+void X509_REQ_set0_signature(X509_REQ *req, ASN1_BIT_STRING *psig)
+{
+    if (req->signature)
+           ASN1_BIT_STRING_free(req->signature);
+    req->signature = psig;
+}
+
+int X509_REQ_set1_signature_algo(X509_REQ *req, X509_ALGOR *palg)
+{
+    return X509_ALGOR_copy(&req->sig_alg, palg);
 }
 
 int X509_REQ_get_signature_nid(const X509_REQ *req)
