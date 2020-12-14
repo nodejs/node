@@ -580,7 +580,7 @@ static struct {
 #endif  // __POSIX__
 
 
-inline void PlatformInit() {
+void PlatformInit() {
 #ifdef __POSIX__
 #if HAVE_INSPECTOR
   sigset_t sigmask;

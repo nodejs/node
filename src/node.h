@@ -235,6 +235,8 @@ enum OptionEnvvarSettings {
   kDisallowedInEnvironment
 };
 
+NODE_EXTERN void PlatformInit();
+
 NODE_EXTERN int ProcessGlobalArgs(std::vector<std::string>* args,
                       std::vector<std::string>* exec_args,
                       std::vector<std::string>* errors,
