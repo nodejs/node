@@ -151,7 +151,7 @@ Implementations must add objects they find to the B<X509_STORE> object
 using X509_STORE_add_cert() or X509_STORE_add_crl().  This increments
 its reference count.  However, the X509_STORE_CTX_get_by_subject()
 function also increases the reference count which leads to one too
-many references being held.  Therefore applications should
+many references being held.  Therefore, applications should
 additionally call X509_free() or X509_CRL_free() to decrement the
 reference count again.
 

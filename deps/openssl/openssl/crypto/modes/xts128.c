@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,14 @@
 #include <openssl/crypto.h>
 #include "modes_local.h"
 #include <string.h>
+
+#ifndef STRICT_ALIGNMENT
+# ifdef __GNUC__
+typedef u64 u64_a1 __attribute((__aligned__(1)));
+# else
+typedef u64 u64_a1;
+# endif
+#endif
 
 int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
                           const unsigned char iv[16],
@@ -45,8 +53,8 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         scratch.u[0] ^= tweak.u[0];
         scratch.u[1] ^= tweak.u[1];
 #else
-        scratch.u[0] = ((u64 *)inp)[0] ^ tweak.u[0];
-        scratch.u[1] = ((u64 *)inp)[1] ^ tweak.u[1];
+        scratch.u[0] = ((u64_a1 *)inp)[0] ^ tweak.u[0];
+        scratch.u[1] = ((u64_a1 *)inp)[1] ^ tweak.u[1];
 #endif
         (*ctx->block1) (scratch.c, scratch.c, ctx->key1);
 #if defined(STRICT_ALIGNMENT)
@@ -54,8 +62,8 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         scratch.u[1] ^= tweak.u[1];
         memcpy(out, scratch.c, 16);
 #else
-        ((u64 *)out)[0] = scratch.u[0] ^= tweak.u[0];
-        ((u64 *)out)[1] = scratch.u[1] ^= tweak.u[1];
+        ((u64_a1 *)out)[0] = scratch.u[0] ^= tweak.u[0];
+        ((u64_a1 *)out)[1] = scratch.u[1] ^= tweak.u[1];
 #endif
         inp += 16;
         out += 16;
@@ -128,8 +136,8 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         scratch.u[0] ^= tweak1.u[0];
         scratch.u[1] ^= tweak1.u[1];
 #else
-        scratch.u[0] = ((u64 *)inp)[0] ^ tweak1.u[0];
-        scratch.u[1] = ((u64 *)inp)[1] ^ tweak1.u[1];
+        scratch.u[0] = ((u64_a1 *)inp)[0] ^ tweak1.u[0];
+        scratch.u[1] = ((u64_a1 *)inp)[1] ^ tweak1.u[1];
 #endif
         (*ctx->block1) (scratch.c, scratch.c, ctx->key1);
         scratch.u[0] ^= tweak1.u[0];
@@ -148,8 +156,8 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         scratch.u[1] ^= tweak.u[1];
         memcpy(out, scratch.c, 16);
 #else
-        ((u64 *)out)[0] = scratch.u[0] ^ tweak.u[0];
-        ((u64 *)out)[1] = scratch.u[1] ^ tweak.u[1];
+        ((u64_a1 *)out)[0] = scratch.u[0] ^ tweak.u[0];
+        ((u64_a1 *)out)[1] = scratch.u[1] ^ tweak.u[1];
 #endif
     }
 

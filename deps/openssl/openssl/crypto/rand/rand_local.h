@@ -138,9 +138,11 @@ typedef struct rand_drbg_method_st {
  * The state of a DRBG AES-CTR.
  */
 typedef struct rand_drbg_ctr_st {
-    EVP_CIPHER_CTX *ctx;
+    EVP_CIPHER_CTX *ctx_ecb;
+    EVP_CIPHER_CTX *ctx_ctr;
     EVP_CIPHER_CTX *ctx_df;
-    const EVP_CIPHER *cipher;
+    const EVP_CIPHER *cipher_ecb;
+    const EVP_CIPHER *cipher_ctr;
     size_t keylen;
     unsigned char K[32];
     unsigned char V[16];
@@ -233,7 +235,7 @@ struct rand_drbg_st {
     size_t max_perslen, max_adinlen;
 
     /* Counts the number of generate requests since the last reseed. */
-    unsigned int reseed_gen_counter;
+    unsigned int generate_counter;
     /*
      * Maximum number of generate requests until a reseed is required.
      * This value is ignored if it is zero.
@@ -246,9 +248,15 @@ struct rand_drbg_st {
      * This value is ignored if it is zero.
      */
     time_t reseed_time_interval;
+
+    /*
+     * Enables reseed propagation (see following comment)
+     */
+    unsigned int enable_reseed_propagation;
+
     /*
      * Counts the number of reseeds since instantiation.
-     * This value is ignored if it is zero.
+     * This value is ignored if enable_reseed_propagation is zero.
      *
      * This counter is used only for seed propagation from the <master> DRBG
      * to its two children, the <public> and <private> DRBG. This feature is
@@ -256,8 +264,7 @@ struct rand_drbg_st {
      * is added by RAND_add() or RAND_seed() will have an immediate effect on
      * the output of RAND_bytes() resp. RAND_priv_bytes().
      */
-    TSAN_QUALIFIER unsigned int reseed_prop_counter;
-    unsigned int reseed_next_counter;
+    TSAN_QUALIFIER unsigned int reseed_counter;
 
     size_t seedlen;
     DRBG_STATUS state;

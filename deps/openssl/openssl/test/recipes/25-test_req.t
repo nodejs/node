@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,7 @@ use OpenSSL::Test qw/:DEFAULT srctop_file/;
 
 setup("test_req");
 
-plan tests => 12;
+plan tests => 14;
 
 require_ok(srctop_file('test','recipes','tconversion.pl'));
 
@@ -97,6 +97,46 @@ subtest "generating certificate requests with ECDSA" => sub {
                     "-config", srctop_file("test", "test.cnf"),
                     "-new", "-out", "testreq.pem", "-utf8",
                     "-key", srctop_file("test", "testec-p256.pem")])),
+           "Generating request");
+
+        ok(run(app(["openssl", "req",
+                    "-config", srctop_file("test", "test.cnf"),
+                    "-verify", "-in", "testreq.pem", "-noout"])),
+           "Verifying signature on request");
+    }
+};
+
+subtest "generating certificate requests with Ed25519" => sub {
+    plan tests => 2;
+
+    SKIP: {
+        skip "Ed25519 is not supported by this OpenSSL build", 2
+            if disabled("ec");
+
+        ok(run(app(["openssl", "req",
+                    "-config", srctop_file("test", "test.cnf"),
+                    "-new", "-out", "testreq.pem", "-utf8",
+                    "-key", srctop_file("test", "tested25519.pem")])),
+           "Generating request");
+
+        ok(run(app(["openssl", "req",
+                    "-config", srctop_file("test", "test.cnf"),
+                    "-verify", "-in", "testreq.pem", "-noout"])),
+           "Verifying signature on request");
+    }
+};
+
+subtest "generating certificate requests with Ed448" => sub {
+    plan tests => 2;
+
+    SKIP: {
+        skip "Ed448 is not supported by this OpenSSL build", 2
+            if disabled("ec");
+
+        ok(run(app(["openssl", "req",
+                    "-config", srctop_file("test", "test.cnf"),
+                    "-new", "-out", "testreq.pem", "-utf8",
+                    "-key", srctop_file("test", "tested448.pem")])),
            "Generating request");
 
         ok(run(app(["openssl", "req",

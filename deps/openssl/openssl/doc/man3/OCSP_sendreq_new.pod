@@ -34,7 +34,7 @@ response header maximum line length of B<maxline>. If B<maxline> is zero a
 default value of 4k is used. The OCSP request B<req> may be set to B<NULL>
 and provided later if required.
 
-OCSP_sendreq_nbio() performs non-blocking I/O on the OCSP request context
+OCSP_sendreq_nbio() performs nonblocking I/O on the OCSP request context
 B<rctx>. When the operation is complete it returns the response in B<*presp>.
 
 OCSP_REQ_CTX_free() frees up the OCSP context B<rctx>.
@@ -96,7 +96,7 @@ corresponding BIO can be examined to determine which operation (read or
 write) should be retried and appropriate action taken (for example a select()
 call on the underlying socket).
 
-OCSP_sendreq_bio() does not support retries and so cannot handle non-blocking
+OCSP_sendreq_bio() does not support retries and so cannot handle nonblocking
 I/O efficiently. It is retained for compatibility and its use in new
 applications is not recommended.
 

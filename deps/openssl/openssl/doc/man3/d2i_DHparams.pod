@@ -8,7 +8,7 @@ d2i_DHparams, i2d_DHparams - PKCS#3 DH parameter functions
 
  #include <openssl/dh.h>
 
- DH *d2i_DHparams(DH **a, unsigned char **pp, long length);
+ DH *d2i_DHparams(DH **a, const unsigned char **pp, long length);
  int i2d_DHparams(DH *a, unsigned char **pp);
 
 =head1 DESCRIPTION
@@ -32,7 +32,7 @@ L<d2i_X509(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

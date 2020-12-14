@@ -109,7 +109,7 @@ Filter BIOs if they do not internally handle a particular BIO_ctrl()
 operation usually pass the operation to the next BIO in the chain.
 This often means there is no need to locate the required BIO for
 a particular operation, it can be called on a chain and it will
-be automatically passed to the relevant BIO. However this can cause
+be automatically passed to the relevant BIO. However, this can cause
 unexpected results: for example no current filter BIOs implement
 BIO_seek(), but this may still succeed if the chain ends in a FILE
 or file descriptor BIO.
@@ -126,7 +126,7 @@ the case of BIO_seek() on a file BIO for a successful operation.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

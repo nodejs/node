@@ -50,7 +50,7 @@ the callback function was called. If B<ret> is 0, an error condition occurred.
 If an alert is handled, SSL_CB_ALERT is set and B<ret> specifies the alert
 information.
 
-B<where> is a bitmask made up of the following bits:
+B<where> is a bit mask made up of the following bits:
 
 =over 4
 
@@ -64,7 +64,7 @@ per state in some situations.
 
 Callback has been called to indicate exit of a handshake function. This will
 happen after the end of a handshake, but may happen at other times too such as
-on error or when IO might otherwise block and non-blocking is being used.
+on error or when IO might otherwise block and nonblocking is being used.
 
 =item SSL_CB_READ
 
@@ -156,7 +156,7 @@ L<SSL_alert_type_string(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

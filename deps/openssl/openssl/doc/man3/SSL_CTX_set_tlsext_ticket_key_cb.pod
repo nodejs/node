@@ -136,6 +136,8 @@ Reference Implementation:
                                      unsigned char *iv, EVP_CIPHER_CTX *ctx,
                                      HMAC_CTX *hctx, int enc)
  {
+     your_type_t *key; /* something that you need to implement */
+
      if (enc) { /* create new session */
          if (RAND_bytes(iv, EVP_MAX_IV_LENGTH) <= 0)
              return -1; /* insufficient random */
@@ -154,21 +156,22 @@ Reference Implementation:
          }
          memcpy(key_name, key->name, 16);
 
-         EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL, key->aes_key, iv);
-         HMAC_Init_ex(&hctx, key->hmac_key, 16, EVP_sha256(), NULL);
+         EVP_EncryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key->aes_key, iv);
+         HMAC_Init_ex(&hctx, key->hmac_key, 32, EVP_sha256(), NULL);
 
          return 1;
 
      } else { /* retrieve session */
-         key = findkey(name);
+         time_t t = time(NULL);
+         key = findkey(key_name); /* something that you need to implement */
 
-         if (key == NULL || key->expire < now())
+         if (key == NULL || key->expire < t)
              return 0;
 
-         HMAC_Init_ex(&hctx, key->hmac_key, 16, EVP_sha256(), NULL);
-         EVP_DecryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL, key->aes_key, iv);
+         HMAC_Init_ex(&hctx, key->hmac_key, 32, EVP_sha256(), NULL);
+         EVP_DecryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key->aes_key, iv);
 
-         if (key->expire < now() - RENEW_TIME) {
+         if (key->expire < t - RENEW_TIME) { /* RENEW_TIME: implement */
              /*
               * return 2 - This session will get a new ticket even though the
               * current one is still valid.
@@ -190,7 +193,7 @@ L<SSL_CTX_set_session_id_context(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -56,10 +56,6 @@ static int final_sig_algs(SSL *s, unsigned int context, int sent);
 static int final_early_data(SSL *s, unsigned int context, int sent);
 static int final_maxfragmentlen(SSL *s, unsigned int context, int sent);
 static int init_post_handshake_auth(SSL *s, unsigned int context);
-#ifndef OPENSSL_NO_QUIC
-static int init_quic_transport_params(SSL *s, unsigned int context);
-static int final_quic_transport_params(SSL *s, unsigned int context, int sent);
-#endif
 
 /* Structure to define a built-in extension */
 typedef struct extensions_definition_st {
@@ -377,19 +373,6 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         tls_construct_certificate_authorities,
         tls_construct_certificate_authorities, NULL,
     },
-#ifndef OPENSSL_NO_QUIC
-    {
-        TLSEXT_TYPE_quic_transport_parameters,
-        SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
-        | SSL_EXT_TLS_IMPLEMENTATION_ONLY | SSL_EXT_TLS1_3_ONLY,
-        init_quic_transport_params,
-        tls_parse_ctos_quic_transport_params, tls_parse_stoc_quic_transport_params,
-        tls_construct_stoc_quic_transport_params, tls_construct_ctos_quic_transport_params,
-        final_quic_transport_params,
-    },
-#else
-    INVALID_EXTENSION,
-#endif
     {
         /* Must be immediately before pre_shared_key */
         TLSEXT_TYPE_padding,
@@ -1185,14 +1168,26 @@ static int init_etm(SSL *s, unsigned int context)
 
 static int init_ems(SSL *s, unsigned int context)
 {
-    if (!s->server)
+    if (s->s3->flags & TLS1_FLAGS_RECEIVED_EXTMS) {
         s->s3->flags &= ~TLS1_FLAGS_RECEIVED_EXTMS;
+        s->s3->flags |= TLS1_FLAGS_REQUIRED_EXTMS;
+    }
 
     return 1;
 }
 
 static int final_ems(SSL *s, unsigned int context, int sent)
 {
+    /*
+     * Check extended master secret extension is not dropped on
+     * renegotiation.
+     */
+    if (!(s->s3->flags & TLS1_FLAGS_RECEIVED_EXTMS)
+        && (s->s3->flags & TLS1_FLAGS_REQUIRED_EXTMS)) {
+        SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_F_FINAL_EMS,
+                 SSL_R_INCONSISTENT_EXTMS);
+        return 0;
+    }
     if (!s->server && s->hit) {
         /*
          * Check extended master secret extension is consistent with
@@ -1718,15 +1713,3 @@ static int init_post_handshake_auth(SSL *s, unsigned int context)
 
     return 1;
 }
-
-#ifndef OPENSSL_NO_QUIC
-static int init_quic_transport_params(SSL *s, unsigned int context)
-{
-    return 1;
-}
-
-static int final_quic_transport_params(SSL *s, unsigned int context, int sent)
-{
-    return 1;
-}
-#endif

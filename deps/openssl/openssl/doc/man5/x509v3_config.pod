@@ -60,8 +60,8 @@ The following sections describe each supported extension in detail.
 
 This is a multi valued extension which indicates whether a certificate is
 a CA certificate. The first (mandatory) name is B<CA> followed by B<TRUE> or
-B<FALSE>. If B<CA> is B<TRUE> then an optional B<pathlen> name followed by an
-non-negative value can be included.
+B<FALSE>. If B<CA> is B<TRUE> then an optional B<pathlen> name followed by a
+nonnegative value can be included.
 
 For example:
 
@@ -534,7 +534,7 @@ L<ASN1_generate_nconf(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

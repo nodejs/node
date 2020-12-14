@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-RSA_private_encrypt, RSA_public_decrypt - low level signature operations
+RSA_private_encrypt, RSA_public_decrypt - low-level signature operations
 
 =head1 SYNOPSIS
 
@@ -16,7 +16,7 @@ RSA_private_encrypt, RSA_public_decrypt - low level signature operations
 
 =head1 DESCRIPTION
 
-These functions handle RSA signatures at a low level.
+These functions handle RSA signatures at a low-level.
 
 RSA_private_encrypt() signs the B<flen> bytes at B<from> (usually a
 message digest with an algorithm identifier) using the private key
@@ -64,7 +64,7 @@ L<RSA_sign(3)>, L<RSA_verify(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

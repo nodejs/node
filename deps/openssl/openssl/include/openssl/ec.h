@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -828,6 +828,8 @@ int EC_KEY_get_flags(const EC_KEY *key);
 void EC_KEY_set_flags(EC_KEY *key, int flags);
 
 void EC_KEY_clear_flags(EC_KEY *key, int flags);
+
+int EC_KEY_decoded_from_explicit_params(const EC_KEY *key);
 
 /** Creates a new EC_KEY object using a named curve as underlying
  *  EC_GROUP object.

@@ -42,7 +42,7 @@ BIO_ADDR_free() frees a B<BIO_ADDR> created with BIO_ADDR_new().
 BIO_ADDR_clear() clears any data held within the provided B<BIO_ADDR> and sets
 it back to an uninitialised state.
 
-BIO_ADDR_rawmake() takes a protocol B<family>, an byte array of
+BIO_ADDR_rawmake() takes a protocol B<family>, a byte array of
 size B<wherelen> with an address in network byte order pointed at
 by B<where> and a port number in network byte order in B<port> (except
 for the B<AF_UNIX> protocol family, where B<port> is meaningless and
@@ -115,7 +115,7 @@ L<BIO_connect(3)>, L<BIO_s_connect(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

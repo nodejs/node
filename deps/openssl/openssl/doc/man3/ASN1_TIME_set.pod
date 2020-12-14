@@ -117,7 +117,7 @@ one or both (depending on the time difference) of B<*pday> and B<*psec>
 will be positive. If B<to> represents a time earlier than B<from> then
 one or both of B<*pday> and B<*psec> will be negative. If B<to> and B<from>
 represent the same time then B<*pday> and B<*psec> will both be zero.
-If both B<*pday> and B<*psec> are non-zero they will always have the same
+If both B<*pday> and B<*psec> are nonzero they will always have the same
 sign. The value of B<*psec> will always be less than the number of seconds
 in a day. If B<from> or B<to> is NULL the current time is used.
 
@@ -167,7 +167,7 @@ format.
 =head1 BUGS
 
 ASN1_TIME_print(), ASN1_UTCTIME_print() and ASN1_GENERALIZEDTIME_print()
-do not print out the time zone: it either prints out "GMT" or nothing. But all
+do not print out the timezone: it either prints out "GMT" or nothing. But all
 certificates complying with RFC5280 et al use GMT anyway.
 
 Use the ASN1_TIME_normalize() function to normalize the time value before
@@ -248,7 +248,7 @@ The ASN1_TIME_compare() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -52,7 +52,7 @@ by X509_verify_cert().
 X509_STORE_CTX_new() returns a newly initialised B<X509_STORE_CTX> structure.
 
 X509_STORE_CTX_cleanup() internally cleans up an B<X509_STORE_CTX> structure.
-The context can then be reused with an new call to X509_STORE_CTX_init().
+The context can then be reused with a new call to X509_STORE_CTX_init().
 
 X509_STORE_CTX_free() completely frees up B<ctx>. After this call B<ctx>
 is no longer valid.
@@ -80,7 +80,7 @@ X509_STORE_CTX_set0_verified_chain() sets the validated chain used
 by B<ctx> to be B<chain>.
 Ownership of the chain is transferred to B<ctx> and should not be
 free'd by the caller.
-X509_STORE_CTX_get0_chain() returns a the internal pointer used by the
+X509_STORE_CTX_get0_chain() returns the internal pointer used by the
 B<ctx> that contains the validated chain.
 
 X509_STORE_CTX_set0_crls() sets a set of CRLs to use to aid certificate
@@ -133,7 +133,7 @@ should be made or reference counts increased instead.
 
 =head1 RETURN VALUES
 
-X509_STORE_CTX_new() returns an newly allocates context or B<NULL> is an
+X509_STORE_CTX_new() returns a newly allocated context or B<NULL> if an
 error occurred.
 
 X509_STORE_CTX_init() returns 1 for success or 0 if an error occurred.
@@ -164,7 +164,7 @@ The X509_STORE_CTX_get_num_untrusted() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -81,7 +81,7 @@ instead.
 
 In general an B<ASN1_INTEGER> or B<ASN1_ENUMERATED> type can contain an
 integer of almost arbitrary size and so cannot always be represented by a C
-B<int64_t> type. However in many cases (for example version numbers) they
+B<int64_t> type. However, in many cases (for example version numbers) they
 represent small integers which can be more easily manipulated if converted to
 an appropriate C integer type.
 
@@ -123,7 +123,7 @@ were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

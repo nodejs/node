@@ -45,7 +45,7 @@ DH_set_method() selects B<meth> to perform all operations using the key B<dh>.
 This will replace the DH_METHOD used by the DH key and if the previous method
 was supplied by an ENGINE, the handle to that ENGINE will be released during the
 change. It is possible to have DH keys that only work with certain DH_METHOD
-implementations (eg. from an ENGINE module that supports embedded
+implementations (e.g. from an ENGINE module that supports embedded
 hardware-protected keys), and in such cases attempting to change the DH_METHOD
 for the key can have unexpected results.
 
@@ -64,7 +64,7 @@ B<DH_METHOD>s.
 
 DH_set_default_method() returns no value.
 
-DH_set_method() returns non-zero if the provided B<meth> was successfully set as
+DH_set_method() returns nonzero if the provided B<meth> was successfully set as
 the method for B<dh> (including unloading the ENGINE handle if the previous
 method was supplied by an ENGINE).
 
@@ -78,7 +78,7 @@ L<DH_new(3)>, L<DH_new(3)>, L<DH_meth_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

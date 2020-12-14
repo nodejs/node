@@ -39,7 +39,7 @@ received from a faulty or malicious peer, a maximum size for the certificate
 chain is set.
 
 The default value for the maximum certificate chain size is 100kB (30kB
-on the 16bit DOS platform). This should be sufficient for usual certificate
+on the 16-bit DOS platform). This should be sufficient for usual certificate
 chains (OpenSSL's default maximum chain length is 10, see
 L<SSL_CTX_set_verify(3)>, and certificates
 without special extensions have a typical size of 1-2kB).
@@ -72,7 +72,7 @@ L<SSL_CTX_set_verify(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -135,6 +135,8 @@ int X509_cmp(const X509 *a, const X509 *b)
 {
     int rv;
 
+    if (a == b) /* for efficiency */
+        return 0;
     /* ensure hash is valid */
     if (X509_check_purpose((X509 *)a, -1, 0) != 1)
         return -2;

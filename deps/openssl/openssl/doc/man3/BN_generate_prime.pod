@@ -127,7 +127,7 @@ For instance, to reach the 128 bit security level, B<nchecks> should be set to
 
 If B<cb> is not B<NULL>, B<BN_GENCB_call(cb, 1, j)> is called
 after the j-th iteration (j = 0, 1, ...). B<ctx> is a
-pre-allocated B<BN_CTX> (to save the overhead of allocating and
+preallocated B<BN_CTX> (to save the overhead of allocating and
 freeing the structure in a loop), or B<NULL>.
 
 BN_GENCB_call() calls the callback function held in the B<BN_GENCB> structure

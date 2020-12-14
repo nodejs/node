@@ -262,13 +262,11 @@ Example of a configuration with the system default:
  ssl_conf = ssl_sect
 
  [ssl_sect]
-
  system_default = system_default_sect
 
  [system_default_sect]
-
  MinProtocol = TLSv1.2
-
+ MinProtocol = DTLSv1.2
 
 =head1 NOTES
 
@@ -355,8 +353,8 @@ Simple OpenSSL library configuration example to enter FIPS mode:
 Note: in the above example you will get an error in non FIPS capable versions
 of OpenSSL.
 
-Simple OpenSSL library configuration to make TLS 1.3 the system-default
-minimum TLS version:
+Simple OpenSSL library configuration to make TLS 1.2 and DTLS 1.2 the
+system-default minimum TLS and DTLS versions, respectively:
 
  # Toplevel section for openssl (including libssl)
  openssl_conf = default_conf_section
@@ -369,7 +367,12 @@ minimum TLS version:
  system_default = system_default_section
 
  [system_default_section]
- MinProtocol = TLSv1.3
+ MinProtocol = TLSv1.2
+ MinProtocol = DTLSv1.2
+
+The minimum TLS protocol is applied to B<SSL_CTX> objects that are TLS-based,
+and the minimum DTLS protocol to those are DTLS-based.
+The same applies also to maximum versions set with B<MaxProtocol>.
 
 More complex OpenSSL library configuration. Add OID and don't enter FIPS mode:
 
@@ -432,7 +435,7 @@ the value.
 The escaping isn't quite right: if you want to use sequences like B<\n>
 you can't use any quote escaping on the same line.
 
-Files are loaded in a single pass. This means that an variable expansion
+Files are loaded in a single pass. This means that a variable expansion
 will only work if the variables referenced are defined earlier in the
 file.
 

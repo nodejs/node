@@ -52,7 +52,7 @@ corresponding parameter can be set to B<NULL>.
 OCSP_cert_to_id() and OCSP_cert_id_new() return either a pointer to a valid
 B<OCSP_CERTID> structure or B<NULL> if an error occurred.
 
-OCSP_id_cmp() and OCSP_id_issuer_cmp() returns zero for a match and non-zero
+OCSP_id_cmp() and OCSP_id_issuer_cmp() returns zero for a match and nonzero
 otherwise.
 
 OCSP_CERTID_free() does not return a value.
@@ -79,7 +79,7 @@ L<OCSP_sendreq_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

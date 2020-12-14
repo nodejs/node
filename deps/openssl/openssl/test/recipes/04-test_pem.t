@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -28,6 +28,8 @@ my %cert_expected = (
     "cert-1023line.pem" => 1,
     "cert-1024line.pem" => 1,
     "cert-1025line.pem" => 1,
+    "cert-254-chars-at-the-end.pem" => 1,
+    "cert-254-chars-in-the-middle.pem" => 1,
     "cert-255line.pem" => 1,
     "cert-256line.pem" => 1,
     "cert-257line.pem" => 1,
@@ -42,6 +44,7 @@ my %cert_expected = (
     "cert-misalignedpad.pem" => 0,
     "cert-onecolumn.pem" => 1,
     "cert-oneline.pem" => 1,
+    "cert-oneline-multiple-of-254.pem" => 1,
     "cert-shortandlongline.pem" => 1,
     "cert-shortline.pem" => 1,
     "cert-threecolumn.pem" => 1,

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -56,7 +56,7 @@ extern "C" {
  * avoid leaking exponent information through timing,
  * BN_mod_exp_mont() will call BN_mod_exp_mont_consttime,
  * BN_div() will call BN_div_no_branch,
- * BN_mod_inverse() will call BN_mod_inverse_no_branch.
+ * BN_mod_inverse() will call bn_mod_inverse_no_branch.
  */
 # define BN_FLG_CONSTTIME        0x04
 # define BN_FLG_SECURE           0x08

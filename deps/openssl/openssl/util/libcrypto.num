@@ -4587,3 +4587,7 @@ EVP_PKEY_meth_set_digestverify          4540	1_1_1e	EXIST::FUNCTION:
 EVP_PKEY_meth_get_digestverify          4541	1_1_1e	EXIST::FUNCTION:
 EVP_PKEY_meth_get_digestsign            4542	1_1_1e	EXIST::FUNCTION:
 RSA_get0_pss_params                     4543	1_1_1e	EXIST::FUNCTION:RSA
+X509_ALGOR_copy                         4544	1_1_1h	EXIST::FUNCTION:
+X509_REQ_set0_signature                 4545	1_1_1h	EXIST::FUNCTION:
+X509_REQ_set1_signature_algo            4546	1_1_1h	EXIST::FUNCTION:
+EC_KEY_decoded_from_explicit_params     4547	1_1_1h	EXIST::FUNCTION:EC

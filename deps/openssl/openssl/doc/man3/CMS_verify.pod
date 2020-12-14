@@ -24,7 +24,7 @@ present in B<cms>. The content is written to B<out> if it is not NULL.
 B<flags> is an optional set of flags, which can be used to modify the verify
 operation.
 
-CMS_get0_signers() retrieves the signing certificate(s) from B<cms>, it must
+CMS_get0_signers() retrieves the signing certificate(s) from B<cms>, it may only
 be called after a successful CMS_verify() operation.
 
 =head1 VERIFY PROCESS
@@ -94,7 +94,7 @@ useful if one merely wishes to write the content to B<out> and its validity
 is not considered important.
 
 Chain verification should arguably be performed using the signing time rather
-than the current time. However since the signing time is supplied by the
+than the current time. However, since the signing time is supplied by the
 signer it cannot be trusted without additional evidence (such as a trusted
 timestamp).
 
@@ -122,7 +122,7 @@ L<ERR_get_error(3)>, L<CMS_sign(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2008-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

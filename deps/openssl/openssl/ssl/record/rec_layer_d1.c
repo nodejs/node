@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -808,8 +808,8 @@ int do_dtls1_write(SSL *s, int type, const unsigned char *buf,
     wb = &s->rlayer.wbuf[0];
 
     /*
-     * first check if there is a SSL3_BUFFER still being written out.  This
-     * will happen with non blocking IO
+     * DTLS writes whole datagrams, so there can't be anything left in
+     * the buffer.
      */
     if (!ossl_assert(SSL3_BUFFER_get_left(wb) == 0)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_DO_DTLS1_WRITE,

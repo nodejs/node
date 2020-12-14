@@ -143,7 +143,7 @@ however because the accept BIO will still accept additional incoming
 connections. This can be resolved by using BIO_pop() (see above)
 and freeing up the accept BIO after the initial connection.
 
-If the underlying accept socket is non-blocking and BIO_do_accept() is
+If the underlying accept socket is nonblocking and BIO_do_accept() is
 called to await an incoming connection it is possible for
 BIO_should_io_special() with the reason BIO_RR_ACCEPT. If this happens
 then it is an indication that an accept attempt would block: the application
@@ -224,7 +224,7 @@ down each and finally closes both down.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

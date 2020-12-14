@@ -122,7 +122,7 @@ SSL_get0_dane_tlsa() can be used to retrieve the fields of the TLSA record that
 matched the peer certificate chain.
 The return value indicates the match depth or failure to match just as with
 SSL_get0_dane_authority().
-When the return value is non-negative, the storage pointed to by the B<usage>,
+When the return value is nonnegative, the storage pointed to by the B<usage>,
 B<selector>, B<mtype> and B<data> parameters is updated to the corresponding
 TLSA record fields.
 The B<data> field is in binary wire form, and is therefore not NUL-terminated,
@@ -136,7 +136,7 @@ SSL_CTX_dane_set_flags() and SSL_dane_set_flags() can be used to enable
 optional DANE verification features.
 SSL_CTX_dane_clear_flags() and SSL_dane_clear_flags() can be used to disable
 the same features.
-The B<flags> argument is a bitmask of the features to enable or disable.
+The B<flags> argument is a bit mask of the features to enable or disable.
 The B<flags> set for an B<SSL_CTX> context are copied to each B<SSL> handle
 associated with that context at the time the handle is created.
 Subsequent changes in the context's B<flags> have no effect on the B<flags> set
@@ -173,7 +173,7 @@ certificate or a public key that fails to parse.
 
 The functions SSL_get0_dane_authority() and SSL_get0_dane_tlsa() return a
 negative value when DANE authentication failed or was not enabled, a
-non-negative value indicates the chain depth at which the TLSA record matched a
+nonnegative value indicates the chain depth at which the TLSA record matched a
 chain certificate, or the depth of the top-most certificate, when the TLSA
 record is a full public key that is its signer.
 
@@ -372,7 +372,7 @@ These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

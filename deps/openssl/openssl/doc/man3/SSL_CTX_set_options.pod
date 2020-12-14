@@ -23,16 +23,16 @@ SSL_get_secure_renegotiation_support - manipulate SSL options
 
 =head1 DESCRIPTION
 
-SSL_CTX_set_options() adds the options set via bitmask in B<options> to B<ctx>.
+SSL_CTX_set_options() adds the options set via bit mask in B<options> to B<ctx>.
 Options already set before are not cleared!
 
-SSL_set_options() adds the options set via bitmask in B<options> to B<ssl>.
+SSL_set_options() adds the options set via bit mask in B<options> to B<ssl>.
 Options already set before are not cleared!
 
-SSL_CTX_clear_options() clears the options set via bitmask in B<options>
+SSL_CTX_clear_options() clears the options set via bit mask in B<options>
 to B<ctx>.
 
-SSL_clear_options() clears the options set via bitmask in B<options> to B<ssl>.
+SSL_clear_options() clears the options set via bit mask in B<options> to B<ssl>.
 
 SSL_CTX_get_options() returns the options set for B<ctx>.
 
@@ -45,7 +45,7 @@ Note, this is implemented via a macro.
 =head1 NOTES
 
 The behaviour of the SSL library can be changed by setting several options.
-The options are coded as bitmasks and can be combined by a bitwise B<or>
+The options are coded as bit masks and can be combined by a bitwise B<or>
 operation (|).
 
 SSL_CTX_set_options() and SSL_set_options() affect the (external)
@@ -161,7 +161,7 @@ the session. In this way the server can operate statelessly - no session
 information needs to be cached locally.
 
 The TLSv1.3 protocol only supports tickets and does not directly support session
-ids. However OpenSSL allows two modes of ticket operation in TLSv1.3: stateful
+ids. However, OpenSSL allows two modes of ticket operation in TLSv1.3: stateful
 and stateless. Stateless tickets work the same way as in TLSv1.2 and below.
 Stateful tickets mimic the session id behaviour available in TLSv1.2 and below.
 The session information is cached on the server and the session id is wrapped up
@@ -340,13 +340,13 @@ and renegotiation between OpenSSL and unpatched clients or servers.
 
 =head1 RETURN VALUES
 
-SSL_CTX_set_options() and SSL_set_options() return the new options bitmask
+SSL_CTX_set_options() and SSL_set_options() return the new options bit mask
 after adding B<options>.
 
-SSL_CTX_clear_options() and SSL_clear_options() return the new options bitmask
+SSL_CTX_clear_options() and SSL_clear_options() return the new options bit mask
 after clearing B<options>.
 
-SSL_CTX_get_options() and SSL_get_options() return the current bitmask.
+SSL_CTX_get_options() and SSL_get_options() return the current bit mask.
 
 SSL_get_secure_renegotiation_support() returns 1 is the peer supports
 secure renegotiation and 0 if it does not.
@@ -368,7 +368,7 @@ were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

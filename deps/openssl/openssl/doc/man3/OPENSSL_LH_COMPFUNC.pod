@@ -51,7 +51,7 @@ an unsigned long hash value for its key field.  The hash value is
 normally truncated to a power of 2, so make sure that your hash
 function returns well mixed low order bits.  The B<compare> callback
 takes two arguments (pointers to two hash table entries), and returns
-0 if their keys are equal, non-zero otherwise.
+0 if their keys are equal, nonzero otherwise.
 
 If your hash table
 will contain items of some particular type and the B<hash> and
@@ -196,7 +196,7 @@ all such parameters as constant.
 
 As an example, a hash table may be maintained by code that, for
 reasons of encapsulation, has only "const" access to the data being
-indexed in the hash table (ie. it is returned as "const" from
+indexed in the hash table (i.e. it is returned as "const" from
 elsewhere in their code) - in this case the LHASH prototypes are
 appropriate as-is.  Conversely, if the caller is responsible for the
 life-time of the data in question, then they may well wish to make
@@ -229,7 +229,7 @@ type checking.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

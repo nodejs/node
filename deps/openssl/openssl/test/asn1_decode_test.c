@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -160,6 +160,41 @@ static int test_uint64(void)
     return 1;
 }
 
+typedef struct {
+    ASN1_STRING *invalidDirString;
+} INVALIDTEMPLATE;
+
+ASN1_SEQUENCE(INVALIDTEMPLATE) = {
+    /*
+     * DirectoryString is a CHOICE type so it must use explicit tagging -
+     * but we deliberately use implicit here, which makes this template invalid.
+     */
+    ASN1_IMP(INVALIDTEMPLATE, invalidDirString, DIRECTORYSTRING, 12)
+} static_ASN1_SEQUENCE_END(INVALIDTEMPLATE)
+
+IMPLEMENT_STATIC_ASN1_ENCODE_FUNCTIONS(INVALIDTEMPLATE)
+IMPLEMENT_STATIC_ASN1_ALLOC_FUNCTIONS(INVALIDTEMPLATE)
+
+/* Empty sequence for invalid template test */
+static unsigned char t_invalid_template[] = {
+    0x30, 0x03,                  /* SEQUENCE tag + length */
+    0x0c, 0x01, 0x41             /* UTF8String, length 1, "A" */
+};
+
+static int test_invalid_template(void)
+{
+    const unsigned char *p = t_invalid_template;
+    INVALIDTEMPLATE *tmp = d2i_INVALIDTEMPLATE(NULL, &p,
+                                               sizeof(t_invalid_template));
+
+    /* We expect a NULL pointer return */
+    if (TEST_ptr_null(tmp))
+        return 1;
+
+    INVALIDTEMPLATE_free(tmp);
+    return 0;
+}
+
 int setup_tests(void)
 {
 #if OPENSSL_API_COMPAT < 0x10200000L
@@ -169,5 +204,6 @@ int setup_tests(void)
     ADD_TEST(test_uint32);
     ADD_TEST(test_int64);
     ADD_TEST(test_uint64);
+    ADD_TEST(test_invalid_template);
     return 1;
 }

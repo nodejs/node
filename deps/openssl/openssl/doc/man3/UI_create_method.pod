@@ -51,7 +51,7 @@ interface method creation and destruction
 
 =head1 DESCRIPTION
 
-A method contains a few functions that implement the low level of the
+A method contains a few functions that implement the low-level of the
 User Interface.
 These functions are:
 
@@ -210,7 +210,7 @@ and UI_method_get_data_destructor() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

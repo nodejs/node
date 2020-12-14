@@ -38,7 +38,7 @@ it might be used in a verification callback to set an error based on additional
 checks.
 
 X509_STORE_CTX_get_error_depth() returns the B<depth> of the error. This is a
-non-negative integer representing where in the certificate chain the error
+nonnegative integer representing where in the certificate chain the error
 occurred. If it is zero it occurred in the end entity certificate, one if
 it is the certificate which signed the end entity certificate and so on.
 
@@ -79,7 +79,7 @@ verification error B<n>.
 
 X509_STORE_CTX_get_error() returns B<X509_V_OK> or an error code.
 
-X509_STORE_CTX_get_error_depth() returns a non-negative error depth.
+X509_STORE_CTX_get_error_depth() returns a nonnegative error depth.
 
 X509_STORE_CTX_get_current_cert() returns the certificate which caused the
 error or B<NULL> if no certificate is relevant to the error.
@@ -328,7 +328,7 @@ L<X509_free(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

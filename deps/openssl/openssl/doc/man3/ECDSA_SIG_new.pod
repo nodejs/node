@@ -5,7 +5,7 @@
 ECDSA_SIG_get0, ECDSA_SIG_get0_r, ECDSA_SIG_get0_s, ECDSA_SIG_set0,
 ECDSA_SIG_new, ECDSA_SIG_free, ECDSA_size, ECDSA_sign, ECDSA_do_sign,
 ECDSA_verify, ECDSA_do_verify, ECDSA_sign_setup, ECDSA_sign_ex,
-ECDSA_do_sign_ex - low level elliptic curve digital signature algorithm (ECDSA)
+ECDSA_do_sign_ex - low-level elliptic curve digital signature algorithm (ECDSA)
 functions
 
 =head1 SYNOPSIS
@@ -40,7 +40,7 @@ functions
 
 =head1 DESCRIPTION
 
-Note: these functions provide a low level interface to ECDSA. Most
+Note: these functions provide a low-level interface to ECDSA. Most
 applications should use the higher level B<EVP> interface such as
 L<EVP_DigestSignInit(3)> or L<EVP_DigestVerifyInit(3)> instead.
 
@@ -199,7 +199,7 @@ L<d2i_ECDSA_SIG(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

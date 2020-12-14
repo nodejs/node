@@ -57,12 +57,14 @@ static ASN1_INTEGER *def_serial_cb(struct TS_resp_ctx *ctx, void *data)
         goto err;
     if (!ASN1_INTEGER_set(serial, 1))
         goto err;
+
     return serial;
 
  err:
     TSerr(TS_F_DEF_SERIAL_CB, ERR_R_MALLOC_FAILURE);
     TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
                                 "Error during serial number generation.");
+    ASN1_INTEGER_free(serial);
     return NULL;
 }
 

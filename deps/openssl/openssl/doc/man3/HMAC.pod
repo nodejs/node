@@ -21,7 +21,7 @@ HMAC_size
  #include <openssl/hmac.h>
 
  unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
-                     int key_len, const unsigned char *d, int n,
+                     int key_len, const unsigned char *d, size_t n,
                      unsigned char *md, unsigned int *md_len);
 
  HMAC_CTX *HMAC_CTX_new(void);
@@ -29,7 +29,7 @@ HMAC_size
 
  int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int key_len,
                   const EVP_MD *md, ENGINE *impl);
- int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, int len);
+ int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, size_t len);
  int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len);
 
  void HMAC_CTX_free(HMAC_CTX *ctx);
@@ -69,7 +69,7 @@ EVP_shake256().
 
 HMAC_CTX_new() creates a new HMAC_CTX in heap memory.
 
-HMAC_CTX_reset() zeroes an existing B<HMAC_CTX> and associated
+HMAC_CTX_reset() zeros an existing B<HMAC_CTX> and associated
 resources, making it suitable for new computations as if it was newly
 created with HMAC_CTX_new().
 
@@ -149,7 +149,7 @@ OpenSSL before version 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

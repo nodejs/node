@@ -245,7 +245,7 @@ This option is only interpreted by MSIE and similar MS software. Normally
 encryption purposes but arbitrary length keys for signing. The B<-keysig>
 option marks the key for signing only. Signing only keys can be used for
 S/MIME signing, authenticode (ActiveX control signing)  and SSL client
-authentication, however due to a bug only MSIE 5.0 and later support
+authentication, however, due to a bug only MSIE 5.0 and later support
 the use of signing only keys for SSL client authentication.
 
 =item B<-macalg digest>
@@ -383,7 +383,7 @@ L<pkcs8(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

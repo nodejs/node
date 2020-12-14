@@ -37,7 +37,7 @@ memory.
 
 BN_bn2binpad() also converts the absolute value of B<a> into big-endian form
 and stores it at B<to>. B<tolen> indicates the length of the output buffer
-B<to>. The result is padded with zeroes if necessary. If B<tolen> is less than
+B<to>. The result is padded with zeros if necessary. If B<tolen> is less than
 BN_num_bytes(B<a>) an error is returned.
 
 BN_bin2bn() converts the positive integer in big-endian form of length
@@ -106,7 +106,7 @@ L<BN_num_bytes(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

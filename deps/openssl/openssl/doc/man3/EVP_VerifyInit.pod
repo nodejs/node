@@ -19,7 +19,7 @@ EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal
 
 =head1 DESCRIPTION
 
-The EVP signature verification routines are a high level interface to digital
+The EVP signature verification routines are a high-level interface to digital
 signatures.
 
 EVP_VerifyInit_ex() sets up verification context B<ctx> to use digest
@@ -49,7 +49,7 @@ The error codes can be obtained by L<ERR_get_error(3)>.
 =head1 NOTES
 
 The B<EVP> interface to digital signatures should almost always be used in
-preference to the low level interfaces. This is because the code then becomes
+preference to the low-level interfaces. This is because the code then becomes
 transparent to the algorithm used and much more flexible.
 
 The call to EVP_VerifyFinal() internally finalizes a copy of the digest context.
@@ -85,7 +85,7 @@ L<SHA1(3)>, L<dgst(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

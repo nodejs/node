@@ -51,7 +51,7 @@ value is initialised to SSL_AD_UNRECOGNIZED_NAME.
 =item SSL_TLSEXT_ERR_ALERT_WARNING
 
 If this value is returned then the servername is not accepted by the server.
-However the handshake will continue and send a warning alert instead. The value
+However, the handshake will continue and send a warning alert instead. The value
 of the alert should be stored in the location pointed to by the B<al> parameter
 as for SSL_TLSEXT_ERR_ALERT_FATAL above. Note that TLSv1.3 does not support
 warning alerts, so if TLSv1.3 has been negotiated then this return value is
@@ -88,7 +88,7 @@ Otherwise it returns NULL.
 =item On the client, during or after the handshake and a TLSv1.2 (or below)
 resumption occurred
 
-If the session from the orignal handshake had a servername accepted by the
+If the session from the original handshake had a servername accepted by the
 server then it will return that servername.
 
 Otherwise it returns the servername set via SSL_set_tlsext_host_name() or NULL
@@ -157,12 +157,12 @@ corner cases. This has been fixed from OpenSSL 1.1.1e.
 
 Prior to 1.1.1e, when the client requested a servername in an initial TLSv1.2
 handshake, the server accepted it, and then the client successfully resumed but
-set a different explict servername in the second handshake then when called by
+set a different explicit servername in the second handshake then when called by
 the client it returned the servername from the second handshake. This has now
 been changed to return the servername requested in the original handshake.
 
 Also prior to 1.1.1e, if the client sent a servername in the first handshake but
-the server did not accept it, and then a second handshake occured where TLSv1.2
+the server did not accept it, and then a second handshake occurred where TLSv1.2
 resumption was successful then when called by the server it returned the
 servername requested in the original handshake. This has now been changed to
 NULL.

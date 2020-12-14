@@ -17,7 +17,7 @@ RAND_load_file, RAND_write_file, RAND_file_name - PRNG seed file
 =head1 DESCRIPTION
 
 RAND_load_file() reads a number of bytes from file B<filename> and
-adds them to the PRNG. If B<max_bytes> is non-negative,
+adds them to the PRNG. If B<max_bytes> is nonnegative,
 up to B<max_bytes> are read;
 if B<max_bytes> is -1, the complete file is read.
 Do not load the same file multiple times unless its contents have
@@ -37,7 +37,7 @@ file. B<buf> points to a buffer of size B<num> in which to store the
 filename.
 
 On all systems, if the environment variable B<RANDFILE> is set, its
-value will be used as the seed file name.
+value will be used as the seed filename.
 Otherwise, the file is called C<.rnd>, found in platform dependent locations:
 
 =over 4
@@ -57,7 +57,7 @@ Otherwise, the file is called C<.rnd>, found in platform dependent locations:
 =back
 
 If C<$HOME> (on non-Windows and non-VMS system) is not set either, or
-B<num> is too small for the path name, an error occurs.
+B<num> is too small for the pathname, an error occurs.
 
 =head1 RETURN VALUES
 
@@ -77,7 +77,7 @@ L<RAND(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

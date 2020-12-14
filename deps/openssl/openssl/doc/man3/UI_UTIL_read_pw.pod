@@ -21,7 +21,7 @@ UI_UTIL_read_pw_string() asks for a passphrase, using B<prompt> as a
 prompt, and stores it in B<buf>.
 The maximum allowed size is given with B<length>, including the
 terminating NUL byte.
-If B<verify> is non-zero, the password will be verified as well.
+If B<verify> is nonzero, the password will be verified as well.
 
 UI_UTIL_read_pw() does the same as UI_UTIL_read_pw_string(), the
 difference is that you can give it an external buffer B<buff> for the
@@ -62,7 +62,7 @@ L<UI_get_default_method(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -43,28 +43,8 @@ int ssl3_do_write(SSL *s, int type)
     int ret;
     size_t written = 0;
 
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_IS_QUIC(s)) {
-        if (type == SSL3_RT_HANDSHAKE) {
-            ret = s->quic_method->add_handshake_data(s, s->quic_write_level,
-                                                     (const uint8_t*)&s->init_buf->data[s->init_off],
-                                                     s->init_num);
-            if (!ret) {
-                ret = -1;
-                /* QUIC can't sent anything out sice the above failed */
-                SSLerr(SSL_F_SSL3_DO_WRITE, SSL_R_INTERNAL_ERROR);
-            } else {
-                written = s->init_num;
-            }
-        } else {
-            /* QUIC doesn't use ChangeCipherSpec */
-            ret = -1;
-            SSLerr(SSL_F_SSL3_DO_WRITE, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        }
-    } else
-#endif
-        ret = ssl3_write_bytes(s, type, &s->init_buf->data[s->init_off],
-                               s->init_num, &written);
+    ret = ssl3_write_bytes(s, type, &s->init_buf->data[s->init_off],
+                           s->init_num, &written);
     if (ret < 0)
         return -1;
     if (type == SSL3_RT_HANDSHAKE)
@@ -630,14 +610,6 @@ int tls_construct_finished(SSL *s, WPACKET *pkt)
 
 int tls_construct_key_update(SSL *s, WPACKET *pkt)
 {
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_is_quic(s)) {
-        /* TLS KeyUpdate is not used for QUIC, so this is an error. */
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_KEY_UPDATE,
-                 ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-#endif
     if (!WPACKET_put_bytes_u8(pkt, s->key_update)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_KEY_UPDATE,
                  ERR_R_INTERNAL_ERROR);
@@ -661,14 +633,6 @@ MSG_PROCESS_RETURN tls_process_key_update(SSL *s, PACKET *pkt)
                  SSL_R_NOT_ON_RECORD_BOUNDARY);
         return MSG_PROCESS_ERROR;
     }
-
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_is_quic(s)) {
-        SSLfatal(s, SSL_AD_UNEXPECTED_MESSAGE, SSL_F_TLS_PROCESS_KEY_UPDATE,
-                 SSL_R_UNEXPECTED_MESSAGE);
-        return MSG_PROCESS_ERROR;
-    }
-#endif
 
     if (!PACKET_get_1(pkt, &updatetype)
             || PACKET_remaining(pkt) != 0) {
@@ -1377,6 +1341,7 @@ int tls_get_message_body(SSL *s, size_t *len)
 static const X509ERR2ALERT x509table[] = {
     {X509_V_ERR_APPLICATION_VERIFICATION, SSL_AD_HANDSHAKE_FAILURE},
     {X509_V_ERR_CA_KEY_TOO_SMALL, SSL_AD_BAD_CERTIFICATE},
+    {X509_V_ERR_EC_KEY_EXPLICIT_PARAMS, SSL_AD_BAD_CERTIFICATE},
     {X509_V_ERR_CA_MD_TOO_WEAK, SSL_AD_BAD_CERTIFICATE},
     {X509_V_ERR_CERT_CHAIN_TOO_LONG, SSL_AD_UNKNOWN_CA},
     {X509_V_ERR_CERT_HAS_EXPIRED, SSL_AD_CERTIFICATE_EXPIRED},
@@ -1692,10 +1657,21 @@ int ssl_check_version_downgrade(SSL *s)
  */
 int ssl_set_version_bound(int method_version, int version, int *bound)
 {
+    int valid_tls;
+    int valid_dtls;
+
     if (version == 0) {
         *bound = version;
         return 1;
     }
+
+    valid_tls = version >= SSL3_VERSION && version <= TLS_MAX_VERSION;
+    valid_dtls =
+        DTLS_VERSION_LE(version, DTLS_MAX_VERSION) &&
+        DTLS_VERSION_GE(version, DTLS1_BAD_VER);
+
+    if (!valid_tls && !valid_dtls)
+        return 0;
 
     /*-
      * Restrict TLS methods to TLS protocol versions.
@@ -1707,31 +1683,24 @@ int ssl_set_version_bound(int method_version, int version, int *bound)
      * configurations.  If the MIN (supported) version ever rises, the user's
      * "floor" remains valid even if no longer available.  We don't expect the
      * MAX ceiling to ever get lower, so making that variable makes sense.
+     *
+     * We ignore attempts to set bounds on version-inflexible methods,
+     * returning success.
      */
     switch (method_version) {
     default:
-        /*
-         * XXX For fixed version methods, should we always fail and not set any
-         * bounds, always succeed and not set any bounds, or set the bounds and
-         * arrange to fail later if they are not met?  At present fixed-version
-         * methods are not subject to controls that disable individual protocol
-         * versions.
-         */
-        return 0;
+        break;
 
     case TLS_ANY_VERSION:
-        if (version < SSL3_VERSION || version > TLS_MAX_VERSION)
-            return 0;
+        if (valid_tls)
+            *bound = version;
         break;
 
     case DTLS_ANY_VERSION:
-        if (DTLS_VERSION_GT(version, DTLS_MAX_VERSION) ||
-            DTLS_VERSION_LT(version, DTLS1_BAD_VER))
-            return 0;
+        if (valid_dtls)
+            *bound = version;
         break;
     }
-
-    *bound = version;
     return 1;
 }
 

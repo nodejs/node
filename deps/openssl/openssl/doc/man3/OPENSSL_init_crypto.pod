@@ -39,13 +39,13 @@ needs so no explicit initialisation is required. Similarly it will also
 automatically deinitialise as required.
 
 However, there may be situations when explicit initialisation is desirable or
-needed, for example when some non-default initialisation is required. The
+needed, for example when some nondefault initialisation is required. The
 function OPENSSL_init_crypto() can be used for this purpose for
 libcrypto (see also L<OPENSSL_init_ssl(3)> for the libssl
 equivalent).
 
 Numerous internal OpenSSL functions call OPENSSL_init_crypto().
-Therefore, in order to perform non-default initialisation,
+Therefore, in order to perform nondefault initialisation,
 OPENSSL_init_crypto() MUST be called by application code prior to
 any other OpenSSL function calls.
 
@@ -216,10 +216,10 @@ The filename, application name, and flags can be customized by providing a
 non-null B<OPENSSL_INIT_SETTINGS> object.
 The object can be allocated via B<OPENSSL_init_new()>.
 The B<OPENSSL_INIT_set_config_filename()> function can be used to specify a
-non-default filename, which is copied and need not refer to persistent storage.
+nondefault filename, which is copied and need not refer to persistent storage.
 Similarly, OPENSSL_INIT_set_config_appname() can be used to specify a
-non-default application name.
-Finally, OPENSSL_INIT_set_file_flags can be used to specify non-default flags.
+nondefault application name.
+Finally, OPENSSL_INIT_set_file_flags can be used to specify nondefault flags.
 If the B<CONF_MFLAGS_IGNORE_RETURN_CODES> flag is not included, any errors in
 the configuration file will cause an error return from B<OPENSSL_init_crypto>
 or indirectly L<OPENSSL_init_ssl(3)>.
@@ -264,7 +264,7 @@ and OPENSSL_INIT_free() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

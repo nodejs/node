@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -1393,7 +1393,7 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
 # define SSL_get1_groups(s, glist) \
         SSL_ctrl(s,SSL_CTRL_GET_GROUPS,0,(int*)(glist))
 # define SSL_CTX_set1_groups(ctx, glist, glistlen) \
-        SSL_CTX_ctrl(ctx,SSL_CTRL_SET_GROUPS,glistlen,(char *)(glist))
+        SSL_CTX_ctrl(ctx,SSL_CTRL_SET_GROUPS,glistlen,(int *)(glist))
 # define SSL_CTX_set1_groups_list(ctx, s) \
         SSL_CTX_ctrl(ctx,SSL_CTRL_SET_GROUPS_LIST,0,(char *)(s))
 # define SSL_set1_groups(s, glist, glistlen) \
@@ -2431,51 +2431,6 @@ void SSL_CTX_set_allow_early_data_cb(SSL_CTX *ctx,
 void SSL_set_allow_early_data_cb(SSL *s,
                                  SSL_allow_early_data_cb_fn cb,
                                  void *arg);
-
-#  ifndef OPENSSL_NO_QUIC
-/*
- * QUIC integration - The QUIC interface matches BoringSSL
- *
- * ssl_encryption_level_t represents a specific QUIC encryption level used to
- * transmit handshake messages. BoringSSL has this as an 'enum'.
- */
-typedef enum ssl_encryption_level_t {
-    ssl_encryption_initial = 0,
-    ssl_encryption_early_data,
-    ssl_encryption_handshake,
-    ssl_encryption_application
-} OSSL_ENCRYPTION_LEVEL;
-
-struct ssl_quic_method_st {
-    int (*set_encryption_secrets)(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-                                  const uint8_t *read_secret,
-                                  const uint8_t *write_secret, size_t secret_len);
-    int (*add_handshake_data)(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-                              const uint8_t *data, size_t len);
-    int (*flush_flight)(SSL *ssl);
-    int (*send_alert)(SSL *ssl, enum ssl_encryption_level_t level, uint8_t alert);
-};
-
-__owur int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method);
-__owur int SSL_set_quic_method(SSL *ssl, const SSL_QUIC_METHOD *quic_method);
-__owur int SSL_set_quic_transport_params(SSL *ssl,
-                                         const uint8_t *params,
-                                         size_t params_len);
-void SSL_get_peer_quic_transport_params(const SSL *ssl,
-                                        const uint8_t **out_params,
-                                        size_t *out_params_len);
-__owur size_t SSL_quic_max_handshake_flight_len(const SSL *ssl, OSSL_ENCRYPTION_LEVEL level);
-__owur OSSL_ENCRYPTION_LEVEL SSL_quic_read_level(const SSL *ssl);
-__owur OSSL_ENCRYPTION_LEVEL SSL_quic_write_level(const SSL *ssl);
-__owur int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-                                 const uint8_t *data, size_t len);
-__owur int SSL_process_quic_post_handshake(SSL *ssl);
-
-__owur int SSL_is_quic(SSL *ssl);
-
-int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
-
-#  endif
 
 # ifdef  __cplusplus
 }

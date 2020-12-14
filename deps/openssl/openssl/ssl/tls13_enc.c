@@ -390,11 +390,18 @@ static int derive_secret_key_and_iv(SSL *s, int sending, const EVP_MD *md,
         uint32_t algenc;
 
         ivlen = EVP_CCM_TLS_IV_LEN;
-        if (s->s3->tmp.new_cipher == NULL) {
+        if (s->s3->tmp.new_cipher != NULL) {
+            algenc = s->s3->tmp.new_cipher->algorithm_enc;
+        } else if (s->session->cipher != NULL) {
             /* We've not selected a cipher yet - we must be doing early data */
             algenc = s->session->cipher->algorithm_enc;
+        } else if (s->psksession != NULL && s->psksession->cipher != NULL) {
+            /* We must be doing early data with out-of-band PSK */
+            algenc = s->psksession->cipher->algorithm_enc;
         } else {
-            algenc = s->s3->tmp.new_cipher->algorithm_enc;
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_DERIVE_SECRET_KEY_AND_IV,
+                     ERR_R_EVP_LIB);
+            goto err;
         }
         if (algenc & (SSL_AES128CCM8 | SSL_AES256CCM8))
             taglen = EVP_CCM8_TLS_TAG_LEN;
@@ -427,174 +434,27 @@ static int derive_secret_key_and_iv(SSL *s, int sending, const EVP_MD *md,
     return 0;
 }
 
-#ifdef CHARSET_EBCDIC
-static const unsigned char client_early_traffic[]       = {0x63, 0x20, 0x65, 0x20,       /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
-static const unsigned char client_handshake_traffic[]   = {0x63, 0x20, 0x68, 0x73, 0x20, /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
-static const unsigned char client_application_traffic[] = {0x63, 0x20, 0x61, 0x70, 0x20, /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
-static const unsigned char server_handshake_traffic[]   = {0x73, 0x20, 0x68, 0x73, 0x20, /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
-static const unsigned char server_application_traffic[] = {0x73, 0x20, 0x61, 0x70, 0x20, /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
-static const unsigned char exporter_master_secret[] = {0x65, 0x78, 0x70, 0x20,                    /* master*/  0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x00};
-static const unsigned char resumption_master_secret[] = {0x72, 0x65, 0x73, 0x20,                  /* master*/  0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x00};
-static const unsigned char early_exporter_master_secret[] = {0x65, 0x20, 0x65, 0x78, 0x70, 0x20,  /* master*/  0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x00};
-#else
-static const unsigned char client_early_traffic[] = "c e traffic";
-static const unsigned char client_handshake_traffic[] = "c hs traffic";
-static const unsigned char client_application_traffic[] = "c ap traffic";
-static const unsigned char server_handshake_traffic[] = "s hs traffic";
-static const unsigned char server_application_traffic[] = "s ap traffic";
-static const unsigned char exporter_master_secret[] = "exp master";
-static const unsigned char resumption_master_secret[] = "res master";
-static const unsigned char early_exporter_master_secret[] = "e exp master";
-#endif
-
-#ifndef OPENSSL_NO_QUIC
-static int quic_change_cipher_state(SSL *s, int which)
-{
-    unsigned char hash[EVP_MAX_MD_SIZE];
-    size_t hashlen = 0;
-    int hashleni;
-    int ret = 0;
-    const EVP_MD *md = NULL;
-    OSSL_ENCRYPTION_LEVEL level;
-    int is_handshake = ((which & SSL3_CC_HANDSHAKE) == SSL3_CC_HANDSHAKE);
-    int is_client_read = ((which & SSL3_CHANGE_CIPHER_CLIENT_READ) == SSL3_CHANGE_CIPHER_CLIENT_READ);
-    int is_server_write = ((which & SSL3_CHANGE_CIPHER_SERVER_WRITE) == SSL3_CHANGE_CIPHER_SERVER_WRITE);
-    int is_early = (which & SSL3_CC_EARLY);
-
-    md = ssl_handshake_md(s);
-    if (!ssl3_digest_cached_records(s, 1)
-        || !ssl_handshake_hash(s, hash, sizeof(hash), &hashlen)) {
-        /* SSLfatal() already called */;
-        goto err;
-    }
-
-    /* Ensure cast to size_t is safe */
-    hashleni = EVP_MD_size(md);
-    if (!ossl_assert(hashleni >= 0)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_CHANGE_CIPHER_STATE,
-                 ERR_R_EVP_LIB);
-        goto err;
-    }
-    hashlen = (size_t)hashleni;
-
-    if (is_client_read || is_server_write) {
-        if (is_handshake) {
-            /*
-             * This looks a bit weird, since the condition is basically "the
-             * server is writing" but we set both the server *and* client
-             * handshake traffic keys here.  That's because there's only a fixed
-             * number of change-cipher-state events in the TLS 1.3 handshake,
-             * and in particular there's not an event in between when the server
-             * writes encrypted handshake messages and when the client writes
-             * encrypted handshake messages, so we generate both here.
-             */
-            level = ssl_encryption_handshake;
-
-            if (!tls13_hkdf_expand(s, md, s->handshake_secret,
-                                   client_handshake_traffic,
-                                   sizeof(client_handshake_traffic)-1, hash,
-                                   hashlen, s->client_hand_traffic_secret,
-                                   hashlen, 1)
-                || !ssl_log_secret(s, CLIENT_HANDSHAKE_LABEL,
-                                   s->client_hand_traffic_secret, hashlen)
-                || !tls13_derive_finishedkey(s, md,
-                                             s->client_hand_traffic_secret,
-                                             s->client_finished_secret, hashlen)
-                || !tls13_hkdf_expand(s, md, s->handshake_secret,
-                                      server_handshake_traffic,
-                                      sizeof(server_handshake_traffic)-1, hash,
-                                      hashlen, s->server_hand_traffic_secret,
-                                      hashlen, 1)
-                || !ssl_log_secret(s, SERVER_HANDSHAKE_LABEL,
-                                   s->server_hand_traffic_secret, hashlen)
-                || !tls13_derive_finishedkey(s, md,
-                                             s->server_hand_traffic_secret,
-                                             s->server_finished_secret,
-                                             hashlen)) {
-                /* SSLfatal() already called */
-                goto err;
-            }
-        } else {
-            /*
-             * As above, we generate both sets of application traffic keys at
-             * the same time.
-             */
-            level = ssl_encryption_application;
-
-            if (!tls13_hkdf_expand(s, md, s->master_secret,
-                                   client_application_traffic,
-                                   sizeof(client_application_traffic)-1, hash,
-                                   hashlen, s->client_app_traffic_secret,
-                                   hashlen, 1)
-                || !ssl_log_secret(s, CLIENT_APPLICATION_LABEL,
-                                   s->client_app_traffic_secret, hashlen)
-                || !tls13_hkdf_expand(s, md, s->master_secret,
-                                      server_application_traffic,
-                                      sizeof(server_application_traffic)-1,
-                                      hash, hashlen,
-                                      s->server_app_traffic_secret, hashlen, 1)
-                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL,
-                                   s->server_app_traffic_secret, hashlen)) {
-                /* SSLfatal() already called */
-                goto err;
-            }
-        }
-        if (!quic_set_encryption_secrets(s, level)) {
-            /* SSLfatal() already called */
-            goto err;
-        }
-        if (s->server)
-            s->quic_write_level = level;
-        else
-            s->quic_read_level = level;
-    } else {
-        /* is_client_write || is_server_read */
-
-        if (is_early) {
-            level = ssl_encryption_early_data;
-
-            if (!tls13_hkdf_expand(s, md, s->early_secret, client_early_traffic,
-                                   sizeof(client_early_traffic)-1, hash,
-                                   hashlen, s->client_early_traffic_secret,
-                                   hashlen, 1)
-                || !ssl_log_secret(s, CLIENT_EARLY_LABEL,
-                                   s->client_early_traffic_secret, hashlen)
-                || !quic_set_encryption_secrets(s, level)) {
-                /* SSLfatal() already called */
-                goto err;
-            }
-        } else if (is_handshake) {
-            level = ssl_encryption_handshake;
-        } else {
-            level = ssl_encryption_application;
-            /*
-             * We also create the resumption master secret, but this time use the
-             * hash for the whole handshake including the Client Finished
-             */
-            if (!tls13_hkdf_expand(s, md, s->master_secret,
-                                   resumption_master_secret,
-                                   sizeof(resumption_master_secret)-1, hash,
-                                   hashlen, s->resumption_master_secret,
-                                   hashlen, 1)) {
-                /* SSLfatal() already called */
-                goto err;
-            }
-        }
-
-        if (s->server)
-            s->quic_read_level = level;
-        else
-            s->quic_write_level = level;
-    }
-
-    ret = 1;
- err:
-    return ret;
-}
-#endif /* OPENSSL_NO_QUIC */
-
 int tls13_change_cipher_state(SSL *s, int which)
 {
+#ifdef CHARSET_EBCDIC
+  static const unsigned char client_early_traffic[]       = {0x63, 0x20, 0x65, 0x20,       /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
+  static const unsigned char client_handshake_traffic[]   = {0x63, 0x20, 0x68, 0x73, 0x20, /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
+  static const unsigned char client_application_traffic[] = {0x63, 0x20, 0x61, 0x70, 0x20, /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
+  static const unsigned char server_handshake_traffic[]   = {0x73, 0x20, 0x68, 0x73, 0x20, /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
+  static const unsigned char server_application_traffic[] = {0x73, 0x20, 0x61, 0x70, 0x20, /*traffic*/0x74, 0x72, 0x61, 0x66, 0x66, 0x69, 0x63, 0x00};
+  static const unsigned char exporter_master_secret[] = {0x65, 0x78, 0x70, 0x20,                    /* master*/  0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x00};
+  static const unsigned char resumption_master_secret[] = {0x72, 0x65, 0x73, 0x20,                  /* master*/  0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x00};
+  static const unsigned char early_exporter_master_secret[] = {0x65, 0x20, 0x65, 0x78, 0x70, 0x20,  /* master*/  0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x00};
+#else
+    static const unsigned char client_early_traffic[] = "c e traffic";
+    static const unsigned char client_handshake_traffic[] = "c hs traffic";
+    static const unsigned char client_application_traffic[] = "c ap traffic";
+    static const unsigned char server_handshake_traffic[] = "s hs traffic";
+    static const unsigned char server_application_traffic[] = "s ap traffic";
+    static const unsigned char exporter_master_secret[] = "exp master";
+    static const unsigned char resumption_master_secret[] = "res master";
+    static const unsigned char early_exporter_master_secret[] = "e exp master";
+#endif
     unsigned char *iv;
     unsigned char secret[EVP_MAX_MD_SIZE];
     unsigned char hashval[EVP_MAX_MD_SIZE];
@@ -609,11 +469,6 @@ int tls13_change_cipher_state(SSL *s, int which)
     int ret = 0;
     const EVP_MD *md = NULL;
     const EVP_CIPHER *cipher = NULL;
-
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_IS_QUIC(s))
-        return quic_change_cipher_state(s, which);
-#endif
 
     if (which & SSL3_CC_READ) {
         if (s->enc_read_ctx != NULL) {
