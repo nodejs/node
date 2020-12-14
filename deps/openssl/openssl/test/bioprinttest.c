@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -249,6 +249,7 @@ static int test_big(void)
     if (!TEST_int_eq(BIO_snprintf(buf, sizeof(buf),
                                   "%f\n", 2 * (double)ULONG_MAX), -1))
         return 0;
+
     return 1;
 }
 

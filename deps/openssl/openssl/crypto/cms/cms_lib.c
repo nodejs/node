@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -92,12 +92,13 @@ BIO *CMS_dataInit(CMS_ContentInfo *cms, BIO *icont)
 
     default:
         CMSerr(CMS_F_CMS_DATAINIT, CMS_R_UNSUPPORTED_TYPE);
-        return NULL;
+        goto err;
     }
 
     if (cmsbio)
         return BIO_push(cmsbio, cont);
 
+err:
     if (!icont)
         BIO_free(cont);
     return NULL;

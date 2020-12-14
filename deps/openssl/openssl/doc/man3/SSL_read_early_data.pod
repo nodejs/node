@@ -58,10 +58,11 @@ SSL_set_allow_early_data_cb
 These functions are used to send and receive early data where TLSv1.3 has been
 negotiated. Early data can be sent by the client immediately after its initial
 ClientHello without having to wait for the server to complete the handshake.
-Early data can only be sent if a session has previously been established with
-the server, and the server is known to support it. Additionally these functions
-can be used to send data from the server to the client when the client has not
-yet completed the authentication stage of the handshake.
+Early data can be sent if a session has previously been established with the
+server or when establishing a new session using an out-of-band PSK, and only
+when the server is known to support it. Additionally these functions can be used
+to send data from the server to the client when the client has not yet completed
+the authentication stage of the handshake.
 
 Early data has weaker security properties than other data sent over an SSL/TLS
 connection. In particular the data does not have forward secrecy. There are also
@@ -202,7 +203,7 @@ early data settings for the SSL_CTX and SSL objects respectively. Generally a
 server application will either use both of SSL_read_early_data() and
 SSL_CTX_set_max_early_data() (or SSL_set_max_early_data()), or neither of them,
 since there is no practical benefit from using only one of them. If the maximum
-early data setting for a server is non-zero then replay protection is
+early data setting for a server is nonzero then replay protection is
 automatically enabled (see L</REPLAY PROTECTION> below).
 
 If the server rejects the early data sent by a client then it will skip over
@@ -220,7 +221,7 @@ max_early_data for the session and the recv_max_early_data setting for the
 server. If a client sends more data than this then the connection will abort.
 
 The configured value for max_early_data on a server may change over time as
-required. However clients may have tickets containing the previously configured
+required. However, clients may have tickets containing the previously configured
 max_early_data value. The recv_max_early_data should always be equal to or
 higher than any recently configured max_early_data value in order to avoid
 aborted connections. The recv_max_early_data should never be set to less than
@@ -285,7 +286,7 @@ retry with a lower maximum protocol version.
 When early data is in use the TLS protocol provides no security guarantees that
 the same early data was not replayed across multiple connections. As a
 mitigation for this issue OpenSSL automatically enables replay protection if the
-server is configured with a non-zero max early data value. With replay
+server is configured with a nonzero max early data value. With replay
 protection enabled sessions are forced to be single use only. If a client
 attempts to reuse a session ticket more than once, then the second and
 subsequent attempts will fall back to a full handshake (and any early data that
@@ -316,7 +317,7 @@ cache. Applications should be designed with this in mind in order to minimise
 the possibility of replay attacks.
 
 The OpenSSL replay protection does not apply to external Pre Shared Keys (PSKs)
-(e.g. see SSL_CTX_set_psk_find_session_callback(3)). Therefore extreme caution
+(e.g. see SSL_CTX_set_psk_find_session_callback(3)). Therefore, extreme caution
 should be applied when combining external PSKs with early data.
 
 Some applications may mitigate the replay risks in other ways. For those
@@ -364,7 +365,7 @@ All of the functions described above were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

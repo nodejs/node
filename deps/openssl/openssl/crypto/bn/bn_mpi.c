@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,7 +45,7 @@ BIGNUM *BN_mpi2bn(const unsigned char *d, int n, BIGNUM *ain)
     int neg = 0;
     BIGNUM *a = NULL;
 
-    if (n < 4) {
+    if (n < 4 || (d[0] & 0x80) != 0) {
         BNerr(BN_F_BN_MPI2BN, BN_R_INVALID_LENGTH);
         return NULL;
     }

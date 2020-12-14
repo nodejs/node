@@ -148,7 +148,7 @@ EC_POINT_get_Jprojective_coordinates_GFp() respectively.
 
 Points can also be described in terms of their compressed co-ordinates. For a
 point (x, y), for any given value for x such that the point is on the curve
-there will only ever be two possible values for y. Therefore a point can be set
+there will only ever be two possible values for y. Therefore, a point can be set
 using the EC_POINT_set_compressed_coordinates() function where B<x> is the x
 co-ordinate and B<y_bit> is a value 0 or 1 to identify which of the two
 possible values for y should be used.
@@ -243,7 +243,7 @@ L<EC_GFp_simple_method(3)>, L<d2i_ECPKParameters(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2013-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
