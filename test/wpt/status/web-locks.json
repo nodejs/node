@@ -1,12 +1,12 @@
 {
   "acquire.tentative.https.any.js": {
-    "skip": "function threw object \"Error: NotSupportedError\" that is not a DOMException"
+    "skip": "Unexpected global object"
   },
   "held.tentative.https.any.js": {
     "skip": "Error: this uncaught rejection is expected"
   },
   "idlharness.tentative.https.any.js": {
-    "skip": "Unkexpected global object"
+    "skip": "Unexpected global object"
   },
   "non-secure-context.tentative.any.js": {
     "skip": "navigator.locks is only present in secure contexts"
@@ -15,7 +15,7 @@
     "skip": "Uses Web Workers"
   },
   "resource-names.tentative.https.any.js": {
-    "skip": "function threw object \"Error: NotSupportedError\" that is not a DOMException"
+    "skip": "Unexpected global object"
   },
   "signal.tentative.https.any.js": {
     "skip": "Various errors. Process hangs."
