@@ -647,6 +647,76 @@ If listeners are attached or removed using `.on('message')`, the port will
 be `ref()`ed and `unref()`ed automatically depending on whether
 listeners for the event exist.
 
+## Class: `PeriodicSyncEvent extends Event`
+<!-- YAML
+added: REPLACEME
+-->
+
+### `periodicSyncEvent.tag`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+## Class: `PeriodicSyncManager`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `PeriodicSyncManager` allows scheduling periodic notifications to be sent
+to a `Worker` to perform regular background operations.
+
+```js
+const worker = new Worker('worker.js');
+worker.periodicSync.register('foo', { minInterval: 10 * 1000 });
+
+// ...
+
+worker.periodicSync.unregister('foo');
+```
+
+Within the worker, periodic sync events are emitted using the `parentPort`. The
+event handler is invoked with a [`PeriodicSyncEvent`][] instance.
+
+```js
+const { parentPort } = require('worker_threads');
+
+parentPort.on('periodicSync', (event) => {
+  console.log(event.tag);
+});
+```
+
+Periodic sync tasks will not keep the worker or the main event loop thread
+active.
+
+### `periodicSync.getTags()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise} An `Array` listing all registered tags.
+
+### `periodicSync.register(tag[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `tag` {string}
+* `options` {object}
+  * `minInterval` {number} The minimum interval (in milliseconds) to
+    periodically trigger the notification. **Defaults**: `1000` milliseconds.
+    If a value less than `500` is provided, `500` is used.
+* Returns: {Promise}
+
+### `periodicSync.unregister(tag)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `tag` {string}
+* Returns: {Promise}
+
 ## Class: `Worker`
 <!-- YAML
 added: v10.5.0
@@ -955,6 +1025,13 @@ The event loop utilization of a worker is available only after the [`'online'`
 event][] emitted, and if called before this, or after the [`'exit'`
 event][], then all properties have the value of `0`.
 
+### `worker.periodicSync`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: [`PeriodicSyncManager`][]
+
 ### `worker.postMessage(value[, transferList])`
 <!-- YAML
 added: v10.5.0
@@ -1087,6 +1164,8 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`FileHandle`]: fs.md#fs_class_filehandle
 [`KeyObject`]: crypto.md#crypto_class_keyobject
 [`MessagePort`]: #worker_threads_class_messageport
+[`PeriodicSyncEvent`]: #worker_threads_class_periodicsyncevent
+[`PeriodicSyncManager`]: #worker_threads_class_periodicsyncmanager
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
