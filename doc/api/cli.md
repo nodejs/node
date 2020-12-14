@@ -439,6 +439,18 @@ under this flag.
 
 To allow polyfills to be added, `--require` runs before freezing intrinsics.
 
+### `--force-node-api-uncaught-exceptions-policy`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enforces `uncaughtException` event on Node-API asynchronous callbacks.
+
+To prevent from an existing add-on from crashing the process, this flag is not
+enabled by default. In the future, this flag will be enabled by default to
+enforce the correct behavior.
+
 ### `--heapsnapshot-near-heap-limit=max_count`
 
 <!-- YAML
@@ -1638,6 +1650,7 @@ Node.js options that are allowed are:
 * `--experimental-wasm-modules`
 * `--force-context-aware`
 * `--force-fips`
+* `--force-node-api-uncaught-exceptions-policy`
 * `--frozen-intrinsics`
 * `--heapsnapshot-near-heap-limit`
 * `--heapsnapshot-signal`

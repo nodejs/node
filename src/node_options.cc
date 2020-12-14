@@ -432,6 +432,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::force_async_hooks_checks,
             kAllowedInEnvironment,
             true);
+  AddOption(
+      "--force-node-api-uncaught-exceptions-policy",
+      "enforces 'uncaughtException' event on Node API asynchronous callbacks",
+      &EnvironmentOptions::force_node_api_uncaught_exceptions_policy,
+      kAllowedInEnvironment,
+      false);
   AddOption("--addons",
             "disable loading native addons",
             &EnvironmentOptions::allow_native_addons,
