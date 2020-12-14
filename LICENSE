@@ -1248,11 +1248,11 @@ The externally maintained libraries used by Node.js are:
     THE SOFTWARE.
   """
 
-- babel-eslint, located at tools/node_modules/babel-eslint, is licensed as follows:
+- Babel, located at tools/node_modules/@babel, is licensed as follows:
   """
-    Copyright (c) 2014-2016 Sebastian McKenzie <sebmck@gmail.com>
-
     MIT License
+
+    Copyright (c) 2014-present Sebastian McKenzie and other contributors
 
     Permission is hereby granted, free of charge, to any person obtaining
     a copy of this software and associated documentation files (the
