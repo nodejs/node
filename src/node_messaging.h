@@ -118,11 +118,12 @@ enum class MessageMode {
   NORMAL,
 
   // Sticky messages. Like normal, but also delivered as the first message for
-  // new message ports in the sibling group.
+  // new message ports in the sibling group. A new sticky message replaces
+  // previous ones for the group.
   STICKY,
 
   // Close message. Will only be delivered right before the sending message port
-  // is being closed.
+  // is being closed. A new onclose message replaces previous ones for the port.
   ONCLOSE
 };
 

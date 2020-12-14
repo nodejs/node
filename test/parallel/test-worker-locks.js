@@ -2,9 +2,9 @@
 const { mustCall, mustNotCall } = require('../common');
 const assert = require('assert');
 const { locks, Worker } = require('worker_threads');
-const { EventEmitter, once } = require('events');
+const { EventEmitter, once, getEventListeners } = require('events');
 
-const tick = () => new Promise((resolve) => setImmediate(resolve));
+const { setImmediate: tick } = require('timers/promises');
 
 (async () => {
   {
@@ -124,6 +124,7 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
       controller.abort();
     }));
     assert.deepStrictEqual(await locks.query(), { held: [], pending: [] });
+    assert.deepStrictEqual(getEventListeners(controller.signal, 'abort'), []);
   }
 
   {
