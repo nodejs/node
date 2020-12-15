@@ -1678,9 +1678,7 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(WASI::New);
-  auto wasi_wrap_string = FIXED_ONE_BYTE_STRING(env->isolate(), "WASI");
   tmpl->InstanceTemplate()->SetInternalFieldCount(WASI::kInternalFieldCount);
-  tmpl->SetClassName(wasi_wrap_string);
   tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(tmpl, "args_get", WASI::ArgsGet);
@@ -1733,9 +1731,7 @@ static void Initialize(Local<Object> target,
 
   env->SetInstanceMethod(tmpl, "_setMemory", WASI::_SetMemory);
 
-  target->Set(env->context(),
-              wasi_wrap_string,
-              tmpl->GetFunction(context).ToLocalChecked()).ToChecked();
+  env->SetConstructorFunction(target, "WASI", tmpl);
 }
 
 

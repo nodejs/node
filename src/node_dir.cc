@@ -39,7 +39,6 @@ using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::String;
 using v8::Value;
 
 #define TRACE_NAME(name) "fs_dir.sync." #name
@@ -349,7 +348,6 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
 
   env->SetMethod(target, "opendir", OpenDir);
 
@@ -360,13 +358,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(dir, "close", DirHandle::Close);
   Local<ObjectTemplate> dirt = dir->InstanceTemplate();
   dirt->SetInternalFieldCount(DirHandle::kInternalFieldCount);
-  Local<String> handleString =
-       FIXED_ONE_BYTE_STRING(isolate, "DirHandle");
-  dir->SetClassName(handleString);
-  target
-      ->Set(context, handleString,
-            dir->GetFunction(env->context()).ToLocalChecked())
-      .FromJust();
+  env->SetConstructorFunction(target, "DirHandle", dir);
   env->set_dir_instance_template(dirt);
 }
 

@@ -956,7 +956,6 @@ void InitializeHttpParser(Local<Object> target,
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(Parser::kInternalFieldCount);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"));
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "REQUEST"),
          Integer::New(env->isolate(), HTTP_REQUEST));
@@ -999,9 +998,7 @@ void InitializeHttpParser(Local<Object> target,
   env->SetProtoMethod(t, "unconsume", Parser::Unconsume);
   env->SetProtoMethod(t, "getCurrentBuffer", Parser::GetCurrentBuffer);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "HTTPParser", t);
 }
 
 }  // anonymous namespace
