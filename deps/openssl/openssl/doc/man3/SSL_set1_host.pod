@@ -19,9 +19,9 @@ SSL server verification parameters
 These functions configure server hostname checks in the SSL client.
 
 SSL_set1_host() sets the expected DNS hostname to B<name> clearing
-any previously specified host name or names.  If B<name> is NULL,
+any previously specified hostname or names.  If B<name> is NULL,
 or the empty string the list of hostnames is cleared, and name
-checks are not performed on the peer certificate.  When a non-empty
+checks are not performed on the peer certificate.  When a nonempty
 B<name> is specified, certificate verification automatically checks
 the peer hostname via L<X509_check_host(3)> with B<flags> as specified
 via SSL_set_hostflags().  Clients that enable DANE TLSA authentication
@@ -108,7 +108,7 @@ These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

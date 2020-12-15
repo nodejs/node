@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -1283,22 +1283,42 @@ int s_client_main(int argc, char **argv)
         case OPT_SSL3:
             min_version = SSL3_VERSION;
             max_version = SSL3_VERSION;
+            socket_type = SOCK_STREAM;
+#ifndef OPENSSL_NO_DTLS
+            isdtls = 0;
+#endif
             break;
         case OPT_TLS1_3:
             min_version = TLS1_3_VERSION;
             max_version = TLS1_3_VERSION;
+            socket_type = SOCK_STREAM;
+#ifndef OPENSSL_NO_DTLS
+            isdtls = 0;
+#endif
             break;
         case OPT_TLS1_2:
             min_version = TLS1_2_VERSION;
             max_version = TLS1_2_VERSION;
+            socket_type = SOCK_STREAM;
+#ifndef OPENSSL_NO_DTLS
+            isdtls = 0;
+#endif
             break;
         case OPT_TLS1_1:
             min_version = TLS1_1_VERSION;
             max_version = TLS1_1_VERSION;
+            socket_type = SOCK_STREAM;
+#ifndef OPENSSL_NO_DTLS
+            isdtls = 0;
+#endif
             break;
         case OPT_TLS1:
             min_version = TLS1_VERSION;
             max_version = TLS1_VERSION;
+            socket_type = SOCK_STREAM;
+#ifndef OPENSSL_NO_DTLS
+            isdtls = 0;
+#endif
             break;
         case OPT_DTLS:
 #ifndef OPENSSL_NO_DTLS

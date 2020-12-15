@@ -62,7 +62,7 @@ $ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32" &&
 		$1>=10);	# first version supporting AVX
 
 $ymm=1 if ($xmm && !$ymm &&
-		`$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|based on LLVM) ([0-9]+\.[0-9]+)/ &&
+		`$ENV{CC} -v 2>&1` =~ /((?:clang|LLVM) version|based on LLVM) ([0-9]+\.[0-9]+)/ &&
 		$2>=3.0);	# first version supporting AVX
 
 $a="eax";

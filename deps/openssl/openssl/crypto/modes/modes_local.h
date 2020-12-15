@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,6 +37,14 @@ typedef unsigned char u8;
 # endif
 #endif
 
+#ifndef STRICT_ALIGNMENT
+# ifdef __GNUC__
+typedef u32 u32_a1 __attribute((__aligned__(1)));
+# else
+typedef u32 u32_a1;
+# endif
+#endif
+
 #if !defined(PEDANTIC) && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
 # if defined(__GNUC__) && __GNUC__>=2
 #  if defined(__x86_64) || defined(__x86_64__)
@@ -55,12 +63,15 @@ typedef unsigned char u8;
                         asm ("bswapl %0"                \
                         : "+r"(ret_));   ret_;          })
 #  elif defined(__aarch64__)
-#   define BSWAP8(x) ({ u64 ret_;                       \
+#   if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
+       __BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__
+#    define BSWAP8(x) ({ u64 ret_;                       \
                         asm ("rev %0,%1"                \
                         : "=r"(ret_) : "r"(x)); ret_;   })
-#   define BSWAP4(x) ({ u32 ret_;                       \
+#    define BSWAP4(x) ({ u32 ret_;                       \
                         asm ("rev %w0,%w1"              \
                         : "=r"(ret_) : "r"(x)); ret_;   })
+#   endif
 #  elif (defined(__arm__) || defined(__arm)) && !defined(STRICT_ALIGNMENT)
 #   define BSWAP8(x) ({ u32 lo_=(u64)(x)>>32,hi_=(x);   \
                         asm ("rev %0,%0; rev %1,%1"     \
@@ -86,8 +97,8 @@ _asm mov eax, val _asm bswap eax}
 # endif
 #endif
 #if defined(BSWAP4) && !defined(STRICT_ALIGNMENT)
-# define GETU32(p)       BSWAP4(*(const u32 *)(p))
-# define PUTU32(p,v)     *(u32 *)(p) = BSWAP4(v)
+# define GETU32(p)       BSWAP4(*(const u32_a1 *)(p))
+# define PUTU32(p,v)     *(u32_a1 *)(p) = BSWAP4(v)
 #else
 # define GETU32(p)       ((u32)(p)[0]<<24|(u32)(p)[1]<<16|(u32)(p)[2]<<8|(u32)(p)[3])
 # define PUTU32(p,v)     ((p)[0]=(u8)((v)>>24),(p)[1]=(u8)((v)>>16),(p)[2]=(u8)((v)>>8),(p)[3]=(u8)(v))

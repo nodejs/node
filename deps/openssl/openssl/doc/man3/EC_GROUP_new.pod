@@ -84,7 +84,7 @@ specific PK B<params>.
 EC_GROUP_set_curve() sets the curve parameters B<p>, B<a> and B<b>. For a curve
 over Fp B<p> is the prime for the field. For a curve over F2^m B<p> represents
 the irreducible polynomial - each bit represents a term in the polynomial.
-Therefore there will either be three or five bits set dependent on whether the
+Therefore, there will either be three or five bits set dependent on whether the
 polynomial is a trinomial or a pentanomial.
 In either case, B<a> and B<b> represents the coefficients a and b from the
 relevant equation introduced above.
@@ -152,7 +152,7 @@ L<EC_GFp_simple_method(3)>, L<d2i_ECPKParameters(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2013-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

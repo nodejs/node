@@ -434,8 +434,10 @@ static long acpt_ctrl(BIO *b, int cmd, long num, void *ptr)
                 b->init = 1;
             } else if (num == 1) {
                 OPENSSL_free(data->param_serv);
-                data->param_serv = BUF_strdup(ptr);
-                b->init = 1;
+                if ((data->param_serv = OPENSSL_strdup(ptr)) == NULL)
+                    ret = 0;
+                else
+                    b->init = 1;
             } else if (num == 2) {
                 data->bind_mode |= BIO_SOCK_NONBLOCK;
             } else if (num == 3) {

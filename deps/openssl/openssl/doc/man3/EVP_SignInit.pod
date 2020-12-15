@@ -17,7 +17,7 @@ EVP_SignInit, EVP_SignInit_ex, EVP_SignUpdate, EVP_SignFinal
 
 =head1 DESCRIPTION
 
-The EVP signature routines are a high level interface to digital
+The EVP signature routines are a high-level interface to digital
 signatures.
 
 EVP_SignInit_ex() sets up signing context I<ctx> to use digest
@@ -48,7 +48,7 @@ The error codes can be obtained by L<ERR_get_error(3)>.
 =head1 NOTES
 
 The B<EVP> interface to digital signatures should almost always be used in
-preference to the low level interfaces. This is because the code then becomes
+preference to the low-level interfaces. This is because the code then becomes
 transparent to the algorithm used and much more flexible.
 
 When signing with DSA private keys the random number generator must be seeded.
