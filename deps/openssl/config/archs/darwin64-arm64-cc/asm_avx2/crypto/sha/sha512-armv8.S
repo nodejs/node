@@ -59,6 +59,7 @@
 .text
 
 
+.private_extern	_OPENSSL_armcap_P
 .globl	_sha512_block_data_order
 
 .align	6
@@ -1614,7 +1615,4 @@ Loop_hw:
 	ldr	x29,[sp],#16
 	ret
 
-#endif
-#ifndef	__KERNEL__
-.comm	_OPENSSL_armcap_P,4,4
 #endif
