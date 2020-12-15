@@ -72,6 +72,7 @@ typedef uint64_t u64;
  */
 
 typedef uint64_t limb;
+typedef uint64_t limb_aX __attribute((__aligned__(1)));
 typedef uint128_t widelimb;
 
 typedef limb felem[4];
@@ -307,10 +308,10 @@ const EC_METHOD *EC_GFp_nistp224_method(void)
  */
 static void bin28_to_felem(felem out, const u8 in[28])
 {
-    out[0] = *((const uint64_t *)(in)) & 0x00ffffffffffffff;
-    out[1] = (*((const uint64_t *)(in + 7))) & 0x00ffffffffffffff;
-    out[2] = (*((const uint64_t *)(in + 14))) & 0x00ffffffffffffff;
-    out[3] = (*((const uint64_t *)(in+20))) >> 8;
+    out[0] = *((const limb *)(in)) & 0x00ffffffffffffff;
+    out[1] = (*((const limb_aX *)(in + 7))) & 0x00ffffffffffffff;
+    out[2] = (*((const limb_aX *)(in + 14))) & 0x00ffffffffffffff;
+    out[3] = (*((const limb_aX *)(in + 20))) >> 8;
 }
 
 static void felem_to_bin28(u8 out[28], const felem in)

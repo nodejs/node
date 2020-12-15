@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -108,6 +108,12 @@ int PEM_write_bio_PrivateKey_traditional(BIO *bp, EVP_PKEY *x,
                                          pem_password_cb *cb, void *u)
 {
     char pem_str[80];
+
+    if (x->ameth == NULL || x->ameth->old_priv_encode == NULL) {
+        PEMerr(PEM_F_PEM_WRITE_BIO_PRIVATEKEY_TRADITIONAL,
+               PEM_R_UNSUPPORTED_PUBLIC_KEY_TYPE);
+        return 0;
+    }
     BIO_snprintf(pem_str, 80, "%s PRIVATE KEY", x->ameth->pem_str);
     return PEM_ASN1_write_bio((i2d_of_void *)i2d_PrivateKey,
                               pem_str, bp, x, enc, kstr, klen, cb, u);
