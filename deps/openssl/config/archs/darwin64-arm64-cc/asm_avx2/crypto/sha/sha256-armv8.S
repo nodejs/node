@@ -59,6 +59,7 @@
 .text
 
 
+.private_extern	_OPENSSL_armcap_P
 .globl	_sha256_block_data_order
 
 .align	6
@@ -2060,6 +2061,3 @@ L_00_48:
 	add	sp,sp,#16*4+16
 	ret
 
-#ifndef	__KERNEL__
-.comm	_OPENSSL_armcap_P,4,4
-#endif

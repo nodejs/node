@@ -103,7 +103,12 @@ L192:
 Loop192:
 	tbl	v6.16b,{v4.16b},v2.16b
 	ext	v5.16b,v0.16b,v3.16b,#12
+#ifdef __ARMEB__
+	st1	{v4.4s},[x2],#16
+	sub	x2,x2,#8
+#else
 	st1	{v4.8b},[x2],#8
+#endif
 	aese	v6.16b,v0.16b
 	subs	w1,w1,#1
 
@@ -574,8 +579,11 @@ _aes_v8_ctr32_encrypt_blocks:
 	ldr	w5,[x3,#240]
 
 	ldr	w8, [x4, #12]
+#ifdef __ARMEB__
+	ld1	{v0.16b},[x4]
+#else
 	ld1	{v0.4s},[x4]
-
+#endif
 	ld1	{v16.4s,v17.4s},[x3]		// load key schedule...
 	sub	w5,w5,#4
 	mov	x12,#16
@@ -591,17 +599,17 @@ _aes_v8_ctr32_encrypt_blocks:
 #ifndef __ARMEB__
 	rev	w8, w8
 #endif
-	orr	v1.16b,v0.16b,v0.16b
 	add	w10, w8, #1
-	orr	v18.16b,v0.16b,v0.16b
-	add	w8, w8, #2
 	orr	v6.16b,v0.16b,v0.16b
 	rev	w10, w10
-	mov	v1.s[3],w10
+	mov	v6.s[3],w10
+	add	w8, w8, #2
+	orr	v1.16b,v6.16b,v6.16b
 	b.ls	Lctr32_tail
 	rev	w12, w8
+	mov	v6.s[3],w12
 	sub	x2,x2,#3		// bias
-	mov	v18.s[3],w12
+	orr	v18.16b,v6.16b,v6.16b
 	b	Loop3x_ctr32
 
 .align	4
@@ -628,11 +636,11 @@ Loop3x_ctr32:
 	aese	v1.16b,v16.16b
 	aesmc	v5.16b,v1.16b
 	ld1	{v2.16b},[x0],#16
-	orr	v0.16b,v6.16b,v6.16b
+	add	w9,w8,#1
 	aese	v18.16b,v16.16b
 	aesmc	v18.16b,v18.16b
 	ld1	{v3.16b},[x0],#16
-	orr	v1.16b,v6.16b,v6.16b
+	rev	w9,w9
 	aese	v4.16b,v17.16b
 	aesmc	v4.16b,v4.16b
 	aese	v5.16b,v17.16b
@@ -641,8 +649,6 @@ Loop3x_ctr32:
 	mov	x7,x3
 	aese	v18.16b,v17.16b
 	aesmc	v17.16b,v18.16b
-	orr	v18.16b,v6.16b,v6.16b
-	add	w9,w8,#1
 	aese	v4.16b,v20.16b
 	aesmc	v4.16b,v4.16b
 	aese	v5.16b,v20.16b
@@ -658,20 +664,22 @@ Loop3x_ctr32:
 	aese	v5.16b,v21.16b
 	aesmc	v5.16b,v5.16b
 	eor	v19.16b,v19.16b,v7.16b
-	rev	w9,w9
+	mov	v6.s[3], w9
 	aese	v17.16b,v21.16b
 	aesmc	v17.16b,v17.16b
-	mov	v0.s[3], w9
+	orr	v0.16b,v6.16b,v6.16b
 	rev	w10,w10
 	aese	v4.16b,v22.16b
 	aesmc	v4.16b,v4.16b
+	mov	v6.s[3], w10
+	rev	w12,w8
 	aese	v5.16b,v22.16b
 	aesmc	v5.16b,v5.16b
-	mov	v1.s[3], w10
-	rev	w12,w8
+	orr	v1.16b,v6.16b,v6.16b
+	mov	v6.s[3], w12
 	aese	v17.16b,v22.16b
 	aesmc	v17.16b,v17.16b
-	mov	v18.s[3], w12
+	orr	v18.16b,v6.16b,v6.16b
 	subs	x2,x2,#3
 	aese	v4.16b,v23.16b
 	aese	v5.16b,v23.16b
