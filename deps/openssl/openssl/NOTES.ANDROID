@@ -6,8 +6,8 @@
  -------------------
 
  Beside basic tools like perl and make you'll need to download the Android
- NDK. It's available for Linux, Mac OS X and Windows, but only Linux
- version was actually tested. There is no reason to believe that Mac OS X
+ NDK. It's available for Linux, macOS and Windows, but only Linux
+ version was actually tested. There is no reason to believe that macOS
  wouldn't work. And as for Windows, it's unclear which "shell" would be
  suitable, MSYS2 might have best chances. NDK version should play lesser
  role, the goal is to support a range of most recent versions.

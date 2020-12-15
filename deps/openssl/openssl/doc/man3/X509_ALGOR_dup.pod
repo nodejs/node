@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-X509_ALGOR_dup, X509_ALGOR_set0, X509_ALGOR_get0, X509_ALGOR_set_md, X509_ALGOR_cmp - AlgorithmIdentifier functions
+X509_ALGOR_dup, X509_ALGOR_set0, X509_ALGOR_get0, X509_ALGOR_set_md, X509_ALGOR_cmp, X509_ALGOR_copy - AlgorithmIdentifier functions
 
 =head1 SYNOPSIS
 
@@ -14,6 +14,7 @@ X509_ALGOR_dup, X509_ALGOR_set0, X509_ALGOR_get0, X509_ALGOR_set_md, X509_ALGOR_
                       const void **ppval, const X509_ALGOR *alg);
  void X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md);
  int X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b);
+ int X509_ALGOR_copy(X509_ALGOR *dest, const X509_ALGOR *src);
 
 =head1 DESCRIPTION
 
@@ -34,23 +35,30 @@ X509_ALGOR_set_md() sets the B<AlgorithmIdentifier> B<alg> to appropriate
 values for the message digest B<md>.
 
 X509_ALGOR_cmp() compares B<a> and B<b> and returns 0 if they have identical
-encodings and non-zero otherwise.
+encodings and nonzero otherwise.
+
+X509_ALGOR_copy() copies the source values into the dest structs; making
+a duplicate of each (and free any thing pointed to from within *dest).
 
 =head1 RETURN VALUES
 
 X509_ALGOR_dup() returns a valid B<X509_ALGOR> structure or NULL if an error
 occurred.
 
-X509_ALGOR_set0() returns 1 on success or 0 on error.
+X509_ALGOR_set0() and X509_ALGOR_copy() return 1 on success or 0 on error.
 
 X509_ALGOR_get0() and X509_ALGOR_set_md() return no values.
 
 X509_ALGOR_cmp() returns 0 if the two parameters have identical encodings and
-non-zero otherwise.
+nonzero otherwise.
+
+=head1 HISTORY
+
+The X509_ALGOR_copy() was added in 1.1.1e.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

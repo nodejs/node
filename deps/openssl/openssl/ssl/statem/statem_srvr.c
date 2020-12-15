@@ -2577,7 +2577,7 @@ int tls_construct_server_key_exchange(SSL *s, WPACKET *pkt)
 
         s->s3->tmp.pkey = ssl_generate_pkey(pkdhp);
         if (s->s3->tmp.pkey == NULL) {
-            /* SSLfatal() already called */
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, 0, ERR_R_INTERNAL_ERROR);
             goto err;
         }
 

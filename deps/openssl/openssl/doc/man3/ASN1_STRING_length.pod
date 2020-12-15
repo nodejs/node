@@ -72,7 +72,7 @@ In general it cannot be assumed that the data returned by ASN1_STRING_data()
 is null terminated or does not contain embedded nulls. The actual format
 of the data will depend on the actual string type itself: for example
 for an IA5String the data will be ASCII, for a BMPString two bytes per
-character in big endian format, and for an UTF8String it will be in UTF8 format.
+character in big endian format, and for a UTF8String it will be in UTF8 format.
 
 Similar care should be take to ensure the data is in the correct format
 when calling ASN1_STRING_set().
@@ -103,7 +103,7 @@ L<ERR_get_error(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

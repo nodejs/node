@@ -130,11 +130,6 @@ void bsaes_xts_decrypt(const unsigned char *inp, unsigned char *out,
                        size_t len, const AES_KEY *key1,
                        const AES_KEY *key2, const unsigned char iv[16]);
 #endif
-#if !defined(AES_ASM) && !defined(AES_CTR_ASM)			\
-	&& defined(OPENSSL_AES_CONST_TIME)			\
-	&& !defined(OPENSSL_SMALL_FOOTPRINT)
-# define AES_CTR_ASM
-#endif
 #ifdef AES_CTR_ASM
 void AES_ctr32_encrypt(const unsigned char *in, unsigned char *out,
                        size_t blocks, const AES_KEY *key,
