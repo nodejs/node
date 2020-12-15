@@ -1547,8 +1547,6 @@ def configure_intl(o):
     'variables': {}
   }
   icu_config_name = 'icu_config.gypi'
-  def write_config(data, name):
-    return
 
   # write an empty file to start with
   write(icu_config_name, do_not_edit +
