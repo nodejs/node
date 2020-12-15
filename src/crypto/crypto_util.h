@@ -349,17 +349,11 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
       Environment* env,
       v8::Local<v8::Object> target) {
     v8::Local<v8::FunctionTemplate> job = env->NewFunctionTemplate(new_fn);
-    v8::Local<v8::String> class_name =
-        OneByteString(env->isolate(), CryptoJobTraits::JobName);
-    job->SetClassName(class_name);
     job->Inherit(AsyncWrap::GetConstructorTemplate(env));
     job->InstanceTemplate()->SetInternalFieldCount(
         AsyncWrap::kInternalFieldCount);
     env->SetProtoMethod(job, "run", Run);
-    target->Set(
-        env->context(),
-        class_name,
-        job->GetFunction(env->context()).ToLocalChecked()).Check();
+    env->SetConstructorFunction(target, CryptoJobTraits::JobName, job);
   }
 
  private:

@@ -38,7 +38,6 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Uint32;
 using v8::Value;
 
@@ -49,15 +48,11 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(
       StatWatcher::kInternalFieldCount);
-  Local<String> statWatcherString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher");
-  t->SetClassName(statWatcherString);
   t->Inherit(HandleWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "start", StatWatcher::Start);
 
-  target->Set(env->context(), statWatcherString,
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "StatWatcher", t);
 }
 
 

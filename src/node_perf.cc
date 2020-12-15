@@ -705,8 +705,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(eldh, "enable", ELDHistogramEnable);
   env->SetProtoMethod(eldh, "disable", ELDHistogramDisable);
   env->SetProtoMethod(eldh, "reset", ELDHistogramReset);
-  target->Set(context, eldh_classname,
-              eldh->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, eldh_classname, eldh);
 }
 
 }  // namespace performance

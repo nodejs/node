@@ -106,11 +106,10 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(isolate, "errname"),
-              env->NewFunctionTemplate(ErrName)
-                  ->GetFunction(env->context())
-                  .ToLocalChecked()).Check();
+  env->SetConstructorFunction(
+      target,
+      "errname",
+      env->NewFunctionTemplate(ErrName));
 
   // TODO(joyeecheung): This should be deprecated in user land in favor of
   // `util.getSystemErrorName(err)`.

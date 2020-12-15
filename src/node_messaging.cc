@@ -1415,32 +1415,24 @@ static void InitMessaging(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   {
-    Local<String> message_channel_string =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "MessageChannel");
-    Local<FunctionTemplate> templ = env->NewFunctionTemplate(MessageChannel);
-    templ->SetClassName(message_channel_string);
-    target->Set(context,
-                message_channel_string,
-                templ->GetFunction(context).ToLocalChecked()).Check();
+    env->SetConstructorFunction(
+        target,
+        "MessageChannel",
+        env->NewFunctionTemplate(MessageChannel));
   }
 
   {
-    Local<String> js_transferable_string =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "JSTransferable");
     Local<FunctionTemplate> t = env->NewFunctionTemplate(JSTransferable::New);
     t->Inherit(BaseObject::GetConstructorTemplate(env));
-    t->SetClassName(js_transferable_string);
     t->InstanceTemplate()->SetInternalFieldCount(
         JSTransferable::kInternalFieldCount);
-    target->Set(context,
-                js_transferable_string,
-                t->GetFunction(context).ToLocalChecked()).Check();
+    env->SetConstructorFunction(target, "JSTransferable", t);
   }
 
-  target->Set(context,
-              env->message_port_constructor_string(),
-              GetMessagePortConstructorTemplate(env)
-                  ->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(
+      target,
+      env->message_port_constructor_string(),
+      GetMessagePortConstructorTemplate(env));
 
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.

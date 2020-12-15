@@ -18,7 +18,6 @@ using v8::FunctionTemplate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 namespace {
@@ -675,11 +674,9 @@ void SocketAddressBlockListWrap::Initialize(
     void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<String> name = FIXED_ONE_BYTE_STRING(env->isolate(), "BlockList");
   Local<FunctionTemplate> t =
       env->NewFunctionTemplate(SocketAddressBlockListWrap::New);
   t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
-  t->SetClassName(name);
 
   env->SetProtoMethod(t, "addAddress", SocketAddressBlockListWrap::AddAddress);
   env->SetProtoMethod(t, "addRange", SocketAddressBlockListWrap::AddRange);
@@ -688,8 +685,7 @@ void SocketAddressBlockListWrap::Initialize(
   env->SetProtoMethod(t, "getRules", SocketAddressBlockListWrap::GetRules);
 
   env->set_blocklist_instance_template(t->InstanceTemplate());
-  target->Set(env->context(), name,
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+  env->SetConstructorFunction(target, "BlockList", t);
 
   NODE_DEFINE_CONSTANT(target, AF_INET);
   NODE_DEFINE_CONSTANT(target, AF_INET6);

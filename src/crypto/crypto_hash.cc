@@ -50,9 +50,7 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "update", HashUpdate);
   env->SetProtoMethod(t, "digest", HashDigest);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"),
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "Hash", t);
 
   env->SetMethodNoSideEffect(target, "getHashes", GetHashes);
 

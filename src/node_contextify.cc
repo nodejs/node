@@ -1282,21 +1282,11 @@ void MicrotaskQueueWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 void MicrotaskQueueWrap::Init(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
-  Local<String> class_name =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "MicrotaskQueue");
-
   Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(New);
   tmpl->InstanceTemplate()->SetInternalFieldCount(
       ContextifyScript::kInternalFieldCount);
-  tmpl->SetClassName(class_name);
-
-  if (target->Set(env->context(),
-                  class_name,
-                  tmpl->GetFunction(env->context()).ToLocalChecked())
-          .IsNothing()) {
-    return;
-  }
   env->set_microtask_queue_ctor_template(tmpl);
+  env->SetConstructorFunction(target, "MicrotaskQueue", tmpl);
 }
 
 

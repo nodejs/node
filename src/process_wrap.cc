@@ -54,18 +54,13 @@ class ProcessWrap : public HandleWrap {
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(
         ProcessWrap::kInternalFieldCount);
-    Local<String> processString =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Process");
-    constructor->SetClassName(processString);
 
     constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(constructor, "spawn", Spawn);
     env->SetProtoMethod(constructor, "kill", Kill);
 
-    target->Set(env->context(),
-                processString,
-                constructor->GetFunction(context).ToLocalChecked()).Check();
+    env->SetConstructorFunction(target, "Process", constructor);
   }
 
   SET_NO_MEMORY_INFO()

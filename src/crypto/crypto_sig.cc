@@ -276,9 +276,7 @@ void Sign::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "update", SignUpdate);
   env->SetProtoMethod(t, "sign", SignFinal);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"),
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "Sign", t);
 
   env->SetMethod(target, "signOneShot", Sign::SignSync);
 
@@ -396,9 +394,7 @@ void Verify::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "update", VerifyUpdate);
   env->SetProtoMethod(t, "verify", VerifyFinal);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "Verify", t);
 
   env->SetMethod(target, "verifyOneShot", Verify::VerifySync);
 }

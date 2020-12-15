@@ -39,7 +39,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyAttribute;
-using v8::String;
 using v8::Value;
 
 namespace quic {
@@ -1154,10 +1153,8 @@ void QuicEndpoint::Initialize(
     Local<Object> target,
     Local<Context> context) {
   Isolate* isolate = env->isolate();
-  Local<String> class_name = FIXED_ONE_BYTE_STRING(isolate, "QuicEndpoint");
   Local<FunctionTemplate> endpoint = env->NewFunctionTemplate(NewQuicEndpoint);
   endpoint->Inherit(BaseObject::GetConstructorTemplate(env));
-  endpoint->SetClassName(class_name);
   endpoint->InstanceTemplate()->SetInternalFieldCount(
       QuicEndpoint::kInternalFieldCount);
   env->SetProtoMethod(endpoint,
@@ -1165,11 +1162,7 @@ void QuicEndpoint::Initialize(
                       QuicEndpointWaitForPendingCallbacks);
   endpoint->InstanceTemplate()->Set(env->owner_symbol(), Null(isolate));
 
-  target->Set(
-      context,
-      class_name,
-      endpoint->GetFunction(context).ToLocalChecked())
-          .FromJust();
+  env->SetConstructorFunction(target, "QuicEndpoint", endpoint);
 }
 
 void QuicSocket::Initialize(
@@ -1177,10 +1170,8 @@ void QuicSocket::Initialize(
     Local<Object> target,
     Local<Context> context) {
   Isolate* isolate = env->isolate();
-  Local<String> class_name = FIXED_ONE_BYTE_STRING(isolate, "QuicSocket");
   Local<FunctionTemplate> socket = env->NewFunctionTemplate(NewQuicSocket);
   socket->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  socket->SetClassName(class_name);
   socket->InstanceTemplate()->SetInternalFieldCount(
       QuicSocket::kInternalFieldCount);
   socket->InstanceTemplate()->Set(env->owner_symbol(), Null(isolate));
@@ -1197,8 +1188,7 @@ void QuicSocket::Initialize(
                       "setDiagnosticPacketLoss",
                       QuicSocketSetDiagnosticPacketLoss);
   socket->Inherit(HandleWrap::GetConstructorTemplate(env));
-  target->Set(context, class_name,
-              socket->GetFunction(env->context()).ToLocalChecked()).FromJust();
+  env->SetConstructorFunction(target, "QuicSocket", socket);
 
   Local<FunctionTemplate> sendwrap_ctor = FunctionTemplate::New(isolate);
   sendwrap_ctor->Inherit(AsyncWrap::GetConstructorTemplate(env));

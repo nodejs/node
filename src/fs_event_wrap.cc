@@ -95,11 +95,9 @@ void FSEventWrap::Initialize(Local<Object> target,
                              void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  auto fsevent_string = FIXED_ONE_BYTE_STRING(env->isolate(), "FSEvent");
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(
       FSEventWrap::kInternalFieldCount);
-  t->SetClassName(fsevent_string);
 
   t->Inherit(HandleWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(t, "start", Start);
@@ -116,9 +114,7 @@ void FSEventWrap::Initialize(Local<Object> target,
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete | DontEnum));
 
-  target->Set(env->context(),
-              fsevent_string,
-              t->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "FSEvent", t);
 }
 
 
