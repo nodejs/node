@@ -49,7 +49,6 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
-using v8::String;
 using v8::Value;
 
 
@@ -67,9 +66,6 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> sw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   sw->InstanceTemplate()->SetInternalFieldCount(StreamReq::kInternalFieldCount);
-  Local<String> wrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
-  sw->SetClassName(wrapString);
 
   // we need to set handle and callback to null,
   // so that those fields are created and functions
@@ -88,22 +84,15 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
 
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  target->Set(env->context(),
-              wrapString,
-              sw->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "ShutdownWrap", sw);
   env->set_shutdown_wrap_template(sw->InstanceTemplate());
 
   Local<FunctionTemplate> ww =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   ww->InstanceTemplate()->SetInternalFieldCount(
       StreamReq::kInternalFieldCount);
-  Local<String> writeWrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap");
-  ww->SetClassName(writeWrapString);
   ww->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  target->Set(env->context(),
-              writeWrapString,
-              ww->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "WriteWrap", ww);
   env->set_write_wrap_template(ww->InstanceTemplate());
 
   NODE_DEFINE_CONSTANT(target, kReadBytesOrError);

@@ -475,13 +475,8 @@ void Initialize(Local<Object> target,
                       "_setTreatArrayBufferViewsAsHostObjects",
                       SerializerContext::SetTreatArrayBufferViewsAsHostObjects);
 
-  Local<String> serializerString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "Serializer");
-  ser->SetClassName(serializerString);
   ser->ReadOnlyPrototype();
-  target->Set(env->context(),
-              serializerString,
-              ser->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "Serializer", ser);
 
   Local<FunctionTemplate> des =
       env->NewFunctionTemplate(DeserializerContext::New);
@@ -503,14 +498,9 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(des, "readDouble", DeserializerContext::ReadDouble);
   env->SetProtoMethod(des, "_readRawBytes", DeserializerContext::ReadRawBytes);
 
-  Local<String> deserializerString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "Deserializer");
   des->SetLength(1);
   des->ReadOnlyPrototype();
-  des->SetClassName(deserializerString);
-  target->Set(env->context(),
-              deserializerString,
-              des->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "Deserializer", des);
 }
 
 }  // anonymous namespace

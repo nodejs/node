@@ -405,11 +405,7 @@ void Initialize(Local<Object> target,
 
   env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
 
-  Local<String> channel_wrap_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap");
-  channel_wrap->SetClassName(channel_wrap_string);
-  target->Set(env->context(), channel_wrap_string,
-              channel_wrap->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "ChannelWrap", channel_wrap);
 }
 
 // Run the `Initialize` function when loading this module through
