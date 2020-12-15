@@ -3054,9 +3054,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "packSettings", PackSettings);
   env->SetMethod(target, "setCallbackFunctions", SetCallbackFunctions);
 
-  Local<String> http2SessionClassName =
-    FIXED_ONE_BYTE_STRING(isolate, "Http2Session");
-
   Local<FunctionTemplate> ping = FunctionTemplate::New(env->isolate());
   ping->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Ping"));
   ping->Inherit(AsyncWrap::GetConstructorTemplate(env));
@@ -3065,14 +3062,12 @@ void Initialize(Local<Object> target,
   env->set_http2ping_constructor_template(pingt);
 
   Local<FunctionTemplate> setting = FunctionTemplate::New(env->isolate());
-  setting->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Setting"));
   setting->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<ObjectTemplate> settingt = setting->InstanceTemplate();
   settingt->SetInternalFieldCount(AsyncWrap::kInternalFieldCount);
   env->set_http2settings_constructor_template(settingt);
 
   Local<FunctionTemplate> stream = FunctionTemplate::New(env->isolate());
-  stream->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"));
   env->SetProtoMethod(stream, "id", Http2Stream::GetID);
   env->SetProtoMethod(stream, "destroy", Http2Stream::Destroy);
   env->SetProtoMethod(stream, "priority", Http2Stream::Priority);
@@ -3087,13 +3082,10 @@ void Initialize(Local<Object> target,
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
   streamt->SetInternalFieldCount(StreamBase::kInternalFieldCount);
   env->set_http2stream_constructor_template(streamt);
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"),
-              stream->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "Http2Stream", stream);
 
   Local<FunctionTemplate> session =
       env->NewFunctionTemplate(Http2Session::New);
-  session->SetClassName(http2SessionClassName);
   session->InstanceTemplate()->SetInternalFieldCount(
       Http2Session::kInternalFieldCount);
   session->Inherit(AsyncWrap::GetConstructorTemplate(env));
@@ -3119,9 +3111,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(
       session, "remoteSettings",
       Http2Session::RefreshSettings<nghttp2_session_get_remote_settings>);
-  target->Set(context,
-              http2SessionClassName,
-              session->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "Http2Session", session);
 
   Local<Object> constants = Object::New(isolate);
 

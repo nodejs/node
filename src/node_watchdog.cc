@@ -124,19 +124,12 @@ void TraceSigintWatchdog::Init(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
   constructor->InstanceTemplate()->SetInternalFieldCount(
       TraceSigintWatchdog::kInternalFieldCount);
-  Local<v8::String> js_sigint_watch_dog =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "TraceSigintWatchdog");
-  constructor->SetClassName(js_sigint_watch_dog);
   constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethod(constructor, "start", Start);
   env->SetProtoMethod(constructor, "stop", Stop);
 
-  target
-      ->Set(env->context(),
-            js_sigint_watch_dog,
-            constructor->GetFunction(env->context()).ToLocalChecked())
-      .Check();
+  env->SetConstructorFunction(target, "TraceSigintWatchdog", constructor);
 }
 
 void TraceSigintWatchdog::New(const FunctionCallbackInfo<Value>& args) {

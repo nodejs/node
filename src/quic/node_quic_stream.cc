@@ -26,12 +26,10 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyAttribute;
-using v8::String;
 using v8::Value;
 
 namespace quic {
@@ -525,10 +523,7 @@ void QuicStream::Initialize(
     Environment* env,
     Local<Object> target,
     Local<Context> context) {
-  Isolate* isolate = env->isolate();
-  Local<String> class_name = FIXED_ONE_BYTE_STRING(isolate, "QuicStream");
   Local<FunctionTemplate> stream = FunctionTemplate::New(env->isolate());
-  stream->SetClassName(class_name);
   stream->Inherit(AsyncWrap::GetConstructorTemplate(env));
   StreamBase::AddMethods(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
@@ -543,9 +538,7 @@ void QuicStream::Initialize(
   env->SetProtoMethod(stream, "submitTrailers", QuicStreamSubmitTrailers);
   env->SetProtoMethod(stream, "submitPush", QuicStreamSubmitPush);
   env->set_quicserverstream_instance_template(streamt);
-  target->Set(env->context(),
-              class_name,
-              stream->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "QuicStream", stream);
 
   env->SetMethod(target, "openBidirectionalStream", OpenBidirectionalStream);
   env->SetMethod(target, "openUnidirectionalStream", OpenUnidirectionalStream);

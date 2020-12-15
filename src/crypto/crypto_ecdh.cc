@@ -52,9 +52,7 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "ECDH", t);
 
   env->SetMethodNoSideEffect(target, "ECDHConvertKey", ECDH::ConvertKey);
   env->SetMethodNoSideEffect(target, "getCurves", ECDH::GetCurves);
