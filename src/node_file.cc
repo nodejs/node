@@ -344,9 +344,11 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
   Isolate* isolate = env()->isolate();
   EscapableHandleScope scope(isolate);
   Local<Context> context = env()->context();
-  auto maybe_resolver = Promise::Resolver::New(context);
-  CHECK(!maybe_resolver.IsEmpty());
-  Local<Promise::Resolver> resolver = maybe_resolver.ToLocalChecked();
+
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver))
+    return MaybeLocal<Promise>();
+
   Local<Promise> promise = resolver.As<Promise>();
   CHECK(!reading_);
   if (!closed_ && !closing_) {
@@ -710,7 +712,7 @@ void AfterMkdirp(uv_fs_t* req) {
       if (path.IsEmpty())
         req_wrap->Reject(error);
       else
-        req_wrap->Resolve(path.ToLocalChecked());
+        req_wrap->Resolve(path.FromMaybe(Local<Value>()));
     } else {
       req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
     }
@@ -732,7 +734,7 @@ void AfterStringPath(uv_fs_t* req) {
     if (link.IsEmpty())
       req_wrap->Reject(error);
     else
-      req_wrap->Resolve(link.ToLocalChecked());
+      req_wrap->Resolve(link.FromMaybe(Local<Value>()));
   }
 }
 
@@ -751,7 +753,7 @@ void AfterStringPtr(uv_fs_t* req) {
     if (link.IsEmpty())
       req_wrap->Reject(error);
     else
-      req_wrap->Resolve(link.ToLocalChecked());
+      req_wrap->Resolve(link.FromMaybe(Local<Value>()));
   }
 }
 
@@ -786,7 +788,7 @@ void AfterScanDir(uv_fs_t* req) {
     if (filename.IsEmpty())
       return req_wrap->Reject(error);
 
-    name_v.push_back(filename.ToLocalChecked());
+    name_v.push_back(filename.FromMaybe(Local<Value>()));
   }
 
   req_wrap->Resolve(Array::New(env->isolate(), name_v.data(), name_v.size()));
@@ -827,7 +829,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
     if (filename.IsEmpty())
       return req_wrap->Reject(error);
 
-    name_v.push_back(filename.ToLocalChecked());
+    name_v.push_back(filename.FromMaybe(Local<Value>()));
     type_v.emplace_back(Integer::New(isolate, ent.type));
   }
 
@@ -979,7 +981,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     String::NewFromUtf8(isolate,
                         &chars[start],
                         v8::NewStringType::kNormal,
-                        size).ToLocalChecked(),
+                        size).FromMaybe(Local<Value>()),
     Boolean::New(isolate, p < pe ? true : false)
   };
   args.GetReturnValue().Set(
@@ -1195,7 +1197,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    args.GetReturnValue().Set(rc.ToLocalChecked());
+    args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
   }
 }
 
@@ -1561,7 +1563,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
           ctx->Set(env->context(), env->error_string(), error).Check();
           return;
         }
-        args.GetReturnValue().Set(path.ToLocalChecked());
+        args.GetReturnValue().Set(path.FromMaybe(Local<Value>()));
       }
     } else {
       SyncCall(env, args[4], &req_wrap_sync, "mkdir",
@@ -1611,7 +1613,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    args.GetReturnValue().Set(rc.ToLocalChecked());
+    args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
   }
 }
 
@@ -1681,7 +1683,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      name_v.push_back(filename.ToLocalChecked());
+      name_v.push_back(filename.FromMaybe(Local<Value>()));
 
       if (with_types) {
         type_v.emplace_back(Integer::New(isolate, ent.type));
@@ -1883,7 +1885,8 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
 
   for (uint32_t i = 0; i < iovs.length(); i++) {
-    Local<Value> chunk = chunks->Get(env->context(), i).ToLocalChecked();
+    Local<Value> chunk =
+        chunks->Get(env->context(), i).FromMaybe(Local<Value>());
     CHECK(Buffer::HasInstance(chunk));
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
   }
@@ -2085,7 +2088,8 @@ static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
 
   // Init uv buffers from ArrayBufferViews
   for (uint32_t i = 0; i < iovs.length(); i++) {
-    Local<Value> buffer = buffers->Get(env->context(), i).ToLocalChecked();
+    Local<Value> buffer =
+        buffers->Get(env->context(), i).FromMaybe(Local<Value>());
     CHECK(Buffer::HasInstance(buffer));
     iovs[i] = uv_buf_init(Buffer::Data(buffer), Buffer::Length(buffer));
   }
@@ -2382,7 +2386,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
       ctx->Set(env->context(), env->error_string(), error).Check();
       return;
     }
-    args.GetReturnValue().Set(rc.ToLocalChecked());
+    args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
   }
 }
 

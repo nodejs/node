@@ -178,11 +178,13 @@ void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
   finished_ = true;
   v8::HandleScope scope(env()->isolate());
   InternalCallbackScope callback_scope(this);
-  v8::Local<v8::Value> value =
-      object()->Get(env()->context(),
-                    env()->promise_string()).ToLocalChecked();
-  v8::Local<v8::Promise::Resolver> resolver = value.As<v8::Promise::Resolver>();
-  USE(resolver->Reject(env()->context(), reject).FromJust());
+  v8::Local<v8::Value> value;
+  if (object()->Get(
+          env()->context(),
+          env()->promise_string()).ToLocal(&value)) {
+    USE(value.As<v8::Promise::Resolver>()->Reject(
+        env()->context(), reject).FromJust());
+  }
 }
 
 template <typename AliasedBufferT>
@@ -190,11 +192,12 @@ void FSReqPromise<AliasedBufferT>::Resolve(v8::Local<v8::Value> value) {
   finished_ = true;
   v8::HandleScope scope(env()->isolate());
   InternalCallbackScope callback_scope(this);
-  v8::Local<v8::Value> val =
-      object()->Get(env()->context(),
-                    env()->promise_string()).ToLocalChecked();
-  v8::Local<v8::Promise::Resolver> resolver = val.As<v8::Promise::Resolver>();
-  USE(resolver->Resolve(env()->context(), value).FromJust());
+  v8::Local<v8::Value> val;
+  if (object()->Get(env()->context(),
+                    env()->promise_string()).ToLocal(&val)) {
+    USE(val.As<v8::Promise::Resolver>()->Resolve(
+        env()->context(), value).FromJust());
+  }
 }
 
 template <typename AliasedBufferT>
@@ -206,11 +209,11 @@ void FSReqPromise<AliasedBufferT>::ResolveStat(const uv_stat_t* stat) {
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::SetReturnValue(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Local<v8::Value> val =
-      object()->Get(env()->context(),
-                    env()->promise_string()).ToLocalChecked();
-  v8::Local<v8::Promise::Resolver> resolver = val.As<v8::Promise::Resolver>();
-  args.GetReturnValue().Set(resolver->GetPromise());
+  v8::Local<v8::Value> val;
+  if (object()->Get(env()->context(),
+                    env()->promise_string()).ToLocal(&val)) {
+    args.GetReturnValue().Set(val.As<v8::Promise::Resolver>()->GetPromise());
+  }
 }
 
 template <typename AliasedBufferT>
