@@ -3,6 +3,7 @@
 .text
 
 
+.private_extern	_OPENSSL_armcap_P
 
 .align	5
 Lsigma:
