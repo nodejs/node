@@ -39,14 +39,14 @@ descriptions. For example, the function ssl3_read_bytes() reports a
 
  SSLerr(SSL_F_SSL3_READ_BYTES, SSL_R_SSL_HANDSHAKE_FAILURE);
 
-Function and reason codes should consist of upper case characters,
+Function and reason codes should consist of uppercase characters,
 numbers and underscores only. The error file generation script translates
 function codes into function names by looking in the header files
 for an appropriate function name, if none is found it just uses
 the capitalized form such as "SSL3_READ_BYTES" in the above example.
 
 The trailing section of a reason code (after the "_R_") is translated
-into lower case and underscores changed to spaces.
+into lowercase and underscores changed to spaces.
 
 Although a library will normally report errors using its own specific
 XXXerr macro, another library's macro can be used. This is normally
@@ -65,7 +65,7 @@ L<ERR_load_strings(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

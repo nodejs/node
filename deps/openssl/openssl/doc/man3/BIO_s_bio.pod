@@ -144,7 +144,7 @@ without having to go through the SSL-interface.
  ...
  BIO_new_bio_pair(&internal_bio, 0, &network_bio, 0);
  SSL_set_bio(ssl, internal_bio, internal_bio);
- SSL_operations(); /* e.g SSL_read and SSL_write */
+ SSL_operations(); /* e.g. SSL_read and SSL_write */
  ...
 
  application |   TLS-engine
@@ -167,7 +167,7 @@ without having to go through the SSL-interface.
   ...
 
 As the BIO pair will only buffer the data and never directly access the
-connection, it behaves non-blocking and will return as soon as the write
+connection, it behaves nonblocking and will return as soon as the write
 buffer is full or the read buffer is drained. Then the application has to
 flush the write buffer and/or fill the read buffer.
 
@@ -191,7 +191,7 @@ L<BIO_should_retry(3)>, L<BIO_read_ex(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

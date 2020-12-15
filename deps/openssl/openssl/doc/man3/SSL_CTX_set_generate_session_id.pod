@@ -108,8 +108,8 @@ server id given, and will fill the rest with pseudo random bytes:
          /*
           * Prefix the session_id with the required prefix. NB: If our
           * prefix is too long, clip it - but there will be worse effects
-          * anyway, eg. the server could only possibly create 1 session
-          * ID (ie. the prefix!) so all future session negotiations will
+          * anyway, e.g. the server could only possibly create 1 session
+          * ID (i.e. the prefix!) so all future session negotiations will
           * fail due to conflicts.
           */
          memcpy(id, session_id_prefix, strlen(session_id_prefix) < *id_len ?
@@ -128,7 +128,7 @@ L<ssl(7)>, L<SSL_get_version(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -46,21 +46,22 @@ OSSL_STORE_close() to work together.
 
 =head2 Functions
 
-OSSL_STORE_open() takes a uri or path B<uri>, password UI method
-B<ui_method> with associated data B<ui_data>, and post processing
-callback B<post_process> with associated data B<post_process_data>,
+OSSL_STORE_open() takes a uri or path I<uri>, password UI method
+I<ui_method> with associated data I<ui_data>, and post processing
+callback I<post_process> with associated data I<post_process_data>,
 opens a channel to the data located at that URI and returns a
 B<OSSL_STORE_CTX> with all necessary internal information.
-The given B<ui_method> and B<ui_data_data> will be reused by all
-functions that use B<OSSL_STORE_CTX> when interaction is needed.
-The given B<post_process> and B<post_process_data> will be reused by
+The given I<ui_method> and I<ui_data> will be reused by all
+functions that use B<OSSL_STORE_CTX> when interaction is needed,
+for instance to provide a password.
+The given I<post_process> and I<post_process_data> will be reused by
 OSSL_STORE_load() to manipulate or drop the value to be returned.
-The B<post_process> function drops values by returning B<NULL>, which
+The I<post_process> function drops values by returning NULL, which
 will cause OSSL_STORE_load() to start its process over with loading
-the next object, until B<post_process> returns something other than
-B<NULL>, or the end of data is reached as indicated by OSSL_STORE_eof().
+the next object, until I<post_process> returns something other than
+NULL, or the end of data is reached as indicated by OSSL_STORE_eof().
 
-OSSL_STORE_ctrl() takes a B<OSSL_STORE_CTX>, and command number B<cmd> and
+OSSL_STORE_ctrl() takes a B<OSSL_STORE_CTX>, and command number I<cmd> and
 more arguments not specified here.
 The available loader specific command numbers and arguments they each
 take depends on the loader that's used and is documented together with
@@ -94,6 +95,7 @@ OSSL_STORE_eof() shows that the end of data has been reached.
 OSSL_STORE_close() takes a B<OSSL_STORE_CTX>, closes the channel that was opened
 by OSSL_STORE_open() and frees all other information that was stored in the
 B<OSSL_STORE_CTX>, as well as the B<OSSL_STORE_CTX> itself.
+If I<ctx> is NULL it does nothing.
 
 =head1 SUPPORTED SCHEMES
 
@@ -123,12 +125,12 @@ See L<passphrase-encoding(7)> for further information.
 =head1 RETURN VALUES
 
 OSSL_STORE_open() returns a pointer to a B<OSSL_STORE_CTX> on success, or
-B<NULL> on failure.
+NULL on failure.
 
 OSSL_STORE_load() returns a pointer to a B<OSSL_STORE_INFO> on success, or
-B<NULL> on error or when end of data is reached.
+NULL on error or when end of data is reached.
 Use OSSL_STORE_error() and OSSL_STORE_eof() to determine the meaning of a
-returned B<NULL>.
+returned NULL.
 
 OSSL_STORE_eof() returns 1 if the end of data has been reached, otherwise
 0.
@@ -149,9 +151,12 @@ OSSL_STORE_CTX(), OSSL_STORE_post_process_info_fn(), OSSL_STORE_open(),
 OSSL_STORE_ctrl(), OSSL_STORE_load(), OSSL_STORE_eof() and OSSL_STORE_close()
 were added in OpenSSL 1.1.1.
 
+Handling of NULL I<ctx> argument for OSSL_STORE_close()
+was introduced in OpenSSL 1.1.1h.
+
 =head1 COPYRIGHT
 
-Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

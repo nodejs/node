@@ -18,13 +18,13 @@ SSL_CTX_set_mode, SSL_CTX_clear_mode, SSL_set_mode, SSL_clear_mode, SSL_CTX_get_
 
 =head1 DESCRIPTION
 
-SSL_CTX_set_mode() adds the mode set via bitmask in B<mode> to B<ctx>.
+SSL_CTX_set_mode() adds the mode set via bit mask in B<mode> to B<ctx>.
 Options already set before are not cleared.
-SSL_CTX_clear_mode() removes the mode set via bitmask in B<mode> from B<ctx>.
+SSL_CTX_clear_mode() removes the mode set via bit mask in B<mode> from B<ctx>.
 
-SSL_set_mode() adds the mode set via bitmask in B<mode> to B<ssl>.
+SSL_set_mode() adds the mode set via bit mask in B<mode> to B<ssl>.
 Options already set before are not cleared.
-SSL_clear_mode() removes the mode set via bitmask in B<mode> from B<ssl>.
+SSL_clear_mode() removes the mode set via bit mask in B<mode> from B<ssl>.
 
 SSL_CTX_get_mode() returns the mode set for B<ctx>.
 
@@ -50,8 +50,8 @@ the behaviour of write().
 
 Make it possible to retry SSL_write_ex() or SSL_write() with changed buffer
 location (the buffer contents must stay the same). This is not the default to
-avoid the misconception that non-blocking SSL_write() behaves like
-non-blocking write().
+avoid the misconception that nonblocking SSL_write() behaves like
+nonblocking write().
 
 =item SSL_MODE_AUTO_RETRY
 
@@ -64,9 +64,9 @@ If such a non-application data record was processed, the flag
 B<SSL_MODE_AUTO_RETRY> causes it to try to process the next record instead of
 returning.
 
-In a non-blocking environment applications must be prepared to handle
+In a nonblocking environment applications must be prepared to handle
 incomplete read/write operations.
-Setting B<SSL_MODE_AUTO_RETRY> for a non-blocking B<BIO> will process
+Setting B<SSL_MODE_AUTO_RETRY> for a nonblocking B<BIO> will process
 non-application data records until either no more data is available or
 an application data record has been processed.
 
@@ -121,10 +121,10 @@ default since 1.1.1.
 
 =head1 RETURN VALUES
 
-SSL_CTX_set_mode() and SSL_set_mode() return the new mode bitmask
+SSL_CTX_set_mode() and SSL_set_mode() return the new mode bit mask
 after adding B<mode>.
 
-SSL_CTX_get_mode() and SSL_get_mode() return the current bitmask.
+SSL_CTX_get_mode() and SSL_get_mode() return the current bit mask.
 
 =head1 SEE ALSO
 
@@ -137,7 +137,7 @@ SSL_MODE_ASYNC was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

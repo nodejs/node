@@ -1151,7 +1151,7 @@ int tls_parse_ctos_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
             if (sesstmp == NULL) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                          SSL_F_TLS_PARSE_CTOS_PSK, ERR_R_INTERNAL_ERROR);
-                return 0;
+                goto err;
             }
             SSL_SESSION_free(sess);
             sess = sesstmp;

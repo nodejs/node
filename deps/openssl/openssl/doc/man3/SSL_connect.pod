@@ -23,14 +23,14 @@ The behaviour of SSL_connect() depends on the underlying BIO.
 If the underlying BIO is B<blocking>, SSL_connect() will only return once the
 handshake has been finished or an error occurred.
 
-If the underlying BIO is B<non-blocking>, SSL_connect() will also return
+If the underlying BIO is B<nonblocking>, SSL_connect() will also return
 when the underlying BIO could not satisfy the needs of SSL_connect()
 to continue the handshake, indicating the problem by the return value -1.
 In this case a call to SSL_get_error() with the
 return value of SSL_connect() will yield B<SSL_ERROR_WANT_READ> or
 B<SSL_ERROR_WANT_WRITE>. The calling process then must repeat the call after
 taking appropriate action to satisfy the needs of SSL_connect().
-The action depends on the underlying BIO. When using a non-blocking socket,
+The action depends on the underlying BIO. When using a nonblocking socket,
 nothing is to be done, but select() can be used to check for the required
 condition. When using a buffering BIO, like a BIO pair, data must be written
 into or retrieved out of the BIO before being able to continue.
@@ -72,7 +72,7 @@ established.
 The TLS/SSL handshake was not successful, because a fatal error occurred either
 at the protocol level or a connection failure occurred. The shutdown was
 not clean. It can also occur if action is needed to continue the operation
-for non-blocking BIOs. Call SSL_get_error() with the return value B<ret>
+for nonblocking BIOs. Call SSL_get_error() with the return value B<ret>
 to find out the reason.
 
 =back

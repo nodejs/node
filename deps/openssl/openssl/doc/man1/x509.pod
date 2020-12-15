@@ -255,7 +255,7 @@ Prints out the start and expiry dates of a certificate.
 =item B<-checkend arg>
 
 Checks if the certificate expires within the next B<arg> seconds and exits
-non-zero if yes it will expire or zero if not.
+nonzero if yes it will expire or zero if not.
 
 =item B<-fingerprint>
 

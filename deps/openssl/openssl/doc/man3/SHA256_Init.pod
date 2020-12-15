@@ -75,9 +75,6 @@ SHA512_DIGEST_LENGTH). Also note that, as for the SHA1() function above, the
 SHA224(), SHA256(), SHA384() and SHA512() functions are not thread safe if
 B<md> is NULL.
 
-The predecessor of SHA-1, SHA, is also implemented, but it should be
-used only when backward compatibility is required.
-
 =head1 RETURN VALUES
 
 SHA1(), SHA224(), SHA256(), SHA384() and SHA512() return a pointer to the hash
@@ -98,7 +95,7 @@ L<EVP_DigestInit(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

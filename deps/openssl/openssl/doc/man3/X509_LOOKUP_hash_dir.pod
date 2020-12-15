@@ -80,7 +80,7 @@ upon each lookup, so that newer CRLs are as soon as they appear in
 the directory.
 
 The directory should contain one certificate or CRL per file in PEM format,
-with a file name of the form I<hash>.I<N> for a certificate, or
+with a filename of the form I<hash>.I<N> for a certificate, or
 I<hash>.B<r>I<N> for a CRL.
 The I<hash> is the value returned by the L<X509_NAME_hash(3)> function applied
 to the subject name for certificates or issuer name for CRLs.
@@ -129,7 +129,7 @@ L<X509_LOOKUP_meth_new(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
