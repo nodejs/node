@@ -479,7 +479,7 @@ test('npm doctor outdated nodejs version', t => {
   npm.globalDir = dir
   npm.localBin = dir
   npm.globalBin = dir
-  nodeVersions.push({ version: process.version.replace(/\d+$/, '999'), lts: false })
+  nodeVersions.push({ version: process.version.replace(/\d+(-.*)?$/, '999'), lts: false })
   const consoleError = console.error
   // we just print an empty line here, so swallow it and ignore
   console.error = () => {}
