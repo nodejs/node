@@ -496,18 +496,19 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   size_t length = end - start;
 
   Local<Value> error;
-  MaybeLocal<Value> ret =
+  MaybeLocal<Value> maybe_ret =
       StringBytes::Encode(isolate,
                           buffer.data() + start,
                           length,
                           encoding,
                           &error);
-  if (ret.IsEmpty()) {
+  Local<Value> ret;
+  if (!maybe_ret.ToLocal(&ret)) {
     CHECK(!error.IsEmpty());
     isolate->ThrowException(error);
     return;
   }
-  args.GetReturnValue().Set(ret.ToLocalChecked());
+  args.GetReturnValue().Set(ret);
 }
 
 
