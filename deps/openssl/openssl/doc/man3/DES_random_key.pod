@@ -120,7 +120,7 @@ is returned.  If the key is a weak key, then -2 is returned.  If an
 error is returned, the key schedule is not generated.
 
 DES_set_key() works like
-DES_set_key_checked() if the I<DES_check_key> flag is non-zero,
+DES_set_key_checked() if the I<DES_check_key> flag is nonzero,
 otherwise like DES_set_key_unchecked().  These functions are available
 for compatibility; it is recommended to use a function that does not
 depend on a global variable.
@@ -137,7 +137,7 @@ DES_ecb_encrypt() is the basic DES encryption routine that encrypts or
 decrypts a single 8-byte I<DES_cblock> in I<electronic code book>
 (ECB) mode.  It always transforms the input data, pointed to by
 I<input>, into the output data, pointed to by the I<output> argument.
-If the I<encrypt> argument is non-zero (DES_ENCRYPT), the I<input>
+If the I<encrypt> argument is nonzero (DES_ENCRYPT), the I<input>
 (cleartext) is encrypted in to the I<output> (ciphertext) using the
 key_schedule specified by the I<schedule> argument, previously set via
 I<DES_set_key>. If I<encrypt> is zero (DES_DECRYPT), the I<input> (now
@@ -156,7 +156,7 @@ The macro DES_ecb2_encrypt() is provided to perform two-key Triple-DES
 encryption by using I<ks1> for the final encryption.
 
 DES_ncbc_encrypt() encrypts/decrypts using the I<cipher-block-chaining>
-(CBC) mode of DES.  If the I<encrypt> argument is non-zero, the
+(CBC) mode of DES.  If the I<encrypt> argument is nonzero, the
 routine cipher-block-chain encrypts the cleartext data pointed to by
 the I<input> argument into the ciphertext pointed to by the I<output>
 argument, using the key schedule provided by the I<schedule> argument,
@@ -313,7 +313,7 @@ on some platforms.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -51,7 +51,7 @@ generation callback.
 The function EVP_PKEY_CTX_get_keygen_info() returns parameters associated
 with the generation operation. If B<idx> is -1 the total number of
 parameters available is returned. Any non negative value returns the value of
-that parameter. EVP_PKEY_CTX_gen_keygen_info() with a non-negative value for
+that parameter. EVP_PKEY_CTX_gen_keygen_info() with a nonnegative value for
 B<idx> should only be called within the generation callback.
 
 If the callback returns 0 then the key generation operation is aborted and an
@@ -196,7 +196,7 @@ in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

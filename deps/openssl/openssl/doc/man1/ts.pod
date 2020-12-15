@@ -101,23 +101,23 @@ the hash to the TSA.
 =item 2.
 
 The TSA attaches the current date and time to the received hash value,
-signs them and sends the time stamp token back to the client. By
+signs them and sends the timestamp token back to the client. By
 creating this token the TSA certifies the existence of the original
 data file at the time of response generation.
 
 =item 3.
 
-The TSA client receives the time stamp token and verifies the
+The TSA client receives the timestamp token and verifies the
 signature on it. It also checks if the token contains the same hash
 value that it had sent to the TSA.
 
 =back
 
-There is one DER encoded protocol data unit defined for transporting a time
-stamp request to the TSA and one for sending the time stamp response
+There is one DER encoded protocol data unit defined for transporting 
+a timestamp request to the TSA and one for sending the timestamp response
 back to the client. The B<ts> command has three main functions:
-creating a time stamp request based on a data file,
-creating a time stamp response based on a request, verifying if a
+creating a timestamp request based on a data file,
+creating a timestamp response based on a request, verifying if a
 response corresponds to a particular request or a data file.
 
 There is no support for sending the requests/responses automatically
@@ -128,7 +128,7 @@ requests either by ftp or e-mail.
 
 =head2 Time Stamp Request generation
 
-The B<-query> switch can be used for creating and printing a time stamp
+The B<-query> switch can be used for creating and printing a timestamp
 request with the following options:
 
 =over 4
@@ -154,7 +154,7 @@ see L<openssl(1)/COMMAND SUMMARY>.
 
 =item B<-data> file_to_hash
 
-The data file for which the time stamp request needs to be
+The data file for which the timestamp request needs to be
 created. stdin is the default if neither the B<-data> nor the B<-digest>
 parameter is specified. (Optional)
 
@@ -175,7 +175,7 @@ The default is SHA-1. (Optional)
 =item B<-tspolicy> object_id
 
 The policy that the client expects the TSA to use for creating the
-time stamp token. Either the dotted OID notation or OID names defined
+timestamp token. Either the dotted OID notation or OID names defined
 in the config file can be used. If no policy is requested the TSA will
 use its own default policy. (Optional)
 
@@ -193,7 +193,7 @@ response. (Optional)
 
 =item B<-in> request.tsq
 
-This option specifies a previously created time stamp request in DER
+This option specifies a previously created timestamp request in DER
 format that will be printed into the output file. Useful when you need
 to examine the content of a request in human-readable
 format. (Optional)
@@ -212,13 +212,13 @@ instead of DER. (Optional)
 
 =head2 Time Stamp Response generation
 
-A time stamp response (TimeStampResp) consists of a response status
-and the time stamp token itself (ContentInfo), if the token generation was
-successful. The B<-reply> command is for creating a time stamp
-response or time stamp token based on a request and printing the
+A timestamp response (TimeStampResp) consists of a response status
+and the timestamp token itself (ContentInfo), if the token generation was
+successful. The B<-reply> command is for creating a timestamp
+response or timestamp token based on a request and printing the
 response/token in human-readable format. If B<-token_out> is not
-specified the output is always a time stamp response (TimeStampResp),
-otherwise it is a time stamp token (ContentInfo).
+specified the output is always a timestamp response (TimeStampResp),
+otherwise it is a timestamp token (ContentInfo).
 
 =over 4
 
@@ -237,7 +237,7 @@ used, see B<CONFIGURATION FILE OPTIONS> for details. (Optional)
 
 =item B<-queryfile> request.tsq
 
-The name of the file containing a DER encoded time stamp request. (Optional)
+The name of the file containing a DER encoded timestamp request. (Optional)
 
 =item B<-passin> password_src
 
@@ -282,19 +282,19 @@ B<default_policy> config file option. (Optional)
 
 =item B<-in> response.tsr
 
-Specifies a previously created time stamp response or time stamp token
+Specifies a previously created timestamp response or timestamp token
 (if B<-token_in> is also specified) in DER format that will be written
 to the output file. This option does not require a request, it is
 useful e.g. when you need to examine the content of a response or
-token or you want to extract the time stamp token from a response. If
-the input is a token and the output is a time stamp response a default
+token or you want to extract the timestamp token from a response. If
+the input is a token and the output is a timestamp response a default
 'granted' status info is added to the token. (Optional)
 
 =item B<-token_in>
 
 This flag can be used together with the B<-in> option and indicates
-that the input is a DER encoded time stamp token (ContentInfo) instead
-of a time stamp response (TimeStampResp). (Optional)
+that the input is a DER encoded timestamp token (ContentInfo) instead
+of a timestamp response (TimeStampResp). (Optional)
 
 =item B<-out> response.tsr
 
@@ -304,7 +304,7 @@ stdout. (Optional)
 
 =item B<-token_out>
 
-The output is a time stamp token (ContentInfo) instead of time stamp
+The output is a timestamp token (ContentInfo) instead of timestamp
 response (TimeStampResp). (Optional)
 
 =item B<-text>
@@ -323,8 +323,8 @@ for all available algorithms. Default is builtin. (Optional)
 
 =head2 Time Stamp Response verification
 
-The B<-verify> command is for verifying if a time stamp response or time
-stamp token is valid and matches a particular time stamp request or
+The B<-verify> command is for verifying if a timestamp response or 
+timestamp token is valid and matches a particular timestamp request or
 data file. The B<-verify> command does not use the configuration file.
 
 =over 4
@@ -345,18 +345,18 @@ specified with this one. (Optional)
 
 =item B<-queryfile> request.tsq
 
-The original time stamp request in DER format. The B<-data> and B<-digest>
+The original timestamp request in DER format. The B<-data> and B<-digest>
 options must not be specified with this one. (Optional)
 
 =item B<-in> response.tsr
 
-The time stamp response that needs to be verified in DER format. (Mandatory)
+The timestamp response that needs to be verified in DER format. (Mandatory)
 
 =item B<-token_in>
 
 This flag can be used together with the B<-in> option and indicates
-that the input is a DER encoded time stamp token (ContentInfo) instead
-of a time stamp response (TimeStampResp). (Optional)
+that the input is a DER encoded timestamp token (ContentInfo) instead
+of a timestamp response (TimeStampResp). (Optional)
 
 =item B<-CApath> trusted_cert_path
 
@@ -430,7 +430,7 @@ See L<ca(1)> for description. (Optional)
 =item B<serial>
 
 The name of the file containing the hexadecimal serial number of the
-last time stamp response created. This number is incremented by 1 for
+last timestamp response created. This number is incremented by 1 for
 each response. If the file does not exist at the time of response
 generation a new file is created with serial number 1. (Mandatory)
 
@@ -487,7 +487,7 @@ the components is missing zero is assumed for that field. (Optional)
 =item B<clock_precision_digits>
 
 Specifies the maximum number of digits, which represent the fraction of
-seconds, that  need to be included in the time field. The trailing zeroes
+seconds, that  need to be included in the time field. The trailing zeros
 must be removed from the time, so there might actually be fewer digits,
 or no fraction of seconds at all. Supported only on UNIX platforms.
 The maximum value is 6, default is 0.
@@ -530,13 +530,13 @@ openssl/apps/openssl.cnf will do.
 
 =head2 Time Stamp Request
 
-To create a time stamp request for design1.txt with SHA-1
+To create a timestamp request for design1.txt with SHA-1
 without nonce and policy and no certificate is required in the response:
 
   openssl ts -query -data design1.txt -no_nonce \
         -out design1.tsq
 
-To create a similar time stamp request with specifying the message imprint
+To create a similar timestamp request with specifying the message imprint
 explicitly:
 
   openssl ts -query -digest b7e5d3f93198b38379852f2c04e78d73abdd0f4b \
@@ -546,7 +546,7 @@ To print the content of the previous request in human readable format:
 
   openssl ts -query -in design1.tsq -text
 
-To create a time stamp request which includes the MD-5 digest
+To create a timestamp request which includes the MD-5 digest
 of design2.txt, requests the signer certificate and nonce,
 specifies a policy id (assuming the tsa_policy1 name is defined in the
 OID section of the config file):
@@ -568,7 +568,7 @@ below assume that cacert.pem contains the certificate of the CA,
 tsacert.pem is the signing certificate issued by cacert.pem and
 tsakey.pem is the private key of the TSA.
 
-To create a time stamp response for a request:
+To create a timestamp response for a request:
 
   openssl ts -reply -queryfile design1.tsq -inkey tsakey.pem \
         -signer tsacert.pem -out design1.tsr
@@ -577,44 +577,44 @@ If you want to use the settings in the config file you could just write:
 
   openssl ts -reply -queryfile design1.tsq -out design1.tsr
 
-To print a time stamp reply to stdout in human readable format:
+To print a timestamp reply to stdout in human readable format:
 
   openssl ts -reply -in design1.tsr -text
 
-To create a time stamp token instead of time stamp response:
+To create a timestamp token instead of timestamp response:
 
   openssl ts -reply -queryfile design1.tsq -out design1_token.der -token_out
 
-To print a time stamp token to stdout in human readable format:
+To print a timestamp token to stdout in human readable format:
 
   openssl ts -reply -in design1_token.der -token_in -text -token_out
 
-To extract the time stamp token from a response:
+To extract the timestamp token from a response:
 
   openssl ts -reply -in design1.tsr -out design1_token.der -token_out
 
-To add 'granted' status info to a time stamp token thereby creating a
+To add 'granted' status info to a timestamp token thereby creating a
 valid response:
 
   openssl ts -reply -in design1_token.der -token_in -out design1.tsr
 
 =head2 Time Stamp Verification
 
-To verify a time stamp reply against a request:
+To verify a timestamp reply against a request:
 
   openssl ts -verify -queryfile design1.tsq -in design1.tsr \
         -CAfile cacert.pem -untrusted tsacert.pem
 
-To verify a time stamp reply that includes the certificate chain:
+To verify a timestamp reply that includes the certificate chain:
 
   openssl ts -verify -queryfile design2.tsq -in design2.tsr \
         -CAfile cacert.pem
 
-To verify a time stamp token against the original data file:
+To verify a timestamp token against the original data file:
   openssl ts -verify -data design2.txt -in design2.tsr \
         -CAfile cacert.pem
 
-To verify a time stamp token against a message imprint:
+To verify a timestamp token against a message imprint:
   openssl ts -verify -digest b7e5d3f93198b38379852f2c04e78d73abdd0f4b \
          -in design2.tsr -CAfile cacert.pem
 
@@ -628,7 +628,7 @@ You could also look at the 'test' directory for more examples.
 
 =item *
 
-No support for time stamps over SMTP, though it is quite easy
+No support for timestamps over SMTP, though it is quite easy
 to implement an automatic e-mail based TSA with L<procmail(1)>
 and L<perl(1)>. HTTP server support is provided in the form of
 a separate apache module. HTTP client support is provided by
@@ -638,7 +638,7 @@ L<tsget(1)>. Pure TCP/IP protocol is not supported.
 
 The file containing the last serial number of the TSA is not
 locked when being read or written. This is a problem if more than one
-instance of L<openssl(1)> is trying to create a time stamp
+instance of L<openssl(1)> is trying to create a timestamp
 response at the same time. This is not an issue when using the apache
 server module, it does proper locking.
 
@@ -665,7 +665,7 @@ L<config(5)>
 
 =head1 COPYRIGHT
 
-Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

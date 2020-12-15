@@ -217,12 +217,22 @@ sub resolve_config;
 # Unified build supports separate build dir
 my $srcdir = catdir(absolutedir(dirname($0))); # catdir ensures local syntax
 my $blddir = catdir(absolutedir("."));         # catdir ensures local syntax
+
+# File::Spec::Unix doesn't detect case insensitivity, so we make sure to
+# check if the source and build directory are really the same, and make
+# them so.  This avoids all kinds of confusion later on.
+# We must check @File::Spec::ISA rather than using File::Spec->isa() to
+# know if File::Spec ended up loading File::Spec::Unix.
+$srcdir = $blddir
+    if (grep(/::Unix$/, @File::Spec::ISA)
+        && samedir($srcdir, $blddir));
+
 my $dofile = abs2rel(catfile($srcdir, "util/dofile.pl"));
 
 my $local_config_envname = 'OPENSSL_LOCAL_CONFIG_DIR';
 
-$config{sourcedir} = abs2rel($srcdir);
-$config{builddir} = abs2rel($blddir);
+$config{sourcedir} = abs2rel($srcdir, $blddir);
+$config{builddir} = abs2rel($blddir, $blddir);
 
 # Collect reconfiguration information if needed
 my @argvcopy=@ARGV;
@@ -1048,6 +1058,9 @@ print "for $target\n";
 if (scalar(@seed_sources) == 0) {
     print "Using os-specific seed configuration\n";
     push @seed_sources, 'os';
+}
+if (scalar(grep { $_ eq 'egd' } @seed_sources) > 0) {
+    delete $disabled{'egd'};
 }
 if (scalar(grep { $_ eq 'none' } @seed_sources) > 0) {
     die "Cannot seed with none and anything else" if scalar(@seed_sources) > 1;
@@ -3422,6 +3435,27 @@ sub absolutedir {
     use Cwd qw/realpath/;
 
     return realpath($dir);
+}
+
+# Check if all paths are one and the same, using stat.  They must both exist
+# We need this for the cases when File::Spec doesn't detect case insensitivity
+# (File::Spec::Unix assumes case sensitivity)
+sub samedir {
+    die "samedir expects two arguments\n" unless scalar @_ == 2;
+
+    my @stat0 = stat($_[0]);    # First argument
+    my @stat1 = stat($_[1]);    # Second argument
+
+    die "Couldn't stat $_[0]" unless @stat0;
+    die "Couldn't stat $_[1]" unless @stat1;
+
+    # Compare device number
+    return 0 unless ($stat0[0] == $stat1[0]);
+    # Compare "inode".  The perl manual recommends comparing as
+    # string rather than as number.
+    return 0 unless ($stat0[1] eq $stat1[1]);
+
+    return 1;                   # All the same
 }
 
 sub quotify {

@@ -112,7 +112,7 @@ no freeing of the results is necessary.
 
 OCSP_check_validity() checks the validity of B<thisupd> and B<nextupd> values
 which will be typically obtained from OCSP_resp_find_status() or
-OCSP_single_get0_status(). If B<sec> is non-zero it indicates how many seconds
+OCSP_single_get0_status(). If B<sec> is nonzero it indicates how many seconds
 leeway should be allowed in the check. If B<maxsec> is positive it indicates
 the maximum age of B<thisupd> in seconds.
 
@@ -167,7 +167,7 @@ can then take appropriate action based on the status of the certificate.
 
 An OCSP response for a certificate contains B<thisUpdate> and B<nextUpdate>
 fields. Normally the current time should be between these two values. To
-account for clock skew the B<maxsec> field can be set to non-zero in
+account for clock skew the B<maxsec> field can be set to nonzero in
 OCSP_check_validity(). Some responders do not set the B<nextUpdate> field, this
 would otherwise mean an ancient response would be considered valid: the
 B<maxsec> parameter to OCSP_check_validity() can be used to limit the permitted
@@ -189,7 +189,7 @@ L<OCSP_sendreq_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

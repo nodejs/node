@@ -26,11 +26,11 @@ maintained. Querying the state information is not very informative before
 or when a connection has been established. It however can be of significant
 interest during the handshake.
 
-When using non-blocking sockets, the function call performing the handshake
+When using nonblocking sockets, the function call performing the handshake
 may return with SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE condition,
 so that SSL_state_string[_long]() may be called.
 
-For both blocking or non-blocking sockets, the details state information
+For both blocking or nonblocking sockets, the details state information
 can be used within the info_callback function set with the
 SSL_set_info_callback() call.
 
@@ -44,7 +44,7 @@ L<ssl(7)>, L<SSL_CTX_set_info_callback(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

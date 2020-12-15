@@ -46,7 +46,8 @@ before_build:
     - cd ..
     - ps: >-
         if (-not $env:APPVEYOR_PULL_REQUEST_NUMBER`
-            -or (&git log -2 | Select-String "\[extended tests\]") ) {
+            -or (&git log -1 $env:APPVEYOR_PULL_REQUEST_HEAD_COMMIT |
+                 Select-String "\[extended tests\]") ) {
             $env:EXTENDED_TESTS="yes"
         }
 
