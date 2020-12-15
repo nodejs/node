@@ -252,9 +252,6 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   t->InstanceTemplate()->SetInternalFieldCount(
       SecureContext::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
-  Local<String> secureContextString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext");
-  t->SetClassName(secureContextString);
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethod(t, "setKey", SetKey);
@@ -313,8 +310,8 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
-  target->Set(env->context(), secureContextString,
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "SecureContext", t);
+
   env->set_secure_context_constructor_template(t);
 
   env->SetMethodNoSideEffect(target, "getRootCertificates",

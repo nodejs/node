@@ -1024,6 +1024,24 @@ inline void Environment::SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
   t->SetClassName(name_string);
 }
 
+inline void Environment::SetConstructorFunction(
+    v8::Local<v8::Object> that,
+    const char* name,
+    v8::Local<v8::FunctionTemplate> tmpl) {
+  SetConstructorFunction(that, OneByteString(isolate(), name), tmpl);
+}
+
+inline void Environment::SetConstructorFunction(
+    v8::Local<v8::Object> that,
+    v8::Local<v8::String> name,
+    v8::Local<v8::FunctionTemplate> tmpl) {
+  tmpl->SetClassName(name);
+  that->Set(
+      context(),
+      name,
+      tmpl->GetFunction(context()).ToLocalChecked()).Check();
+}
+
 void Environment::AddCleanupHook(CleanupCallback fn, void* arg) {
   auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
     fn, arg, cleanup_hook_counter_++

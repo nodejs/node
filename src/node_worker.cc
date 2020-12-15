@@ -815,12 +815,7 @@ void InitWorker(Local<Object> target,
     env->SetProtoMethod(w, "loopIdleTime", Worker::LoopIdleTime);
     env->SetProtoMethod(w, "loopStartTime", Worker::LoopStartTime);
 
-    Local<String> workerString =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Worker");
-    w->SetClassName(workerString);
-    target->Set(env->context(),
-                workerString,
-                w->GetFunction(env->context()).ToLocalChecked()).Check();
+    env->SetConstructorFunction(target, "Worker", w);
   }
 
   {

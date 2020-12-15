@@ -352,19 +352,15 @@ void Initialize(Local<Object> target,
                   env->should_abort_on_uncaught_toggle().GetJSArray())
             .FromJust());
 
-  Local<String> weak_ref_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "WeakReference");
   Local<FunctionTemplate> weak_ref =
       env->NewFunctionTemplate(WeakReference::New);
   weak_ref->InstanceTemplate()->SetInternalFieldCount(
       WeakReference::kInternalFieldCount);
-  weak_ref->SetClassName(weak_ref_string);
   weak_ref->Inherit(BaseObject::GetConstructorTemplate(env));
   env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
   env->SetProtoMethod(weak_ref, "incRef", WeakReference::IncRef);
   env->SetProtoMethod(weak_ref, "decRef", WeakReference::DecRef);
-  target->Set(context, weak_ref_string,
-              weak_ref->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "WeakReference", weak_ref);
 
   env->SetMethod(target, "guessHandleType", GuessHandleType);
 }

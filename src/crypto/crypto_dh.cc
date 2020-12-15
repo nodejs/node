@@ -93,9 +93,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
         Local<FunctionTemplate>(),
         attributes);
 
-    target->Set(env->context(),
-                name,
-                t->GetFunction(env->context()).ToLocalChecked()).Check();
+    env->SetConstructorFunction(target, name, t);
   };
 
   make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"), New);
