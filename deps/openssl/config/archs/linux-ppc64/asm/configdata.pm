@@ -62,7 +62,7 @@ our %config = (
   options => "enable-ssl-trace no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
   perl_archname => "x86_64-linux-gnu-thread-multi",
   perl_cmd => "/usr/bin/perl",
-  perl_version => "5.26.1",
+  perl_version => "5.30.0",
   perlargv => [ "no-comp", "no-shared", "no-afalgeng", "enable-ssl-trace", "linux-ppc64" ],
   perlenv => {
       "AR" => undef,
@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "linux-ppc64",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1g",
-  version_num => "0x1010107fL",
+  version => "1.1.1i",
+  version_num => "0x1010109fL",
 );
 
 our %target = (
@@ -1185,6 +1185,11 @@ our %unified_info = (
                 [
                     "libcrypto",
                     "libssl",
+                    "test/libtestutil.a",
+                ],
+            "test/cmactest" =>
+                [
+                    "libcrypto.a",
                     "test/libtestutil.a",
                 ],
             "test/cmsapitest" =>
@@ -9041,6 +9046,11 @@ our %unified_info = (
                 [
                     "include",
                 ],
+            "test/cmactest.o" =>
+                [
+                    "include",
+                    "apps/include",
+                ],
             "test/cmsapitest.o" =>
                 [
                     "include",
@@ -9618,6 +9628,7 @@ our %unified_info = (
             "test/cipherlist_test",
             "test/ciphername_test",
             "test/clienthellotest",
+            "test/cmactest",
             "test/cmsapitest",
             "test/conf_include_test",
             "test/constant_time_test",
@@ -14362,6 +14373,14 @@ our %unified_info = (
             "test/clienthellotest.o" =>
                 [
                     "test/clienthellotest.c",
+                ],
+            "test/cmactest" =>
+                [
+                    "test/cmactest.o",
+                ],
+            "test/cmactest.o" =>
+                [
+                    "test/cmactest.c",
                 ],
             "test/cmsapitest" =>
                 [
