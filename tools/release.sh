@@ -57,17 +57,17 @@ elif [ "$keycount" -ne 1 ]; then
 
   keynum=
   while [ -z "${keynum##*[!0-9]*}" ] || [ "$keynum" -le 0 ] || [ "$keynum" -gt "$keycount" ]; do
-    echo "$gpgkey" | awk '{ for(i = 1; i <= NF; i++) { print i ") " $i; } }'
+    echo "$gpgkey" | awk '{ print NR ") " $0; }'
     printf 'Select a key: '
     read -r keynum
   done
   echo ""
-  gpgkey=$(echo "$gpgkey" | awk "{ print \$${keynum}}")
+  gpgkey=$(echo "$gpgkey" | sed -n "${keynum}p")
 fi
 
 gpgfing=$(gpg --keyid-format 0xLONG --fingerprint "$gpgkey" | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
 
-grep "$gpgfing" README.md || (\
+grep -q "$gpgfing" README.md || (\
   echo 'Error: this GPG key fingerprint is not listed in ./README.md' && \
   exit 1 \
 )
@@ -93,15 +93,15 @@ sign() {
 
   # local version=$1
 
-  ghtaggedversion=$(curl -sL https://raw.githubusercontent.com/nodejs/node/"$1"/src/node_version.h \
+  ghtaggedversion=$(curl -sL "https://raw.githubusercontent.com/nodejs/node/$1/src/node_version.h" \
       | awk '/define NODE_(MAJOR|MINOR|PATCH)_VERSION/{ v = v "." $3 } END{ v = "v" substr(v, 2); print v }')
   if [ "$1" != "${ghtaggedversion}" ]; then
     echo "Could not find tagged version on github.com/nodejs/node, did you push your tag?"
     exit 1
   fi
 
-  # shellcheck disable=SC2029
-  shapath=$(ssh "${customsshkey}" "${webuser}@${webhost}" $signcmd nodejs "$1")
+  # shellcheck disable=SC2086,SC2029
+  shapath=$(ssh ${customsshkey} "${webuser}@${webhost}" $signcmd nodejs $1)
 
   echo "${shapath}" | grep -q '^/.*/SHASUMS256.txt$' || \
     echo 'Error: No SHASUMS file returned by sign!' \
@@ -116,10 +116,11 @@ sign() {
 
   mkdir -p $tmpdir
 
-  scp "${customsshkey}" "${webuser}@${webhost}:${shapath}" "${tmpdir}/${shafile}"
+  # shellcheck disable=SC2086
+  scp ${customsshkey} "${webuser}@${webhost}:${shapath}" "${tmpdir}/${shafile}"
 
-  gpg --default-key "$gpgkey" --clearsign --digest-algo SHA256 ${tmpdir}/"${shafile}"
-  gpg --default-key "$gpgkey" --detach-sign --digest-algo SHA256 ${tmpdir}/"${shafile}"
+  gpg --default-key "$gpgkey" --clearsign --digest-algo SHA256 "${tmpdir}/${shafile}"
+  gpg --default-key "$gpgkey" --detach-sign --digest-algo SHA256 "${tmpdir}/${shafile}"
 
   echo "Wrote to ${tmpdir}/"
 
@@ -141,8 +142,8 @@ sign() {
 
     if [ "X${yorn}" = "Xy" ]; then
       scp "${customsshkey}" "${tmpdir}/${shafile}" "${tmpdir}/${shafile}.asc" "${tmpdir}/${shafile}.sig" "${webuser}@${webhost}:${shadir}/"
-      #shellcheck disable=SC2029
-      ssh "${customsshkey}" "${webuser}@${webhost}" chmod 644 "${shadir}/${shafile}.asc" "${shadir}/${shafile}.sig"
+      # shellcheck disable=SC2086,SC2029
+      ssh ${customsshkey} "${webuser}@${webhost}" chmod 644 "${shadir}/${shafile}.asc" "${shadir}/${shafile}.sig"
       break
     fi
   done
@@ -164,7 +165,8 @@ fi
 
 printf "\n# Checking for releases ...\n"
 
-promotable=$(ssh "${customsshkey}" "$webuser@$webhost" $promotablecmd nodejs)
+# shellcheck disable=SC2086,SC2029
+promotable=$(ssh ${customsshkey} "$webuser@$webhost" $promotablecmd nodejs)
 
 if [ "X${promotable}" = "X" ]; then
   echo "No releases to promote!"
@@ -201,8 +203,8 @@ for version in $versions; do
     echo ""
     echo "# Promoting ${version}..."
 
-    # shellcheck disable=SC2029
-    ssh "${customsshkey}" "$webuser@$webhost" $promotecmd nodejs "$version" && \
+    # shellcheck disable=SC2086,SC2029
+    ssh ${customsshkey} "$webuser@$webhost" $promotecmd nodejs $version && \
       sign "$version"
 
     break
