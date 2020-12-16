@@ -3,7 +3,13 @@
 const { mustCall } = require('../common');
 const { once } = require('events');
 const { Readable } = require('stream');
-const { strictEqual } = require('assert');
+const { strictEqual, throws } = require('assert');
+
+{
+  throws(() => {
+    Readable.from(null);
+  }, /ERR_INVALID_ARG_TYPE/);
+}
 
 async function toReadableBasicSupport() {
   async function* generate() {
