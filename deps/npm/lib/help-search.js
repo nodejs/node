@@ -1,11 +1,11 @@
 const fs = require('fs')
 const path = require('path')
 const npm = require('./npm.js')
-const glob = require('glob')
 const color = require('ansicolors')
 const output = require('./utils/output.js')
 const usageUtil = require('./utils/usage.js')
 const { promisify } = require('util')
+const glob = promisify(require('glob'))
 const readFile = promisify(fs.readFile)
 const didYouMean = require('./utils/did-you-mean.js')
 const { cmdList } = require('./utils/cmd-list.js')
@@ -23,12 +23,17 @@ const helpSearch = async args => {
 
   const docPath = path.resolve(__dirname, '..', 'docs/content')
 
-  // XXX: make glob return a promise and remove this wrapping
-  const files = await new Promise((res, rej) =>
-    glob(`${docPath}/*/*.md`, (er, files) => er ? rej(er) : res(files)))
-
+  const files = await glob(`${docPath}/*/*.md`)
   const data = await readFiles(files)
   const results = await searchFiles(args, data, files)
+  // if only one result, then just show that help section.
+  if (results.length === 1) {
+    return npm.commands.help([path.basename(results[0].file, '.md')], er => {
+      if (er)
+        throw er
+    })
+  }
+
   const formatted = formatResults(args, results)
   if (!formatted.trim())
     npmUsage(false)
@@ -125,15 +130,6 @@ const searchFiles = async (args, data, files) => {
     })
   }
 
-  // if only one result, then just show that help section.
-  if (results.length === 1) {
-    npm.commands.help([results[0].file.replace(/\.md$/, '')], er => {
-      if (er)
-        throw er
-    })
-    return []
-  }
-
   // sort results by number of results found, then by number of hits
   // then by number of matching lines
   return results.sort((a, b) =>
@@ -147,9 +143,6 @@ const searchFiles = async (args, data, files) => {
 }
 
 const formatResults = (args, results) => {
-  if (!results)
-    return 'No results for ' + args.map(JSON.stringify).join(' ')
-
   const cols = Math.min(process.stdout.columns || Infinity, 80) + 1
 
   const out = results.map(res => {

@@ -312,8 +312,14 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       // Load on a new Arborist object, so the Nodes aren't the same,
       // or else it'll get super confusing when we change them!
       .then(async root => {
-        if (!this[_updateAll] && !this[_global] && !root.meta.loadedFromDisk)
+        if (!this[_updateAll] && !this[_global] && !root.meta.loadedFromDisk) {
           await new this.constructor(this.options).loadActual({ root })
+          // even though we didn't load it from a package-lock.json FILE,
+          // we still loaded it "from disk", meaning we have to reset
+          // dep flags before assuming that any mutations were reflected.
+          if (root.children.size)
+            root.meta.loadedFromDisk = true
+        }
         return root
       })
 

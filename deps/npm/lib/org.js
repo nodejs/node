@@ -73,9 +73,9 @@ function orgSet (org, user, role, opts) {
         memDeets.org.size,
         memDeets.user,
         memDeets.role,
-      ])
+      ].join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent')
-      output(`Added ${memDeets.user} as ${memDeets.role} to ${memDeets.org.name}. You now ${memDeets.org.size} member${memDeets.org.size === 1 ? '' : 's'} in this org.`)
+      output(`Added ${memDeets.user} as ${memDeets.role} to ${memDeets.org.name}. You now have ${memDeets.org.size} member${memDeets.org.size === 1 ? '' : 's'} in this org.`)
 
     return memDeets
   })

@@ -1,5 +1,6 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const { EventEmitter } = require('events')
 
 const redactCwd = (path) => {
   const normalizePath = p => p
@@ -437,10 +438,16 @@ sign-git-commit=true`
         cb()
       },
     },
-    editor: (file, { editor }, cb) => {
-      t.equal(file, '~/.npmrc', 'should match user source data')
-      t.equal(editor, 'vi', 'should use default editor')
-      cb()
+    child_process: {
+      spawn: (bin, args) => {
+        t.equal(bin, 'vi', 'should use default editor')
+        t.strictSame(args, ['~/.npmrc'], 'should match user source data')
+        const ee = new EventEmitter()
+        process.nextTick(() => {
+          ee.emit('exit', 0)
+        })
+        return ee
+      },
     },
   }
   const config = requireInject('../../lib/config.js', editMocks)
@@ -487,34 +494,27 @@ t.test('config edit --global', t => {
         cb()
       },
     },
-    editor: (file, { editor }, cb) => {
-      t.equal(file, '/etc/npmrc', 'should match global source data')
-      t.equal(editor, 'vi', 'should use default editor')
-      cb()
+    child_process: {
+      spawn: (bin, args, cb) => {
+        t.equal(bin, 'vi', 'should use default editor')
+        t.strictSame(args, ['/etc/npmrc'], 'should match global source data')
+        const ee = new EventEmitter()
+        process.nextTick(() => {
+          ee.emit('exit', 137)
+        })
+        return ee
+      },
     },
   }
   const config = requireInject('../../lib/config.js', editMocks)
   config(['edit'], (err) => {
-    t.ifError(err, 'npm config edit --global')
+    t.match(err, /exited with code: 137/, 'propagated exit code from editor')
   })
 
   t.teardown(() => {
     flatOptions.global = false
     npm.config.data.delete('user')
     delete npm.config.save
-  })
-})
-
-t.test('config edit no editor set', t => {
-  flatOptions.editor = undefined
-  config(['edit'], (err) => {
-    t.match(
-      err,
-      /No `editor` config or EDITOR environment variable set/,
-      'should throw no available editor error'
-    )
-    flatOptions.editor = 'vi'
-    t.end()
   })
 })
 
