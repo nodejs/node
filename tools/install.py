@@ -79,8 +79,8 @@ def uninstall(paths, dst):
   for path in paths:
     try_remove(path, dst)
 
-def npm_files(action):
-  target_path = 'lib/node_modules/npm/'
+def package_files(action, name, bins):
+  target_path = 'lib/node_modules/' + name + '/'
 
   # don't install npm if the target path is a symlink, it probably means
   # that a dev version of npm is installed there
@@ -88,28 +88,37 @@ def npm_files(action):
 
   # npm has a *lot* of files and it'd be a pain to maintain a fixed list here
   # so we walk its source directory instead...
-  for dirname, subdirs, basenames in os.walk('deps/npm', topdown=True):
+  root = 'deps/' + name
+  for dirname, subdirs, basenames in os.walk(root, topdown=True):
     subdirs[:] = [subdir for subdir in subdirs if subdir != 'test']
     paths = [os.path.join(dirname, basename) for basename in basenames]
-    action(paths, target_path + dirname[9:] + '/')
+    action(paths, target_path + dirname[len(root) + 1:] + '/')
 
-  # create/remove symlink
-  link_path = abspath(install_path, 'bin/npm')
-  if action == uninstall:
-    action([link_path], 'bin/npm')
-  elif action == install:
-    try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
-  else:
-    assert 0  # unhandled action type
+  # create/remove symlinks
+  for bin_name, bin_target in bins.items():
+    link_path = abspath(install_path, 'bin/' + bin_name)
+    if action == uninstall:
+      action([link_path], 'bin/' + bin_name)
+    elif action == install:
+      try_symlink('../lib/node_modules/' + name + '/' + bin_target, link_path)
+    else:
+      assert 0  # unhandled action type
 
-  # create/remove symlink
-  link_path = abspath(install_path, 'bin/npx')
-  if action == uninstall:
-    action([link_path], 'bin/npx')
-  elif action == install:
-    try_symlink('../lib/node_modules/npm/bin/npx-cli.js', link_path)
-  else:
-    assert 0 # unhandled action type
+def npm_files(action):
+  package_files(action, 'npm', {
+    'npm': 'bin/npm-cli.js',
+    'npx': 'bin/npx-cli.js',
+  })
+
+def corepack_files(action):
+  package_files(action, 'corepack', {
+    'corepack': 'dist/corepack.js',
+#   Not the default just yet:
+#   'yarn': 'dist/yarn.js',
+#   'yarnpkg': 'dist/yarn.js',
+#   'pnpm': 'dist/pnpm.js',
+#   'pnpx': 'dist/pnpx.js',
+  })
 
 def subdir_files(path, dest, action):
   ret = {}
@@ -152,7 +161,9 @@ def files(action):
   else:
     action(['doc/node.1'], 'share/man/man1/')
 
-  if 'true' == variables.get('node_install_npm'): npm_files(action)
+  if 'true' == variables.get('node_install_npm'):
+    npm_files(action)
+    corepack_files(action)
 
   headers(action)
 

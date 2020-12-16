@@ -150,6 +150,20 @@ For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
 
+## Determining package manager
+
+> Stability: 1 - Experimental
+
+While all Node.js projects are expected to be installable by all package
+managers once published, their development teams are often required to use one
+specific package manager. To make this process easier, Node.js ships with a
+tool called [Corepack][] that aims to make all package managers transparently
+available in your environment - provided you have Node.js installed.
+
+By default Corepack won't enforce any specific package manager and will use
+generic "Last Known Good" versions, but you can improve this experience by
+setting the [`"packageManager"`][] field in your project's `package.json`.
+
 ## Package entry points
 
 In a package’s `package.json` file, two fields can define entry points for a
@@ -866,6 +880,8 @@ The following fields in `package.json` files are used in Node.js:
   by package managers as the name of the package.
 * [`"main"`][] - The default module when loading the package, if exports is not
   specified, and in versions of Node.js prior to the introduction of exports.
+* [`"packageManager"`][] - The package manager recommended when contributing to
+  the package. Leveraged by the [Corepack][] shims.
 * [`"type"`][] - The package type determining whether to load `.js` files as
   CommonJS or ES modules.
 * [`"exports"`][] - Package exports and conditional exports. When present,
@@ -924,6 +940,30 @@ require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
 
 When a package has an [`"exports"`][] field, this will take precedence over the
 `"main"` field when importing the package by name.
+
+### `"packageManager"`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Type: {string}
+
+```json
+{
+  "packageManager": "<package manager name>@<version>"
+}
+```
+
+The `"packageManager"` field defines which package manager is expected to be
+used when working on the current project. It can set to any of the
+[supported package managers][], and will ensure that your teams use the exact
+same package manager versions without having to install anything else than
+Node.js.
+
+This field is currently experimental and needs to be opted-in; check the
+[Corepack][] page for details about the procedure.
 
 ### `"type"`
 <!-- YAML
@@ -1054,6 +1094,7 @@ This field defines [subpath imports][] for the current package.
 [Babel]: https://babeljs.io/
 [Conditional exports]: #packages_conditional_exports
 [CommonJS]: modules.md
+[Corepack]: corepack.md
 [ES module]: esm.md
 [ES modules]: esm.md
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#errors_err_package_path_not_exported
@@ -1061,6 +1102,7 @@ This field defines [subpath imports][] for the current package.
 [`"exports"`]: #packages_exports
 [`"main"`]: #packages_main
 [`"name"`]: #packages_name
+[`"packageManager"`]: #packages_packagemanager
 [`"imports"`]: #packages_imports
 [`"type"`]: #packages_type
 [`package.json`]: #packages_node_js_package_json_field_definitions
@@ -1069,5 +1111,6 @@ This field defines [subpath imports][] for the current package.
 [subpath exports]: #packages_subpath_exports
 [subpath imports]: #packages_subpath_imports
 [subpath patterns]: #packages_subpath_patterns
+[supported package managers]: corepack.md#corepack_supported_package_managers
 [the full specifier path]: esm.md#esm_mandatory_file_extensions
 [the dual CommonJS/ES module packages section]: #packages_dual_commonjs_es_module_packages
