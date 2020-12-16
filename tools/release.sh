@@ -67,7 +67,7 @@ fi
 
 gpgfing=$(gpg --keyid-format 0xLONG --fingerprint "$gpgkey" | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
 
-grep "$gpgfing" README.md > /dev/null || (\
+grep -q "$gpgfing" README.md || (\
   echo 'Error: this GPG key fingerprint is not listed in ./README.md' && \
   exit 1 \
 )
