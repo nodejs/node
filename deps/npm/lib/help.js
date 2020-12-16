@@ -133,7 +133,12 @@ function viewMan (man, cb) {
       break
 
     case 'browser':
-      openUrl(htmlMan(man), 'help available at the following URL', cb)
+      try {
+        var url = htmlMan(man)
+      } catch (err) {
+        return cb(err)
+      }
+      openUrl(url, 'help available at the following URL', cb)
       break
 
     default:
