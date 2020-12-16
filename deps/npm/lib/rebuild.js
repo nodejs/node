@@ -39,16 +39,25 @@ const getFilterFn = args => {
     const spec = npa(arg)
     if (spec.type === 'tag' && spec.rawSpec === '')
       return spec
-    if (spec.type !== 'range' && spec.type !== 'version')
+
+    if (spec.type !== 'range' && spec.type !== 'version' && spec.type !== 'directory')
       throw new Error('`npm rebuild` only supports SemVer version/range specifiers')
+
     return spec
   })
+
   return node => specs.some(spec => {
-    const { version } = node.package
+    if (spec.type === 'directory')
+      return node.path === spec.fetchSpec
+
     if (spec.name !== node.name)
       return false
+
     if (spec.rawSpec === '' || spec.rawSpec === '*')
       return true
+
+    const { version } = node.package
+    // TODO: add tests for a package with missing version
     return semver.satisfies(version, spec.fetchSpec)
   })
 }
