@@ -9,7 +9,7 @@ const { promisify } = require('util')
 const fs = require('fs')
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
-const editor = promisify(require('editor'))
+const { spawn } = require('child_process')
 const { EOL } = require('os')
 const ini = require('ini')
 
@@ -138,9 +138,6 @@ const del = async key => {
 
 const edit = async () => {
   const { editor: e, global } = npm.flatOptions
-  if (!e)
-    throw new Error('No `editor` config or EDITOR environment variable set')
-
   const where = global ? 'global' : 'user'
   const file = npm.config.data.get(where).source
 
@@ -183,7 +180,15 @@ ${defData}
 `.split('\n').join(EOL)
   await mkdirp(dirname(file))
   await writeFile(file, tmpData, 'utf8')
-  await editor(file, { editor: e })
+  await new Promise((resolve, reject) => {
+    const [bin, ...args] = e.split(/\s+/)
+    const editor = spawn(bin, [...args, file], { stdio: 'inherit' })
+    editor.on('exit', (code) => {
+      if (code)
+        return reject(new Error(`editor process exited with code: ${code}`))
+      return resolve()
+    })
+  })
 }
 
 const publicVar = k => !/^(\/\/[^:]+:)?_/.test(k)
