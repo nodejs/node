@@ -261,7 +261,7 @@ process.on('multipleResolves', common.mustNotCall());
   const mainInterval = 5;
   const loopInterval = mainInterval * 1.5;
 
-  const interval = setInterval(mainInterval, input, { signal });
+  const interval = setInterval(mainInterval, input, { signal, timeout: true });
 
   async function runInterval(fn) {
     const times = [];
@@ -278,7 +278,7 @@ process.on('multipleResolves', common.mustNotCall());
   const timeoutLoop = runInterval(() => setTimeout(loopInterval));
 
   // Let it loop 5 times, then abort before the next
-  setTimeout(Math.floor(loopInterval * 5.5)).then(common.mustCall(() => {
+  setTimeout(Math.floor(loopInterval * 5.5), undefined, { timeout: true }).then(common.mustCall(() => {
     ac.abort();
   }));
 
