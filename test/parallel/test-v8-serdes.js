@@ -25,11 +25,6 @@ const objects = [
 
 const hostObject = new (internalBinding('js_stream').JSStream)();
 
-const serializerTypeError =
-  /^TypeError: Class constructor Serializer cannot be invoked without 'new'$/;
-const deserializerTypeError =
-  /^TypeError: Class constructor Deserializer cannot be invoked without 'new'$/;
-
 {
   const ser = new v8.DefaultSerializer();
   ser.writeHeader();
@@ -186,8 +181,16 @@ const deserializerTypeError =
 }
 
 {
-  assert.throws(v8.Serializer, serializerTypeError);
-  assert.throws(v8.Deserializer, deserializerTypeError);
+  assert.throws(() => v8.Serializer(), {
+    constructor: TypeError,
+    message: "Class constructor Serializer cannot be invoked without 'new'",
+    code: 'ERR_CONSTRUCT_CALL_REQUIRED'
+  });
+  assert.throws(() => v8.Deserializer(), {
+    constructor: TypeError,
+    message: "Class constructor Deserializer cannot be invoked without 'new'",
+    code: 'ERR_CONSTRUCT_CALL_REQUIRED'
+  });
 }
 
 
