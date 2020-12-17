@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.15.3">14.15.3</a><br/>
 <a href="#14.15.2">14.15.2</a><br/>
 <a href="#14.15.1">14.15.1</a><br/>
 <a href="#14.15.0">14.15.0</a><br/>
@@ -53,6 +54,17 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.15.3"></a>
+## 2020-12-17, Version 14.15.3 'Fermium' (LTS), @BethGriggs
+
+### Notable Changes
+
+Node.js v14.15.2 included a commit that has caused reported breakages when cloning request objects. This release reverts the commit that introduced the behaviour change. See https://github.com/nodejs/node/issues/36550 for more details.
+
+### Commits
+
+* [[`4264d9aa67`](https://github.com/nodejs/node/commit/4264d9aa67)] - ***Revert*** "**http**: lazy create IncomingMessage.headers" (Beth Griggs) [#36553](https://github.com/nodejs/node/pull/36553)
 
 <a id="14.15.2"></a>
 ## 2020-12-15, Version 14.15.2 'Fermium' (LTS), @BethGriggs
