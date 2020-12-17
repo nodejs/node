@@ -5,6 +5,8 @@
 #include <string>
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
+#include <stdio.h>
+#include <cstdio>
 
 using node::AtExit;
 using node::RunAtExit;
@@ -66,7 +68,34 @@ TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
       "})()");
 }
 
+class RedirectStdErr {
+ public:
+  explicit RedirectStdErr(const char* filename) : filename_(filename) {
+    fflush(stderr);
+    fgetpos(stderr, &pos_);
+    fd_ = dup(fileno(stderr));
+    freopen(filename_, "w", stderr);
+  }
+
+  ~RedirectStdErr() {
+    fflush(stderr);
+    dup2(fd_, fileno(stderr));
+    close(fd_);
+    remove(filename_);
+    clearerr(stderr);
+    fsetpos(stderr, &pos_);
+  }
+
+ private:
+  int fd_;
+  fpos_t pos_;
+  const char* filename_;
+};
+
 TEST_F(EnvironmentTest, EnvironmentWithNoESMLoader) {
+  // The following line will cause stderr to get redirected to avoid the
+  // error that would otherwise be printed to the console by this test.
+  RedirectStdErr redirect_scope("environment_test.log");
   const v8::HandleScope handle_scope(isolate_);
   Argv argv;
   Env env {handle_scope, argv, node::EnvironmentFlags::kNoRegisterESMLoader};
