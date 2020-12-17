@@ -13,7 +13,7 @@ function checkForInspectSupport(flag) {
   const numWorkers = 2;
   process.env.NODE_OPTIONS = flag;
 
-  if (cluster.isParent) {
+  if (cluster.isPrimary) {
     for (let i = 0; i < numWorkers; i++) {
       cluster.fork();
     }

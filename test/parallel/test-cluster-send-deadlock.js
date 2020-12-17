@@ -20,15 +20,15 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Testing mutual send of handles: from parent to worker, and from worker to
-// parent.
+// Testing mutual send of handles: from primary to worker, and from worker to
+// primary.
 
 require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isParent) {
+if (cluster.isPrimary) {
   const worker = cluster.fork();
   worker.on('exit', (code, signal) => {
     assert.strictEqual(code, 0, `Worker exited with an error code: ${code}`);

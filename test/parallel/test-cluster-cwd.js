@@ -4,7 +4,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const tmpdir = require('../common/tmpdir');
 
-if (cluster.isParent) {
+if (cluster.isPrimary) {
   tmpdir.refresh();
 
   assert.strictEqual(cluster.settings.cwd, undefined);
@@ -12,7 +12,7 @@ if (cluster.isParent) {
     assert.strictEqual(msg, process.cwd());
   }));
 
-  cluster.setupParent({ cwd: tmpdir.path });
+  cluster.setupPrimary({ cwd: tmpdir.path });
   assert.strictEqual(cluster.settings.cwd, tmpdir.path);
   cluster.fork().on('message', common.mustCall((msg) => {
     assert.strictEqual(msg, tmpdir.path);

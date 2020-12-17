@@ -4,7 +4,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isParent) {
+if (cluster.isPrimary) {
   cluster.fork();
   cluster.on('listening', common.mustCall(function(worker, address) {
     const port = address.port;

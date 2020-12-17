@@ -52,19 +52,19 @@ if (cluster.isWorker) {
   const fork = require('child_process').fork;
 
   // Spawn a cluster process
-  const parent = fork(process.argv[1], ['cluster']);
+  const primary = fork(process.argv[1], ['cluster']);
 
   // get pid info
   let pid = null;
-  parent.once('message', (data) => {
+  primary.once('message', (data) => {
     pid = data.pid;
   });
 
-  // When parent is dead
+  // When primary is dead
   let alive = true;
-  parent.on('exit', common.mustCall((code) => {
+  primary.on('exit', common.mustCall((code) => {
 
-    // Make sure that the parent died on purpose
+    // Make sure that the primary died on purpose
     assert.strictEqual(code, 0);
 
     // Check worker process status
@@ -82,7 +82,8 @@ if (cluster.isWorker) {
     assert.strictEqual(typeof pid, 'number',
                        `got ${pid} instead of a worker pid`);
     assert.strictEqual(alive, false,
-                       `worker was alive after parent died (alive = ${alive})`);
+                       `worker was alive after primary died (alive = ${alive})`
+    );
   });
 
 }

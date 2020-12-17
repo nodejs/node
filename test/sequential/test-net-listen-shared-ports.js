@@ -25,7 +25,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isParent) {
+if (cluster.isPrimary) {
   const worker1 = cluster.fork();
 
   worker1.on('message', common.mustCall(function(msg) {

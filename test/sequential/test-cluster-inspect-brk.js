@@ -9,10 +9,10 @@ const assert = require('assert');
 const cluster = require('cluster');
 const debuggerPort = common.PORT;
 
-if (cluster.isParent) {
+if (cluster.isPrimary) {
   function test(execArgv) {
 
-    cluster.setupParent({
+    cluster.setupPrimary({
       execArgv: execArgv,
       stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe']
     });

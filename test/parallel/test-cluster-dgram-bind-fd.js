@@ -11,13 +11,13 @@ const assert = require('assert');
 const cluster = require('cluster');
 const dgram = require('dgram');
 
-if (cluster.isParent)
-  parent();
+if (cluster.isPrimary)
+  primary();
 else
   worker();
 
 
-function parent() {
+function primary() {
   const { internalBinding } = require('internal/test/binding');
   const { UDP } = internalBinding('udp_wrap');
 
@@ -97,7 +97,7 @@ function worker() {
     socket.on('message', common.mustCall((data, info) => {
       received++;
 
-      // Every 10 messages, notify the parent.
+      // Every 10 messages, notify the primary.
       if (received === PACKETS_PER_WORKER) {
         process.send({ received });
         socket.close();

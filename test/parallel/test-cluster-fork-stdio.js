@@ -4,10 +4,10 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isParent) {
+if (cluster.isPrimary) {
   const buf = Buffer.from('foobar');
 
-  cluster.setupParent({
+  cluster.setupPrimary({
     stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe']
   });
 

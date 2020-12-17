@@ -34,10 +34,10 @@ console.error('Cluster listen fd test', process.argv[2] || 'runner');
 // Process relationship is:
 //
 // parent: the test main script
-//   -> parent: the cluster parent
+//   -> primary: the cluster primary
 //        -> worker: the cluster worker
 switch (process.argv[2]) {
-  case 'parent': return parent();
+  case 'primary': return primary();
   case 'worker': return worker();
 }
 
@@ -88,35 +88,35 @@ function test(cb) {
     console.error(`server listening on ${port}`);
 
     const spawn = require('child_process').spawn;
-    const parent = spawn(process.execPath, [__filename, 'parent'], {
+    const primary = spawn(process.execPath, [__filename, 'primary'], {
       stdio: [ 0, 'pipe', 2, server._handle, 'ipc' ],
       detached: true
     });
 
-    // Now close the parent, so that the parent is the only thing
+    // Now close the parent, so that the primary is the only thing
     // referencing that handle.  Note that connections will still
-    // be accepted, because the parent has the fd open.
+    // be accepted, because the primary has the fd open.
     server.close();
 
-    parent.on('exit', function(code) {
-      console.error('parent exited', code);
+    primary.on('exit', function(code) {
+      console.error('primary exited', code);
     });
 
-    parent.on('close', function() {
-      console.error('parent closed');
+    primary.on('close', function() {
+      console.error('primary closed');
     });
-    console.error('parent spawned');
-    parent.on('message', function(msg) {
+    console.error('primary spawned');
+    primary.on('message', function(msg) {
       if (msg === 'started worker') {
-        cb(parent, port);
+        cb(primary, port);
       }
     });
   });
 }
 
-function parent() {
-  console.error('in parent, spawning worker');
-  cluster.setupParent({
+function primary() {
+  console.error('in primary, spawning worker');
+  cluster.setupPrimary({
     args: [ 'worker' ]
   });
   const worker = cluster.fork();
@@ -128,7 +128,7 @@ function parent() {
   // Prevent outliving our parent process in case it is abnormally killed -
   // under normal conditions our parent kills this process before exiting.
   process.on('disconnect', function() {
-    console.error('parent exit on disconnect');
+    console.error('primary exit on disconnect');
     process.exit(0);
   });
 }
