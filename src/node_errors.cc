@@ -954,7 +954,7 @@ void TriggerUncaughtException(Isolate* isolate,
     return;
   }
 
-  MaybeLocal<Value> handled;
+  MaybeLocal<Value> maybe_handled;
   if (env->can_call_into_js()) {
     // We do not expect the global uncaught exception itself to throw any more
     // exceptions. If it does, exit the current Node.js instance.
@@ -968,7 +968,7 @@ void TriggerUncaughtException(Isolate* isolate,
     Local<Value> argv[2] = { error,
                              Boolean::New(env->isolate(), from_promise) };
 
-    handled = fatal_exception_function.As<Function>()->Call(
+    maybe_handled = fatal_exception_function.As<Function>()->Call(
         env->context(), process_object, arraysize(argv), argv);
   }
 
@@ -976,7 +976,8 @@ void TriggerUncaughtException(Isolate* isolate,
   // instance so return to continue the exit routine.
   // TODO(joyeecheung): return a Maybe here to prevent the caller from
   // stepping on the exit.
-  if (handled.IsEmpty()) {
+  Local<Value> handled;
+  if (!maybe_handled.ToLocal(&handled)) {
     return;
   }
 
@@ -986,7 +987,7 @@ void TriggerUncaughtException(Isolate* isolate,
   // TODO(joyeecheung): This has been only checking that the return value is
   // exactly false. Investigate whether this can be turned to an "if true"
   // similar to how the worker global uncaught exception handler handles it.
-  if (!handled.ToLocalChecked()->IsFalse()) {
+  if (!handled->IsFalse()) {
     return;
   }
 
