@@ -14,8 +14,8 @@ const worker = require('worker_threads');
 ```
 
 Workers (threads) are useful for performing CPU-intensive JavaScript operations.
-They will not help much with I/O-intensive work. Node.js’s built-in asynchronous
-I/O operations are more efficient than Workers can be.
+They do not help much with I/O-intensive work. The Node.js built-in
+asynchronous I/O operations are more efficient than Workers can be.
 
 Unlike `child_process` or `cluster`, `worker_threads` can share memory. They do
 so by transferring `ArrayBuffer` instances or sharing `SharedArrayBuffer`
@@ -48,11 +48,11 @@ if (isMainThread) {
 ```
 
 The above example spawns a Worker thread for each `parse()` call. In actual
-practice, use a pool of Workers instead for these kinds of tasks. Otherwise, the
+practice, use a pool of Workers for these kinds of tasks. Otherwise, the
 overhead of creating Workers would likely exceed their benefit.
 
 When implementing a worker pool, use the [`AsyncResource`][] API to inform
-diagnostic tools (e.g. in order to provide asynchronous stack traces) about the
+diagnostic tools (e.g. to provide asynchronous stack traces) about the
 correlation between tasks and their outcomes. See
 ["Using `AsyncResource` for a `Worker` thread pool"][async-resource-worker-pool]
 in the `async_hooks` documentation for an example implementation.
@@ -90,7 +90,7 @@ added:
 -->
 
 Mark an object as not transferable. If `object` occurs in the transfer list of
-a [`port.postMessage()`][] call, it will be ignored.
+a [`port.postMessage()`][] call, it is ignored.
 
 In particular, this makes sense for objects that can be cloned, rather than
 transferred, and which are used by other objects on the sending side.
@@ -126,22 +126,22 @@ There is no equivalent to this API in browsers.
 added: v11.13.0
 -->
 
-* `port` {MessagePort} The message port which will be transferred.
+* `port` {MessagePort} The message port to transfer.
 * `contextifiedSandbox` {Object} A [contextified][] object as returned by the
   `vm.createContext()` method.
 
 * Returns: {MessagePort}
 
 Transfer a `MessagePort` to a different [`vm`][] Context. The original `port`
-object will be rendered unusable, and the returned `MessagePort` instance will
-take its place.
+object is rendered unusable, and the returned `MessagePort` instance
+takes its place.
 
-The returned `MessagePort` will be an object in the target context, and will
-inherit from its global `Object` class. Objects passed to the
-[`port.onmessage()`][] listener will also be created in the target context
+The returned `MessagePort` is an object in the target context and
+inherits from its global `Object` class. Objects passed to the
+[`port.onmessage()`][] listener are also created in the target context
 and inherit from its global `Object` class.
 
-However, the created `MessagePort` will no longer inherit from
+However, the created `MessagePort` no longer inherits from
 [`EventTarget`][], and only [`port.onmessage()`][] can be used to receive
 events using it.
 
@@ -152,11 +152,11 @@ added: v10.5.0
 
 * {null|MessagePort}
 
-If this thread was spawned as a [`Worker`][], this will be a [`MessagePort`][]
+If this thread is a [`Worker`][], this is a [`MessagePort`][]
 allowing communication with the parent thread. Messages sent using
-`parentPort.postMessage()` will be available in the parent thread
+`parentPort.postMessage()` are available in the parent thread
 using `worker.on('message')`, and messages sent from the parent thread
-using `worker.postMessage()` will be available in this thread using
+using `worker.postMessage()` are available in this thread using
 `parentPort.on('message')`.
 
 ```js
@@ -201,8 +201,8 @@ console.log(receiveMessageOnPort(port2));
 // Prints: undefined
 ```
 
-When this function is used, no `'message'` event will be emitted and the
-`onmessage` listener will not be invoked.
+When this function is used, no `'message'` event is emitted and the
+`onmessage` listener is not invoked.
 
 ## `worker.resourceLimits`
 <!-- YAML
@@ -353,18 +353,18 @@ added: v15.4.0
 -->
 
 Opposite of `unref()`. Calling `ref()` on a previously `unref()`ed
-BroadcastChannel will *not* let the program exit if it's the only active handle
+BroadcastChannel does *not* let the program exit if it's the only active handle
 left (the default behavior). If the port is `ref()`ed, calling `ref()` again
-will have no effect.
+has no effect.
 
 ### `broadcastChannel.unref()`
 <!-- YAML
 added: v15.4.0
 -->
 
-Calling `unref()` on a BroadcastChannel will allow the thread to exit if this
+Calling `unref()` on a BroadcastChannel allows the thread to exit if this
 is the only active handle in the event system. If the BroadcastChannel is
-already `unref()`ed calling `unref()` again will have no effect.
+already `unref()`ed calling `unref()` again has no effect.
 
 ## Class: `MessageChannel`
 <!-- YAML
@@ -438,7 +438,7 @@ added: v10.5.0
 The `'message'` event is emitted for any incoming message, containing the cloned
 input of [`port.postMessage()`][].
 
-Listeners on this event will receive a clone of the `value` parameter as passed
+Listeners on this event receive a clone of the `value` parameter as passed
 to `postMessage()` and no further arguments.
 
 ### Event: `'messageerror'`
@@ -461,7 +461,7 @@ Disables further sending of messages on either side of the connection.
 This method can be called when no further communication will happen over this
 `MessagePort`.
 
-The [`'close'` event][] will be emitted on both `MessagePort` instances that
+The [`'close'` event][] is emitted on both `MessagePort` instances that
 are part of the channel.
 
 ### `port.postMessage(value[, transferList])`
@@ -484,7 +484,7 @@ changes:
 * `transferList` {Object[]}
 
 Sends a JavaScript value to the receiving side of this channel.
-`value` will be transferred in a way which is compatible with
+`value` is transferred in a way which is compatible with
 the [HTML structured clone algorithm][].
 
 In particular, the significant differences to `JSON` are:
@@ -512,12 +512,12 @@ port2.postMessage(circularData);
 
 `transferList` may be a list of [`ArrayBuffer`][], [`MessagePort`][] and
 [`FileHandle`][] objects.
-After transferring, they will not be usable on the sending side of the channel
+After transferring, they are not usable on the sending side of the channel
 anymore (even if they are not contained in `value`). Unlike with
 [child processes][], transferring handles such as network sockets is currently
 not supported.
 
-If `value` contains [`SharedArrayBuffer`][] instances, those will be accessible
+If `value` contains [`SharedArrayBuffer`][] instances, those are accessible
 from either thread. They cannot be listed in `transferList`.
 
 `value` may still contain `ArrayBuffer` instances that are not in
@@ -535,7 +535,7 @@ port2.postMessage(uint8Array);
 // This does not copy data, but renders `uint8Array` unusable:
 port2.postMessage(uint8Array, [ uint8Array.buffer ]);
 
-// The memory for the `sharedUint8Array` will be accessible from both the
+// The memory for the `sharedUint8Array` is accessible from both the
 // original and the copy received by `.on('message')`:
 const sharedUint8Array = new Uint8Array(new SharedArrayBuffer(4));
 port2.postMessage(sharedUint8Array);
@@ -549,10 +549,10 @@ port2.postMessage({ port: otherChannel.port1 }, [ otherChannel.port1 ]);
 
 Because the object cloning uses the structured clone algorithm,
 non-enumerable properties, property accessors, and object prototypes are
-not preserved. In particular, [`Buffer`][] objects will be read as
+not preserved. In particular, [`Buffer`][] objects are read as
 plain [`Uint8Array`][]s on the receiving side.
 
-The message object will be cloned immediately, and can be modified after
+The message object is cloned immediately, and can be modified after
 posting without having side effects.
 
 For more information on the serialization and deserialization mechanisms
@@ -566,7 +566,7 @@ the raw data while the `TypedArray` and `Buffer` objects provide a
 way of viewing and manipulating the data. It is possible and common
 for multiple views to be created over the same `ArrayBuffer` instance.
 Great care must be taken when using a transfer list to transfer an
-`ArrayBuffer` as doing so will cause all `TypedArray` and `Buffer`
+`ArrayBuffer` as doing so causes all `TypedArray` and `Buffer`
 instances that share that same `ArrayBuffer` to become unusable.
 
 ```js
@@ -594,7 +594,7 @@ not own its underlying `ArrayBuffer`. An `ArrayBuffer` must not
 be transferred unless it is known that the `Buffer` instance
 owns it. In particular, for `Buffer`s created from the internal
 `Buffer` pool (using, for instance `Buffer.from()` or `Buffer.alloc()`),
-transferring them is not possible and they will always be cloned,
+transferring them is not possible and they are always cloned,
 which sends a copy of the entire `Buffer` pool.
 This behavior may come with unintended higher memory
 usage and possible security concerns.
@@ -603,7 +603,7 @@ See [`Buffer.allocUnsafe()`][] for more details on `Buffer` pooling.
 
 The `ArrayBuffer`s for `Buffer` instances created using
 `Buffer.alloc()` or `Buffer.allocUnsafeSlow()` can always be
-transferred but doing so will render all other existing views of
+transferred but doing so renders all other existing views of
 those `ArrayBuffer`s unusable.
 
 ### `port.ref()`
@@ -611,12 +611,12 @@ those `ArrayBuffer`s unusable.
 added: v10.5.0
 -->
 
-Opposite of `unref()`. Calling `ref()` on a previously `unref()`ed port will
+Opposite of `unref()`. Calling `ref()` on a previously `unref()`ed port does
 *not* let the program exit if it's the only active handle left (the default
-behavior). If the port is `ref()`ed, calling `ref()` again will have no effect.
+behavior). If the port is `ref()`ed, calling `ref()` again has no effect.
 
-If listeners are attached or removed using `.on('message')`, the port will
-be `ref()`ed and `unref()`ed automatically depending on whether
+If listeners are attached or removed using `.on('message')`, the port
+is `ref()`ed and `unref()`ed automatically depending on whether
 listeners for the event exist.
 
 ### `port.start()`
@@ -625,13 +625,13 @@ added: v10.5.0
 -->
 
 Starts receiving messages on this `MessagePort`. When using this port
-as an event emitter, this will be called automatically once `'message'`
+as an event emitter, this is called automatically once `'message'`
 listeners are attached.
 
 This method exists for parity with the Web `MessagePort` API. In Node.js,
 it is only useful for ignoring messages when no event listener is present.
-Node.js also diverges in its handling of `.onmessage`. Setting it will
-automatically call `.start()`, but unsetting it will let messages queue up
+Node.js also diverges in its handling of `.onmessage`. Setting it
+automatically calls `.start()`, but unsetting it lets messages queue up
 until a new handler is set or the port is discarded.
 
 ### `port.unref()`
@@ -639,12 +639,12 @@ until a new handler is set or the port is discarded.
 added: v10.5.0
 -->
 
-Calling `unref()` on a port will allow the thread to exit if this is the only
+Calling `unref()` on a port allows the thread to exit if this is the only
 active handle in the event system. If the port is already `unref()`ed calling
-`unref()` again will have no effect.
+`unref()` again has no effect.
 
-If listeners are attached or removed using `.on('message')`, the port will
-be `ref()`ed and `unref()`ed automatically depending on whether
+If listeners are attached or removed using `.on('message')`, the port is
+`ref()`ed and `unref()`ed automatically depending on whether
 listeners for the event exist.
 
 ## Class: `Worker`
@@ -668,12 +668,12 @@ Notable differences inside a Worker environment are:
 * [`process.chdir()`][] and `process` methods that set group or user ids
   are not available.
 * [`process.env`][] is a copy of the parent thread's environment variables,
-  unless otherwise specified. Changes to one copy will not be visible in other
-  threads, and will not be visible to native add-ons (unless
-  [`worker.SHARE_ENV`][] has been passed as the `env` option to the
+  unless otherwise specified. Changes to one copy are not visible in other
+  threads, and are not visible to native add-ons (unless
+  [`worker.SHARE_ENV`][] is passed as the `env` option to the
   [`Worker`][] constructor).
 * [`process.title`][] cannot be modified.
-* Signals will not be delivered through [`process.on('...')`][Signals events].
+* Signals are not delivered through [`process.on('...')`][Signals events].
 * Execution may stop at any point as a result of [`worker.terminate()`][]
   being invoked.
 * IPC channels from parent processes are not accessible.
@@ -772,45 +772,45 @@ changes:
 * `options` {Object}
   * `argv` {any[]} List of arguments which would be stringified and appended to
     `process.argv` in the worker. This is mostly similar to the `workerData`
-    but the values will be available on the global `process.argv` as if they
+    but the values are available on the global `process.argv` as if they
     were passed as CLI options to the script.
   * `env` {Object} If set, specifies the initial value of `process.env` inside
     the Worker thread. As a special value, [`worker.SHARE_ENV`][] may be used
     to specify that the parent thread and the child thread should share their
     environment variables; in that case, changes to one thread’s `process.env`
-    object will affect the other thread as well. **Default:** `process.env`.
+    object affect the other thread as well. **Default:** `process.env`.
   * `eval` {boolean} If `true` and the first argument is a `string`, interpret
     the first argument to the constructor as a script that is executed once the
     worker is online.
   * `execArgv` {string[]} List of node CLI options passed to the worker.
     V8 options (such as `--max-old-space-size`) and options that affect the
-    process (such as `--title`) are not supported. If set, this will be provided
-    as [`process.execArgv`][] inside the worker. By default, options will be
+    process (such as `--title`) are not supported. If set, this is provided
+    as [`process.execArgv`][] inside the worker. By default, options are
     inherited from the parent thread.
-  * `stdin` {boolean} If this is set to `true`, then `worker.stdin` will
-    provide a writable stream whose contents will appear as `process.stdin`
+  * `stdin` {boolean} If this is set to `true`, then `worker.stdin`
+    provides a writable stream whose contents appear as `process.stdin`
     inside the Worker. By default, no data is provided.
-  * `stdout` {boolean} If this is set to `true`, then `worker.stdout` will
-    not automatically be piped through to `process.stdout` in the parent.
-  * `stderr` {boolean} If this is set to `true`, then `worker.stderr` will
-    not automatically be piped through to `process.stderr` in the parent.
-  * `workerData` {any} Any JavaScript value that will be cloned and made
-    available as [`require('worker_threads').workerData`][]. The cloning will
-    occur as described in the [HTML structured clone algorithm][], and an error
-    will be thrown if the object cannot be cloned (e.g. because it contains
+  * `stdout` {boolean} If this is set to `true`, then `worker.stdout` is
+    not automatically piped through to `process.stdout` in the parent.
+  * `stderr` {boolean} If this is set to `true`, then `worker.stderr` is
+    not automatically piped through to `process.stderr` in the parent.
+  * `workerData` {any} Any JavaScript value that is cloned and made
+    available as [`require('worker_threads').workerData`][]. The cloning
+    occurs as described in the [HTML structured clone algorithm][], and an error
+    is thrown if the object cannot be cloned (e.g. because it contains
     `function`s).
-  * `trackUnmanagedFds` {boolean} If this is set to `true`, then the Worker will
-    track raw file descriptors managed through [`fs.open()`][] and
-    [`fs.close()`][], and close them when the Worker exits, similar to other
+  * `trackUnmanagedFds` {boolean} If this is set to `true`, then the Worker
+    tracks raw file descriptors managed through [`fs.open()`][] and
+    [`fs.close()`][], and closes them when the Worker exits, similar to other
     resources like network sockets or file descriptors managed through
     the [`FileHandle`][] API. This option is automatically inherited by all
     nested `Worker`s. **Default**: `true`.
   * `transferList` {Object[]} If one or more `MessagePort`-like objects
     are passed in `workerData`, a `transferList` is required for those
-    items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] will be thrown.
+    items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] is thrown.
     See [`port.postMessage()`][] for more information.
   * `resourceLimits` {Object} An optional set of resource limits for the new
-    JS engine instance. Reaching these limits will lead to termination of the
+    JS engine instance. Reaching these limits leads to termination of the
     `Worker` instance. These limits only affect the JS engine, and no external
     data, including no `ArrayBuffer`s. Even if these limits are set, the process
     may still abort if it encounters a global out-of-memory situation.
@@ -830,7 +830,7 @@ added: v10.5.0
 * `err` {Error}
 
 The `'error'` event is emitted if the worker thread throws an uncaught
-exception. In that case, the worker will be terminated.
+exception. In that case, the worker is terminated.
 
 ### Event: `'exit'`
 <!-- YAML
@@ -840,9 +840,9 @@ added: v10.5.0
 * `exitCode` {integer}
 
 The `'exit'` event is emitted once the worker has stopped. If the worker
-exited by calling [`process.exit()`][], the `exitCode` parameter will be the
-passed exit code. If the worker was terminated, the `exitCode` parameter will
-be `1`.
+exited by calling [`process.exit()`][], the `exitCode` parameter is the
+passed exit code. If the worker was terminated, the `exitCode` parameter is
+`1`.
 
 This is the final event emitted by any `Worker` instance.
 
@@ -857,7 +857,7 @@ The `'message'` event is emitted when the worker thread has invoked
 [`require('worker_threads').parentPort.postMessage()`][].
 See the [`port.on('message')`][] event for more details.
 
-All messages sent from the worker thread will be emitted before the
+All messages sent from the worker thread are emitted before the
 [`'exit'` event][] is emitted on the `Worker` object.
 
 ### Event: `'messageerror'`
@@ -893,7 +893,7 @@ Returns a readable stream for a V8 snapshot of the current state of the Worker.
 See [`v8.getHeapSnapshot()`][] for more details.
 
 If the Worker thread is no longer running, which may occur before the
-[`'exit'` event][] is emitted, the returned `Promise` will be rejected
+[`'exit'` event][] is emitted, the returned `Promise` is rejected
 immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 
 ### `worker.performance`
@@ -922,12 +922,12 @@ The same call as [`perf_hooks` `eventLoopUtilization()`][], except the values
 of the worker instance are returned.
 
 One difference is that, unlike the main thread, bootstrapping within a worker
-is done within the event loop. So the event loop utilization will be
+is done within the event loop. So the event loop utilization is
 immediately available once the worker's script begins execution.
 
 An `idle` time that does not increase does not indicate that the worker is
 stuck in bootstrap. The following examples shows how the worker's entire
-lifetime will never accumulate any `idle` time, but is still be able to process
+lifetime never accumulates any `idle` time, but is still be able to process
 messages.
 
 ```js
@@ -963,7 +963,7 @@ added: v10.5.0
 * `value` {any}
 * `transferList` {Object[]}
 
-Send a message to the worker that will be received via
+Send a message to the worker that is received via
 [`require('worker_threads').parentPort.on('message')`][].
 See [`port.postMessage()`][] for more details.
 
@@ -972,9 +972,9 @@ See [`port.postMessage()`][] for more details.
 added: v10.5.0
 -->
 
-Opposite of `unref()`, calling `ref()` on a previously `unref()`ed worker will
+Opposite of `unref()`, calling `ref()` on a previously `unref()`ed worker does
 *not* let the program exit if it's the only active handle left (the default
-behavior). If the worker is `ref()`ed, calling `ref()` again will have
+behavior). If the worker is `ref()`ed, calling `ref()` again has
 no effect.
 
 ### `worker.resourceLimits`
@@ -1005,7 +1005,7 @@ added: v10.5.0
 
 This is a readable stream which contains data written to [`process.stderr`][]
 inside the worker thread. If `stderr: true` was not passed to the
-[`Worker`][] constructor, then data will be piped to the parent thread's
+[`Worker`][] constructor, then data is piped to the parent thread's
 [`process.stderr`][] stream.
 
 ### `worker.stdin`
@@ -1028,7 +1028,7 @@ added: v10.5.0
 
 This is a readable stream which contains data written to [`process.stdout`][]
 inside the worker thread. If `stdout: true` was not passed to the
-[`Worker`][] constructor, then data will be piped to the parent thread's
+[`Worker`][] constructor, then data is piped to the parent thread's
 [`process.stdout`][] stream.
 
 ### `worker.terminate()`
@@ -1065,9 +1065,9 @@ This value is unique for each `Worker` instance inside a single process.
 added: v10.5.0
 -->
 
-Calling `unref()` on a worker will allow the thread to exit if this is the only
+Calling `unref()` on a worker allows the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
-`unref()` again will have no effect.
+`unref()` again has no effect.
 
 [Addons worker support]: addons.md#addons_worker_support
 [ECMAScript module loader]: esm.md#esm_data_imports
