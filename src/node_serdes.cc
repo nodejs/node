@@ -169,6 +169,10 @@ Maybe<bool> SerializerContext::WriteHostObject(Isolate* isolate,
 
 void SerializerContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!args.IsConstructCall()) {
+    return THROW_ERR_CONSTRUCT_CALL_REQUIRED(
+        env, "Class constructor Serializer cannot be invoked without 'new'");
+  }
 
   new SerializerContext(env, args.This());
 }
@@ -319,6 +323,10 @@ MaybeLocal<Object> DeserializerContext::ReadHostObject(Isolate* isolate) {
 
 void DeserializerContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!args.IsConstructCall()) {
+    return THROW_ERR_CONSTRUCT_CALL_REQUIRED(
+        env, "Class constructor Deserializer cannot be invoked without 'new'");
+  }
 
   if (!args[0]->IsArrayBufferView()) {
     return node::THROW_ERR_INVALID_ARG_TYPE(
@@ -470,6 +478,7 @@ void Initialize(Local<Object> target,
   Local<String> serializerString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "Serializer");
   ser->SetClassName(serializerString);
+  ser->ReadOnlyPrototype();
   target->Set(env->context(),
               serializerString,
               ser->GetFunction(env->context()).ToLocalChecked()).Check();
@@ -496,6 +505,8 @@ void Initialize(Local<Object> target,
 
   Local<String> deserializerString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "Deserializer");
+  des->SetLength(1);
+  des->ReadOnlyPrototype();
   des->SetClassName(deserializerString);
   target->Set(env->context(),
               deserializerString,
