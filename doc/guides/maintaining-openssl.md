@@ -2,6 +2,18 @@
 
 This document describes how to update `deps/openssl/`.
 
+If you need to provide updates across all active release lines you will
+currently need to generate two PRs as follows:
+
+* a PR following the instruction below based on the main branch.
+  This PR should cherry pick back to the active release lines
+  except for the 10.x line.
+* a PR which uses the same commit from the first PR to apply the
+  updates to the openssl source code, with a new commit generated
+  by following steps 2 onwards on the 10.x line. This is
+  necessary because differences in 10.x requires that the
+  configuration files be regenerated specifically for 10.x.
+
 ## Requirements
 * Linux environment.
 * `perl` Only Perl version 5 is tested.
