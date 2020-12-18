@@ -35,7 +35,21 @@ const publish = async args => {
   log.verbose('publish', args)
 
   const opts = { ...npm.flatOptions }
-  const { json, defaultTag } = opts
+  const { json, defaultTag, registry } = opts
+
+  if (!registry) {
+    throw Object.assign(new Error('No registry specified.'), {
+      code: 'ENOREGISTRY',
+    })
+  }
+
+  const creds = npm.config.getCredentialsByURI(registry)
+  if (!creds.token && !creds.username) {
+    throw Object.assign(new Error('This command requires you to be logged in.'), {
+      code: 'ENEEDAUTH',
+    })
+  }
+
   if (semver.validRange(defaultTag))
     throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
 

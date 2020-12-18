@@ -59,7 +59,8 @@ const getLatestNodejsVersion = async () => {
       if (lts && semver.gt(version, maxLTS))
         maxLTS = version
 
-      if (semver.satisfies(version, currentRange) && semver.gt(version, maxCurrent))
+      if (semver.satisfies(version, currentRange) &&
+          semver.gt(version, maxCurrent))
         maxCurrent = version
     }
     const recommended = semver.gt(maxCurrent, maxLTS) ? maxCurrent : maxLTS
@@ -175,7 +176,12 @@ const verifyCachedFiles = async () => {
   tracker.info('verifyCachedFiles', 'Verifying the npm cache')
   try {
     const stats = await cacache.verify(npm.flatOptions.cache)
-    const { badContentCount, reclaimedCount, missingContent, reclaimedSize } = stats
+    const {
+      badContentCount,
+      reclaimedCount,
+      missingContent,
+      reclaimedSize,
+    } = stats
     if (badContentCount || reclaimedCount || missingContent) {
       if (badContentCount)
         tracker.warn('verifyCachedFiles', `Corrupted content removed: ${badContentCount}`)

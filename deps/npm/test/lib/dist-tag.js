@@ -323,6 +323,6 @@ test('completion', t => {
       },
     },
   }, (err) => {
-    t.notOk(err, 'should ignore any unkown name')
+    t.notOk(err, 'should ignore any unknown name')
   })
 })

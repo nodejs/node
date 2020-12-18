@@ -145,15 +145,15 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm config set &lt;key&gt; &lt;value&gt; [-g|--global]
-npm config get &lt;key&gt;
-npm config delete &lt;key&gt;
-npm config list [-l] [--json]
+<pre lang="bash"><code>npm config set &lt;key&gt;=&lt;value&gt; [&lt;key&gt;=&lt;value&gt; ...]
+npm config get [&lt;key&gt; [&lt;key&gt; ...]]
+npm config delete &lt;key&gt; [&lt;key&gt; ...]
+npm config list [--json]
 npm config edit
-npm get &lt;key&gt;
-npm set &lt;key&gt; &lt;value&gt; [-g|--global]
+npm set &lt;key&gt;=&lt;value&gt; [&lt;key&gt;=&lt;value&gt; ...]
+npm get [&lt;key&gt; [&lt;key&gt; ...]]
 
-aliases: c
+alias: c
 </code></pre>
 <h3 id="description">Description</h3>
 <p>npm gets its config settings from the command line, environment
@@ -167,23 +167,30 @@ of the user and global npmrc files.</p>
 <h3 id="sub-commands">Sub-commands</h3>
 <p>Config supports the following sub-commands:</p>
 <h4 id="set">set</h4>
-<pre lang="bash"><code>npm config set key value
+<pre lang="bash"><code>npm config set key=value [key=value...]
+npm set key=value [key=value...]
 </code></pre>
-<p>Sets the config key to the value.</p>
-<p>If value is omitted, then it sets it to “true”.</p>
+<p>Sets each of the config keys to the value provided.</p>
+<p>If value is omitted, then it sets it to an empty string.</p>
+<p>Note: for backwards compatibility, <code>npm config set key value</code> is supported
+as an alias for <code>npm config set key=value</code>.</p>
 <h4 id="get">get</h4>
-<pre lang="bash"><code>npm config get key
+<pre lang="bash"><code>npm config get [key ...]
+npm get [key ...]
 </code></pre>
-<p>Echo the config value to stdout.</p>
+<p>Echo the config value(s) to stdout.</p>
+<p>If multiple keys are provided, then the values will be prefixed with the
+key names.</p>
+<p>If no keys are provided, then this command behaves the same as <code>npm config list</code>.</p>
 <h4 id="list">list</h4>
 <pre lang="bash"><code>npm config list
 </code></pre>
 <p>Show all the config settings. Use <code>-l</code> to also show defaults. Use <code>--json</code>
 to show the settings in json format.</p>
 <h4 id="delete">delete</h4>
-<pre lang="bash"><code>npm config delete key
+<pre lang="bash"><code>npm config delete key [key ...]
 </code></pre>
-<p>Deletes the key from all configuration files.</p>
+<p>Deletes the specified keys from all configuration files.</p>
 <h4 id="edit2">edit</h4>
 <pre lang="bash"><code>npm config edit
 </code></pre>

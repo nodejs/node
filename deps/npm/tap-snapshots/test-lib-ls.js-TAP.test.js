@@ -187,7 +187,7 @@ exports[`test/lib/ls.js TAP ls --parseable --production > should output tree con
 {CWD}/ls-ls-parseable--production/node_modules/prod-dep/node_modules/bar
 `
 
-exports[`test/lib/ls.js TAP ls --parseable cycle deps > should print tree output ommiting deduped ref 1`] = `
+exports[`test/lib/ls.js TAP ls --parseable cycle deps > should print tree output omitting deduped ref 1`] = `
 {CWD}/ls-ls-parseable-cycle-deps
 {CWD}/ls-ls-parseable-cycle-deps/node_modules/a
 {CWD}/ls-ls-parseable-cycle-deps/node_modules/b
@@ -287,11 +287,11 @@ exports[`test/lib/ls.js TAP ls --parseable using aliases > should output tree co
 {CWD}/ls-ls-parseable-using-aliases/node_modules/a
 `
 
-exports[`test/lib/ls.js TAP ls --parseable with filter arg > should output parseable contaning only occurences of filtered by package 1`] = `
+exports[`test/lib/ls.js TAP ls --parseable with filter arg > should output parseable contaning only occurrences of filtered by package 1`] = `
 {CWD}/ls-ls-parseable-with-filter-arg/node_modules/lorem
 `
 
-exports[`test/lib/ls.js TAP ls --parseable with filter arg nested dep > should output parseable contaning only occurences of filtered package 1`] = `
+exports[`test/lib/ls.js TAP ls --parseable with filter arg nested dep > should output parseable contaning only occurrences of filtered package 1`] = `
 {CWD}/ls-ls-parseable-with-filter-arg-nested-dep/node_modules/bar
 `
 
@@ -299,7 +299,7 @@ exports[`test/lib/ls.js TAP ls --parseable with missing filter arg > should outp
 
 `
 
-exports[`test/lib/ls.js TAP ls --parseable with multiple filter args > should output parseable contaning only occurences of multiple filtered packages and their ancestors 1`] = `
+exports[`test/lib/ls.js TAP ls --parseable with multiple filter args > should output parseable contaning only occurrences of multiple filtered packages and their ancestors 1`] = `
 {CWD}/ls-ls-parseable-with-multiple-filter-args/node_modules/lorem
 {CWD}/ls-ls-parseable-with-multiple-filter-args/node_modules/bar
 `
@@ -319,8 +319,8 @@ npm-broken-resolved-field-test@1.0.0 {CWD}/ls-ls-broken-resolved-field
 
 `
 
-exports[`test/lib/ls.js TAP ls coloured output > should output tree containing color info 1`] = `
-[0mtest-npm-ls@1.0.0 {CWD}/ls-ls-coloured-output[0m
+exports[`test/lib/ls.js TAP ls colored output > should output tree containing color info 1`] = `
+[0mtest-npm-ls@1.0.0 {CWD}/ls-ls-colored-output[0m
 [0m+-- foo@1.0.0 [31m[40minvalid[49m[39m[0m
 [0m| \`-- bar@1.0.0[0m
 [0m+-- [31m[40mUNMET DEPENDENCY[49m[39m ipsum@^1.0.0[0m
@@ -550,19 +550,19 @@ dedupe-entries@1.0.0 {CWD}/ls-ls-with-args-and-different-order-of-items
 
 `
 
-exports[`test/lib/ls.js TAP ls with dot filter arg > should output tree contaning only occurences of filtered by package and coloured output 1`] = `
+exports[`test/lib/ls.js TAP ls with dot filter arg > should output tree contaning only occurrences of filtered by package and colored output 1`] = `
 test-npm-ls@1.0.0 {CWD}/ls-ls-with-dot-filter-arg
 \`-- (empty)
 
 `
 
-exports[`test/lib/ls.js TAP ls with filter arg > should output tree contaning only occurences of filtered by package and coloured output 1`] = `
+exports[`test/lib/ls.js TAP ls with filter arg > should output tree contaning only occurrences of filtered by package and colored output 1`] = `
 [0mtest-npm-ls@1.0.0 {CWD}/ls-ls-with-filter-arg[0m
 [0m\`-- [33m[40mlorem@1.0.0[49m[39m[0m
 [0m[0m
 `
 
-exports[`test/lib/ls.js TAP ls with filter arg nested dep > should output tree contaning only occurences of filtered package and its ancestors 1`] = `
+exports[`test/lib/ls.js TAP ls with filter arg nested dep > should output tree contaning only occurrences of filtered package and its ancestors 1`] = `
 test-npm-ls@1.0.0 {CWD}/ls-ls-with-filter-arg-nested-dep
 \`-- foo@1.0.0
   \`-- bar@1.0.0
@@ -575,7 +575,7 @@ test-npm-ls@1.0.0 {CWD}/ls-ls-with-missing-filter-arg
 
 `
 
-exports[`test/lib/ls.js TAP ls with multiple filter args > should output tree contaning only occurences of multiple filtered packages and their ancestors 1`] = `
+exports[`test/lib/ls.js TAP ls with multiple filter args > should output tree contaning only occurrences of multiple filtered packages and their ancestors 1`] = `
 test-npm-ls@1.0.0 {CWD}/ls-ls-with-multiple-filter-args
 +-- foo@1.0.0
 | \`-- bar@1.0.0

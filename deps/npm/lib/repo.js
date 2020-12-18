@@ -36,7 +36,8 @@ const getRepo = async pkg => {
   }
 
   const info = hostedFromMani(mani)
-  const url = info ? info.browse(mani.repository.directory) : unknownHostedUrl(rurl)
+  const url = info ?
+    info.browse(mani.repository.directory) : unknownHostedUrl(rurl)
 
   if (!url) {
     throw Object.assign(new Error('no repository: could not get url'), {
