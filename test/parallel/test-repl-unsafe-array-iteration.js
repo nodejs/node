@@ -4,7 +4,7 @@ const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 
-function run(input) {
+function run(input, expectation) {
   const inputStream = new ArrayStream();
   const outputStream = new ArrayStream();
   let output = '';
@@ -19,10 +19,9 @@ function run(input) {
 
   r.on('exit', common.mustCall(() => {
     const actual = output.split('\n');
-    console.log(actual);
 
     // Validate that the for loop returns undefined
-    assert.ok(actual[actual.length - 2].includes('undefined'));
+    assert.notStrictEqual(actual[actual.length - 2], expectation);
   }));
 
   inputStream.run(input);
@@ -32,11 +31,11 @@ function run(input) {
 run([
   'delete Array.prototype[Symbol.iterator];',
   'for(const x of [3, 2, 1]);'
-]);
+], 'Uncaught TypeError: [3,2,1] is not iterable');
 
 run([
   'const ArrayIteratorPrototype =',
   '  Object.getPrototypeOf(Array.prototype[Symbol.iterator]());',
   'delete ArrayIteratorPrototype.next;',
   'for(const x of [3, 2, 1]);'
-]);
+], 'Uncaught TypeError: undefined is not a function');
