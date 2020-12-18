@@ -5,12 +5,13 @@ const assert = require('assert');
 const Readable = require('_stream_readable');
 const Writable = require('_stream_writable');
 
-// Pipe should not continue writing if writable needs drain.
+// Pipe should pause temporarily if writable needs drain.
 {
   const w = new Writable({
     write(buf, encoding, callback) {
-
-    }
+      process.nextTick(callback);
+    },
+    highWaterMark: 1
   });
 
   while (w.write('asd'));
@@ -20,10 +21,12 @@ const Writable = require('_stream_writable');
   const r = new Readable({
     read() {
       this.push('asd');
+      this.push(null);
     }
   });
 
-  w.write = common.mustNotCall();
+  r.on('pause', common.mustCall(2));
+  r.on('end', common.mustCall());
 
   r.pipe(w);
 }
