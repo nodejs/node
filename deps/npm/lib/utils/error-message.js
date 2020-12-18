@@ -193,10 +193,14 @@ module.exports = (er) => {
         else {
           detail.push(['404', 'This package name is not valid, because', ''])
 
-          const errorsArray = (valResult.errors || []).concat(valResult.warnings || [])
-          errorsArray.forEach(function (item, idx) {
-            detail.push(['404', ' ' + (idx + 1) + '. ' + item])
-          })
+          const errorsArray = [
+            ...(valResult.errors || []),
+            ...(valResult.warnings || []),
+          ]
+          errorsArray.forEach((item, idx) => detail.push([
+            '404',
+            ' ' + (idx + 1) + '. ' + item,
+          ]))
         }
 
         detail.push(['404', '\nNote that you can also install from a'])

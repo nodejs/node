@@ -3,7 +3,7 @@ const usageUtil = require('./utils/usage.js')
 
 const usage = usageUtil(
   'get',
-  'npm get <key> <value> (See `npm config`)'
+  'npm get [<key> ...] (See `npm config`)'
 )
 
 const completion = npm.commands.config.completion

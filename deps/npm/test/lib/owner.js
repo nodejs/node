@@ -119,7 +119,7 @@ t.test('owner ls fails to retrieve packument', t => {
     t.match(
       err,
       /ERR/,
-      'should throw unkown error'
+      'should throw unknown error'
     )
   })
 })

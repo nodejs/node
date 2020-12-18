@@ -178,6 +178,11 @@ class Config {
       throw new Error('call config.load() before setting values')
     if (!confTypes.has(where))
       throw new Error('invalid config location param: ' + where)
+    if (key === '_auth') {
+      const { email } = this.getCredentialsByURI(this.get('registry'))
+      if (!email)
+        throw new Error('Cannot set _auth without first setting email')
+    }
     this.data.get(where).data[key] = val
 
     // this is now dirty, the next call to this.valid will have to check it
@@ -512,6 +517,9 @@ class Config {
     if (where === 'user') {
       const reg = this.get('registry')
       const creds = this.getCredentialsByURI(reg)
+      // we ignore this error because the failed set already removed
+      // anything that might be a security hazard, and it won't be
+      // saved back to the .npmrc file, so we're good.
       try { this.setCredentialsByURI(reg, creds) } catch (_) {}
     }
 
@@ -576,18 +584,22 @@ class Config {
       this.delete(`${nerfed}:email`, 'user')
       this.delete(`${nerfed}:always-auth`, 'user')
     } else if (username || password || email) {
-      if (!username)
-        throw new Error('must include username')
-      if (!password)
-        throw new Error('must include password')
+      if (username || password) {
+        if (!username)
+          throw new Error('must include username')
+        if (!password)
+          throw new Error('must include password')
+      }
       if (!email)
         throw new Error('must include email')
       this.delete(`${nerfed}:_authToken`, 'user')
-      this.set(`${nerfed}:username`, username, 'user')
-      // note: not encrypted, no idea why we bothered to do this, but oh well
-      // protects against shoulder-hacks if password is memorable, I guess?
-      const encoded = Buffer.from(password, 'utf8').toString('base64')
-      this.set(`${nerfed}:_password`, encoded, 'user')
+      if (username || password) {
+        this.set(`${nerfed}:username`, username, 'user')
+        // note: not encrypted, no idea why we bothered to do this, but oh well
+        // protects against shoulder-hacks if password is memorable, I guess?
+        const encoded = Buffer.from(password, 'utf8').toString('base64')
+        this.set(`${nerfed}:_password`, encoded, 'user')
+      }
       this.set(`${nerfed}:email`, email, 'user')
       if (alwaysAuth !== undefined)
         this.set(`${nerfed}:always-auth`, alwaysAuth, 'user')

@@ -74,16 +74,19 @@ function token (args, cb) {
 
 function generateTokenIds (tokens, minLength) {
   const byId = {}
-  tokens.forEach((token) => {
+  for (const token of tokens) {
     token.id = token.key
     for (let ii = minLength; ii < token.key.length; ++ii) {
-      if (!tokens.some((ot) => ot !== token && ot.key.slice(0, ii) === token.key.slice(0, ii))) {
+      const match = tokens.some(ot =>
+        ot !== token &&
+        ot.key.slice(0, ii) === token.key.slice(0, ii))
+      if (!match) {
         token.id = token.key.slice(0, ii)
         break
       }
     }
     byId[token.id] = token
-  })
+  }
   return byId
 }
 
@@ -136,7 +139,8 @@ function list (args) {
       return
     }
     generateTokenIds(tokens, 6)
-    const idWidth = tokens.reduce((acc, token) => Math.max(acc, token.id.length), 0)
+    const idWidth = tokens.reduce((acc, token) =>
+      Math.max(acc, token.id.length), 0)
     const table = new Table({
       head: ['id', 'token', 'created', 'readonly', 'CIDR whitelist'],
       colWidths: [Math.max(idWidth, 2) + 2, 9, 12, 10],
@@ -170,8 +174,8 @@ function rm (args) {
       else if (matches.length > 1)
         throw new Error(`Token ID "${id}" was ambiguous, a new token may have been created since you last ran \`npm token list\`.`)
       else {
-        const tokenMatches = tokens.filter((token) => id.indexOf(token.token) === 0)
-        if (tokenMatches.length === 0)
+        const tokenMatches = tokens.some(t => id.indexOf(t.token) === 0)
+        if (!tokenMatches)
           throw new Error(`Unknown token id or value "${id}".`)
 
         toRemove.push(id)
@@ -212,7 +216,8 @@ function create (args) {
       Object.keys(result).forEach((k) => output(k + '\t' + result[k]))
     else {
       const table = new Table()
-      Object.keys(result).forEach((k) => table.push({ [ansistyles.bright(k)]: String(result[k]) }))
+      for (const k of Object.keys(result))
+        table.push({ [ansistyles.bright(k)]: String(result[k]) })
       output(table.toString())
     }
   })

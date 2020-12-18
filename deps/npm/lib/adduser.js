@@ -59,6 +59,7 @@ const adduser = async (args) => {
   log.notice('', `Log in on ${replaceInfo(registry)}`)
 
   const { message, newCreds } = await auth({
+    ...npm.flatOptions,
     creds,
     registry,
     scope,

@@ -24,7 +24,7 @@ To create "pre" or "post" scripts for any scripts defined in the `"scripts"` sec
 
 ### Life Cycle Scripts
 
-There are some special life cycle scripts that happen only in certain situations. These scripts happen in addtion to the "pre" and "post" script.
+There are some special life cycle scripts that happen only in certain situations. These scripts happen in addition to the "pre" and "post" script.
 * `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`
 
 **prepare** (since `npm@4.0.0`)

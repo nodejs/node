@@ -13,7 +13,8 @@ require('graceful-fs').gracefulify(require('fs'))
 
 const procLogListener = require('./utils/proc-log-listener.js')
 
-const hasOwnProperty = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
+const hasOwnProperty = (obj, key) =>
+  Object.prototype.hasOwnProperty.call(obj, key)
 
 // the first time `npm.commands.xyz` is loaded, it gets added
 // to the cmds object, so we don't have to load it again.
@@ -206,8 +207,6 @@ const npm = module.exports = new class extends EventEmitter {
 
     this.projectScope = this.config.get('scope') ||
       getProjectScope(this.prefix)
-
-    startMetrics()
   }
 
   get flatOptions () {
@@ -296,7 +295,6 @@ const npm = module.exports = new class extends EventEmitter {
 
 const log = require('npmlog')
 const { promisify } = require('util')
-const startMetrics = require('./utils/metrics.js').start
 
 const which = promisify(require('which'))
 

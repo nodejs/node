@@ -93,8 +93,8 @@ async function unpublish (args) {
 
     const { name, version, publishConfig } = manifest
     const pkgJsonSpec = npa.resolve(name, version)
-
-    res = await otplease(opts, opts => libunpub(pkgJsonSpec, { ...opts, publishConfig }))
+    const optsWithPub = { ...opts, publishConfig }
+    res = await otplease(opts, opts => libunpub(pkgJsonSpec, optsWithPub))
     pkgName = name
     pkgVersion = version ? `@${version}` : ''
   } else {

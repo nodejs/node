@@ -209,7 +209,7 @@ t.test('ls', (t) => {
     })
     ls(['lorem'], (err) => {
       t.ifError(err, 'npm ls')
-      t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurences of filtered by package and coloured output')
+      t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of filtered by package and colored output')
       _flatOptions.color = false
       t.end()
     })
@@ -231,7 +231,7 @@ t.test('ls', (t) => {
     })
     ls(['.'], (err) => {
       t.ifError(err, 'should not throw on missing dep above current level')
-      t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurences of filtered by package and coloured output')
+      t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of filtered by package and colored output')
       _flatOptions.all = true
       _flatOptions.depth = Infinity
       t.end()
@@ -252,7 +252,7 @@ t.test('ls', (t) => {
     })
     ls(['bar'], (err) => {
       t.ifError(err, 'npm ls')
-      t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurences of filtered package and its ancestors')
+      t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of filtered package and its ancestors')
       t.end()
     })
   })
@@ -280,7 +280,7 @@ t.test('ls', (t) => {
     })
     ls(['bar@*', 'lorem@1.0.0'], (err) => {
       t.ifError(err, 'npm ls')
-      t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurences of multiple filtered packages and their ancestors')
+      t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of multiple filtered packages and their ancestors')
       t.end()
     })
   })
@@ -443,7 +443,7 @@ t.test('ls', (t) => {
     })
   })
 
-  t.test('coloured output', (t) => {
+  t.test('colored output', (t) => {
     _flatOptions.color = true
     prefix = t.testdir({
       'package.json': JSON.stringify({
@@ -1588,7 +1588,7 @@ t.test('ls --parseable', (t) => {
     })
     ls(['lorem'], (err) => {
       t.ifError(err, 'npm ls')
-      t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurences of filtered by package')
+      t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurrences of filtered by package')
       t.end()
     })
   })
@@ -1607,7 +1607,7 @@ t.test('ls --parseable', (t) => {
     })
     ls(['bar'], (err) => {
       t.ifError(err, 'npm ls')
-      t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurences of filtered package')
+      t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurrences of filtered package')
       t.end()
     })
   })
@@ -1635,7 +1635,7 @@ t.test('ls --parseable', (t) => {
     })
     ls(['bar@*', 'lorem@1.0.0'], (err) => {
       t.ifError(err, 'npm ls')
-      t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurences of multiple filtered packages and their ancestors')
+      t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurrences of multiple filtered packages and their ancestors')
       t.end()
     })
   })
@@ -2158,7 +2158,7 @@ t.test('ls --parseable', (t) => {
       },
     })
     ls([], () => {
-      t.matchSnapshot(redactCwd(result), 'should print tree output ommiting deduped ref')
+      t.matchSnapshot(redactCwd(result), 'should print tree output omitting deduped ref')
       t.end()
     })
   })
@@ -2482,7 +2482,7 @@ t.test('ls --json', (t) => {
             },
           },
         },
-        'should output json contaning only occurences of filtered by package'
+        'should output json contaning only occurrences of filtered by package'
       )
       t.equal(
         process.exitCode,
@@ -2523,7 +2523,7 @@ t.test('ls --json', (t) => {
             },
           },
         },
-        'should output json contaning only occurences of filtered by package'
+        'should output json contaning only occurrences of filtered by package'
       )
       t.end()
     })
@@ -2571,7 +2571,7 @@ t.test('ls --json', (t) => {
             },
           },
         },
-        'should output json contaning only occurences of multiple filtered packages and their ancestors'
+        'should output json contaning only occurrences of multiple filtered packages and their ancestors'
       )
       t.end()
     })

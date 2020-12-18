@@ -5,15 +5,15 @@
 .P
 .RS 2
 .nf
-npm config set <key> <value> [\-g|\-\-global]
-npm config get <key>
-npm config delete <key>
-npm config list [\-l] [\-\-json]
+npm config set <key>=<value> [<key>=<value> \.\.\.]
+npm config get [<key> [<key> \.\.\.]]
+npm config delete <key> [<key> \.\.\.]
+npm config list [\-\-json]
 npm config edit
-npm get <key>
-npm set <key> <value> [\-g|\-\-global]
+npm set <key>=<value> [<key>=<value> \.\.\.]
+npm get [<key> [<key> \.\.\.]]
 
-aliases: c
+alias: c
 .fi
 .RE
 .SS Description
@@ -36,22 +36,33 @@ Config supports the following sub\-commands:
 .P
 .RS 2
 .nf
-npm config set key value
+npm config set key=value [key=value\.\.\.]
+npm set key=value [key=value\.\.\.]
 .fi
 .RE
 .P
-Sets the config key to the value\.
+Sets each of the config keys to the value provided\.
 .P
-If value is omitted, then it sets it to "true"\.
+If value is omitted, then it sets it to an empty string\.
+.P
+Note: for backwards compatibility, \fBnpm config set key value\fP is supported
+as an alias for \fBnpm config set key=value\fP\|\.
 .SS get
 .P
 .RS 2
 .nf
-npm config get key
+npm config get [key \.\.\.]
+npm get [key \.\.\.]
 .fi
 .RE
 .P
-Echo the config value to stdout\.
+Echo the config value(s) to stdout\.
+.P
+If multiple keys are provided, then the values will be prefixed with the
+key names\.
+.P
+If no keys are provided, then this command behaves the same as \fBnpm config
+list\fP\|\.
 .SS list
 .P
 .RS 2
@@ -66,11 +77,11 @@ to show the settings in json format\.
 .P
 .RS 2
 .nf
-npm config delete key
+npm config delete key [key \.\.\.]
 .fi
 .RE
 .P
-Deletes the key from all configuration files\.
+Deletes the specified keys from all configuration files\.
 .SS edit
 .P
 .RS 2

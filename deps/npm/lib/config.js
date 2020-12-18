@@ -15,13 +15,13 @@ const ini = require('ini')
 
 const usage = usageUtil(
   'config',
-  'npm config set <key> <value>' +
-  '\nnpm config get [<key>]' +
-  '\nnpm config delete <key>' +
+  'npm config set <key>=<value> [<key>=<value> ...]' +
+  '\nnpm config get [<key> [<key> ...]]' +
+  '\nnpm config delete <key> [<key> ...]' +
   '\nnpm config list [--json]' +
   '\nnpm config edit' +
-  '\nnpm set <key> <value>' +
-  '\nnpm get [<key>]'
+  '\nnpm set <key>=<value> [<key>=<value> ...]' +
+  '\nnpm get [<key> [<key> ...]]'
 )
 
 const cmd = (args, cb) => config(args).then(() => cb()).catch(cb)
@@ -63,20 +63,20 @@ const completion = (opts, cb) => {
 const UsageError = () =>
   Object.assign(new Error(usage), { code: 'EUSAGE' })
 
-const config = async ([action, key, val]) => {
+const config = async ([action, ...args]) => {
   npm.log.disableProgress()
   try {
     switch (action) {
       case 'set':
-        await set(key, val)
+        await set(args)
         break
       case 'get':
-        await get(key)
+        await get(args)
         break
       case 'delete':
       case 'rm':
       case 'del':
-        await del(key)
+        await del(args)
         break
       case 'list':
       case 'ls':
@@ -93,46 +93,58 @@ const config = async ([action, key, val]) => {
   }
 }
 
-const set = async (key, val) => {
-  if (key === undefined)
+// take an array of `[key, value, k2=v2, k3, v3, ...]` and turn into
+// { key: value, k2: v2, k3: v3 }
+const keyValues = args => {
+  const kv = {}
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i].split('=')
+    const key = arg.shift()
+    const val = arg.length ? arg.join('=')
+      : i < args.length - 1 ? args[++i]
+      : ''
+    kv[key.trim()] = val.trim()
+  }
+  return kv
+}
+
+const set = async (args) => {
+  if (!args.length)
     throw UsageError()
 
-  if (val === undefined) {
-    if (key.indexOf('=') !== -1) {
-      const k = key.split('=')
-      key = k.shift()
-      val = k.join('=')
-    } else
-      val = ''
-  }
-
-  key = key.trim()
-  val = val.trim()
-  npm.log.info('config', 'set %j %j', key, val)
   const where = npm.flatOptions.global ? 'global' : 'user'
-  npm.config.set(key, val, where)
-  if (!npm.config.validate(where))
-    npm.log.warn('config', 'omitting invalid config values')
+  for (const [key, val] of Object.entries(keyValues(args))) {
+    npm.log.info('config', 'set %j %j', key, val)
+    npm.config.set(key, val || '', where)
+    if (!npm.config.validate(where))
+      npm.log.warn('config', 'omitting invalid config values')
+  }
 
   await npm.config.save(where)
 }
 
-const get = async key => {
-  if (!key)
+const get = async keys => {
+  if (!keys.length)
     return list()
 
-  if (!publicVar(key))
-    throw `The ${key} option is protected, and cannot be retrieved in this way`
+  const out = []
+  for (const key of keys) {
+    if (!publicVar(key))
+      throw `The ${key} option is protected, and cannot be retrieved in this way`
 
-  output(npm.config.get(key))
+    const pref = keys.length > 1 ? `${key}=` : ''
+    out.push(pref + npm.config.get(key))
+  }
+  output(out.join('\n'))
 }
 
-const del = async key => {
-  if (!key)
+const del = async keys => {
+  if (!keys.length)
     throw UsageError()
 
   const where = npm.flatOptions.global ? 'global' : 'user'
-  npm.config.delete(key, where)
+  for (const key of keys)
+    npm.config.delete(key, where)
   await npm.config.save(where)
 }
 
