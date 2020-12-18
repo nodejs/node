@@ -2989,12 +2989,15 @@ ParserBase<Impl>::ParseCoalesceExpression(ExpressionT expression) {
   bool first_nullish = true;
   while (peek() == Token::NULLISH) {
     SourceRange right_range;
-    SourceRangeScope right_range_scope(scanner(), &right_range);
-    Consume(Token::NULLISH);
-    int pos = peek_position();
-
-    // Parse BitwiseOR or higher.
-    ExpressionT y = ParseBinaryExpression(6);
+    int pos;
+    ExpressionT y;
+    {
+      SourceRangeScope right_range_scope(scanner(), &right_range);
+      Consume(Token::NULLISH);
+      pos = peek_position();
+      // Parse BitwiseOR or higher.
+      y = ParseBinaryExpression(6);
+    }
     if (first_nullish) {
       expression =
           factory()->NewBinaryOperation(Token::NULLISH, expression, y, pos);
