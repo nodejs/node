@@ -21,7 +21,7 @@ function run(input, expectation) {
     const actual = output.split('\n');
 
     // Validate that the for loop returns undefined
-    assert.notStrictEqual(actual[actual.length - 2], expectation);
+    assert.strictEqual(actual[actual.length - 2], expectation);
   }));
 
   inputStream.run(input);
