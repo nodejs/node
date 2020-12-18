@@ -5,7 +5,7 @@
 .P
 .RS 2
 .nf
-npm deprecate <pkg>[@<version>] <message>
+npm deprecate <pkg>[@<version range>] <message>
 .fi
 .RE
 .SS Description
@@ -22,8 +22,19 @@ npm deprecate my\-thing@"< 0\.2\.3" "critical bug fixed in v0\.2\.3"
 .fi
 .RE
 .P
-Note that you must be the package owner to deprecate something\.  See the
-\fBowner\fP and \fBadduser\fP help topics\.
+SemVer ranges passed to this command are interpreted such that they \fIdo\fR
+include prerelease versions\.  For example:
+.P
+.RS 2
+.nf
+npm deprecate my\-thing@1\.x "1\.x is no longer supported"
+.fi
+.RE
+.P
+In this case, a version \fBmy\-thing@1\.0\.0\-beta\.0\fP will also be deprecated\.
+.P
+You must be the package owner to deprecate something\.  See the \fBowner\fP and
+\fBadduser\fP help topics\.
 .P
 To un\-deprecate a package, specify an empty string (\fB""\fP) for the \fBmessage\fP 
 argument\. Note that you must use double quotes with no space between them to 

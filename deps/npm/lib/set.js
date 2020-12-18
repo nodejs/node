@@ -1,7 +1,7 @@
 
 module.exports = set
 
-set.usage = 'npm set <key> <value> (See `npm config`)'
+set.usage = 'npm set <key>=<value> [<key>=<value> ...] (See `npm config`)'
 
 var npm = require('./npm.js')
 

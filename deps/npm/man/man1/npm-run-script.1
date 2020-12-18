@@ -64,18 +64,18 @@ on Unix\-like systems it is the \fB/bin/sh\fP command, on Windows it is the \fBc
 The actual shell referred to by \fB/bin/sh\fP also depends on the system\.
 You can customize the shell with the \fBscript\-shell\fP configuration\.
 .P
-Scripts are run from the root of the module, regardless of what the current
-working directory is when \fBnpm run\fP is called\. If you want your script to
-use different behavior based on what subdirectory you're in, you can use the
-\fBINIT_CWD\fP environment variable, which holds the full path you were in when
-you ran \fBnpm run\fP\|\.
+Scripts are run from the root of the package folder, regardless of what the
+current working directory is when \fBnpm run\fP is called\. If you want your
+script to use different behavior based on what subdirectory you're in, you
+can use the \fBINIT_CWD\fP environment variable, which holds the full path you
+were in when you ran \fBnpm run\fP\|\.
 .P
-\fBnpm run\fP sets the \fBNODE\fP environment variable to the \fBnode\fP executable with
-which \fBnpm\fP is executed\. Also, if the \fB\-\-scripts\-prepend\-node\-path\fP is passed,
-the directory within which \fBnode\fP resides is added to the
-\fBPATH\fP\|\. If \fB\-\-scripts\-prepend\-node\-path=auto\fP is passed (which has been the
-default in \fBnpm\fP v3), this is only performed when that \fBnode\fP executable is
-not found in the \fBPATH\fP\|\.
+\fBnpm run\fP sets the \fBNODE\fP environment variable to the \fBnode\fP executable
+with which \fBnpm\fP is executed\. Also, if the \fB\-\-scripts\-prepend\-node\-path\fP is
+passed, the directory within which \fBnode\fP resides is added to the \fBPATH\fP\|\.
+If \fB\-\-scripts\-prepend\-node\-path=auto\fP is passed (which has been the default
+in \fBnpm\fP v3), this is only performed when that \fBnode\fP executable is not
+found in the \fBPATH\fP\|\.
 .P
 If you try to run a script without having a \fBnode_modules\fP directory and it fails,
 you will be given a warning to run \fBnpm install\fP, just in case you've forgotten\.

@@ -1,7 +1,7 @@
 // pass in an arborist object, and it'll output the data about what
 // was done, what was audited, etc.
 //
-// added 351 packages, removed 132 packages, and audited 13388 packages in 19.157s
+// added ## packages, removed ## packages, and audited ## packages in 19.157s
 //
 // 1 package is looking for funding
 //   run `npm fund` for details

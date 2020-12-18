@@ -3,7 +3,14 @@ const requireInject = require('require-inject')
 
 // mock config
 const {defaults} = require('../../lib/utils/config.js')
-const config = { list: [defaults] }
+const credentials = {
+  token: 'asdfasdf',
+  alwaysAuth: false,
+}
+const config = {
+  list: [defaults],
+  getCredentialsByURI: () => credentials,
+}
 const fs = require('fs')
 
 t.test('should publish with libnpmpublish, respecting publishConfig', (t) => {
@@ -23,6 +30,7 @@ t.test('should publish with libnpmpublish, respecting publishConfig', (t) => {
       flatOptions: {
         json: true,
         defaultTag: 'latest',
+        registry: 'https://registry.npmjs.org',
       },
       config,
     },
@@ -55,7 +63,7 @@ t.test('should publish with libnpmpublish, respecting publishConfig', (t) => {
     },
   })
 
-  publish([testDir], (er) => {
+  return publish([testDir], (er) => {
     if (er)
       throw er
     t.pass('got to callback')
@@ -77,6 +85,7 @@ t.test('re-loads publishConfig if added during script process', (t) => {
       flatOptions: {
         json: true,
         defaultTag: 'latest',
+        registry: 'https://registry.npmjs.org/',
       },
       config,
     },
@@ -108,7 +117,7 @@ t.test('re-loads publishConfig if added during script process', (t) => {
     },
   })
 
-  publish([testDir], (er) => {
+  return publish([testDir], (er) => {
     if (er)
       throw er
     t.pass('got to callback')
@@ -131,6 +140,7 @@ t.test('should not log if silent', (t) => {
         json: false,
         defaultTag: 'latest',
         dryRun: true,
+        registry: 'https://registry.npmjs.org/',
       },
       config,
     },
@@ -159,7 +169,7 @@ t.test('should not log if silent', (t) => {
     },
   })
 
-  publish([testDir], (er) => {
+  return publish([testDir], (er) => {
     if (er)
       throw er
     t.pass('got to callback')
@@ -181,6 +191,7 @@ t.test('should log tarball contents', (t) => {
         json: false,
         defaultTag: 'latest',
         dryRun: true,
+        registry: 'https://registry.npmjs.org/',
       },
       config,
     },
@@ -206,7 +217,7 @@ t.test('should log tarball contents', (t) => {
     },
   })
 
-  publish([testDir], (er) => {
+  return publish([testDir], (er) => {
     if (er)
       throw er
     t.pass('got to callback')
@@ -220,12 +231,13 @@ t.test('shows usage with wrong set of arguments', (t) => {
       flatOptions: {
         json: false,
         defaultTag: '0.0.13',
+        registry: 'https://registry.npmjs.org/',
       },
       config,
     },
   })
 
-  publish(['a', 'b', 'c'], (er) => t.matchSnapshot(er, 'should print usage'))
+  return publish(['a', 'b', 'c'], (er) => t.matchSnapshot(er, 'should print usage'))
 })
 
 t.test('throws when invalid tag', (t) => {
@@ -235,12 +247,13 @@ t.test('throws when invalid tag', (t) => {
       flatOptions: {
         json: false,
         defaultTag: '0.0.13',
+        registry: 'https://registry.npmjs.org/',
       },
       config,
     },
   })
 
-  publish([], (err) => {
+  return publish([], (err) => {
     t.match(err, {
       message: /Tag name must not be a valid SemVer range: /,
     }, 'throws when tag name is a valid SemVer range')
@@ -274,6 +287,7 @@ t.test('can publish a tarball', t => {
       flatOptions: {
         json: true,
         defaultTag: 'latest',
+        registry: 'https://registry.npmjs.org/',
       },
       config,
     },
@@ -298,9 +312,56 @@ t.test('can publish a tarball', t => {
     },
   })
 
-  publish([`${testDir}/package.tgz`], (er) => {
+  return publish([`${testDir}/package.tgz`], (er) => {
     if (er)
       throw er
     t.pass('got to callback')
+  })
+})
+
+t.test('throw if no registry', async t => {
+  t.plan(1)
+  const publish = requireInject('../../lib/publish.js', {
+    '../../lib/npm.js': {
+      flatOptions: {
+        json: false,
+        defaultTag: '0.0.13',
+        registry: null,
+      },
+      config,
+    },
+  })
+
+  return publish([], (err) => {
+    t.match(err, {
+      message: 'No registry specified.',
+      code: 'ENOREGISTRY',
+    }, 'throws when registry unset')
+  })
+})
+
+t.test('throw if not logged in', async t => {
+  t.plan(1)
+  const publish = requireInject('../../lib/publish.js', {
+    '../../lib/npm.js': {
+      flatOptions: {
+        json: false,
+        defaultTag: '0.0.13',
+        registry: 'https://registry.npmjs.org/',
+      },
+      config: {
+        ...config,
+        getCredentialsByURI: () => ({
+          email: 'me@example.com',
+        }),
+      },
+    },
+  })
+
+  return publish([], (err) => {
+    t.match(err, {
+      message: 'This command requires you to be logged in.',
+      code: 'ENEEDAUTH',
+    }, 'throws when not logged in')
   })
 })

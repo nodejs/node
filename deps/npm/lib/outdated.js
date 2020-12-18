@@ -167,7 +167,7 @@ async function outdated_ (tree, deps, opts) {
       }
     } catch (err) {
       // silently catch and ignore ETARGET, E403 &
-      // E404 errors, deps are just skipped
+      // E404 errors, deps are just skipped {
       if (!(
         err.code === 'ETARGET' ||
         err.code === 'E403' ||
@@ -234,7 +234,16 @@ function makePretty (dep, opts) {
 // <fullpath>:<name@wanted>:<name@installed>:<name@latest>:<dependedby>
 function makeParseable (list, opts) {
   return list.map(dep => {
-    const { name, current, wanted, latest, path, dependent, type, homepage } = dep
+    const {
+      name,
+      current,
+      wanted,
+      latest,
+      path,
+      dependent,
+      type,
+      homepage,
+    } = dep
     const out = [
       path,
       name + '@' + wanted,
@@ -252,7 +261,16 @@ function makeParseable (list, opts) {
 function makeJSON (list, opts) {
   const out = {}
   list.forEach(dep => {
-    const { name, current, wanted, latest, path, type, dependent, homepage } = dep
+    const {
+      name,
+      current,
+      wanted,
+      latest,
+      path,
+      type,
+      dependent,
+      homepage,
+    } = dep
     out[name] = {
       current,
       wanted,

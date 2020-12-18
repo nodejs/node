@@ -245,7 +245,10 @@ t.test('packages changed message', t => {
     settings.json = json
     npmock.command = command
     const mock = {
-      actualTree: { inventory: { size: audited, has: () => true }, children: [] },
+      actualTree: {
+        inventory: { size: audited, has: () => true },
+        children: [],
+      },
       auditReport: audited ? {
         toJSON: () => mock.auditReport,
         vulnerabilities: {},

@@ -34,8 +34,6 @@ class MockConfig {
       cache: 'cache',
       'node-version': '1.2.3',
       global: 'global',
-      'metrics-registry': 'metrics-registry',
-      'send-metrics': 'send-metrics',
       registry: 'registry',
       access: 'access',
       'always-auth': 'always-auth',
@@ -299,15 +297,12 @@ t.test('various default values and falsey fallbacks', t => {
   const npm = new Mocknpm({
     'script-shell': false,
     registry: 'http://example.com',
-    'metrics-registry': null,
     searchlimit: 0,
     'save-exact': false,
     'save-prefix': '>=',
   })
   const opts = flatOptions(npm)
   t.equal(opts.scriptShell, undefined, 'scriptShell is undefined if falsey')
-  t.equal(opts.metricsRegistry, 'http://example.com',
-    'metricsRegistry defaults to registry')
   t.equal(opts.search.limit, 20, 'searchLimit defaults to 20')
   t.equal(opts.savePrefix, '>=', 'save-prefix respected if no save-exact')
   t.equal(opts.scope, '', 'scope defaults to empty string')
