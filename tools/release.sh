@@ -103,9 +103,9 @@ sign() {
   # shellcheck disable=SC2086,SC2029
   shapath=$(ssh ${customsshkey} "${webuser}@${webhost}" $signcmd nodejs $1)
 
-  echo "${shapath}" | grep -q '^/.*/SHASUMS256.txt$' || \
-    echo 'Error: No SHASUMS file returned by sign!' \
-    exit 1
+  echo "${shapath}" | grep -q '^/.*/SHASUMS256.txt$' || (\
+    echo 'Error: No SHASUMS file returned by sign!' &&\
+    exit 1)
 
   echo ""
   echo "# Signing SHASUMS for $1..."
@@ -141,7 +141,8 @@ sign() {
     fi
 
     if [ "X${yorn}" = "Xy" ]; then
-      scp "${customsshkey}" "${tmpdir}/${shafile}" "${tmpdir}/${shafile}.asc" "${tmpdir}/${shafile}.sig" "${webuser}@${webhost}:${shadir}/"
+      # shellcheck disable=SC2086
+      scp ${customsshkey} "${tmpdir}/${shafile}" "${tmpdir}/${shafile}.asc" "${tmpdir}/${shafile}.sig" "${webuser}@${webhost}:${shadir}/"
       # shellcheck disable=SC2086,SC2029
       ssh ${customsshkey} "${webuser}@${webhost}" chmod 644 "${shadir}/${shafile}.asc" "${shadir}/${shafile}.sig"
       break
