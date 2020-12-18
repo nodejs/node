@@ -1005,16 +1005,6 @@ Type: String
 Commit message which is used by \fBnpm version\fP when creating version commit\.
 .P
 Any "%s" in the message will be replaced with the version number\.
-.SS metrics\-registry
-.RS 0
-.IP \(bu 2
-Default: The value of  \fBregistry\fP (which defaults to "https://registry\.npmjs\.org/")
-.IP \(bu 2
-Type: String
-
-.RE
-.P
-The registry you want to send cli metrics to if \fBsend\-metrics\fP is true\.
 .SS node\-options
 .RS 0
 .IP \(bu 2
@@ -1462,19 +1452,6 @@ Type: Number
 .P
 The age of the cache, in seconds, before another registry request is made if
 using legacy search endpoint\.
-.SS send\-metrics
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-If true, success/failure metrics will be reported to the registry stored in
-\fBmetrics\-registry\fP\|\.  These requests contain the number of successful and
-failing runs of the npm CLI and the time period over which those counts were
-gathered\. No identifying information is included in these requests\.
 .SS shell
 .RS 0
 .IP \(bu 2

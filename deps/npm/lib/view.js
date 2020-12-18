@@ -196,7 +196,8 @@ const prettyView = async (packument, manifest, opts) => {
       name: color.yellow(manifest._npmUser.name),
       email: color.cyan(manifest._npmUser.email),
     }),
-    modified: packument.time ? color.yellow(relativeDate(packument.time[packument.version])) : undefined,
+    modified: !packument.time ? undefined
+    : color.yellow(relativeDate(packument.time[packument.version])),
     maintainers: (packument.maintainers || []).map((u) => unparsePerson({
       name: color.yellow(u.name),
       email: color.cyan(u.email),
@@ -387,8 +388,14 @@ async function printData (data, name, opts) {
       if (includeVersions || includeFields || typeof d !== 'string') {
         if (opts.json)
           msgJson[msgJson.length - 1][f] = d
-        else
-          d = inspect(d, { showHidden: false, depth: 5, colors: npm.color, maxArrayLength: null })
+        else {
+          d = inspect(d, {
+            showHidden: false,
+            depth: 5,
+            colors: npm.color,
+            maxArrayLength: null,
+          })
+        }
       } else if (typeof d === 'string' && opts.json)
         d = JSON.stringify(d)
 

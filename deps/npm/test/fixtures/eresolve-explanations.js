@@ -1,4 +1,4 @@
-// some real-world examples of ERESOLVE error explaination objects,
+// some real-world examples of ERESOLVE error explanation objects,
 // copied from arborist or generated there.
 module.exports = {
   cycleNested: {

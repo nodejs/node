@@ -78,10 +78,6 @@ const npmlog = {
   },
 }
 
-const metrics = {
-  stop: () => null,
-}
-
 // overrides OS type/release for cross platform snapshots
 const os = require('os')
 os.type = () => 'Foo'
@@ -124,7 +120,6 @@ const mocks = {
     summary: [['ERR', err.message]],
     detail: [['ERR', err.message]],
   }),
-  '../../../lib/utils/metrics.js': metrics,
   '../../../lib/utils/cache-file.js': cacheFile,
 }
 

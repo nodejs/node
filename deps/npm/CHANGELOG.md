@@ -1,3 +1,75 @@
+## 7.3.0 (2020-12-18)
+
+### FEATURES
+
+* [`a9b8bf263`](https://github.com/npm/cli/commit/a9b8bf2634c627fbb16ca3a6bb2c2f1058c3e586)
+  [#2362](https://github.com/npm/cli/issues/2362)
+  Support multiple set/get/deletes in npm config
+  ([@isaacs](https://github.com/isaacs))
+
+### BUG FIXES
+
+* [`9eef63849`](https://github.com/npm/cli/commit/9eef638499c88689acb00d812c10f0407cb95c08)
+  Pass full set of options to login helper functions.
+  This fixes `npm login --no-strict-ssl`, as well as a host of other
+  options that one might want to set while logging in.
+  Reported by: [@toddself](https://github.com/toddself)
+  ([@isaacs](https://github.com/isaacs))
+* [`628a554bc`](https://github.com/npm/cli/commit/628a554bc113e4e115d34778bfe8a77cfad1d933)
+  [#2358](https://github.com/npm/cli/issues/2358)
+  fix doctor test to work correctly for node pre-release versions
+  ([@nlf](https://github.com/nlf))
+* [`be4a0900b`](https://github.com/npm/cli/commit/be4a0900b14b2c6315bf62bed8f5affb648215ae)
+  [#2360](https://github.com/npm/cli/issues/2360)
+  raise an error early if publishing without login, registry
+  ([@isaacs](https://github.com/isaacs))
+* [`44d433105`](https://github.com/npm/cli/commit/44d4331058c53909ada62470b23b2185102b2128)
+  [#2366](https://github.com/npm/cli/issues/2366)
+  Include prerelease versions when deprecating
+  ([@tiegz](https://github.com/tiegz))
+* [`cba3341da`](https://github.com/npm/cli/commit/cba3341dae4c92541049dc976e82e2ba19566e95)
+  [#2373](https://github.com/npm/cli/issues/2373)
+  npm profile refactor
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`7539504e3`](https://github.com/npm/cli/commit/7539504e3abdec28039a7798e5ccb745b536cb6e)
+  [#2382](https://github.com/npm/cli/issues/2382)
+  remove the metrics sender
+  ([@nlf](https://github.com/nlf))
+
+### DOCS
+
+* [`b98569a8c`](https://github.com/npm/cli/commit/b98569a8ca28dbd611fe84492aee996e2e567b55)
+  add note about `INIT_CWD` to run-script doc
+* [`292929279`](https://github.com/npm/cli/commit/292929279854a06ca60ff737b574cbd6503ec5db)
+  [#2368](https://github.com/npm/cli/issues/2368)
+  Revert bug-reporting links to GH.
+  Re: <https://blog.npmjs.org/post/188841555980/updates-to-community-docs-more>
+  ([@tiegz](https://github.com/tiegz))
+* [`f4560626f`](https://github.com/npm/cli/commit/f4560626f09dba4889d752f7f739aa5a5f3da741)
+  update `ISSUE_TEMPLATE` with modern links
+  ([@isaacs](https://github.com/isaacs))
+* [`bc1c567ed`](https://github.com/npm/cli/commit/bc1c567ed3d853ed4f01d33a800eb453956de6ef)
+  update npm command doc feature request links
+  ([@isaacs](https://github.com/isaacs))
+* [`0ad958fe1`](https://github.com/npm/cli/commit/0ad958fe1cb811699caca235f361c8328baac8c4)
+  [#2381](https://github.com/npm/cli/issues/2381)
+  (docs,test): assorted typo fixes
+  ([@XhmikosR](https://github.com/XhmikosR))
+
+### TESTING
+
+* [`a92d310b7`](https://github.com/npm/cli/commit/a92d310b7e9e4c48b08f52785c2e3a6d52a82ad7)
+  [#2361](https://github.com/npm/cli/issues/2361)
+  Add max-len to lint rules
+  ([@Edu93Jer](https://github.com/Edu93Jer))
+
+### DEPENDENCIES
+
+* [`4fc2f3e05`](https://github.com/npm/cli/commit/4fc2f3e05b600aa64fe5eb6b8b77bc070e5a9403)
+  [#2300](https://github.com/npm/cli/issues/2300)
+  `@npmcli/config@1.2.8`:
+    * Support setting email without username/password
+
 ## 7.2.0 (2020-12-15)
 
 ### FEATURES
@@ -977,7 +1049,7 @@
     * fix package.json dependencies order
 * [`49b2bf5a7`](https://github.com/npm/cli/commit/49b2bf5a798b49d52166744088a80b8a39ccaeb6)
   `@npmcli/config@1.1.8`
-    * fix unkown envs to be passed through
+    * fix unknown envs to be passed through
     * fix setting correct globalPrefix on load
 * [`f9aac351d`](https://github.com/npm/cli/commit/f9aac351dd36a19d14e1f951a2e8e20b41545822)
   `libnpmversion@1.0.5`

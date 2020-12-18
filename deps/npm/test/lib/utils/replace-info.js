@@ -46,7 +46,7 @@ t.equal(
 t.equal(
   replaceInfo('Something https://user:pass@registry.npmjs.org/ foo bar'),
   'Something https://user:***@registry.npmjs.org/ foo bar',
-  'should replace single item withing a phrase'
+  'should replace single item within a phrase'
 )
 
 t.deepEqual(

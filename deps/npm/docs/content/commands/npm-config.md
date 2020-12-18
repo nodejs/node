@@ -7,15 +7,15 @@ description: Manage the npm configuration files
 ### Synopsis
 
 ```bash
-npm config set <key> <value> [-g|--global]
-npm config get <key>
-npm config delete <key>
-npm config list [-l] [--json]
+npm config set <key>=<value> [<key>=<value> ...]
+npm config get [<key> [<key> ...]]
+npm config delete <key> [<key> ...]
+npm config list [--json]
 npm config edit
-npm get <key>
-npm set <key> <value> [-g|--global]
+npm set <key>=<value> [<key>=<value> ...]
+npm get [<key> [<key> ...]]
 
-aliases: c
+alias: c
 ```
 
 ### Description
@@ -39,20 +39,31 @@ Config supports the following sub-commands:
 #### set
 
 ```bash
-npm config set key value
+npm config set key=value [key=value...]
+npm set key=value [key=value...]
 ```
 
-Sets the config key to the value.
+Sets each of the config keys to the value provided.
 
-If value is omitted, then it sets it to "true".
+If value is omitted, then it sets it to an empty string.
+
+Note: for backwards compatibility, `npm config set key value` is supported
+as an alias for `npm config set key=value`.
 
 #### get
 
 ```bash
-npm config get key
+npm config get [key ...]
+npm get [key ...]
 ```
 
-Echo the config value to stdout.
+Echo the config value(s) to stdout.
+
+If multiple keys are provided, then the values will be prefixed with the
+key names.
+
+If no keys are provided, then this command behaves the same as `npm config
+list`.
 
 #### list
 
@@ -66,10 +77,10 @@ to show the settings in json format.
 #### delete
 
 ```bash
-npm config delete key
+npm config delete key [key ...]
 ```
 
-Deletes the key from all configuration files.
+Deletes the specified keys from all configuration files.
 
 #### edit
 

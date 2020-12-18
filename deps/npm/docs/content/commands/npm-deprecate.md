@@ -7,7 +7,7 @@ description: Deprecate a version of a package
 ### Synopsis
 
 ```bash
-npm deprecate <pkg>[@<version>] <message>
+npm deprecate <pkg>[@<version range>] <message>
 ```
 
 ### Description
@@ -22,8 +22,17 @@ versions, so you can do something like this:
 npm deprecate my-thing@"< 0.2.3" "critical bug fixed in v0.2.3"
 ```
 
-Note that you must be the package owner to deprecate something.  See the
-`owner` and `adduser` help topics.
+SemVer ranges passed to this command are interpreted such that they *do*
+include prerelease versions.  For example:
+
+```bash
+npm deprecate my-thing@1.x "1.x is no longer supported"
+```
+
+In this case, a version `my-thing@1.0.0-beta.0` will also be deprecated.
+
+You must be the package owner to deprecate something.  See the `owner` and
+`adduser` help topics.
 
 To un-deprecate a package, specify an empty string (`""`) for the `message` 
 argument. Note that you must use double quotes with no space between them to 

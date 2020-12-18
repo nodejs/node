@@ -202,8 +202,6 @@ t.test('npm.load', t => {
       t.equal(npm.bin, npm.globalBin, 'bin is global bin after prefix setter')
       t.notEqual(npm.bin, npm.localBin, 'bin is not local bin after prefix setter')
 
-      t.equal(npm.config.get('metrics-registry'), npm.config.get('registry'))
-
       beWindows()
       t.equal(npm.bin, npm.globalBin, 'bin is global bin in windows mode')
       t.equal(npm.dir, npm.globalDir, 'dir is global dir in windows mode')
@@ -261,7 +259,6 @@ t.test('npm.load', t => {
     process.argv = [
       node,
       process.argv[1],
-      '--metrics-registry', 'http://example.com',
       '--prefix', dir,
       '--userconfig', `${dir}/.npmrc`,
       '--usage',
@@ -292,7 +289,6 @@ t.test('npm.load', t => {
         throw er
 
       t.equal(npm.config.get('scope'), '@foo', 'added the @ sign to scope')
-      t.equal(npm.config.get('metrics-registry'), 'http://example.com')
       t.match(logs.filter(l => l[0] !== 'timing' || !/^config:/.test(l[1])), [
         [
           'verbose',
@@ -342,7 +338,7 @@ t.test('npm.load', t => {
           /Completed in [0-9]+ms/,
         ],
       ])
-      t.same(consoleLogs, [['@foo']])
+      t.same(consoleLogs, [['scope=@foo\n\u2010not-a-dash=undefined']])
     })
 
     // need this here or node 10 will improperly end the promise ahead of time
@@ -396,7 +392,6 @@ t.test('set process.title', t => {
       argv: [
         process.execPath,
         process.argv[1],
-        '--metrics-registry', 'http://example.com',
         '--usage',
         '--scope=foo',
         'ls',
@@ -415,7 +410,6 @@ t.test('set process.title', t => {
       argv: [
         process.execPath,
         process.argv[1],
-        '--metrics-registry', 'http://example.com',
         '--usage',
         '--scope=foo',
         'token',
@@ -436,7 +430,6 @@ t.test('set process.title', t => {
       argv: [
         process.execPath,
         process.argv[1],
-        '--metrics-registry', 'http://example.com',
         '--usage',
         '--scope=foo',
         'token',

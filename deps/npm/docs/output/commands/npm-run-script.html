@@ -181,17 +181,17 @@ provided by locally-installed dependencies can be used without the
 on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is the <code>cmd.exe</code>.
 The actual shell referred to by <code>/bin/sh</code> also depends on the system.
 You can customize the shell with the <code>script-shell</code> configuration.</p>
-<p>Scripts are run from the root of the module, regardless of what the current
-working directory is when <code>npm run</code> is called. If you want your script to
-use different behavior based on what subdirectory you’re in, you can use the
-<code>INIT_CWD</code> environment variable, which holds the full path you were in when
-you ran <code>npm run</code>.</p>
-<p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable with
-which <code>npm</code> is executed. Also, if the <code>--scripts-prepend-node-path</code> is passed,
-the directory within which <code>node</code> resides is added to the
-<code>PATH</code>. If <code>--scripts-prepend-node-path=auto</code> is passed (which has been the
-default in <code>npm</code> v3), this is only performed when that <code>node</code> executable is
-not found in the <code>PATH</code>.</p>
+<p>Scripts are run from the root of the package folder, regardless of what the
+current working directory is when <code>npm run</code> is called. If you want your
+script to use different behavior based on what subdirectory you’re in, you
+can use the <code>INIT_CWD</code> environment variable, which holds the full path you
+were in when you ran <code>npm run</code>.</p>
+<p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable
+with which <code>npm</code> is executed. Also, if the <code>--scripts-prepend-node-path</code> is
+passed, the directory within which <code>node</code> resides is added to the <code>PATH</code>.
+If <code>--scripts-prepend-node-path=auto</code> is passed (which has been the default
+in <code>npm</code> v3), this is only performed when that <code>node</code> executable is not
+found in the <code>PATH</code>.</p>
 <p>If you try to run a script without having a <code>node_modules</code> directory and it fails,
 you will be given a warning to run <code>npm install</code>, just in case you’ve forgotten.</p>
 <p>You can use the <code>--silent</code> flag to prevent showing <code>npm ERR!</code> output on error.</p>

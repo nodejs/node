@@ -40,7 +40,8 @@ const globDir = {
   'npm-more-useless.md': 'exec exec',
   'npm-extra-useless.md': 'exec\nexec\nexec',
 }
-const glob = (p, cb) => cb(null, Object.keys(globDir).map((file) => join(globRoot, file)))
+const glob = (p, cb) =>
+  cb(null, Object.keys(globDir).map((file) => join(globRoot, file)))
 
 const helpSearch = requireInject('../../lib/help-search.js', {
   '../../lib/npm.js': npm,

@@ -13,6 +13,7 @@ npmFetch.json = async (uri, opts) => {
     versions: {
       '1.0.0': {},
       '1.0.1': {},
+      '1.0.1-pre': {},
     },
   }
 }
@@ -124,6 +125,9 @@ test('deprecates all versions when no range is specified', t => {
           deprecated: 'this version is deprecated',
         },
         '1.0.1': {
+          deprecated: 'this version is deprecated',
+        },
+        '1.0.1-pre': {
           deprecated: 'this version is deprecated',
         },
       },

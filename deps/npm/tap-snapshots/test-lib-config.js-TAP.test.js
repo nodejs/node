@@ -129,7 +129,7 @@ long = false
 ; Run \`npm config ls -l\` to show all defaults.
 `
 
-exports[`test/lib/config.js TAP config list overrides > should list overriden configs 1`] = `
+exports[`test/lib/config.js TAP config list overrides > should list overridden configs 1`] = `
 ; "cli" config from command line options
 
 editor = "vi" 

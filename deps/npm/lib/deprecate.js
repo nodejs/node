@@ -25,7 +25,8 @@ const completion = (opts, cb) => {
     return libaccess.lsPackages(username, npm.flatOptions).then((packages) => {
       return Object.keys(packages)
         .filter((name) => packages[name] === 'write' &&
-          (opts.conf.argv.remain.length === 0 || name.startsWith(opts.conf.argv.remain[0]))
+          (opts.conf.argv.remain.length === 0 ||
+            name.startsWith(opts.conf.argv.remain[0]))
         )
     })
   }).then((list) => cb(null, list), (err) => cb(err))
@@ -57,7 +58,7 @@ const deprecate = async ([pkg, msg]) => {
   })
 
   Object.keys(packument.versions)
-    .filter(v => semver.satisfies(v, spec))
+    .filter(v => semver.satisfies(v, spec, { includePrerelease: true }))
     .forEach(v => {
       packument.versions[v].deprecated = msg
     })

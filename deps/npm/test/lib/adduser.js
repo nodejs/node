@@ -9,21 +9,27 @@ const _flatOptions = {
   authType: 'legacy',
   registry: 'https://registry.npmjs.org/',
   scope: '',
+  fromFlatOptions: true,
 }
 
 let failSave = false
 let deletedConfig = {}
 let registryOutput = ''
 let setConfig = {}
-const authDummy = () => Promise.resolve({
-  message: 'success',
-  newCreds: {
-    username: 'u',
-    password: 'p',
-    email: 'u@npmjs.org',
-    alwaysAuth: false,
-  },
-})
+const authDummy = (options) => {
+  if (!options.fromFlatOptions)
+    throw new Error('did not pass full flatOptions to auth function')
+
+  return Promise.resolve({
+    message: 'success',
+    newCreds: {
+      username: 'u',
+      password: 'p',
+      email: 'u@npmjs.org',
+      alwaysAuth: false,
+    },
+  })
+}
 
 const deleteMock = (key, where) => {
   deletedConfig = {

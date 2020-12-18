@@ -7,7 +7,6 @@ let wroteLogFile = false
 let exitCode = 0
 const errorMessage = require('./error-message.js')
 const replaceInfo = require('./replace-info.js')
-const stopMetrics = require('./metrics.js').stop
 
 const cacheFile = require('./cache-file.js')
 
@@ -42,9 +41,6 @@ process.on('exit', code => {
       // ignore
     }
   }
-
-  // kill any outstanding stats reporter if it hasn't finished yet
-  stopMetrics()
 
   if (code)
     itWorked = false

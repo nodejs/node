@@ -88,13 +88,13 @@ prune:
 	@[[ "$(shell git status -s)" != "" ]] && echo "ERR: found unpruned files" && exit 1 || echo "git status is clean"
 
 
-publish: gitclean ls-ok link test docs-clean docs prune
+publish: gitclean ls-ok link test docs prune
 	@git push origin :v$(shell node bin/npm-cli.js --no-timing -v) 2>&1 || true
 	git push origin $(BRANCH) &&\
 	git push origin --tags &&\
 	node bin/npm-cli.js publish --tag=$(PUBLISHTAG)
 
-release: gitclean ls-ok docs-clean docs prune
+release: gitclean ls-ok docs prune
 	@bash scripts/release.sh
 
 .PHONY: all latest install dev link docs clean uninstall test man docs-clean docsclean release ls-ok dev-deps prune

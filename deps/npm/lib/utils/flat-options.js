@@ -50,8 +50,6 @@ const flatten = obj => ({
   cache: join(obj.cache, '_cacache'),
   global: obj.global,
 
-  metricsRegistry: obj['metrics-registry'] || obj.registry,
-  sendMetrics: obj['send-metrics'],
   registry: obj.registry,
   scope: obj.scope,
   access: obj.access,
