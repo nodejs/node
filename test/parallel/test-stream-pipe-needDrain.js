@@ -25,7 +25,7 @@ const Writable = require('_stream_writable');
     }
   });
 
-  r.on('pause', common.mustCall());
+  r.on('pause', common.mustCall(2));
   r.on('end', common.mustCall());
 
   r.pipe(w);
