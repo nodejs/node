@@ -1177,4 +1177,22 @@ a(true);                                  // 0500
  {"start":0,"end":401,"count":2},
  {"start":154,"end":254,"count":0}]);
 
+ TestCoverage(
+"https://crbug.com/v8/11231 - nullish coalescing",
+`
+const a = true                            // 0000
+const b = false                           // 0050
+const c = undefined                       // 0100
+const d = a ?? 99                         // 0150
+const e = 33                              // 0200
+const f = b ?? (c ?? 99)                  // 0250
+const g = 33                              // 0300
+const h = c ?? (c ?? 'hello')             // 0350
+const i = c ?? b ?? 'hello'               // 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":162,"end":167,"count":0},
+ {"start":262,"end":274,"count":0},
+ {"start":417,"end":427,"count":0}]);
+
 %DebugToggleBlockCoverage(false);
