@@ -1,3 +1,12 @@
+## 6.14.10 (2020-12-18)
+
+### DEPENDENCIES
+
+* [`906d647e1`](https://github.com/npm/cli/commit/906d647e1cacd74243abcacba3bade80437f30f5)
+`opener@1.5.2`
+  * fixes: [`#36445`](https://github.com/nodejs/node/issues/36445) addressing
+[`GHSL-2020-145`](https://securitylab.github.com/advisories/GHSL-2020-145-domenic-opener)
+
 ## 6.14.9 (2020-11-20)
 
 ### BUG FIXES
