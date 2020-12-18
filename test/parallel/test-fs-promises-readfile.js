@@ -60,10 +60,22 @@ function validateReadFileAbortLogicDuring() {
   });
 }
 
+async function validateWrongSignalParam() {
+  // Verify that if something different than Abortcontroller.signal
+  // is passed, ERR_INVALID_ARG_TYPE is thrown
+
+  await assert.rejects(async () => {
+    const callback = common.mustNotCall(() => {});
+    await readFile(fn, { signal: 'hello' }, callback);
+  }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
+
+}
+
 (async () => {
   await createLargeFile();
   await validateReadFile();
   await validateReadFileProc();
   await validateReadFileAbortLogicBefore();
   await validateReadFileAbortLogicDuring();
+  await validateWrongSignalParam();
 })().then(common.mustCall());
