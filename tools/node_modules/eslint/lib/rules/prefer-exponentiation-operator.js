@@ -30,6 +30,7 @@ function doesBaseNeedParens(base) {
         astUtils.getPrecedence(base) <= PRECEDENCE_OF_EXPONENTIATION_EXPR ||
 
         // An unary operator cannot be used immediately before an exponentiation expression
+        base.type === "AwaitExpression" ||
         base.type === "UnaryExpression"
     );
 }

@@ -1,13 +1,13 @@
 import {
   drawBorderTop,
   drawBorderJoin,
-  drawBorderBottom
+  drawBorderBottom,
 } from './drawBorder';
 import drawRow from './drawRow';
 
 /**
  * @param {Array} rows
- * @param {Object} border
+ * @param {object} border
  * @param {Array} columnSizeIndex
  * @param {Array} rowSpanIndex
  * @param {Function} drawHorizontalLine

@@ -147,12 +147,18 @@ module.exports = {
                 }
 
                 case "UnaryExpression":
-                    if (node.operator === "void") {
+                    if (
+                        node.operator === "void" ||
+                        node.operator === "typeof" && inBooleanPosition
+                    ) {
                         return true;
                     }
 
-                    return (node.operator === "typeof" && inBooleanPosition) ||
-                        isConstant(node.argument, true);
+                    if (node.operator === "!") {
+                        return isConstant(node.argument, true);
+                    }
+
+                    return isConstant(node.argument, false);
 
                 case "BinaryExpression":
                     return isConstant(node.left, false) &&

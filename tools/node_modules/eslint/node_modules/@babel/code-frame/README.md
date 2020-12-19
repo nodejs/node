@@ -2,7 +2,7 @@
 
 > Generate errors that contain a code frame that point to source locations.
 
-See our website [@babel/code-frame](https://babeljs.io/docs/en/next/babel-code-frame.html) for more information.
+See our website [@babel/code-frame](https://babeljs.io/docs/en/babel-code-frame) for more information.
 
 ## Install
 

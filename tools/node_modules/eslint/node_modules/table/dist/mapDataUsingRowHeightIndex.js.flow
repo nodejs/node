@@ -4,7 +4,7 @@ import wrapCell from './wrapCell';
 /**
  * @param {Array} unmappedRows
  * @param {number[]} rowHeightIndex
- * @param {Object} config
+ * @param {object} config
  * @returns {Array}
  */
 export default (unmappedRows, rowHeightIndex, config) => {

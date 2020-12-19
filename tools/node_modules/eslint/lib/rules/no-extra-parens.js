@@ -472,20 +472,34 @@ module.exports = {
             const callee = node.callee;
 
             if (hasExcessParensWithPrecedence(callee, precedence(node))) {
-                const hasNewParensException = callee.type === "NewExpression" && !isNewExpressionWithParens(callee);
-
                 if (
                     hasDoubleExcessParens(callee) ||
-                    !isIIFE(node) &&
-                    !hasNewParensException &&
                     !(
+                        isIIFE(node) ||
 
-                        // Allow extra parens around a new expression if they are intervening parentheses.
-                        node.type === "NewExpression" &&
-                        callee.type === "MemberExpression" &&
-                        doesMemberExpressionContainCallExpression(callee)
-                    ) &&
-                    !(!node.optional && callee.type === "ChainExpression")
+                        // (new A)(); new (new A)();
+                        (
+                            callee.type === "NewExpression" &&
+                            !isNewExpressionWithParens(callee) &&
+                            !(
+                                node.type === "NewExpression" &&
+                                !isNewExpressionWithParens(node)
+                            )
+                        ) ||
+
+                        // new (a().b)(); new (a.b().c);
+                        (
+                            node.type === "NewExpression" &&
+                            callee.type === "MemberExpression" &&
+                            doesMemberExpressionContainCallExpression(callee)
+                        ) ||
+
+                        // (a?.b)(); (a?.())();
+                        (
+                            !node.optional &&
+                            callee.type === "ChainExpression"
+                        )
+                    )
                 ) {
                     report(node.callee);
                 }
@@ -511,7 +525,7 @@ module.exports = {
 
             if (!shouldSkipLeft && hasExcessParens(node.left)) {
                 if (
-                    !(node.left.type === "UnaryExpression" && isExponentiation) &&
+                    !(["AwaitExpression", "UnaryExpression"].includes(node.left.type) && isExponentiation) &&
                     !astUtils.isMixedLogicalAndCoalesceExpressions(node.left, node) &&
                     (leftPrecedence > prec || (leftPrecedence === prec && !isExponentiation)) ||
                     isParenthesisedTwice(node.left)
