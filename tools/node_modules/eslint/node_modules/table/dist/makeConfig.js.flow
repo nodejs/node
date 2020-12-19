@@ -1,13 +1,13 @@
 import _ from 'lodash';
+import calculateMaximumColumnWidthIndex from './calculateMaximumColumnWidthIndex';
 import getBorderCharacters from './getBorderCharacters';
 import validateConfig from './validateConfig';
-import calculateMaximumColumnWidthIndex from './calculateMaximumColumnWidthIndex';
 
 /**
  * Merges user provided border characters with the default border ("honeywell") characters.
  *
- * @param {Object} border
- * @returns {Object}
+ * @param {object} border
+ * @returns {object}
  */
 const makeBorder = (border = {}) => {
   return Object.assign({}, getBorderCharacters('honeywell'), border);
@@ -18,9 +18,9 @@ const makeBorder = (border = {}) => {
  * values for the missing configuration properties.
  *
  * @param {Array[]} rows
- * @param {Object} columns
- * @param {Object} columnDefault
- * @returns {Object}
+ * @param {object} columns
+ * @param {object} columnDefault
+ * @returns {object}
  */
 const makeColumns = (rows, columns = {}, columnDefault = {}) => {
   const maximumColumnWidthIndex = calculateMaximumColumnWidthIndex(rows);
@@ -36,7 +36,7 @@ const makeColumns = (rows, columns = {}, columnDefault = {}) => {
       paddingRight: 1,
       truncate: Infinity,
       width: maximumColumnWidthIndex[index],
-      wrapWord: false
+      wrapWord: false,
     }, columnDefault, columns[index]);
   });
 
@@ -48,8 +48,8 @@ const makeColumns = (rows, columns = {}, columnDefault = {}) => {
  * using default values for the missing configuration properties.
  *
  * @param {Array[]} rows
- * @param {Object} userConfig
- * @returns {Object}
+ * @param {object} userConfig
+ * @returns {object}
  */
 export default (rows, userConfig = {}) => {
   validateConfig('config.json', userConfig);
