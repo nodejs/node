@@ -9,18 +9,18 @@
 
 cd "$( dirname "$0" )" || exit
 rm -rf node_modules/eslint
-{
+(
     mkdir eslint-tmp
     cd eslint-tmp || exit
     npm init --yes
 
     npm install --global-style --no-bin-links --production --no-package-lock eslint@latest
 
-    {
+    (
         cd node_modules/eslint || exit
 
         npm install --no-bin-links --production --no-package-lock eslint-plugin-markdown@latest
-    }
+    )
 
 
     # Use dmn to remove some unneeded files.
@@ -28,7 +28,7 @@ rm -rf node_modules/eslint
     # Use removeNPMAbsolutePaths to remove unused data in package.json.
     # This avoids churn as absolute paths can change from one dev to another.
     npx removeNPMAbsolutePaths@1.0.4 .
-}
+)
 
 mv eslint-tmp/node_modules/eslint node_modules/eslint
 rm -rf eslint-tmp/
