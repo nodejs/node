@@ -5,7 +5,7 @@ import calculateCellHeight from './calculateCellHeight';
  * Calculates the vertical row span index.
  *
  * @param {Array[]} rows
- * @param {Object} config
+ * @param {object} config
  * @returns {number[]}
  */
 export default (rows, config) => {
