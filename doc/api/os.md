@@ -373,7 +373,7 @@ rare virtualization cases. The issue arises when the virtualized
 guest instance shares the kernel with the host system.
 Due to the fact that libuv uses a syscall that
 provides host's uptime instead of guest's
-uptime on OpenVZ, `os.uptime()` may also provide 
+uptime on OpenVZ, `os.uptime()` may also provide
 erroneous result.
 
 Please refer to <https://github.com/nodejs/node/issues/36244> and
