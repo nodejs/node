@@ -39,7 +39,8 @@ module.exports = {
                         type: "boolean",
                         default: false
                     }
-                }
+                },
+                additionalProperties: false
             }
         ],
         messages: {

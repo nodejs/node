@@ -1,4 +1,4 @@
-/* eslint-disable sort-keys */
+/* eslint-disable sort-keys-fix/sort-keys-fix */
 
 /**
  * @typedef border
@@ -43,7 +43,7 @@ export default (name) => {
       joinBody: '─',
       joinLeft: '╟',
       joinRight: '╢',
-      joinJoin: '┼'
+      joinJoin: '┼',
     };
   }
 
@@ -66,7 +66,7 @@ export default (name) => {
       joinBody: '─',
       joinLeft: '├',
       joinRight: '┤',
-      joinJoin: '┼'
+      joinJoin: '┼',
     };
   }
 
@@ -89,7 +89,7 @@ export default (name) => {
       joinBody: '-',
       joinLeft: '|',
       joinRight: '|',
-      joinJoin: '|'
+      joinJoin: '|',
     };
   }
 
@@ -112,7 +112,7 @@ export default (name) => {
       joinBody: '',
       joinLeft: '',
       joinRight: '',
-      joinJoin: ''
+      joinJoin: '',
     };
   }
 

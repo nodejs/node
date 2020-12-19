@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to flag trailing underscores in variable declarations.
+ * @fileoverview Rule to flag dangling underscores in variable declarations.
  * @author Matt DuVall <http://www.mattduvall.com>
  */
 
@@ -45,6 +45,10 @@ module.exports = {
                     enforceInMethodNames: {
                         type: "boolean",
                         default: false
+                    },
+                    allowFunctionParams: {
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false
@@ -64,6 +68,7 @@ module.exports = {
         const allowAfterSuper = typeof options.allowAfterSuper !== "undefined" ? options.allowAfterSuper : false;
         const allowAfterThisConstructor = typeof options.allowAfterThisConstructor !== "undefined" ? options.allowAfterThisConstructor : false;
         const enforceInMethodNames = typeof options.enforceInMethodNames !== "undefined" ? options.enforceInMethodNames : false;
+        const allowFunctionParams = typeof options.allowFunctionParams !== "undefined" ? options.allowFunctionParams : true;
 
         //-------------------------------------------------------------------------
         // Helpers
@@ -80,12 +85,12 @@ module.exports = {
         }
 
         /**
-         * Check if identifier has a underscore at the end
+         * Check if identifier has a dangling underscore
          * @param {string} identifier name of the node
          * @returns {boolean} true if its is present
          * @private
          */
-        function hasTrailingUnderscore(identifier) {
+        function hasDanglingUnderscore(identifier) {
             const len = identifier.length;
 
             return identifier !== "_" && (identifier[0] === "_" || identifier[len - 1] === "_");
@@ -126,16 +131,53 @@ module.exports = {
         }
 
         /**
-         * Check if function has a underscore at the end
+         * Check if function parameter has a dangling underscore.
+         * @param {ASTNode} node function node to evaluate
+         * @returns {void}
+         * @private
+         */
+        function checkForDanglingUnderscoreInFunctionParameters(node) {
+            if (!allowFunctionParams) {
+                node.params.forEach(param => {
+                    const { type } = param;
+                    let nodeToCheck;
+
+                    if (type === "RestElement") {
+                        nodeToCheck = param.argument;
+                    } else if (type === "AssignmentPattern") {
+                        nodeToCheck = param.left;
+                    } else {
+                        nodeToCheck = param;
+                    }
+
+                    if (nodeToCheck.type === "Identifier") {
+                        const identifier = nodeToCheck.name;
+
+                        if (hasDanglingUnderscore(identifier) && !isAllowed(identifier)) {
+                            context.report({
+                                node: param,
+                                messageId: "unexpectedUnderscore",
+                                data: {
+                                    identifier
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        }
+
+        /**
+         * Check if function has a dangling underscore
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
-        function checkForTrailingUnderscoreInFunctionDeclaration(node) {
-            if (node.id) {
+        function checkForDanglingUnderscoreInFunction(node) {
+            if (node.type === "FunctionDeclaration" && node.id) {
                 const identifier = node.id.name;
 
-                if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
+                if (typeof identifier !== "undefined" && hasDanglingUnderscore(identifier) && !isAllowed(identifier)) {
                     context.report({
                         node,
                         messageId: "unexpectedUnderscore",
@@ -145,18 +187,19 @@ module.exports = {
                     });
                 }
             }
+            checkForDanglingUnderscoreInFunctionParameters(node);
         }
 
         /**
-         * Check if variable expression has a underscore at the end
+         * Check if variable expression has a dangling underscore
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
-        function checkForTrailingUnderscoreInVariableExpression(node) {
+        function checkForDanglingUnderscoreInVariableExpression(node) {
             const identifier = node.id.name;
 
-            if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
+            if (typeof identifier !== "undefined" && hasDanglingUnderscore(identifier) &&
                 !isSpecialCaseIdentifierInVariableExpression(identifier) && !isAllowed(identifier)) {
                 context.report({
                     node,
@@ -169,18 +212,18 @@ module.exports = {
         }
 
         /**
-         * Check if member expression has a underscore at the end
+         * Check if member expression has a dangling underscore
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
-        function checkForTrailingUnderscoreInMemberExpression(node) {
+        function checkForDanglingUnderscoreInMemberExpression(node) {
             const identifier = node.property.name,
                 isMemberOfThis = node.object.type === "ThisExpression",
                 isMemberOfSuper = node.object.type === "Super",
                 isMemberOfThisConstructor = isThisConstructorReference(node);
 
-            if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
+            if (typeof identifier !== "undefined" && hasDanglingUnderscore(identifier) &&
                 !(isMemberOfThis && allowAfterThis) &&
                 !(isMemberOfSuper && allowAfterSuper) &&
                 !(isMemberOfThisConstructor && allowAfterThisConstructor) &&
@@ -196,16 +239,16 @@ module.exports = {
         }
 
         /**
-         * Check if method declaration or method property has a underscore at the end
+         * Check if method declaration or method property has a dangling underscore
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
-        function checkForTrailingUnderscoreInMethod(node) {
+        function checkForDanglingUnderscoreInMethod(node) {
             const identifier = node.key.name;
             const isMethod = node.type === "MethodDefinition" || node.type === "Property" && node.method;
 
-            if (typeof identifier !== "undefined" && enforceInMethodNames && isMethod && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
+            if (typeof identifier !== "undefined" && enforceInMethodNames && isMethod && hasDanglingUnderscore(identifier) && !isAllowed(identifier)) {
                 context.report({
                     node,
                     messageId: "unexpectedUnderscore",
@@ -221,11 +264,13 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            FunctionDeclaration: checkForTrailingUnderscoreInFunctionDeclaration,
-            VariableDeclarator: checkForTrailingUnderscoreInVariableExpression,
-            MemberExpression: checkForTrailingUnderscoreInMemberExpression,
-            MethodDefinition: checkForTrailingUnderscoreInMethod,
-            Property: checkForTrailingUnderscoreInMethod
+            FunctionDeclaration: checkForDanglingUnderscoreInFunction,
+            VariableDeclarator: checkForDanglingUnderscoreInVariableExpression,
+            MemberExpression: checkForDanglingUnderscoreInMemberExpression,
+            MethodDefinition: checkForDanglingUnderscoreInMethod,
+            Property: checkForDanglingUnderscoreInMethod,
+            FunctionExpression: checkForDanglingUnderscoreInFunction,
+            ArrowFunctionExpression: checkForDanglingUnderscoreInFunction
         };
 
     }

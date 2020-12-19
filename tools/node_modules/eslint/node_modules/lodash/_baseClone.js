@@ -18,7 +18,8 @@ var Stack = require('./_Stack'),
     isMap = require('./isMap'),
     isObject = require('./isObject'),
     isSet = require('./isSet'),
-    keys = require('./keys');
+    keys = require('./keys'),
+    keysIn = require('./keysIn');
 
 /** Used to compose bitmasks for cloning. */
 var CLONE_DEEP_FLAG = 1,

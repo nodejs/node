@@ -38,6 +38,9 @@
         "param",
         "body"
     ],
+    "ChainExpression": [
+        "expression"
+    ],
     "ClassBody": [
         "body"
     ],

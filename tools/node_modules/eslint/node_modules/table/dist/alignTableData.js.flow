@@ -3,7 +3,7 @@ import alignString from './alignString';
 
 /**
  * @param {table~row[]} rows
- * @param {Object} config
+ * @param {object} config
  * @returns {table~row[]}
  */
 export default (rows, config) => {
