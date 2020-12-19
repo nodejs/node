@@ -41,7 +41,7 @@ import gyp.xcode_emulation
 try:
     # maketrans moved to str in python3.
     _maketrans = string.maketrans
-except NameError:
+except (NameError, AttributeError):
     _maketrans = str.maketrans
 
 generator_default_variables = {
@@ -1047,7 +1047,7 @@ def WriteTarget(
 
         # XCode settings
         xcode_settings = config.get("xcode_settings", {})
-        for xcode_setting, xcode_value in xcode_settings.viewitems():
+        for xcode_setting, xcode_value in xcode_settings.items():
             SetTargetProperty(
                 output,
                 cmake_target_name,
