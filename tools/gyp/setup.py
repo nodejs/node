@@ -15,7 +15,7 @@ with open(path.join(here, "README.md")) as in_file:
 
 setup(
     name="gyp-next",
-    version="0.6.2",
+    version="0.7.0",
     description="A fork of the GYP build system for use in the Node.js projects",
     long_description=long_description,
     long_description_content_type="text/markdown",
