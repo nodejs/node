@@ -10,10 +10,6 @@ function run(input, expectation) {
     assert.ok(data.includes(expectation));
   }));
 
-  node.on('close', common.mustCall((code) => {
-    assert.strictEqual(code, 1);
-  }));
-
   node.stdin.write(input);
   node.stdin.end();
 }
