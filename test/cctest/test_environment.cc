@@ -622,13 +622,14 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   node::InitializeContext(context);
   v8::Context::Scope context_scope(context);
 
-  int callback_calls = 0;
+  using IntVec = std::vector<int>;
+  IntVec callback_calls;
   v8::Local<v8::Function> must_call = v8::Function::New(
       context,
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-        int* callback_calls =
-            static_cast<int*>(info.Data().As<v8::External>()->Value());
-        *callback_calls |= info[0].As<v8::Int32>()->Value();
+        IntVec* callback_calls = static_cast<IntVec*>(
+            info.Data().As<v8::External>()->Value());
+        callback_calls->push_back(info[0].As<v8::Int32>()->Value());
       },
       v8::External::New(isolate_, static_cast<void*>(&callback_calls)))
           .ToLocalChecked();
@@ -645,23 +646,40 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
       isolate_data, context, {}, {});
   CHECK_NE(nullptr, env);
 
-  node::LoadEnvironment(
+  v8::Local<v8::Function> eval_in_env = node::LoadEnvironment(
       env,
-      "Promise.resolve().then(() => mustCall(1 << 0));\n"
+      "mustCall(1);\n"
+      "Promise.resolve().then(() => mustCall(2));\n"
       "require('vm').runInNewContext("
-      "    'Promise.resolve().then(() => mustCall(1 << 1))',"
+      "    'Promise.resolve().then(() => mustCall(3))',"
       "    { mustCall },"
       "    { microtaskMode: 'afterEvaluate' }"
-      ");"
+      ");\n"
       "require('vm').runInNewContext("
-      "    'Promise.resolve().then(() => mustCall(1 << 2))',"
+      "    'Promise.resolve().then(() => mustCall(4))',"
       "    { mustCall }"
-      ");").ToLocalChecked();
-  EXPECT_EQ(callback_calls, 1 << 1);
+      ");\n"
+      "setTimeout(() => {"
+      "  Promise.resolve().then(() => mustCall(5));"
+      "}, 10);\n"
+      "mustCall(6);\n"
+      "return eval;\n").ToLocalChecked().As<v8::Function>();
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4 }));
+  v8::Local<v8::Value> queue_microtask_code = v8::String::NewFromUtf8Literal(
+      isolate_, "queueMicrotask(() => mustCall(7));");
+  eval_in_env->Call(context,
+                    v8::Null(isolate_),
+                    1,
+                    &queue_microtask_code).ToLocalChecked();
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4 }));
   isolate_->PerformMicrotaskCheckpoint();
-  EXPECT_EQ(callback_calls, 1 << 1);
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4 }));
   queue->PerformCheckpoint(isolate_);
-  EXPECT_EQ(callback_calls, (1 << 0) | (1 << 1) | (1 << 2));
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4, 7 }));
+
+  int exit_code = SpinEventLoop(env).FromJust();
+  EXPECT_EQ(exit_code, 0);
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4, 7, 5 }));
 
   node::FreeEnvironment(env);
   node::FreeIsolateData(isolate_data);

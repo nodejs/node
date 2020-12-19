@@ -111,7 +111,7 @@ void InternalCallbackScope::Close() {
   auto weakref_cleanup = OnScopeLeave([&]() { env_->RunWeakRefCleanup(); });
 
   if (!tick_info->has_tick_scheduled()) {
-    MicrotasksScope::PerformCheckpoint(env_->isolate());
+    env_->context()->GetMicrotaskQueue()->PerformCheckpoint(env_->isolate());
 
     perform_stopping_check();
   }

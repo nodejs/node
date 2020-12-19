@@ -101,7 +101,8 @@ static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
-  MicrotasksScope::PerformCheckpoint(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
+  env->context()->GetMicrotaskQueue()->PerformCheckpoint(env->isolate());
 }
 
 static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {
