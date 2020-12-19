@@ -68,7 +68,8 @@ module.exports = {
                             caughtErrorsIgnorePattern: {
                                 type: "string"
                             }
-                        }
+                        },
+                        additionalProperties: false
                     }
                 ]
             }

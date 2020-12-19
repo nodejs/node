@@ -5,7 +5,7 @@ import validateStreamConfig from '../dist/validateStreamConfig';
 
 const validate = {
   'config.json': validateConfig,
-  'streamConfig.json': validateStreamConfig
+  'streamConfig.json': validateStreamConfig,
 };
 
 /**
@@ -20,7 +20,7 @@ export default (schemaId, config = {}) => {
         dataPath: error.dataPath,
         message: error.message,
         params: error.params,
-        schemaPath: error.schemaPath
+        schemaPath: error.schemaPath,
       };
     });
 

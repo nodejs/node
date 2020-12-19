@@ -223,6 +223,7 @@ module.exports = {
             BreakStatement: checkNode,
             ContinueStatement: checkNode,
             DebuggerStatement: checkNode,
+            DoWhileStatement: checkNode,
             ReturnStatement: checkNode,
             ThrowStatement: checkNode,
             ImportDeclaration: checkNode,

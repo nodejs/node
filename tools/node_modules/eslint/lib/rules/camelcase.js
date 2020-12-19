@@ -32,6 +32,10 @@ module.exports = {
                         type: "boolean",
                         default: false
                     },
+                    ignoreGlobals: {
+                        type: "boolean",
+                        default: false
+                    },
                     properties: {
                         enum: ["always", "never"]
                     },
@@ -61,7 +65,10 @@ module.exports = {
         let properties = options.properties || "";
         const ignoreDestructuring = options.ignoreDestructuring;
         const ignoreImports = options.ignoreImports;
+        const ignoreGlobals = options.ignoreGlobals;
         const allow = options.allow || [];
+
+        let globalScope;
 
         if (properties !== "always" && properties !== "never") {
             properties = "always";
@@ -160,6 +167,37 @@ module.exports = {
         }
 
         /**
+         * Checks whether the given node represents a reference to a global variable that is not declared in the source code.
+         * These identifiers will be allowed, as it is assumed that user has no control over the names of external global variables.
+         * @param {ASTNode} node `Identifier` node to check.
+         * @returns {boolean} `true` if the node is a reference to a global variable.
+         */
+        function isReferenceToGlobalVariable(node) {
+            const variable = globalScope.set.get(node.name);
+
+            return variable && variable.defs.length === 0 &&
+                variable.references.some(ref => ref.identifier === node);
+        }
+
+        /**
+         * Checks whether the given node represents a reference to a property of an object in an object literal expression.
+         * This allows to differentiate between a global variable that is allowed to be used as a reference, and the key
+         * of the expressed object (which shouldn't be allowed).
+         * @param {ASTNode} node `Identifier` node to check.
+         * @returns {boolean} `true` if the node is a property name of an object literal expression
+         */
+        function isPropertyNameInObjectLiteral(node) {
+            const parent = node.parent;
+
+            return (
+                parent.type === "Property" &&
+                parent.parent.type === "ObjectExpression" &&
+                !parent.computed &&
+                parent.key === node
+            );
+        }
+
+        /**
          * Reports an AST node as a rule violation.
          * @param {ASTNode} node The node to report.
          * @returns {void}
@@ -174,6 +212,10 @@ module.exports = {
 
         return {
 
+            Program() {
+                globalScope = context.getScope();
+            },
+
             Identifier(node) {
 
                 /*
@@ -186,6 +228,11 @@ module.exports = {
 
                 // First, we ignore the node if it match the ignore list
                 if (isAllowed(name)) {
+                    return;
+                }
+
+                // Check if it's a global variable
+                if (ignoreGlobals && isReferenceToGlobalVariable(node) && !isPropertyNameInObjectLiteral(node)) {
                     return;
                 }
 

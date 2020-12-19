@@ -39,7 +39,7 @@ const drawBorderTop = (columnSizeIndex, parts) => {
     body: parts.topBody,
     join: parts.topJoin,
     left: parts.topLeft,
-    right: parts.topRight
+    right: parts.topRight,
   });
 
   if (border === '\n') {
@@ -67,7 +67,7 @@ const drawBorderJoin = (columnSizeIndex, parts) => {
     body: parts.joinBody,
     join: parts.joinJoin,
     left: parts.joinLeft,
-    right: parts.joinRight
+    right: parts.joinRight,
   });
 };
 
@@ -89,7 +89,7 @@ const drawBorderBottom = (columnSizeIndex, parts) => {
     body: parts.bottomBody,
     join: parts.bottomJoin,
     left: parts.bottomLeft,
-    right: parts.bottomRight
+    right: parts.bottomRight,
   });
 };
 
@@ -97,5 +97,5 @@ export {
   drawBorder,
   drawBorderBottom,
   drawBorderJoin,
-  drawBorderTop
+  drawBorderTop,
 };
