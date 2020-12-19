@@ -1,41 +1,27 @@
 'use strict';
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const repl = require('repl');
+const { spawn } = require('child_process');
 
 function run(input, expectation) {
-  const inputStream = new ArrayStream();
-  const outputStream = new ArrayStream();
-  let output = '';
+  const node = spawn('node');
 
-  outputStream.write = (data) => { output += data.replace('\r', ''); };
-
-  const r = repl.start({
-    input: inputStream,
-    output: outputStream,
-    terminal: true
-  });
-
-  r.on('exit', common.mustCall(() => {
-    const actual = output.split('\n');
-
-    // Validate that the for loop returns undefined
-    assert.strictEqual(actual[actual.length - 2], expectation);
+  node.stderr.on('data', common.mustCall((data) => {
+    assert.ok(data.includes(expectation));
   }));
 
-  inputStream.run(input);
-  r.close();
+  node.on('close', common.mustCall((code) => {
+    assert.strictEqual(code, 1);
+  }));
+
+  node.stdin.write(input);
+  node.stdin.end();
 }
 
-run([
-  'delete Array.prototype[Symbol.iterator];',
-  'for(const x of [3, 2, 1]);'
-], 'Uncaught TypeError: [3,2,1] is not iterable');
+run('delete Array.prototype[Symbol.iterator];',
+    'TypeError: Found non-callable @@iterator');
 
-run([
-  'const ArrayIteratorPrototype =',
-  '  Object.getPrototypeOf(Array.prototype[Symbol.iterator]());',
-  'delete ArrayIteratorPrototype.next;',
-  'for(const x of [3, 2, 1]);'
-], 'Uncaught TypeError: undefined is not a function');
+run('const ArrayIteratorPrototype =' +
+      'Object.getPrototypeOf(Array.prototype[Symbol.iterator]());' +
+      'delete ArrayIteratorPrototype.next;',
+    'TypeError: fn is not a function');
