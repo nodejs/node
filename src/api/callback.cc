@@ -12,7 +12,6 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::MicrotasksScope;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -111,7 +110,7 @@ void InternalCallbackScope::Close() {
   auto weakref_cleanup = OnScopeLeave([&]() { env_->RunWeakRefCleanup(); });
 
   if (!tick_info->has_tick_scheduled()) {
-    MicrotasksScope::PerformCheckpoint(env_->isolate());
+    env_->context()->GetMicrotaskQueue()->PerformCheckpoint(env_->isolate());
 
     perform_stopping_check();
   }
