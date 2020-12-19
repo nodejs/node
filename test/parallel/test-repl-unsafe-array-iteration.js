@@ -6,9 +6,8 @@ const { spawn } = require('child_process');
 function run(input, expectation) {
   const node = spawn(process.argv0);
 
-  node.stderr.on('data', common.mustCall((data) => {
-    assert.ok(data.includes(expectation));
-  }));
+  node.stderr.on('data', common.mustNotCall());
+  node.on('exit', common.mustCall((code) => assert.strictEqual(code, 0)));
 
   node.stdin.write(input);
   node.stdin.end();
