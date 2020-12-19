@@ -5,8 +5,8 @@ import validateConfig from './validateConfig';
 /**
  * Merges user provided border characters with the default border ("honeywell") characters.
  *
- * @param {Object} border
- * @returns {Object}
+ * @param {object} border
+ * @returns {object}
  */
 const makeBorder = (border = {}) => {
   return Object.assign({}, getBorderCharacters('honeywell'), border);
@@ -17,9 +17,9 @@ const makeBorder = (border = {}) => {
  * values for the missing configuration properties.
  *
  * @param {number} columnCount
- * @param {Object} columns
- * @param {Object} columnDefault
- * @returns {Object}
+ * @param {object} columns
+ * @param {object} columnDefault
+ * @returns {object}
  */
 const makeColumns = (columnCount, columns = {}, columnDefault = {}) => {
   _.times(columnCount, (index) => {
@@ -32,7 +32,7 @@ const makeColumns = (columnCount, columns = {}, columnDefault = {}) => {
       paddingLeft: 1,
       paddingRight: 1,
       truncate: Infinity,
-      wrapWord: false
+      wrapWord: false,
     }, columnDefault, columns[index]);
   });
 
@@ -40,7 +40,7 @@ const makeColumns = (columnCount, columns = {}, columnDefault = {}) => {
 };
 
 /**
- * @typedef {Object} columnConfig
+ * @typedef {object} columnConfig
  * @property {string} alignment
  * @property {number} width
  * @property {number} truncate
@@ -49,9 +49,9 @@ const makeColumns = (columnCount, columns = {}, columnDefault = {}) => {
  */
 
 /**
- * @typedef {Object} streamConfig
+ * @typedef {object} streamConfig
  * @property {columnConfig} columnDefault
- * @property {Object} border
+ * @property {object} border
  * @property {columnConfig[]}
  * @property {number} columnCount Number of columns in the table (required).
  */
@@ -61,7 +61,7 @@ const makeColumns = (columnCount, columns = {}, columnDefault = {}) => {
  * using default values for the missing configuration properties.
  *
  * @param {streamConfig} userConfig
- * @returns {Object}
+ * @returns {object}
  */
 export default (userConfig = {}) => {
   validateConfig('streamConfig.json', userConfig);

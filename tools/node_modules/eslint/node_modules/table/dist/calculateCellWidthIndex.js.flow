@@ -11,7 +11,7 @@ export default (cells) => {
     return Math.max(
       ...value.split('\n').map((line) => {
         return stringWidth(line);
-      })
+      }),
     );
   });
 };

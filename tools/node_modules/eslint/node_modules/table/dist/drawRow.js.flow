@@ -1,5 +1,5 @@
 /**
- * @typedef {Object} drawRow~border
+ * @typedef {object} drawRow~border
  * @property {string} bodyLeft
  * @property {string} bodyRight
  * @property {string} bodyJoin

@@ -113,6 +113,9 @@ class SegmentInfo {
 
             if (info) {
                 info.freshReadVariableNames.add(variableName);
+
+                // If a variable is freshly read again, then it's no more out-dated.
+                info.outdatedReadVariableNames.delete(variableName);
             }
         }
     }
