@@ -3,20 +3,59 @@ const common = require('../common');
 const assert = require('assert');
 const { spawn } = require('child_process');
 
-function run(input, expectation) {
-  const node = spawn(process.argv0);
+const replProcess = spawn(process.argv0, ['--interactive'], {
+  stdio: ['pipe', 'pipe', 'inherit'],
+  windowsHide: true,
+});
 
-  node.stderr.on('data', common.mustNotCall());
-  node.on('exit', common.mustCall((code) => assert.strictEqual(code, 0)));
+replProcess.on('error', common.mustNotCall());
 
-  node.stdin.write(input);
-  node.stdin.end();
+const replReadyState = (async function* () {
+  let ready;
+  const replReadyBuffer = Buffer.from('> ');
+  replProcess.stdout.on('data', (data) => {
+    ready = Buffer.compare(data, replReadyBuffer) === 0;
+  });
+
+  const processCrashed = new Promise((resolve, reject) =>
+    replProcess.on('exit', reject)
+  );
+  while (true) {
+    await Promise.race([new Promise(setImmediate), processCrashed]);
+    if (ready) {
+      ready = false;
+      yield;
+    }
+  }
+})();
+async function writeLn(data, expectedOutput) {
+  await replReadyState.next();
+  if (expectedOutput) {
+    replProcess.stdout.once('data', common.mustCall((data) =>
+      assert.match(data.toString('utf8'), expectedOutput)
+    ));
+  }
+  await new Promise((resolve, reject) => replProcess.stdin.write(
+    `${data}\n`,
+    (err) => (err ? reject(err) : resolve())
+  ));
 }
 
-run('delete Array.prototype[Symbol.iterator];',
-    'TypeError: Found non-callable @@iterator');
+async function main() {
+  await writeLn(
+    'const ArrayIteratorPrototype =' +
+      '  Object.getPrototypeOf(Array.prototype[Symbol.iterator]());'
+  );
+  await writeLn('delete ArrayIteratorPrototype.next;');
+  await writeLn('delete Array.prototype[Symbol.iterator];');
 
-run('const ArrayIteratorPrototype =' +
-      'Object.getPrototypeOf(Array.prototype[Symbol.iterator]());' +
-      'delete ArrayIteratorPrototype.next;',
-    'TypeError: fn is not a function');
+  await writeLn(
+    'for(const x of [3, 2, 1]);',
+    /Uncaught TypeError: \[3,2,1\] is not iterable/
+  );
+  await writeLn('.exit');
+
+  assert(!replProcess.connected);
+}
+
+main().then(common.mustCall());
