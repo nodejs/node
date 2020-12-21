@@ -901,7 +901,7 @@ socket.on('data', (id) => {
 [`child_process` event: `'message'`]: child_process.md#child_process_event_message
 [`cluster.settings`]: #cluster_cluster_settings
 [`disconnect()`]: child_process.md#child_process_subprocess_disconnect
-[`.isPrimary()`]: #cluster_cluster_isprimary
+[`cluster.isPrimary()`]: #cluster_cluster_isprimary
 [`kill()`]: process.md#process_process_kill_pid_signal
 [`process` event: `'message'`]: process.md#process_event_message
 [`server.close()`]: net.md#net_event_close
