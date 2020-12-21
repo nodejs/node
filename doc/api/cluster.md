@@ -688,6 +688,7 @@ This can only be called from the primary process.
 ## `cluster.isMaster`
 <!-- YAML
 added: v0.8.1
+deprecated: REPLACEME
 -->
 
 Deprecated alias for [`cluster.isPrimary`][].
@@ -792,6 +793,7 @@ changes:
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7838
     description: The `stdio` option is supported now.
+deprecated: REPLACEME
 -->
 
 Deprecated alias for [`.setupPrimary()`][].
@@ -899,6 +901,7 @@ socket.on('data', (id) => {
 [`child_process` event: `'message'`]: child_process.md#child_process_event_message
 [`cluster.settings`]: #cluster_cluster_settings
 [`disconnect()`]: child_process.md#child_process_subprocess_disconnect
+[`.isPrimary()`]: #cluster_cluster_isprimary
 [`kill()`]: process.md#process_process_kill_pid_signal
 [`process` event: `'message'`]: process.md#process_event_message
 [`server.close()`]: net.md#net_event_close
