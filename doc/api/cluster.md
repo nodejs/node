@@ -690,7 +690,7 @@ This can only be called from the primary process.
 added: v0.8.1
 -->
 
-Deprecated alias for isMaster, see isPrimary for more
+Deprecated alias for [`cluster.isPrimary`][].
 details.
 
 ## `cluster.isPrimary`
