@@ -12,9 +12,16 @@ replProcess.on('error', common.mustNotCall());
 
 const replReadyState = (async function* () {
   let ready;
-  const replReadyBuffer = Buffer.from('> ');
+  const SPACE = ' '.charCodeAt();
+  const BRACKET = '>'.charCodeAt();
+  const DOT = '.'.charCodeAt();
   replProcess.stdout.on('data', (data) => {
-    ready = Buffer.compare(data, replReadyBuffer) === 0;
+    ready = data[data.length - 1] === SPACE && (
+      data[data.length - 2] === BRACKET || (
+        data[data.length - 2] === DOT &&
+        data[data.length - 3] === DOT &&
+        data[data.length - 4] === DOT
+      ));
   });
 
   const processCrashed = new Promise((resolve, reject) =>
