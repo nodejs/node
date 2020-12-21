@@ -379,6 +379,11 @@ declare namespace Primordials {
   export const RegExpPrototypeCompile: UncurryThis<typeof RegExp.prototype.compile>
   export const RegExpPrototypeToString: UncurryThis<typeof RegExp.prototype.toString>
   export const RegExpPrototypeTest: UncurryThis<typeof RegExp.prototype.test>
+  export const RegExpPrototypeSymbolMatch: UncurryThis<typeof RegExp.prototype[typeof Symbol.match]>
+  export const RegExpPrototypeSymbolMatchAll: UncurryThis<typeof RegExp.prototype[typeof Symbol.matchAll]>
+  export const RegExpPrototypeSymbolReplace: UncurryThis<typeof RegExp.prototype[typeof Symbol.replace]>
+  export const RegExpPrototypeSymbolSearch: UncurryThis<typeof RegExp.prototype[typeof Symbol.search]>
+  export const RegExpPrototypeSymbolSplit: UncurryThis<typeof RegExp.prototype[typeof Symbol.split]>
   export const Set: typeof globalThis.Set;
   export const SetLength: typeof Set.length
   export const SetName: typeof Set.name
