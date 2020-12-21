@@ -794,8 +794,7 @@ changes:
     description: The `stdio` option is supported now.
 -->
 
-Deprecated alias for setupPrimary, see setupPrimary
-for more details.
+Deprecated alias for [`.setupPrimary()`][].
 
 ## `cluster.setupPrimary([settings])`
 <!-- YAML
