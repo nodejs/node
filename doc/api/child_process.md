@@ -424,7 +424,7 @@ The `shell` option available in [`child_process.spawn()`][] is not supported by
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v15.5.0
     pr-url: https://github.com/nodejs/node/pull/36432
     description: AbortSignal support was added.
   - version:
