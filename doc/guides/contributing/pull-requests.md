@@ -268,34 +268,9 @@ $ git push origin my-branch
 
 ### Step 8: Opening the Pull Request
 
-From within GitHub, opening a new Pull Request will present you with a template
-that should be filled out:
-
-```markdown
-<!--
-Thank you for your Pull Request. Please provide a description above and review
-the requirements below.
-
-Bug fixes and new features should include tests and possibly benchmarks.
-
-Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
--->
-
-#### Related Issues
-
-Fixes: https://github.com/nodejs/node/issues/<issue_number>
-
-#### Checklist
-<!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
-
-- [ ] `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes
-- [ ] tests and/or benchmarks are included
-- [ ] documentation is changed or added
-- [ ] commit message follows [commit guidelines](https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#commit-message-guidelines)
-```
-
-Please try to do your best at filling out the details, but feel free to skip
-parts if you're not sure what to put.
+From within GitHub, opening a new Pull Request will present you with a
+[pull request template][]. Please try to do your best at filling out the
+details, but feel free to skip parts if you're not sure what to put.
 
 Once opened, Pull Requests are usually reviewed within a few days.
 
@@ -630,4 +605,5 @@ More than one subsystem may be valid for any particular issue or pull request.
 [guide for writing tests in Node.js]: ../writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
+[pull request template]: https://raw.githubusercontent.com/nodejs/node/master/.github/PULL_REQUEST_TEMPLATE.md
 [running tests]: ../../../BUILDING.md#running-tests
