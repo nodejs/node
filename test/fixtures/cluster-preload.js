@@ -9,4 +9,4 @@ assert.deepStrictEqual(module.parent.paths, expectedPaths);
 
 const cluster = require('cluster');
 cluster.isPrimary || process.exit(42 + cluster.worker.id); // +42 to distinguish
- // from exit(1) for other random reasons
+// from exit(1) for other random reasons
