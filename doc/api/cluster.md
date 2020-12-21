@@ -691,7 +691,7 @@ added: v0.8.1
 deprecated: REPLACEME
 -->
 
-Deprecated alias for [`cluster.isPrimary`][].
+Deprecated alias for [`cluster.isPrimary()`][].
 details.
 
 ## `cluster.isPrimary`
@@ -789,11 +789,11 @@ This object is not intended to be changed or set manually.
 ## `cluster.setupMaster([settings])`
 <!-- YAML
 added: v0.7.1
+deprecated: REPLACEME
 changes:
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7838
     description: The `stdio` option is supported now.
-deprecated: REPLACEME
 -->
 
 Deprecated alias for [`.setupPrimary()`][].
