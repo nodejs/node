@@ -335,6 +335,7 @@ struct IsolateSettings {
   v8::PromiseRejectCallback promise_reject_callback = nullptr;
   v8::AllowWasmCodeGenerationCallback
       allow_wasm_code_generation_callback = nullptr;
+  v8::WasmStreamingCallback wasm_streaming_callback = nullptr;
 };
 
 // Overriding IsolateSettings may produce unexpected behavior

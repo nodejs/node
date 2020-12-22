@@ -5,6 +5,7 @@
 #include "node_native_module_env.h"
 #include "node_platform.h"
 #include "node_v8_platform-inl.h"
+#include "node_wasm_streaming.h"
 #include "uv.h"
 
 #if HAVE_INSPECTOR
@@ -244,6 +245,10 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
     s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
   isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
+
+  auto* wasm_streaming_callback = s.wasm_streaming_callback ?
+    s.wasm_streaming_callback : WasmStreaming::WasmStreamingCallback;
+  isolate->SetWasmStreamingCallback(wasm_streaming_callback);
 
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
     auto* promise_reject_cb = s.promise_reject_callback ?

@@ -473,6 +473,7 @@ constexpr size_t kFsStatsBufferLength =
   V(qlogoutputstream_constructor_template, v8::ObjectTemplate)                 \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
+  V(wasm_streaming_instance_template, v8::ObjectTemplate)                      \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
   QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
@@ -555,6 +556,7 @@ constexpr size_t kFsStatsBufferLength =
   V(trace_category_state_function, v8::Function)                               \
   V(udp_constructor_function, v8::Function)                                    \
   V(url_constructor_function, v8::Function)                                    \
+  V(wasm_streaming_callback, v8::Function)                                     \
   QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 
 class Environment;
