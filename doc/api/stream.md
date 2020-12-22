@@ -2380,7 +2380,7 @@ Calling `abort` on the `AbortController` corresponding to the passed
 on the readable created.
 
 ```js
-const fs = require('fs');
+const { Readable } = require('stream');
 const controller = new AbortController();
 const read = new Readable({
   read(size) {
