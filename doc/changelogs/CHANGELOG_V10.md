@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.23.1">10.23.1</a><br/>
 <a href="#10.23.0">10.23.0</a><br/>
 <a href="#10.22.1">10.22.1</a><br/>
 <a href="#10.22.0">10.22.0</a><br/>
@@ -70,6 +71,48 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.23.1"></a>
+## 2021-01-04, Version 10.23.1 'Dubnium' (LTS), @richardlau
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8265**: use-after-free in TLSWrap (High)
+Affected Node.js versions are vulnerable to a use-after-free bug in its
+TLS implementation. When writing to a TLS enabled socket,
+node::StreamBase::Write calls node::TLSWrap::DoWrite with a freshly
+allocated WriteWrap object as first argument. If the DoWrite method does
+not return an error, this object is passed back to the caller as part of
+a StreamWriteResult structure. This may be exploited to corrupt memory
+leading to a Denial of Service or potentially other exploits
+* **CVE-2020-8287**: HTTP Request Smuggling in nodejs
+Affected versions of Node.js allow two copies of a header field in a
+http request. For example, two Transfer-Encoding header fields. In this
+case Node.js identifies the first header field and ignores the second.
+This can lead to HTTP Request Smuggling
+(https://cwe.mitre.org/data/definitions/444.html).
+* **CVE-2020-1971**: OpenSSL - EDIPARTYNAME NULL pointer de-reference (High)
+This is a vulnerability in OpenSSL which may be exploited through Node.js.
+You can read more about it in
+https://www.openssl.org/news/secadv/20201208.txt
+
+### Commits
+
+* [[`bd44b0ee7f`](https://github.com/nodejs/node/commit/bd44b0ee7f)] - **build,win**: accept Python 3 if 2 is not available (João Reis) [#29236](https://github.com/nodejs/node/pull/29236)
+* [[`d5c9b09bdc`](https://github.com/nodejs/node/commit/d5c9b09bdc)] - **build,win**: find Python in paths with spaces (João Reis) [#29236](https://github.com/nodejs/node/pull/29236)
+* [[`323a6f114a`](https://github.com/nodejs/node/commit/323a6f114a)] - **deps**: update http-parser to http-parser@ec8b5ee63f (Richard Lau) [nodejs-private/node-private#235](https://github.com/nodejs-private/node-private/pull/235)
+* [[`f08d0fef64`](https://github.com/nodejs/node/commit/f08d0fef64)] - **deps**: upgrade npm to 6.14.10 (Ruy Adorno) [#36571](https://github.com/nodejs/node/pull/36571)
+* [[`b0608b574a`](https://github.com/nodejs/node/commit/b0608b574a)] - **deps**: update archs files for OpenSSL-1.1.1i (Richard Lau) [#36541](https://github.com/nodejs/node/pull/36541)
+* [[`d936e1833f`](https://github.com/nodejs/node/commit/d936e1833f)] - **deps**: upgrade openssl sources to 1.1.1i (Myles Borins) [#36541](https://github.com/nodejs/node/pull/36541)
+* [[`9c4970715c`](https://github.com/nodejs/node/commit/9c4970715c)] - **deps**: upgrade npm to 6.14.9 (Myles Borins) [#36450](https://github.com/nodejs/node/pull/36450)
+* [[`aa6b97fb99`](https://github.com/nodejs/node/commit/aa6b97fb99)] - **http**: add test for http transfer encoding smuggling (Richard Lau) [nodejs-private/node-private#235](https://github.com/nodejs-private/node-private/pull/235)
+* [[`fc70ce08f5`](https://github.com/nodejs/node/commit/fc70ce08f5)] - **http**: unset `F_CHUNKED` on new `Transfer-Encoding` (Fedor Indutny) [nodejs-private/node-private#235](https://github.com/nodejs-private/node-private/pull/235)
+* [[`7f178663eb`](https://github.com/nodejs/node/commit/7f178663eb)] - **src**: use unique\_ptr for WriteWrap (Daniel Bevenius) [nodejs-private/node-private#238](https://github.com/nodejs-private/node-private/pull/238)
+* [[`357e2857c8`](https://github.com/nodejs/node/commit/357e2857c8)] - **test**: add test-tls-use-after-free-regression (Daniel Bevenius) [nodejs-private/node-private#238](https://github.com/nodejs-private/node-private/pull/238)
 
 <a id="10.23.0"></a>
 ## 2020-10-27, Version 10.23.0 'Dubnium' (LTS), @richardlau
