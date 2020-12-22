@@ -95,7 +95,7 @@ for line in pipe:
       curr_octet += 1
 
   match = pattern.match(line)
-  if match == None:
+  if match is None:
     continue
 
   # Print previous symbol
