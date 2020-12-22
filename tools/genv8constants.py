@@ -14,7 +14,7 @@ import sys
 import errno
 
 if len(sys.argv) != 3:
-  print("usage: objsym.py outfile libv8_base.a")
+  print("Usage: genv8constants.py outfile libv8_base.a")
   sys.exit(2)
 
 outfile = open(sys.argv[1], 'w')
