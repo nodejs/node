@@ -113,3 +113,5 @@ outfile.write("""
 
 #endif /* V8_CONSTANTS_H */
 """)
+
+outfile.close()
