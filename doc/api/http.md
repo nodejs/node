@@ -1994,6 +1994,12 @@ as an argument to any listeners on the event.
 ### `message.headers`
 <!-- YAML
 added: v0.1.5
+changes:
+  - version: v15.1.0
+    pr-url: https://github.com/nodejs/node/pull/35281
+    description: >-
+      `message.headers` is now lazily computed using an accessor property
+      on the prototype.
 -->
 
 * {Object}
