@@ -20,3 +20,9 @@ channel.subscribe(common.mustCall((message, name) => {
 }));
 
 channel.publish(input);
+
+{
+  assert.throws(() => {
+    dc.channel(null);
+  }, /ERR_INVALID_ARG_TYPE/);
+}

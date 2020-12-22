@@ -37,3 +37,7 @@ channel.publish(input);
 // Should not publish after subscriber is unsubscribed
 channel.unsubscribe(subscriber);
 assert.ok(!channel.hasSubscribers);
+
+assert.throws(() => {
+  channel.subscribe(null);
+}, { code: 'ERR_INVALID_ARG_TYPE' });
