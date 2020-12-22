@@ -71,12 +71,12 @@ const execOpts = { encoding: 'utf8', shell: true };
   ac.abort();
 
   try {
-      execFile(process.execPath, [echoFixture, 0], { signal }); 
+    execFile(process.execPath, [echoFixture, 0], { signal });
   } catch (err) {
-      assert.strictEqual(err.code, 'ABORT_ERR');
-      assert.strictEqual(err.name, 'AbortError');
+    assert.strictEqual(err.code, 'ABORT_ERR');
+    assert.strictEqual(err.name, 'AbortError');
   }
-  
+
 }
 
 {
