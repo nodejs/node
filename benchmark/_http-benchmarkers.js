@@ -29,7 +29,8 @@ class AutocannonBenchmarker {
     for (const field in options.headers) {
       args.push('-H', `${field}=${options.headers[field]}`);
     }
-    args.push(`http://127.0.0.1:${options.port}${options.path}`);
+    const scheme = options.scheme || 'http';
+    args.push(`${scheme}://127.0.0.1:${options.port}${options.path}`);
     const child = child_process.spawn(this.executable, args);
     return child;
   }
@@ -60,11 +61,12 @@ class WrkBenchmarker {
     const duration = typeof options.duration === 'number' ?
       Math.max(options.duration, 1) :
       options.duration;
+    const scheme = options.scheme || 'http';
     const args = [
       '-d', duration,
       '-c', options.connections,
       '-t', Math.min(options.connections, require('os').cpus().length || 8),
-      `http://127.0.0.1:${options.port}${options.path}`,
+      `${scheme}://127.0.0.1:${options.port}${options.path}`,
     ];
     for (const field in options.headers) {
       args.push('-H', `${field}: ${options.headers[field]}`);
@@ -90,8 +92,8 @@ class WrkBenchmarker {
  */
 class TestDoubleBenchmarker {
   constructor(type) {
-    // `type` is the type of benchmarker. Possible values are 'http' and
-    // 'http2'.
+    // `type` is the type of benchmarker. Possible values are 'http', 'https',
+    // and 'http2'.
     this.name = `test-double-${type}`;
     this.executable = path.resolve(__dirname, '_test-double-benchmarker.js');
     this.present = fs.existsSync(this.executable);
@@ -101,8 +103,9 @@ class TestDoubleBenchmarker {
   create(options) {
     process.env.duration = process.env.duration || options.duration || 5;
 
+    const scheme = options.scheme || 'http';
     const env = {
-      test_url: `http://127.0.0.1:${options.port}${options.path}`,
+      test_url: `${scheme}://127.0.0.1:${options.port}${options.path}`,
       ...process.env
     };
 
@@ -179,6 +182,7 @@ const http_benchmarkers = [
   new WrkBenchmarker(),
   new AutocannonBenchmarker(),
   new TestDoubleBenchmarker('http'),
+  new TestDoubleBenchmarker('https'),
   new TestDoubleBenchmarker('http2'),
   new H2LoadBenchmarker(),
 ];
