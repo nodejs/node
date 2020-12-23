@@ -1426,7 +1426,7 @@ void URL::Parse(const char* input,
     const char ch = p < end ? p[0] : kEOL;
     bool special = (url->flags & URL_FLAGS_SPECIAL);
     bool cannot_be_base;
-    const bool special_back_slash = (special && ch == '\\');
+    bool special_back_slash = (special && ch == '\\');
 
     switch (state) {
       case kSchemeStart:
@@ -1476,6 +1476,7 @@ void URL::Parse(const char* input,
             url->flags &= ~URL_FLAGS_SPECIAL;
             special = false;
           }
+          special_back_slash = (special && ch == '\\');
           buffer.clear();
           if (has_state_override)
             return;
@@ -1520,6 +1521,7 @@ void URL::Parse(const char* input,
             url->flags &= ~URL_FLAGS_SPECIAL;
             special = false;
           }
+          special_back_slash = (special && ch == '\\');
           if (base->flags & URL_FLAGS_HAS_PATH) {
             url->flags |= URL_FLAGS_HAS_PATH;
             url->path = base->path;
@@ -1543,6 +1545,7 @@ void URL::Parse(const char* input,
           url->flags |= URL_FLAGS_SPECIAL;
           special = true;
           state = kFile;
+          special_back_slash = (special && ch == '\\');
           continue;
         }
         break;
@@ -1572,6 +1575,7 @@ void URL::Parse(const char* input,
           url->flags &= ~URL_FLAGS_SPECIAL;
           special = false;
         }
+        special_back_slash = (special && ch == '\\');
         switch (ch) {
           case kEOL:
             if (base->flags & URL_FLAGS_HAS_USERNAME) {
