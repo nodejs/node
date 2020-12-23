@@ -4,6 +4,8 @@
 
 * [Prerequisites](#prerequisites)
   * [HTTP Benchmark Requirements](#http-benchmark-requirements)
+  * [HTTPS Benchmark Requirements](#https-benchmark-requirements)
+  * [HTTP/2 Benchmark Requirements](#http2-benchmark-requirements)
   * [Benchmark Analysis Requirements](#benchmark-analysis-requirements)
 * [Running benchmarks](#running-benchmarks)
   * [Running individual benchmarks](#running-individual-benchmarks)
@@ -43,13 +45,20 @@ benchmarker to be used should be specified by providing it as an argument:
 
 `node benchmark/http/simple.js benchmarker=autocannon`
 
+#### HTTPS Benchmark Requirements
+
+To run the `https` benchmarks, one of `autocannon` or `wrk` benchmarkers must
+be used.
+
+`node benchmark/https/simple.js benchmarker=autocannon`
+
 #### HTTP/2 Benchmark Requirements
 
 To run the `http2` benchmarks, the `h2load` benchmarker must be used. The
 `h2load` tool is a component of the `nghttp2` project and may be installed
 from [nghttp2.org][] or built from source.
 
-`node benchmark/http2/simple.js benchmarker=autocannon`
+`node benchmark/http2/simple.js benchmarker=h2load`
 
 ### Benchmark Analysis Requirements
 
