@@ -40,4 +40,4 @@ assert.ok(!channel.hasSubscribers);
 
 assert.throws(() => {
   channel.subscribe(null);
-}, /ERR_INVALID_ARG_TYPE/);
+}, { code: 'ERR_INVALID_ARG_TYPE' });
