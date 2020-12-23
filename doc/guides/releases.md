@@ -497,7 +497,7 @@ $ git secure-tag <vx.y.z> <commit-sha> -sm "YYYY-MM-DD Node.js vx.y.z (<release-
 ```
 
 `release-type` is either "Current" or "LTS". For LTS releases, you should also
- include the release codename, for example:
+ include the release code name.
 
 ```text
 2019-10-22 Node.js v10.17.0 'Dubnium' (LTS) Release
@@ -740,7 +740,7 @@ To mark a release line as LTS, the following changes must be made to
 * The `NODE_MINOR_VERSION` macro must be incremented by one
 * The `NODE_PATCH_VERSION` macro must be set to `0`
 * The `NODE_VERSION_IS_LTS` macro must be set to `1`
-* The `NODE_VERSION_LTS_CODENAME` macro must be set to the codename selected
+* The `NODE_VERSION_LTS_CODENAME` macro must be set to the code name selected
 for the LTS release.
 
 For example:
