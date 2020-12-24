@@ -324,6 +324,9 @@ Listening on a file descriptor is not supported on Windows.
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36623
+    description: AbortSignal support was added.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/23798
     description: The `ipv6Only` option is supported.
@@ -344,6 +347,7 @@ changes:
   * `ipv6Only` {boolean} For TCP servers, setting `ipv6Only` to `true` will
     disable dual-stack support, i.e., binding to host `::` won't make
     `0.0.0.0` be bound. **Default:** `false`.
+  * `signal` {AbortSignal} An AbortSignal that may be used to close a listening server.
 * `callback` {Function}
   functions.
 * Returns: {net.Server}
@@ -374,6 +378,20 @@ server.listen({
 Starting an IPC server as root may cause the server path to be inaccessible for
 unprivileged users. Using `readableAll` and `writableAll` will make the server
 accessible for all users.
+
+If the `signal` option is enabled, calling `.abort()` on the corresponding
+`AbortController` is similar to calling `.close()` on the server:
+
+```js
+const controller = new AbortController();
+server.listen({
+  host: 'localhost',
+  port: 80,
+  signal: controller.signal
+});
+// Later, when you want to close the server.
+controller.abort();
+```
 
 #### `server.listen(path[, backlog][, callback])`
 <!-- YAML
