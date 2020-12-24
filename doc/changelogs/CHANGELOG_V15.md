@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#15.5.1">15.5.1</a><br/>
 <a href="#15.5.0">15.5.0</a><br/>
 <a href="#15.4.0">15.4.0</a><br/>
 <a href="#15.3.0">15.3.0</a><br/>
@@ -38,6 +39,38 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="15.5.1"></a>
+## 2021-01-04, Version 15.5.1 (Current), @BethGriggs
+
+This is a security release.
+
+### Notable changes
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8265**: use-after-free in TLSWrap (High)
+  * Affected Node.js versions are vulnerable to a use-after-free bug in
+  its TLS implementation. When writing to a TLS enabled socket,
+  node::StreamBase::Write calls node::TLSWrap::DoWrite with a freshly
+  allocated WriteWrap object as first argument. If the DoWrite method
+  does not return an error, this object is passed back to the caller as
+  part of a StreamWriteResult structure. This may be exploited to
+  corrupt memory leading to a Denial of Service or potentially other
+  exploits.
+
+* **CVE-2020-8287**: HTTP Request Smuggling in nodejs (Low)
+  * Affected versions of Node.js allow two copies of a header field in
+  a http request. For example, two Transfer-Encoding header fields. In
+  this case Node.js identifies the first header field and ignores the
+  second. This can lead to HTTP Request Smuggling
+  (https://cwe.mitre.org/data/definitions/444.html).
+
+### Commits
+
+* [[`c5dbe831b7`](https://github.com/nodejs/node/commit/c5dbe831b7)] - **http**: add test for http transfer encoding smuggling (Matteo Collina) [nodejs-private/node-private#228](https://github.com/nodejs-private/node-private/pull/228)
+* [[`e0c9a2285c`](https://github.com/nodejs/node/commit/e0c9a2285c)] - **http**: unset `F_CHUNKED` on new `Transfer-Encoding` (Matteo Collina) [nodejs-private/node-private#228](https://github.com/nodejs-private/node-private/pull/228)
+* [[`9834ef85a0`](https://github.com/nodejs/node/commit/9834ef85a0)] - **src**: retain pointers to WriteWrap/ShutdownWrap (James M Snell) [nodejs-private/node-private#23](https://github.com/nodejs-private/node-private/pull/23)
 
 <a id="15.5.0"></a>
 ## 2020-12-22, Version 15.5.0 (Current), @targos
