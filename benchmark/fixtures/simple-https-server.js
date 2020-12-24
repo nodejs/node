@@ -46,7 +46,7 @@ module.exports = https.createServer(options, (req, res) => {
     body = 'not found\n';
   }
 
-  // example: http://localhost:port/bytes/512/4
+  // example: https://localhost:port/bytes/512/4
   // sends a 512 byte body in 4 chunks of 128 bytes
   const len = body.length;
   if (chunkedEnc) {
