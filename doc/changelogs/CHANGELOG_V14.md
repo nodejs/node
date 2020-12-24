@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.15.4">14.15.4</a><br/>
 <a href="#14.15.3">14.15.3</a><br/>
 <a href="#14.15.2">14.15.2</a><br/>
 <a href="#14.15.1">14.15.1</a><br/>
@@ -54,6 +55,46 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.15.4"></a>
+## 2021-01-04, Version 14.15.4 'Fermium' (LTS), @BethGriggs
+
+This is a security release.
+
+### Notable Changes
+
+Vulnerabilities fixed:
+
+* **CVE-2020-1971**: OpenSSL - EDIPARTYNAME NULL pointer de-reference (High)
+  * This is a vulnerability in OpenSSL which may be exploited through
+  Node.js. You can read more about it in
+  https://www.openssl.org/news/secadv/20201208.txt
+
+* **CVE-2020-8265**: use-after-free in TLSWrap (High)
+  * Affected Node.js versions are vulnerable to a use-after-free bug in
+  its TLS implementation. When writing to a TLS enabled socket,
+  node::StreamBase::Write calls node::TLSWrap::DoWrite with a freshly
+  allocated WriteWrap object as first argument. If the DoWrite method
+  does not return an error, this object is passed back to the caller as
+  part of a StreamWriteResult structure. This may be exploited to
+  corrupt memory leading to a Denial of Service or potentially other
+  exploits.
+
+* **CVE-2020-8287**: HTTP Request Smuggling in nodejs (Low)
+  * Affected versions of Node.js allow two copies of a header field in
+  a http request. For example, two Transfer-Encoding header fields. In
+  this case Node.js identifies the first header field and ignores the
+  second. This can lead to HTTP Request Smuggling
+  (https://cwe.mitre.org/data/definitions/444.html).
+
+### Commits
+
+* [[`305c0f4977`](https://github.com/nodejs/node/commit/305c0f4977)] - **deps**: upgrade npm to 6.14.10 (Ruy Adorno) [#36571](https://github.com/nodejs/node/pull/36571)
+* [[`d62c650f75`](https://github.com/nodejs/node/commit/d62c650f75)] - **deps**: update archs files for OpenSSL-1.1.1i (Myles Borins) [#36521](https://github.com/nodejs/node/pull/36521)
+* [[`2de2672eb5`](https://github.com/nodejs/node/commit/2de2672eb5)] - **deps**: upgrade openssl sources to 1.1.1i (Myles Borins) [#36521](https://github.com/nodejs/node/pull/36521)
+* [[`7ecac8143f`](https://github.com/nodejs/node/commit/7ecac8143f)] - **http**: add test for http transfer encoding smuggling (Matteo Collina) [nodejs-private/node-private#228](https://github.com/nodejs-private/node-private/pull/228)
+* [[`641f786bb1`](https://github.com/nodejs/node/commit/641f786bb1)] - **http**: unset `F_CHUNKED` on new `Transfer-Encoding` (Matteo Collina) [nodejs-private/node-private#228](https://github.com/nodejs-private/node-private/pull/228)
+* [[`4f8772f9b7`](https://github.com/nodejs/node/commit/4f8772f9b7)] - **src**: retain pointers to WriteWrap/ShutdownWrap (James M Snell) [nodejs-private/node-private#23](https://github.com/nodejs-private/node-private/pull/23)
 
 <a id="14.15.3"></a>
 ## 2020-12-17, Version 14.15.3 'Fermium' (LTS), @BethGriggs
