@@ -138,7 +138,7 @@
         'cflags': [ '-Werror', '-Wno-unknown-pragmas' ],
       },{
         'cflags!': [ '-Wall', '-Wextra' ],
-        'cflags': [ '-Wno-return-type', '-Wno-int-in-bool-context' ],
+        'cflags': [ '-Wno-return-type' ],
       }],
       ['v8_target_arch=="arm"', {
         'defines': [
