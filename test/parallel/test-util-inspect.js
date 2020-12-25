@@ -2011,6 +2011,11 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
     rest[rest.length - 1] = rest[rest.length - 1].slice(0, -1);
     rest.length = 1;
   }
+  Object.setPrototypeOf(clazz, Map.prototype);
+  assert.strictEqual(
+    util.inspect(clazz),
+    ['[class', name, '[Map]', ...rest].join(' ') + ']'
+  );
   Object.setPrototypeOf(clazz, null);
   assert.strictEqual(
     util.inspect(clazz),
