@@ -49,3 +49,20 @@ assert.strictEqual(cycle(Function), '[Function: Function]');
   assert.strictEqual(err.name, 'TypeError');
   assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
 }
+
+{
+  let called = false;
+  class DynamicError extends Error {
+    get type() {
+      called = true;
+      return 'dynamic';
+    }
+
+    get shouldIgnoreError() {
+      throw new Error();
+    }
+  }
+
+  serializeError(new DynamicError());
+  assert.deepStrictEqual(called, true);
+}
