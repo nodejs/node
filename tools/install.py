@@ -19,8 +19,8 @@ def abspath(*args):
   return os.path.abspath(path)
 
 def load_config():
-  s = open('config.gypi').read()
-  return ast.literal_eval(s)
+  with open('config.gypi') as f:
+    return ast.literal_eval(f.read())
 
 def try_unlink(path):
   try:
@@ -223,11 +223,19 @@ def run(args):
   cmd = args[1] if len(args) > 1 else 'install'
 
   if os.environ.get('HEADERS_ONLY'):
-    if cmd == 'install': return headers(install)
-    if cmd == 'uninstall': return headers(uninstall)
+    if cmd == 'install':
+      headers(install)
+      return
+    if cmd == 'uninstall':
+      headers(uninstall)
+      return
   else:
-    if cmd == 'install': return files(install)
-    if cmd == 'uninstall': return files(uninstall)
+    if cmd == 'install':
+      files(install)
+      return
+    if cmd == 'uninstall':
+      files(uninstall)
+      return
 
   raise RuntimeError('Bad command: %s\n' % cmd)
 
