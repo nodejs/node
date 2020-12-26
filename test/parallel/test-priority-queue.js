@@ -44,27 +44,6 @@ const PriorityQueue = require('internal/priority_queue');
 }
 
 {
-  // Checks that remove works as expected.
-  const queue = new PriorityQueue();
-  for (let i = 16; i > 0; i--)
-    queue.insert(i);
-
-  const removed = [5, 10, 15];
-  for (const id of removed)
-    assert(queue.remove(id));
-
-  assert(!queue.remove(100));
-  assert(!queue.remove(-100));
-
-  for (let i = 1; i < 17; i++) {
-    if (removed.indexOf(i) < 0)
-      assert.strictEqual(queue.shift(), i);
-  }
-
-  assert.strictEqual(queue.shift(), undefined);
-}
-
-{
   // Make a max heap with a custom sort function.
   const queue = new PriorityQueue((a, b) => b - a);
   for (let i = 1; i < 17; i++)
