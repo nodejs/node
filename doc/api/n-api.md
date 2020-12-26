@@ -1853,8 +1853,8 @@ napi_value Init(napi_env env, napi_value exports) {
 }
 ```
 
-If the module will be loaded multiple times during the lifetime of the Node.js
-process, use the `NAPI_MODULE_INIT` macro to initialize the module:
+You can also use the `NAPI_MODULE_INIT` macro, which acts as a shorthand
+for `NAPI_MODULE` and defining an `Init` function:
 
 ```c
 NAPI_MODULE_INIT() {
@@ -1871,13 +1871,9 @@ NAPI_MODULE_INIT() {
 }
 ```
 
-This macro includes `NAPI_MODULE`, and declares an `Init` function with a
-special name and with visibility beyond the addon. This will allow Node.js to
-initialize the module even if it is loaded multiple times.
-
-There are a few design considerations when declaring a module that may be loaded
-multiple times. The documentation of [context-aware addons][] provides more
-details.
+All N-API addons are context-aware, meaning they may be loaded multiple
+times. There are a few design considerations when declaring such a module.
+The documentation on [context-aware addons][] provides more details.
 
 The variables `env` and `exports` will be available inside the function body
 following the macro invocation.
