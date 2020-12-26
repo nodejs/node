@@ -245,6 +245,7 @@
     'defines': [
       'V8_DEPRECATION_WARNINGS',
       'V8_IMMINENT_DEPRECATION_WARNINGS',
+      '_GLIBCXX_USE_CXX11_ABI=1',
     ],
 
     # Forcibly disable -Werror.  We support a wide range of compilers, it's
