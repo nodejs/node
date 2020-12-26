@@ -304,6 +304,9 @@
             'defines': [
               'V8_TARGET_ARCH_PPC64',
             ],
+            'cflags': [
+              '-ffp-contract=off',
+            ],
           }],
           ['v8_host_byteorder=="little"', {
             'defines': [

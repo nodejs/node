@@ -81,8 +81,6 @@
             '<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h',
             '<(SHARED_INTERMEDIATE_DIR)/torque-generated/csa-types.h',
             '<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/runtime-macros.cc',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/runtime-macros.h',
             '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h',
             '<@(torque_outputs_csa_cc)',
             '<@(torque_outputs_csa_h)',
@@ -166,7 +164,6 @@
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.h',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc',
-          '<(SHARED_INTERMEDIATE_DIR)/torque-generated/runtime-macros.cc',
         ],
         'include_dirs': [
           '<(SHARED_INTERMEDIATE_DIR)',
