@@ -492,3 +492,26 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
       .on('response', common.mustCall());
   });
 }
+
+
+{
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      process.nextTick(callback);
+    }
+  });
+  w.aborted = false;
+  w.end();
+  let closed = false;
+  w.on('finish', () => {
+    assert.strictEqual(closed, false);
+    w.emit('aborted');
+  });
+  w.on('close', common.mustCall(() => {
+    closed = true;
+  }));
+
+  finished(w, common.mustCall(() => {
+    assert.strictEqual(closed, true);
+  }));
+}
