@@ -1701,8 +1701,7 @@ interface Window : EventTarget {
 
   // the user agent
   readonly attribute Navigator navigator;
-  [SecureContext] readonly attribute ApplicationCache applicationCache;
-  readonly attribute boolean originIsolated;
+  readonly attribute boolean originAgentCluster;
 
   // user prompts
   undefined alert();
@@ -1799,39 +1798,6 @@ dictionary PageTransitionEventInit : EventInit {
 [Exposed=Window]
 interface BeforeUnloadEvent : Event {
   attribute DOMString returnValue;
-};
-
-[SecureContext,
- Exposed=Window]
-interface ApplicationCache : EventTarget {
-
-  // update status
-  const unsigned short UNCACHED = 0;
-  const unsigned short IDLE = 1;
-  const unsigned short CHECKING = 2;
-  const unsigned short DOWNLOADING = 3;
-  const unsigned short UPDATEREADY = 4;
-  const unsigned short OBSOLETE = 5;
-  readonly attribute unsigned short status;
-
-  // updates
-  undefined update();
-  undefined abort();
-  undefined swapCache();
-
-  // events
-  attribute EventHandler onchecking;
-  attribute EventHandler onerror;
-  attribute EventHandler onnoupdate;
-  attribute EventHandler ondownloading;
-  attribute EventHandler onprogress;
-  attribute EventHandler onupdateready;
-  attribute EventHandler oncached;
-  attribute EventHandler onobsolete;
-};
-
-interface mixin NavigatorOnLine {
-  readonly attribute boolean onLine;
 };
 
 [Exposed=(Window,Worker)]
@@ -2046,6 +2012,10 @@ partial interface mixin NavigatorID {
 interface mixin NavigatorLanguage {
   readonly attribute DOMString language;
   readonly attribute FrozenArray<DOMString> languages;
+};
+
+interface mixin NavigatorOnLine {
+  readonly attribute boolean onLine;
 };
 
 interface mixin NavigatorContentUtils {
