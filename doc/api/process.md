@@ -577,15 +577,15 @@ This feature is not available in [`Worker`][] threads.
 added: v10.10.0
 -->
 
-* {Set}
+* {string[]}
 
 The `process.allowedNodeEnvironmentFlags` property is a special,
-read-only `Set` of flags allowable within the [`NODE_OPTIONS`][]
+read-only `Array` of flags allowable within the [`NODE_OPTIONS`][]
 environment variable.
 
-`process.allowedNodeEnvironmentFlags` extends `Set`, but overrides
-`Set.prototype.has` to recognize several different possible flag
-representations. `process.allowedNodeEnvironmentFlags.has()` will
+`process.allowedNodeEnvironmentFlags` is a frozen `Array`, but overrides
+`Array.prototype.includes` to recognize several different possible flag
+representations. `process.allowedNodeEnvironmentFlags.includes()` will
 return `true` in the following cases:
 
 * Flags may omit leading single (`-`) or double (`--`) dashes; e.g.,
@@ -612,10 +612,6 @@ process.allowedNodeEnvironmentFlags.forEach((flag) => {
   // ...
 });
 ```
-
-The methods `add()`, `clear()`, and `delete()` of
-`process.allowedNodeEnvironmentFlags` do nothing, and will fail
-silently.
 
 If Node.js was compiled *without* [`NODE_OPTIONS`][] support (shown in
 [`process.config`][]), `process.allowedNodeEnvironmentFlags` will
