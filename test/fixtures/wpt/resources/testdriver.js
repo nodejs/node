@@ -147,6 +147,24 @@
         },
 
         /**
+         * Deletes all cookies.
+         *
+         * This matches the behaviour of the {@link
+         * https://w3c.github.io/webdriver/#delete-all-cookies|WebDriver
+         * Delete All Cookies command}.
+         *
+         * @param {WindowProxy} context - Browsing context in which
+         *                                to run the call, or null for the current
+         *                                browsing context.
+         *
+         * @returns {Promise} fulfilled after cookies are deleted, or rejected in
+         *                    the cases the WebDriver command errors
+         */
+        delete_all_cookies: function(context=null) {
+            return window.test_driver_internal.delete_all_cookies(context);
+        },
+
+        /**
          * Send keys to an element
          *
          * This matches the behaviour of the {@link
@@ -456,6 +474,10 @@
             return new Promise(function(resolve, reject) {
                 element.addEventListener("click", resolve);
             });
+        },
+
+        delete_all_cookies: function(context=null) {
+            return Promise.reject(new Error("unimplemented"));
         },
 
         send_keys: function(element, keys) {
