@@ -23,6 +23,18 @@ async function onceAnEvent() {
   strictEqual(ee.listenerCount('myevent'), 0);
 }
 
+async function onceAnEventWithNullOptions() {
+  const ee = new EventEmitter();
+
+  process.nextTick(() => {
+    ee.emit('myevent', 42);
+  });
+
+  const [value] = await once(ee, 'myevent', null);
+  strictEqual(value, 42);
+}
+
+
 async function onceAnEventWithTwoArgs() {
   const ee = new EventEmitter();
 
@@ -195,6 +207,7 @@ async function eventTargetAbortSignalAfterEvent() {
 
 Promise.all([
   onceAnEvent(),
+  onceAnEventWithNullOptions(),
   onceAnEventWithTwoArgs(),
   catchesErrors(),
   stopListeningAfterCatchingError(),
