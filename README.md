@@ -431,6 +431,8 @@ For information about the governance of the Node.js project, see
 **Thomas Watson** &lt;w@tson.dk&gt;
 * [XadillaX](https://github.com/XadillaX) -
 **Khaidi Chu** &lt;i@2333.moe&gt; (he/him)
+* [yashLadha](https://github.com/yashLadha) -
+**Yash Ladha** &lt;yash@yashladha.in&gt; (he/him)
 * [yhwang](https://github.com/yhwang) -
 **Yihong Wang** &lt;yh.wang@ibm.com&gt;
 * [yorkie](https://github.com/yorkie) -
