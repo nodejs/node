@@ -16,7 +16,7 @@
     "path": "resources"
   },
   "interfaces": {
-    "commit": "8719553b2dd8f0f39d38253ccac2ee9ab4d6c87b",
+    "commit": "b4be9a3fdf18459a924f88e49bc55d8b30faa93a",
     "path": "interfaces"
   },
   "html/webappapis/microtask-queuing": {
