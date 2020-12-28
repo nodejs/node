@@ -148,6 +148,12 @@ const formatTests = {
     host: '[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:61616',
     pathname: '/s/stopButton'
   },
+  'http://[::]/': {
+    href: 'http://[::]/',
+    protocol: 'http:',
+    hostname: '[::]',
+    pathname: '/'
+  },
 
   // Encode context-specific delimiters in path and query, but do not touch
   // other non-delimiter chars like `%`.
