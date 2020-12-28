@@ -4,6 +4,7 @@ const common = require('../common');
 
 const {
   deepStrictEqual,
+  throws
 } = require('assert');
 
 const { getEventListeners, EventEmitter } = require('events');
@@ -33,4 +34,10 @@ const { getEventListeners, EventEmitter } = require('events');
   deepStrictEqual(getEventListeners(target, 'foo'), [fn1, fn2]);
   deepStrictEqual(getEventListeners(target, 'bar'), []);
   deepStrictEqual(getEventListeners(target, 'baz'), [fn1]);
+}
+
+{
+  throws(() => {
+    getEventListeners('INVALID_EMITTER');
+  }, /ERR_INVALID_ARG_TYPE/);
 }
