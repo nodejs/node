@@ -3,6 +3,7 @@
 
 #include "env-inl.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "string_bytes.h"
 #include "util.h"
@@ -30,11 +31,17 @@ MaybeLocal<String> MakeString(Isolate* isolate,
   Local<Value> error;
   MaybeLocal<Value> ret;
   if (encoding == UTF8) {
-    return String::NewFromUtf8(
+    MaybeLocal<String> utf8_string = String::NewFromUtf8(
         isolate,
         data,
         v8::NewStringType::kNormal,
         length);
+    if (utf8_string.IsEmpty()) {
+      isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
+      return MaybeLocal<String>();
+    } else {
+      return utf8_string;
+    }
   } else {
     ret = StringBytes::Encode(
         isolate,
