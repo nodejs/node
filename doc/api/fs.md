@@ -1765,6 +1765,9 @@ changes:
      - v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35922
     description: The `fd` option accepts FileHandle arguments.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/31408
+    description: Change `emitClose` default to `true`.
   - version:
      - v13.6.0
      - v12.17.0
@@ -1799,7 +1802,7 @@ changes:
   * `fd` {integer|FileHandle} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
-  * `emitClose` {boolean} **Default:** `false`
+  * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
@@ -1827,9 +1830,9 @@ If `fd` points to a character device that only supports blocking reads
 available. This can prevent the process from exiting and the stream from
 closing naturally.
 
-By default, the stream will not emit a `'close'` event after it has been
-destroyed. This is the opposite of the default for other `Readable` streams.
-Set the `emitClose` option to `true` to change this behavior.
+By default, the stream will emit a `'close'` event after it has been
+destroyed, like most `Readable` streams.  Set the `emitClose` option to
+`false` to change this behavior.
 
 By providing the `fs` option, it is possible to override the corresponding `fs`
 implementations for `open`, `read`, and `close`. When providing the `fs` option,
@@ -1876,6 +1879,9 @@ changes:
      - v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35922
     description: The `fd` option accepts FileHandle arguments.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/31408
+    description: Change `emitClose` default to `true`.
   - version:
      - v13.6.0
      - v12.17.0
@@ -1908,7 +1914,7 @@ changes:
   * `fd` {integer|FileHandle} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
-  * `emitClose` {boolean} **Default:** `false`
+  * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
   * `fs` {Object|null} **Default:** `null`
 * Returns: {fs.WriteStream} See [Writable Stream][].
@@ -1925,9 +1931,9 @@ then the file descriptor won't be closed, even if there's an error.
 It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
 
-By default, the stream will not emit a `'close'` event after it has been
-destroyed. This is the opposite of the default for other `Writable` streams.
-Set the `emitClose` option to `true` to change this behavior.
+By default, the stream will emit a `'close'` event after it has been
+destroyed, like most `Writable` streams.  Set the `emitClose` option to
+`false` to change this behavior.
 
 By providing the `fs` option it is possible to override the corresponding `fs`
 implementations for `open`, `write`, `writev` and `close`. Overriding `write()`
