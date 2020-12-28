@@ -504,7 +504,56 @@ const tests = [
       prompt,
     ],
     clean: true
-  }
+  },
+  {
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    test: (function*() {
+      // Deleting Array iterator should not break history feature.
+      //
+      // Using a generator function instead of an object to allow the test to
+      // keep iterating even when Array.prototype[Symbol.iterator] has been
+      // deleted.
+      yield 'const ArrayIteratorPrototype =';
+      yield '  Object.getPrototypeOf(Array.prototype[Symbol.iterator]());';
+      yield ENTER;
+      yield 'const {next} = ArrayIteratorPrototype;';
+      yield ENTER;
+      yield 'const realArrayIterator = Array.prototype[Symbol.iterator];';
+      yield ENTER;
+      yield 'delete Array.prototype[Symbol.iterator];';
+      yield ENTER;
+      yield 'delete ArrayIteratorPrototype.next;';
+      yield ENTER;
+      yield UP;
+      yield UP;
+      yield DOWN;
+      yield DOWN;
+      yield 'fu';
+      yield 'n';
+      yield RIGHT;
+      yield BACKSPACE;
+      yield LEFT;
+      yield LEFT;
+      yield 'A';
+      yield BACKSPACE;
+      yield GO_TO_END;
+      yield BACKSPACE;
+      yield WORD_LEFT;
+      yield WORD_RIGHT;
+      yield ESCAPE;
+      yield ENTER;
+      yield 'Array.proto';
+      yield RIGHT;
+      yield '.pu';
+      yield ENTER;
+      yield 'ArrayIteratorPrototype.next = next;';
+      yield ENTER;
+      yield 'Array.prototype[Symbol.iterator] = realArrayIterator;';
+      yield ENTER;
+    })(),
+    expected: [],
+    clean: false
+  },
 ];
 const numtests = tests.length;
 
