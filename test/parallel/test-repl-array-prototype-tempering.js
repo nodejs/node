@@ -56,7 +56,7 @@ async function main() {
 
   await writeLn(
     '[3, 2, 1][-1];',
-    /^1\n$/
+    /^1\n(>\s)?$/
   );
   await writeLn('.exit');
 
