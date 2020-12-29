@@ -1589,6 +1589,28 @@ Will generate:
 When using [`Worker`][] threads, `rss` will be a value that is valid for the
 entire process, while the other fields will only refer to the current thread.
 
+The `process.memoryUsage()` method iterate over each page to gather
+informations about memory usage which can be slow depending on the
+program memory allocations.
+
+## `process.memoryUsage.rss()`
+
+* Returns: {integer}
+
+The `process.memoryUsage.rss()` method returns an integer representing the
+Resident Set Size (RSS) in bytes.
+
+The Resident Set Size, is the amount of space occupied in the main
+memory device (that is a subset of the total allocated memory) for the
+process, including all C++ and JavaScript objects and code.
+
+This is the same value as the one returned by `process.memoryUsage()`.
+
+```js
+console.log(process.memoryUsage.rss());
+// 35655680
+```
+
 ## `process.nextTick(callback[, ...args])`
 <!-- YAML
 added: v0.1.26
