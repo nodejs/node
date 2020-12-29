@@ -2699,6 +2699,38 @@ resolutions not in `node_modules`. This means there will not be deprecation
 warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
 runtime warning results no matter where the `"exports"` usage occurs.
 
+### DEP0149: do not require `_stream_*` modules
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36675
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Requiring `_stream_*` modules directly is now deprecated and will be
+removed in a future release. The individual modules are:
+
+* `_stream_readable`
+* `_stream_writable`
+* `_stream_duplex`
+* `_stream_transform`
+* `_stream_passthrough`
+
+All the content of these modules is accessible via:
+
+```js
+const {
+  Readable,
+  Writable,
+  Duplex,
+  Transform,
+  PassThrough
+} = require('stream');
+```
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
