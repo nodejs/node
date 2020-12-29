@@ -53,25 +53,19 @@ const execOpts = { encoding: 'utf8', shell: true };
   const ac = new AbortController();
   const { signal } = ac;
 
-  const firstCheck = common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ABORT_ERR');
-    assert.strictEqual(err.name, 'AbortError');
-    assert.strictEqual(err.signal, undefined);
-  });
+  const test = () => {
+    const check = common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ABORT_ERR');
+      assert.strictEqual(err.name, 'AbortError');
+      assert.strictEqual(err.signal, undefined);
+    });
+    execFile(process.execPath, [echoFixture, 0], { signal }, check);
+  };
 
-  const secondCheck = common.mustCall((err) => {
-    assert.strictEqual(err.code, null);
-    assert.strictEqual(err.name, 'Error');
-    assert.strictEqual(err.signal, 'SIGTERM');
-  });
-
-  execFile(process.execPath, [echoFixture, 0], { signal }, (err) => {
-    firstCheck(err);
-    // Test that re-using the aborted signal results in immediate SIGTERM.
-    execFile(process.execPath, [echoFixture, 0], { signal }, secondCheck);
-  });
-
+  test();
   ac.abort();
+  // Verify that it still works the same way now that the signal is aborted.
+  test();
 }
 
 {
