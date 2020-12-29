@@ -11,7 +11,7 @@
   "dependencies": {
     "babel-plugin-styled-components": "^1.10.6",
     "eslint": "^6.3.0",
-    "gatsby": "^2.13.73",
+    "gatsby": "^2.20.21",
     "gatsby-image": "^2.2.10",
     "gatsby-plugin-catch-links": "^2.1.9",
     "gatsby-plugin-ipfs": "^2.0.2",
