@@ -44,3 +44,5 @@ if (r.arrayBuffers > 0) {
   assert.strictEqual(after.arrayBuffers - r.arrayBuffers, size,
                      `${after.arrayBuffers} - ${r.arrayBuffers} === ${size}`);
 }
+
+assert(process.memoryUsage.rss() > 0);
