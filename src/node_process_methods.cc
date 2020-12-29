@@ -193,13 +193,19 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
+static void Rss(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
   if (err)
     return env->ThrowUVException(err, "uv_resident_set_memory");
+
+  args.GetReturnValue().Set(static_cast<double>(rss));
+}
+
+static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
 
   Isolate* isolate = env->isolate();
   // V8 memory usage
@@ -212,6 +218,11 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   // Get the double array pointer from the Float64Array argument.
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 5);
   double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+
+  size_t rss;
+  int err = uv_resident_set_memory(&rss);
+  if (err)
+    return env->ThrowUVException(err, "uv_resident_set_memory");
 
   fields[0] = rss;
   fields[1] = v8_heap_stats.total_heap_size();
@@ -450,6 +461,7 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethod(target, "umask", Umask);
   env->SetMethod(target, "_rawDebug", RawDebug);
   env->SetMethod(target, "memoryUsage", MemoryUsage);
+  env->SetMethod(target, "rss", Rss);
   env->SetMethod(target, "cpuUsage", CPUUsage);
   env->SetMethod(target, "hrtime", Hrtime);
   env->SetMethod(target, "hrtimeBigInt", HrtimeBigInt);
