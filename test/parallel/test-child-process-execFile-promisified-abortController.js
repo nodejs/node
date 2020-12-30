@@ -64,3 +64,18 @@ const promisified = promisify(execFile);
     "instance of AbortSignal. Received type string ('world!')");
   }));
 }
+
+{
+  // Verify that if something different than Abortcontroller.signal
+  // is passed, ERR_INVALID_ARG_TYPE is thrown
+  const signal = 'world!';
+  const promise = promisified(process.execPath, [echoFixture, 0], { signal });
+
+
+  promise.catch(common.mustCall((e) => {
+    assert.strictEqual(e.name, 'TypeError');
+    assert.strictEqual(e.code, 'ERR_INVALID_ARG_TYPE');
+    assert.strictEqual(e.message, 'The "options.signal" property must be an ' +
+    "instance of AbortSignal. Received type string ('world!')");
+  }));
+}
