@@ -19,7 +19,7 @@ file a new issue.
     * [OpenSSL asm support](#openssl-asm-support)
   * [Previous versions of this document](#previous-versions-of-this-document)
 * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Note about Python 2 and Python 3](#note-about-python-2-and-python-3)
+  * [Note about Python](#note-about-python)
   * [Unix and macOS](#unix-and-macos)
     * [Unix prerequisites](#unix-prerequisites)
     * [macOS prerequisites](#macos-prerequisites)
@@ -225,29 +225,23 @@ Consult previous versions of this document for older versions of Node.js:
 
 ## Building Node.js on supported platforms
 
-### Note about Python 2 and Python 3
+### Note about Python
 
-The Node.js project supports both Python 3 and Python 2 for building.
-If both are installed Python 3 will be used. If only Python 2 is available
-it will be used instead. When possible we recommend that you build and
-test with Python 3.
-
+The Node.js project supports Python >= 3 for building and testing.
 ### Unix and macOS
 
 #### Unix prerequisites
 
 * `gcc` and `g++` >= 8.3 or newer, or
 * GNU Make 3.81 or newer
-* Python (see note above)
-  * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8
+* Python 3.6, 3.7, 3.8, and 3.9 (see note above)
 
 Installation via Linux package manager can be achieved with:
 
-* Ubuntu, Debian: `sudo apt-get install python g++ make`
-* Fedora: `sudo dnf install python gcc-c++ make`
-* CentOS and RHEL: `sudo yum install python gcc-c++ make`
-* OpenSUSE: `sudo zypper install python gcc-c++ make`
+* Ubuntu, Debian: `sudo apt-get install python3 g++ make`
+* Fedora: `sudo dnf install python3 gcc-c++ make`
+* CentOS and RHEL: `sudo yum install python3 gcc-c++ make`
+* OpenSUSE: `sudo zypper install python3 gcc-c++ make`
 * Arch Linux, Manjaro: `sudo pacman -S python gcc make`
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
@@ -256,10 +250,8 @@ Python 3 users may also need to install `python3-distutils`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 11 for macOS
-* Python (see note above)
-  * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8
+* Xcode Command Line Tools >= 10 for macOS
+* Python 3.6, 3.7, 3.8, and 3.9 (see note above)
 
 macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
@@ -568,7 +560,7 @@ to run it again before invoking `make -j4`.
 
 ##### Option 1: Manual install
 
-* [Python 3.8](https://www.python.org/downloads/)
+* [Python 3.9](https://www.microsoft.com/en-us/p/python-39/9p7qfqmjrfp7)
 * The "Desktop development with C++" workload from
   [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/) or
   the "Visual C++ build tools" workload from the
@@ -606,8 +598,7 @@ packages:
 
 * [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
   Unix tools added to the `PATH`
-* [Python 3.x](https://chocolatey.org/packages/python) and
-  [legacy Python](https://chocolatey.org/packages/python2)
+* [Python 3.x](https://chocolatey.org/packages/python)
 * [Visual Studio 2019 Build Tools](https://chocolatey.org/packages/visualstudio2019buildtools)
   with [Visual C++ workload](https://chocolatey.org/packages/visualstudio2019-workload-vctools)
 * [NetWide Assembler](https://chocolatey.org/packages/nasm)
