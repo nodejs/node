@@ -16,6 +16,9 @@
 // clang-format off
 #if defined(CRC32_SIMD_SSE42_PCLMUL)
   /* Required to make MSVC bot build pass. */
+  // TODO(raisinten): When https://github.com/nodejs/node/pull/33044 lands,
+  // remove the next line and add `-msse4.2` to the command line options.
+  #pragma GCC target ("sse4.2")
   #include <smmintrin.h>
   #if defined(__GNUC__) || defined(__clang__)
     #undef TARGET_CPU_WITH_CRC
