@@ -753,7 +753,7 @@ const { createInterface } = require('readline');
 })();
 ```
 
-## Example: How to unref readline?
+## Example: How to unref readline
 
 ```js
 const readline = require('readline');
