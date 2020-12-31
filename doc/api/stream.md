@@ -75,8 +75,7 @@ object mode is not safe.
 <!--type=misc-->
 
 Both [`Writable`][] and [`Readable`][] streams will store data in an internal
-buffer that can be retrieved using `writable.writableBuffer` or
-`readable.readableBuffer`, respectively.
+buffer.
 
 The amount of data potentially buffered depends on the `highWaterMark` option
 passed into the stream's constructor. For normal streams, the `highWaterMark`
@@ -119,6 +118,11 @@ consumption of data received *from* the socket and whose `Writable` side allows
 writing data *to* the socket. Because data may be written to the socket at a
 faster or slower rate than data is received, each side should
 operate (and buffer) independently of the other.
+
+The mechanics of the internal buffering are an internal implementation detail
+and may be changed at any time. However, for certain advanced implementations,
+the internal buffers can be retrieved using `writable.writableBuffer` or
+`readable.readableBuffer`. Use of these undocumented properties is discouraged.
 
 ## API for stream consumers
 
