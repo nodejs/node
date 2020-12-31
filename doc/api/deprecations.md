@@ -881,7 +881,7 @@ changes:
 Type: End-of-Life
 
 The [`tls.CryptoStream`][] class was removed. Please use
-[`tls.TLSSocket`][] instead.
+[`tls.connect()`][] instead.
 
 ### DEP0043: `tls.SecurePair`
 <!-- YAML
@@ -908,7 +908,7 @@ changes:
 Type: Documentation-only
 
 The [`tls.SecurePair`][] class is deprecated. Please use
-[`tls.TLSSocket`][] instead.
+[`tls.connect()`][] instead.
 
 ### DEP0044: `util.isArray()`
 <!-- YAML
@@ -2699,6 +2699,18 @@ resolutions not in `node_modules`. This means there will not be deprecation
 warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
 runtime warning results no matter where the `"exports"` usage occurs.
 
+### DEP0XXX: `new tls.TLSSocket(socket[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+Type: Documentation-only
+
+The preferred method for creating [`tls.TLSSocket`][] instances is to use the
+[`tls.connect()`][] API. While using `new tls.TLSSocket()` will create the
+socket, the various mechanisms for managing the lifetime of the underlying
+socket and for validating the peer certificate and identity are not configured.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -2787,6 +2799,7 @@ runtime warning results no matter where the `"exports"` usage occurs.
 [`tls.SecurePair`]: tls.md#tls_class_tls_securepair
 [`tls.TLSSocket`]: tls.md#tls_class_tls_tlssocket
 [`tls.checkServerIdentity()`]: tls.md#tls_tls_checkserveridentity_hostname_cert
+[`tls.connect()`]: tls.md#tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: tls.md#tls_tls_createsecurecontext_options
 [`url.format()`]: url.md#url_url_format_urlobject
 [`url.parse()`]: url.md#url_url_parse_urlstring_parsequerystring_slashesdenotehost

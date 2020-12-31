@@ -376,7 +376,7 @@ added: v0.3.4
 deprecated: v0.11.3
 -->
 
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.connect()`][] instead.
 
 The `tls.CryptoStream` class represents a stream of encrypted data. This class
 is deprecated and should no longer be used.
@@ -397,7 +397,7 @@ added: v0.3.2
 deprecated: v0.11.3
 -->
 
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.connect()`][] instead.
 
 Returned by [`tls.createSecurePair()`][].
 
@@ -714,6 +714,10 @@ connection is open.
 <!-- YAML
 added: v0.11.4
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The new tls.TLSSocket() constructor is deprecated
+                 in docs only.
   - version: v12.2.0
     pr-url: https://github.com/nodejs/node/pull/27497
     description: The `enableTrace` option is now supported.
@@ -721,6 +725,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/2564
     description: ALPN options are supported now.
 -->
+
+> Stability: 0 - Deprecated: Use [`tls.connect()`][] instead.
 
 * `socket` {net.Socket|stream.Duplex}
   On the server side, any `Duplex` stream. On the client side, any
@@ -1736,7 +1742,7 @@ changes:
     description: ALPN options are supported now.
 -->
 
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.connect()`][] instead.
 
 * `context` {Object} A secure context object as returned by
   `tls.createSecureContext()`
@@ -1784,7 +1790,7 @@ socket.pipe(pair.encrypted);
 can be replaced by:
 
 ```js
-secureSocket = tls.TLSSocket(socket, options);
+secureSocket = tls.connect({ socket, ...options });
 ```
 
 where `secureSocket` has the same API as `pair.cleartext`.
