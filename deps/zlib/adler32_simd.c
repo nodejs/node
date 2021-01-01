@@ -54,6 +54,9 @@
 #define __attribute__()
 #endif
 
+// TODO(raisinten): When https://github.com/nodejs/node/pull/33044 lands,
+// remove the next line and add `-mssse3` to the command line options.
+#pragma GCC target ("ssse3")
 #include <tmmintrin.h>
 
 __attribute__((target("ssse3")))
