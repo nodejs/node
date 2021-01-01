@@ -102,7 +102,7 @@ WebCryptoCipherStatus AES_Cipher(
         // In decrypt mode, we grab the tag length here. We'll use it to
         // ensure that that allocated buffer has enough room for both the
         // final block and the auth tag. Unlike our other AES-GCM implementation
-        // in CipherBase, in WebCrypto, the auth tag is concatentated to the end
+        // in CipherBase, in WebCrypto, the auth tag is concatenated to the end
         // of the generated ciphertext and returned in the same ArrayBuffer.
         tag_len = params.length;
         break;
