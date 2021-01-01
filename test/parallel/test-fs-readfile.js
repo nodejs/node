@@ -70,3 +70,11 @@ for (const e of fileInfo) {
   }));
   process.nextTick(() => controller.abort());
 }
+{
+  // Verify that if something different than Abortcontroller.signal
+  // is passed, ERR_INVALID_ARG_TYPE is thrown
+  assert.throws(() => {
+    const callback = common.mustNotCall(() => {});
+    fs.readFile(fileInfo[0].name, { signal: 'hello' }, callback);
+  }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
+}
