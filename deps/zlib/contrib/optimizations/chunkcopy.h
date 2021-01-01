@@ -29,6 +29,8 @@
 #include <arm_neon.h>
 typedef uint8x16_t z_vec128i_t;
 #elif defined(INFLATE_CHUNK_SIMD_SSE2)
+// TODO(raisinten): When https://github.com/nodejs/node/pull/33044 lands,
+// remove the next line and add `-msse2` to the command line options.
 #pragma GCC target ("sse2")
 #include <emmintrin.h>
 typedef __m128i z_vec128i_t;

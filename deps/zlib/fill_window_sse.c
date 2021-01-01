@@ -9,6 +9,8 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
+// TODO(raisinten): When https://github.com/nodejs/node/pull/33044 lands,
+// remove the next line and add `-msse2` to the command line options.
 #pragma GCC target ("sse2")
 #include <immintrin.h>
 #include "deflate.h"
