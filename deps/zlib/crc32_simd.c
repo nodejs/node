@@ -20,6 +20,11 @@
  *  V. Gopal, E. Ozturk, et al., 2009, http://intel.ly/2ySEwL0
  */
 
+// TODO(raisinten): When https://github.com/nodejs/node/pull/33044 lands,
+// remove the next line and add `-msse4.2` and `-mpclmul` to the
+// command line options.
+#pragma GCC target ("sse4.2", "pclmul")
+
 #include <emmintrin.h>
 #include <smmintrin.h>
 #include <wmmintrin.h>
