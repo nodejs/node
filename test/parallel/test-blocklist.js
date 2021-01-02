@@ -150,6 +150,7 @@ const util = require('util');
   const blockList = new BlockList();
   assert.throws(() => blockList.addSubnet(1), /ERR_INVALID_ARG_TYPE/);
   assert.throws(() => blockList.addSubnet('', ''), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => blockList.addSubnet('', NaN), /ERR_OUT_OF_RANGE/);
   assert.throws(() => blockList.addSubnet('', 1, 1), /ERR_INVALID_ARG_TYPE/);
   assert.throws(() => blockList.addSubnet('', 1, ''), /ERR_INVALID_ARG_VALUE/);
 
