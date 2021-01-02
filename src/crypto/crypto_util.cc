@@ -31,6 +31,8 @@ using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace crypto {
@@ -587,6 +589,36 @@ CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   return static_cast<CryptoJobMode>(mode);
 }
 
+namespace {
+// SecureBuffer uses openssl to allocate a Uint8Array using
+// OPENSSL_secure_malloc. Because we do not yet actually
+// make use of secure heap, this has the same semantics as
+// using OPENSSL_malloc. However, if the secure heap is
+// initialized, SecureBuffer will automatically use it.
+void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  Environment* env = Environment::GetCurrent(args);
+  uint32_t len = args[0].As<Uint32>()->Value();
+  char* data = static_cast<char*>(OPENSSL_secure_malloc(len));
+  if (data == nullptr) {
+    // There's no memory available for the allocation.
+    // Return nothing.
+    return;
+  }
+  memset(data, 0, len);
+  std::shared_ptr<BackingStore> store =
+      ArrayBuffer::NewBackingStore(
+          data,
+          len,
+          [](void* data, size_t len, void* deleter_data) {
+            OPENSSL_secure_clear_free(data, len);
+          },
+          data);
+  Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
+  args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
+}
+}  // namespace
+
 namespace Util {
 void Initialize(Environment* env, Local<Object> target) {
 #ifndef OPENSSL_NO_ENGINE
@@ -600,6 +632,8 @@ void Initialize(Environment* env, Local<Object> target) {
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
+
+  env->SetMethod(target, "secureBuffer", SecureBuffer);
 }
 }  // namespace Util
 
