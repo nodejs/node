@@ -45,7 +45,7 @@ module.exports = {
 
         /**
          * Checks and reports given exported identifier.
-         * @param {ASTNode} node exported `Identifer` node to check.
+         * @param {ASTNode} node exported `Identifier` node to check.
          * @returns {void}
          */
         function checkExportedName(node) {

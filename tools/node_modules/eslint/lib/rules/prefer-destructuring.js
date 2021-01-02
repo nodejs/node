@@ -279,7 +279,7 @@ module.exports = {
          * @param {ASTNode} node the AssignmentExpression node
          * @returns {void}
          */
-        function checkAssigmentExpression(node) {
+        function checkAssignmentExpression(node) {
             if (node.operator === "=") {
                 performCheck(node.left, node.right, node);
             }
@@ -291,7 +291,7 @@ module.exports = {
 
         return {
             VariableDeclarator: checkVariableDeclarator,
-            AssignmentExpression: checkAssigmentExpression
+            AssignmentExpression: checkAssignmentExpression
         };
     }
 };

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [[ $GITHUB_REF == refs/tags/v* ]]; then
+  npm run bundle
+
+  echo "About to publish $GITHUB_REF to ajv-dist..."
+
+  git config --global user.name "$GIT_USER_NAME"
+  git config --global user.email "$GIT_USER_EMAIL"
+
+  git clone https://${GH_TOKEN_PUBLIC}@github.com/ajv-validator/ajv-dist.git ../ajv-dist
+
+  rm -rf ../ajv-dist/dist
+  mkdir ../ajv-dist/dist
+  cp ./bundle/*.* ../ajv-dist/dist
+  cd ../ajv-dist
+
+  VERSION=${GITHUB_REF#refs/tags/v}
+
+  sed -E "s/\"version\": \"([^\"]*)\"/\"version\": \"$VERSION\"/" package.json > new_package.json
+  mv new_package.json package.json
+
+  if [[ `git status --porcelain` ]]; then
+    echo "Changes detected. Updating master branch..."
+    git add -A
+    git commit -m "$VERSION: updated by ajv workflow https://github.com/ajv-validator/ajv/actions/runs/$GITHUB_RUN_ID"
+    git push --quiet origin master > /dev/null 2>&1
+  fi
+
+  echo "Publishing tag..."
+  git tag "v$VERSION"
+  git push --tags > /dev/null 2>&1
+
+  echo "Done"
+fi

@@ -15,7 +15,7 @@ const lodash = require("lodash");
 // Private
 //------------------------------------------------------------------------------
 
-// Defitions for deprecation warnings.
+// Definitions for deprecation warnings.
 const deprecationWarningMessages = {
     ESLINT_LEGACY_ECMAFEATURES:
         "The 'ecmaFeatures' config file property is deprecated and has no effect.",

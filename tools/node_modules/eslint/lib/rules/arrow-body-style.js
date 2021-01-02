@@ -191,7 +191,7 @@ module.exports = {
                             }
 
                             /*
-                             * If the first token of the reutrn value is `{` or the return value is a sequence expression,
+                             * If the first token of the return value is `{` or the return value is a sequence expression,
                              * enclose the return value by parentheses to avoid syntax error.
                              */
                             if (astUtils.isOpeningBraceToken(firstValueToken) || blockBody[0].argument.type === "SequenceExpression" || (funcInfo.hasInOperator && isInsideForLoopInitializer(node))) {
