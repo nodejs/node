@@ -1,12 +1,5 @@
 // eslint-disable-next-line import/default
-import validateConfig from '../dist/validateConfig';
-// eslint-disable-next-line import/default
-import validateStreamConfig from '../dist/validateStreamConfig';
-
-const validate = {
-  'config.json': validateConfig,
-  'streamConfig.json': validateStreamConfig,
-};
+import validators from '../dist/validators';
 
 /**
  * @param {string} schemaId
@@ -14,8 +7,9 @@ const validate = {
  * @returns {undefined}
  */
 export default (schemaId, config = {}) => {
-  if (!validate[schemaId](config)) {
-    const errors = validate[schemaId].errors.map((error) => {
+  const validate = validators[schemaId];
+  if (!validate(config)) {
+    const errors = validate.errors.map((error) => {
       return {
         dataPath: error.dataPath,
         message: error.message,

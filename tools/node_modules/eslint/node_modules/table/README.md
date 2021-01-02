@@ -56,8 +56,9 @@ npm install table
 Table data is described using an array (rows) of array (cells).
 
 ```js
-import tableImport from 'table';
-const { table } = tableImport;
+import {
+  table
+} from 'table';
 
 // Using commonjs?
 // const {table} = require('table');
@@ -487,7 +488,7 @@ table(data, config);
 | 2A | 2B | 2C |
 +----+----+----+
 
-# void (no borders; see "borderless table" section of the documentation)
+# void (no borders; see "bordless table" section of the documentation)
 
  0A  0B  0C
 

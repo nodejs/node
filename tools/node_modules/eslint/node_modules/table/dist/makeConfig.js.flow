@@ -34,7 +34,7 @@ const makeColumns = (rows, columns = {}, columnDefault = {}) => {
       alignment: 'left',
       paddingLeft: 1,
       paddingRight: 1,
-      truncate: Infinity,
+      truncate: Number.POSITIVE_INFINITY,
       width: maximumColumnWidthIndex[index],
       wrapWord: false,
     }, columnDefault, columns[index]);

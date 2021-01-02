@@ -46,9 +46,9 @@ module.exports = {};
 /**
  * @typedef {Object} OverrideConfigData
  * @property {Record<string, boolean>} [env] The environment settings.
- * @property {string | string[]} [excludedFiles] The glob pattarns for excluded files.
+ * @property {string | string[]} [excludedFiles] The glob patterns for excluded files.
  * @property {string | string[]} [extends] The path to other config files or the package name of shareable configs.
- * @property {string | string[]} files The glob pattarns for target files.
+ * @property {string | string[]} files The glob patterns for target files.
  * @property {Record<string, GlobalConf>} [globals] The global variable settings.
  * @property {boolean} [noInlineConfig] The flag that disables directive comments.
  * @property {OverrideConfigData[]} [overrides] The override settings per kind of files.
