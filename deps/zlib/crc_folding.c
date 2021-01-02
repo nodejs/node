@@ -18,6 +18,11 @@
 
 #include "deflate.h"
 
+// TODO(raisinten): When https://github.com/nodejs/node/pull/33044 lands,
+// remove the next line and add `-msse4.2` and `-mpclmul` to the
+// command line options.
+#pragma GCC target ("sse4.2", "pclmul")
+
 #include <inttypes.h>
 #include <emmintrin.h>
 #include <immintrin.h>
