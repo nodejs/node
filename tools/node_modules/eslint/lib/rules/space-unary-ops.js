@@ -1,5 +1,5 @@
 /**
- * @fileoverview This rule shoud require or disallow spaces before or after unary operations.
+ * @fileoverview This rule should require or disallow spaces before or after unary operations.
  * @author Marcin Kumorek
  */
 "use strict";

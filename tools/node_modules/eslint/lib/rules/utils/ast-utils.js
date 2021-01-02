@@ -82,7 +82,7 @@ function startsWithUpperCase(s) {
 /**
  * Checks whether or not a node is a constructor.
  * @param {ASTNode} node A function node to check.
- * @returns {boolean} Wehether or not a node is a constructor.
+ * @returns {boolean} Whether or not a node is a constructor.
  */
 function isES5Constructor(node) {
     return (node.id && startsWithUpperCase(node.id.name));
@@ -1574,7 +1574,7 @@ module.exports = {
     },
 
     /*
-     * Determine if a node has a possiblity to be an Error object
+     * Determine if a node has a possibility to be an Error object
      * @param  {ASTNode} node  ASTNode to check
      * @returns {boolean} True if there is a chance it contains an Error obj
      */

@@ -106,9 +106,14 @@ module.exports = {
                      */
                     return operator === node.operator &&
                              (
-                                 isLogicalIdentity(node.left, node.operator) ||
-                                 isLogicalIdentity(node.right, node.operator)
+                                 isLogicalIdentity(node.left, operator) ||
+                                 isLogicalIdentity(node.right, operator)
                              );
+
+                case "AssignmentExpression":
+                    return ["||=", "&&="].includes(node.operator) &&
+                        operator === node.operator.slice(0, -1) &&
+                        isLogicalIdentity(node.right, operator);
 
                 // no default
             }
@@ -177,7 +182,15 @@ module.exports = {
                 }
 
                 case "AssignmentExpression":
-                    return (node.operator === "=") && isConstant(node.right, inBooleanPosition);
+                    if (node.operator === "=") {
+                        return isConstant(node.right, inBooleanPosition);
+                    }
+
+                    if (["||=", "&&="].includes(node.operator) && inBooleanPosition) {
+                        return isLogicalIdentity(node.right, node.operator.slice(0, -1));
+                    }
+
+                    return false;
 
                 case "SequenceExpression":
                     return isConstant(node.expressions[node.expressions.length - 1], inBooleanPosition);

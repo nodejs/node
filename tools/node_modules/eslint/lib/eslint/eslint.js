@@ -272,7 +272,7 @@ function processOptions({
         errors.push("'rulePaths' must be an array of non-empty strings.");
     }
     if (typeof useEslintrc !== "boolean") {
-        errors.push("'useElintrc' must be a boolean.");
+        errors.push("'useEslintrc' must be a boolean.");
     }
 
     if (errors.length > 0) {
@@ -563,7 +563,7 @@ class ESLint {
 
     /**
      * Returns the formatter representing the given formatter name.
-     * @param {string} [name] The name of the formattter to load.
+     * @param {string} [name] The name of the formatter to load.
      * The following values are allowed:
      * - `undefined` ... Load `stylish` builtin formatter.
      * - A builtin formatter name ... Load the builtin formatter.
