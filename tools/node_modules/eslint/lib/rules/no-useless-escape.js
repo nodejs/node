@@ -109,9 +109,9 @@ module.exports = {
          * @returns {void}
          */
         function report(node, startOffset, character) {
-            const start = sourceCode.getLocFromIndex(sourceCode.getIndexFromLoc(node.loc.start) + startOffset);
-            const rangeStart = sourceCode.getIndexFromLoc(node.loc.start) + startOffset;
+            const rangeStart = node.range[0] + startOffset;
             const range = [rangeStart, rangeStart + 1];
+            const start = sourceCode.getLocFromIndex(rangeStart);
 
             context.report({
                 node,
@@ -172,7 +172,7 @@ module.exports = {
             }
 
             if (isUnnecessaryEscape && !isQuoteEscape) {
-                report(node, match.index + 1, match[0].slice(1));
+                report(node, match.index, match[0].slice(1));
             }
         }
 
@@ -206,7 +206,7 @@ module.exports = {
                     return;
                 }
 
-                const value = isTemplateElement ? node.value.raw : node.raw.slice(1, -1);
+                const value = isTemplateElement ? sourceCode.getText(node) : node.raw;
                 const pattern = /\\[^\d]/gu;
                 let match;
 

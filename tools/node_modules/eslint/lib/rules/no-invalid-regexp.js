@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const RegExpValidator = require("regexpp").RegExpValidator;
-const validator = new RegExpValidator({ ecmaVersion: 2018 });
+const validator = new RegExpValidator();
 const validFlags = /[gimuys]/gu;
 const undefined1 = void 0;
 
