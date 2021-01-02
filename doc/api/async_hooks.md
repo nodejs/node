@@ -1000,14 +1000,14 @@ added: v13.10.0
 -->
 
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
-`run` or after `enterWith` method call.
+`run()` call or after an `enterWith()` call.
 
 ### `asyncLocalStorage.disable()`
 <!-- YAML
 added: v13.10.0
 -->
 
-This method disables the instance of `AsyncLocalStorage`. All subsequent calls
+Disables the instance of `AsyncLocalStorage`. All subsequent calls
 to `asyncLocalStorage.getStore()` will return `undefined` until
 `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()` is called again.
 
@@ -1019,7 +1019,7 @@ Calling `asyncLocalStorage.disable()` is required before the
 provided by the `asyncLocalStorage`, as those objects are garbage collected
 along with the corresponding async resources.
 
-This method is to be used when the `asyncLocalStorage` is not in use anymore
+Use this method when the `asyncLocalStorage` is not in use anymore
 in the current process.
 
 ### `asyncLocalStorage.getStore()`
@@ -1029,10 +1029,10 @@ added: v13.10.0
 
 * Returns: {any}
 
-This method returns the current store.
-If this method is called outside of an asynchronous context initialized by
-calling `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()`, it will
-return `undefined`.
+Returns the current store.
+If called outside of an asynchronous context initialized by
+calling `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()`, it
+returns `undefined`.
 
 ### `asyncLocalStorage.enterWith(store)`
 <!-- YAML
@@ -1041,7 +1041,7 @@ added: v13.11.0
 
 * `store` {any}
 
-This method transitions into the context for the remainder of the current
+Transitions into the context for the remainder of the current
 synchronous execution and then persists the store through any following
 asynchronous calls.
 
@@ -1061,7 +1061,7 @@ This transition will continue for the _entire_ synchronous execution.
 This means that if, for example, the context is entered within an event
 handler subsequent event handlers will also run within that context unless
 specifically bound to another context with an `AsyncResource`. That is why
-`run` should be preferred over `enterWith` unless there are strong reasons
+`run()` should be preferred over `enterWith()` unless there are strong reasons
 to use the latter method.
 
 ```js
@@ -1088,7 +1088,7 @@ added: v13.10.0
 * `callback` {Function}
 * `...args` {any}
 
-This methods runs a function synchronously within a context and return its
+Runs a function synchronously within a context and returns its
 return value. The store is not accessible outside of the callback function or
 the asynchronous operations created within the callback.
 
@@ -1120,7 +1120,7 @@ added: v13.10.0
 * `callback` {Function}
 * `...args` {any}
 
-This methods runs a function synchronously outside of a context and return its
+Runs a function synchronously outside of a context and returns its
 return value. The store is not accessible within the callback function or
 the asynchronous operations created within the callback. Any `getStore()`
 call done within the callback function will always return `undefined`.
