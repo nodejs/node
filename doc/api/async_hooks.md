@@ -63,8 +63,8 @@ asyncHook.disable();
 function init(asyncId, type, triggerAsyncId, resource) { }
 
 // Before is called just before the resource's callback is called. It can be
-// called 0-N times for handles (e.g. TCPWrap), and will be called exactly 1
-// time for requests (e.g. FSReqCallback).
+// called 0-N times for handles (such as TCPWrap), and will be called exactly 1
+// time for requests (such as FSReqCallback).
 function before(asyncId) { }
 
 // After is called just after the resource's callback has finished.
@@ -571,7 +571,7 @@ const server = net.createServer((conn) => {
   async_hooks.executionAsyncId();
 
 }).listen(port, () => {
-  // Returns the ID of a TickObject (i.e. process.nextTick()) because all
+  // Returns the ID of a TickObject (process.nextTick()) because all
   // callbacks passed to .listen() are wrapped in a nextTick().
   async_hooks.executionAsyncId();
 });
@@ -1134,7 +1134,7 @@ added:
 
 This methods runs a function synchronously outside of a context and return its
 return value. The store is not accessible within the callback function or
-the asynchronous operations created within the callback, i.e. any `getStore`
+the asynchronous operations created within the callback. Any `getStore()`
 call done within the callback function will always return `undefined`.
 
 Optionally, arguments can be passed to the function. They will be passed to
