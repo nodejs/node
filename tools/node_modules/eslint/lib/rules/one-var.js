@@ -6,6 +6,25 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Determines whether the given node is in a statement list.
+ * @param {ASTNode} node node to check
+ * @returns {boolean} `true` if the given node is in a statement list
+ */
+function isInStatementList(node) {
+    return astUtils.STATEMENT_LIST_PARENTS.has(node.parent.type);
+}
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -268,8 +287,8 @@ module.exports = {
 
         /**
          * Fixer to join VariableDeclaration's into a single declaration
-         * @param   {VariableDeclarator[]} declarations The `VariableDeclaration` to join
-         * @returns {Function}                         The fixer function
+         * @param {VariableDeclarator[]} declarations The `VariableDeclaration` to join
+         * @returns {Function} The fixer function
          */
         function joinDeclarations(declarations) {
             const declaration = declarations[0];
@@ -297,10 +316,17 @@ module.exports = {
 
         /**
          * Fixer to split a VariableDeclaration into individual declarations
-         * @param   {VariableDeclaration}   declaration The `VariableDeclaration` to split
-         * @returns {Function}                          The fixer function
+         * @param {VariableDeclaration} declaration The `VariableDeclaration` to split
+         * @returns {Function|null} The fixer function
          */
         function splitDeclarations(declaration) {
+            const { parent } = declaration;
+
+            // don't autofix code such as: if (foo) var x, y;
+            if (!isInStatementList(parent.type === "ExportNamedDeclaration" ? parent : declaration)) {
+                return null;
+            }
+
             return fixer => declaration.declarations.map(declarator => {
                 const tokenAfterDeclarator = sourceCode.getTokenAfter(declarator);
 

@@ -131,7 +131,7 @@ module.exports = {
                             return null;
                         }
 
-                        // If `?.` exsits, it doesn't hide no-undexpected-multiline errors
+                        // If `?.` exists, it doesn't hide no-unexpected-multiline errors
                         if (node.optional) {
                             return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], "?.");
                         }
@@ -177,7 +177,7 @@ module.exports = {
                         /*
                          * Only autofix if there is no newline
                          * https://github.com/eslint/eslint/issues/7787
-                         * But if `?.` exsits, it doesn't hide no-undexpected-multiline errors
+                         * But if `?.` exists, it doesn't hide no-unexpected-multiline errors
                          */
                         if (!node.optional) {
                             return null;
