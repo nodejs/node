@@ -64,3 +64,17 @@ assert.throws(
   () => callsfunc(),
   { message: msg }
 );
+
+{
+  const tracker = new assert.CallTracker();
+  const callsNoop = tracker.calls(1);
+  callsNoop();
+  tracker.verify();
+}
+
+{
+  const tracker = new assert.CallTracker();
+  const callsNoop = tracker.calls(undefined, 1);
+  callsNoop();
+  tracker.verify();
+}
