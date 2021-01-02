@@ -1100,12 +1100,10 @@ This methods runs a function synchronously within a context and return its
 return value. The store is not accessible outside of the callback function or
 the asynchronous operations created within the callback.
 
-Optionally, arguments can be passed to the function. They will be passed to
-the callback function.
+The optional `args` are passed to the callback function.
 
-If the callback function throws an error, it will be thrown by `run` too.
-The stacktrace will not be impacted by this call and the context will
-be exited.
+If the callback function throws an error, the error is thrown by `run()` too.
+The stacktrace is not impacted by this call and the context is exited.
 
 Example:
 
@@ -1137,12 +1135,10 @@ return value. The store is not accessible within the callback function or
 the asynchronous operations created within the callback. Any `getStore()`
 call done within the callback function will always return `undefined`.
 
-Optionally, arguments can be passed to the function. They will be passed to
-the callback function.
+The optional `args` are passed to the callback function.
 
-If the callback function throws an error, it will be thrown by `exit` too.
-The stacktrace will not be impacted by this call and the context will be
-re-entered.
+If the callback function throws an error, the error is thrown by `exit()` too.
+The stacktrace is not impacted by this call and the context is re-entered.
 
 Example:
 
