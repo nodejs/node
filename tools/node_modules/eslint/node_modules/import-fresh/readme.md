@@ -1,16 +1,14 @@
-# import-fresh [![Build Status](https://travis-ci.org/sindresorhus/import-fresh.svg?branch=master)](https://travis-ci.org/sindresorhus/import-fresh)
+# import-fresh
 
 > Import a module while bypassing the [cache](https://nodejs.org/api/modules.html#modules_caching)
 
 Useful for testing purposes when you need to freshly import a module.
-
 
 ## Install
 
 ```
 $ npm install import-fresh
 ```
-
 
 ## Usage
 
@@ -36,13 +34,11 @@ importFresh('./foo')();
 //=> 1
 ```
 
-
 ## import-fresh for enterprise
 
 Available as part of the Tidelift Subscription.
 
 The maintainers of import-fresh and thousands of other packages are working with Tidelift to deliver commercial support and maintenance for the open source dependencies you use to build your applications. Save time, reduce risk, and improve code health, while paying the maintainers of the exact dependencies you use. [Learn more.](https://tidelift.com/subscription/pkg/npm-import-fresh?utm_source=npm-import-fresh&utm_medium=referral&utm_campaign=enterprise&utm_term=repo)
-
 
 ## Related
 

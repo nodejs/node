@@ -8,7 +8,6 @@
 const RegExpValidator = require("regexpp").RegExpValidator;
 const collector = new (class {
     constructor() {
-        this.ecmaVersion = 2018;
         this._source = "";
         this._controlChars = [];
         this._validator = new RegExpValidator(this);

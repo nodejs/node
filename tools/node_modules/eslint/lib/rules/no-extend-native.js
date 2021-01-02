@@ -138,7 +138,7 @@ module.exports = {
             }
 
             /*
-             * `identifierNode.parent` is a MamberExpression `*.prototype`.
+             * `identifierNode.parent` is a MemberExpression `*.prototype`.
              * If it's an optional member access, it may be wrapped by a `ChainExpression` node.
              */
             const prototypeNode =

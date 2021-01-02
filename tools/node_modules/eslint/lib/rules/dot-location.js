@@ -46,7 +46,7 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
-         * Reports if the dot between object and property is on the correct loccation.
+         * Reports if the dot between object and property is on the correct location.
          * @param {ASTNode} node The `MemberExpression` node.
          * @returns {void}
          */
