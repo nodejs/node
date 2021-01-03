@@ -1575,26 +1575,19 @@ changes:
   * `external` {integer}
   * `arrayBuffers` {integer}
 
-The `process.memoryUsage()` method returns an object describing the memory usage
-of the Node.js process measured in bytes.
-
-For example, the code:
+Returns an object describing the memory usage of the Node.js process measured in
+bytes.
 
 ```js
 console.log(process.memoryUsage());
-```
-
-Will generate:
-
-<!-- eslint-skip -->
-```js
-{
-  rss: 4935680,
-  heapTotal: 1826816,
-  heapUsed: 650472,
-  external: 49879,
-  arrayBuffers: 9386
-}
+// Prints:
+// {
+//  rss: 4935680,
+//  heapTotal: 1826816,
+//  heapUsed: 650472,
+//  external: 49879,
+//  arrayBuffers: 9386
+// }
 ```
 
 * `heapTotal` and `heapUsed` refer to V8's memory usage.
@@ -1612,8 +1605,8 @@ Will generate:
 When using [`Worker`][] threads, `rss` will be a value that is valid for the
 entire process, while the other fields will only refer to the current thread.
 
-The `process.memoryUsage()` method iterate over each page to gather
-informations about memory usage which can be slow depending on the
+The `process.memoryUsage()` method iterates over each page to gather
+information about memory usage which might be slow depending on the
 program memory allocations.
 
 ## `process.memoryUsage.rss()`
@@ -1630,7 +1623,8 @@ The Resident Set Size, is the amount of space occupied in the main
 memory device (that is a subset of the total allocated memory) for the
 process, including all C++ and JavaScript objects and code.
 
-This is the same value as the one returned by `process.memoryUsage()`.
+This is the same value as the `rss` property provided by `process.memoryUsage()`
+but `process.memoryUsage.rss()` is faster.
 
 ```js
 console.log(process.memoryUsage.rss());
