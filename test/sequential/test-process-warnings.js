@@ -8,8 +8,8 @@ const warnmod = require.resolve(fixtures.path('warnings.js'));
 const node = process.execPath;
 
 const normal = [warnmod];
-const noWarn = ['--no-warnings', warnmod];
-const traceWarn = ['--trace-warnings', warnmod];
+const noWarn = ['--no-warnings', '--no-trace-warnings', warnmod];
+const traceWarn = [warnmod];
 
 const warningMessage = /^\(.+\)\sWarning: a bad practice warning/;
 

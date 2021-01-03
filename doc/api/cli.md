@@ -1042,12 +1042,12 @@ to be an `Error` instance).
 
 Enabling this option may affect garbage collection behavior negatively.
 
-### `--trace-warnings`
+### `--no-trace-warnings`
 <!-- YAML
 added: v6.0.0
 -->
 
-Print stack traces for process warnings (including deprecations).
+Disable printing of stack traces for process warnings (including deprecations).
 
 ### `--track-heap-objects`
 <!-- YAML
@@ -1378,7 +1378,7 @@ Node.js options that are allowed are:
 * `--trace-sync-io`
 * `--trace-tls`
 * `--trace-uncaught`
-* `--trace-warnings`
+* `--no-trace-warnings`
 * `--track-heap-objects`
 * `--unhandled-rejections`
 * `--use-bundled-ca`

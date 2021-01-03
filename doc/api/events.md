@@ -786,7 +786,7 @@ emitter.once('event', () => {
 });
 ```
 
-The [`--trace-warnings`][] command-line flag can be used to display the
+The [`--no-trace-warnings`][] command-line flag can be used to hide the
 stack trace for such warnings.
 
 The emitted warning can be inspected with [`process.on('warning')`][] and will
@@ -1610,7 +1610,7 @@ and `removeEventListener()` is that `removeListener()` will return a reference
 to the `EventTarget`.
 
 [WHATWG-EventTarget]: https://dom.spec.whatwg.org/#interface-eventtarget
-[`--trace-warnings`]: cli.md#cli_trace_warnings
+[`--no-trace-warnings`]: cli.md#cli_no_trace_warnings
 [`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
 [`EventTarget` error handling]: #events_eventtarget_error_handling
 [`Event` Web API]: https://dom.spec.whatwg.org/#event

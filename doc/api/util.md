@@ -221,7 +221,7 @@ If either the `--no-deprecation` or `--no-warnings` command-line flags are
 used, or if the `process.noDeprecation` property is set to `true` *prior* to
 the first deprecation warning, the `util.deprecate()` method does nothing.
 
-If the `--trace-deprecation` or `--trace-warnings` command-line flags are set,
+If the `--trace-deprecation` command-line flags is set,
 or the `process.traceDeprecation` property is set to `true`, a warning and a
 stack trace are printed to `stderr` the first time the deprecated function is
 called.

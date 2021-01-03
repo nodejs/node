@@ -442,7 +442,7 @@ $ node --no-warnings
 > Do not do that!
 ```
 
-The `--trace-warnings` command-line option can be used to have the default
+The `--no-trace-warnings` command-line option can be used to hide the default
 console output for warnings include the full stack trace of the warning.
 
 Launching Node.js using the `--throw-deprecation` command-line flag will
