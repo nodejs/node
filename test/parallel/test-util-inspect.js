@@ -210,6 +210,17 @@ assert(!/Object/.test(
                      'ArrayBuffer { (detached), byteLength: 0 }');
 }
 
+// Truncate output for ArrayBuffers using plural or singular bytes
+{
+  const ab = new ArrayBuffer(3);
+  assert.strictEqual(util.inspect(ab, { showHidden: true, maxArrayLength: 2 }),
+                     'ArrayBuffer { [Uint8Contents]' +
+                      ': <00 00 ... 1 more byte>, byteLength: 3 }');
+  assert.strictEqual(util.inspect(ab, { showHidden: true, maxArrayLength: 1 }),
+                     'ArrayBuffer { [Uint8Contents]' +
+                      ': <00 ... 2 more bytes>, byteLength: 3 }');
+}
+
 // Now do the same checks but from a different context.
 {
   const showHidden = false;
@@ -2913,6 +2924,12 @@ assert.strictEqual(
   const undetectable = vm.runInThisContext('%GetUndetectable()');
   v8.setFlagsFromString('--no-allow-natives-syntax');
   assert.strictEqual(inspect(undetectable), '{}');
+}
+
+// Truncate output for Primitives with 1 character left
+{
+  assert.strictEqual(util.inspect('bl', { maxStringLength: 1 }),
+                     "'b'... 1 more character");
 }
 
 {
