@@ -112,16 +112,17 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   // assemble them into objects in JS than to call Object::Set() repeatedly
   // The array is in the format
   // [model, speed, (5 entries of cpu_times), model2, speed2, ...]
-  std::vector<Local<Value>> result(count * 7);
-  for (int i = 0, j = 0; i < count; i++) {
+  std::vector<Local<Value>> result;
+  result.reserve(count * 7);
+  for (int i = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
-    result[j++] = OneByteString(isolate, ci->model);
-    result[j++] = Number::New(isolate, ci->speed);
-    result[j++] = Number::New(isolate, ci->cpu_times.user);
-    result[j++] = Number::New(isolate, ci->cpu_times.nice);
-    result[j++] = Number::New(isolate, ci->cpu_times.sys);
-    result[j++] = Number::New(isolate, ci->cpu_times.idle);
-    result[j++] = Number::New(isolate, ci->cpu_times.irq);
+    result.emplace_back(OneByteString(isolate, ci->model));
+    result.emplace_back(Number::New(isolate, ci->speed));
+    result.emplace_back(Number::New(isolate, ci->cpu_times.user));
+    result.emplace_back(Number::New(isolate, ci->cpu_times.nice));
+    result.emplace_back(Number::New(isolate, ci->cpu_times.sys));
+    result.emplace_back(Number::New(isolate, ci->cpu_times.idle));
+    result.emplace_back(Number::New(isolate, ci->cpu_times.irq));
   }
 
   uv_free_cpu_info(cpu_infos, count);
@@ -182,7 +183,8 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> no_scope_id = Integer::New(isolate, -1);
-  std::vector<Local<Value>> result(count * 7);
+  std::vector<Local<Value>> result;
+  result.reserve(count * 7);
   for (i = 0; i < count; i++) {
     const char* const raw_name = interfaces[i].name;
 
@@ -216,18 +218,18 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
       family = env->unknown_string();
     }
 
-    result[i * 7] = name;
-    result[i * 7 + 1] = OneByteString(isolate, ip);
-    result[i * 7 + 2] = OneByteString(isolate, netmask);
-    result[i * 7 + 3] = family;
-    result[i * 7 + 4] = FIXED_ONE_BYTE_STRING(isolate, mac);
-    result[i * 7 + 5] =
-      interfaces[i].is_internal ? True(isolate) : False(isolate);
+    result.emplace_back(name);
+    result.emplace_back(OneByteString(isolate, ip));
+    result.emplace_back(OneByteString(isolate, netmask));
+    result.emplace_back(family);
+    result.emplace_back(FIXED_ONE_BYTE_STRING(isolate, mac));
+    result.emplace_back(
+        interfaces[i].is_internal ? True(isolate) : False(isolate));
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
-      result[i * 7 + 6] = Integer::NewFromUnsigned(isolate, scopeid);
+      result.emplace_back(Integer::NewFromUnsigned(isolate, scopeid));
     } else {
-      result[i * 7 + 6] = no_scope_id;
+      result.emplace_back(no_scope_id);
     }
   }
 
