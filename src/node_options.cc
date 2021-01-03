@@ -479,6 +479,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces for the `throw` behind uncaught exceptions",
             &EnvironmentOptions::trace_uncaught,
             kAllowedInEnvironment);
+  AddOption("--trace-warnings",
+            "show stack traces on process warnings",
+            &EnvironmentOptions::trace_warnings,
+            kAllowedInEnvironment);
   AddOption("--no-trace-warnings",
             "hide stack traces on process warnings",
             &EnvironmentOptions::no_trace_warnings,

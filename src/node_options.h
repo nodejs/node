@@ -149,6 +149,7 @@ class EnvironmentOptions : public Options {
   bool trace_tls = false;
   bool trace_uncaught = false;
   bool no_trace_warnings = false;
+  bool trace_warnings = true;
   std::string unhandled_rejections;
   std::string userland_loader;
   bool verify_base_objects =

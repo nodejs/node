@@ -12,7 +12,7 @@ const decoder = new StringDecoder('utf8');
 // Do not use isMainThread so that this test itself can be run inside a Worker.
 if (!process.env.HAS_STARTED_WORKER) {
   process.env.HAS_STARTED_WORKER = 1;
-  const w = new Worker(__filename, { execArgv: [] });
+  const w = new Worker(__filename, { execArgv: ['--no-trace-warnings'] });
   w.stderr.on('data', common.mustCall((chunk) => {
     const error = decoder.write(chunk);
     assert.ok(
