@@ -10,7 +10,7 @@ if (process.config.variables.asan)
 const assert = require('assert');
 const crypto = require('crypto');
 
-const before = process.memoryUsage().rss;
+const before = process.memoryUsage.rss();
 {
   const dh = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
   const publicKey = dh.generateKeys();
@@ -21,7 +21,7 @@ const before = process.memoryUsage().rss;
   }
 }
 global.gc();
-const after = process.memoryUsage().rss;
+const after = process.memoryUsage.rss();
 
 // RSS should stay the same, ceteris paribus, but allow for
 // some slop because V8 mallocs memory during execution.
