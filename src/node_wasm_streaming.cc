@@ -336,7 +336,7 @@ void Initialize(Local<Object> target,
 void WasmStreamingCallback(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
-  CHECK(env);
+  CHECK_NOT_NULL(env);
   auto wasm_streaming = v8::WasmStreaming::Unpack(isolate, args.Data());
   DCHECK(wasm_streaming);
   Local<Function> cb = env->wasm_streaming_callback();
@@ -355,7 +355,7 @@ void WasmStreamingCallback(const FunctionCallbackInfo<Value>& args) {
                    arraysize(cb_args), cb_args));
     }
   }
-  if (try_catch.HasCaught())
+  if (try_catch.HasCaught() && !try_catch.HasTerminated())
     wasm_streaming->Abort(try_catch.Exception());
 }
 
