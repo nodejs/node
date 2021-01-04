@@ -1311,7 +1311,8 @@ const net = require('net');
 
   pipeline([r, t, w], common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
-    assert.strictEqual(err.message, 'Cannot call write after a stream was destroyed');
+    assert.strictEqual(err.message,
+                       'Cannot call write after a stream was destroyed');
     assert.strictEqual(r.destroyed, true);
     assert.strictEqual(t.destroyed, true);
   }));
@@ -1326,7 +1327,8 @@ const net = require('net');
 
   pipeline([r, t, w], common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
-    assert.strictEqual(err.message, 'Cannot call pipe after a stream was destroyed');
+    assert.strictEqual(err.message,
+                       'Cannot call pipe after a stream was destroyed');
     assert.strictEqual(r.destroyed, true);
   }));
 }
