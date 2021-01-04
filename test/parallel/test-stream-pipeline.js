@@ -1301,3 +1301,32 @@ const net = require('net');
     assert.strictEqual(res, '123');
   }));
 }
+
+{
+  const r = new Readable();
+  const t = new PassThrough();
+  const w = new Writable();
+
+  w.destroy();
+
+  pipeline([r, t, w], common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err.message, 'Cannot call write after a stream was destroyed');
+    assert.strictEqual(r.destroyed, true);
+    assert.strictEqual(t.destroyed, true);
+  }));
+}
+
+{
+  const r = new Readable();
+  const t = new PassThrough();
+  const w = new Writable();
+
+  t.destroy();
+
+  pipeline([r, t, w], common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err.message, 'Cannot call pipe after a stream was destroyed');
+    assert.strictEqual(r.destroyed, true);
+  }));
+}
