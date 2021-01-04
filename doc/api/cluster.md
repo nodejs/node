@@ -691,7 +691,7 @@ added: v0.8.1
 deprecated: REPLACEME
 -->
 
-Deprecated alias for [`cluster.isPrimary()`][].
+Deprecated alias for [`cluster.isPrimary`][].
 details.
 
 ## `cluster.isPrimary`
