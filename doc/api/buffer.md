@@ -612,7 +612,7 @@ added: v5.10.0
 This creates a view of the [`ArrayBuffer`][] without copying the underlying
 memory. For example, when passed a reference to the `.buffer` property of a
 [`TypedArray`][] instance, the newly created `Buffer` will share the same
-allocated memory as the [`TypedArray`][].
+allocated memory as the [`TypedArray`][]'s underlying `ArrayBuffer`.
 
 ```js
 const arr = new Uint16Array(2);
@@ -647,6 +647,21 @@ console.log(buf.length);
 A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`][] or a
 [`SharedArrayBuffer`][] or another type appropriate for `Buffer.from()`
 variants.
+
+It is important to remember that a backing `ArrayBuffer` can cover a range
+of memory that extends beyond the bounds of a `TypedArray` view. A new
+`Buffer` created using the `buffer` property of a `TypedArray` may extend
+beyond the range of the `TypedArray`:
+
+```js
+const arrA = Uint8Array.from([0x63, 0x64, 0x65, 0x66]); // 4 elements
+const arrB = new Uint8Array(arrA.buffer, 1, 2); // 2 elements
+console.log(arrA.buffer === arrB.buffer); // true
+
+const buf = Buffer.from(arrB.buffer);
+console.log(buf);
+// Prints: <Buffer 63 64 65 66>
+```
 
 ### Static method: `Buffer.from(buffer)`
 <!-- YAML
