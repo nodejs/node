@@ -7,6 +7,8 @@
 
 #include <errno.h>
 #include <sstream>
+#include <limits>
+#include <algorithm>
 #include <cstdlib>  // strtoul, errno
 
 using v8::Boolean;
@@ -63,6 +65,20 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
   if (use_openssl_ca && use_bundled_ca) {
     errors->push_back("either --use-openssl-ca or --use-bundled-ca can be "
                       "used, not both");
+  }
+
+  // Any value less than 2 disables use of the secure heap.
+  if (secure_heap >= 2) {
+    if ((secure_heap & (secure_heap - 1)) != 0)
+      errors->push_back("--secure-heap must be a power of 2");
+    secure_heap_min =
+        std::min({
+            secure_heap,
+            secure_heap_min,
+            static_cast<int64_t>(std::numeric_limits<int>::max())});
+    secure_heap_min = std::max(static_cast<int64_t>(2), secure_heap_min);
+    if ((secure_heap_min & (secure_heap_min - 1)) != 0)
+      errors->push_back("--secure-heap-min must be a power of 2");
   }
 #endif
   if (use_largepages != "off" &&
@@ -760,6 +776,14 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::force_fips_crypto,
             kAllowedInEnvironment);
 #endif
+  AddOption("--secure-heap",
+            "total size of the OpenSSL secure heap",
+            &PerProcessOptions::secure_heap,
+            kAllowedInEnvironment);
+  AddOption("--secure-heap-min",
+            "minimum allocation size from the OpenSSL secure heap",
+            &PerProcessOptions::secure_heap_min,
+            kAllowedInEnvironment);
 #endif
   AddOption("--use-largepages",
             "Map the Node.js static code to large pages. Options are "
