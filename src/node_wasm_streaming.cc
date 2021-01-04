@@ -27,6 +27,12 @@ namespace {
 
 class WasmStreaming final : public BaseObject {
  public:
+  enum InternalFields {
+    kSlot = BaseObject::kSlot,
+    kCompiledModuleBytes = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
   WasmStreaming(Environment* env,
                 Local<Object> wrap,
                 std::shared_ptr<v8::WasmStreaming> wasm_streaming);
@@ -83,12 +89,13 @@ class WasmStreaming final : public BaseObject {
  private:
   std::shared_ptr<v8::WasmStreaming> wasm_streaming_;
   std::shared_ptr<Client> client_;
-  Global<Value> compiled_module_bytes_;
 
   void Reset() {
     wasm_streaming_.reset();
     client_.reset();
-    compiled_module_bytes_.Reset();
+
+    Isolate* isolate = env()->isolate();
+    object()->SetInternalField(kCompiledModuleBytes, v8::Undefined(isolate));
   }
 };
 
@@ -188,7 +195,7 @@ void WasmStreaming::SetCompiledModuleBytes(
     // Compiled module could be quite large therefore making a copy has
     // a performance impact.  Not making a copy, hence TOCTOU problem is
     // possible.  We can live with that since it is only used internally.
-    ws->compiled_module_bytes_.Reset(isolate, args[0]);
+    ws->object()->SetInternalField(kCompiledModuleBytes, args[0]);
 
     auto const* p = reinterpret_cast<uint8_t *>(Buffer::Data(args[0]));
 
@@ -302,7 +309,8 @@ void Initialize(Local<Object> target,
 
   Local<ObjectTemplate> wasm_streaming_tmpl =
     wasm_streaming->InstanceTemplate();
-  wasm_streaming_tmpl->SetInternalFieldCount(1);
+  wasm_streaming_tmpl->SetInternalFieldCount(
+    WasmStreaming::kInternalFieldCount);
 
   DCHECK(env->wasm_streaming_instance_template().IsEmpty());
   env->set_wasm_streaming_instance_template(wasm_streaming_tmpl);
