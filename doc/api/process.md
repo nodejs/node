@@ -1617,6 +1617,9 @@ informations about memory usage which can be slow depending on the
 program memory allocations.
 
 ## `process.memoryUsage.rss()`
+<!-- YAML
+added: REPLACEME
+-->
 
 * Returns: {integer}
 
