@@ -9,7 +9,7 @@ FLAKY_TESTS ?= run
 TEST_CI_ARGS ?=
 STAGINGSERVER ?= node-www
 LOGLEVEL ?= silent
-OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
+OSTYPE := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 COVTESTS ?= test-cov
 COV_SKIP_TESTS ?= core_line_numbers.js,testFinalizer.js,test_function/test.js
 GTEST_FILTER ?= "*"
@@ -40,7 +40,7 @@ ifeq ($(OSTYPE), darwin)
 	GCOV = xcrun llvm-cov gcov
 endif
 
-BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
+BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[:upper:]' '[:lower:]')
 
 # Determine EXEEXT
 EXEEXT := $(shell $(PYTHON) -c \
@@ -85,7 +85,7 @@ endif
 # To add a target to the help, add a double comment (##) on the target line.
 help: ## Print help for targets with comments.
 	@printf "For more targets and info see the comments in the Makefile.\n\n"
-	@grep -E '^[a-zA-Z0-9._-]+:.*?## .*$$' Makefile | sort | \
+	@grep -E '^[[:alnum:]._-]+:.*?## .*$$' Makefile | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 # The .PHONY is needed to ensure that we recursively use the out/Makefile
@@ -243,10 +243,10 @@ coverage-test: coverage-build
 		--gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v \
 		-r Release/obj.target --html --html-detail -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
-	@echo -n "Javascript coverage %: "
+	@printf "Javascript coverage %%: "
 	@grep -B1 Lines coverage/index.html | head -n1 \
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
-	@echo -n "C++ coverage %: "
+	@printf "C++ coverage %%: "
 	@grep -A3 Lines coverage/cxxcoverage.html | grep style  \
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
 
@@ -1360,7 +1360,7 @@ lint: ## Run JS, C++, MD and doc linters.
 	$(MAKE) lint-addon-docs || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
-CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
+CONFLICT_RE=^>>>>>>> [[:xdigit:]]+|^<<<<<<< [[:alpha:]]+
 
 # Related CI job: node-test-linter
 lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs
