@@ -3545,6 +3545,21 @@ const key2 = crypto.scryptSync('password', 'salt', 64, { N: 1024 });
 console.log(key2.toString('hex'));  // '3745e48...aa39b34'
 ```
 
+### `crypto.secureHeapUsed()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+  * `total` {number} The total allocated secure heap size as specified
+    using the `--secure-heap=n` command-line flag.
+  * `min` {number} The minimum allocation from the secure heap as
+    specified using the `--secure-heap-min` command-line flag.
+  * `used` {number} The total number of bytes currently allocated from
+    the secure heap.
+  * `utilization` {number} The calculated ratio of `used` to `total`
+    allocated bytes.
+
 ### `crypto.setEngine(engine[, flags])`
 <!-- YAML
 added: v0.11.11

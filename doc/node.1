@@ -359,6 +359,13 @@ Enables
 to be generated on un-caught exceptions. Useful when inspecting JavaScript
 stack in conjunction with native stack and other runtime environment data.
 .
+.It Fl -secure-heap Ns = Ns Ar n
+Specify the size of the OpenSSL secure heap. Any value less than 2 disables
+the secure heap. The default is 0. The value must be a power of two.
+.
+.It Fl -secure-heap-min Ns = Ns Ar n
+Specify the minimum allocation from the OpenSSL secure heap. The default is 2. The value must be a power of two.
+.
 .It Fl -throw-deprecation
 Throw errors for deprecations.
 .

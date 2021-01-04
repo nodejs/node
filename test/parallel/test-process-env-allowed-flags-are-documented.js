@@ -43,8 +43,14 @@ for (const line of [...nodeOptionsLines, ...v8OptionsLines]) {
 const conditionalOpts = [
   { include: common.hasCrypto,
     filter: (opt) => {
-      return ['--openssl-config', '--tls-cipher-list', '--use-bundled-ca',
-              '--use-openssl-ca' ].includes(opt);
+      return [
+        '--openssl-config',
+        '--tls-cipher-list',
+        '--use-bundled-ca',
+        '--use-openssl-ca',
+        '--secure-heap',
+        '--secure-heap-min',
+      ].includes(opt);
     } },
   {
     // We are using openssl_is_fips from the configuration because it could be
