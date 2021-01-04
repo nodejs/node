@@ -51,6 +51,13 @@ assert.throws(() => {
   message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
 });
 
+// Passing -0 shouldn't crash the process
+// Refs: https://github.com/nodejs/node/issues/32750
+try { process.setuid(-0); } catch {}
+try { process.seteuid(-0); } catch {}
+try { process.setgid(-0); } catch {}
+try { process.setegid(-0); } catch {}
+
 // If we're not running as super user...
 if (process.getuid() !== 0) {
   // Should not throw.
@@ -79,6 +86,7 @@ try {
   }
   process.setgid('nogroup');
 }
+
 const newgid = process.getgid();
 assert.notStrictEqual(newgid, oldgid);
 
