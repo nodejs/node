@@ -18,6 +18,7 @@ namespace node {
 
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::BigInt;
 using v8::Context;
 using v8::Exception;
 using v8::FunctionCallbackInfo;
@@ -111,6 +112,25 @@ void InitCryptoOnce() {
   OPENSSL_init_ssl(0, settings);
   OPENSSL_INIT_free(settings);
   settings = nullptr;
+#endif
+
+#ifndef _WIN32
+  if (per_process::cli_options->secure_heap != 0) {
+    switch (CRYPTO_secure_malloc_init(
+                per_process::cli_options->secure_heap,
+                static_cast<int>(per_process::cli_options->secure_heap_min))) {
+      case 0:
+        fprintf(stderr, "Unable to initialize openssl secure heap.\n");
+        break;
+      case 2:
+        // Not a fatal error but worthy of a warning.
+        fprintf(stderr, "Unable to memory map openssl secure heap.\n");
+        break;
+      case 1:
+        // OK!
+        break;
+    }
+  }
 #endif
 
 #ifdef NODE_FIPS_MODE
@@ -617,6 +637,13 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
   args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
 }
+
+void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (CRYPTO_secure_malloc_initialized())
+    args.GetReturnValue().Set(
+        BigInt::New(env->isolate(), CRYPTO_secure_used()));
+}
 }  // namespace
 
 namespace Util {
@@ -634,6 +661,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
 
   env->SetMethod(target, "secureBuffer", SecureBuffer);
+  env->SetMethod(target, "secureHeapUsed", SecureHeapUsed);
 }
 }  // namespace Util
 
