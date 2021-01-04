@@ -1508,6 +1508,9 @@ then this will be `null`.
 `subprocess.stderr` is an alias for `subprocess.stdio[2]`. Both properties will
 refer to the same value.
 
+The `subprocess.stderr` property can be `null` if the child process could
+not be successfully spawned.
+
 ### `subprocess.stdin`
 <!-- YAML
 added: v0.1.90
@@ -1525,6 +1528,9 @@ then this will be `null`.
 
 `subprocess.stdin` is an alias for `subprocess.stdio[0]`. Both properties will
 refer to the same value.
+
+The `subprocess.stdin` property can be `undefined` if the child process could
+not be successfully spawned.
 
 ### `subprocess.stdio`
 <!-- YAML
@@ -1566,6 +1572,9 @@ assert.strictEqual(subprocess.stdio[2], null);
 assert.strictEqual(subprocess.stdio[2], subprocess.stderr);
 ```
 
+The `subprocess.stdio` property can be `undefined` if the child process could
+not be successfully spawned.
+
 ### `subprocess.stdout`
 <!-- YAML
 added: v0.1.90
@@ -1590,6 +1599,9 @@ subprocess.stdout.on('data', (data) => {
   console.log(`Received chunk ${data}`);
 });
 ```
+
+The `subprocess.stdout` property can be `null` if the child process could
+not be successfully spawned.
 
 ### `subprocess.unref()`
 <!-- YAML
