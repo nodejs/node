@@ -14,5 +14,5 @@ const files = [];
 while (files.length < 256)
   files.push(fs.openSync(__filename, 'r'));
 
-const r = process.memoryUsage();
-assert.strictEqual(r.rss > 0, true);
+const r = process.memoryUsage.rss();
+assert.strictEqual(r > 0, true);
