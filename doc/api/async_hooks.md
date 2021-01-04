@@ -839,9 +839,19 @@ class WorkerPool extends EventEmitter {
     this.numThreads = numThreads;
     this.workers = [];
     this.freeWorkers = [];
+    this.tasks = [];
 
     for (let i = 0; i < numThreads; i++)
       this.addNewWorker();
+
+    // Any time the kWorkerFreedEvent is emitted, dispatch
+    // the next task pending in the queue, if any.
+    this.on(kWorkerFreedEvent, () => {
+      if (this.tasks.length > 0) {
+        const { task, callback } = this.tasks.shift();
+        this.runTask(task, callback);
+      }
+    });
   }
 
   addNewWorker() {
@@ -875,7 +885,7 @@ class WorkerPool extends EventEmitter {
   runTask(task, callback) {
     if (this.freeWorkers.length === 0) {
       // No free threads, wait until a worker thread becomes free.
-      this.once(kWorkerFreedEvent, () => this.runTask(task, callback));
+      this.tasks.push({ task, callback });
       return;
     }
 
