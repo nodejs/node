@@ -730,30 +730,40 @@ class DBQuery extends AsyncResource {
 }
 ```
 
-#### Static method: `AsyncResource.bind(fn[, type])`
+#### Static method: `AsyncResource.bind(fn[, type, [thisArg]])`
 <!-- YAML
 added:
   - v14.8.0
   - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36782
+    description: Added optional thisArg.
 -->
 
 * `fn` {Function} The function to bind to the current execution context.
 * `type` {string} An optional name to associate with the underlying
   `AsyncResource`.
+* `thisArg` {any}
 
 Binds the given function to the current execution context.
 
 The returned function will have an `asyncResource` property referencing
 the `AsyncResource` to which the function is bound.
 
-#### `asyncResource.bind(fn)`
+#### `asyncResource.bind(fn[, thisArg])`
 <!-- YAML
 added:
   - v14.8.0
   - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36782
+    description: Added optional thisArg.
 -->
 
 * `fn` {Function} The function to bind to the current `AsyncResource`.
+* `thisArg` {any}
 
 Binds the given function to execute to this `AsyncResource`'s scope.
 
