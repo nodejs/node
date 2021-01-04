@@ -1665,7 +1665,7 @@ or [`child_process.fork()`][].
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
 [`'message'`]: process.md#process_event_message
-[`ChildProcess`]: #child_process_child_process
+[`ChildProcess`]: #child_process_class_childprocess
 [`Error`]: errors.md#errors_class_error
 [`EventEmitter`]: events.md#events_class_eventemitter
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
