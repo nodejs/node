@@ -474,6 +474,9 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36804
+    description: Added `X509Certificate` tot he list of cloneable types.
   - version:
     - v14.5.0
     - v12.19.0
@@ -501,8 +504,8 @@ In particular, the significant differences to `JSON` are:
 * `value` may contain typed arrays, both using `ArrayBuffer`s
    and `SharedArrayBuffer`s.
 * `value` may contain [`WebAssembly.Module`][] instances.
-* `value` may not contain native (C++-backed) objects other than `MessagePort`s,
-  [`FileHandle`][]s, and [`KeyObject`][]s.
+* `value` may not contain native (C++-backed) objects other than {MessagePort}s,
+  {FileHandle}s, {KeyObject}s, and {X509Certificate}s.
 
 ```js
 const { MessageChannel } = require('worker_threads');
@@ -1129,7 +1132,6 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#ERR_WORKER_NOT_RUNNING
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`FileHandle`]: fs.md#fs_class_filehandle
-[`KeyObject`]: crypto.md#crypto_class_keyobject
 [`MessagePort`]: #worker_threads_class_messageport
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array

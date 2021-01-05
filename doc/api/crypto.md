@@ -1645,6 +1645,259 @@ thrown.
 Because public keys can be derived from private keys, a private key may
 be passed instead of a public key.
 
+## Class: `X509Certificate`
+<!-- YAML
+added: REPLACEME
+-->
+
+Encapsulates an X509 certificate and provides read-only access to
+it's information.
+
+```js
+const { X509Certificate } = require('crypto');
+
+const x509 = new X509Certificate('{... pem encoded cert ...}');
+
+console.log(x509.subject);
+```
+
+### `new X509Certificate(buffer)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {string|TypedArray|Buffer|DataView} A PEM or DER encoded
+  X509 Certificate.
+
+### `x509.ca`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} Will be `true` if this is a Certificate Authority (ca)
+  certificate.
+
+### `x509.checkEmail(email[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `email` {string}
+* `options` {Object}
+  * `subject` {string} `'always'` or `'never'`. **Defaults**: `'always'`.
+  * `wildcards` {boolean} **Defaults**: `true`.
+  * `partialWildcards` {boolean} **Defaults**: `true`.
+  * `multiLabelWildcards` {boolean} **Defaults**: `false`.
+  * `singleLabelSubdomains` {boolean} **Defaults**: `false`.
+* Returns: {string|undefined} Returns `email` if the certificate matches,
+  `undefined` if it does not.
+
+Checks whether the certificate matches the given email address.
+
+### `x509.checkHost(name[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+* `options` {Object}
+  * `subject` {string} `'always'` or `'never'`. **Defaults**: `'always'`.
+  * `wildcards` {boolean} **Defaults**: `true`.
+  * `partialWildcards` {boolean} **Defaults**: `true`.
+  * `multiLabelWildcards` {boolean} **Defaults**: `false`.
+  * `singleLabelSubdomains` {boolean} **Defaults**: `false`.
+* Returns: {string|undefined} Returns `name` if the certificate matches,
+  `undefined` if it does not.
+
+Checks whether the certificate matches the given host name.
+
+### `x509.checkIP(ip[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `ip` {string}
+* `options` {Object}
+  * `subject` {string} `'always'` or `'never'`. **Defaults**: `'always'`.
+  * `wildcards` {boolean} **Defaults**: `true`.
+  * `partialWildcards` {boolean} **Defaults**: `true`.
+  * `multiLabelWildcards` {boolean} **Defaults**: `false`.
+  * `singleLabelSubdomains` {boolean} **Defaults**: `false`.
+* Returns: {string|undefined} Returns `ip` if the certificate matches,
+  `undefined` if it does not.
+
+Checks whether the certificate matches the given IP address (IPv4 or IPv6).
+
+### `x509.checkIssued(otherCert)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `otherCert` {X509Certificate}
+* Returns: {boolean}
+
+Checks whether this certificate was issued by the given `otherCert`.
+
+### `x509.checkPrivateKey(privateKey)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `privateKey` {KeyObject} A private key.
+* Returns: {boolean}
+
+Checks whether the public key for this certificate is consistent with
+the given private key.
+
+### `x509.fingerprint`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The SHA-1 fingerprint of this certificate.
+
+### `x509.fingerprint256`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The SHA-256 fingerprint of this certificate.
+
+### `x509.infoAccess`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The information access content of this certificate.
+
+### `x509.issuer`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The issuer identification included in this certificate.
+
+### `x509.keyUsage`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string[]}
+
+An array detailing the key usages for this certificate.
+
+### `x509.publicKey`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {KeyObject}
+
+The public key {KeyObject} for this certificate.
+
+### `x509.raw`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Buffer}
+
+A `Buffer` containing the DER encoding of this certificate.
+
+### `x509.serialNumber`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The serial number of this certificate.
+
+### `x509.subject`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The complete subject of this certificate.
+
+### `x509.subjectAltName`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The subject alternative name specified for this certificate.
+
+### `x509.toJSON()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+There is no standard JSON encoding for X509 certificates. The
+`toJSON()` method returns a string containing the PEM encoded
+certificate.
+
+### `x509.toLegacyObject()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+
+Returns information about this certificate using the legacy
+[certificate object][] encoding.
+
+### `x509.toString()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+Returns the PEM-encoded certificate.
+
+### `x509.validFrom`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The date/time from which this certificate is considered valid.
+
+### `x509.validTo`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The date/time until which this certificate is considered valid.
+
+### `x509.verify(publicKey)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `publicKey` {KeyObject} A public key.
+* Returns: {boolean}
+
+Verifies that this certificate was signed by the given public key.
+Does not perform any other validation checks on the certificate.
+
 ## `crypto` module methods and properties
 
 ### `crypto.constants`
@@ -3997,6 +4250,7 @@ See the [list of SSL OP Flags][] for details.
 [`util.promisify()`]: util.md#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureencoding
+[certificate object]: tls.md#tls_certificate_object
 [encoding]: buffer.md#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [list of SSL OP Flags]: https://wiki.openssl.org/index.php/List_of_SSL_OP_Flags#Table_of_Options

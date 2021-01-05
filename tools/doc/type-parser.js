@@ -217,6 +217,8 @@ const customTypesMap = {
 
   'MessagePort': 'worker_threads.html#worker_threads_class_messageport',
 
+  'X509Certificate': 'crypto.html#crypto_class_x509certificate',
+
   'zlib options': 'zlib.html#zlib_class_options',
 };
 

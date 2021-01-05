@@ -23,6 +23,8 @@ void IsExtraRootCertsFileLoaded(
 
 X509_STORE* NewRootCertStore();
 
+BIOPointer LoadBIO(Environment* env, v8::Local<v8::Value> v);
+
 class SecureContext final : public BaseObject {
  public:
   using GetSessionCb = SSL_SESSION* (*)(SSL*, const unsigned char*, int, int*);
