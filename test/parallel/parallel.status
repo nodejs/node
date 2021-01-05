@@ -19,6 +19,8 @@ test-finalization-group: SKIP
 test-code-cache: SKIP
 # .js tools have been deprecated (migrated to modules)
 test-tick-processor-arguments: SKIP
+# Skip tests failing in V8 bots when updating Node
+test-child-process-stdio-overlapped: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
