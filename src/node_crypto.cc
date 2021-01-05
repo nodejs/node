@@ -64,6 +64,7 @@ void Initialize(Local<Object> target,
   Timing::Initialize(env, target);
   Util::Initialize(env, target);
   Verify::Initialize(env, target);
+  X509Certificate::Initialize(env, target);
 
 #ifndef OPENSSL_NO_SCRYPT
   ScryptJob::Initialize(env, target);
