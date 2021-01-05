@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "allocated_buffer-inl.h"
 #include "node.h"
+#include "node_blob.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -1197,6 +1198,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
 
   env->SetMethod(target, "getZeroFillToggle", GetZeroFillToggle);
+
+  Blob::Initialize(env, target);
 }
 
 }  // anonymous namespace
@@ -1235,6 +1238,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StringWrite<UCS2>);
   registry->Register(StringWrite<UTF8>);
   registry->Register(GetZeroFillToggle);
+
+  registry->Register(Blob::New);
+  registry->Register(Blob::ToArrayBuffer);
+  registry->Register(Blob::ToSlice);
 }
 
 }  // namespace Buffer
