@@ -50,6 +50,7 @@
 #include "crypto/crypto_tls.h"
 #include "crypto/crypto_timing.h"
 #include "crypto/crypto_util.h"
+#include "crypto/crypto_x509.h"
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

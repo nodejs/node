@@ -476,6 +476,7 @@ constexpr size_t kFsStatsBufferLength =
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
+  V(x509_constructor_template, v8::FunctionTemplate)                           \
   QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 
 #if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC

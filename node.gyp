@@ -143,6 +143,7 @@
       'lib/internal/crypto/sig.js',
       'lib/internal/crypto/util.js',
       'lib/internal/crypto/webcrypto.js',
+      'lib/internal/crypto/x509.js',
       'lib/internal/constants.js',
       'lib/internal/dgram.js',
       'lib/internal/dns/promises.js',
@@ -941,6 +942,7 @@
             'src/crypto/crypto_scrypt.cc',
             'src/crypto/crypto_tls.cc',
             'src/crypto/crypto_aes.cc',
+            'src/crypto/crypto_x509.cc',
             'src/crypto/crypto_bio.h',
             'src/crypto/crypto_clienthello-inl.h',
             'src/crypto/crypto_dh.h',
@@ -965,6 +967,7 @@
             'src/crypto/crypto_sig.h',
             'src/crypto/crypto_random.h',
             'src/crypto/crypto_timing.h',
+            'src/crypto/crypto_x509.h',
             'src/node_crypto.cc',
             'src/node_crypto.h'
           ],

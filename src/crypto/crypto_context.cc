@@ -49,7 +49,6 @@ static X509_STORE* root_cert_store;
 
 static bool extra_root_certs_loaded = false;
 
-namespace {
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
 BIOPointer LoadBIO(Environment* env, Local<Value> v) {
@@ -68,6 +67,7 @@ BIOPointer LoadBIO(Environment* env, Local<Value> v) {
   return nullptr;
 }
 
+namespace {
 int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                   X509Pointer&& x,
                                   STACK_OF(X509)* extra_certs,

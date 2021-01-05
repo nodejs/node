@@ -33,7 +33,6 @@ using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::NewStringType;
-using v8::Null;
 using v8::Object;
 using v8::String;
 using v8::Undefined;
@@ -354,6 +353,19 @@ MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {
   return maybe_cert.FromMaybe<Value>(Local<Value>());
 }
 
+Local<Value> ToV8Value(Environment* env, const BIOPointer& bio) {
+  BUF_MEM* mem;
+  BIO_get_mem_ptr(bio.get(), &mem);
+  MaybeLocal<String> ret =
+      String::NewFromUtf8(
+          env->isolate(),
+          mem->data,
+          NewStringType::kNormal,
+          mem->length);
+  USE(BIO_reset(bio.get()));
+  return ret.FromMaybe(Local<Value>());
+}
+
 namespace {
 template <typename T>
 bool Set(
@@ -370,19 +382,6 @@ bool Set(
     return true;
 
   return !target->Set(context, name, value).IsNothing();
-}
-
-Local<Value> ToV8Value(Environment* env, const BIOPointer& bio) {
-  BUF_MEM* mem;
-  BIO_get_mem_ptr(bio.get(), &mem);
-  MaybeLocal<String> ret =
-      String::NewFromUtf8(
-          env->isolate(),
-          mem->data,
-          NewStringType::kNormal,
-          mem->length);
-  USE(BIO_reset(bio.get()));
-  return ret.FromMaybe(Local<Value>());
 }
 
 MaybeLocal<Value> GetCipherValue(Environment* env,
@@ -485,53 +484,6 @@ MaybeLocal<Object> GetLastIssuedCert(
   return MaybeLocal<Object>(issuer_chain);
 }
 
-MaybeLocal<Object> GetRawDERCertificate(Environment* env, X509* cert) {
-  int size = i2d_X509(cert, nullptr);
-
-  AllocatedBuffer buffer = AllocatedBuffer::AllocateManaged(env, size);
-  unsigned char* serialized =
-      reinterpret_cast<unsigned char*>(buffer.data());
-  i2d_X509(cert, &serialized);
-  return buffer.ToBuffer();
-}
-
-MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
-  if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
-    BignumPointer bn(ASN1_INTEGER_to_BN(serial_number, nullptr));
-    if (bn) {
-      char* data = BN_bn2hex(bn.get());
-      ByteSource buf = ByteSource::Allocated(data, strlen(data));
-      if (buf)
-        return OneByteString(env->isolate(), buf.get());
-    }
-  }
-
-  return Undefined(env->isolate());
-}
-
-MaybeLocal<Value> GetKeyUsage(Environment* env, X509* cert) {
-  StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
-      X509_get_ext_d2i(cert, NID_ext_key_usage, nullptr, nullptr)));
-  if (eku) {
-    const int count = sk_ASN1_OBJECT_num(eku.get());
-    MaybeStackBuffer<Local<Value>, 16> ext_key_usage(count);
-    char buf[256];
-
-    int j = 0;
-    for (int i = 0; i < count; i++) {
-      if (OBJ_obj2txt(buf,
-                      sizeof(buf),
-                      sk_ASN1_OBJECT_value(eku.get(), i), 1) >= 0) {
-        ext_key_usage[j++] = OneByteString(env->isolate(), buf);
-      }
-    }
-
-    return Array::New(env->isolate(), ext_key_usage.out(), count);
-  }
-
-  return Undefined(env->isolate());
-}
-
 void AddFingerprintDigest(
     const unsigned char* md,
     unsigned int md_size,
@@ -550,72 +502,6 @@ void AddFingerprintDigest(
   } else {
     (*fingerprint)[0] = '\0';
   }
-}
-
-bool SafeX509ExtPrint(const BIOPointer& out, X509_EXTENSION* ext) {
-  const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
-
-  if (method != X509V3_EXT_get_nid(NID_subject_alt_name))
-    return false;
-
-  GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
-  if (names == nullptr)
-    return false;
-
-  for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
-    GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
-
-    if (i != 0)
-      BIO_write(out.get(), ", ", 2);
-
-    if (gen->type == GEN_DNS) {
-      ASN1_IA5STRING* name = gen->d.dNSName;
-
-      BIO_write(out.get(), "DNS:", 4);
-      BIO_write(out.get(), name->data, name->length);
-    } else {
-      STACK_OF(CONF_VALUE)* nval = i2v_GENERAL_NAME(
-          const_cast<X509V3_EXT_METHOD*>(method), gen, nullptr);
-      if (nval == nullptr)
-        return false;
-      X509V3_EXT_val_prn(out.get(), nval, 0, 0);
-      sk_CONF_VALUE_pop_free(nval, X509V3_conf_free);
-    }
-  }
-  sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
-
-  return true;
-}
-
-MaybeLocal<Value> GetFingerprintDigest(
-    Environment* env,
-    const EVP_MD* method,
-    X509* cert) {
-  unsigned char md[EVP_MAX_MD_SIZE];
-  unsigned int md_size;
-  char fingerprint[EVP_MAX_MD_SIZE * 3 + 1];
-
-  if (X509_digest(cert, method, md, &md_size)) {
-    AddFingerprintDigest(md, md_size, &fingerprint);
-    return OneByteString(env->isolate(), fingerprint);
-  }
-  return Undefined(env->isolate());
-}
-
-MaybeLocal<Value> GetValidTo(
-    Environment* env,
-    X509* cert,
-    const BIOPointer& bio) {
-  ASN1_TIME_print(bio.get(), X509_get0_notAfter(cert));
-  return ToV8Value(env, bio);
-}
-
-MaybeLocal<Value> GetValidFrom(
-    Environment* env,
-    X509* cert,
-    const BIOPointer& bio) {
-  ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert));
-  return ToV8Value(env, bio);
 }
 
 MaybeLocal<Value> GetCurveASN1Name(Environment* env, const int nid) {
@@ -699,26 +585,119 @@ MaybeLocal<Value> GetModulusString(
   BN_print(bio.get(), n);
   return ToV8Value(env, bio);
 }
+}  // namespace
 
-template <int nid>
-MaybeLocal<Value> GetInfoString(
-    Environment* env,
-    const BIOPointer& bio,
-    X509* cert) {
-  int index = X509_get_ext_by_NID(cert, nid, -1);
-  if (index < 0)
-    return Undefined(env->isolate());
+MaybeLocal<Object> GetRawDERCertificate(Environment* env, X509* cert) {
+  int size = i2d_X509(cert, nullptr);
 
-  X509_EXTENSION* ext = X509_get_ext(cert, index);
-  CHECK_NOT_NULL(ext);
+  AllocatedBuffer buffer = AllocatedBuffer::AllocateManaged(env, size);
+  unsigned char* serialized =
+      reinterpret_cast<unsigned char*>(buffer.data());
+  i2d_X509(cert, &serialized);
+  return buffer.ToBuffer();
+}
 
-  if (!SafeX509ExtPrint(bio, ext) &&
-      X509V3_EXT_print(bio.get(), ext, 0, 0) != 1) {
-    USE(BIO_reset(bio.get()));
-    return Null(env->isolate());
+MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
+  if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
+    BignumPointer bn(ASN1_INTEGER_to_BN(serial_number, nullptr));
+    if (bn) {
+      char* data = BN_bn2hex(bn.get());
+      ByteSource buf = ByteSource::Allocated(data, strlen(data));
+      if (buf)
+        return OneByteString(env->isolate(), buf.get());
+    }
   }
 
+  return Undefined(env->isolate());
+}
+
+MaybeLocal<Value> GetKeyUsage(Environment* env, X509* cert) {
+  StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
+      X509_get_ext_d2i(cert, NID_ext_key_usage, nullptr, nullptr)));
+  if (eku) {
+    const int count = sk_ASN1_OBJECT_num(eku.get());
+    MaybeStackBuffer<Local<Value>, 16> ext_key_usage(count);
+    char buf[256];
+
+    int j = 0;
+    for (int i = 0; i < count; i++) {
+      if (OBJ_obj2txt(buf,
+                      sizeof(buf),
+                      sk_ASN1_OBJECT_value(eku.get(), i), 1) >= 0) {
+        ext_key_usage[j++] = OneByteString(env->isolate(), buf);
+      }
+    }
+
+    return Array::New(env->isolate(), ext_key_usage.out(), count);
+  }
+
+  return Undefined(env->isolate());
+}
+
+MaybeLocal<Value> GetFingerprintDigest(
+    Environment* env,
+    const EVP_MD* method,
+    X509* cert) {
+  unsigned char md[EVP_MAX_MD_SIZE];
+  unsigned int md_size;
+  char fingerprint[EVP_MAX_MD_SIZE * 3 + 1];
+
+  if (X509_digest(cert, method, md, &md_size)) {
+    AddFingerprintDigest(md, md_size, &fingerprint);
+    return OneByteString(env->isolate(), fingerprint);
+  }
+  return Undefined(env->isolate());
+}
+
+MaybeLocal<Value> GetValidTo(
+    Environment* env,
+    X509* cert,
+    const BIOPointer& bio) {
+  ASN1_TIME_print(bio.get(), X509_get0_notAfter(cert));
   return ToV8Value(env, bio);
+}
+
+MaybeLocal<Value> GetValidFrom(
+    Environment* env,
+    X509* cert,
+    const BIOPointer& bio) {
+  ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert));
+  return ToV8Value(env, bio);
+}
+
+bool SafeX509ExtPrint(const BIOPointer& out, X509_EXTENSION* ext) {
+  const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
+
+  if (method != X509V3_EXT_get_nid(NID_subject_alt_name))
+    return false;
+
+  GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
+  if (names == nullptr)
+    return false;
+
+  for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
+    GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
+
+    if (i != 0)
+      BIO_write(out.get(), ", ", 2);
+
+    if (gen->type == GEN_DNS) {
+      ASN1_IA5STRING* name = gen->d.dNSName;
+
+      BIO_write(out.get(), "DNS:", 4);
+      BIO_write(out.get(), name->data, name->length);
+    } else {
+      STACK_OF(CONF_VALUE)* nval = i2v_GENERAL_NAME(
+          const_cast<X509V3_EXT_METHOD*>(method), gen, nullptr);
+      if (nval == nullptr)
+        return false;
+      X509V3_EXT_val_prn(out.get(), nval, 0, 0);
+      sk_CONF_VALUE_pop_free(nval, X509V3_conf_free);
+    }
+  }
+  sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
+
+  return true;
 }
 
 MaybeLocal<Value> GetIssuerString(
@@ -749,7 +728,6 @@ MaybeLocal<Value> GetSubject(
 
   return ToV8Value(env, bio);
 }
-}  // namespace
 
 MaybeLocal<Value> GetCipherName(Environment* env, const SSLPointer& ssl) {
   return GetCipherName(env, SSL_get_current_cipher(ssl.get()));
