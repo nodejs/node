@@ -77,6 +77,12 @@ Vulnerabilities fixed:
 
 ### Notable Changes
 
+#### OpenSSL-1.1.1i
+
+OpenSSL-1.1.1i contains a fix for CVE-2020-1971: OpenSSL - EDIPARTYNAME NULL pointer de-reference (High). This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20201208.txt
+
+Contributed by Myles Borins [#36520](https://github.com/nodejs/node/pull/36520).
+
 #### Extended support for `AbortSignal` in child_process and stream
 
 The following APIs now support an `AbortSignal` in their options object:
