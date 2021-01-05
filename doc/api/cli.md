@@ -1211,6 +1211,9 @@ Preload the specified module at startup.
 Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
 
+Only CommonJS modules are supported. Attempting to preload a
+ES6 Module using `--require` will fail with an error.
+
 ### `-v`, `--version`
 <!-- YAML
 added: v0.1.3
