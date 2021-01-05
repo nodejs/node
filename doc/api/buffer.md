@@ -1416,6 +1416,8 @@ changes:
 Reads an unsigned, big-endian 64-bit integer from `buf` at the specified
 `offset`.
 
+This function is also available under the `readBigUint64BE` alias.
+
 ```js
 const buf = Buffer.from([0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff]);
 
@@ -1442,6 +1444,8 @@ changes:
 
 Reads an unsigned, little-endian 64-bit integer from `buf` at the specified
 `offset`.
+
+This function is also available under the `readBigUint64LE` alias.
 
 ```js
 const buf = Buffer.from([0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff]);
@@ -1760,6 +1764,8 @@ changes:
 
 Reads an unsigned 8-bit integer from `buf` at the specified `offset`.
 
+This function is also available under the `readUint8` alias.
+
 ```js
 const buf = Buffer.from([1, -2]);
 
@@ -1793,6 +1799,8 @@ changes:
 Reads an unsigned, big-endian 16-bit integer from `buf` at the specified
 `offset`.
 
+This function is also available under the `readUint16BE` alias.
+
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56]);
 
@@ -1823,6 +1831,8 @@ changes:
 
 Reads an unsigned, little-endian 16-bit integer from `buf` at the specified
 `offset`.
+
+This function is also available under the `readUint16LE` alias.
 
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56]);
@@ -1857,6 +1867,8 @@ changes:
 Reads an unsigned, big-endian 32-bit integer from `buf` at the specified
 `offset`.
 
+This function is also available under the `readUint32BE` alias.
+
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56, 0x78]);
 
@@ -1885,6 +1897,8 @@ changes:
 
 Reads an unsigned, little-endian 32-bit integer from `buf` at the specified
 `offset`.
+
+This function is also available under the `readUint32LE` alias.
 
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56, 0x78]);
@@ -1920,6 +1934,8 @@ Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as an unsigned big-endian integer supporting
 up to 48 bits of accuracy.
 
+This function is also available under the `readUintBE` alias.
+
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x90, 0xab]);
 
@@ -1953,6 +1969,8 @@ changes:
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as an unsigned, little-endian integer supporting
 up to 48 bits of accuracy.
+
+This function is also available under the `readUintLE` alias.
 
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x90, 0xab]);
@@ -2369,6 +2387,8 @@ changes:
 
 Writes `value` to `buf` at the specified `offset` as big-endian.
 
+This function is also available under the `writeBigUint64BE` alias.
+
 ```js
 const buf = Buffer.allocUnsafe(8);
 
@@ -2406,6 +2426,8 @@ buf.writeBigUInt64LE(0xdecafafecacefaden, 0);
 console.log(buf);
 // Prints: <Buffer de fa ce ca fe fa ca de>
 ```
+
+This function is also available under the `writeBigUint64LE` alias.
 
 ### `buf.writeDoubleBE(value[, offset])`
 <!-- YAML
@@ -2754,6 +2776,8 @@ Writes `value` to `buf` at the specified `offset`. `value` must be a
 valid unsigned 8-bit integer. Behavior is undefined when `value` is anything
 other than an unsigned 8-bit integer.
 
+This function is also available under the `writeUint8` alias.
+
 ```js
 const buf = Buffer.allocUnsafe(4);
 
@@ -2790,6 +2814,8 @@ Writes `value` to `buf` at the specified `offset` as big-endian. The `value`
 must be a valid unsigned 16-bit integer. Behavior is undefined when `value`
 is anything other than an unsigned 16-bit integer.
 
+This function is also available under the `writeUint16BE` alias.
+
 ```js
 const buf = Buffer.allocUnsafe(4);
 
@@ -2823,6 +2849,8 @@ changes:
 Writes `value` to `buf` at the specified `offset` as little-endian. The `value`
 must be a valid unsigned 16-bit integer. Behavior is undefined when `value` is
 anything other than an unsigned 16-bit integer.
+
+This function is also available under the `writeUint16LE` alias.
 
 ```js
 const buf = Buffer.allocUnsafe(4);
@@ -2858,6 +2886,8 @@ Writes `value` to `buf` at the specified `offset` as big-endian. The `value`
 must be a valid unsigned 32-bit integer. Behavior is undefined when `value`
 is anything other than an unsigned 32-bit integer.
 
+This function is also available under the `writeUint32BE` alias.
+
 ```js
 const buf = Buffer.allocUnsafe(4);
 
@@ -2890,6 +2920,8 @@ changes:
 Writes `value` to `buf` at the specified `offset` as little-endian. The `value`
 must be a valid unsigned 32-bit integer. Behavior is undefined when `value` is
 anything other than an unsigned 32-bit integer.
+
+This function is also available under the `writeUint32LE` alias.
 
 ```js
 const buf = Buffer.allocUnsafe(4);
@@ -2926,6 +2958,8 @@ Writes `byteLength` bytes of `value` to `buf` at the specified `offset`
 as big-endian. Supports up to 48 bits of accuracy. Behavior is undefined
 when `value` is anything other than an unsigned integer.
 
+This function is also available under the `writeUintBE` alias.
+
 ```js
 const buf = Buffer.allocUnsafe(6);
 
@@ -2960,6 +2994,8 @@ changes:
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`
 as little-endian. Supports up to 48 bits of accuracy. Behavior is undefined
 when `value` is anything other than an unsigned integer.
+
+This function is also available under the `writeUintLE` alias.
 
 ```js
 const buf = Buffer.allocUnsafe(6);
