@@ -371,6 +371,8 @@ For information about the governance of the Node.js project, see
 **Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [oyyd](https://github.com/oyyd) -
 **Ouyang Yadong** &lt;oyydoibh@gmail.com&gt; (he/him)
+* [panva](https://github.com/panva) -
+**Filip Skokan** &lt;panva.ip@gmail.com&gt;
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
 **Pooja D P** &lt;Pooja.D.P@ibm.com&gt; (she/her)
 * [psmarshall](https://github.com/psmarshall) -
