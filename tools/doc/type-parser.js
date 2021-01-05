@@ -40,6 +40,8 @@ const customTypesMap = {
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
 
+  'Blob': 'buffer.html#buffer_class_blob',
+
   'BroadcastChannel':
     'worker_threads.html#worker_threads_class_broadcastchannel_' +
     'extends_eventtarget',

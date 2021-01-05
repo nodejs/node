@@ -287,6 +287,119 @@ for (const b of buf) {
 Additionally, the [`buf.values()`][], [`buf.keys()`][], and
 [`buf.entries()`][] methods can be used to create iterators.
 
+## Class: `Blob`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A [`Blob`][] encapsulates immutable, raw data that can be safely shared across
+multiple worker threads.
+
+### `new buffer.Blob([sources[, options]])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sources` {string[]|ArrayBuffer[]|TypedArray[]|DataView[]|Blob[]} An array
+  of string, {ArrayBuffer}, {TypedArray}, {DataView}, or {Blob} objects, or
+  any mix of such objects, that will be stored within the `Blob`.
+* `options` {Object}
+  * `encoding` {string} The character encoding to use for string sources.
+    **Default**: `'utf8'`.
+  * `type` {string} The Blob content-type. The intent is for `type` to convey
+    the MIME media type of the data, however no validation of the type format
+    is performed.
+
+Creates a new `Blob` object containing a concatenation of the given sources.
+
+{ArrayBuffer}, {TypedArray}, {DataView}, and {Buffer} sources are copied into
+the 'Blob' and can therefore be safely modified after the 'Blob' is created.
+
+String sources are also copied into the `Blob`.
+
+### `blob.arrayBuffer()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Returns a promise that fulfills with an {ArrayBuffer} containing a copy of
+the `Blob` data.
+
+### `blob.size`
+<!-- YAML
+added: REPLACEME
+-->
+
+The total size of the `Blob` in bytes.
+
+### `blob.slice([start, [end, [type]]])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `start` {number} The starting index.
+* `end` {number} The ending index.
+* `type` {string} The content-type for the new `Blob`
+
+Creates and returns a new `Blob` containing a subset of this `Blob` objects
+data. The original `Blob` is not alterered.
+
+### `blob.text()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Returns a promise that resolves the contents of the `Blob` decoded as a UTF-8
+string.
+
+### `blob.type`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The content-type of the `Blob`.
+
+### `Blob` objects and `MessageChannel`
+
+Once a {Blob} object is created, it can be sent via `MessagePort` to multiple
+destinations without transfering or immediately copying the data. The data
+contained by the `Blob` is copied only when the `arrayBuffer()` or `text()`
+methods are called.
+
+```js
+const { Blob } = require('buffer');
+const blob = new Blob(['hello there']);
+const { setTimeout: delay } = require('timers/promises');
+
+const mc1 = new MessageChannel();
+const mc2 = new MessageChannel();
+
+mc1.port1.onmessage = async ({ data }) => {
+  console.log(await data.arrayBuffer());
+  mc1.port1.close();
+};
+
+mc2.port1.onmessage = async ({ data }) => {
+  await delay(1000);
+  console.log(await data.arrayBuffer());
+  mc2.port1.close();
+};
+
+mc1.port2.postMessage(blob);
+mc2.port2.postMessage(blob);
+
+// The Blob is still usable after posting.
+data.text().then(console.log);
+```
+
 ## Class: `Buffer`
 
 The `Buffer` class is a global type for dealing with binary data directly.
@@ -3389,6 +3502,7 @@ introducing security vulnerabilities into an application.
 [UTF-8]: https://en.wikipedia.org/wiki/UTF-8
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`Blob`]: https://developer.mozilla.org/en-US/docs/Web/API/Blob
 [`Buffer.alloc()`]: #buffer_static_method_buffer_alloc_size_fill_encoding
 [`Buffer.allocUnsafe()`]: #buffer_static_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow()`]: #buffer_static_method_buffer_allocunsafeslow_size
