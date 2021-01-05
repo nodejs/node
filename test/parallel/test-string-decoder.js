@@ -201,12 +201,14 @@ assert.throws(
   }
 );
 
-assert.throws(
-  () => new StringDecoder().write(Buffer.alloc(0x1fffffe8 + 1).fill('a')),
-  {
-    code: 'ERR_STRING_TOO_LONG',
-  }
-);
+if (common.enoughTestMem) {
+  assert.throws(
+    () => new StringDecoder().write(Buffer.alloc(0x1fffffe8 + 1).fill('a')),
+    {
+      code: 'ERR_STRING_TOO_LONG',
+    }
+  );
+}
 
 // Test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
