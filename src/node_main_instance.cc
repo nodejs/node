@@ -42,7 +42,9 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
   isolate_data_ =
       std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
 
-  SetIsolateMiscHandlers(isolate_, {});
+  IsolateSettings s;
+  s.flags |= SHOULD_SET_WASM_STREAMING_CALLBACK;
+  SetIsolateMiscHandlers(isolate_, s);
 }
 
 const std::vector<intptr_t>& NodeMainInstance::CollectExternalReferences() {
@@ -102,6 +104,7 @@ NodeMainInstance::NodeMainInstance(
                                                 array_buffer_allocator_.get(),
                                                 per_isolate_data_indexes);
   IsolateSettings s;
+  s.flags |= SHOULD_SET_WASM_STREAMING_CALLBACK;
   SetIsolateMiscHandlers(isolate_, s);
   if (!deserialize_mode_) {
     // If in deserialize mode, delay until after the deserialization is

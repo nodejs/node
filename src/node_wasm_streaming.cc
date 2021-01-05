@@ -1,7 +1,6 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "node_wasm_streaming.h"
 
 #include "env-inl.h"
 
@@ -318,6 +317,17 @@ void Initialize(Local<Object> target,
 
 }  // anonymous namespace
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SetCallback);
+  registry->Register(WasmStreaming::OnBytesReceived);
+  registry->Register(WasmStreaming::Finish);
+  registry->Register(WasmStreaming::Abort);
+  registry->Register(WasmStreaming::SetCompiledModuleBytes);
+  registry->Register(WasmStreaming::SetUrl);
+}
+
+}  // namespace WasmStreaming
+
 // Implements streaming for WebAssembly.compileStreaming (V8 callback)
 // by forwarding the call to a user-registered JS function.
 void WasmStreamingCallback(const FunctionCallbackInfo<Value>& args) {
@@ -335,7 +345,8 @@ void WasmStreamingCallback(const FunctionCallbackInfo<Value>& args) {
     DCHECK(!tmpl.IsEmpty());
     Local<Object> wasm_streaming_object;
     if (tmpl->NewInstance(env->context()).ToLocal(&wasm_streaming_object)) {
-      new WasmStreaming(env, wasm_streaming_object, wasm_streaming);
+      new WasmStreaming::WasmStreaming(env, wasm_streaming_object,
+                                       wasm_streaming);
       // cb(Response, WasmStreaming)
       Local<Value> cb_args[] = {args[0], wasm_streaming_object};
       USE(cb->Call(env->context(), Undefined(isolate),
@@ -346,16 +357,6 @@ void WasmStreamingCallback(const FunctionCallbackInfo<Value>& args) {
     wasm_streaming->Abort(try_catch.Exception());
 }
 
-void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(SetCallback);
-  registry->Register(WasmStreaming::OnBytesReceived);
-  registry->Register(WasmStreaming::Finish);
-  registry->Register(WasmStreaming::Abort);
-  registry->Register(WasmStreaming::SetCompiledModuleBytes);
-  registry->Register(WasmStreaming::SetUrl);
-}
-
-}  // namespace WasmStreaming
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(wasm_streaming,
