@@ -91,7 +91,7 @@ async function doReadAndCancel() {
     });
   }
 
-  // Validate file size is withing range for reading
+  // Validate file size is within range for reading
   {
     // Variable taken from https://github.com/nodejs/node/blob/master/lib/internal/fs/promises.js#L5
     const kIoMaxLength = 2 ** 31 - 1;
