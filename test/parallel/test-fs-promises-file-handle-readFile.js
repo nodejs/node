@@ -6,9 +6,10 @@ const common = require('../common');
 // FileHandle.readFile method.
 
 const fs = require('fs');
-const { open } = fs.promises;
+const { open, readFile, writeFile } = fs.promises;
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
+const tick = require('../common/tick');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
@@ -45,6 +46,70 @@ async function validateReadFileProc() {
   assert.ok(hostname.length > 0);
 }
 
+async function doReadAndCancel() {
+  // Signal aborted from the start
+  {
+    const filePathForHandle = path.resolve(tmpDir, 'dogs-running.txt');
+    const fileHandle = await open(filePathForHandle, 'w+');
+    const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
+    fs.writeFileSync(filePathForHandle, buffer);
+    const controller = new AbortController();
+    const { signal } = controller;
+    controller.abort();
+    assert.rejects(readFile(fileHandle, { signal }), {
+      name: 'AbortError'
+    });
+  }
+
+  // Signal aborted on first tick
+  {
+    const filePathForHandle = path.resolve(tmpDir, 'dogs-running1.txt');
+    const fileHandle = await open(filePathForHandle, 'w+');
+    const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
+    fs.writeFileSync(filePathForHandle, buffer);
+    const controller = new AbortController();
+    const { signal } = controller;
+    tick(1, () => controller.abort());
+    assert.rejects(readFile(fileHandle, { signal }), {
+      name: 'AbortError'
+    });
+  }
+
+  // Signal aborted right before buffer read
+  {
+    const newFile = path.resolve(tmpDir, 'dogs-running2.txt');
+    const buffer = Buffer.from('Dogs running'.repeat(1000), 'utf8');
+    fs.writeFileSync(newFile, buffer);
+
+    const fileHandle = await open(newFile, 'r');
+
+    const controller = new AbortController();
+    const { signal } = controller;
+    tick(2, () => controller.abort());
+    assert.rejects(fileHandle.readFile({ signal, encoding: 'utf8' }), {
+      name: 'AbortError'
+    });
+  }
+
+  // Validate file size is withing range for reading
+  {
+    // Variable taken from https://github.com/nodejs/node/blob/master/lib/internal/fs/promises.js#L5
+    const kIoMaxLength = 2 ** 31 - 1;
+
+    const newFile = path.resolve(tmpDir, 'dogs-running3.txt');
+    const buffer = Buffer.alloc(kIoMaxLength + 1);
+    await writeFile(newFile, buffer);
+
+    const fileHandle = await open(newFile, 'r');
+
+    assert.rejects(fileHandle.readFile(), {
+      name: 'RangeError',
+      code: 'ERR_FS_FILE_TOO_LARGE'
+    });
+  }
+}
+
 validateReadFile()
-  .then(() => validateReadFileProc())
+  .then(validateReadFileProc)
+  .then(doReadAndCancel)
   .then(common.mustCall());
