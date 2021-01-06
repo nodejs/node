@@ -67,7 +67,7 @@ const stream = require('stream');
   w.end('end', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
   }));
-  assert.strict(w.destroyed, true);
+  assert.strictEqual(w.destroyed, true);
   w.on('error', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
   }));
