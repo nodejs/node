@@ -31,7 +31,7 @@ async function doWriteWithCancel() {
 }
 
 async function doAppend() {
-  await fsPromises.appendFile(dest, buffer2);
+  await fsPromises.appendFile(dest, buffer2, { flag: null });
   const data = fs.readFileSync(dest);
   const buf = Buffer.concat([buffer, buffer2]);
   assert.deepStrictEqual(buf, data);
