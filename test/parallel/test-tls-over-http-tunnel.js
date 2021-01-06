@@ -61,7 +61,8 @@ const proxy = net.createServer((clientSocket) => {
                          `CONNECT localhost:${server.address().port} ` +
                          'HTTP/1.1\r\n' +
                          'Proxy-Connections: keep-alive\r\n' +
-                         `Host: localhost:${proxy.address().port}\r\n` +
+                         // Match header Host with destination Host
+                         `Host: localhost:${server.address().port}\r\n` +
                          'Connection: close\r\n\r\n');
 
       console.log('PROXY: got CONNECT request');
