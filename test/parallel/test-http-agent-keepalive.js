@@ -105,17 +105,20 @@ function remoteClose() {
 function remoteError() {
   // Remote server will destroy the socket
   const req = get('/error', common.mustNotCall());
+  req.on('socket', common.mustCall((socket) => {
+    socket.on('end', common.mustCall(() => {
+      assert.strictEqual(agent.sockets[name].length, 1);
+      assert.strictEqual(agent.freeSockets[name], undefined);
+    }));
+  }));
   req.on('error', common.mustCall((err) => {
     assert(err);
     assert.strictEqual(err.message, 'socket hang up');
-    assert.strictEqual(agent.sockets[name].length, 1);
+  }));
+  req.on('close', common.mustCall((err) => {
+    assert.strictEqual(agent.sockets[name], undefined);
     assert.strictEqual(agent.freeSockets[name], undefined);
-    // Wait socket 'close' event emit
-    setTimeout(common.mustCall(() => {
-      assert.strictEqual(agent.sockets[name], undefined);
-      assert.strictEqual(agent.freeSockets[name], undefined);
-      server.close();
-    }), common.platformTimeout(1));
+    server.close();
   }));
 }
 
