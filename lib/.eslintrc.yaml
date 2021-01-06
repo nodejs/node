@@ -28,6 +28,7 @@ rules:
   # Custom rules in tools/eslint-rules
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
+  node-core/no-array-destructuring: error
   node-core/prefer-primordials:
     - error
     - name: Array
