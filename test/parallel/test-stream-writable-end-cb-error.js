@@ -56,11 +56,13 @@ const stream = require('stream');
       setImmediate(callback);
     }
   });
-  w.end('testing ended state', common.mustCall());
+  w.end('testing ended state', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+  }));
   assert.strictEqual(w.destroyed, false);
   assert.strictEqual(w.writableEnded, true);
   w.end(common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
   assert.strictEqual(w.destroyed, false);
   assert.strictEqual(w.writableEnded, true);
