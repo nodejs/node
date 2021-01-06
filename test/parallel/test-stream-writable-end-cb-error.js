@@ -46,3 +46,38 @@ const stream = require('stream');
     writable.emit('error', new Error('kaboom'));
   }));
 }
+
+{
+  const w = new stream.Writable({
+    write(chunk, encoding, callback) {
+      setImmediate(callback);
+    },
+    finish(callback) {
+      setImmediate(callback);
+    }
+  });
+  w.end('testing ended state', common.mustCall((err) => {
+    // This errors since .destroy(err), which is invoked by errors
+    // in same tick below, will error all pending callbacks.
+    // Does this make sense? Not sure.
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+  }));
+  assert.strictEqual(w.destroyed, false);
+  assert.strictEqual(w.writableEnded, true);
+  w.end(common.mustCall((err) => {
+    // This errors since .destroy(err), which is invoked by errors
+    // in same tick below, will error all pending callbacks.
+    // Does this make sense? Not sure.
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+  }));
+  assert.strictEqual(w.destroyed, false);
+  assert.strictEqual(w.writableEnded, true);
+  w.end('end', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+  assert.strictEqual(w.destroyed, true);
+  w.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+  w.on('finish', common.mustNotCall());
+}
