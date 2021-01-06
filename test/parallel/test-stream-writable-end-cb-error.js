@@ -57,11 +57,17 @@ const stream = require('stream');
     }
   });
   w.end('testing ended state', common.mustCall((err) => {
+    // This errors since .destroy(err), which is invoked by errors
+    // in same tick below, will error all pending callbacks.
+    // Does this make sense? Not sure.
     assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
   assert.strictEqual(w.destroyed, false);
   assert.strictEqual(w.writableEnded, true);
   w.end(common.mustCall((err) => {
+    // This errors since .destroy(err), which is invoked by errors
+    // in same tick below, will error all pending callbacks.
+    // Does this make sense? Not sure.
     assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
   assert.strictEqual(w.destroyed, false);
