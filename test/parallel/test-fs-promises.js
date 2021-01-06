@@ -16,6 +16,7 @@ const {
   link,
   lchmod,
   lstat,
+  lutimes,
   mkdir,
   mkdtemp,
   open,
@@ -140,6 +141,13 @@ async function getHandle(dest) {
       await handle.close();
     }
 
+    // Use fallback buffer allocation when input not buffer
+    {
+      const handle = await getHandle(dest);
+      const ret = await handle.read(0, 0, 0, 0);
+      assert.strictEqual(ret.buffer.length, 16384);
+    }
+
     // Bytes written to file match buffer
     {
       const handle = await getHandle(dest);
@@ -226,6 +234,19 @@ async function getHandle(dest) {
       await handle.close();
     }
 
+    // Set modification times with lutimes
+    {
+      const a_time = new Date();
+      a_time.setMinutes(a_time.getMinutes() - 1);
+      const m_time = new Date();
+      m_time.setHours(m_time.getHours() - 1);
+      await lutimes(dest, a_time, m_time);
+      const stats = await stat(dest);
+
+      assert.strictEqual(a_time.toString(), stats.atime.toString());
+      assert.strictEqual(m_time.toString(), stats.mtime.toString());
+    }
+
     // create symlink
     {
       const newPath = path.resolve(tmpDir, 'baz2.js');
@@ -270,6 +291,15 @@ async function getHandle(dest) {
       }
     }
 
+    // specify symlink type
+    {
+      const dir = path.join(tmpDir, nextdir());
+      await symlink(tmpDir, dir, 'dir');
+      const stats = await lstat(dir);
+      assert.strictEqual(stats.isSymbolicLink(), true);
+      await unlink(dir);
+    }
+
     // create hard link
     {
       const newPath = path.resolve(tmpDir, 'baz2.js');
@@ -294,6 +324,14 @@ async function getHandle(dest) {
       assert.notStrictEqual(list.indexOf('foo.js'), -1);
       await rmdir(newDir);
       await unlink(newFile);
+    }
+
+    // Use fallback encoding when input is null
+    {
+      const newFile = path.resolve(tmpDir, 'dogs_running.js');
+      await writeFile(newFile, 'dogs running', { encoding: null });
+      const fileExists = fs.existsSync(newFile);
+      assert.strictEqual(fileExists, true);
     }
 
     // `mkdir` when options is number.
