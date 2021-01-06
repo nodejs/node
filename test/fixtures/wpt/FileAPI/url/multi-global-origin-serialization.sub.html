@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Blob URL serialization (specifically the origin) in multi-global situations</title>
+<link rel="help" href="https://w3c.github.io/FileAPI/#unicodeBlobURL">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<!-- this page is the entry global -->
+
+<iframe src="//{{domains[www]}}:{{location[port]}}/FileAPI/support/incumbent.sub.html"></iframe>
+
+<script>
+"use strict";
+setup({ single_test: true });
+document.domain = "{{host}}";
+
+window.onload = () => {
+  const url = frames[0].createBlobURL();
+  const desired = "blob:{{location[scheme]}}://www1";
+  assert_equals(url.substring(0, desired.length), desired,
+    "Origin should contain www1, from the current settings object");
+  done();
+};
+</script>

@@ -38,5 +38,9 @@
   "dom/abort": {
     "commit": "1728d198c92834d92f7f399ef35e7823d5bfa0e4",
     "path": "dom/abort"
+  },
+  "FileAPI": {
+    "commit": "d9d921b8f9235e0d2ec92672040c0ccfc8262e21",
+    "path": "FileAPI"
   }
 }
