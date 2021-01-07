@@ -133,6 +133,7 @@ const flatten = obj => ({
   packageLockOnly: obj['package-lock-only'],
   globalStyle: obj['global-style'],
   legacyBundling: obj['legacy-bundling'],
+  foregroundScripts: !!obj['foreground-scripts'],
   scriptShell: obj['script-shell'] || undefined,
   shell: obj.shell,
   omit: buildOmitList(obj),

@@ -20,8 +20,8 @@ module.exports = () => {
   // return a set of parent dirs for a given path
   const { join } = require('path')
   const getDirs = path =>
-    join(path).split(/[\\\/]/).slice(0, -1).reduce((set, path) =>
-      set.length ? set.concat(join(set[set.length-1], path)) : [path], [])
+    join(path).split(/[\\/]/).slice(0, -1).reduce((set, path) =>
+      set.length ? set.concat(join(set[set.length - 1], path)) : [path], [])
 
   // functions currently running
   const running = new Set()
@@ -80,9 +80,9 @@ module.exports = () => {
     dirs.forEach(dir => {
       const q = queues.get(dir)
       assert(q[0] instanceof Set)
-      if (q[0].size === 1 && q.length === 1) {
+      if (q[0].size === 1 && q.length === 1)
         queues.delete(dir)
-      } else if (q[0].size === 1) {
+      else if (q[0].size === 1) {
         q.shift()
 
         // must be a function or else the Set would've been reused
@@ -112,8 +112,8 @@ module.exports = () => {
       const q = queues.get(dir)
       if (!q)
         queues.set(dir, [new Set([fn])])
-      else if (q[q.length-1] instanceof Set)
-        q[q.length-1].add(fn)
+      else if (q[q.length - 1] instanceof Set)
+        q[q.length - 1].add(fn)
       else
         q.push(new Set([fn]))
     })

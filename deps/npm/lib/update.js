@@ -24,7 +24,7 @@ const update = async args => {
 
   if (npm.flatOptions.depth) {
     log.warn('update', 'The --depth option no longer has any effect. See RFC0019.\n' +
-      'https://github.com/npm/rfcs/blob/latest/accepted/0019-remove-update-depth-option.md')
+      'https://github.com/npm/rfcs/blob/latest/implemented/0019-remove-update-depth-option.md')
   }
 
   const arb = new Arborist({

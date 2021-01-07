@@ -7,7 +7,7 @@ const fs = require('fs')
 const fsm = require('fs-minipass')
 const path = require('path')
 
-const x = module.exports = (opt_, files, cb) => {
+module.exports = (opt_, files, cb) => {
   if (typeof opt_ === 'function')
     cb = opt_, files = null, opt_ = {}
   else if (Array.isArray(opt_))
@@ -63,22 +63,20 @@ const extractFileSync = opt => {
   const u = new Unpack.Sync(opt)
 
   const file = opt.file
-  let threw = true
-  let fd
   const stat = fs.statSync(file)
   // This trades a zero-byte read() syscall for a stat
   // However, it will usually result in less memory allocation
-  const readSize = opt.maxReadSize || 16*1024*1024
+  const readSize = opt.maxReadSize || 16 * 1024 * 1024
   const stream = new fsm.ReadStreamSync(file, {
     readSize: readSize,
-    size: stat.size
+    size: stat.size,
   })
   stream.pipe(u)
 }
 
 const extractFile = (opt, cb) => {
   const u = new Unpack(opt)
-  const readSize = opt.maxReadSize || 16*1024*1024
+  const readSize = opt.maxReadSize || 16 * 1024 * 1024
 
   const file = opt.file
   const p = new Promise((resolve, reject) => {
@@ -93,7 +91,7 @@ const extractFile = (opt, cb) => {
       else {
         const stream = new fsm.ReadStream(file, {
           readSize: readSize,
-          size: stat.size
+          size: stat.size,
         })
         stream.on('error', reject)
         stream.pipe(u)
@@ -103,10 +101,6 @@ const extractFile = (opt, cb) => {
   return cb ? p.then(cb, cb) : p
 }
 
-const extractSync = opt => {
-  return new Unpack.Sync(opt)
-}
+const extractSync = opt => new Unpack.Sync(opt)
 
-const extract = opt => {
-  return new Unpack(opt)
-}
+const extract = opt => new Unpack(opt)

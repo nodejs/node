@@ -43,11 +43,13 @@ const publish = async args => {
     })
   }
 
-  const creds = npm.config.getCredentialsByURI(registry)
-  if (!creds.token && !creds.username) {
-    throw Object.assign(new Error('This command requires you to be logged in.'), {
-      code: 'ENEEDAUTH',
-    })
+  if (!opts.dryRun) {
+    const creds = npm.config.getCredentialsByURI(registry)
+    if (!creds.token && !creds.username) {
+      throw Object.assign(new Error('This command requires you to be logged in.'), {
+        code: 'ENEEDAUTH',
+      })
+    }
   }
 
   if (semver.validRange(defaultTag))

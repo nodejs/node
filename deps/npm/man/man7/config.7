@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "December 2020" "" ""
+.TH "CONFIG" "7" "January 2021" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -557,6 +557,21 @@ Allow unpublishing all versions of a published package\.
 .P
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
+.SS foreground\-scripts
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run all build scripts (ie, \fBpreinstall\fP, \fBinstall\fP, and \fBpostinstall\fP)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process\.
+.P
+Note that this will generally make installs run slower, and be much
+noisier, but can be useful for debugging\.
 .SS format\-package\-lock
 .RS 0
 .IP \(bu 2

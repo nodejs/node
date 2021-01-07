@@ -124,11 +124,12 @@ t.test('npx foo, bin already exists locally', async t => {
   PROGRESS_IGNORED = true
   npm.localBin = path
 
-  await exec(['foo'], er => {
+  await exec(['foo', 'one arg', 'two arg'], er => {
     t.ifError(er, 'npm exec')
   })
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'foo' }},
+    args: ['one arg', 'two arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -148,11 +149,12 @@ t.test('npx foo, bin already exists globally', async t => {
   PROGRESS_IGNORED = true
   npm.globalBin = path
 
-  await exec(['foo'], er => {
+  await exec(['foo', 'one arg', 'two arg'], er => {
     t.ifError(er, 'npm exec')
   })
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'foo' }},
+    args: ['one arg', 'two arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -178,7 +180,7 @@ t.test('npm exec foo, already present locally', async t => {
     },
     _from: 'foo@',
   }
-  await exec(['foo'], er => {
+  await exec(['foo', 'one arg', 'two arg'], er => {
     if (er)
       throw er
   })
@@ -188,6 +190,7 @@ t.test('npm exec foo, already present locally', async t => {
   t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'foo' } },
+    args: ['one arg', 'two arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -220,6 +223,7 @@ t.test('npm exec <noargs>, run interactive shell', async t => {
     if (doRun) {
       t.match(RUN_SCRIPTS, [{
         pkg: { scripts: { npx: 'shell-cmd' } },
+        args: [],
         banner: false,
         path: process.cwd(),
         stdioString: true,
@@ -281,7 +285,7 @@ t.test('npm exec foo, not present locally or in central loc', async t => {
     },
     _from: 'foo@',
   }
-  await exec(['foo'], er => {
+  await exec(['foo', 'one arg', 'two arg'], er => {
     if (er)
       throw er
   })
@@ -292,6 +296,7 @@ t.test('npm exec foo, not present locally or in central loc', async t => {
   const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'foo' } },
+    args: ['one arg', 'two arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -319,7 +324,7 @@ t.test('npm exec foo, not present locally but in central loc', async t => {
     },
     _from: 'foo@',
   }
-  await exec(['foo'], er => {
+  await exec(['foo', 'one arg', 'two arg'], er => {
     if (er)
       throw er
   })
@@ -330,6 +335,7 @@ t.test('npm exec foo, not present locally but in central loc', async t => {
   const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'foo' } },
+    args: ['one arg', 'two arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -357,7 +363,7 @@ t.test('npm exec foo, present locally but wrong version', async t => {
     },
     _from: 'foo@2.x',
   }
-  await exec(['foo@2.x'], er => {
+  await exec(['foo@2.x', 'one arg', 'two arg'], er => {
     if (er)
       throw er
   })
@@ -368,6 +374,7 @@ t.test('npm exec foo, present locally but wrong version', async t => {
   const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'foo' } },
+    args: ['one arg', 'two arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -392,7 +399,7 @@ t.test('npm exec --package=foo bar', async t => {
     _from: 'foo@',
   }
   npm.flatOptions.package = ['foo']
-  await exec(['bar'], er => {
+  await exec(['bar', 'one arg', 'two arg'], er => {
     if (er)
       throw er
   })
@@ -402,6 +409,7 @@ t.test('npm exec --package=foo bar', async t => {
   t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'bar' } },
+    args: ['one arg', 'two arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -442,6 +450,7 @@ t.test('npm exec @foo/bar -- --some=arg, locally installed', async t => {
   t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'bar' } },
+    args: ['--some=arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -473,7 +482,7 @@ t.test('npm exec @foo/bar, with same bin alias and no unscoped named bin, locall
     children: new Map([['@foo/bar', { name: '@foo/bar', version: '1.2.3' }]]),
   }
   MANIFESTS['@foo/bar'] = foobarManifest
-  await exec(['@foo/bar'], er => {
+  await exec(['@foo/bar', 'one arg', 'two arg'], er => {
     if (er)
       throw er
   })
@@ -483,6 +492,7 @@ t.test('npm exec @foo/bar, with same bin alias and no unscoped named bin, locall
   t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
   t.match(RUN_SCRIPTS, [{
     pkg: { scripts: { npx: 'baz' } },
+    args: ['one arg', 'two arg'],
     banner: false,
     path: process.cwd(),
     stdioString: true,
@@ -552,7 +562,7 @@ t.test('run command with 2 packages, need install, verify sort', t => {
         },
         _from: 'bar@',
       }
-      await exec(['foobar'], er => {
+      await exec(['foobar', 'one arg', 'two arg'], er => {
         if (er)
           throw er
       })
@@ -563,6 +573,7 @@ t.test('run command with 2 packages, need install, verify sort', t => {
       const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
       t.match(RUN_SCRIPTS, [{
         pkg: { scripts: { npx: 'foobar' } },
+        args: ['one arg', 'two arg'],
         banner: false,
         path: process.cwd(),
         stdioString: true,

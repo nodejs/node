@@ -37,7 +37,7 @@ exports.name = new Map([
   // skip
   ['V', 'TapeVolumeHeader'],
   // like x
-  ['X', 'OldExtendedHeader']
+  ['X', 'OldExtendedHeader'],
 ])
 
 // map the other direction
