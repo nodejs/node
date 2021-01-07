@@ -1,3 +1,49 @@
+## v7.4.0 (2021-01-07)
+
+### FEATURES
+
+* [`47ed2dfd8`](https://github.com/npm/cli/commit/47ed2dfd865566643bc1d39e8a4f98d2e1add99a)
+  [#2456](https://github.com/npm/cli/issues/2456) add
+  `--foreground-scripts` option ([@isaacs](https://github.com/isaacs))
+
+### BUG FIXES
+
+* [`d01746a5a`](https://github.com/npm/cli/commit/d01746a5a6dde115ee6a600cdf54c9b35afcab3f)
+  [#2444](https://github.com/npm/cli/issues/2444)
+  [#1103](https://github.com/npm/cli/issues/1103) Remove deprecated
+  `process.umask()` ([@isaacs](https://github.com/isaacs))
+* [`b2e2edf8a`](https://github.com/npm/cli/commit/b2e2edf8aee57347c96a61209c7a10139a0cc85a)
+  [#2422](https://github.com/npm/cli/issues/2422) npm publish --dry-run
+  should not check login status ([@buyan302](https://github.com/buyan302))
+* [`99156df80`](https://github.com/npm/cli/commit/99156df8099f55bc69dfa99d7ddcf8d1d569016e)
+  [#2448](https://github.com/npm/cli/issues/2448)
+  [#2425](https://github.com/npm/cli/issues/2425) pass extra arguments
+  directly to run-script as an array ([@nlf](https://github.com/nlf))
+* [`907b34b2e`](https://github.com/npm/cli/commit/907b34b2ecc34ac376d989f824f7492064e43ef4)
+  [#2455](https://github.com/npm/cli/issues/2455) fix(ci): pay attention to
+  --ignore-scripts ([@wraithgar](https://github.com/wraithgar))
+
+### DEPENDENCIES
+
+* [`7a49fd4af`](https://github.com/npm/cli/commit/7a49fd4afc8cd24db40aee008031ea648583d0bc)
+  `tar@6.1.0`, `pacote@11.1.14`
+* [`54a7bd16c`](https://github.com/npm/cli/commit/54a7bd16c130525ade71ec9894af71c2825d8584)
+  `@npmcli/arborist@2.0.3`
+
+### DOCUMENTATION
+
+* [`a390d7456`](https://github.com/npm/cli/commit/a390d74561b72f0b13cba65844ce60c379198087)
+  [#2440](https://github.com/npm/cli/issues/2440) Updated the url for RFC
+  19 so that it isn't a 404.
+  ([@therealjeffg](https://github.com/therealjeffg))
+* [`e02b46ad7`](https://github.com/npm/cli/commit/e02b46ad7acdeb9fbb63f782e546c2f8db94ae6e)
+  [#2436](https://github.com/npm/cli/issues/2436) Grammatical Fix in npm-ls
+  Documentation 'Therefore' is spelled 'Therefor'
+  ([@marsonya](https://github.com/marsonya))
+* [`0fed44dea`](https://github.com/npm/cli/commit/0fed44dea12f125b639b5e3575adcea74a86d3a0)
+  [#2417](https://github.com/npm/cli/issues/2417) Fix npm bug reporting url
+  ([@AkiaCode](https://github.com/AkiaCode))
+
 ## 7.3.0 (2020-12-18)
 
 ### FEATURES

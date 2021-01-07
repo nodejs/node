@@ -66,6 +66,7 @@ const _copyIdealToActual = Symbol('copyIdealToActual')
 const _addOmitsToTrashList = Symbol('addOmitsToTrashList')
 const _packageLockOnly = Symbol('packageLockOnly')
 const _dryRun = Symbol('dryRun')
+const _validatePath = Symbol('validatePath')
 const _reifyPackages = Symbol('reifyPackages')
 
 const _omitDev = Symbol('omitDev')
@@ -120,7 +121,8 @@ module.exports = cls => class Reifier extends cls {
     // start tracker block
     this.addTracker('reify')
     process.emit('time', 'reify')
-    await this[_loadTrees](options)
+    await this[_validatePath]()
+      .then(() => this[_loadTrees](options))
       .then(() => this[_diffTrees]())
       .then(() => this[_reifyPackages]())
       .then(() => this[_saveIdealTree](options))
@@ -130,6 +132,14 @@ module.exports = cls => class Reifier extends cls {
     this.finishTracker('reify')
     process.emit('timeEnd', 'reify')
     return treeCheck(this.actualTree)
+  }
+
+  async [_validatePath] () {
+    // don't create missing dirs on dry runs
+    if (this[_packageLockOnly] || this[_dryRun] || this[_global])
+      return
+
+    await mkdirp(resolve(this.path))
   }
 
   async [_reifyPackages] () {

@@ -21,9 +21,9 @@ const argmap = new Map([
   ['no-mtime', 'noMtime'],
   ['p', 'preserveOwner'],
   ['L', 'follow'],
-  ['h', 'follow']
+  ['h', 'follow'],
 ])
 
-const parse = module.exports = opt => opt ? Object.keys(opt).map(k => [
-  argmap.has(k) ? argmap.get(k) : k, opt[k]
+module.exports = opt => opt ? Object.keys(opt).map(k => [
+  argmap.has(k) ? argmap.get(k) : k, opt[k],
 ]).reduce((set, kv) => (set[kv[0]] = kv[1], set), Object.create(null)) : {}

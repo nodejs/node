@@ -67,7 +67,7 @@ const cmd = (args, cb) => exec(args).then(() => cb()).catch(cb)
 
 const run = async ({ args, call, pathArr, shell }) => {
   // turn list of args into command string
-  const script = call || args.join(' ').trim() || shell
+  const script = call || args.shift() || shell
 
   // do the fakey runScript dance
   // still should work if no package.json in cwd
@@ -98,6 +98,7 @@ const run = async ({ args, call, pathArr, shell }) => {
       path: process.cwd(),
       stdioString: true,
       event: 'npx',
+      args,
       env: {
         PATH: pathArr.join(delimiter),
       },
@@ -144,7 +145,7 @@ const exec = async args => {
     if (binExists) {
       return await run({
         args,
-        call: [args[0], ...args.slice(1)].join(' ').trim(),
+        call,
         pathArr,
         shell,
       })
